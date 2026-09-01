@@ -21,6 +21,7 @@ static FRAMEDEF attack2_wrapper;
 static FRAMEDEF armor_wrapper;
 static FRAMEDEF hero_wrapper;
 static FRAMEDEF food_wrapper;
+static FRAMEDEF gold_wrapper;
 static FRAMEDEF buff_status_label;
 static FRAMEDEF buff_status_icons[MAX_UNIT_STATUSES];
 static FRAMEDEF buff_status_icon_textures[MAX_UNIT_STATUSES];
@@ -85,6 +86,7 @@ static void InfoPanelEnsureLoaded(void) {
         InitStatusWrapper(&armor_wrapper,   0.000f, -0.07050f, 0.100f, 0.030125f);
         InitStatusWrapper(&hero_wrapper,    0.100f, -0.03700f, 0.100f, 0.062500f);
         InitStatusWrapper(&food_wrapper,    0.100f, -0.03925f, 0.100f, 0.030125f);
+        InitStatusWrapper(&gold_wrapper,    0.100f, -0.03925f, 0.100f, 0.030125f);
 
         /* Bind the runtime-controlled status bars to the retail FDF geometry.
          * The FDF owns their anchors; Warsmash supplies only width, textures,
@@ -241,6 +243,7 @@ static void RefreshSimpleInfoPanelStrings(void) {
     if (attack2_icon_label) UI_SetText(attack2_icon_label, "%s", UI_GetString("COLON_DAMAGE"));
     UI_SetText(simple_panel.InfoPanelIconLabel_2, "%s", UI_GetString("COLON_ARMOR"));
     UI_SetText(simple_panel.InfoPanelIconLabel_4, "%s", UI_GetString("COLON_FOOD_PROVIDED"));
+    UI_SetText(simple_panel.InfoPanelIconLabel_5, "%s", UI_GetString("COLON_GOLD"));
     UI_SetText(simple_panel.InfoPanelIconHeroStrengthLabel, "%s", UI_GetString("COLON_STRENGTH"));
     UI_SetText(simple_panel.InfoPanelIconHeroAgilityLabel, "%s", UI_GetString("COLON_AGILITY"));
     UI_SetText(simple_panel.InfoPanelIconHeroIntellectLabel, "%s", UI_GetString("COLON_INTELLECT"));
@@ -310,6 +313,7 @@ static void SetUpgradeLevel(LPFRAMEDEF frame, DWORD upgrade, LPEDICT ent) {
 
     if (!frame) return;
     if (!upgrade || !ent || !(owner = G_GetPlayerClientByNumber(ent->s.player))) {
+        UI_SetText(frame, "%s", "");
         UI_SetHidden(frame, true);
         return;
     }
@@ -457,13 +461,26 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
     UI_WriteFrame(&armor_wrapper);
     UI_WriteFrameWithChildren(simple_panel.SimpleInfoPanelIconArmor, &armor_wrapper);
 
-    if (ent->UnitBalance->foodMade > 0) {
+    if (ent->resources > 0) {
+        LPCSTR const gold_art = Theme_String("InfoPanelIconGold", NULL);
+        if (!gold_art || !*gold_art) {
+            fprintf(stderr, "WriteSelectedUnitStatusFrames: missing war3skins InfoPanelIconGold\n");
+        } else {
+            UI_SetTexture(simple_panel.InfoPanelIconBackdrop_5, gold_art, false);
+        }
+        UI_SetText(simple_panel.InfoPanelIconLevel_5, "%s", "");
+        UI_SetHidden(simple_panel.InfoPanelIconLevel_5, true);
+        UI_SetText(simple_panel.InfoPanelIconValue_5, "%u", (unsigned)ent->resources);
+        UI_WriteFrame(&gold_wrapper);
+        UI_WriteFrameWithChildren(simple_panel.SimpleInfoPanelIconGold, &gold_wrapper);
+    } else if (ent->UnitBalance->foodMade > 0) {
         LPCSTR const food_art = Theme_String("InfoPanelIconFood", NULL);
         if (!food_art || !*food_art) {
             fprintf(stderr, "WriteSelectedUnitStatusFrames: missing war3skins InfoPanelIconFood\n");
         } else {
             UI_SetTexture(simple_panel.InfoPanelIconBackdrop_4, food_art, false);
         }
+        UI_SetText(simple_panel.InfoPanelIconLevel_4, "%s", "");
         UI_SetHidden(simple_panel.InfoPanelIconLevel_4, true);
         UI_SetText(simple_panel.InfoPanelIconValue_4, "%ld", (long)ent->UnitBalance->foodMade);
         UI_WriteFrame(&food_wrapper);
@@ -497,12 +514,25 @@ static FLOAT HeroLevelProgress(LPEDICT ent) {
 }
 
 static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero) {
+    char class_text[128];
+    LPCSTR unit_name;
+    LPCSTR class_format;
     BOOL old_hero_hidden;
 
     if (!simple_infopanel_loaded) return;
     UI_SetText(simple_panel.SimpleNameValue, "%s", display_name ? display_name : "");
-    UI_SetText(simple_panel.SimpleClassValue, "%s", "");
-    UI_SetHidden(simple_panel.SimpleClassValue, true);
+    unit_name = G_UnitProfile(ent->class_id)->name;
+    if (!unit_name || !*unit_name) unit_name = GetClassName(ent->class_id);
+    if (is_hero) {
+        class_format = UI_GetString("INFOPANEL_LEVEL_CLASS");
+        snprintf(class_text, sizeof(class_text), class_format,
+                 (unsigned)MAX(1u, ent->hero.level), unit_name);
+        UI_SetText(simple_panel.SimpleClassValue, "%s", class_text);
+        UI_SetHidden(simple_panel.SimpleClassValue, false);
+    } else {
+        UI_SetText(simple_panel.SimpleClassValue, "%s", "");
+        UI_SetHidden(simple_panel.SimpleClassValue, true);
+    }
     UI_SetHidden(simple_panel.SimpleProgressIndicator, true);
 
     old_hero_hidden = simple_panel.SimpleHeroLevelBar->hidden;
@@ -530,6 +560,7 @@ DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key) {
     if (!name || !*name) name = GetClassName(ent->class_id);
     UI_SetText(simple_panel.SimpleBuildingNameValue, "%s", name);
     UI_SetText(simple_panel.SimpleBuildingDescriptionValue, "%s", "");
+    UI_SetHidden(simple_panel.SimpleBuildingDescriptionValue, true);
     UI_SetText(simple_panel.SimpleBuildingActionLabel, "%s", UI_GetString(action_key ? action_key : "TRAINING"));
     UI_SetHidden(simple_panel.SimpleBuildTimeIndicator, false);
     UI_SetHidden(simple_panel.SimpleBuildQueueBackdrop, false);
@@ -609,9 +640,17 @@ void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
     gi.MemFree(buffer);
 }
 
+static BOOL UI_UsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
+    if (!viewer || !unit || !unit->UnitBalance || !unit->UnitBalance->isBuilding)
+        return false;
+    if (!G_UnitCanControl(viewer, unit))
+        return false;
+    return unit->construction.active || unit->build != NULL;
+}
+
 void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
     if (!ent->client) return;
-    if (count == 1 && (!selected[0]->build || !G_UnitCanControl(ent->client, selected[0]))) {
+    if (count == 1 && !UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
         ent->client->infopanel.entity = selected[0]->s.number;
         ent->client->infopanel.hp = (LONG)(selected[0]->health.value + 0.5f);
         ent->client->infopanel.mana = (LONG)(selected[0]->mana.value + 0.5f);
@@ -624,7 +663,7 @@ void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
-        if (selected[0]->build && G_UnitCanControl(ent->client, selected[0])) {
+        if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
             UI_WriteBuildQueue(selected[0]);
         } else {
             UI_WriteSingleInfo(selected[0]);
@@ -798,12 +837,27 @@ static void WriteInventoryNoCapacitySlot(BYTE slot, LPCSTR art) {
     UI_WriteTextureFrame(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, art);
 }
 
+static void WriteInventoryTitle(void) {
+    uiFrame_t frame = { 0 };
+    uiLabel_t label = { 0 };
+
+    frame.flags.type = FT_STRING;
+    frame.text = UI_GetString("INVENTORY");
+    frame.color = MAKE(COLOR32, 252, 222, 18, 255);
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 11);
+    label.textalignx = FONT_JUSTIFYCENTER;
+    label.textaligny = FONT_JUSTIFYMIDDLE;
+    UI_SetFrameRect(&frame, 0.516f, 0.4684375f, 0.071f, 0.01125f);
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
 static void WriteInventory(LPEDICT player, LPEDICT ent) {
     gameInventoryItem_t items[MAX_INVENTORY];
     DWORD capacity = G_InventoryCapacity(ent);
     BYTE count;
 
     if (!capacity) { WriteInventoryCover(player); return; }
+    WriteInventoryTitle();
     if (capacity < MAX_INVENTORY) {
         LPCSTR art = Theme_PlayerString(player ? player->client : NULL, "ConsoleInventoryNoCapacity", NULL);
         if (!art || !*art) {
@@ -881,25 +935,25 @@ void G_RefreshInfoPanel(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
     DWORD count;
     LONG hp, mana;
+    BOOL portrait_changed;
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
-    if (count != 1 || (selected[0]->build && G_UnitCanControl(ent->client, selected[0]))) {
+    if (count != 1 || UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
         ent->client->infopanel.entity = 0;
         return;
     }
     hp = (LONG)(selected[0]->health.value + 0.5f);
     mana = (LONG)(selected[0]->mana.value + 0.5f);
-    if (selected[0]->s.number == ent->client->infopanel.entity &&
-        hp == ent->client->infopanel.hp &&
-        mana == ent->client->infopanel.mana &&
+    portrait_changed = selected[0]->s.number != ent->client->infopanel.entity ||
+                       hp != ent->client->infopanel.hp ||
+                       mana != ent->client->infopanel.mana;
+    if (!portrait_changed &&
         (LONG)selected[0]->hero.xp == ent->client->infopanel.xp) {
         return;
     }
-    if (selected[0]->s.number != ent->client->infopanel.entity ||
-        hp != ent->client->infopanel.hp || mana != ent->client->infopanel.mana)
-        ent->client->presentation_dirty = true;
     UI_SendInfoPanel(ent, selected, count);
+    if (portrait_changed) UI_WriteDialoguePresentation(ent);
 }
 
 /* Once per server frame, keep every player's info panel in sync. */

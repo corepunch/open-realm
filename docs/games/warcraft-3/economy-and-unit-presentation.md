@@ -291,9 +291,9 @@ The selected-unit portrait is one of those runtime-owned frames. Current Warsmas
 `SmashUI/UnitPortrait.fdf`; that file is useful as a parity reference but is not retail MPQ data and must not be loaded by OpenRealm.
 The runtime portrait therefore mirrors its final WC3-space contract directly: the model is `(0.211, 0.4865, 0.0835, 0.085)`, while
 centered `current / max` health and mana strings occupy the strip below it. Health uses the Warcraft red -> yellow -> green life-ratio
-gradient and mana is white; units with no mana keep the mana frame but render an empty value. HP/mana changes mark the gameplay
-presentation dirty so `LAYER_PORTRAIT` refreshes on the next presentation pass. A normal gameplay transmission still owns that layer
-while active, so selection-stat refresh must not replace a talking portrait mid-transmission.
+gradient and mana is white; units with no mana keep the mana frame but render an empty value. Selected-unit HP/mana changes refresh
+the gameplay portrait in the same HUD update instead of waiting for the next dirty-presentation pass. A normal gameplay transmission
+still owns that layer, so the shared dialogue presentation writer preserves the talking portrait while a transmission is active.
 
 The selected-unit damage, armor, and Hero-attribute blocks use retail `UI\FrameDef\UI\SimpleInfoPanel.fdf` for the
 actual icon, label, value, and internal offsets. C owns only the runtime wrapper rectangles that the game repositions:
@@ -306,7 +306,9 @@ when `SimpleInfoPanel.fdf` is available; they remain only as an explicitly diagn
 cannot be loaded. Hero STR/AGI/INT label positions and the primary-attribute icon are therefore data-driven by the
 retail FDF/War3Skins rather than duplicated as child-coordinate literals in C. `GlobalStrings.fdf` must be loaded before
 `SimpleInfoPanel.fdf`: `COLON_DAMAGE`, `COLON_ARMOR`, and the Hero `COLON_*` labels are string-table IDs resolved while the FDF is
-parsed, not at draw time. Never replace unresolved IDs with hardcoded English text.
+parsed, not hardcoded English. Retail `GlobalStrings.fdf` uses newline-delimited `StringList` key/value pairs rather than requiring
+commas, so the parser consumes one quoted value token per key while still accepting an optional comma. The parser-owned registry is
+cleared with the FDF template lifecycle so stale strings cannot leak between UI loads.
 
 The right-hand second damage block is attack slot 2, not a status/buff icon. It is emitted only when `weapsOn` enables bit 1, the
 second weapon has damage dice, and `showUI2` is true. A populated dormant attack-2 row must not produce a second icon/value such as
@@ -323,18 +325,26 @@ info layer so the strip refreshes without polling every frame.
 Upgrade-level text is the small `InfoPanelIconLevel` overlay attached to the bottom-right of a damage/armor icon. It is not a buff
 slot. Resolve the selected unit's `UnitBalance.upgrades` rawcodes through `UpgradeData.slk` and show the player's researched level only
 for the matching `melee`/`ranged`/`artillery` weapon class or `armor` class. Hero attribute presentation does not inherit an unrelated
-unit upgrade marker. Buildings with `foodMade > 0` use the retail `SimpleInfoPanelIconFood` tree, `InfoPanelIconFood` skin texture,
-`COLON_FOOD_PROVIDED` label, and the authored Food Provided value layout; the dynamic wrapper occupies the right-hand first stat slot.
+unit upgrade marker. A matching upgrade at researched level zero is still displayed as `0`; if no matching upgrade exists, the level
+overlay is cleared and hidden. Buildings with `foodMade > 0` use the retail `SimpleInfoPanelIconFood` tree, `InfoPanelIconFood` skin
+texture, `COLON_FOOD_PROVIDED` label, and the authored Food Provided value layout. Resource-bearing units such as Gold Mines use the
+parallel `SimpleInfoPanelIconGold` tree, `InfoPanelIconGold` skin texture, `COLON_GOLD`, and the current resource amount.
 
 `SimpleNameValue` owns the selected-unit title typography and anchor. Do not synthesize `Level 1 Peasant`-style class strings. Heroes
 use the retail `SimpleHeroLevelBar` in the line below their proper name, with `SimpleXpBarConsole` / `SimpleXpBarBorder` and the
-current-level XP fraction. The class line remains empty for this compatibility presentation. Runtime values may override a status-bar
-value, but its geometry and anchors stay FDF-authored.
+current-level XP fraction. Ordinary units keep the class line empty; Heroes populate `SimpleClassValue` through
+`INFOPANEL_LEVEL_CLASS`, for example `Level 2 Paladin`. Runtime values may override a status-bar value, but its geometry and anchors
+stay FDF-authored.
 
 `SimpleInfoPanelBuildingDetail` owns the training/research shell. The queue backdrop is `0.180 x 0.090`; the FDF build-time indicator
 is runtime-sized to `0.10538 x 0.0103` and remains at its authored anchor. Warcraft creates queue icons outside the FDF: active slot 0
 is `0.02671875` square at top-left `(0.320546875, 0.526875)`, while waiting slots are `0.020390625` square beginning at
 `(0.319140625, 0.562734375)` with horizontal stride `0.028125`. Cancellation hit targets must use those same rectangles.
+Only controllable buildings use this queue/construction panel: a Peasant's `build` pointer names the structure it is working on and
+does not change the Peasant's own selected-unit panel. The unused building-description String is explicitly hidden.
+
+The runtime inventory heading uses the localized `INVENTORY` StringList entry and is emitted only when the selected unit has inventory
+capacity. Selecting a unit without inventory replaces that layer with the race-specific inventory cover and no heading.
 
 Ability state and visible buff state are different namespaces. `abilstatus[]` may carry an ability rawcode such as `AHad`; status UI
 resolves that ability's level-specific `AbilityData.slk` `BuffID*` to the corresponding buff rawcode (for example `BHad`) before

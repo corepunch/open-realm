@@ -583,6 +583,29 @@ TEST(ui_fdf, comment_markers_inside_quoted_strings_are_preserved) {
     T_STREQ(more_text->Text, "more /* marker */ and // marker text");
 }
 
+TEST(ui_fdf, global_stringlist_keys_resolve_and_clear_with_templates) {
+    reset_ui_state();
+    parse_fdf("global_strings.fdf",
+              "StringList {\n"
+              "    COLON_DAMAGE \"Damage:\"\n"
+              "    COLON_FOOD_PROVIDED \"Food Provided:\"\n"
+              "    COLON_STRENGTH \"Strength:\"\n"
+              "    COLON_GOLD \"Gold:\"\n"
+              "    INFOPANEL_LEVEL_CLASS \"Level %u %s\"\n"
+              "    INVENTORY \"Inventory\"\n"
+              "}\n");
+
+    T_STREQ(UI_GetString("COLON_DAMAGE"), "Damage:");
+    T_STREQ(UI_GetString("COLON_FOOD_PROVIDED"), "Food Provided:");
+    T_STREQ(UI_GetString("COLON_STRENGTH"), "Strength:");
+    T_STREQ(UI_GetString("COLON_GOLD"), "Gold:");
+    T_STREQ(UI_GetString("INFOPANEL_LEVEL_CLASS"), "Level %u %s");
+    T_STREQ(UI_GetString("INVENTORY"), "Inventory");
+
+    UI_ClearTemplates();
+    T_STREQ(UI_GetString("COLON_DAMAGE"), "COLON_DAMAGE");
+}
+
 TEST(ui_fdf, shipped_style_disabled_properties_do_not_escape_comments) {
     LPFRAMEDEF root;
     LPFRAMEDEF icon;
