@@ -113,7 +113,7 @@ typedef struct {
     FLOAT width;
     BYTE health;
     BYTE mana;
-    char name[128]; /* TODO: replace the temporary client placeholder with server-authoritative text. */
+    char name[128];
 } uiHoverUnit_t;
 
 /* Callbacks provided by the client to the UI library.
