@@ -233,6 +233,21 @@ These are still second-best compared with simplifying the architecture.
 - What grid scale is acceptable: 128 world units, 256 world units, or tied to pathing cells?
 - Is smooth visual interpolation required, or is Warcraft-style cell stepping acceptable initially?
 
+## Retail Game.dll Reverse Engineering
+
+The bundled 2002 demo `Game.dll` contains a `CFogOfWarMap` implementation. Its initializer rounds the map width up to
+the next power of two, stores the corresponding shift count, and allocates multiple 16-bit planes. The update helpers
+address rows with `row << shift`, clamp the horizontal span once, then OR or AND repeated 16-bit words; they do not
+visit every cell through a byte-oriented setter. One helper clears the current plane while preserving the history
+plane, and another applies rectangular spans to both planes. This is consistent with current visibility plus persistent
+exploration, and explains the retail implementation's low constant cost.
+
+`WC3_FOW_PACKED_MASK=1` currently enables an evidence-backed prototype of that row-mask representation in
+`games/warcraft-3/game/g_fow.c`. It remains opt-in because the compatibility byte plane and per-cell explored updates
+currently cost more than the existing path on the 256×256/160-revealer benchmark (`0.16 ms` versus `0.13 ms` in the
+release build). The next optimization is to make the packed history plane authoritative for queries and wire packing,
+then unpack only when a client publication actually requires bytes.
+
 ## Sources
 
 - Blizzard, [StarCraft II Game Guide: Map Elements](https://news.blizzard.com/en-us/article/4546768/game-guide-map-elements)

@@ -219,7 +219,7 @@ static void G_FowRevealDisk(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radiu
 }
 
 #ifdef WC3_FOW_PACKED_MASK
-/* Apply a table-shaped packed mask, then mirror newly set bits into the wire-facing byte plane. */
+/* Apply retail's packed horizontal spans; the byte plane is materialized once after all revealers. */
 static void G_FowRevealPacked(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
     static WORD const bit[16] = {
         0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
@@ -242,18 +242,30 @@ static void G_FowRevealPacked(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int rad
             int first = x & 15;
             int last = MIN(15, max_x - (word << 4));
             WORD mask = 0;
-            WORD fresh;
 
             for (int bit_index = first; bit_index <= last; bit_index++) mask |= bit[bit_index];
-            fresh = (WORD)(mask & (WORD)~grid->packed_visible[word + y * grid->packed_stride]);
             grid->packed_visible[word + y * grid->packed_stride] |= mask;
-            while (fresh) {
-                int bit_index = __builtin_ctz((unsigned)fresh);
-                G_FOW_SET_VISIBLE_CELL(grid, (DWORD)((word << 4) + bit_index), (DWORD)y);
-                fresh &= (WORD)~bit[bit_index];
+            grid->visible_rows[y] = 1;
+            grid->dirty_visible_rows[y] = 1;
+            for (int bit_index = first; bit_index <= last; bit_index++) {
+                DWORD const index = (word << 4) + bit_index + y * level.fow.width;
+                if (!grid->explored[index]) {
+                    grid->explored[index] = 1;
+                    grid->dirty_explored_rows[y] = 1;
+                }
             }
             x = (word + 1) << 4;
         }
+    }
+}
+
+/* Unpack only rows touched by the current reveal pass for byte-based queries and network packing. */
+static void G_FowMaterializePacked(fowPlayerGrid_t *grid) {
+    FOR_LOOP(y, level.fow.height) {
+        BYTE *dst;
+        if (!grid->visible_rows[y]) continue;
+        dst = grid->visible + y * level.fow.width;
+        FOR_LOOP(x, level.fow.width) dst[x] = (grid->packed_visible[(x >> 4) + y * grid->packed_stride] >> (x & 15)) & 1;
     }
 }
 #endif
@@ -970,6 +982,10 @@ void G_FowUpdate(void) {
         G_FowRevealForViewers(ent, radius, owner_viewers[ent->s.player]);
     }
 
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast)
+        FOR_LOOP(player, MAX_PLAYERS) if (viewers & (1u << player)) G_FowMaterializePacked(&level.fow.players[player]);
+#endif
     G_FowApplyModifiers(viewers);
 }
 
