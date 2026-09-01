@@ -438,6 +438,7 @@ DWORD Wow_CachedCreatureType(DWORD display_id);
 DWORD Wow_CachedCreatureFamily(DWORD display_id);
 DWORD Wow_CachedCreatureRank(DWORD display_id);
 void UI_WriteWowHud(LPEDICT ent);
+void UI_WriteWowHover(LPEDICT ent);
 void UI_WriteWelcomeWindow(LPEDICT ent);
 void UI_HideWindow(LPEDICT ent, LPCSTR window_id);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);

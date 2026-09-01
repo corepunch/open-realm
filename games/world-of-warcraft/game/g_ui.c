@@ -95,6 +95,34 @@ static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, C
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
+/* Write the static world-hover widget; the client resolves its selected creature context each frame. */
+void UI_WriteWowHover(LPEDICT ent) {
+    uiFrame_t frame = { 0 };
+    uiLabel_t label = { 0 };
+
+    if (!ent || !ent->client) return;
+    UI_WriteStart(LAYER_WORLD_HOVER);
+    frame.flags.type = FT_STRING; frame.stat = UI_STAT_CONTEXT_NAME; frame.color = MAKE(COLOR32, 0, 255, 0, 255);
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 14);
+    label.textalignx = FONT_JUSTIFYCENTER; label.textaligny = FONT_JUSTIFYMIDDLE;
+    UI_SetFrameRect(&frame, -PW(120), -PH(34), PW(240), PH(20));
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_SIMPLESTATUSBAR; frame.tex.index = gi.ImageIndex("Interface\\TargetingFrame\\UI-StatusBar.blp");
+    frame.stat = UI_STAT_CONTEXT_HEALTH; frame.color = MAKE(COLOR32, 0, 255, 0, 255);
+    UI_SetFrameRect(&frame, -PW(60), -PH(13), PW(120), PH(6));
+    UI_WriteProxyFrame(&frame, NULL, 0);
+
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_SIMPLESTATUSBAR; frame.tex.index = gi.ImageIndex("Interface\\TargetingFrame\\UI-StatusBar.blp");
+    frame.stat = UI_STAT_CONTEXT_MANA; frame.color = MAKE(COLOR32, 60, 90, 235, 255);
+    UI_SetFrameRect(&frame, -PW(60), -PH(6), PW(120), PH(5));
+    UI_WriteProxyFrame(&frame, NULL, 0);
+    UI_WriteEnd();
+    gi.unicast(ent);
+}
+
 static void UI_WriteTextArea(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color) {
     uiFrame_t frame;
     uiTextArea_t area;
