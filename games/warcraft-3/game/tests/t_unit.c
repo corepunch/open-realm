@@ -77,6 +77,15 @@ static LPEDICT make_world_item(DWORD class_id) {
     return item;
 }
 
+TEST(wc3_unit, shared_test_unit_starts_alive) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+
+    T_ASSERT(ent->UnitBalance->maxHealth > 0.0f);
+    T_FEQ(ent->health.max_value, ent->UnitBalance->maxHealth, 0.001f);
+    T_FEQ(ent->health.value, ent->health.max_value, 0.001f);
+    T_ASSERT(!M_IsDead(ent));
+}
+
 TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
     static LPCSTR const slk =
         "ID;PWXL;N;E\n"

@@ -24,6 +24,11 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
     ent->bounds.min.y = y - 16;
     ent->bounds.max.x = x + 16;
     ent->bounds.max.y = y + 16;
+    /* Match SP_SpawnUnit's liveness contract for real unit rows.  Order and
+     * selection code uses health <= 0 as the authoritative dead predicate, so
+     * a generic test unit must not silently start life as a corpse. */
+    ent->health.max_value = ent->UnitBalance->maxHealth;
+    ent->health.value = ent->health.max_value;
     return ent;
 }
 
