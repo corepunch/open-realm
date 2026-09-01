@@ -22,13 +22,15 @@ Plain right-click movement is different from an interaction order: `move_selectl
 
 Game routing no longer uses the old lifetime quota of two synchronous whole-map flow-field bakes. That quota avoided repeated handheld stalls, but after it was spent a later uncached move order received generation 0 forever and generic steering fell back toward the raw target. A reachable order behind trees/buildings could therefore stop even though the static router could have found a route.
 
-`CM_RequestHeatmapForRadius()` is now the game-facing cache-miss path. A cache hit returns its generation immediately; a miss starts one resumable reverse shortest-path job and returns 0 until the job completes. `G_RunFrame()` advances that job after entity simulation through `CM_ProcessPathJobs()`. The default relaxation budget is 4096 queue pops per frame and is runtime-tunable with:
+`CM_RequestHeatmapForRadius()` is the game-facing shared-cache miss path. A cache hit returns its generation immediately; a miss starts one resumable reverse shortest-path job and returns 0 until the job completes. `G_RunFrame()` advances that job after entity simulation through `CM_ProcessPathJobs()`. The default relaxation budget is 32,768 queue pops per frame and is runtime-tunable with:
 
 ```sh
-+set wc3_path_work_budget 4096
++set wc3_path_work_budget 32768
 ```
 
-The value is clamped to 256-65536. This keeps the expensive SPFA relaxation work bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations naturally retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations. A cache miss can therefore produce a short, intentional start pause when a real detour is required. Raising `wc3_path_work_budget` (for example to 8192) reduces that latency at the cost of more routing work per simulation frame; the default remains 4096 for handheld safety.
+The value is clamped to 256-65,536. This keeps SPFA relaxation bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations.
+
+Nearby detours do not wait for that whole field. `CM_FindPathWaypoint()` runs a bounded point-to-point A* accelerator for endpoints within 48 pathing cells, expands at most 2,048 nodes, and returns the farthest recovered path point with a collision-sized clear line from the mover. The mover retains that waypoint until it reaches it, the target changes, or static pathing invalidates the segment. A failed or out-of-envelope acceleration request falls back to the shared incremental field, so long routes remain frame-budgeted.
 
 While a resumable request is pending, `unit_changeangle*()` leaves both `movement.flow_generation == 0` and `movement.flow_direct == false`. `unit_moveindirection()` treats that pair as "no heading resolved this tick" and does not commit a step. This shared guard is important: a caller must never turn a pending route into movement along the unit's stale facing.
 
@@ -36,10 +38,7 @@ Plain Move also keeps the stand presentation while that pair is clear. The order
 
 `CM_BuildHeatmapForRadius()` remains the synchronous API for tests/tools that explicitly require a completed field. Production movement goes through `M_RefreshHeatmap()` -> `CM_RequestHeatmapForRadius()`.
 
-Production services the shared incremental build with 32,768 queue pops per 10 Hz server frame. A 256x256 open field
-therefore completes in at most two frames instead of the previous sixteen-frame (1.6 second) delay. Override
-`wc3_path_work_budget` for slower targets; values are clamped to 256-65,536. This changes only scheduling: cache misses
-still build a complete destination-rooted field before publishing its generation, so long routes remain frame-budgeted.
+Production services the shared incremental build with 32,768 queue pops per 10 Hz server frame. A 256x256 open field therefore completes in at most two frames instead of the previous sixteen-frame (1.6 second) delay. Override `wc3_path_work_budget` for slower targets. Complete destination-rooted publication remains the long-route fallback; the bounded accelerator is what removes that publication delay from nearby obstacle detours.
 
 `CM_BuildHeatmapForRadius()` and the resumable request path both key cached fields by adjusted target cell and mover collision radius. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
 
@@ -62,25 +61,39 @@ When a clicked destination is in another static connected component, the destina
 
 Ordinary destination fields remain incremental and frame-budgeted. The mover-component flood is synchronous only after a completed destination field proves the click unreachable, so this exceptional recovery does not add input-time work to reachable orders.
 
-The current router does not need wholesale replacement. Its cached integration fields, collision expansion, direct-line shortcut, and local dynamic avoidance are suitable for WC3 movement once they share one traversability contract. Remaining large-scale work is performance-oriented: incremental field construction and richer dynamic crowd routing, not a different static shortest-path algorithm.
+The current router is now deliberately hybrid. Direct collision-sized lines handle open ground, bounded per-mover A* handles nearby static detours, destination-cached integration fields amortize long routes shared by groups, and local avoidance handles live units. This is closer to retail's split between mover-owned route state and a global pathing system without claiming its unrecovered accelerator implementation.
 
 ### Retail Game.dll path audit
 
-The ROC demo `data/Warcraft3demo/Game.dll` (build 4486, SHA-256
-`286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`) retains RTTI for `CAbilityMove`,
-`NIpse::CLrPathingSys`, `NIpse::CLrPathingAcc`, and `NIpse::CLrPath`. `CAbilityMove` installs its vtable at
-`Game.dll+0x102898`. The low-level path constructor at `+0x458040` creates persistent route state, while `+0x466aa0`
-allocates and stores one of those path objects on a mover. Route setup at `+0x4661d0` compares destination and mode
-state, submits an adjusted coordinate through `+0x458670`, and branches on several path-result states returned by
-`+0x458930`. Group movement at `+0x46a130` and `+0x46a330` derives per-mover coordinates and path flags before updating
-each path object. Retail routing is therefore not a point-only line test followed by movement that independently
-rejects the unit footprint.
+The ROC demo `data/Warcraft3demo/Game.dll` (build 4486, SHA-256 `286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`) retains RTTI for `CAbilityMove`, `NIpse::CLrPathingSys`, and `NIpse::CLrPathingAcc`. `CAbilityMove` installs its vtable at `Game.dll+0x102898`. The path constructor at `+0x458040` initializes a roughly 0xb0-byte persistent object, including two 32-byte containers at `+0x2c` and `+0x4c`, coordinate/state fields, and a pathing-system pointer. Mover setup at `+0x466aa0` allocates and stores one such object. Submission at `+0x458670` resets route state and copies the requested coordinate into both current and destination fields.
+
+The update at `+0x458930` checks flags at `+0x80`, can return a pending state from a countdown at `+0x8c`, invokes progression routines at `+0x457da0` and `+0x457f20`, and exposes multiple result states to the movement caller at `+0x4661d0`. `+0x457da0` appends 8-byte coordinate pairs to the object's route container. `+0x457f20` consults one of two global indexed arrays through a signed selector and a `-2` sentinel before advancing the route. Together with the separate `CLrPathingAcc` and `CLrPathingSys` types, this establishes persistent per-mover progress backed by global accelerated pathing data. It does not establish whether the accelerator is A*, hierarchical sectors, a portal graph, or another Blizzard-specific structure.
+
+Group movement at `+0x46a130` and `+0x46a330` derives per-mover coordinates and path flags before updating each path object. Retail routing is therefore not a point-only line test followed by movement that independently rejects the unit footprint, nor is there evidence that every order waits for a complete destination-rooted map flood.
 
 This supports the direction of commit `4bad783d`: using the mover's collision size consistently and resolving an
 unreachable click to a legal endpoint are closer to retail's per-mover, adjusted-endpoint architecture than routing a
-point toward an impossible destination. The binary does not establish that OpenRealm's nearest-cell flood, SPFA
-integration field, cache policy, or exact `ox/xo` diagonal test matches Blizzard's algorithm. Treat the corner rule as
-a necessary consistency fix and the closest-reachable policy as behaviorally retail-like, not instruction-equivalent.
+point toward an impossible destination. The binary does not establish that OpenRealm's bounded A*, nearest-cell flood,
+SPFA integration field, four-slot cache policy, or exact `ox/xo` diagonal test matches Blizzard's algorithm. Treat the
+accelerator as a behaviorally supported approximation: it reproduces immediate nearby route output and mover-owned
+progress while retaining OpenRealm's group-friendly cache for long routes.
+
+### Retail and OpenRealm algorithm outline
+
+| Stage | Retail evidence | OpenRealm |
+|---|---|---|
+| Open ground | Route setup can retain or reset mover path state by destination and mode | Collision-sized Bresenham line; no search |
+| Nearby detour | Persistent mover path object emits coordinate pairs; global accelerator is consulted | Bounded octile A* emits one smoothed, persistent waypoint |
+| Long/shared route | Global `CLrPathingSys` and `CLrPathingAcc`; exact sharing policy unrecovered | Four LRU destination/radius integration fields, built backward with SPFA |
+| Dynamic units | Per-mover path flags and updates | Swept-circle movement plus deterministic local avoidance; not baked into static routes |
+| Scheduling | Countdown/pending and multiple result states prove resumable progress | A* is capped at 2,048 expansions; complete fields get a configurable per-frame queue budget |
+
+The speed difference was primarily work selection. Before the accelerator, one nearby cache miss cleared every route
+node, relaxed the complete reachable component, then copied one integer per map cell before movement could start. A
+256x256 diagnostic trace printed `cells=65536` at both build start and publication. The accelerator touches only nodes
+reached by the bounded A* and uses generation stamps instead of clearing its scratch array. Its contiguous node/heap
+arrays usually leave a nearby search with a small L1/L2 working set, but no retail evidence identifies an explicit
+"L2 cache" technique.
 
 The same corner rule is applied to direct routing and movement steps: a diagonal
 segment is rejected when either cardinal side of the crossed cell corner is

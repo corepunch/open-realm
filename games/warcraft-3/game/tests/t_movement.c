@@ -490,10 +490,9 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     T_ASSERT(fabsf(second->s.origin2.y - second_origin.y) < 2.0f);
 }
 
-/* A plain Move has no valid route heading while an incremental detour is being
- * built. Keep its position and facing until the field is ready, then advance
- * on the first resolved steering tick without changing the logical order. */
-TEST(wc3_movement, pending_move_waits_for_resolved_heading) {
+/* A nearby static detour uses the bounded per-mover accelerator immediately;
+ * it must not wait for the destination field to cover the whole pathmap. */
+TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
     LPEDICT unit = make_moving_unit(320.0f, 0.0f);
@@ -517,15 +516,10 @@ TEST(wc3_movement, pending_move_waits_for_resolved_heading) {
 
     T_EQ(unit->movement.flow_generation, 0);
     T_ASSERT(!unit->movement.flow_direct);
-    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
-    T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
-    T_FEQ(unit->s.angle, 0.0f, 0.001f);
-    T_STREQ(unit->currentmove->animation, "walk");
-
-    CM_ProcessPathJobs(65536);
-    unit->currentmove->think(unit);
-    T_ASSERT(unit->movement.flow_generation != 0);
+    T_ASSERT(unit->movement.path_valid);
+    T_ASSERT(CM_LineIsWalkableForRadius(&origin, &unit->movement.path_waypoint, unit->collision));
     T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+    T_STREQ(unit->currentmove->animation, "walk");
 }
 
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a
@@ -831,7 +825,7 @@ TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resum
  * Three workers ordered together must all hold their starting positions during
  * that interval instead of walking along their previous facing (the Human02
  * regression made all three initially head away from the clicked mine). */
-TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
+TEST(wc3_movement, gold_three_workers_accelerate_while_shared_route_is_pending) {
     enum { CELLS = 64, WORKERS = 3 };
     BYTE pathmap[CELLS * CELLS] = {0};
     LPEDICT mine;
@@ -882,16 +876,19 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
 
     FOR_LOOP(i, WORKERS) {
         workers[i]->currentmove->think(workers[i]);
-        T_FEQ(workers[i]->s.origin2.x, origin[i].x, 0.001f);
-        T_FEQ(workers[i]->s.origin2.y, origin[i].y, 0.001f);
+        T_ASSERT(Vector2_distance(&workers[i]->s.origin2, &origin[i]) > 0.001f);
         T_EQ(workers[i]->movement.flow_generation, 0);
         T_ASSERT(!workers[i]->movement.flow_direct);
+        T_ASSERT(workers[i]->movement.path_valid);
+        T_ASSERT(CM_LineIsWalkableForRadius(
+            &workers[i]->s.origin2, &workers[i]->movement.path_waypoint, workers[i]->movement.path_radius));
     }
 
     CM_ProcessPathJobs(65536);
     FOR_LOOP(i, WORKERS) {
         workers[i]->currentmove->think(workers[i]);
         T_ASSERT(workers[i]->movement.flow_generation != 0);
+        T_ASSERT(!workers[i]->movement.path_valid);
     }
 
     G_SetSLKRows("AbilityData", old_abilities);
@@ -1008,10 +1005,9 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     gi.MemFree(hall_pathtex);
 }
 
-/* Gold return can miss the cache independently of mine approach.  A worker
- * carrying gold must likewise wait for the drop-off field instead of moving
- * along a stale facing while that route is still being built. */
-TEST(wc3_movement, gold_return_holds_while_route_is_pending) {
+/* Gold return can miss the shared cache independently of mine approach. The
+ * bounded mover route must provide a real heading instead of stale facing. */
+TEST(wc3_movement, gold_return_accelerates_while_shared_route_is_pending) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
     LPEDICT worker = make_moving_unit(320.0f, 0.0f);
@@ -1043,14 +1039,17 @@ TEST(wc3_movement, gold_return_holds_while_route_is_pending) {
     origin = worker->s.origin2;
     worker->currentmove->think(worker);
 
-    T_FEQ(worker->s.origin2.x, origin.x, 0.001f);
-    T_FEQ(worker->s.origin2.y, origin.y, 0.001f);
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &origin) > 0.001f);
     T_EQ(worker->movement.flow_generation, 0);
     T_ASSERT(!worker->movement.flow_direct);
+    T_ASSERT(worker->movement.path_valid);
+    T_ASSERT(CM_LineIsWalkableForRadius(
+        &worker->s.origin2, &worker->movement.path_waypoint, worker->movement.path_radius));
 
     CM_ProcessPathJobs(65536);
     worker->currentmove->think(worker);
     T_ASSERT(worker->movement.flow_generation != 0);
+    T_ASSERT(!worker->movement.path_valid);
 }
 
 /* Right-click is also the cancel gesture for an active targeted command.

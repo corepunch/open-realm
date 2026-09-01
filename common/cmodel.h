@@ -7,6 +7,11 @@
  * forward declaration, so declare the tag here before using it in prototypes. */
 struct edict_s;
 
+typedef struct {
+    LPCVECTOR2 from, target;
+    FLOAT radius;
+} pathAccelParams_t;
+
 struct War3MapVertex {
     USHORT accurate_height;
     USHORT waterlevel;
@@ -53,6 +58,7 @@ BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);
 BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
+BOOL CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out);
 BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
 FLOAT CM_PathCellWorldSize(void);
 DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
