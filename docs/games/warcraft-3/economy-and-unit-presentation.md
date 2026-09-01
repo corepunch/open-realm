@@ -251,6 +251,19 @@ The presentation path is:
 TraceEntity -> cl.hover_entity -> cl.viewDef.hover_entity -> R_DrawHealthBars
 ```
 
+The hover nameplate/stat bar is native runtime UI, not an FDF-defined frame. ROC `FrameDef.toc` contains no world-hover frame;
+`game.dll` constructs `CUnitTip` and `CStatBar` directly. Archive data still owns the content: `War3Skins.txt` resolves
+`ToolTipBackground`, `ToolTipBorder`, `SimpleHpBarConsoleSmall`, and `SimpleManaBarConsoleSmall`, while `UnitUI.slk:scale` and
+`MiscData.txt:[SelectionCircle] ScaleFactor` determine the bar width. Keep those lookups authoritative instead of copying texture
+paths or per-unit dimensions into C.
+
+Retail `PreSelect.cpp` makes the bar width `UnitUI scale * SelectionCircle ScaleFactor * 0.0005`, equivalent to the render
+entity's selection radius times `0.001`. `CStatBar.cpp` uses a `0.004` frame height and `0.001` inset, so the visible fill is half
+the old implementation's thickness. `CUnitTip.cpp` sizes the nameplate from rendered text with `0.008` horizontal and `0.006`
+vertical padding rather than forcing it to the bar width. Placement transforms the MDX model bounds and adds 30 world units of
+clearance. Selection-circle radius is not a height: using `radius * 2 + 48` placed large-footprint mines too high and tall heroes
+too low. The renderer therefore exposes its model-format overhead point to the client without leaking MDX bounds into client code.
+
 The same hover entity drives the ground selection-preview splat in `renderer/r_ents.c`. `G_CustomizeEntity` derives the
 recipient-relative relationship by resolving the two hover-relevant WC3 neutral ownership classes before ordinary alliance state:
 `PLAYER_NEUTRAL_PASSIVE` (12) is `EF_NEUTRAL`, while `PLAYER_NEUTRAL_AGGRESSIVE` (15) is `EF_HOSTILE`. Both values are inside this

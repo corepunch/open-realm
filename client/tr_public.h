@@ -222,6 +222,7 @@ typedef struct {
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);
+    bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, LPVECTOR3 out);
 
     void (*DrawBoundingBox)(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
     FLOAT (*GetHeightAtPoint)(float x, float y);

@@ -431,6 +431,7 @@ void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
 void R_DrawWireRect(LPCRECT rect, COLOR32 color);
 bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
+bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out);
 RECT R_UISceneRect(void);
 
 // r_font.c

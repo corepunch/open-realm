@@ -429,6 +429,11 @@ static bool RStd_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     return true;
 }
 
+static bool RStd_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+    (void)entity; (void)out;
+    return false;
+}
+
 static void RStd_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color) {
     (void)box;
     (void)modelMatrix;
@@ -506,6 +511,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .DrawText = RStd_DrawText,
         .GetTextSize = RStd_GetTextSize,
         .GetModelInfo = RStd_GetModelInfo,
+        .GetEntityOverheadPosition = RStd_GetEntityOverheadPosition,
         .DrawBoundingBox = RStd_DrawBoundingBox,
         .GetHeightAtPoint = RStd_GetHeightAtPoint,
         .TraceEntity = RStd_TraceEntity,

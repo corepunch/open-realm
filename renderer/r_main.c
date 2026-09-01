@@ -867,6 +867,11 @@ bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     return R_GameGetModelInfo(model, info);
 }
 
+/* Keep model-format bounds inside the renderer while clients place game-owned world UI. */
+bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+    return R_GameEntityOverheadPosition(entity, out);
+}
+
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     R_GameDrawSprite(model, anim, x, y);
 }
@@ -914,6 +919,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,
+        .GetEntityOverheadPosition = R_GetEntityOverheadPosition,
         .DrawBoundingBox = R_DrawBoundingBox,
         .GetHeightAtPoint = R_GameGetHeightAtPoint,
         .TraceEntity = R_TraceEntity,
