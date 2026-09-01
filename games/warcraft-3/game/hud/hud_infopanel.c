@@ -35,6 +35,26 @@ static BOOL infopanel_loaded;
 
 #define INVENTORY_CHARGE_FONT_SIZE 10
 
+static BOOL InfoPanelStringsResolved(void) {
+    static LPCSTR const required[] = {
+        "COLON_DAMAGE",
+        "COLON_ARMOR",
+        "COLON_FOOD",
+        "COLON_FOOD_PROVIDED",
+        "COLON_GOLD",
+        "COLON_STRENGTH",
+        "COLON_AGILITY",
+        "COLON_INTELLECT",
+        "COLON_STATUS",
+    };
+
+    FOR_LOOP(i, sizeof(required) / sizeof(required[0])) {
+        LPCSTR const value = UI_GetString(required[i]);
+        if (!value || !strcmp(value, required[i])) return false;
+    }
+    return true;
+}
+
 static void InitStatusWrapper(LPFRAMEDEF frame, FLOAT x, FLOAT y, FLOAT width, FLOAT height) {
     UI_InitFrame(frame, FT_SIMPLEFRAME);
     UI_SetSize(frame, width, height);
@@ -43,12 +63,29 @@ static void InitStatusWrapper(LPFRAMEDEF frame, FLOAT x, FLOAT y, FLOAT width, F
 }
 
 static void InfoPanelEnsureLoaded(void) {
+    BOOL global_strings_loaded;
+    BOOL infopanel_strings_loaded;
+
     if (infopanel_loaded) return;
     infopanel_loaded = true;
+
+    /* FrameDef.toc registers both localized StringLists before any info-panel
+     * frame definitions. Classic data splits the labels across them (for
+     * example COLON_ARMOR is in GlobalStrings while COLON_DAMAGE and the Hero
+     * attributes are in InfoPanelStrings), so load both before parsing frames
+     * or unresolved IDs become baked into the cached templates. */
+    global_strings_loaded = UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf");
+    infopanel_strings_loaded = UI_EnsureFDF("UI\\FrameDef\\InfoPanelStrings.fdf");
+    if (!global_strings_loaded) {
+        fprintf(stderr, "InfoPanelEnsureLoaded: missing UI\\FrameDef\\GlobalStrings.fdf; cannot resolve info-panel string IDs\n");
+    }
+    if (!infopanel_strings_loaded && !InfoPanelStringsResolved()) {
+        fprintf(stderr, "InfoPanelEnsureLoaded: missing UI\\FrameDef\\InfoPanelStrings.fdf and required info-panel strings are unresolved\n");
+    }
+
     InfoPanelUnitDetail_Load(&unit_panel);
     InfoPanelBuildingDetail_Load(&building_panel);
-    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
-        fprintf(stderr, "InfoPanelEnsureLoaded: missing UI\\FrameDef\\GlobalStrings.fdf; cannot resolve SimpleInfoPanel string IDs\n");
+    if (!global_strings_loaded || !InfoPanelStringsResolved()) {
         simple_infopanel_loaded = false;
     } else {
         simple_infopanel_loaded = SimpleInfoPanel_Load(&simple_panel);

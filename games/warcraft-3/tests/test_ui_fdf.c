@@ -606,6 +606,35 @@ TEST(ui_fdf, global_stringlist_keys_resolve_and_clear_with_templates) {
     T_STREQ(UI_GetString("COLON_DAMAGE"), "COLON_DAMAGE");
 }
 
+TEST(ui_fdf, split_infopanel_stringlists_resolve_before_frame_parse) {
+    LPFRAMEDEF damage;
+    LPFRAMEDEF strength;
+
+    reset_ui_state();
+    parse_fdf("GlobalStrings.fdf",
+              "StringList {\n"
+              "    COLON_ARMOR \"Armor:\"\n"
+              "}\n");
+    parse_fdf("InfoPanelStrings.fdf",
+              "StringList {\n"
+              "    COLON_DAMAGE \"Damage:\"\n"
+              "    COLON_STRENGTH \"Strength:\"\n"
+              "}\n");
+    parse_fdf("SimpleInfoPanel.fdf",
+              "String \"DamageLabel\" { Text \"COLON_DAMAGE\", }\n"
+              "String \"StrengthLabel\" { Text \"COLON_STRENGTH\", }\n");
+
+    damage = UI_FindFrame("DamageLabel");
+    strength = UI_FindFrame("StrengthLabel");
+    if (!require_not_null(damage)) return;
+    if (!require_not_null(strength)) return;
+
+    T_STREQ(UI_GetString("COLON_ARMOR"), "Armor:");
+    T_STREQ(UI_GetString("COLON_DAMAGE"), "Damage:");
+    T_STREQ(damage->Text, "Damage:");
+    T_STREQ(strength->Text, "Strength:");
+}
+
 TEST(ui_fdf, shipped_style_disabled_properties_do_not_escape_comments) {
     LPFRAMEDEF root;
     LPFRAMEDEF icon;

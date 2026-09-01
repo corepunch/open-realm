@@ -304,11 +304,14 @@ shown (or `y=-0.04000` for attackless units), and the Hero attribute block is
 anchors are independent. The legacy `InfoPanelUnitDetail.fdf` speed/range/damage/attribute fields are suppressed
 when `SimpleInfoPanel.fdf` is available; they remain only as an explicitly diagnosed fallback if the retail template
 cannot be loaded. Hero STR/AGI/INT label positions and the primary-attribute icon are therefore data-driven by the
-retail FDF/War3Skins rather than duplicated as child-coordinate literals in C. `GlobalStrings.fdf` must be loaded before
-`SimpleInfoPanel.fdf`: `COLON_DAMAGE`, `COLON_ARMOR`, and the Hero `COLON_*` labels are string-table IDs resolved while the FDF is
-parsed, not hardcoded English. Retail `GlobalStrings.fdf` uses newline-delimited `StringList` key/value pairs rather than requiring
-commas, so the parser consumes one quoted value token per key while still accepting an optional comma. The parser-owned registry is
-cleared with the FDF template lifecycle so stale strings cannot leak between UI loads.
+retail FDF/War3Skins rather than duplicated as child-coordinate literals in C. Warcraft registers both `GlobalStrings.fdf` and
+`InfoPanelStrings.fdf` before parsing the info-panel frame definitions. The classic data set splits the labels across those tables:
+`COLON_ARMOR` is available from `GlobalStrings.fdf`, while `COLON_DAMAGE`, resource labels, Hero attributes, and `COLON_STATUS` are
+provided by `InfoPanelStrings.fdf`. Both StringLists must therefore be registered before `InfoPanelUnitDetail.fdf`,
+`InfoPanelBuildingDetail.fdf`, or `SimpleInfoPanel.fdf` is parsed; otherwise the unresolved `COLON_*` ID is baked into the cached
+frame text. These labels remain data-driven rather than hardcoded English. Retail StringLists use newline-delimited key/value pairs
+without requiring commas, so the parser consumes one quoted value token per key while still accepting an optional comma. The
+parser-owned registry is cleared with the FDF template lifecycle so stale strings cannot leak between UI loads.
 
 The right-hand second damage block is attack slot 2, not a status/buff icon. It is emitted only when `weapsOn` enables bit 1, the
 second weapon has damage dice, and `showUI2` is true. A populated dormant attack-2 row must not produce a second icon/value such as
