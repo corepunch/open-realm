@@ -51,6 +51,24 @@ Ordinary destination fields remain incremental and frame-budgeted. The mover-com
 
 The current router does not need wholesale replacement. Its cached integration fields, collision expansion, direct-line shortcut, and local dynamic avoidance are suitable for WC3 movement once they share one traversability contract. Remaining large-scale work is performance-oriented: incremental field construction and richer dynamic crowd routing, not a different static shortest-path algorithm.
 
+### Retail Game.dll path audit
+
+The ROC demo `data/Warcraft3demo/Game.dll` (build 4486, SHA-256
+`286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`) retains RTTI for `CAbilityMove`,
+`NIpse::CLrPathingSys`, `NIpse::CLrPathingAcc`, and `NIpse::CLrPath`. `CAbilityMove` installs its vtable at
+`Game.dll+0x102898`. The low-level path constructor at `+0x458040` creates persistent route state, while `+0x466aa0`
+allocates and stores one of those path objects on a mover. Route setup at `+0x4661d0` compares destination and mode
+state, submits an adjusted coordinate through `+0x458670`, and branches on several path-result states returned by
+`+0x458930`. Group movement at `+0x46a130` and `+0x46a330` derives per-mover coordinates and path flags before updating
+each path object. Retail routing is therefore not a point-only line test followed by movement that independently
+rejects the unit footprint.
+
+This supports the direction of commit `4bad783d`: using the mover's collision size consistently and resolving an
+unreachable click to a legal endpoint are closer to retail's per-mover, adjusted-endpoint architecture than routing a
+point toward an impossible destination. The binary does not establish that OpenRealm's nearest-cell flood, SPFA
+integration field, cache policy, or exact `ox/xo` diagonal test matches Blizzard's algorithm. Treat the corner rule as
+a necessary consistency fix and the closest-reachable policy as behaviorally retail-like, not instruction-equivalent.
+
 ## Retail Lumber Fallback
 
 Retail Warcraft III continues lumber gathering when the explicitly clicked tree is alive but buried inside an unreachable group of trees.

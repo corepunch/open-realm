@@ -219,36 +219,26 @@ while discovering them and commits only that list; initialization treats allocat
 falling back to the square scan. `wc3_game.fow_blocker_cache_skips_clean_and_unchanged_dirty_updates` covers the clean
 cache hit, dirty/hash hit, and dirty/hash miss paths.
 
-### Retail Game.dll fog-of-war audit (Demo build 4486)
+### Retail Game.dll fog audit
 
-`data/Warcraft3demo/Game.dll` is a PE32 x86 binary identified as `Warcraft III Demo (build 4486)`. It contains no matching
-PDB in the archive, but retains RTTI names and compiler source-path strings for `CFogOfWarMap.cpp`, `CFogMask`, and
-`CFogModifier`. Those anchors make the following observations direct disassembly results rather than guesses about the
-retail implementation.
+The ROC demo `data/Warcraft3demo/Game.dll` (build 4486, SHA-256
+`286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`) retains `CFogOfWarMap.cpp`,
+`CFogMaskTable.h`, `CFogModifier`, and a fog-checksum diagnostic. With image base `0x6f000000`, the routines at
+`Game.dll+0x38e730`, `+0x38e7f0`, and `+0x38e8b0` index rows through a stored shift, clip spans, expand a 16-bit mask
+to both halves of a 32-bit word, and update paired planes with `or`/`and`. The dispatcher at `+0x38f4b0` clamps a
+map-space window, reads table entries, and calls those span helpers. Retail therefore uses packed, table-driven fog
+planes rather than a byte setter for every cell.
 
-The retail map owns a packed fog mask rather than a byte-per-cell disk. Its initialization allocates dimensions rounded
-to powers of two, stores the mask in 16-bit words, and clears/initializes several parallel planes. The mask update code
-operates on word-aligned rows and applies precomputed directional bit patterns to rectangular spans. The disassembled
-helpers at `Game.dll+0x38e730`, `+0x38e7f0`, and `+0x38e8b0` are the horizontal/vertical mask primitives; they shift,
-merge, and clear 16-bit visibility bits while clipping the span to the mask bounds. A separate routine at `+0x38f4b0`
-selects a fog-mask entry, computes a clamped map-space window, and applies the directional spans. The binary also contains
-`CFogMaskTable.h` and a checksum diagnostic, confirming that these patterns are table-driven rather than generated as a
-per-cell circle.
+The packed-mask series ending at `af82327b` is closer to retail in storage and update shape: it adds 16-bit current
+and explored planes and writes word spans. It is not retail-exact. OpenRealm uses `(width + 15) / 16` rows rather than
+retail's power-of-two dimensions, generates circular spans with `sqrtf` instead of the unrecovered mask table, and
+enables that path only with `wc3_fow_fast`, which skips blocker occlusion. The normal shadowcast remains the closer
+visibility behavior around blockers; packed storage alone is not evidence that fast fog matches retail silhouettes,
+modifier selection, plane semantics, or scheduling.
 
-This is enough to reject the claim that `wc3_fow_fast=1` reproduces Warcraft III's exact visibility algorithm: the fast
-mode is intentionally a bounded circular reveal with no occlusion. The normal OpenRealm path remains the closer semantic
-match because it preserves blocker occlusion, but it is not yet a byte-for-byte retail reproduction. The exact mask-table
-contents, modifier-to-mask selection, update scheduling, and the meaning of every packed plane require either the matching
-PDB/source or controlled runtime tracing of the Windows binary.
-
-The experimental `WC3_FOW_PACKED_MASK` build define now applies the same broad optimization shape without changing the
-default build. It allocates one packed 16-bit visibility plane per viewer, writes contiguous reveal spans a word at a time,
-and mirrors only newly set bits into the existing byte plane used by snapshot/network code. Set `wc3_fow_fast=1` only in
-that guarded build; it deliberately skips blocker occlusion for performance profiling. Removing the `#ifdef WC3_FOW_PACKED_MASK`
-blocks in `g_fow.c` and the matching fields in `g_local.h` removes the experiment. Do not enable it for correctness or
-retail-parity validation until the mask tables and modifier semantics have been recovered. The current implementation uses
-the existing circular sight radius to form row spans; the static bit table represents the 16-bit storage contract, not the
-unrecovered retail mask contents.
+`WC3_FOW_PACKED_MASK` remains a removable build guard: delete its blocks in `g_fow.c`, its fields in `g_local.h`, and
+the define in `game.mk` to remove the experiment. Do not enable `wc3_fow_fast` for correctness or parity validation
+until the retail mask tables and modifier semantics have been recovered.
 
 ### Local release A/B and remaining cost
 

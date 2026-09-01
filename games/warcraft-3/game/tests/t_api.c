@@ -302,6 +302,47 @@ static DWORD test_fow_cell(FLOAT x, FLOAT y) {
     return cy * level.fow.width + cx;
 }
 
+#ifdef WC3_FOW_PACKED_MASK
+static LPCSTR api_fow_fast_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_fow_fast") ? "1" : fallback;
+}
+
+TEST(wc3_api, fog_state_natives_update_packed_planes) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    fowPlayerGrid_t *grid;
+    DWORD index, word;
+    WORD bit;
+
+    setup_test_world();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    gi.CvarString = api_fow_fast_cvar;
+    G_FowUpdate();
+    grid = &level.fow.players[0];
+    index = test_fow_cell(0.0f, 0.0f);
+    word = (index % level.fow.width >> 4) + index / level.fow.width * grid->packed_stride;
+    bit = (WORD)(1u << (index % level.fow.width & 15));
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetFogStateRadius(Player(0), FOG_OF_WAR_VISIBLE, 0.0, 0.0, 32.0, false)\n"
+        "endfunction\n"));
+    T_ASSERT(grid->packed_visible[word] & bit); T_ASSERT(grid->packed_explored[word] & bit);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetFogStateRadius(Player(0), FOG_OF_WAR_FOGGED, 0.0, 0.0, 32.0, false)\n"
+        "endfunction\n"));
+    T_ASSERT(!(grid->packed_visible[word] & bit)); T_ASSERT(grid->packed_explored[word] & bit);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetFogStateRadius(Player(0), FOG_OF_WAR_MASKED, 0.0, 0.0, 32.0, false)\n"
+        "endfunction\n"));
+    T_ASSERT(!(grid->packed_visible[word] & bit)); T_ASSERT(!(grid->packed_explored[word] & bit));
+    gi.CvarString = old_cvar;
+    G_FowShutdown();
+}
+#endif
+
 TEST(wc3_api, fog_state_natives_write_masked_fogged_and_visible) {
     DWORD fogged, visible, masked;
     fowPlayerGrid_t *grid;
