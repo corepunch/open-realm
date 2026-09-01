@@ -863,8 +863,12 @@ static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod) {
         if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
             return;
         }
-        FOGDISK disk = { cx, cy, mod->state, G_FowRadiusCells(mod->radius) };
-        G_FowSetDiskState(grid, &disk);
+#ifdef WC3_FOW_PACKED_MASK
+        if (g_fow_fast && mod->state == WC3_FOG_STATE_VISIBLE)
+            G_FowRevealPacked(grid, cx, cy, G_FowRadiusCells(mod->radius));
+        else
+#endif
+            G_FowSetDiskState(grid, &(FOGDISK){ cx, cy, mod->state, G_FowRadiusCells(mod->radius) });
     }
 }
 
@@ -1011,10 +1015,6 @@ void G_FowUpdate(void) {
         G_FowRevealForViewers(ent, radius, owner_viewers[ent->s.player]);
     }
 
-#ifdef WC3_FOW_PACKED_MASK
-    if (g_fow_fast)
-        FOR_LOOP(player, MAX_PLAYERS) if (viewers & (1u << player)) G_FowMaterializePacked(&level.fow.players[player]);
-#endif
     G_FowApplyModifiers(viewers);
 }
 
