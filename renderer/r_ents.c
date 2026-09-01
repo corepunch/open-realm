@@ -360,6 +360,9 @@ static void R_DrawStatusBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT frac, COLO
  * 2D overlay pass after the 3D scene (R_DrawImageEx rebinds UI shader/state, so
  * it must not run mid-model). */
 void R_DrawHealthBars(void) {
+#ifdef WC3
+    return; /* WC3 hover presentation is owned by its per-game ui.dll widget. */
+#endif
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         return; /* portrait / offscreen views have no overhead bars */
     }
