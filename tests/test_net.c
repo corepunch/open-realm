@@ -1101,6 +1101,24 @@ TEST(client_screen, selection_rect_stops_at_bottom_console_status_panel) {
     T_FEQ(rect.y + rect.h, 0.44f / UI_BASE_HEIGHT * 768.0f, 1.0f);
 }
 
+/* Touching a panel edge has zero overlap area, so it must not constrain a
+ * selection whose vertical span merely passes beside that panel. */
+TEST(client_screen, selection_rect_touching_status_panel_edge_does_not_clamp) {
+    RECT rect = { 320.0f, 128.0f, 576.0f, 576.0f };
+    RECT original = rect;
+
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    cl.viewDef.scissor = MAKE(RECT, 0.0f, 0.22f, 1.0f, 0.76f);
+    net_install_single_layout_frame(LAYER_INFOPANEL, FT_SIMPLESTATUSBAR,
+                                    0.0f, 0.44f, 0.25f, 0.08f);
+
+    SCR_LayoutClampSelectionRect(&rect);
+
+    T_FEQ(rect.w, original.w, 0.01f);
+    T_FEQ(rect.h, original.h, 0.01f);
+}
+
 /* Command-card/build buttons are separate retained frames and can protrude
  * higher than the surrounding console texture.  They must participate in the
  * same selection boundary. */

@@ -990,7 +990,7 @@ static BOOL SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
 }
 
 static BOOL SCR_RangesOverlap(FLOAT a0, FLOAT a1, FLOAT b0, FLOAT b1) {
-    return MAX(a0, b0) <= MIN(a1, b1);
+    return MAX(a0, b0) < MIN(a1, b1);
 }
 
 /* The WC3 command console is not a flat rectangle: the info/status and command
