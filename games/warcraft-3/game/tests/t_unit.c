@@ -23,6 +23,7 @@ void unit_decay_think(LPEDICT self);
 void unit_entercombat(LPEDICT self, LPEDICT target);
 void unit_leavecombat(LPEDICT self);
 BOOL unit_affectingcombat(LPEDICT self);
+BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target);
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
 BOOL unit_additem(LPEDICT edict, LPEDICT item);
@@ -262,8 +263,59 @@ TEST(wc3_unit, die_emits_registered_death_sound) {
 TEST(wc3_unit, die_raises_dead_monster_flag) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);
+    T_ASSERT(!M_IsDead(ent));
     unit_die(ent, NULL);
+    T_FEQ(ent->health.value, 0.0f, 0.001f);
+    T_ASSERT(M_IsDead(ent));
     T_ASSERT(ent->svflags & SVF_DEADMONSTER);
+}
+
+TEST(wc3_unit, die_clears_selection_and_marks_corpse_unselectable) {
+    reset_test_entities();
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT ent = make_unit(0, 0);
+    client->ps.number = 0;
+    ent->s.player = 0;
+
+    G_SelectEntity(client, ent);
+    T_ASSERT(G_IsEntitySelected(client, ent));
+
+    unit_die(ent, NULL);
+
+    T_EQ(ent->selected, 0);
+    T_ASSERT(ent->s.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(!G_IsEntitySelected(client, ent));
+
+    G_SelectEntity(client, ent);
+    T_ASSERT(!G_IsEntitySelected(client, ent));
+}
+
+TEST(wc3_unit, die_releases_held_frame_before_death_animation) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    ent->aiflags |= AI_HOLD_FRAME;
+
+    unit_die(ent, NULL);
+
+    T_ASSERT(!(ent->aiflags & AI_HOLD_FRAME));
+    T_NOT_NULL(ent->currentmove);
+    T_STREQ(ent->currentmove->animation, "death");
+}
+
+TEST(wc3_unit, dead_unit_rejects_orders_that_would_replace_death_animation) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    LPEDICT target = make_unit(128, 0);
+    VECTOR2 point = { 64.0f, 0.0f };
+
+    ent->health.value = 0.0f;
+    unit_die(ent, target);
+
+    T_ASSERT(!unit_issueorder(ent, "move", &point));
+    T_ASSERT(!unit_issueimmediateorder(ent, "stop"));
+    T_ASSERT(!unit_issuetargetorder(ent, "smart", target));
+    T_NOT_NULL(ent->currentmove);
+    T_STREQ(ent->currentmove->animation, "death");
 }
 
 TEST(wc3_unit, die_publishes_death_event) {
@@ -313,6 +365,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     hero->health.max_value = 500.0f;
     hero->mana.max_value = 300.0f;
     hero->svflags |= SVF_DEADMONSTER;
+    hero->s.flags |= EF_NOT_SELECTABLE;
     hero->s.renderfx |= RF_HIDDEN;
     hero->revival.awaiting = true;
     hero->revival.reviving = true;
@@ -328,6 +381,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     T_NULL(altar->build);
     T_ASSERT(hero->inuse);
     T_ASSERT(!(hero->svflags & SVF_DEADMONSTER));
+    T_ASSERT(!(hero->s.flags & EF_NOT_SELECTABLE));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     T_ASSERT(!hero->revival.awaiting);
     T_ASSERT(!hero->revival.reviving);
@@ -337,6 +391,8 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     T_EQ((int)hero->s.origin2.x, 64);
     T_EQ((int)hero->s.origin2.y, 96);
     T_ASSERT(hero->health.value > 0.0f);
+    G_SelectEntity(client, hero);
+    T_ASSERT(G_IsEntitySelected(client, hero));
 }
 
 TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {

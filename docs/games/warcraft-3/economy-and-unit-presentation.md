@@ -213,6 +213,71 @@ Movement ticks do not publish messages. Tests subscribe immediately before the o
 The lethal-trip test specifically requires `CHOP -> TREE_FELLED -> RETURN_LUMBER -> DEPOSIT_LUMBER -> RESUME_LUMBER -> START_CHOP`,
 with the resume/start target equal to the next live tree rather than the felled entity.
 
+## Unit Death And Corpse Interaction
+
+`games/warcraft-3/game/m_unit.c:unit_die()` owns the live-unit to corpse transition. It
+sets authoritative life to zero so `M_IsDead()` is true even when a direct/scripted caller
+enters the death function without first applying lethal damage. A dead unit is no longer an
+orderable actor even though its edict remains present while the death/decay presentation
+runs. The transition clears the unit's server selection mask and
+sets the existing snapshot flag `EF_NOT_SELECTABLE`; `client/cl_view.c` maps that to
+`RF_NOT_SELECTABLE`, which `renderer/r_ents.c:R_TraceEntity()` and `R_EntitiesInRect()`
+exclude. The corpse therefore remains rendered but cannot be clicked or box-selected. This
+reuses the existing `entityState_t.flags` contract; death does not add a new network field.
+
+Server authority mirrors the presentation rule. `G_SelectEntity()` refuses dead or
+`EF_NOT_SELECTABLE` entities, `G_IsEntitySelected()` stops stale selection masks from
+participating in `FOR_SELECTED_UNITS`, and the generic JASS/client order entry points reject
+dead actors. This is required even though `unit_die()` clears the selection mask: an old
+client/control-group command or direct JASS `Issue*Order` must not replace the corpse's
+`death` move with `walk`, `stop`, or another live-unit move.
+
+Death animation and corpse holding are separate states. `unit_setmove()` changes the active
+sequence but intentionally does not reset `s.frame`. The death transition must therefore set
+`s.frame` to `animation->interval[0]` immediately after selecting the `death` move, matching
+`G_DestructableStartDeathAnimation()`. Otherwise a lethal snapshot can inherit the previous
+move's timeline position and enter the death sequence late. `unit_die()` also clears a
+pre-existing `AI_HOLD_FRAME` so `M_MoveFrame()` can advance death even when the actor had
+been holding a construction/gameplay frame. Only when death reaches its end does
+`unit_begin_decay()` select the decay state and set `AI_HOLD_FRAME` again to preserve the
+final corpse pose during the decay timer.
+
+Ordinary corpses are eventually freed by `unit_decay_think()`. Heroes preserve the same
+authoritative edict for revival; `G_ReviveHero()` clears `SVF_DEADMONSTER`,
+`EF_NOT_SELECTABLE`, `RF_HIDDEN`, and `AI_HOLD_FRAME` before returning the Hero to its
+living stand state. See [Hero revival](hero-revival.md) for the remainder of that lifecycle.
+
+### Diagnostics
+
+Runtime corpse/death tracing is off by default. `+set wc3_unit_death_debug 1` logs the
+entry and completed state of `unit_die()`, including health, `M_IsDead()`,
+`SVF_DEADMONSTER`, selection bits, `EF_NOT_SELECTABLE`, current move, animation frame,
+and whether `AI_HOLD_FRAME` is active. It also logs attempts to select the corpse or issue
+point, target, or immediate orders to it. The expected post-transition line contains
+`health=0.000 dead=1 deadmonster=1 notselectable=1 selected=0x0` and reports the
+`death` move.
+
+`+set wc3_unit_death_debug 2` additionally logs every server animation-clock step while the
+active move is `death`, with current/next frame and authored interval. If the animation
+clock is prevented from running it instead reports `frame_blocked` with `hold`, `paused`, or
+`stunned` as the reason. A complete corpse sequence should show monotonically advancing
+`frame` lines followed by a single
+`animation_complete` line when `unit_begin_decay()` takes ownership of the final corpse
+pose. This level is intentionally verbose and should only be used for bounded reproduction
+runs.
+
+### Verification
+
+`wc3_unit.die_clears_selection_and_marks_corpse_unselectable` covers the authoritative
+selection transition; `wc3_unit.dead_unit_rejects_orders_that_would_replace_death_animation`
+covers stale client/JASS orders; and the scripted-revive test verifies that the same Hero
+edict becomes selectable again. `net.entity_delta_preserves_not_selectable_flag` already
+round-trips `EF_NOT_SELECTABLE`, so this change reuses a tested network bit rather than
+widening `entityState_t`. Runtime verification should kill a moving selected unit, confirm
+the death sequence begins from its first authored frame and runs to the final corpse pose,
+then confirm the corpse has no selection circle and ignores click, box, control-group, and
+right-click movement attempts.
+
 ## Immobile Units
 
 `AI_IMMOBILE` is the single no-translation/no-facing-change flag. `SP_SpawnUnit` derives it from authoritative `UnitUI.slk:isBldg`
