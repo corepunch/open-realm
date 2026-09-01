@@ -723,7 +723,10 @@ typedef enum {
     FT_MULTISELECT,
     FT_TOOLTIPTEXT,
     FT_MINIMAP,
+    FT_NAMETAG,
 } FRAMETYPE;
+
+#define UIFLAG_SIZE_TO_CONTENT (1 << 10) // flag bit; derives a composite frame's size from rendered content; used by FT_NAMETAG
 
 typedef enum {
     BACKDROP_TOP_LEFT_CORNER,
@@ -927,6 +930,13 @@ typedef struct {
     uiBackdrop_t background;
     uiLabel_t text;
 } uiTooltip_t;
+
+typedef struct {
+    uiBackdrop_t background;
+    uiLabel_t text;
+    FLOAT padding_x;
+    FLOAT padding_y;
+} uiNameTag_t;
 
 typedef struct {
     uiBackdrop_t normal;
