@@ -766,6 +766,75 @@ TEST(wc3_api, customize_entity_marks_shared_control_hover_relation_friendly) {
     T_ASSERT(!(state.flags & EF_NEUTRAL));
 }
 
+TEST(wc3_api, selection_relation_matches_enemy_neutral_and_shared_control) {
+    edict_t enemy = { .s = { .player = 2 } };
+    edict_t passive = { .s = { .player = PLAYER_NEUTRAL_PASSIVE } };
+    edict_t hostile = { .s = { .player = PLAYER_NEUTRAL_AGGRESSIVE } };
+    edict_t ally = { .s = { .player = 1 } };
+
+    T_EQ(G_SelectionRelation(0, &enemy), SELECT_RELATION_ENEMY);
+    T_EQ(G_SelectionRelation(0, &passive), SELECT_RELATION_NEUTRAL);
+    T_EQ(G_SelectionRelation(0, &hostile), SELECT_RELATION_ENEMY);
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+    T_EQ(G_SelectionRelation(0, &ally), SELECT_RELATION_NEUTRAL);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, true);
+    T_EQ(G_SelectionRelation(0, &ally), SELECT_RELATION_FRIEND);
+}
+
+TEST(wc3_api, selection_accepts_visible_foreign_unit_but_rejects_invalid_states) {
+    LPGAMECLIENT client = &game.clients[0];
+    edict_t ent = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 2 } };
+    ent.health.value = 100.0f;
+    client->ps.number = 0;
+
+    T_ASSERT(G_UnitCanBeSelected(client, &ent));
+    ent.s.flags |= EF_NOT_SELECTABLE;
+    T_ASSERT(!G_UnitCanBeSelected(client, &ent));
+    ent.s.flags &= ~EF_NOT_SELECTABLE;
+    ent.s.renderfx |= RF_HIDDEN;
+    T_ASSERT(!G_UnitCanBeSelected(client, &ent));
+    ent.s.renderfx &= ~RF_HIDDEN;
+    ent.svflags |= SVF_DEADMONSTER;
+    T_ASSERT(!G_UnitCanBeSelected(client, &ent));
+}
+
+TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    DWORD bit = 1 << client->ps.number;
+
+    ent->svflags |= SVF_MONSTER;
+    ent->s.player = 1;
+    G_SelectEntity(client, ent);
+    T_ASSERT(ent->selected & bit);
+
+    ent->s.renderfx |= RF_HIDDEN;
+    T_ASSERT(!G_IsEntitySelected(client, ent));
+    G_UpdateClientSelections();
+
+    T_ASSERT(!(ent->selected & bit));
+}
+
+TEST(wc3_api, control_is_separate_from_selection_and_honors_shared_control) {
+    LPGAMECLIENT client = &game.clients[0];
+    edict_t own = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 0 } };
+    edict_t enemy = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 1 } };
+    edict_t neutral = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_PASSIVE } };
+    own.health.value = enemy.health.value = neutral.health.value = 100.0f;
+    client->ps.number = 0;
+
+    T_ASSERT(G_UnitCanControl(client, &own));
+    T_ASSERT(G_UnitCanBeSelected(client, &enemy));
+    T_ASSERT(!G_UnitCanControl(client, &enemy));
+    T_ASSERT(G_UnitCanBeSelected(client, &neutral));
+    T_ASSERT(!G_UnitCanControl(client, &neutral));
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, true);
+    T_ASSERT(G_UnitCanControl(client, &enemy));
+}
+
 TEST(wc3_api, customize_entity_rejects_non_unit_hover_health) {
     entityState_t state = { .number = 7, .model = 11, .flags = EF_HOVER_HEALTH };
     edict_t ent = { .s = { .player = 3 } };
@@ -779,6 +848,18 @@ TEST(wc3_api, customize_entity_rejects_dead_or_unselectable_unit_hover_health) {
     entityState_t state = { .number = 7, .model = 11,
         .flags = EF_NOT_SELECTABLE | EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL };
     edict_t ent = { .svflags = SVF_MONSTER | SVF_DEADMONSTER, .s = { .player = 3 } };
+    ent.health.value = 100.0f;
+
+    globals.CustomizeEntity(3, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
+TEST(wc3_api, customize_entity_rejects_hidden_unit_hover_health) {
+    entityState_t state = { .number = 7, .model = 11, .renderfx = RF_HIDDEN,
+        .flags = EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
     ent.health.value = 100.0f;
 
     globals.CustomizeEntity(3, &ent, &state);

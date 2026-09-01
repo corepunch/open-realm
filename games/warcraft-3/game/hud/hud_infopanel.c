@@ -140,7 +140,7 @@ void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
 
 void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
     if (!ent->client) return;
-    if (count == 1 && !selected[0]->build) {
+    if (count == 1 && (!selected[0]->build || !G_UnitCanControl(ent->client, selected[0]))) {
         ent->client->infopanel.entity = selected[0]->s.number;
         ent->client->infopanel.hp = (LONG)(selected[0]->health.value + 0.5f);
         ent->client->infopanel.mana = (LONG)(selected[0]->mana.value + 0.5f);
@@ -153,7 +153,7 @@ void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
-        if (selected[0]->build) {
+        if (selected[0]->build && G_UnitCanControl(ent->client, selected[0])) {
             UI_WriteBuildQueue(selected[0]);
         } else {
             UI_WriteSingleInfo(selected[0]);
@@ -181,11 +181,11 @@ void Get_Commands_f(LPEDICT ent) {
 
     if (!ent || !ent->client) return;
     ent->client->commands_dirty = false;
-    if (!selected) {
+    memset(&ent->client->menu, 0, sizeof(ent->client->menu));
+    if (!selected || !G_UnitCanControl(ent->client, selected)) {
         UI_ClearLayer(ent, LAYER_COMMANDBAR);
         return;
     }
-    memset(&ent->client->menu, 0, sizeof(ent->client->menu));
 
     UI_WriteStart(LAYER_COMMANDBAR);
     count = G_GetCommandButtons(selected, buttons, 12);
@@ -337,7 +337,7 @@ void G_RefreshInfoPanel(LPEDICT ent) {
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
-    if (count != 1 || selected[0]->build) {
+    if (count != 1 || (selected[0]->build && G_UnitCanControl(ent->client, selected[0]))) {
         ent->client->infopanel.entity = 0;
         return;
     }

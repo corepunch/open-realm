@@ -433,6 +433,7 @@ static void G_RunFrame(void) {
 
     G_SolveCollisions();
     G_FowUpdate();
+    G_UpdateClientSelections();
     G_FowSendDeltas();
 }
 
@@ -635,32 +636,21 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     BOOL const hoverable = (ent->svflags & SVF_MONSTER) &&
         !(ent->svflags & SVF_DEADMONSTER) &&
         ent->health.value > 0.0f &&
+        !(state->renderfx & RF_HIDDEN) &&
         !(state->flags & EF_NOT_SELECTABLE) &&
         G_FowPlayerCanHoverEntity(player, ent);
 
     state->flags &= ~(EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL);
     state->name = 0;
     if (hoverable) {
-        DWORD const owner = ent->s.player;
+        selectionRelation_t const relation = G_SelectionRelation(player, ent);
         UnitProfile_t const *prof = G_UnitProfile(ent->s.class_id);
         state->name = G_UnitNameConfigstring(prof->name);
         state->flags |= EF_HOVER_HEALTH;
-        if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
+        if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;
-        } else if (owner == PLAYER_NEUTRAL_PASSIVE) {
+        } else if (relation == SELECT_RELATION_NEUTRAL) {
             state->flags |= EF_NEUTRAL;
-        } else if (owner != player) {
-            BOOL const valid_players = player < MAX_PLAYERS && owner < MAX_PLAYERS;
-            BOOL const passive_ally = valid_players &&
-                (level.alliances[player][owner] & (1 << ALLIANCE_PASSIVE));
-            BOOL const shared_control = valid_players &&
-                (level.alliances[player][owner] & (1 << ALLIANCE_SHARED_CONTROL));
-
-            if (!passive_ally) {
-                state->flags |= EF_HOSTILE;
-            } else if (!shared_control) {
-                state->flags |= EF_NEUTRAL;
-            }
         }
     }
 

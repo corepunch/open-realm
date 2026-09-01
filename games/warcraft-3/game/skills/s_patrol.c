@@ -45,7 +45,7 @@ void order_patrol(LPEDICT self, LPEDICT b) {
 static BOOL patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     BOOL any = false;
 
-    FOR_SELECTED_UNITS(clent->client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if ((ent->aiflags & AI_IMMOBILE) || ent->UnitBalance->speed <= 0) {
             continue;
         }

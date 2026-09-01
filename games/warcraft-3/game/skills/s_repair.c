@@ -499,7 +499,7 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
         return false;
     }
 
-    FOR_SELECTED_UNITS(clent->client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if (S_OrderRepair(ent, target, code)) issued = true;
     }
     return issued;

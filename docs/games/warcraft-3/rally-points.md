@@ -33,6 +33,8 @@ This handling occurs before immobile-unit and gold-mine-worker movement guards b
 
 Right-click point handling preserves the existing formation-aware SmartPoint path for normal units. A selection containing only rally-capable production structures stores the clicked point instead of trying to move the structures.
 
+Rally is a control operation, not a consequence of selection. `SmartPoint` and the Rally point/entity target callbacks iterate `FOR_CONTROLLABLE_SELECTED_UNITS`, and `rally_command` validates the focused producer with `G_UnitCanControl`. Selecting an enemy or neutral producer for inspection must therefore never change its Rally target. See [selection-and-control.md](selection-and-control.md).
+
 Setting Rally back onto the producer normalizes to `RALLY_TARGET_SELF`.
 
 ## Production handoff

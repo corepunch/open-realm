@@ -575,7 +575,7 @@ static BOOL wisp_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
     if (!target || target->targtype != TARG_TREE || M_IsDead(target)) {
         return false;
     }
-    FOR_SELECTED_UNITS(clent->client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         wisp_harvest_start(ent, target);
     }
     return true;
@@ -601,7 +601,7 @@ static BOOL acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
     if (!target || !G_ActorHasSkill(target, "Abgm")) {
         return false;
     }
-    FOR_SELECTED_UNITS(clent->client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         harvest_gold_start(ent, target);
     }
     return true;
@@ -618,7 +618,7 @@ ability_t a_acolyte_harvest = {
 
 /* ---- Return Resources: standalone command to deposit carried resources --- */
 static void return_resources_command(LPEDICT clent) {
-    FOR_SELECTED_UNITS(clent->client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if (ent->harvested_lumber > 0) {
             harvest_walkback(ent);
         } else if (ent->harvested_gold > 0) {
@@ -636,15 +636,15 @@ ability_t a_return_resources = {
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
     if (S_GoldMineIsMine(target)) {
-        FOR_SELECTED_UNITS(clent->client, ent) {
+        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
             harvest_gold_order(ent, target);
         }
     } else if (G_ActorHasSkill(target, "Abgm")) {
-        FOR_SELECTED_UNITS(clent->client, ent) {
+        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
             harvest_gold_start(ent, target);
         }
     } else if (target->targtype == TARG_TREE) {
-        FOR_SELECTED_UNITS(clent->client, ent) {
+        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
             harvest_start(ent, target);
         }
     }

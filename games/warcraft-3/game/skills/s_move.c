@@ -143,7 +143,7 @@ static DWORD move_collect_selected(LPGAMECLIENT client,
     DWORD count = 0;
     *center = MAKE(VECTOR2, 0, 0);
 
-    FOR_SELECTED_UNITS(client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (count >= max_units) {
             break;
         }

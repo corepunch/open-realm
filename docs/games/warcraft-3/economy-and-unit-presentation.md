@@ -325,14 +325,17 @@ too low. The renderer therefore exposes its model-format overhead point to the c
 
 The same hover entity drives the ground selection-preview splat in `renderer/r_ents.c`. `G_CustomizeEntity` derives the
 recipient-relative relationship by resolving the two hover-relevant WC3 neutral ownership classes before ordinary alliance state:
-`PLAYER_NEUTRAL_PASSIVE` (12) is `EF_NEUTRAL`, while `PLAYER_NEUTRAL_AGGRESSIVE` (15) is `EF_HOSTILE`. Both values are inside this
+`PLAYER_NEUTRAL_PASSIVE` (15) is `EF_NEUTRAL`, while `PLAYER_NEUTRAL_AGGRESSIVE` (12) is `EF_HOSTILE`. Both values are inside this
 engine's `MAX_PLAYERS == 16`, so a range check cannot identify them. Reserved slots 13 and 14 are not assigned special hover semantics
 here; they continue through ordinary relationship handling until their presentation behavior is established. Normal foreign players use
 passive-alliance and shared-control flags: passive allies without shared control are `EF_NEUTRAL`, enemies are `EF_HOSTILE`, and
 own/shared-control units carry neither relationship flag. Human02 runtime evidence identified `ngol` (Gold Mine) and `nshe` (Sheep) as
-owner 12 and neutral-hostile creeps as owner 15, matching the authored player-slot semantics. The renderer maps those states to faint
+owner 15 and neutral-hostile creeps as owner 12, matching the authored player-slot semantics. The renderer maps those states to faint
 red, yellow, and green rings respectively, using the normal selection-circle size/texture choice and half-alpha hover presentation.
 Selection remains a separate state and suppresses the hover preview while the full selected-unit circle is visible.
+
+Authoritative click/box selection, command authority, and fog/death deselection are documented separately in
+[selection-and-control.md](selection-and-control.md). Do not infer command rights from these hover relationship flags.
 
 The authored WC3 cursor reuses that recipient-relative hover state without changing cursor assets. `client/cl_scrn.c` submits red for
 `EF_HOSTILE`, the same yellow family used by the neutral hover ring for `EF_NEUTRAL`, and white for friendly/no hover. This keeps Sheep,

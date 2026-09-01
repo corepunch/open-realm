@@ -105,7 +105,7 @@ static BOOL rally_selecttarget(LPEDICT clent, LPEDICT target) {
     BOOL any = false;
 
     if (!clent || !clent->client || !target) return false;
-    FOR_SELECTED_UNITS(clent->client, producer) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, producer) {
         if (G_SetRallyEntity(producer, target)) any = true;
     }
     return any;
@@ -115,7 +115,7 @@ static BOOL rally_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     BOOL any = false;
 
     if (!clent || !clent->client || !point) return false;
-    FOR_SELECTED_UNITS(clent->client, producer) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, producer) {
         if (G_SetRallyPoint(producer, point)) any = true;
     }
     return any;
@@ -126,7 +126,7 @@ static void rally_command(LPEDICT clent) {
 
     if (!clent || !clent->client) return;
     producer = G_GetMainSelectedUnit(clent->client);
-    if (!G_UnitHasRally(producer)) return;
+    if (!G_UnitCanControl(clent->client, producer) || !G_UnitHasRally(producer)) return;
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = rally_selecttarget;
     clent->client->menu.on_location_selected = rally_selectlocation;
