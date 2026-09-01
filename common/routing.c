@@ -705,9 +705,10 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags) {
 }
 
 BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius) {
-    if (!a || !b || pathmap.width == 0 || pathmap.height == 0) {
+    if (!a || !b)
         return false;
-    }
+    if (pathmap.width == 0 || pathmap.height == 0)
+        return true;
     int radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     VECTOR2 na = CM_GetNormalizedMapPosition(a->x, a->y);
     VECTOR2 nb = CM_GetNormalizedMapPosition(b->x, b->y);
@@ -719,9 +720,8 @@ BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius) {
     int x = ax, y = ay;
     int guard = dx + dy + 2;
     while (guard-- > 0) {
-        if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells)) {
+        if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells))
             return false;
-        }
         if (x == bx && y == by) {
             return true;
         }

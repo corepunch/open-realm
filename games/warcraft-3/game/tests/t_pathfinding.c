@@ -72,6 +72,7 @@ DWORD M_RefreshHeatmap(LPEDICT goal, FLOAT radius);
 void order_move(LPEDICT self, LPEDICT target);
 void order_patrol(LPEDICT self, LPEDICT target);
 void order_attackmove(LPEDICT self, LPEDICT target);
+BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
 
 /* From m_unit.c */
 void unit_stand(LPEDICT self);
@@ -802,6 +803,20 @@ TEST(wc3_pathfinding, closest_reachable_does_not_cross_diagonal_corner) {
     T_ASSERT(CM_ClosestReachablePointForRadius(&start, &target, 0.0f, &out));
     T_FEQ(out.x, start.x, 0.001f);
     T_FEQ(out.y, start.y, 0.001f);
+}
+
+TEST(wc3_pathfinding, movement_rejects_swept_static_obstacle) {
+    BYTE blocked_map[MAP_W * MAP_H];
+    VECTOR2 from = { 0.0f, 0.0f }, to = { 2.0f, 2.0f };
+    LPEDICT unit;
+    memset(blocked_map, 0, sizeof(blocked_map));
+    blocked_map[1 * MAP_W + 1] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_map);
+    reset_entities();
+    unit = make_unit_at(from.x, from.y);
+    unit->collision = 0.0f;
+
+    T_ASSERT(!M_MoveIsValid(unit, &to));
 }
 
 /* -----------------------------------------------------------------------

@@ -75,6 +75,13 @@ point toward an impossible destination. The binary does not establish that OpenR
 integration field, cache policy, or exact `ox/xo` diagonal test matches Blizzard's algorithm. Treat the corner rule as
 a necessary consistency fix and the closest-reachable policy as behaviorally retail-like, not instruction-equivalent.
 
+The same corner rule is applied to direct routing and movement steps: a diagonal
+segment is rejected when either cardinal side of the crossed cell corner is
+blocked. `CM_LineIsWalkableForRadius()` and `M_MoveIsValid()` therefore agree
+with the flow flood instead of allowing a direct order or a long simulation step
+to squeeze through a diagonal wall corner. With no loaded path map, line tests
+remain permissive, matching the existing no-map movement behavior.
+
 ## Retail Lumber Fallback
 
 Retail Warcraft III continues lumber gathering when the explicitly clicked tree is alive but buried inside an unreachable group of trees.

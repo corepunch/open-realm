@@ -120,6 +120,12 @@ static BOOL move_is_valid(LPEDICT self, LPCVECTOR2 cand) {
     /* Static world: terrain + baked building footprints (pathmap.original). */
     if (!CM_PointIsPathableForRadius(cand, self->collision))
         return false;
+    /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
+     * the escape case for units spawned inside stale/changed pathing, where the
+     * endpoint remains the authoritative legal position. */
+    if (CM_PointIsPathableForRadius(&self->s.origin2, self->collision) &&
+        !CM_LineIsWalkableForRadius(&self->s.origin2, cand, self->collision))
+        return false;
 
     /* Dynamic units: precise circle test.  The "don't deepen penetration" rule
      * ignores a neighbour the unit already overlaps unless the candidate moves
