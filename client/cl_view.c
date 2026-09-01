@@ -212,15 +212,12 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.frame = ent->current.frame;
     re.oldframe = ent->prev.frame;
     re.model = cl.models[ent->current.model];
-#ifdef WOW
-    /* WoW creature skins come from CreatureDisplayInfo; image carries a server name configstring instead. */
-    if (ent->current.image >= CS_GENERAL && ent->current.image < MAX_CONFIGSTRINGS)
-        re.name = cl.configstrings[ent->current.image];
-    else
-        re.skin = cl.pics[ent->current.image];
-#else
     re.skin = cl.pics[ent->current.image];
-#endif
+    if (ent->current.name) {
+        DWORD i = ent->current.name - 1;
+        LPCSTR cs = cl.configstrings[CS_GENERAL + (i >> 4)];
+        re.name = cs ? cs + (i & 0xF) * ENT_NAME_SLOT_SIZE : NULL;
+    }
     re.team = ent->current.player;
 #ifdef WOW
     /* WoW reuses the existing snapshot class ID for the DBC creature display ID. */
