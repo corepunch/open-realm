@@ -1001,7 +1001,7 @@ static BOOL SCR_RangesOverlap(FLOAT a0, FLOAT a1, FLOAT b0, FLOAT b1) {
  * transparent console art to hide the line.  Full-screen world games have a
  * scissor bottom at UI_BASE_HEIGHT, making this a no-op. */
 void SCR_LayoutClampSelectionRect(LPRECT rect) {
-    VECTOR2 start, end, clamped;
+    VECTOR2 start, finish, clamped;
     FLOAT world_bottom;
     FLOAT xmin, xmax, ymin, ymax;
     size2_t window;
@@ -1015,11 +1015,11 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
     }
 
     start = SCR_ScreenToUI((int)rect->x, (int)rect->y);
-    end = SCR_ScreenToUI((int)(rect->x + rect->w), (int)(rect->y + rect->h));
-    clamped = end;
+    finish = SCR_ScreenToUI((int)(rect->x + rect->w), (int)(rect->y + rect->h));
+    clamped = finish;
     world_bottom = (1.0f - cl.viewDef.scissor.y) * UI_BASE_HEIGHT;
-    xmin = MIN(start.x, end.x);
-    xmax = MAX(start.x, end.x);
+    xmin = MIN(start.x, finish.x);
+    xmax = MAX(start.x, finish.x);
 
     /* Clamp vertical travel first.  Only frames that extend into the bottom
      * console count; upper resource/command strips are not part of this mask. */
@@ -1038,9 +1038,9 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
             bottom = r->y + r->h;
             if (bottom < world_bottom || !SCR_RangesOverlap(xmin, xmax, r->x, r->x + r->w)) continue;
 
-            if (end.y > start.y && r->y > start.y && r->y < clamped.y) {
+            if (finish.y > start.y && r->y > start.y && r->y < clamped.y) {
                 clamped.y = r->y;
-            } else if (end.y < start.y && bottom < start.y && bottom > clamped.y) {
+            } else if (finish.y < start.y && bottom < start.y && bottom > clamped.y) {
                 clamped.y = bottom;
             }
         }
@@ -1067,9 +1067,9 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
             bottom = r->y + r->h;
             if (bottom < world_bottom || !SCR_RangesOverlap(ymin, ymax, r->y, bottom)) continue;
 
-            if (end.x > start.x && r->x > start.x && r->x < clamped.x) {
+            if (finish.x > start.x && r->x > start.x && r->x < clamped.x) {
                 clamped.x = r->x;
-            } else if (end.x < start.x && (r->x + r->w) < start.x && (r->x + r->w) > clamped.x) {
+            } else if (finish.x < start.x && (r->x + r->w) < start.x && (r->x + r->w) > clamped.x) {
                 clamped.x = r->x + r->w;
             }
         }
