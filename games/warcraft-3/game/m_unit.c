@@ -125,6 +125,10 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     }
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
+    if (self->sound.death) {
+        self->sound.world_pending = self->sound.death;
+        self->sound.world_pending_event = EV_DEATH;
+    }
     /* Destroying a transport ejects its passengers at the wreck. */
     if (self->cargo.count > 0) {
         cargo_drop_all(self);

@@ -1,8 +1,10 @@
 # Warcraft III — Unit Sound System
 
+See also: [Sound Architecture](../../architecture/sound.md).
+
 ## Sound Catalog Files
 
-Unit sounds live in two SLK tables shipped in `War3.mpq`:
+Warcraft III sound mappings are primarily driven by SLK tables shipped in `War3.mpq`:
 
 | File | Purpose |
 |------|---------|
@@ -74,28 +76,155 @@ Buildings use `BuildingSoundLabel` (from `*UnitFunc.txt`) which maps to looping 
 
 ## OpenWarcraft3 Implementation
 
-The typed SLK registry loads `UI/SoundInfo/UnitAckSounds.slk` into a flat `unitSoundRow_t` array. Sound names are not FOURCCs, so each row owns its complete source name and `G_UnitAckSound` compares that string. At unit spawn, `G_RegisterUnitSounds` reads the `usnd` label from `unitUI.slk` and registers:
-- `sound_select[]` ← every `{label}What` file (up to the authoritative ROC/TFT maximum of six)
-- `sound_attack` ← `{label}YesAttack` first file path via `gi.SoundIndex`
-- `sound_death` ← `{label}Death.wav` raw path via `gi.SoundIndex`
+### Loaded sound tables
 
-On selection, the server chooses a random `sound_select` entry and queues it until
-`G_RunEntities`, after that function clears the previous frame's one-shot event.
-The selected entity then carries `EV_ACK` plus the sound configstring index for one snapshot.
-`G_CustomizeEntity` strips that event from snapshots sent to clients that did
-not select the entity, keeping acknowledgement voices local to the selecting player.
-On attack swing (`attack_melee`/`attack_ranged`): `s.event = EV_ATTACK; s.sound = sound_attack`.
-On death (`unit_die`): `s.event = EV_DEATH; s.sound = sound_death`.
-Client fires `S_PlaySoundFile` on any non-zero `s.event`.
+The typed WC3 metadata registry loads these sound tables at `InitUnitData` time:
 
-`CL_PrepRefresh` registers every populated `CS_SOUNDS` entry through
-`S_RegisterSound`, which creates the path-keyed handle and decodes its PCM before
-the client sends `begin`. The event path therefore performs only a configstring
-lookup and cached playback; archive I/O and resampling never occur on the click.
-Later `CS_SOUNDS` updates are registered directly by `CL_ParseConfigString`.
+```text
+UI\SoundInfo\UnitAckSounds.slk
+UI\SoundInfo\UnitCombatSounds.slk
+UI\SoundInfo\UISounds.slk
+```
 
-Classic WC3 unit WAVs are multi-sector, encrypted MPQ entries. Their first sector may use zlib while later sectors
-use Blizzard adaptive Huffman plus mono ADPCM (`0x41`). The in-tree MPQ reader must decode every sector before the
-sound cache parses the WAV; accepting a partial MPQ read produces a valid 4096-byte RIFF prefix and audibly reduces
-lines such as “What?” to “Wh-”. WoW UI sounds do not necessarily use this compression combination, which is why the
-same mixer can play them completely while WC3 unit responses are cropped.
+All three use `UnitAckSounds_t` because they share the `FileNames` /
+`DirectoryBase` sound-row schema. `G_UnitAckSound`, `G_UnitCombatSound`, and
+`G_UISound` perform exact row-name lookup.
+
+### Unit acknowledgement and completion sounds
+
+`G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and
+registers:
+
+- `sound.select[]` <- every `{label}What` file;
+- `sound.yes[]` <- every `{label}Yes` file;
+- `sound.ready[]` <- every `{label}Ready` file;
+- `sound.attack` <- the first `{label}YesAttack` file;
+- `sound.death` <- `{label}Death` when present, otherwise the raw
+  `{modelDir}\{ModelName}Death.wav` path.
+
+Selection and normal right-click acknowledgements are queued until
+`G_RunEntities` clears the previous one-shot event. They are emitted as
+`EV_ACK`; `G_CustomizeEntity` strips that event from clients which did not
+select the unit.
+
+Training completion selects a random registered `Ready` variant and queues it
+as `EV_OWNER_SOUND`. Owner sounds are positional entity sounds, but
+`G_CustomizeEntity` strips them from every client except `ent->s.player`. This
+matches the local-player nature of WC3 production announcements without
+turning them into globally audible world sounds.
+
+### Death sounds
+
+`unit_die` queues the already-registered death sound as `EV_DEATH` for the next
+entity snapshot. Death is a world event and is not owner-filtered. Queueing is
+required because JASS/events execute before `G_RunEntities`, whose first pass
+clears the previous snapshot's one-shot fields; writing `s.event` directly from
+a scripted `KillUnit` path would otherwise be erased before transmission. The
+world-event queue is applied after acknowledgement/owner queues, so death wins
+if several one-shots are pending on the same entity.
+
+### Construction completion and UI sounds
+
+`G_CompleteConstruction` resolves the owner's `JobDoneSound` field through
+`UI\war3skins.txt`, resolves that alias through `UISounds.slk`, and queues the
+chosen authored file as `EV_OWNER_SOUND` on the completed building. The sound
+is therefore positional at the structure and audible only to its owner.
+
+Immediate UI sounds are sent only when the owning game client is connected.
+Reserved/disconnected player slots may already have simulation state but do not yet
+have an initialized server message buffer; queued entity sounds can remain pending,
+while direct `snd` presentation waits for a connected client.
+
+Command errors use the same authoritative data chain as Warsmash:
+
+```text
+known WC3 command error key
+    -> <key>Sound in the local player's war3skins race section
+    -> InterfaceError when no dedicated skin field exists
+    -> UISounds.slk alias
+    -> one random FileNames entry
+    -> targeted `snd` game command to that player
+```
+
+The currently normalized hard-coded gameplay messages map to these external
+keys:
+
+| Message | WC3 key |
+|---|---|
+| `Not enough food` | `Nofood` |
+| `Not enough gold` | `Nogold` |
+| `Not enough lumber` | `Nolumber` |
+| `Not enough mana` | `Nomana` |
+| `Spell is not ready yet.` | `Cooldown` |
+| `Unable to build there.` | `Cantplace` |
+| `Inventory is full.` | `Inventoryfull` |
+
+`G_ShowCommandErrorText` keeps the existing text presentation and adds the
+race/UI sound lookup for those known messages. Other command failures are not
+guessed into unrelated WC3 keys; they receive the generic `InterfaceError`
+sound, matching Warsmash's fallback behavior.
+
+For targeted spells, mana/cooldown validation stays at the actual cast attempt
+(the unit/point selection callback), not the command-button click. This preserves
+target-selection lifecycle while still emitting `Nomana` / `Cooldown` feedback
+when the player attempts to commit the spell. No-target spells validate and emit
+the same feedback immediately because the button click is the cast attempt.
+
+### Other implemented UI aliases
+
+The generic `UISounds.slk` resolver is also used for:
+
+- `PlaceBuildingDefault` after a build placement is accepted; this is sent as
+  non-positional UI audio to the issuing player.
+- `ItemGet` after a world-item pickup succeeds; this is queued as positional
+  `EV_OWNER_SOUND` on the carrying unit.
+- `ItemDrop` after an inventory item is returned to the world; this is queued
+  as positional `EV_OWNER_SOUND` on the dropping unit.
+
+Aliases are resolved from Warcraft data rather than hard-coded WAV paths.
+
+### Combat sounds
+
+`UnitCombatSounds.slk` is currently consumed for lumber harvesting. The
+attacker's authored weapon sound (`ucs1`) is combined with `Wood`, for example
+`MetalLightChopWood`, and all authored variants are registered. A successful
+chop chooses one variant; a lethal chop replaces it with one of
+`Sound\Destructibles\TreeFall{1,2,3}.wav`.
+
+Normal weapon-vs-armour impact resolution is still missing. `sound.attack` is
+still populated from `YesAttack` and fired on attack swings, which is not the
+final WC3 semantic split: `YesAttack` should be an attack-order acknowledgement
+while swing/impact audio should come from combat/model sound data. Keep this as
+a known gap rather than building additional behavior on `sound.attack`.
+
+### Not yet implemented
+
+The following remain separate follow-up work:
+
+- `{label}Pissed` repeated-click responses;
+- `{label}Warcry`;
+- `AutoCastButtonClick`, `SubGroupSelectionChange`, and rally-point UI sounds;
+- `ConstructingBuilding` construction-start/selection sound behavior;
+- `YesAttack` as a distinct attack-order acknowledgement;
+- general weapon-vs-armour `UnitCombatSounds.slk` impacts;
+- ability/buff `EffectSound` and `EffectSoundLooped`;
+- MDX `EVTS` -> `AnimLookups.slk` -> `AnimSounds.slk` playback;
+- `CreateSoundFromLabel` and the remaining JASS sound-handle controls;
+- music/thematic-music natives;
+- race alerts such as `UnderAttack`, `GoldMineLow`, hero death, upgrade and
+  research completion.
+
+### Client/server flow
+
+`CL_PrepRefresh` registers populated `CS_SOUNDS` entries through
+`S_RegisterSound`. Later configstring additions are registered by
+`CL_ParseConfigString`, so UI aliases first encountered during gameplay may
+still call `gi.SoundIndex` safely. Entity events use `S_PlaySoundAt`; the
+targeted `snd` game command used for command-error UI audio uses
+`S_PlaySoundFile`.
+
+Classic WC3 unit WAVs are multi-sector, encrypted MPQ entries. Their first
+sector may use zlib while later sectors use Blizzard adaptive Huffman plus mono
+ADPCM (`0x41`). The in-tree MPQ reader must decode every sector before the
+sound cache parses the WAV; accepting a partial MPQ read produces a valid
+4096-byte RIFF prefix and audibly truncates response lines.

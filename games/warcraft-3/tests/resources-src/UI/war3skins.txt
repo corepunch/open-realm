@@ -1,6 +1,7 @@
 [Default]
 ConsoleInventoryCoverTexture=TestUI\Textures\default-inventory-cover.blp
 ConsoleInventoryNoCapacity=TestUI\Textures\default-inventory-no-capacity.blp
+JobDoneSound=TestJobDone
 
 [Human]
 ConsoleInventoryCoverTexture=TestUI\Textures\human-inventory-cover.blp

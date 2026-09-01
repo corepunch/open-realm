@@ -1,0 +1,12 @@
+ID;PWXL;N;E
+B;X3;Y3;D0
+C;Y1;X1;K"SoundLabel"
+C;Y1;X2;K"FileNames"
+C;Y1;X3;K"DirectoryBase"
+C;Y2;X1;K"InterfaceError"
+C;Y2;X2;K"InterfaceError.wav"
+C;Y2;X3;K"TestUI\Sounds\"
+C;Y3;X1;K"TestJobDone"
+C;Y3;X2;K"JobDone.wav"
+C;Y3;X3;K"TestUI\Sounds\"
+E

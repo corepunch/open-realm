@@ -1,5 +1,7 @@
 # Sound Architecture
 
+See also: [Warcraft III — Unit Sound System](../games/warcraft-3/sounds.md).
+
 Based on Quake 2's sound system. Sound is a client-side subsystem with server-mediated triggering via configstrings and entity state events.
 
 ## Entity Sound Events (One-Shot)
@@ -11,7 +13,7 @@ Unit sounds (attack, death, movement) are delivered through `entityState_t.event
 1. **Server game code** registers a WAV file path via `gi.SoundIndex(path)` → index stored in `edict->sound_attack` / `sound_death` at spawn.
 2. On the trigger frame, game sets `ent->s.event = EV_ATTACK` (or `EV_DEATH`) and `ent->s.sound = sound_attack`.  Both fields are zeroed at the top of `G_RunEntities` so they are non-zero for exactly one snapshot.
 3. **Client** (`cl_parse.c`) calls `CL_EntityEvent(ent)` after applying each entity delta if `ent->event != 0`.
-4. `CL_EntityEvent` (`cl_fx.c`) resolves `cl.configstrings[CS_SOUNDS + ent->sound]` to a file path and calls `S_PlaySoundFile(path)`.
+4. `CL_EntityEvent` (`cl_fx.c`) resolves `cl.configstrings[CS_SOUNDS + ent->sound]` to a file path and calls `S_PlaySoundAt(path, &ent->origin2)` for positional playback.
 5. `S_PlaySoundFile` loads the WAV from the MPQ (with LRU cache) and mixes it into an SDL audio channel.
 
 ### Event Types (`entity_event_t` in `common/shared.h`)
@@ -22,16 +24,21 @@ Unit sounds (attack, death, movement) are delivered through `entityState_t.event
 | 1 | `EV_ATTACK` | Attack swing began |
 | 2 | `EV_DEATH` | Unit died |
 | 3 | `EV_MOVE` | Footstep / movement sound |
+| 4 | `EV_ACK` | WC3 local selection/order acknowledgement |
+| 5 | `EV_OWNER_SOUND` | WC3 positional one-shot filtered to the entity owner |
 
 ### WC3 Sound Registration
 
-At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk`, looks up the label in `UI/SoundInfo/UnitAckSounds.slk`, and registers the first matching WAV file as a configstring via `gi.SoundIndex`. See `docs/games/warcraft-3/sounds.md` for the full SLK schema.
+At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and registers authored `What`, `Yes`, `Ready`, `YesAttack`, and death assets. WC3 also loads `UnitCombatSounds.slk` and `UISounds.slk`; construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields into `UISounds.slk`. See `docs/games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
+
+`EV_ACK` and `EV_OWNER_SOUND` are server-authored like the other entity events, but WC3's `G_CustomizeEntity` filters their snapshots per client: acknowledgements require that client to have selected the unit, while owner sounds require `ent->s.player == client player`. World events such as death and tree impacts are not filtered this way.
 
 ### Key Files
 
 | File | Role |
 |------|------|
 | `games/warcraft-3/game/g_monster.c` | `G_RegisterUnitSounds` — sound index registration at spawn |
+| `games/warcraft-3/game/g_sound.c` | WC3 `UISounds.slk`, owner-only sounds, and command-error sound dispatch |
 | `games/warcraft-3/game/g_events.c` | `G_RunEntities` — clears `s.event`/`s.sound` each frame |
 | `client/cl_fx.c` | `CL_EntityEvent` — fires sounds on event |
 | `sound/s_sound.c` | `S_PlaySoundFile` — raw MPQ path playback |

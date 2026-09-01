@@ -7,7 +7,7 @@ void repair_build_primary(LPEDICT ent, LPEDICT building);
 
 static void G_BuildError(LPEDICT clent, LPCSTR text) {
     if (!clent || !text || !*text) return;
-    UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+    G_ShowCommandErrorText(clent, text);
 }
 
 static void G_BuildPlacementError(LPEDICT clent) {
@@ -218,6 +218,7 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     }
 
     if (!G_IssueBuildOrder(builder, clent->build_project, &snapped)) return false;
+    G_PlayUISoundForPlayer(clent, "PlaceBuildingDefault");
     G_ClearBuildPlacementCursor(clent);
     return true;
 }

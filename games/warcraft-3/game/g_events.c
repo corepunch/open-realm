@@ -106,6 +106,17 @@ void G_RunEntities(void) {
             ent->s.sound = ent->sound.pending;
             ent->sound.pending = 0;
         }
+        if (ent->sound.owner_pending) {
+            ent->s.event = EV_OWNER_SOUND;
+            ent->s.sound = ent->sound.owner_pending;
+            ent->sound.owner_pending = 0;
+        }
+        if (ent->sound.world_pending) {
+            ent->s.event = ent->sound.world_pending_event;
+            ent->s.sound = ent->sound.world_pending;
+            ent->sound.world_pending = 0;
+            ent->sound.world_pending_event = EV_NONE;
+        }
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = globals.edicts+i;

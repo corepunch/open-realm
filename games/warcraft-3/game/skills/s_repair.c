@@ -490,12 +490,12 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
     }
 
     if (!target->construction.active && target->health.value >= target->health.max_value) {
-        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Target is not damaged.", 2.0f);
+        G_ShowCommandErrorText(clent, "Target is not damaged.");
         return false;
     }
     if (target->construction.active &&
         (handler != &a_repair || !target->construction.paused)) {
-        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "That building is currently under construction.", 2.0f);
+        G_ShowCommandErrorText(clent, "That building is currently under construction.");
         return false;
     }
 

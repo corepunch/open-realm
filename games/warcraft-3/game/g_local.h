@@ -775,8 +775,13 @@ struct edict_s {
         BYTE num_select;
         BYTE yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
         BYTE num_yes;
+        BYTE ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
+        BYTE num_ready;
         BYTE chop[3]; BYTE num_chop;        /* weapon-vs-wood impact variants */
         BYTE pending;
+        int owner_pending;                  /* owner-only one-shot queued for next snapshot */
+        int world_pending;                  /* unfiltered world one-shot queued for next snapshot */
+        BYTE world_pending_event;
         int attack, death;
     } sound;
 
@@ -1317,6 +1322,7 @@ LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
 
 LPCSTR Theme_String(LPCSTR, LPCSTR);
+LPCSTR Theme_PlayerString(LPGAMECLIENT, LPCSTR, LPCSTR);
 FLOAT Theme_Float(LPCSTR, LPCSTR);
 
 // ui_write.c
@@ -1345,6 +1351,11 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
+void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
+void G_QueueReadySound(LPEDICT);
+void G_QueueOwnerSoundAlias(LPEDICT, LPCSTR);
+void G_QueueOwnerUISound(LPEDICT, LPCSTR);
+void G_ShowCommandErrorText(LPEDICT, LPCSTR);
 extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */
 extern BYTE g_numTreeFallSounds;
 

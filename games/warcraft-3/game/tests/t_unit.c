@@ -115,6 +115,20 @@ TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
     T_EQ(ent->sound.pending, 0);
 }
 
+TEST(wc3_unit, ready_sound_queues_owner_only_event) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    ent->sound.ready[0] = 21;
+    ent->sound.ready[1] = 22;
+    ent->sound.num_ready = 2;
+
+    G_QueueReadySound(ent);
+    T_ASSERT(ent->sound.owner_pending == 21 || ent->sound.owner_pending == 22);
+    G_RunEntities();
+    T_EQ(ent->s.event, EV_OWNER_SOUND);
+    T_ASSERT(ent->s.sound == 21 || ent->s.sound == 22);
+    T_EQ(ent->sound.owner_pending, 0);
+}
+
 /* -----------------------------------------------------------------------
  * Birth tests
  * --------------------------------------------------------------------- */
@@ -229,6 +243,20 @@ TEST(wc3_unit, die_sets_death_animation) {
     unit_die(ent, NULL);
     T_NOT_NULL(ent->currentmove);
     T_STREQ(ent->currentmove->animation, "death");
+}
+
+TEST(wc3_unit, die_emits_registered_death_sound) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    ent->sound.death = 23;
+
+    unit_die(ent, NULL);
+    T_EQ(ent->sound.world_pending, 23);
+    T_EQ(ent->sound.world_pending_event, EV_DEATH);
+    G_RunEntities();
+    T_EQ(ent->s.event, EV_DEATH);
+    T_EQ(ent->s.sound, 23);
+    T_EQ(ent->sound.world_pending, 0);
 }
 
 TEST(wc3_unit, die_raises_dead_monster_flag) {
