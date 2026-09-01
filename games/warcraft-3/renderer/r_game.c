@@ -287,8 +287,14 @@ FLOAT R_SelectionRadius(renderEntity_t const *entity) {
 }
 
 FLOAT R_EntityHeight(renderEntity_t const *entity) {
+    mdxModel_t const *mdx;
+    mdxSequence_t const *seq;
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx) return 0.0f;
-    return entity->model->mdx->bounds.box.max.z * entity->scale;
+    mdx = entity->model->mdx;
+    /* Retail reads the authored per-sequence bounds, not a transform of the whole model;
+     * a single static extent spans every animation and misplaces mines/heroes' overhead UI. */
+    seq = R_FindSequenceAtTime(mdx, entity->frame);
+    return (seq ? seq->bounds.box.max.z : mdx->info.bounds.box.max.z) * entity->scale;
 }
 BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     if (!entity || !out) return false;
