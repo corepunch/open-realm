@@ -26,6 +26,7 @@ static DWORD g_fow_blocker_hash;
 static DWORD g_fow_blocker_count;
 static BOOL g_fow_blockers_valid;
 static BOOL g_fow_blockers_dirty = true;
+static BOOL g_fow_fast;
 
 static DWORD G_FowCellCount(void) {
     return level.fow.width * level.fow.height;
@@ -409,6 +410,13 @@ static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
     }
 
     radius_cells = G_FowRadiusCells(radius);
+    /* Fast FoW trades occlusion precision for a bounded disk walk.  On the
+     * handheld target, shadowcasting is the expensive path and exact tree/building
+     * silhouettes are less important than keeping the simulation frame budget. */
+    if (g_fow_fast) {
+        G_FowRevealDisk(grid, cx, cy, radius_cells);
+        return;
+    }
     if (G_FowAnyBlockedInBox((int)cx - radius_cells,
                              (int)cy - radius_cells,
                              (int)cx + radius_cells,
@@ -872,6 +880,7 @@ void G_FowUpdate(void) {
             viewers |= 1u << player;
     if (!viewers)
         return;
+    g_fow_fast = gi.CvarString && atoi(gi.CvarString("wc3_fow_fast", "0"));
     FOR_LOOP(owner, MAX_PLAYERS)
         FOR_LOOP(viewer, MAX_PLAYERS)
             if ((viewers & (1u << viewer)) && G_FowSharedVision(viewer, owner))
