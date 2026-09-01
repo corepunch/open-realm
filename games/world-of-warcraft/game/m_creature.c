@@ -65,14 +65,13 @@ static USHORT G_UnitNameConfigstring(LPCSTR name) {
         LPCSTR cs = gi.GetConfigstring(idx);
         for (DWORD sub = 0; sub < ENT_NAMES_PER_CS; sub++) {
             LPCSTR entry = cs ? cs + sub * ENT_NAME_SLOT_SIZE : NULL;
-            if (entry && *entry) {
-                if (!strncmp(entry, name, ENT_NAME_SLOT_SIZE - 1))
+            if (entry && !entity_name_slot_empty(entry)) {
+                if (entity_name_slot_equals(entry, name))
                     return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
                 continue;
             }
-            memset(buf, 0, sizeof(buf));
-            if (cs && *cs) memcpy(buf, cs, sizeof(buf));
-            strncpy(buf + sub * ENT_NAME_SLOT_SIZE, name, ENT_NAME_SLOT_SIZE - 1);
+            entity_name_pool_prepare(buf, cs);
+            entity_name_slot_store(buf, sub, name);
             gi.configstring(idx, buf);
             return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
         }

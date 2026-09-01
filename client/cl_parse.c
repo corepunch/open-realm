@@ -198,6 +198,12 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
     } else {
         MSG_ReadString(msg, cl.configstrings[index]);
     }
+#ifdef WOW
+    if (index >= CS_GENERAL + WOW_CS_NPC_NAME_FIRST && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
+#else
+    if (index >= CS_GENERAL && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
+#endif
+        entity_name_pool_decode(cl.configstrings[index]);
     if (index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) {
         DWORD pic = index - CS_IMAGES;
 

@@ -664,6 +664,23 @@ TEST(net, cursor_splat_message_sets_and_clears_state) {
     T_FEQ(cl.cursor_splat.radius, 0.0f, 0.0001f);
 }
 
+TEST(net, packed_entity_names_survive_configstring_transport) {
+    BYTE buf[512];
+    char names[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init();
+    entity_name_pool_prepare(names, NULL);
+    entity_name_slot_store(names, 0, "Peasant");
+    entity_name_slot_store(names, 1, "Villager");
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_GENERAL);
+    MSG_WriteString(&sb, names);
+    CL_ParseServerMessage(&sb);
+    T_STREQ(cl.configstrings[CS_GENERAL], "Peasant");
+    T_STREQ(cl.configstrings[CS_GENERAL] + ENT_NAME_SLOT_SIZE, "Villager");
+}
+
 TEST(net, playerinfo_game_state_preserves_open_menu_input) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

@@ -308,6 +308,14 @@ The hover nameplate/stat bar is native runtime UI, not an FDF-defined frame. ROC
 `MiscData.txt:[SelectionCircle] ScaleFactor` determine the bar width. Keep those lookups authoritative instead of copying texture
 paths or per-unit dimensions into C.
 
+The displayed name comes from the race/campaign `Units\\*UnitStrings.txt` `Name` field (`unam`), merged into `UnitProfile_t.name`;
+for example, `Units\\NeutralUnitStrings.txt` defines `[nvil] Name=Villager`. `G_CustomizeEntity` interns that text into `CS_GENERAL`
+and sends its 1-based pool index through `entityState_t.name`; `SCR_UpdateHoverUnitUI` resolves the index and
+copies the result into `uiHoverUnit_t.name`. A configstring is NUL-terminated on the wire, so its sixteen fixed-width name records use
+ASCII Unit Separator (`0x1f`) as padding and retain a single final NUL. `CL_ParseConfigString` converts the separators back to NULs
+after receipt, preserving ordinary fixed-offset C strings for renderer and UI consumers. Embedded NUL records truncate at the first
+name in `MSG_WriteString` and leave later hover names empty.
+
 Retail `PreSelect.cpp` makes the bar width `UnitUI scale * SelectionCircle ScaleFactor * 0.0005`, equivalent to the render
 entity's selection radius times `0.001`. `CStatBar.cpp` uses a `0.004` frame height and `0.001` inset, so the visible fill is half
 the old implementation's thickness. `CUnitTip.cpp` sizes the nameplate from rendered text with `0.008` horizontal and `0.006`
