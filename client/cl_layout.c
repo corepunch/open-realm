@@ -143,13 +143,15 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
     if (frame->stat == UI_STAT_CONTEXT_NAME) {
         LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+        LPCSTR name;
         DWORD ni, cs_index;
 
         if (!ent || !ent->name) { text[0] = '\0'; return text; }
         ni = ent->name - 1;
         cs_index = CS_GENERAL + (ni >> 4);
-        if (cs_index >= MAX_CONFIGSTRINGS || !cl.configstrings[cs_index][0]) { text[0] = '\0'; return text; }
-        return cl.configstrings[cs_index] + (ni & 0xF) * ENT_NAME_SLOT_SIZE;
+        if (cs_index >= MAX_CONFIGSTRINGS) { text[0] = '\0'; return text; }
+        name = cl.configstrings[cs_index] + (ni & 0xF) * ENT_NAME_SLOT_SIZE;
+        return name;
     } else if (frame->stat >= MAX_STATS && frame->stat < MAX_STATS * 2) {
         if (cl.playerstate.texts[frame->stat - MAX_STATS]) {
             strlcpy(text, cl.playerstate.texts[frame->stat - MAX_STATS], sizeof(text));
