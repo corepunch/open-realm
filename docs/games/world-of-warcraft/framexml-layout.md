@@ -1,8 +1,8 @@
 # WoW FrameXML Layout
 
-`games/world-of-warcraft/ui/stb_wowxml.h` parses FrameXML and owns the element registry, inheritance, parent/relative-frame links,
-anchors, and rectangle calculation. `ui_xml.c` supplies Lua bindings, drawing, and input. Production and UI tests compile the
-single-header implementation with `STB_WOW_XML_IMPLEMENTATION`; keep the guarded declarations in `ui_xml.c` synchronized.
+`games/world-of-warcraft/ui/stb_wowxml.h` parses FrameXML using DDX-style schema tables and owns the element registry, inheritance,
+parent/relative-frame links, anchors, and rectangle calculation. `ui_xml.c` supplies Lua bindings, drawing, and input. Production
+and UI tests compile the single-header implementation with `STB_WOW_XML_IMPLEMENTATION` in `ui_xml.c`.
 
 ## Geometry contract
 

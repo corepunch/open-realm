@@ -26,13 +26,27 @@
 
 #include "common/shared.h"
 #include "shared/types/rect.h"
+#include "client/ui_text_input.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* -------------------------------------------------------------------------- */
-/* Frame type enum — public, used by test assertions and ui_windows.c.        */
+/* Constants                                                                   */
+/* -------------------------------------------------------------------------- */
+#define WOW_XML_MAX_ELEMS        2048
+#define WOW_XML_LAYER_BACKGROUND 0
+#define WOW_XML_LAYER_BORDER     1
+#define WOW_XML_LAYER_ARTWORK    2
+#define WOW_XML_LAYER_OVERLAY    3
+#define WOW_XML_BACKDROP_LEFT    0
+#define WOW_XML_BACKDROP_RIGHT   1
+#define WOW_XML_BACKDROP_TOP     2
+#define WOW_XML_BACKDROP_BOTTOM  3
+
+/* -------------------------------------------------------------------------- */
+/* Types and enums                                                             */
 /* -------------------------------------------------------------------------- */
 #ifndef UIWOW_XML_TYPE_DEFINED
 #define UIWOW_XML_TYPE_DEFINED
@@ -46,6 +60,124 @@ typedef enum {
 } uiWowXmlType_t;
 #endif
 
+typedef struct { FLOAT x, y; } fpoint_t;
+typedef struct { FLOAT w, h; } fsize_t;
+
+typedef enum {
+    ELEM_NAME = 0,
+    ELEM_PARENT_NAME,
+    ELEM_RELATIVE_NAME,
+    ELEM_FILE,
+    ELEM_NORMAL_FILE,
+    ELEM_PUSHED_FILE,
+    ELEM_HIGHLIGHT_FILE,
+    ELEM_CHECKED_FILE,
+    ELEM_TEXT,
+    ELEM_POINT,
+    ELEM_RELATIVE_POINT,
+    ELEM_BACKDROP_BG,
+    ELEM_BACKDROP_EDGE,
+    ELEM_ON_CLICK,
+    ELEM_ON_LOAD,
+    ELEM_ON_SHOW,
+    ELEM_ON_ENTER,
+    ELEM_ON_LEAVE,
+    ELEM_ON_ENTER_PRESSED,
+    ELEM_ON_ESCAPE_PRESSED,
+    ELEM_ON_TAB_PRESSED,
+    ELEM_ON_MOUSE_WHEEL,
+    ELEM_ON_UPDATE_MODEL,
+    ELEM_ON_UPDATE,
+    ELEM_SOURCE_FILE,
+    ELEM_NORMAL_NAME,
+    ELEM_PUSHED_NAME,
+    ELEM_HIGHLIGHT_NAME,
+    ELEM_STRING_COUNT
+} uiWowXmlStr_t;
+
+typedef enum {
+    ELEM_COLOR_BACKDROP = 0,
+    ELEM_COLOR_BACKDROP_BORDER,
+    ELEM_COLOR_TEXT,
+    ELEM_COLOR_VERTEX,
+    ELEM_COLOR_COUNT
+} uiWowXmlColor_t;
+
+typedef enum {
+    WOW_XML_BUTTON_TEXT_NORMAL = 0,
+    WOW_XML_BUTTON_TEXT_DISABLED,
+    WOW_XML_BUTTON_TEXT_HIGHLIGHT,
+    WOW_XML_BUTTON_TEXT_COUNT
+} uiWowXmlButtonTextState_t;
+
+typedef enum {
+    EF_USED           = 1 << 0,
+    EF_HAS_ANCHOR     = 1 << 1,
+    EF_HAS_SIZE       = 1 << 2,
+    EF_HAS_TEXCOORD   = 1 << 3,
+    EF_HIDDEN         = 1 << 4,
+    EF_VIRTUAL        = 1 << 5,
+    EF_PASSWORD       = 1 << 6,
+    EF_ENABLED        = 1 << 7,
+    EF_CHECKED        = 1 << 8,
+    EF_SET_ALL_PTS    = 1 << 9,
+    EF_BACKDROP_TILE  = 1 << 10,
+    EF_HAS_HALIGN     = 1 << 11,
+    EF_HAS_VALIGN     = 1 << 12,
+    EF_FOCUSABLE      = 1 << 13,
+    EF_HAS_HIGHLIGHT_TEXCOORD = 1 << 14,
+    EF_HAS_BUTTON_TEXT_COLORS = 1 << 15,
+    EF_PENDING_ONLOAD = 1 << 16,
+    EF_HAS_ANCHOR2    = 1 << 17,
+    EF_WORD_WRAP      = 1 << 18,
+    EF_IS_SCROLLFRAME = 1 << 19,
+    EF_SCROLLBAR_PART = 1 << 20,
+    EF_CHECKBUTTON    = 1 << 21,
+    EF_LOGGED_GEOMETRY = 1 << 22,
+} uiWowXmlElemFlag_t;
+
+typedef struct {
+    DWORD flags;
+    uiWowXmlType_t type;
+    int id, parent, relative_to, relative_to2, draw_layer;
+    char *texts[ELEM_STRING_COUNT];
+    fpoint_t pos, offset, text_off, offset2;
+    char *point2, *relative_point2, *relative_name2;
+    fsize_t size, edge, tile, text_inset;
+    fsize_t measured;
+    FLOAT alpha, font_size;
+    FLOAT backdrop_insets[4];
+    uiFontJustificationH_t halign;
+    uiFontJustificationV_t valign;
+    COLOR32 colors[ELEM_COLOR_COUNT];
+    COLOR32 button_text_colors[WOW_XML_BUTTON_TEXT_COUNT];
+    RECT texcoord, highlight_texcoord;
+    LPMODEL model;
+    DWORD sequence, frame, oldframe, anim_start;
+    COLOR32 fog_color;
+    FLOAT fog_near, fog_far;
+    BOOL has_fog;
+} uiWowXmlElem_t;
+
+struct wowXmlRuntime_s {
+    uiWowXmlElem_t elems[WOW_XML_MAX_ELEMS];
+    int count, focus, pressed_button, hovered_button;
+    BOOL lua_ready;
+    uiTextInput_t text_input;
+    struct { FLOAT scroll_y, scroll_range; int scrollbar_child; } scroll[WOW_XML_MAX_ELEMS];
+    struct { int scrollbar_idx; FLOAT start_mouse_y, start_value; } drag;
+};
+
+#ifndef STB_WOW_XML_GLOBALS
+extern struct wowXmlRuntime_s wow_xml;
+#else
+struct wowXmlRuntime_s wow_xml = { 0 };
+#endif
+
+static const uiWowXmlStr_t uiwow_button_part_name_fields[] = {
+    ELEM_NORMAL_NAME, ELEM_PUSHED_NAME, ELEM_HIGHLIGHT_NAME
+};
+
 /* -------------------------------------------------------------------------- */
 /* Host services (defined by embedding module)                                 */
 /* -------------------------------------------------------------------------- */
@@ -58,8 +190,26 @@ extern void UI_XmlOnScriptBody(LPCSTR path, LPCSTR body);
 extern void UI_XmlLoadScriptFile(LPCSTR path);
 
 /* -------------------------------------------------------------------------- */
-/* Public API                                                                  */
+/* Pure element helpers & public API                                          */
 /* -------------------------------------------------------------------------- */
+LPCSTR UIWow_ElemStr(uiWowXmlElem_t const *e, uiWowXmlStr_t f);
+void   UIWow_ElemSetStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s);
+void   UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s);
+void   UIWow_ElemFreeStrings(uiWowXmlElem_t *e);
+RECT   UIWow_XmlComputeRect(int idx);
+int    UIWow_XmlFindByName(LPCSTR name);
+BOOL   UIWow_XMLIsVisible(int idx);
+void   UIWow_XMLSetShown(int idx, BOOL shown);
+int    UIWow_XMLHitFrame(FLOAT x, FLOAT y);
+void   UIWow_XMLFreeElems(void);
+FLOAT  UIWow_XmlX(FLOAT pixels);
+FLOAT  UIWow_XmlY(FLOAT pixels);
+BOOL   UIWow_XmlResolvePath(LPCSTR base, LPCSTR rel, LPSTR out, size_t n);
+BOOL   UIWow_XMLProcessFile(LPCSTR path, int depth);
+
+static inline BOOL UIWow_XMLPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
+    return r && x >= r->x && y >= r->y && x <= r->x + r->w && y <= r->y + r->h;
+}
 
 /* Load a single FrameXML file into the elem registry (no Lua required). */
 BOOL UIWow_XMLLoadFile(LPCSTR path);
@@ -106,115 +256,172 @@ LPCSTR UIWow_XmlElemParent(int idx);
 #include <string.h>
 #include <strings.h>
 #include "common/tinyxml.h"
-#include "client/ui_text_input.h"
 
-/* ---- Private types ---- */
-
-typedef struct { FLOAT x, y; } fpoint_t;
-typedef struct { FLOAT w, h; } fsize_t;
-
-typedef enum {
-    ELEM_NAME = 0, ELEM_PARENT_NAME, ELEM_RELATIVE_NAME, ELEM_FILE,
-    ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_CHECKED_FILE, ELEM_TEXT,
-    ELEM_POINT, ELEM_RELATIVE_POINT, ELEM_BACKDROP_BG, ELEM_BACKDROP_EDGE,
-    ELEM_ON_CLICK, ELEM_ON_LOAD, ELEM_ON_SHOW, ELEM_ON_ENTER, ELEM_ON_LEAVE,
-    ELEM_ON_ENTER_PRESSED, ELEM_ON_ESCAPE_PRESSED, ELEM_ON_TAB_PRESSED,
-    ELEM_ON_MOUSE_WHEEL, ELEM_ON_UPDATE_MODEL, ELEM_ON_UPDATE,
-    ELEM_SOURCE_FILE, ELEM_NORMAL_NAME, ELEM_PUSHED_NAME, ELEM_HIGHLIGHT_NAME,
-    ELEM_STRING_COUNT
-} uiWowXmlStr_t;
-
-typedef enum {
-    ELEM_COLOR_BACKDROP = 0, ELEM_COLOR_BACKDROP_BORDER,
-    ELEM_COLOR_TEXT, ELEM_COLOR_VERTEX, ELEM_COLOR_COUNT
-} uiWowXmlColor_t;
-
-typedef enum {
-    WOW_XML_BUTTON_TEXT_NORMAL = 0, WOW_XML_BUTTON_TEXT_DISABLED,
-    WOW_XML_BUTTON_TEXT_HIGHLIGHT, WOW_XML_BUTTON_TEXT_COUNT
-} uiWowXmlButtonTextState_t;
-
-typedef enum {
-    EF_USED           = 1 << 0,  EF_HAS_ANCHOR     = 1 << 1,
-    EF_HAS_SIZE       = 1 << 2,  EF_HAS_TEXCOORD   = 1 << 3,
-    EF_HIDDEN         = 1 << 4,  EF_VIRTUAL         = 1 << 5,
-    EF_PASSWORD       = 1 << 6,  EF_ENABLED         = 1 << 7,
-    EF_CHECKED        = 1 << 8,  EF_SET_ALL_PTS     = 1 << 9,
-    EF_BACKDROP_TILE  = 1 << 10, EF_HAS_HALIGN      = 1 << 11,
-    EF_HAS_VALIGN     = 1 << 12, EF_FOCUSABLE       = 1 << 13,
-    EF_HAS_HIGHLIGHT_TEXCOORD = 1 << 14,
-    EF_HAS_BUTTON_TEXT_COLORS = 1 << 15,
-    EF_PENDING_ONLOAD = 1 << 16, EF_HAS_ANCHOR2     = 1 << 17,
-    EF_WORD_WRAP      = 1 << 18, EF_IS_SCROLLFRAME  = 1 << 19,
-    EF_SCROLLBAR_PART = 1 << 20, EF_CHECKBUTTON     = 1 << 21,
-    EF_LOGGED_GEOMETRY = 1 << 22,
-} uiWowXmlElemFlag_t;
-
-typedef struct {
-    DWORD flags;
-    uiWowXmlType_t type;
-    int id, parent, relative_to, relative_to2, draw_layer;
-    char *texts[ELEM_STRING_COUNT];
-    fpoint_t pos, offset, text_off, offset2;
-    char *point2, *relative_point2, *relative_name2;
-    fsize_t size, edge, tile, text_inset;
-    fsize_t measured;
-    FLOAT alpha, font_size;
-    FLOAT backdrop_insets[4];
-    uiFontJustificationH_t halign;
-    uiFontJustificationV_t valign;
-    COLOR32 colors[ELEM_COLOR_COUNT];
-    COLOR32 button_text_colors[WOW_XML_BUTTON_TEXT_COUNT];
-    RECT texcoord, highlight_texcoord;
-    LPMODEL model;
-    DWORD sequence, frame, oldframe, anim_start;
-    COLOR32 fog_color;
-    FLOAT fog_near, fog_far;
-    BOOL has_fog;
-} uiWowXmlElem_t;
-
-enum {
-    WOW_XML_MAX_ELEMS       = 2048,
-    WOW_XML_LAYER_BACKGROUND = 0,
-    WOW_XML_LAYER_BORDER     = 1,
-    WOW_XML_LAYER_ARTWORK    = 2,
-    WOW_XML_LAYER_OVERLAY    = 3,
-    WOW_XML_BACKDROP_LEFT    = 0,
-    WOW_XML_BACKDROP_RIGHT,
-    WOW_XML_BACKDROP_TOP,
-    WOW_XML_BACKDROP_BOTTOM,
-};
-
-/* ---- Global state (full definition) ---- */
-
-struct wowXmlRuntime_s {
-    uiWowXmlElem_t elems[WOW_XML_MAX_ELEMS];
-    int count, focus, pressed_button, hovered_button;
-    BOOL lua_ready;
-    uiTextInput_t text_input;
-    struct { FLOAT scroll_y, scroll_range; int scrollbar_child; } scroll[WOW_XML_MAX_ELEMS];
-    struct { int scrollbar_idx; FLOAT start_mouse_y, start_value; } drag;
-};
-
+#ifndef STB_WOW_XML_GLOBALS
 struct wowXmlRuntime_s wow_xml;
+#endif
+
 static char s_current_xml_path[PATH_MAX];
-static uiWowXmlStr_t const uiwow_button_part_name_fields[] = {
+
+static const uiWowXmlStr_t uiwow_copy_str_fields[] = {
+    ELEM_FILE, ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_CHECKED_FILE,
+    ELEM_TEXT, ELEM_BACKDROP_BG, ELEM_BACKDROP_EDGE,
     ELEM_NORMAL_NAME, ELEM_PUSHED_NAME, ELEM_HIGHLIGHT_NAME
+};
+
+/* ---- DDX Schema Tables --------------------------------------------------- */
+
+static const struct {
+    LPCSTR name;
+    FLOAT  x_factor, y_factor;
+} uiwow_point_factors[] = {
+    { "TOPLEFT",     0.0f, 0.0f },
+    { "TOP",         0.5f, 0.0f },
+    { "TOPRIGHT",    1.0f, 0.0f },
+    { "LEFT",        0.0f, 0.5f },
+    { "CENTER",      0.5f, 0.5f },
+    { "RIGHT",       1.0f, 0.5f },
+    { "BOTTOMLEFT",  0.0f, 1.0f },
+    { "BOTTOM",      0.5f, 1.0f },
+    { "BOTTOMRIGHT", 1.0f, 1.0f },
+    { NULL,          0.5f, 0.5f }
+};
+
+static const struct {
+    LPCSTR name;
+    int    layer;
+} uiwow_layer_levels[] = {
+    { "BACKGROUND", WOW_XML_LAYER_BACKGROUND },
+    { "BORDER",     WOW_XML_LAYER_BORDER },
+    { "OVERLAY",    WOW_XML_LAYER_OVERLAY },
+    { "ARTWORK",    WOW_XML_LAYER_ARTWORK },
+    { NULL,         WOW_XML_LAYER_ARTWORK }
+};
+
+static const struct {
+    LPCSTR                 name;
+    uiFontJustificationH_t align;
+} uiwow_justify_h[] = {
+    { "LEFT",   FONT_JUSTIFYLEFT },
+    { "RIGHT",  FONT_JUSTIFYRIGHT },
+    { "CENTER", FONT_JUSTIFYCENTER },
+    { NULL,     FONT_JUSTIFYCENTER }
+};
+
+static const struct {
+    LPCSTR                 name;
+    uiFontJustificationV_t align;
+} uiwow_justify_v[] = {
+    { "TOP",    FONT_JUSTIFYTOP },
+    { "BOTTOM", FONT_JUSTIFYBOTTOM },
+    { "MIDDLE", FONT_JUSTIFYMIDDLE },
+    { "CENTER", FONT_JUSTIFYMIDDLE },
+    { NULL,     FONT_JUSTIFYMIDDLE }
+};
+
+static const struct {
+    LPCSTR        name;
+    uiWowXmlStr_t field;
+} uiwow_script_tags[] = {
+    { "OnClick",         ELEM_ON_CLICK },
+    { "OnLoad",          ELEM_ON_LOAD },
+    { "OnShow",          ELEM_ON_SHOW },
+    { "OnEnter",         ELEM_ON_ENTER },
+    { "OnLeave",         ELEM_ON_LEAVE },
+    { "OnEnterPressed",  ELEM_ON_ENTER_PRESSED },
+    { "OnEscapePressed", ELEM_ON_ESCAPE_PRESSED },
+    { "OnTabPressed",    ELEM_ON_TAB_PRESSED },
+    { "OnMouseWheel",    ELEM_ON_MOUSE_WHEEL },
+    { "OnUpdateModel",   ELEM_ON_UPDATE_MODEL },
+    { "OnUpdate",        ELEM_ON_UPDATE },
+    { NULL,              ELEM_STRING_COUNT }
+};
+
+static const struct {
+    LPCSTR        tag;
+    uiWowXmlStr_t file_field;
+    uiWowXmlStr_t name_field;
+    DWORD         texcoord_flag;
+} uiwow_button_part_tags[] = {
+    { "NormalTexture",    ELEM_NORMAL_FILE,    ELEM_NORMAL_NAME,    EF_HAS_TEXCOORD },
+    { "PushedTexture",    ELEM_PUSHED_FILE,    ELEM_PUSHED_NAME,    0 },
+    { "HighlightTexture", ELEM_HIGHLIGHT_FILE, ELEM_HIGHLIGHT_NAME, EF_HAS_HIGHLIGHT_TEXCOORD },
+    { "CheckedTexture",   ELEM_CHECKED_FILE,   ELEM_STRING_COUNT,   0 },
+    { NULL,               ELEM_STRING_COUNT,   ELEM_STRING_COUNT,   0 }
+};
+
+static const struct {
+    LPCSTR                    tag;
+    uiWowXmlButtonTextState_t state;
+} uiwow_button_text_tags[] = {
+    { "NormalText",    WOW_XML_BUTTON_TEXT_NORMAL },
+    { "HighlightText", WOW_XML_BUTTON_TEXT_HIGHLIGHT },
+    { "DisabledText",  WOW_XML_BUTTON_TEXT_DISABLED },
+    { NULL,            WOW_XML_BUTTON_TEXT_NORMAL }
+};
+
+static const struct {
+    LPCSTR         tag;
+    uiWowXmlType_t type;
+    DWORD          flags;
+} uiwow_node_types[] = {
+    { "Frame",            WOW_XML_FRAME,      0 },
+    { "ScrollFrame",      WOW_XML_FRAME,      EF_IS_SCROLLFRAME },
+    { "Slider",           WOW_XML_FRAME,      0 },
+    { "Model",            WOW_XML_MODEL,      0 },
+    { "Texture",          WOW_XML_TEXTURE,    0 },
+    { "FontString",       WOW_XML_FONTSTRING, 0 },
+    { "Button",           WOW_XML_BUTTON,     0 },
+    { "CheckButton",      WOW_XML_BUTTON,     EF_CHECKBUTTON },
+    { "EditBox",          WOW_XML_EDITBOX,    EF_FOCUSABLE },
+    { "NormalTexture",    WOW_XML_TEXTURE,    0 },
+    { "PushedTexture",    WOW_XML_TEXTURE,    0 },
+    { "DisabledTexture",  WOW_XML_TEXTURE,    0 },
+    { "HighlightTexture", WOW_XML_TEXTURE,    0 },
+    { "ThumbTexture",     WOW_XML_TEXTURE,    0 },
+    { "NormalText",       WOW_XML_FONTSTRING, 0 },
+    { "DisabledText",     WOW_XML_FONTSTRING, 0 },
+    { "HighlightText",    WOW_XML_FONTSTRING, 0 },
+    { NULL,               WOW_XML_FRAME,      0 }
+};
+
+typedef enum {
+    WOW_ATTR_STR_FIELD,
+    WOW_ATTR_BOOL_FLAG,
+    WOW_ATTR_PASSWORD_FLAG,
+    WOW_ATTR_INT_ID,
+} uiWowAttrType_t;
+
+static const struct {
+    LPCSTR          name;
+    uiWowAttrType_t type;
+    DWORD           field_or_flag;
+} uiwow_shared_attrs[] = {
+    { "file",          WOW_ATTR_STR_FIELD,      ELEM_FILE },
+    { "text",          WOW_ATTR_STR_FIELD,      ELEM_TEXT },
+    { "hidden",        WOW_ATTR_BOOL_FLAG,      EF_HIDDEN },
+    { "virtual",       WOW_ATTR_BOOL_FLAG,      EF_VIRTUAL },
+    { "setAllPoints",  WOW_ATTR_BOOL_FLAG,      EF_SET_ALL_PTS },
+    { "password",      WOW_ATTR_PASSWORD_FLAG,  EF_PASSWORD },
+    { "id",            WOW_ATTR_INT_ID,         0 },
+    { "wordWrap",      WOW_ATTR_BOOL_FLAG,      EF_WORD_WRAP },
+    { "checked",       WOW_ATTR_BOOL_FLAG,      EF_CHECKED },
+    { NULL,            0,                       0 }
 };
 
 /* ---- String helpers ---- */
 
-static LPCSTR UIWow_ElemStr(uiWowXmlElem_t const *e, uiWowXmlStr_t f) {
+LPCSTR UIWow_ElemStr(uiWowXmlElem_t const *e, uiWowXmlStr_t f) {
     return (e->texts[f] && e->texts[f][0]) ? e->texts[f] : NULL;
 }
 
-static void UIWow_ElemSetStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
+void UIWow_ElemSetStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
     free(e->texts[f]);
     e->texts[f] = (s && *s) ? strdup(s) : NULL;
     if (f == ELEM_TEXT) e->measured = MAKE(fsize_t, 0, 0);
 }
 
-static void UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
+void UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
     if (!s || !*s) return;
     if (!e->texts[f] || !e->texts[f][0]) { UIWow_ElemSetStr(e, f, s); return; }
     size_t old = strlen(e->texts[f]), add = strlen(s);
@@ -224,7 +431,7 @@ static void UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
     e->texts[f] = buf;
 }
 
-static void UIWow_ElemFreeStrings(uiWowXmlElem_t *e) {
+void UIWow_ElemFreeStrings(uiWowXmlElem_t *e) {
     FOR_LOOP(f, ELEM_STRING_COUNT) { free(e->texts[f]); e->texts[f] = NULL; }
     free(e->point2); e->point2 = NULL;
     free(e->relative_point2); e->relative_point2 = NULL;
@@ -234,32 +441,34 @@ static void UIWow_ElemFreeStrings(uiWowXmlElem_t *e) {
 /* ---- Coordinate helpers ---- */
 
 static FLOAT UIWow_XmlFloat(xmlChar const *s, FLOAT fallback) { return s && *s ? (FLOAT)atof((char const *)s) : fallback; }
-static FLOAT UIWow_XmlX(FLOAT pixels) { return pixels / 1024.0f; }
-static FLOAT UIWow_XmlY(FLOAT pixels) { return pixels / 768.0f; }
+FLOAT UIWow_XmlX(FLOAT pixels) { return pixels / 1024.0f; }
+FLOAT UIWow_XmlY(FLOAT pixels) { return pixels / 768.0f; }
 
 static int UIWow_XmlLayer(LPCSTR level) {
     if (!level || !*level) return WOW_XML_LAYER_ARTWORK;
-    if (!strcasecmp(level, "BACKGROUND")) return WOW_XML_LAYER_BACKGROUND;
-    if (!strcasecmp(level, "BORDER"))     return WOW_XML_LAYER_BORDER;
-    if (!strcasecmp(level, "OVERLAY"))    return WOW_XML_LAYER_OVERLAY;
+    for (int i = 0; uiwow_layer_levels[i].name; i++)
+        if (!strcasecmp(level, uiwow_layer_levels[i].name))
+            return uiwow_layer_levels[i].layer;
     return WOW_XML_LAYER_ARTWORK;
 }
 
 static uiFontJustificationH_t UIWow_XmlHAlign(LPCSTR v, uiFontJustificationH_t fallback) {
     if (!v || !*v) return fallback;
-    if (!strcasecmp(v, "LEFT"))  return FONT_JUSTIFYLEFT;
-    if (!strcasecmp(v, "RIGHT")) return FONT_JUSTIFYRIGHT;
-    return FONT_JUSTIFYCENTER;
+    for (int i = 0; uiwow_justify_h[i].name; i++)
+        if (!strcasecmp(v, uiwow_justify_h[i].name))
+            return uiwow_justify_h[i].align;
+    return fallback;
 }
 
 static uiFontJustificationV_t UIWow_XmlVAlign(LPCSTR v, uiFontJustificationV_t fallback) {
     if (!v || !*v) return fallback;
-    if (!strcasecmp(v, "TOP"))    return FONT_JUSTIFYTOP;
-    if (!strcasecmp(v, "BOTTOM")) return FONT_JUSTIFYBOTTOM;
-    return FONT_JUSTIFYMIDDLE;
+    for (int i = 0; uiwow_justify_v[i].name; i++)
+        if (!strcasecmp(v, uiwow_justify_v[i].name))
+            return uiwow_justify_v[i].align;
+    return fallback;
 }
 
-static BOOL UIWow_XmlResolvePath(LPCSTR base, LPCSTR rel, LPSTR out, size_t n) {
+BOOL UIWow_XmlResolvePath(LPCSTR base, LPCSTR rel, LPSTR out, size_t n) {
     LPCSTR slash; size_t prefix;
     if (!rel || !*rel || !out || n == 0) return false;
     if (strchr(rel, '\\')) { snprintf(out, n, "%s", rel); return true; }
@@ -273,7 +482,7 @@ static BOOL UIWow_XmlResolvePath(LPCSTR base, LPCSTR rel, LPSTR out, size_t n) {
 
 /* ---- Element registry ---- */
 
-static int UIWow_XmlFindByName(LPCSTR name) {
+int UIWow_XmlFindByName(LPCSTR name) {
     if (!name || !*name) return -1;
     FOR_LOOP(i, wow_xml.count) {
         if ((wow_xml.elems[i].flags & EF_USED) && wow_xml.elems[i].texts[ELEM_NAME] &&
@@ -308,11 +517,6 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
 }
 
 static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
-    static uiWowXmlStr_t const script_fields[] = {
-        ELEM_ON_CLICK, ELEM_ON_LOAD, ELEM_ON_SHOW, ELEM_ON_ENTER, ELEM_ON_LEAVE,
-        ELEM_ON_ENTER_PRESSED, ELEM_ON_ESCAPE_PRESSED, ELEM_ON_TAB_PRESSED,
-        ELEM_ON_MOUSE_WHEEL, ELEM_ON_UPDATE_MODEL,
-    };
     char names[256], *tok, *save = NULL;
     if (!e || !inherits || !*inherits) return;
     snprintf(names, sizeof(names), "%s", inherits);
@@ -321,18 +525,15 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
         if (idx < 0) continue;
         uiWowXmlElem_t const *src = &wow_xml.elems[idx];
         if (!(e->flags & EF_HAS_SIZE) && (src->flags & EF_HAS_SIZE)) { e->size = src->size; e->flags |= EF_HAS_SIZE; }
-        FOR_LOOP(i, sizeof(uiwow_button_part_name_fields)/sizeof(uiwow_button_part_name_fields[0])) {
+        FOR_LOOP(i, sizeof(uiwow_button_part_name_fields) / sizeof(uiwow_button_part_name_fields[0])) {
             uiWowXmlStr_t f = uiwow_button_part_name_fields[i];
             if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f)) UIWow_ElemSetStr(e, f, src->texts[f]);
         }
-        static uiWowXmlStr_t const copy_str[] = {
-            ELEM_FILE, ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_CHECKED_FILE,
-            ELEM_TEXT, ELEM_BACKDROP_BG, ELEM_BACKDROP_EDGE,
-            ELEM_NORMAL_NAME, ELEM_PUSHED_NAME, ELEM_HIGHLIGHT_NAME
-        };
-        FOR_LOOP(i, sizeof(copy_str)/sizeof(copy_str[0]))
-            if (!UIWow_ElemStr(e, copy_str[i]) && UIWow_ElemStr(src, copy_str[i]))
-                UIWow_ElemSetStr(e, copy_str[i], src->texts[copy_str[i]]);
+        FOR_LOOP(i, sizeof(uiwow_copy_str_fields) / sizeof(uiwow_copy_str_fields[0])) {
+            uiWowXmlStr_t f = uiwow_copy_str_fields[i];
+            if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f))
+                UIWow_ElemSetStr(e, f, src->texts[f]);
+        }
         if (src->flags & EF_HIDDEN) e->flags |= EF_HIDDEN;
         if (src->flags & EF_HAS_TEXCOORD) { e->texcoord = src->texcoord; e->flags |= EF_HAS_TEXCOORD; }
         if (src->flags & EF_HAS_HIGHLIGHT_TEXCOORD) { e->highlight_texcoord = src->highlight_texcoord; e->flags |= EF_HAS_HIGHLIGHT_TEXCOORD; }
@@ -349,51 +550,50 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
             memcpy(e->button_text_colors, src->button_text_colors, sizeof(e->button_text_colors));
             e->flags |= EF_HAS_BUTTON_TEXT_COLORS;
         }
-        FOR_LOOP(i, sizeof(script_fields)/sizeof(script_fields[0])) {
-            uiWowXmlStr_t f = script_fields[i];
+        for (int i = 0; uiwow_script_tags[i].name; i++) {
+            uiWowXmlStr_t f = uiwow_script_tags[i].field;
             if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f)) UIWow_ElemSetStr(e, f, src->texts[f]);
         }
         if (src->flags & EF_WORD_WRAP) e->flags |= EF_WORD_WRAP;
     }
 }
 
-static void UIWow_XmlRectPoint(LPCRECT r, LPCSTR point, LPFLOAT x, LPFLOAT y) {
-    if (!strcasecmp(point, "TOPLEFT"))     { *x = r->x;            *y = r->y;            return; }
-    if (!strcasecmp(point, "TOP"))         { *x = r->x+r->w*0.5f;  *y = r->y;            return; }
-    if (!strcasecmp(point, "TOPRIGHT"))    { *x = r->x+r->w;       *y = r->y;            return; }
-    if (!strcasecmp(point, "LEFT"))        { *x = r->x;            *y = r->y+r->h*0.5f;  return; }
-    if (!strcasecmp(point, "RIGHT"))       { *x = r->x+r->w;       *y = r->y+r->h*0.5f;  return; }
-    if (!strcasecmp(point, "BOTTOMLEFT"))  { *x = r->x;            *y = r->y+r->h;        return; }
-    if (!strcasecmp(point, "BOTTOM"))      { *x = r->x+r->w*0.5f;  *y = r->y+r->h;        return; }
-    if (!strcasecmp(point, "BOTTOMRIGHT")) { *x = r->x+r->w;       *y = r->y+r->h;        return; }
-    *x = r->x+r->w*0.5f; *y = r->y+r->h*0.5f;
+static void UIWow_XmlPointFactors(LPCSTR point, LPFLOAT fx, LPFLOAT fy) {
+    if (!point || !*point) point = "CENTER";
+    for (int i = 0; uiwow_point_factors[i].name; i++) {
+        if (!strcasecmp(point, uiwow_point_factors[i].name)) {
+            *fx = uiwow_point_factors[i].x_factor;
+            *fy = uiwow_point_factors[i].y_factor;
+            return;
+        }
+    }
+    *fx = 0.5f; *fy = 0.5f;
 }
 
-static RECT UIWow_XmlComputeRect(int idx) {
+static void UIWow_XmlRectPoint(LPCRECT r, LPCSTR point, LPFLOAT x, LPFLOAT y) {
+    FLOAT fx, fy;
+    UIWow_XmlPointFactors(point, &fx, &fy);
+    *x = r->x + r->w * fx;
+    *y = r->y + r->h * fy;
+}
+
+RECT UIWow_XmlComputeRect(int idx) {
     uiWowXmlElem_t const *e = &wow_xml.elems[idx];
     RECT parent = MAKE(RECT, 0, 0, 1, 1);
     LPCSTR point = e->texts[ELEM_POINT], rel_point = e->texts[ELEM_RELATIVE_POINT];
     FLOAT w = e->size.w > 0 ? e->size.w : (e->type == WOW_XML_FONTSTRING ? e->measured.w : 0.0f);
     FLOAT h = e->size.h > 0 ? e->size.h : (e->type == WOW_XML_FONTSTRING ? e->measured.h : 0.0f);
     RECT out = MAKE(RECT, 0, 0, w, h);
-    FLOAT ax, ay;
+    FLOAT ax, ay, fx, fy;
     if (e->parent >= 0 && e->parent < wow_xml.count) parent = UIWow_XmlComputeRect(e->parent);
     if (e->flags & EF_SET_ALL_PTS) return parent;
     if (!(e->flags & EF_HAS_ANCHOR)) { out.x = parent.x; out.y = parent.y; return out; }
     if (e->relative_to >= 0 && e->relative_to < wow_xml.count) parent = UIWow_XmlComputeRect(e->relative_to);
     UIWow_XmlRectPoint(&parent, (rel_point && rel_point[0]) ? rel_point : (point ? point : "CENTER"), &ax, &ay);
     ax += e->offset.x; ay += e->offset.y;
-    if (!point) point = "CENTER";
-    if (!strcasecmp(point, "TOPLEFT"))     out.x = ax,          out.y = ay;
-    else if (!strcasecmp(point, "TOP"))    out.x = ax-out.w*.5f, out.y = ay;
-    else if (!strcasecmp(point, "TOPRIGHT"))  out.x = ax-out.w,  out.y = ay;
-    else if (!strcasecmp(point, "LEFT"))   out.x = ax,          out.y = ay-out.h*.5f;
-    else if (!strcasecmp(point, "CENTER")) out.x = ax-out.w*.5f, out.y = ay-out.h*.5f;
-    else if (!strcasecmp(point, "RIGHT"))  out.x = ax-out.w,     out.y = ay-out.h*.5f;
-    else if (!strcasecmp(point, "BOTTOMLEFT"))  out.x = ax,      out.y = ay-out.h;
-    else if (!strcasecmp(point, "BOTTOM")) out.x = ax-out.w*.5f, out.y = ay-out.h;
-    else if (!strcasecmp(point, "BOTTOMRIGHT")) out.x = ax-out.w, out.y = ay-out.h;
-    else out.x = ax-out.w*.5f, out.y = ay-out.h*.5f;
+    UIWow_XmlPointFactors(point, &fx, &fy);
+    out.x = ax - out.w * fx;
+    out.y = ay - out.h * fy;
     if ((e->flags & EF_HAS_ANCHOR2) && e->point2 && e->relative_point2) {
         RECT ref2 = (e->relative_to2 >= 0 && e->relative_to2 < wow_xml.count)
                     ? UIWow_XmlComputeRect(e->relative_to2) : parent;
@@ -408,7 +608,7 @@ static RECT UIWow_XmlComputeRect(int idx) {
     return out;
 }
 
-static BOOL UIWow_XMLIsVisible(int idx) {
+BOOL UIWow_XMLIsVisible(int idx) {
     while (idx >= 0 && idx < wow_xml.count) {
         uiWowXmlElem_t const *e = &wow_xml.elems[idx];
         if (!(e->flags & EF_USED) || (e->flags & EF_HIDDEN) || (e->flags & EF_VIRTUAL)) return false;
@@ -417,11 +617,7 @@ static BOOL UIWow_XMLIsVisible(int idx) {
     return true;
 }
 
-static BOOL UIWow_XMLPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
-    return r && x >= r->x && y >= r->y && x <= r->x + r->w && y <= r->y + r->h;
-}
-
-static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
+int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
     for (int i = wow_xml.count - 1; i >= 0; i--) {
         uiWowXmlElem_t const *e = &wow_xml.elems[i]; RECT r;
         if (!UIWow_XMLIsVisible(i) || (e->type != WOW_XML_BUTTON && e->type != WOW_XML_EDITBOX)) continue;
@@ -433,7 +629,7 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
 
 /* ---- Visibility with show-callback ---- */
 
-static void UIWow_XMLSetShown(int idx, BOOL shown) {
+void UIWow_XMLSetShown(int idx, BOOL shown) {
     if (idx < 0 || idx >= wow_xml.count) return;
     if (shown) {
         BOOL was_hidden = (wow_xml.elems[idx].flags & EF_HIDDEN) != 0;
@@ -448,18 +644,16 @@ static void UIWow_XMLSetShown(int idx, BOOL shown) {
 /* ---- XML attribute readers ---- */
 
 static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
-        xmlNodePtr d;
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Size")) continue;
-        for (d = c->children; d; d = d->next) {
-            xmlChar *x, *y;
+        for (xmlNodePtr d = c->children; d; d = d->next) {
             if (d->type != XML_ELEMENT_NODE || xmlStrcasecmp(d->name, BAD_CAST "AbsDimension")) continue;
-            x = xmlGetProp(d, BAD_CAST "x"); y = xmlGetProp(d, BAD_CAST "y");
+            xmlChar *x = xmlGetProp(d, BAD_CAST "x"), *y = xmlGetProp(d, BAD_CAST "y");
             e->size.w = UIWow_XmlX(UIWow_XmlFloat(x, 0.0f));
             e->size.h = UIWow_XmlY(UIWow_XmlFloat(y, 0.0f));
             if (e->size.w > 0 || e->size.h > 0) e->flags |= EF_HAS_SIZE;
-            SAFE_DELETE(x, xmlFree); SAFE_DELETE(y, xmlFree); return;
+            SAFE_DELETE(x, xmlFree); SAFE_DELETE(y, xmlFree);
+            return;
         }
     }
 }
@@ -478,14 +672,12 @@ static void UIWow_XmlResolveRelativeTo(uiWowXmlElem_t *e, LPCSTR raw, LPCSTR par
 }
 
 static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
     LPCSTR parent_name = (e->parent >= 0 && e->parent < wow_xml.count)
                          ? wow_xml.elems[e->parent].texts[ELEM_NAME] : NULL;
     int anchor_index = 0;
-    for (c = node->children; c; c = c->next) {
-        xmlNodePtr a;
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Anchors")) continue;
-        for (a = c->children; a; a = a->next) {
+        for (xmlNodePtr a = c->children; a; a = a->next) {
             xmlChar *point, *relative, *relative_to;
             fpoint_t off = {0, 0};
             if (a->type != XML_ELEMENT_NODE || xmlStrcasecmp(a->name, BAD_CAST "Anchor")) continue;
@@ -532,16 +724,15 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
 }
 
 static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
-        xmlChar *bg, *edge, *tile; xmlNodePtr d;
+    for (xmlNodePtr c = node->children; c; c = c->next) {
+        xmlChar *bg, *edge, *tile;
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Backdrop")) continue;
         bg = xmlGetProp(c, BAD_CAST "bgFile"); edge = xmlGetProp(c, BAD_CAST "edgeFile"); tile = xmlGetProp(c, BAD_CAST "tile");
         if (bg && *bg) UIWow_ElemSetStr(e, ELEM_BACKDROP_BG, (char const *)bg);
         if (edge && *edge) UIWow_ElemSetStr(e, ELEM_BACKDROP_EDGE, (char const *)edge);
         if (tile && *tile && !strcasecmp((char const *)tile, "true")) e->flags |= EF_BACKDROP_TILE;
         SAFE_DELETE(bg, xmlFree); SAFE_DELETE(edge, xmlFree); SAFE_DELETE(tile, xmlFree);
-        for (d = c->children; d; d = d->next) {
+        for (xmlNodePtr d = c->children; d; d = d->next) {
             if (d->type != XML_ELEMENT_NODE) continue;
             if (!xmlStrcasecmp(d->name, BAD_CAST "EdgeSize")) {
                 for (xmlNodePtr v = d->children; v; v = v->next) {
@@ -557,15 +748,19 @@ static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNodePtr node) {
                 }
             } else if (!xmlStrcasecmp(d->name, BAD_CAST "BackgroundInsets")) {
                 for (xmlNodePtr v = d->children; v; v = v->next) {
-                    xmlChar *l, *r, *t, *b;
                     if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsInset")) continue;
-                    l = xmlGetProp(v, BAD_CAST "left"); r = xmlGetProp(v, BAD_CAST "right");
-                    t = xmlGetProp(v, BAD_CAST "top");  b = xmlGetProp(v, BAD_CAST "bottom");
-                    e->backdrop_insets[WOW_XML_BACKDROP_LEFT]   = UIWow_XmlX(UIWow_XmlFloat(l, 0.0f));
-                    e->backdrop_insets[WOW_XML_BACKDROP_RIGHT]  = UIWow_XmlX(UIWow_XmlFloat(r, 0.0f));
-                    e->backdrop_insets[WOW_XML_BACKDROP_TOP]    = UIWow_XmlY(UIWow_XmlFloat(t, 0.0f));
-                    e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM] = UIWow_XmlY(UIWow_XmlFloat(b, 0.0f));
-                    SAFE_DELETE(l, xmlFree); SAFE_DELETE(r, xmlFree); SAFE_DELETE(t, xmlFree); SAFE_DELETE(b, xmlFree);
+                    static const struct { LPCSTR attr; int idx; BOOL is_y; } insets[] = {
+                        { "left",   WOW_XML_BACKDROP_LEFT,   false },
+                        { "right",  WOW_XML_BACKDROP_RIGHT,  false },
+                        { "top",    WOW_XML_BACKDROP_TOP,    true },
+                        { "bottom", WOW_XML_BACKDROP_BOTTOM, true },
+                    };
+                    FOR_LOOP(i, sizeof(insets)/sizeof(insets[0])) {
+                        xmlChar *val = xmlGetProp(v, BAD_CAST insets[i].attr);
+                        FLOAT px = UIWow_XmlFloat(val, 0.0f);
+                        e->backdrop_insets[insets[i].idx] = insets[i].is_y ? UIWow_XmlY(px) : UIWow_XmlX(px);
+                        SAFE_DELETE(val, xmlFree);
+                    }
                 }
             }
         }
@@ -574,8 +769,7 @@ static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNodePtr node) {
 }
 
 static void UIWow_XmlReadTexCoords(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         xmlChar *l, *r, *t, *b;
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "TexCoords")) continue;
         l = xmlGetProp(c, BAD_CAST "left"); r = xmlGetProp(c, BAD_CAST "right");
@@ -590,8 +784,7 @@ static void UIWow_XmlReadTexCoords(uiWowXmlElem_t *e, xmlNodePtr node) {
 }
 
 static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
         if (!xmlStrcasecmp(c->name, BAD_CAST "FontHeight")) {
             for (xmlNodePtr v = c->children; v; v = v->next) {
@@ -617,13 +810,11 @@ static void UIWow_XmlReadJustify(uiWowXmlElem_t *e, xmlNodePtr node) {
 }
 
 static void UIWow_XmlReadTextInsets(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "TextInsets")) continue;
         for (xmlNodePtr a = c->children; a; a = a->next) {
-            xmlChar *left, *bottom;
             if (a->type != XML_ELEMENT_NODE || xmlStrcasecmp(a->name, BAD_CAST "AbsInset")) continue;
-            left = xmlGetProp(a, BAD_CAST "left"); bottom = xmlGetProp(a, BAD_CAST "bottom");
+            xmlChar *left = xmlGetProp(a, BAD_CAST "left"), *bottom = xmlGetProp(a, BAD_CAST "bottom");
             e->text_inset.w = UIWow_XmlFloat(left, e->text_inset.w) / 1024.0f;
             e->text_inset.h = UIWow_XmlFloat(bottom, e->text_inset.h) / 768.0f;
             SAFE_DELETE(left, xmlFree); SAFE_DELETE(bottom, xmlFree);
@@ -638,100 +829,106 @@ static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
     UIWow_XmlInheritElem(&temp, (char const *)inherits);
     if (file && *file) UIWow_ElemSetStr(&temp, ELEM_FILE, (char const *)file);
     UIWow_XmlReadTexCoords(&temp, child);
-    if (!xmlStrcasecmp(child->name, BAD_CAST "NormalTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
-        UIWow_ElemSetStr(e, ELEM_NORMAL_FILE, temp.texts[ELEM_FILE]);
-        if (name && *name) UIWow_ElemSetStr(e, ELEM_NORMAL_NAME, (char const *)name);
-        if (temp.flags & EF_HAS_TEXCOORD) { e->texcoord = temp.texcoord; e->flags |= EF_HAS_TEXCOORD; }
-    } else if (!xmlStrcasecmp(child->name, BAD_CAST "PushedTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
-        UIWow_ElemSetStr(e, ELEM_PUSHED_FILE, temp.texts[ELEM_FILE]);
-        if (name && *name) UIWow_ElemSetStr(e, ELEM_PUSHED_NAME, (char const *)name);
-    } else if (!xmlStrcasecmp(child->name, BAD_CAST "HighlightTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
-        UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_FILE, temp.texts[ELEM_FILE]);
-        if (name && *name) UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_NAME, (char const *)name);
-        if (temp.flags & EF_HAS_TEXCOORD) { e->highlight_texcoord = temp.texcoord; e->flags |= EF_HAS_HIGHLIGHT_TEXCOORD; }
-    } else if (!xmlStrcasecmp(child->name, BAD_CAST "CheckedTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
-        UIWow_ElemSetStr(e, ELEM_CHECKED_FILE, temp.texts[ELEM_FILE]);
+
+    for (int i = 0; uiwow_button_part_tags[i].tag; i++) {
+        if (!xmlStrcasecmp(child->name, BAD_CAST uiwow_button_part_tags[i].tag) && UIWow_ElemStr(&temp, ELEM_FILE)) {
+            UIWow_ElemSetStr(e, uiwow_button_part_tags[i].file_field, temp.texts[ELEM_FILE]);
+            if (name && *name && uiwow_button_part_tags[i].name_field < ELEM_STRING_COUNT)
+                UIWow_ElemSetStr(e, uiwow_button_part_tags[i].name_field, (char const *)name);
+            if (temp.flags & EF_HAS_TEXCOORD) {
+                if (uiwow_button_part_tags[i].texcoord_flag == EF_HAS_HIGHLIGHT_TEXCOORD) {
+                    e->highlight_texcoord = temp.texcoord;
+                    e->flags |= EF_HAS_HIGHLIGHT_TEXCOORD;
+                } else if (uiwow_button_part_tags[i].texcoord_flag == EF_HAS_TEXCOORD) {
+                    e->texcoord = temp.texcoord;
+                    e->flags |= EF_HAS_TEXCOORD;
+                }
+            }
+            break;
+        }
     }
     SAFE_DELETE(file, xmlFree); SAFE_DELETE(inherits, xmlFree); SAFE_DELETE(name, xmlFree);
     UIWow_ElemFreeStrings(&temp);
 }
 
 static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
-        if (!xmlStrcasecmp(c->name, BAD_CAST "NormalTexture") || !xmlStrcasecmp(c->name, BAD_CAST "PushedTexture") ||
-            !xmlStrcasecmp(c->name, BAD_CAST "HighlightTexture") || !xmlStrcasecmp(c->name, BAD_CAST "CheckedTexture")) {
-            UIWow_XmlReadButtonPart(e, c);
-        } else if (!xmlStrcasecmp(c->name, BAD_CAST "NormalText") || !xmlStrcasecmp(c->name, BAD_CAST "HighlightText") ||
-                   !xmlStrcasecmp(c->name, BAD_CAST "DisabledText")) {
-            uiWowXmlElem_t temp;
-            uiWowXmlButtonTextState_t ts = WOW_XML_BUTTON_TEXT_NORMAL;
-            xmlChar *inherits = xmlGetProp(c, BAD_CAST "inherits"), *text = xmlGetProp(c, BAD_CAST "text");
-            memset(&temp, 0, sizeof(temp)); temp.halign = e->halign; temp.valign = e->valign;
-            UIWow_XmlInheritElem(&temp, (char const *)inherits);
-            UIWow_XmlReadAnchor(&temp, c); UIWow_XmlReadJustify(&temp, c); UIWow_XmlReadFont(&temp, c);
-            UIWow_XmlInheritElem(e, (char const *)inherits);
-            if (!xmlStrcasecmp(c->name, BAD_CAST "DisabledText"))  ts = WOW_XML_BUTTON_TEXT_DISABLED;
-            else if (!xmlStrcasecmp(c->name, BAD_CAST "HighlightText")) ts = WOW_XML_BUTTON_TEXT_HIGHLIGHT;
-            if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
-            e->button_text_colors[ts] = temp.colors[ELEM_COLOR_TEXT];
-            e->flags |= EF_HAS_BUTTON_TEXT_COLORS;
-            if (ts == WOW_XML_BUTTON_TEXT_NORMAL) e->colors[ELEM_COLOR_TEXT] = temp.colors[ELEM_COLOR_TEXT];
-            if (temp.flags & EF_HAS_ANCHOR) e->text_off = temp.offset;
-            if (temp.flags & EF_HAS_HALIGN) { e->halign = temp.halign; e->flags |= EF_HAS_HALIGN; }
-            if (temp.flags & EF_HAS_VALIGN) { e->valign = temp.valign; e->flags |= EF_HAS_VALIGN; }
-            SAFE_DELETE(inherits, xmlFree); SAFE_DELETE(text, xmlFree);
-            UIWow_ElemFreeStrings(&temp);
+        BOOL is_button_part = false;
+        for (int i = 0; uiwow_button_part_tags[i].tag; i++) {
+            if (!xmlStrcasecmp(c->name, BAD_CAST uiwow_button_part_tags[i].tag)) {
+                UIWow_XmlReadButtonPart(e, c);
+                is_button_part = true;
+                break;
+            }
+        }
+        if (is_button_part) continue;
+
+        for (int i = 0; uiwow_button_text_tags[i].tag; i++) {
+            if (!xmlStrcasecmp(c->name, BAD_CAST uiwow_button_text_tags[i].tag)) {
+                uiWowXmlElem_t temp;
+                uiWowXmlButtonTextState_t ts = uiwow_button_text_tags[i].state;
+                xmlChar *inherits = xmlGetProp(c, BAD_CAST "inherits"), *text = xmlGetProp(c, BAD_CAST "text");
+                memset(&temp, 0, sizeof(temp)); temp.halign = e->halign; temp.valign = e->valign;
+                UIWow_XmlInheritElem(&temp, (char const *)inherits);
+                UIWow_XmlReadAnchor(&temp, c); UIWow_XmlReadJustify(&temp, c); UIWow_XmlReadFont(&temp, c);
+                UIWow_XmlInheritElem(e, (char const *)inherits);
+                if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
+                e->button_text_colors[ts] = temp.colors[ELEM_COLOR_TEXT];
+                e->flags |= EF_HAS_BUTTON_TEXT_COLORS;
+                if (ts == WOW_XML_BUTTON_TEXT_NORMAL) e->colors[ELEM_COLOR_TEXT] = temp.colors[ELEM_COLOR_TEXT];
+                if (temp.flags & EF_HAS_ANCHOR) e->text_off = temp.offset;
+                if (temp.flags & EF_HAS_HALIGN) { e->halign = temp.halign; e->flags |= EF_HAS_HALIGN; }
+                if (temp.flags & EF_HAS_VALIGN) { e->valign = temp.valign; e->flags |= EF_HAS_VALIGN; }
+                SAFE_DELETE(inherits, xmlFree); SAFE_DELETE(text, xmlFree);
+                UIWow_ElemFreeStrings(&temp);
+                break;
+            }
         }
     }
 }
 
 static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
-        xmlNodePtr s;
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Scripts")) continue;
-        for (s = c->children; s; s = s->next) {
-            xmlChar *body; uiWowXmlStr_t field = ELEM_STRING_COUNT;
+        for (xmlNodePtr s = c->children; s; s = s->next) {
             if (s->type != XML_ELEMENT_NODE) continue;
-            body = xmlNodeGetContent(s);
-            if      (!xmlStrcasecmp(s->name, BAD_CAST "OnClick"))         field = ELEM_ON_CLICK;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLoad"))          field = ELEM_ON_LOAD;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnShow"))          field = ELEM_ON_SHOW;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnter"))         field = ELEM_ON_ENTER;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLeave"))         field = ELEM_ON_LEAVE;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnterPressed"))  field = ELEM_ON_ENTER_PRESSED;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEscapePressed")) field = ELEM_ON_ESCAPE_PRESSED;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnTabPressed"))    field = ELEM_ON_TAB_PRESSED;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnMouseWheel"))    field = ELEM_ON_MOUSE_WHEEL;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnUpdateModel"))   field = ELEM_ON_UPDATE_MODEL;
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnUpdate"))        field = ELEM_ON_UPDATE;
-            else { SAFE_DELETE(body, xmlFree); continue; }
-            UIWow_ElemSetStr(e, field, (char const *)body);
-            SAFE_DELETE(body, xmlFree);
+            for (int i = 0; uiwow_script_tags[i].name; i++) {
+                if (!xmlStrcasecmp(s->name, BAD_CAST uiwow_script_tags[i].name)) {
+                    xmlChar *body = xmlNodeGetContent(s);
+                    if (body) {
+                        UIWow_ElemSetStr(e, uiwow_script_tags[i].field, (char const *)body);
+                        SAFE_DELETE(body, xmlFree);
+                    }
+                    break;
+                }
+            }
         }
     }
 }
 
 static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
-    xmlChar *file = xmlGetProp(node, BAD_CAST "file"), *hidden = xmlGetProp(node, BAD_CAST "hidden");
-    xmlChar *text = xmlGetProp(node, BAD_CAST "text"), *virt = xmlGetProp(node, BAD_CAST "virtual");
-    xmlChar *all  = xmlGetProp(node, BAD_CAST "setAllPoints"), *pw = xmlGetProp(node, BAD_CAST "password");
-    xmlChar *id   = xmlGetProp(node, BAD_CAST "id"), *wordwrap = xmlGetProp(node, BAD_CAST "wordWrap");
-    xmlChar *checked = xmlGetProp(node, BAD_CAST "checked");
-    if (file && *file) UIWow_ElemSetStr(e, ELEM_FILE, (char const *)file);
-    if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
-    if (hidden && *hidden && !strcasecmp((char const *)hidden, "true")) e->flags |= EF_HIDDEN;
-    if (virt   && *virt   && !strcasecmp((char const *)virt,   "true")) e->flags |= EF_VIRTUAL;
-    if (all    && *all    && !strcasecmp((char const *)all,    "true")) e->flags |= EF_SET_ALL_PTS;
-    if (pw     && *pw     && strcmp((char const *)pw, "0"))             e->flags |= EF_PASSWORD;
-    if (id && *id) e->id = atoi((char const *)id);
-    if (wordwrap && *wordwrap && !strcasecmp((char const *)wordwrap, "true")) e->flags |= EF_WORD_WRAP;
-    if (checked && *checked && !strcasecmp((char const *)checked, "true")) e->flags |= EF_CHECKED;
-    SAFE_DELETE(file,xmlFree); SAFE_DELETE(hidden,xmlFree); SAFE_DELETE(text,xmlFree); SAFE_DELETE(virt,xmlFree);
-    SAFE_DELETE(all,xmlFree);  SAFE_DELETE(pw,xmlFree);     SAFE_DELETE(id,xmlFree);   SAFE_DELETE(wordwrap,xmlFree);
-    SAFE_DELETE(checked, xmlFree);
+    for (int i = 0; uiwow_shared_attrs[i].name; i++) {
+        xmlChar *val = xmlGetProp(node, BAD_CAST uiwow_shared_attrs[i].name);
+        if (!val) continue;
+        switch (uiwow_shared_attrs[i].type) {
+            case WOW_ATTR_STR_FIELD:
+                if (*val) UIWow_ElemSetStr(e, (uiWowXmlStr_t)uiwow_shared_attrs[i].field_or_flag, (char const *)val);
+                break;
+            case WOW_ATTR_BOOL_FLAG:
+                if (!strcasecmp((char const *)val, "true") || !strcasecmp((char const *)val, "1"))
+                    e->flags |= uiwow_shared_attrs[i].field_or_flag;
+                break;
+            case WOW_ATTR_PASSWORD_FLAG:
+                if (strcmp((char const *)val, "0"))
+                    e->flags |= uiwow_shared_attrs[i].field_or_flag;
+                break;
+            case WOW_ATTR_INT_ID:
+                if (*val) e->id = atoi((char const *)val);
+                break;
+        }
+        SAFE_DELETE(val, xmlFree);
+    }
     UIWow_XmlReadSize(e, node); UIWow_XmlReadAnchor(e, node); UIWow_XmlReadBackdrop(e, node);
     UIWow_XmlReadTexCoords(e, node); UIWow_XmlReadFont(e, node); UIWow_XmlReadJustify(e, node);
     UIWow_XmlReadTextInsets(e, node);
@@ -742,26 +939,23 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
 static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer);
 
 static void UIWow_XmlParseLayer(xmlNodePtr node, int parent) {
-    xmlNodePtr c; xmlChar *level = xmlGetProp(node, BAD_CAST "level");
+    xmlChar *level = xmlGetProp(node, BAD_CAST "level");
     int layer = UIWow_XmlLayer((char const *)level);
     SAFE_DELETE(level, xmlFree);
-    for (c = node->children; c; c = c->next) UIWow_XmlParseNode(c, parent, layer);
+    for (xmlNodePtr c = node->children; c; c = c->next) UIWow_XmlParseNode(c, parent, layer);
 }
 
 static void UIWow_XmlParseChildren(xmlNodePtr node, int parent) {
-    xmlNodePtr c;
-    for (c = node->children; c; c = c->next) {
+    for (xmlNodePtr c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
         if (!xmlStrcasecmp(c->name, BAD_CAST "Layers")) {
-            xmlNodePtr l;
-            for (l = c->children; l; l = l->next)
+            for (xmlNodePtr l = c->children; l; l = l->next)
                 if (l->type == XML_ELEMENT_NODE && !xmlStrcasecmp(l->name, BAD_CAST "Layer"))
                     UIWow_XmlParseLayer(l, parent);
             continue;
         }
         if (!xmlStrcasecmp(c->name, BAD_CAST "Frames") || !xmlStrcasecmp(c->name, BAD_CAST "ScrollChild")) {
-            xmlNodePtr f;
-            for (f = c->children; f; f = f->next) UIWow_XmlParseNode(f, parent, WOW_XML_LAYER_ARTWORK);
+            for (xmlNodePtr f = c->children; f; f = f->next) UIWow_XmlParseNode(f, parent, WOW_XML_LAYER_ARTWORK);
             continue;
         }
         if (!xmlStrcasecmp(c->name, BAD_CAST "ThumbTexture")) {
@@ -838,29 +1032,28 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
 }
 
 static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
-    uiWowXmlType_t type; xmlChar *name_attr, *parent_attr, *inherits_attr; int idx;
-    BOOL is_scrollframe = false, is_checkbutton = false;
+    uiWowXmlType_t type = WOW_XML_FRAME;
+    DWORD node_flags = 0;
+    BOOL recognized = false;
+    xmlChar *name_attr, *parent_attr, *inherits_attr;
+    int idx;
+
     if (!node || node->type != XML_ELEMENT_NODE || !node->name) return;
     if (!xmlStrcasecmp(node->name, BAD_CAST "Layer"))  { UIWow_XmlParseLayer(node, parent); return; }
     if (!xmlStrcasecmp(node->name, BAD_CAST "Frames") || !xmlStrcasecmp(node->name, BAD_CAST "Layers")) { UIWow_XmlParseChildren(node, parent); return; }
-    if      (!xmlStrcasecmp(node->name, BAD_CAST "Frame") || !xmlStrcasecmp(node->name, BAD_CAST "ScrollFrame") || !xmlStrcasecmp(node->name, BAD_CAST "Slider")) {
-        type = WOW_XML_FRAME;
-        if (!xmlStrcasecmp(node->name, BAD_CAST "ScrollFrame")) is_scrollframe = true;
-    } else if (!xmlStrcasecmp(node->name, BAD_CAST "Model"))     type = WOW_XML_MODEL;
-    else if   (!xmlStrcasecmp(node->name, BAD_CAST "Texture"))   type = WOW_XML_TEXTURE;
-    else if   (!xmlStrcasecmp(node->name, BAD_CAST "FontString")) type = WOW_XML_FONTSTRING;
-    else if   (!xmlStrcasecmp(node->name, BAD_CAST "Button") || !xmlStrcasecmp(node->name, BAD_CAST "CheckButton")) {
-        type = WOW_XML_BUTTON; is_checkbutton = !xmlStrcasecmp(node->name, BAD_CAST "CheckButton");
+
+    for (int i = 0; uiwow_node_types[i].tag; i++) {
+        if (!xmlStrcasecmp(node->name, BAD_CAST uiwow_node_types[i].tag)) {
+            type = uiwow_node_types[i].type;
+            node_flags = uiwow_node_types[i].flags;
+            recognized = true;
+            break;
+        }
     }
-    else if   (!xmlStrcasecmp(node->name, BAD_CAST "EditBox")) type = WOW_XML_EDITBOX;
-    else if   (!xmlStrcasecmp(node->name, BAD_CAST "NormalTexture") || !xmlStrcasecmp(node->name, BAD_CAST "PushedTexture") ||
-               !xmlStrcasecmp(node->name, BAD_CAST "DisabledTexture") || !xmlStrcasecmp(node->name, BAD_CAST "HighlightTexture") ||
-               !xmlStrcasecmp(node->name, BAD_CAST "ThumbTexture")) type = WOW_XML_TEXTURE;
-    else if   (!xmlStrcasecmp(node->name, BAD_CAST "NormalText") || !xmlStrcasecmp(node->name, BAD_CAST "DisabledText") ||
-               !xmlStrcasecmp(node->name, BAD_CAST "HighlightText")) type = WOW_XML_FONTSTRING;
-    else return;
-    name_attr    = xmlGetProp(node, BAD_CAST "name");
-    parent_attr  = xmlGetProp(node, BAD_CAST "parent");
+    if (!recognized) return;
+
+    name_attr     = xmlGetProp(node, BAD_CAST "name");
+    parent_attr   = xmlGetProp(node, BAD_CAST "parent");
     inherits_attr = xmlGetProp(node, BAD_CAST "inherits");
     char resolved_name[256] = "";
     if (name_attr && *name_attr) {
@@ -874,24 +1067,24 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     }
     idx = UIWow_XmlPushElem(type, resolved_name[0] ? resolved_name : NULL, parent, draw_layer);
     SAFE_DELETE(name_attr, xmlFree);
-    if (idx < 0) { SAFE_DELETE(parent_attr, xmlFree); UI_XmlPrintf("UIWow: XML element limit exceeded\n"); return; }
-    if (is_scrollframe) wow_xml.elems[idx].flags |= EF_IS_SCROLLFRAME;
-    if (is_checkbutton) wow_xml.elems[idx].flags |= EF_CHECKBUTTON;
+    if (idx < 0) { SAFE_DELETE(parent_attr, xmlFree); SAFE_DELETE(inherits_attr, xmlFree); UI_XmlPrintf("UIWow: XML element limit exceeded\n"); return; }
+    wow_xml.elems[idx].flags |= node_flags;
+
     UIWow_XmlCloneTemplateChildren((char const *)inherits_attr, idx, resolved_name[0] ? resolved_name : NULL);
     UIWow_XmlInheritElem(&wow_xml.elems[idx], (char const *)inherits_attr);
     SAFE_DELETE(inherits_attr, xmlFree);
     if (parent_attr && *parent_attr) {
-        uiWowXmlElem_t *e = &wow_xml.elems[idx]; int np;
+        uiWowXmlElem_t *e = &wow_xml.elems[idx];
         UIWow_ElemSetStr(e, ELEM_PARENT_NAME, (char const *)parent_attr);
-        np = UIWow_XmlFindByName(e->texts[ELEM_PARENT_NAME]); if (np >= 0) e->parent = np;
+        int np = UIWow_XmlFindByName(e->texts[ELEM_PARENT_NAME]);
+        if (np >= 0) e->parent = np;
     }
     SAFE_DELETE(parent_attr, xmlFree);
-    if (type == WOW_XML_EDITBOX) wow_xml.elems[idx].flags |= EF_FOCUSABLE;
     if (s_current_xml_path[0]) UIWow_ElemSetStr(&wow_xml.elems[idx], ELEM_SOURCE_FILE, s_current_xml_path);
     UIWow_XmlReadShared(&wow_xml.elems[idx], node);
     UI_XmlOnFramePublish(idx);
     UIWow_XmlParseChildren(node, idx);
-    if (is_scrollframe) {
+    if (wow_xml.elems[idx].flags & EF_IS_SCROLLFRAME) {
         FOR_LOOP(j, wow_xml.count) {
             uiWowXmlElem_t *c = &wow_xml.elems[j];
             LPCSTR cn;
@@ -915,7 +1108,8 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
 /* ---- Top-level XML processor ---- */
 
 static BOOL UIWow_XMLProcessXml(LPCSTR path, int depth);
-static BOOL UIWow_XMLProcessFile(LPCSTR path, int depth) {
+
+BOOL UIWow_XMLProcessFile(LPCSTR path, int depth) {
     LPCSTR ext = strrchr(path ? path : "", '.');
     if (!path || !*path) return false;
     if (ext && !strcasecmp(ext, ".lua")) { UI_XmlLoadScriptFile(path); return true; }
@@ -923,9 +1117,8 @@ static BOOL UIWow_XMLProcessFile(LPCSTR path, int depth) {
 }
 
 static void UIWow_XMLProcessTopLevel(LPCSTR path, xmlNodePtr root, int depth) {
-    xmlNodePtr n;
     snprintf(s_current_xml_path, sizeof(s_current_xml_path), "%s", path ? path : "");
-    for (n = root->children; n; n = n->next) {
+    for (xmlNodePtr n = root->children; n; n = n->next) {
         if (n->type != XML_ELEMENT_NODE || !n->name) continue;
         if (!xmlStrcasecmp(n->name, BAD_CAST "Include")) {
             xmlChar *f = xmlGetProp(n, BAD_CAST "file"); char resolved[PATH_MAX];
@@ -971,7 +1164,7 @@ static BOOL UIWow_XMLProcessXml(LPCSTR path, int depth) {
 
 /* ---- Registry management ---- */
 
-static void UIWow_XMLFreeElems(void) {
+void UIWow_XMLFreeElems(void) {
     FOR_LOOP(i, wow_xml.count) UIWow_ElemFreeStrings(&wow_xml.elems[i]);
 }
 
