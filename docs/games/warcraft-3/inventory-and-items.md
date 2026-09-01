@@ -197,4 +197,7 @@ Minimal `AbilityData.slk`, `UnitAbilities.slk`, `ItemData.slk`, `ItemFunc.txt`,
 `ItemStrings.txt`, and `war3skins.txt` fixtures keep these tests data-driven in
 both ROC and TFT test runs. Inventory-panel tests additionally cover the
 no-inventory cover, reduced-capacity fillers, full-capacity absence of fillers,
-race-skin selection, and the native cover frame's crop/geometry.
+race-skin selection, and the native cover frame's crop/geometry. Synthetic
+ability-only unit IDs such as `H001` have no `UnitBalance` life value, so the
+shared test-unit allocator initializes a minimum positive life value without
+weakening the runtime rule that zero-life units are corpses and cannot be selected.

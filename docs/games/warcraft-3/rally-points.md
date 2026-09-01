@@ -56,7 +56,7 @@ Changing Rally while a unit is queued therefore affects that unit if the change 
 
 `G_ResolveRallyTarget` validates stored widget identity before dereferencing it. A freed/reused edict resets to self. `G_FreeEdict` proactively invalidates matching rally references before clearing an entity.
 
-Current Warsmash explicitly resets dead *unit* rally targets. OpenRealm mirrors that rule: a `SVF_MONSTER` target that becomes dead resolves to `RALLY_TARGET_SELF`, and `unit_die` invalidates matching rally references immediately.
+Current Warsmash explicitly resets dead *unit* rally targets. OpenRealm mirrors that rule: a `SVF_MONSTER` target is invalid when either `SVF_DEADMONSTER` is set or its authoritative life is zero, resolves to `RALLY_TARGET_SELF`, and `unit_die` invalidates matching rally references immediately. Checking both representations is intentional because lifecycle code and focused tests may observe the death flag before or independently of a life-value transition.
 
 Destroyed destructable and consumed/removed item semantics are intentionally not guessed beyond safe edict-lifetime validation. A destructable that remains an in-use dead object remains a stored widget until a later compatibility decision is backed by retail/Warsmash evidence.
 
