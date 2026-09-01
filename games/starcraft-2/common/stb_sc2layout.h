@@ -522,42 +522,44 @@ static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame);
 static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     if (!tmpl) return;
 
-    if (!(frame->flags & SC2_FRAME_HAS_WIDTH) && (tmpl->flags & SC2_FRAME_HAS_WIDTH)) {
-        frame->width = tmpl->width;
-        frame->flags |= SC2_FRAME_HAS_WIDTH;
+    static const struct {
+        size_t offset;
+        size_t size;
+        DWORD present;
+    } copy_props[] = {
+        { offsetof(sc2Frame_t, width),  sizeof(FLOAT),   SC2_FRAME_HAS_WIDTH },
+        { offsetof(sc2Frame_t, height), sizeof(FLOAT),   SC2_FRAME_HAS_HEIGHT },
+        { offsetof(sc2Frame_t, color),  sizeof(COLOR32), SC2_FRAME_HAS_COLOR },
+        { offsetof(sc2Frame_t, alpha),  sizeof(FLOAT),   SC2_FRAME_HAS_ALPHA },
+    };
+    FOR_LOOP(i, sizeof(copy_props) / sizeof(*copy_props)) {
+        if (!(frame->flags & copy_props[i].present) && (tmpl->flags & copy_props[i].present)) {
+            memcpy((char *)frame + copy_props[i].offset, (const char *)tmpl + copy_props[i].offset, copy_props[i].size);
+            frame->flags |= copy_props[i].present;
+        }
     }
-    if (!(frame->flags & SC2_FRAME_HAS_HEIGHT) && (tmpl->flags & SC2_FRAME_HAS_HEIGHT)) {
-        frame->height = tmpl->height;
-        frame->flags |= SC2_FRAME_HAS_HEIGHT;
-    }
-    if (!(frame->flags & SC2_FRAME_HAS_VISIBLE) && (tmpl->flags & SC2_FRAME_HAS_VISIBLE)) {
-        if (tmpl->flags & SC2_FRAME_VISIBLE) frame->flags |= SC2_FRAME_VISIBLE;
-        else frame->flags &= ~SC2_FRAME_VISIBLE;
-        frame->flags |= SC2_FRAME_HAS_VISIBLE;
-    }
-    if (!(frame->flags & SC2_FRAME_HAS_COLOR) && (tmpl->flags & SC2_FRAME_HAS_COLOR)) {
-        frame->color = tmpl->color;
-        frame->flags |= SC2_FRAME_HAS_COLOR;
-    }
-    if (!(frame->flags & SC2_FRAME_HAS_ALPHA) && (tmpl->flags & SC2_FRAME_HAS_ALPHA)) {
-        frame->alpha = tmpl->alpha;
-        frame->flags |= SC2_FRAME_HAS_ALPHA;
-    }
-    if (!(frame->flags & SC2_FRAME_ACCEPTS_MOUSE)) {
-        if (tmpl->flags & SC2_FRAME_ACCEPTS_MOUSE) frame->flags |= SC2_FRAME_ACCEPTS_MOUSE;
-        else frame->flags &= ~SC2_FRAME_ACCEPTS_MOUSE;
-    }
-    if (!(frame->flags & SC2_FRAME_COLLAPSE_LAYOUT)) {
-        if (tmpl->flags & SC2_FRAME_COLLAPSE_LAYOUT) frame->flags |= SC2_FRAME_COLLAPSE_LAYOUT;
-        else frame->flags &= ~SC2_FRAME_COLLAPSE_LAYOUT;
-    }
-    if (!(frame->flags & SC2_FRAME_HIGHLIGHT_ON_HOVER)) {
-        if (tmpl->flags & SC2_FRAME_HIGHLIGHT_ON_HOVER) frame->flags |= SC2_FRAME_HIGHLIGHT_ON_HOVER;
-        else frame->flags &= ~SC2_FRAME_HIGHLIGHT_ON_HOVER;
-    }
-    if (!(frame->flags & SC2_FRAME_HIGHLIGHT_ON_FOCUS)) {
-        if (tmpl->flags & SC2_FRAME_HIGHLIGHT_ON_FOCUS) frame->flags |= SC2_FRAME_HIGHLIGHT_ON_FOCUS;
-        else frame->flags &= ~SC2_FRAME_HIGHLIGHT_ON_FOCUS;
+    static const struct {
+        DWORD flag;
+        DWORD present;
+    } bool_flags[] = {
+        { SC2_FRAME_VISIBLE,            SC2_FRAME_HAS_VISIBLE },
+        { SC2_FRAME_ACCEPTS_MOUSE,      0 },
+        { SC2_FRAME_COLLAPSE_LAYOUT,    0 },
+        { SC2_FRAME_HIGHLIGHT_ON_HOVER, 0 },
+        { SC2_FRAME_HIGHLIGHT_ON_FOCUS, 0 },
+    };
+    FOR_LOOP(i, sizeof(bool_flags) / sizeof(*bool_flags)) {
+        if (bool_flags[i].present) {
+            if (!(frame->flags & bool_flags[i].present) && (tmpl->flags & bool_flags[i].present)) {
+                if (tmpl->flags & bool_flags[i].flag) frame->flags |= bool_flags[i].flag;
+                else frame->flags &= ~bool_flags[i].flag;
+                frame->flags |= bool_flags[i].present;
+            }
+        } else {
+            if (!(frame->flags & bool_flags[i].flag) && (tmpl->flags & bool_flags[i].flag)) {
+                frame->flags |= bool_flags[i].flag;
+            }
+        }
     }
 
     static const struct { size_t offset, size; } fields[] = {
@@ -819,56 +821,180 @@ static void SC2_ParseFrameAttrs(void *node, sc2Frame_t *frame) {
 }
 
 typedef enum {
-    SC2_FRAME_FIELD_FLOAT,
-    SC2_FRAME_FIELD_RESOLVED_FLOAT,
-    SC2_FRAME_FIELD_BOOL,
+    SC2_FIELD_FLOAT,
+    SC2_FIELD_RESOLVED_FLOAT,
+    SC2_FIELD_BOOL,
+    SC2_FIELD_COLOR,
+    SC2_FIELD_DESC_FLAGS,
+    SC2_FIELD_PROJECTION,
+    SC2_FIELD_LAYER_COUNT,
+    SC2_FIELD_LAYER_VISIBLE,
+    SC2_FIELD_TEXTURE_TYPE,
+    SC2_FIELD_STATE_COUNT,
 } sc2FrameFieldType_t;
 
-static const struct {
-    LPCSTR               name;
-    size_t               offset;
-    sc2FrameFieldType_t  type;
-    DWORD                flag;
-    DWORD                present;
-} sc2_frame_fields[] = {
-    { "Width",            offsetof(sc2Frame_t, width),  SC2_FRAME_FIELD_RESOLVED_FLOAT, 0,                            SC2_FRAME_HAS_WIDTH },
-    { "Height",           offsetof(sc2Frame_t, height), SC2_FRAME_FIELD_RESOLVED_FLOAT, 0,                            SC2_FRAME_HAS_HEIGHT },
-    { "Alpha",            offsetof(sc2Frame_t, alpha),  SC2_FRAME_FIELD_FLOAT,          0,                            SC2_FRAME_HAS_ALPHA },
-    { "Visible",          0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_VISIBLE,            SC2_FRAME_HAS_VISIBLE },
-    { "AcceptsMouse",     0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_ACCEPTS_MOUSE,      0 },
-    { "CollapseLayout",   0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_COLLAPSE_LAYOUT,    0 },
-    { "HighlightOnHover", 0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_HIGHLIGHT_ON_HOVER, 0 },
-    { "HighlightOnFocus", 0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_HIGHLIGHT_ON_FOCUS, 0 },
-    { "BatchImages",      0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_BATCH_IMAGES,       0 },
-    { "BatchText",        0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_BATCH_TEXT,         0 },
+typedef struct {
+    LPCSTR              name;
+    size_t              offset;
+    sc2FrameFieldType_t type;
+    DWORD               flag;
+    DWORD               present;
+} sc2FrameField_t;
+
+static const sc2FrameField_t sc2_frame_fields[] = {
+    { "Width",            offsetof(sc2Frame_t, width),            SC2_FIELD_RESOLVED_FLOAT, 0,                            SC2_FRAME_HAS_WIDTH },
+    { "Height",           offsetof(sc2Frame_t, height),           SC2_FIELD_RESOLVED_FLOAT, 0,                            SC2_FRAME_HAS_HEIGHT },
+    { "Alpha",            offsetof(sc2Frame_t, alpha),            SC2_FIELD_FLOAT,          0,                            SC2_FRAME_HAS_ALPHA },
+    { "Visible",          0,                                      SC2_FIELD_BOOL,           SC2_FRAME_VISIBLE,            SC2_FRAME_HAS_VISIBLE },
+    { "AcceptsMouse",     0,                                      SC2_FIELD_BOOL,           SC2_FRAME_ACCEPTS_MOUSE,      0 },
+    { "CollapseLayout",   0,                                      SC2_FIELD_BOOL,           SC2_FRAME_COLLAPSE_LAYOUT,    0 },
+    { "HighlightOnHover", 0,                                      SC2_FIELD_BOOL,           SC2_FRAME_HIGHLIGHT_ON_HOVER, 0 },
+    { "HighlightOnFocus", 0,                                      SC2_FIELD_BOOL,           SC2_FRAME_HIGHLIGHT_ON_FOCUS, 0 },
+    { "BatchImages",      0,                                      SC2_FIELD_BOOL,           SC2_FRAME_BATCH_IMAGES,       0 },
+    { "BatchText",        0,                                      SC2_FIELD_BOOL,           SC2_FRAME_BATCH_TEXT,         0 },
+    { "Color",            offsetof(sc2Frame_t, color),            SC2_FIELD_COLOR,          0,                            SC2_FRAME_HAS_COLOR },
+    { "DescFlags",        0,                                      SC2_FIELD_DESC_FLAGS,     SC2_FRAME_DESC_FLAGS_INTERNAL,SC2_FRAME_HAS_DESC_FLAGS },
+    { "Projection",       offsetof(sc2Frame_t, model.projection), SC2_FIELD_PROJECTION,     0,                            0 },
+    { "LayerCount",       0,                                      SC2_FIELD_LAYER_COUNT,    0,                            0 },
+    { "LayerVisible",     0,                                      SC2_FIELD_LAYER_VISIBLE,  0,                            0 },
+    { "TextureType",      0,                                      SC2_FIELD_TEXTURE_TYPE,   0,                            0 },
+    { "StateCount",       0,                                      SC2_FIELD_STATE_COUNT,    0,                            0 },
 };
 
 static BOOL SC2_ParseFrameField(void *node, sc2Frame_t *frame) {
     LPCSTR tag = (LPCSTR)((xmlNode *)node)->name;
 
     FOR_LOOP(i, sizeof(sc2_frame_fields) / sizeof(*sc2_frame_fields)) {
-        FLOAT *value;
-        LPCSTR text;
+        sc2FrameField_t const *f = &sc2_frame_fields[i];
+        if (strcasecmp(tag, f->name)) continue;
 
-        if (strcasecmp(tag, sc2_frame_fields[i].name)) continue;
-        if (sc2_frame_fields[i].type == SC2_FRAME_FIELD_RESOLVED_FLOAT) {
-            value = (FLOAT *)((char *)frame + sc2_frame_fields[i].offset);
-            *value = SC2_ResolveAttrFloat(node, "val", 0.0f);
-        } else if (sc2_frame_fields[i].type == SC2_FRAME_FIELD_FLOAT) {
-            value = (FLOAT *)((char *)frame + sc2_frame_fields[i].offset);
-            if (!xmlGetAttrFloat(node, "val", value)) return true;
-        } else {
-            text = SC2_XmlGetProp(node, "val");
-            if (!text) return true;
-            if (!strcasecmp(text, "true") || !strcasecmp(text, "1")) frame->flags |= sc2_frame_fields[i].flag;
-            else frame->flags &= ~sc2_frame_fields[i].flag;
-            SC2_XmlFree(text);
+        switch (f->type) {
+            case SC2_FIELD_RESOLVED_FLOAT: {
+                FLOAT *value = (FLOAT *)((char *)frame + f->offset);
+                *value = SC2_ResolveAttrFloat(node, "val", 0.0f);
+                break;
+            }
+            case SC2_FIELD_FLOAT: {
+                FLOAT *value = (FLOAT *)((char *)frame + f->offset);
+                if (!xmlGetAttrFloat(node, "val", value)) return true;
+                break;
+            }
+            case SC2_FIELD_BOOL: {
+                LPCSTR text = SC2_XmlGetProp(node, "val");
+                if (!text) return true;
+                if (!strcasecmp(text, "true") || !strcasecmp(text, "1")) frame->flags |= f->flag;
+                else frame->flags &= ~f->flag;
+                SC2_XmlFree(text);
+                break;
+            }
+            case SC2_FIELD_COLOR: {
+                LPCSTR val = SC2_XmlGetProp(node, "val");
+                if (val) {
+                    LPCSTR resolved = SC2_LayoutResolveConstant(val);
+                    frame->color = SC2_ParseColor(resolved ? resolved : val);
+                    SC2_XmlFree(val);
+                }
+                break;
+            }
+            case SC2_FIELD_DESC_FLAGS: {
+                LPCSTR val = SC2_XmlGetProp(node, "val");
+                if (val) {
+                    if (!strcasecmp(val, "Internal")) frame->flags |= SC2_FRAME_DESC_FLAGS_INTERNAL;
+                    else frame->flags &= ~SC2_FRAME_DESC_FLAGS_INTERNAL;
+                    SC2_XmlFree(val);
+                }
+                break;
+            }
+            case SC2_FIELD_PROJECTION: {
+                LPCSTR val = SC2_XmlGetProp(node, "val");
+                static const struct { LPCSTR name; UIMODELPROJECTION value; } modes[] = {
+                    { "Orthographic", UI_MODEL_ORTHOGRAPHIC }, { "Perspective", UI_MODEL_PERSPECTIVE },
+                };
+                BOOL found = false;
+                FOR_LOOP(m, sizeof(modes) / sizeof(*modes)) {
+                    if (!val || strcasecmp(val, modes[m].name)) continue;
+                    frame->model.projection = modes[m].value;
+                    frame->model_flags |= 1u << 7;
+                    found = true;
+                }
+                if (!found) fprintf(stderr, "SC2_Layout: invalid Projection on %s\n", frame->name);
+                SC2_XmlFree(val);
+                break;
+            }
+            case SC2_FIELD_LAYER_COUNT: {
+                int val = 0;
+                if (xmlGetAttrInt(node, "val", &val)) {
+                    if (val > frame->num_textures) frame->num_textures = val;
+                }
+                break;
+            }
+            case SC2_FIELD_LAYER_VISIBLE: {
+                LPCSTR val = SC2_XmlGetProp(node, "val");
+                int layer = 0;
+                xmlGetAttrInt(node, "layer", &layer);
+                if (val && layer >= 0 && layer < SC2_MAX_TEXTURES) {
+                    if (layer >= frame->num_textures) frame->num_textures = layer + 1;
+                    if (!strcasecmp(val, "false") || !strcasecmp(val, "0"))
+                        frame->textures[layer].flags |= SC2_TEX_LAYER_HIDDEN;
+                    else
+                        frame->textures[layer].flags &= ~SC2_TEX_LAYER_HIDDEN;
+                }
+                if (val) SC2_XmlFree(val);
+                break;
+            }
+            case SC2_FIELD_TEXTURE_TYPE: {
+                int layer = 0;
+                xmlGetAttrInt(node, "layer", &layer);
+                if (layer >= 0 && layer < SC2_MAX_TEXTURES) {
+                    LPCSTR val = SC2_XmlGetProp(node, "val");
+                    if (val) {
+                        SC2_Strncpyz(frame->textures[layer].texture_type, val, sizeof(frame->textures[0].texture_type));
+                        SC2_XmlFree(val);
+                    }
+                }
+                break;
+            }
+            case SC2_FIELD_STATE_COUNT: {
+                int layer = 0;
+                xmlGetAttrInt(node, "layer", &layer);
+                break;
+            }
         }
-        frame->flags |= sc2_frame_fields[i].present;
+        frame->flags |= f->present;
         return true;
     }
     return false;
 }
+
+static void SC2_ParseTextureTag(void *node, sc2Frame_t *frame) {
+    SC2_ParseTexture(node, frame, -1);
+}
+
+static void SC2_ParseChildFrame(void *node, sc2Frame_t *frame) {
+    if (frame->num_children < SC2_MAX_CHILDREN) {
+        sc2Frame_t *child = SC2_AddTemplate();
+        if (child) {
+            SC2_ParseFrameAttrs(node, child);
+            SC2_ParseFrameChildren(node, child);
+            child->parent = frame;
+            frame->children[frame->num_children++] = child;
+        }
+    }
+}
+
+typedef struct {
+    LPCSTR name;
+    void (*handler)(void *node, sc2Frame_t *frame);
+} sc2ChildTag_t;
+
+static const sc2ChildTag_t sc2_child_tags[] = {
+    { "Anchor",  SC2_ParseAnchor },
+    { "Texture", SC2_ParseTextureTag },
+    { "Model",   SC2_ParseModel },
+    { "Camera",  SC2_ParseCamera },
+    { "Frame",   SC2_ParseChildFrame },
+    { NULL, NULL }
+};
 
 static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
     for (xmlNode *cur = ((xmlNode *)node)->children; cur; cur = cur->next) {
@@ -876,83 +1002,10 @@ static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
         LPCSTR tag = (const char *)cur->name;
 
         if (SC2_ParseFrameField(cur, frame)) continue;
-        if (!strcasecmp(tag, "Anchor")) {
-            SC2_ParseAnchor(cur, frame);
-        } else if (!strcasecmp(tag, "Texture")) {
-            SC2_ParseTexture(cur, frame, -1);
-        } else if (!strcasecmp(tag, "TextureType")) {
-            int layer = 0;
-            xmlGetAttrInt(cur, "layer", &layer);
-            if (layer >= 0 && layer < SC2_MAX_TEXTURES) {
-                LPCSTR val = SC2_XmlGetProp(cur, "val");
-                if (val) {
-                    SC2_Strncpyz(frame->textures[layer].texture_type, val, sizeof(frame->textures[0].texture_type));
-                    SC2_XmlFree(val);
-                }
-            }
-        } else if (!strcasecmp(tag, "StateCount")) {
-            int layer = 0;
-            xmlGetAttrInt(cur, "layer", &layer);
-        } else if (!strcasecmp(tag, "LayerCount")) {
-            int val = 0;
-            if (xmlGetAttrInt(cur, "val", &val)) {
-                if (val > frame->num_textures) frame->num_textures = val;
-            }
-        } else if (!strcasecmp(tag, "LayerVisible")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            int layer = 0;
-            xmlGetAttrInt(cur, "layer", &layer);
-            if (val && layer >= 0 && layer < SC2_MAX_TEXTURES) {
-                if (layer >= frame->num_textures) frame->num_textures = layer + 1;
-                if (!strcasecmp(val, "false") || !strcasecmp(val, "0"))
-                    frame->textures[layer].flags |= SC2_TEX_LAYER_HIDDEN;
-                else
-                    frame->textures[layer].flags &= ~SC2_TEX_LAYER_HIDDEN;
-            }
-            if (val) SC2_XmlFree(val);
-        } else if (!strcasecmp(tag, "Color")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                LPCSTR resolved = SC2_LayoutResolveConstant(val);
-                frame->color = SC2_ParseColor(resolved ? resolved : val);
-                frame->flags |= SC2_FRAME_HAS_COLOR;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "DescFlags")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "Internal"))
-                    frame->flags |= SC2_FRAME_DESC_FLAGS_INTERNAL;
-                else
-                    frame->flags &= ~SC2_FRAME_DESC_FLAGS_INTERNAL;
-                frame->flags |= SC2_FRAME_HAS_DESC_FLAGS;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "Camera")) {
-            SC2_ParseCamera(cur, frame);
-        } else if (!strcasecmp(tag, "Projection")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            static const struct { LPCSTR name; UIMODELPROJECTION value; } modes[] = {
-                { "Orthographic", UI_MODEL_ORTHOGRAPHIC }, { "Perspective", UI_MODEL_PERSPECTIVE },
-            };
-            BOOL found = false;
-            FOR_LOOP(i, sizeof(modes) / sizeof(*modes)) {
-                if (!val || strcasecmp(val, modes[i].name)) continue;
-                frame->model.projection = modes[i].value; frame->model_flags |= 1u << 7; found = true;
-            }
-            if (!found) fprintf(stderr, "SC2_Layout: invalid Projection on %s\n", frame->name);
-            SC2_XmlFree(val);
-        } else if (!strcasecmp(tag, "Model")) {
-            SC2_ParseModel(cur, frame);
-        } else if (!strcasecmp(tag, "Frame")) {
-            if (frame->num_children < SC2_MAX_CHILDREN) {
-                sc2Frame_t *child = SC2_AddTemplate();
-                if (child) {
-                    SC2_ParseFrameAttrs(cur, child);
-                    SC2_ParseFrameChildren(cur, child);
-                    child->parent = frame;
-                    frame->children[frame->num_children++] = child;
-                }
+        for (sc2ChildTag_t const *ct = sc2_child_tags; ct->name; ct++) {
+            if (!strcasecmp(tag, ct->name)) {
+                ct->handler(cur, frame);
+                break;
             }
         }
     }
