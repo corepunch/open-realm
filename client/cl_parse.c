@@ -727,7 +727,7 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
 #ifdef WC3
     } else if (!strcmp(command, "wc3_selection")) {
         int number = MSG_ReadLong(&payload);
-        if (number > 0 && number < MAX_EDICTS) {
+        if (number > 0 && number < MAX_CLIENT_ENTITIES) {
             cl.selection.num_selected = 1;
             cl.selection.entity_nums[0] = (DWORD)number;
             CL_RequestUnitUI(1, cl.selection.entity_nums);
