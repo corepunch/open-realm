@@ -400,7 +400,7 @@ static void G_StartScripts(void) {
  * a map loads, the JASS "main" function is invoked to run map initialization
  * triggers. */
 static void G_RunFrame(void) {
-    int path_work_budget = 4096;
+    int path_work_budget = WC3_PATH_WORK_BUDGET;
     LPCSTR path_work_value;
 
     if (!level.started)
@@ -420,7 +420,7 @@ static void G_RunFrame(void) {
      * never depend on a lifetime quota of synchronous whole-map floods.  Keep
      * the per-frame relaxation budget runtime-tunable for slower handhelds. */
     path_work_value = gi.CvarString
-        ? gi.CvarString("wc3_path_work_budget", "4096") : NULL;
+        ? gi.CvarString("wc3_path_work_budget", BZ_STRINGIFY(WC3_PATH_WORK_BUDGET)) : NULL;
     if (path_work_value)
         path_work_budget = atoi(path_work_value);
     path_work_budget = MAX(256, MIN(path_work_budget, 65536));
