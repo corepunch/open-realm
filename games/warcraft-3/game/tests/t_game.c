@@ -57,6 +57,7 @@ static LPEDICT make_test_unit(void) {
 
 static BOOL hover_layout_pending, hover_layer_seen, hover_name_seen, hover_hp_seen, hover_mana_seen, hover_name_sized, hover_name_centered, hover_name_short;
 static DWORD hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count;
+static SHORT hover_hp_y, hover_mana_y;
 static LPEDICT hover_unicast_target;
 
 static int hover_test_image(LPCSTR name) { T_ASSERT(name && *name); return (int)++hover_image_count; }
@@ -81,6 +82,10 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
         }
         hover_hp_seen |= frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
         hover_mana_seen |= frame->stat == UI_STAT_CONTEXT_MANA;
+        if (frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH)
+            hover_hp_y = frame->points.y[FPP_MIN].offset;
+        if (frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_MANA)
+            hover_mana_y = frame->points.y[FPP_MIN].offset;
     }
 }
 static void hover_test_unicast(LPEDICT ent) { hover_unicast_count++; hover_unicast_target = ent; }
@@ -238,9 +243,9 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     LPEDICT player;
 
     setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
-    player->mana.max_value = 100.0f; player->mana.value = 50.0f;
     hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_name_sized = false;
     hover_name_centered = hover_name_short = false;
+    hover_hp_y = hover_mana_y = 0;
     hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0; hover_unicast_target = NULL;
     gi.Write = hover_test_write; gi.unicast = hover_test_unicast;
     gi.ImageIndex = hover_test_image; gi.FontIndex = hover_test_font;
@@ -250,8 +255,19 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 5);
     T_ASSERT(hover_name_seen); T_ASSERT(hover_name_sized); T_ASSERT(hover_name_centered); T_ASSERT(hover_name_short);
     T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen);
+    T_ASSERT(hover_hp_y > hover_mana_y);
     T_EQ(hover_image_count, 6); T_EQ(hover_font_count, 1);
     T_EQ(hover_unicast_count, 1); T_ASSERT(hover_unicast_target == player);
+}
+
+TEST(wc3_game, hover_name_uses_unique_hero_proper_name) {
+    UnitProfile_t const prof = { .name = "Paladin", .properNames = "Arthas" };
+    T_STREQ(G_UnitHoverName(&prof), "Arthas");
+}
+
+TEST(wc3_game, hover_name_does_not_expose_unselected_random_name_list) {
+    UnitProfile_t const prof = { .name = "Paladin", .properNames = "Granis,Jorn" };
+    T_STREQ(G_UnitHoverName(&prof), "Paladin");
 }
 
 /* =========================================================================

@@ -631,6 +631,11 @@ static USHORT G_UnitNameConfigstring(LPCSTR name) {
     return 0;
 }
 
+/* Use a unique authored hero name, but never present an unresolved random-name list as one name. */
+LPCSTR G_UnitHoverName(UnitProfile_t const *prof) {
+    return prof->properNames && *prof->properNames && !strchr(prof->properNames, ',') ? prof->properNames : prof->name;
+}
+
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
@@ -646,7 +651,7 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     if (hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         UnitProfile_t const *prof = G_UnitProfile(ent->s.class_id);
-        state->name = G_UnitNameConfigstring(prof->name);
+        state->name = G_UnitNameConfigstring(G_UnitHoverName(prof));
         state->flags |= EF_HOVER_HEALTH;
         if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;
