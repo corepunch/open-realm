@@ -65,6 +65,7 @@ void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells) {
 }
 
 void setup_test_world(void) {
+    G_ClearGroundSurfaces();
 	memset(&test_mapinfo, 0, sizeof(test_mapinfo));
 	level.mapinfo = &test_mapinfo;
 

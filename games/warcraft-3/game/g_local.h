@@ -745,6 +745,7 @@ struct edict_s {
         LPEDICT units[MAX_CARGO];
         DWORD count;
     } cargo;
+    LPEDICT ground_next;
     struct {
         DWORD item_slots, unit_slots;
     } stock;
@@ -1042,6 +1043,7 @@ struct level_locals {
     } setup;
     LEVELEVENTS events;
     GAMEMESSAGES messages;
+    LPEDICT ground_surfaces;
     struct {
         DWORD item_slots, unit_slots;
     } stock;
@@ -1159,6 +1161,9 @@ void SP_monster_tree(LPEDICT);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);
+void G_RegisterGroundSurface(LPEDICT);
+void G_UnregisterGroundSurface(LPEDICT);
+void G_ClearGroundSurfaces(void);
 void monster_start(LPEDICT);
 void monster_think(LPEDICT);
 

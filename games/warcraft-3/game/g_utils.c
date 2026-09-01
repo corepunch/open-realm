@@ -24,6 +24,7 @@ void G_FreeActorSkills(LPEDICT ent) {
 
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
+    G_UnregisterGroundSurface(ent);
     G_InvalidateRallyTarget(ent);
     if (ent->revival.reviving) G_CancelHeroRevive(ent->revival.producer, ent);
     if (ent->training) G_ClearTrainingQueueFood(ent);

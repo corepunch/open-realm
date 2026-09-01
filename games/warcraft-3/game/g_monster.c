@@ -618,8 +618,36 @@ void SP_SpawnUnit(LPEDICT self) {
     G_RegisterUnitSounds(self);
 }
 
+/* Walkable destructables are sparse, so keep a level list instead of scanning every map edict per unit tick. */
+void G_RegisterGroundSurface(LPEDICT ent) {
+    if (!G_IsDestructable(ent) || !ent->DestructableData->walkable) return;
+    G_UnregisterGroundSurface(ent);
+    ent->ground_next = level.ground_surfaces;
+    level.ground_surfaces = ent;
+}
+
+void G_UnregisterGroundSurface(LPEDICT ent) {
+    LPEDICT *link = &level.ground_surfaces;
+    while (*link && *link != ent) link = &(*link)->ground_next;
+    if (*link) *link = ent->ground_next;
+    if (ent) ent->ground_next = NULL;
+}
+
+void G_ClearGroundSurfaces(void) { level.ground_surfaces = NULL; }
+
+/* A live walkable destructable replaces the lower terrain inside its authored pathing footprint. */
 void M_CheckGround(LPEDICT self) {
-    self->s.origin.z = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
+    FLOAT height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
+    FLOAT const cell = CM_PathCellWorldSize();
+    for (LPEDICT surface = level.ground_surfaces; surface; surface = surface->ground_next) {
+        pathTex_t const *pathtex = surface->pathtex;
+        if (!surface->inuse || surface->destructable.dead ||
+            !surface->destructable.placement_solid || !pathtex) continue;
+        if (fabsf(self->s.origin.x - surface->s.origin.x) > pathtex->width * cell * 0.5f ||
+            fabsf(self->s.origin.y - surface->s.origin.y) > pathtex->height * cell * 0.5f) continue;
+        height = MAX(height, surface->s.origin.z);
+    }
+    self->s.origin.z = height;
 }
 
 BOOL M_CheckAttack(LPEDICT self) {

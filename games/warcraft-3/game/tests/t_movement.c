@@ -1893,6 +1893,41 @@ TEST(wc3_movement, distance_to_goal_zero_when_at_goal) {
     T_FEQ(M_DistanceToGoal(unit), 0.0f, 0.01f);
 }
 
+/* Human01 LT05 is a walkable 32x32 destructable above river terrain; ground snapping must retain its deck Z. */
+TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
+    static DestructableData_t const bridge_data = { .walkable = true };
+    struct { WORD width, height; COLOR32 map[4]; } bridge_path = { .width = 2, .height = 2 };
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    LPEDICT bridge = G_Spawn();
+    FLOAT const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);
+
+    bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
+    bridge->DestructableData = &bridge_data;
+    bridge->destructable.initialized = bridge->destructable.placement_solid = true;
+    bridge->pathtex = (pathTex_t *)&bridge_path;
+    bridge->s.origin = MAKE(VECTOR3, 0.0f, 0.0f, terrain + 64.0f);
+    G_RegisterGroundSurface(bridge);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, terrain + 64.0f, 0.01f);
+
+    unit->s.origin.x = CM_PathCellWorldSize() * 2.0f;
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, CM_GetHeightAtPoint(unit->s.origin.x, unit->s.origin.y), 0.01f);
+}
+
+/* WPM water stays unwalkable; only the explicitly passable bridge lane may connect its banks. */
+TEST(wc3_movement, water_is_blocked_except_at_authored_bridge_lane) {
+    BYTE pathmap[15] = { 0 };
+    VECTOR2 const from = { 0.5f, 1.5f }, target = { 4.5f, 1.5f };
+
+    pathmap[2] = pathmap[12] = 2;
+    setup_test_pathmap(5, 3, pathmap);
+    T_ASSERT(CM_LineIsWalkable(&from, &target));
+    pathmap[7] = 2;
+    setup_test_pathmap(5, 3, pathmap);
+    T_ASSERT(!CM_LineIsWalkable(&from, &target));
+}
+
 /* -----------------------------------------------------------------------
  * ai_walk / movement frame tests
  *

@@ -12,6 +12,12 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interaction routing deliberately keeps the point-route contract: attack, gold-mine entry, resource return, repair, and similar behaviors own their interaction ranges and may need to continue toward a blocked target after the point flow reaches the footprint edge. Live units remain outside static flow fields and are handled by the precise swept-circle checks in `move_is_valid`.
 
+## Walkable Bridges And Water
+
+The WPM remains authoritative for horizontal movement: water cells with the no-walk bit are impassable, while the passable cells authored through a bridge form the only legal crossing lane. Bridge elevation is a separate game-side contract. `M_CheckGround()` starts with W3E terrain height, then checks the level's sparse registry of live `DestructableData.walkable` entities and uses the highest authored destructable Z whose pathing-texture footprint contains the unit. Dead, hidden/non-solid, and pathing-texture-less destructables do not supply ground.
+
+Human01's river bridge confirms the split. Map object `LT05` (`WoodBridgeLarge45`) is `walkable=1`, `onWater=1`, has a 32x32 pathing texture, and is placed at `(1216, -960, -114)`. W3E terrain at its centre is `-170.8`, so terrain-only ground snapping puts a unit 56.8 world units below the deck even though WPM routing correctly accepts the crossing. Walkable surfaces are registered at map/runtime destructable spawn and unregistered on edict free; ground checks iterate bridges rather than every map entity.
+
 Attack range against a building is measured from the attacker's collision edge to the building's authored no-walk footprint when `pathtex` is available. `skills/s_attack.c` therefore uses `CM_DistanceToPathingFootprint()` for building targets instead of requiring the attacker to enter weapon range of the blocked building centre. This is especially important for explicit force-fire on owned/friendly large buildings: centre-distance range checks make a melee unit orbit the footprint forever even though it is already beside a valid attack surface. Non-building targets retain the existing centre-distance attack check.
 
 Lumber's unreachable-interior-tree detection is the narrower exception: `unit_changeangle_for_radius()` uses the Peasant's collision radius so Harvest can identify when the best legal approach to a blocked tree has genuinely been exhausted outside `HARVEST_RANGE`. Do not use that route-end signal for building interactions unless the route request also carries the behavior's interaction range.
@@ -156,6 +162,8 @@ Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movem
 - cache separation by collision radius;
 - resumable cache misses serialize without losing a later destination;
 - collision-radius-aware line walkability;
+- water rejection with an explicitly passable bridge lane;
+- walkable-destructable deck elevation with terrain restoration outside its footprint;
 - direct-line and flow rejection of diagonal `ox/xo` corner cuts;
 - rejection of a corridor too narrow for the mover;
 - collision-sized Move, Patrol, and Attack-move route selection;

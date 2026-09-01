@@ -401,6 +401,7 @@ void G_SpawnEntities(void) {
         SP_CallSpawn(ent);
         if (G_IsDestructable(ent)) {
             G_InitializeDestructablePlacement(ent, doodad);
+            G_RegisterGroundSurface(ent);
         }
         gi.LinkEntity(ent);
     }
@@ -523,6 +524,7 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     ent->s.scale = scale;
     ent->spawn_time = gi.GetTime();
     SP_CallSpawn(ent);
+    G_RegisterGroundSurface(ent);
     gi.LinkEntity(ent);
     if (G_IsDestructable(ent)) CM_BakeStaticObstacles();
     return ent;
