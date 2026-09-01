@@ -148,7 +148,7 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
         if (!ent || !ent->name) { text[0] = '\0'; return text; }
         ni = ent->name - 1;
         cs_index = CS_GENERAL + (ni >> 4);
-        if (cs_index >= MAX_CONFIGSTRINGS || !cl.configstrings[cs_index]) { text[0] = '\0'; return text; }
+        if (cs_index >= MAX_CONFIGSTRINGS || !cl.configstrings[cs_index][0]) { text[0] = '\0'; return text; }
         return cl.configstrings[cs_index] + (ni & 0xF) * ENT_NAME_SLOT_SIZE;
     } else if (frame->stat >= MAX_STATS && frame->stat < MAX_STATS * 2) {
         if (cl.playerstate.texts[frame->stat - MAX_STATS]) {
