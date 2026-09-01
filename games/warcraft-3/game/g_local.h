@@ -22,6 +22,9 @@
 #define MAX_EVENT_QUEUE 256
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
+#define WC3_PATH_WORK_BUDGET 32768 // queue pops/server frame; completes a 256x256 open field in two 10 Hz ticks
+#define BZ_STRINGIFY_INNER(value) #value
+#define BZ_STRINGIFY(value) BZ_STRINGIFY_INNER(value)
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6

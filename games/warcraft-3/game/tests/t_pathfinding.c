@@ -264,6 +264,23 @@ TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing
     T_ASSERT(second_gen != first_gen);
 }
 
+TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames) {
+    enum { WIDTH = 256, HEIGHT = 256 };
+    static BYTE open[WIDTH * HEIGHT];
+    LPEDICT goal;
+
+    memset(open, 0, sizeof(open));
+    setup_test_pathmap(WIDTH, HEIGHT, open);
+    reset_entities();
+    goal = make_waypoint(128.0f, 128.0f);
+
+    T_EQ(CM_RequestHeatmapForRadius(goal, 0.0f), 0);
+    CM_ProcessPathJobs(WC3_PATH_WORK_BUDGET);
+    if (!CM_RequestHeatmapForRadius(goal, 0.0f))
+        CM_ProcessPathJobs(WC3_PATH_WORK_BUDGET);
+    T_ASSERT(CM_RequestHeatmapForRadius(goal, 0.0f) != 0);
+}
+
 TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);

@@ -36,6 +36,11 @@ Plain Move also keeps the stand presentation while that pair is clear. The order
 
 `CM_BuildHeatmapForRadius()` remains the synchronous API for tests/tools that explicitly require a completed field. Production movement goes through `M_RefreshHeatmap()` -> `CM_RequestHeatmapForRadius()`.
 
+Production services the shared incremental build with 32,768 queue pops per 10 Hz server frame. A 256x256 open field
+therefore completes in at most two frames instead of the previous sixteen-frame (1.6 second) delay. Override
+`wc3_path_work_budget` for slower targets; values are clamped to 256-65,536. This changes only scheduling: cache misses
+still build a complete destination-rooted field before publishing its generation, so long routes remain frame-budgeted.
+
 `CM_BuildHeatmapForRadius()` and the resumable request path both key cached fields by adjusted target cell and mover collision radius. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
 
 Flow vectors only descend to a strictly lower heatmap price for both collision-sized and radius-zero point fields. The adjusted goal cell therefore has a zero vector instead of pointing back out to a higher-cost neighbour. This matters for shared interaction routes such as Gold Mines and resource drop-offs: an outward point-flow at the adjusted cell makes every worker sharing that field orbit the same wrong location. Cached prices retain `INT_MAX` for cells that the completed field cannot reach. `CM_FlowReachedGoal(generation, x, y)` identifies the adjusted goal cell, while `CM_FlowCanReach(generation, x, y)` distinguishes a disconnected cell from a zero produced by interpolation near the goal.
