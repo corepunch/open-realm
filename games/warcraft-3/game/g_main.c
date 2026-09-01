@@ -590,6 +590,7 @@ static void G_ClientBegin(LPEDICT edict) {
     G_StartScripts();
 
     UI_ShowGameInterface(edict);
+    UI_WriteHoverLayout(edict);
 
     G_AccumulatePlayerFood(client);
     /* Invalidate cache so the initial resource bar write always fires. */

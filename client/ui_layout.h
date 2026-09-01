@@ -18,6 +18,7 @@ typedef void (*layoutDrawFunc_t)(LPCUIFRAME frame, LPCRECT screen);
 /* Layout system functions (implemented in cl_unit_layout.c) */
 void SCR_SetLayoutLayer(DWORD layer, HANDLE data);
 void SCR_ClearLayoutLayer(DWORD layer);
+void SCR_SetLayoutRoot(LPCRECT root);
 BOOL SCR_LayoutHitTest(int x, int y);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 void SCR_DrawLayout(void);

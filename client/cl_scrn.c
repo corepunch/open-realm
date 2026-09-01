@@ -121,45 +121,6 @@ static void SCR_DrawCursor(void) {
     SCR_UpdateSystemCursor(drawn);
 }
 
-/* Convert the current hovered entity's model-top point into the UI canvas consumed by ui.dll. */
-static void SCR_UpdateHoverUnitUI(void) {
-    uiHoverUnit_t unit = { 0 };
-    LPCENTITYSTATE ent;
-    FLOAT const *m;
-    FLOAT cx, cy, cw, ndc_x, ndc_y;
-    VECTOR3 top;
-
-    if (!cl.hover_entity || cl.hover_entity >= MAX_CLIENT_ENTITIES)
-        goto done;
-    ent = &cl.ents[cl.hover_entity].current;
-    if (!ent->model || !ent->stats[ENT_HEALTH] || !(ent->flags & EF_HOVER_HEALTH))
-        goto done;
-    FOR_LOOP(i, cl.viewDef.num_entities)
-        if (cl.viewDef.entities[i].number == cl.hover_entity) {
-            if (!re.GetEntityOverheadPosition(&cl.viewDef.entities[i], &top)) goto done;
-            m = cl.viewDef.viewProjectionMatrix.v;
-            cx = m[0] * top.x + m[4] * top.y + m[8] * top.z + m[12];
-            cy = m[1] * top.x + m[5] * top.y + m[9] * top.z + m[13];
-            cw = m[3] * top.x + m[7] * top.y + m[11] * top.z + m[15];
-            if (cw <= 0.0001f) goto done;
-            ndc_x = cx / cw; ndc_y = cy / cw;
-            unit.visible = true;
-            unit.x = (cl.viewDef.viewport.x + (ndc_x * 0.5f + 0.5f) * cl.viewDef.viewport.w) * UI_BASE_WIDTH;
-            unit.y = (1.0f - (cl.viewDef.viewport.y + (ndc_y * 0.5f + 0.5f) * cl.viewDef.viewport.h)) * UI_BASE_HEIGHT;
-            unit.width = 0.045f;
-            unit.health = ent->stats[ENT_HEALTH];
-            unit.mana = ent->stats[ENT_MANA];
-            if (ent->name) {
-                DWORD ni = ent->name - 1;
-                LPCSTR cs = cl.configstrings[CS_GENERAL + (ni >> 4)];
-                if (cs) strlcpy(unit.name, cs + (ni & 0xF) * ENT_NAME_SLOT_SIZE, sizeof(unit.name));
-            }
-            break;
-        }
-done:
-    ui.UpdateHoverUnit(&unit);
-}
-
 void SCR_BeginLoadingPlaque(void) {
     if (cls.disable_screen)
         return;
@@ -192,8 +153,6 @@ void SCR_DrawScreenField(DWORD msec) {
         break;
     case ca_active:
         V_RenderView();
-        /* WC3 is the only UI module exporting world-hover presentation; the old unconditional call crashed other games. */
-        if (ui.UpdateHoverUnit) SCR_UpdateHoverUnitUI();
         if (Cvar_Integer("r_hud", 1)) {
             SCR_DrawLayout();
             if (ui.DrawGameOverlay) ui.DrawGameOverlay();
@@ -278,6 +237,32 @@ static DWORD layout_hovered_number;
 static DWORD layout_hovered_layer;
 static DWORD layout_current_layer;
 
+/* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
+BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
+    LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+    FLOAT const *m;
+    FLOAT cx, cy, cw, vx, vy;
+    VECTOR3 top;
+
+    if (!root || !ent) return false;
+    FOR_LOOP(i, cl.viewDef.num_entities) {
+        if (cl.viewDef.entities[i].number != cl.hover_entity) continue;
+        if (!re.GetEntityOverheadPosition(&cl.viewDef.entities[i], &top)) return false;
+        m = cl.viewDef.viewProjectionMatrix.v;
+        cx = m[0] * top.x + m[4] * top.y + m[8] * top.z + m[12];
+        cy = m[1] * top.x + m[5] * top.y + m[9] * top.z + m[13];
+        cw = m[3] * top.x + m[7] * top.y + m[11] * top.z + m[15];
+        if (cw <= 0.0001f) return false;
+        vx = cl.viewDef.viewport.x + (cx / cw * 0.5f + 0.5f) * cl.viewDef.viewport.w;
+        vy = cl.viewDef.viewport.y + (cy / cw * 0.5f + 0.5f) * cl.viewDef.viewport.h;
+        if (vx < cl.viewDef.scissor.x || vx > cl.viewDef.scissor.x + cl.viewDef.scissor.w ||
+            vy < cl.viewDef.scissor.y || vy > cl.viewDef.scissor.y + cl.viewDef.scissor.h) return false;
+        *root = MAKE(RECT, vx * UI_BASE_WIDTH, (1.0f - vy) * UI_BASE_HEIGHT, 0, 0);
+        return true;
+    }
+    return false;
+}
+
 static RECT Rect_inset(LPCRECT r, FLOAT inset) {
     return MAKE(RECT, r->x+inset, r->y+inset, r->w-inset*2, r->h-inset*2);
 }
@@ -323,8 +308,10 @@ static LPCENTITYSTATE SCR_LayoutSelectedEntity(void) {
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = { 0, 0, 255, 255 };
     RECT screen2 = *screen, uv2 = uv;
-    screen2.w *= frame->value;
-    uv2.w    *= frame->value;
+    FLOAT value = frame->value;
+    SCR_LayoutContextValue(frame->stat, &value);
+    screen2.w *= value;
+    uv2.w    *= value;
     RECT const suv2 = Rect_div(&uv2, 0xff);
     re.DrawImage(cl.pics[frame->tex.index], &screen2, &suv2, frame->color);
     if (frame->tex.index2 > 0) {
@@ -334,6 +321,8 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
+    FLOAT value;
+    if (SCR_LayoutContextValue(frame->stat, &value) && value <= 0.0f) return;
     if (!frame->tex.index) return;  /* unresolved texture — skip to avoid drawing cl.pics[0] */
     LPCTEXTURE tex = cl.pics[frame->tex.index];
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
@@ -880,8 +869,13 @@ void SCR_DrawLayout(void) {
         if ((1 << layer) & flags) continue;
         HANDLE layout = layout_layers[layer];
         if (layout) {
+            RECT root;
             layout_current_layer = layer;
             SCR_Clear(layout);
+            if (layer == LAYER_WORLD_HOVER) {
+                if (!SCR_LayoutWorldHoverRoot(&root)) continue;
+                SCR_SetLayoutRoot(&root);
+            }
             SCR_LayoutUpdateTooltip(layout);
             SCR_LayoutDrawOverlay(layout);
         }
@@ -903,7 +897,7 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
-        if (!layout || (1 << layer) & flags) continue;
+        if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
@@ -926,7 +920,7 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
-        if (!layout || (1 << layer) & flags) continue;
+        if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
@@ -949,7 +943,7 @@ BOOL SCR_LayoutKeyEvent(int key) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
-        if (!layout || (1 << layer) & flags) continue;
+        if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
@@ -1026,7 +1020,7 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
-        if (!layout || ((1 << layer) & flags)) continue;
+        if (!layout || layer == LAYER_WORLD_HOVER || ((1 << layer) & flags)) continue;
         SCR_Clear(layout);
         FOR_LOOP(i, SCR_NumFrames()) {
             LPCUIFRAME frame = SCR_Frame(i);
@@ -1055,7 +1049,7 @@ BOOL SCR_LayoutHitTest(int x, int y) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
-        if (!layout || (1 << layer) & flags) continue;
+        if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         FOR_LOOP(i, SCR_NumFrames()) {
             LPCUIFRAME frame = SCR_Frame(i);

@@ -361,7 +361,7 @@ static void R_DrawStatusBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT frac, COLO
  * it must not run mid-model). */
 void R_DrawHealthBars(void) {
 #ifdef WC3
-    return; /* WC3 hover presentation is owned by its per-game ui.dll widget. */
+    return; /* WC3 hover presentation is server-authored on LAYER_WORLD_HOVER. */
 #endif
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         return; /* portrait / offscreen views have no overhead bars */

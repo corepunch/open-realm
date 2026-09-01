@@ -1321,6 +1321,7 @@ void UI_ShowMultiplayerMenu(LPEDICT);
 void UI_ShowMultiplayerCreateMenu(LPEDICT);
 void UI_ShowMultiplayerGameSetupMenu(LPEDICT, DWORD);
 void UI_ShowGameInterface(LPEDICT);
+void UI_WriteHoverLayout(LPEDICT);
 void UI_WriteCinematicLayer(LPEDICT);
 void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
 void UI_ShowMultiplayerCreateMapInfo(LPEDICT);

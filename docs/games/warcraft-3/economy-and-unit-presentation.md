@@ -299,19 +299,23 @@ from `G_FowPlayerCanSeeEntity`: explored buildings may remain networked while sh
 The presentation path is:
 
 ```text
-TraceEntity -> cl.hover_entity -> cl.viewDef.hover_entity -> R_DrawHealthBars
+game.dll UI_WriteHoverLayout -> svc_layout LAYER_WORLD_HOVER
+TraceEntity -> cl.hover_entity -> generic context projection/bindings -> SCR_DrawLayout
 ```
 
 The hover nameplate/stat bar is native runtime UI, not an FDF-defined frame. ROC `FrameDef.toc` contains no world-hover frame;
-`game.dll` constructs `CUnitTip` and `CStatBar` directly. Archive data still owns the content: `War3Skins.txt` resolves
+retail constructs `CUnitTip` and `CStatBar` directly, so `game.dll` mirrors that lifecycle with proxy `uiFrame_t` frames rather than
+shipping a project-owned FDF. `UI_WriteHoverLayout` sends the frame tree once from `G_ClientBegin`. Archive data still owns the content:
+`War3Skins.txt` resolves
 `ToolTipBackground`, `ToolTipBorder`, `SimpleHpBarConsoleSmall`, and `SimpleManaBarConsoleSmall`, while `UnitUI.slk:scale` and
 `MiscData.txt:[SelectionCircle] ScaleFactor` determine the bar width. Keep those lookups authoritative instead of copying texture
 paths or per-unit dimensions into C.
 
 The displayed name comes from the race/campaign `Units\\*UnitStrings.txt` `Name` field (`unam`), merged into `UnitProfile_t.name`;
 for example, `Units\\NeutralUnitStrings.txt` defines `[nvil] Name=Villager`. `G_CustomizeEntity` interns that text into `CS_GENERAL`
-and sends its 1-based pool index through `entityState_t.name`; `SCR_UpdateHoverUnitUI` resolves the index and
-copies the result into `uiHoverUnit_t.name`. A configstring is NUL-terminated on the wire, so its sixteen fixed-width name records use
+and sends its 1-based pool index through `entityState_t.name`; the generic `UI_STAT_CONTEXT_NAME` binding resolves that index while
+drawing `LAYER_WORLD_HOVER`. Health and mana use the corresponding context bindings over the snapshot's compressed stat bytes. A
+configstring is NUL-terminated on the wire, so its sixteen fixed-width name records use
 ASCII Unit Separator (`0x1f`) as padding and retain a single final NUL. `CL_ParseConfigString` converts the separators back to NULs
 after receipt, preserving ordinary fixed-offset C strings for renderer and UI consumers. Embedded NUL records truncate at the first
 name in `MSG_WriteString` and leave later hover names empty.
@@ -321,7 +325,9 @@ entity's selection radius times `0.001`. `CStatBar.cpp` uses a `0.004` frame hei
 the old implementation's thickness. `CUnitTip.cpp` sizes the nameplate from rendered text with `0.008` horizontal and `0.006`
 vertical padding rather than forcing it to the bar width. Placement transforms the MDX model bounds and adds 30 world units of
 clearance. Selection-circle radius is not a height: using `radius * 2 + 48` placed large-footprint mines too high and tall heroes
-too low. The renderer therefore exposes its model-format overhead point to the client without leaking MDX bounds into client code.
+too low. The renderer therefore exposes its model-format overhead point to the generic client layout code without leaking MDX bounds
+or per-game widget construction into the client. The client rejects projected points outside the world scissor, so the widget cannot
+bleed into the command console.
 
 The same hover entity drives the ground selection-preview splat in `renderer/r_ents.c`. `G_CustomizeEntity` derives the
 recipient-relative relationship by resolving the two hover-relevant WC3 neutral ownership classes before ordinary alliance state:

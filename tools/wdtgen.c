@@ -34,7 +34,8 @@ static void wb_grow(wbuf_t *b, size_t need) {
 static void wb_write(wbuf_t *b, const void *src, size_t n) {
     wb_grow(b, n); memcpy(b->data + b->size, src, n); b->size += n;
 }
-static void wb_u8(wbuf_t *b, uint8_t v)  { wb_write(b, &v, 1); }
+/* Restore when a generated WDT chunk needs a byte-sized scalar field. */
+//static void wb_u8(wbuf_t *b, uint8_t v)  { wb_write(b, &v, 1); }
 static void wb_u16(wbuf_t *b, uint16_t v) { wb_write(b, &v, 2); }
 static void wb_u32(wbuf_t *b, uint32_t v) { wb_write(b, &v, 4); }
 static void wb_f32(wbuf_t *b, float    v) { wb_write(b, &v, 4); }
