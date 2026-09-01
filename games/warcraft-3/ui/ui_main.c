@@ -559,7 +559,7 @@ static void UI_DrawHoverUnit(void) {
     if (hover_font) hover_renderer->DrawText(&(drawText_t){ .font = hover_font, .text = hover_unit.name, .rect = label,
         .color = COLOR32_WHITE, .textWidth = label.w, .lineHeight = label.h,
         .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE });
-    bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, hover_unit.y - 0.002f, hover_unit.width, 0.004f);
+    bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, hover_unit.y - 0.002f, hover_unit.width, 0.008f);
     if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
         .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
     if (hover_hp) {
@@ -568,7 +568,7 @@ static void UI_DrawHoverUnit(void) {
             .screen = inner, .uv = { 0, 0, hp, 1 }, .color = hp_color });
     }
     if (mana > 0.0f) {
-        bar.y += 0.004f;
+        bar.y += 0.008f;
         if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
             .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
         if (hover_mana) {

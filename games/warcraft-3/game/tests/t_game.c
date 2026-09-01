@@ -202,7 +202,7 @@ TEST(wc3_game, overhead_bar_width_uses_unit_selection_radius) {
 }
 
 TEST(wc3_game, overhead_bar_fill_keeps_retail_one_thousandth_inset) {
-    T_FEQ(0.004f - 0.001f * 2.0f, 0.002f, 0.0001f);
+    T_FEQ(0.008f - 0.001f * 2.0f, 0.006f, 0.0001f);
 }
 
 /* =========================================================================
