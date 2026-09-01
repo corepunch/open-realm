@@ -93,10 +93,12 @@ A crucial architectural principle in OpenWarcraft is the distinction between **M
 2. **Binary wire packet**: The server emits a `svc_layout` packet containing a layer ID (e.g. `LAYER_HUD`, `LAYER_INVENTORY`, `LAYER_LOOT`, `LAYER_QUESTDIALOG`), followed by delta-compressed `uiFrame_t` structures and compact wire payloads (such as 10-byte `uiScrollBarImage_t`).
 3. **Generic client rendering**: The client receives `svc_layout` in [client/cl_parse.c](client/cl_parse.c) and stores the frame tree in [client/cl_layout.c](client/cl_layout.c). In [client/cl_scrn.c](client/cl_scrn.c), `SCR_DrawLayout()` draws all active layout layers. The client has zero game-specific knowledge of the HUD content—it simply executes draw instructions for the frames.
 4. **Layer visibility control**: The server controls which HUD layers are visible using the `uiflags` bitmask in `playerState_t` (`1 << layer`).
+5. **Entity-context layers**: The server can declare generic bindings such as context name, health, and mana. For `LAYER_WORLD_HOVER`, the client chooses the recipient-filtered `cl.hover_entity`, projects its model-authored overhead point every render frame, and resolves those bindings from the existing `entityState_t` snapshot and `CS_GENERAL` pool. Mouse movement and projection do not make a server round trip; the server still owns the frame tree, resources, bindings, and visibility.
 
 ### B. Dynamic HUD State Binding
 - **Player Stats & Status**: Carried per-frame in `playerState_t` inside `svc_frame` (health, mana, max stats, current target entity, copper, cast progress, `client_ui_state`).
-- **Unit Abilities & RTS HUD**: Carried via `svc_unit_ui` (selected unit entity number, available action buttons, inventory items, production queue).
+- **Entity Context**: Carried in recipient-filtered `entityState_t` snapshots and configstring pools. Layout context bindings consume these fields locally without a hover/selection RPC.
+- **Unit Abilities & RTS HUD**: Authored into `svc_layout` command, inventory, and queue frames. `svc_unit_ui` is retained only as a legacy compatibility parser and must not be extended.
 - **Interactive UI Commands**: Buttons created in server-authored layouts specify string commands (e.g. `OnClick = "loot_take 0"`, `"cast 1"`, `"use 0"`, `"quest_accept"`). Clicking a button executes the command on the client command buffer, transmitting a `clc_stringcmd` to the server for authoritative execution.
 
 ---

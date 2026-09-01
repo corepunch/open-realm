@@ -158,6 +158,21 @@ Relevant regressions:
 - `net.layout_scrollbar_without_art_draws_nothing`
 - `wow_game.deputy_willem_opens_classic_first_human_quest_frame`
 
+## Entity-Context Bindings
+
+`uiFrame_t.stat` remains an unsigned byte on the wire. Values below `MAX_STATS` bind player numeric stats, the existing
+`MAX_STATS` range binds player text slots, and the reserved high values `UI_STAT_CONTEXT_NAME`, `UI_STAT_CONTEXT_HEALTH`, and
+`UI_STAT_CONTEXT_MANA` bind a server-declared frame to the current layout context.
+
+`LAYER_WORLD_HOVER` uses `cl.hover_entity` as that context only when the recipient's snapshot carries `EF_HOVER_HEALTH`, a live
+model, and nonzero health. The generic client resolves the pooled name from `entityState_t.name`/`CS_GENERAL`, reads compressed health
+and mana from `entityState_t.stats`, and projects `re.GetEntityOverheadPosition` through the current view matrix. The layer is skipped
+when the point is behind the camera or outside the world scissor.
+
+This is not a per-hover network protocol. The server sends the static frame tree, art/font indexes, geometry, and binding declarations
+once; mouse picking, projection, and evaluation of already-replicated values happen locally each render frame. Do not revive
+`clc_request_unit_ui`/`svc_unit_ui`, add an entity-name query, or resend `svc_layout` on mouse motion.
+
 ## Key Files
 
 | File | Responsibility |

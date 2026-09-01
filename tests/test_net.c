@@ -32,6 +32,7 @@ void test_client_stubs_init(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 void SCR_UpdateScreen(DWORD msec);
@@ -47,6 +48,9 @@ static DWORD test_scroll_draws;
 static drawText_t test_textarea_draw;
 static DWORD test_textarea_draws;
 static DWORD test_begin_frames, test_end_frames;
+static VECTOR3 test_overhead_point;
+static RECT test_status_rect;
+static DWORD test_status_draws;
 
 static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)color;
@@ -59,6 +63,107 @@ static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv,
 static void capture_textarea(LPCDRAWTEXT text) { test_textarea_draw = *text; test_textarea_draws++; }
 static void capture_begin_frame(void) { test_begin_frames++; }
 static void capture_end_frame(void) { test_end_frames++; }
+static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) {
+    (void)entity; *out = test_overhead_point; return true;
+}
+static void capture_status_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+    (void)texture; (void)uv; (void)color; test_status_rect = *screen; test_status_draws++;
+}
+
+TEST(client_layout, context_name_resolves_hover_entity_configstring) {
+    uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME };
+    DWORD const entnum = 7, name = 3;
+    DWORD const ni = name - 1;
+
+    test_client_stubs_init();
+    cl.hover_entity = entnum;
+    cl.ents[entnum].current = (entityState_t){
+        .model = 1, .name = name, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 255 },
+    };
+    memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
+    snprintf(cl.configstrings[CS_GENERAL] + (ni & 0xF) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Footman");
+
+    T_STREQ(SCR_GetStringValue(&frame), "Footman");
+}
+
+TEST(client_layout, unknown_high_stat_binding_resolves_empty) {
+    uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME - 1 };
+
+    test_client_stubs_init();
+    T_STREQ(SCR_GetStringValue(&frame), "");
+}
+
+TEST(client_layout, world_hover_root_projects_model_top_into_ui_canvas) {
+    RECT root;
+    renderEntity_t render = { .number = 7 };
+
+    test_client_stubs_init();
+    cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 255 },
+    };
+    cl.viewDef.entities = &render; cl.viewDef.num_entities = 1;
+    cl.viewDef.viewport = cl.viewDef.scissor = MAKE(RECT, 0, 0.22f, 1, 0.76f);
+    Matrix4_identity(&cl.viewDef.viewProjectionMatrix);
+    test_overhead_point = MAKE(VECTOR3, 0, 0, 0);
+    re.GetEntityOverheadPosition = capture_overhead_point;
+
+    T_ASSERT(SCR_LayoutWorldHoverRoot(&root));
+    T_FEQ(root.x, UI_BASE_WIDTH * 0.5f, 0.0001f);
+    T_FEQ(root.y, UI_BASE_HEIGHT * 0.4f, 0.0001f);
+    T_FEQ(root.w, 0.0f, 0.0001f); T_FEQ(root.h, 0.0f, 0.0001f);
+}
+
+TEST(client_layout, context_values_follow_hover_snapshot) {
+    FLOAT value = -1.0f;
+
+    test_client_stubs_init();
+    cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 128, [ENT_MANA] = 64 },
+    };
+    T_ASSERT(SCR_LayoutContextValue(UI_STAT_CONTEXT_HEALTH, &value));
+    T_FEQ(value, 128.0f / 255.0f, 0.0001f);
+    T_ASSERT(SCR_LayoutContextValue(UI_STAT_CONTEXT_MANA, &value));
+    T_FEQ(value, 64.0f / 255.0f, 0.0001f);
+}
+
+TEST(client_layout, context_rejects_entity_without_server_hover_capability) {
+    FLOAT value;
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){ .model = 1, .stats = { [ENT_HEALTH] = 255 } };
+    T_ASSERT(!SCR_LayoutContextValue(UI_STAT_CONTEXT_HEALTH, &value));
+}
+
+TEST(client_layout, world_hover_root_rejects_point_outside_world_scissor) {
+    RECT root;
+    renderEntity_t render = { .number = 7 };
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 255 },
+    };
+    cl.viewDef.entities = &render; cl.viewDef.num_entities = 1;
+    cl.viewDef.viewport = cl.viewDef.scissor = MAKE(RECT, 0, 0.22f, 1, 0.76f);
+    Matrix4_identity(&cl.viewDef.viewProjectionMatrix);
+    test_overhead_point = MAKE(VECTOR3, 0, 2, 0);
+    re.GetEntityOverheadPosition = capture_overhead_point;
+    T_ASSERT(!SCR_LayoutWorldHoverRoot(&root));
+}
+
+TEST(client_layout, context_statusbar_uses_hover_snapshot_fraction) {
+    uiFrame_t frame = { .stat = UI_STAT_CONTEXT_HEALTH, .tex = { .index = 1 }, .value = 1.0f };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.4f, 0.05f);
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 128 },
+    };
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    SCR_LayoutDrawStatusbar(&frame, &screen);
+    T_EQ(test_status_draws, 1); T_FEQ(test_status_rect.w, screen.w * 128.0f / 255.0f, 0.0001f);
+}
 
 /* r_norefresh skips every renderer/UI submission while its inverse still presents a normal client frame. */
 TEST(net, no_refresh_preserves_client_loop_without_screen_submission) {

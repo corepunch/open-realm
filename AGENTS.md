@@ -213,7 +213,13 @@ Key principles inline:
 
 ## UI Module Boundary
 
-- Keep `ui.dll` focused on loading screens, menu/glue UI, and client-side in-game HUD screens.
+- Keep `ui.dll` focused on loading screens and menu/glue UI. New in-game HUD presentation must be server-authored through
+  `svc_layout`; the generic client may bind declared frames to already-replicated `playerState_t`, `entityState_t`, and configstring
+  data, but `ui.dll` must not independently construct or populate gameplay HUD widgets.
+- An in-game `ui.dll` exception is allowed only when `svc_layout`, replicated state/configstrings, and generic client layout bindings
+  demonstrably cannot represent the feature. Mark the implementation at the call site with `/* HACK: */` and explain that specific
+  constraint. Convenience, per-game styling, or client-local mouse/projection state are not sufficient reasons for an exception.
+- Existing WoW `DrawGameOverlay` users predate this rule and are migration debt; do not copy or extend that pattern for new work.
 - Do not add UI import callbacks for mouse polling, loading state polling, layout decoding, or map-info helpers. Use pushed events, `DrawLoadingScreen(map, status, progress)`, client-owned layout functions, and direct `CM_*` calls inside the UI module.
 - Loading-screen ownership stays with `ca_loading`. The client may only enter `ca_active` from `CL_PrepRefresh()` after all required assets are registered.
 

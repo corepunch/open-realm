@@ -42,6 +42,9 @@ FLOAT Theme_Float(LPCSTR key, LPCSTR def);
 void UI_WriteConsoleBackdrop(LPGAMECLIENT, LONG, LONG);
 void UI_WriteMinimapFrame(void);
 
+/* World hover (hud_hover.c) */
+void UI_WriteHoverLayout(LPEDICT ent);
+
 /* Command buttons (hud_commands.c) */
 void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
