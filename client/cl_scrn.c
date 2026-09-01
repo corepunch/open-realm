@@ -967,6 +967,118 @@ BOOL SCR_LayoutKeyEvent(int key) {
     return false;
 }
 
+static BOOL SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
+    switch (type) {
+        case FT_TEXTURE:
+        case FT_BACKDROP:
+        case FT_SIMPLESTATUSBAR:
+        case FT_COMMANDBUTTON:
+        case FT_MODEL:
+        case FT_PORTRAIT:
+        case FT_MINIMAP:
+        case FT_BUILDQUEUE:
+        case FT_MULTISELECT:
+        case FT_SIMPLEBUTTON:
+        case FT_BUTTON:
+        case FT_TEXTBUTTON:
+        case FT_GLUETEXTBUTTON:
+        case FT_GLUEBUTTON:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static BOOL SCR_RangesOverlap(FLOAT a0, FLOAT a1, FLOAT b0, FLOAT b1) {
+    return MAX(a0, b0) <= MIN(a1, b1);
+}
+
+/* The WC3 command console is not a flat rectangle: the info/status and command
+ * panels protrude above the world viewport's bottom edge.  Selection starts in
+ * the world, so constrain its moving corner against visible bottom-console
+ * frames before the renderer sees the marquee.  This keeps selection geometry
+ * and selection hit-testing out of authored HUD regions instead of relying on
+ * transparent console art to hide the line.  Full-screen world games have a
+ * scissor bottom at UI_BASE_HEIGHT, making this a no-op. */
+void SCR_LayoutClampSelectionRect(LPRECT rect) {
+    VECTOR2 start, end, clamped;
+    FLOAT world_bottom;
+    FLOAT xmin, xmax, ymin, ymax;
+    size2_t window;
+
+    if (!rect) {
+        return;
+    }
+    window = re.GetWindowSize();
+    if (window.width <= 0 || window.height <= 0 || cl.viewDef.scissor.y <= 0.0f) {
+        return;
+    }
+
+    start = SCR_ScreenToUI((int)rect->x, (int)rect->y);
+    end = SCR_ScreenToUI((int)(rect->x + rect->w), (int)(rect->y + rect->h));
+    clamped = end;
+    world_bottom = (1.0f - cl.viewDef.scissor.y) * UI_BASE_HEIGHT;
+    xmin = MIN(start.x, end.x);
+    xmax = MAX(start.x, end.x);
+
+    /* Clamp vertical travel first.  Only frames that extend into the bottom
+     * console count; upper resource/command strips are not part of this mask. */
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        HANDLE layout = layout_layers[layer];
+        DWORD flags = cl.playerstate.uiflags;
+        if (!layout || ((1 << layer) & flags)) continue;
+        SCR_Clear(layout);
+        FOR_LOOP(i, SCR_NumFrames()) {
+            LPCUIFRAME frame = SCR_Frame(i);
+            LPCRECT r;
+            FLOAT bottom;
+            if (!frame || !SCR_LayoutSelectionBlockerType(frame->flags.type)) continue;
+            r = SCR_LayoutRect(frame);
+            if (!r || r->w <= 0.0f || r->h <= 0.0f) continue;
+            bottom = r->y + r->h;
+            if (bottom < world_bottom || !SCR_RangesOverlap(xmin, xmax, r->x, r->x + r->w)) continue;
+
+            if (end.y > start.y && r->y > start.y && r->y < clamped.y) {
+                clamped.y = r->y;
+            } else if (end.y < start.y && bottom < start.y && bottom > clamped.y) {
+                clamped.y = bottom;
+            }
+        }
+    }
+
+    ymin = MIN(start.y, clamped.y);
+    ymax = MAX(start.y, clamped.y);
+
+    /* A protruding panel can also be entered sideways when the drag begins
+     * near its top.  Clamp horizontal travel against the same bottom-console
+     * mask using the already-clamped vertical span. */
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        HANDLE layout = layout_layers[layer];
+        DWORD flags = cl.playerstate.uiflags;
+        if (!layout || ((1 << layer) & flags)) continue;
+        SCR_Clear(layout);
+        FOR_LOOP(i, SCR_NumFrames()) {
+            LPCUIFRAME frame = SCR_Frame(i);
+            LPCRECT r;
+            FLOAT bottom;
+            if (!frame || !SCR_LayoutSelectionBlockerType(frame->flags.type)) continue;
+            r = SCR_LayoutRect(frame);
+            if (!r || r->w <= 0.0f || r->h <= 0.0f) continue;
+            bottom = r->y + r->h;
+            if (bottom < world_bottom || !SCR_RangesOverlap(ymin, ymax, r->y, bottom)) continue;
+
+            if (end.x > start.x && r->x > start.x && r->x < clamped.x) {
+                clamped.x = r->x;
+            } else if (end.x < start.x && (r->x + r->w) < start.x && (r->x + r->w) > clamped.x) {
+                clamped.x = r->x + r->w;
+            }
+        }
+    }
+
+    rect->w = (clamped.x / SCR_UICanvasWidth()) * window.width - rect->x;
+    rect->h = (clamped.y / UI_BASE_HEIGHT) * window.height - rect->y;
+}
+
 BOOL SCR_LayoutHitTest(int x, int y) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {

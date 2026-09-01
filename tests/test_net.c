@@ -33,6 +33,7 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutClampSelectionRect(LPRECT rect);
 void SCR_UpdateScreen(DWORD msec);
 extern BOOL scr_initialized;
 void test_client_stubs_clear_cvars(void);
@@ -1033,6 +1034,107 @@ TEST(net, entity_delta_preserves_sound_event) {
     T_EQ(number, 9);
     T_EQ(out.event, EV_ACK);
     T_EQ(out.sound, 37);
+}
+
+static void net_install_single_layout_frame(DWORD layer, FRAMETYPE type,
+                                            FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = {0};
+
+    frame.number = 1;
+    frame.flags.type = type;
+    frame.size.width = w;
+    frame.size.height = h;
+    frame.points.x[FPP_MIN].used = 1;
+    frame.points.x[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.x[FPP_MIN].relativeTo = 0;
+    frame.points.x[FPP_MIN].offset = (int16_t)(x * UI_FRAMEPOINT_SCALE);
+    frame.points.y[FPP_MIN].used = 1;
+    frame.points.y[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.y[FPP_MIN].relativeTo = 0;
+    frame.points.y[FPP_MIN].offset = (int16_t)(-y * UI_FRAMEPOINT_SCALE);
+
+    MSG_WriteByte(&sb, layer);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+}
+
+/* WC3's info/status panel rises above the flat world-scissor bottom.  A drag
+ * crossing that authored panel must stop at the panel's top rather than draw
+ * the marquee through the transparent portions of the HUD art. */
+TEST(client_screen, selection_rect_stops_at_bottom_console_status_panel) {
+    RECT rect = { 128.0f, 128.0f, 768.0f, 576.0f };
+
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    cl.viewDef.scissor = MAKE(RECT, 0.0f, 0.22f, 1.0f, 0.76f);
+    net_install_single_layout_frame(LAYER_INFOPANEL, FT_SIMPLESTATUSBAR,
+                                    0.25f, 0.44f, 0.30f, 0.08f);
+
+    SCR_LayoutClampSelectionRect(&rect);
+
+    T_FEQ(rect.x, 128.0f, 0.01f);
+    T_FEQ(rect.y, 128.0f, 0.01f);
+    T_FEQ(rect.w, 768.0f, 0.01f);
+    T_FEQ(rect.y + rect.h, 0.44f / UI_BASE_HEIGHT * 768.0f, 1.0f);
+}
+
+/* Command-card/build buttons are separate retained frames and can protrude
+ * higher than the surrounding console texture.  They must participate in the
+ * same selection boundary. */
+TEST(client_screen, selection_rect_stops_at_bottom_console_command_button) {
+    RECT rect = { 128.0f, 128.0f, 768.0f, 576.0f };
+
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    cl.viewDef.scissor = MAKE(RECT, 0.0f, 0.22f, 1.0f, 0.76f);
+    net_install_single_layout_frame(LAYER_COMMANDBAR, FT_COMMANDBUTTON,
+                                    0.60f, 0.41f, 0.10f, 0.08f);
+
+    SCR_LayoutClampSelectionRect(&rect);
+
+    T_FEQ(rect.y + rect.h, 0.41f / UI_BASE_HEIGHT * 768.0f, 1.0f);
+}
+
+/* Upper HUD elements are not part of the bottom-console mask; crossing the
+ * resource/upper-button region must not shrink an otherwise valid world drag. */
+TEST(client_screen, selection_rect_ignores_upper_ui_outside_bottom_console) {
+    RECT rect = { 128.0f, 128.0f, 768.0f, 576.0f };
+    RECT original = rect;
+
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    cl.viewDef.scissor = MAKE(RECT, 0.0f, 0.22f, 1.0f, 0.76f);
+    net_install_single_layout_frame(LAYER_CONSOLE, FT_TEXTURE,
+                                    0.25f, 0.05f, 0.30f, 0.05f);
+
+    SCR_LayoutClampSelectionRect(&rect);
+
+    T_FEQ(rect.w, original.w, 0.01f);
+    T_FEQ(rect.h, original.h, 0.01f);
+}
+
+/* WoW/SC2-style full-screen world viewports do not opt into the WC3
+ * bottom-console protrusion rule. */
+TEST(client_screen, selection_rect_fullscreen_world_does_not_use_console_clamp) {
+    RECT rect = { 128.0f, 128.0f, 768.0f, 576.0f };
+    RECT original = rect;
+
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    cl.viewDef.scissor = MAKE(RECT, 0.0f, 0.0f, 1.0f, 1.0f);
+    net_install_single_layout_frame(LAYER_COMMANDBAR, FT_COMMANDBUTTON,
+                                    0.60f, 0.41f, 0.10f, 0.08f);
+
+    SCR_LayoutClampSelectionRect(&rect);
+
+    T_FEQ(rect.w, original.w, 0.01f);
+    T_FEQ(rect.h, original.h, 0.01f);
 }
 
 /* Regression: UI_SetPoint Y sign convention.

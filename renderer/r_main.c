@@ -667,7 +667,10 @@ void R_RenderView(void) {
     tr.render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
 
+    /* Health bars use full-window UI projection but remain part of the world viewport. */
+    R_SetupScissor(&tr.viewDef.scissor);
     R_DrawHealthBars();
+    R_SetupScissor(&(RECT){0, 0, 1, 1});
 
 //    extern LPCTEXTURE dds;
 //    R_DrawPic(dds, 0, 0);

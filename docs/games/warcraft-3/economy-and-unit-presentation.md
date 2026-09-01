@@ -236,7 +236,11 @@ height, then binds title, selection color, and command data to the named childre
 parallel width/stride.
 
 Overhead resource bars use two fixed slots in `renderer/r_ents.c`: mana keeps the lower/original slot, and health occupies the slot
-above it. Without mana, health still sits one bar height above the projected model point.
+above it. Without mana, health still sits one bar height above the projected model point. `R_DrawHealthBars()` is intentionally a
+post-world 2D pass: `R_RenderView()` first restores the full-window viewport so UI-space projection is not compressed into the WC3
+world viewport, then temporarily re-applies `viewDef.scissor` while drawing the bars. Keep that split. Drawing with the world viewport
+still active double-applies the viewport transform; drawing with the full-window scissor lets bars near the lower world edge bleed into
+the command console. See [cinematics.md](cinematics.md) for the WC3 camera/viewport contract and the drag-selection overlay rule.
 
 ### World-unit hover health
 

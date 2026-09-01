@@ -419,7 +419,10 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
 }
 
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
+    /* Selection is a world overlay even though the marquee is drawn in window coordinates. */
+    R_SetupScissor(&tr.viewDef.scissor);
     R_DrawWireRect(rect, color);
+    R_SetupScissor(&(RECT){0, 0, 1, 1});
 }
 
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color) {

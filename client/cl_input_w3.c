@@ -1,4 +1,5 @@
 #include "cl_input_local.h"
+#include "ui_layout.h"
 #ifdef SC2
 #include "games/starcraft-2/common/sc2_map.h"
 #endif
@@ -252,6 +253,7 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     if (cl.selection.in_progress) {
         cl.selection.rect.w = motion->x - cl.selection.rect.x;
         cl.selection.rect.h = motion->y - cl.selection.rect.y;
+        SCR_LayoutClampSelectionRect(&cl.selection.rect);
     }
 }
 
