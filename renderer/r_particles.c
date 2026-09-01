@@ -210,15 +210,28 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
         R_Call(glDisable, GL_BLEND);
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-    } else if (blend_mode != BLEND_MODE_ALPHAKEY) {
+    } else if (blend_mode == BLEND_MODE_ALPHAKEY) {
+        /* Alpha-key particles must not inherit additive state from an earlier batch. */
+        R_Call(glDisable, GL_BLEND);
+        R_Call(glDepthMask, GL_TRUE);
+        R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+    } else {
         R_Call(glEnable, GL_BLEND);
         R_Call(glDepthMask, GL_FALSE);
         switch (blend_mode) {
         case BLEND_MODE_ADD:
+            /* Shared particle legacy: ADD means alpha-weighted additive. */
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             break;
         case BLEND_MODE_ADDALPHA:
+            /* Shared particle legacy: ADDALPHA means unweighted additive. */
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
+            break;
+        case BLEND_MODE_MODULATE:
+            R_Call(glBlendFunc, GL_ZERO, GL_SRC_COLOR);
+            break;
+        case BLEND_MODE_MODULATE_2X:
+            R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             break;
         default:
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

@@ -91,7 +91,7 @@ The race-fire flags are spawn-stable metadata. Per-client `G_CustomizeEntity()` 
 
 - `Sprite Sixth` / `Sprite Large` behavior is not implemented because its retail health-stage semantics remain unresolved.
 - The implementation follows the documented 75/50/25 presentation stages but does not claim recovered Blizzard source-level rules for threshold rounding beyond the existing 8-bit health compression.
-- Fire effects are rendered through OpenRealm's current MDX model/particle path. Any existing per-model particle-instance limitations remain renderer-wide and are not special-cased here.
+- Fire effects are rendered through the ordinary MDX model/particle path. PRE2 `FilterMode` is preserved per emitter so blended smoke is not accidentally rendered as additive white smoke; remaining particle-instance limitations are renderer-wide and are not special-cased here.
 - Race-family selection is based on the structure's authored `UnitData.race`; Human, Orc, and unclassified structures use the standard family.
 
 ## Verification

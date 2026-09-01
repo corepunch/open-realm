@@ -66,6 +66,7 @@ static void mdx_spawn_particle(void *raw) {
     p->lifespan = ctx->life; p->time = 0;
     p->midtime = ctx->emitter->Time * 0xff;
     p->texture = MDLX_GetTexture(ctx->model, ctx->team_id, ctx->emitter->TextureID, ctx->emitter->ReplaceableId, NULL);
+    p->blend_mode = MDLX_ParticleBlendMode(ctx->emitter->FilterMode);
     p->columns = ctx->emitter->Columns; p->rows = ctx->emitter->Rows;
     p->color[0] = MDLX_GetEmitterColor(ctx->emitter, 0);
     p->color[1] = MDLX_GetEmitterColor(ctx->emitter, 1);
@@ -133,6 +134,7 @@ static void MDLX_RenderTailEmitter(mdxModel_t const *model,
         cparticle_t *fx = R_SpawnParticle(); if (!fx) break;
         re->world_pos.z -= Gravity * dt * dt * 0.5f;
         fx->texture = tex; fx->org = re->world_pos;
+        fx->blend_mode = MDLX_ParticleBlendMode(emitter->FilterMode);
         fx->vel = (VECTOR3){ 0, 0, 0 };
         fx->accel = (VECTOR3){ 0, 0, -Gravity };
         FLOAT fade = 1.0f - MIN(1.0f, re->age / emitter->TailLength);

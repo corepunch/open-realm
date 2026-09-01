@@ -264,6 +264,26 @@ typedef struct {
     DWORD start, end, repeat;
 } mdxParticleAnimation_t;
 
+enum {
+    MDX_PRE2_FILTER_BLEND = 0,
+    MDX_PRE2_FILTER_ADDITIVE,
+    MDX_PRE2_FILTER_MODULATE,
+    MDX_PRE2_FILTER_MODULATE_2X,
+    MDX_PRE2_FILTER_ALPHAKEY,
+    MDX_PRE2_FILTER_COUNT,
+};
+
+static inline BLEND_MODE MDLX_ParticleBlendMode(DWORD filter_mode) {
+    switch (filter_mode) {
+        case MDX_PRE2_FILTER_BLEND:       return BLEND_MODE_BLEND;
+        case MDX_PRE2_FILTER_ADDITIVE:    return BLEND_MODE_ADD;
+        case MDX_PRE2_FILTER_MODULATE:    return BLEND_MODE_MODULATE;
+        case MDX_PRE2_FILTER_MODULATE_2X: return BLEND_MODE_MODULATE_2X;
+        case MDX_PRE2_FILTER_ALPHAKEY:    return BLEND_MODE_ALPHAKEY;
+        default:                          return BLEND_MODE_BLEND; /* loader normalizes malformed values */
+    }
+}
+
 typedef struct mdxParticleEmitter_s {
     mdxNode_t node;
     float Speed;

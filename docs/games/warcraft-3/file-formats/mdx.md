@@ -128,6 +128,22 @@ Each material is a stack of one or more layers rendered in order (additive blend
 - flag bits (unshaded, sphere env map, two-sided, unfogged, no-depth-test, no-depth-set)
 - animated alpha (`KMTA` track)
 
+## Particle Emitter 2 (`PRE2`) Filter Modes
+
+Each `PRE2` emitter carries its own `FilterMode`. It is presentation data and must be copied to every spawned particle; defaulting every emitter to additive blending changes smoke and other translucent effects dramatically.
+
+| MDX value | Authored mode | Shared particle mode | Blend behavior |
+|---|---|---|---|
+| `0` | Blend | `BLEND_MODE_BLEND` | source alpha over destination |
+| `1` | Additive | `BLEND_MODE_ADD` | source alpha + destination |
+| `2` | Modulate | `BLEND_MODE_MODULATE` | multiply source/destination |
+| `3` | Modulate2x | `BLEND_MODE_MODULATE_2X` | doubled modulation |
+| `4` | AlphaKey | `BLEND_MODE_ALPHAKEY` | alpha test / coverage |
+
+The shared particle renderer predates the MDX path and its `BLEND_MODE_ADD`/`BLEND_MODE_ADDALPHA` names have legacy semantics. `MDLX_ParticleBlendMode()` is therefore the explicit format-to-renderer conversion point rather than relying on enum ordinals. Invalid PRE2 filter values are diagnosed by the loader and normalized to Blend.
+
+This matters directly for building-damage effects: their fire model can contain both emissive/additive flame particles and ordinary blended smoke. Treating every PRE2 emitter as additive causes grey smoke textures to brighten the framebuffer and appear pale or white.
+
 ## Animation Sequences
 
 Each entry in `SEQS` describes one named clip:
