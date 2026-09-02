@@ -2068,15 +2068,7 @@ static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSV
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
             jass_snapshot_io(snapshot, var->value, sizeof(DWORD));
     }
-    if (jass_host.SaveHandle) {
-        if (jass_host.SaveHandle(var->type->name, var->value, &id)) {
-            encoding = JASS_SNAPSHOT_HANDLE_HOST;
-            return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) && jass_snapshot_io(snapshot, &id, sizeof(id));
-        }
-        /* Host owns this type but the handle is stale (freed unit/item/etc.) — save as null. */
-        encoding = JASS_SNAPSHOT_HANDLE_NULL;
-        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
-    }
+    /* VM-owned and function handles must bypass the host: a host miss means stale only for host-owned domains. */
     if (jass_snapshot_ownedhandle(var->type->name) && var->ref && var->ref->size) {
         encoding = JASS_SNAPSHOT_HANDLE_OWNED;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
@@ -2088,6 +2080,15 @@ static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSV
         encoding = JASS_SNAPSHOT_HANDLE_FUNCTION;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
             jass_snapshot_writestr(snapshot, jass_functionname(var->value));
+    }
+    if (jass_host.SaveHandle) {
+        if (jass_host.SaveHandle(var->type->name, var->value, &id)) {
+            encoding = JASS_SNAPSHOT_HANDLE_HOST;
+            return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) && jass_snapshot_io(snapshot, &id, sizeof(id));
+        }
+        /* Host owns this type but the handle is stale (freed unit/item/etc.) — save as null. */
+        encoding = JASS_SNAPSHOT_HANDLE_NULL;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
     }
     fprintf(stderr, "JASS snapshot: cannot encode %s handle\n", var->type->name);
     return false;
