@@ -2164,6 +2164,63 @@ static int test_theme_read(LPCSTR name, void **buf) {
     (void)name; *buf = strdup(text); return (int)strlen(text);
 }
 
+static int test_versioned_theme_read(LPCSTR name, void **buf) {
+    LPCSTR text =
+        "[Default]\n"
+        "GlueSpriteLayerBackground_V0=RocBackground.mdl\n"
+        "GlueSpriteLayerBackground_V1=TftBackground.mdl\n"
+        "GlueSpriteLayerTopLeft_V0=RocTopLeft.mdl\n"
+        "GlueSpriteLayerTopLeft_V1=TftTopLeft.mdl\n"
+        "MainMenuLogo=SharedLogo.mdl\n"
+        "MainMenuLogo_V0=RocLogo.mdl\n"
+        "MainMenuLogo_V1=TftLogo.mdl\n"
+        "OnlyTft_V1=TftOnly.mdl\n";
+    (void)name; *buf = strdup(text); return (int)strlen(text);
+}
+
+TEST(ui_fdf, versioned_theme_keys_follow_expansion_edition) {
+    uiImport_t saved = uiimport;
+
+    reset_ui_state();
+    uiimport.FS_ReadFile = test_versioned_theme_read;
+    uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.Cvar_String = test_cvar_string;
+    UI_LoadTheme("UI\\war3skins.txt");
+
+    test_fs_expansion = false;
+    T_STREQ(Theme_String("GlueSpriteLayerBackground", "Default"), "RocBackground.mdl");
+    T_STREQ(Theme_String("GlueSpriteLayerTopLeft", "Default"), "RocTopLeft.mdl");
+
+    test_fs_expansion = true;
+    T_STREQ(Theme_String("GlueSpriteLayerBackground", "Default"), "TftBackground.mdl");
+    T_STREQ(Theme_String("GlueSpriteLayerTopLeft", "Default"), "TftTopLeft.mdl");
+
+    test_fs_expansion = false;
+    UI_ClearTheme();
+    uiimport = saved;
+}
+
+TEST(ui_fdf, unversioned_theme_key_precedes_edition_variant) {
+    uiImport_t saved = uiimport;
+
+    reset_ui_state();
+    uiimport.FS_ReadFile = test_versioned_theme_read;
+    uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.Cvar_String = test_cvar_string;
+    UI_LoadTheme("UI\\war3skins.txt");
+
+    test_fs_expansion = false;
+    T_STREQ(Theme_String("MainMenuLogo", "Default"), "SharedLogo.mdl");
+    test_fs_expansion = true;
+    T_STREQ(Theme_String("MainMenuLogo", "Default"), "SharedLogo.mdl");
+
+    test_fs_expansion = false;
+    T_STREQ(Theme_String("OnlyTft", "Default"), "OnlyTft");
+
+    UI_ClearTheme();
+    uiimport = saved;
+}
+
 TEST(ui_fdf, deferred_texture_cache_tracks_theme_changes) {
     uiImport_t saved = uiimport;
     PLAYER player = { .race = kPlayerRaceHuman };

@@ -135,6 +135,15 @@ static LPCSTR UI_ThemeEffectiveCategory(LPCSTR category) {
     return player_category ? player_category : category;
 }
 
+/* Warcraft skin versions follow the mounted data edition: 0=RoC, 1=TFT. */
+static DWORD UI_ThemeGameVersion(void) {
+    LPCSTR expansion = uiimport.Cvar_String
+        ? uiimport.Cvar_String("fs_expansion", "0")
+        : "0";
+
+    return expansion && atoi(expansion) != 0 ? 1 : 0;
+}
+
 BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
     LPCSTR filename = NULL;
     char versioned[128];
@@ -154,16 +163,8 @@ BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
         return filename;
     }
 
-    snprintf(versioned, sizeof(versioned), "%s_V1", entry);
-    filename = UI_FindThemeValue(versioned, category);
-    if (!filename && strcmp(category, fallback)) {
-        filename = UI_FindThemeValue(versioned, fallback);
-    }
-    if (filename) {
-        return filename;
-    }
-
-    snprintf(versioned, sizeof(versioned), "%s_V0", entry);
+    snprintf(versioned, sizeof(versioned), "%s_V%u",
+             entry, (unsigned)UI_ThemeGameVersion());
     filename = UI_FindThemeValue(versioned, category);
     if (!filename && strcmp(category, fallback)) {
         filename = UI_FindThemeValue(versioned, fallback);

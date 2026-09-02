@@ -94,8 +94,8 @@ After step 6, `map` and `connect` cvars are explicitly cleared, then re-populate
 | `-connect <host[:port]>` | Sets `connect` cvar (remote server address) |
 | `-config <path>` | Sets `config` cvar (generated config path) |
 | `-vid_modes` | Sets session cvar `vid_modes` to `"1"`; logs SDL display modes during renderer startup |
-| `-tft` | Sets `fs_expansion` to `"1"` (mount TFT MPQs) |
-| `-roc` | Sets `fs_expansion` to `"0"` (ROnly, no expansion MPQs) |
+| `-tft` | Sets `fs_expansion` to `"1"` (TFT skin/data edition; mount TFT MPQs) |
+| `-roc` | Sets `fs_expansion` to `"0"` (RoC skin/data edition; no expansion MPQs) |
 
 ### `+` (plus) Prefix — queue commands
 
@@ -146,7 +146,7 @@ All cvars registered in `Cvar_Init()`:
 | `fs_basepath` | resolved share dir | 0 | Read-only engine/share data directory |
 | `fs_homepath` | `~/.<game>/` (empty if unavailable) | 0 | Writable per-user directory |
 | `data` | `""` | CVAR_ARCHIVE | Game asset directory (contains MPQs) |
-| `fs_expansion` | `"0"` | 0 | Mount expansion archives (`-tft` sets to `"1"`) |
+| `fs_expansion` | `"0"` | 0 | Select RoC (`0`) vs TFT (`1`) data/skin version; TFT mounts expansion archives |
 | `map` | `""` | 0 | Internal MPQ map path for listen-server mode |
 | `connect` | `""` | 0 | Remote server address |
 | `cl_debug_entities` | `"0"` | 0 | Client entity debug logging |

@@ -53,6 +53,30 @@ Loading follows the Quake-style client state split:
 
 That separation matters because `ca_active` means "gameplay can render now", not "we already received a player snapshot." If the loading plaque disappears before the world is ready, the client should keep `ca_loading` until the precache gate completes.
 
+## Main Menu Glue Edition Selection
+
+The Warcraft III main-menu scene is skin-driven rather than selected by hard-coded menu paths:
+
+```text
+fs_expansion
+  -> UI\war3skins.txt
+  -> Theme_String("GlueSpriteLayerBackground", "Default")
+  -> GlueSpriteLayerBackground_V0 (RoC) or _V1 (TFT) when no unversioned field exists
+  -> UI_PreloadGlueSceneModels
+  -> renderer model camera + glue sprite layers
+```
+
+`games/warcraft-3/ui/ui_theme.c` treats `fs_expansion=0` as skin version 0 and any non-zero value as version 1. An explicit
+unversioned skin field remains authoritative; otherwise only the matching `_V0`/`_V1` field is considered. The same decorated
+lookup is used by `GlueSpriteLayerTopLeft`, `GlueSpriteLayerTopRight`, `MainMenuLogo`, and other FDF/model/texture keys, so one
+edition selector keeps the glue presentation consistent.
+
+`games/warcraft-3/ui/ui_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
+therefore not a static BLP backdrop. Current lifecycle gaps remain deliberate: OpenRealm starts glue layers directly in their
+`Stand` sequences, does not parse `MenuZFog`, and has no safe in-menu RoC/TFT Edition-button restart flow. Because RoC mode omits
+TFT MPQs at the filesystem layer, an Edition button must not be implemented as a UI-only cvar toggle without a corresponding data
+source/UI restart lifecycle.
+
 ## Menu Navigation Flow
 
 1. SDL input is translated by the client input layer.
