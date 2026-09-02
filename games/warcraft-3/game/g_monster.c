@@ -104,7 +104,7 @@ BOOL player_pay(LPPLAYER ps, DWORD project) {
     return true;
 }
 
-BOOL M_IsDead(LPEDICT ent) {
+BOOL M_IsDead(LPCEDICT ent) {
     return ent->health.value <= 0;
 }
 

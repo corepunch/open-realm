@@ -31,7 +31,7 @@ void setup_test_world(void);
 #include "../../../renderer/r_local.h"
 
 /* Forward declarations for internal functions not exposed in any header. */
-BOOL  M_IsDead(LPEDICT ent);
+BOOL  M_IsDead(LPCEDICT ent);
 DWORD FindEnumValue(LPCSTR value, LPCSTR values[]);
 void  unit_runwait(LPEDICT self, void (*callback)(LPEDICT));
 

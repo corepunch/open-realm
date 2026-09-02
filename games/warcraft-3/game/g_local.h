@@ -1207,7 +1207,7 @@ void M_MoveFrame(LPEDICT);
 FLOAT M_DistanceToGoal(LPEDICT);
 FLOAT unit_movedistance(LPEDICT);
 DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
-BOOL M_IsDead(LPEDICT);
+BOOL M_IsDead(LPCEDICT);
 void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);
 BOOL SP_TrainUnit(LPEDICT, DWORD);
