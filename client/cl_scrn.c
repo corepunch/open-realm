@@ -483,8 +483,9 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
 BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
     return frame && frame->onclick && *frame->onclick;
 }
+static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame);
 static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
-    return layout_left_down && SCR_LayoutFrameHasClickCommand(frame);
+    return layout_left_down && SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame);
 }
 static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
     return frame && frame->number == layout_hovered_number && layout_current == layout_hovered;

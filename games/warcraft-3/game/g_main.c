@@ -619,7 +619,10 @@ static void G_ClientBegin(LPEDICT edict) {
         q->description = strdup(
             "To ensure that the Orc threat is dealt with effectively, you must establish a base "
             "camp and bolster your forces. Only when the camp is prepared can the area be "
-            "considered properly garrisoned.");
+            "considered properly garrisoned. Scout the surrounding roads, secure the nearby "
+            "farms, and keep the footmen ready for the next attack. The enemy will not wait "
+            "for the camp to be complete, so reinforce the walls and patrol the forest edge. "
+            "When the base is secure, report back to the command tent for further orders.");
         it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct a Barracks");
         ADD_TO_LIST(it, q->items);
         it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct 2 Farms");
