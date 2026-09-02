@@ -32,6 +32,15 @@ Its first data slot is Warcraft III field `inv1` (Item Capacity). `AB_Data`
 resolves the archive-version spelling (`Data11` in ROC, `DataA1` in TFT).
 Capacity is clamped to the six-slot OpenRealm storage/UI ceiling.
 
+Reign of Chaos heroes have one compatibility exception. Warsmash adds the
+stock `AInv` ability to a hero when the ROC map (`war3map.w3i` format version
+`<= 24`) does not already author an inventory-derived ability in the unit's
+normal ability list. OpenRealm mirrors that at capacity resolution time rather
+than mutating immutable unit metadata: an ROC hero with no authored inventory
+ability receives stock `AInv` capacity, while TFT-format maps do not get this
+fallback. An explicitly authored inventory-derived ability still wins, including
+the existing Backpack gating rules for stock non-hero inventory abilities.
+
 Consequently a normal hero inventory resolves to six slots, while a custom
 inventory ability may expose fewer slots. Pickup, explicit slot insertion,
 client item use/drop commands, JASS slot operations, and HUD enumeration all
@@ -42,6 +51,14 @@ respect the resolved capacity.
 A client right-click still produces the existing `smart <entity>` command.
 The server recognizes a world item before harvest, attack, or move handling and
 starts a pickup order for each selected inventory-capable unit.
+
+Smart target dispatch is per selected unit, not per primary subgroup. The
+server walks every controllable selected unit and asks its normal Smart resolver
+to accept the same item target. A Footman rejecting the item therefore does not
+veto a later selected Hero: the Hero's inventory capability starts the pickup
+order, while the Footman receives no replacement order. This is especially
+important for ROC campaign heroes whose implicit `AInv` fallback is not present
+in `UnitAbilities.slk`.
 
 The order keeps the item as its goal and checks it every simulation tick. It
 moves while the center-to-center distance is greater than
@@ -85,8 +102,16 @@ shows its initial charge count of `1`. No HUD code checks for `spro`.
 ### Selected-unit inventory panel state
 
 Inventory visibility is capability-defined independently of hero presentation.
-For one selected unit, `LAYER_INVENTORY` resolves `G_InventoryCapacity` and
-authors one of three states:
+For any non-empty selection, `LAYER_INVENTORY` resolves the current focused unit
+through `G_GetMainSelectedUnit()` and authors that unit's inventory state. A
+multi-selection never merges inventories and does not search for the first unit
+that happens to have inventory capacity: focusing a Footman covers the inventory
+area, while focusing a Hero in the same still-selected group immediately authors
+that Hero's slots. `inventory <slot>` and `dropitem <slot>` already use the same
+focused-unit lookup, so the displayed inventory and the unit receiving the item
+action stay aligned.
+
+The focused unit authors one of three states:
 
 - capacity `0`: cover the underlying six-slot console area with the local
   player's race-skin `ConsoleInventoryCoverTexture`;
@@ -188,12 +213,15 @@ another engine's item implementation.
 ## Validation
 
 The `wc3_items.*` in-engine tests cover world-state initialization, data-driven
-capacity (including reduced, zero, and above-storage-limit cases),
+capacity (including reduced, zero, above-storage-limit, and implicit ROC Hero
+`AInv` cases),
 first-empty-slot insertion,
 full-inventory failure, pickup range and revalidation, drop identity, renderer
 visibility flags, carried-item removal, connection-state refresh gating, charge
 initialization/preservation, carried-charge refresh/no-op behavior, JASS charge
 access, and generic `spro` Art/Tip/Ubertip/charge presentation.
+They also cover mixed-selection Smart pickup where a non-inventory unit is the
+first selected entity and a later ROC Hero must still receive the item order.
 Minimal `AbilityData.slk`, `UnitAbilities.slk`, `ItemData.slk`, `ItemFunc.txt`,
 `ItemStrings.txt`, and `war3skins.txt` fixtures keep these tests data-driven in
 both ROC and TFT test runs. Inventory-panel tests additionally cover the

@@ -3,18 +3,56 @@
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
 #define WC3_SELECTION_LIMIT 12
 
+/* Focus is presentation/input state within an existing selection, not a saved
+ * gameplay relationship. Keep it out of GAMECLIENT so save compatibility does
+ * not depend on which multiselect subgroup happened to own the HUD. */
+static DWORD selection_focus[MAX_CLIENTS];
+
+static DWORD *G_SelectionFocusSlot(LPGAMECLIENT client) {
+    LONG index;
+
+    if (!client || !game.clients) return NULL;
+    index = (LONG)(client - game.clients);
+    if (index < 0 || index >= MAX_CLIENTS) return NULL;
+    return &selection_focus[index];
+}
+
 static BOOL G_TargetModeActive(LPGAMECLIENT client) {
     return client && (client->menu.on_entity_selected || client->menu.on_location_selected);
 }
 
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
+    DWORD *focus = G_SelectionFocusSlot(client);
+
+    if (focus && *focus > 0 && *focus < globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[*focus];
+        if (G_IsEntitySelected(client, ent)) return ent;
+    }
     FOR_SELECTED_UNITS(client, ent) {
+        if (focus) *focus = ent->s.number;
         return ent;
     }
+    if (focus) *focus = 0;
     return NULL;
 }
 
+BOOL G_FocusSelectedUnit(LPGAMECLIENT client, LPEDICT ent) {
+    DWORD *focus = G_SelectionFocusSlot(client);
+
+    if (!focus || !G_IsEntitySelected(client, ent)) return false;
+    *focus = ent->s.number;
+    return true;
+}
+
+void G_ResetSelectionFocus(LPGAMECLIENT client) {
+    DWORD *focus = G_SelectionFocusSlot(client);
+    if (focus) *focus = 0;
+}
+
 LPEDICT G_GetMainControllableUnit(LPGAMECLIENT client) {
+    LPEDICT main = G_GetMainSelectedUnit(client);
+
+    if (main && G_UnitCanControl(client, main)) return main;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         return ent;
     }
@@ -22,14 +60,27 @@ LPEDICT G_GetMainControllableUnit(LPGAMECLIENT client) {
 }
 
 void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent) {
+    BOOL had_selection = false;
+
     /* Corpses remain networked while their death/decay presentation runs, but
      * they are no longer valid gameplay selection targets. */
     if (!client || !ent || !ent->inuse) return;
     if (M_IsDead(ent) || (ent->s.flags & EF_NOT_SELECTABLE)) return;
+    FOR_SELECTED_UNITS(client, selected) {
+        (void)selected;
+        had_selection = true;
+        break;
+    }
     ent->selected |= 1 << client->ps.number;
+    if (!had_selection) G_FocusSelectedUnit(client, ent);
 }
 
 void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent) {
+    DWORD *focus;
+
+    if (!client || !ent) return;
+    focus = G_SelectionFocusSlot(client);
+    if (focus && *focus == ent->s.number) *focus = 0;
     ent->selected &= ~(1 << client->ps.number);
 }
 
@@ -272,6 +323,35 @@ void G_SendPointConfirmation(LPEDICT clent, LPCVECTOR2 point, BOOL attack) {
     gi.Write(PF_BYTE, &(LONG){ attack ? TE_ATTACK_CONFIRMATION : TE_MOVE_CONFIRMATION });
     gi.Write(PF_POSITION, &(VECTOR3){ point->x, point->y, 0 });
     gi.unicast(clent);
+}
+
+CLIENTCOMMAND(Focus) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    DWORD number;
+    LPEDICT target;
+
+    if (!client || argc < 2) return;
+    number = (DWORD)atoi(argv[1]);
+    if (number >= globals.num_edicts) return;
+    target = &globals.edicts[number];
+    if (!G_IsEntitySelected(client, target)) return;
+
+    /* Warsmash treats a multiselect portrait as the clicked unit while an
+     * entity-target command is active. Do not silently change subgroup focus
+     * instead of completing/cancelling that target interaction. */
+    if (G_TargetModeActive(client)) {
+        if (client->menu.on_entity_selected &&
+            client->menu.on_entity_selected(clent, target)) {
+            Get_Commands_f(clent);
+        }
+        return;
+    }
+    if (!G_FocusSelectedUnit(client, target)) return;
+
+    /* Selection membership is unchanged. Only focused-unit presentation and
+     * focused-unit commands need to be rebuilt. */
+    G_RefreshInventoryLayer(clent);
+    Get_Commands_f(clent);
 }
 
 CLIENTCOMMAND(Point) {
@@ -723,6 +803,7 @@ clientCommand_t clientCommands[] = {
     { "inventory", CMD_Inventory },
     { "dropitem", CMD_DropItem },
     { "select", CMD_Select },
+    { "focus", CMD_Focus },
     { "herobutton", CMD_HeroButton },
     { "herokey", CMD_HeroKey },
     { "idleworker", CMD_IdleWorker },

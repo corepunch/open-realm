@@ -1519,6 +1519,8 @@ extern BYTE g_numTreeFallSounds;
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
+BOOL G_FocusSelectedUnit(LPGAMECLIENT, LPEDICT);
+void G_ResetSelectionFocus(LPGAMECLIENT);
 BOOL G_UnitCanBeSelected(LPGAMECLIENT, LPCEDICT);
 BOOL G_UnitCanControl(LPGAMECLIENT, LPCEDICT);
 selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent);

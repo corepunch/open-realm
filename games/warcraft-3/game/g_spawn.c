@@ -319,6 +319,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
     G_SetClientConnected(clent, false);
+    G_ResetSelectionFocus(clent->client);
     clent->client->commands_dirty = false;
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(clent->client->tech, 0, sizeof(clent->client->tech));

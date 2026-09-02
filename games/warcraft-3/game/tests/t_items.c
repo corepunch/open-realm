@@ -20,6 +20,15 @@ static DWORD inventory_panel_image_count;
 static uiFrame_t inventory_panel_frame;
 static BOOL inventory_panel_frame_seen;
 
+static void item_noop_write(pfWriteType_t type, void const *value) {
+    (void)type;
+    (void)value;
+}
+
+static void item_noop_unicast(LPEDICT ent) {
+    (void)ent;
+}
+
 static int capture_inventory_panel_image(LPCSTR name) {
     DWORD index = inventory_panel_image_count;
     if (index < sizeof(inventory_panel_images) / sizeof(inventory_panel_images[0]))
@@ -130,6 +139,32 @@ TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
     T_EQ(G_InventoryCapacity(standard), 6);
     T_EQ(G_InventoryCapacity(small), 2);
     T_EQ(G_InventoryCapacity(none), 0);
+}
+
+TEST(wc3_items, roc_hero_without_authored_inventory_gets_default_ainv_capacity) {
+    UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
+    LPEDICT hero;
+
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->UnitAbilities = &no_inventory;
+
+    T_ASSERT(G_UnitIsHero(hero));
+    T_EQ(G_InventoryCapacity(hero), 6);
+}
+
+TEST(wc3_items, tft_hero_without_authored_inventory_does_not_get_roc_default) {
+    UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
+    LPEDICT hero;
+
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 25;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->UnitAbilities = &no_inventory;
+
+    T_ASSERT(G_UnitIsHero(hero));
+    T_EQ(G_InventoryCapacity(hero), 0);
 }
 
 TEST(wc3_items, inventory_capacity_rejects_zero_and_clamps_above_storage_limit) {
@@ -422,6 +457,47 @@ TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
     T_EQ(G_InventoryCapacity(unit), MAX_INVENTORY); T_EQ(inventory_panel_image_count, 0);
 }
 
+TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, peasant, inventory_unit;
+    LPGAMECLIENT client;
+
+    setup_test_world();
+    player = &g_edicts[0]; client = player->client;
+    peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    inventory_unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 32, 0);
+    client->ps.race = kPlayerRaceHuman;
+    G_ResetSelectionFocus(client);
+    G_SelectEntity(client, peasant);
+    G_SelectEntity(client, inventory_unit);
+
+    T_ASSERT(G_GetMainSelectedUnit(client) == peasant);
+    T_ASSERT(G_IsEntitySelected(client, peasant));
+    T_ASSERT(G_IsEntitySelected(client, inventory_unit));
+
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 1);
+    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\human-inventory-cover.blp");
+
+    T_ASSERT(G_FocusSelectedUnit(client, inventory_unit));
+    T_ASSERT(G_GetMainSelectedUnit(client) == inventory_unit);
+    T_ASSERT(G_IsEntitySelected(client, peasant));
+    T_ASSERT(G_IsEntitySelected(client, inventory_unit));
+
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 4);
+    FOR_LOOP(i, 4)
+        T_STREQ(inventory_panel_images[i], "TestUI\\Textures\\human-inventory-no-capacity.blp");
+}
+
 TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     gameInventoryItem_t items[MAX_INVENTORY];
     LPEDICT unit;
@@ -555,6 +631,53 @@ TEST(wc3_items, pickup_order_waits_for_simulation_tick) {
     T_ASSERT(unit->inventory[0] == item);
     T_ASSERT(!item->item.in_world);
     T_NULL(unit->goalentity);
+}
+
+TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_first) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
+    LPEDICT clent;
+    LPGAMECLIENT client;
+    LPEDICT footman;
+    LPEDICT hero;
+    LPEDICT item;
+    char item_number[16];
+    LPCSTR command[] = { "smart", item_number };
+
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    clent = &g_edicts[0];
+    client = clent->client;
+    gi.Write = item_noop_write;
+    gi.unicast = item_noop_unicast;
+
+    /* Allocate the ordinary unit first so it is also the server's primary
+     * selected unit. Smart target dispatch must still reach the later hero. */
+    footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 32, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 96, 0);
+    footman->s.player = hero->s.player = client->ps.number;
+    footman->svflags |= SVF_MONSTER;
+    hero->svflags |= SVF_MONSTER;
+    hero->UnitAbilities = &no_inventory;
+    footman->stand = unit_stand;
+    hero->stand = unit_stand;
+    unit_stand(footman);
+    unit_stand(hero);
+    G_SelectEntity(client, footman);
+    G_SelectEntity(client, hero);
+    snprintf(item_number, sizeof(item_number), "%u", (unsigned)item->s.number);
+
+    G_ClientCommand(clent, 2, command);
+
+    T_NULL(footman->goalentity);
+    T_ASSERT(hero->goalentity == item);
+    T_NOT_NULL(hero->currentmove);
+    T_STREQ(hero->currentmove->animation, "walk");
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
 }
 
 TEST(wc3_items, pickup_order_moves_and_revalidates_item) {

@@ -26,6 +26,41 @@ Persistent Hero and idle-worker HUD shortcuts reuse this authority boundary but 
 
 Targeted ability callbacks (`menu.on_entity_selected`) are a separate path: a left click completes the pending target action instead of replacing the unit selection.
 
+## Focused Unit In A Multi-Selection
+
+Selection membership and focused-unit presentation are separate state. The server
+retains one focused entity from the current selection; `G_GetMainSelectedUnit()`
+returns that entity while it remains selected, then falls back to the first live
+selected entity if the focus becomes invalid. `G_SelectEntity()` establishes the
+first unit as focus for a new selection, while `G_FocusSelectedUnit()` changes
+focus without changing any selection bits. Focus is transient UI/input state and
+is reset when map-player state is initialized rather than being added to the save
+format.
+
+`FT_MULTISELECT` is one packed frame, but each payload item already carries its
+entity number. `client/cl_scrn.c` therefore hit-tests the authored icon grid using
+the frame rectangle plus `uiMultiselect_t.offset`, sends `focus <entity>` on a
+left-button release over an icon, and treats every icon as gameplay UI so a click
+does not leak through to world selection. The server validates that the entity is
+still selected before accepting the focus change.
+
+When an entity-target command is active, the same multiselect-icon click is routed
+to `menu.on_entity_selected` instead of changing focus. This preserves the
+Warsmash behavior where a selected-unit portrait can be used as the target of the
+active command. Point-only target modes do not change selection focus from such a
+click.
+
+Focused-unit consumers include the command card, inventory use/drop commands and
+order-response selection. The complete selection remains authoritative for
+multi-unit Smart/Move/Attack-style orders. Inventory presentation follows the
+same focused-unit rule; see [Inventory And World Items](inventory-and-items.md).
+
+OpenRealm still does not reproduce Warsmash's type-wide
+`SelectedSubgroupHighlight`, focused/unfocused icon scaling, keyboard subgroup
+cycling, or the Warsmash behavior where clicking the already-focused exact icon
+collapses the group to that one unit. Those are presentation/navigation gaps, not
+reasons to merge inventory state across the group.
+
 ## Relationship Presentation
 
 `G_CustomizeEntity` converts `G_SelectionRelation` to recipient-relative entity flags:
@@ -49,6 +84,15 @@ FOR_CONTROLLABLE_SELECTED_UNITS(client, ent)
 ```
 
 The controllable filter is used by Smart/SmartPoint, Move, Attack/Attack-move, Stop, Hold Position, Patrol, Repair, Harvest/Return Resources, and Rally target callbacks. `CMD_Button`, `CMD_Research`, inventory use/drop, cancellation, training, and Rally command entry also validate the focused unit before acting.
+
+Entity Smart orders are resolved independently for every controllable selected
+unit. One unit rejecting a target must not abort the loop. For example, when a
+Footman and a Hero are selected and the player right-clicks a world item, the
+Footman may reject that widget while the Hero's inventory accepts it and starts
+pickup. The first/primary selected entity is used for focused HUD/response
+presentation, not as a capability gate for the rest of the selection. See
+[Inventory And World Items](inventory-and-items.md) for the ROC Hero `AInv`
+fallback and item lifecycle.
 
 `Get_Commands_f` clears the command card for a selected unit that the local player cannot control. A foreign building may still use the ordinary inspection panel, but its production queue is not serialized to the viewer. Shared-control units retain command-card access.
 
@@ -82,7 +126,7 @@ Do not bypass these gaps by weakening `G_UnitCanControl` or by restoring owner c
 
 ## Verification
 
-In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, and Hero revival restoring selectability.
+In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, and Hero revival restoring selectability. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
 
 Useful targeted commands after building the test binary:
 
