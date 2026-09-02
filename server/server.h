@@ -144,6 +144,7 @@ void SV_InitGameProgs(void);
 
 // sv_main.c
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
+void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len);
 
 // sv_user.c
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client);

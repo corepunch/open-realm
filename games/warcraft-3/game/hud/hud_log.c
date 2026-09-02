@@ -77,7 +77,6 @@ static void UI_WriteLogWindow(LPEDICT ent) {
     UI_WriteWindow(ent, log_dialog.LogDialog, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_LOG, .class_id = BZ_WC3_WINDOW_LOG,
         .flags = UI_WINDOW_MOVABLE | UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
-    G_SetClientModal(ent, WC3_MODAL_LOG, true);
     UI_SetCurrentClient(NULL);
 }
 

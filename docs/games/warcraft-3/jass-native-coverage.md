@@ -5,6 +5,13 @@ This document tracks the Warcraft III JASS host callbacks registered by
 signature authority. HiveWorkshop references are useful for observable editor
 and map-script behavior, but do not replace the native declarations.
 
+`TimerStart(timer, timeout, periodic, null)` is legal and starts or resets the
+timer without an expiration callback. `TimerStart` must detect that null before
+calling strict `jass_checkcode()`; non-null handlers still require the exact
+`code` type. Blizzard's Human02 startup path uses this during cutscene
+fast-forward or ESC skip. HiveWorkshop's timer reset examples confirm the same
+native behavior, commonly followed by `PauseTimer` when resetting getter state.
+
 ## Baseline
 
 The registry currently contains 917 callbacks. The last conservative source

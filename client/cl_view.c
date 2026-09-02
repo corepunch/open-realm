@@ -487,6 +487,7 @@ void CL_PrepRefresh(void) {
 
 void V_RenderView(void) {
     static DWORD lastTime = 0;
+    BOOL rebuild;
     if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
 
@@ -508,36 +509,37 @@ void V_RenderView(void) {
         return;
     }
 
-    cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
-    cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
+    rebuild = V_AdvanceSceneTime(&cl.viewDef, cl.time, &lastTime, Cvar_Integer("paused", 0));
+    if (rebuild) {
+        cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
+        cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
 #if defined(WOW) || defined(SC2)
-    cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
-    cl.viewDef.scissor = cl.viewDef.viewport;
+        cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
+        cl.viewDef.scissor = cl.viewDef.viewport;
 #else
-    /* Warcraft III's 3D world occupies the area above the command console.
-     * Use that rectangle as the real projection viewport rather than drawing a
-     * full-window camera and merely clipping it afterwards. */
-    cl.viewDef.viewport = (RECT) { 0, 0.22, 1, 0.76 };
-    cl.viewDef.scissor = cl.viewDef.viewport;
+        /* Warcraft III's 3D world occupies the area above the command console.
+         * Use that rectangle as the real projection viewport rather than drawing a
+         * full-window camera and merely clipping it afterwards. */
+        cl.viewDef.viewport = (RECT) { 0, 0.22, 1, 0.76 };
+        cl.viewDef.scissor = cl.viewDef.viewport;
 #endif
-    cl.viewDef.time = cl.time;
-    cl.viewDef.deltaTime = cl.time - lastTime;
-    cl.viewDef.rdflags = cl.playerstate.rdflags;
-    cl.viewDef.player = cl.playerstate.number;
-    cl.viewDef.hover_entity = cl.hover_entity;
+        cl.viewDef.rdflags = cl.playerstate.rdflags;
+        cl.viewDef.player = cl.playerstate.number;
+        cl.viewDef.hover_entity = cl.hover_entity;
     
 #if !defined(WOW) && !defined(SC2)
-    {
-        float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
-        VECTOR2 listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
-        S_SetListener(&cl.playerstate.origin, &listener_right);
-    }
+        {
+            float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
+            VECTOR2 listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
+            S_SetListener(&cl.playerstate.origin, &listener_right);
+        }
 #endif
-    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
-    Matrix4_getLightMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+        Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+        Matrix4_getLightMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
 
-    V_ClearScene();
-    CL_AddEntities();
+        V_ClearScene();
+        CL_AddEntities();
+    }
 
     re.RenderFrame(&cl.viewDef);
     

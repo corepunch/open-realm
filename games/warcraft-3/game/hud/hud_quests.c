@@ -333,6 +333,5 @@ void UI_ShowQuests(LPEDICT ent) {
     }
     if (quest) {
         UI_ShowQuest(ent, quest);
-        G_SetClientModal(ent, WC3_MODAL_QUEST, true);
     }
 }

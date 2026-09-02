@@ -695,26 +695,20 @@ CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
 }
 
-/* F10 and the authored Menu button share this route; pause ownership stays on the server. */
+/* F10 and the authored Menu button share this route; client open acknowledgement acquires pause. */
 CLIENTCOMMAND(Menu) {
     (void)argc; (void)argv;
-    G_SetClientModal(clent, WC3_MODAL_MAIN, true);
     UI_ShowMainMenu(clent);
 }
 
 CLIENTCOMMAND(Resume) {
     (void)argc; (void)argv;
-    G_SetClientModal(clent, WC3_MODAL_MAIN, false);
+    G_SetClientModal(clent, WC3_MODAL_CLIENT, false);
 }
 
-CLIENTCOMMAND(ModalClose) {
-    DWORD class_id;
+CLIENTCOMMAND(Pause) {
     if (argc < 2) return;
-    class_id = strtoul(argv[1], NULL, 10);
-    if (class_id == BZ_WC3_WINDOW_LOG) G_SetClientModal(clent, WC3_MODAL_LOG, false);
-    else if (class_id == BZ_WC3_WINDOW_MENU) G_SetClientModal(clent, WC3_MODAL_MAIN, false);
-    else if (class_id == BZ_WC3_WINDOW_ALLIES) G_SetClientModal(clent, WC3_MODAL_ALLIES, false);
-    else if (class_id == BZ_WC3_WINDOW_QUEST) G_SetClientModal(clent, WC3_MODAL_QUEST, false);
+    G_SetClientModal(clent, WC3_MODAL_CLIENT, atoi(argv[1]) != 0);
 }
 
 CLIENTCOMMAND(Allies) {
@@ -731,7 +725,6 @@ CLIENTCOMMAND(Quest) {
     FOR_EACH_LIST(QUEST, q, level.quests) {
         if (index == 0) {
             UI_ShowQuest(clent, q);
-            G_SetClientModal(clent, WC3_MODAL_QUEST, true);
             break;
         } else {
             index--;
@@ -865,7 +858,7 @@ clientCommand_t clientCommands[] = {
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
     { "resume", CMD_Resume },
-    { "modal_close", CMD_ModalClose },
+    { "pause", CMD_Pause },
     { "allies", CMD_Allies },
     { NULL }
 };

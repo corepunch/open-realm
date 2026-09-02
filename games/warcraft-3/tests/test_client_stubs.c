@@ -70,6 +70,11 @@ LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback) {
     return fallback;
 }
 
+cvar_t *Cvar_Set(LPCSTR name, LPCSTR value) {
+    test_client_stubs_set_cvar(name, value);
+    return NULL;
+}
+
 void CL_ParseTEnt(LPSIZEBUF msg) { (void)msg; }
 void CL_BeginLoadingMap(LPCSTR mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = 0; }
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }

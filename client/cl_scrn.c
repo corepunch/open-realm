@@ -736,7 +736,9 @@ static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
 
 void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
     uiLabel_t const *label = frame->buffer.data;
-    RECT scr = { screen->x + label->offsetx, screen->y + label->offsety, screen->w, screen->h };
+    /* Label offsets use the same fixed-point wire representation as anchors. */
+    RECT scr = { screen->x + label->offsetx / UI_FRAMEPOINT_SCALE,
+                 screen->y + label->offsety / UI_FRAMEPOINT_SCALE, screen->w, screen->h };
     SCR_LayoutApplyPushedTextOffset(frame, &scr);
     layout_text(frame, &scr, SCR_GetStringValue(frame));
 }
@@ -961,6 +963,9 @@ void SCR_DrawLayout(void) {
             SCR_LayoutDrawOverlay(layout);
         }
     }
+    /* Transient windows are frontmost gameplay UI. The window manager already
+     * preserves server-authored z-order, but previously had no screen caller. */
+    CL_WindowDraw();
 }
 
 void SCR_SetLayoutLayer(DWORD layer, HANDLE data) {

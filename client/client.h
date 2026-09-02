@@ -161,6 +161,16 @@ void CON_KeyEvent(int key, bool down);
 //void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
 //void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
 void Matrix4_getCameraMatrix(LPMATRIX4 output);
+/* Paused views retain the last scene and render time. Zero delta is required
+ * because model renderers emit effects while submitting cached entities. */
+static inline BOOL V_AdvanceSceneTime(viewDef_t *view, DWORD now, LPDWORD last, BOOL paused) {
+    DWORD elapsed = *last ? now - *last : 0;
+    *last = now;
+    if (paused) { view->deltaTime = 0; return false; }
+    view->time = view->time ? view->time + elapsed : now;
+    view->deltaTime = elapsed;
+    return true;
+}
 void V_AddEntity(renderEntity_t *ent);
 BOOL V_FindEntity(DWORD number, renderEntity_t *out);
 void V_AddDecal(renderDecal_t *decal);

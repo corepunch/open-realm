@@ -17,9 +17,13 @@ static BOOL AlliesEnsureLoaded(void) {
 }
 
 void UI_ShowAllies(LPEDICT ent) {
-    if (!ent || !ent->client || !ent->client->connected || !AlliesEnsureLoaded()) return;
+    if (!ent || !ent->client || !ent->client->connected) return;
+    /* Decorated dialog art must enter the shared FDF cache under the
+     * recipient's race skin, matching subsequent window serialization. */
+    UI_SetCurrentClient(ent->client);
+    if (!AlliesEnsureLoaded()) { UI_SetCurrentClient(NULL); return; }
     UI_WriteWindow(ent, alliance.AllianceDialog, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_ALLIES, .class_id = BZ_WC3_WINDOW_ALLIES,
         .flags = UI_WINDOW_MOVABLE | UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
-    G_SetClientModal(ent, WC3_MODAL_ALLIES, true);
+    UI_SetCurrentClient(NULL);
 }

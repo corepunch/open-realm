@@ -16,6 +16,19 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
+/* Store one server-owned configstring and force reliable client resynchronization. */
+void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
+    if (index >= MAX_CONFIGSTRINGS) {
+        fprintf(stderr, "configstring: bad index %u\n", index);
+        return;
+    }
+    if (len > sizeof(sv.configstrings[index]) - 1) len = sizeof(sv.configstrings[index]) - 1;
+    memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
+    memcpy(sv.configstrings[index], value, len);
+    /* Connected clients otherwise retain the old value because true means that slot was already sent. */
+    sv.syncstrings[index] = false;
+}
+
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
@@ -170,6 +183,7 @@ void SV_RunGameFrame(void) {
  * need traffic so their normal connection timeout does not fire. */
 void SV_SetPaused(BOOL paused) {
     paused = !!paused;
+    Cvar_Set("paused", paused ? "1" : "0");
     if (sv.paused == paused) {
         return;
     }

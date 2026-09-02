@@ -5,9 +5,11 @@
 OpenRealm separates application/network progress from deterministic Warcraft III simulation time.
 
 - `server/sv_main.c` owns the authoritative simulation pause gate. `SV_SetPaused(true)` stops `SV_RunGameFrame()`; it does **not** stop `SV_ReadPackets()` or client transport.
+- `SV_SetPaused` publishes the authoritative state through the shared `paused` cvar, matching Quake II's client/server pause contract without widening snapshot structs.
 - `games/warcraft-3/game/` owns Warcraft pause policy. `PauseGame` and single-client Quest-dialog ownership are combined before calling the generic `game_import.SetPaused` hook.
 - `client/cl_scrn.c` owns server-authored modal layout input. `LAYER_QUESTDIALOG` and `LAYER_GAME_RESULT` are modal layers: when either is visible, lower layout buttons and the 3D world do not receive pointer/hotkey interaction.
 - `client/cl_input_w3.c` owns WC3 camera/selection gestures. A modal cancels active pan, minimap drag, selection drag, hover, arrow scrolling, and edge scrolling.
+- `client/cl_view.c` keeps submitting the cached world while `paused`, but does not rebuild the scene and sets `viewDef.deltaTime` to zero. UI and transport remain live while world animation and model-owned effects stay frozen.
 
 Do not implement global pause by setting every unit's `paused` flag or by pausing every JASS timer. Those are object-level mechanics with different semantics.
 
@@ -23,9 +25,45 @@ PauseGame(true) / single-client Quest dialog opens
        but does not call SV_RunGameFrame
 ```
 
+For client-owned modal windows, serialization precedes pause acquisition:
+
+```text
+UI_WriteWindow -> client parses and opens svc_window
+    -> first modal sends pause 1
+    -> G_SetClientModal(..., WC3_MODAL_CLIENT, true)
+    -> G_RefreshPauseState
+```
+
+Do not acquire the modal pause owner in the command that writes the window. The local client shares the authoritative
+`paused` cvar and can observe it before reliable window delivery; modal-list synchronization makes the popup itself the pause
+boundary. Closing a modal recomputes the list and sends `pause 0` only after the last modal is gone, matching Quake II's menu
+stack lifecycle.
+
+Modal FDF containing `DecorateFileNames` art must be serialized between `UI_SetCurrentClient(client)` and
+`UI_SetCurrentClient(NULL)`. Esc-menu button backgrounds, borders, and highlights are symbolic war3skins keys; without the
+recipient's race context they resolve to empty art even though the window packet, geometry, and pause handshake are valid.
+
+`EscMenuMainPanel.fdf` declares `EscMenuBackdrop` outside `EscMenuMainPanel` because Blizzard's Esc-menu controller creates
+and parents it at runtime. `EscMenuMainPanel` is authored with `SetAllPoints`, while the active `MainPanel` owns the assigned
+`0.288 x 0.384` content size. Copy that size to `EscMenuMainPanel` and center it before serialization; otherwise title and
+button anchors resolve against the full client canvas even though the separately sized decoration is correct. Center the
+backdrop under that bounded controller and parent `MainPanel` beneath it so backdrop wire/draw order precedes controls. Hide
+`EndGamePanel`, `ConfirmQuitPanel`, `HelpPanel`, and `TipsPanel` when opening the main menu; each is a sibling subtree and
+otherwise overlaps the visible main panel.
+
+FDF label offsets are serialized as `SHORT` values scaled by `UI_FRAMEPOINT_SCALE`, matching frame-point offsets. Decode the
+scale in `SCR_LayoutDrawString`; adding the raw integer moves inherited Esc/Quest button labels tens of UI units off-screen,
+while zero-offset titles continue to render and disguise the shared text-path regression.
+
 While paused, `sv.time` and `sv.framenum` remain frozen. At `FRAMETIME` cadence the server still sends a snapshot packet with the frozen frame/time. This traffic is deliberate: `client/cl_main.c` disconnects after `CL_TIMEOUT_MSEC` (10 seconds) without a server packet, so returning from `SV_Frame` before transport would turn a long pause into `Connection to host timed out.`
 
 On resume, `SV_SetPaused(false)` rebases only `sv.next_frame_msec` to the current monotonic `svs.realtime`. Wall-clock time spent paused is therefore discarded instead of becoming a burst of catch-up simulation frames, while transport/application realtime never moves backward.
+
+## Client Render Pause
+
+Quake II rebuilds `cl.refdef` only when unpaused and submits the cached refdef while paused. OpenRealm follows that lifecycle, with one additional requirement: WC3 MDX particle emitters run from `R_DrawEntities()` during `RenderFrame`, not while the client constructs its entity list. A cached entity list alone therefore still re-enters emitters.
+
+Paused world submission must set `viewDef.deltaTime = 0`. Otherwise an emitter held on an active animation frame repeatedly accumulates and drains particles in `R_EmitParticles`; Instruments then reports the main thread continuously in `MDLX_RenderHeadEmitter -> R_EmitParticles -> R_SpawnParticle`, and the application appears hung at full CPU. Keep the raw client clock current during pause so resume receives only the next real frame delta rather than the whole paused duration.
 
 ## Warcraft Pause Sources
 
@@ -78,10 +116,11 @@ Global pause freezes anything that depends on server simulation advancement beca
 - **Do not use only frame hit-testing for a modal.** Transparent modal areas must still block world input, and camera edge/arrow scrolling has no pointer hit-test at all.
 - **Do not globally pause multiplayer because one Quest dialog opened.** Quest ownership is local presentation; only the single-client session policy maps it to a simulation pause.
 - **Do not conflate `PauseUnit` with global pause.** `PauseUnit` is WC3 entity state and intentionally has narrower gameplay semantics.
+- **Do not keep rebuilding or advancing the world refdef while paused.** Cached MDX entities still execute model render code, so submit them with zero `deltaTime` or particle emitters can saturate the main thread.
 
 ## Verification
 
-Build and test externally (this change was prepared without compiling locally):
+Build and test:
 
 1. Start a single-player campaign map and begin movement/combat/construction.
 2. Open Quests. Verify unit/combat/construction state and `sv.time` remain unchanged while rendering/UI stay responsive.

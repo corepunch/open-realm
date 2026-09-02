@@ -11,6 +11,7 @@ typedef struct clientWindow_s {
 static struct {
     clientWindow_t *first, *last, *focus, *drag;
     VECTOR2 drag_point, drag_offset;
+    BOOL modal_paused;
 } cl_windows;
 
 static void CL_WindowUnlink(clientWindow_t *window) {
@@ -52,6 +53,18 @@ static clientWindow_t *CL_WindowModal(void) {
     return NULL;
 }
 
+/* Quake II's menu stack owns the single-player pause cvar. Keep the server
+ * request synchronized with modal-list presence so nested modals release only
+ * when the final popup closes. */
+static void CL_WindowSyncPause(void) {
+    BOOL paused = CL_WindowModal() != NULL;
+    char command[16];
+    if (paused == cl_windows.modal_paused) return;
+    cl_windows.modal_paused = paused;
+    snprintf(command, sizeof(command), "pause %u", (unsigned)paused);
+    Cmd_ForwardToServer(command);
+}
+
 static RECT CL_WindowRoot(clientWindow_t const *window) {
     return MAKE(RECT, window->offset.x, window->offset.y, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
 }
@@ -75,19 +88,9 @@ static LPCUIFRAME CL_WindowClickableAt(clientWindow_t *window, LPCVECTOR2 point)
 
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
 static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
-    char command[64];
     if (!frame) return;
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION)) CL_WindowClose(window->id);
-    else if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) {
-        DWORD class_id = window->class_id;
-        CL_WindowClose(window->id);
-        /* Cmd_ForwardToServer already writes a raw client command; adding the
-         * console-only "cmd" wrapper makes the game receive argv[0] == "cmd"
-         * and leaves authoritative modal pause ownership stuck forever. Cache
-         * class_id before local close because that frees the window itself. */
-        snprintf(command, sizeof(command), "modal_close %u", class_id);
-        Cmd_ForwardToServer(command);
-    }
+    else if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) CL_WindowClose(window->id);
     else SCR_LayoutSendFrameCommand(frame);
 }
 
@@ -104,6 +107,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout) {
     } else SAFE_DELETE(window->layout, MemFree);
     window->id = def->id; window->class_id = def->class_id; window->flags = def->flags; window->layout = layout;
     CL_WindowFocus(window);
+    CL_WindowSyncPause();
 }
 
 void CL_WindowClose(DWORD id) {
@@ -115,6 +119,7 @@ void CL_WindowClose(DWORD id) {
     SAFE_DELETE(window->layout, MemFree);
     MemFree(window);
     if (!cl_windows.focus) cl_windows.focus = cl_windows.last;
+    CL_WindowSyncPause();
 }
 
 void CL_WindowClear(void) {
@@ -175,11 +180,7 @@ BOOL CL_WindowKeyEvent(int key) {
     /* Quake II pops the active menu on Escape. Dismiss locally first, then
      * release only the server-side pause owner associated with this window. */
     if (key == K_ESCAPE) {
-        char command[64];
-        DWORD class_id = window->class_id;
         CL_WindowClose(window->id);
-        snprintf(command, sizeof(command), "modal_close %u", class_id);
-        Cmd_ForwardToServer(command);
         return true;
     }
     root = CL_WindowRoot(window);

@@ -181,6 +181,16 @@ TEST(net, no_refresh_preserves_client_loop_without_screen_submission) {
     scr_initialized = false;
 }
 
+TEST(net, paused_scene_time_reuses_cached_world_without_effect_delta) {
+    viewDef_t view = { .time = 1000, .deltaTime = 16 };
+    DWORD last = 1000;
+
+    T_ASSERT(!V_AdvanceSceneTime(&view, 1100, &last, true));
+    T_EQ(view.time, 1000); T_EQ(view.deltaTime, 0); T_EQ(last, 1100);
+    T_ASSERT(V_AdvanceSceneTime(&view, 1200, &last, false));
+    T_EQ(view.time, 1100); T_EQ(view.deltaTime, 100); T_EQ(last, 1200);
+}
+
 
 /* Authored cursors use the same recipient-relative hover relationship as the
  * world ring: enemies tint red, neutral/passive targets yellow, and friendly
@@ -741,6 +751,15 @@ TEST(net, window_unique_class_replaces_existing_instance) {
     CL_WindowClear();
 }
 
+TEST(net, screen_layout_draws_client_windows) {
+    test_client_stubs_init(); CL_WindowClear();
+    re.GetTextSize = text_length_mock_size; re.DrawText = capture_textarea;
+    test_send_window(3, 91, UI_WINDOW_UNIQUE, 0.1f, "Visible", "visible");
+    test_textarea_draws = 0; SCR_DrawLayout();
+    T_EQ(test_textarea_draws, 1); T_STREQ(test_textarea_draw.text, "Visible");
+    CL_WindowClear();
+}
+
 TEST(net, window_click_raises_and_moves_keyboard_focus) {
     char command_buf[128]; BYTE message_buf[256];
 
@@ -782,10 +801,11 @@ TEST(net, window_close_notify_releases_server_modal_owner) {
     test_client_stubs_init(); CL_WindowClear();
     re.GetTextSize = text_length_mock_size;
     test_send_window(4, 94, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_NOTIFY_ACTION);
+    T_STREQ(test_forwarded_command, "pause 1");
     T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
     T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
     T_ASSERT(!CL_WindowModalActive());
-    T_STREQ(test_forwarded_command, "modal_close 94");
+    T_STREQ(test_forwarded_command, "pause 0");
     CL_WindowClear();
 }
 
@@ -794,7 +814,32 @@ TEST(net, window_escape_closes_and_releases_server_modal_owner) {
     test_send_window(5, 95, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_NOTIFY_ACTION);
     T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
     T_ASSERT(!CL_WindowModalActive());
-    T_STREQ(test_forwarded_command, "modal_close 95");
+    T_STREQ(test_forwarded_command, "pause 0");
+    CL_WindowClear();
+}
+
+TEST(net, stacked_modal_windows_unpause_only_after_last_close) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_send_window(6, 96, UI_WINDOW_MODAL, 0.05f, "First", UI_WINDOW_CLOSE_NOTIFY_ACTION);
+    T_STREQ(test_forwarded_command, "pause 1");
+    test_forwarded_command[0] = '\0';
+    test_send_window(7, 97, UI_WINDOW_MODAL, 0.05f, "Second", UI_WINDOW_CLOSE_NOTIFY_ACTION);
+    T_STREQ(test_forwarded_command, "");
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "");
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(!CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "pause 0");
+    CL_WindowClear();
+}
+
+TEST(net, nonmodal_window_does_not_request_pause) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_forwarded_command[0] = '\0';
+    test_send_window(8, 98, 0, 0.05f, "Info", UI_WINDOW_CLOSE_ACTION);
+    T_ASSERT(!CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "");
     CL_WindowClear();
 }
 

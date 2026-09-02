@@ -60,20 +60,27 @@ typedef struct EscMenuMainPanelGame_s {
     LPFRAMEDEF TipsNextButtonText;
     LPFRAMEDEF TipsOKButton;
     LPFRAMEDEF TipsOKButtonText;
+    LPFRAMEDEF EscMenuBackdrop;
 } EscMenuMainPanelGame_t;
 
-
-static inline BOOL EscMenuMainPanelGame_Bind(EscMenuMainPanelGame_t *out, LPFRAMEDEF bind_root) {
+static inline BOOL EscMenuMainPanelGame_Load(EscMenuMainPanelGame_t *out) {
     BOOL ok = true;
+    LPFRAMEDEF bind_root;
     if (!out) {
         return false;
     }
-    memset(out, 0, sizeof(*out));
-    out->EscMenuMainPanel = bind_root;
-    if (!out->EscMenuMainPanel) {
-        BZ_FDF_REPORT_MISSING("EscMenuMainPanel");
+    if (!UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf")) {
         ok = false;
     }
+    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf")) {
+        ok = false;
+    }
+    if (!UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf")) {
+        ok = false;
+    }
+    memset(out, 0, sizeof(*out));
+    BZ_FDF_BIND_ROOT(out, EscMenuMainPanel, "EscMenuMainPanel");
+    bind_root = out->EscMenuMainPanel;
     BZ_FDF_BIND_CHILD(out, MainPanel, bind_root, "MainPanel");
     BZ_FDF_BIND_CHILD(out, WouldTheRealOptionsTitleTextPleaseStandUp, out->MainPanel, "WouldTheRealOptionsTitleTextPleaseStandUp");
     BZ_FDF_BIND_CHILD(out, InsideMainPanel, out->MainPanel, "InsideMainPanel");
@@ -128,15 +135,9 @@ static inline BOOL EscMenuMainPanelGame_Bind(EscMenuMainPanelGame_t *out, LPFRAM
     BZ_FDF_BIND_CHILD(out, TipsNextButtonText, out->TipsNextButton, "TipsNextButtonText");
     BZ_FDF_BIND_CHILD(out, TipsOKButton, out->InsideTipsPanel, "TipsOKButton");
     BZ_FDF_BIND_CHILD(out, TipsOKButtonText, out->TipsOKButton, "TipsOKButtonText");
+    BZ_FDF_BIND_ROOT_OPTIONAL(out, EscMenuBackdrop, "EscMenuBackdrop");
+    bind_root = out->EscMenuBackdrop;
     return ok;
-}
-
-static inline BOOL EscMenuMainPanelGame_Load(EscMenuMainPanelGame_t *out) {
-    return out &&
-           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
-           UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
-           UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf") &&
-           EscMenuMainPanelGame_Bind(out, UI_FindFrame("EscMenuMainPanel"));
 }
 
 #endif /* ESCMENUMAINPANELGAME_H */

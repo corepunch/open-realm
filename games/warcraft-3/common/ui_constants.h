@@ -11,9 +11,7 @@
 #define BZ_WC3_WINDOW_LOG   MAKEFOURCC('L','O','G',' ') // opaque class/instance ID; identifies the singleton Message Log window
 #define BZ_WC3_WINDOW_MENU  MAKEFOURCC('M','E','N','U') // opaque class/instance ID; identifies the singleton pause menu window
 #define BZ_WC3_WINDOW_ALLIES MAKEFOURCC('A','L','L','Y') // opaque class/instance ID; identifies the singleton Allies window
-#define WC3_MODAL_QUEST  (1u << 0) // modal owner bit; pauses a single-client game while the quest dialog is open
-#define WC3_MODAL_MAIN   (1u << 1) // modal owner bit; pauses a single-client game while the main menu is open
-#define WC3_MODAL_LOG    (1u << 2) // modal owner bit; pauses a single-client game while the message log is open
-#define WC3_MODAL_ALLIES (1u << 3) // modal owner bit; pauses a single-client game while the Allies dialog is open
+#define WC3_MODAL_QUEST  (1u << 0) // modal owner bit; retained for the Quest/JASS ownership compatibility path
+#define WC3_MODAL_CLIENT (1u << 1) // modal owner bit; tracks whether the client has any open modal window
 
 #endif
