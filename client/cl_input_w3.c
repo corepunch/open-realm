@@ -29,6 +29,10 @@ static void CL_SetCameraPosition(VECTOR2 position) {
 static BOOL smart_click_active;
 static BOOL minimap_drag_active;
 
+static BOOL CL_OrderQueueModifierDown(void) {
+    return (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
+}
+
 static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 #ifdef SC2
     return re.TraceCameraPlane(&cl.viewDef, x, y, point);
@@ -144,10 +148,13 @@ static void CL_SendSmartCommand(float x, float y) {
     }
     if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, "smart %d", entnum);
+        SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
+            ? "smart %d queue" : "smart %d", entnum);
     } else if (re.TraceLocation(&cl.viewDef, x, y, &point)) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, "smartpoint %d %d", (int)point.x, (int)point.y);
+        SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
+            ? "smartpoint %d %d queue" : "smartpoint %d %d",
+            (int)point.x, (int)point.y);
     }
 
     if (cl.selection.num_selected) {

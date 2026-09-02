@@ -18,6 +18,7 @@ static void holdpos_command(LPEDICT ent) {
     FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
         if (S_GoldMineWorkerIsInside(e))
             continue;
+        G_ClearUnitOrderQueue(e);
         e->movement.holding_position = true;
         unit_leavecombat(e);
         unit_stand(e);

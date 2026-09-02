@@ -2,7 +2,7 @@
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 6;
+static DWORD const save_version = 7;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 
 typedef struct {
@@ -525,6 +525,7 @@ static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     temp.mapplayer = NULL;
     temp.menu.on_entity_selected = NULL; temp.menu.on_location_selected = NULL;
     temp.menu.cmdbutton = NULL; temp.menu.refresh = NULL;
+    temp.menu.supports_order_queue = false; temp.menu.order_queued = false;
     temp.camera.target_controller = NULL;
     temp.rally_indicator = NULL;
     if (target < -1 || target >= (int)globals.max_edicts) return false;
@@ -540,6 +541,7 @@ static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
     client->mapplayer = level.mapinfo && client->ps.number < MAX_PLAYERS ? level.mapinfo->players + client->ps.number : NULL;
     client->menu.on_entity_selected = NULL; client->menu.on_location_selected = NULL;
     client->menu.cmdbutton = NULL; client->menu.refresh = NULL;
+    client->menu.supports_order_queue = false; client->menu.order_queued = false;
     client->camera.target_controller = NULL;
     client->rally_indicator = NULL;
     return true;

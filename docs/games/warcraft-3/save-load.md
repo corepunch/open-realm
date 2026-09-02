@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 6, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 7, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -62,7 +62,7 @@ call LoadGame("chapter-01.w3save", false)
 
 `LoadGame` restores state in the already-loaded map; map selection and UI score-screen behavior remain separate work. The initialized map must have the same JASS program and deterministically recreated native registries.
 
-The format does not yet snapshot fog grids, bot runtime, mutable event-registration fields, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; arbitrary active `umove_t` actions are not yet restored and require stable semantic move IDs. Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu likewise requires a semantic menu-state enum rather than raw function addresses.
+The format does not yet snapshot fog grids, bot runtime, mutable event-registration fields, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; arbitrary active `umove_t` actions are not yet restored and require stable semantic move IDs. Pending Shift-order FIFO records are pointer-free inline `edict_t` data and persist in version 7, while queued entity targets remain entity number + `spawn_time` for execution-time re-resolution. Menu callbacks and Shift-targeting flags are process-local and are reset on load; restoring an active targeting/build submenu likewise requires a semantic menu-state enum rather than raw function addresses.
 
 The checksum and header preflight protect normal partial/corrupt-file and wrong-map failures before mutation. Record-level semantic validation later in the stream is not fully transactional; do not treat save files as untrusted input until native records are decoded into temporary state before commit.
 
