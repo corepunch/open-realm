@@ -407,6 +407,10 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         order_stop(self);
         return true;
     }
+    if (!strcmp(order, "autoharvestgold"))
+        return harvest_auto_start_gold(self);
+    if (!strcmp(order, "autoharvestlumber"))
+        return harvest_auto_start_lumber(self);
     return false;
 }
 

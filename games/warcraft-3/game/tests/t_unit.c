@@ -77,6 +77,28 @@ static LPEDICT make_world_item(DWORD class_id) {
     return item;
 }
 
+static LPEDICT make_harvest_tree(FLOAT x, FLOAT y) {
+    LPEDICT tree = G_Spawn();
+    tree->s.origin2 = (VECTOR2){x, y};
+    tree->s.origin.x = x;
+    tree->s.origin.y = y;
+    tree->targtype = TARG_TREE;
+    tree->health.value = tree->health.max_value = 100.0f;
+    return tree;
+}
+
+static LPEDICT make_harvest_goldmine(FLOAT x, FLOAT y) {
+    static UnitAbilities_t const abilities = { .abilList = "Agld" };
+    LPEDICT mine = G_Spawn();
+    mine->s.origin2 = (VECTOR2){x, y};
+    mine->s.origin.x = x;
+    mine->s.origin.y = y;
+    mine->UnitAbilities = &abilities;
+    mine->resources = 12500;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    return mine;
+}
+
 TEST(wc3_unit, shared_test_unit_starts_alive) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 
@@ -590,6 +612,45 @@ TEST(wc3_unit, issueimmediateorder_stop) {
     BOOL result = unit_issueimmediateorder(ent, "stop");
     T_ASSERT(result);
     T_STREQ(ent->currentmove->animation, "stand");
+}
+
+TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {
+    reset_test_entities();
+    LPEDICT worker = make_unit(0, 0);
+    LPEDICT far_tree = make_harvest_tree(300.0f, 0.0f);
+    LPEDICT dead_tree = make_harvest_tree(25.0f, 0.0f);
+    LPEDICT near_tree = make_harvest_tree(100.0f, 0.0f);
+    (void)far_tree;
+    dead_tree->health.value = 0.0f;
+
+    T_ASSERT(unit_issueimmediateorder(worker, "autoharvestlumber"));
+    T_ASSERT(worker->goalentity == near_tree);
+    T_ASSERT(worker->secondarygoal == near_tree);
+    T_STREQ(worker->currentmove->animation, "walk");
+}
+
+TEST(wc3_unit, issueimmediateorder_autoharvestgold_uses_nearest_live_mine) {
+    reset_test_entities();
+    LPEDICT worker = make_unit(0, 0);
+    LPEDICT far_mine = make_harvest_goldmine(300.0f, 0.0f);
+    LPEDICT empty_mine = make_harvest_goldmine(25.0f, 0.0f);
+    LPEDICT near_mine = make_harvest_goldmine(100.0f, 0.0f);
+    (void)far_mine;
+    empty_mine->resources = 0;
+
+    T_ASSERT(unit_issueimmediateorder(worker, "autoharvestgold"));
+    T_ASSERT(worker->goalentity == near_mine);
+    T_ASSERT(worker->secondarygoal == near_mine);
+    T_STREQ(worker->currentmove->animation, "walk");
+}
+
+TEST(wc3_unit, issueimmediateorder_autoharvest_requires_resource_target) {
+    reset_test_entities();
+    LPEDICT worker = make_unit(0, 0);
+
+    T_ASSERT(!unit_issueimmediateorder(worker, "autoharvestlumber"));
+    T_ASSERT(!unit_issueimmediateorder(worker, "autoharvestgold"));
+    T_STREQ(worker->currentmove->animation, "stand");
 }
 
 TEST(wc3_unit, issueimmediateorder_unknown_returns_false) {
