@@ -685,6 +685,8 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.CustomizeEntity = G_CustomizeEntity;
     globals.GetThemeValue = G_GetThemeValue;
     globals.LoadMap = G_LoadMap;
+    globals.SaveGame = WriteGame;
+    globals.LoadGame = ReadGame;
     globals.GetWorldBounds = CM_GetWorldBounds;
     globals.edict_size = sizeof(struct edict_s);
     return &globals;

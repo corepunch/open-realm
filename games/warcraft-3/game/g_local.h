@@ -13,7 +13,7 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
-#define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
+#define EDICTFIELD(x, type, ...) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type, ##__VA_ARGS__ }
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
@@ -135,7 +135,7 @@ typedef struct {
     LPCSTR name;
     DWORD ofs;
     fieldtype_t type;
-    DWORD flags;
+    DWORD array_size;
 } field_t;
 
 typedef enum {
@@ -1165,6 +1165,10 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
 LPEDICT G_CreateDeadDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
 void SP_monster_tree(LPEDICT);
+
+// g_save.c
+BOOL WriteGame(LPCSTR filename);
+BOOL ReadGame(LPCSTR filename);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);

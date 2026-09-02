@@ -69,6 +69,7 @@ static void DeleteQuest(LPQUEST quest) {
     DELETE_LIST(QUESTITEM, quest->items, DeleteQuestItem);
     free(quest->description);
     free(quest->title);
+    free(quest->iconPath);
     gi.MemFree(quest);
 }
 

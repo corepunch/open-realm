@@ -390,9 +390,7 @@ int main(int argc, LPSTR argv[]) {
             Cbuf_Execute();
         }
     } else {
-        if (!menu_mode) {
-            SV_Init();
-        }
+        SV_Init();
         CL_Init();
         Cbuf_AddLateCommands();
         Cbuf_Execute();
@@ -403,12 +401,14 @@ int main(int argc, LPSTR argv[]) {
         } else if (listen_server_mode) {
             // Listen-server mode: show the client loading screen before the
             // synchronous server map load, mirroring Quake's loading plaque flow.
-            if (!svs.initialized) {
+            /* `+map` may already have run from the late command buffer. Do not
+             * load it again after `+loadgame`, or the restored state is lost. */
+            if (!svs.initialized || sv.state != ss_game) {
                 SV_Init();
+                CL_BeginLoadingMap(map);
+                SCR_UpdateScreen(0);
+                SV_Map(map);
             }
-            CL_BeginLoadingMap(map);
-            SCR_UpdateScreen(0);
-            SV_Map(map);
         }
         // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)
     }

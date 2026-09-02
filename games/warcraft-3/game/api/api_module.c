@@ -630,6 +630,8 @@ JASSMODULE jass_funcs[] = {
     { "ChangeLevel", ChangeLevel },
     { "RestartGame", RestartGame },
     { "ReloadGame", ReloadGame },
+    { "SaveGame", SaveGame },
+    { "LoadGame", LoadGame },
     { "SetCampaignMenuRace", SetCampaignMenuRace },
     { "ForceCampaignSelectScreen", ForceCampaignSelectScreen },
     { "SyncSelections", SyncSelections },

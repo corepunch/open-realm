@@ -33,6 +33,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
 | WC3 campaign game cache, persisted Hero progression, `StoreUnit`/`RestoreUnit` | [docs/games/warcraft-3/campaign-game-cache.md](docs/games/warcraft-3/campaign-game-cache.md) |
+| WC3 game save/load format, entity pointer fixups, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
 | WC3 triggered dialogue, gameplay/cinematic presentation split, message and transmission lifetimes | [docs/games/warcraft-3/triggered-dialogue.md](docs/games/warcraft-3/triggered-dialogue.md) |
@@ -94,6 +95,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - **Always reach for the `shared/` math library first.** Before writing inline matrix/vector/quaternion math, check whether `Vector3_*`, `Matrix4_*`, or `Quaternion_*` already covers the operation. When a needed utility is missing (e.g. `Vector3_clamp01`), add it to the appropriate `shared/types/` header and `shared/source/` implementation rather than writing a one-off local function — the shared library is the canonical home for reusable math.
 - Keep runtime structs concise. Group related fields; use anonymous structs for repeated shapes; prefer `DWORD flags` over many standalone `BOOL` fields.
 - Declare a pointer + element-count pair as one unit with `ARRAY(type, name)` (defines `type *name; DWORD name##_count;`). Access the count via `ARRAY_COUNT(name)`, test emptiness with `IS_ARRAY_EMPTY(name)` (checks both pointer and count), and iterate with `FOR_EACH_ARRAY(type, it, name)` — or `FOR_LOOP(i, ARRAY_COUNT(name))` when the index is needed — never read or write `name##_count` directly.
+- Keep schema and field tables in a single column: put one descriptor or field entry on each line so the table is easy to scan and compare with its corresponding struct. Keep array entries on separate lines too, except for arrays of numbers or other genuinely short entries where a compact row remains clearer.
 - Test flag membership with implicit bool conversion: `flags & FLAG` not `(flags & FLAG) != 0`.
 - Use `snake_case` for functions and variables, `ALL_CAPS` for constants and macros, matching Quake 2 conventions.
 - Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants.
