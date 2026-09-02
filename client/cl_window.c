@@ -135,7 +135,8 @@ BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         frame = CL_WindowClickableAt(window, &point);
         SCR_LayoutSetPointer(window->layout, frame ? frame->number : 0, event == UI_MOUSE_DOWN && param == 1);
         if (event == UI_MOUSE_UP && param == 1 && frame) SCR_LayoutSendFrameCommand(frame);
-        else if (event == UI_MOUSE_DOWN && param == 1 && !frame && (window->flags & UI_WINDOW_MOVABLE)) {
+        else if (event == UI_MOUSE_DOWN && param == 1 && !frame && (window->flags & UI_WINDOW_MOVABLE) &&
+                 point.y <= window->offset.y + 24.0f) {
             cl_windows.drag = window;
             cl_windows.drag_point = point;
             cl_windows.drag_offset = window->offset;

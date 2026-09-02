@@ -123,6 +123,9 @@ static LPFRAMEDEF QuestRowAt(LPFRAMEDEF *rows, DWORD *count, LPFRAMEDEF containe
                     0.0f, -(FLOAT)row * frame->Height);
     }
     if (!frame) return NULL;
+    /* QuestListItemButton is anchored to the row's trailing edge; give the
+     * row the authored list width so that anchor resolves to the container. */
+    frame->Width = container->Width;
     UI_SetHidden(frame, false);
     if (*count <= row) *count = row + 1;
     return frame;

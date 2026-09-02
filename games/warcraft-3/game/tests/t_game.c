@@ -344,7 +344,7 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     T_NOT_NULL(title);
     T_NOT_NULL(button);
     T_NOT_NULL(item_title);
-    T_FEQ(title->Parent->Width, 0.08f, 0.001f);
+    T_FEQ(title->Parent->Width, list->Width, 0.001f);
     T_FEQ(item_title->Parent->Height, 0.012f, 0.001f);
     T_STREQ(title->Text, "> Test Quest");
     T_STREQ(button->OnClick, "quest 0");
