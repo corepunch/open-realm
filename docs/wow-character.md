@@ -56,7 +56,7 @@ The `+menu_character_create` screen initializes Human, Male, Warrior and zero-va
 `games/world-of-warcraft/ui/ui_dbc.c`. `UIWow_GetCharacterCreateAppearance()` packs those values for the model drawn by
 `games/world-of-warcraft/ui/ui_xml.c`.
 
-Saved characters live in `~/.world-of-warcraft/characters.xml` (or `share/world-of-warcraft/characters.xml` when `$HOME` is unavailable):
+Saved characters live in `~/.local/share/world-of-warcraft/characters.xml` (or `share/world-of-warcraft/characters.xml` when `$HOME` is unavailable):
 
 ```xml
 <Character name="Example" race="1" sex="1" class="1" appearance="8388608" />
@@ -163,7 +163,7 @@ make openwow
 build/bin/openwow -data data/world-of-warcraft +menu_character_create +screenshot 10 +com_frame_limit 20
 ```
 
-For a saved-character/class test, update both `class` and `appearance` in `~/.world-of-warcraft/characters.xml`, run
+For a saved-character/class test, update both `class` and `appearance` in `~/.local/share/world-of-warcraft/characters.xml`, run
 `+menu_character_select +screenshot 10 +com_frame_limit 20`, then restore the save. Diagnose in this order:
 
 1. Confirm `UIWow_GetCharacterCreateAppearance()` packs the expected class and customization.
