@@ -439,7 +439,7 @@ void Cvar_Init(void) {
     {
         static PATHSTR config_path;
 
-        FS_UserPath("config.cfg", config_path, sizeof(config_path));
+        FS_ConfigPath("config.cfg", config_path, sizeof(config_path));
         Cvar_GetD("config", config_path, CVAR_ARCHIVE, "writable config file; loaded/saved on startup");
     }
     /* Resolved filesystem roots, exposed as cvars so UI/game modules (shared

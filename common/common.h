@@ -170,6 +170,7 @@ void FS_SetHomeDirectory(LPCSTR dir);
 LPCSTR FS_BasePath(void);
 LPCSTR FS_HomePath(void);
 void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size);
+void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size);
 void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size);
 void FS_Shutdown(void);
 BOMStatus PF_TextRemoveBom(LPSTR buffer);
