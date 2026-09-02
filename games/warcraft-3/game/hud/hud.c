@@ -356,18 +356,6 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             } else { buf.overflowed = true; }
             break;
         }
-        case FT_SCROLLBAR: {
-            uiScrollBar_t data = {
-                .background = MakeButtonBackdrop(frame, frame->Control.Backdrop.Normal),
-                .incButton = MakeButtonBackdrop(frame, frame->Slider.IncButtonFrame),
-                .decButton = MakeButtonBackdrop(frame, frame->Slider.DecButtonFrame),
-                .thumbButton = MakeButtonBackdrop(frame, frame->Slider.ThumbButtonFrame),
-            };
-            if (buf.cursize + sizeof(data) <= buf.maxsize) {
-                memcpy(buf.data + buf.cursize, &data, sizeof(data)); buf.cursize += sizeof(data);
-            } else { buf.overflowed = true; }
-            break;
-        }
         case FT_SIMPLEBUTTON: {
             uiSimpleButton_t data = MakeSimpleButton(frame);
             LPCSTR text_key = frame->OnClick[0] || !frame->Button.DisabledText.text[0]
