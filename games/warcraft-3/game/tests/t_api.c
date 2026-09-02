@@ -168,6 +168,54 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_FEQ(gc->ps.viewquat.x, quat.x, 0.001f); T_FEQ(gc->ps.viewquat.w, quat.w, 0.001f);
 }
 
+/* An event's owner is GetTriggerPlayer(), not the local-player selector used by GetLocalPlayer().
+ * Human02's victory chain starts from the Blademaster (player 4) dying, then
+ * TriggerExecute()s nested cinematic triggers whose local UI branch targets
+ * the connected Human player (map player 1). */
+TEST(wc3_api, enemy_event_keeps_trigger_player_separate_from_local_player_context) {
+    LPGAMECLIENT human = &game.clients[0];
+    LPGAMECLIENT enemy = &game.clients[4];
+    LPEDICT dying;
+
+    /* Reproduce the campaign mapping where connection slot 0 is map player 1. */
+    game.clients[1].ps.number = 0;
+    human->ps.number = 1;
+    enemy->ps.number = 4;
+    currentplayer = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger udg_Inner = null\n"
+        "endglobals\n"
+        "function inner_action takes nothing returns nothing\n"
+        "  call SetPlayerState(Player(1), PLAYER_STATE_RESOURCE_GOLD, GetPlayerId(GetTriggerPlayer()))\n"
+        "  if GetLocalPlayer() == Player(1) then\n"
+        "    call ShowInterface(false, 0.0)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function outer_action takes nothing returns nothing\n"
+        "  call TriggerExecute(udg_Inner)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger outer = CreateTrigger()\n"
+        "  set udg_Inner = CreateTrigger()\n"
+        "  call TriggerAddAction(udg_Inner, function inner_action)\n"
+        "  call TriggerRegisterPlayerUnitEvent(outer, Player(4), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(outer, function outer_action)\n"
+        "endfunction\n"));
+
+    dying = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    dying->s.player = 4;
+    G_PublishEvent(dying, EVENT_PLAYER_UNIT_DEATH);
+    G_RunEvents();
+    jass_runevents(level.vm);
+
+    T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 4);
+    T_EQ(human->ps.client_ui_state, CLIENT_UI_CINEMATIC);
+    T_EQ(enemy->ps.client_ui_state, CLIENT_UI_GAME);
+    T_NULL(currentplayer);
+}
+
 TEST(wc3_api, camera_margin_is_default_camera_inset_from_playable_area) {
     /* W3I complements crop the entire W3E terrain to the playable rectangle.
      * GetCameraMargin is the remaining inset from that playable rectangle to

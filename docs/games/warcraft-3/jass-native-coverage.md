@@ -170,6 +170,17 @@ subscription containing the trigger, subject/filter, event kind, and any limit
 condition. Dispatch must install context before evaluating conditions/actions
 and restore the previous context afterward so nested trigger execution works.
 
+The event-response player and the `GetLocalPlayer()` selector are separate VM
+state. `JASSCONTEXT.playerState` carries the event/filter/AI player consumed by
+`GetTriggerPlayer()` and `GetFilterPlayer()`. `JASSCONTEXT.localPlayerState`
+carries only the local presentation selector exposed through the VM-global
+`currentplayer`. An event fired by a player-4 unit must therefore be able to
+report `GetTriggerPlayer() == Player(4)` while a nested `TriggerExecute()` still
+fans out `if GetLocalPlayer() == Player(1)` and applies UI/camera/audio work to
+map player 1. Nested coroutines inherit both values independently. Never seed
+`currentplayer` from the triggering unit owner; doing so turns local-player
+branches into event-owner branches and silently suppresses campaign cinematics.
+
 Trigger ownership is split deliberately:
 
 - `TRIGGER` owns enabled/wait-on-sleep state plus condition and action lists.

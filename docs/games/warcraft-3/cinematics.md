@@ -66,7 +66,21 @@ This is separate from the JASS-level ESC skip mechanism.
 ### Common Issues
 
 **Mismatched player numbers in SetCinematicScene/EndCinematicScene:**
-Indicates wrong `currentplayer` context in the JASS VM. Check `jass_eventplayer(unit)` in trigger evaluation.
+`currentplayer` is the `GetLocalPlayer()` presentation selector, not the owner
+of the unit that fired an event. Event ownership belongs in
+`JASSCONTEXT.playerState` for `GetTriggerPlayer()`; local-player execution lives
+in `JASSCONTEXT.localPlayerState`. `TriggerExecute()` must inherit those values
+independently.
+
+Human02 provides a concrete regression case: the victory chain begins when the
+Blademaster (map player 4) dies, then executes nested victory/cinematic triggers
+whose local UI guards target the connected Human player (map player 1). If the
+dying unit owner is copied into `currentplayer`, the trigger and waits still run
+but the player-1 camera/UI/dialogue branches are skipped, producing an invisible
+victory cinematic before `RemovePlayer(Player(1), VICTORY)`. The
+`wc3_api.enemy_event_keeps_trigger_player_separate_from_local_player_context`
+test covers this event-owner/local-player split through a nested
+`TriggerExecute()` chain.
 
 **ESC moves units but leaves both the cinematic camera and cinematic HUD active:**
 After the entity/player contract trim (#162), an incremental build could leave `libjass` compiled against the old

@@ -130,7 +130,7 @@ struct jass_s {
 /* Primitive type table — indexed by JASSTYPEID. Defined in jdo.c. */
 extern JASSTYPE jass_types[];
 
-/* Current player/unit set during coroutine dispatch. Defined in jdo.c. */
+/* Current local-player selector/unit set during coroutine dispatch. Defined in jdo.c. */
 extern LPPLAYER currentplayer;
 extern LPEDICT currentunit;
 
