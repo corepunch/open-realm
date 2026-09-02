@@ -692,6 +692,23 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     Cbuf_AddText("\n");
 }
 
+/* Apply an authoritative server selection to the client cache and refresh the active unit UI. */
+static void CL_ParseSetSelection(LPSIZEBUF msg) {
+    DWORD number;
+
+    if (msg->cursize < sizeof(number)) {
+        fprintf(stderr, "CL: invalid set_selection payload (%u bytes)\n", (unsigned)msg->cursize);
+        return;
+    }
+    number = (DWORD)MSG_ReadLong(msg);
+
+    if (number > 0 && number < MAX_CLIENT_ENTITIES) {
+        cl.selection.num_selected = 1;
+        cl.selection.entity_nums[0] = number;
+        ui.UpdateUnitUI(0, NULL);
+    }
+}
+
 static void CL_ParseGameCommand(LPSIZEBUF msg) {
     char command[MAX_PATHLEN] = { 0 };
     sizeBuf_t payload;
@@ -724,6 +741,8 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
             LPCSTR path = cl.configstrings[CS_SOUNDS + idx];
             if (path && path[0]) S_PlaySoundFile(path);
         }
+    } else if (!strcmp(command, GAME_COMMAND_SET_SELECTION)) {
+        CL_ParseSetSelection(&payload);
     }
 
     msg->readcount = payload_start + (DWORD)payload_size;

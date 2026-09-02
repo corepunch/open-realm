@@ -140,7 +140,6 @@ typedef struct {
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
     DWORD (*GetNumEntities)(void);              /* cl.num_entities */
     LPCENTITYSTATE (*GetEntity)(DWORD idx);     /* &cl.ents[idx].current */
-    void (*SetSelection)(DWORD num_selected, DWORD const *entity_nums); /* Update client selection state */
     LPCMODEL (*GetModel)(DWORD idx);            /* cl.models[idx] */
     LPCMODEL (*GetPortrait)(DWORD idx);         /* cl.portraits[idx] */
     LPCTEXTURE (*GetTexture)(DWORD idx);        /* cl.pics[idx] */

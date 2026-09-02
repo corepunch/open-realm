@@ -39,12 +39,11 @@ See also: [Building Damage Rendering](../games/warcraft-3/building-damage-render
 
 ## Anti-pattern #2: `#ifdef` branch in a shared dispatcher (do not repeat)
 
-PR #242 added `#ifdef WC3 ... strcmp(command, "wc3_selection") ... #endif` directly inside the shared
-`CL_ParseGameCommand()` in `client/cl_parse.c`. The same function already calls `ui.GameCommand(command,
-payload.data, payload.cursize)` unconditionally for every game before its own string checks — that call is
-the existing, correct extension point. The fix is to handle `"wc3_selection"` inside WC3's own
-`ui.GameCommand` implementation under `games/warcraft-3/ui/`, which is already game-scoped by directory,
-and to remove the `#ifdef` and the inline branch from `client/cl_parse.c` entirely.
+PR #242 initially added `#ifdef WC3 ... strcmp(command, "wc3_selection") ... #endif` directly inside the
+shared `CL_ParseGameCommand()` in `client/cl_parse.c`. That was wrong because selection synchronization is
+a generic client-state operation, not WC3 UI behavior. The corrected implementation uses the generic
+`set_selection` command and parses it in `CL_ParseGameCommand()` without a game guard; only the server-side
+shortcut producer remains under `games/warcraft-3/`.
 
 ## Review rule
 
