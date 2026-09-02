@@ -645,6 +645,7 @@ TEST(net, msg_multiple_types_sequential) {
 
 
 TEST(net, ui_frame_delta_preserves_modal_flag) {
+    T_ASSERT((UIFRAME_FLAG_MODAL & UIFLAG_SIZE_TO_CONTENT) == 0);
     BYTE buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t from = {0}, to = { .number = 6, .flags = { .type = FT_SIMPLEFRAME } }, out = {0};

@@ -820,7 +820,7 @@ typedef const struct UIMODEL *LPCUIMODEL;
 
 /* Generic uiFrame_t wire flag. Games may mark a server-authored layout root
  * modal without teaching the shared client what that dialog represents. */
-#define UIFRAME_FLAG_MODAL (1u << 10)
+#define UIFRAME_FLAG_MODAL (1u << 11)
 
 typedef struct uiFrame_s {
     DWORD number;
