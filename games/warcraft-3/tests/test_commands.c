@@ -89,6 +89,17 @@ TEST(commands, command_registration) {
     T_ASSERT(Cmd_Exists("path"));
 }
 
+TEST(commands, save_path_adds_one_sav_extension) {
+    PATHSTR path;
+
+    setup_command_tests();
+    FS_SetHomeDirectory("/tmp/openwarcraft3-save-path-test");
+    FS_SavePath("quick", path, sizeof(path));
+    T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/quick.sav");
+    FS_SavePath("manual.SAV", path, sizeof(path));
+    T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/manual.SAV");
+}
+
 TEST(commands, share_authored_ui_assets_are_readable) {
     DWORD size = 0;
     HANDLE data;

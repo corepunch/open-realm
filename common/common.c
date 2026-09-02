@@ -376,6 +376,7 @@ void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size) {
  * this keeps gameplay saves separate from configuration files. */
 void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size) {
     PATHSTR game_dir;
+    LPCSTR extension = FS_PathHasExtension(rel, ".sav") ? "" : ".sav";
 
     if (!fs_save_dir[0]) {
         if (fs_home_dir[0]) {
@@ -399,7 +400,7 @@ void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size) {
         mkdir(fs_save_dir, 0755);
 #endif
     }
-    if (fs_save_dir[0]) snprintf(out, out_size, "%s/%s", fs_save_dir, rel);
+    if (fs_save_dir[0]) snprintf(out, out_size, "%s/%s%s", fs_save_dir, rel, extension);
 }
 
 static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
