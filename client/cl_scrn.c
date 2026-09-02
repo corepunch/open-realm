@@ -11,7 +11,7 @@ BOOL scr_initialized;
 /* Returns the UI canvas width for the current window aspect.  For SC2
  * widescreen the canvas expands horizontally while the height stays fixed
  * (matches cl_layout.c::SCR_GetUISceneRect and r_draw.c::R_UISceneRect). */
-static FLOAT SCR_UICanvasWidth(void) {
+FLOAT SCR_UICanvasWidth(void) {
 #ifdef SC2
     size2_t win = re.GetWindowSize();
     if (win.height > 0) {
@@ -28,7 +28,7 @@ static FLOAT SCR_UICanvasWidth(void) {
  * engine's virtual canvas.  Cursor drawing and FDF hit-testing must share this
  * mapping, including SC2's widened canvas on widescreen displays.
  */
-static VECTOR2 SCR_ScreenToUI(int x, int y) {
+VECTOR2 SCR_ScreenToUI(int x, int y) {
     size2_t window = re.GetWindowSize();
     FLOAT nx = 0.0f, ny = 0.0f;
 
@@ -454,7 +454,7 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     else SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
 }
 
-static BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
+BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
     return frame && frame->onclick && *frame->onclick;
 }
 static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
@@ -491,6 +491,25 @@ static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
     dst[out] = '\0';
 }
 
+void SCR_LayoutSendFrameCommand(LPCUIFRAME frame) {
+    char command[CMDARG_LEN * 2];
+    if (!SCR_LayoutFrameHasClickCommand(frame)) return;
+    SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", command);
+}
+
+void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down) {
+    (void)layout;
+    layout_hovered_number = number;
+    layout_left_down = down;
+}
+
+void SCR_WindowPrepare(HANDLE layout, LPCRECT root) {
+    SCR_ClearWindow(layout);
+    if (root) SCR_SetLayoutRoot(root);
+}
+
 void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gb = frame->buffer.data;
     BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
@@ -505,6 +524,32 @@ static void SCR_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
     uiGlueTextButton_t const *gb = frame->buffer.data;
     if (SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame))
         SCR_LayoutDrawHighlightData(&gb->highlight, SCR_LayoutRect(frame));
+}
+
+BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y) {
+    if (!layout || !point || !wheel_y || !re.GetTextSize) return false;
+    for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+        LPUIFRAME frame = SCR_Frame(i - 1);
+        RECT const *rect;
+        uiTextArea_t const *ta;
+        RECT view;
+        drawText_t measure;
+        FLOAT max_scroll;
+        if (!frame || frame->flags.type != FT_TEXTAREA) continue;
+        rect = SCR_LayoutRect(frame);
+        if (!Rect_contains(rect, point)) continue;
+        ta = frame->buffer.data;
+        view = *rect;
+        view.x += ta->inset; view.y += ta->inset;
+        view.w -= ta->inset * 2; view.h -= ta->inset * 2;
+        measure = SCR_GetDrawText(frame, view.w, SCR_GetStringValue(frame), &(uiLabel_t){
+            .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP});
+        measure.flags |= DRAW_WORD_WRAP;
+        max_scroll = MAX(0.0f, re.GetTextSize(&measure).y - view.h);
+        if (max_scroll > 0.0f) frame->value = MIN(1.0f, MAX(0.0f, frame->value - wheel_y * 0.1f));
+        return true;
+    }
+    return false;
 }
 
 void SCR_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {

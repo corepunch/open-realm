@@ -75,8 +75,14 @@ static LPCUIFRAME CL_WindowClickableAt(clientWindow_t *window, LPCVECTOR2 point)
 
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
 static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
+    char command[64];
     if (!frame) return;
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION)) CL_WindowClose(window->id);
+    else if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) {
+        CL_WindowClose(window->id);
+        snprintf(command, sizeof(command), "cmd modal_close %u", window->class_id);
+        Cmd_ForwardToServer(command);
+    }
     else SCR_LayoutSendFrameCommand(frame);
 }
 

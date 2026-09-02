@@ -698,21 +698,29 @@ CLIENTCOMMAND(GameResultQuit) {
 /* F10 and the authored Menu button share this route; pause ownership stays on the server. */
 CLIENTCOMMAND(Menu) {
     (void)argc; (void)argv;
-    level.paused = true;
+    G_SetClientModal(clent, WC3_MODAL_MAIN, true);
     UI_ShowMainMenu(clent);
 }
 
 CLIENTCOMMAND(Resume) {
     (void)argc; (void)argv;
-    level.paused = false;
-    UI_WriteWindowClose(clent, BZ_WC3_WINDOW_MENU);
+    G_SetClientModal(clent, WC3_MODAL_MAIN, false);
 }
 
-/* The upper Allies button/F11 route is wired now so mouse and keyboard
- * agree. The actual alliance dialog remains a separate UI implementation. */
+CLIENTCOMMAND(ModalClose) {
+    DWORD class_id;
+    if (argc < 2) return;
+    class_id = strtoul(argv[1], NULL, 10);
+    if (class_id == BZ_WC3_WINDOW_LOG) G_SetClientModal(clent, WC3_MODAL_LOG, false);
+    else if (class_id == BZ_WC3_WINDOW_MENU) G_SetClientModal(clent, WC3_MODAL_MAIN, false);
+    else if (class_id == BZ_WC3_WINDOW_ALLIES) G_SetClientModal(clent, WC3_MODAL_ALLIES, false);
+    else if (class_id == BZ_WC3_WINDOW_QUEST) G_SetClientModal(clent, WC3_MODAL_QUEST, false);
+}
+
 CLIENTCOMMAND(Allies) {
     (void)argc;
     (void)argv;
+    UI_ShowAllies(clent);
 }
 
 CLIENTCOMMAND(Quest) {
@@ -723,6 +731,7 @@ CLIENTCOMMAND(Quest) {
     FOR_EACH_LIST(QUEST, q, level.quests) {
         if (index == 0) {
             UI_ShowQuest(clent, q);
+            G_SetClientModal(clent, WC3_MODAL_QUEST, true);
             break;
         } else {
             index--;
@@ -856,6 +865,7 @@ clientCommand_t clientCommands[] = {
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
     { "resume", CMD_Resume },
+    { "modal_close", CMD_ModalClose },
     { "allies", CMD_Allies },
     { NULL }
 };

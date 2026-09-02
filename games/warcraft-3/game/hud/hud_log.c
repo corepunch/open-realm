@@ -20,7 +20,7 @@ static BOOL LogEnsureLoaded(void) {
     log_loaded = true;
     if (!LogDialog_Load(&log_dialog)) return false;
     UI_CenterFrame(log_dialog.LogDialog);
-    UI_SetOnClick(log_dialog.LogOkButton, UI_WINDOW_CLOSE_ACTION);
+    UI_SetOnClick(log_dialog.LogOkButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     return true;
 }
 
@@ -73,10 +73,11 @@ static void UI_WriteLogWindow(LPEDICT ent) {
     }
 
     UI_SetTextPointer(log_dialog.LogArea, MessageLogText(client));
-    UI_SetOnClick(log_dialog.LogOkButton, UI_WINDOW_CLOSE_ACTION);
+    UI_SetOnClick(log_dialog.LogOkButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_WriteWindow(ent, log_dialog.LogDialog, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_LOG, .class_id = BZ_WC3_WINDOW_LOG,
         .flags = UI_WINDOW_MOVABLE | UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
+    G_SetClientModal(ent, WC3_MODAL_LOG, true);
     UI_SetCurrentClient(NULL);
 }
 

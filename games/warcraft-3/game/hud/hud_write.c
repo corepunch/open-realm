@@ -350,9 +350,3 @@ void UI_WriteWindowEnd(LPEDICT ent) {
     gi.Write(PF_LONG, &ui_window_text_size); gi.Write(PF_DATA, &text);
     gi.unicast(ent);
 }
-
-void UI_WriteWindowClose(LPEDICT ent, DWORD id) {
-    if (!ent || !ent->client || !ent->client->connected) return;
-    gi.Write(PF_BYTE, &(LONG){svc_window}); gi.Write(PF_BYTE, &(LONG){UI_WINDOW_CLOSE});
-    gi.Write(PF_LONG, &id); gi.unicast(ent);
-}

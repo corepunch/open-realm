@@ -740,18 +740,6 @@ TEST(net, window_unique_class_replaces_existing_instance) {
     CL_WindowClear();
 }
 
-TEST(net, server_window_close_operation_removes_window) {
-    BYTE buf[64];
-    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-
-    test_client_stubs_init(); CL_WindowClear();
-    test_send_window(3, 91, UI_WINDOW_MODAL, 0.1f, "Menu", "resume");
-    T_ASSERT(CL_WindowModalActive());
-    SZ_Clear(&sb); MSG_WriteByte(&sb, svc_window); MSG_WriteByte(&sb, UI_WINDOW_CLOSE); MSG_WriteLong(&sb, 3);
-    sb.readcount = 0; CL_ParseServerMessage(&sb);
-    T_ASSERT(!CL_WindowModalActive());
-}
-
 TEST(net, window_click_raises_and_moves_keyboard_focus) {
     char command_buf[128]; BYTE message_buf[256];
 

@@ -444,13 +444,13 @@ typedef enum {
 
 typedef enum {
     UI_WINDOW_OPEN,
-    UI_WINDOW_CLOSE,
 } uiWindowOp_t;
 
 #define UI_WINDOW_MOVABLE (1u << 0) // flag bit; permits client-local pointer dragging; used by server-authored windows
 #define UI_WINDOW_MODAL   (1u << 1) // flag bit; blocks input outside the topmost modal window; used by confirmation-style windows
 #define UI_WINDOW_UNIQUE  (1u << 2) // flag bit; keeps one instance per class; used by singleton inventory and journal windows
 #define UI_WINDOW_CLOSE_ACTION "close_window" // client action; closes the owning window without a server command
+#define UI_WINDOW_CLOSE_NOTIFY_ACTION "close_window_notify" // client action; closes locally and notifies server of modal release
 
 typedef struct {
     DWORD id, class_id, flags;

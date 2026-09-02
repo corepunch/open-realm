@@ -13,7 +13,7 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
-#define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
+#define EDICTFIELD(x, type, ...) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type, ##__VA_ARGS__ }
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
@@ -138,7 +138,7 @@ typedef struct {
     LPCSTR name;
     DWORD ofs;
     fieldtype_t type;
-    DWORD flags;
+    DWORD array_size;
 } field_t;
 
 typedef enum {
@@ -349,6 +349,9 @@ struct gcamerasetup_s {
     VECTOR2 position;
 };
 
+#define WC3_MESSAGE_LOG_MAX_ENTRIES 128 // entries; bounded per-client message history for the Message Log dialog
+#define WC3_MESSAGE_LOG_ENTRY_SIZE 1024 // bytes; maximum stored Message Log entry length
+
 struct client_s {
     PLAYER ps;
     BOOL connected; /* ClientBegin completed for this reserved player edict. */
@@ -367,6 +370,7 @@ struct client_s {
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control, no_ui;
+    DWORD modal_flags;
     BOOL quest_dialog_open;
     menu_t menu;
     struct {
@@ -407,6 +411,11 @@ struct client_s {
         DWORD end_time;        /* game time (ms), 0 = inactive */
         char text[1024];
     } message;
+    struct {
+        char entries[WC3_MESSAGE_LOG_MAX_ENTRIES][WC3_MESSAGE_LOG_ENTRY_SIZE];
+        DWORD first;
+        DWORD count;
+    } message_log;
     DWORD cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
     DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
@@ -590,6 +599,9 @@ struct gquest_s {
     BOOL failed;
     BOOL enabled;
 };
+
+/* Quest rows are present in the journal only while both server visibility gates are enabled. */
+#define QuestIsVisible(quest) ((quest) && (quest)->enabled && (quest)->discovered)
 
 typedef struct {
     struct { FLOAT day, night; } sight_radius;
@@ -1097,6 +1109,7 @@ struct level_locals {
     DWORD time;
     BOOL script_paused;
     BOOL quest_paused;
+    BOOL modal_paused;
     BOOL started;
     BOOL scriptsStarted;
 };
@@ -1121,6 +1134,7 @@ LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 void G_SetClientConnected(LPEDICT player, BOOL connected);
 void G_SetScriptPaused(BOOL paused);
+void G_SetClientModal(LPEDICT player, DWORD modal, BOOL open);
 void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
@@ -1193,6 +1207,8 @@ DWORD G_FowWorldToCellY(FLOAT y);
 BOOL G_IsNight(void);
 
 // g_spawn.c
+BOOL WriteGame(LPCSTR filename);
+BOOL ReadGame(LPCSTR filename);
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
 void G_BindEntityData(LPEDICT);
@@ -1412,6 +1428,7 @@ void UI_WriteTooltipFrame(void);
 void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+void UI_ShowTransientText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 void UI_ClearTextMessages(LPEDICT);
 void UI_InvalidateDialoguePresentation(LPEDICT);
 void UI_WriteDialoguePresentation(LPEDICT);
@@ -1455,6 +1472,8 @@ void UI_ShowGameResult(LPEDICT, BOOL);
 void UI_HideGameResult(LPEDICT);
 void UI_ShowQuests(LPEDICT);
 void UI_HideQuests(LPEDICT);
+void UI_ShowAllies(LPEDICT);
+void UI_ShowLog(LPEDICT);
 void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);

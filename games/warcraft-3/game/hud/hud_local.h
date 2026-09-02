@@ -35,7 +35,6 @@ void UI_WriteEnd(LPEDICT ent);
 void UI_WriteWindow(LPEDICT ent, LPCFRAMEDEF root, uiWindowDef_t const *def);
 void UI_WriteWindowStart(uiWindowDef_t const *def);
 void UI_WriteWindowEnd(LPEDICT ent);
-void UI_WriteWindowClose(LPEDICT ent, DWORD id);
 DWORD UI_WindowTextOffset(LPCSTR text);
 void UI_ResetFrameWriteList(void);
 void UI_CenterFrame(LPFRAMEDEF frame);
@@ -80,6 +79,7 @@ void UI_ShowQuests(LPEDICT ent);
 /* Message log (hud_log.c) */
 void UI_MessageLogAppend(LPEDICT ent, LPCSTR text);
 void UI_ShowLog(LPEDICT ent);
+void UI_ShowAllies(LPEDICT ent);
 void UI_ShowMainMenu(LPEDICT ent);
 
 /* Game result dialog (hud_game_result.c) */

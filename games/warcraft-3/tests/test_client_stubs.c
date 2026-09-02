@@ -81,6 +81,7 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
 void Cbuf_AddText(LPCSTR text) { (void)text; }
+void Cmd_ForwardToServer(LPCSTR text) { (void)text; }
 unsigned int SDL_GetTicks(void) { return 0; }
 int SDL_ShowCursor(int toggle) { (void)toggle; return 1; }
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) { (void)code; (void)fmt; }

@@ -21,8 +21,8 @@ void UI_ShowMainMenu(LPEDICT ent) {
     if (!ent || !ent->client || !ent->client->connected || !MenuEnsureLoaded()) return;
     UI_SetText(menu.PauseButtonText, "Resume Game");
     UI_SetText(menu.ReturnButtonText, "Return to Game");
-    UI_SetOnClick(menu.PauseButton, "resume");
-    UI_SetOnClick(menu.ReturnButton, "resume");
+    UI_SetOnClick(menu.PauseButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
+    UI_SetOnClick(menu.ReturnButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
     UI_WriteWindow(ent, menu.EscMenuMainPanel, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU,
         .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
