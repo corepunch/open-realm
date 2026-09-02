@@ -219,6 +219,7 @@ For in-depth details on specific engine subsystems, consult the following dedica
 | Sound System & Entity Audio Architecture | [docs/architecture/sound.md](docs/architecture/sound.md) |
 | Fog of War Generation & Algorithms | [docs/architecture/fog-of-war-algorithms.md](docs/architecture/fog-of-war-algorithms.md) |
 | Shared Model Shader & Lighting Uniforms | [docs/architecture/model-shader.md](docs/architecture/model-shader.md) |
+| Server-Selected Presentation Effects | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
 | Code Patterns & Struct Disciplines That Work | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
 
 ### Game-Specific Implementations
@@ -237,7 +238,15 @@ For in-depth details on specific engine subsystems, consult the following dedica
 
 ## 7. Engine & Coding Discipline Rules
 
-- **Strict Engine/Game Boundary**: Modules under `renderer/`, `client/`, `common/`, and `server/` must remain completely game-agnostic. No game-specific hardcoded names, paths, or literals in engine files. Game policies reside exclusively under `games/<game>/`.
+- **Strict Engine/Game Boundary**: Modules under `renderer/`, `client/`, `common/`, and `server/` must remain
+  completely game-agnostic. No game-specific hardcoded names, paths, or literals in engine files. This also
+  covers *symbol names*, not just string literals: an enum member, macro, or struct field named after a
+  specific race, faction, unit, or spell (e.g. `EF_BUILDING_FIRE_UNDEAD`) is game-specific even when its
+  underlying type is a generic bitmask. If behavior depends on which race/unit/spell is involved, resolve it
+  inside `games/<game>/` and expose only a generic index/model reference plus explicit discriminant flags to
+  the shared struct — see `entityState_t.effect` / `effect_flags` (`common/shared.h`) as the reference
+  pattern, and `games/warcraft-3/game/skills/s_onfire.c` for where the race-specific resolution belongs.
+  Game policies reside exclusively under `games/<game>/`.
 - **Network Contract Stability**: `entityState_t` and `playerState_t` are tight network contracts. Never add fields without careful justification; prefer existing fields, configstrings, or server-authored UI payloads.
 - **Data-Oriented & id-Tech Idioms**: Follow Quake 2 patterns (`g_*.c`, `cl_*.c`, `sv_*.c`, `r_*.c`). Favor flat, memory-mapped structs, single-pass schema tables, and thin interfaces over heavy OOP abstractions.
 - **No Silent Fallbacks or Demotions**: If an asset or resource fails to load, log a clear diagnostic. Do not hide bugs behind silent fallback flags. Verify root causes with logging and tests before committing fixes.

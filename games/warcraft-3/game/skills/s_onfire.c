@@ -3,8 +3,8 @@
 #include "../g_local.h"
 
 typedef struct {
-    LPCSTR dir[2];
-    LPCSTR prefix[2];
+    LPCSTR dir[2];    /* 0 = small-building directory, 1 = large-building directory. */
+    LPCSTR prefix[2]; /* 0 = small-building prefix, 1 = large-building prefix. */
 } onFireNames_t;
 
 typedef struct {
