@@ -42,7 +42,7 @@ See also: [Building Damage Rendering](../games/warcraft-3/building-damage-render
 PR #242 initially added `#ifdef WC3 ... strcmp(command, "wc3_selection") ... #endif` directly inside the
 shared `CL_ParseGameCommand()` in `client/cl_parse.c`. That was wrong because selection synchronization is
 a generic client-state operation, not WC3 UI behavior. The corrected implementation uses the generic
-`set_selection` command and parses it in `CL_ParseGameCommand()` without a game guard; only the server-side
+`select` command and parses it in `CL_ParseGameCommand()` without a game guard; only the server-side
 shortcut producer remains under `games/warcraft-3/`.
 
 ## Review rule

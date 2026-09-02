@@ -120,7 +120,7 @@ static void G_SendShortcutSelection(LPEDICT clent, LPEDICT target) {
     if (!clent || !clent->client || !target || !target->inuse ||
         !clent->client->connected) return;
     number = (DWORD)(target - globals.edicts);
-    gi.GameCommand(clent, GAME_COMMAND_SET_SELECTION, &number, sizeof(number));
+    gi.GameCommand(clent, "select", &number, sizeof(number));
 }
 
 static BOOL G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {

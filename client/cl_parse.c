@@ -741,7 +741,7 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
             LPCSTR path = cl.configstrings[CS_SOUNDS + idx];
             if (path && path[0]) S_PlaySoundFile(path);
         }
-    } else if (!strcmp(command, GAME_COMMAND_SET_SELECTION)) {
+    } else if (!strcmp(command, "select")) {
         CL_ParseSetSelection(&payload);
     }
 
