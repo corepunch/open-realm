@@ -55,6 +55,50 @@ static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
 
 static DWORD presentation_write_count;
 static DWORD presentation_unicast_count;
+static BOOL captured_pause;
+
+static void capture_pause(BOOL paused) { captured_pause = paused; }
+
+TEST(wc3_api, pause_game_forwards_authoritative_pause_state) {
+    void (*old_set_paused)(BOOL) = gi.SetPaused;
+
+    captured_pause = false;
+    gi.SetPaused = capture_pause;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PauseGame(true)\n"
+        "endfunction\n"));
+    T_ASSERT(level.script_paused);
+    T_ASSERT(captured_pause);
+
+    G_SetScriptPaused(false);
+    T_ASSERT(!level.script_paused);
+    T_ASSERT(!captured_pause);
+    gi.SetPaused = old_set_paused;
+}
+
+TEST(wc3_api, quest_pause_is_single_client_only) {
+    void (*old_set_paused)(BOOL) = gi.SetPaused;
+
+    captured_pause = false;
+    gi.SetPaused = capture_pause;
+    G_SetClientConnected(&g_edicts[0], true);
+    G_SetQuestDialogOpen(&g_edicts[0], true);
+    T_ASSERT(level.quest_paused);
+    T_ASSERT(captured_pause);
+
+    G_SetClientConnected(&g_edicts[1], true);
+    T_ASSERT(!level.quest_paused);
+    T_ASSERT(!captured_pause);
+
+    G_SetClientConnected(&g_edicts[1], false);
+    T_ASSERT(level.quest_paused);
+    T_ASSERT(captured_pause);
+    G_SetQuestDialogOpen(&g_edicts[0], false);
+    T_ASSERT(!level.quest_paused);
+    T_ASSERT(!captured_pause);
+    gi.SetPaused = old_set_paused;
+}
 
 static void capture_presentation_write(pfWriteType_t type, void const *data) {
     (void)type;

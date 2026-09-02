@@ -113,7 +113,7 @@ sends the same command with a leading `-` on mouse-up even if the pointer has le
 modules may use it for press-and-hold controls without adding game-specific branches to `client/`.
 
 Configstrings are also live server state, not connect-time-only metadata. A game-side `gi.configstring()` call reaches
-`PF_Confignstring()`, which stores the new value and clears `sv.syncstrings[index]`. At the start of a later
+`PF_Confignstring()`, which delegates storage and sync-bit invalidation to the core server's `SV_SetConfigString()`. At the start of a later
 `SV_SendClientMessages()` pass, each unsynced entry is sent reliably with `svc_configstring` before normal spawned-client datagrams.
 Code that mutates `sv.configstrings[]` through this API must not leave the sync bit true, or already-connected clients will retain the
 old value.

@@ -73,10 +73,6 @@ static void QuestDebugText(DWORD quest_index, LPCSTR field, LPCSTR raw, LPCSTR r
             (unsigned)quest_index, field ? field : "?", raw_text, resolved_text);
 }
 
-static BOOL QuestIsVisible(LPCQUEST quest) {
-    return quest && quest->enabled && quest->discovered;
-}
-
 /* Retail lists enabled undiscovered quests as placeholders but only lets the
  * player open discovered quests. */
 static BOOL QuestIsListVisible(LPCQUEST quest) {
@@ -310,7 +306,7 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
     }
 
     /* Done is presentation-only: let the client close this window without a round trip. */
-    UI_SetOnClick(qd.QuestAcceptButton, UI_WINDOW_CLOSE_ACTION);
+    UI_SetOnClick(qd.QuestAcceptButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
 
     PopulateQuestList(qd.QuestMainContainer, true, quest);
     PopulateQuestList(qd.QuestOptionalContainer, false, quest);
@@ -335,5 +331,7 @@ void UI_ShowQuests(LPEDICT ent) {
             if (QuestIsVisible(q)) { quest = q; break; }
         }
     }
-    if (quest) UI_ShowQuest(ent, quest);
+    if (quest) {
+        UI_ShowQuest(ent, quest);
+    }
 }

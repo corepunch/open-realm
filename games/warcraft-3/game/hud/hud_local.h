@@ -79,6 +79,8 @@ void UI_ShowQuests(LPEDICT ent);
 /* Message log (hud_log.c) */
 void UI_MessageLogAppend(LPEDICT ent, LPCSTR text);
 void UI_ShowLog(LPEDICT ent);
+void UI_ShowAllies(LPEDICT ent);
+void UI_ShowMainMenu(LPEDICT ent);
 
 /* Game result dialog (hud_game_result.c) */
 void UI_ShowGameResult(LPEDICT ent, BOOL victory);

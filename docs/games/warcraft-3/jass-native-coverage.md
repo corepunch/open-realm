@@ -5,6 +5,13 @@ This document tracks the Warcraft III JASS host callbacks registered by
 signature authority. HiveWorkshop references are useful for observable editor
 and map-script behavior, but do not replace the native declarations.
 
+`TimerStart(timer, timeout, periodic, null)` is legal and starts or resets the
+timer without an expiration callback. `TimerStart` must detect that null before
+calling strict `jass_checkcode()`; non-null handlers still require the exact
+`code` type. Blizzard's Human02 startup path uses this during cutscene
+fast-forward or ESC skip. HiveWorkshop's timer reset examples confirm the same
+native behavior, commonly followed by `PauseTimer` when resetting getter state.
+
 ## Baseline
 
 The registry currently contains 917 callbacks. The last conservative source
@@ -212,6 +219,12 @@ that set, while `IsPointInRegion`, `IsLocationInRegion`, and `IsUnitInRegion`
 query it. Enter/leave events require per-unit previous membership so crossing an
 edge fires once; testing only current containment cannot distinguish entry from
 remaining inside.
+
+## Global Pause
+
+`PauseGame(flag)` is wired through the WC3 game module to the generic server scheduler pause. The server freezes `sv.time` / simulation frames while continuing network reads and client traffic. Pause sources are combined in game code so closing a Quest modal cannot accidentally clear a script-owned `PauseGame(true)`. Quest-driven pausing is restricted to single-client sessions. See [Pause And Modal UI](pause-and-modal-ui.md).
+
+This is distinct from `PauseUnit`, `PauseCompAI`, and timer pause state. `PauseTimer` / `ResumeTimer` remain unimplemented object-level timer natives.
 
 ## Timers
 

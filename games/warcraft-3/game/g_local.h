@@ -349,8 +349,8 @@ struct gcamerasetup_s {
     VECTOR2 position;
 };
 
-#define WC3_MESSAGE_LOG_MAX_ENTRIES 128
-#define WC3_MESSAGE_LOG_ENTRY_SIZE 1024
+#define WC3_MESSAGE_LOG_MAX_ENTRIES 128 // entries; bounded per-client message history for the Message Log dialog
+#define WC3_MESSAGE_LOG_ENTRY_SIZE 1024 // bytes; maximum stored Message Log entry length
 
 struct client_s {
     PLAYER ps;
@@ -370,6 +370,8 @@ struct client_s {
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control, no_ui;
+    DWORD modal_flags;
+    BOOL quest_dialog_open;
     menu_t menu;
     struct {
         CAMERASETUP state;
@@ -597,6 +599,9 @@ struct gquest_s {
     BOOL failed;
     BOOL enabled;
 };
+
+/* Quest rows are present in the journal only while both server visibility gates are enabled. */
+#define QuestIsVisible(quest) ((quest) && (quest)->enabled && (quest)->discovered)
 
 typedef struct {
     struct { FLOAT day, night; } sight_radius;
@@ -1102,6 +1107,9 @@ struct level_locals {
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
+    BOOL script_paused;
+    BOOL quest_paused;
+    BOOL modal_paused;
     BOOL started;
     BOOL scriptsStarted;
 };
@@ -1125,6 +1133,9 @@ void G_InitJassHost(void);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 void G_SetClientConnected(LPEDICT player, BOOL connected);
+void G_SetScriptPaused(BOOL paused);
+void G_SetClientModal(LPEDICT player, DWORD modal, BOOL open);
+void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);
@@ -1196,6 +1207,8 @@ DWORD G_FowWorldToCellY(FLOAT y);
 BOOL G_IsNight(void);
 
 // g_spawn.c
+BOOL WriteGame(LPCSTR filename);
+BOOL ReadGame(LPCSTR filename);
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
 void G_BindEntityData(LPEDICT);
@@ -1453,13 +1466,13 @@ void UI_TestResetInfoPanelIconCache(void);
 LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade);
 #endif
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
-void UI_WriteWindow(LPEDICT, LPCFRAMEDEF, uiWindowDef_t const *);
 void UI_WriteStart(DWORD);
 void UI_ClearLayer(LPEDICT, DWORD);
 void UI_ShowGameResult(LPEDICT, BOOL);
 void UI_HideGameResult(LPEDICT);
 void UI_ShowQuests(LPEDICT);
-void UI_MessageLogAppend(LPEDICT, LPCSTR);
+void UI_HideQuests(LPEDICT);
+void UI_ShowAllies(LPEDICT);
 void UI_ShowLog(LPEDICT);
 void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);

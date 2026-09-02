@@ -15,7 +15,6 @@
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
-void PF_Configstring(DWORD index, LPCSTR value);
 struct game_import gi;
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
@@ -88,6 +87,15 @@ static void reset_test_gi(void) {
     gi.FontIndex = test_font_index;
     gi.ClearWorld = SV_ClearWorld;
     gi.ApplyLobbySettings = SV_ApplyLobbySettings;
+}
+
+TEST(server_net, pause_publishes_client_render_state) {
+    test_client_stubs_clear_cvars();
+    memset(&sv, 0, sizeof(sv)); memset(&svs, 0, sizeof(svs));
+    SV_SetPaused(true);
+    T_ASSERT(sv.paused); T_EQ(Cvar_Integer("paused", 0), 1);
+    SV_SetPaused(false);
+    T_ASSERT(!sv.paused); T_EQ(Cvar_Integer("paused", 1), 0);
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
@@ -331,7 +339,7 @@ TEST(server_net, game_configstring_change_marks_value_for_reliable_resync) {
 
     reset_server_state(1);
     sv.syncstrings[index] = true;
-    PF_Configstring(index, "LateRuntimeName");
+    SV_SetConfigString(index, "LateRuntimeName", sizeof("LateRuntimeName"));
 
     T_STREQ(sv.configstrings[index], "LateRuntimeName");
     T_ASSERT(!sv.syncstrings[index]);

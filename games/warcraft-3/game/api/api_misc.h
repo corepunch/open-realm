@@ -323,7 +323,8 @@ DWORD TimerStart(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
     FLOAT timeout = jass_checknumber(j, 2);
     BOOL periodic = jass_checkboolean(j, 3);
-    LPCJASSFUNC handlerFunc = jass_checkcode(j, 4);
+    /* Warcraft accepts null to start/reset a timer without an expiration callback. */
+    LPCJASSFUNC handlerFunc = jass_toboolean(j, 4) ? jass_checkcode(j, 4) : NULL;
     if (whichTimer) G_TimerStart(whichTimer, (DWORD)(MAX(0.0f, timeout) * 1000.0f), periodic, handlerFunc);
     return 0;
 }
@@ -1212,7 +1213,8 @@ DWORD ShowInterface(LPJASS j) {
     return 0;
 }
 DWORD PauseGame(LPJASS j) {
-    //BOOL flag = jass_checkboolean(j, 1);
+    BOOL flag = jass_checkboolean(j, 1);
+    G_SetScriptPaused(flag);
     return 0;
 }
 DWORD AddIndicator(LPJASS j) {

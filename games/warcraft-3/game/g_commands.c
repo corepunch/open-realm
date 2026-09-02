@@ -695,18 +695,26 @@ CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
 }
 
-/* F10 and the authored Menu button share this route. The in-game Esc/Menu
- * dialog itself is not implemented by the current server-authored HUD. */
+/* F10 and the authored Menu button share this route; client open acknowledgement acquires pause. */
 CLIENTCOMMAND(Menu) {
-    (void)argc;
-    (void)argv;
+    (void)argc; (void)argv;
+    UI_ShowMainMenu(clent);
 }
 
-/* The upper Allies button/F11 route is wired now so mouse and keyboard
- * agree. The actual alliance dialog remains a separate UI implementation. */
+CLIENTCOMMAND(Resume) {
+    (void)argc; (void)argv;
+    G_SetClientModal(clent, WC3_MODAL_CLIENT, false);
+}
+
+CLIENTCOMMAND(Pause) {
+    if (argc < 2) return;
+    G_SetClientModal(clent, WC3_MODAL_CLIENT, atoi(argv[1]) != 0);
+}
+
 CLIENTCOMMAND(Allies) {
     (void)argc;
     (void)argv;
+    UI_ShowAllies(clent);
 }
 
 CLIENTCOMMAND(Quest) {
@@ -849,6 +857,8 @@ clientCommand_t clientCommands[] = {
     { "gameresult_quit", CMD_GameResultQuit },
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
+    { "resume", CMD_Resume },
+    { "pause", CMD_Pause },
     { "allies", CMD_Allies },
     { NULL }
 };

@@ -9,9 +9,16 @@ The server owns a window's instance ID, opaque game-local class ID, flags, frame
 z-order, keyboard focus, pointer capture, and the local drag offset. Updating an existing instance preserves its drag offset.
 Opening a `UI_WINDOW_UNIQUE` class replaces and focuses its existing instance.
 
+After opening a modal `svc_window`, the client compares modal-list presence with its last reported pause state. The first modal
+sends `pause 1`; closing the last modal sends `pause 0`. Opening or closing nested modals sends nothing while the list remains
+modal. The game keeps this client request as an independent pause owner, so it cannot clear a script-owned `PauseGame(true)`.
+
 Windows form a doubly linked list. The head is backmost and the tail is frontmost. Drawing walks head to tail; pointer hit
 testing walks tail to head. Left-clicking a window unlinks it and appends it at the tail, making draw order and keyboard focus
 change together. Closing the focused window focuses the new tail.
+
+`SCR_DrawLayout()` draws persistent layout layers first and then calls `CL_WindowDraw()`, placing transient windows above the
+HUD. Parsing and retaining `svc_window` does not make a window visible by itself; the screen layout pass owns submission.
 
 `UI_WINDOW_MODAL` and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost modal window consumes input outside its
 bounds. Unique means only one instance of that class may exist. Inventory and quest-detail windows can be unique without being
@@ -77,5 +84,5 @@ The connected Quest run found that authored FDF frames must use `PF_UIWINDOWFRAM
 them as `PF_UIFRAME` made the inline-string codec dereference the first arena offset (`0x1`). Proxy and authored frames must both
 select the offset-aware codec. `wc3_game.hud_authored_window_frame_uses_offset_codec` guards this boundary.
 
-The standalone net tests cover text offsets, a text arena above 255 bytes, unique-class replacement, linked-list raise order,
-keyboard focus, and malformed packets without a frame terminator.
+The standalone net tests cover text offsets, a text arena above 255 bytes, screen-pass drawing, unique-class replacement,
+linked-list raise order, keyboard focus, and malformed packets without a frame terminator.

@@ -20,6 +20,7 @@ mouseEvent_t mouse;
 DWORD test_fow_upload_calls;
 DWORD test_cursor_draw_calls;
 COLOR32 test_cursor_tint;
+char test_forwarded_command[128];
 
 typedef struct { char name[64]; char value[128]; } mockCvar_t;
 static mockCvar_t mock_cvars[32];
@@ -69,6 +70,11 @@ LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback) {
     return fallback;
 }
 
+cvar_t *Cvar_Set(LPCSTR name, LPCSTR value) {
+    test_client_stubs_set_cvar(name, value);
+    return NULL;
+}
+
 void CL_ParseTEnt(LPSIZEBUF msg) { (void)msg; }
 void CL_BeginLoadingMap(LPCSTR mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = 0; }
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }
@@ -81,6 +87,9 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
 void Cbuf_AddText(LPCSTR text) { (void)text; }
+void Cmd_ForwardToServer(LPCSTR text) {
+    snprintf(test_forwarded_command, sizeof(test_forwarded_command), "%s", text ? text : "");
+}
 unsigned int SDL_GetTicks(void) { return 0; }
 int SDL_ShowCursor(int toggle) { (void)toggle; return 1; }
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) { (void)code; (void)fmt; }
@@ -94,6 +103,7 @@ void test_client_stubs_init(void) {
     test_fow_upload_calls = 0;
     test_cursor_draw_calls = 0;
     test_cursor_tint = COLOR32_WHITE;
+    test_forwarded_command[0] = '\0';
     re.GetWindowSize = mock_GetWindowSize;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
     re.DrawFill = mock_DrawFill;

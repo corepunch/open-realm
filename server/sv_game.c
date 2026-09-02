@@ -102,30 +102,7 @@ void PF_Write(pfWriteType_t type, void const *value) {
 }
 
 void PF_Confignstring(DWORD index, LPCSTR value, DWORD len) {
-    if (index < 0 || index >= MAX_CONFIGSTRINGS) {
-        fprintf(stderr, "configstring: bad index %i\n", index);
-        return;
-    }
-    
-    if (len > sizeof(sv.configstrings[index]) - 1) {
-        len = sizeof(sv.configstrings[index]) - 1;
-    }
-    memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
-    memcpy(sv.configstrings[index], value, len);
-    /* SV_SendClientMessages reliably flushes configstrings whose sync bit is
-     * clear.  Runtime game-side configstring changes must therefore invalidate
-     * the synced copy; otherwise already-connected clients keep stale data. */
-    sv.syncstrings[index] = false;
-    
-    //    if (sv.state != ss_loading)
-    //    {    // send the update to everyone
-    //        SZ_Clear (&sv.multicast);
-    //        MSG_WriteChar (&sv.multicast, svc_configstring);
-    //        MSG_WriteShort (&sv.multicast, index);
-    //        MSG_WriteString (&sv.multicast, value);
-    //
-    //        SV_Multicast (vec3_origin, MULTICAST_ALL_R);
-    //    }
+    SV_SetConfigString(index, value, len);
 }
 
 void PF_Configstring(DWORD index, LPCSTR value) {
@@ -238,6 +215,7 @@ void SV_InitGameProgs(void) {
     import.PositionedSound = PF_PositionedSound;
     import.FontIndex = SV_FontIndex;
     import.GetTime = SV_GetTime;
+    import.SetPaused = SV_SetPaused;
     import.ReadFile = FS_ReadFile;
     import.ReadFileAll = FS_ReadFileAll;
     import.error = PF_error;

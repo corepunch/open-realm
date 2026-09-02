@@ -226,6 +226,7 @@ void SV_Map(LPCSTR mapFilename) {
     }
     SV_CreateBaseline();
 //    SV_LoadModels(); // model animation data is loaded lazily by game modules now
+    sv.next_frame_msec = svs.realtime;
     sv.state = ss_game;
     // Keep lobby clients connected through the immediate game start.
     SV_RestoreLobbyClients(lobby_clients, num_lobby_clients);

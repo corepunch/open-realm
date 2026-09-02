@@ -1528,6 +1528,7 @@ TEST(wc3_save, round_trip_jass_timers) {
         "  set timerTrigger = CreateTrigger()\n"
         "  set pausedTimer = CreateTimer()\n"
         "  set pausedTimerAlias = pausedTimer\n"
+        "  call TimerStart(pausedTimer, 10.0, false, null)\n"
         "  call TimerStart(pausedTimer, 10.0, false, function TimerNoop)\n"
         "  call PauseTimer(pausedTimer)\n"
         "  set runningTimer = CreateTimer()\n"

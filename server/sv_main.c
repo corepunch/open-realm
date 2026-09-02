@@ -2,9 +2,9 @@
  * sv_main.c — Main server loop and frame processing.
  *
  * The server advances the game in fixed-size time steps (FRAMETIME).
- * Every frame it reads pending client commands, calls the game library to
- * run one simulation step, and then sends the resulting entity/player state
- * to every connected client.
+ * Every frame it reads pending client commands. When simulation is running it
+ * advances one fixed game step and sends the resulting state; while paused it
+ * keeps transport alive with frozen-state snapshots instead.
  *
  * Entry point called from the platform main loop: SV_Frame().
  */
@@ -15,6 +15,19 @@
 struct game_export *ge;
 struct server sv;
 struct server_static svs;
+
+/* Store one server-owned configstring and force reliable client resynchronization. */
+void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
+    if (index >= MAX_CONFIGSTRINGS) {
+        fprintf(stderr, "configstring: bad index %u\n", index);
+        return;
+    }
+    if (len > sizeof(sv.configstrings[index]) - 1) len = sizeof(sv.configstrings[index]) - 1;
+    memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
+    memcpy(sv.configstrings[index], value, len);
+    /* Connected clients otherwise retain the old value because true means that slot was already sent. */
+    sv.syncstrings[index] = false;
+}
 
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
@@ -165,22 +178,51 @@ void SV_RunGameFrame(void) {
     ge->RunFrame();
 }
 
+/* Pause is a scheduler property, not a stopped server. Client commands must
+ * still be readable so a modal can close/unpause, and spawned clients still
+ * need traffic so their normal connection timeout does not fire. */
+void SV_SetPaused(BOOL paused) {
+    paused = !!paused;
+    Cvar_Set("paused", paused ? "1" : "0");
+    if (sv.paused == paused) {
+        return;
+    }
+    sv.paused = paused;
+    sv.pause_msec = 0;
+
+    /* Wall-clock time accumulated while paused must never become simulation
+     * catch-up work. Keep realtime monotonic and rebase only the simulation
+     * scheduler deadline. */
+    if (!paused) {
+        sv.next_frame_msec = svs.realtime;
+    }
+}
+
 /* Main server tick called from the platform event loop with the elapsed
- * milliseconds since the last call.  Returns immediately if it is not yet
- * time for a new game frame so the caller can do other work. */
+ * milliseconds since the last call.  Network input remains live while the
+ * authoritative simulation is paused. */
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
     SV_ReadPackets();
-    
-    if (svs.realtime < sv.time) {
-        return;
-    }
 
     if (sv.state == ss_lobby) {
         return;
     }
 
-    SV_RunGameFrame();
+    if (sv.paused) {
+        sv.pause_msec += msec;
+        if (sv.pause_msec >= FRAMETIME) {
+            sv.pause_msec %= FRAMETIME;
+            SV_SendClientMessages();
+        }
+        return;
+    }
 
+    if (svs.realtime < sv.next_frame_msec) {
+        return;
+    }
+
+    SV_RunGameFrame();
+    sv.next_frame_msec += FRAMETIME;
     SV_SendClientMessages();
 }

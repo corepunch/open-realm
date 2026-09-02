@@ -182,8 +182,6 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
     UI_InvalidateDialoguePresentation(ent);
 }
 
-__attribute__((visibility("hidden"))) void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
-
 void UI_ShowGameInterface(LPEDICT ent) {
     UI_WriteDialoguePresentation(ent);
     if (ent && ent->client && ent->client->connected)

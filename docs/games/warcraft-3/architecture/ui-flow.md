@@ -214,6 +214,12 @@ draw_text font="Fonts\\FRIZQT__.TTF" rect={...} text="|CffffffffS|Ringle Player"
 
 Use this output to verify screen composition, layout rects, UVs, text translation, color codes, and button state art before taking screenshots.
 
+## Server-Authored Modal Gameplay UI
+
+`LAYER_QUESTDIALOG` and `LAYER_GAME_RESULT` are modal `svc_layout` layers. The generic client layout path, not the glue UI module, owns their input exclusion. While either is visible, lower HUD hotkeys and all WC3 world interaction/camera scrolling are suppressed, but the modal's own button commands continue to reach the server.
+
+The single-client Quest dialog additionally owns a Warcraft simulation pause. The server continues packet processing and frozen-state client traffic while `SV_RunGameFrame()` is gated, so the modal can close without deadlocking and the normal 10-second client timeout does not fire. See [Pause And Modal UI](../pause-and-modal-ui.md).
+
 ## Unit Selection and Command Card Flow
 
 Unit UI data still comes from the server because it depends on game rules and selected entities.
@@ -276,6 +282,7 @@ The HUD screen renders from this cache on later frames.
 ## See Also
 
 - [UI System Architecture](./ui.md)
+- [Pause And Modal UI](../pause-and-modal-ui.md)
 - [UI Quick Reference](ui-quick-reference.md)
 - [Runtime Modules and Cvars](../../../architecture/runtime.md)
 - [FDF File Format](../file-formats/fdf.md)

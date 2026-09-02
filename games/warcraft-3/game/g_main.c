@@ -196,6 +196,7 @@ static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
         return;
     }
+    gi.SetPaused(false);
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_FowShutdown();
@@ -549,8 +550,56 @@ LPCSTR G_LevelString(LPCSTR name) {
     return name;
 }
 
+static void G_RefreshPauseState(void) { gi.SetPaused(level.script_paused || level.modal_paused); }
+
+/* Quest presentation is local, so only a single connected client may promote
+ * that modal state into an authoritative simulation pause. */
+static void G_RefreshQuestPause(void) {
+    DWORD connected = 0;
+    BOOL modal_open = false;
+
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        if (!client->connected) continue;
+        connected++;
+        if (client->modal_flags) modal_open = true;
+    }
+
+    /* A local/single-player modal may freeze the simulation. One player's
+     * quest screen must never globally pause a multi-client match. */
+    level.modal_paused = connected == 1 && modal_open;
+    level.quest_paused = level.modal_paused;
+    G_RefreshPauseState();
+}
+
+/* Script pause owns an independent reason so UI close cannot clear it. */
+void G_SetScriptPaused(BOOL paused) {
+    level.script_paused = !!paused;
+    G_RefreshPauseState();
+}
+
+void G_SetClientModal(LPEDICT player, DWORD modal, BOOL open) {
+    if (!player || !player->client || !modal) return;
+    if (open) player->client->modal_flags |= modal;
+    else player->client->modal_flags &= ~modal;
+    G_RefreshQuestPause();
+}
+
+/* Track Quest ownership per connected client before recomputing global policy. */
+void G_SetQuestDialogOpen(LPEDICT player, BOOL open) {
+    if (!player || !player->client || !player->client->connected) return;
+    player->client->quest_dialog_open = !!open;
+    if (open) player->client->modal_flags |= WC3_MODAL_QUEST;
+    else player->client->modal_flags &= ~WC3_MODAL_QUEST;
+    G_RefreshQuestPause();
+}
+
+/* Disconnect clears modal ownership so an abandoned dialog cannot hold pause. */
 void G_SetClientConnected(LPEDICT player, BOOL connected) {
+    if (!player || !player->client) return;
     player->client->connected = connected;
+    if (!connected) player->client->quest_dialog_open = false, player->client->modal_flags = 0;
+    G_RefreshQuestPause();
 }
 
 /* Client slots and free edicts have zero-initialized player ownership but no
