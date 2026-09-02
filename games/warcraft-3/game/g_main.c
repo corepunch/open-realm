@@ -610,6 +610,27 @@ static void G_ClientBegin(LPEDICT edict) {
     G_FowConnectPlayer(client->ps.number);
     G_FowUpdate();
     G_FowSendFull(edict);
+
+#ifdef BZ_TESTS
+    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_layout_test", "0"))) {
+        LPQUEST q = G_MakeQuest();
+        LPQUESTITEM it;
+        q->title = strdup("Establish Base");
+        q->description = strdup(
+            "To ensure that the Orc threat is dealt with effectively, you must establish a base "
+            "camp and bolster your forces. Only when the camp is prepared can the area be "
+            "considered properly garrisoned.");
+        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct a Barracks");
+        ADD_TO_LIST(it, q->items);
+        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct 2 Farms");
+        ADD_TO_LIST(it, q->items);
+        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Train 6 Footmen");
+        ADD_TO_LIST(it, q->items);
+        q->discovered = true;
+        q->required = true;
+        UI_ShowQuests(edict);
+    }
+#endif
 }
 
 /* Look up or register a display name in the packed CS_GENERAL configstring pool.

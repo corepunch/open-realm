@@ -416,6 +416,16 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
     SCR_SetLayoutLayer(layer, cl.layout[layer]);
+#ifdef BZ_TESTS
+    {
+        static BOOL quest_layout_screenshot_done;
+        if (!quest_layout_screenshot_done && layer == LAYER_QUESTDIALOG
+            && Cvar_Integer("wc3_quest_layout_test", 0)) {
+            quest_layout_screenshot_done = true;
+            Cbuf_AddText("screenshot 5\nquit\n");
+        }
+    }
+#endif
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {
