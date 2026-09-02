@@ -362,6 +362,44 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     UI_ClearTemplates();
 }
 
+TEST(wc3_game, hud_quest_rows_show_undiscovered_and_completed_state) {
+    QUEST done = { .title = "Finished", .discovered = true, .required = true, .enabled = true, .completed = true };
+    QUEST hidden = { .title = "Secret", .discovered = false, .required = false, .enabled = true };
+    LPFRAMEDEF list, optional, button, title, complete;
+
+    done.next = &hidden;
+    UI_ClearTemplates();
+    quest_row_template = UI_Spawn(FT_FRAME, NULL);
+    UI_SetSize(quest_row_template, 0.08f, 0.033f);
+    button = UI_Spawn(FT_GLUEBUTTON, quest_row_template);
+    snprintf(button->Name, sizeof(button->Name), "QuestListItemButton");
+    title = UI_Spawn(FT_TEXT, quest_row_template);
+    snprintf(title->Name, sizeof(title->Name), "QuestListItemTitle");
+    title->Font.DisabledColor = MAKE(COLOR32, 64, 80, 96, 160);
+    complete = UI_Spawn(FT_TEXT, quest_row_template);
+    snprintf(complete->Name, sizeof(complete->Name), "QuestListItemComplete");
+    optional = UI_Spawn(FT_FRAME, NULL);
+    UI_SetSize(list = UI_Spawn(FT_FRAME, NULL), 0.21f, 0.11f);
+    UI_SetSize(optional, 0.21f, 0.11f);
+    level.quests = &done;
+
+    PopulateQuestList(list, true, &done);
+    PopulateQuestList(optional, false, &done);
+    title = UI_FindChildFrame(list, "QuestListItemTitle");
+    complete = UI_FindChildFrame(list, "QuestListItemComplete");
+    T_STREQ(title->Text, "> Finished");
+    T_STREQ(complete->Text, "(QUESTCOMPLETED)");
+    T_FEQ(title->Font.Color.r, 64, 0.001f);
+    title = UI_FindChildFrame(optional, "QuestListItemTitle");
+    T_STREQ(title->Text, "UNDISCOVERED_QUEST");
+
+    level.quests = NULL;
+    quest_row_template = quest_item_template = NULL;
+    quests_loaded = false;
+    memset(&qd, 0, sizeof(qd));
+    UI_ClearTemplates();
+}
+
 TEST(wc3_game, hud_message_overlay_loads_authored_geometry) {
     msg_overlay_loaded = false;
     T_ASSERT(MessageEnsureLoaded());

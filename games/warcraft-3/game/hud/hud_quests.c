@@ -77,6 +77,12 @@ static BOOL QuestIsVisible(LPCQUEST quest) {
     return quest && quest->enabled && quest->discovered;
 }
 
+/* Retail lists enabled undiscovered quests as placeholders but only lets the
+ * player open discovered quests. */
+static BOOL QuestIsListVisible(LPCQUEST quest) {
+    return quest && quest->enabled;
+}
+
 static BOOL QuestIsVisibleMember(LPCQUEST quest) {
     if (!quest) return false;
     FOR_EACH_LIST(QUEST, q, level.quests) {
@@ -144,7 +150,7 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
         DWORD quest_index;
         BOOL authored_selection;
 
-        if (!QuestIsVisible(quest) || quest->required != required) continue;
+        if (!QuestIsListVisible(quest) || quest->required != required) continue;
 
         row_frame = QuestRowAt(rows, row_count, container, row, quest_row_template);
         button = row_frame ? UI_FindChildFrame(row_frame, "QuestListItemButton") : NULL;
@@ -183,18 +189,19 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
         UI_SetHidden(failed_highlight, !quest->failed);
         UI_SetHidden(completed_highlight, !quest->completed || quest->failed);
         UI_SetHidden(complete, !quest->completed || quest->failed);
+        if (complete && quest->completed && !quest->failed)
+            UI_SetText(complete, "(%s)", UI_GetString("QUESTCOMPLETED"));
 
         quest_index = UI_QuestIndex(quest);
-        title_text = UI_LevelStringSafe(quest->title);
-        icon_path = quest->iconPath && *quest->iconPath ? G_LevelString(quest->iconPath) : NULL;
-        snprintf(text, sizeof(text), "%s%s",
-                 !authored_selection && quest == selected ? "> " : "", title_text);
+        title_text = quest->discovered ? UI_LevelStringSafe(quest->title) : UI_GetString("UNDISCOVERED_QUEST");
+        icon_path = quest->discovered && quest->iconPath && *quest->iconPath ? G_LevelString(quest->iconPath) : NULL;
+        snprintf(text, sizeof(text), "%s%s", !authored_selection && quest == selected ? "> " : "", title_text);
         snprintf(command, sizeof(command), "quest %u", (unsigned)quest_index);
 
         UI_SetText(title, "%s", text);
         if (icon_container && icon_container->Type == FT_BACKDROP) {
             icon_container->Backdrop.Background = icon_path && *icon_path
-                ? UI_LoadTexture(icon_path, false) : 0;
+                ? UI_LoadTexture(icon_path, false) : UI_LoadTexture("UndiscoveredQuestIcon", true);
         }
         QuestDebugText(quest_index, "list_title", quest->title, title_text);
         if (QuestDebugEnabled()) {
@@ -211,9 +218,8 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
                         ? icon_container->Backdrop.Background : 0));
         }
         UI_SetOnClick(button, "%s", command);
-        title->Font.Color = !authored_selection && quest == selected
-            ? MAKE(COLOR32, 252, 210, 18, 255)
-            : COLOR32_WHITE;
+        title->Font.Color = quest->completed ? title->Font.DisabledColor :
+            (!authored_selection && quest == selected ? MAKE(COLOR32, 252, 210, 18, 255) : COLOR32_WHITE);
         row++;
     }
     HideUnusedRows(rows, *row_count, row);
