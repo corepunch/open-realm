@@ -16,6 +16,39 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
+void PF_Confignstring(DWORD index, LPCSTR value, DWORD len) {
+    if (index >= MAX_CONFIGSTRINGS) {
+        fprintf(stderr, "configstring: bad index %u\n", (unsigned)index);
+        return;
+    }
+    if (!value) {
+        value = "";
+        len = 1;
+    }
+    if (len > sizeof(sv.configstrings[index]) - 1) {
+        len = sizeof(sv.configstrings[index]) - 1;
+    }
+    memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
+    if (len) {
+        memcpy(sv.configstrings[index], value, len);
+    }
+    sv.syncstrings[index] = false;
+}
+
+void PF_Configstring(DWORD index, LPCSTR value) {
+    if (!value) {
+        value = "";
+    }
+    PF_Confignstring(index, value, (DWORD)(strlen(value) + 1));
+}
+
+LPCSTR PF_GetConfigstring(DWORD index) {
+    if (index >= MAX_CONFIGSTRINGS) {
+        return "";
+    }
+    return sv.configstrings[index];
+}
+
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);

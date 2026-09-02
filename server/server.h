@@ -101,6 +101,11 @@ extern struct server {
 
 extern struct game_export *ge;
 
+// sv_main.c
+void PF_Configstring(DWORD index, LPCSTR value);
+void PF_Confignstring(DWORD index, LPCSTR value, DWORD len);
+LPCSTR PF_GetConfigstring(DWORD index);
+
 // sv_init.c
 void SV_StartLobby(LPCSTR mapFilename);
 void SV_Map(LPCSTR pFilename);
