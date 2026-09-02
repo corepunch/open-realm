@@ -1212,7 +1212,8 @@ DWORD ShowInterface(LPJASS j) {
     return 0;
 }
 DWORD PauseGame(LPJASS j) {
-    //BOOL flag = jass_checkboolean(j, 1);
+    BOOL flag = jass_checkboolean(j, 1);
+    G_SetScriptPaused(flag);
     return 0;
 }
 DWORD AddIndicator(LPJASS j) {

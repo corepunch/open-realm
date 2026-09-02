@@ -305,10 +305,15 @@ The server advances the game in fixed-size time steps. Every frame the server:
 // server/sv_main.c
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
-    if (svs.realtime < sv.time)
-        return;  // not yet time for a new frame
     SV_ReadPackets();
+    if (sv.paused) {
+        /* real code periodically sends a frozen-state snapshot here */
+        return;  // simulation does not advance
+    }
+    if (svs.realtime < sv.next_frame_msec)
+        return;  // not yet time for a new frame
     SV_RunGameFrame();        // increments sv.framenum, sv.time, calls ge->RunFrame()
+    sv.next_frame_msec += FRAMETIME;
     SV_SendClientMessages();  // sends entity state to each connected client
 }
 ```

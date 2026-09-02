@@ -11,7 +11,7 @@ BOOL scr_initialized;
 /* Returns the UI canvas width for the current window aspect.  For SC2
  * widescreen the canvas expands horizontally while the height stays fixed
  * (matches cl_layout.c::SCR_GetUISceneRect and r_draw.c::R_UISceneRect). */
-FLOAT SCR_UICanvasWidth(void) {
+static FLOAT SCR_UICanvasWidth(void) {
 #ifdef SC2
     size2_t win = re.GetWindowSize();
     if (win.height > 0) {
@@ -28,7 +28,7 @@ FLOAT SCR_UICanvasWidth(void) {
  * engine's virtual canvas.  Cursor drawing and FDF hit-testing must share this
  * mapping, including SC2's widened canvas on widescreen displays.
  */
-VECTOR2 SCR_ScreenToUI(int x, int y) {
+static VECTOR2 SCR_ScreenToUI(int x, int y) {
     size2_t window = re.GetWindowSize();
     FLOAT nx = 0.0f, ny = 0.0f;
 
@@ -235,7 +235,8 @@ static DWORD layout_dynamic_pic_cursor;
 static BOOL layout_left_down;
 static char layout_held_command[CMDARG_LEN * 2];
 static DWORD layout_hovered_number;
-static HANDLE layout_hovered, layout_current;
+static DWORD layout_hovered_layer;
+static DWORD layout_current_layer;
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
@@ -359,32 +360,19 @@ static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, LPCRECT screen) 
 }
 
 void SCR_LayoutDrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
-    if (!frame || !frame->buffer.data || frame->buffer.size < sizeof(uiHighlight_t)) return;
     SCR_LayoutDrawHighlightData(frame->buffer.data, screen);
 }
 
 void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
-    uiSimpleButton_t const *b;
-    uiSimpleButtonState_t const *state;
-    RECT uv, suv;
-    BOOL enabled, hovered, pushed;
-
-    if (!frame || frame->buffer.size < sizeof(uiSimpleButton_t) || !frame->buffer.data) return;
-    b = frame->buffer.data;
-    enabled = frame->onclick && *frame->onclick;
-    hovered = frame->number == layout_hovered_number && layout_current == layout_hovered;
-    pushed = enabled && hovered && layout_left_down;
-    state = !enabled ? &b->disabled : pushed ? &b->pushed : &b->normal;
-    if (!state->texture) state = &b->normal;
-
-    uv = get_uvrect((BYTE *)&state->texcoord);
-    suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[state->texture], screen, &suv, COLOR32_WHITE);
+    uiSimpleButton_t *b = frame->buffer.data;
+    RECT const uv = get_uvrect((BYTE *)&b->normal.texcoord);
+    RECT const suv = Rect_div(&uv, 0xff);
+    re.DrawImage(cl.pics[b->normal.texture], screen, &suv, COLOR32_WHITE);
     re.DrawText(&MAKE(drawText_t,
         .rect      = *screen,
-        .font      = cl.fonts[state->font],
+        .font      = cl.fonts[b->normal.font],
         .text      = frame->text,
-        .color     = state->fontcolor,
+        .color     = b->normal.fontcolor,
         .textWidth = screen->w));
 }
 
@@ -407,14 +395,7 @@ void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t cons
                | (bd->Mirrored       ? DRAW_MIRRORED : 0)));
 }
 
-static LPCUIFRAME SCR_LayoutScrollTextArea(LPCUIFRAME frame);
-static BOOL SCR_LayoutTextAreaOverflows(LPCUIFRAME frame);
-
 void SCR_LayoutDrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
-    LPCUIFRAME text_area = SCR_LayoutScrollTextArea(frame);
-    /* Scrollbar control art is authored as child frames; suppress those parts
-     * when the owning textarea has no overflow instead of drawing a lone thumb. */
-    if (text_area && !SCR_LayoutTextAreaOverflows(text_area)) return;
     SCR_LayoutDrawBackdrop2(frame, screen, frame->buffer.data);
 }
 
@@ -436,45 +417,10 @@ static BOOL SCR_LayoutDrawScrollImage(RESOURCE texture, BYTE const *texcoord, LP
     return true;
 }
 
-/* FDF scrollbars may be nested below a control wrapper; resolve the owning
- * textarea before deciding whether its scrollbar has useful content. */
-static LPCUIFRAME SCR_LayoutScrollTextArea(LPCUIFRAME frame) {
-    DWORD parent = frame ? frame->parent : UI_PARENT;
-    BOOL scrollbar = frame && frame->flags.type == FT_SCROLLBAR;
-    for (DWORD depth = 0; parent != UI_PARENT && depth < SCR_NumFrames(); depth++) {
-        LPCUIFRAME it = SCR_Frame(parent);
-        if (!it) return NULL;
-        if (it->flags.type == FT_SCROLLBAR) scrollbar = true;
-        if (it->flags.type == FT_TEXTAREA) return scrollbar ? it : NULL;
-        parent = it->parent;
-    }
-    return NULL;
-}
-
-static BOOL SCR_LayoutTextAreaOverflows(LPCUIFRAME frame) {
-    RECT text_rect;
-    uiTextArea_t const *ta;
-    uiLabel_t label;
-    drawText_t measure;
-
-    if (!re.GetTextSize || !frame || !frame->buffer.data || frame->buffer.size < sizeof(*ta)) return false;
-    text_rect = *SCR_LayoutRect(frame); ta = frame->buffer.data;
-    text_rect.x += ta->inset; text_rect.y += ta->inset;
-    text_rect.w -= ta->inset * 2; text_rect.h -= ta->inset * 2;
-    label = MAKE(uiLabel_t, .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP);
-    measure = SCR_GetDrawText(frame, text_rect.w, SCR_GetStringValue(frame), &label);
-    measure.flags |= DRAW_WORD_WRAP;
-    return re.GetTextSize(&measure).y > text_rect.h;
-}
-
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBarImage_t const *art = frame->buffer.size == sizeof(*art) ? frame->buffer.data : NULL;
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
-
-    /* Standalone scrollbars have no textarea; suppress art only for a known non-overflowing owner. */
-    LPCUIFRAME text_area = SCR_LayoutScrollTextArea(frame);
-    if (text_area && !SCR_LayoutTextAreaOverflows(text_area)) return;
 
     if (sb) SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
 
@@ -508,15 +454,14 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     else SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
 }
 
-BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
+static BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
     return frame && frame->onclick && *frame->onclick;
 }
-static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame);
 static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
-    return layout_left_down && SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame);
+    return layout_left_down && SCR_LayoutFrameHasClickCommand(frame);
 }
 static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
-    return frame && frame->number == layout_hovered_number && layout_current == layout_hovered;
+    return frame && frame->number == layout_hovered_number && layout_current_layer == layout_hovered_layer;
 }
 
 static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
@@ -546,34 +491,7 @@ static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
     dst[out] = '\0';
 }
 
-void SCR_LayoutSendFrameCommand(LPCUIFRAME frame) {
-    char command[CMDARG_LEN * 2];
-    if (!SCR_LayoutFrameHasClickCommand(frame)) return;
-    SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, "%s", command);
-}
-
-void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down) {
-    layout_hovered = layout;
-    layout_hovered_number = number;
-    layout_left_down = down;
-}
-
-void SCR_LayoutPrepare(HANDLE layout, LPCRECT root) {
-    layout_current = layout;
-    SCR_Clear(layout);
-    if (root) SCR_SetLayoutRoot(root);
-}
-
-void SCR_WindowPrepare(HANDLE layout, LPCRECT root) {
-    layout_current = layout;
-    SCR_ClearWindow(layout);
-    if (root) SCR_SetLayoutRoot(root);
-}
-
 void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
-    if (!frame || frame->buffer.size < sizeof(uiGlueTextButton_t) || !frame->buffer.data) return;
     uiGlueTextButton_t const *gb = frame->buffer.data;
     BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
     BOOL const pushed  = SCR_LayoutGlueTextButtonIsPushed(frame);
@@ -584,7 +502,6 @@ void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 static void SCR_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
-    if (!frame || frame->buffer.size < sizeof(uiGlueTextButton_t) || !frame->buffer.data) return;
     uiGlueTextButton_t const *gb = frame->buffer.data;
     if (SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame))
         SCR_LayoutDrawHighlightData(&gb->highlight, SCR_LayoutRect(frame));
@@ -767,7 +684,6 @@ static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
     if (!parent) return;
     if (parent->flags.type != FT_GLUETEXTBUTTON && parent->flags.type != FT_GLUEBUTTON) return;
     if (!SCR_LayoutFrameHasClickCommand(parent) || !SCR_LayoutGlueTextButtonIsPushed(parent)) return;
-    if (parent->buffer.size < sizeof(uiGlueTextButton_t) || !parent->buffer.data) return;
     uiGlueTextButton_t const *b = parent->buffer.data;
     screen->x += b->pushedTextOffset.x;
     screen->y -= b->pushedTextOffset.y;
@@ -775,9 +691,7 @@ static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
 
 void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
     uiLabel_t const *label = frame->buffer.data;
-    /* Label offsets use the same fixed-point wire representation as anchors. */
-    RECT scr = { screen->x + label->offsetx / UI_FRAMEPOINT_SCALE,
-                 screen->y + label->offsety / UI_FRAMEPOINT_SCALE, screen->w, screen->h };
+    RECT scr = { screen->x + label->offsetx, screen->y + label->offsety, screen->w, screen->h };
     SCR_LayoutApplyPushedTextOffset(frame, &scr);
     layout_text(frame, &scr, SCR_GetStringValue(frame));
 }
@@ -797,7 +711,7 @@ void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
     LPCSTR value = SCR_GetStringValue(frame);
     RECT scr = { screen->x + ta->inset, screen->y + ta->inset,
                  screen->w - ta->inset*2, screen->h - ta->inset*2 };
-    drawText_t draw = MAKE(drawText_t,
+    re.DrawText(&MAKE(drawText_t,
         .font       = cl.fonts[ta->font],
         .text       = value ? value : "",
         .color      = frame->color.a ? frame->color : COLOR32_WHITE,
@@ -809,40 +723,7 @@ void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
         .rect       = scr,
         /* A text area is a viewport; wrapping alone let overflow draw through controls below it. */
         .flags      = DRAW_WORD_WRAP | DRAW_CLIP,
-        .clip       = scr);
-    VECTOR2 content = re.GetTextSize ? re.GetTextSize(&draw) : MAKE(VECTOR2, 0, 0);
-    draw.rect.y -= MAX(0.0f, content.y - scr.h) * MIN(MAX(frame->value, 0.0f), 1.0f);
-    re.DrawText(&draw);
-}
-
-/* Wheel scrolling is client-owned because only the client knows the resolved
- * font metrics and viewport size of a server-authored text area. */
-BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y) {
-    if (!layout || !point || !wheel_y || !re.GetTextSize) return false;
-    for (DWORD i = SCR_NumFrames(); i > 0; i--) {
-        LPUIFRAME frame = SCR_Frame(i - 1);
-        RECT const *rect;
-        uiTextArea_t const *ta;
-        RECT view;
-        drawText_t measure;
-        FLOAT max_scroll;
-
-        if (!frame || frame->flags.type != FT_TEXTAREA) continue;
-        rect = SCR_LayoutRect(frame);
-        if (!Rect_contains(rect, point)) continue;
-        ta = frame->buffer.data;
-        uiLabel_t label = { .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP };
-        view = *rect;
-        view.x += ta->inset; view.y += ta->inset;
-        view.w -= ta->inset * 2; view.h -= ta->inset * 2;
-        measure = SCR_GetDrawText(frame, view.w, SCR_GetStringValue(frame), &label);
-        measure.flags |= DRAW_WORD_WRAP;
-        max_scroll = MAX(0.0f, re.GetTextSize(&measure).y - view.h);
-        if (max_scroll > 0.0f)
-            frame->value = MIN(1.0f, MAX(0.0f, frame->value - wheel_y * 0.1f));
-        return true;
-    }
-    return false;
+        .clip       = scr));
 }
 
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
@@ -1011,8 +892,6 @@ void SCR_LayoutDrawOverlay(HANDLE layout) {
 }
 
 void SCR_DrawLayout(void) {
-    BOOL const modal = CL_WindowModalActive();
-
     active_tooltip = NULL;
 
     if (cl.playerstate.cinefade > 0) {
@@ -1025,38 +904,50 @@ void SCR_DrawLayout(void) {
         DWORD flags = cl.playerstate.uiflags;
         if ((1 << layer) & flags) continue;
         HANDLE layout = layout_layers[layer];
-        if (modal && layer == LAYER_WORLD_HOVER) continue;
         if (layout) {
             RECT root;
-            SCR_LayoutPrepare(layout, NULL);
+            layout_current_layer = layer;
+            SCR_Clear(layout);
             if (layer == LAYER_WORLD_HOVER) {
                 if (!SCR_LayoutWorldHoverRoot(&root)) continue;
                 SCR_SetLayoutRoot(&root);
             }
-            if (!modal) SCR_LayoutUpdateTooltip(layout);
+            SCR_LayoutUpdateTooltip(layout);
             SCR_LayoutDrawOverlay(layout);
         }
     }
-    CL_WindowDraw();
 }
 
-void SCR_SetLayoutLayer(DWORD layer, HANDLE data) { if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = data; }
+void SCR_SetLayoutLayer(DWORD layer, HANDLE data) {
+    if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = data;
+}
 
 void SCR_ClearLayoutLayer(DWORD layer) {
-    if (layer >= MAX_LAYOUT_LAYERS) return;
-    layout_layers[layer] = NULL;
+    if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = NULL;
 }
+
+static BOOL SCR_LayoutLayerVisible(DWORD layer) { return layer < MAX_LAYOUT_LAYERS && layout_layers[layer] && !((1u << layer) & cl.playerstate.uiflags); }
+
+/* Result screens outrank Quest when malformed/server-overlapping modal layers coexist. */
+static int SCR_LayoutModalLayer(void) {
+    if (SCR_LayoutLayerVisible(LAYER_GAME_RESULT)) return LAYER_GAME_RESULT;
+    if (SCR_LayoutLayerVisible(LAYER_QUESTDIALOG)) return LAYER_QUESTDIALOG;
+    return -1;
+}
+
+BOOL SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
     LPCUIFRAME hovered_frame = NULL;
+    int const modal_layer = SCR_LayoutModalLayer();
     layout_hovered_number = 0;
-    layout_hovered = NULL;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
+        if (modal_layer >= 0 && (int)layer != modal_layer) continue;
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
-        SCR_LayoutPrepare(layout, NULL);
+        SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
             BOOL hit;
@@ -1068,8 +959,8 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
                 hit = SCR_LayoutFrameHasClickCommand(frame) && Rect_contains(SCR_LayoutRect(frame), &point);
             if (hit) {
                 layout_hovered_number = frame->number;
-                layout_hovered = layout;
                 hovered_frame = frame;
+                layout_hovered_layer = layer;
                 break;
             }
         }
@@ -1103,8 +994,9 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
+        if (modal_layer >= 0 && (int)layer != modal_layer) continue;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
-        SCR_LayoutPrepare(layout, NULL);
+        SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
 
@@ -1120,7 +1012,10 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             }
             if (!SCR_LayoutFrameHasClickCommand(frame)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) {
-                SCR_LayoutSendFrameCommand(frame);
+                char command[CMDARG_LEN * 2];
+                SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                SZ_Printf(&cls.netchan.message, "%s", command);
                 return;
             }
         }
@@ -1130,17 +1025,23 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
 /* Dispatch a command-button hotkey the same way a mouse click on that */
 BOOL SCR_LayoutKeyEvent(int key) {
     int const upper = toupper(key);
+    int const modal_layer = SCR_LayoutModalLayer();
+
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
+        if (modal_layer >= 0 && (int)layer != modal_layer) continue;
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
-        SCR_LayoutPrepare(layout, NULL);
+        SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             BOOL const is_cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
             if (is_cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
-                SCR_LayoutSendFrameCommand(frame);
+                char command[CMDARG_LEN * 2];
+                SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                SZ_Printf(&cls.netchan.message, "%s", command);
                 return true;
             }
         }
@@ -1233,12 +1134,7 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
 
 BOOL SCR_LayoutHitTest(int x, int y) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
-
-    /* A modal server-authored layout consumes gameplay hover/click input across
-     * the whole world rather than allowing transparent areas around the dialog
-     * to select or hover world entities underneath it. */
-    if (CL_WindowModalActive()) return true;
-
+    if (SCR_LayoutModalActive()) return true;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;

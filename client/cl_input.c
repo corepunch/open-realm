@@ -46,9 +46,16 @@ BOOL CL_MouseOverGameplayUI(void) {
 }
 
 BOOL CL_GameplayInputReady(void) {
-    return cls.key_dest == key_game &&
-           cls.state == ca_active &&
-           cl.playerstate.client_ui_state == CLIENT_UI_GAME;
+    if (cls.key_dest != key_game || cls.state != ca_active ||
+        cl.playerstate.client_ui_state != CLIENT_UI_GAME) {
+        return false;
+    }
+#ifdef WC3
+    if (SCR_LayoutModalActive()) {
+        return false;
+    }
+#endif
+    return true;
 }
 
 void CL_Input(void) {

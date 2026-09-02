@@ -13,7 +13,7 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
-#define EDICTFIELD(x, type, ...) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type, ##__VA_ARGS__ }
+#define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
@@ -138,7 +138,7 @@ typedef struct {
     LPCSTR name;
     DWORD ofs;
     fieldtype_t type;
-    DWORD array_size;
+    DWORD flags;
 } field_t;
 
 typedef enum {
@@ -349,9 +349,6 @@ struct gcamerasetup_s {
     VECTOR2 position;
 };
 
-#define WC3_MESSAGE_LOG_MAX_ENTRIES 128
-#define WC3_MESSAGE_LOG_ENTRY_SIZE 1024
-
 struct client_s {
     PLAYER ps;
     BOOL connected; /* ClientBegin completed for this reserved player edict. */
@@ -370,6 +367,7 @@ struct client_s {
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control, no_ui;
+    BOOL quest_dialog_open;
     menu_t menu;
     struct {
         CAMERASETUP state;
@@ -409,11 +407,6 @@ struct client_s {
         DWORD end_time;        /* game time (ms), 0 = inactive */
         char text[1024];
     } message;
-    struct {
-        char entries[WC3_MESSAGE_LOG_MAX_ENTRIES][WC3_MESSAGE_LOG_ENTRY_SIZE];
-        DWORD first;
-        DWORD count;
-    } message_log;
     DWORD cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
     DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
@@ -1102,7 +1095,9 @@ struct level_locals {
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
-    BOOL started, paused;
+    BOOL script_paused;
+    BOOL quest_paused;
+    BOOL started;
     BOOL scriptsStarted;
 };
 
@@ -1125,6 +1120,8 @@ void G_InitJassHost(void);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 void G_SetClientConnected(LPEDICT player, BOOL connected);
+void G_SetScriptPaused(BOOL paused);
+void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);
@@ -1415,7 +1412,6 @@ void UI_WriteTooltipFrame(void);
 void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
-void UI_ShowTransientText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 void UI_ClearTextMessages(LPEDICT);
 void UI_InvalidateDialoguePresentation(LPEDICT);
 void UI_WriteDialoguePresentation(LPEDICT);
@@ -1453,15 +1449,12 @@ void UI_TestResetInfoPanelIconCache(void);
 LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade);
 #endif
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
-void UI_WriteWindow(LPEDICT, LPCFRAMEDEF, uiWindowDef_t const *);
-void UI_WriteWindowClose(LPEDICT, DWORD);
 void UI_WriteStart(DWORD);
 void UI_ClearLayer(LPEDICT, DWORD);
 void UI_ShowGameResult(LPEDICT, BOOL);
 void UI_HideGameResult(LPEDICT);
 void UI_ShowQuests(LPEDICT);
-void UI_MessageLogAppend(LPEDICT, LPCSTR);
-void UI_ShowLog(LPEDICT);
+void UI_HideQuests(LPEDICT);
 void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);

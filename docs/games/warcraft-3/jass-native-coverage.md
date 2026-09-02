@@ -213,6 +213,12 @@ query it. Enter/leave events require per-unit previous membership so crossing an
 edge fires once; testing only current containment cannot distinguish entry from
 remaining inside.
 
+## Global Pause
+
+`PauseGame(flag)` is wired through the WC3 game module to the generic server scheduler pause. The server freezes `sv.time` / simulation frames while continuing network reads and client traffic. Pause sources are combined in game code so closing a Quest modal cannot accidentally clear a script-owned `PauseGame(true)`. Quest-driven pausing is restricted to single-client sessions. See [Pause And Modal UI](pause-and-modal-ui.md).
+
+This is distinct from `PauseUnit`, `PauseCompAI`, and timer pause state. `PauseTimer` / `ResumeTimer` remain unimplemented object-level timer natives.
+
 ## Timers
 
 A timer handle needs timeout, accumulated elapsed time, start time, periodic and

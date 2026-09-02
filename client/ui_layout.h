@@ -28,6 +28,7 @@ void SCR_LayoutPrepare(HANDLE layout, LPCRECT root);
 void SCR_WindowPrepare(HANDLE layout, LPCRECT root);
 void SCR_LayoutDrawOverlay(HANDLE layout);
 BOOL SCR_LayoutHitTest(int x, int y);
+BOOL SCR_LayoutModalActive(void);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 void SCR_DrawLayout(void);
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);

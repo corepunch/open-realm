@@ -396,6 +396,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         }
         has_frames = true;
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
+        has_frames = true;
         if (msg->readcount + sizeof(BYTE) > msg->cursize) {
             break;
         }
@@ -425,6 +426,11 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         return;
     }
     payload_size = msg->readcount - start;
+    /* A terminator-only payload is the server's layer-clear operation. Keep
+     * the client slot NULL so modal ownership and hit testing end immediately. */
+    if (!has_frames) {
+        return;
+    }
     cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);

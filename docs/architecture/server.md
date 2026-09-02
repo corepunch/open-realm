@@ -12,20 +12,26 @@ The server (`server/`) is the authoritative simulation layer. It owns the canoni
 
 ## Main Loop
 
-`SV_Frame(DWORD msec)` is called from the platform main loop alongside `CL_Frame`. Unlike the client, the server advances only when enough real time has elapsed to cover a fixed `FRAMETIME` (100 ms):
+`SV_Frame(DWORD msec)` is called from the platform main loop alongside `CL_Frame`. Unlike the client, the server advances only when its monotonic real-time clock reaches the next fixed `FRAMETIME` (100 ms) simulation deadline:
 
 ```c
 void SV_Frame(DWORD msec) {
     svs.realtime += msec;
-    if (svs.realtime < sv.time)
+    SV_ReadPackets();    // network remains live even while simulation is paused
+    if (sv.paused) {
+        if (paused_keepalive_due)
+            SV_SendClientMessages(); // frozen frame/time; prevents timeout
+        return;                       // do not advance ge->RunFrame()
+    }
+    if (svs.realtime < sv.next_frame_msec)
         return;          // not yet time for a new game frame
-    SV_ReadPackets();    // 1. process client commands
-    SV_RunGameFrame();   // 2. advance simulation
-    SV_SendClientMessages(); // 3. send snapshots to clients
+    SV_RunGameFrame();   // 1. advance simulation
+    sv.next_frame_msec += FRAMETIME;
+    SV_SendClientMessages(); // 2. send snapshots to clients
 }
 ```
 
-This fixed-step approach decouples the simulation rate from the render rate and makes replay and deterministic simulation practical.
+This fixed-step approach decouples the simulation rate from the render rate and makes replay and deterministic simulation practical. `SV_SetPaused()` gates only simulation advancement; transport stays active, and resuming rebases `sv.next_frame_msec` so paused wall-clock time is not simulated as catch-up work. Warcraft III pause policy is documented in [Pause And Modal UI](../games/warcraft-3/pause-and-modal-ui.md).
 
 ### 1. SV_ReadPackets
 
@@ -76,6 +82,7 @@ The server fills this struct and passes it to `GetGameAPI`. It provides:
 | `PointContents` | Terrain/water flags at a world position |
 | `SetModel` | Assign a model by name to an entity |
 | `MemAlloc` / `MemFree` | Server heap |
+| `SetPaused` | Gate authoritative simulation while keeping server transport alive |
 | `WriteXxx` | Network message write helpers |
 
 ### `game_export_t` — entry points exported by the game library

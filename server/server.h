@@ -94,6 +94,9 @@ extern struct server {
     BOOL syncstrings[MAX_CONFIGSTRINGS];
     DWORD framenum;
     DWORD time;
+    BOOL paused;
+    DWORD next_frame_msec; /* real-time deadline for the next simulation frame */
+    DWORD pause_msec; /* wall-clock accumulator used only for paused keepalive snapshots */
     LPENTITYSTATE baselines;
     sizeBuf_t multicast;
     BYTE multicast_buf[MAX_MSGLEN];
@@ -123,6 +126,7 @@ void SV_LobbyWriteSetup(LPCLIENT cl);
 void SV_LobbyAddCommands(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
+void SV_SetPaused(BOOL paused);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);

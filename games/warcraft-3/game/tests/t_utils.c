@@ -57,6 +57,7 @@ static WAR3MAP test_worldmap;
 static WAR3MAPVERTEX test_vertices[(TEST_PATHMAP_CELLS + 1) * (TEST_PATHMAP_CELLS + 1)];
 
 static DWORD test_get_time(void) { return level.time; }
+static void test_set_paused(BOOL paused) { (void)paused; }
 
 /* Pathmap tests need an explicit world-space transform; production maps normally provide it via war3map.w3e. */
 void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells) {
@@ -125,6 +126,7 @@ static void reset_test_state(void) {
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));
     level.mapinfo = &test_mapinfo;
     gi.GetTime = test_get_time;
+    gi.SetPaused = test_set_paused;
     CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {512, 384}));
     if (gi.ClearWorld) gi.ClearWorld();
 }

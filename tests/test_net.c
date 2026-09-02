@@ -35,6 +35,7 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
+BOOL SCR_LayoutModalActive(void);
 void SCR_UpdateScreen(DWORD msec);
 extern BOOL scr_initialized;
 void test_client_stubs_clear_cvars(void);
@@ -911,6 +912,33 @@ TEST(net, layout_authored_height_with_top_bottom_anchors_keeps_bottom_edge) {
     T_FEQ(child_rect->y + child_rect->h,
           parent_rect->y + parent_rect->h, 0.0001f);
     T_FEQ(child_rect->y, parent_rect->y - 0.001125f, 0.0002f);
+}
+
+TEST(net, layout_terminator_only_payload_clears_modal_layer) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_SIMPLEFRAME } };
+
+    test_client_stubs_init();
+    MSG_WriteByte(&sb, LAYER_QUESTDIALOG);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+    T_NOT_NULL(cl.layout[LAYER_QUESTDIALOG]);
+    T_ASSERT(SCR_LayoutModalActive());
+
+    SZ_Clear(&sb);
+    MSG_WriteByte(&sb, LAYER_QUESTDIALOG);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+
+    T_NULL(cl.layout[LAYER_QUESTDIALOG]);
+    T_ASSERT(!SCR_LayoutModalActive());
 }
 
 /* Layout payload sizes are one unsigned wire byte; WoW's textured scrollbar is larger than signed-char range. */
