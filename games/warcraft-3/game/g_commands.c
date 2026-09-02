@@ -576,23 +576,11 @@ CLIENTCOMMAND(Cancel) {
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
 
 CLIENTCOMMAND(Quests) {
-    if (clent && clent->client &&
-        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
     UI_ShowQuests(clent);
 }
 
-CLIENTCOMMAND(HideQuests) {
-    UI_HideQuests(clent);
-}
-
 CLIENTCOMMAND(Log) {
-    if (clent && clent->client &&
-        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
     UI_ShowLog(clent);
-}
-
-CLIENTCOMMAND(HideLog) {
-    UI_HideLog(clent);
 }
 
 CLIENTCOMMAND(HideGameResult) {
@@ -613,8 +601,6 @@ CLIENTCOMMAND(GameResultQuit) {
 CLIENTCOMMAND(Menu) {
     (void)argc;
     (void)argv;
-    if (clent && clent->client &&
-        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
 }
 
 /* The upper Allies button/F11 route is wired now so mouse and keyboard
@@ -622,8 +608,6 @@ CLIENTCOMMAND(Menu) {
 CLIENTCOMMAND(Allies) {
     (void)argc;
     (void)argv;
-    if (clent && clent->client &&
-        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
 }
 
 CLIENTCOMMAND(Quest) {
@@ -729,10 +713,8 @@ clientCommand_t clientCommands[] = {
     { "cancel", CMD_Cancel },
     { "canceltrain", CMD_CancelTrain },
     { "quests", CMD_Quests },
-    { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
     { "log", CMD_Log },
-    { "hidelog", CMD_HideLog },
     { "hidegameresult", CMD_HideGameResult },
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_quit", CMD_GameResultQuit },

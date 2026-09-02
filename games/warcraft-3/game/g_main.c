@@ -349,9 +349,6 @@ static void G_RunClients(void) {
             UI_WriteDialoguePresentation(client_ent);
             client->presentation_dirty = false;
         }
-        if (client->connected && client->message_log.open && client->message_log.dirty && client_ent) {
-            UI_RefreshLog(client_ent);
-        }
         client->ps.cinefade = cinefade;
     }
 }

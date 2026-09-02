@@ -66,7 +66,6 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
     DWORD upkeep_tier;
     LPCSTR upkeep_text;
     COLOR32 upkeep_color;
-    BOOL modal;
 
     /* FDF DecorateFileNames are race-skinned, so load/serialize the authored
      * system bar in the target client's theme context. */
@@ -77,7 +76,6 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
         return;
     }
 
-    modal = UI_ClientModalOpen(client);
     if (upper.UpperButtonBarFrame) {
         LPFRAMEDEF buttons[] = {
             upper.UpperButtonBarQuestsButton,
@@ -85,7 +83,7 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
             upper.UpperButtonBarAlliesButton,
             upper.UpperButtonBarChatButton,
         };
-        FOR_LOOP(i, 4) UI_SetOnClick(buttons[i], modal ? "" : "%s", upper_button_commands[i]);
+        FOR_LOOP(i, 4) UI_SetOnClick(buttons[i], "%s", upper_button_commands[i]);
     }
 
     upkeep_tier = G_GetPlayerUpkeepTier(client);

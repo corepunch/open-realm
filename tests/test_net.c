@@ -760,6 +760,22 @@ TEST(net, window_click_raises_and_moves_keyboard_focus) {
     CL_WindowClear();
 }
 
+TEST(net, window_close_action_closes_without_server_command) {
+    BYTE message_buf[256];
+
+    test_client_stubs_init(); CL_WindowClear();
+    re.GetTextSize = text_length_mock_size;
+    SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
+    test_send_window(3, 93, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_ACTION);
+    SZ_Clear(&cls.netchan.message);
+    T_ASSERT(CL_WindowModalActive());
+    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
+    T_ASSERT(!CL_WindowModalActive());
+    T_EQ(cls.netchan.message.cursize, 0);
+    CL_WindowClear();
+}
+
 TEST(net, ui_frame_delta_preserves_text_length) {
     BYTE buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

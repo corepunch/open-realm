@@ -73,6 +73,13 @@ static LPCUIFRAME CL_WindowClickableAt(clientWindow_t *window, LPCVECTOR2 point)
     return NULL;
 }
 
+/* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
+static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
+    if (!frame) return;
+    if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION)) CL_WindowClose(window->id);
+    else SCR_LayoutSendFrameCommand(frame);
+}
+
 void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout) {
     clientWindow_t *window = CL_WindowById(def->id);
     if (!window && (def->flags & UI_WINDOW_UNIQUE)) window = CL_WindowByClass(def->class_id);
@@ -134,7 +141,7 @@ BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             return true;
         frame = CL_WindowClickableAt(window, &point);
         SCR_LayoutSetPointer(window->layout, frame ? frame->number : 0, event == UI_MOUSE_DOWN && param == 1);
-        if (event == UI_MOUSE_UP && param == 1 && frame) SCR_LayoutSendFrameCommand(frame);
+        if (event == UI_MOUSE_UP && param == 1 && frame) CL_WindowActivateFrame(window, frame);
         else if (event == UI_MOUSE_DOWN && param == 1 && !frame && (window->flags & UI_WINDOW_MOVABLE) &&
                  point.y <= window->offset.y + 24.0f) {
             cl_windows.drag = window;
@@ -162,7 +169,7 @@ BOOL CL_WindowKeyEvent(int key) {
         if (!SCR_LayoutFrameHasClickCommand(frame)) continue;
         cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
         if (cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
-            SCR_LayoutSendFrameCommand(frame);
+            CL_WindowActivateFrame(window, frame);
             return true;
         }
     }

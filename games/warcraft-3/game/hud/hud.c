@@ -510,11 +510,6 @@ void UI_WriteWindow(LPEDICT ent, LPCFRAMEDEF root, uiWindowDef_t const *def) {
     UI_WriteWindowEnd(ent);
 }
 
-void UI_CloseWindow(LPEDICT ent, DWORD id) {
-    gi.Write(PF_BYTE, &(LONG){svc_window}); gi.Write(PF_BYTE, &(LONG){UI_WINDOW_CLOSE});
-    gi.Write(PF_LONG, &id); gi.unicast(ent);
-}
-
 void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers) {
     UI_WriteStart(layer);
     UI_WriteFrameWithChildrenWithTriggers(ent, root, NULL, triggers);
