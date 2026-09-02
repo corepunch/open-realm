@@ -571,7 +571,7 @@ BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
     G_AddPlayerTechInProgress(client, upgrade_id, 1);
     unit_setmove(producer, &train_move_train);
-    if (clent) {
+    if (clent && client->connected) {
         G_RefreshResourceBar(clent);
         Get_Commands_f(clent);
         Get_Portrait_f(clent);
