@@ -146,7 +146,7 @@ TEST(wc3_items, roc_hero_without_authored_inventory_gets_default_ainv_capacity) 
     LPEDICT hero;
 
     setup_test_world();
-    level.mapinfo->fileFormat = 24;
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->UnitAbilities = &no_inventory;
 
@@ -159,7 +159,7 @@ TEST(wc3_items, tft_hero_without_authored_inventory_does_not_get_roc_default) {
     LPEDICT hero;
 
     setup_test_world();
-    level.mapinfo->fileFormat = 25;
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 25;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->UnitAbilities = &no_inventory;
 
@@ -646,7 +646,7 @@ TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_
     LPCSTR command[] = { "smart", item_number };
 
     setup_test_world();
-    level.mapinfo->fileFormat = 24;
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
     clent = &g_edicts[0];
     client = clent->client;
     gi.Write = item_noop_write;
