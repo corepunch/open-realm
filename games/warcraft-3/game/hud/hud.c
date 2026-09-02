@@ -137,8 +137,10 @@ static uiLabel_t MakeLabel(LPCFRAMEDEF frame) {
     return MAKE(uiLabel_t,
         .textalignx = frame->Font.Justification.Horizontal,
         .textaligny = frame->Font.Justification.Vertical,
-        .offsetx = frame->Font.Justification.Offset.x,
-        .offsety = frame->Font.Justification.Offset.y,
+        /* Label offsets share the fixed-point wire scale used by frame points;
+         * assigning normalized FDF floats directly truncated authored padding. */
+        .offsetx = frame->Font.Justification.Offset.x * UI_FRAMEPOINT_SCALE,
+        .offsety = frame->Font.Justification.Offset.y * UI_FRAMEPOINT_SCALE,
         .font = frame->Font.Index,
     );
 }

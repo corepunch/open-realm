@@ -428,15 +428,27 @@ static BOOL SCR_LayoutDrawScrollImage(RESOURCE texture, BYTE const *texcoord, LP
     return true;
 }
 
+/* FDF scrollbars may be nested below a control wrapper; resolve the owning
+ * textarea before deciding whether its scrollbar has useful content. */
+static LPCUIFRAME SCR_LayoutScrollTextArea(LPCUIFRAME frame) {
+    DWORD parent = frame ? frame->parent : UI_PARENT;
+    for (DWORD depth = 0; parent != UI_PARENT && depth < SCR_NumFrames(); depth++) {
+        LPCUIFRAME it = SCR_Frame(parent);
+        if (!it) return NULL;
+        if (it->flags.type == FT_TEXTAREA) return it;
+        parent = it->parent;
+    }
+    return NULL;
+}
+
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBarImage_t const *art = frame->buffer.size == sizeof(*art) ? frame->buffer.data : NULL;
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
 
-    if (frame->parent) {
-        LPCUIFRAME parent = SCR_Frame(frame->parent);
-        if (re.GetTextSize && parent && parent->flags.type == FT_TEXTAREA && parent->buffer.data &&
-            parent->buffer.size >= sizeof(uiTextArea_t)) {
+    {
+        LPCUIFRAME parent = SCR_LayoutScrollTextArea(frame);
+        if (re.GetTextSize && parent && parent->buffer.data && parent->buffer.size >= sizeof(uiTextArea_t)) {
             RECT text_rect = *SCR_LayoutRect(parent);
             uiTextArea_t const *ta = parent->buffer.data;
             uiLabel_t label = { .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP };
