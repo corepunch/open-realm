@@ -12,19 +12,6 @@
  */
 #include "g_local.h"
 
-static edict_t waypoints[MAX_WAYPOINTS];
-DWORD current_waypoint = 0;
-
-BOOL G_WaypointId(LPCEDICT waypoint, DWORD *id) {
-    uintptr_t value = (uintptr_t)waypoint, base = (uintptr_t)waypoints;
-    if (value < base || value >= base + sizeof(waypoints) || (value - base) % sizeof(*waypoints)) return false;
-    *id = (DWORD)((value - base) / sizeof(*waypoints)); return true;
-}
-
-LPEDICT G_WaypointById(DWORD id) { return id < MAX_WAYPOINTS ? waypoints + id : NULL; }
-DWORD G_WaypointCursor(void) { return current_waypoint; }
-void G_SetWaypointCursor(DWORD cursor) { current_waypoint = cursor; }
-
 LPCSTR attack_type[] = {
     "none",
     "normal",
@@ -86,12 +73,25 @@ static FLOAT get_unit_collision(pathTex_t const *pathtex) {
     return size * 16;
 }
 
-/* Allocate a waypoint entity at the given map location.
- * The waypoint's Z coordinate is set from the terrain height so that units
- * moving toward it will hug the ground.  The pool is a circular array of
- * MAX_WAYPOINTS slots, so old waypoints are silently recycled. */
+/* Reserve a body-queue-style ring in g_edicts so ordinary F_EDICT relocation owns every waypoint pointer. */
+void G_InitWaypoints(void) {
+    DWORD base;
+    if (level.waypoints.count) return;
+    base = level.waypoints.base = globals.num_edicts;
+    FOR_LOOP(i, MAX_WAYPOINTS) {
+        LPEDICT waypoint = G_Spawn();
+        if (waypoint != g_edicts + base + i) gi.error("G_InitWaypoints: waypoint ring is not contiguous\n");
+        waypoint->svflags |= SVF_NOCLIENT;
+    }
+    level.waypoints.count = MAX_WAYPOINTS;
+}
+
+/* Recycle one real edict from the fixed ring, matching Quake II's TRAIL/body queue ownership model. */
 LPEDICT Waypoint_add(LPCVECTOR2 spot) {
-    LPEDICT waypoint = &waypoints[current_waypoint++ % MAX_WAYPOINTS];
+    LPEDICT waypoint;
+    G_InitWaypoints();
+    waypoint = g_edicts + level.waypoints.base + level.waypoints.cursor;
+    level.waypoints.cursor = (level.waypoints.cursor + 1) % MAX_WAYPOINTS;
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     waypoint->heatmap2 = 0;

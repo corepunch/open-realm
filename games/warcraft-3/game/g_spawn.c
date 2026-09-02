@@ -405,6 +405,8 @@ void G_SpawnEntities(void) {
     }
 
     globals.num_edicts = game.max_clients;
+    /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */
+    G_InitWaypoints();
 
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
 //        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {

@@ -1408,11 +1408,14 @@ TEST(wc3_save, round_trip_waypoint_references) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-waypoint-save-test.bin";
     VECTOR2 destination = { 192.0f, 96.0f };
     LPEDICT unit, waypoint;
-    DWORD cursor;
+    DWORD cursor, count;
 
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
-    waypoint = Waypoint_add(&destination); cursor = G_WaypointCursor();
+    waypoint = Waypoint_add(&destination); cursor = level.waypoints.cursor; count = globals.num_edicts;
+    T_ASSERT(waypoint >= g_edicts && waypoint < g_edicts + globals.num_edicts);
+    T_ASSERT(waypoint->svflags & SVF_NOCLIENT);
+    G_InitWaypoints(); T_EQ(globals.num_edicts, count);
     unit->goalentity = waypoint;
     unit->movement.attackmove_waypoint = waypoint;
     T_ASSERT(WriteGame(filename));
@@ -1422,7 +1425,7 @@ TEST(wc3_save, round_trip_waypoint_references) {
     T_ASSERT(ReadGame(filename));
     T_ASSERT(unit->goalentity == waypoint && unit->movement.attackmove_waypoint == waypoint);
     T_FEQ(waypoint->s.origin2.x, destination.x, 0.01f); T_FEQ(waypoint->s.origin2.y, destination.y, 0.01f);
-    T_EQ(G_WaypointCursor(), cursor);
+    T_EQ(level.waypoints.cursor, cursor);
     remove(filename);
 }
 
