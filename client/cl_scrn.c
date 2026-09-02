@@ -237,6 +237,8 @@ static char layout_held_command[CMDARG_LEN * 2];
 static DWORD layout_hovered_number;
 static DWORD layout_hovered_layer;
 static DWORD layout_current_layer;
+static HANDLE layout_hovered;
+static HANDLE layout_current;
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
@@ -363,16 +365,23 @@ void SCR_LayoutDrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
     SCR_LayoutDrawHighlightData(frame->buffer.data, screen);
 }
 
+static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame);
+
 void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
-    uiSimpleButton_t *b = frame->buffer.data;
-    RECT const uv = get_uvrect((BYTE *)&b->normal.texcoord);
+    uiSimpleButton_t const *b = frame->buffer.data;
+    BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
+    BOOL const hovered = SCR_LayoutFrameIsHovered(frame);
+    BOOL const pushed = enabled && hovered && layout_left_down;
+    uiSimpleButtonState_t const *state = !enabled ? &b->disabled : pushed ? &b->pushed : &b->normal;
+    if (!state->texture) state = &b->normal;
+    RECT const uv = get_uvrect((BYTE *)&state->texcoord);
     RECT const suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[b->normal.texture], screen, &suv, COLOR32_WHITE);
+    re.DrawImage(cl.pics[state->texture], screen, &suv, COLOR32_WHITE);
     re.DrawText(&MAKE(drawText_t,
         .rect      = *screen,
-        .font      = cl.fonts[b->normal.font],
+        .font      = cl.fonts[state->font],
         .text      = frame->text,
-        .color     = b->normal.fontcolor,
+        .color     = state->fontcolor,
         .textWidth = screen->w));
 }
 
@@ -458,10 +467,13 @@ BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
     return frame && frame->onclick && *frame->onclick;
 }
 static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
-    return layout_left_down && SCR_LayoutFrameHasClickCommand(frame);
+    /* The left button is global, but the pushed state belongs only to the hovered layout frame. */
+    return layout_left_down && SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame);
 }
 static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
-    return frame && frame->number == layout_hovered_number && layout_current_layer == layout_hovered_layer;
+    return frame && frame->number == layout_hovered_number &&
+           ((layout_current && layout_current == layout_hovered) ||
+            (!layout_current && layout_current_layer == layout_hovered_layer));
 }
 
 static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
@@ -500,7 +512,7 @@ void SCR_LayoutSendFrameCommand(LPCUIFRAME frame) {
 }
 
 void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down) {
-    (void)layout;
+    layout_hovered = layout;
     layout_hovered_number = number;
     layout_left_down = down;
 }
@@ -922,7 +934,7 @@ void SCR_LayoutUpdateTooltip(HANDLE layout) {
 }
 
 void SCR_LayoutDrawOverlay(HANDLE layout) {
-    (void)layout;
+    layout_current = layout;
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE) SCR_LayoutDrawFrame(f);
