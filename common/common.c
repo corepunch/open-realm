@@ -306,6 +306,7 @@ static PATHSTR fs_share_dir = { 0 };
  * writable, in which case FS_UserPath degrades to the base share/<game>/ dir so
  * portable/read-only deployments still work. */
 static PATHSTR fs_home_dir = { 0 };
+static PATHSTR fs_save_dir = { 0 };
 
 void FS_SetShareDirectory(LPCSTR dir) {
     /* First-match-wins: main() probes candidates in priority order (flat exe
@@ -355,6 +356,48 @@ void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
     } else {
         snprintf(out, out_size, "%s/%s/%s", FS_BasePath(), BZ_GAME, rel);
     }
+}
+
+/* Resolve a writable save file under the platform's per-user data directory;
+ * this is separate from FS_UserPath because configs retain the legacy home path. */
+void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size) {
+    PATHSTR root, game_dir;
+    LPCSTR base;
+
+    if (!fs_save_dir[0]) {
+#ifdef _WIN32
+        base = getenv("APPDATA");
+#else
+        base = getenv("XDG_DATA_HOME");
+        if (!base || !*base) {
+            LPCSTR home = getenv("HOME");
+            if (home && *home) { snprintf(root, sizeof(root), "%s/.local/share", home); base = root; }
+        }
+#endif
+        if (base && *base) {
+            snprintf(game_dir, sizeof(game_dir), "%s/%s", base, BZ_GAME);
+#ifdef _WIN32
+            _mkdir(game_dir);
+            snprintf(fs_save_dir, sizeof(fs_save_dir), "%s/saves", game_dir);
+            _mkdir(fs_save_dir);
+            if (_access(fs_save_dir, 2) != 0) fs_save_dir[0] = '\0';
+#else
+            mkdir(game_dir, 0755);
+            snprintf(fs_save_dir, sizeof(fs_save_dir), "%s/saves", game_dir);
+            mkdir(fs_save_dir, 0755);
+            if (access(fs_save_dir, W_OK) != 0) fs_save_dir[0] = '\0';
+#endif
+        }
+    }
+    if (!fs_save_dir[0]) {
+        snprintf(fs_save_dir, sizeof(fs_save_dir), "%s/%s/saves", FS_BasePath(), BZ_GAME);
+#ifdef _WIN32
+        _mkdir(fs_save_dir);
+#else
+        mkdir(fs_save_dir, 0755);
+#endif
+    }
+    if (fs_save_dir[0]) snprintf(out, out_size, "%s/%s", fs_save_dir, rel);
 }
 
 static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {

@@ -2,7 +2,7 @@
 
 ## Contract
 
-The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`; the JASS `SaveGame` and `LoadGame` natives use the same callbacks and resolve names through `gi.UserPath`.
+The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`; the JASS `SaveGame` and `LoadGame` natives use the same callbacks and resolve names through `gi.SavePath`.
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
@@ -19,7 +19,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 The current format is process-independent for entity relationships: `F_EDICT` fields and camera targets are written as entity indexes and resolved back to `g_edicts[index]` by `ReadGame()`. Client pointers are restored from player slots, player names from inline JASS name storage, and map-player rows from the loaded map plus `PLAYER.number`. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
 
-Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. This supports the normal `+map ... +loadgame ...` path, where map initialization recreates the same quest graph before applying saved state.
+Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. This supports the normal `+map ... +load ...` path, where map initialization recreates the same quest graph before applying saved state.
 
 Groups, triggers, timers, and events use deterministic creation ordinals. Group membership is stored as entity indexes. Trigger enabled state is restored in place. Timers preserve their handler name, duration, remaining time, periodic/paused/running flags, and resume relative to the load time. Timer callbacks and timer-expire trigger actions enter the normal coroutine queue and retain `GetExpiredTimer()` context.
 
@@ -68,19 +68,19 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 
 ## Console Usage
 
-The server registers Quake 2-style `savegame` and `loadgame` commands. Save names are relative to the writable user directory and cannot contain path separators:
+The server registers Quake 2-style `save` and `load` commands. Save names are relative to the writable save directory and cannot contain path separators:
 
 ```sh
-build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +wait +savegame chapter-01.w3save
+build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +wait +save chapter-01.w3save
 ```
 
-Open the in-game console with the backtick/tilde key and enter `savegame chapter-01.w3save` or `loadgame chapter-01.w3save`. The load command must run after `+map`, because loading restores state into the already-loaded map. For command-line save diagnostics, place `+wait` between the map and `+savegame` commands so map initialization and `main()` have created the authoritative native registries first. A load invocation is:
+Open the in-game console with the backtick/tilde key and enter `save chapter-01.w3save` or `load chapter-01.w3save`. The load command must run after `+map`, because loading restores state into the already-loaded map. For command-line save diagnostics, place `+wait` between the map and `+save` commands so map initialization and `main()` have created the authoritative native registries first. A load invocation is:
 
 ```sh
-build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +loadgame chapter-01.w3save
+build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +load chapter-01.w3save
 ```
 
-`FS_UserPath()` resolves saves to `~/.warcraft-3/<name>` on macOS/Linux and `%APPDATA%/warcraft-3/<name>` on Windows. If no writable per-user directory is available, it falls back to `share/warcraft-3/<name>` beside the executable. The save filename may not contain `/` or `\`.
+`FS_SavePath()` resolves saves to `$XDG_DATA_HOME/warcraft-3/saves/<name>` on Linux, or `~/.local/share/warcraft-3/saves/<name>` when `XDG_DATA_HOME` is unset. Windows uses `%APPDATA%/warcraft-3/saves/<name>`. If no writable per-user data directory is available, it falls back to `share/warcraft-3/saves/<name>` beside the executable. The save filename may not contain `/` or `\`.
 
 The Save Game and Load Game buttons exposed by the WC3 menu layout are not wired yet; use the console commands. The shipped config currently binds `F9` to the quest log, not save/load.
 
