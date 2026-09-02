@@ -2,7 +2,7 @@
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 7;
+static DWORD const save_version = 8;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 
 typedef struct {
@@ -477,13 +477,9 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
             uintptr_t ptr = (uintptr_t)value, base = (uintptr_t)g_edicts;
             if (value && (ptr < base || ptr >= base + sizeof(*g_edicts) * globals.num_edicts ||
                 (ptr - base) % sizeof(*g_edicts))) {
-                DWORD waypoint;
-                if (!G_WaypointId(value, &waypoint)) {
-                    fprintf(stderr, "WC3 SaveGame: field %s[%u] points outside entity domains (%p)\n",
-                        field->name, i, (void *)value);
-                    return false;
-                }
-                index = -(int)waypoint - 2; *(int *)p = index; break;
+                fprintf(stderr, "WC3 SaveGame: field %s[%u] points outside g_edicts (%p)\n",
+                    field->name, i, (void *)value);
+                return false;
             }
             index = value ? (int)(value - g_edicts) : -1; *(int *)p = index; break;
         }
@@ -514,11 +510,11 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
         int index = *(int *)p;
         switch (field->type) {
         case F_EDICT:
-            if (index < -(int)MAX_WAYPOINTS - 1 || index >= globals.max_edicts) {
+            if (index < -1 || index >= globals.max_edicts) {
                 fprintf(stderr, "WC3 LoadGame: field %s[%u] has invalid edict index %d\n", field->name, i, index);
                 return false;
             }
-            *(LPEDICT *)p = index == -1 ? NULL : index < -1 ? G_WaypointById((DWORD)(-index - 2)) : g_edicts + index;
+            *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
             break;
         case F_CLIENT:
             if (index < -1 || index >= game.max_clients) {
@@ -594,22 +590,6 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     return true;
 }
 
-/* Point-order targets live outside g_edicts, so persist their fixed pool before resolving entity references. */
-static BOOL WriteWaypoints(FILE *f) {
-    DWORD cursor = G_WaypointCursor();
-    if (!SaveBytes(f, &cursor, sizeof(cursor))) return false;
-    FOR_LOOP(i, MAX_WAYPOINTS) if (!WriteEdict(f, G_WaypointById(i))) return false;
-    return true;
-}
-
-static BOOL ReadWaypoints(FILE *f) {
-    DWORD cursor;
-    if (!LoadBytes(f, &cursor, sizeof(cursor))) return false;
-    FOR_LOOP(i, MAX_WAYPOINTS) if (!ReadEdict(f, G_WaypointById(i))) return false;
-    G_SetWaypointCursor(cursor);
-    return true;
-}
-
 BOOL WriteGame(LPCSTR filename) {
     FILE *f = fopen(filename, "w+b");
     SAVEHEADER header = {
@@ -625,11 +605,11 @@ BOOL WriteGame(LPCSTR filename) {
     if (!SaveBytes(f, &level.time, sizeof(level.time))) { fprintf(stderr, "WC3 SaveGame: failed at time\n"); goto done; }
     if (!SaveBytes(f, &level.started, sizeof(level.started))) { fprintf(stderr, "WC3 SaveGame: failed at started\n"); goto done; }
     if (!SaveBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) { fprintf(stderr, "WC3 SaveGame: failed at scriptsStarted\n"); goto done; }
+    if (!SaveBytes(f, &level.waypoints, sizeof(level.waypoints))) { fprintf(stderr, "WC3 SaveGame: failed at waypoint state\n"); goto done; }
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
     }
     if (!WriteQuests(f)) { fprintf(stderr, "WC3 SaveGame: failed at quests\n"); goto done; }
-    if (!WriteWaypoints(f)) { fprintf(stderr, "WC3 SaveGame: failed at waypoints\n"); goto done; }
     FOR_LOOP(i, globals.num_edicts) {
         BOOL used = g_edicts[i].inuse;
         if (!SaveBytes(f, &used, sizeof(used))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d inuse\n", i); goto done; }
@@ -671,14 +651,18 @@ BOOL ReadGame(LPCSTR filename) {
         fclose(f); return false;
     }
     if (!LoadBytes(f, &level.framenum, sizeof(level.framenum)) || !LoadBytes(f, &level.time, sizeof(level.time)) ||
-        !LoadBytes(f, &level.started, sizeof(level.started)) || !LoadBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) {
+        !LoadBytes(f, &level.started, sizeof(level.started)) || !LoadBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted)) ||
+        !LoadBytes(f, &level.waypoints, sizeof(level.waypoints)) || level.waypoints.count > MAX_WAYPOINTS ||
+        (level.waypoints.count && (level.waypoints.count != MAX_WAYPOINTS || level.waypoints.cursor >= MAX_WAYPOINTS ||
+        header.num_edicts < level.waypoints.count ||
+        level.waypoints.base > header.num_edicts - level.waypoints.count)) ||
+        (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
         fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;
     }
     if (!ReadQuests(f)) { fprintf(stderr, "WC3 LoadGame: failed at quests\n"); fclose(f); return false; }
-    if (!ReadWaypoints(f)) { fprintf(stderr, "WC3 LoadGame: failed at waypoints\n"); fclose(f); return false; }
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {

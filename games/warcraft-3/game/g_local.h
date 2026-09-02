@@ -570,7 +570,7 @@ typedef struct {
 #define MAX_JASS_GROUPS 1024 // handles; bounds deterministic per-map group save IDs
 #define MAX_JASS_TRIGGERS 4096 // handles; bounds deterministic per-map trigger save IDs
 #define MAX_JASS_TIMERS 1024 // handles; bounds deterministic per-map timer save IDs
-#define MAX_WAYPOINTS 256 // entities; fixed circular pool used by point-target movement and save relocation
+#define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
@@ -1102,6 +1102,9 @@ struct level_locals {
     struct {
         DWORD item_slots, unit_slots;
     } stock;
+    struct {
+        DWORD base, cursor, count;
+    } waypoints;
     LPQUEST quests;
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
@@ -1241,10 +1244,7 @@ void G_TimerResume(LPGTIMER timer);
 DWORD G_TimerRemaining(LPCGTIMER timer);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
-BOOL G_WaypointId(LPCEDICT waypoint, DWORD *id);
-LPEDICT G_WaypointById(DWORD id);
-DWORD G_WaypointCursor(void);
-void G_SetWaypointCursor(DWORD cursor);
+void G_InitWaypoints(void);
 void M_CheckGround (LPEDICT);
 void G_RegisterGroundSurface(LPEDICT);
 void G_UnregisterGroundSurface(LPEDICT);
