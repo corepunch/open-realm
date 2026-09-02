@@ -1102,7 +1102,7 @@ struct level_locals {
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
-    BOOL started;
+    BOOL started, paused;
     BOOL scriptsStarted;
 };
 
@@ -1454,6 +1454,7 @@ LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upg
 #endif
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteWindow(LPEDICT, LPCFRAMEDEF, uiWindowDef_t const *);
+void UI_WriteWindowClose(LPEDICT, DWORD);
 void UI_WriteStart(DWORD);
 void UI_ClearLayer(LPEDICT, DWORD);
 void UI_ShowGameResult(LPEDICT, BOOL);

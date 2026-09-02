@@ -695,11 +695,17 @@ CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
 }
 
-/* F10 and the authored Menu button share this route. The in-game Esc/Menu
- * dialog itself is not implemented by the current server-authored HUD. */
+/* F10 and the authored Menu button share this route; pause ownership stays on the server. */
 CLIENTCOMMAND(Menu) {
-    (void)argc;
-    (void)argv;
+    (void)argc; (void)argv;
+    level.paused = true;
+    UI_ShowMainMenu(clent);
+}
+
+CLIENTCOMMAND(Resume) {
+    (void)argc; (void)argv;
+    level.paused = false;
+    UI_WriteWindowClose(clent, BZ_WC3_WINDOW_MENU);
 }
 
 /* The upper Allies button/F11 route is wired now so mouse and keyboard
@@ -849,6 +855,7 @@ clientCommand_t clientCommands[] = {
     { "gameresult_quit", CMD_GameResultQuit },
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
+    { "resume", CMD_Resume },
     { "allies", CMD_Allies },
     { NULL }
 };

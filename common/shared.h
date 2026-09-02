@@ -444,6 +444,7 @@ typedef enum {
 
 typedef enum {
     UI_WINDOW_OPEN,
+    UI_WINDOW_CLOSE,
 } uiWindowOp_t;
 
 #define UI_WINDOW_MOVABLE (1u << 0) // flag bit; permits client-local pointer dragging; used by server-authored windows
