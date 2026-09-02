@@ -355,9 +355,12 @@ void CL_EndMinimapDrag(void) {}
 /* Number keys 1-0 trigger action bar slots. Key 1 = slot 0 (Attack),
  * 2 = slot 1 (Charge), ..., 0 = slot 9 (Backpack). The action bar data
  * arrives from the server at begin/update via svc_unit_ui. */
-BOOL CL_HandleGameKey(int sym, Uint16 mod) {
+void CL_InputModeResetMap(void) {}
+
+BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
     DWORD slot;
     (void)mod;
+    (void)repeat;
 
     if (!CL_GameplayInputReady())
         return false;
