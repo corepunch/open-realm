@@ -248,6 +248,48 @@ TEST(wc3_game, player_zero_food_ignores_free_edicts) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 6);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
 }
+TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player;
+    LPEDICT unit;
+
+    reset_entities();
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client = client;
+    client->ps.number = 0;
+    client->connected = true;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 192.0f);
+    unit->s.player = 0;
+    unit->health.value = 311.0f;
+    unit->health.max_value = 420.0f;
+    unit->mana.value = 33.0f;
+    unit->mana.max_value = 100.0f;
+    G_SelectEntity(client, unit);
+
+    /* Keep the legacy info-panel cache current so the test exercises only the
+     * per-frame live portrait producer and does not need to serialize FDF. */
+    client->infopanel.entity = unit->s.number;
+    client->infopanel.hp = 311;
+    client->infopanel.mana = 33;
+    client->infopanel.xp = 0;
+    T_ASSERT(!player->inuse);
+
+    G_UpdateClientInfoPanels();
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH], 311);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH], 420);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 33);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA], 100);
+
+    unit->health.value = 207.0f;
+    unit->mana.value = 21.0f;
+    client->infopanel.hp = 207;
+    client->infopanel.mana = 21;
+    G_UpdateClientInfoPanels();
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH], 207);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 21);
+}
+
 TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     FRAMEDEF frame = { 0 };
     UI_SetPortraitFrameModel(&frame, 42);

@@ -10,8 +10,8 @@ The current behavior is:
 
 | Control | Action |
 |---|---|
-| Hero HUD button | Select the Hero when selectable and center the camera on it. |
-| Default F1-F7 | First activation selects the corresponding controlled Hero; activating the same sole-selected Hero again centers the camera. |
+| Hero HUD button | A single click selects the Hero. A second click on the same Hero within the 500 ms double-click window centers the camera. |
+| Default F1-F7 | A single press selects the corresponding controlled Hero. A second press on the same Hero within the same 500 ms double-activation window centers the camera. |
 | Idle-worker HUD button | Select and center the next idle worker, then advance the cycle cursor. |
 | Default F8 | Same cycle operation as the idle-worker HUD button. |
 
@@ -83,7 +83,7 @@ The generic free path calls the invalidation hook, but the hook rejects non-mons
 
 `G_UpdateClientUnitShortcuts()` itself is only an O(number-of-clients) dirty check. It scans entities and serializes `LAYER_UNIT_SHORTCUTS` only for a dirty connected client. This avoids adding another per-frame entity scan on handheld targets such as the RG40XX-H.
 
-Shortcut activations may perform bounded entity scans because those happen only in response to user input:
+Shortcut activations may perform bounded entity scans because those happen only in response to user input. Hero HUD clicks and F1-F7 then enter the same-Hero 500 ms activation tracker, so input source does not change single-vs-double activation semantics:
 
 - F1-F7 finds the requested Hero slot;
 - idle-worker cycling finds the next qualifying worker after the saved entity-number cursor.
@@ -144,8 +144,8 @@ Added unit tests cover the idle-worker predicate and shortcut dirty invalidation
 
 1. Start a map with one Hero and several Peasants.
 2. Confirm the Hero icon is below the upper menu and the worker icon/count is above the minimap.
-3. Click the Hero icon from elsewhere on the map; selection and camera should move to that Hero.
-4. Press F1 once from another selection, then F1 again; the first press selects and the second centers.
+3. Click the Hero icon once from another selection; only selection should move to that Hero. Double-click the Hero icon; the second click should center the camera. A later isolated click must not center it.
+4. Press F1 once from another selection; only selection should change. Press F1 again within 500 ms to center. After waiting longer than 500 ms, another isolated F1 press must not move the camera even though the Hero is already selected.
 5. Leave three Peasants idle; confirm count `3`.
 6. Repeatedly click the worker button or press F8; each activation should select/center a different idle Peasant and wrap.
 7. Order one Peasant to harvest and confirm the count drops without periodic polling.

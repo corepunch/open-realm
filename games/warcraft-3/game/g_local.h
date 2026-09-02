@@ -381,8 +381,8 @@ struct client_s {
         LPEDICT target_controller;
         VECTOR2 target_offset;
     } camera;
-    /* Last HP/mana figures reflected in the single-unit info panel, so the
-     * server only re-sends LAYER_INFOPANEL when a displayed value changes. */
+    /* Single-unit info-panel cache. HP/mana are retained here for save-layout
+     * compatibility, but portrait HP/mana now use live player-state bindings. */
     struct {
         DWORD entity;
         LONG hp;

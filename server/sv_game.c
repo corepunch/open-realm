@@ -112,6 +112,10 @@ void PF_Confignstring(DWORD index, LPCSTR value, DWORD len) {
     }
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
+    /* SV_SendClientMessages reliably flushes configstrings whose sync bit is
+     * clear.  Runtime game-side configstring changes must therefore invalidate
+     * the synced copy; otherwise already-connected clients keep stale data. */
+    sv.syncstrings[index] = false;
     
     //    if (sv.state != ss_loading)
     //    {    // send the update to everyone

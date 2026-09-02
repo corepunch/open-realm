@@ -46,6 +46,9 @@ static void ConsoleEnsureLoaded(void) {
         snprintf(upper_button_commands[3], sizeof(upper_button_commands[3]), "%s",
                  upper.UpperButtonBarChatButton->OnClick);
     }
+    UI_SetSize(res.ResourceBarGoldText, res.ResourceBarUpkeepText->Width, res.ResourceBarGoldText->Height);
+    UI_SetSize(res.ResourceBarLumberText, res.ResourceBarUpkeepText->Width, res.ResourceBarLumberText->Height);
+    UI_SetSize(res.ResourceBarSupplyText, res.ResourceBarUpkeepText->Width, res.ResourceBarSupplyText->Height);
     res.ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
     res.ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
     res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;

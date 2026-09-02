@@ -233,6 +233,7 @@ static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
 static DWORD layout_dynamic_pic_cursor;
 static BOOL layout_left_down;
+static char layout_held_command[CMDARG_LEN * 2];
 static DWORD layout_hovered_number;
 static HANDLE layout_hovered, layout_current;
 
@@ -1048,6 +1049,7 @@ void SCR_ClearLayoutLayer(DWORD layer) {
 
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
+    LPCUIFRAME hovered_frame = NULL;
     layout_hovered_number = 0;
     layout_hovered = NULL;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
@@ -1067,17 +1069,36 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             if (hit) {
                 layout_hovered_number = frame->number;
                 layout_hovered = layout;
+                hovered_frame = frame;
                 break;
             }
         }
         if (layout_hovered_number) break;
     }
 
-    if (param == 1) {
-        if      (event == UI_MOUSE_DOWN) layout_left_down = true;
-        else if (event == UI_MOUSE_UP)   layout_left_down = false;
+    if (param != 1) return;
+    if (event == UI_MOUSE_DOWN) {
+        char command[CMDARG_LEN * 2];
+        layout_left_down = true;
+        if (!hovered_frame || layout_held_command[0]) return;
+        SCR_LayoutFormatOnClickCommand(hovered_frame->onclick, command, sizeof(command));
+        if (command[0] != '+') return;
+        strlcpy(layout_held_command, command, sizeof(layout_held_command));
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "%s", layout_held_command);
+        return;
     }
-    if (event != UI_MOUSE_UP || param != 1) return;
+    if (event != UI_MOUSE_UP) return;
+    layout_left_down = false;
+    if (layout_held_command[0]) {
+        char command[sizeof(layout_held_command)];
+        strlcpy(command, layout_held_command, sizeof(command));
+        command[0] = '-';
+        layout_held_command[0] = '\0';
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "%s", command);
+        return;
+    }
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];

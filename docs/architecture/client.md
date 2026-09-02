@@ -107,6 +107,23 @@ The client keeps two snapshots per entity: `prev` and `current`. `CL_PrepRefresh
 
 `cl_console.c` maintains an in-game console that can be toggled with the tilde key. `cl_scrn.c` coordinates frame presentation and the UI draw pass.
 
+Server-authored layout controls normally dispatch their `onclick` command on left-button release. A command whose first character is
+`+` follows the Quake held-command convention instead: `cl_scrn.c` dispatches it on mouse-down, captures the formatted command, and
+sends the same command with a leading `-` on mouse-up even if the pointer has left the frame. This is generic input transport; game
+modules may use it for press-and-hold controls without adding game-specific branches to `client/`.
+
+Configstrings are also live server state, not connect-time-only metadata. A game-side `gi.configstring()` call reaches
+`PF_Confignstring()`, which stores the new value and clears `sv.syncstrings[index]`. At the start of a later
+`SV_SendClientMessages()` pass, each unsynced entry is sent reliably with `svc_configstring` before normal spawned-client datagrams.
+Code that mutates `sv.configstrings[]` through this API must not leave the sync bit true, or already-connected clients will retain the
+old value.
+
+Server-authored text frames may also bind to live snapshot values instead of forcing a complete layout resend whenever a number changes.
+`playerState.stats[18..21]` are reserved generic selection-UI slots (current/max health and current/max mana), serialized as the two
+existing packed `NFT_LONG` stat pairs. `UI_STAT_SELECTION_HEALTH_TEXT` and `UI_STAT_SELECTION_MANA_TEXT` make `SCR_GetStringValue()`
+format those values at draw time. Game modules may populate these reserved slots for a sole-selected entity; client layout code must keep
+the binding generic rather than looking up game-specific entity types or rules.
+
 ## Key Files
 
 | File | Purpose |

@@ -836,11 +836,15 @@ void Get_Commands_f(LPEDICT ent) {
 
 static void WritePortraitFrame(LPEDICT ent) {
     uiFrame_t frame;
+    char command[64];
+
     if (!ent || !ent->s.model) return;
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_PORTRAIT;
     frame.color = COLOR32_WHITE;
     frame.tex.index = ent->s.model;
+    snprintf(command, sizeof(command), "+portraitcamera %u", (unsigned)ent->s.number);
+    frame.onclick = command;
     UI_SetFrameRect(&frame, 0.211f, 0.4865f, 0.0835f, 0.085f);
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
@@ -860,7 +864,7 @@ static COLOR32 PortraitHealthColor(LPEDICT ent) {
                 0, 255);
 }
 
-static void WritePortraitText(LPCSTR text, COLOR32 color, FLOAT bottom) {
+static void WritePortraitText(LPCSTR text, COLOR32 color, FLOAT bottom, DWORD stat) {
     uiFrame_t frame;
     uiLabel_t label;
 
@@ -869,6 +873,8 @@ static void WritePortraitText(LPCSTR text, COLOR32 color, FLOAT bottom) {
     frame.flags.type = FT_STRING;
     frame.text = text && *text ? text : " ";
     frame.color = color;
+    frame.stat = stat;
+    frame.textLength = 20; /* Warsmash UnitPortraitTextTemplate */
     frame.size.height = 0.01640625f;
     label.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
     label.textalignx = FONT_JUSTIFYCENTER;
@@ -889,10 +895,10 @@ static void WritePortraitStats(LPEDICT ent) {
     LONG max_mp;
 
     if (!ent) return;
-    hp = (LONG)(MAX(0.0f, ent->health.value) + 0.5f);
-    max_hp = (LONG)(MAX(0.0f, ent->health.max_value) + 0.5f);
-    mp = (LONG)(MAX(0.0f, ent->mana.value) + 0.5f);
-    max_mp = (LONG)(MAX(0.0f, ent->mana.max_value) + 0.5f);
+    hp = (LONG)MAX(0.0f, ent->health.value);
+    max_hp = (LONG)MAX(0.0f, ent->health.max_value);
+    mp = (LONG)MAX(0.0f, ent->mana.value);
+    max_mp = (LONG)MAX(0.0f, ent->mana.max_value);
 
     snprintf(health, sizeof(health), "%ld / %ld", (long)hp, (long)max_hp);
     if (max_mp > 0)
@@ -904,8 +910,8 @@ static void WritePortraitStats(LPEDICT ent) {
      * below the model: HP at BOTTOM + 0.014 and mana at BOTTOM - 0.0005.
      * OpenRealm keeps the portrait runtime-authored because SmashUI is not a
      * retail MPQ FDF, but uses the same final WC3-space geometry. */
-    WritePortraitText(health, PortraitHealthColor(ent), 0.586f);
-    WritePortraitText(mana, COLOR32_WHITE, 0.6005f);
+    WritePortraitText(health, PortraitHealthColor(ent), 0.586f, UI_STAT_SELECTION_HEALTH_TEXT);
+    WritePortraitText(mana, COLOR32_WHITE, 0.6005f, UI_STAT_SELECTION_MANA_TEXT);
 }
 
 void UI_WriteSelectedPortraitLayer(LPEDICT ent) {
@@ -1060,39 +1066,68 @@ void G_InvalidateUnitInfoPanel(LPEDICT unit) {
     }
 }
 
-/* Re-send LAYER_INFOPANEL only when HP, mana, XP, or an explicitly invalidated
- * selected-unit presentation changed. */
+static USHORT SelectedPortraitStat(FLOAT value) {
+    LONG whole = (LONG)MAX(0.0f, value); /* Warsmash FastNumberFormat truncates */
+    return (USHORT)MIN(whole, USHRT_MAX);
+}
+
+static void UpdateSelectedPortraitStats(LPGAMECLIENT client, LPEDICT selected) {
+    if (!client) return;
+    if (!selected) {
+        client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH] = 0;
+        client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH] = 0;
+        client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA] = 0;
+        client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA] = 0;
+        return;
+    }
+    client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH] = SelectedPortraitStat(selected->health.value);
+    client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH] = SelectedPortraitStat(selected->health.max_value);
+    client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA] = SelectedPortraitStat(selected->mana.value);
+    client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA] = SelectedPortraitStat(selected->mana.max_value);
+}
+
+/* Keep whole-number selected-unit HP/mana in playerState so portrait labels are live
+ * snapshot bindings instead of static strings that require a whole layout
+ * resend on every damage/regeneration tick. Re-send LAYER_INFOPANEL only when
+ * its own cached presentation changes. */
 void G_RefreshInfoPanel(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
     DWORD count;
-    LONG hp, mana;
-    BOOL portrait_changed;
+    BOOL queue_panel;
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
-    if (count != 1 || UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
+    UpdateSelectedPortraitStats(ent->client, count == 1 ? selected[0] : NULL);
+    if (count != 1) {
         ent->client->infopanel.entity = 0;
         return;
     }
-    hp = (LONG)(selected[0]->health.value + 0.5f);
-    mana = (LONG)(selected[0]->mana.value + 0.5f);
-    portrait_changed = selected[0]->s.number != ent->client->infopanel.entity ||
-                       hp != ent->client->infopanel.hp ||
-                       mana != ent->client->infopanel.mana;
-    if (!portrait_changed &&
+
+    queue_panel = UI_UsesBuildingQueuePanel(ent->client, selected[0]);
+    if (queue_panel) {
+        ent->client->infopanel.entity = 0;
+        return;
+    }
+    /* HP/mana are live player-state bindings now, so changing them must not
+     * force a complete LAYER_INFOPANEL/FDF reserialization every frame. */
+    if (selected[0]->s.number == ent->client->infopanel.entity &&
         (LONG)selected[0]->hero.xp == ent->client->infopanel.xp) {
         return;
     }
     UI_SendInfoPanel(ent, selected, count);
-    if (portrait_changed) UI_WriteDialoguePresentation(ent);
 }
 
-/* Once per server frame, keep every player's info panel in sync. */
+/* Once per server frame, keep every connected player's info panel in sync.
+ * Client edicts live in the reserved [0, max_clients) range and are not normal
+ * in-use world entities, so do not gate this on edict->inuse. */
 void G_UpdateClientInfoPanels(void) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts + i;
-        if (ent->inuse && ent->client)
-            G_RefreshInfoPanel(ent);
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        LPEDICT ent;
+
+        if (!client->connected) continue;
+        ent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (ent && ent->client == client) G_RefreshInfoPanel(ent);
     }
 }
 

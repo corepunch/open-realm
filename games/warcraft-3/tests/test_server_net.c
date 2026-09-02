@@ -15,6 +15,7 @@
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
+void PF_Configstring(DWORD index, LPCSTR value);
 struct game_import gi;
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
@@ -323,6 +324,17 @@ static void drain_client_packets(void) {
 
     while (NET_GetPacket(NS_CLIENT, &from, &msg)) {
     }
+}
+
+TEST(server_net, game_configstring_change_marks_value_for_reliable_resync) {
+    DWORD const index = CS_GENERAL + 7;
+
+    reset_server_state(1);
+    sv.syncstrings[index] = true;
+    PF_Configstring(index, "LateRuntimeName");
+
+    T_STREQ(sv.configstrings[index], "LateRuntimeName");
+    T_ASSERT(!sv.syncstrings[index]);
 }
 
 TEST(server_net, udp_multi_client_connects_register_distinct_slots) {

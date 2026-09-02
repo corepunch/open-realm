@@ -160,7 +160,22 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
 
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
-    if (frame->stat == UI_STAT_CONTEXT_NAME) {
+    if (frame->stat == UI_STAT_SELECTION_HEALTH_TEXT) {
+        snprintf(text, sizeof(text), "%u / %u",
+                 (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_HEALTH],
+                 (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH]);
+        return text;
+    } else if (frame->stat == UI_STAT_SELECTION_MANA_TEXT) {
+        DWORD max_mana = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA];
+        if (max_mana) {
+            snprintf(text, sizeof(text), "%u / %u",
+                     (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MANA],
+                     (unsigned)max_mana);
+        } else {
+            text[0] = '\0';
+        }
+        return text;
+    } else if (frame->stat == UI_STAT_CONTEXT_NAME) {
         LPCENTITYSTATE ent = SCR_LayoutContextEntity();
         LPCSTR name;
         DWORD ni, cs_index;

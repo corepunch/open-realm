@@ -218,7 +218,7 @@ Trees do **not** fabricate a collision circle — footprint only.
 
 ## Info Panel and UI Refresh
 
-The single-unit info panel is a server-baked `svc_layout` snapshot. It does **not** auto-update on damage/healing/regen — only on explicit `UI_SendInfoPanel` calls. `G_UpdateClientInfoPanels` runs each frame after `G_RunEntities` and re-sends only when the displayed HP/mana integer changes (diff-on-send, per-client cache).
+The single-unit info panel remains a server-baked `svc_layout` snapshot, but the portrait HP/mana strings are live player-state bindings rather than baked text. `G_UpdateClientInfoPanels` runs after `G_RunEntities`, iterates connected game clients (reserved client edicts are intentionally not normal `inuse` entities), and writes the sole-selected unit's whole-number current/max HP and mana into reserved `playerState.stats[18..21]`. The client formats those values through `UI_STAT_SELECTION_HEALTH_TEXT` / `UI_STAT_SELECTION_MANA_TEXT`, so damage, healing, regeneration, and mana changes do not require a complete portrait or info-panel layout resend. `LAYER_INFOPANEL` is reserialized only for presentation state that is actually baked into that layer, such as selection identity or Hero XP.
 
 ## JASS Event Matching
 

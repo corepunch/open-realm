@@ -285,15 +285,29 @@ bound with generated headers (see `game/generated/`). `InfoPanelBuildingDetail.f
 those frames. Native WC3 frame types that have no FDF in the MPQ (portrait, command button, minimap, tooltip) are constructed as
 static `FRAMEDEF` objects in C with inline float literals; do not add `#define` position constants for them.
 `ConsoleUI.fdf` and `ResourceBar.fdf` are loaded directly from War3.mpq; the minimap viewport is a C-constructed `FT_MINIMAP`
-frame anchored inline.
+frame anchored inline. Warsmash performs one runtime correction after loading `ResourceBarFrame`: Gold, Lumber, and Supply text are
+all assigned the Upkeep text field's authored width. OpenRealm mirrors that normalization in `ConsoleEnsureLoaded()`. Do not size
+the food string to its natural `used/cap` text width, because larger supply values otherwise overflow the authored resource-bar
+region.
 
 The selected-unit portrait is one of those runtime-owned frames. Current Warsmash ships a project-only
 `SmashUI/UnitPortrait.fdf`; that file is useful as a parity reference but is not retail MPQ data and must not be loaded by OpenRealm.
 The runtime portrait therefore mirrors its final WC3-space contract directly: the model is `(0.211, 0.4865, 0.0835, 0.085)`, while
-centered `current / max` health and mana strings occupy the strip below it. Health uses the Warcraft red -> yellow -> green life-ratio
-gradient and mana is white; units with no mana keep the mana frame but render an empty value. Selected-unit HP/mana changes refresh
-the gameplay portrait in the same HUD update instead of waiting for the next dirty-presentation pass. A normal gameplay transmission
-still owns that layer, so the shared dialogue presentation writer preserves the talking portrait while a transmission is active.
+centered `current / max` health and mana strings occupy the strip below it. The strings retain Warsmash's `TextLength 20` contract.
+Health uses the Warcraft red -> yellow -> green life-ratio gradient and mana is white; units with no mana keep the mana frame but render
+an empty value. These are live snapshot bindings, not static text baked into `LAYER_PORTRAIT`: the server writes the sole-selected
+unit's exact current/max HP and mana to the reserved generic `playerState.stats[18..21]` UI slots each frame, and the client resolves
+`UI_STAT_SELECTION_HEALTH_TEXT` / `UI_STAT_SELECTION_MANA_TEXT` when drawing the already-authored portrait frames. The health colour
+is likewise derived from those current snapshot values. This deliberately avoids retransmitting the complete portrait layout for every
+damage, heal, regeneration, or mana tick and remains independent of the `LAYER_INFOPANEL` presentation cache (important while a
+selected building is showing its build/training queue). A normal gameplay transmission can still replace the portrait layer; once the
+selected-unit portrait is authored again, the same live bindings immediately display the current values.
+
+Holding the selected-unit portrait is also a camera control. The server-authored portrait uses a Quake-style
+`+portraitcamera <entity>` layout command: press recenters on the currently sole-selected unit and installs that unit as the existing
+camera target controller; release sends the captured `-portraitcamera` command and clears the controller even if the pointer left the
+portrait. `G_RunClients()` then follows the target's current position each simulation frame for the duration of the hold. This reuses
+the same target-controller state as `SetCameraTargetController` rather than adding a second follow-camera implementation.
 
 The selected-unit damage, armor, and Hero-attribute blocks use retail `UI\FrameDef\UI\SimpleInfoPanel.fdf` for the
 actual icon, label, value, and internal offsets. C owns only the runtime wrapper rectangles that the game repositions:
@@ -410,8 +424,11 @@ paths or per-unit dimensions into C.
 The displayed name comes from the race/campaign `Units\\*UnitStrings.txt` `Name` field (`unam`), merged into `UnitProfile_t.name`;
 for example, `Units\\NeutralUnitStrings.txt` defines `[nvil] Name=Villager`. `G_CustomizeEntity` interns that text into `CS_GENERAL`
 and sends its 1-based pool index through `entityState_t.name`; the generic `UI_STAT_CONTEXT_NAME` binding resolves that index while
-drawing `LAYER_WORLD_HOVER`. Health and mana use the corresponding context bindings over the snapshot's compressed stat bytes. A
-configstring is NUL-terminated on the wire, so its sixteen fixed-width name records use
+drawing `LAYER_WORLD_HOVER`. Runtime-created units/buildings may allocate a new pooled name only after a client is already spawned.
+`PF_Confignstring()` must therefore clear `sv.syncstrings[index]` whenever game code changes a configstring, allowing
+`SV_SendClientMessages()` to reliably flush the new value to connected clients. Leaving the sync bit set produces the specific
+regression where pre-existing hover names work but a newly constructed building has an empty hover label. Health and mana use the
+corresponding context bindings over the snapshot's compressed stat bytes. A configstring is NUL-terminated on the wire, so its sixteen fixed-width name records use
 ASCII Unit Separator (`0x1f`) as padding and retain a single final NUL. `CL_ParseConfigString` converts the separators back to NULs
 after receipt, preserving ordinary fixed-offset C strings for renderer and UI consumers. Embedded NUL records truncate at the first
 name in `MSG_WriteString` and leave later hover names empty.
