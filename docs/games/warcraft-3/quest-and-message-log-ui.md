@@ -157,7 +157,7 @@ state-then-network-write discipline used by dialogue presentation.
 The Log uses the generic `LAYER_SECONDARY_DIALOG`, appended after the newer
 `LAYER_UNIT_SHORTCUTS` entry in `UILAYOUTLAYER`; existing layer numeric IDs
 must remain stable. Quest keeps its pre-existing quest-dialog layer. Both dialog
-roots carry the generic `UIFRAME_FLAG_MODAL` wire bit, so shared client code
+roots carry the generic `UIFRAME_FLAG_MODAL` wire bit (kept distinct from `UIFLAG_SIZE_TO_CONTENT`), so shared client code
 blocks underlying input without knowing which game-specific screen is open.
 
 ## Modal Behavior
