@@ -10,6 +10,31 @@ static BOOL SV_EnsureServerPort(void) {
     return true;
 }
 
+static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
+    if (!name || !name[0] || strchr(name, '/') || strchr(name, '\\')) {
+        fprintf(stderr, "savegame: invalid save name\n");
+        return false;
+    }
+    FS_UserPath(name, path, sizeof(PATHSTR));
+    return true;
+}
+
+static void SV_SaveGame_f(void) {
+    PATHSTR path;
+
+    if (Cmd_Argc() != 2) { fprintf(stderr, "usage: savegame <name>\n"); return; }
+    if (sv.state != ss_game || !SV_SavePath(Cmd_Argv(1), path)) return;
+    if (!ge || !ge->SaveGame || !ge->SaveGame(path)) fprintf(stderr, "savegame: failed to write %s\n", path);
+}
+
+static void SV_LoadGame_f(void) {
+    PATHSTR path;
+
+    if (Cmd_Argc() != 2) { fprintf(stderr, "usage: loadgame <name>\n"); return; }
+    if (sv.state != ss_game || !SV_SavePath(Cmd_Argv(1), path)) return;
+    if (!ge || !ge->LoadGame || !ge->LoadGame(path)) fprintf(stderr, "loadgame: failed to read %s\n", path);
+}
+
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
     memset(sv.baselines, 0, sizeof(entityState_t) * ge->max_edicts);
@@ -300,6 +325,8 @@ void SV_Init(void) {
 
 #ifndef TOOL_COMMON_NO_MPQ
     Cmd_AddCommand("lobby_start", SV_StartLobby_f);
+    Cmd_AddCommand("savegame", SV_SaveGame_f);
+    Cmd_AddCommand("loadgame", SV_LoadGame_f);
     SV_LobbyAddCommands();
 #endif
 }

@@ -120,6 +120,8 @@ struct game_export {
     void (*CustomizeEntity)(DWORD player, LPCEDICT ent, LPENTITYSTATE state);
     DWORD (*PlayerCreateMap)(void);
     bool (*LoadMap)(LPCSTR mapFilename);
+    BOOL (*SaveGame)(LPCSTR filename);
+    BOOL (*LoadGame)(LPCSTR filename);
     BOX2 (*GetWorldBounds)(void);
     
     edict_t *edicts;

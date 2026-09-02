@@ -1166,6 +1166,10 @@ LPEDICT G_CreateDeadDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOA
 BOOL G_IsDestructable(LPCEDICT ent);
 void SP_monster_tree(LPEDICT);
 
+// g_save.c
+BOOL WriteGame(LPCSTR filename);
+BOOL ReadGame(LPCSTR filename);
+
 LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);
 void G_RegisterGroundSurface(LPEDICT);

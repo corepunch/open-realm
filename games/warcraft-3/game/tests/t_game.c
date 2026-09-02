@@ -979,6 +979,47 @@ TEST(wc3_perf, acquisition_ranges_1900) {
     T_BENCH("G_AcquisitionRange (1900 units x 10 passes)", 30, bench_acquisition_ranges());
 }
 
+TEST(wc3_save, round_trip_edict_and_player_state) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-test.bin";
+    LPEDICT first, second;
+
+    reset_entities();
+    first = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 24.0f);
+    second = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 48.0f, 72.0f);
+    first->harvested_gold = 37;
+    first->collision = 42.5f;
+    first->s.origin.x = 96.0f;
+    first->s.origin.y = 128.0f;
+    first->owner = second;
+    level.framenum = 1234;
+    level.time = 5678;
+    level.started = true;
+    level.scriptsStarted = true;
+    game.clients[0].jass.race_pref = 2;
+    game.clients[0].jass.controller = 1;
+    game.clients[0].ping = 77;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 123;
+    T_ASSERT(WriteGame(filename));
+    first->harvested_gold = 0;
+    first->owner = NULL;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
+    T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
+    T_EQ(g_edicts[first - g_edicts].s.origin.x, 96.0f);
+    T_EQ(g_edicts[first - g_edicts].s.origin.y, 128.0f);
+    T_EQ(level.framenum, 1234);
+    T_EQ(level.time, 5678);
+    T_ASSERT(level.started && level.scriptsStarted);
+    T_EQ(game.clients[0].jass.race_pref, 2);
+    T_EQ(game.clients[0].jass.controller, 1);
+    T_EQ(game.clients[0].ping, 77);
+    T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
+    T_ASSERT(g_edicts[0].client == &game.clients[0]);
+    remove(filename);
+}
+
 /* =========================================================================
  * Suite runner
  * ========================================================================= */
