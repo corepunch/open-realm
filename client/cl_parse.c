@@ -729,21 +729,32 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     Cbuf_AddText("\n");
 }
 
-/* Apply an authoritative server selection to the client cache and refresh the active unit UI. */
+/* Apply an authoritative server selection to the client cache and refresh the active unit UI.
+ * The payload is a packed array of entity numbers. A zero-byte payload clears
+ * selection; malformed or oversized payloads are rejected without changing it. */
 static void CL_ParseSetSelection(LPSIZEBUF msg) {
-    DWORD number;
+    DWORD count, selected = 0;
 
-    if (msg->cursize < sizeof(number)) {
-        fprintf(stderr, "CL: invalid set_selection payload (%u bytes)\n", (unsigned)msg->cursize);
+    if (!msg || (msg->cursize % sizeof(DWORD)) != 0) {
+        fprintf(stderr, "CL: invalid set_selection payload (%u bytes)\n",
+                msg ? (unsigned)msg->cursize : 0u);
         return;
     }
-    number = (DWORD)MSG_ReadLong(msg);
-
-    if (number > 0 && number < MAX_CLIENT_ENTITIES) {
-        cl.selection.num_selected = 1;
-        cl.selection.entity_nums[0] = number;
-        ui.UpdateUnitUI(0, NULL);
+    count = msg->cursize / sizeof(DWORD);
+    if (count > MAX_SELECTED_ENTITIES) {
+        fprintf(stderr, "CL: oversized set_selection payload (%u entities)\n",
+                (unsigned)count);
+        return;
     }
+
+    FOR_LOOP(i, count) {
+        DWORD const number = (DWORD)MSG_ReadLong(msg);
+        if (number > 0 && number < MAX_CLIENT_ENTITIES) {
+            cl.selection.entity_nums[selected++] = number;
+        }
+    }
+    cl.selection.num_selected = selected;
+    if (ui.UpdateUnitUI) ui.UpdateUnitUI(0, NULL);
 }
 
 static void CL_ParseGameCommand(LPSIZEBUF msg) {
