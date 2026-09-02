@@ -78,9 +78,10 @@ struct game_import {
      * without linking directly against common.  Returns fallback if not set. */
     LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
 
-    /* Resolve writable per-game state without linking game modules against
-     * engine common. The engine owns fs_homepath/basepath fallback policy. */
+    /* Resolve writable per-game config/state without linking game modules against engine common. */
     void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size);
+    /* Resolve save files under the platform's per-user data directory. */
+    void (*SavePath)(LPCSTR rel, LPSTR out, DWORD out_size);
 };
 
 struct client;

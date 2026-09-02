@@ -402,7 +402,7 @@ int main(int argc, LPSTR argv[]) {
             // Listen-server mode: show the client loading screen before the
             // synchronous server map load, mirroring Quake's loading plaque flow.
             /* `+map` may already have run from the late command buffer. Do not
-             * load it again after `+loadgame`, or the restored state is lost. */
+             * load it again after `+load`, or the restored state is lost. */
             if (!svs.initialized || sv.state != ss_game) {
                 SV_Init();
                 CL_BeginLoadingMap(map);
