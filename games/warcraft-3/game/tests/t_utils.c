@@ -92,6 +92,7 @@ void setup_test_world(void) {
 
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
+    UI_TestResetInfoPanelIconCache();
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); }
     G_FowShutdown();

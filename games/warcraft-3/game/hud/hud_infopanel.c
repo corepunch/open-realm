@@ -241,7 +241,7 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
 
 typedef struct {
     BOOL resolved;
-    LPCSTR texture;
+    PATHSTR texture;
 } infoPanelIconCache_t;
 
 /* Damage and defense each have eight Warsmash enum entries. Cache the final
@@ -315,13 +315,13 @@ static LPCSTR ResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upg
     int const upgrade_index = has_upgrade ? 1 : 0;
     infoPanelIconCache_t *cache = &info_panel_icon_cache[family][type_index][upgrade_index];
 
-    if (cache->resolved) return cache->texture;
+    if (cache->resolved) return cache->texture[0] ? cache->texture : NULL;
     cache->resolved = true;
 
     texture = InfoPanelThemeIcon(prefix, normalized, has_upgrade);
     if (texture && *texture && InfoPanelTextureExists(texture)) {
-        cache->texture = texture;
-        return texture;
+        G_CopyString(cache->texture, sizeof(cache->texture), texture);
+        return cache->texture;
     }
 
     if (!has_upgrade) {
@@ -334,14 +334,14 @@ static LPCSTR ResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upg
         if (fallback && *fallback && InfoPanelTextureExists(fallback)) {
             fprintf(stderr, "WC3 info panel: %s %s Neutral icon '%s' unavailable; using '%s'\n",
                     prefix, normalized, texture && *texture ? texture : "<missing skin field>", fallback);
-            cache->texture = fallback;
-            return fallback;
+            G_CopyString(cache->texture, sizeof(cache->texture), fallback);
+            return cache->texture;
         }
     }
 
     fprintf(stderr, "WC3 info panel: missing %s %s%s icon '%s'\n", prefix, normalized,
             has_upgrade ? "" : " Neutral", texture && *texture ? texture : "<missing skin field>");
-    cache->texture = NULL;
+    cache->texture[0] = '\0';
     return NULL;
 }
 

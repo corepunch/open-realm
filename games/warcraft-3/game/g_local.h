@@ -54,14 +54,15 @@ if (NAME) { \
     fprintf(stderr, #NAME " not found");\
 }
 
-#define UI_WRITE_LAYER(ent, BuildUI, layer, ...) \
-    UI_SetCurrentClient(ent->client); \
+#define UI_WRITE_LAYER(ent, BuildUI, layer, ...) do { \
+    UI_SetCurrentClient((ent)->client); \
     UI_WriteStart(layer); \
-    BuildUI(ent->client, ##__VA_ARGS__); \
+    BuildUI((ent)->client, ##__VA_ARGS__); \
     gi.Write(PF_LONG, &(LONG){0}); \
     gi.Write(PF_SHORT, &(LONG){0}); \
     gi.unicast(ent); \
-    UI_SetCurrentClient(NULL);
+    UI_SetCurrentClient(NULL); \
+} while (0)
 
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
