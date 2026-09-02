@@ -72,12 +72,30 @@ FLOAT SCR_GetAnchor(LPCUIFRAME f,
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               uiFramePoints_t const points,
                               FLOAT width,
-                              bool is_x_axis)
+                              bool is_x_axis,
+                              bool assigned_size)
 {
     uiFramePoint_t const *pmin = points + FPP_MIN;
     uiFramePoint_t const *pmid = points + FPP_MID;
     uiFramePoint_t const *pmax = points + FPP_MAX;
     VECTOR2 (*get)(LPCRECT) = is_x_axis ? get_x : get_y;
+
+    /* Warcraft preserves an authored Width/Height when both opposing anchors
+     * exist.  Horizontal layout is left/min anchored; vertical layout is
+     * bottom/max anchored (OpenRealm stores UI Y in top-left coordinates).
+     * Only an auto-sized axis stretches between min and max. */
+    if (assigned_size && pmin->used && pmax->used) {
+        if (is_x_axis) {
+            return (VECTOR2) {
+                SCR_GetAnchor(frame, pmin, get),
+                width,
+            };
+        }
+        return (VECTOR2) {
+            SCR_GetAnchor(frame, pmax, get) - width,
+            width,
+        };
+    }
 
     if (pmid->used) {
         return (VECTOR2) {
@@ -107,9 +125,10 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
 VECTOR2 get_position(LPCUIFRAME frame,
                      uiFramePoints_t const p,
                      FLOAT width,
-                     VECTOR2 (*get)(LPCRECT))
+                     VECTOR2 (*get)(LPCRECT),
+                     bool assigned_size)
 {
-    return SCR_SolveAxisPosition(frame, p, width, get == get_x);
+    return SCR_SolveAxisPosition(frame, p, width, get == get_x, assigned_size);
 }
 
 /* Context bindings read only recipient-filtered snapshot state already present on the client. */
@@ -194,6 +213,8 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
 }
 
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
+    bool const assigned_width = frame->size.width > 0;
+    bool const assigned_height = frame->size.height > 0;
     if (runtimes[frame->number].calculated) {
         return &runtimes[frame->number].rect;
     } else {
@@ -204,13 +225,20 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     drawText_t drawtext = {0};
     switch (frame->flags.type) {
         case FT_STRING:
-        case FT_TEXT:
+        case FT_TEXT: {
+            uiLabel_t const *label = frame->buffer.data;
             if (frame->size.width > 0) {
                 avl_space = frame->size.width;
             }
-            drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), frame->buffer.data);
+            drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), label);
             elemsize = re.GetTextSize(&drawtext);
+            if (frame->size.width == 0 && frame->textLength > 0) {
+                drawText_t space = SCR_GetDrawText(frame, avl_space, " ", label);
+                VECTOR2 const space_size = re.GetTextSize(&space);
+                elemsize.x = (FLOAT)frame->textLength * space_size.x;
+            }
             break;
+        }
         case FT_NAMETAG: {
             uiNameTag_t const *tag = frame->buffer.data;
             drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), &tag->text);
@@ -254,8 +282,8 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         ((LPUIFRAME )frame)->size.height = elemsize.y;
     }
     VECTOR2 const rect[] = {
-        get_position(frame, frame->points.x, frame->size.width, get_x),
-        get_position(frame, frame->points.y, frame->size.height, get_y),
+        get_position(frame, frame->points.x, frame->size.width, get_x, assigned_width),
+        get_position(frame, frame->points.y, frame->size.height, get_y, assigned_height),
     };
     runtimes[frame->number].rect = (RECT) {
         .x = rect[0].x,

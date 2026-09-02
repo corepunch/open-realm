@@ -317,6 +317,14 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                  * baked into the model and intentionally omit Width/Height.
                  */
                 break;
+            case FT_FRAME:
+            case FT_SIMPLEFRAME:
+                /*
+                 * Structural FDF containers do not acquire an implicit size.
+                 * Un-sized containers such as LoadingCustomPanel are 0x0 in
+                 * Warcraft/Warsmash unless anchors stretch an axis.
+                 */
+                break;
             default:
                 /* Default size if not specified */
                 if (intrinsic_w == 0) intrinsic_w = 0.1f;

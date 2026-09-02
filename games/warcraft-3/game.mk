@@ -218,6 +218,10 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		grep -q "Test Attack Item" && echo "  cat item SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/AbilityData.slk | \
 		grep -q "AInv" && echo "  cat ability SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/AbilityBuffData.slk | \
+		grep -q "Biml" && echo "  cat ability buff SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/UpgradeData.slk | \
+		grep -q "Rhme" && echo "  cat upgrade SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/ItemFunc.txt | \
 		grep -q "spro" && echo "  cat item UI OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat UI/war3skins.txt | \

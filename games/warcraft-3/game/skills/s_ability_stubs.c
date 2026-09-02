@@ -8,6 +8,7 @@ static void immolation_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
             memset(&caster->abilstatus[i], 0, sizeof(caster->abilstatus[i]));
+            G_InvalidateUnitInfoPanel(caster);
             return;
         }
     }
@@ -35,6 +36,7 @@ static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
             memset(&caster->abilstatus[i], 0, sizeof(caster->abilstatus[i]));
+            G_InvalidateUnitInfoPanel(caster);
             return;
         }
     }

@@ -280,6 +280,19 @@ TEST(wc3_slk, weapon_columns_decode_into_attack_records) {
     G_SetSLKRows("UnitWeapons", saved); free_slk_rows(rows);
 }
 
+TEST(wc3_slk, ability_buff_ui_columns_decode) {
+    AbilityBuffData_t const *buff = G_AbilityBuffData(MAKEFOURCC('B','i','m','l'));
+    T_EQ(buff->id, MAKEFOURCC('B','i','m','l'));
+    T_STREQ(buff->buffArt, "ReplaceableTextures\\CommandButtons\\BTNImmolationOn.blp");
+    T_STREQ(buff->buffTip, "Immolation");
+}
+
+TEST(wc3_slk, upgrade_class_column_decodes) {
+    UpgradeData_t const *upgrade = G_UpgradeData(MAKEFOURCC('R','h','m','e'));
+    T_EQ(upgrade->id, MAKEFOURCC('R','h','m','e'));
+    T_STREQ(upgrade->upgradeClass, "melee");
+}
+
 TEST(wc3_slk, unit_unknown_id_returns_zero) {
     T_FEQ(G_UnitBalance(MAKEFOURCC('x','x','x','x'))->speed,      0.0f, 0.01f);
     T_FEQ(G_UnitBalance(MAKEFOURCC('x','x','x','x'))->maxHealth,  0.0f, 0.01f);

@@ -5,7 +5,7 @@ For campaign loading and asset diagnostics, see [WC3 loading and assets](games/w
 ## FDF-Driven Layout
 
 - In client/UI code, never define or hardcode UI elements, layout coordinates, textures, frame names, or control structures that can be read from FDF. Parse and reuse the actual FDF frames/templates, then bind dynamic data into those frames.
-- WC3 game code has access to the FDF parser and uses it for frames that exist in War3.mpq (e.g. building detail, resource bar, quest dialog). For native WC3 frame types that have no FDF definition in the MPQ (portrait, command button, minimap, tooltip), simple proxy frames are constructed in C with inline float values and serialized via `UI_WriteProxyFrame`.
+- WC3 game code has access to the FDF parser and uses it for frames that exist in War3.mpq (e.g. building detail, resource bar, quest dialog). Native runtime controls with no MPQ frame geometry, such as the portrait, command-card buttons, minimap content, and tooltips, use compact proxy frames serialized via `UI_WriteProxyFrame`.
 - Keep proxy-frame buffers as compact wire schemas, not copies of runtime structs. See [Server-Authored UI Payloads](architecture/ui-payloads.md).
 
 ### No project-owned FDF
@@ -17,9 +17,29 @@ When you need a frame that exists in the MPQ, load it with `UI_EnsureFDF` and ge
 (see AGENTS.md §WC3 UI Tooling). Examples: `InfoPanelBuildingDetail.fdf` for the building-detail HUD sub-panel; `QuestDialog.fdf`
 for the quest window; `MapListBox.fdf` for a list-box control reused by campaign and multiplayer screens.
 
-For frame types that have no FDF definition in War3.mpq — portraits, command buttons, minimap, tooltip — construct a static
-`FRAMEDEF` in C with `UI_InitFrame`, `UI_SetSize`, and `UI_SetPoint`, using inline float literals. Do not name those positions
-with `#define` constants.
+For runtime controls that have no FDF geometry in War3.mpq — portraits, command buttons, minimap content, tooltip payloads — construct a
+small proxy frame in C. Warsmash ships a project-owned `UI\FrameDef\SmashUI\UnitPortrait.fdf` to describe its portrait geometry;
+that file is not a retail MPQ source and must not be introduced as an OpenRealm data dependency. OpenRealm's portrait remains a runtime
+proxy, with its coordinates kept in parity with the reference runtime layout.
+
+### TextLength semantics
+
+WC3 FDF `TextLength` is layout geometry, not merely a character limit. When a text frame has no explicit `Width`, its implicit width
+is `TextLength` multiplied by the active font's space-glyph advance. `uiFrame_t.textLength` therefore belongs to the retained UI wire
+contract and must survive `MSG_WriteDeltaUIFrame` / `MSG_ReadDeltaUIFrame`; the client resolves the final width with its registered
+font metrics. Falling back to the current string's natural width breaks right-aligned resource fields because their right anchor stays
+correct while the left edge moves with the number of digits.
+
+Single-line FDF text with no authored `Width`/`Height` uses the declared FDF font size as its layout line-box height. The renderer's
+glyph bounds are drawing metrics and may be shorter; using them as layout height causes chained labels to drift vertically. Conversely,
+when an FDF frame has an authored `Width` or `Height`, that dimension remains authoritative even if both opposing anchors are present.
+On the Y axis WC3 preserves the bottom anchor and lets an authored-height frame extend upward; only an auto-sized axis stretches between
+its opposing anchors. This is required by `SimpleInfoPanel.fdf`, whose `0.03125` damage/armor frames are deliberately taller than the
+`0.030125` runtime wrappers they are attached to.
+
+Runtime WC3 command-card geometry follows the 4x3 retail/Warsmash grid: x starts at `0.6175` with a `0.0434` column stride, y starts
+at `0.4660` with a `0.0440` row stride, and buttons are `0.039 x 0.039`. These are runtime control coordinates rather than FDF-owned
+layout.
 
 ## Screen Controller Conventions
 

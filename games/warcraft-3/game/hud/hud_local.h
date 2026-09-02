@@ -32,6 +32,8 @@ LPCSTR UI_LevelStringSafe(LPCSTR text);
 void UI_WriteStart(DWORD layer);
 void UI_WriteEnd(LPEDICT ent);
 void UI_ResetFrameWriteList(void);
+void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
+DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 
 /* Theme (hud_write.c) */
 LPCSTR Theme_String(LPCSTR key, LPCSTR def);
@@ -57,6 +59,7 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
 
 /* Info panel (hud_infopanel.c) */
 void UI_WriteSingleInfo(LPEDICT ent);
+DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key);
 void UI_WriteMultiselect(LPEDICT *ents, DWORD count);
 void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count);
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count);

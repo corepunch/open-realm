@@ -1051,6 +1051,7 @@ static void UI_FreeFrameMenuItems(LPFRAMEDEF frame);
 static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source);
 static void UI_RemoveBom(LPSTR buffer);
 static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent);
+static void UI_ClearStringList(void);
 
 void UI_ClearTemplates(void) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -1060,6 +1061,7 @@ void UI_ClearTemplates(void) {
     memset(frames, 0, sizeof(frames));
     memset(ui_loaded_fdfs, 0, sizeof(ui_loaded_fdfs));
     ui_num_loaded_fdfs = 0;
+    UI_ClearStringList();
     UI_ClearTheme();
     UI_ClearTextures();
 }
@@ -1317,24 +1319,44 @@ typedef struct stringListItem_s {
 
 stringListItem_t *strings = NULL;
 
-FDF_MAKE_PARSER(StringListItem) {
+static void UI_ClearStringList(void) {
+    stringListItem_t *it = strings;
+    while (it) {
+        stringListItem_t *next = it->next;
+        if (it->value) UI_FdfFree(it->value);
+        UI_FdfFree(it);
+        it = next;
+    }
+    strings = NULL;
+}
+
+static void UI_AddStringListItem(LPCSTR name, LPCSTR token) {
     char value[1024];
     char *start;
     char *end;
+    size_t length;
+    stringListItem_t *item;
 
-    snprintf(value, sizeof(value), "%s", token ? token : "");
+    if (!name || !*name || !token) return;
+    snprintf(value, sizeof(value), "%s", token);
     start = UI_Trim(value);
-    if (*start == '"') {
-        start++;
-    }
+    if (*start == '"') start++;
     end = start + strlen(start);
-    while (end > start && isspace((unsigned char)end[-1])) {
-        *--end = '\0';
+    while (end > start && isspace((unsigned char)end[-1])) *--end = '\0';
+    if (end > start && end[-1] == '"') *--end = '\0';
+
+    item = UI_FdfAlloc(sizeof(*item));
+    if (!item) return;
+    memset(item, 0, sizeof(*item));
+    strlcpy(item->name, name, sizeof(item->name));
+    length = strlen(start);
+    item->value = UI_FdfAlloc((long)length + 1);
+    if (!item->value) {
+        UI_FdfFree(item);
+        return;
     }
-    if (end > start && end[-1] == '"') {
-        *--end = '\0';
-    }
-    strings->value = strdup(start);
+    memcpy(item->value, start, length + 1);
+    ADD_TO_LIST(item, strings);
 }
 
 FDF_MAKE_ENUMPARSER(AlphaMode);
@@ -1634,11 +1656,13 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     LPCSTR token = NULL;
     while ((token = parse_token(parser)) && *token && (*token != '}')) {
         if (frame->Type == FT_STRINGLIST) {
-            static fdf_parseItem_t stringitem = { "", { FDF_F(Name, StringListItem), FDF_F_END } };
-            stringListItem_t *str = UI_FdfAlloc(sizeof(stringListItem_t));
-            ADD_TO_LIST(str, strings);
-            strcpy(str->name, token);
-            parse_item(parser, frame, &stringitem);
+            UINAME name;
+            LPCSTR value;
+
+            strlcpy(name, token, sizeof(name));
+            value = parse_token(parser);
+            UI_AddStringListItem(name, value);
+            eat_token(parser, ",");
             goto parse_next;
         } else {
             for (fdf_parseItem_t *it = items; it->name; it++) {

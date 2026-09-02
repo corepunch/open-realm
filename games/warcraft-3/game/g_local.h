@@ -1317,6 +1317,7 @@ void CMD_CancelCommand(LPEDICT ent);
 BOOL G_CancelBuildPlacement(LPEDICT clent);
 void Get_Portrait_f(LPEDICT);
 void G_RefreshInventoryLayer(LPEDICT);
+void G_InvalidateUnitInfoPanel(LPEDICT);
 void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
 void UI_WriteSelectedPortraitLayer(LPEDICT);
@@ -1401,6 +1402,8 @@ FLOAT Theme_Float(LPCSTR, LPCSTR);
 
 // ui_write.c
 void UI_WriteFrame(LPCFRAMEDEF);
+void UI_WriteFrameValue(LPCFRAMEDEF, FLOAT);
+DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF, LPCFRAMEDEF);
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT, LPCFRAMEDEF, LPCFRAMEDEF, uiTrigger_t const *);
 BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,

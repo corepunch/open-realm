@@ -351,6 +351,7 @@ void unit_updatestatuses(LPEDICT ent) {
     }
     if (changed) {
         unit_refreshstatusflags(ent);
+        G_InvalidateUnitInfoPanel(ent);
     }
     if (kill && !M_IsDead(ent)) {
         ent->health.value = 0;
@@ -397,6 +398,7 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
                 }
             }
             unit_refreshstatusflags(ent);
+            G_InvalidateUnitInfoPanel(ent);
             return;
         }
         if (!status->level && !slot) {
@@ -411,6 +413,7 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
     slot->level = level;
     slot->timestamp = duration > 0 ? now + (DWORD)(duration * 1000.0f) : 0;
     unit_refreshstatusflags(ent);
+    G_InvalidateUnitInfoPanel(ent);
 }
 
 void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {

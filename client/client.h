@@ -168,7 +168,8 @@ FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               uiFramePoints_t const points,
                               FLOAT width,
-                              bool is_x_axis);
+                              bool is_x_axis,
+                              bool assigned_size);
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
 drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          FLOAT avl_width,

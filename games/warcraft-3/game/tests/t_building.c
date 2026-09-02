@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+#include "../hud/hud_local.h"
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
@@ -325,6 +326,36 @@ TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clic
     T_ASSERT(building_command_frame_seen);
     T_EQ(building_command_frame.hotkey, 'B');
     T_NOT_NULL(building_command_frame.onclick);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+
+TEST(wc3_building, command_button_geometry_matches_warcraft_grid) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    gameCommandButton_t button;
+
+    memset(&button, 0, sizeof(button));
+    snprintf(button.command, sizeof(button.command), "CmdBuild");
+    snprintf(button.art, sizeof(button.art), "test");
+    button.x = 3;
+    button.y = 2;
+
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_command_frame_seen = false;
+
+    UI_WriteCommandButtonFrame(&button);
+
+    T_ASSERT(building_command_frame_seen);
+    T_FEQ((FLOAT)building_command_frame.points.x[FPP_MIN].offset / UI_FRAMEPOINT_SCALE,
+          0.7477f, 0.0001f);
+    T_FEQ(-(FLOAT)building_command_frame.points.y[FPP_MIN].offset / UI_FRAMEPOINT_SCALE,
+          0.5540f, 0.0001f);
+    T_FEQ(building_command_frame.size.width, 0.039f, 0.0001f);
+    T_FEQ(building_command_frame.size.height, 0.039f, 0.0001f);
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;
