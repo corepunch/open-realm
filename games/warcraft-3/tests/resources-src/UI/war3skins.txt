@@ -2,6 +2,10 @@
 ConsoleInventoryCoverTexture=TestUI\Textures\default-inventory-cover.blp
 ConsoleInventoryNoCapacity=TestUI\Textures\default-inventory-no-capacity.blp
 JobDoneSound=TestJobDone
+InfoPanelIconArmorHeroNeutral=TestUI\Textures\missing-hero-neutral.blp
+InfoPanelIconArmorHero=TestUI\Textures\solid_white.blp
+InfoPanelIconArmorDivineNeutral=TestUI\Textures\missing-divine-neutral.blp
+InfoPanelIconArmorDivine=TestUI\Textures\missing-divine.blp
 
 [Human]
 ConsoleInventoryCoverTexture=TestUI\Textures\human-inventory-cover.blp

@@ -108,6 +108,91 @@ TEST(wc3_game, hud_valid_texture_path_is_unchanged) {
     T_STREQ(UI_ResolveTextureAlias("UI\\Feedback\\Resources\\ResourceGold.blp"),
                   "UI\\Feedback\\Resources\\ResourceGold.blp");
 }
+TEST(wc3_game, hud_status_icon_keys_follow_upgrade_and_neutral_families) {
+    char key[96];
+
+    /* Stock Footman: Normal attack + Heavy/Large armor, both upgradeable. */
+    UI_InfoPanelIconSkinKey("Damage", "normal", true, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconDamageNormal");
+    UI_InfoPanelIconSkinKey("Armor", "large", true, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconArmorLarge");
+
+    /* Stock Rifleman: Piercing attack + Medium armor, both upgradeable. */
+    UI_InfoPanelIconSkinKey("Damage", "pierce", true, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconDamagePierce");
+    UI_InfoPanelIconSkinKey("Armor", "medium", true, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconArmorMedium");
+
+    /* Units without a matching upgrade class use Warcraft's Neutral family. */
+    UI_InfoPanelIconSkinKey("Damage", "normal", false, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconDamageNormalNeutral");
+    UI_InfoPanelIconSkinKey("Armor", "large", false, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconArmorLargeNeutral");
+
+    /* Heroes are not special-cased: no upgrade class means HeroNeutral, while
+     * a custom Hero type with an applicable upgrade uses the normal family. */
+    UI_InfoPanelIconSkinKey("Damage", "hero", false, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconDamageHeroNeutral");
+    UI_InfoPanelIconSkinKey("Armor", "hero", false, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconArmorHeroNeutral");
+    UI_InfoPanelIconSkinKey("Armor", "hero", true, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconArmorHero");
+
+    /* Preserve a custom Spells skin field; the runtime resolver only retries
+     * Magic when the Spells field is absent, matching Warsmash. */
+    UI_InfoPanelIconSkinKey("Damage", "spells", false, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconDamageSpellsNeutral");
+
+    /* Warsmash normalizes Warcraft's Heavy defense spelling to Large and its
+     * enum fallback entries are Unknown for damage and Small for armor. */
+    UI_InfoPanelIconSkinKey("Armor", "heavy", true, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconArmorLarge");
+    UI_InfoPanelIconSkinKey("Damage", "seige", true, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconDamageSiege");
+    UI_InfoPanelIconSkinKey("Damage", NULL, false, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconDamageUnknownNeutral");
+    UI_InfoPanelIconSkinKey("Armor", NULL, false, key, sizeof(key));
+    T_STREQ(key, "InfoPanelIconArmorSmallNeutral");
+}
+
+static DWORD status_icon_read_count;
+static HANDLE status_icon_missing_read(LPCSTR path, DWORD *size) {
+    (void)path;
+    status_icon_read_count++;
+    if (size) *size = 0;
+    return NULL;
+}
+
+TEST(wc3_game, hud_status_icon_neutral_fallback_is_cached) {
+    HANDLE (*saved_read)(LPCSTR, DWORD *) = gi.ReadFile;
+    LPCSTR texture;
+
+    UI_TestResetInfoPanelIconCache();
+    texture = UI_TestResolveTypedInfoPanelIcon("Armor", "Hero", false);
+    T_STREQ(texture, "TestUI\\Textures\\solid_white.blp");
+
+    status_icon_read_count = 0;
+    gi.ReadFile = status_icon_missing_read;
+    T_STREQ(UI_TestResolveTypedInfoPanelIcon("Armor", "Hero", false), texture);
+    T_EQ(status_icon_read_count, 0);
+    gi.ReadFile = saved_read;
+}
+
+TEST(wc3_game, hud_status_icon_missing_candidates_cache_null) {
+    HANDLE (*saved_read)(LPCSTR, DWORD *) = gi.ReadFile;
+
+    UI_TestResetInfoPanelIconCache();
+    status_icon_read_count = 0;
+    gi.ReadFile = status_icon_missing_read;
+    T_NULL(UI_TestResolveTypedInfoPanelIcon("Armor", "Divine", false));
+    T_ASSERT(status_icon_read_count >= 1);
+
+    status_icon_read_count = 0;
+    T_NULL(UI_TestResolveTypedInfoPanelIcon("Armor", "Divine", false));
+    T_EQ(status_icon_read_count, 0);
+    gi.ReadFile = saved_read;
+}
+
 TEST(wc3_game, hud_second_attack_requires_enabled_slot_and_showui) {
     UnitWeapons_t weapons = { 0 };
 

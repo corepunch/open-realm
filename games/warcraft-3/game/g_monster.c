@@ -600,6 +600,9 @@ void SP_SpawnUnit(LPEDICT self) {
     /* Heroes: fold the primary-attribute attack-damage bonus into damageBase now
      * that base attributes + attack1 are loaded (no-op for non-heroes). */
     G_RecomputeHeroStats(self);
+    /* Completed player upgrades are persistent techtree state, not producer
+     * buffs. New units inherit the owner's current levels at spawn. */
+    G_ApplyPlayerUpgradesToUnit(self);
 
     if (self->attack1.weapon == WPN_MISSILE) {
         self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);

@@ -101,6 +101,79 @@ static const char building_repair_slk[] =
     "C;X9;K\"ground,structure,friend\"\n"
     "E\n";
 
+static const char building_upgrade_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X13;Y6;D0\n"
+    "C;X1;Y1;K\"upgradeid\"\n"
+    "C;X2;K\"class\"\n"
+    "C;X3;K\"maxlevel\"\n"
+    "C;X4;K\"goldbase\"\n"
+    "C;X5;K\"goldmod\"\n"
+    "C;X6;K\"lumberbase\"\n"
+    "C;X7;K\"lumbermod\"\n"
+    "C;X8;K\"timebase\"\n"
+    "C;X9;K\"timemod\"\n"
+    "C;X10;K\"effect1\"\n"
+    "C;X11;K\"base1\"\n"
+    "C;X12;K\"mod1\"\n"
+    "C;X13;K\"code1\"\n"
+    "C;X1;Y2;K\"Rhme\"\n"
+    "C;X2;K\"melee\"\n"
+    "C;X3;K3\n"
+    "C;X4;K100\n"
+    "C;X5;K75\n"
+    "C;X6;K50\n"
+    "C;X7;K125\n"
+    "C;X8;K60\n"
+    "C;X9;K15\n"
+    "C;X10;K\"ratd\"\n"
+    "C;X11;K1\n"
+    "C;X12;K1\n"
+    "C;X13;K\"hfoo\"\n"
+    "C;X1;Y3;K\"Rhar\"\n"
+    "C;X2;K\"armor\"\n"
+    "C;X3;K3\n"
+    "C;X4;K125\n"
+    "C;X5;K25\n"
+    "C;X6;K75\n"
+    "C;X7;K100\n"
+    "C;X8;K60\n"
+    "C;X9;K15\n"
+    "C;X10;K\"rarm\"\n"
+    "C;X11;K0\n"
+    "C;X12;K0\n"
+    "C;X1;Y4;K\"Rhra\"\n"
+    "C;X2;K\"ranged\"\n"
+    "C;X3;K3\n"
+    "C;X10;K\"ratd\"\n"
+    "C;X11;K1\n"
+    "C;X12;K1\n"
+    "C;X1;Y5;K\"Rhla\"\n"
+    "C;X2;K\"armor\"\n"
+    "C;X3;K3\n"
+    "C;X10;K\"rarm\"\n"
+    "C;X11;K0\n"
+    "C;X12;K0\n"
+    "C;X1;Y6;K\"Rhac\"\n"
+    "C;X2;K\"armor\"\n"
+    "C;X3;K3\n"
+    "C;X10;K\"rarm\"\n"
+    "C;X11;K0\n"
+    "C;X12;K0\n"
+    "E\n";
+
+static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
+    slkTestData_t *rows = parse_slk_string(building_upgrade_slk);
+    slkTestData_t *old = G_SetSLKRows("UpgradeData", rows);
+    if (rows_out) *rows_out = rows;
+    return old;
+}
+
+static void building_restore_upgrade_data(slkTestData_t *old, slkTestData_t *rows) {
+    G_SetSLKRows("UpgradeData", old);
+    free_slk_rows(rows);
+}
+
 static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(building_repair_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -130,6 +203,202 @@ TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
 
     G_SetPlayerTechMaxAllowed(client, barracks, -1);
     T_EQ(G_GetPlayerTechMaxAllowed(client, barracks), -1);
+}
+
+TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    UnitProfile_t profile = { .researches = "Rhme" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const upgrade = MAKEFOURCC('R','h','m','e');
+    LONG next_level = 0;
+    char reason[128];
+
+    memset(client->tech, 0, sizeof(client->tech));
+    producer->UnitProfile = &profile;
+    producer->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+
+    T_EQ(G_GetResearchCommandState(client, producer, upgrade, &next_level, reason, sizeof(reason)),
+         BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 1);
+    T_EQ(G_UpgradeGoldCost(upgrade, 1), 100);
+    T_EQ(G_UpgradeLumberCost(upgrade, 1), 50);
+    T_FEQ(G_UpgradeResearchTime(upgrade, 1), 60.0f, 0.001f);
+    T_EQ(G_UpgradeData(upgrade)->effect[0], MAKEFOURCC('r','a','t','d'));
+    T_EQ(G_UpgradeData(upgrade)->effectCode[0], MAKEFOURCC('h','f','o','o'));
+
+    G_SetPlayerTechResearched(client, upgrade, 1);
+    T_EQ(G_GetResearchCommandState(client, producer, upgrade, &next_level, reason, sizeof(reason)),
+         BUILD_COMMAND_AVAILABLE);
+    T_EQ(next_level, 2);
+    T_EQ(G_UpgradeGoldCost(upgrade, 2), 175);
+    T_EQ(G_UpgradeLumberCost(upgrade, 2), 175);
+    T_FEQ(G_UpgradeResearchTime(upgrade, 2), 75.0f, 0.001f);
+
+    G_AddPlayerTechInProgress(client, upgrade, 1);
+    T_EQ(G_GetResearchCommandState(client, producer, upgrade, &next_level, reason, sizeof(reason)),
+         BUILD_COMMAND_HIDDEN);
+    G_AddPlayerTechInProgress(client, upgrade, -1);
+
+    G_SetPlayerTechResearched(client, upgrade, 3);
+    T_EQ(G_GetResearchCommandState(client, producer, upgrade, &next_level, reason, sizeof(reason)),
+         BUILD_COMMAND_HIDDEN);
+
+    G_SetPlayerTechResearched(client, upgrade, 0);
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, research_tooltip_formats_next_level_resource_costs) {
+    LPGAMECLIENT client = &game.clients[0];
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const upgrade = MAKEFOURCC('R','h','m','e');
+    char tooltip[1024];
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+
+    memset(client->tech, 0, sizeof(client->tech));
+    gi.ImageIndex = building_test_image_index;
+    UI_SetCurrentClient(client);
+
+    UI_FormatTooltip("Rhme", "Iron Forged Swords", "Upgrade melee damage.", 0,
+                     tooltip, sizeof(tooltip));
+    T_NOT_NULL(strstr(tooltip, "<Icon,1> 100   <Icon,1> 50   "));
+
+    G_SetPlayerTechResearched(client, upgrade, 1);
+    UI_FormatTooltip("Rhme", "Steel Forged Swords", "Upgrade melee damage.", 0,
+                     tooltip, sizeof(tooltip));
+    /* Level 2 is 175 gold / 175 lumber in the fixture; both values must
+     * follow the requested player's researched level rather than UnitBalance
+     * or a global default. */
+    T_EQ(G_UpgradeLumberCost(upgrade, 2), 175);
+    T_NOT_NULL(strstr(tooltip, "<Icon,1> 175   <Icon,1> 175   "));
+
+    UI_SetCurrentClient(NULL);
+    gi.ImageIndex = old_image_index;
+    G_SetPlayerTechResearched(client, upgrade, 0);
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    UnitProfile_t profile = { .researches = "Rhme" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const upgrade = MAKEFOURCC('R','h','m','e');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    producer->UnitProfile = &profile;
+    producer->s.player = client->ps.number;
+    producer->stand = building_test_stand;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+
+    T_ASSERT(G_QueueResearch(producer, upgrade));
+    T_NOT_NULL(producer->build);
+    T_ASSERT(producer->build->research.upgrade != 0);
+    T_EQ(producer->build->research.upgrade, upgrade);
+    T_EQ(producer->build->research.level, 1);
+    T_EQ(G_GetPlayerTechInProgress(client, upgrade), 1);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 400);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 450);
+
+    T_ASSERT(G_CancelTrainingQueueItem(producer, 0, true));
+    T_NULL(producer->build);
+    T_EQ(G_GetPlayerTechInProgress(client, upgrade), 0);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, upgrade), 0);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 500);
+
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_units) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT future;
+    UnitBalance_t balance = {
+        .upgrades = "Rhme,Rhar",
+        .armorPerUpgrade = 2.0f
+    };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const weapon = MAKEFOURCC('R','h','m','e');
+    DWORD const armor = MAKEFOURCC('R','h','a','r');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    unit->s.player = client->ps.number;
+    unit->UnitBalance = &balance;
+    unit->attack1.numberOfDice = 2;
+    unit->armor_value = 3.0f;
+
+    G_SetPlayerTechResearched(client, weapon, 1);
+    T_EQ(unit->attack1.numberOfDice, 3);
+    G_SetPlayerTechResearched(client, weapon, 2);
+    T_EQ(unit->attack1.numberOfDice, 4);
+
+    G_SetPlayerTechResearched(client, armor, 1);
+    T_FEQ(unit->armor_value, 5.0f, 0.001f);
+    G_SetPlayerTechResearched(client, armor, 2);
+    T_FEQ(unit->armor_value, 7.0f, 0.001f);
+
+    future = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    future->s.player = client->ps.number;
+    future->UnitBalance = &balance;
+    future->attack1.numberOfDice = 2;
+    future->armor_value = 3.0f;
+    G_ApplyPlayerUpgradesToUnit(future);
+    T_EQ(future->attack1.numberOfDice, 4);
+    T_FEQ(future->armor_value, 7.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, weapon, 0);
+    G_SetPlayerTechResearched(client, armor, 0);
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, status_upgrade_families_follow_unit_upgrades_used) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT rifleman = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
+    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    LPEDICT peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    UnitBalance_t footman_balance = { .upgrades = "Rhme,Rhar" };
+    UnitBalance_t rifleman_balance = { .upgrades = "Rhla,Rhra,Rhri,Rhpm,Rguv" };
+    UnitBalance_t building_balance = { .upgrades = "Rhac,Rgfo" };
+    UnitBalance_t peasant_balance = { .upgrades = "Rhlh,Rguv" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const melee = MAKEFOURCC('R','h','m','e');
+    DWORD const heavy_armor = MAKEFOURCC('R','h','a','r');
+    DWORD const ranged = MAKEFOURCC('R','h','r','a');
+    DWORD const light_armor = MAKEFOURCC('R','h','l','a');
+    DWORD const building_armor = MAKEFOURCC('R','h','a','c');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    footman->UnitBalance = &footman_balance;
+    rifleman->UnitBalance = &rifleman_balance;
+    building->UnitBalance = &building_balance;
+    peasant->UnitBalance = &peasant_balance;
+
+    T_EQ(G_GetUnitUpgradeForClass(footman, "melee"), melee);
+    T_EQ(G_GetUnitUpgradeForClass(footman, "armor"), heavy_armor);
+    T_EQ(G_GetUnitUpgradeForClass(rifleman, "ranged"), ranged);
+    T_EQ(G_GetUnitUpgradeForClass(rifleman, "armor"), light_armor);
+    T_EQ(G_GetUnitUpgradeForClass(building, "armor"), building_armor);
+    T_EQ(G_GetUnitUpgradeForClass(building, "melee"), 0);
+    T_EQ(G_GetUnitUpgradeForClass(peasant, "melee"), 0);
+    T_EQ(G_GetUnitUpgradeForClass(peasant, "armor"), 0);
+
+    G_SetPlayerTechResearched(client, heavy_armor, 1);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, heavy_armor), 1);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, building_armor), 0);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, light_armor), 0);
+
+    G_SetPlayerTechResearched(client, heavy_armor, 0);
+    building_restore_upgrade_data(old, rows);
 }
 
 TEST(wc3_building, tech_count_includes_owned_structures_and_research) {

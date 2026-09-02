@@ -20,9 +20,17 @@ DWORD UI_ClassIdFromCode(LPCSTR code) {
 void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size) {
     DWORD class_id = UI_ClassIdFromCode(code);
     UnitBalance_t const *balance = class_id ? G_UnitBalance(class_id) : NULL;
-    DWORD gold_cost = balance ? (DWORD)balance->goldCost : 0;
-    DWORD lumber_cost = balance ? (DWORD)balance->lumberCost : 0;
-    DWORD food_cost = balance ? (DWORD)balance->foodUsed : 0;
+    UpgradeData_t const *upgrade = class_id ? G_UpgradeData(class_id) : NULL;
+    DWORD gold_cost = balance ? (DWORD)MAX(0, balance->goldCost) : 0;
+    DWORD lumber_cost = balance ? (DWORD)MAX(0, balance->lumberCost) : 0;
+    DWORD food_cost = balance ? (DWORD)MAX(0, balance->foodUsed) : 0;
+
+    if (upgrade && upgrade->id == class_id && ui_current_client) {
+        LONG const level_value = G_GetPlayerTechResearchedLevel(ui_current_client, class_id) + 1;
+        gold_cost = (DWORD)G_UpgradeGoldCost(class_id, level_value);
+        lumber_cost = (DWORD)G_UpgradeLumberCost(class_id, level_value);
+        food_cost = 0;
+    }
     DWORD mana_cost = (DWORD)(manacost + 0.5f);
     DWORD gold_icon = 0;
     DWORD lumber_icon = 0;
@@ -148,7 +156,9 @@ void UI_WriteBuildQueue(LPEDICT ent) {
      * geometry come from retail SimpleInfoPanel.fdf.  The runtime queue owns
      * only icon contents, timings, click targets, and the positions of the
      * repeated queue icons that Warcraft creates in code. */
-    buildtimer_number = UI_WriteBuildingQueueShell(ent, constructing ? "CONSTRUCTING" : "TRAINING");
+    buildtimer_number = UI_WriteBuildingQueueShell(
+        ent, constructing ? "CONSTRUCTING" :
+             (ent && ent->build && ent->build->research.upgrade != 0 ? "RESEARCHING" : "TRAINING"));
     if (!buildtimer_number) {
         fprintf(stderr, "UI_WriteBuildQueue: SimpleInfoPanel building shell unavailable; using runtime progress fallback\n");
         memset(&buildtimer, 0, sizeof(buildtimer));

@@ -94,7 +94,20 @@ typedef struct {
  * =========================================================================*/
 typedef struct {
     DWORD  id;
+    LPCSTR comments;
     LPCSTR upgradeClass;
+    LPCSTR race;
+    LONG   flag;
+    BOOL   used;
+    LONG   maxLevel;
+    BOOL   inherit;
+    LONG   goldBase, goldMod;
+    LONG   lumberBase, lumberMod;
+    LONG   timeBase, timeMod;
+    DWORD  effect[4];
+    FLOAT  effectBase[4];
+    FLOAT  effectMod[4];
+    DWORD  effectCode[4];
 } UpgradeData_t;
 
 /* =========================================================================

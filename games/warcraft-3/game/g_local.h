@@ -99,6 +99,7 @@ typedef enum {
 typedef struct {
     DWORD id;
     LONG researched;
+    LONG in_progress;
     LONG max_allowed; /* -1 = unlimited/default */
 } playerTechState_t;
 
@@ -669,6 +670,13 @@ struct edict_s {
     } construction;
     BOOL training; /* spawned in a production queue but not yet completed */
     BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
+    struct {
+        DWORD upgrade;     /* non-zero on lightweight research queue edicts */
+        LONG level;        /* 1-based level being researched */
+        LONG gold, lumber; /* exact charged cost, retained for cancellation */
+        FLOAT duration;    /* seconds */
+        FLOAT progress;    /* seconds elapsed for the active queue head */
+    } research;
     struct {
         rallyTargetType_t type;
         VECTOR2 point;
@@ -1284,8 +1292,16 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
 BOOL G_BuildAllEnabled(void);
 BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id);
 BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id);
+BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id);
 buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id, LPSTR reason, DWORD reason_size);
 buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);
+buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD upgrade_id, LONG *next_level, LPSTR reason, DWORD reason_size);
+LONG G_UpgradeGoldCost(DWORD upgrade_id, LONG level_value);
+LONG G_UpgradeLumberCost(DWORD upgrade_id, LONG level_value);
+FLOAT G_UpgradeResearchTime(DWORD upgrade_id, LONG level_value);
+BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id);
+void G_ApplyPlayerUpgradesToUnit(LPEDICT unit);
+DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class);
 BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
@@ -1304,6 +1320,8 @@ LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid);
 void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value);
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid);
+LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid);
+void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid);
 void G_InvalidateCommands(LPGAMECLIENT client);
 BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out);
@@ -1376,6 +1394,10 @@ void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);
 void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
 void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
+#ifdef BZ_TESTS
+void UI_TestResetInfoPanelIconCache(void);
+LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade);
+#endif
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteStart(DWORD);
 void UI_ClearLayer(LPEDICT, DWORD);

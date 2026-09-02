@@ -116,10 +116,11 @@ ability list, but its two inventory slots remain covered until Human Backpack
 Undead unit-inventory variants. Plain `AInv` and custom `AInv`-derived inventory
 abilities are not implicitly gated.
 
-The current typed metadata layer does not yet normalize `UpgradeData.slk`
-effects, so the stock inventory-ability-to-Backpack relationships are kept as a
-small explicit table in `g_items.c`. Move that table into normalized upgrade
-effect data when upgrade effects become authoritative runtime metadata.
+`UpgradeData.slk` is now normalized for research costs/times and its four
+effect slots, with `ratd` and `rarm` implemented generically for Blacksmith-style
+stat research. The stock inventory-ability-to-Backpack relationships remain a
+small explicit table in `g_items.c` because that Backpack effect has not yet been
+moved onto the generic upgrade-effect dispatcher.
 
 ## Inventory Refresh Lifecycle
 

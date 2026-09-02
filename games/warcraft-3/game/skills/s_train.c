@@ -42,6 +42,17 @@ static BOOL ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
     return false;
 }
 
+static LPEDICT ProductionNext(LPEDICT item) {
+    if (!item) return NULL;
+    return item->revival.reviving ? item->revival.queue_next : item->build;
+}
+
+static void ProductionSetNext(LPEDICT item, LPEDICT next) {
+    if (!item) return;
+    if (item->revival.reviving) item->revival.queue_next = next;
+    else item->build = next;
+}
+
 static void RefundTrainingCost(LPEDICT item) {
     LPPLAYER player;
     UnitBalance_t const *balance;
@@ -57,6 +68,43 @@ static void RefundTrainingCost(LPEDICT item) {
     player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
 }
 
+static void RefundResearchCost(LPEDICT item) {
+    LPPLAYER player;
+    LONG gold, lumber;
+
+    if (!item || !item->research.upgrade) return;
+    player = G_GetPlayerByNumber(item->s.player);
+    if (!player) return;
+    gold = (LONG)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, item->research.gold);
+    lumber = (LONG)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, item->research.lumber);
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+}
+
+static void ShowResearchComplete(LPEDICT producer, DWORD upgrade_id, LONG level_value) {
+    LPGAMECLIENT client;
+    LPEDICT clent;
+    gameCommandButton_t button;
+    char text[512];
+    LPCSTR completed;
+    LPCSTR sound;
+
+    if (!producer) return;
+    client = G_GetPlayerClientByNumber(producer->s.player);
+    clent = G_GetPlayerEntityByNumber(producer->s.player);
+    if (!client || !clent || !client->connected || client->ps.number != producer->s.player) return;
+
+    if (G_BuildCommandButton(producer, GetClassName(upgrade_id), true, (DWORD)level_value, &button)) {
+        completed = UI_GetString("COLON_COMPLETED");
+        snprintf(text, sizeof(text), "%s%s",
+                 completed && strcmp(completed, "COLON_COMPLETED") ? completed : "Completed: ",
+                 button.tooltip[0] ? button.tooltip : GetClassName(upgrade_id));
+        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+    }
+    sound = Theme_PlayerString(client, "ResearchComplete", NULL);
+    if (sound && *sound) G_PlayUISoundForPlayer(clent, sound);
+}
+
 static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, BOOL activate_next) {
     LPEDICT prev = NULL;
     LPEDICT item;
@@ -65,23 +113,31 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
 
     if (!producer) return false;
     item = producer->build;
-    for (DWORD i = 0; item && item->training && i < index; i++) {
+    for (DWORD i = 0; item && i < index; i++) {
         prev = item;
-        item = item->build;
+        item = ProductionNext(item);
     }
-    if (!item || !item->training) return false;
+    if (!item) return false;
+    if (item->revival.reviving) return G_CancelHeroRevive(producer, item);
+    if (!item->training) return false;
 
-    next = item->build;
-    if (prev) prev->build = next;
+    next = ProductionNext(item);
+    if (prev) ProductionSetNext(prev, next);
     else producer->build = next;
-    item->build = NULL;
+    ProductionSetNext(item, NULL);
 
-    /* Publish while the cancelled queue entity still carries its unit and
-     * owner metadata; clearing it first made train-cancel triggers impossible. */
-    G_PublishEvent(item, EVENT_PLAYER_UNIT_TRAIN_CANCEL);
-    G_PublishEvent(item, EVENT_UNIT_TRAIN_CANCEL);
-    if (refund) RefundTrainingCost(item);
-    G_ClearUnitFood(item);
+    if (item->research.upgrade) {
+        if (refund) RefundResearchCost(item);
+        G_AddPlayerTechInProgress(G_GetPlayerClientByNumber(item->s.player),
+                                  item->research.upgrade, -1);
+    } else {
+        /* Publish while the cancelled queue entity still carries its unit and
+         * owner metadata; clearing it first made train-cancel triggers impossible. */
+        G_PublishEvent(item, EVENT_PLAYER_UNIT_TRAIN_CANCEL);
+        G_PublishEvent(item, EVENT_UNIT_TRAIN_CANCEL);
+        if (refund) RefundTrainingCost(item);
+        G_ClearUnitFood(item);
+    }
     G_FreeEdict(item);
 
     client = G_GetPlayerClientByNumber(producer->s.player);
@@ -89,10 +145,10 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
 
     if (!producer->build) {
         if (activate_next && producer->stand) producer->stand(producer);
-    } else if (!prev && activate_next) {
-        /* A new queue head becomes active immediately. Reserve now rather than
-         * waiting one simulation tick so command-time food checks observe the
-         * authoritative active reservation. */
+    } else if (!prev && activate_next && producer->build->training &&
+               !producer->build->research.upgrade && !producer->build->revival.reviving) {
+        /* A new ordinary-training head becomes active immediately. Research
+         * and revival do not reserve Food Used. */
         ReserveTrainingFood(producer, producer->build);
     }
     return true;
@@ -183,17 +239,6 @@ FLOAT G_HeroReviveTime(LPCEDICT hero) {
     return value;
 }
 
-static LPEDICT ProductionNext(LPEDICT item) {
-    if (!item) return NULL;
-    return item->revival.reviving ? item->revival.queue_next : item->build;
-}
-
-static void ProductionSetNext(LPEDICT item, LPEDICT next) {
-    if (!item) return;
-    if (item->revival.reviving) item->revival.queue_next = next;
-    else item->build = next;
-}
-
 static DWORD ProductionQueueCount(LPEDICT producer) {
     DWORD count = 0;
     for (LPEDICT item = producer ? producer->build : NULL; item && count < MAX_BUILD_QUEUE; item = ProductionNext(item)) {
@@ -271,6 +316,35 @@ static BOOL CompleteHeroRevive(LPEDICT altar, LPEDICT hero) {
     return true;
 }
 
+static BOOL CompleteResearch(LPEDICT producer, LPEDICT item) {
+    LPGAMECLIENT client;
+    LPEDICT next;
+    DWORD upgrade_id;
+    LONG level_value;
+
+    if (!producer || !item || !item->research.upgrade) return false;
+    client = G_GetPlayerClientByNumber(item->s.player);
+    if (!client || client->ps.number != item->s.player) return false;
+
+    upgrade_id = item->research.upgrade;
+    level_value = item->research.level;
+    next = item->build;
+    producer->build = next;
+    item->build = NULL;
+    G_AddPlayerTechInProgress(client, upgrade_id, -1);
+    G_SetPlayerTechResearched(client, upgrade_id, level_value);
+    ShowResearchComplete(producer, upgrade_id, level_value);
+    G_FreeEdict(item);
+
+    if (producer->build && producer->build->training &&
+        !producer->build->research.upgrade && !producer->build->revival.reviving) {
+        ReserveTrainingFood(producer, producer->build);
+    }
+    if (!producer->build && producer->stand) producer->stand(producer);
+    RefreshTrainingQueue(producer);
+    return true;
+}
+
 void ai_train_build(LPEDICT ent) {
     if (!ent || !ent->build) {
         if (ent && ent->stand) ent->stand(ent);
@@ -292,7 +366,22 @@ void ai_train_build(LPEDICT ent) {
         return;
     }
 
-    /* Only the active training head owns food. Revival has no food reservation. */
+    if (ent->build->research.upgrade) {
+        LPEDICT research = ent->build;
+
+        if (research->research.duration <= 0.0f) {
+            CompleteResearch(ent, research);
+            return;
+        }
+        research->research.progress += (FLOAT)FRAMETIME / 1000.0f;
+        if (research->research.progress >= research->research.duration) {
+            CompleteResearch(ent, research);
+        }
+        return;
+    }
+
+    /* Only the active ordinary-training head owns food. Revival and research
+     * have no food reservation. */
     if (!ReserveTrainingFood(ent, ent->build)) return;
     {
         FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
@@ -311,7 +400,8 @@ void ai_train_build(LPEDICT ent) {
              * clears build for the completed unit. Preserve the producer's queue
              * link before revealing/standing the completed unit. */
             ent->build = next;
-            if (ent->build && ent->build->training) ReserveTrainingFood(ent, ent->build);
+            if (ent->build && ent->build->training && !ent->build->research.upgrade)
+                ReserveTrainingFood(ent, ent->build);
             G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
             G_QueueReadySound(completed);
             G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
@@ -433,6 +523,60 @@ void unit_build(LPEDICT self, DWORD class_id) {
         ReserveTrainingFood(self, ent);
     }
     unit_setmove(self, &train_move_train);
+}
+
+BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
+    LPGAMECLIENT client;
+    LPEDICT clent;
+    LPEDICT item;
+    buildCommandState_t state;
+    LONG level_value = 0;
+    LONG gold, lumber;
+    FLOAT duration;
+    char reason[128];
+
+    if (!producer || !upgrade_id || ProductionQueueCount(producer) >= MAX_BUILD_QUEUE) return false;
+    client = G_GetPlayerClientByNumber(producer->s.player);
+    if (!client || client->ps.number != producer->s.player) return false;
+    clent = G_GetPlayerEntityByNumber(producer->s.player);
+    state = G_GetResearchCommandState(client, producer, upgrade_id, &level_value, reason, sizeof(reason));
+    if (state != BUILD_COMMAND_AVAILABLE) {
+        if (clent && client->connected && reason[0]) G_ShowCommandErrorText(clent, reason);
+        return false;
+    }
+
+    gold = G_UpgradeGoldCost(upgrade_id, level_value);
+    lumber = G_UpgradeLumberCost(upgrade_id, level_value);
+    duration = G_UpgradeResearchTime(upgrade_id, level_value);
+    if (gold > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
+        lumber > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
+
+    item = G_Spawn();
+    /* This is queue state, not a world unit/tech entity. Keep class_id zero so
+     * generic entity-count queries never mistake in-progress research for a
+     * completed technology or owned unit of the same rawcode. */
+    item->class_id = 0;
+    item->s.player = producer->s.player;
+    item->training = true;
+    item->s.renderfx |= RF_HIDDEN;
+    item->research.upgrade = upgrade_id;
+    item->research.level = level_value;
+    item->research.gold = gold;
+    item->research.lumber = lumber;
+    item->research.duration = duration;
+    item->research.progress = 0.0f;
+    unit_add_build_queue(producer, item);
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
+    G_AddPlayerTechInProgress(client, upgrade_id, 1);
+    unit_setmove(producer, &train_move_train);
+    if (clent) {
+        G_RefreshResourceBar(clent);
+        Get_Commands_f(clent);
+        Get_Portrait_f(clent);
+    }
+    return true;
 }
 
 BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {

@@ -6,6 +6,8 @@
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLIGHTED 0x20
+#define ID_UPGRADE_EFFECT_ATTACK_DICE MAKEFOURCC('r', 'a', 't', 'd')
+#define ID_UPGRADE_EFFECT_ARMOR       MAKEFOURCC('r', 'a', 'r', 'm')
 
 static BYTE G_PlacementFlags(LPCSTR list) {
     BYTE flags = 0;
@@ -90,6 +92,115 @@ static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {
     return free_slot;
 }
 
+static BOOL G_UnitUsesUpgrade(LPCEDICT unit, DWORD upgrade_id) {
+    char token[64];
+    LPCSTR upgrades;
+
+    if (!unit || !unit->UnitBalance || !upgrade_id) return false;
+    upgrades = unit->UnitBalance->upgrades;
+    for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+        if (strlen(token) == 4 && !memcmp(token, &upgrade_id, 4)) return true;
+    }
+    return false;
+}
+
+DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class) {
+    char token[64];
+    LPCSTR upgrades;
+
+    if (!unit || !unit->UnitBalance || !wanted_class || !*wanted_class) return 0;
+    upgrades = unit->UnitBalance->upgrades;
+    for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+        DWORD upgrade_id;
+        UpgradeData_t const *upgrade;
+
+        if (strlen(token) != 4) continue;
+        memcpy(&upgrade_id, token, sizeof(upgrade_id));
+        upgrade = G_UpgradeData(upgrade_id);
+        if (upgrade && upgrade->id == upgrade_id && upgrade->upgradeClass &&
+            !strcasecmp(upgrade->upgradeClass, wanted_class)) {
+            return upgrade_id;
+        }
+    }
+    return 0;
+}
+
+static FLOAT G_UpgradeEffectValue(UpgradeData_t const *upgrade, DWORD effect, LONG level_value) {
+    if (!upgrade || effect >= 4 || level_value <= 0) return 0.0f;
+    return upgrade->effectBase[effect] + upgrade->effectMod[effect] * (FLOAT)(level_value - 1);
+}
+
+static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
+                                     LONG old_level, LONG new_level) {
+    BOOL changed = false;
+
+    if (!unit || !upgrade || old_level == new_level || !G_UnitUsesUpgrade(unit, upgrade->id)) return;
+
+    FOR_LOOP(i, 4) {
+        DWORD const effect = upgrade->effect[i];
+        if (!effect) continue;
+        if (effect == ID_UPGRADE_EFFECT_ATTACK_DICE) {
+            LONG const old_value = (LONG)G_UpgradeEffectValue(upgrade, i, old_level);
+            LONG const new_value = (LONG)G_UpgradeEffectValue(upgrade, i, new_level);
+            LONG const delta = new_value - old_value;
+
+            if (delta && unit->attack1.numberOfDice) {
+                unit->attack1.numberOfDice = MAX(0, (LONG)unit->attack1.numberOfDice + delta);
+                changed = true;
+            }
+            if (delta && unit->attack2.numberOfDice) {
+                unit->attack2.numberOfDice = MAX(0, (LONG)unit->attack2.numberOfDice + delta);
+                changed = true;
+            }
+        } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
+            FLOAT const delta = unit->UnitBalance->armorPerUpgrade * (FLOAT)(new_level - old_level);
+            if (delta != 0.0f) {
+                unit->armor_value += delta;
+                changed = true;
+            }
+        }
+    }
+    if (changed) G_InvalidateUnitInfoPanel(unit);
+}
+
+static void G_ApplyTechLevelToOwnedUnits(LPGAMECLIENT client, DWORD techid,
+                                         LONG old_level, LONG new_level) {
+    UpgradeData_t const *upgrade;
+    DWORD player;
+
+    if (!client || !techid || old_level == new_level) return;
+    upgrade = G_UpgradeData(techid);
+    if (!upgrade || upgrade->id != techid) return;
+    player = client->ps.number;
+    FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->UnitBalance) {
+        G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+    }
+}
+
+void G_ApplyPlayerUpgradesToUnit(LPEDICT unit) {
+    LPGAMECLIENT client;
+    char token[64];
+    LPCSTR upgrades;
+
+    if (!unit || !unit->UnitBalance) return;
+    client = G_GetPlayerClientByNumber(unit->s.player);
+    if (!client || client->ps.number != unit->s.player) return;
+    upgrades = unit->UnitBalance->upgrades;
+    for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+        DWORD upgrade_id;
+        UpgradeData_t const *upgrade;
+        LONG level_value;
+
+        if (strlen(token) != 4) continue;
+        memcpy(&upgrade_id, token, sizeof(upgrade_id));
+        upgrade = G_UpgradeData(upgrade_id);
+        level_value = G_GetPlayerTechResearchedLevel(client, upgrade_id);
+        if (upgrade && upgrade->id == upgrade_id && level_value > 0) {
+            G_ApplyUpgradeLevelDelta(unit, upgrade, 0, level_value);
+        }
+    }
+}
+
 void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum) {
     LONG slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
@@ -104,21 +215,63 @@ LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid) {
 
 void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value) {
     LONG slot = G_FindTechSlot(client, techid, true);
+    LONG old_level;
+    LONG new_level;
+
     if (slot < 0) return;
-    client->tech[slot].researched = MAX(0, level_value);
+    old_level = MAX(0, client->tech[slot].researched);
+    new_level = MAX(0, level_value);
+    client->tech[slot].researched = new_level;
+    G_ApplyTechLevelToOwnedUnits(client, techid, old_level, new_level);
     G_InvalidateCommands(client);
 }
 
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels) {
     LONG slot = G_FindTechSlot(client, techid, true);
+    LONG old_level;
+    LONG new_level;
+
     if (slot < 0) return;
-    client->tech[slot].researched = MAX(0, client->tech[slot].researched + levels);
+    old_level = MAX(0, client->tech[slot].researched);
+    new_level = MAX(0, old_level + levels);
+    client->tech[slot].researched = new_level;
+    G_ApplyTechLevelToOwnedUnits(client, techid, old_level, new_level);
     G_InvalidateCommands(client);
 }
 
 LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid) {
     LONG slot = G_FindTechSlot(client, techid, false);
     return slot < 0 ? 0 : MAX(0, client->tech[slot].researched);
+}
+
+LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid) {
+    LONG slot = G_FindTechSlot(client, techid, false);
+    return slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
+}
+
+void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels) {
+    LONG slot = G_FindTechSlot(client, techid, true);
+    if (slot < 0) return;
+    client->tech[slot].in_progress = MAX(0, client->tech[slot].in_progress + levels);
+    G_InvalidateCommands(client);
+}
+
+LONG G_UpgradeGoldCost(DWORD upgrade_id, LONG level_value) {
+    UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
+    if (!upgrade || upgrade->id != upgrade_id || level_value <= 0) return 0;
+    return MAX(0, upgrade->goldBase + upgrade->goldMod * (level_value - 1));
+}
+
+LONG G_UpgradeLumberCost(DWORD upgrade_id, LONG level_value) {
+    UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
+    if (!upgrade || upgrade->id != upgrade_id || level_value <= 0) return 0;
+    return MAX(0, upgrade->lumberBase + upgrade->lumberMod * (level_value - 1));
+}
+
+FLOAT G_UpgradeResearchTime(DWORD upgrade_id, LONG level_value) {
+    UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
+    if (!upgrade || upgrade->id != upgrade_id || level_value <= 0) return 0.0f;
+    return (FLOAT)MAX(0, upgrade->timeBase + upgrade->timeMod * (level_value - 1));
 }
 
 LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid) {
@@ -156,6 +309,11 @@ BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id) {
         G_ProducerContains(producer->UnitProfile->trains, unit_id);
 }
 
+BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id) {
+    return producer && producer->UnitProfile &&
+        G_ProducerContains(producer->UnitProfile->researches, upgrade_id);
+}
+
 static LONG G_RequirementAmount(UnitProfile_t const *profile, DWORD index) {
     char amount[32];
     LONG value = 1;
@@ -181,6 +339,60 @@ static LONG G_PlayerRequirementCount(LPGAMECLIENT client, DWORD techid) {
         count++;
     }
     return count;
+}
+
+static LPCSTR G_UpgradeLevelField(DWORD upgrade_id, LPCSTR base, LONG level_value) {
+    static char fields[4][32];
+    static DWORD cursor;
+    LPSTR field = fields[cursor++ & 3];
+    LONG suffix = MAX(0, level_value - 1);
+
+    if (!upgrade_id || !base || !*base || level_value <= 0) return NULL;
+    if (suffix == 0) snprintf(field, sizeof(fields[0]), "%s", base);
+    else snprintf(field, sizeof(fields[0]), "%s%d", base, suffix);
+    return FindConfigValue(GetClassName(upgrade_id), field);
+}
+
+static LONG G_UpgradeRequirementAmount(DWORD upgrade_id, LONG level_value, DWORD index) {
+    char amount[32];
+    LPCSTR amounts = G_UpgradeLevelField(upgrade_id, "Requiresamount", level_value);
+    LONG value = 1;
+
+    if (!amounts || !G_CsvToken(amounts, index, amount, sizeof(amount))) return 1;
+    if (sscanf(amount, "%d", &value) != 1) return 1;
+    return MAX(1, value);
+}
+
+static BOOL G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, DWORD upgrade_id, LONG level_value,
+                                           LPSTR reason, DWORD reason_size) {
+    LPCSTR requirements = G_UpgradeLevelField(upgrade_id, "Requires", level_value);
+    char requirement[64];
+
+    if (!requirements || !*requirements || !strcmp(requirements, "_")) return true;
+    for (DWORD i = 0; G_CsvToken(requirements, i, requirement, sizeof(requirement)); i++) {
+        DWORD rawcode;
+        LONG required;
+        LPCSTR name;
+
+        if (strlen(requirement) != 4) continue;
+        memcpy(&rawcode, requirement, sizeof(rawcode));
+        required = G_UpgradeRequirementAmount(upgrade_id, level_value, i);
+        if (G_PlayerRequirementCount(client, rawcode) >= required) continue;
+
+        if (reason && reason_size) {
+            name = G_UnitProfile(rawcode)->name;
+            if (!name || !*name) name = FindConfigValue(GetClassName(rawcode), "Name");
+            if (required > 1) {
+                snprintf(reason, reason_size, "Requires %s x%d",
+                         name && *name ? name : requirement, required);
+            } else {
+                snprintf(reason, reason_size, "Requires %s",
+                         name && *name ? name : requirement);
+            }
+        }
+        return false;
+    }
+    return true;
 }
 
 static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {
@@ -272,6 +484,45 @@ buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer
         }
     }
     if (!G_ProductionResourcesAvailable(client, unit_id, reason, reason_size)) {
+        return BUILD_COMMAND_UNAFFORDABLE;
+    }
+    return BUILD_COMMAND_AVAILABLE;
+}
+
+buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD upgrade_id,
+                                              LONG *next_level, LPSTR reason, DWORD reason_size) {
+    UpgradeData_t const *upgrade;
+    LONG current;
+    LONG maximum;
+    LONG player_max;
+    LONG level_value;
+
+    if (reason && reason_size) reason[0] = '\0';
+    if (next_level) *next_level = 0;
+    if (!client || !G_ProducerCanResearch(producer, upgrade_id)) return BUILD_COMMAND_ABSENT;
+    upgrade = G_UpgradeData(upgrade_id);
+    if (!upgrade || upgrade->id != upgrade_id || upgrade->maxLevel <= 0) return BUILD_COMMAND_ABSENT;
+
+    current = G_GetPlayerTechResearchedLevel(client, upgrade_id);
+    level_value = current + 1;
+    maximum = upgrade->maxLevel;
+    player_max = G_GetPlayerTechMaxAllowed(client, upgrade_id);
+    if (player_max >= 0) maximum = MIN(maximum, player_max);
+    if (current >= maximum || G_GetPlayerTechInProgress(client, upgrade_id) > 0) {
+        return BUILD_COMMAND_HIDDEN;
+    }
+    if (next_level) *next_level = level_value;
+
+    if (!G_BuildAllEnabled() &&
+        !G_UpgradeRequirementsSatisfied(client, upgrade_id, level_value, reason, reason_size)) {
+        return BUILD_COMMAND_DISABLED;
+    }
+    if (G_UpgradeGoldCost(upgrade_id, level_value) > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
+        return BUILD_COMMAND_UNAFFORDABLE;
+    }
+    if (G_UpgradeLumberCost(upgrade_id, level_value) > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
     return BUILD_COMMAND_AVAILABLE;
