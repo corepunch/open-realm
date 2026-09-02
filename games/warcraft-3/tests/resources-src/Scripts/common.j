@@ -39,6 +39,9 @@ type force           extends handle
 type boolexpr        extends handle
 type conditionfunc   extends boolexpr
 type filterfunc      extends boolexpr
+type sound           extends agent
+type camerasetup     extends handle
+type gamecache       extends agent
 
 // Cinematic skip regression uses the same event and local-player guards as campaign scripts.
 native ConvertPlayerEvent         takes integer i returns playerevent
@@ -121,10 +124,16 @@ native GetPlayerTechResearched takes player whichPlayer, integer techid, boolean
 native GetPlayerTechCount      takes player whichPlayer, integer techid, boolean specificonly returns integer
 native SetPlayerOnScoreScreen takes player whichPlayer, boolean flag returns nothing
 native Rect                   takes real minx, real miny, real maxx, real maxy returns rect
+native SetRect                takes rect whichRect, real minx, real miny, real maxx, real maxy returns nothing
+native GetRectMinX            takes rect whichRect returns real
+native GetRectMaxY            takes rect whichRect returns real
 native CreateRegion           takes nothing returns region
 native RegionAddRect          takes region whichRegion, rect r returns nothing
 native RegionClearRect        takes region whichRegion, rect r returns nothing
 native Location               takes real x, real y returns location
+native MoveLocation           takes location whichLocation, real newX, real newY returns nothing
+native GetLocationX           takes location whichLocation returns real
+native GetLocationY           takes location whichLocation returns real
 native IsPointInRegion        takes region whichRegion, real x, real y returns boolean
 native IsLocationInRegion     takes region whichRegion, location whichLocation returns boolean
 native CreateForce            takes nothing returns force
@@ -139,9 +148,21 @@ native ForForce               takes force whichForce, code callback returns noth
 native GetFilterPlayer        takes nothing returns player
 native GetEnumPlayer          takes nothing returns player
 native Condition              takes code func returns conditionfunc
+native Filter                 takes code func returns filterfunc
 native IsPlayerInForce        takes player whichPlayer, force whichForce returns boolean
 native GetPlayerId            takes player whichPlayer returns integer
 constant native GetPlayerStructureCount takes player whichPlayer, boolean includeIncomplete returns integer
+
+native CreateSound takes string fileName, boolean looping, boolean is3D, boolean stopwhenoutofrange, integer fadeInRate, integer fadeOutRate, string eaxSetting returns sound
+native SetSoundDuration takes sound soundHandle, integer duration returns nothing
+native GetSoundDuration takes sound soundHandle returns integer
+native CreateCameraSetup takes nothing returns camerasetup
+native CameraSetupSetDestPosition takes camerasetup whichSetup, real x, real y, real duration returns nothing
+native CameraSetupGetDestPositionX takes camerasetup whichSetup returns real
+native CameraSetupGetDestPositionY takes camerasetup whichSetup returns real
+native InitGameCache takes string campaignFile returns gamecache
+native StoreInteger takes gamecache cache, string missionKey, string key, integer value returns nothing
+native GetStoredInteger takes gamecache cache, string missionKey, string key returns integer
 
 // Unit/death-event coverage used by player structure-count regression tests.
 native CreateUnit                takes player id, integer unitid, real x, real y, real face returns unit

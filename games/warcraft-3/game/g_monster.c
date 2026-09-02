@@ -12,9 +12,18 @@
  */
 #include "g_local.h"
 
-#define MAX_WAYPOINTS 256
 static edict_t waypoints[MAX_WAYPOINTS];
 DWORD current_waypoint = 0;
+
+BOOL G_WaypointId(LPCEDICT waypoint, DWORD *id) {
+    uintptr_t value = (uintptr_t)waypoint, base = (uintptr_t)waypoints;
+    if (value < base || value >= base + sizeof(waypoints) || (value - base) % sizeof(*waypoints)) return false;
+    *id = (DWORD)((value - base) / sizeof(*waypoints)); return true;
+}
+
+LPEDICT G_WaypointById(DWORD id) { return id < MAX_WAYPOINTS ? waypoints + id : NULL; }
+DWORD G_WaypointCursor(void) { return current_waypoint; }
+void G_SetWaypointCursor(DWORD cursor) { current_waypoint = cursor; }
 
 LPCSTR attack_type[] = {
     "none",

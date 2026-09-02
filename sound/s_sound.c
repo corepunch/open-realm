@@ -70,7 +70,8 @@ static wavinfo_t GetWavinfo(const char *name, BYTE *wav, int wavlength) {
 
     FindChunk("RIFF");
     if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4))) {
-        fprintf(stderr, "[sound] %s: missing RIFF/WAVE\n", name);
+        /* Non-WAV assets such as WC3 campaign MP3 dialogue are expected until compressed audio is supported. */
+        //fprintf(stderr, "[sound] %s: missing RIFF/WAVE\n", name);
         return info;
     }
     iff_data = data_p + 12;
@@ -127,7 +128,8 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
 
     wavinfo_t info = GetWavinfo(path, file_data, (int)file_size);
     if (info.channels != 1) {
-        fprintf(stderr, "[sound] %s: %d-channel audio, rejecting (need mono)\n", path, info.channels);
+        /* Restore this warning when format dispatch can distinguish unsupported MP3s from malformed WAVs. */
+        //fprintf(stderr, "[sound] %s: %d-channel audio, rejecting (need mono)\n", path, info.channels);
         FS_FreeFile(file_data);
         return NULL;
     }
