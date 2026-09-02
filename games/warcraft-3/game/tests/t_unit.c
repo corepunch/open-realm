@@ -77,7 +77,7 @@ static LPEDICT make_world_item(DWORD class_id) {
     return item;
 }
 
-static LPEDICT make_harvest_tree(FLOAT x, FLOAT y) {
+static LPEDICT unit_make_harvest_tree(FLOAT x, FLOAT y) {
     LPEDICT tree = G_Spawn();
     tree->s.origin2 = (VECTOR2){x, y};
     tree->s.origin.x = x;
@@ -87,7 +87,7 @@ static LPEDICT make_harvest_tree(FLOAT x, FLOAT y) {
     return tree;
 }
 
-static LPEDICT make_harvest_goldmine(FLOAT x, FLOAT y) {
+static LPEDICT unit_make_harvest_goldmine(FLOAT x, FLOAT y) {
     static UnitAbilities_t const abilities = { .abilList = "Agld" };
     LPEDICT mine = G_Spawn();
     mine->s.origin2 = (VECTOR2){x, y};
@@ -614,9 +614,9 @@ TEST(wc3_unit, issueimmediateorder_stop) {
 TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {
     reset_test_entities();
     LPEDICT worker = make_unit(0, 0);
-    LPEDICT far_tree = make_harvest_tree(300.0f, 0.0f);
-    LPEDICT dead_tree = make_harvest_tree(25.0f, 0.0f);
-    LPEDICT near_tree = make_harvest_tree(100.0f, 0.0f);
+    LPEDICT far_tree = unit_make_harvest_tree(300.0f, 0.0f);
+    LPEDICT dead_tree = unit_make_harvest_tree(25.0f, 0.0f);
+    LPEDICT near_tree = unit_make_harvest_tree(100.0f, 0.0f);
     (void)far_tree;
     dead_tree->health.value = 0.0f;
 
@@ -629,9 +629,9 @@ TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {
 TEST(wc3_unit, issueimmediateorder_autoharvestgold_uses_nearest_live_mine) {
     reset_test_entities();
     LPEDICT worker = make_unit(0, 0);
-    LPEDICT far_mine = make_harvest_goldmine(300.0f, 0.0f);
-    LPEDICT empty_mine = make_harvest_goldmine(25.0f, 0.0f);
-    LPEDICT near_mine = make_harvest_goldmine(100.0f, 0.0f);
+    LPEDICT far_mine = unit_make_harvest_goldmine(300.0f, 0.0f);
+    LPEDICT empty_mine = unit_make_harvest_goldmine(25.0f, 0.0f);
+    LPEDICT near_mine = unit_make_harvest_goldmine(100.0f, 0.0f);
     (void)far_mine;
     empty_mine->resources = 0;
 
