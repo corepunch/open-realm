@@ -116,7 +116,6 @@ void CL_ClearState(void) {
 static LPCPLAYER CL_UIGetPlayerState(void);
 static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
-static void CL_UISetSelection(DWORD num_selected, DWORD const *entity_nums);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
@@ -321,13 +320,6 @@ static LPCENTITYSTATE CL_UIGetEntity(DWORD idx) {
         return NULL;
     }
     return &cl.ents[idx].current;
-}
-
-/* Update the client-owned selection in response to a game UI command. */
-static void CL_UISetSelection(DWORD num_selected, DWORD const *entity_nums) {
-    if (num_selected > MAX_SELECTED_ENTITIES || (num_selected && !entity_nums)) return;
-    cl.selection.num_selected = num_selected;
-    if (num_selected) memcpy(cl.selection.entity_nums, entity_nums, sizeof(DWORD) * num_selected);
 }
 
 static void CL_UIServerCommand(LPCSTR text) {
@@ -632,7 +624,6 @@ void CL_Init(void) {
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
-        .SetSelection = CL_UISetSelection,
         .GetModel = CL_UIGetModel,
         .GetPortrait = CL_UIGetPortrait,
         .GetTexture = CL_GetTextureByIndex,

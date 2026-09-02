@@ -9,7 +9,6 @@
 #include "g_local.h"
 
 #define WC3_HERO_FUNCTION_KEYS 7
-#define WC3_SHORTCUT_SELECTION_COMMAND "wc3_selection"
 
 static BOOL G_ShortcutIsControlledMonster(LPGAMECLIENT client, LPCEDICT ent) {
     return client && ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
@@ -121,7 +120,7 @@ static void G_SendShortcutSelection(LPEDICT clent, LPEDICT target) {
     if (!clent || !clent->client || !target || !target->inuse ||
         !clent->client->connected) return;
     number = (DWORD)(target - globals.edicts);
-    gi.GameCommand(clent, WC3_SHORTCUT_SELECTION_COMMAND, &number, sizeof(number));
+    gi.GameCommand(clent, GAME_COMMAND_SET_SELECTION, &number, sizeof(number));
 }
 
 static BOOL G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {

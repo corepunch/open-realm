@@ -86,7 +86,7 @@ A dirty HUD rebuild uses one combined entity pass to emit Hero buttons, count id
 
 ## Selection Synchronization
 
-Normal world clicks update both server selection and the client's `cl.selection` cache directly. A server-authored layout button does not have that local side effect, so shortcut selection uses the existing `GameCommand` transport with command `wc3_selection`.
+Normal world clicks update both server selection and the client's `cl.selection` cache directly. A server-authored layout button does not have that local side effect, so shortcut selection uses the generic `set_selection` game-command transport, which the client applies before game-specific UI dispatch.
 
 Flow:
 
@@ -95,7 +95,7 @@ HUD/F-key command
     -> server validates target/control
     -> server replaces authoritative selection
     -> server refreshes portrait/commands
-    -> GameCommand("wc3_selection", entity number)
+    -> GameCommand("set_selection", entity number)
     -> client replaces cl.selection
 ```
 
