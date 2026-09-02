@@ -85,8 +85,16 @@ shows its initial charge count of `1`. No HUD code checks for `spro`.
 ### Selected-unit inventory panel state
 
 Inventory visibility is capability-defined independently of hero presentation.
-For one selected unit, `LAYER_INVENTORY` resolves `G_InventoryCapacity` and
-authors one of three states:
+For any non-empty selection, `LAYER_INVENTORY` resolves the current focused unit
+through `G_GetMainSelectedUnit()` and authors that unit's inventory state. A
+multi-selection never merges inventories and does not search for the first unit
+that happens to have inventory capacity: focusing a Footman covers the inventory
+area, while focusing a Hero in the same still-selected group immediately authors
+that Hero's slots. `inventory <slot>` and `dropitem <slot>` already use the same
+focused-unit lookup, so the displayed inventory and the unit receiving the item
+action stay aligned.
+
+The focused unit authors one of three states:
 
 - capacity `0`: cover the underlying six-slot console area with the local
   player's race-skin `ConsoleInventoryCoverTexture`;

@@ -636,6 +636,30 @@ void SCR_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
 #define HP_BAR_HEIGHT_RATIO  0.175f
 #define HP_BAR_SPACING_RATIO 0.02f
 
+static DWORD SCR_LayoutMultiselectEntityAt(LPCUIFRAME frame, LPCVECTOR2 point) {
+    uiMultiselect_t const *ms;
+    DWORD count;
+
+    if (!frame || frame->flags.type != FT_MULTISELECT || !point ||
+        !frame->buffer.data || frame->buffer.size < sizeof(uiMultiselect_t)) {
+        return 0;
+    }
+    ms = frame->buffer.data;
+    if (!ms->numcolumns) return 0;
+    count = (frame->buffer.size - sizeof(uiMultiselect_t)) / sizeof(uiMultiselectItem_t);
+    count = MIN((DWORD)ms->numitems, count);
+    FOR_LOOP(i, count) {
+        RECT cell = *SCR_LayoutRect(frame);
+        DWORD column = i % ms->numcolumns;
+        DWORD row = i / ms->numcolumns;
+
+        cell.x += ms->offset.x * column;
+        cell.y += ms->offset.y * row;
+        if (Rect_contains(&cell, point)) return ms->items[i].entity;
+    }
+    return 0;
+}
+
 void SCR_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
     RECT screen = *scrn;
     uiMultiselect_t const *ms = frame->buffer.data;
@@ -1033,8 +1057,14 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         SCR_LayoutPrepare(layout, NULL);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
-            if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
-            if (Rect_contains(SCR_LayoutRect(frame), &point)) {
+            BOOL hit;
+
+            if (!frame) continue;
+            if (frame->flags.type == FT_MULTISELECT)
+                hit = SCR_LayoutMultiselectEntityAt(frame, &point) != 0;
+            else
+                hit = SCR_LayoutFrameHasClickCommand(frame) && Rect_contains(SCR_LayoutRect(frame), &point);
+            if (hit) {
                 layout_hovered_number = frame->number;
                 layout_hovered = layout;
                 break;
@@ -1056,7 +1086,18 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         SCR_LayoutPrepare(layout, NULL);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
-            if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
+
+            if (!frame) continue;
+            if (frame->flags.type == FT_MULTISELECT) {
+                DWORD entity = SCR_LayoutMultiselectEntityAt(frame, &point);
+                if (entity) {
+                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                    SZ_Printf(&cls.netchan.message, "focus %u", (unsigned)entity);
+                    return;
+                }
+                continue;
+            }
+            if (!SCR_LayoutFrameHasClickCommand(frame)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) {
                 SCR_LayoutSendFrameCommand(frame);
                 return;
@@ -1188,6 +1229,10 @@ BOOL SCR_LayoutHitTest(int x, int y) {
             /* Persistent controls may intentionally sit over the world instead
              * of over a console texture. Any clickable server-authored frame
              * is gameplay UI and must suppress world selection underneath it. */
+            if (frame->flags.type == FT_MULTISELECT) {
+                if (SCR_LayoutMultiselectEntityAt(frame, &point)) return true;
+                continue;
+            }
             if (frame->flags.type != FT_TEXTURE && !SCR_LayoutFrameHasClickCommand(frame)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) return true;
         }

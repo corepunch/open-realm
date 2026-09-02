@@ -1018,8 +1018,11 @@ static void WriteInventory(LPEDICT player, LPEDICT ent) {
 }
 
 static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, DWORD count) {
+    LPEDICT focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
+
+    (void)selected;
     UI_WriteStart(LAYER_INVENTORY);
-    if (count == 1) WriteInventory(ent, selected[0]);
+    if (focused) WriteInventory(ent, focused);
     UI_WriteEnd(ent);
 }
 

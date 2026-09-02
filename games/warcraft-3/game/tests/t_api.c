@@ -845,6 +845,30 @@ TEST(wc3_api, selection_accepts_visible_foreign_unit_but_rejects_invalid_states)
     T_ASSERT(!G_UnitCanBeSelected(client, &ent));
 }
 
+TEST(wc3_api, multiselect_focus_tracks_one_selected_unit_and_falls_back_when_removed) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 32, 0);
+
+    client->ps.number = 0;
+    first->s.player = second->s.player = 0;
+    first->svflags |= SVF_MONSTER;
+    second->svflags |= SVF_MONSTER;
+    G_ResetSelectionFocus(client);
+
+    G_SelectEntity(client, first);
+    G_SelectEntity(client, second);
+    T_ASSERT(G_GetMainSelectedUnit(client) == first);
+    T_ASSERT(G_FocusSelectedUnit(client, second));
+    T_ASSERT(G_GetMainSelectedUnit(client) == second);
+    T_ASSERT(G_IsEntitySelected(client, first));
+    T_ASSERT(G_IsEntitySelected(client, second));
+
+    G_DeselectEntity(client, second);
+    T_ASSERT(G_GetMainSelectedUnit(client) == first);
+    T_ASSERT(!G_FocusSelectedUnit(client, second));
+}
+
 TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);

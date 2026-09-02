@@ -422,6 +422,47 @@ TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
     T_EQ(G_InventoryCapacity(unit), MAX_INVENTORY); T_EQ(inventory_panel_image_count, 0);
 }
 
+TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, peasant, inventory_unit;
+    LPGAMECLIENT client;
+
+    setup_test_world();
+    player = &g_edicts[0]; client = player->client;
+    peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    inventory_unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 32, 0);
+    client->ps.race = kPlayerRaceHuman;
+    G_ResetSelectionFocus(client);
+    G_SelectEntity(client, peasant);
+    G_SelectEntity(client, inventory_unit);
+
+    T_ASSERT(G_GetMainSelectedUnit(client) == peasant);
+    T_ASSERT(G_IsEntitySelected(client, peasant));
+    T_ASSERT(G_IsEntitySelected(client, inventory_unit));
+
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 1);
+    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\human-inventory-cover.blp");
+
+    T_ASSERT(G_FocusSelectedUnit(client, inventory_unit));
+    T_ASSERT(G_GetMainSelectedUnit(client) == inventory_unit);
+    T_ASSERT(G_IsEntitySelected(client, peasant));
+    T_ASSERT(G_IsEntitySelected(client, inventory_unit));
+
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 4);
+    FOR_LOOP(i, 4)
+        T_STREQ(inventory_panel_images[i], "TestUI\\Textures\\human-inventory-no-capacity.blp");
+}
+
 TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     gameInventoryItem_t items[MAX_INVENTORY];
     LPEDICT unit;

@@ -26,6 +26,41 @@ Persistent Hero and idle-worker HUD shortcuts reuse this authority boundary but 
 
 Targeted ability callbacks (`menu.on_entity_selected`) are a separate path: a left click completes the pending target action instead of replacing the unit selection.
 
+## Focused Unit In A Multi-Selection
+
+Selection membership and focused-unit presentation are separate state. The server
+retains one focused entity from the current selection; `G_GetMainSelectedUnit()`
+returns that entity while it remains selected, then falls back to the first live
+selected entity if the focus becomes invalid. `G_SelectEntity()` establishes the
+first unit as focus for a new selection, while `G_FocusSelectedUnit()` changes
+focus without changing any selection bits. Focus is transient UI/input state and
+is reset when map-player state is initialized rather than being added to the save
+format.
+
+`FT_MULTISELECT` is one packed frame, but each payload item already carries its
+entity number. `client/cl_scrn.c` therefore hit-tests the authored icon grid using
+the frame rectangle plus `uiMultiselect_t.offset`, sends `focus <entity>` on a
+left-button release over an icon, and treats every icon as gameplay UI so a click
+does not leak through to world selection. The server validates that the entity is
+still selected before accepting the focus change.
+
+When an entity-target command is active, the same multiselect-icon click is routed
+to `menu.on_entity_selected` instead of changing focus. This preserves the
+Warsmash behavior where a selected-unit portrait can be used as the target of the
+active command. Point-only target modes do not change selection focus from such a
+click.
+
+Focused-unit consumers include the command card, inventory use/drop commands and
+order-response selection. The complete selection remains authoritative for
+multi-unit Smart/Move/Attack-style orders. Inventory presentation follows the
+same focused-unit rule; see [Inventory And World Items](inventory-and-items.md).
+
+OpenRealm still does not reproduce Warsmash's type-wide
+`SelectedSubgroupHighlight`, focused/unfocused icon scaling, keyboard subgroup
+cycling, or the Warsmash behavior where clicking the already-focused exact icon
+collapses the group to that one unit. Those are presentation/navigation gaps, not
+reasons to merge inventory state across the group.
+
 ## Relationship Presentation
 
 `G_CustomizeEntity` converts `G_SelectionRelation` to recipient-relative entity flags:
