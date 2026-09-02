@@ -61,8 +61,8 @@ This follows the Quake 2 `g_save.c` pattern while avoiding Quake 2's old global 
 JASS save names are relative user-state names. Names containing `/` or `\\` are rejected. The engine's `FS_SavePath()` policy determines the writable directory.
 
 ```jass
-call SaveGame("chapter-01.w3save")
-call LoadGame("chapter-01.w3save", false)
+call SaveGame("chapter-01")
+call LoadGame("chapter-01", false)
 ```
 
 `LoadGame` restores state in the already-loaded map; map selection and UI score-screen behavior remain separate work. The initialized map must have the same JASS program and deterministically recreated native registries. The native names resolve through `FS_SavePath()`.
@@ -76,16 +76,16 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 The server registers Quake 2-style `save` and `load` commands. Save names are relative to the writable save directory and cannot contain path separators:
 
 ```sh
-build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +wait +save chapter-01.w3save
+build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +wait +save chapter-01
 ```
 
-Open the in-game console with the backtick/tilde key and enter `save chapter-01.w3save` or `load chapter-01.w3save`. The load command must run after `+map`, because loading restores state into the already-loaded map. For command-line save diagnostics, place `+wait` between the map and `+save` commands so map initialization and `main()` have created the authoritative native registries first. A load invocation is:
+Open the in-game console with the backtick/tilde key and enter `save chapter-01` or `load chapter-01`. The load command must run after `+map`, because loading restores state into the already-loaded map. For command-line save diagnostics, place `+wait` between the map and `+save` commands so map initialization and `main()` have created the authoritative native registries first. A load invocation is:
 
 ```sh
-build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +load chapter-01.w3save
+build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +load chapter-01
 ```
 
-`FS_SavePath()` resolves saves to `$XDG_DATA_HOME/warcraft-3/saves/<name>` on Linux, or `~/.local/share/warcraft-3/saves/<name>` when `XDG_DATA_HOME` is unset. macOS uses `~/Library/Application Support/warcraft-3/saves/<name>`, and Windows uses `%APPDATA%/warcraft-3/saves/<name>`. Config files use the same per-user game-data directory under `config/`. If no writable per-user data directory is available, config and saves fall back to `share/warcraft-3/config/` and `share/warcraft-3/saves/`. The save filename may not contain `/` or `\`.
+`FS_SavePath()` appends `.sav` when the supplied name does not already end with that extension. It resolves saves to `$XDG_DATA_HOME/warcraft-3/saves/<name>.sav` on Linux, or `~/.local/share/warcraft-3/saves/<name>.sav` when `XDG_DATA_HOME` is unset. macOS uses `~/Library/Application Support/warcraft-3/saves/<name>.sav`, and Windows uses `%APPDATA%/warcraft-3/saves/<name>.sav`. Config files use the same per-user game-data directory under `config/`. If no writable per-user data directory is available, config and saves fall back to `share/warcraft-3/config/` and `share/warcraft-3/saves/`. The save name may not contain `/` or `\`.
 
 The Save Game and Load Game buttons exposed by the WC3 menu layout are not wired yet; use the console commands. The shipped config binds `F6` to `save quick`; `F9` remains the quest log shortcut.
 
