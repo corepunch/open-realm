@@ -680,14 +680,11 @@ void ai_stand(LPEDICT self) {
      * units already chasing/attacking stay as they are. */
     if (!unit_has_attack(self))
         return;
-    /* Only human- and computer-controlled units auto-acquire. Neutral/creep
-     * units do not initiate (avoids map-wide neutral-vs-neutral aggression),
-     * matching WC3's default behaviour closely enough for campaign play. */
-    {
-        DWORD const pt = level.mapinfo->players[self->s.player].playerType;
-        if (pt != kPlayerTypeComputer && pt != kPlayerTypeHuman)
-            return;
-    }
+    /* Neutral/creep units do not initiate (avoids map-wide neutral-vs-neutral
+     * aggression); campaign defenders may be rescuable until script takeover
+     * and still use normal unit auto-acquisition while hostile. */
+    if (level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral)
+        return;
     if (!G_ShouldAcquireThisFrame(self))
         return;
 

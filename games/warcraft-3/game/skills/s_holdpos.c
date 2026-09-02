@@ -3,7 +3,9 @@
 static void ai_holdpos_stand(LPEDICT self) {
     if (!G_ShouldAcquireThisFrame(self))
         return;
-    LPEDICT enemy = G_FindNearestEnemy(self, self->attack1.range);
+    /* Hold Position still detects hostile units at the data-defined acquisition
+     * radius; the order controls the post-acquisition chase, not perception. */
+    LPEDICT enemy = G_FindNearestEnemy(self, G_AcquisitionRange(self));
     if (enemy) {
         order_attack(self, enemy);
     }

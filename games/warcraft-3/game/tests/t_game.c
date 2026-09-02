@@ -724,6 +724,27 @@ TEST(wc3_game, acquisition_range_uses_spawn_cache) {
     T_FEQ(G_AcquisitionRange(ent), 375.0f, 0.001f);
 }
 
+TEST(wc3_game, hold_position_acquires_within_uacq_not_attack_range) {
+    LPEDICT guard, enemy;
+
+    reset_entities();
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeRescuable;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    guard = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 0.0f, 0.0f);
+    enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 200.0f, 0.0f);
+    guard->s.player = 0; enemy->s.player = 1;
+    guard->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+    guard->attack1.cooldown = 1.0f; guard->attack1.damageBase = 1;
+    guard->attack1.range = 64.0f; guard->runtime.acquisition_range = 300.0f;
+    guard->currentmove = &holdpos_move_stand;
+    gi.LinkEntity(guard); gi.LinkEntity(enemy);
+    level.time = 300;
+
+    guard->currentmove->think(guard);
+    T_ASSERT(guard->goalentity == enemy);
+}
+
 TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     reset_entities();
     G_FowInit();

@@ -650,7 +650,10 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     if (hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         UnitProfile_t const *prof = G_UnitProfile(ent->s.class_id);
-        state->name = G_UnitNameConfigstring(prof->name);
+        /* UnitProfile.Name is empty for some ROC building rows; the rawcode is
+         * still the authoritative identity used by the loaded UnitData row. */
+        state->name = G_UnitNameConfigstring(prof->name && *prof->name
+            ? prof->name : GetClassName(ent->s.class_id));
         state->flags |= EF_HOVER_HEALTH;
         if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;
