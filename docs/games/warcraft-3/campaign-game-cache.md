@@ -118,7 +118,7 @@ provides `FS_UserPath`. This keeps writable-path ownership on the engine side an
 avoids unresolved engine symbols in `libgame`.
 
 This places writable campaign state under the normal per-game user directory
-(`~/.warcraft-3/` on Unix when available, otherwise the existing portable
+(`~/.local/share/warcraft-3/` on Unix when available, otherwise the existing portable
 `share/warcraft-3/` fallback).
 
 The sidecar uses an explicit little-endian, length-prefixed format with the

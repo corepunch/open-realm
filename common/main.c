@@ -177,8 +177,8 @@ static void Sys_ResolveShareDirectory(void) {
     FS_SetShareDirectory("share");
 }
 
-/* Resolve writable per-user game data: XDG on Linux, Application Support on
- * macOS, and APPDATA on Windows. Only adopted if creatable and writable. */
+/* Resolve writable per-user game data: ~/.local/share on Unix, APPDATA on
+ * Windows. Only adopted if creatable and writable. */
 static void Sys_ResolveHomeDirectory(void) {
     PATHSTR dir;
 
@@ -188,21 +188,10 @@ static void Sys_ResolveHomeDirectory(void) {
         return;
     }
     snprintf(dir, sizeof(dir), "%s/%s", home, BZ_GAME);
-#elif defined(__APPLE__)
-    LPCSTR home = getenv("HOME");
-    if (!home || !*home) {
-        return;
-    }
-    snprintf(dir, sizeof(dir), "%s/Library/Application Support/%s", home, BZ_GAME);
 #else
-    LPCSTR data = getenv("XDG_DATA_HOME");
-    if (!data || !*data) {
-        LPCSTR home = getenv("HOME");
-        if (!home || !*home) return;
-        snprintf(dir, sizeof(dir), "%s/.local/share/%s", home, BZ_GAME);
-    } else {
-        snprintf(dir, sizeof(dir), "%s/%s", data, BZ_GAME);
-    }
+    LPCSTR home = getenv("HOME");
+    if (!home || !*home) return;
+    snprintf(dir, sizeof(dir), "%s/.local/share/%s", home, BZ_GAME);
 #endif
     FS_SetHomeDirectory(dir);
 }
