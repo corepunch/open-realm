@@ -89,9 +89,19 @@ static LPCUIFRAME CL_WindowClickableAt(clientWindow_t *window, LPCVECTOR2 point)
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
 static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
     if (!frame) return;
-    if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION)) CL_WindowClose(window->id);
-    else if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) CL_WindowClose(window->id);
-    else SCR_LayoutSendFrameCommand(frame);
+    if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION) ||
+        !strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) {
+        CL_WindowClose(window->id);
+    } else if (!strcmp(frame->onclick, UI_WINDOW_DISCONNECT_ACTION)) {
+        /* Server-authored menus may offer a leave action, but the local client
+         * owns session teardown and only performs it after explicit input. */
+        CL_Disconnect("Left game.", false);
+    } else if (!strcmp(frame->onclick, UI_WINDOW_QUIT_ACTION)) {
+        /* Defer normal application shutdown until input dispatch returns. */
+        Cbuf_AddText("quit\n");
+    } else {
+        SCR_LayoutSendFrameCommand(frame);
+    }
 }
 
 void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout) {

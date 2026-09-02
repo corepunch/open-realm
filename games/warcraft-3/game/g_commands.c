@@ -695,10 +695,22 @@ CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
 }
 
-/* F10 and the authored Menu button share this route; client open acknowledgement acquires pause. */
+/* F10 and the authored Menu button share this route. Submenu transitions
+ * replace the same unique modal window, so the client keeps pause ownership
+ * until the menu is actually closed. */
 CLIENTCOMMAND(Menu) {
     (void)argc; (void)argv;
     UI_ShowMainMenu(clent);
+}
+
+CLIENTCOMMAND(MenuEndGame) {
+    (void)argc; (void)argv;
+    UI_ShowGameMenuEndGame(clent);
+}
+
+CLIENTCOMMAND(MenuConfirmExit) {
+    (void)argc; (void)argv;
+    UI_ShowGameMenuConfirmExit(clent);
 }
 
 CLIENTCOMMAND(Resume) {
@@ -857,6 +869,8 @@ clientCommand_t clientCommands[] = {
     { "gameresult_quit", CMD_GameResultQuit },
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
+    { "menu_endgame", CMD_MenuEndGame },
+    { "menu_confirm_exit", CMD_MenuConfirmExit },
     { "resume", CMD_Resume },
     { "pause", CMD_Pause },
     { "allies", CMD_Allies },

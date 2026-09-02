@@ -1443,6 +1443,8 @@ void UI_WriteDialoguePresentation(LPEDICT);
 LPCSTR GetBuildCommand(unitRace_t);
 void UI_RenderRoute(LPEDICT, LPCSTR);
 void UI_ShowMainMenu(LPEDICT);
+void UI_ShowGameMenuEndGame(LPEDICT);
+void UI_ShowGameMenuConfirmExit(LPEDICT);
 void UI_ShowRealmSelect(LPEDICT, BOOL);
 void UI_ShowSinglePlayerMenu(LPEDICT);
 void UI_ShowMultiplayerMenu(LPEDICT);

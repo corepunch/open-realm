@@ -60,6 +60,19 @@ retained arena; it does not duplicate strings.
 - A modal window blocks world hit testing, control groups, bindings, minimap actions, and manual camera movement.
 - Key-up still reaches gameplay `+command` releases so opening or focusing a window cannot leave an input held.
 
+### Client-owned button actions
+
+Most authored window `onclick` strings are sent back to the game server. Four explicit action tokens are consumed locally by
+`client/cl_window.c` instead:
+
+- `UI_WINDOW_CLOSE_ACTION` (`close_window`) closes the owning window;
+- `UI_WINDOW_CLOSE_NOTIFY_ACTION` (`close_window_notify`) closes it and therefore participates in modal-list pause synchronization;
+- `UI_WINDOW_DISCONNECT_ACTION` (`disconnect_game`) leaves the current game and returns to the front-end;
+- `UI_WINDOW_QUIT_ACTION` (`quit_application`) queues normal application shutdown.
+
+Disconnect and quit are intended for explicit local activation in server-authored menus. They are never executed merely because a
+window packet is received. Submenu/navigation actions remain ordinary server commands.
+
 ## Legacy UI Windows
 
 `svc_ui_window` retains the older WoW `ui.ShowWindow` named-XML toggle. It is migration debt and does not participate in the

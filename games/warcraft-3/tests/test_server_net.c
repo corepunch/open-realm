@@ -334,7 +334,7 @@ static void drain_client_packets(void) {
     }
 }
 
-TEST(server_net, game_configstring_change_marks_value_for_reliable_resync) {
+TEST(server_net, runtime_configstring_change_marks_value_for_reliable_resync) {
     DWORD const index = CS_GENERAL + 7;
 
     reset_server_state(1);

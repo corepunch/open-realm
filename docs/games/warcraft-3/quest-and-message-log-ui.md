@@ -216,8 +216,9 @@ F12 -> cmd log
 `hud_console.c` assigns the same four command names to the authored upper
 system buttons. F10 therefore no longer defaults to the engine screenshot
 command: the retail `(F10)` Menu label and the default key action now agree.
-The `menu` and `allies` command routes are present for mouse/key parity, but
-their in-game dialogs are not implemented by this Quest/Log work.
+The `menu` and `allies` command routes are present for mouse/key parity. The
+Menu route opens the separate modal Esc-menu window documented in
+[in-game-menu.md](in-game-menu.md); Allies rendering is implemented separately.
 
 ## Known Gaps
 

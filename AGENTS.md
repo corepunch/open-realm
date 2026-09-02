@@ -39,6 +39,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
 | WC3 triggered dialogue, gameplay/cinematic presentation split, message and transmission lifetimes | [docs/games/warcraft-3/triggered-dialogue.md](docs/games/warcraft-3/triggered-dialogue.md) |
 | WC3 Quest journal, single-player Message Log, upper-button wiring, retained message history | [docs/games/warcraft-3/quest-and-message-log-ui.md](docs/games/warcraft-3/quest-and-message-log-ui.md) |
+| WC3 in-game Menu/F10 overlay, EscMenu panel flow, modal pause/input, leave/exit actions | [docs/games/warcraft-3/in-game-menu.md](docs/games/warcraft-3/in-game-menu.md) |
 | WC3 Hero skill tree, skill points, rank requirements, learning UI, JASS progression | [docs/games/warcraft-3/hero-abilities.md](docs/games/warcraft-3/hero-abilities.md) |
 | WC3 gathering, immobile units, construction HUD, overhead bars | [docs/games/warcraft-3/economy-and-unit-presentation.md](docs/games/warcraft-3/economy-and-unit-presentation.md) |
 | WC3 enemy/neutral selection, relationship colours, command authority, fog/death deselection | [docs/games/warcraft-3/selection-and-control.md](docs/games/warcraft-3/selection-and-control.md) |
