@@ -71,10 +71,18 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 The server registers Quake 2-style `savegame` and `loadgame` commands. Save names are relative to the writable user directory and cannot contain path separators:
 
 ```sh
+build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +wait +savegame chapter-01.w3save
+```
+
+Open the in-game console with the backtick/tilde key and enter `savegame chapter-01.w3save` or `loadgame chapter-01.w3save`. The load command must run after `+map`, because loading restores state into the already-loaded map. For command-line save diagnostics, place `+wait` between the map and `+savegame` commands so map initialization and `main()` have created the authoritative native registries first. A load invocation is:
+
+```sh
 build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +loadgame chapter-01.w3save
 ```
 
-The shipped WC3 config binds `F9` to `savegame quick`. The load command must run after `+map`, because loading restores state into the already-loaded map. For command-line save diagnostics, place `+wait` between the map and `+savegame` commands so map initialization and `main()` have created the authoritative native registries first.
+`FS_UserPath()` resolves saves to `~/.warcraft-3/<name>` on macOS/Linux and `%APPDATA%/warcraft-3/<name>` on Windows. If no writable per-user directory is available, it falls back to `share/warcraft-3/<name>` beside the executable. The save filename may not contain `/` or `\`.
+
+The Save Game and Load Game buttons exposed by the WC3 menu layout are not wired yet; use the console commands. The shipped config currently binds `F9` to the quest log, not save/load.
 
 ## Verification
 
