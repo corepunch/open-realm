@@ -346,9 +346,7 @@ LPCSTR FS_HomePath(void) {
     return fs_home_dir;
 }
 
-/* Resolve a writable per-user file (config.cfg, autoexec.cfg, characters.xml).
- * Home directory first; falls back to the base share/<game>/ dir so a portable
- * deployment (share/ next to the executable) keeps working without $HOME. */
+/* Resolve a writable per-game file that is not assigned to a dedicated subdirectory. */
 void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
     if (fs_home_dir[0]) {
         snprintf(out, out_size, "%s/%s", fs_home_dir, rel);
@@ -357,8 +355,25 @@ void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
     }
 }
 
+/* Resolve a writable configuration file below the platform's per-user config directory. */
+void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size) {
+    PATHSTR dir;
+
+    if (fs_home_dir[0]) {
+        snprintf(dir, sizeof(dir), "%s/config", fs_home_dir);
+#ifdef _WIN32
+        _mkdir(dir);
+#else
+        mkdir(dir, 0755);
+#endif
+        snprintf(out, out_size, "%s/%s", dir, rel);
+    } else {
+        snprintf(out, out_size, "%s/%s/config/%s", FS_BasePath(), BZ_GAME, rel);
+    }
+}
+
 /* Resolve a writable save file under the platform's per-user data directory;
- * this is separate from FS_UserPath because configs retain the legacy home path. */
+ * this keeps gameplay saves separate from configuration files. */
 void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size) {
     PATHSTR game_dir;
 

@@ -60,7 +60,7 @@ call SaveGame("chapter-01.w3save")
 call LoadGame("chapter-01.w3save", false)
 ```
 
-`LoadGame` restores state in the already-loaded map; map selection and UI score-screen behavior remain separate work. The initialized map must have the same JASS program and deterministically recreated native registries.
+`LoadGame` restores state in the already-loaded map; map selection and UI score-screen behavior remain separate work. The initialized map must have the same JASS program and deterministically recreated native registries. The native names resolve through `FS_SavePath()`.
 
 The format does not yet snapshot fog grids, bot runtime, mutable event-registration fields, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; arbitrary active `umove_t` actions are not yet restored and require stable semantic move IDs. Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu likewise requires a semantic menu-state enum rather than raw function addresses.
 
@@ -80,7 +80,7 @@ Open the in-game console with the backtick/tilde key and enter `save chapter-01.
 build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +load chapter-01.w3save
 ```
 
-`FS_SavePath()` resolves saves to `$XDG_DATA_HOME/warcraft-3/saves/<name>` on Linux, or `~/.local/share/warcraft-3/saves/<name>` when `XDG_DATA_HOME` is unset. macOS uses `~/Library/Application Support/warcraft-3/saves/<name>`, and Windows uses `%APPDATA%/warcraft-3/saves/<name>`. Config files use the same per-user game-data directory, without the `saves/` component. If no writable per-user data directory is available, both fall back to `share/warcraft-3/`. The save filename may not contain `/` or `\`.
+`FS_SavePath()` resolves saves to `$XDG_DATA_HOME/warcraft-3/saves/<name>` on Linux, or `~/.local/share/warcraft-3/saves/<name>` when `XDG_DATA_HOME` is unset. macOS uses `~/Library/Application Support/warcraft-3/saves/<name>`, and Windows uses `%APPDATA%/warcraft-3/saves/<name>`. Config files use the same per-user game-data directory under `config/`. If no writable per-user data directory is available, config and saves fall back to `share/warcraft-3/config/` and `share/warcraft-3/saves/`. The save filename may not contain `/` or `\`.
 
 The Save Game and Load Game buttons exposed by the WC3 menu layout are not wired yet; use the console commands. The shipped config currently binds `F9` to the quest log, not save/load.
 
