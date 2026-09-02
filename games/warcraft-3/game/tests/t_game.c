@@ -1297,6 +1297,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
+    T_ASSERT(unit_issueimmediateorder(g_edicts + (first - g_edicts), "stop"));
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 45);
     T_EQ(game.clients[0].camera.state.fov, 61.0f);
@@ -1318,6 +1320,284 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(!ReadGame(filename));
     T_ASSERT(g_edicts[0].client == &game.clients[0]);
     free(item.description); free(quest.title); free(quest.description); free(quest.iconPath);
+    remove(filename);
+}
+
+BOOL run_test_jass(LPCSTR src);
+
+TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
+    UnitBalance_t unit_row = { .id = MAKEFOURCC('h', 'p', 'e', 'a') };
+    UnitBalance_t no_unit = { 0 };
+    UnitUI_t unit_ui = { 0 };
+    DestructableData_t dest_row = { .file = "Tree" };
+    DestructableData_t no_dest = { 0 };
+    edict_t unit = { .UnitBalance = &unit_row, .UnitUI = &unit_ui, .DestructableData = &no_dest };
+    edict_t dest = { .UnitBalance = &no_unit, .UnitUI = &unit_ui, .DestructableData = &dest_row };
+    edict_t unknown = { .UnitBalance = &no_unit, .UnitUI = &unit_ui, .DestructableData = &no_dest };
+
+    G_BindEntityRuntime(&unit); G_BindEntityRuntime(&dest); G_BindEntityRuntime(&unknown);
+    T_ASSERT(unit.stand == unit_stand && unit.birth == unit_birth && unit.die == unit_die && unit.think == monster_think);
+    T_ASSERT(dest.stand == tree_stand && dest.birth == tree_birth && dest.pain == tree_pain && dest.die == tree_die);
+    T_ASSERT(dest.think == monster_think);
+    T_ASSERT(!unknown.stand && !unknown.birth && !unknown.pain && !unknown.die && !unknown.think);
+}
+
+TEST(wc3_save, round_trip_unread_event_queue) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-event-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+    EVENT handler = { .type = EVENT_UNIT_IN_RANGE };
+    LPEDICT subject, source;
+
+    reset_entities(); memset(&level.events, 0, sizeof(level.events)); level.events.handlers = &handler;
+    subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
+    G_PublishEventWithSource(subject, EVENT_UNIT_IN_RANGE, source)->responseTo = &handler;
+    T_ASSERT(WriteGame(filename));
+    level.events.read = level.events.write; memset(level.events.queue, 0, sizeof(level.events.queue));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.events.read, 0); T_EQ(level.events.write, 1);
+    T_EQ(level.events.queue[0].type, EVENT_UNIT_IN_RANGE);
+    T_ASSERT(level.events.queue[0].edict == subject && level.events.queue[0].source == source);
+    T_ASSERT(level.events.queue[0].responseTo == &handler);
+    level.events = old_events; remove(filename);
+}
+
+TEST(wc3_save, round_trip_jass_globals) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-jass-save-test.bin";
+    T_ASSERT(run_test_jass(
+        "type group extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  integer savedInteger = 41\n"
+        "  real savedReal = 2.5\n"
+        "  boolean savedBoolean = true\n"
+        "  string savedString = \"before\"\n"
+        "  code savedCode = function SavedCallback\n"
+        "  unit savedNull = null\n"
+        "  player savedPlayer = null\n"
+        "  player savedPlayerAlias = null\n"
+        "  unit savedUnit = null\n"
+        "  unit savedUnitAlias = null\n"
+        "  quest savedQuest = null\n"
+        "  quest savedQuestAlias = null\n"
+        "  questitem savedQuestItem = null\n"
+        "  questitem savedQuestItemAlias = null\n"
+        "  group savedGroup = null\n"
+        "  group savedGroupAlias = null\n"
+        "  trigger savedTrigger = null\n"
+        "  trigger savedTriggerAlias = null\n"
+        "  integer array savedArray\n"
+        "endglobals\n"
+        "function SavedCallback takes nothing returns nothing\n"
+        "endfunction\n"
+        "function ChangedCallback takes nothing returns nothing\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set savedPlayer = Player(0)\n"
+        "  set savedPlayerAlias = savedPlayer\n"
+        "  set savedUnit = CreateUnit(savedPlayer, 'hpea', 0.0, 0.0, 0.0)\n"
+        "  set savedUnitAlias = savedUnit\n"
+        "  set savedQuest = CreateQuest()\n"
+        "  set savedQuestAlias = savedQuest\n"
+        "  set savedQuestItem = QuestCreateItem(savedQuest)\n"
+        "  set savedQuestItemAlias = savedQuestItem\n"
+        "  set savedGroup = CreateGroup()\n"
+        "  set savedGroupAlias = savedGroup\n"
+        "  call GroupAddUnit(savedGroup, savedUnit)\n"
+        "  set savedTrigger = CreateTrigger()\n"
+        "  set savedTriggerAlias = savedTrigger\n"
+        "  call DisableTrigger(savedTrigger)\n"
+        "  set savedArray[7] = 77\n"
+        "  set savedArray[4095] = 95\n"
+        "endfunction\n"
+        "function mutate takes nothing returns nothing\n"
+        "  set savedInteger = 0\n"
+        "  set savedReal = 0.0\n"
+        "  set savedBoolean = false\n"
+        "  set savedString = \"after\"\n"
+        "  set savedCode = function ChangedCallback\n"
+        "  set savedPlayer = null\n"
+        "  set savedPlayerAlias = null\n"
+        "  set savedUnit = null\n"
+        "  set savedUnitAlias = null\n"
+        "  set savedQuest = null\n"
+        "  set savedQuestAlias = null\n"
+        "  set savedQuestItem = null\n"
+        "  set savedQuestItemAlias = null\n"
+        "  call GroupClear(savedGroup)\n"
+        "  call EnableTrigger(savedTrigger)\n"
+        "  set savedArray[7] = 0\n"
+        "  set savedArray[4095] = 0\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(savedInteger == 41, \"integer snapshot mismatch\")\n"
+        "  call BJassAssert(savedReal == 2.5, \"real snapshot mismatch\")\n"
+        "  call BJassAssert(savedBoolean, \"boolean snapshot mismatch\")\n"
+        "  call BJassAssert(savedString == \"before\", \"string snapshot mismatch\")\n"
+        "  call BJassAssert(savedCode == function SavedCallback, \"code snapshot mismatch\")\n"
+        "  call BJassAssert(savedNull == null, \"null snapshot mismatch\")\n"
+        "  call BJassAssert(savedPlayer == savedPlayerAlias, \"player alias mismatch\")\n"
+        "  call BJassAssert(savedPlayer == Player(0), \"player handle mismatch\")\n"
+        "  call BJassAssert(savedUnit == savedUnitAlias, \"unit alias mismatch\")\n"
+        "  call BJassAssert(GetUnitTypeId(savedUnit) == 'hpea', \"unit handle mismatch\")\n"
+        "  call BJassAssert(savedQuest == savedQuestAlias, \"quest alias mismatch\")\n"
+        "  call BJassAssert(savedQuestItem == savedQuestItemAlias, \"quest item alias mismatch\")\n"
+        "  call BJassAssert(savedGroup == savedGroupAlias, \"group alias mismatch\")\n"
+        "  call BJassAssert(FirstOfGroup(savedGroup) == savedUnit, \"group membership mismatch\")\n"
+        "  call BJassAssert(savedTrigger == savedTriggerAlias, \"trigger alias mismatch\")\n"
+        "  call BJassAssert(not IsTriggerEnabled(savedTrigger), \"trigger state mismatch\")\n"
+        "  call BJassAssert(savedArray[7] == 77, \"sparse array mismatch\")\n"
+        "  call BJassAssert(savedArray[4095] == 95, \"high sparse array mismatch\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm, "mutate", false);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_save, round_trip_jass_timers) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-jass-timer-save-test.bin";
+    T_ASSERT(run_test_jass(
+        "type timer extends handle\n"
+        "type trigger extends handle\n"
+        "type triggeraction extends handle\n"
+        "type event extends handle\n"
+        "globals\n"
+        "  timer pausedTimer = null\n"
+        "  timer pausedTimerAlias = null\n"
+        "  timer runningTimer = null\n"
+        "  timer runningTimerAlias = null\n"
+        "  trigger timerTrigger = null\n"
+        "  integer timerCallbacks = 0\n"
+        "endglobals\n"
+        "function TimerCallback takes nothing returns nothing\n"
+        "  call BJassAssert(GetExpiredTimer() == runningTimer, \"direct expired timer mismatch\")\n"
+        "  set timerCallbacks = timerCallbacks + 1\n"
+        "endfunction\n"
+        "function TimerTriggerAction takes nothing returns nothing\n"
+        "  call BJassAssert(GetExpiredTimer() == runningTimer, \"trigger expired timer mismatch\")\n"
+        "  set timerCallbacks = timerCallbacks + 10\n"
+        "endfunction\n"
+        "function TimerNoop takes nothing returns nothing\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set timerTrigger = CreateTrigger()\n"
+        "  set pausedTimer = CreateTimer()\n"
+        "  set pausedTimerAlias = pausedTimer\n"
+        "  call TimerStart(pausedTimer, 10.0, false, function TimerNoop)\n"
+        "  call PauseTimer(pausedTimer)\n"
+        "  set runningTimer = CreateTimer()\n"
+        "  set runningTimerAlias = runningTimer\n"
+        "  call TriggerAddAction(timerTrigger, function TimerTriggerAction)\n"
+        "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
+        "  call TimerStart(runningTimer, 0.0, true, function TimerCallback)\n"
+        "endfunction\n"
+        "function mutate takes nothing returns nothing\n"
+        "  call DestroyTimer(pausedTimer)\n"
+        "  call DestroyTimer(runningTimer)\n"
+        "  set pausedTimerAlias = null\n"
+        "  set runningTimerAlias = null\n"
+        "  set timerCallbacks = 99\n"
+        "endfunction\n"
+        "function verifyRestored takes nothing returns nothing\n"
+        "  call BJassAssert(pausedTimer == pausedTimerAlias, \"paused timer alias mismatch\")\n"
+        "  call BJassAssert(runningTimer == runningTimerAlias, \"running timer alias mismatch\")\n"
+        "  call BJassAssert(TimerGetTimeout(pausedTimer) == 10.0, \"timer timeout mismatch\")\n"
+        "  call BJassAssert(TimerGetRemaining(pausedTimer) > 9.0, \"paused timer remaining mismatch\")\n"
+        "  call BJassAssert(TimerGetRemaining(pausedTimer) <= 10.0, \"paused timer remaining overflow\")\n"
+        "  call BJassAssert(timerCallbacks == 0, \"timer callback state mismatch\")\n"
+        "endfunction\n"
+        "function verifyExpired takes nothing returns nothing\n"
+        "  call BJassAssert(timerCallbacks > 0, \"direct timer callback did not run after load\")\n"
+        "  call BJassAssert(timerCallbacks == 11, \"timer trigger did not run after load\")\n"
+        "endfunction\n"
+        "function verifyPeriodic takes nothing returns nothing\n"
+        "  call BJassAssert(timerCallbacks == 22, \"periodic timer did not remain active after load\")\n"
+        "endfunction\n"
+        "function addTimer takes nothing returns nothing\n"
+        "  call CreateTimer()\n"
+        "endfunction\n"
+        "function addEvent takes nothing returns nothing\n"
+        "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm, "mutate", false);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyRestored", false);
+    G_RunTimers();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyExpired", false);
+    G_RunTimers();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyPeriodic", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "addEvent", false);
+    T_ASSERT(!ReadGame(filename));
+    jass_callbyname(level.vm, "addTimer", false);
+    T_ASSERT(!ReadGame(filename));
+    remove(filename);
+}
+
+TEST(wc3_save, resumes_sleeping_jass_coroutine) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-jass-coroutine-save-test.bin";
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer coroutineStage = 0\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set coroutineStage = 1\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set coroutineStage = 2\n"
+        "endfunction\n"
+        "function mutate takes nothing returns nothing\n"
+        "  set coroutineStage = 9\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(coroutineStage == 2, \"coroutine did not resume after sleep\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm, "mutate", false);
+    T_ASSERT(ReadGame(filename));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_save, rejects_corruption_without_mutation) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-corrupt-save-test.bin";
+    LPEDICT unit;
+    FILE *f;
+    BYTE byte = 0;
+    reset_entities();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->harvested_gold = 37;
+    T_ASSERT(WriteGame(filename));
+    f = fopen(filename, "r+b");
+    T_ASSERT(f != NULL && fseek(f, sizeof(DWORD), SEEK_SET) == 0 && fread(&byte, 1, 1, f) == 1);
+    byte ^= 0x80;
+    T_ASSERT(fseek(f, sizeof(DWORD), SEEK_SET) == 0 && fwrite(&byte, 1, 1, f) == 1);
+    fclose(f);
+    unit->harvested_gold = 99;
+    T_ASSERT(!ReadGame(filename));
+    T_EQ(unit->harvested_gold, 99);
+    remove(filename);
+}
+
+TEST(wc3_save, rejects_script_identity_without_mutation) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-script-mismatch-save-test.bin";
+    char extra[] = "function AddedAfterSave takes nothing returns nothing\nendfunction\n";
+    LPEDICT unit;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->harvested_gold = 37;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(jass_dobuffer(level.vm, extra));
+    unit->harvested_gold = 99;
+    T_ASSERT(!ReadGame(filename));
+    T_EQ(unit->harvested_gold, 99);
     remove(filename);
 }
 
