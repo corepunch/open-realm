@@ -17,6 +17,12 @@ The current behavior is:
 
 The default bindings are declared in `games/warcraft-3/share/config.cfg`; user config overrides can bind any supported key to the same server command strings. The classic backtick/tilde idle-worker shortcut is not bound because OpenRealm currently reserves backtick for its developer console.
 
+The same config path now owns the upper system-button defaults too: F9 opens
+Quests, F10 routes to Menu, F11 routes to Allies, and F12 opens the single-player
+Message Log. Those keys are not special-cased in `cl_input_w3.c`; they are normal
+configurable bindings, consistent with F1-F8. Menu/Allies screen implementation
+is separate from this shortcut subsystem.
+
 ## Hero Roster
 
 `G_UnitShowsHeroShortcut()` in `games/warcraft-3/game/g_shortcuts.c` accepts a unit when it:
@@ -155,3 +161,4 @@ No local compile or test execution is required to update this document; use the 
 - [Economy And Unit Presentation](economy-and-unit-presentation.md)
 - [Hero Revival](hero-revival.md)
 - [UI System](../../architecture/ui-system.md)
+- [Quest And Message Log UI](quest-and-message-log-ui.md)

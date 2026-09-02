@@ -359,6 +359,8 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
     DWORD payload_size = 0;
     BOOL terminated = false;
+    BOOL has_frames = false;
+    BOOL modal = false;
 
     if (layer >= MAX_LAYOUT_LAYERS) {
         fprintf(stderr, "CL_ParseLayout: bad layer %u\n", (unsigned)layer);
@@ -380,7 +382,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
             terminated = true;
             break;
         }
+        has_frames = true;
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
+        if (ent.flagsvalue & UIFRAME_FLAG_MODAL) modal = true;
         if (msg->readcount + sizeof(BYTE) > msg->cursize) {
             break;
         }
@@ -403,11 +407,17 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         msg->readcount = msg->cursize;
         return;
     }
+    /* An empty svc_layout is the wire-level clear operation.  Do not retain an
+     * allocated terminator-only blob: callers use a non-NULL layer as evidence
+     * that the layer exists, including generic modal ownership. */
+    if (!has_frames) {
+        return;
+    }
     payload_size = msg->readcount - start;
     cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
-    SCR_SetLayoutLayer(layer, cl.layout[layer]);
+    SCR_SetLayoutLayer(layer, cl.layout[layer], modal);
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {

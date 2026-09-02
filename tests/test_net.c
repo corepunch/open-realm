@@ -644,6 +644,24 @@ TEST(net, msg_multiple_types_sequential) {
 }
 
 
+TEST(net, ui_frame_delta_preserves_modal_flag) {
+    BYTE buf[128];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t from = {0}, to = { .number = 6, .flags = { .type = FT_SIMPLEFRAME } }, out = {0};
+    DWORD bits = 0;
+    int number;
+
+    to.flagsvalue |= UIFRAME_FLAG_MODAL;
+    MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaUIFrame(&sb, &out, number, bits);
+
+    T_EQ(number, 6);
+    T_ASSERT(out.flagsvalue & UIFRAME_FLAG_MODAL);
+    T_EQ(out.flags.type, FT_SIMPLEFRAME);
+}
+
 TEST(net, ui_frame_delta_preserves_text_length) {
     BYTE buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -790,6 +808,39 @@ TEST(net, layout_parser_accepts_scrollbar_payload_above_127_bytes) {
         SCR_Clear(cl.layout[LAYER_QUESTDIALOG]);
         T_EQ(SCR_Frame(1)->buffer.size, sizeof(payload));
     }
+}
+
+/* An empty svc_layout is the server's layer-clear operation.  Keeping a
+ * terminator-only allocation here leaves Quest/Log permanently modal after
+ * Done/OK and prevents their upper buttons from being used a second time. */
+TEST(net, empty_layout_clears_modal_layer) {
+    BYTE set_buf[256];
+    BYTE clear_buf[32];
+    sizeBuf_t set = make_msg_buf(set_buf, sizeof(set_buf));
+    sizeBuf_t clear = make_msg_buf(clear_buf, sizeof(clear_buf));
+    uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_SIMPLEFRAME } };
+
+    frame.flagsvalue |= UIFRAME_FLAG_MODAL;
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+
+    MSG_WriteByte(&set, LAYER_QUESTDIALOG);
+    MSG_WriteDeltaUIFrame(&set, &empty, &frame, true);
+    MSG_WriteByte(&set, 0);
+    MSG_WriteLong(&set, 0);
+    MSG_WriteShort(&set, 0);
+    set.readcount = 0;
+    CL_ParseLayout(&set);
+    T_ASSERT(cl.layout[LAYER_QUESTDIALOG] != NULL);
+    T_ASSERT(SCR_LayoutModalActive());
+
+    MSG_WriteByte(&clear, LAYER_QUESTDIALOG);
+    MSG_WriteLong(&clear, 0);
+    MSG_WriteShort(&clear, 0);
+    clear.readcount = 0;
+    CL_ParseLayout(&clear);
+    T_NULL(cl.layout[LAYER_QUESTDIALOG]);
+    T_ASSERT(!SCR_LayoutModalActive());
 }
 
 static uiUnitData_t test_unit_ui_last;

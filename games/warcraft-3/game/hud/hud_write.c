@@ -22,6 +22,27 @@ void UI_SetCurrentClient(LPGAMECLIENT client) {
     ui_current_client = client;
 }
 
+void UI_CenterFrame(LPFRAMEDEF frame) {
+    if (!frame) return;
+    memset(&frame->Points, 0, sizeof(frame->Points));
+    frame->AnyPointsSet = true;
+    UI_SetPoint(frame, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_CENTER, 0.0f, 0.0f);
+}
+
+BOOL UI_ClientModalOpen(LPGAMECLIENT client) {
+    return client && (client->quest_dialog.open || client->message_log.open);
+}
+
+void UI_ModalStateChanged(LPEDICT ent) {
+    if (!ent || !ent->client) return;
+
+    /* LAYER_CONSOLE contains the four system buttons, so force a re-send when
+     * modal ownership changes even if resources themselves did not. */
+    ent->client->resourcebar.gold = LONG_MIN;
+    G_RefreshResourceBar(ent);
+
+}
+
 void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
     point->used = 1;
     point->targetPos = target;
@@ -245,10 +266,18 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
 
 #define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
-BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL forcewrap) {
-    (void)forcewrap;
-    /* The shipped Hero*Icon skin entries name absent files; register WC3's matching infocard assets instead. */
-    return gi.ImageIndex(UI_ResolveTextureAlias(path));
+BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL decorate) {
+    LPCSTR resolved;
+
+    if (!path || !*path) return 0;
+
+    /* Decorated in-game FDF art is race-skinned.  The standalone UI module
+     * maps its Default category to the local player's race; do the same for
+     * server-authored HUD FDF while a client is being built.  This matters for
+     * EscMenuButtonBackground/Border used by QuestAcceptButton/LogOkButton. */
+    resolved = decorate ? Theme_PlayerString(ui_current_client, path, NULL) : NULL;
+    if (!resolved) resolved = decorate ? Theme_String(path, path) : path;
+    return gi.ImageIndex(UI_ResolveTextureAlias(resolved));
 }
 
 BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {

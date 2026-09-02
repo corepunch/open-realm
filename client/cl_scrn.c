@@ -229,6 +229,7 @@ void SCR_UpdateScreen(DWORD msec) {
 
 static LPCSTR active_tooltip = NULL;
 static HANDLE layout_layers[MAX_LAYOUT_LAYERS];
+static BOOL layout_modal[MAX_LAYOUT_LAYERS];
 static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
 static DWORD layout_dynamic_pic_cursor;
@@ -236,6 +237,17 @@ static BOOL layout_left_down;
 static DWORD layout_hovered_number;
 static DWORD layout_hovered_layer;
 static DWORD layout_current_layer;
+
+BOOL SCR_LayoutModalActive(void) {
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        if (layout_layers[layer] && layout_modal[layer]) return true;
+    }
+    return false;
+}
+
+static BOOL SCR_LayoutModalLayer(DWORD layer) {
+    return layer < MAX_LAYOUT_LAYERS && layout_modal[layer];
+}
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
@@ -359,19 +371,32 @@ static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, LPCRECT screen) 
 }
 
 void SCR_LayoutDrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
+    if (!frame || !frame->buffer.data || frame->buffer.size < sizeof(uiHighlight_t)) return;
     SCR_LayoutDrawHighlightData(frame->buffer.data, screen);
 }
 
 void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
-    uiSimpleButton_t *b = frame->buffer.data;
-    RECT const uv = get_uvrect((BYTE *)&b->normal.texcoord);
-    RECT const suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[b->normal.texture], screen, &suv, COLOR32_WHITE);
+    uiSimpleButton_t const *b;
+    uiSimpleButtonState_t const *state;
+    RECT uv, suv;
+    BOOL enabled, hovered, pushed;
+
+    if (!frame || frame->buffer.size < sizeof(uiSimpleButton_t) || !frame->buffer.data) return;
+    b = frame->buffer.data;
+    enabled = frame->onclick && *frame->onclick;
+    hovered = frame->number == layout_hovered_number && layout_current_layer == layout_hovered_layer;
+    pushed = enabled && hovered && layout_left_down;
+    state = !enabled ? &b->disabled : pushed ? &b->pushed : &b->normal;
+    if (!state->texture) state = &b->normal;
+
+    uv = get_uvrect((BYTE *)&state->texcoord);
+    suv = Rect_div(&uv, 0xff);
+    re.DrawImage(cl.pics[state->texture], screen, &suv, COLOR32_WHITE);
     re.DrawText(&MAKE(drawText_t,
         .rect      = *screen,
-        .font      = cl.fonts[b->normal.font],
+        .font      = cl.fonts[state->font],
         .text      = frame->text,
-        .color     = b->normal.fontcolor,
+        .color     = state->fontcolor,
         .textWidth = screen->w));
 }
 
@@ -491,6 +516,7 @@ static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
 }
 
 void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
+    if (!frame || frame->buffer.size < sizeof(uiGlueTextButton_t) || !frame->buffer.data) return;
     uiGlueTextButton_t const *gb = frame->buffer.data;
     BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
     BOOL const pushed  = SCR_LayoutGlueTextButtonIsPushed(frame);
@@ -501,6 +527,7 @@ void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 static void SCR_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
+    if (!frame || frame->buffer.size < sizeof(uiGlueTextButton_t) || !frame->buffer.data) return;
     uiGlueTextButton_t const *gb = frame->buffer.data;
     if (SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame))
         SCR_LayoutDrawHighlightData(&gb->highlight, SCR_LayoutRect(frame));
@@ -659,6 +686,7 @@ static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
     if (!parent) return;
     if (parent->flags.type != FT_GLUETEXTBUTTON && parent->flags.type != FT_GLUEBUTTON) return;
     if (!SCR_LayoutFrameHasClickCommand(parent) || !SCR_LayoutGlueTextButtonIsPushed(parent)) return;
+    if (parent->buffer.size < sizeof(uiGlueTextButton_t) || !parent->buffer.data) return;
     uiGlueTextButton_t const *b = parent->buffer.data;
     screen->x += b->pushedTextOffset.x;
     screen->y -= b->pushedTextOffset.y;
@@ -867,6 +895,8 @@ void SCR_LayoutDrawOverlay(HANDLE layout) {
 }
 
 void SCR_DrawLayout(void) {
+    BOOL const modal = SCR_LayoutModalActive();
+
     active_tooltip = NULL;
 
     if (cl.playerstate.cinefade > 0) {
@@ -879,6 +909,7 @@ void SCR_DrawLayout(void) {
         DWORD flags = cl.playerstate.uiflags;
         if ((1 << layer) & flags) continue;
         HANDLE layout = layout_layers[layer];
+        if (modal && layer == LAYER_WORLD_HOVER) continue;
         if (layout) {
             RECT root;
             layout_current_layer = layer;
@@ -887,28 +918,34 @@ void SCR_DrawLayout(void) {
                 if (!SCR_LayoutWorldHoverRoot(&root)) continue;
                 SCR_SetLayoutRoot(&root);
             }
-            SCR_LayoutUpdateTooltip(layout);
+            if (!modal || SCR_LayoutModalLayer(layer)) SCR_LayoutUpdateTooltip(layout);
             SCR_LayoutDrawOverlay(layout);
         }
     }
 }
 
-void SCR_SetLayoutLayer(DWORD layer, HANDLE data) {
-    if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = data;
+void SCR_SetLayoutLayer(DWORD layer, HANDLE data, BOOL modal) {
+    if (layer >= MAX_LAYOUT_LAYERS) return;
+    layout_layers[layer] = data;
+    layout_modal[layer] = modal;
 }
 
 void SCR_ClearLayoutLayer(DWORD layer) {
-    if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = NULL;
+    if (layer >= MAX_LAYOUT_LAYERS) return;
+    layout_layers[layer] = NULL;
+    layout_modal[layer] = false;
 }
 
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
+    BOOL const modal = SCR_LayoutModalActive();
 
     layout_hovered_number = 0;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
+        if (modal && !SCR_LayoutModalLayer(layer)) continue;
         SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
@@ -932,6 +969,7 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
+        if (modal && !SCR_LayoutModalLayer(layer)) continue;
         SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
@@ -950,11 +988,13 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
 /* Dispatch a command-button hotkey the same way a mouse click on that */
 BOOL SCR_LayoutKeyEvent(int key) {
     int const upper = toupper(key);
+    BOOL const modal = SCR_LayoutModalActive();
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
+        if (modal && !SCR_LayoutModalLayer(layer)) continue;
         SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
@@ -1057,6 +1097,12 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
 
 BOOL SCR_LayoutHitTest(int x, int y) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
+
+    /* A modal server-authored layout consumes gameplay hover/click input across
+     * the whole world rather than allowing transparent areas around the dialog
+     * to select or hover world entities underneath it. */
+    if (SCR_LayoutModalActive()) return true;
+
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;

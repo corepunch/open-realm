@@ -346,6 +346,9 @@ struct gcamerasetup_s {
     VECTOR2 position;
 };
 
+#define WC3_MESSAGE_LOG_MAX_ENTRIES 128
+#define WC3_MESSAGE_LOG_ENTRY_SIZE 1024
+
 struct client_s {
     PLAYER ps;
     BOOL connected; /* ClientBegin completed for this reserved player edict. */
@@ -402,6 +405,17 @@ struct client_s {
         DWORD end_time;        /* game time (ms), 0 = inactive */
         char text[1024];
     } message;
+    struct {
+        char entries[WC3_MESSAGE_LOG_MAX_ENTRIES][WC3_MESSAGE_LOG_ENTRY_SIZE];
+        DWORD first;
+        DWORD count;
+        BOOL open;
+        BOOL dirty;
+    } message_log;
+    struct {
+        LPQUEST selected;
+        BOOL open;
+    } quest_dialog;
     DWORD cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
     DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
@@ -1348,6 +1362,7 @@ void UI_WriteTooltipFrame(void);
 void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+void UI_ShowTransientText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 void UI_ClearTextMessages(LPEDICT);
 void UI_InvalidateDialoguePresentation(LPEDICT);
 void UI_WriteDialoguePresentation(LPEDICT);
@@ -1381,12 +1396,18 @@ void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
 void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
+void UI_WriteModalLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteStart(DWORD);
 void UI_ClearLayer(LPEDICT, DWORD);
 void UI_ShowGameResult(LPEDICT, BOOL);
 void UI_HideGameResult(LPEDICT);
 void UI_ShowQuests(LPEDICT);
+void UI_RefreshQuests(LPEDICT);
 void UI_HideQuests(LPEDICT);
+void UI_MessageLogAppend(LPEDICT, LPCSTR);
+void UI_ShowLog(LPEDICT);
+void UI_RefreshLog(LPEDICT);
+void UI_HideLog(LPEDICT);
 void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);

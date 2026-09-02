@@ -576,11 +576,23 @@ CLIENTCOMMAND(Cancel) {
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
 
 CLIENTCOMMAND(Quests) {
+    if (clent && clent->client &&
+        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
     UI_ShowQuests(clent);
 }
 
 CLIENTCOMMAND(HideQuests) {
     UI_HideQuests(clent);
+}
+
+CLIENTCOMMAND(Log) {
+    if (clent && clent->client &&
+        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
+    UI_ShowLog(clent);
+}
+
+CLIENTCOMMAND(HideLog) {
+    UI_HideLog(clent);
 }
 
 CLIENTCOMMAND(HideGameResult) {
@@ -596,18 +608,29 @@ CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
 }
 
-/* CMD_Menu: Stub for legacy menu commands.
- * Menu rendering is now handled by client-side UI library (Phase 4).
- * Server-side menu commands are deprecated. */
+/* F10 and the authored Menu button share this route. The in-game Esc/Menu
+ * dialog itself is not implemented by the current server-authored HUD. */
 CLIENTCOMMAND(Menu) {
-    (void)clent;
     (void)argc;
     (void)argv;
-    /* Menu commands now handled by client UI library */
+    if (clent && clent->client &&
+        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
+}
+
+/* The upper Allies button/F11 route is wired now so mouse and keyboard
+ * agree. The actual alliance dialog remains a separate UI implementation. */
+CLIENTCOMMAND(Allies) {
+    (void)argc;
+    (void)argv;
+    if (clent && clent->client &&
+        (clent->client->quest_dialog.open || clent->client->message_log.open)) return;
 }
 
 CLIENTCOMMAND(Quest) {
-    DWORD index = atoi(argv[1]);
+    DWORD index;
+
+    if (argc < 2 || !argv[1] || !*argv[1]) return;
+    index = atoi(argv[1]);
     FOR_EACH_LIST(QUEST, q, level.quests) {
         if (index == 0) {
             UI_ShowQuest(clent, q);
@@ -708,11 +731,14 @@ clientCommand_t clientCommands[] = {
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
+    { "log", CMD_Log },
+    { "hidelog", CMD_HideLog },
     { "hidegameresult", CMD_HideGameResult },
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_quit", CMD_GameResultQuit },
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
+    { "allies", CMD_Allies },
     { NULL }
 };
 

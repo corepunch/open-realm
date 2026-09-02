@@ -14,8 +14,10 @@ The server owns transmission/message state in `games/warcraft-3/game/client_s`:
 - `PLAYERTEXT_SPEAKER` / `PLAYERTEXT_DIALOGUE` — resolved map strings.
 - `cinematic_voice_end_time` — end of `Portrait Talk`; the scene may remain.
 - `cinematic_end_time` — end of the complete transmission scene.
-- `message` — one ordinary `DisplayText*` message, including position and
-  expiry time.
+- `message` — one ordinary transient `DisplayText*` message, including
+  position and expiry time.
+- `message_log` — bounded historical `DisplayText*` entries used by the
+  single-player Message Log; its lifetime is independent from `message`.
 
 `G_SetPlayerText` preserves an actual empty string. Do not normalize cinematic
 clear state to a single space: `UI_WriteCinematicLayer` and the gameplay
@@ -112,12 +114,16 @@ which derives the current compatibility duration as:
 strlen(resolved text) / 6 + 5 seconds
 ```
 
-The current HUD intentionally retains one ordinary message per player because
-`LAYER_MESSAGE` is a single server-authored layer. A new ordinary message
-replaces the previous ordinary message state. `ClearTextMessages` clears that
-state for the current local-player JASS context; when no local-player context
-exists it clears all player clients, matching a global invocation in the
-server-side multi-client VM.
+The current HUD intentionally retains one **active** ordinary message per
+player because `LAYER_MESSAGE` is a single server-authored layer. A new
+ordinary message replaces the previous transient message state. Independently,
+`UI_ShowText` appends the formatted text to the bounded `message_log` history.
+`ClearTextMessages` clears only the active message and leaves that historical
+log intact.
+
+Command errors are deliberately different: `G_ShowCommandErrorText` uses
+`UI_ShowTransientText`, which shares the transient presentation path without
+recording the text in Message Log history.
 
 During a gameplay transmission, `LAYER_MESSAGE` belongs to the transmission.
 An ordinary message started underneath it retains its own expiry time and is
@@ -150,8 +156,9 @@ engine has no established representation for them:
 - `SetCinematicScene` player color is not yet applied to the portrait. The MDX
   renderer currently has a fixed `MAX_TEAMS` texture table, while common.j
   exposes more player colors; do not silently wrap unsupported colors.
-- Ordinary text uses one active-message slot rather than Warcraft's full
-  multi-message stack.
+- Ordinary on-screen text uses one active-message slot rather than Warcraft's
+  full multi-message stack. Historical `DisplayText*` entries are retained
+  separately by the Message Log.
 - `StopSound` / dialogue-specific sound replacement remain unimplemented.
 
 These gaps do not justify coupling dialogue to camera, fog, simulation pause,
@@ -163,6 +170,8 @@ Relevant in-engine tests are under `games/warcraft-3/game/tests/t_api.c`:
 
 - `wc3_api.disconnected_presentation_defers_network_write_until_connected`
 - `wc3_api.display_text_tracks_lifetime_and_clear`
+- `wc3_api.transient_command_style_text_does_not_enter_message_log`
+- `wc3_api.message_log_is_bounded_and_evicts_oldest_entry`
 - `wc3_api.display_text_uses_automatic_duration`
 - `wc3_api.transmission_keeps_gameplay_ui_and_separates_voice_lifetime`
 - `wc3_api.gameplay_transmission_preserves_underlying_timed_message_state`
@@ -182,5 +191,6 @@ the transmission itself, and fog state is unchanged.
 
 ## See Also
 
+- [Quest And Message Log UI](quest-and-message-log-ui.md)
 - [Server-Authored UI Payloads](../../architecture/ui-payloads.md)
 - [JASS Native Coverage](jass-native-coverage.md)

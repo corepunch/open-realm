@@ -461,6 +461,7 @@ TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {
 TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     LPGAMECLIENT gc = &game.clients[0];
 
+    memset(&gc->message_log, 0, sizeof(gc->message_log));
     level.time = 100;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -470,6 +471,8 @@ TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     T_FEQ(gc->message.position.x, 0.10f, 0.001f);
     T_FEQ(gc->message.position.y, 0.20f, 0.001f);
     T_STREQ(gc->message.text, "Timed message");
+    T_EQ(gc->message_log.count, 1);
+    T_STREQ(gc->message_log.entries[0], "Timed message");
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -477,6 +480,37 @@ TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
         "endfunction\n"));
     T_EQ(gc->message.end_time, 0);
     T_STREQ(gc->message.text, "");
+    T_EQ(gc->message_log.count, 1);
+    T_STREQ(gc->message_log.entries[0], "Timed message");
+}
+
+TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
+    LPGAMECLIENT gc = &game.clients[0];
+    EDICT ent = { .client = gc };
+
+    memset(&gc->message_log, 0, sizeof(gc->message_log));
+    level.time = 100;
+    UI_ShowTransientText(&ent, &MAKE(VECTOR2, 0.0f, 0.0f), "Not enough gold.", 2.0f);
+
+    T_STREQ(gc->message.text, "Not enough gold.");
+    T_EQ(gc->message_log.count, 0);
+}
+
+TEST(wc3_api, message_log_is_bounded_and_evicts_oldest_entry) {
+    LPGAMECLIENT gc = &game.clients[0];
+    EDICT ent = { .client = gc };
+    char text[64];
+
+    memset(&gc->message_log, 0, sizeof(gc->message_log));
+    for (DWORD i = 0; i < WC3_MESSAGE_LOG_MAX_ENTRIES + 1; i++) {
+        snprintf(text, sizeof(text), "Message %u", (unsigned)i);
+        UI_MessageLogAppend(&ent, text);
+    }
+
+    T_EQ(gc->message_log.count, WC3_MESSAGE_LOG_MAX_ENTRIES);
+    T_EQ(gc->message_log.first, 1);
+    T_STREQ(gc->message_log.entries[gc->message_log.first], "Message 1");
+    T_STREQ(gc->message_log.entries[0], "Message 128");
 }
 
 TEST(wc3_api, display_text_uses_automatic_duration) {

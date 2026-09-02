@@ -104,11 +104,16 @@ DWORD DefeatConditionSetDescription(LPJASS j) {
     return 0;
 }
 DWORD FlashQuestDialogButton(LPJASS j) {
-    /* TODO: flash the quest button in the command bar (requires ps.uiflags pulse). */
+    /* TODO: the server-authored frame wire does not currently serialize the
+     * stock button pulse/highlight state.  Do not fake the effect with quest
+     * state or an unrelated HUD flag. */
+    (void)j;
     return 0;
 }
 DWORD ForceQuestDialogUpdate(LPJASS j) {
-    /* Push the current quest list to every connected client. */
-    FILTER_EDICTS(ent, ent->client) UI_ShowQuests(ent);
+    /* Refresh only an already-open quest dialog and preserve its selection.
+     * The native is an update request, not an instruction to open the journal. */
+    (void)j;
+    FILTER_EDICTS(ent, ent->client && ent->client->connected) UI_RefreshQuests(ent);
     return 0;
 }

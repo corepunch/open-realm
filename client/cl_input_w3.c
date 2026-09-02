@@ -40,7 +40,8 @@ static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 /* Left-click (or click-drag) on the minimap recenters the camera there. */
 BOOL CL_TryMinimapClick(float x, float y) {
     VECTOR2 world;
-    if (!CL_GameplayInputReady() || !re.TraceMinimap || !re.TraceMinimap(x, y, &world)) {
+    if (!CL_GameplayInputReady() || SCR_LayoutModalActive() ||
+        !re.TraceMinimap || !re.TraceMinimap(x, y, &world)) {
         return false;
     }
     minimap_drag_active = true;
@@ -75,6 +76,12 @@ static void CL_ApplySelection(DWORD const *ids, DWORD n) {
 BOOL CL_HandleGameKey(int sym, Uint16 mod) {
     if (!CL_GameplayInputReady())
         return false;
+    /* Control groups are handled before the generic binding dispatcher.
+     * Consume digit keys while a modal layout is active so they cannot change
+     * gameplay selection behind Quest/Log. Other keys fall through to
+     * Key_Event, which applies the generic modal binding block. */
+    if (SCR_LayoutModalActive() && sym >= SDLK_0 && sym <= SDLK_9)
+        return true;
     if (sym < SDLK_0 || sym > SDLK_9)
         return false;
     DWORD const g = (DWORD)(sym - SDLK_0); /* 0..9 */
@@ -93,7 +100,7 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod) {
 }
 
 static void CL_BeginPan(float x, float y) {
-    if (!CL_GameplayInputReady()) {
+    if (!CL_GameplayInputReady() || SCR_LayoutModalActive()) {
         camera_drag.active = false;
         return;
     }
@@ -104,7 +111,7 @@ static void CL_UpdatePan(float x, float y) {
     VECTOR3 point;
     VECTOR2 position;
 
-    if (!CL_GameplayInputReady()) {
+    if (!CL_GameplayInputReady() || SCR_LayoutModalActive()) {
         camera_drag.active = false;
         return;
     }
@@ -232,6 +239,10 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     if (!motion) {
         return;
     }
+    if (SCR_LayoutModalActive()) {
+        camera_drag.active = false;
+        minimap_drag_active = false;
+    }
     if (CL_GameplayInputReady() &&
         !CL_MouseOverGameplayUI() &&
         re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum) &&
@@ -277,6 +288,15 @@ void CL_InputModeFrame(void) {
     float dt = (last_ms && now > last_ms) ? (now - last_ms) / 1000.0f : 0.0f;
     last_ms = now;
     if (dt > 0.1f) dt = 0.1f; /* clamp after a stall */
+
+    /* Quest/Log own gameplay input while modal.  Stop every manual camera
+     * path here as well as world hit testing: arrow keys and edge scrolling
+     * are polled directly every frame and otherwise bypass UI event routing. */
+    if (SCR_LayoutModalActive()) {
+        camera_drag.active = false;
+        minimap_drag_active = false;
+        return;
+    }
 
     /* Drag-pan takes over; don't fight it. Also require in-game input. */
     if (camera_drag.active || !CL_GameplayInputReady() || dt <= 0.0f) {

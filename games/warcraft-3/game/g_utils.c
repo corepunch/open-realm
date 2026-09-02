@@ -57,6 +57,9 @@ BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point) {
 
 LPQUEST G_MakeQuest(void) {
     LPQUEST quest = gi.MemAlloc(sizeof(QUEST));
+    /* CreateQuestBJ does not call QuestSetEnabled; Warcraft quests are usable
+     * immediately unless a map explicitly disables them. */
+    quest->enabled = true;
     PUSH_BACK(QUEST, quest, level.quests);
     return quest;
 }

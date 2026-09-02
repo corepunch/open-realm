@@ -11,6 +11,7 @@
  *   hud_commands.c  — command buttons, build queue, inventory
  *   hud_infopanel.c — info panel, multiselect, per-frame update stubs
  *   hud_quests.c    — quest dialog
+ *   hud_log.c       — persistent single-player message log
  *   hud_cinematic.c — cinematic layer, interface toggle, message overlay
  */
 
@@ -22,6 +23,8 @@
 #define MAX_FRAMES_WRITE 1024
 static LPCFRAMEDEF framesWritten[MAX_FRAMES_WRITE];
 static LPCFRAMEDEF *frameptr;
+static LPCFRAMEDEF ui_layout_root;
+static DWORD ui_layout_root_flags;
 
 void UI_ResetFrameWriteList(void) {
     frameptr = framesWritten;
@@ -55,6 +58,8 @@ DWORD UI_FindFrameNumber(LPCSTR name) {
     DEST[2] = SRC.min.y * 0xff; \
     DEST[3] = SRC.max.y * 0xff;
 
+static DWORD UI_PlayerImage(DWORD image);
+
 static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     AddFrame(src);
     FOR_LOOP(i, FPP_COUNT * 2) {
@@ -76,10 +81,11 @@ static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->color = src->Color;
     dest->size.width = src->Width;
     dest->size.height = src->Height;
-    dest->tex.index = src->Texture.Image;
-    dest->tex.index2 = src->Texture.Image2;
+    dest->tex.index = UI_PlayerImage(src->Texture.Image);
+    dest->tex.index2 = UI_PlayerImage(src->Texture.Image2);
     dest->flags.type = src->Type;
     dest->flags.alphaMode = src->AlphaMode;
+    if (src == ui_layout_root) dest->flagsvalue |= ui_layout_root_flags;
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;
     dest->text = src->Text;
@@ -87,12 +93,27 @@ static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->onclick = src->OnClick;
 }
 
+/* FDF templates are cached globally, and shared templates such as
+ * EscMenuButtonTemplate may have been parsed before a player-race skin
+ * context was available.  If an already-indexed image is a symbolic
+ * war3skins key, resolve it again for the client being serialized. */
+static DWORD UI_PlayerImage(DWORD image) {
+    LPCSTR key, resolved;
+
+    if (!image || !ui_current_client || !gi.GetConfigstring) return image;
+    key = gi.GetConfigstring(CS_IMAGES + image);
+    if (!key || !*key || strchr(key, '\\') || strchr(key, '/')) return image;
+    resolved = Theme_PlayerString(ui_current_client, key, NULL);
+    if (!resolved || !*resolved || !strcmp(resolved, key)) return image;
+    return gi.ImageIndex(UI_ResolveTextureAlias(resolved));
+}
+
 static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
     if (!frame) return (uiBackdrop_t){ 0 };
     return MAKE(uiBackdrop_t,
         .CornerFlags = frame->Backdrop.CornerFlags,
         .TileBackground = frame->Backdrop.TileBackground,
-        .Background = frame->Backdrop.Background,
+        .Background = UI_PlayerImage(frame->Backdrop.Background),
         .CornerSize = frame->Backdrop.CornerSize,
         .BackgroundSize = frame->Backdrop.BackgroundSize,
         .BackgroundInsets = {
@@ -101,13 +122,19 @@ static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
             frame->Backdrop.BackgroundInsets[2],
             frame->Backdrop.BackgroundInsets[3],
         },
-        .EdgeFile = frame->Backdrop.EdgeFile,
+        .EdgeFile = UI_PlayerImage(frame->Backdrop.EdgeFile),
         .BlendAll = frame->Backdrop.BlendAll,
         .Mirrored = frame->Backdrop.Mirrored,
     );
 }
 
-/* TODO: MakeHighlight unused — reserved for future highlight frame support */
+static uiHighlight_t MakeHighlight(LPCFRAMEDEF frame) {
+    if (!frame) return (uiHighlight_t){ 0 };
+    return MAKE(uiHighlight_t,
+        .alphaFile = UI_PlayerImage(frame->Highlight.AlphaFile),
+        .alphaMode = frame->Highlight.AlphaMode,
+    );
+}
 
 static uiLabel_t MakeLabel(LPCFRAMEDEF frame) {
     return MAKE(uiLabel_t,
@@ -117,6 +144,119 @@ static uiLabel_t MakeLabel(LPCFRAMEDEF frame) {
         .offsety = frame->Font.Justification.Offset.y,
         .font = frame->Font.Index,
     );
+}
+
+static LPCFRAMEDEF UI_ButtonPart(LPCFRAMEDEF frame, LPCSTR name) {
+    if (!frame || !name || !*name) return NULL;
+    return UI_FindFrameNear(frame, name);
+}
+
+static uiBackdrop_t MakeButtonBackdrop(LPCFRAMEDEF frame, LPCSTR name) {
+    LPCFRAMEDEF part = UI_ButtonPart(frame, name);
+    uiBackdrop_t result = { 0 };
+
+    if (!part) return result;
+    if (part->Type == FT_BACKDROP) return MakeBackdrop(part);
+    if (part->Type == FT_TEXTURE) {
+        result.Background = UI_PlayerImage(part->Texture.Image);
+        return result;
+    }
+    return result;
+}
+
+static uiHighlight_t MakeButtonHighlight(LPCFRAMEDEF frame, LPCSTR name) {
+    LPCFRAMEDEF part = UI_ButtonPart(frame, name);
+    if (!part) return (uiHighlight_t){ 0 };
+    if (part->Type == FT_HIGHLIGHT) {
+        return MAKE(uiHighlight_t,
+            .alphaFile = UI_PlayerImage(part->Highlight.AlphaFile),
+            .alphaMode = part->Highlight.AlphaMode,
+        );
+    }
+    if (part->Type == FT_TEXTURE) {
+        return MAKE(uiHighlight_t,
+            .alphaFile = UI_PlayerImage(part->Texture.Image),
+            .alphaMode = part->AlphaMode,
+        );
+    }
+    return (uiHighlight_t){ 0 };
+}
+
+static LPCSTR UI_ButtonStateName(LPCSTR preferred, LPCSTR fallback) {
+    return preferred && *preferred ? preferred : fallback;
+}
+
+static uiGlueTextButton_t MakeGlueTextButton(LPCFRAMEDEF frame) {
+    LPCSTR normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
+    LPCSTR pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
+    LPCSTR disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
+    LPCSTR disabled_pushed = UI_ButtonStateName(frame->Control.Backdrop.DisabledPushed, disabled);
+    LPCSTR highlight = UI_ButtonStateName(frame->Control.Backdrop.MouseOver, frame->Button.UseHighlight);
+    uiGlueTextButton_t result = {
+        .normal = MakeButtonBackdrop(frame, normal),
+        .pushed = MakeButtonBackdrop(frame, UI_ButtonStateName(pushed, normal)),
+        .disabled = MakeButtonBackdrop(frame, UI_ButtonStateName(disabled, normal)),
+        .disabledPushed = MakeButtonBackdrop(frame, UI_ButtonStateName(disabled_pushed, disabled)),
+        .highlight = MakeButtonHighlight(frame, highlight),
+        .pushedTextOffset = frame->Button.PushedTextOffset,
+    };
+
+    if (!result.pushed.Background && !result.pushed.EdgeFile) result.pushed = result.normal;
+    if (!result.disabled.Background && !result.disabled.EdgeFile) result.disabled = result.normal;
+    if (!result.disabledPushed.Background && !result.disabledPushed.EdgeFile)
+        result.disabledPushed = result.disabled;
+    return result;
+}
+
+static uiSimpleButtonState_t MakeSimpleButtonState(LPCFRAMEDEF frame,
+                                                    LPCSTR texture_name,
+                                                    BUTTONTEXT const *button_text,
+                                                    COLOR32 fallback_color)
+{
+    LPCFRAMEDEF texture = UI_ButtonPart(frame, texture_name);
+    LPCFRAMEDEF text = button_text && button_text->frame[0]
+        ? UI_ButtonPart(frame, button_text->frame)
+        : NULL;
+    COLOR32 fontcolor = text && text->Font.Color.a
+        ? text->Font.Color
+        : fallback_color.a ? fallback_color : COLOR32_WHITE;
+    uiSimpleButtonState_t result = {
+        .texture = UI_PlayerImage(texture && texture->Type == FT_TEXTURE
+            ? texture->Texture.Image : frame->Texture.Image),
+        .font = text ? text->Font.Index : frame->Font.Index,
+        .fontcolor = fontcolor,
+    };
+    BOX2 const uv = texture && texture->Type == FT_TEXTURE
+        ? texture->Texture.TexCoord
+        : frame->Texture.TexCoord;
+    CONVERT_UV(result.texcoord, uv);
+    return result;
+}
+
+static uiSimpleButton_t MakeSimpleButton(LPCFRAMEDEF frame) {
+    uiSimpleButton_t result = {
+        .normal = MakeSimpleButtonState(frame, frame->Button.NormalTexture,
+                                        &frame->Button.NormalText, frame->Font.Color),
+        .pushed = MakeSimpleButtonState(frame,
+                                        UI_ButtonStateName(frame->Button.PushedTexture,
+                                                           frame->Button.NormalTexture),
+                                        &frame->Button.NormalText, frame->Font.Color),
+        .disabled = MakeSimpleButtonState(frame,
+                                          UI_ButtonStateName(frame->Button.DisabledTexture,
+                                                             frame->Button.NormalTexture),
+                                          &frame->Button.DisabledText,
+                                          frame->Font.DisabledColor.a
+                                              ? frame->Font.DisabledColor
+                                              : frame->Font.Color),
+        .highlight = MakeSimpleButtonState(frame, frame->Button.UseHighlight,
+                                           &frame->Button.HighlightText,
+                                           frame->Font.HighlightColor.a
+                                               ? frame->Font.HighlightColor
+                                               : frame->Font.Color),
+    };
+    if (!result.pushed.texture) result.pushed = result.normal;
+    if (!result.disabled.texture) result.disabled = result.normal;
+    return result;
 }
 
 static BOOL UI_IsSingleLineText(LPCSTR text) {
@@ -148,6 +288,14 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
     switch (frame->Type) {
         case FT_BACKDROP: {
             uiBackdrop_t data = MakeBackdrop(frame);
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data));
+                buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
+        case FT_HIGHLIGHT: {
+            uiHighlight_t data = MakeHighlight(frame);
             if (buf.cursize + sizeof(data) <= buf.maxsize) {
                 memcpy(buf.data + buf.cursize, &data, sizeof(data));
                 buf.cursize += sizeof(data);
@@ -203,6 +351,32 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
         }
         case FT_TEXTAREA: {
             uiTextArea_t data = { .font = frame->Font.Index, .inset = frame->TextArea.Inset };
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data));
+                buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
+        case FT_SIMPLEBUTTON: {
+            uiSimpleButton_t data = MakeSimpleButton(frame);
+            LPCSTR text_key = frame->OnClick[0] || !frame->Button.DisabledText.text[0]
+                ? frame->Button.NormalText.text
+                : frame->Button.DisabledText.text;
+            if ((!out->text || !*out->text) && text_key && *text_key)
+                out->text = UI_GetString(text_key);
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data));
+                buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
+        case FT_BUTTON:
+        case FT_TEXTBUTTON:
+        case FT_POPUPMENU:
+        case FT_GLUEPOPUPMENU:
+        case FT_GLUETEXTBUTTON:
+        case FT_GLUEBUTTON: {
+            uiGlueTextButton_t data = MakeGlueTextButton(frame);
             if (buf.cursize + sizeof(data) <= buf.maxsize) {
                 memcpy(buf.data + buf.cursize, &data, sizeof(data));
                 buf.cursize += sizeof(data);
@@ -319,10 +493,22 @@ void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFR
     }
 }
 
-void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
+static void UI_WriteLayoutFlags(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, DWORD flags) {
+    ui_layout_root = root;
+    ui_layout_root_flags = flags;
     UI_WriteStart(layer);
     UI_WriteFrameWithChildren(root, NULL);
     UI_WriteEnd(ent);
+    ui_layout_root = NULL;
+    ui_layout_root_flags = 0;
+}
+
+void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
+    UI_WriteLayoutFlags(ent, root, layer, 0);
+}
+
+void UI_WriteModalLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
+    UI_WriteLayoutFlags(ent, root, layer, UIFRAME_FLAG_MODAL);
 }
 
 void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers) {

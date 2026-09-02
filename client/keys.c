@@ -149,7 +149,16 @@ void Key_Event(keyCode_t key, bool down, DWORD time) {
         ui.KeyEvent(key, down, time);
         return;
     }
-    
+
+    /* A server-authored modal layout owns gameplay input. Give its authored
+     * hotkeys first refusal and suppress normal game bindings on key-down so
+     * Hero groups, orders, and system-button bindings cannot fire underneath.
+     * Key-up still reaches +command releases to avoid leaving buttons stuck. */
+    if (cls.key_dest == key_game && down && SCR_LayoutModalActive()) {
+        SCR_LayoutKeyEvent(key);
+        return;
+    }
+
     LPCSTR kb = keybindings[key];
     char cmd[1024];
 
