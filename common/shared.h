@@ -440,8 +440,20 @@ typedef enum {
     LAYER_GAME_RESULT,
     LAYER_WORLD_HOVER,
     LAYER_UNIT_SHORTCUTS,
-    LAYER_SECONDARY_DIALOG,
 } UILAYOUTLAYER;
+
+typedef enum {
+    UI_WINDOW_OPEN,
+    UI_WINDOW_CLOSE,
+} uiWindowOp_t;
+
+#define UI_WINDOW_MOVABLE (1u << 0) // flag bit; permits client-local pointer dragging; used by server-authored windows
+#define UI_WINDOW_MODAL   (1u << 1) // flag bit; blocks input outside the topmost modal window; used by confirmation-style windows
+#define UI_WINDOW_UNIQUE  (1u << 2) // flag bit; keeps one instance per class; used by singleton inventory and journal windows
+
+typedef struct {
+    DWORD id, class_id, flags;
+} uiWindowDef_t;
 
 typedef enum {
     UI_STAT_CONTEXT_NAME = 253,
@@ -817,10 +829,6 @@ typedef struct UIMODEL {
 } UIMODEL;
 typedef struct UIMODEL *LPUIMODEL;
 typedef const struct UIMODEL *LPCUIMODEL;
-
-/* Generic uiFrame_t wire flag. Games may mark a server-authored layout root
- * modal without teaching the shared client what that dialog represents. */
-#define UIFRAME_FLAG_MODAL (1u << 11)
 
 typedef struct uiFrame_s {
     DWORD number;

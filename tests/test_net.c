@@ -644,23 +644,120 @@ TEST(net, msg_multiple_types_sequential) {
 }
 
 
-TEST(net, ui_frame_delta_preserves_modal_flag) {
-    T_ASSERT((UIFRAME_FLAG_MODAL & UIFLAG_SIZE_TO_CONTENT) == 0);
+TEST(net, ui_window_frame_delta_preserves_text_offsets) {
     BYTE buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t from = {0}, to = { .number = 6, .flags = { .type = FT_SIMPLEFRAME } }, out = {0};
     DWORD bits = 0;
     int number;
 
-    to.flagsvalue |= UIFRAME_FLAG_MODAL;
-    MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
+    to.text = (LPCSTR)(uintptr_t)0x1234;
+    MSG_WriteDeltaUIWindowFrame(&sb, &from, &to, true);
     sb.readcount = 0;
     number = MSG_ReadEntityBits(&sb, &bits);
-    MSG_ReadDeltaUIFrame(&sb, &out, number, bits);
+    MSG_ReadDeltaUIWindowFrame(&sb, &out, number, bits);
 
     T_EQ(number, 6);
-    T_ASSERT(out.flagsvalue & UIFRAME_FLAG_MODAL);
+    T_EQ((DWORD)(uintptr_t)out.text, 0x1234);
     T_EQ(out.flags.type, FT_SIMPLEFRAME);
+}
+
+static VECTOR2 text_length_mock_size(LPCDRAWTEXT text);
+
+static void test_send_window(DWORD id, DWORD class_id, DWORD flags, FLOAT x, LPCSTR text, LPCSTR command) {
+    BYTE buf[1024], arena[512] = { 0 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_TEXT }, .hotkey = 'Z' };
+    uiLabel_t label = {0};
+    DWORD text_offset = 1, command_offset = text_offset + strlen(text) + 1;
+
+    snprintf((LPSTR)arena + text_offset, sizeof(arena) - text_offset, "%s", text);
+    snprintf((LPSTR)arena + command_offset, sizeof(arena) - command_offset, "%s", command);
+    frame.text = (LPCSTR)(uintptr_t)text_offset; frame.onclick = (LPCSTR)(uintptr_t)command_offset;
+    frame.size.width = 0.2f; frame.size.height = 0.2f;
+    frame.points.x[FPP_MIN] = MAKE(uiFramePoint_t, .used = 1, .relativeTo = 0, .offset = x * UI_FRAMEPOINT_SCALE);
+    frame.points.y[FPP_MIN] = MAKE(uiFramePoint_t, .used = 1, .relativeTo = 0, .offset = -0.1f * UI_FRAMEPOINT_SCALE);
+    MSG_WriteByte(&sb, svc_window); MSG_WriteByte(&sb, UI_WINDOW_OPEN);
+    MSG_WriteLong(&sb, id); MSG_WriteLong(&sb, class_id); MSG_WriteLong(&sb, flags);
+    MSG_WriteDeltaUIWindowFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, sizeof(label)); MSG_Write(&sb, &label, sizeof(label));
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    MSG_WriteLong(&sb, command_offset + strlen(command) + 1);
+    MSG_Write(&sb, arena, command_offset + strlen(command) + 1);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+}
+
+TEST(net, window_trailing_text_arena_exceeds_typed_payload_limit) {
+    BYTE buf[2048], text[514];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_TEXT } };
+    uiLabel_t label = {0};
+
+    memset(text, 'W', sizeof(text)); text[0] = '\0'; text[sizeof(text) - 1] = '\0';
+    frame.text = (LPCSTR)(uintptr_t)1;
+    frame.size.width = 0.4f; frame.size.height = 0.1f;
+    test_client_stubs_init(); test_textarea_draws = 0;
+    re.GetTextSize = text_length_mock_size; re.DrawText = capture_textarea;
+    MSG_WriteByte(&sb, svc_window); MSG_WriteByte(&sb, UI_WINDOW_OPEN);
+    MSG_WriteLong(&sb, 7); MSG_WriteLong(&sb, 70); MSG_WriteLong(&sb, UI_WINDOW_MODAL | UI_WINDOW_UNIQUE);
+    MSG_WriteDeltaUIWindowFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, sizeof(label)); MSG_Write(&sb, &label, sizeof(label));
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    MSG_WriteLong(&sb, sizeof(text)); MSG_Write(&sb, text, sizeof(text));
+    sb.readcount = 0;
+
+    CL_ParseServerMessage(&sb);
+    T_ASSERT(CL_WindowModalActive());
+    CL_WindowDraw();
+    T_EQ(test_textarea_draws, 1);
+    T_EQ(strlen(test_textarea_draw.text), sizeof(text) - 2);
+    CL_WindowClear();
+}
+
+TEST(net, window_without_frame_terminator_is_rejected) {
+    BYTE buf[64];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init(); CL_WindowClear();
+    MSG_WriteByte(&sb, svc_window); MSG_WriteByte(&sb, UI_WINDOW_OPEN);
+    MSG_WriteLong(&sb, 8); MSG_WriteLong(&sb, 80); MSG_WriteLong(&sb, UI_WINDOW_MODAL);
+    MSG_WriteLong(&sb, 1);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+    T_ASSERT(!CL_WindowModalActive());
+}
+
+TEST(net, window_unique_class_replaces_existing_instance) {
+    test_client_stubs_init(); CL_WindowClear();
+    re.GetTextSize = text_length_mock_size; re.DrawText = capture_textarea;
+    test_send_window(1, 90, UI_WINDOW_UNIQUE, 0.1f, "Old", "old");
+    test_send_window(2, 90, UI_WINDOW_UNIQUE, 0.1f, "New", "new");
+    test_textarea_draws = 0; CL_WindowDraw();
+    T_EQ(test_textarea_draws, 1);
+    T_STREQ(test_textarea_draw.text, "New");
+    CL_WindowClear();
+}
+
+TEST(net, window_click_raises_and_moves_keyboard_focus) {
+    BYTE command_buf[128], message_buf[256];
+
+    test_client_stubs_init(); CL_WindowClear();
+    re.GetTextSize = text_length_mock_size; re.DrawText = capture_textarea;
+    SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
+    test_send_window(1, 91, UI_WINDOW_UNIQUE, 0.05f, "First", "first");
+    test_send_window(2, 92, UI_WINDOW_UNIQUE, 0.45f, "Second", "second");
+    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
+    SZ_Clear(&cls.netchan.message);
+    T_ASSERT(CL_WindowKeyEvent('Z'));
+    cls.netchan.message.readcount = 0;
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command_buf);
+    T_STREQ(command_buf, "first");
+    test_textarea_draws = 0; CL_WindowDraw();
+    T_EQ(test_textarea_draws, 2);
+    T_STREQ(test_textarea_draw.text, "First");
+    CL_WindowClear();
 }
 
 TEST(net, ui_frame_delta_preserves_text_length) {
@@ -811,17 +908,14 @@ TEST(net, layout_parser_accepts_scrollbar_payload_above_127_bytes) {
     }
 }
 
-/* An empty svc_layout is the server's layer-clear operation.  Keeping a
- * terminator-only allocation here leaves Quest/Log permanently modal after
- * Done/OK and prevents their upper buttons from being used a second time. */
-TEST(net, empty_layout_clears_modal_layer) {
+/* An empty svc_layout is the server's layer-clear operation. */
+TEST(net, empty_layout_clears_layer) {
     BYTE set_buf[256];
     BYTE clear_buf[32];
     sizeBuf_t set = make_msg_buf(set_buf, sizeof(set_buf));
     sizeBuf_t clear = make_msg_buf(clear_buf, sizeof(clear_buf));
     uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_SIMPLEFRAME } };
 
-    frame.flagsvalue |= UIFRAME_FLAG_MODAL;
     test_client_stubs_init();
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
 
@@ -833,7 +927,6 @@ TEST(net, empty_layout_clears_modal_layer) {
     set.readcount = 0;
     CL_ParseLayout(&set);
     T_ASSERT(cl.layout[LAYER_QUESTDIALOG] != NULL);
-    T_ASSERT(SCR_LayoutModalActive());
 
     MSG_WriteByte(&clear, LAYER_QUESTDIALOG);
     MSG_WriteLong(&clear, 0);
@@ -841,7 +934,6 @@ TEST(net, empty_layout_clears_modal_layer) {
     clear.readcount = 0;
     CL_ParseLayout(&clear);
     T_NULL(cl.layout[LAYER_QUESTDIALOG]);
-    T_ASSERT(!SCR_LayoutModalActive());
 }
 
 static uiUnitData_t test_unit_ui_last;

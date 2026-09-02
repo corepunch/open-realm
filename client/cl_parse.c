@@ -360,7 +360,6 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD payload_size = 0;
     BOOL terminated = false;
     BOOL has_frames = false;
-    BOOL modal = false;
 
     if (layer >= MAX_LAYOUT_LAYERS) {
         fprintf(stderr, "CL_ParseLayout: bad layer %u\n", (unsigned)layer);
@@ -384,7 +383,6 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         }
         has_frames = true;
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
-        if (ent.flagsvalue & UIFRAME_FLAG_MODAL) modal = true;
         if (msg->readcount + sizeof(BYTE) > msg->cursize) {
             break;
         }
@@ -417,7 +415,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
-    SCR_SetLayoutLayer(layer, cl.layout[layer], modal);
+    SCR_SetLayoutLayer(layer, cl.layout[layer]);
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {
@@ -784,13 +782,75 @@ static void CL_ParseSound(LPSIZEBUF msg) {
 }
 
 static void CL_ParseWindow(LPSIZEBUF msg) {
-    char window_id[64];
-    int show;
+    uiWindowDef_t def;
+    DWORD op = MSG_ReadByte(msg), start, frame_end, text_size, size;
+    BOOL terminated = false;
+    sizeBuf_t scan, validate;
+    HANDLE layout;
+    LPCSTR text;
 
+    def.id = MSG_ReadLong(msg);
+    if (op == UI_WINDOW_CLOSE) { CL_WindowClose(def.id); return; }
+    if (op != UI_WINDOW_OPEN) {
+        fprintf(stderr, "CL_ParseWindow: bad operation %u\n", (unsigned)op);
+        msg->readcount = msg->cursize;
+        return;
+    }
+    def.class_id = MSG_ReadLong(msg); def.flags = MSG_ReadLong(msg);
+    start = msg->readcount;
+    scan = *msg;
+    while (scan.readcount + sizeof(DWORD) + sizeof(WORD) <= scan.cursize) {
+        UIFRAME frame = { 0 };
+        DWORD bits, number = MSG_ReadEntityBits(&scan, &bits);
+        if (!number && !bits) { terminated = true; break; }
+        if (!MSG_ReadDeltaUIWindowFrame(&scan, &frame, number, bits) || scan.readcount >= scan.cursize)
+            goto malformed_window;
+        DWORD payload = (BYTE)MSG_ReadByte(&scan);
+        if (payload > scan.cursize - scan.readcount) goto malformed_window;
+        scan.readcount += payload;
+    }
+    if (!terminated) goto malformed_window;
+    frame_end = scan.readcount;
+    if (scan.readcount + sizeof(DWORD) > scan.cursize) goto malformed_window;
+    text_size = MSG_ReadLong(&scan);
+    if (!text_size || text_size > scan.cursize - scan.readcount) goto malformed_window;
+    text = (LPCSTR)(scan.data + scan.readcount);
+    if (text[0]) goto malformed_window;
+    validate = *msg; validate.cursize = frame_end; terminated = false;
+    while (validate.readcount + sizeof(DWORD) + sizeof(WORD) <= validate.cursize) {
+        UIFRAME frame = { 0 };
+        DWORD bits, number = MSG_ReadEntityBits(&validate, &bits);
+        if (!number && !bits) { terminated = true; break; }
+        if (!MSG_ReadDeltaUIWindowFrame(&validate, &frame, number, bits) || validate.readcount >= validate.cursize)
+            goto malformed_window;
+        LPCSTR refs[] = { frame.text, frame.tooltip, frame.onclick };
+        FOR_LOOP(i, 3) {
+            DWORD offset = (DWORD)(uintptr_t)refs[i];
+            if (offset && (offset >= text_size || !memchr(text + offset, '\0', text_size - offset))) goto malformed_window;
+        }
+        DWORD payload = (BYTE)MSG_ReadByte(&validate);
+        if (payload > validate.cursize - validate.readcount) goto malformed_window;
+        validate.readcount += payload;
+    }
+    if (!terminated || validate.readcount != frame_end) goto malformed_window;
+    scan.readcount += text_size;
+    size = scan.readcount - start;
+    layout = MemAlloc(sizeof(DWORD) + size);
+    memcpy(layout, &size, sizeof(size)); memcpy((LPBYTE)layout + sizeof(size), msg->data + start, size);
+    msg->readcount = scan.readcount;
+    CL_WindowOpen(&def, layout);
+    return;
+
+malformed_window:
+    fprintf(stderr, "CL_ParseWindow: malformed window %u\n", (unsigned)def.id);
+    msg->readcount = msg->cursize;
+}
+
+static void CL_ParseUIWindow(LPSIZEBUF msg) {
+    char window_id[64];
     MSG_ReadStringN(msg, window_id, sizeof(window_id));
-    show = MSG_ReadByte(msg);
-    if (ui.ShowWindow)
-        ui.ShowWindow(window_id, show);
+    int show = MSG_ReadByte(msg);
+    if (ui.ShowWindow) ui.ShowWindow(window_id, show);
 }
 
 /* Dispatch loop for a complete server message buffer.  Each iteration reads
@@ -848,6 +908,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_window:
                 CL_ParseWindow(msg);
+                break;
+            case svc_ui_window:
+                CL_ParseUIWindow(msg);
                 break;
             case svc_disconnect:
                 CL_Disconnect("Server disconnected.", true);

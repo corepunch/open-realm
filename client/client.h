@@ -141,6 +141,15 @@ void CL_ParseServerMessage(LPSIZEBUF msg);
 void CL_AddActiveEntity(DWORD index);
 void CL_RemoveActiveEntity(DWORD index);
 
+// cl_window.c
+void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout);
+void CL_WindowClose(DWORD id);
+void CL_WindowClear(void);
+void CL_WindowDraw(void);
+BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
+BOOL CL_WindowKeyEvent(int key);
+BOOL CL_WindowModalActive(void);
+
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);
 void CON_Init(void);
@@ -157,6 +166,7 @@ void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c
 LPCUIFRAME SCR_Clear(HANDLE data);
+LPCUIFRAME SCR_ClearWindow(HANDLE data);
 DWORD SCR_NumFrames(void);
 LPUIFRAME SCR_Frame(DWORD number);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);

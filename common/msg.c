@@ -308,7 +308,8 @@ LPCSTR MSG_ReadString2(LPSIZEBUF buf) {
 
 static DWORD MSG_GetBits(void const *from,
                          void const *to,
-                         netField_t *fields)
+                         netField_t *fields,
+                         BOOL text_offsets)
 {
     DWORD bits = 0;
     for (netField_t *field = fields; field->name; field++) {
@@ -336,7 +337,7 @@ static DWORD MSG_GetBits(void const *from,
                 break;
             default:
                 if (*fromF != *toF) {
-                    if ((field->type == NFT_TEXT || field->type == NFT_DUPTEXT) && **((LPCSTR *)toF) == 0) {
+                    if (!text_offsets && (field->type == NFT_TEXT || field->type == NFT_DUPTEXT) && **((LPCSTR *)toF) == 0) {
                         continue;
                     }
                     bits |= 1 << (field - fields);
@@ -350,7 +351,8 @@ static DWORD MSG_GetBits(void const *from,
 static void MSG_WriteFields(LPSIZEBUF msg,
                             void const *to,
                             netField_t *fields,
-                            DWORD bits)
+                            DWORD bits,
+                            BOOL text_offsets)
 {
     for (netField_t *field = fields; field->name; field++) {
         if ((bits & (1 << (field - fields))) == 0)
@@ -365,7 +367,10 @@ static void MSG_WriteFields(LPSIZEBUF msg,
             case NFT_LONG: MSG_WriteLong(msg, *toF); break;
             case NFT_SHORT: MSG_WriteShort(msg, *(uint16_t *)toF); break;
             case NFT_BYTE: MSG_WriteByte(msg, *(uint8_t *)toF); break;
-            case NFT_TEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
+            case NFT_TEXT:
+                if (text_offsets) MSG_WriteLong(msg, *toF);
+                else MSG_WriteString(msg, *(LPCSTR *)toF);
+                break;
             case NFT_DUPTEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
             case NFT_VECTOR2: FOR_LOOP(i, 2) MSG_WriteFloat(msg, _float[i]); break;
             case NFT_BOX2: FOR_LOOP(i, 4) MSG_WriteFloat(msg, _float[i]); break;
@@ -379,7 +384,8 @@ static void MSG_WriteFields(LPSIZEBUF msg,
 static void MSG_ReadFields(LPSIZEBUF msg,
                            void const *edict,
                            netField_t *fields,
-                           DWORD bits)
+                           DWORD bits,
+                           BOOL text_offsets)
 {
     for (netField_t *field = fields; field->name; field++) {
         if ((bits & (1 << (field - fields))) == 0)
@@ -395,8 +401,11 @@ static void MSG_ReadFields(LPSIZEBUF msg,
             case NFT_SHORT: *(uint16_t *)toF = (uint16_t)MSG_ReadShort(msg); break;
             case NFT_BYTE: *(uint8_t *)toF = (uint8_t)MSG_ReadByte(msg); break;
             case NFT_TEXT:
-                *((LPCSTR *)toF) = (LPCSTR)(msg->data + msg->readcount);
-                while (*(msg->data+(msg->readcount++)));
+                if (text_offsets) *toF = MSG_ReadLong(msg);
+                else {
+                    *((LPCSTR *)toF) = (LPCSTR)(msg->data + msg->readcount);
+                    while (*(msg->data+(msg->readcount++)));
+                }
                 break;
             case NFT_DUPTEXT:
                 if (*((LPSTR *)toF)) {
@@ -424,11 +433,11 @@ void MSG_WriteDeltaEntity(LPSIZEBUF msg,
     /* Unchanged snapshots dominate static scenes; the old path walked every wire field before discovering no delta. */
     if (!force && memcmp(from, to, sizeof(*to)) == 0)
         return;
-    DWORD bits = MSG_GetBits(from, to, entityStateFields);
+    DWORD bits = MSG_GetBits(from, to, entityStateFields, false);
     if (bits == 0 && !force)
         return;
     MSG_WriteEntityBits(msg, bits, to->number);
-    MSG_WriteFields(msg, to, entityStateFields, bits);
+    MSG_WriteFields(msg, to, entityStateFields, bits, false);
 }
 
 void MSG_ReadDeltaEntity(LPSIZEBUF msg,
@@ -437,7 +446,7 @@ void MSG_ReadDeltaEntity(LPSIZEBUF msg,
                          int bits)
 {
     edict->number = number;
-    MSG_ReadFields(msg, edict, entityStateFields, bits);
+    MSG_ReadFields(msg, edict, entityStateFields, bits, false);
 }
 
 void MSG_WriteDeltaUIFrame(LPSIZEBUF msg,
@@ -445,11 +454,11 @@ void MSG_WriteDeltaUIFrame(LPSIZEBUF msg,
                            LPCUIFRAME to,
                            bool force)
 {
-    DWORD bits = MSG_GetBits(from, to, uiFrameFields);
+    DWORD bits = MSG_GetBits(from, to, uiFrameFields, false);
     if (bits == 0 && !force)
         return;
     MSG_WriteEntityBits(msg, bits, to->number);
-    MSG_WriteFields(msg, to, uiFrameFields, bits);
+    MSG_WriteFields(msg, to, uiFrameFields, bits, false);
 }
 
 void MSG_ReadDeltaUIFrame(LPSIZEBUF msg,
@@ -458,16 +467,49 @@ void MSG_ReadDeltaUIFrame(LPSIZEBUF msg,
                           int bits)
 {
     edict->number = number;
-    MSG_ReadFields(msg, edict, uiFrameFields, bits);
+    MSG_ReadFields(msg, edict, uiFrameFields, bits, false);
+}
+
+/* Window frame strings are DWORD offsets into the packet's trailing text arena. */
+void MSG_WriteDeltaUIWindowFrame(LPSIZEBUF msg, LPCUIFRAME from, LPCUIFRAME to, bool force) {
+    DWORD bits = MSG_GetBits(from, to, uiFrameFields, true);
+    if (!bits && !force) return;
+    MSG_WriteEntityBits(msg, bits, to->number);
+    MSG_WriteFields(msg, to, uiFrameFields, bits, true);
+}
+
+BOOL MSG_ReadDeltaUIWindowFrame(LPSIZEBUF msg, LPUIFRAME edict, int number, int bits) {
+    DWORD size = 0, known = 0;
+
+    for (netField_t *field = uiFrameFields; field->name; field++) {
+        DWORD bit = 1u << (field - uiFrameFields);
+        if (!(bits & bit)) continue;
+        known |= bit;
+        switch (field->type) {
+            case NFT_BYTE: size += 1; break;
+            case NFT_ROUND: case NFT_PACKED_FLOAT: case NFT_ANGLE: case NFT_SHORT: size += 2; break;
+            case NFT_FLOAT: case NFT_LONG: case NFT_TEXT: size += 4; break;
+            case NFT_VECTOR2: size += 8; break;
+            case NFT_BOX2: size += 16; break;
+            case NFT_VECTOR3: size += 6; break;
+            case NFT_VECTOR3_FLOAT: size += 12; break;
+            case NFT_QUATERNION: size += 8; break;
+            default: return false;
+        }
+    }
+    if (((DWORD)bits & ~known) || msg->readcount > msg->cursize || size > msg->cursize - msg->readcount) return false;
+    edict->number = number;
+    MSG_ReadFields(msg, edict, uiFrameFields, bits, true);
+    return true;
 }
 
 void MSG_WriteDeltaPlayerState(LPSIZEBUF msg,
                                LPCPLAYER from,
                                LPCPLAYER to)
 {
-    DWORD bits = MSG_GetBits(from, to, playerStateFields);
+    DWORD bits = MSG_GetBits(from, to, playerStateFields, false);
     MSG_WritePlayerBits(msg, bits, to->number);
-    MSG_WriteFields(msg, to, playerStateFields, bits);
+    MSG_WriteFields(msg, to, playerStateFields, bits, false);
 }
 
 void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
@@ -476,7 +518,7 @@ void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
                               int bits)
 {
     edict->number = number;
-    MSG_ReadFields(msg, edict, playerStateFields, bits);
+    MSG_ReadFields(msg, edict, playerStateFields, bits, false);
 }
 
 void SZ_Printf(LPSIZEBUF msg, LPCSTR fmt, ...) {

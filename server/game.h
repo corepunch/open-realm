@@ -30,6 +30,7 @@ typedef enum {
     PF_ANGLE,
     PF_ENTITY,
     PF_UIFRAME,
+    PF_UIWINDOWFRAME,
     PF_DATA,
 } pfWriteType_t;
 

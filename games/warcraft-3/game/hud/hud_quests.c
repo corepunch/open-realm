@@ -255,7 +255,6 @@ static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
 
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
     LPCSTR title, description, subtitle;
-    BOOL was_open;
 
     if (!ent || !ent->client || !QuestIsVisibleMember(quest)) return;
     UI_SetCurrentClient(ent->client);
@@ -307,13 +306,13 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
     PopulateQuestList(qd.QuestOptionalContainer, false, quest);
     PopulateQuestItems(qd.QuestItemListContainer, quest);
 
-    was_open = ent->client->quest_dialog.open;
     ent->client->quest_dialog.selected = (LPQUEST)quest;
     ent->client->quest_dialog.open = true;
     if (ent->client->connected)
-        UI_WriteModalLayout(ent, qd.QuestDialog, LAYER_QUESTDIALOG);
+        UI_WriteWindow(ent, qd.QuestDialog, &MAKE(uiWindowDef_t,
+            .id = BZ_WC3_WINDOW_QUEST, .class_id = BZ_WC3_WINDOW_QUEST,
+            .flags = UI_WINDOW_MOVABLE | UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
     UI_SetCurrentClient(NULL);
-    if (!was_open) UI_ModalStateChanged(ent);
 }
 
 void UI_ShowQuests(LPEDICT ent) {
@@ -341,12 +340,8 @@ void UI_RefreshQuests(LPEDICT ent) {
 }
 
 void UI_HideQuests(LPEDICT ent) {
-    BOOL was_open;
-
     if (!ent || !ent->client) return;
-    was_open = ent->client->quest_dialog.open;
     ent->client->quest_dialog.open = false;
     ent->client->quest_dialog.selected = NULL;
-    if (ent->client->connected) UI_ClearLayer(ent, LAYER_QUESTDIALOG);
-    if (was_open) UI_ModalStateChanged(ent);
+    if (ent->client->connected) UI_CloseWindow(ent, BZ_WC3_WINDOW_QUEST);
 }

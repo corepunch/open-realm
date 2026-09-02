@@ -10,6 +10,9 @@
 
 DWORD ui_next_frame_number;
 LPGAMECLIENT ui_current_client;
+static BYTE ui_window_text[MAX_MSGLEN];
+static DWORD ui_window_text_size;
+BOOL ui_window_writing;
 
 LPCSTR UI_LevelStringSafe(LPCSTR text) {
     if (!text || !*text) {
@@ -31,16 +34,6 @@ void UI_CenterFrame(LPFRAMEDEF frame) {
 
 BOOL UI_ClientModalOpen(LPGAMECLIENT client) {
     return client && (client->quest_dialog.open || client->message_log.open);
-}
-
-void UI_ModalStateChanged(LPEDICT ent) {
-    if (!ent || !ent->client) return;
-
-    /* LAYER_CONSOLE contains the four system buttons, so force a re-send when
-     * modal ownership changes even if resources themselves did not. */
-    ent->client->resourcebar.gold = LONG_MIN;
-    G_RefreshResourceBar(ent);
-
 }
 
 void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
@@ -66,7 +59,7 @@ void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
     }
     frame->buffer.data = data;
     frame->buffer.size = data_size;
-    gi.Write(PF_UIFRAME, frame);
+    gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, frame);
 }
 
 void UI_WriteProxyFrameToParent(LPUIFRAME frame, HANDLE data, DWORD data_size, DWORD parent) {
@@ -325,5 +318,39 @@ void UI_WriteStart(DWORD layer) {
 void UI_WriteEnd(LPEDICT ent) {
     gi.Write(PF_LONG, &(LONG){0});   /* bits=0 */
     gi.Write(PF_SHORT, &(LONG){0});  /* number=0  — MSG_ReadEntityBits reads LONG+SHORT */
+    gi.unicast(ent);
+}
+
+DWORD UI_WindowTextOffset(LPCSTR text) {
+    DWORD offset, size;
+
+    if (!text || !*text) return 0;
+    size = strlen(text) + 1;
+    if (size > sizeof(ui_window_text) - ui_window_text_size) {
+        fprintf(stderr, "WC3 window text arena overflow: used=%u add=%u\n",
+                (unsigned)ui_window_text_size, (unsigned)size);
+        return 0;
+    }
+    offset = ui_window_text_size;
+    memcpy(ui_window_text + offset, text, size);
+    ui_window_text_size += size;
+    return offset;
+}
+
+void UI_WriteWindowStart(uiWindowDef_t const *def) {
+    UI_ResetFrameWriteList();
+    ui_window_writing = true;
+    ui_window_text[0] = '\0'; ui_window_text_size = 1;
+    gi.Write(PF_BYTE, &(LONG){svc_window});
+    gi.Write(PF_BYTE, &(LONG){UI_WINDOW_OPEN});
+    gi.Write(PF_LONG, &def->id); gi.Write(PF_LONG, &def->class_id); gi.Write(PF_LONG, &def->flags);
+    ui_next_frame_number = 1;
+}
+
+void UI_WriteWindowEnd(LPEDICT ent) {
+    pfWriteData_t text = { .data = ui_window_text, .size = ui_window_text_size };
+    ui_window_writing = false;
+    gi.Write(PF_LONG, &(LONG){0}); gi.Write(PF_SHORT, &(LONG){0});
+    gi.Write(PF_LONG, &ui_window_text_size); gi.Write(PF_DATA, &text);
     gi.unicast(ent);
 }

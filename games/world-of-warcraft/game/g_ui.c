@@ -653,9 +653,9 @@ static void UI_WriteBackpackWindow(LPEDICT ent) {
     }
 }
 
-/* Send svc_window to show (show=1) or hide (show=0) a named XML window. */
+/* Send the legacy ui.dll-owned named XML window toggle. */
 static void UI_WriteWindowMsg(LPCSTR window_id, int show) {
-    gi.Write(PF_BYTE, &(LONG){svc_window});
+    gi.Write(PF_BYTE, &(LONG){svc_ui_window});
     gi.Write(PF_STRING, window_id);
     gi.Write(PF_BYTE, &(LONG){show});
 }

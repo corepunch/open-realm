@@ -12,6 +12,7 @@
 /* Frame-write primitives (hud_write.c) */
 extern DWORD ui_next_frame_number;
 extern LPGAMECLIENT ui_current_client;
+extern BOOL ui_window_writing;
 
 void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis);
@@ -31,11 +32,14 @@ LPCSTR UI_FormatMessageText(LPCSTR text);
 LPCSTR UI_LevelStringSafe(LPCSTR text);
 void UI_WriteStart(DWORD layer);
 void UI_WriteEnd(LPEDICT ent);
-void UI_WriteModalLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer);
+void UI_WriteWindow(LPEDICT ent, LPCFRAMEDEF root, uiWindowDef_t const *def);
+void UI_CloseWindow(LPEDICT ent, DWORD id);
+void UI_WriteWindowStart(uiWindowDef_t const *def);
+void UI_WriteWindowEnd(LPEDICT ent);
+DWORD UI_WindowTextOffset(LPCSTR text);
 void UI_ResetFrameWriteList(void);
 void UI_CenterFrame(LPFRAMEDEF frame);
 BOOL UI_ClientModalOpen(LPGAMECLIENT client);
-void UI_ModalStateChanged(LPEDICT ent);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 

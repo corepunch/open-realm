@@ -75,14 +75,14 @@ void UI_RefreshLog(LPEDICT ent) {
 
     UI_SetTextPointer(log_dialog.LogArea, MessageLogText(client));
     UI_SetOnClick(log_dialog.LogOkButton, "hidelog");
-    UI_WriteModalLayout(ent, log_dialog.LogDialog, LAYER_SECONDARY_DIALOG);
+    UI_WriteWindow(ent, log_dialog.LogDialog, &MAKE(uiWindowDef_t,
+        .id = BZ_WC3_WINDOW_LOG, .class_id = BZ_WC3_WINDOW_LOG,
+        .flags = UI_WINDOW_MOVABLE | UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
     UI_SetCurrentClient(NULL);
     client->message_log.dirty = false;
 }
 
 void UI_ShowLog(LPEDICT ent) {
-    BOOL was_open;
-
     if (!ent || !ent->client) return;
     UI_SetCurrentClient(ent->client);
     if (!LogEnsureLoaded()) {
@@ -91,20 +91,14 @@ void UI_ShowLog(LPEDICT ent) {
     }
     UI_SetCurrentClient(NULL);
 
-    was_open = ent->client->message_log.open;
     ent->client->message_log.open = true;
     ent->client->message_log.dirty = true;
     UI_RefreshLog(ent);
-    if (!was_open) UI_ModalStateChanged(ent);
 }
 
 void UI_HideLog(LPEDICT ent) {
-    BOOL was_open;
-
     if (!ent || !ent->client) return;
-    was_open = ent->client->message_log.open;
     ent->client->message_log.open = false;
     ent->client->message_log.dirty = false;
-    if (ent->client->connected) UI_ClearLayer(ent, LAYER_SECONDARY_DIALOG);
-    if (was_open) UI_ModalStateChanged(ent);
+    if (ent->client->connected) UI_CloseWindow(ent, BZ_WC3_WINDOW_LOG);
 }

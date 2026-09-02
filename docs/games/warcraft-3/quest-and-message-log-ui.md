@@ -45,7 +45,7 @@ CreateQuest / QuestSet* / QuestCreateItem
         -> level.quests / QUESTITEM state
         -> quests command or ForceQuestDialogUpdate
         -> hud/hud_quests.c
-        -> LAYER_QUESTDIALOG
+        -> svc_window Quest instance
 ```
 
 `CreateQuest` initializes `enabled = true`; Blizzard's standard `CreateQuestBJ`
@@ -93,7 +93,7 @@ the existing `> ` / yellow-title fallback remains in use.
 closed journal -> no UI write
 open journal + selected quest still visible -> refresh same quest
 open journal + selected quest removed/hidden -> choose next visible quest
-open journal + no visible quests -> close/clear the quest layer
+open journal + no visible quests -> close the Quest window
 ```
 
 `FlashQuestDialogButton` remains intentionally unimplemented. The current
@@ -138,8 +138,8 @@ do not pollute F12-style history.
 
 ## Log Dialog
 
-The `log` command opens the stock `LogDialog` on `LAYER_SECONDARY_DIALOG`.
-`hidelog` clears that layer. The authored `LogOkButton` is wired to `hidelog`.
+The `log` command opens the stock `LogDialog` as a client-managed window.
+`hidelog` closes that instance. The authored `LogOkButton` is wired to `hidelog`.
 
 Quest/Log dialog buttons inherit `EscMenuButtonTemplate`. Their backdrop art is
 race-specific data in `war3skins.txt`. FDF templates are cached globally, so a
@@ -154,11 +154,10 @@ blank lines. If new `DisplayText*` content arrives while the dialog is open,
 `message_log.dirty` is flushed by `G_RunClients`, following the same
 state-then-network-write discipline used by dialogue presentation.
 
-The Log uses the generic `LAYER_SECONDARY_DIALOG`, appended after the newer
-`LAYER_UNIT_SHORTCUTS` entry in `UILAYOUTLAYER`; existing layer numeric IDs
-must remain stable. Quest keeps its pre-existing quest-dialog layer. Both dialog
-roots carry the generic `UIFRAME_FLAG_MODAL` wire bit (kept distinct from `UIFLAG_SIZE_TO_CONTENT`), so shared client code
-blocks underlying input without knowing which game-specific screen is open.
+Quest and Log use `svc_window` with opaque WC3-local class IDs. Both are movable,
+unique, modal windows. They do not consume `UILAYOUTLAYER` entries. Frame text,
+tooltips, and commands reference the packet's trailing text arena, so long quest
+descriptions and message history are not constrained by the one-byte typed payload.
 
 ## Modal Behavior
 
@@ -169,8 +168,8 @@ cadence, could trigger disconnect timeouts during a long-open dialog, and could
 crash/freeze when Done/OK resumed the server. Do not reintroduce UI pause by
 mutating `SV_Frame` scheduling.
 
-On the client, an active Quest/Log layer consumes gameplay hit testing across
-the world. Mouse and layout-key dispatch are restricted to modal layers, lower
+On the client, an active Quest/Log window consumes gameplay hit testing across
+the world. Mouse and layout-key dispatch are restricted to the topmost modal window, lower
 HUD tooltips are suppressed, and `LAYER_WORLD_HOVER` is not rendered until the
 dialog closes. Normal gameplay key bindings are also suppressed on key-down
 while a modal root is active; this includes Hero/control-group/system-button
@@ -180,11 +179,8 @@ middle-button drag panning, and minimap drag/recenter are ignored while the
 dialog is open. This prevents transparent portions of a centered dialog from
 selecting units, activating command UI, or moving the gameplay camera underneath it.
 
-An empty `svc_layout` is a layer clear, not an empty-but-present layout. The
-client releases the layer instead of retaining the terminator-only payload. This
-is important for Quest/Log because modal ownership is derived from whether those
-layout layers exist; retaining an empty layer would leave the UI permanently
-modal after Done/OK and make the upper buttons unusable on the next open.
+Done/OK sends `UI_WINDOW_CLOSE` for the window instance. The linked-list manager
+releases its retained frame/text packet and transfers focus to the new top window.
 
 The four upper system buttons are disabled while a modal is open. `SIMPLEBUTTON`
 serialization selects the FDF `DisabledText` value while the click command is
