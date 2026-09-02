@@ -130,7 +130,7 @@ void CL_Input(void) {
                     break;
                 }
                 if (cls.key_dest == key_game &&
-                    CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod)) {
+                    CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod, event.key.repeat != 0)) {
                     break; /* consumed by in-game handler (e.g. control groups) */
                 }
                 Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), true, event.key.timestamp);

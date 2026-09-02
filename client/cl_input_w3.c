@@ -53,8 +53,49 @@ void CL_EndMinimapDrag(void) {
 }
 
 /* --- Control groups (Ctrl+0..9 assign, 0..9 recall) ------------------------ */
-static DWORD cg_ids[10][MAX_SELECTED_ENTITIES];
-static DWORD cg_count[10];
+#define CL_CONTROL_GROUP_COUNT 10
+#define CL_CONTROL_GROUP_DOUBLE_TAP_MS 500
+#define CL_CONTROL_GROUP_NONE CL_CONTROL_GROUP_COUNT
+
+static DWORD cg_ids[CL_CONTROL_GROUP_COUNT][MAX_SELECTED_ENTITIES];
+static DWORD cg_count[CL_CONTROL_GROUP_COUNT];
+static DWORD cg_last_recall = CL_CONTROL_GROUP_NONE;
+static DWORD cg_last_recall_ms;
+
+void CL_InputModeResetMap(void) {
+    memset(cg_ids, 0, sizeof(cg_ids));
+    memset(cg_count, 0, sizeof(cg_count));
+    cg_last_recall = CL_CONTROL_GROUP_NONE;
+    cg_last_recall_ms = 0;
+}
+
+static void CL_ResetControlGroupRecall(void) {
+    cg_last_recall = CL_CONTROL_GROUP_NONE;
+    cg_last_recall_ms = 0;
+}
+
+static BOOL CL_ControlGroupCenter(DWORD const *ids, DWORD n, LPVECTOR2 center) {
+    double x = 0.0, y = 0.0;
+    DWORD valid = 0;
+
+    if (!ids || !center) return false;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    FOR_LOOP(i, n) {
+        DWORD const number = ids[i];
+        LPCENTITYSTATE state;
+        if (!number || number >= MAX_CLIENT_ENTITIES) continue;
+        state = &cl.ents[number].current;
+        if (!state->model || state->stats[ENT_HEALTH] == 0 ||
+            (state->flags & EF_NOT_SELECTABLE)) continue;
+        x += state->origin.x;
+        y += state->origin.y;
+        valid++;
+    }
+    if (!valid) return false;
+    center->x = (FLOAT)(x / valid);
+    center->y = (FLOAT)(y / valid);
+    return true;
+}
 
 static void CL_ApplySelection(DWORD const *ids, DWORD n) {
     char buffer[1024];
@@ -72,22 +113,51 @@ static void CL_ApplySelection(DWORD const *ids, DWORD n) {
     CL_RequestUnitUI(n, cl.selection.entity_nums);
 }
 
-BOOL CL_HandleGameKey(int sym, Uint16 mod) {
+BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
+    DWORD g, now;
+    BOOL center_on_group;
+    VECTOR2 center;
+
     if (!CL_GameplayInputReady())
         return false;
-    if (sym < SDLK_0 || sym > SDLK_9)
+    /* Control groups are handled before the generic binding dispatcher.
+     * Consume digit keys while a modal client window is active so they cannot
+     * change gameplay selection behind Quest/Log. Other keys fall through to
+     * Key_Event, which applies the generic modal binding block. */
+    if (CL_WindowModalActive() && sym >= SDLK_0 && sym <= SDLK_9) {
+        CL_ResetControlGroupRecall();
+        return true;
+    }
+    if (sym < SDLK_0 || sym > SDLK_9) {
+        CL_ResetControlGroupRecall();
         return false;
-    DWORD const g = (DWORD)(sym - SDLK_0); /* 0..9 */
+    }
+    /* SDL key-repeat from holding a number is not a deliberate second tap. */
+    if (repeat)
+        return true;
+
+    g = (DWORD)(sym - SDLK_0); /* 0..9 */
     if (mod & KMOD_CTRL) {
         /* Assign the current selection to this control group. */
         DWORD n = cl.selection.num_selected;
         if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
         cg_count[g] = n;
         memcpy(cg_ids[g], cl.selection.entity_nums, sizeof(DWORD) * n);
+        CL_ResetControlGroupRecall();
+    } else if (cg_count[g] > 0) {
+        /* Recall immediately. A deliberate rapid second press also recenters
+         * the gameplay camera; the first press is never delayed. */
+        now = SDL_GetTicks();
+        center_on_group = cg_last_recall == g &&
+            (DWORD)(now - cg_last_recall_ms) <= CL_CONTROL_GROUP_DOUBLE_TAP_MS;
+        CL_ApplySelection(cg_ids[g], cg_count[g]);
+        if (center_on_group && CL_ControlGroupCenter(cg_ids[g], cg_count[g], &center)) {
+            CL_SetCameraPosition(center);
+        }
+        cg_last_recall = g;
+        cg_last_recall_ms = now;
     } else {
-        /* Recall the control group. */
-        if (cg_count[g] > 0)
-            CL_ApplySelection(cg_ids[g], cg_count[g]);
+        CL_ResetControlGroupRecall();
     }
     return true;
 }
