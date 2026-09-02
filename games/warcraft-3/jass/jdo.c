@@ -457,8 +457,15 @@ LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
     co_state->stack_pointer = co_state->stack;
     co_state->num_stack = 0;
     co_state->context = *context;
+    /* Event-response state and GetLocalPlayer() selection are independent.
+     * Nested TriggerExecute/ExecuteFunc calls inherit the event response from
+     * their parent coroutine, while local-player branches inherit only the
+     * active presentation selector. */
     if (!co_state->context.playerState) {
-        co_state->context.playerState = currentplayer;
+        co_state->context.playerState = jass_getcontext(j)->playerState;
+    }
+    if (!co_state->context.localPlayerState) {
+        co_state->context.localPlayerState = currentplayer;
     }
     if (!co_state->context.unit) {
         co_state->context.unit = currentunit;
@@ -814,7 +821,7 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     LPEDICT previous_unit = currentunit;
 
     root->current_coroutine = co;
-    currentplayer = co->state->context.playerState;
+    currentplayer = co->state->context.localPlayerState;
     currentunit = co->state->context.unit;
     jass_resumecoroutine(co);
     currentunit = previous_unit;
@@ -871,14 +878,12 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
         tmp_state.context.unit = unit;
         tmp_state.context.source = source;
         tmp_state.context.playerState = player;
+        tmp_state.context.localPlayerState = currentplayer;
         jass_pushfunction(&tmp_state, cond->expr);
-        LPPLAYER previous_player = currentplayer;
         LPEDICT previous_unit = currentunit;
-        currentplayer = player;
         currentunit = unit;
         DWORD result_count = jass_call(&tmp_state, 0);
         currentunit = previous_unit;
-        currentplayer = previous_player;
         if (result_count != 1 || !jass_popboolean(&tmp_state)) {
             return false;
         }
@@ -938,6 +943,7 @@ static void jass_executetriggercontext(LPJASS j,
                                   .unit = unit,
                                   .source = source,
                                   .playerState = player,
+                                  .localPlayerState = currentplayer,
                               ));
     }
 }

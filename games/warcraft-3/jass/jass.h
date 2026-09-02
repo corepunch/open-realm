@@ -87,6 +87,7 @@ struct jass_context {
     LPEDICT unit;
     LPEDICT source;
     LPPLAYER playerState;
+    LPPLAYER localPlayerState;
     LPCJASSFUNC func;
 };
 
