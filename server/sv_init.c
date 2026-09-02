@@ -10,6 +10,7 @@ static BOOL SV_EnsureServerPort(void) {
     return true;
 }
 
+#ifndef TOOL_COMMON_NO_MPQ
 static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
     if (!name || !name[0] || strchr(name, '/') || strchr(name, '\\')) {
         fprintf(stderr, "savegame: invalid save name\n");
@@ -34,6 +35,7 @@ static void SV_LoadGame_f(void) {
     if (sv.state != ss_game || !SV_SavePath(Cmd_Argv(1), path)) return;
     if (!ge || !ge->LoadGame || !ge->LoadGame(path)) fprintf(stderr, "loadgame: failed to read %s\n", path);
 }
+#endif
 
 void SV_CreateBaseline(void) {
     sv.baselines = MemAlloc(sizeof(entityState_t) * ge->max_edicts);
