@@ -743,6 +743,33 @@ static BOOL G_DebugIsNumber(LPCSTR text) {
     return true;
 }
 
+static LPEDICT G_PortraitCameraUnit(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
+    DWORD number;
+    LPEDICT target;
+    if (!clent || !clent->client || argc < 2 || !G_DebugIsNumber(argv[1])) return NULL;
+    number = (DWORD)atoi(argv[1]);
+    if (number >= globals.num_edicts) return NULL;
+    target = &globals.edicts[number];
+    if (!target->inuse || G_GetMainSelectedUnit(clent->client) != target || !G_IsEntitySelected(clent->client, target)) return NULL;
+    return target;
+}
+
+static void CMD_PortraitCameraDown(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
+    LPEDICT target = G_PortraitCameraUnit(clent, argc, argv);
+    if (!target || clent->client->no_control || clent->client->camera.target_controller) return;
+    G_ClientSetCameraPosition(clent, &target->s.origin2);
+    clent->client->camera.target_controller = target;
+    clent->client->camera.target_offset = (VECTOR2){ 0, 0 };
+}
+
+static void CMD_PortraitCameraUp(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
+    DWORD number;
+    if (!clent || !clent->client || argc < 2 || !G_DebugIsNumber(argv[1])) return;
+    number = (DWORD)atoi(argv[1]);
+    if (number >= globals.num_edicts || clent->client->camera.target_controller != &globals.edicts[number]) return;
+    G_ClearCameraTarget(clent->client, "CMD_PortraitCameraUp");
+}
+
 CLIENTCOMMAND(DebugSpawn) {
     LPGAMECLIENT client = clent->client;
     DWORD class_id;
@@ -804,6 +831,8 @@ clientCommand_t clientCommands[] = {
     { "dropitem", CMD_DropItem },
     { "select", CMD_Select },
     { "focus", CMD_Focus },
+    { "+portraitcamera", CMD_PortraitCameraDown },
+    { "-portraitcamera", CMD_PortraitCameraUp },
     { "herobutton", CMD_HeroButton },
     { "herokey", CMD_HeroKey },
     { "idleworker", CMD_IdleWorker },

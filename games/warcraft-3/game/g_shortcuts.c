@@ -9,6 +9,14 @@
 #include "g_local.h"
 
 #define WC3_HERO_FUNCTION_KEYS 7
+#define WC3_HERO_BUTTON_DOUBLE_CLICK_MS 500
+
+typedef struct {
+    DWORD entity;
+    DWORD time;
+} heroShortcutClick_t;
+
+static heroShortcutClick_t hero_shortcut_clicks[MAX_CLIENTS];
 
 static BOOL G_ShortcutIsControlledMonster(LPGAMECLIENT client, LPCEDICT ent) {
     return client && ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
@@ -98,22 +106,6 @@ static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, DWORD slot) {
     return NULL;
 }
 
-static BOOL G_SoleSelectedUnitIs(LPGAMECLIENT client, LPCEDICT target) {
-    DWORD bit;
-    DWORD selected = 0;
-    LPCEDICT only = NULL;
-
-    if (!client || !target) return false;
-    bit = 1u << client->ps.number;
-    FILTER_EDICTS(ent, ent->inuse && (ent->selected & bit)) {
-        if (!G_IsEntitySelected(client, ent)) continue;
-        selected++;
-        only = ent;
-        if (selected > 1) return false;
-    }
-    return selected == 1 && only == target;
-}
-
 static void G_SendShortcutSelection(LPEDICT clent, LPEDICT target) {
     DWORD number;
 
@@ -152,17 +144,37 @@ static void G_CenterShortcutUnit(LPEDICT clent, LPCEDICT target) {
     G_ClientSetCameraPosition(clent, &target->s.origin2);
 }
 
+static void G_ActivateHeroShortcut(LPEDICT clent, LPEDICT hero) {
+    LONG client_index;
+    heroShortcutClick_t *click;
+    DWORD number;
+    DWORD now;
+    BOOL double_click;
+
+    if (!clent || !clent->client || !hero || !G_UnitShowsHeroShortcut(clent->client, hero)) return;
+    client_index = (LONG)(clent->client - game.clients);
+    if (client_index < 0 || client_index >= game.max_clients || client_index >= MAX_CLIENTS) return;
+
+    number = (DWORD)(hero - globals.edicts);
+    click = &hero_shortcut_clicks[client_index];
+    now = gi.GetTime();
+    double_click = click->entity == number && (DWORD)(now - click->time) < WC3_HERO_BUTTON_DOUBLE_CLICK_MS;
+    click->entity = number;
+    click->time = now;
+
+    /* Hero HUD buttons and F1-F7 share one same-Hero double-activation rule:
+     * an isolated activation selects only; a second activation within 500 ms
+     * centers the camera. Being already selected does not turn a later single
+     * activation into an implicit camera jump. */
+    if (double_click)
+        G_CenterShortcutUnit(clent, hero);
+    else
+        G_SelectShortcutUnit(clent, hero);
+}
+
 void G_ActivateHeroButton(LPEDICT clent, DWORD number) {
-    LPEDICT hero;
-
     if (!clent || !clent->client || number >= globals.num_edicts) return;
-    hero = &globals.edicts[number];
-    if (!G_UnitShowsHeroShortcut(clent->client, hero)) return;
-
-    /* Mouse Hero shortcuts are direct navigation controls: select when the
-     * Hero is alive/selectable, and always center on its current position. */
-    G_SelectShortcutUnit(clent, hero);
-    G_CenterShortcutUnit(clent, hero);
+    G_ActivateHeroShortcut(clent, &globals.edicts[number]);
 }
 
 void G_ActivateHeroKey(LPEDICT clent, DWORD slot) {
@@ -171,15 +183,7 @@ void G_ActivateHeroKey(LPEDICT clent, DWORD slot) {
     if (!clent || !clent->client) return;
     hero = G_GetHeroShortcut(clent->client, slot);
     if (!hero) return;
-
-    /* Classic function-key semantics: first press selects; pressing the same
-     * Hero shortcut while it is the sole selection centers the camera. Dead
-     * Heroes cannot be selected, so the key remains useful as camera focus. */
-    if (G_SoleSelectedUnitIs(clent->client, hero) || !G_UnitCanBeSelected(clent->client, hero)) {
-        G_CenterShortcutUnit(clent, hero);
-    } else {
-        G_SelectShortcutUnit(clent, hero);
-    }
+    G_ActivateHeroShortcut(clent, hero);
 }
 
 void G_ActivateIdleWorkerShortcut(LPEDICT clent, DWORD hinted_number) {

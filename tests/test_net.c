@@ -1100,6 +1100,42 @@ TEST(net, playerinfo_game_state_preserves_open_menu_input) {
     T_FEQ(cl.viewDef.camerastate[0].origin.y, 256.0f, 0.0001f);
 }
 
+TEST(net, live_selection_stats_roundtrip_and_format) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 };
+    PLAYER to = { 0 };
+    PLAYER out = { 0 };
+    uiFrame_t health = { .stat = UI_STAT_SELECTION_HEALTH_TEXT };
+    uiFrame_t mana = { .stat = UI_STAT_SELECTION_MANA_TEXT };
+    DWORD bits;
+    int number;
+
+    to.number = 2;
+    to.stats[UI_PLAYERSTAT_SELECTION_HEALTH] = 325;
+    to.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH] = 650;
+    to.stats[UI_PLAYERSTAT_SELECTION_MANA] = 74;
+    to.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA] = 255;
+
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(number, 2);
+    T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_HEALTH], 325);
+    T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH], 650);
+    T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_MANA], 74);
+    T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA], 255);
+
+    test_client_stubs_init();
+    cl.playerstate = out;
+    T_STREQ(SCR_GetStringValue(&health), "325 / 650");
+    T_STREQ(SCR_GetStringValue(&mana), "74 / 255");
+    cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA] = 0;
+    T_STREQ(SCR_GetStringValue(&mana), "");
+}
+
 /* Camera and UI cleanup must reach the rendered samples, not merely change the server-side enum. */
 TEST(net, cinematic_cleanup_restores_camera_and_ui_samples) {
     BYTE buf[256];

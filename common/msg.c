@@ -163,6 +163,7 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, stats[6]), NFT_LONG },
     { NETF(PLAYER, stats[8]), NFT_LONG },
     { NETF(PLAYER, stats[16]), NFT_LONG },
+    /* stats[18..21] are reserved for generic live-selection HUD bindings. */
     { NETF(PLAYER, stats[18]), NFT_LONG },
     { NETF(PLAYER, stats[20]), NFT_LONG },
     { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
