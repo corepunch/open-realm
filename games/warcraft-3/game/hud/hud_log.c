@@ -20,7 +20,7 @@ static BOOL LogEnsureLoaded(void) {
     log_loaded = true;
     if (!LogDialog_Load(&log_dialog)) return false;
     UI_CenterFrame(log_dialog.LogDialog);
-    UI_SetOnClick(log_dialog.LogOkButton, "hidelog");
+    UI_SetOnClick(log_dialog.LogOkButton, UI_WINDOW_CLOSE_ACTION);
     return true;
 }
 
@@ -38,7 +38,6 @@ void UI_MessageLogAppend(LPEDICT ent, LPCSTR text) {
         client->message_log.first = (client->message_log.first + 1) % WC3_MESSAGE_LOG_MAX_ENTRIES;
     }
     snprintf(client->message_log.entries[index], WC3_MESSAGE_LOG_ENTRY_SIZE, "%s", text);
-    client->message_log.dirty = true;
 }
 
 static LPCSTR MessageLogText(LPGAMECLIENT client) {
@@ -63,10 +62,10 @@ static LPCSTR MessageLogText(LPGAMECLIENT client) {
     return log_text;
 }
 
-void UI_RefreshLog(LPEDICT ent) {
+static void UI_WriteLogWindow(LPEDICT ent) {
     LPGAMECLIENT client;
 
-    if (!ent || !(client = ent->client) || !client->message_log.open || !client->connected) return;
+    if (!ent || !(client = ent->client) || !client->connected) return;
     UI_SetCurrentClient(client);
     if (!LogEnsureLoaded()) {
         UI_SetCurrentClient(NULL);
@@ -74,31 +73,14 @@ void UI_RefreshLog(LPEDICT ent) {
     }
 
     UI_SetTextPointer(log_dialog.LogArea, MessageLogText(client));
-    UI_SetOnClick(log_dialog.LogOkButton, "hidelog");
+    UI_SetOnClick(log_dialog.LogOkButton, UI_WINDOW_CLOSE_ACTION);
     UI_WriteWindow(ent, log_dialog.LogDialog, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_LOG, .class_id = BZ_WC3_WINDOW_LOG,
         .flags = UI_WINDOW_MOVABLE | UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
     UI_SetCurrentClient(NULL);
-    client->message_log.dirty = false;
 }
 
 void UI_ShowLog(LPEDICT ent) {
     if (!ent || !ent->client) return;
-    UI_SetCurrentClient(ent->client);
-    if (!LogEnsureLoaded()) {
-        UI_SetCurrentClient(NULL);
-        return;
-    }
-    UI_SetCurrentClient(NULL);
-
-    ent->client->message_log.open = true;
-    ent->client->message_log.dirty = true;
-    UI_RefreshLog(ent);
-}
-
-void UI_HideLog(LPEDICT ent) {
-    if (!ent || !ent->client) return;
-    ent->client->message_log.open = false;
-    ent->client->message_log.dirty = false;
-    if (ent->client->connected) UI_CloseWindow(ent, BZ_WC3_WINDOW_LOG);
+    UI_WriteLogWindow(ent);
 }

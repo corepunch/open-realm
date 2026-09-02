@@ -32,10 +32,6 @@ void UI_CenterFrame(LPFRAMEDEF frame) {
     UI_SetPoint(frame, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_CENTER, 0.0f, 0.0f);
 }
 
-BOOL UI_ClientModalOpen(LPGAMECLIENT client) {
-    return client && (client->quest_dialog.open || client->message_log.open);
-}
-
 void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
     point->used = 1;
     point->targetPos = target;

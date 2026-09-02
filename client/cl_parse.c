@@ -800,7 +800,6 @@ static void CL_ParseWindow(LPSIZEBUF msg) {
     LPCSTR text;
 
     def.id = MSG_ReadLong(msg);
-    if (op == UI_WINDOW_CLOSE) { CL_WindowClose(def.id); return; }
     if (op != UI_WINDOW_OPEN) {
         fprintf(stderr, "CL_ParseWindow: bad operation %u\n", (unsigned)op);
         msg->readcount = msg->cursize;

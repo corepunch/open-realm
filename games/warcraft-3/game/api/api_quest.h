@@ -111,9 +111,7 @@ DWORD FlashQuestDialogButton(LPJASS j) {
     return 0;
 }
 DWORD ForceQuestDialogUpdate(LPJASS j) {
-    /* Refresh only an already-open quest dialog and preserve its selection.
-     * The native is an update request, not an instruction to open the journal. */
+    /* Quest windows are send-once client presentation; the native has no server-side window to refresh. */
     (void)j;
-    FILTER_EDICTS(ent, ent->client && ent->client->connected) UI_RefreshQuests(ent);
     return 0;
 }

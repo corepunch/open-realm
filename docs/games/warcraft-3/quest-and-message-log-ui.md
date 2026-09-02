@@ -43,7 +43,7 @@ Generated bindings under `games/warcraft-3/game/generated/` are outputs of
 ```text
 CreateQuest / QuestSet* / QuestCreateItem
         -> level.quests / QUESTITEM state
-        -> quests command or ForceQuestDialogUpdate
+        -> quests command
         -> hud/hud_quests.c
         -> svc_window Quest instance
 ```
@@ -58,9 +58,8 @@ quest->enabled && quest->discovered
 
 Required and optional quests are rendered into separate authored containers.
 `UI_ShowQuests` chooses the first visible required quest, then the first visible
-optional quest. `UI_ShowQuest` records the selected quest in
-`client_s.quest_dialog` so `ForceQuestDialogUpdate` can refresh an already-open
-journal without reopening a closed one or discarding the current selection.
+optional quest. `UI_ShowQuest` populates the authored tree and sends one complete
+window snapshot; the server does not retain client-window open or selection state.
 
 Quest rows and objective rows are cloned lazily and then reused. This is
 important because FDF frames live in a fixed `MAX_UI_CLASSES` pool; cloning a
@@ -87,13 +86,11 @@ the existing `> ` / yellow-title fallback remains in use.
 
 ## Quest Update Semantics
 
-`ForceQuestDialogUpdate` is an update operation, not an open operation:
+`ForceQuestDialogUpdate` is retained as a compatibility no-op because gameplay
+windows are send-once snapshots:
 
 ```text
-closed journal -> no UI write
-open journal + selected quest still visible -> refresh same quest
-open journal + selected quest removed/hidden -> choose next visible quest
-open journal + no visible quests -> close the Quest window
+any state -> no UI write
 ```
 
 `FlashQuestDialogButton` remains intentionally unimplemented. The current
@@ -138,8 +135,8 @@ do not pollute F12-style history.
 
 ## Log Dialog
 
-The `log` command opens the stock `LogDialog` as a client-managed window.
-`hidelog` closes that instance. The authored `LogOkButton` is wired to `hidelog`.
+The `log` command sends the current history as a stock `LogDialog` client-managed
+window. Its authored `LogOkButton` uses the generic client-only close action.
 
 Quest/Log dialog buttons inherit `EscMenuButtonTemplate`. Their backdrop art is
 race-specific data in `war3skins.txt`. FDF templates are cached globally, so a
@@ -150,9 +147,8 @@ This keeps the Done/OK normal, pushed, and disabled backdrops intact even when
 the template was first loaded by an earlier cinematic/menu path.
 
 The ring is assembled in chronological order into `LogArea`, separated by
-blank lines. If new `DisplayText*` content arrives while the dialog is open,
-`message_log.dirty` is flushed by `G_RunClients`, following the same
-state-then-network-write discipline used by dialogue presentation.
+blank lines. New entries are included the next time the client requests the log;
+the server does not track whether the client window remains open.
 
 Quest and Log use `svc_window` with opaque WC3-local class IDs. Both are movable,
 unique, modal windows. They do not consume `UILAYOUTLAYER` entries. Frame text,
@@ -179,15 +175,13 @@ middle-button drag panning, and minimap drag/recenter are ignored while the
 dialog is open. This prevents transparent portions of a centered dialog from
 selecting units, activating command UI, or moving the gameplay camera underneath it.
 
-Done/OK sends `UI_WINDOW_CLOSE` for the window instance. The linked-list manager
-releases its retained frame/text packet and transfers focus to the new top window.
+Done/OK uses a client-only close action. The linked-list manager releases its
+retained frame/text packet and transfers focus to the new top window; no server
+command or close packet is required.
 
-The four upper system buttons are disabled while a modal is open. `SIMPLEBUTTON`
-serialization selects the FDF `DisabledText` value while the click command is
-cleared, and falls back to an opaque normal font colour when an inherited text
-frame did not materialize its colour on the game-side FDF copy. This preserves
-labels such as `Quests`, `Menu`, `Allies`, and `Log` instead of leaving only the
-colour-coded F9/F10/F11/F12 suffix visible.
+The client modal window consumes input before the underlying HUD, so the four
+upper system buttons cannot be activated while a Quest/Log window is open. The
+server does not clear and resend their commands based on stale window state.
 
 ## Quest Text Diagnostics
 
@@ -263,17 +257,16 @@ Manual checks:
 
 1. Click **Quests** with discovered/enabled required and optional quests; hidden
    or disabled quests must not appear.
-2. Change objectives, call `ForceQuestDialogUpdate`, and confirm an open journal
-   preserves its current visible selection.
+2. Close Quest with **Done**, reopen it with Quests/F9, and confirm it is rebuilt
+   from the current authoritative quest data.
 3. Click another quest repeatedly and confirm rows do not duplicate.
 4. Confirm the description and objective list follow the selected quest.
 5. Display timed game text, clear/expire the transient message, click the fourth
    upper button, and confirm the historical text remains in Message Log.
 6. Trigger a command error and confirm it is not added to Message Log.
 7. Open Quest and Log and confirm simulation/timers continue, manual camera
-   movement is blocked, the four upper system buttons display disabled art,
-   lower HUD/world hover does not react, and the centered Done/OK control still
-   closes the dialog.
+   movement is blocked, upper system buttons are consumed by the modal client
+   window, lower HUD/world hover does not react, and Done/OK closes locally.
 8. Confirm F9 and F12 open the same Quest/Log routes as the corresponding mouse
    buttons; F10/F11 should reach the current Menu/Allies command stubs without
    falling back to screenshot or an unknown command.

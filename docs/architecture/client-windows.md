@@ -21,7 +21,7 @@ modal; confirmation-style windows are modal.
 
 ```text
 svc_window
-  byte op
+  byte open
   long instance_id
 
 UI_WINDOW_OPEN:
@@ -32,8 +32,6 @@ UI_WINDOW_OPEN:
   long text_size
   byte text[text_size]
 
-UI_WINDOW_CLOSE:
-  no additional fields
 ```
 
 Window frame records retain the normal one-byte type-specific payload size. The `text`, `tooltip`, and `onclick` fields differ:

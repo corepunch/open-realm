@@ -409,13 +409,7 @@ struct client_s {
         char entries[WC3_MESSAGE_LOG_MAX_ENTRIES][WC3_MESSAGE_LOG_ENTRY_SIZE];
         DWORD first;
         DWORD count;
-        BOOL open;
-        BOOL dirty;
     } message_log;
-    struct {
-        LPQUEST selected;
-        BOOL open;
-    } quest_dialog;
     DWORD cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
     DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
@@ -1397,18 +1391,13 @@ void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteWindow(LPEDICT, LPCFRAMEDEF, uiWindowDef_t const *);
-void UI_CloseWindow(LPEDICT, DWORD);
 void UI_WriteStart(DWORD);
 void UI_ClearLayer(LPEDICT, DWORD);
 void UI_ShowGameResult(LPEDICT, BOOL);
 void UI_HideGameResult(LPEDICT);
 void UI_ShowQuests(LPEDICT);
-void UI_RefreshQuests(LPEDICT);
-void UI_HideQuests(LPEDICT);
 void UI_MessageLogAppend(LPEDICT, LPCSTR);
 void UI_ShowLog(LPEDICT);
-void UI_RefreshLog(LPEDICT);
-void UI_HideLog(LPEDICT);
 void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
 void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);

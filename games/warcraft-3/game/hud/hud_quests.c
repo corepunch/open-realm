@@ -309,16 +309,13 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
                        qd.QuestAcceptButtonText ? qd.QuestAcceptButtonText->Text : NULL);
     }
 
-    /* Keep the authored OK/Done label and race-skinned button art; only bind
-     * the action. */
-    UI_SetOnClick(qd.QuestAcceptButton, "hidequests");
+    /* Done is presentation-only: let the client close this window without a round trip. */
+    UI_SetOnClick(qd.QuestAcceptButton, UI_WINDOW_CLOSE_ACTION);
 
     PopulateQuestList(qd.QuestMainContainer, true, quest);
     PopulateQuestList(qd.QuestOptionalContainer, false, quest);
     PopulateQuestItems(qd.QuestItemListContainer, quest);
 
-    ent->client->quest_dialog.selected = (LPQUEST)quest;
-    ent->client->quest_dialog.open = true;
     if (ent->client->connected)
         UI_WriteWindow(ent, qd.QuestDialog, &MAKE(uiWindowDef_t,
             .id = BZ_WC3_WINDOW_QUEST, .class_id = BZ_WC3_WINDOW_QUEST,
@@ -339,20 +336,4 @@ void UI_ShowQuests(LPEDICT ent) {
         }
     }
     if (quest) UI_ShowQuest(ent, quest);
-    else UI_HideQuests(ent);
-}
-
-void UI_RefreshQuests(LPEDICT ent) {
-    if (!ent || !ent->client || !ent->client->quest_dialog.open) return;
-    if (QuestIsVisibleMember(ent->client->quest_dialog.selected))
-        UI_ShowQuest(ent, ent->client->quest_dialog.selected);
-    else
-        UI_ShowQuests(ent);
-}
-
-void UI_HideQuests(LPEDICT ent) {
-    if (!ent || !ent->client) return;
-    ent->client->quest_dialog.open = false;
-    ent->client->quest_dialog.selected = NULL;
-    if (ent->client->connected) UI_CloseWindow(ent, BZ_WC3_WINDOW_QUEST);
 }
