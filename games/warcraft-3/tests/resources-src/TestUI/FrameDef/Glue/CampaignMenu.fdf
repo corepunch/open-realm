@@ -7,6 +7,8 @@ Frame "FRAME" "CampaignMenu" {
     Frame "FRAME" "MissionSelectFrame" {
         Frame "TEXT" "MissionName" {}
         Frame "TEXT" "MissionNameHeader" {}
+        // Retail/Warsmash mission rows are created dynamically rather than
+        // relying on Mission0Frame...Mission13Frame children.
     }
     Frame "FRAME" "CampaignSelectFrame" {
         Frame "SPRITE" "WarCraftIIILogo" {}
@@ -14,6 +16,19 @@ Frame "FRAME" "CampaignMenu" {
             Frame "POPUPMENU" "DifficultySelect" {}
             Frame "TEXT" "DifficultySelectLabel" {}
             Frame "TEXT" "DifficultyDescriptionText" {}
+        }
+        // Retail CampaignMenu.fdf exposes legacy/static campaign frames too.
+        // Warsmash does not use them as the campaign list; it builds campaign
+        // buttons dynamically from CampaignStrings instead.
+        Frame "FRAME" "TutorialFrame" {
+            Frame "TEXT" "TutorialCampaignLabel" {}
+            Frame "TEXT" "TutorialCampaignDesc" {}
+            Frame "BUTTON" "TutorialButton" {}
+        }
+        Frame "FRAME" "HumanFrame" {
+            Frame "TEXT" "HumanCampaignLabel" {}
+            Frame "TEXT" "HumanCampaignDesc" {}
+            Frame "BUTTON" "HumanButton" {}
         }
     }
 }

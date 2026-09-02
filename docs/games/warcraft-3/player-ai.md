@@ -33,7 +33,7 @@ Do not translate `h02_red.ai` into a C wave table or add map-name checks. `Scrip
 
 These helpers are not six simple engine directives. Their transitive path starts Blizzard's perpetual `CampaignBasics` and `BuildLoop` threads and reaches production, harvesting, unit counts and costs, captain management, readiness, attack, command, and sleep natives. Human02 therefore requires the campaign economy/build loop and captain behavior; implementing only wave timers is not script compatibility.
 
-`CampaignAI` chooses difficulty once. Each `Campaign*Ex` uses the easy, normal, or hard quantity; the script's final branch gives an unsupported higher difficulty the hard quantity.
+`CampaignAI` chooses difficulty once. Each `Campaign*Ex` uses the easy, normal, or hard quantity; the script's final branch gives an unsupported higher difficulty the hard quantity. The Single Player campaign difficulty selector stores `wc3_campaign_difficulty`; for stock ROC/TFT campaign map paths `G_SpawnEntities` seeds `GetGameDifficulty()` from it before map startup, so campaign AI sees the selected Easy/Normal/Hard value unless the map later changes game difficulty itself. Non-campaign maps retain the existing Normal default.
 
 ### Defender Requests
 

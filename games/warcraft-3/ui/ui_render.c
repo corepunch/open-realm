@@ -112,6 +112,8 @@ static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
         case FT_POPUPMENU: case FT_GLUEPOPUPMENU:
         case FT_LISTBOX:
             return TRUE;
+        case FT_CONTROL:
+            return frame->MapListControl.State != NULL;
         case FT_FRAME: case FT_SIMPLEFRAME:
             return frame->OnClick[0] || frame->MapListControl.State != NULL;
         default:
@@ -580,8 +582,14 @@ __attribute__((visibility("hidden"))) void UI_WireFrameTypeFunctions(LPFRAMEDEF 
         case FT_POPUPMENU: case FT_GLUEPOPUPMENU:
             frame->event_handler = UI_PopupEventHandler;
             break;
+        case FT_CONTROL:
+            /* Warcraft MapListBox templates are CONTROL roots. */
+            if (frame->MapListControl.State) {
+                frame->event_handler = UI_MapListEventHandler;
+            }
+            break;
         case FT_FRAME: case FT_SIMPLEFRAME:
-            /* FT_FRAME with MapListControl is a map list */
+            /* Programmatic map-list roots may also be plain FRAMEs. */
             if (frame->MapListControl.State) {
                 frame->event_handler = UI_MapListEventHandler;
                 frame->draw = UI_DrawMapListControl;

@@ -461,6 +461,10 @@ void Cvar_Init(void) {
     Cvar_GetD("ui_module",        "ui",                CVAR_ARCHIVE, "UI shared library name");
     Cvar_GetD("g_module",         "game",              CVAR_ARCHIVE, "game logic shared library name");
     Cvar_GetD("ui_game_setup_map","",                  0,            "map pre-selected in game setup UI");
+#ifdef WC3
+    Cvar_GetD("wc3_campaign_mission_visibility", "all", CVAR_ARCHIVE,
+              "campaign mission list visibility: all or played");
+#endif
     Cvar_GetD("game_port",        PORT_SERVER_STRING,  CVAR_ARCHIVE, "UDP port the game server listens on");
     Cvar_GetD("name",             "Player",            CVAR_ARCHIVE, "player display name shown in lobbies");
     Cvar_GetD("sv_hostname",      "OpenWarcraft3",     CVAR_ARCHIVE, "server name shown in lobby browser");

@@ -13,10 +13,13 @@
 
 #define SINGLE_PLAYER_MAX_CAMPAIGNS 16
 #define SINGLE_PLAYER_MAX_MISSIONS 128
+#define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14
+#define SINGLE_PLAYER_MISSION_VISIBILITY_CVAR "wc3_campaign_mission_visibility"
 
 typedef enum {
     SINGLE_PLAYER_VIEW_MAIN,
     SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT,
+    SINGLE_PLAYER_VIEW_MISSION_SELECT,
 } singlePlayerView_t;
 
 typedef struct {
@@ -42,7 +45,10 @@ static DWORD campaign_order[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static DWORD campaign_order_count;
 static uiMapListState_t campaign_list;
 static LPFRAMEDEF campaign_list_frame;
+static uiMapListState_t mission_list;
+static LPFRAMEDEF mission_list_frame;
 static DWORD campaign_background_model = 0;
+static DWORD selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 
 static BOOL SinglePlayerMenu_LoadScreen(void) {
@@ -375,22 +381,22 @@ static LPCSTR SinglePlayer_FirstMissionMap(singlePlayerCampaign_t const *campaig
     return NULL;
 }
 
+static singlePlayerCampaign_t const *SinglePlayer_SelectedCampaign(void) {
+    if (selected_campaign_index >= campaign_count) {
+        return NULL;
+    }
+    return &campaigns[selected_campaign_index];
+}
+
 static void SinglePlayer_SetHidden(LPFRAMEDEF frame, BOOL hidden) {
     if (frame) {
         UI_SetHidden(frame, hidden);
     }
 }
 
-static BOOL SinglePlayer_HasStaticCampaignButtons(void) {
-    return single_player.HumanButton ||
-           single_player.OrcButton ||
-           single_player.UndeadButton ||
-           single_player.NightElfButton ||
-           single_player.TutorialButton;
-}
-
 static void SinglePlayer_SetView(singlePlayerView_t view) {
-    BOOL const show_campaign = view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT;
+    BOOL const show_campaign = view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ||
+                               view == SINGLE_PLAYER_VIEW_MISSION_SELECT;
 
     current_view = view;
 
@@ -400,10 +406,17 @@ static void SinglePlayer_SetView(singlePlayerView_t view) {
 
     SinglePlayer_SetHidden(single_player.CampaignMenu, !show_campaign);
     SinglePlayer_SetHidden(single_player.CampaignBackdrop_2, true);
-    SinglePlayer_SetHidden(single_player.CampaignSelectFrame, false);
-    SinglePlayer_SetHidden(single_player.MissionSelectFrame, true);
+    SinglePlayer_SetHidden(single_player.CampaignSelectFrame, view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
+    SinglePlayer_SetHidden(single_player.MissionSelectFrame, view != SINGLE_PLAYER_VIEW_MISSION_SELECT);
+    SinglePlayer_SetHidden(single_player.TutorialFrame, true);
+    SinglePlayer_SetHidden(single_player.HumanFrame, true);
+    SinglePlayer_SetHidden(single_player.TutorialButton, true);
+    SinglePlayer_SetHidden(single_player.HumanButton, true);
     SinglePlayer_SetHidden(single_player.SlidingDoors, true);
-    SinglePlayer_SetHidden(campaign_list_frame, !show_campaign || SinglePlayer_HasStaticCampaignButtons());
+    SinglePlayer_SetHidden(campaign_list_frame,
+                           view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
+    SinglePlayer_SetHidden(mission_list_frame,
+                           view != SINGLE_PLAYER_VIEW_MISSION_SELECT);
 }
 
 static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campaign) {
@@ -436,15 +449,117 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
     }
 }
 
-static void SinglePlayer_LaunchCampaign(singlePlayerCampaign_t const *campaign) {
-    char command[256];
-    LPCSTR map_path = SinglePlayer_FirstMissionMap(campaign);
+static void SinglePlayer_MissionPlayedCvar(singlePlayerCampaign_t const *campaign,
+                                           DWORD mission_index,
+                                           LPSTR out,
+                                           DWORD out_size) {
+    char campaign_key[64];
+    DWORD used = 0;
 
-    if (!map_path || !*map_path) {
+    if (!out || !out_size) {
         return;
     }
+    memset(campaign_key, 0, sizeof(campaign_key));
+    if (campaign) {
+        for (LPCSTR p = campaign->key; *p && used + 1 < sizeof(campaign_key); p++) {
+            unsigned char ch = (unsigned char)*p;
+            campaign_key[used++] = isalnum(ch) ? (char)tolower(ch) : '_';
+        }
+    }
+    snprintf(out, out_size, "wc3_campaign_played_%s_%u",
+             campaign_key[0] ? campaign_key : "campaign",
+             (unsigned)mission_index);
+}
+
+static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
+    LPCSTR mode = uiimport.Cvar_String
+        ? uiimport.Cvar_String(SINGLE_PLAYER_MISSION_VISIBILITY_CVAR, "all")
+        : "all";
+
+    if (!mode || strcasecmp(mode, "played")) {
+        return true;
+    }
+
+    char cvar_name[128];
+    SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
+    LPCSTR played = uiimport.Cvar_String ? uiimport.Cvar_String(cvar_name, "0") : "0";
+    return played && atoi(played) != 0;
+}
+
+static void SinglePlayer_MarkMissionPlayed(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
+    char cvar_name[128];
+
+    if (!campaign || !uiimport.Cvar_Set) {
+        return;
+    }
+    SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
+    uiimport.Cvar_Set(cvar_name, "1");
+}
+
+static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
+    char command[256];
+    LPCSTR map_path;
+
+    if (!campaign || mission_index >= campaign->num_missions) {
+        return;
+    }
+    map_path = campaign->missions[mission_index].map_path;
+    if (!map_path[0]) {
+        return;
+    }
+    SinglePlayer_MarkMissionPlayed(campaign, mission_index);
     snprintf(command, sizeof(command), "map \"%s\"", map_path);
     UI_MenuCommandLocal(command);
+}
+
+static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campaign) {
+    memset(&mission_list, 0, sizeof(mission_list));
+    if (!campaign) {
+        return;
+    }
+
+    FOR_LOOP(i, campaign->num_missions) {
+        singlePlayerMission_t const *mission = &campaign->missions[i];
+        uiMapListItem_t *item;
+
+        if (!mission->map_path[0] || !SinglePlayer_ShowMission(campaign, i)) {
+            continue;
+        }
+        if (mission_list.count >= UI_MAX_MAP_LIST_ITEMS) {
+            break;
+        }
+        item = &mission_list.items[mission_list.count++];
+        if (mission->header[0] && mission->name[0]) {
+            snprintf(item->name, sizeof(item->name), "%.52s: %.73s", mission->header, mission->name);
+        } else {
+            snprintf(item->name, sizeof(item->name), "%s", mission->name[0] ? mission->name : mission->map_path);
+        }
+        snprintf(item->path, sizeof(item->path), "%s", mission->map_path);
+        item->flags = i;
+    }
+}
+
+static void SinglePlayer_PopulateMissionSelect(singlePlayerCampaign_t const *campaign) {
+    if (!campaign) {
+        return;
+    }
+    if (single_player.MissionName) {
+        UI_SetText(single_player.MissionName, "%s", campaign->name[0] ? campaign->name : campaign->key);
+    }
+    if (single_player.MissionNameHeader) {
+        UI_SetText(single_player.MissionNameHeader, "%s", campaign->header);
+    }
+    SinglePlayer_PopulateMissionList(campaign);
+}
+
+static void SinglePlayer_SelectCampaign(singlePlayerCampaign_t const *campaign) {
+    if (!campaign) {
+        return;
+    }
+    selected_campaign_index = (DWORD)(campaign - campaigns);
+    SinglePlayer_SetCampaignBackdrop(campaign);
+    SinglePlayer_PopulateMissionSelect(campaign);
+    SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MISSION_SELECT);
 }
 
 static void SinglePlayer_PopulateCampaignList(void) {
@@ -469,13 +584,14 @@ static void SinglePlayer_PopulateCampaignList(void) {
         }
         snprintf(item->path, sizeof(item->path), "%s", campaign->key);
         item->players = 1;
+        item->flags = campaign_index;
     }
 }
 
 static void SinglePlayer_CreateCampaignList(void) {
     LPFRAMEDEF template_frame;
 
-    if (campaign_list_frame || SinglePlayer_HasStaticCampaignButtons() || !single_player.CampaignSelectFrame) {
+    if (campaign_list_frame || !single_player.CampaignSelectFrame) {
         return;
     }
 
@@ -500,6 +616,37 @@ static void SinglePlayer_CreateCampaignList(void) {
     UI_BindMapList(campaign_list_frame, &campaign_list, single_player.DifficultySelectLabel, 4, "menu_single_player_campaign_select %u");
 }
 
+static void SinglePlayer_CreateMissionList(void) {
+    LPFRAMEDEF template_frame;
+
+    if (mission_list_frame || !single_player.MissionSelectFrame) {
+        return;
+    }
+
+    template_frame = UI_FindFrame("MapListBox");
+    if (!template_frame) {
+        return;
+    }
+
+    mission_list_frame = UI_CloneFrameTree(template_frame, single_player.MissionSelectFrame);
+    if (!mission_list_frame) {
+        return;
+    }
+
+    UI_SetSize(mission_list_frame, 0.34f, 0.28f);
+    UI_SetPoint(mission_list_frame,
+                FRAMEPOINT_BOTTOMLEFT,
+                single_player.BackButton,
+                FRAMEPOINT_TOPLEFT,
+                -0.14f,
+                0.04f);
+    UI_BindMapList(mission_list_frame,
+                   &mission_list,
+                   single_player.DifficultySelectLabel,
+                   SINGLE_PLAYER_MISSION_VISIBLE_ROWS,
+                   "menu_single_player_mission_select %u");
+}
+
 static void SinglePlayer_BindMainMenu(void) {
     if (!single_player.SinglePlayerMenu) {
         return;
@@ -508,23 +655,43 @@ static void SinglePlayer_BindMainMenu(void) {
     UI_SetOnClick(single_player.CampaignButton, "menu_single_player_campaign");
     UI_SetOnClick(single_player.LoadSavedButton, "");
     UI_SetOnClick(single_player.ViewReplayButton, "");
-    UI_SetOnClick(single_player.SkirmishButton, "");
+    UI_SetOnClick(single_player.SkirmishButton, "menu_single_player_skirmish");
     UI_SetOnClick(single_player.ProfileButton, "");
     UI_SetOnClick(single_player.CancelButton, "menu_main");
     if (single_player.ProfileNameText) {
-        UI_SetText(single_player.ProfileNameText, "Player");
+        LPCSTR name = uiimport.Cvar_String ? uiimport.Cvar_String("name", "Player") : "Player";
+        UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
+    }
+}
+
+static LPCSTR SinglePlayer_DifficultyName(DWORD difficulty) {
+    switch (difficulty) {
+        case 0: return UI_GetString("EASY");
+        case 2: return UI_GetString("HARD");
+        default: return UI_GetString("NORMAL");
+    }
+}
+
+static void SinglePlayer_UpdateDifficultyTitle(DWORD difficulty) {
+    LPFRAMEDEF title = single_player.DifficultySelect
+        ? UI_FindChildFrame(single_player.DifficultySelect, "CampaignPopupMenuTitleTextTemplate")
+        : NULL;
+
+    if (title) {
+        UI_SetText(title, "%s", SinglePlayer_DifficultyName(difficulty));
     }
 }
 
 static void SinglePlayer_BindCampaignMenu(void) {
     LPFRAMEDEF DifficultyMenu;
-    LPFRAMEDEF DifficultyTitle;
+    DWORD difficulty = 1;
+    LPCSTR difficulty_value;
 
     if (!single_player.CampaignMenu) {
         return;
     }
 
-    UI_SetOnClick(single_player.BackButton, "menu_game");
+    UI_SetOnClick(single_player.BackButton, "menu_single_player_campaign_back");
     UI_SetOnClick(single_player.HumanButton, "menu_single_player_campaign_human");
     UI_SetOnClick(single_player.OrcButton, "menu_single_player_campaign_orc");
     UI_SetOnClick(single_player.UndeadButton, "menu_single_player_campaign_undead");
@@ -534,10 +701,6 @@ static void SinglePlayer_BindCampaignMenu(void) {
     DifficultyMenu = single_player.DifficultySelect
         ? UI_FindChildFrame(single_player.DifficultySelect, "CampaignPopupMenuMenu")
         : NULL;
-    DifficultyTitle = single_player.DifficultySelect
-        ? UI_FindChildFrame(single_player.DifficultySelect, "CampaignPopupMenuTitleTextTemplate")
-        : NULL;
-
     if (DifficultyMenu) {
         UI_MenuClearItems(DifficultyMenu);
         UI_MenuAddItem(DifficultyMenu, UI_GetString("EASY"), 0);
@@ -546,9 +709,15 @@ static void SinglePlayer_BindCampaignMenu(void) {
         UI_SetOnClick(DifficultyMenu, "menu_single_player_difficulty %u");
         UI_SetHidden(DifficultyMenu, true);
     }
-    if (DifficultyTitle) {
-        UI_SetText(DifficultyTitle, "NORMAL");
+    difficulty_value = uiimport.Cvar_String
+        ? uiimport.Cvar_String("wc3_campaign_difficulty", "1") : "1";
+    if (difficulty_value) {
+        LONG value = atoi(difficulty_value);
+        if (value >= 0 && value <= 2) {
+            difficulty = (DWORD)value;
+        }
     }
+    SinglePlayer_UpdateDifficultyTitle(difficulty);
 }
 
 static void SinglePlayerMenu_Init(void) {
@@ -556,7 +725,9 @@ static void SinglePlayerMenu_Init(void) {
     UI_PreloadGlueSceneModels();
     SinglePlayer_LoadCampaignData();
     campaign_list_frame = NULL;
+    mission_list_frame = NULL;
     memset(&campaign_list, 0, sizeof(campaign_list));
+    memset(&mission_list, 0, sizeof(mission_list));
 
     if (single_player.WarCraftIIILogo) {
         single_player.WarCraftIIILogo->Portrait.model = UI_LoadModel("CampaignLogo", true);
@@ -565,7 +736,9 @@ static void SinglePlayerMenu_Init(void) {
     SinglePlayer_BindMainMenu();
     SinglePlayer_BindCampaignMenu();
     SinglePlayer_CreateCampaignList();
+    SinglePlayer_CreateMissionList();
     SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
+    selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
 
@@ -577,7 +750,8 @@ static void SinglePlayerMenu_Refresh(int msec) {
 }
 
 static void SinglePlayerMenu_Draw(void) {
-    if (current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT) {
+    if (current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ||
+        current_view == SINGLE_PLAYER_VIEW_MISSION_SELECT) {
         SinglePlayer_DrawCampaignBackdrop();
         if (single_player.CampaignMenu) {
             UI_DrawFrame(single_player.CampaignMenu);
@@ -597,31 +771,67 @@ static void SinglePlayerMenu_KeyEvent(int key, BOOL down) {
 }
 
 void SinglePlayerMenu_ShowMain(void) {
+    if (single_player.ProfileNameText) {
+        LPCSTR name = uiimport.Cvar_String ? uiimport.Cvar_String("name", "Player") : "Player";
+        UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
+    }
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
 
 void SinglePlayerMenu_ShowCampaign(void) {
     SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
+    selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
+}
+
+void SinglePlayerMenu_BackCampaign(void) {
+    if (current_view == SINGLE_PLAYER_VIEW_MISSION_SELECT) {
+        SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
+        return;
+    }
+    UI_ShowSinglePlayerMenu();
 }
 
 void SinglePlayerMenu_LaunchCampaign(LPCSTR name) {
     singlePlayerCampaign_t const *campaign = SinglePlayer_FindCampaign(name);
-    SinglePlayer_SetCampaignBackdrop(campaign);
-    SinglePlayer_LaunchCampaign(campaign);
+    SinglePlayer_SelectCampaign(campaign);
 }
 
 void SinglePlayerMenu_LaunchCampaignIndex(DWORD index) {
     DWORD campaign_index;
 
-    if (index >= campaign_list.count || index >= campaign_order_count) {
+    if (index >= campaign_list.count) {
         return;
     }
     campaign_list.selected = index;
-    campaign_index = campaign_order[index];
+    campaign_index = campaign_list.items[index].flags;
     if (campaign_index < campaign_count) {
-        SinglePlayer_SetCampaignBackdrop(&campaigns[campaign_index]);
-        SinglePlayer_LaunchCampaign(&campaigns[campaign_index]);
+        SinglePlayer_SelectCampaign(&campaigns[campaign_index]);
+    }
+}
+
+void SinglePlayerMenu_LaunchMissionIndex(DWORD index) {
+    singlePlayerCampaign_t const *campaign = SinglePlayer_SelectedCampaign();
+    DWORD mission_index;
+
+    if (!campaign || index >= mission_list.count) {
+        return;
+    }
+    mission_list.selected = index;
+    mission_index = mission_list.items[index].flags;
+    SinglePlayer_LaunchMission(campaign, mission_index);
+}
+
+void SinglePlayerMenu_SetDifficulty(DWORD difficulty) {
+    char value[8];
+
+    if (difficulty > 2) {
+        return;
+    }
+    SinglePlayer_UpdateDifficultyTitle(difficulty);
+    if (uiimport.Cvar_Set) {
+        snprintf(value, sizeof(value), "%u", (unsigned)difficulty);
+        uiimport.Cvar_Set("wc3_campaign_difficulty", value);
     }
 }
 

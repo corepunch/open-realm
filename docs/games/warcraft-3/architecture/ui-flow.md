@@ -70,6 +70,78 @@ menu_game
 
 The screen switch is local to the client. No network traffic is required for menu transitions.
 
+## Single Player Flow
+
+The WC3 single-player frontend uses the native Blizzard glue FDFs and keeps campaign/map metadata separate from the
+actual `map` command:
+
+```text
+MainMenu.fdf
+  -> SinglePlayerMenu.fdf
+      -> CampaignMenu.fdf
+          -> campaign selection
+          -> MissionSelectFrame
+          -> selected mission
+          -> map "..."
+
+      -> SkirmishButton
+          -> existing local map browser
+          -> GameSetup
+          -> lobby_config / lobby_slot
+          -> map "..."
+```
+
+`games/warcraft-3/ui/screens/single_player.c` parses the skin-selected `CampaignFile` (with the classic campaign
+string files as fallback). Campaign selection changes the campaign backdrop and builds a mission list dynamically
+from every parsed `MissionN` / `FileN` entry; selecting a campaign alone does not start its first map. This mirrors
+Warsmash's `CampaignMenuUI` approach and does not depend on non-portable `Mission0Frame`...`Mission13Frame` children
+being present in the retail `MissionSelectFrame`. The campaign Back button returns Mission Select to Campaign Select
+first, then returns to the Single Player menu.
+
+Mission visibility is controlled by `wc3_campaign_mission_visibility`. The default `all` mode shows every parsed
+map-backed chapter so campaign testing is not blocked by frontend progression state. `played` mode shows only
+missions whose `wc3_campaign_played_<campaign>_<mission>` cvar is non-zero; launching a mission marks that cvar for
+the current process. This is intentionally a frontend/testing bridge until profile-backed retail campaign mission
+availability (`SetMissionAvailable`/profile persistence) is implemented.
+
+The generated selector reuses Warcraft's `MapListBox` template. That template is a `CONTROL` root in the retail FDF,
+so bound map-list controls must participate in the same hit testing and mouse-event dispatch as programmatic `FRAME`
+map lists. A `CONTROL` map list that is renderable but excluded from interaction produces visible campaign rows that
+cannot be clicked.
+
+`CampaignMenu.fdf` can also expose legacy/static frames such as `HumanButton`, `OrcButton`,
+`UndeadButton`, `NightElfButton`, and `TutorialButton`. Their presence is not a signal that the authored FDF already
+contains the active campaign selector: Warsmash builds the visible campaign entries dynamically from
+`CampaignStrings`. OpenRealm likewise always creates its data-driven campaign list. Suppressing that list merely
+because an optional static button frame bound successfully can leave the campaign screen showing only the
+difficulty control, with no campaign entry to click.
+
+The menu's Easy/Normal/Hard selection writes `wc3_campaign_difficulty` (`0`, `1`, or `2`). For stock ROC/TFT campaign
+map paths, `G_SpawnEntities` uses that value as the initial `GetGameDifficulty()` state before `war3map.j`
+initialization; non-campaign maps retain the existing Normal default. Map script calls to `SetGameDifficulty` may
+still change it later. The Single Player profile caption uses the engine `name` cvar, which is also the local human
+name used by Game Setup. A full Warcraft profile database is not implemented.
+
+Single Player Custom Game deliberately reuses the existing local map-selection and Game Setup controllers instead
+of duplicating their W3I parsing, map info, slot, race, team, color, and game-speed logic. The source mode only
+changes glue presentation and Cancel destinations; the final local-server launch path remains shared.
+
+### Remaining frontend lifecycle gaps
+
+The following Warsmash/retail-style lifecycle work is intentionally not approximated in the current UI code:
+
+- menu changes are still immediate `UI_SetScreen` operations rather than Birth/Stand/Death sequence-completion
+  transitions;
+- campaign ambient sound and campaign-specific cursor switching are not wired;
+- profile creation/deletion/persistence is not implemented;
+- map `config()` is not yet run as a distinct pre-lobby configuration phase; doing so correctly requires separating
+  authored map configuration from later lobby overrides;
+- map/server loading remains synchronous, and the WC3 loading progress sprite does not yet represent incremental
+  loader work.
+
+Do not paper over these with fixed timers, hard-coded campaign assets, a second custom-game implementation, or fake
+loading percentages. They require the corresponding lifecycle/data ownership to exist first.
+
 ## Draw Flow
 
 Each client frame calls:
@@ -173,6 +245,9 @@ The HUD screen renders from this cache on later frames.
 - FDF assets are parsed by the UI library, not by the game DLL.
 - Runtime modules communicate through Quake-style function tables.
 - `r_module=stdout` makes draw-call output scriptable for UI debugging.
+- Campaign selection and mission selection are separate states; only a mission issues `map`.
+- Campaign difficulty is startup game state, not merely a menu label.
+- Single-player Custom Game reuses the local map browser/Game Setup data path instead of maintaining a second copy.
 
 ## See Also
 

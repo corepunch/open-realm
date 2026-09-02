@@ -29,6 +29,7 @@
 typedef enum {
     LAN_MODE_BROWSER,
     LAN_MODE_CREATE,
+    LAN_MODE_SINGLE_PLAYER_CREATE,
 } lanMode_t;
 
 typedef struct lan_join_state_s {
@@ -613,10 +614,13 @@ static BOOL LAN_BuildCreateFrames(void) {
 
     UI_SetHidden(lan.create_frames.MapInfoPanel, false);
     UI_SetHidden(lan.create_frames.AdvancedOptionsPanel, true);
-    UI_SetOnClick(lan.create_frames.MapInfoButton, "menu_startserver");
-    UI_SetOnClick(lan.create_frames.AdvancedOptionsButton, "menu_startserver");
+    UI_SetOnClick(lan.create_frames.MapInfoButton,
+                  lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? "menu_single_player_skirmish" : "menu_startserver");
+    UI_SetOnClick(lan.create_frames.AdvancedOptionsButton,
+                  lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? "menu_single_player_skirmish" : "menu_startserver");
     UI_SetOnClick(lan.play_button, "menu_lan_start");
-    UI_SetOnClick(lan.create_frames.CancelButton, "menu_multiplayer");
+    UI_SetOnClick(lan.create_frames.CancelButton,
+                  lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE ? "menu_game" : "menu_multiplayer");
     return true;
 }
 
@@ -686,8 +690,10 @@ static void LANJoin_Draw(void) {
 
     UI_DrawGlueScene(lan.mode == LAN_MODE_BROWSER
                      ? "BattlenetCustom Stand"
-                     : "BattlenetCustomCreate Stand");
-    if (lan.mode == LAN_MODE_CREATE) {
+                     : lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE
+                         ? "SinglePlayerSkirmish Stand"
+                         : "BattlenetCustomCreate Stand");
+    if (lan.mode != LAN_MODE_BROWSER) {
         LAN_UpdateGameSpeed();
     }
     UI_DrawFrame(lan.root);
@@ -787,24 +793,39 @@ void LAN_JoinSelectedGame(void) {
     uiimport.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
 }
 
-void LAN_ShowBrowser(void) {
-    LAN_BuildFrames(LAN_MODE_BROWSER);
+static void LAN_ShowMode(lanMode_t mode) {
+    lan.mode = mode;
+    if (UI_GetCurrentScreen() != &lanJoinScreen) {
+        return;
+    }
+    LAN_BuildFrames(mode);
     if (!lan.ready) {
         return;
     }
-    LAN_ClearGames();
-    LAN_RequestServerRefresh();
-    LAN_LoadGames();
+    if (mode == LAN_MODE_BROWSER) {
+        LAN_ClearGames();
+        LAN_RequestServerRefresh();
+        LAN_LoadGames();
+    } else {
+        LAN_LoadMaps();
+    }
     LAN_UpdateControls();
 }
 
+void LAN_ShowBrowser(void) {
+    LAN_ShowMode(LAN_MODE_BROWSER);
+}
+
 void LAN_ShowCreate(void) {
-    LAN_BuildFrames(LAN_MODE_CREATE);
-    if (!lan.ready) {
-        return;
-    }
-    LAN_LoadMaps();
-    LAN_UpdateControls();
+    LAN_ShowMode(LAN_MODE_CREATE);
+}
+
+void LAN_ShowSinglePlayerCreate(void) {
+    LAN_ShowMode(LAN_MODE_SINGLE_PLAYER_CREATE);
+}
+
+BOOL LAN_IsSinglePlayerCreate(void) {
+    return lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE;
 }
 
 void LAN_RefreshMaps(void) {

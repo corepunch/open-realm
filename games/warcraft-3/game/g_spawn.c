@@ -351,6 +351,8 @@ void G_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     LPCDOODAD entities = CM_GetDoodads();
     DWORD local_player = G_LocalMapPlayerNumber(mapinfo);
+    LONG difficulty = 1;
+    LPCSTR map_path = gi.CvarString ? gi.CvarString("map", "") : "";
 
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
@@ -363,7 +365,15 @@ void G_SpawnEntities(void) {
     if (mapinfo) FOR_LOOP(i, MAX_PLAYERS) level.setup.players += mapinfo->players[i].used;
     level.setup.game_type = 4;
     level.setup.speed = 2;
-    level.setup.difficulty = 1;
+    if ((!strncasecmp(map_path, "Maps\\Campaign\\", 14) ||
+         !strncasecmp(map_path, "Maps/Campaign/", 14) ||
+         !strncasecmp(map_path, "Maps\\FrozenThrone\\Campaign\\", 26) ||
+         !strncasecmp(map_path, "Maps/FrozenThrone/Campaign/", 26)) && gi.CvarString) {
+        difficulty = atoi(gi.CvarString("wc3_campaign_difficulty", "1"));
+    }
+    if (difficulty < 0) difficulty = 0;
+    if (difficulty > 3) difficulty = 3;
+    level.setup.difficulty = (DWORD)difficulty;
     level.setup.resource_density = level.setup.creature_density = 2;
     if (mapinfo) {
         strlcpy(level.setup.name, mapinfo->mapName ? mapinfo->mapName : "", sizeof(level.setup.name));

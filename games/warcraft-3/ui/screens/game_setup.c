@@ -911,6 +911,8 @@ static void GameSetup_Init(void) {
     if (!setup.ready) {
         return;
     }
+    UI_SetOnClick(setup.cancel_button,
+                  LAN_IsSinglePlayerCreate() ? "menu_single_player_skirmish" : "menu_startserver");
     GameSetup_LoadSelectedMap();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
     GameSetup_UpdateMapInfo();
@@ -931,7 +933,9 @@ static void GameSetup_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene("MultiplayerPreGameChat Stand");
+    UI_DrawGlueScene(LAN_IsSinglePlayerCreate()
+                     ? "SinglePlayerSkirmish Stand"
+                     : "MultiplayerPreGameChat Stand");
     UI_DrawFrame(setup.root);
 }
 
