@@ -18,6 +18,7 @@ type trigger          extends handle
 type event            extends handle
 type triggeraction    extends handle
 type playerevent      extends handle
+type playerunitevent  extends handle
 type racepreference  extends handle
 type mapcontrol      extends handle
 type gametype        extends handle
@@ -41,8 +42,10 @@ type filterfunc      extends boolexpr
 
 // Cinematic skip regression uses the same event and local-player guards as campaign scripts.
 native ConvertPlayerEvent         takes integer i returns playerevent
+native ConvertPlayerUnitEvent     takes integer i returns playerunitevent
 native CreateTrigger              takes nothing returns trigger
-native TriggerRegisterPlayerEvent takes trigger whichTrigger, player whichPlayer, playerevent whichPlayerEvent returns event
+native TriggerRegisterPlayerEvent     takes trigger whichTrigger, player whichPlayer, playerevent whichPlayerEvent returns event
+native TriggerRegisterPlayerUnitEvent takes trigger whichTrigger, player whichPlayer, playerunitevent whichPlayerUnitEvent, boolexpr filter returns event
 native TriggerAddAction           takes trigger whichTrigger, code actionFunc returns triggeraction
 native GetLocalPlayer             takes nothing returns player
 native ShowInterface              takes boolean flag, real fadeDuration returns nothing
@@ -194,7 +197,8 @@ globals
     constant integer CAMERA_MARGIN_RIGHT  = 1
     constant integer CAMERA_MARGIN_TOP    = 2
     constant integer CAMERA_MARGIN_BOTTOM = 3
-    constant playerevent EVENT_PLAYER_END_CINEMATIC = ConvertPlayerEvent(17)
+    constant playerevent     EVENT_PLAYER_END_CINEMATIC = ConvertPlayerEvent(17)
+    constant playerunitevent EVENT_PLAYER_UNIT_DEATH   = ConvertPlayerUnitEvent(20)
     constant fogstate FOG_OF_WAR_MASKED  = ConvertFogState(1)
     constant fogstate FOG_OF_WAR_FOGGED  = ConvertFogState(2)
     constant fogstate FOG_OF_WAR_VISIBLE = ConvertFogState(4)
