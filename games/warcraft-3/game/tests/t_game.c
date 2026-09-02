@@ -1723,6 +1723,28 @@ TEST(wc3_save, rejects_script_identity_without_mutation) {
     remove(filename);
 }
 
+/* A unit removed before save has a stale edict pointer in its JASS global.
+ * Save must succeed and the global must load back as null. */
+TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-stale-handle-save-test.bin";
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit killedUnit = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set killedUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call RemoveUnit(killedUnit)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(killedUnit == null, \"stale handle should be null after load\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
 /* =========================================================================
  * Suite runner
  * ========================================================================= */

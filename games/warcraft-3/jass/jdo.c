@@ -2014,6 +2014,7 @@ static DWORD jass_snapshot_arraycount(LPCJASSARRAY array) {
 }
 
 typedef enum {
+    JASS_SNAPSHOT_HANDLE_NULL = 0,
     JASS_SNAPSHOT_HANDLE_VALUE = 1,
     JASS_SNAPSHOT_HANDLE_HOST,
     JASS_SNAPSHOT_HANDLE_OWNED,
@@ -2067,9 +2068,14 @@ static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSV
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
             jass_snapshot_io(snapshot, var->value, sizeof(DWORD));
     }
-    if (jass_host.SaveHandle && jass_host.SaveHandle(var->type->name, var->value, &id)) {
-        encoding = JASS_SNAPSHOT_HANDLE_HOST;
-        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) && jass_snapshot_io(snapshot, &id, sizeof(id));
+    if (jass_host.SaveHandle) {
+        if (jass_host.SaveHandle(var->type->name, var->value, &id)) {
+            encoding = JASS_SNAPSHOT_HANDLE_HOST;
+            return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) && jass_snapshot_io(snapshot, &id, sizeof(id));
+        }
+        /* Host owns this type but the handle is stale (freed unit/item/etc.) — save as null. */
+        encoding = JASS_SNAPSHOT_HANDLE_NULL;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
     }
     if (jass_snapshot_ownedhandle(var->type->name) && var->ref && var->ref->size) {
         encoding = JASS_SNAPSHOT_HANDLE_OWNED;
@@ -2092,6 +2098,10 @@ static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR
     HANDLE value;
     LPSTR name = NULL;
     if (!jass_snapshot_io(snapshot, &encoding, sizeof(encoding))) return false;
+    if (encoding == JASS_SNAPSHOT_HANDLE_NULL) {
+        var->value = NULL;
+        return true;
+    }
     if (encoding == JASS_SNAPSHOT_HANDLE_VALUE) {
         if (!jass_valuehandle(var->type->name) || !(var->value = jass_alloc(sizeof(DWORD))) ||
             !jass_snapshot_io(snapshot, var->value, sizeof(DWORD))) return false;
