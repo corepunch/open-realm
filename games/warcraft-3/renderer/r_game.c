@@ -350,6 +350,24 @@ BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     return true;
 }
 
+BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+    MATRIX4 transform;
+    mdxAttachmentPosition_t attachment;
+
+    if (!entity || !entity->model || entity->model->modeltype != ID_MDLX ||
+        !entity->model->mdx || !prefix || !prefix[0] || !out) {
+        return false;
+    }
+    R_GetEntityMatrix(entity, &transform);
+    if (!MDLX_CollectAttachmentPositions(entity->model->mdx, &transform,
+                                         entity->frame, entity->oldframe,
+                                         prefix, &attachment, 1)) {
+        return false;
+    }
+    *out = attachment.origin;
+    return true;
+}
+
 static void R_W3TextureCacheAdd(LPCSTR path) {
     if (!path || !*path || model_texture_cache.count >= 256) {
         return;

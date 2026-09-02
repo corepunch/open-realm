@@ -8,6 +8,7 @@
 #define SVF_DEADMONSTER 0x00000002    // treat as CONTENTS_DEADMONSTER for collision
 #define SVF_MONSTER 0x00000004    // treat as CONTENTS_MONSTER for collision
 #define SVF_STATIC_SCENERY 0x00000008 // snapshot visibility; client fog shades map doodads/destructibles independently of unit sight
+#define SVF_OWNER_ONLY 0x00000010 // snapshot visibility; send only to the client selected by entityState_t.player
 
 KNOWN_AS(client_s, GAMECLIENT);
 KNOWN_AS(edict_s, EDICT);

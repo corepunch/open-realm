@@ -197,6 +197,7 @@ static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     temp.menu.on_entity_selected = NULL; temp.menu.on_location_selected = NULL;
     temp.menu.cmdbutton = NULL; temp.menu.refresh = NULL;
     temp.camera.target_controller = NULL;
+    temp.rally_indicator = NULL;
     if (target < -1 || target >= (int)globals.max_edicts) return false;
     return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
 }
@@ -211,6 +212,7 @@ static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
     client->menu.on_entity_selected = NULL; client->menu.on_location_selected = NULL;
     client->menu.cmdbutton = NULL; client->menu.refresh = NULL;
     client->camera.target_controller = NULL;
+    client->rally_indicator = NULL;
     return true;
 }
 
@@ -272,6 +274,11 @@ BOOL ReadGame(LPCSTR filename) {
     }
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
     FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = g_edicts + i;
+        if (ent->inuse && ent->rally_indicator && ent->owner && ent->owner->client)
+            ent->owner->client->rally_indicator = ent;
+    }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
     fclose(f);
     return true;

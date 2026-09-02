@@ -558,6 +558,16 @@ void V_AddEntity(renderEntity_t *ent) {
     view_state.entities[view_state.num_entities++] = *ent;
 }
 
+BOOL V_FindEntity(DWORD number, renderEntity_t *out) {
+    if (!number || !out) return false;
+    FOR_LOOP(i, view_state.num_entities) {
+        if (view_state.entities[i].number != number) continue;
+        *out = view_state.entities[i];
+        return true;
+    }
+    return false;
+}
+
 void V_AddDecal(renderDecal_t *decal) {
     if (view_state.num_decals >= MAX_RENDER_DECALS) {
         return;

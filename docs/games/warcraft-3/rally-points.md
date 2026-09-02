@@ -72,11 +72,22 @@ There is no JASS rally-item getter in `common.txt`, although the runtime rally s
 
 String-based `IssuePointOrder`/`IssueTargetOrder` work with `"setrally"` through the normal order functions. The generic Warcraft numeric order-ID table is still not implemented, so `Issue*OrderById`/`OrderId("setrally") == 851980` are not claimed by this subsystem yet.
 
-## Presentation gap
+## Presentation
 
-Gameplay Rally does **not** yet render the persistent rally indicator. Missing presentation work includes `RallyIndicatorDst`, owner team colour, point placement, widget attachment search (`sprite rally` / `sprite` / `overhead ref`), moving-unit attachment updates, and destructable/item offsets.
+The persistent rally marker is derived presentation, not simulation state. `G_UpdateRallyIndicator` reads the focused selected producer's current rally target and updates one ordinary edict owned by that game client. The game resolves the active player's `RallyIndicatorDst` skin field server-side and marks the edict `SVF_OWNER_ONLY`, so other clients never receive it in their snapshots.
 
-Do not make the indicator authoritative simulation state. When implemented it should read the producer's rally state and remain independent of production/pathfinding.
+The marker is selection-scoped like Warsmash's single `rallyPointInstance`:
+
+- a focused selected rally-capable producer shows its current marker;
+- changing selection frees or updates that same client-owned edict;
+- selecting the producer again reconstructs the marker from authoritative `edict.rally` state;
+- setting or invalidating the rally target refreshes the selected marker without changing production/pathfinding state.
+
+Point rallies are terrain-grounded. Widget rallies follow their target through `MOVETYPE_LINK`; items use their ground position, and destructables retain the current Warsmash `+192` vertical offset. The indicator uses the producer owner/team colour, rotates by `Misc.BuildingAngle`, ignores fog and selection picking, and starts in the model's `Stand` sequence while visible.
+
+Successful explicit Rally and Smart/right-click Rally also play the authored `RallyPointPlace` UI sound. Point Rally displays the same transient green `UI\Feedback\Confirmation\Confirmation.mdx` feedback used by movement; this remains separate from the persistent rally marker.
+
+Queued-order `WaypointIndicator` flags are still a presentation gap. OpenRealm does not yet expose a Warsmash-equivalent player order queue suitable for reconstructing those flags without broader order-queue work, so this change intentionally does not synthesize them from internal movement route waypoints.
 
 ## Verification
 
@@ -92,6 +103,16 @@ Focused in-engine tests live in `games/warcraft-3/game/tests/t_rally.c` and cove
 - point Smart handoff;
 - reading the latest Rally target at training completion.
 
+Manual presentation validation should additionally check:
+
+- default self-rally marker appears when a rally-capable producer is selected;
+- terrain Rally shows both the transient green click confirmation and persistent marker;
+- a widget Rally follows a visible moving target and prefers `sprite rally` / `sprite` / `overhead ref` attachments;
+- owner/team colour and race-skin `RallyIndicatorDst` are used;
+- deselection clears the marker and reselection rebuilds it from stored Rally state;
+- Rally target invalidation returns the marker to the producer;
+- `RallyPointPlace` plays for explicit and Smart Rally without replacing the normal unit acknowledgement.
+
 Run when validating locally:
 
 ```sh
@@ -102,6 +123,7 @@ The implementation task that introduced this document intentionally did not comp
 
 ## See also
 
+- [command-feedback.md](command-feedback.md) — transient point confirmations and persistent command-state marker boundaries.
 - [economy-and-unit-presentation.md](economy-and-unit-presentation.md) — Smart worker/resource behavior reused by Rally.
 - [hero-revival.md](hero-revival.md) — persistent Hero object and Altar production lifecycle.
 - [building-construction.md](building-construction.md) — production queue and command-card ownership.

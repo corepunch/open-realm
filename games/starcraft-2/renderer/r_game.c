@@ -294,6 +294,10 @@ BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     *out = entity->origin; out->z += R_EntityHeight(entity);
     return true;
 }
+BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+    (void)entity; (void)prefix; (void)out;
+    return false;
+}
 
 static void R_M3TextureCacheAdd(LPCSTR path) {
     if (!path || !*path || model_texture_cache.count >= 256) {

@@ -7,6 +7,7 @@
 typedef struct  {
     VECTOR3 origin;
     DWORD timespamp;
+    COLOR32 tint;
 } moveConfirmation_t;
 
 typedef enum {
@@ -59,10 +60,11 @@ missile_t *CL_AllocMissile(void) {
     return tents.missiles;
 }
 
-void CL_AllocateConfirmationObject(LPCVECTOR3 origin) {
+void CL_AllocateConfirmationObject(LPCVECTOR3 origin, COLOR32 tint) {
     DWORD i = cl_confcounter++;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].origin = *origin;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].timespamp = cl.time;
+    cl_confs[i % MAX_CONFIRMATION_OBJECTS].tint = tint;
 }
 
 void CL_ParseTEnt(LPSIZEBUF msg) {
@@ -72,7 +74,11 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
     switch (evt) {
         case TE_MOVE_CONFIRMATION:
             MSG_ReadPos(msg, &pos);
-            CL_AllocateConfirmationObject(&pos);
+            CL_AllocateConfirmationObject(&pos, (COLOR32){ 0, 255, 0, 255 });
+            break;
+        case TE_ATTACK_CONFIRMATION:
+            MSG_ReadPos(msg, &pos);
+            CL_AllocateConfirmationObject(&pos, (COLOR32){ 255, 0, 0, 255 });
             break;
         case TE_MISSILE:
             missile = CL_AllocMissile();
@@ -110,6 +116,7 @@ static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
     ent.frame = cl.time - mc->timespamp;
     ent.oldframe = cl.time - mc->timespamp;
     ent.model = cl.moveConfirmation;
+    ent.tint = mc->tint;
     ent.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
     V_AddEntity(&ent);
 }
@@ -150,6 +157,7 @@ void CL_AddMissiles(void) {
         CL_AddMissile(tents.missiles+i);
     }
 }
+
 
 static void CL_AddSpellImpacts(void) {
     FOR_LOOP(i, MAX_SPELL_IMPACTS) {
