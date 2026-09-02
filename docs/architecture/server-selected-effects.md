@@ -36,3 +36,18 @@ the new `games/warcraft-3/game/skills/s_onfire.c`.
   per-race branching.
 
 See also: [Building Damage Rendering](../games/warcraft-3/building-damage-rendering.md)
+
+## Anti-pattern #2: `#ifdef` branch in a shared dispatcher (do not repeat)
+
+PR #242 added `#ifdef WC3 ... strcmp(command, "wc3_selection") ... #endif` directly inside the shared
+`CL_ParseGameCommand()` in `client/cl_parse.c`. The same function already calls `ui.GameCommand(command,
+payload.data, payload.cursize)` unconditionally for every game before its own string checks — that call is
+the existing, correct extension point. The fix is to handle `"wc3_selection"` inside WC3's own
+`ui.GameCommand` implementation under `games/warcraft-3/ui/`, which is already game-scoped by directory,
+and to remove the `#ifdef` and the inline branch from `client/cl_parse.c` entirely.
+
+## Review rule
+
+When a shared dispatcher needs a new game behavior, first locate its function-table callback. If the callback
+exists, implement the command in the selected game's module. If it does not exist, add a narrow table entry;
+do not substitute a per-game preprocessor guard or a hardcoded command branch in the shared dispatcher.
