@@ -80,7 +80,7 @@ Open the in-game console with the backtick/tilde key and enter `save chapter-01.
 build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +load chapter-01.w3save
 ```
 
-`FS_SavePath()` resolves saves to `$XDG_DATA_HOME/warcraft-3/saves/<name>` on Linux, or `~/.local/share/warcraft-3/saves/<name>` when `XDG_DATA_HOME` is unset. Windows uses `%APPDATA%/warcraft-3/saves/<name>`. If no writable per-user data directory is available, it falls back to `share/warcraft-3/saves/<name>` beside the executable. The save filename may not contain `/` or `\`.
+`FS_SavePath()` resolves saves to `$XDG_DATA_HOME/warcraft-3/saves/<name>` on Linux, or `~/.local/share/warcraft-3/saves/<name>` when `XDG_DATA_HOME` is unset. macOS uses `~/Library/Application Support/warcraft-3/saves/<name>`, and Windows uses `%APPDATA%/warcraft-3/saves/<name>`. Config files use the same per-user game-data directory, without the `saves/` component. If no writable per-user data directory is available, both fall back to `share/warcraft-3/`. The save filename may not contain `/` or `\`.
 
 The Save Game and Load Game buttons exposed by the WC3 menu layout are not wired yet; use the console commands. The shipped config currently binds `F9` to the quest log, not save/load.
 

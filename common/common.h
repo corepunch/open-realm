@@ -153,8 +153,7 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 #include "cmodel.h"
 
 /* Per-game identity, defined by each game.mk (warcraft-3, world-of-warcraft,
- * starcraft-2). Used to scope share/<game>/ read-only defaults and the
- * ~/.<game>/ writable user directory. */
+ * starcraft-2). Used to scope share/<game>/ defaults and writable user data. */
 #ifndef BZ_GAME
 #define BZ_GAME "openwarcraft3"
 #endif
