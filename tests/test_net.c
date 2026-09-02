@@ -42,6 +42,7 @@ void test_client_stubs_clear_cvars(void);
 extern DWORD test_fow_upload_calls;
 extern DWORD test_cursor_draw_calls;
 extern COLOR32 test_cursor_tint;
+extern char test_forwarded_command[128];
 
 static RECT test_scroll_rects[3], test_scroll_uvs[3];
 static LPCTEXTURE test_scroll_tex[3];
@@ -774,6 +775,26 @@ TEST(net, window_close_action_closes_without_server_command) {
     T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
     T_ASSERT(!CL_WindowModalActive());
     T_EQ(cls.netchan.message.cursize, 0);
+    CL_WindowClear();
+}
+
+TEST(net, window_close_notify_releases_server_modal_owner) {
+    test_client_stubs_init(); CL_WindowClear();
+    re.GetTextSize = text_length_mock_size;
+    test_send_window(4, 94, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_NOTIFY_ACTION);
+    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
+    T_ASSERT(!CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "modal_close 94");
+    CL_WindowClear();
+}
+
+TEST(net, window_escape_closes_and_releases_server_modal_owner) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_send_window(5, 95, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_NOTIFY_ACTION);
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(!CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "modal_close 95");
     CL_WindowClear();
 }
 

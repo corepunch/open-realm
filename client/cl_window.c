@@ -79,8 +79,13 @@ static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
     if (!frame) return;
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION)) CL_WindowClose(window->id);
     else if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) {
+        DWORD class_id = window->class_id;
         CL_WindowClose(window->id);
-        snprintf(command, sizeof(command), "cmd modal_close %u", window->class_id);
+        /* Cmd_ForwardToServer already writes a raw client command; adding the
+         * console-only "cmd" wrapper makes the game receive argv[0] == "cmd"
+         * and leaves authoritative modal pause ownership stuck forever. Cache
+         * class_id before local close because that frees the window itself. */
+        snprintf(command, sizeof(command), "modal_close %u", class_id);
         Cmd_ForwardToServer(command);
     }
     else SCR_LayoutSendFrameCommand(frame);
@@ -167,6 +172,16 @@ BOOL CL_WindowKeyEvent(int key) {
 
     if (!window) window = cl_windows.focus;
     if (!window) return false;
+    /* Quake II pops the active menu on Escape. Dismiss locally first, then
+     * release only the server-side pause owner associated with this window. */
+    if (key == K_ESCAPE) {
+        char command[64];
+        DWORD class_id = window->class_id;
+        CL_WindowClose(window->id);
+        snprintf(command, sizeof(command), "modal_close %u", class_id);
+        Cmd_ForwardToServer(command);
+        return true;
+    }
     root = CL_WindowRoot(window);
     SCR_WindowPrepare(window->layout, &root);
     for (DWORD i = SCR_NumFrames(); i > 0; i--) {
