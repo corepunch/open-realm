@@ -247,6 +247,10 @@ For in-depth details on specific engine subsystems, consult the following dedica
   the shared struct — see `entityState_t.effect` / `effect_flags` (`common/shared.h`) as the reference
   pattern, and `games/warcraft-3/game/skills/s_onfire.c` for where the race-specific resolution belongs.
   Game policies reside exclusively under `games/<game>/`.
+  - An `#ifdef <GAME>` guard or hardcoded `strcmp(command, "<game>_...")` branch in a shared dispatcher
+    (`CL_ParseGameCommand`, `SV_*`, `R_*`) is also a violation. Use the existing function-table extension
+    point instead; for example, `ui.GameCommand(command, payload.data, payload.cursize)` is unconditional.
+    If no hook exists, add a function-table entry rather than using `#ifdef` as a substitute.
 - **Network Contract Stability**: `entityState_t` and `playerState_t` are tight network contracts. Never add fields without careful justification; prefer existing fields, configstrings, or server-authored UI payloads.
 - **Data-Oriented & id-Tech Idioms**: Follow Quake 2 patterns (`g_*.c`, `cl_*.c`, `sv_*.c`, `r_*.c`). Favor flat, memory-mapped structs, single-pass schema tables, and thin interfaces over heavy OOP abstractions.
 - **No Silent Fallbacks or Demotions**: If an asset or resource fails to load, log a clear diagnostic. Do not hide bugs behind silent fallback flags. Verify root causes with logging and tests before committing fixes.

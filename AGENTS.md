@@ -175,6 +175,13 @@ Key flags: `-prefix <Name>` sets the struct and function prefix; `-root <FrameNa
   paths and may replace whole FDF/string/data files rather than extending them, so confirm both variants explicitly.
 
 - **Every structural change must include or update tests.** When you add a function, change a behavior path, fix a bug, or modify a struct/API contract, check whether existing tests cover the change.
+- **Engine/game-boundary diff check:** Before finishing any diff that touches `client/`, `common/`, `renderer/`, or
+  `server/`, check the diff for two things: (1) any new enum member, macro, or struct field whose name contains a
+  race/faction/unit/spell/franchise-specific proper noun, and (2) any new `#ifdef <GAME>` guard or hardcoded
+  per-game command string added to a function that previously had none. Either one means the change belongs in
+  `games/<game>/` instead — route it through the shared dispatcher's existing function-table hook (or add one)
+  rather than branching inline. See [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md)
+  for the reference pattern and worked examples of these mistakes and their fixes.
 - **New code paths need new tests.** If you add an `if` branch, a new function, a new field, or a new cache/state machine, write a test for the new path and its inverse.
 - **Cache/state-machine changes double-test.** Test both cache hit and cache miss paths, and verify performance counters where tracked.
 - **Run `make test` before committing.** This umbrella target runs all test binaries: `test_openwarcraft3` (net + tool_common), `test-commands`, `test-server-net`, `test-sc2`, `test-wow-*`, `test-ui`, and `test-wc3-engine` (in-engine WC3 tests).
@@ -204,7 +211,13 @@ Key principles inline:
   even though the flags field itself is generic infrastructure. Test: if a symbol you're adding to a
   non-`games/` path contains a proper noun from one game's fiction, stop — move the resolution into
   `games/<game>/` and expose a generic field instead.
-- Never use `#ifdef SC2`/`#ifdef WOW` to vary constants in shared engine code. Per-game constants live in `games/*/common/ui_constants.h` and resolve via the per-game `-I` include path. Each game defines its native coordinate space (`UI_BASE_WIDTH`, `UI_BASE_HEIGHT`, `UI_FRAMEPOINT_SCALE`) — no conversion functions between game-native coords and "engine coords". The engine operates in whatever coordinate space the game header declares.
+- Never use `#ifdef SC2`/`#ifdef WOW`/`#ifdef WC3` (or any per-game macro) to gate *any* code in shared engine
+  files (`client/`, `common/`, `renderer/`, `server/`) — not just constants, but branches, command handlers,
+  and logic blocks too. If code only matters for one game, it belongs in `games/<game>/`, reached through the
+  existing function-table/vtable boundary (`ui.*`, `re.*`, `gi.*`/`ge.*`, or a new table entry if none exists).
+  A shared dispatcher should stay entirely game-agnostic even when only one game currently drives it — other
+  games simply never send that command, which is already harmless without a compile guard. Per-game constants
+  live in `games/*/common/ui_constants.h` and resolve via the per-game `-I` include path.
 - **Never widen `entityState_t` or `playerState_t` without asking.** These structs are network contracts — every byte change affects bandwidth, delta compression, and snapshot size. If you need more data in the entity state, discuss with the developer first. Use existing fields, renderer-side caches, or DBC lookups instead.
 
 ## Server-Authoring Pattern (Quake 2 STAT_LAYOUTS)

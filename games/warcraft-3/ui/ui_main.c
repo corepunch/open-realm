@@ -789,6 +789,21 @@ void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
     }
 }
 
+/* Apply the server's WC3 shortcut selection through the client/UI vtable. */
+static void UI_GameCommand(LPCSTR command, void const *data, DWORD size) {
+    DWORD number;
+
+    if (!command || strcmp(command, "wc3_selection")) return;
+    if (!data || size < sizeof(number)) {
+        fprintf(stderr, "UIWC3: invalid wc3_selection payload (%u bytes)\n", (unsigned)size);
+        return;
+    }
+    memcpy(&number, data, sizeof(number));
+    if (!number || number >= MAX_GAME_ENTITIES) return;
+    uiimport.SetSelection(1, &number);
+    UI_UpdateUnitUILocal(0, NULL);
+}
+
 static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
     if (ui_state.game_mode) {
         return;
@@ -812,6 +827,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.MouseEvent = UI_MouseEventLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
+    exp.GameCommand = UI_GameCommand;
     
     return exp;
 }
