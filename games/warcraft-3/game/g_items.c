@@ -145,23 +145,42 @@ static BOOL G_InventoryAbilityAvailable(LPCEDICT unit, LPCSTR ability) {
     return G_GetPlayerTechResearchedLevel(owner, required_upgrade) > 0;
 }
 
+static DWORD G_InventoryAbilityCapacity(LPCEDICT unit, LPCSTR ability) {
+    LONG capacity;
+
+    if (!unit || !ability || strlen(ability) != 4) return 0;
+    capacity = (LONG)AB_Data(ability, 1, 1); /* inv1 / Item Capacity */
+    if (capacity <= 0) {
+        fprintf(stderr, "G_InventoryCapacity: %.4s inventory ability %.4s has invalid inv1=%ld\n",
+                (char *)&unit->class_id, ability, (long)capacity);
+        return 0;
+    }
+    return (DWORD)MIN(capacity, MAX_INVENTORY);
+}
+
 DWORD G_InventoryCapacity(LPCEDICT unit) {
-    LPCSTR abilities;
+    LPCSTR abilities = NULL;
+    BOOL has_inventory_ability = false;
 
-    if (!unit || !unit->inuse || !unit->UnitAbilities || !(abilities = unit->UnitAbilities->abilList)) return 0;
-    PARSE_LIST(abilities, abil, parse_segment) {
-        LONG capacity;
-
-        /* Typed AbilityData resolves custom inventory abilities without returning to the removed sheet cache. */
-        if (G_AbilityCodeName(abil) != MAKEFOURCC('A','I','n','v')) continue;
-        if (!G_InventoryAbilityAvailable(unit, abil)) continue;
-        capacity = (LONG)AB_Data(abil, 1, 1); /* inv1 / Item Capacity */
-        if (capacity <= 0) {
-            fprintf(stderr, "G_InventoryCapacity: %.4s inventory ability %.4s has invalid inv1=%ld\n",
-                    (char *)&unit->class_id, abil, (long)capacity);
-            return 0;
+    if (!unit || !unit->inuse) return 0;
+    if (unit->UnitAbilities) abilities = unit->UnitAbilities->abilList;
+    if (abilities) {
+        PARSE_LIST(abilities, abil, parse_segment) {
+            /* Typed AbilityData resolves custom inventory abilities without returning to the removed sheet cache. */
+            if (G_AbilityCodeName(abil) != MAKEFOURCC('A','I','n','v')) continue;
+            has_inventory_ability = true;
+            if (!G_InventoryAbilityAvailable(unit, abil)) continue;
+            return G_InventoryAbilityCapacity(unit, abil);
         }
-        return (DWORD)MIN(capacity, MAX_INVENTORY);
+    }
+
+    /* Warsmash restores the classic ROC hero contract by adding the stock
+     * AInv ability when a hero has no inventory ability authored in its normal
+     * ability list.  ROC map formats are <= 24; TFT/custom data may intentionally
+     * omit inventory, so do not synthesize AInv there. */
+    if (!has_inventory_ability && level.mapinfo && level.mapinfo->fileFormat > 0 &&
+        level.mapinfo->fileFormat <= 24 && G_UnitIsHero(unit)) {
+        return G_InventoryAbilityCapacity(unit, "AInv");
     }
     return 0;
 }

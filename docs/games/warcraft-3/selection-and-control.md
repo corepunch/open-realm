@@ -85,6 +85,15 @@ FOR_CONTROLLABLE_SELECTED_UNITS(client, ent)
 
 The controllable filter is used by Smart/SmartPoint, Move, Attack/Attack-move, Stop, Hold Position, Patrol, Repair, Harvest/Return Resources, and Rally target callbacks. `CMD_Button`, `CMD_Research`, inventory use/drop, cancellation, training, and Rally command entry also validate the focused unit before acting.
 
+Entity Smart orders are resolved independently for every controllable selected
+unit. One unit rejecting a target must not abort the loop. For example, when a
+Footman and a Hero are selected and the player right-clicks a world item, the
+Footman may reject that widget while the Hero's inventory accepts it and starts
+pickup. The first/primary selected entity is used for focused HUD/response
+presentation, not as a capability gate for the rest of the selection. See
+[Inventory And World Items](inventory-and-items.md) for the ROC Hero `AInv`
+fallback and item lifecycle.
+
 `Get_Commands_f` clears the command card for a selected unit that the local player cannot control. A foreign building may still use the ordinary inspection panel, but its production queue is not serialized to the viewer. Shared-control units retain command-card access.
 
 Selection acknowledgement voices are queued only for controllable selections. Ordinary non-Neutral-Passive foreign selections use the `InterfaceClick` UI sound instead of playing the selected unit's authored `What` response. Neutral Passive critter-specific response rules remain unresolved, so that owner class is not forced through the generic click path.
@@ -117,7 +126,7 @@ Do not bypass these gaps by weakening `G_UnitCanControl` or by restoring owner c
 
 ## Verification
 
-In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, and Hero revival restoring selectability.
+In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, and Hero revival restoring selectability. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
 
 Useful targeted commands after building the test binary:
 
