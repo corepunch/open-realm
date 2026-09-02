@@ -406,7 +406,14 @@ void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t cons
                | (bd->Mirrored       ? DRAW_MIRRORED : 0)));
 }
 
+static LPCUIFRAME SCR_LayoutScrollTextArea(LPCUIFRAME frame);
+static BOOL SCR_LayoutTextAreaOverflows(LPCUIFRAME frame);
+
 void SCR_LayoutDrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
+    LPCUIFRAME text_area = SCR_LayoutScrollTextArea(frame);
+    /* Scrollbar control art is authored as child frames; suppress those parts
+     * when the owning textarea has no overflow instead of drawing a lone thumb. */
+    if (text_area && !SCR_LayoutTextAreaOverflows(text_area)) return;
     SCR_LayoutDrawBackdrop2(frame, screen, frame->buffer.data);
 }
 
@@ -432,13 +439,31 @@ static BOOL SCR_LayoutDrawScrollImage(RESOURCE texture, BYTE const *texcoord, LP
  * textarea before deciding whether its scrollbar has useful content. */
 static LPCUIFRAME SCR_LayoutScrollTextArea(LPCUIFRAME frame) {
     DWORD parent = frame ? frame->parent : UI_PARENT;
+    BOOL scrollbar = frame && frame->flags.type == FT_SCROLLBAR;
     for (DWORD depth = 0; parent != UI_PARENT && depth < SCR_NumFrames(); depth++) {
         LPCUIFRAME it = SCR_Frame(parent);
         if (!it) return NULL;
-        if (it->flags.type == FT_TEXTAREA) return it;
+        if (it->flags.type == FT_SCROLLBAR) scrollbar = true;
+        if (it->flags.type == FT_TEXTAREA) return scrollbar ? it : NULL;
         parent = it->parent;
     }
     return NULL;
+}
+
+static BOOL SCR_LayoutTextAreaOverflows(LPCUIFRAME frame) {
+    RECT text_rect;
+    uiTextArea_t const *ta;
+    uiLabel_t label;
+    drawText_t measure;
+
+    if (!re.GetTextSize || !frame || !frame->buffer.data || frame->buffer.size < sizeof(*ta)) return false;
+    text_rect = *SCR_LayoutRect(frame); ta = frame->buffer.data;
+    text_rect.x += ta->inset; text_rect.y += ta->inset;
+    text_rect.w -= ta->inset * 2; text_rect.h -= ta->inset * 2;
+    label = MAKE(uiLabel_t, .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP);
+    measure = SCR_GetDrawText(frame, text_rect.w, SCR_GetStringValue(frame), &label);
+    measure.flags |= DRAW_WORD_WRAP;
+    return re.GetTextSize(&measure).y > text_rect.h;
 }
 
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
@@ -446,19 +471,7 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
 
-    {
-        LPCUIFRAME parent = SCR_LayoutScrollTextArea(frame);
-        if (re.GetTextSize && parent && parent->buffer.data && parent->buffer.size >= sizeof(uiTextArea_t)) {
-            RECT text_rect = *SCR_LayoutRect(parent);
-            uiTextArea_t const *ta = parent->buffer.data;
-            uiLabel_t label = { .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP };
-            text_rect.x += ta->inset; text_rect.y += ta->inset;
-            text_rect.w -= ta->inset * 2; text_rect.h -= ta->inset * 2;
-            drawText_t measure = SCR_GetDrawText(parent, text_rect.w, SCR_GetStringValue(parent), &label);
-            measure.flags |= DRAW_WORD_WRAP;
-            if (MAX(0.0f, re.GetTextSize(&measure).y - text_rect.h) <= 0.0f) return;
-        }
-    }
+    if (!SCR_LayoutTextAreaOverflows(SCR_LayoutScrollTextArea(frame))) return;
 
     if (sb) SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
 
@@ -735,7 +748,9 @@ static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
 
 void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
     uiLabel_t const *label = frame->buffer.data;
-    RECT scr = { screen->x + label->offsetx, screen->y + label->offsety, screen->w, screen->h };
+    /* Label offsets use the same fixed-point wire representation as anchors. */
+    RECT scr = { screen->x + label->offsetx / UI_FRAMEPOINT_SCALE,
+                 screen->y + label->offsety / UI_FRAMEPOINT_SCALE, screen->w, screen->h };
     SCR_LayoutApplyPushedTextOffset(frame, &scr);
     layout_text(frame, &scr, SCR_GetStringValue(frame));
 }
