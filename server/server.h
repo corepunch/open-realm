@@ -126,6 +126,8 @@ void SV_WriteFrameToClient(LPCLIENT client);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
+void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation,
+                   FLOAT timeofs);
 int SV_ImageIndex(LPCSTR name);
 int SV_FontIndex(LPCSTR name, DWORD fontSize);
 //void SV_LoadModels(void); // model animation data is loaded lazily by game modules now

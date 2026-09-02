@@ -119,12 +119,12 @@ DWORD StartSound(LPJASS j) {
     if (!sound || !sound->soundIndex) return 0;
     if (currentplayer) {
         LPEDICT clent = PLAYER_ENT(currentplayer);
-        if (clent) gi.GameCommand(clent, "snd", &sound->soundIndex, sizeof(int));
+        if (clent) gi.Sound(clent, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex, 1.0f, 0.0f, 0.0f);
         return 0;
     }
     FOR_LOOP(i, game.max_clients) {
         LPEDICT clent = G_GetPlayerEntityByNumber(i);
-        if (clent) gi.GameCommand(clent, "snd", &sound->soundIndex, sizeof(int));
+        if (clent) gi.Sound(NULL, CHAN_RELIABLE, sound->soundIndex, 1.0f, 0.0f, 0.0f);
     }
     return 0;
 }

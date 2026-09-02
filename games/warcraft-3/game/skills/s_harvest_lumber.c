@@ -467,14 +467,12 @@ static void ai_chop(LPEDICT ent) {
         if (carried > ent->harvested_lumber)
             S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, (DWORD)carried);
     }
-    /* Tree-fall supersedes chop: play one-shot EV_ATTACK sound for all clients. */
+    /* Tree-fall supersedes chop: play one-shot world sound for all clients. */
     if (felled && g_numTreeFallSounds) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_TREE_FELLED, tree);
-        ent->s.event = EV_ATTACK;
-        ent->s.sound = g_treeFallSounds[rand() % g_numTreeFallSounds];
+        gi.Sound(ent, CHAN_BODY, g_treeFallSounds[rand() % g_numTreeFallSounds], 1.0f, 1.0f, 0.0f);
     } else if (ent->sound.num_chop) {
-        ent->s.event = EV_ATTACK;
-        ent->s.sound = ent->sound.chop[rand() % ent->sound.num_chop];
+        gi.Sound(ent, CHAN_WEAPON, ent->sound.chop[rand() % ent->sound.num_chop], 1.0f, 1.0f, 0.0f);
     }
 }
 

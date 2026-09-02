@@ -662,14 +662,6 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
         }
     }
 
-    if (state->event == EV_ACK && !(ent->selected & (1 << player))) {
-        state->event = EV_NONE;
-        state->sound = 0;
-    }
-    if (state->event == EV_OWNER_SOUND && ent->s.player != player) {
-        state->event = EV_NONE;
-        state->sound = 0;
-    }
 }
 
 /* Return the game API vtable to the server.

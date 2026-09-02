@@ -106,18 +106,17 @@ static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
 }
 
-static int ui_sound_gamecommand_calls;
-static int ui_sound_gamecommand_value;
-static char ui_sound_gamecommand_name[16];
+static int ui_sound_calls;
+static int ui_sound_value;
 static int capture_ui_sound_index(LPCSTR path) {
     (void)path;
     return 77;
 }
-static void capture_ui_sound_gamecommand(LPEDICT ent, LPCSTR command, void const *data, DWORD size) {
-    (void)ent;
-    ui_sound_gamecommand_calls++;
-    snprintf(ui_sound_gamecommand_name, sizeof(ui_sound_gamecommand_name), "%s", command ? command : "");
-    ui_sound_gamecommand_value = data && size == sizeof(int) ? *(int const *)data : 0;
+static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
+    (void)ent; (void)volume; (void)attenuation; (void)timeofs;
+    ui_sound_calls++;
+    ui_sound_value = sound;
+    T_EQ(channel, CHAN_OWNER | CHAN_RELIABLE);
 }
 
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
@@ -625,26 +624,24 @@ static LPEDICT make_unit_hero(void) {
 TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
     GAMECLIENT client = { 0 };
     edict_t ent = { .client = &client };
-    void (*old_gamecommand)(LPEDICT, LPCSTR, void const *, DWORD) = gi.GameCommand;
+    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
     int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
 
-    ui_sound_gamecommand_calls = 0;
-    ui_sound_gamecommand_value = 0;
-    ui_sound_gamecommand_name[0] = 0;
-    gi.GameCommand = capture_ui_sound_gamecommand;
+    ui_sound_calls = 0;
+    ui_sound_value = 0;
+    gi.Sound = capture_ui_sound;
     gi.SoundIndex = capture_ui_sound_index;
 
     G_PlayUISoundForPlayer(&ent, "InterfaceError");
-    T_EQ(ui_sound_gamecommand_calls, 0);
+    T_EQ(ui_sound_calls, 0);
 
     client.connected = true;
     G_PlayUISoundForPlayer(&ent, "InterfaceError");
-    T_EQ(ui_sound_gamecommand_calls, 1);
-    T_STREQ(ui_sound_gamecommand_name, "snd");
-    T_EQ(ui_sound_gamecommand_value, 77);
+    T_EQ(ui_sound_calls, 1);
+    T_EQ(ui_sound_value, 77);
 
     gi.SoundIndex = old_soundindex;
-    gi.GameCommand = old_gamecommand;
+    gi.Sound = old_sound;
 }
 
 TEST(wc3_api, customize_entity_preserves_world_state) {
@@ -658,40 +655,6 @@ TEST(wc3_api, customize_entity_preserves_world_state) {
     T_EQ(state.number, 7);
     T_EQ(state.model, 11);
     T_EQ(state.renderfx, RF_SELECTED);
-}
-
-TEST(wc3_api, customize_entity_keeps_ack_for_selecting_player) {
-    entityState_t state = { .event = EV_ACK, .sound = 11 };
-    edict_t ent = { .selected = 1 << 3 };
-    globals.CustomizeEntity(3, &ent, &state);
-    T_EQ(state.event, EV_ACK);
-    T_EQ(state.sound, 11);
-}
-
-TEST(wc3_api, customize_entity_hides_ack_from_other_players) {
-    entityState_t state = { .event = EV_ACK, .sound = 11 };
-    edict_t ent = { .selected = 1 << 3 };
-    globals.CustomizeEntity(2, &ent, &state);
-    T_EQ(state.event, EV_NONE);
-    T_EQ(state.sound, 0);
-}
-
-TEST(wc3_api, customize_entity_keeps_owner_sound_for_owner) {
-    entityState_t state = { .event = EV_OWNER_SOUND, .sound = 13 };
-    edict_t ent = { .s = { .player = 3 } };
-
-    globals.CustomizeEntity(3, &ent, &state);
-    T_EQ(state.event, EV_OWNER_SOUND);
-    T_EQ(state.sound, 13);
-}
-
-TEST(wc3_api, customize_entity_hides_owner_sound_from_other_players) {
-    entityState_t state = { .event = EV_OWNER_SOUND, .sound = 13 };
-    edict_t ent = { .s = { .player = 3 } };
-
-    globals.CustomizeEntity(2, &ent, &state);
-    T_EQ(state.event, EV_NONE);
-    T_EQ(state.sound, 0);
 }
 
 TEST(wc3_api, customize_entity_marks_live_unit_hoverable) {

@@ -103,20 +103,19 @@ registers:
   `{modelDir}\{ModelName}Death.wav` path.
 
 Selection and normal right-click acknowledgements are queued until
-`G_RunEntities` clears the previous one-shot event. They are emitted as
-`EV_ACK`; `G_CustomizeEntity` strips that event from clients which did not
-select the unit.
+`G_RunEntities` clears the previous one-shot queue. They are emitted as
+owner-only `svc_sound` packets to the unit owner.
 
 Training completion selects a random registered `Ready` variant and queues it
-as `EV_OWNER_SOUND`. Owner sounds are positional entity sounds, but
-`G_CustomizeEntity` strips them from every client except `ent->s.player`. This
+as owner-only `svc_sound`. Owner sounds are positional entity sounds, but the
+server unicasts them to `ent->s.player`. This
 matches the local-player nature of WC3 production announcements without
 turning them into globally audible world sounds.
 
 ### Death sounds
 
-`unit_die` queues the already-registered death sound as `EV_DEATH` for the next
-entity snapshot. Death is a world event and is not owner-filtered. Queueing is
+`unit_die` queues the already-registered death sound for the next sound packet.
+Death is a world event and is not owner-filtered. Queueing is
 required because JASS/events execute before `G_RunEntities`, whose first pass
 clears the previous snapshot's one-shot fields; writing `s.event` directly from
 a scripted `KillUnit` path would otherwise be erased before transmission. The
@@ -127,13 +126,13 @@ if several one-shots are pending on the same entity.
 
 `G_CompleteConstruction` resolves the owner's `JobDoneSound` field through
 `UI\war3skins.txt`, resolves that alias through `UISounds.slk`, and queues the
-chosen authored file as `EV_OWNER_SOUND` on the completed building. The sound
+chosen authored file as an owner-only `svc_sound` from the completed building. The sound
 is therefore positional at the structure and audible only to its owner.
 
 Immediate UI sounds are sent only when the owning game client is connected.
 Reserved/disconnected player slots may already have simulation state but do not yet
-have an initialized server message buffer; queued entity sounds can remain pending,
-while direct `snd` presentation waits for a connected client.
+have an initialized server message buffer; queued sound packets can remain pending,
+while direct owner-only sound presentation waits for a connected client.
 
 Command errors use the same authoritative data chain as Warsmash:
 
@@ -143,7 +142,7 @@ known WC3 command error key
     -> InterfaceError when no dedicated skin field exists
     -> UISounds.slk alias
     -> one random FileNames entry
-    -> targeted `snd` game command to that player
+    -> targeted owner-only `svc_sound` packet to that player
 ```
 
 The currently normalized hard-coded gameplay messages map to these external
@@ -177,9 +176,9 @@ The generic `UISounds.slk` resolver is also used for:
 - `PlaceBuildingDefault` after a build placement is accepted; this is sent as
   non-positional UI audio to the issuing player.
 - `ItemGet` after a world-item pickup succeeds; this is queued as positional
-  `EV_OWNER_SOUND` on the carrying unit.
+  owner-only `svc_sound` from the carrying unit.
 - `ItemDrop` after an inventory item is returned to the world; this is queued
-  as positional `EV_OWNER_SOUND` on the dropping unit.
+  as positional owner-only `svc_sound` from the dropping unit.
 
 Aliases are resolved from Warcraft data rather than hard-coded WAV paths.
 
@@ -219,9 +218,8 @@ The following remain separate follow-up work:
 `CL_PrepRefresh` registers populated `CS_SOUNDS` entries through
 `S_RegisterSound`. Later configstring additions are registered by
 `CL_ParseConfigString`, so UI aliases first encountered during gameplay may
-still call `gi.SoundIndex` safely. Entity events use `S_PlaySoundAt`; the
-targeted `snd` game command used for command-error UI audio uses
-`S_PlaySoundFile`.
+still call `gi.SoundIndex` safely. Sound packets use `S_PlaySoundPacket` for
+both entity-relative and non-positional playback.
 
 Classic WC3 unit WAVs are multi-sector, encrypted MPQ entries. Their first
 sector may use zlib while later sectors use Blizzard adaptive Huffman plus mono

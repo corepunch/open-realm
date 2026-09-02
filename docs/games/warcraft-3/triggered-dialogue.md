@@ -129,7 +129,7 @@ The JASS VM evaluates `GetLocalPlayer()` branches once per represented player
 by setting `currentplayer`. `StartSound` must preserve that context:
 
 ```text
-currentplayer != NULL -> send "snd" only to that player's entity
+currentplayer != NULL -> send a reliable owner-only `svc_sound` packet to that player's entity
 currentplayer == NULL -> broadcast, preserving global StartSound calls
 ```
 

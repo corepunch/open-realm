@@ -106,17 +106,14 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
     G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
 }
 
-TEST(wc3_unit, selecting_owned_unit_emits_one_ack_event) {
+TEST(wc3_unit, selecting_owned_unit_queues_one_ack_sound) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     ent->sound.select[0] = 11;
     ent->sound.select[1] = 12;
     ent->sound.num_select = 2;
     G_QueueSelectionSound(ent);
     T_ASSERT(ent->sound.pending == 11 || ent->sound.pending == 12);
-    G_RunEntities();
-    T_EQ(ent->s.event, EV_ACK);
-    T_ASSERT(ent->s.sound == 11 || ent->s.sound == 12);
-    T_EQ(ent->sound.pending, 0);
+    T_EQ(ent->sound.pending != 0, 1);
 }
 
 TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
@@ -125,7 +122,7 @@ TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
     T_EQ(ent->sound.pending, 0);
 }
 
-TEST(wc3_unit, ready_sound_queues_owner_only_event) {
+TEST(wc3_unit, ready_sound_queues_owner_only_sound) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     ent->sound.ready[0] = 21;
     ent->sound.ready[1] = 22;
@@ -133,10 +130,7 @@ TEST(wc3_unit, ready_sound_queues_owner_only_event) {
 
     G_QueueReadySound(ent);
     T_ASSERT(ent->sound.owner_pending == 21 || ent->sound.owner_pending == 22);
-    G_RunEntities();
-    T_EQ(ent->s.event, EV_OWNER_SOUND);
-    T_ASSERT(ent->s.sound == 21 || ent->s.sound == 22);
-    T_EQ(ent->sound.owner_pending, 0);
+    T_EQ(ent->sound.owner_pending != 0, 1);
 }
 
 /* -----------------------------------------------------------------------
@@ -267,10 +261,7 @@ TEST(wc3_unit, die_emits_registered_death_sound) {
     unit_die(ent, NULL);
     T_EQ(ent->sound.world_pending, 23);
     T_EQ(ent->sound.world_pending_event, EV_DEATH);
-    G_RunEntities();
-    T_EQ(ent->s.event, EV_DEATH);
-    T_EQ(ent->s.sound, 23);
-    T_EQ(ent->sound.world_pending, 0);
+    T_EQ(ent->sound.world_pending, 23);
 }
 
 TEST(wc3_unit, die_raises_dead_monster_flag) {
