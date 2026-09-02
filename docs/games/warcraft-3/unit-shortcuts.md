@@ -52,7 +52,7 @@ This excludes workers that are harvesting, waiting for a mine slot, returning re
 
 The subsystem does **not** scan all entities each rendered/server frame.
 
-Each game client owns only:
+Each connected player on the game server owns only:
 
 ```c
 struct {
@@ -73,7 +73,7 @@ Relevant gameplay transitions mark `dirty`:
 - training completion;
 - worker visibility/cargo transitions that change idle eligibility.
 
-The generic free path calls the invalidation hook, but the hook rejects non-monsters and ordinary non-Hero/non-worker units before touching client dirty state. Projectiles, spell effects, destructables, and routine combat-unit destruction therefore do not cause shortcut-roster rescans.
+The generic free path calls the invalidation hook, but the hook rejects non-monsters and ordinary non-Hero/non-worker units before touching the player's server-side dirty state. Projectiles, spell effects, destructables, and routine combat-unit destruction therefore do not cause shortcut-roster rescans.
 
 `G_UpdateClientUnitShortcuts()` itself is only an O(number-of-clients) dirty check. It scans entities and serializes `LAYER_UNIT_SHORTCUTS` only for a dirty connected client. This avoids adding another per-frame entity scan on handheld targets such as the RG40XX-H.
 
@@ -86,7 +86,7 @@ A dirty HUD rebuild uses one combined entity pass to emit Hero buttons, count id
 
 ## Selection Synchronization
 
-Normal world clicks update both server selection and the client's `cl.selection` cache directly. A server-authored layout button does not have that local side effect, so shortcut selection uses the generic `set_selection` game-command transport, which the client applies before game-specific UI dispatch.
+Normal world clicks update both server selection and the client's `cl.selection` cache directly. A server-authored layout button does not have that local side effect, so shortcut selection uses the generic `select` game-command transport, which the client applies before game-specific UI dispatch.
 
 Flow:
 
@@ -95,7 +95,7 @@ HUD/F-key command
     -> server validates target/control
     -> server replaces authoritative selection
     -> server refreshes portrait/commands
-    -> GameCommand("set_selection", entity number)
+    -> GameCommand("select", entity number)
     -> client replaces cl.selection
 ```
 
