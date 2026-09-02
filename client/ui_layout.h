@@ -16,12 +16,19 @@
 typedef void (*layoutDrawFunc_t)(LPCUIFRAME frame, LPCRECT screen);
 
 /* Layout system functions (implemented in cl_unit_layout.c) */
-void SCR_SetLayoutLayer(DWORD layer, HANDLE data, BOOL modal);
+void SCR_SetLayoutLayer(DWORD layer, HANDLE data);
 void SCR_ClearLayoutLayer(DWORD layer);
 void SCR_SetLayoutRoot(LPCRECT root);
+FLOAT SCR_UICanvasWidth(void);
+VECTOR2 SCR_ScreenToUI(int x, int y);
+BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame);
+void SCR_LayoutSendFrameCommand(LPCUIFRAME frame);
+void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down);
+void SCR_LayoutPrepare(HANDLE layout, LPCRECT root);
+void SCR_WindowPrepare(HANDLE layout, LPCRECT root);
+void SCR_LayoutDrawOverlay(HANDLE layout);
 BOOL SCR_LayoutHitTest(int x, int y);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
-BOOL SCR_LayoutModalActive(void);
 void SCR_DrawLayout(void);
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
 BOOL SCR_LayoutKeyEvent(int key);

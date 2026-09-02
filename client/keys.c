@@ -150,14 +150,8 @@ void Key_Event(keyCode_t key, bool down, DWORD time) {
         return;
     }
 
-    /* A server-authored modal layout owns gameplay input. Give its authored
-     * hotkeys first refusal and suppress normal game bindings on key-down so
-     * Hero groups, orders, and system-button bindings cannot fire underneath.
-     * Key-up still reaches +command releases to avoid leaving buttons stuck. */
-    if (cls.key_dest == key_game && down && SCR_LayoutModalActive()) {
-        SCR_LayoutKeyEvent(key);
-        return;
-    }
+    /* Key-up still reaches +command releases so focusing a window cannot leave an earlier gameplay command stuck. */
+    if (cls.key_dest == key_game && down && CL_WindowKeyEvent(key)) return;
 
     LPCSTR kb = keybindings[key];
     char cmd[1024];

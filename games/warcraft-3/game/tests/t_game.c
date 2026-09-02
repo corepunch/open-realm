@@ -58,6 +58,8 @@ static LPEDICT make_test_unit(void) {
 static BOOL hover_layout_pending, hover_layer_seen, hover_name_seen, hover_hp_seen, hover_mana_seen, hover_name_sized, hover_name_centered, hover_name_short;
 static DWORD hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count;
 static LPEDICT hover_unicast_target;
+static pfWriteType_t window_frame_type;
+static DWORD window_text_offset;
 
 static int hover_test_image(LPCSTR name) { T_ASSERT(name && *name); return (int)++hover_image_count; }
 static int hover_test_font(LPCSTR name, DWORD size) {
@@ -84,6 +86,11 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
     }
 }
 static void hover_test_unicast(LPEDICT ent) { hover_unicast_count++; hover_unicast_target = ent; }
+static void window_test_write(pfWriteType_t type, void const *value) {
+    if (type != PF_UIWINDOWFRAME) return;
+    window_frame_type = type;
+    window_text_offset = (DWORD)(uintptr_t)((LPCUIFRAME)value)->text;
+}
 
 /* =========================================================================
  * HUD frame numbering
@@ -95,6 +102,19 @@ TEST(wc3_game, hud_proxy_number_advances_past_fdf_frame) {
 
 TEST(wc3_game, hud_proxy_number_never_moves_backwards) {
     T_EQ(UI_NextProxyFrameNumber(12, 10), 12);
+}
+
+TEST(wc3_game, hud_authored_window_frame_uses_offset_codec) {
+    FRAMEDEF frame = { .Type = FT_TEXT, .Text = "Window text" };
+    uiWindowDef_t def = { .id = 1, .class_id = 2, .flags = UI_WINDOW_MOVABLE };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+
+    window_frame_type = PF_BYTE; window_text_offset = 0;
+    gi.Write = window_test_write;
+    UI_WriteWindowStart(&def); UI_WriteFrame(&frame);
+    ui_window_writing = false; gi.Write = old_write;
+    T_EQ(window_frame_type, PF_UIWINDOWFRAME);
+    T_ASSERT(window_text_offset > 0);
 }
 
 TEST(wc3_game, text_exact_width_fits) { T_ASSERT(R_TextFitsWidth(0.0f)); }

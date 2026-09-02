@@ -23,8 +23,6 @@
 #define MAX_FRAMES_WRITE 1024
 static LPCFRAMEDEF framesWritten[MAX_FRAMES_WRITE];
 static LPCFRAMEDEF *frameptr;
-static LPCFRAMEDEF ui_layout_root;
-static DWORD ui_layout_root_flags;
 
 void UI_ResetFrameWriteList(void) {
     frameptr = framesWritten;
@@ -85,7 +83,6 @@ static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->tex.index2 = UI_PlayerImage(src->Texture.Image2);
     dest->flags.type = src->Type;
     dest->flags.alphaMode = src->AlphaMode;
-    if (src == ui_layout_root) dest->flagsvalue |= ui_layout_root_flags;
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;
     dest->text = src->Text;
@@ -437,9 +434,15 @@ static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_val
         return;
     }
     if (override_value) tmp.value = value;
+    if (ui_window_writing) {
+        tmp.text = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.text);
+        tmp.tooltip = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.tooltip);
+        tmp.onclick = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.onclick);
+    }
     /* FDF frames and proxy frames share one wire namespace; previously the first proxy overwrote frame 1. */
     ui_next_frame_number = UI_NextProxyFrameNumber(ui_next_frame_number, tmp.number);
-    gi.Write(PF_UIFRAME, &tmp);
+    /* Window strings are arena offsets; the normal codec dereferenced offset 1 as an inline string. */
+    gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, &tmp);
 }
 
 void UI_WriteFrame(LPCFRAMEDEF frame) {
@@ -493,22 +496,21 @@ void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFR
     }
 }
 
-static void UI_WriteLayoutFlags(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, DWORD flags) {
-    ui_layout_root = root;
-    ui_layout_root_flags = flags;
+void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
     UI_WriteStart(layer);
     UI_WriteFrameWithChildren(root, NULL);
     UI_WriteEnd(ent);
-    ui_layout_root = NULL;
-    ui_layout_root_flags = 0;
 }
 
-void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
-    UI_WriteLayoutFlags(ent, root, layer, 0);
+void UI_WriteWindow(LPEDICT ent, LPCFRAMEDEF root, uiWindowDef_t const *def) {
+    UI_WriteWindowStart(def);
+    UI_WriteFrameWithChildren(root, NULL);
+    UI_WriteWindowEnd(ent);
 }
 
-void UI_WriteModalLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
-    UI_WriteLayoutFlags(ent, root, layer, UIFRAME_FLAG_MODAL);
+void UI_CloseWindow(LPEDICT ent, DWORD id) {
+    gi.Write(PF_BYTE, &(LONG){svc_window}); gi.Write(PF_BYTE, &(LONG){UI_WINDOW_CLOSE});
+    gi.Write(PF_LONG, &id); gi.unicast(ent);
 }
 
 void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers) {

@@ -98,6 +98,7 @@ void CL_ClientCommand(LPCSTR cmd) {
 
 void CL_ClearState(void) {
     CL_ClearTEnts ();
+    CL_WindowClear();
 
     SAFE_DELETE(cl.fow.visible, MemFree);
     SAFE_DELETE(cl.fow.explored, MemFree);

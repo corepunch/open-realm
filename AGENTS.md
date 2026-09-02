@@ -12,6 +12,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Server-selected presentation effects and generic effect contracts | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
 | Native game coordinate systems and axis migration | [AXIS.md](AXIS.md) |
 | Server-authored UI payload design, limits, diagnostics, scrollbar postmortem | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
+| Client-managed gameplay windows, focus, z-order, dragging, modal input, text arenas | [docs/architecture/client-windows.md](docs/architecture/client-windows.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, text renderer, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
@@ -195,6 +196,10 @@ Key flags: `-prefix <Name>` sets the struct and function prefix; `-root <FrameNa
   (`make run-wow` or `make run-sc2` as appropriate; for WC3 follow the ROC/TFT rule above), then run `make test`.
   Shared-renderer changes must build and run every game whose renderer path changed. Never mark work complete without a
   green test run.
+- **Runtime validation must exercise the changed behavior.** Launch the actual game mode, connect/load a map, and issue the
+  command or action that drives the modified client/server path. A successful main-menu startup does not validate gameplay
+  networking because no client is connected to a game server there. For UI work, send/open the changed panel and capture a
+  frame showing it; for Quest/Log windows, load a WC3 map and issue `quests`/`log` after the connection reaches `ca_active`.
 - **Auto-quit the app with `+com_frame_limit N`.** When running a game for verification, pass `+com_frame_limit 100`
   (or similar) so it exits without manual intervention. Example: `make run-wow ARGS="+com_frame_limit 100"`.
 - **`git blame` before changing existing struct/API fields.** Understand why a field exists and what trade-offs were made before changing it.

@@ -173,6 +173,10 @@ This is not a per-hover network protocol. The server sends the static frame tree
 once; mouse picking, projection, and evaluation of already-replicated values happen locally each render frame. Do not revive
 `clc_request_unit_ui`/`svc_unit_ui`, add an entity-name query, or resend `svc_layout` on mouse motion.
 
+Spawnable and movable gameplay panels use `svc_window`, not new `UILAYOUTLAYER` entries. Window frame strings are DWORD offsets
+into a trailing packet text arena, allowing long text independently of the one-byte frame-type payload size. See
+[Client Windows](client-windows.md).
+
 Game modules own the layer contents. WC3 and WoW send their native frame trees during `ClientBegin`; WoW authors compressed creature
 vitals through `CustomizeEntity` and keeps `entityState_t.name` hidden until that recipient selects the creature. SC2 sends a header
 and terminator with no frames until its gameplay state can author a real widget. The renderer has no parallel health-bar pass, and

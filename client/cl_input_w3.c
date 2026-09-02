@@ -40,7 +40,7 @@ static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 /* Left-click (or click-drag) on the minimap recenters the camera there. */
 BOOL CL_TryMinimapClick(float x, float y) {
     VECTOR2 world;
-    if (!CL_GameplayInputReady() || SCR_LayoutModalActive() ||
+    if (!CL_GameplayInputReady() || CL_WindowModalActive() ||
         !re.TraceMinimap || !re.TraceMinimap(x, y, &world)) {
         return false;
     }
@@ -80,7 +80,7 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod) {
      * Consume digit keys while a modal layout is active so they cannot change
      * gameplay selection behind Quest/Log. Other keys fall through to
      * Key_Event, which applies the generic modal binding block. */
-    if (SCR_LayoutModalActive() && sym >= SDLK_0 && sym <= SDLK_9)
+    if (CL_WindowModalActive() && sym >= SDLK_0 && sym <= SDLK_9)
         return true;
     if (sym < SDLK_0 || sym > SDLK_9)
         return false;
@@ -100,7 +100,7 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod) {
 }
 
 static void CL_BeginPan(float x, float y) {
-    if (!CL_GameplayInputReady() || SCR_LayoutModalActive()) {
+    if (!CL_GameplayInputReady() || CL_WindowModalActive()) {
         camera_drag.active = false;
         return;
     }
@@ -111,7 +111,7 @@ static void CL_UpdatePan(float x, float y) {
     VECTOR3 point;
     VECTOR2 position;
 
-    if (!CL_GameplayInputReady() || SCR_LayoutModalActive()) {
+    if (!CL_GameplayInputReady() || CL_WindowModalActive()) {
         camera_drag.active = false;
         return;
     }
@@ -239,7 +239,7 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     if (!motion) {
         return;
     }
-    if (SCR_LayoutModalActive()) {
+    if (CL_WindowModalActive()) {
         camera_drag.active = false;
         minimap_drag_active = false;
     }
@@ -292,7 +292,7 @@ void CL_InputModeFrame(void) {
     /* Quest/Log own gameplay input while modal.  Stop every manual camera
      * path here as well as world hit testing: arrow keys and edge scrolling
      * are polled directly every frame and otherwise bypass UI event routing. */
-    if (SCR_LayoutModalActive()) {
+    if (CL_WindowModalActive()) {
         camera_drag.active = false;
         minimap_drag_active = false;
         return;

@@ -11,7 +11,7 @@ BOOL scr_initialized;
 /* Returns the UI canvas width for the current window aspect.  For SC2
  * widescreen the canvas expands horizontally while the height stays fixed
  * (matches cl_layout.c::SCR_GetUISceneRect and r_draw.c::R_UISceneRect). */
-static FLOAT SCR_UICanvasWidth(void) {
+FLOAT SCR_UICanvasWidth(void) {
 #ifdef SC2
     size2_t win = re.GetWindowSize();
     if (win.height > 0) {
@@ -28,7 +28,7 @@ static FLOAT SCR_UICanvasWidth(void) {
  * engine's virtual canvas.  Cursor drawing and FDF hit-testing must share this
  * mapping, including SC2's widened canvas on widescreen displays.
  */
-static VECTOR2 SCR_ScreenToUI(int x, int y) {
+VECTOR2 SCR_ScreenToUI(int x, int y) {
     size2_t window = re.GetWindowSize();
     FLOAT nx = 0.0f, ny = 0.0f;
 
@@ -229,25 +229,12 @@ void SCR_UpdateScreen(DWORD msec) {
 
 static LPCSTR active_tooltip = NULL;
 static HANDLE layout_layers[MAX_LAYOUT_LAYERS];
-static BOOL layout_modal[MAX_LAYOUT_LAYERS];
 static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
 static DWORD layout_dynamic_pic_cursor;
 static BOOL layout_left_down;
 static DWORD layout_hovered_number;
-static DWORD layout_hovered_layer;
-static DWORD layout_current_layer;
-
-BOOL SCR_LayoutModalActive(void) {
-    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        if (layout_layers[layer] && layout_modal[layer]) return true;
-    }
-    return false;
-}
-
-static BOOL SCR_LayoutModalLayer(DWORD layer) {
-    return layer < MAX_LAYOUT_LAYERS && layout_modal[layer];
-}
+static HANDLE layout_hovered, layout_current;
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
@@ -384,7 +371,7 @@ void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
     if (!frame || frame->buffer.size < sizeof(uiSimpleButton_t) || !frame->buffer.data) return;
     b = frame->buffer.data;
     enabled = frame->onclick && *frame->onclick;
-    hovered = frame->number == layout_hovered_number && layout_current_layer == layout_hovered_layer;
+    hovered = frame->number == layout_hovered_number && layout_current == layout_hovered;
     pushed = enabled && hovered && layout_left_down;
     state = !enabled ? &b->disabled : pushed ? &b->pushed : &b->normal;
     if (!state->texture) state = &b->normal;
@@ -478,14 +465,14 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     else SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
 }
 
-static BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
+BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
     return frame && frame->onclick && *frame->onclick;
 }
 static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
     return layout_left_down && SCR_LayoutFrameHasClickCommand(frame);
 }
 static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
-    return frame && frame->number == layout_hovered_number && layout_current_layer == layout_hovered_layer;
+    return frame && frame->number == layout_hovered_number && layout_current == layout_hovered;
 }
 
 static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
@@ -513,6 +500,32 @@ static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
         dst[out++] = src[i];
     }
     dst[out] = '\0';
+}
+
+void SCR_LayoutSendFrameCommand(LPCUIFRAME frame) {
+    char command[CMDARG_LEN * 2];
+    if (!SCR_LayoutFrameHasClickCommand(frame)) return;
+    SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", command);
+}
+
+void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down) {
+    layout_hovered = layout;
+    layout_hovered_number = number;
+    layout_left_down = down;
+}
+
+void SCR_LayoutPrepare(HANDLE layout, LPCRECT root) {
+    layout_current = layout;
+    SCR_Clear(layout);
+    if (root) SCR_SetLayoutRoot(root);
+}
+
+void SCR_WindowPrepare(HANDLE layout, LPCRECT root) {
+    layout_current = layout;
+    SCR_ClearWindow(layout);
+    if (root) SCR_SetLayoutRoot(root);
 }
 
 void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
@@ -895,7 +908,7 @@ void SCR_LayoutDrawOverlay(HANDLE layout) {
 }
 
 void SCR_DrawLayout(void) {
-    BOOL const modal = SCR_LayoutModalActive();
+    BOOL const modal = CL_WindowModalActive();
 
     active_tooltip = NULL;
 
@@ -912,47 +925,40 @@ void SCR_DrawLayout(void) {
         if (modal && layer == LAYER_WORLD_HOVER) continue;
         if (layout) {
             RECT root;
-            layout_current_layer = layer;
-            SCR_Clear(layout);
+            SCR_LayoutPrepare(layout, NULL);
             if (layer == LAYER_WORLD_HOVER) {
                 if (!SCR_LayoutWorldHoverRoot(&root)) continue;
                 SCR_SetLayoutRoot(&root);
             }
-            if (!modal || SCR_LayoutModalLayer(layer)) SCR_LayoutUpdateTooltip(layout);
+            if (!modal) SCR_LayoutUpdateTooltip(layout);
             SCR_LayoutDrawOverlay(layout);
         }
     }
+    CL_WindowDraw();
 }
 
-void SCR_SetLayoutLayer(DWORD layer, HANDLE data, BOOL modal) {
-    if (layer >= MAX_LAYOUT_LAYERS) return;
-    layout_layers[layer] = data;
-    layout_modal[layer] = modal;
-}
+void SCR_SetLayoutLayer(DWORD layer, HANDLE data) { if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = data; }
 
 void SCR_ClearLayoutLayer(DWORD layer) {
     if (layer >= MAX_LAYOUT_LAYERS) return;
     layout_layers[layer] = NULL;
-    layout_modal[layer] = false;
 }
 
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
-    BOOL const modal = SCR_LayoutModalActive();
-
     layout_hovered_number = 0;
+    layout_hovered = NULL;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
-        if (modal && !SCR_LayoutModalLayer(layer)) continue;
-        SCR_Clear(layout);
+        SCR_LayoutPrepare(layout, NULL);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) {
                 layout_hovered_number = frame->number;
-                layout_hovered_layer = layer;
+                layout_hovered = layout;
                 break;
             }
         }
@@ -969,16 +975,12 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
-        if (modal && !SCR_LayoutModalLayer(layer)) continue;
-        SCR_Clear(layout);
+        SCR_LayoutPrepare(layout, NULL);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) {
-                char command[CMDARG_LEN * 2];
-                SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-                SZ_Printf(&cls.netchan.message, "%s", command);
+                SCR_LayoutSendFrameCommand(frame);
                 return;
             }
         }
@@ -988,23 +990,17 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
 /* Dispatch a command-button hotkey the same way a mouse click on that */
 BOOL SCR_LayoutKeyEvent(int key) {
     int const upper = toupper(key);
-    BOOL const modal = SCR_LayoutModalActive();
-
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
-        if (modal && !SCR_LayoutModalLayer(layer)) continue;
-        SCR_Clear(layout);
+        SCR_LayoutPrepare(layout, NULL);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             BOOL const is_cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
             if (is_cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
-                char command[CMDARG_LEN * 2];
-                SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-                SZ_Printf(&cls.netchan.message, "%s", command);
+                SCR_LayoutSendFrameCommand(frame);
                 return true;
             }
         }
@@ -1101,7 +1097,7 @@ BOOL SCR_LayoutHitTest(int x, int y) {
     /* A modal server-authored layout consumes gameplay hover/click input across
      * the whole world rather than allowing transparent areas around the dialog
      * to select or hover world entities underneath it. */
-    if (SCR_LayoutModalActive()) return true;
+    if (CL_WindowModalActive()) return true;
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];

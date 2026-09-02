@@ -402,6 +402,53 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     return frames;
 }
 
+/* Window packets keep frame text in one trailing arena and encode frame string fields as DWORD offsets. */
+LPCUIFRAME SCR_ClearWindow(HANDLE data) {
+    DWORD layout_size = 0, text_size, frame_end;
+    LPBYTE layout_data = data;
+    sizeBuf_t msg, scan;
+    LPCSTR text;
+
+    SCR_Clear(NULL);
+    if (!layout_data) return frames;
+    memcpy(&layout_size, layout_data, sizeof(layout_size));
+    msg = MAKE(sizeBuf_t, .data = layout_data + sizeof(layout_size), .cursize = layout_size);
+    scan = msg;
+    while (scan.readcount + sizeof(DWORD) + sizeof(WORD) <= scan.cursize) {
+        UIFRAME ent = { 0 };
+        DWORD bits, number = MSG_ReadEntityBits(&scan, &bits);
+        if (!number && !bits) break;
+        if (!MSG_ReadDeltaUIWindowFrame(&scan, &ent, number, bits) || scan.readcount >= scan.cursize) return frames;
+        DWORD payload = (BYTE)MSG_ReadByte(&scan);
+        if (payload > scan.cursize - scan.readcount) return frames;
+        scan.readcount += payload;
+    }
+    frame_end = scan.readcount;
+    if (scan.readcount + sizeof(DWORD) > scan.cursize) return frames;
+    text_size = MSG_ReadLong(&scan);
+    if (text_size > scan.cursize - scan.readcount) return frames;
+    text = (LPCSTR)(scan.data + scan.readcount);
+    msg.cursize = frame_end;
+    while (msg.readcount + sizeof(DWORD) + sizeof(WORD) <= msg.cursize) {
+        DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
+        if (!number && !bits) break;
+        if (number >= MAX_LAYOUT_OBJECTS) return frames;
+        LPUIFRAME ent = &frames[number];
+        ent->tex.coord[1] = ent->tex.coord[3] = 0xff;
+        if (!MSG_ReadDeltaUIWindowFrame(&msg, ent, number, bits) || msg.readcount >= msg.cursize) return frames;
+        ent->text = ent->text ? text + (DWORD)(uintptr_t)ent->text : NULL;
+        ent->tooltip = ent->tooltip ? text + (DWORD)(uintptr_t)ent->tooltip : NULL;
+        ent->onclick = ent->onclick ? text + (DWORD)(uintptr_t)ent->onclick : NULL;
+        ent->buffer.size = (BYTE)MSG_ReadByte(&msg);
+        if (ent->buffer.size > msg.cursize - msg.readcount) return frames;
+        ent->buffer.data = msg.data + msg.readcount;
+        msg.readcount += ent->buffer.size;
+        num_frames = MAX(num_frames, number + 1);
+    }
+    SCR_InferContainerHeights();
+    return frames;
+}
+
 void SCR_SetLayoutRoot(LPCRECT root) {
     if (!root) return;
     frames[0].size.width = root->w; frames[0].size.height = root->h;

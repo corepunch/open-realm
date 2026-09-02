@@ -82,6 +82,15 @@ void PF_Write(pfWriteType_t type, void const *value) {
             }
             break;
         }
+        case PF_UIWINDOWFRAME: {
+            LPCUIFRAME frame = (LPCUIFRAME)value;
+            uiFrame_t empty = { 0 };
+            empty.tex.coord[1] = empty.tex.coord[3] = 0xff;
+            MSG_WriteDeltaUIWindowFrame(&sv.multicast, &empty, frame, true);
+            MSG_WriteByte(&sv.multicast, frame->buffer.size);
+            MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
+            break;
+        }
         case PF_DATA: {
             pfWriteData_t const *data = value;
             if (data && data->data && data->size) {
