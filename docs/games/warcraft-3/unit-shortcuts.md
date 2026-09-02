@@ -4,18 +4,18 @@
 
 Warcraft III's Hero buttons and idle-worker button are persistent gameplay HUD controls, not command-card abilities and not neutral-shop `Anei` interaction.
 
-OpenRealm implements them as a server-authored `LAYER_UNIT_SHORTCUTS` layout. The game owns the roster, validates control, performs authoritative selection, and moves the authoritative camera. The client only maps F1-F8 to game commands and mirrors shortcut-driven authoritative selection into its local selection cache.
+OpenRealm implements them as a server-authored `LAYER_UNIT_SHORTCUTS` layout. The game owns the roster, validates control, performs authoritative selection, and moves the authoritative camera. The client loads configurable key bindings that forward opaque game-command strings and mirrors shortcut-driven authoritative selection into its local selection cache.
 
 The current behavior is:
 
 | Control | Action |
 |---|---|
 | Hero HUD button | Select the Hero when selectable and center the camera on it. |
-| F1-F7 | First activation selects the corresponding controlled Hero; activating the same sole-selected Hero again centers the camera. |
+| Default F1-F7 | First activation selects the corresponding controlled Hero; activating the same sole-selected Hero again centers the camera. |
 | Idle-worker HUD button | Select and center the next idle worker, then advance the cycle cursor. |
-| F8 | Same cycle operation as the idle-worker HUD button. |
+| Default F8 | Same cycle operation as the idle-worker HUD button. |
 
-The classic backtick/tilde idle-worker shortcut is not bound because OpenRealm currently reserves backtick for its developer console.
+The default bindings are declared in `games/warcraft-3/share/config.cfg`; user config overrides can bind any supported key to the same server command strings. The classic backtick/tilde idle-worker shortcut is not bound because OpenRealm currently reserves backtick for its developer console.
 
 ## Hero Roster
 

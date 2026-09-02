@@ -72,12 +72,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
                 ? G_LevelString(unit->UnitProfile->name) : "Hero";
 
             snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
-            if (hero_slot < 7) {
-                snprintf(tooltip, sizeof(tooltip), "Select %s (F%u)",
-                         name && *name ? name : "Hero", (unsigned)(hero_slot + 1));
-            } else {
-                snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
-            }
+            snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
             UI_WriteUnitShortcutButton(HERO_SHORTCUT_X,
                                        HERO_SHORTCUT_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
                                        HERO_SHORTCUT_SIZE, unit, command, tooltip);
@@ -95,7 +90,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
         DWORD number = (DWORD)(next_idle - globals.edicts);
         snprintf(command, sizeof(command), "idleworker %u", (unsigned)number);
         UI_WriteUnitShortcutButton(IDLE_WORKER_X, IDLE_WORKER_Y, IDLE_WORKER_SIZE,
-                                   next_idle, command, "Select Idle Worker (F8)");
+                                   next_idle, command, "Select Idle Worker");
         UI_WriteShortcutNumber(IDLE_WORKER_X, IDLE_WORKER_Y,
                                IDLE_WORKER_SIZE, IDLE_WORKER_SIZE, idle_count);
     }
