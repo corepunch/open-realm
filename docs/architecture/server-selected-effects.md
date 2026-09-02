@@ -50,3 +50,9 @@ shortcut producer remains under `games/warcraft-3/`.
 When a shared dispatcher needs a new game behavior, first locate its function-table callback. If the callback
 exists, implement the command in the selected game's module. If it does not exist, add a narrow table entry;
 do not substitute a per-game preprocessor guard or a hardcoded command branch in the shared dispatcher.
+
+## Selection-scoped world indicators
+
+Persistent local markers such as Warcraft III's Rally destination are ordinary game-owned edicts. The game resolves and registers the model, sets `SVF_OWNER_ONLY`, and stores the recipient in `entityState_t.player`; `SV_BuildClientFrame` excludes the edict from every other client's snapshot. Point markers use an authoritative world origin, while widget markers use the normal linked-edict movement path to follow their target.
+
+The owning game client keeps the marker edict pointer so selection changes update or free the same entity. Save/load does not serialize that runtime cache pointer: the marker's saved `owner` edict reconstructs it after pointer fixups. One-shot acknowledgements such as move and attack confirmations remain temporary events.

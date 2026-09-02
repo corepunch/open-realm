@@ -433,6 +433,7 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
         spell_begin_channel(caster, code);
     spell->execute(caster, st, spell);
     S_SpellCursorSplat(clent, 0.0f);
+    G_SendPointConfirmation(clent, point, false);
     return true;
 }
 

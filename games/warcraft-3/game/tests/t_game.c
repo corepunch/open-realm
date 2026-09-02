@@ -1236,12 +1236,17 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
         .enabled = true
     };
     LPQUEST old_quests = level.quests;
-    LPEDICT first, second;
+    LPEDICT first, second, indicator;
 
     reset_entities();
     level.quests = &quest;
     first = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 24.0f);
     second = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 48.0f, 72.0f);
+    indicator = G_Spawn();
+    indicator->svflags = SVF_OWNER_ONLY;
+    indicator->rally_indicator = true;
+    indicator->owner = &g_edicts[0];
+    game.clients[0].rally_indicator = indicator;
     first->harvested_gold = 37;
     first->collision = 42.5f;
     first->s.origin.x = 96.0f;
@@ -1274,6 +1279,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.state.fov = 0.0f;
     game.clients[0].camera.state.position = (VECTOR2){ 0.0f, 0.0f };
     game.clients[0].camera.target_controller = NULL;
+    game.clients[0].rally_indicator = NULL;
     quest.discovered = quest.required = quest.enabled = false;
     quest.completed = true;
     item.completed = false;
@@ -1297,6 +1303,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(game.clients[0].camera.state.position.x, 333.0f);
     T_EQ(game.clients[0].camera.state.position.y, 444.0f);
     T_ASSERT(game.clients[0].camera.target_controller == &g_edicts[second - g_edicts]);
+    T_ASSERT(game.clients[0].rally_indicator == &g_edicts[indicator - g_edicts]);
     T_ASSERT(game.clients[0].ps.name == game.clients[0].jass.name);
     T_STREQ(game.clients[0].ps.name, "Jaina");
     T_ASSERT(!level.mapinfo || game.clients[0].mapplayer == level.mapinfo->players + game.clients[0].ps.number);

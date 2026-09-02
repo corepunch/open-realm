@@ -266,6 +266,14 @@ CLIENTCOMMAND(Select) {
     }
 }
 
+void G_SendPointConfirmation(LPEDICT clent, LPCVECTOR2 point, BOOL attack) {
+    if (!clent || !clent->client || !point) return;
+    gi.Write(PF_BYTE, &(LONG){ svc_temp_entity });
+    gi.Write(PF_BYTE, &(LONG){ attack ? TE_ATTACK_CONFIRMATION : TE_MOVE_CONFIRMATION });
+    gi.Write(PF_POSITION, &(VECTOR3){ point->x, point->y, 0 });
+    gi.unicast(clent);
+}
+
 CLIENTCOMMAND(Point) {
     LPGAMECLIENT client = clent->client;
     if (client->menu.on_location_selected) {
@@ -279,6 +287,7 @@ CLIENTCOMMAND(Point) {
 CLIENTCOMMAND(Smart) {
     LPGAMECLIENT client = clent->client;
     BOOL issued = false;
+    BOOL rallied = false;
     DWORD number;
     LPEDICT target;
 
@@ -302,11 +311,13 @@ CLIENTCOMMAND(Smart) {
     target = &globals.edicts[number];
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (unit_issuetargetorder(ent, "smart", target)) {
+            if (G_UnitHasRally(ent)) rallied = true;
             issued = true;
         }
     }
     if (issued) {
         G_QueueOrderSound(G_GetMainControllableUnit(client));
+        if (rallied) G_PlayUISoundForPlayer(clent, "RallyPointPlace");
         Get_Commands_f(clent);
     }
 }
@@ -345,6 +356,10 @@ CLIENTCOMMAND(SmartPoint) {
     if (non_rally && move_selectlocation(clent, &loc)) issued = true;
     if (rally || issued) {
         G_QueueOrderSound(G_GetMainControllableUnit(client));
+    }
+    if (rally) {
+        G_SendPointConfirmation(clent, &loc, false);
+        G_PlayUISoundForPlayer(clent, "RallyPointPlace");
     }
 }
 

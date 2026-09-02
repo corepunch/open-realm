@@ -534,6 +534,31 @@ TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
     SV_Shutdown();
 }
 
+TEST(server_net, snapshot_owner_only_entity_reaches_only_owner) {
+    static struct client_s game_clients[2];
+    LPCLIENT owner, other;
+    LPCLIENTFRAME frame;
+
+    reset_server_state(2);
+    SV_InitGame();
+    owner = &svs.clients[0]; other = &svs.clients[1];
+    memset(game_clients, 0, sizeof(game_clients));
+    test_edicts[0].client = &game_clients[0]; owner->edict = &test_edicts[0];
+    test_edicts[1].client = &game_clients[1]; other->edict = &test_edicts[1];
+    game_clients[0].ps.number = 0; game_clients[1].ps.number = 1;
+    test_ge.num_edicts = 3;
+    test_edicts[2].inuse = true; test_edicts[2].s.number = 2; test_edicts[2].s.model = 1;
+    test_edicts[2].s.player = 0; test_edicts[2].svflags = SVF_OWNER_ONLY;
+
+    SV_BuildClientFrame(owner);
+    frame = &owner->frames[0];
+    T_EQ(frame->num_entities, 1);
+    T_EQ(svs.client_entities[frame->first_entity].number, 2);
+    SV_BuildClientFrame(other);
+    T_EQ(other->frames[0].num_entities, 0);
+    SV_Shutdown();
+}
+
 TEST(server_net, lobby_start_preserves_connected_clients) {
     MAPINFO info;
     lobbySlot_t slot;

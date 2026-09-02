@@ -50,6 +50,7 @@ bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin);
 FLOAT R_SelectionRadius(renderEntity_t const *entity);
 FLOAT R_EntityHeight(renderEntity_t const *entity);
 BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out);
+BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out);
 
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);

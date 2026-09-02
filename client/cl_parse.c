@@ -204,6 +204,19 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
     if (index >= CS_GENERAL && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
 #endif
         entity_name_pool_decode(cl.configstrings[index]);
+    if (index > CS_MODELS && index < CS_MODELS + MAX_MODELS) {
+        DWORD model = index - CS_MODELS;
+
+        /* Game-selected presentation models can be registered after
+         * CL_PrepRefresh(). Keep the configstring/model table coherent just as
+         * late HUD images and sounds are kept coherent below. */
+        if (cl.models[model]) {
+            re.ReleaseModel((LPMODEL)cl.models[model]);
+            cl.models[model] = NULL;
+        }
+        if (cl.configstrings[index][0])
+            cl.models[model] = re.LoadModel(cl.configstrings[index]);
+    }
     if (index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) {
         DWORD pic = index - CS_IMAGES;
 

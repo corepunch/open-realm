@@ -137,6 +137,49 @@ TEST(wc3_rally, removing_widget_target_resets_before_edict_reuse) {
     T_ASSERT(resolved == producer);
 }
 
+TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
+    LPEDICT clent, producer, target, indicator;
+    LPGAMECLIENT client;
+
+    reset_entities();
+    setup_test_world();
+    clent = &g_edicts[0]; client = &game.clients[0];
+    clent->inuse = true; clent->client = client;
+    client->connected = true; client->ps.number = 0;
+    producer = rally_unit(MAKEFOURCC('h','b','a','r'), 64, 96);
+    producer->UnitProfile = &rally_train_profile;
+    producer->s.player = 0; producer->selected = 1;
+
+    T_ASSERT(G_SetRallyPoint(producer, &MAKE(VECTOR2, 320.0f, 448.0f)));
+    indicator = client->rally_indicator;
+    T_NOT_NULL(indicator);
+    T_ASSERT(indicator->inuse);
+    T_ASSERT(indicator->rally_indicator);
+    T_ASSERT(indicator->svflags & SVF_OWNER_ONLY);
+    T_EQ(indicator->s.player, 0);
+    T_ASSERT(indicator->s.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(indicator->s.flags & EF_GROUND_ANCHOR);
+    T_NULL(indicator->goalentity);
+    T_EQ(indicator->movetype, MOVETYPE_NONE);
+
+    target = rally_unit(MAKEFOURCC('h','f','o','o'), 128, 160);
+    target->s.player = 0;
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    T_ASSERT(client->rally_indicator == indicator);
+    T_ASSERT(indicator->goalentity == target);
+    T_EQ(indicator->movetype, MOVETYPE_LINK);
+    target->s.origin = (VECTOR3){ 192.0f, 224.0f, 32.0f };
+    G_RunEntity(indicator);
+    T_FEQ(indicator->s.origin.x, 192.0f, 0.01f);
+    T_FEQ(indicator->s.origin.y, 224.0f, 0.01f);
+    T_FEQ(indicator->s.origin.z, 32.0f, 0.01f);
+
+    producer->selected = 0;
+    G_UpdateRallyIndicator(client);
+    T_NULL(client->rally_indicator);
+    T_ASSERT(!indicator->inuse);
+}
+
 TEST(wc3_rally, point_handoff_uses_smart_movement) {
     LPEDICT producer;
     LPEDICT produced;

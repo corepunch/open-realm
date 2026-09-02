@@ -434,6 +434,11 @@ static bool RStd_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTO
     return false;
 }
 
+static bool RStd_GetEntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+    (void)entity; (void)prefix; (void)out;
+    return false;
+}
+
 static void RStd_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color) {
     (void)box;
     (void)modelMatrix;
@@ -512,6 +517,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .GetTextSize = RStd_GetTextSize,
         .GetModelInfo = RStd_GetModelInfo,
         .GetEntityOverheadPosition = RStd_GetEntityOverheadPosition,
+        .GetEntityAttachmentPosition = RStd_GetEntityAttachmentPosition,
         .DrawBoundingBox = RStd_DrawBoundingBox,
         .GetHeightAtPoint = RStd_GetHeightAtPoint,
         .TraceEntity = RStd_TraceEntity,

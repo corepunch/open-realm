@@ -54,6 +54,7 @@ static BOOL patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
         order_patrol(ent, Waypoint_add(&target));
         any = true;
     }
+    if (any) G_SendPointConfirmation(clent, location, false);
     return any;
 }
 

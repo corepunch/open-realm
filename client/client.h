@@ -162,6 +162,7 @@ void CON_KeyEvent(int key, bool down);
 //void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
 void Matrix4_getCameraMatrix(LPMATRIX4 output);
 void V_AddEntity(renderEntity_t *ent);
+BOOL V_FindEntity(DWORD number, renderEntity_t *out);
 void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c

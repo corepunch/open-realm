@@ -810,6 +810,7 @@ void Get_Commands_f(LPEDICT ent) {
     BYTE count;
 
     if (!ent || !ent->client) return;
+    G_UpdateRallyIndicator(ent->client);
     ent->client->commands_dirty = false;
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
     if (!selected || !G_UnitCanControl(ent->client, selected)) {

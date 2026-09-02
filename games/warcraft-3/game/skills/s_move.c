@@ -398,10 +398,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
         order_move(ent, waypoint);
         ent->movement.group_speed = group_speed;  /* after order_move, which resets it */
     }
-    gi.Write(PF_BYTE, &(LONG){svc_temp_entity});
-    gi.Write(PF_BYTE, &(LONG){TE_MOVE_CONFIRMATION});
-    gi.Write(PF_POSITION, &(VECTOR3){confirmation.x, confirmation.y, 0});
-    gi.unicast(clent);
+    G_SendPointConfirmation(clent, &confirmation, false);
     return true;
 }
 

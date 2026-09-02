@@ -475,6 +475,11 @@ BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     out->z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
     return false;
 }
+BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+    (void)entity; (void)prefix; (void)out;
+    return false;
+}
+
 
 FLOAT R_EntityHeight(renderEntity_t const *entity) {
     VECTOR3 top;

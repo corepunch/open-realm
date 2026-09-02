@@ -402,6 +402,7 @@ struct client_s {
         BOOL dirty;
         DWORD last_idle_worker;
     } shortcuts;
+    LPEDICT rally_indicator;
     struct {
         VECTOR2 position;
         DWORD end_time;        /* game time (ms), 0 = inactive */
@@ -671,6 +672,7 @@ struct edict_s {
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
+    BOOL rally_indicator;
     struct {
         BOOL active;
         BOOL paused;
@@ -1262,6 +1264,7 @@ BOOL G_SetRallyEntity(LPEDICT producer, LPEDICT target);
 rallyTargetType_t G_ResolveRallyTarget(LPEDICT producer, LPVECTOR2 point, LPEDICT *target);
 BOOL G_ApplyRallyOrder(LPEDICT producer, LPEDICT produced);
 void G_InvalidateRallyTarget(LPEDICT target);
+void G_UpdateRallyIndicator(LPGAMECLIENT client);
 
 DWORD G_HeroReviveGoldCost(LPCEDICT hero);
 DWORD G_HeroReviveLumberCost(LPCEDICT hero);
@@ -1467,6 +1470,7 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *);
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
+void G_SendPointConfirmation(LPEDICT, LPCVECTOR2, BOOL attack);
 void G_QueueReadySound(LPEDICT);
 void G_QueueOwnerSoundAlias(LPEDICT, LPCSTR);
 void G_QueueOwnerUISound(LPEDICT, LPCSTR);

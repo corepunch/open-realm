@@ -431,6 +431,7 @@ static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
         order_attackmove(ent, Waypoint_add(&target));
         any = true;
     }
+    if (any) G_SendPointConfirmation(clent, location, true);
     return any;
 }
 

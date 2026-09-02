@@ -865,6 +865,12 @@ bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     return R_EntityOverheadPosition(entity, out);
 }
 
+/* Keep attachment-name/model-format knowledge in the selected game renderer.
+ * Shared client presentation can request an authored attachment by prefix. */
+bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+    return R_EntityAttachmentPosition(entity, prefix, out);
+}
+
 /* Cursor presentation is game-owned; the client only supplies UI coordinates. */
 
 
@@ -905,6 +911,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,
         .GetEntityOverheadPosition = R_GetEntityOverheadPosition,
+        .GetEntityAttachmentPosition = R_GetEntityAttachmentPosition,
         .DrawBoundingBox = R_DrawBoundingBox,
         .GetHeightAtPoint = R_GetHeightAtPoint,
         .TraceEntity = R_TraceEntity,

@@ -137,6 +137,9 @@ void SV_BuildClientFrame(LPCLIENT client) {
             continue;
         if (edict->svflags & SVF_NOCLIENT)
             continue;
+        /* Owner-only entities are private snapshot state, unlike ordinary owned units. */
+        if ((edict->svflags & SVF_OWNER_ONLY) && edict->s.player != clent->client->ps.number)
+            continue;
         if (!edict->s.model && !edict->s.sound && !edict->s.event)
             continue;
         if (!SV_CanClientSeeEntity(client, edict) && index > ge->max_clients)
