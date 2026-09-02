@@ -166,8 +166,10 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
         authored_selection = selected_highlight != NULL;
 
         /* The retail selected highlight is authored with SetAllPoints on the
-         * clickable quest button. Reassert that relation after cloning so the
-         * selected art uses the same full-width rectangle as mouse-over art. */
+         * clickable quest button (QuestListItemButton).  Reassert that relation
+         * after cloning so the selected art covers exactly the button area.
+         * The button is anchor-sized (TOPLEFT→icon TOPRIGHT, BOTTOMRIGHT→row
+         * BOTTOMRIGHT) so it does not include the icon container. */
         if (selected_highlight) {
             memset(&selected_highlight->Points, 0, sizeof(selected_highlight->Points));
             selected_highlight->AnyPointsSet = true;

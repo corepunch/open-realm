@@ -779,6 +779,12 @@ static inline void UI_ApplyFramePoints(LPFRAMEDEF frame) {
         yp[y].targetPos = UI_DecodeFramePointY(frame->SetPoint.target);
         yp[y].relativeTo = frame->SetPoint.relativeTo;
     }
+    /* When both opposing anchors span a full axis the frame is anchor-sized,
+     * not template-sized.  Clear any Width/Height carried in from INHERITS so
+     * the client's SCR_SolveAxisPosition uses the anchor span instead of the
+     * inherited template dimension. */
+    if (xp[FPP_MIN].used && xp[FPP_MAX].used) frame->Width  = 0.0f;
+    if (yp[FPP_MIN].used && yp[FPP_MAX].used) frame->Height = 0.0f;
 }
 
 void UI_SetPoint(LPFRAMEDEF frame,
