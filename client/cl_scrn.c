@@ -471,7 +471,9 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
 
-    if (!SCR_LayoutTextAreaOverflows(SCR_LayoutScrollTextArea(frame))) return;
+    /* Standalone scrollbars have no textarea; suppress art only for a known non-overflowing owner. */
+    LPCUIFRAME text_area = SCR_LayoutScrollTextArea(frame);
+    if (text_area && !SCR_LayoutTextAreaOverflows(text_area)) return;
 
     if (sb) SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
 
