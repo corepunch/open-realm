@@ -375,6 +375,21 @@ Those keys are resolved through `UI/war3skins.txt`.
 In this project, the theme table is loaded by the client-side UI library from `UI\war3skins.txt`,
 and keys are resolved through `Theme_String(...)` in `games/warcraft-3/ui/ui_theme.c` and `games/warcraft-3/ui/ui_fdf.c`.
 
+Decorated lookups first try the unversioned key. If it is absent, OpenRealm follows Warcraft's edition suffix selected by
+`fs_expansion`: RoC (`0`) tries `<Key>_V0`, while TFT (`1`) tries `<Key>_V1`. It does not fall through to the other edition's
+suffix. Category/race fallback still applies independently: the effective race category is tried first, then `[Default]`.
+
+```text
+Theme_String("GlueSpriteLayerBackground", "Default")
+  -> unversioned GlueSpriteLayerBackground
+  -> otherwise GlueSpriteLayerBackground_V0 when fs_expansion=0
+  -> otherwise GlueSpriteLayerBackground_V1 when fs_expansion=1
+  -> unresolved key if no matching field exists
+```
+
+This matters for menu glue because `fs_expansion` controls both which expansion archives are mounted and which versioned skin
+fields are selected. Do not infer the edition by preferring `_V1` merely because that field exists in the loaded table.
+
 ### Main Menu Glue Layer Examples
 
 From Warcraft III `UI/war3skins.txt`:

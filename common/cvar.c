@@ -447,7 +447,7 @@ void Cvar_Init(void) {
     Cvar_GetD("fs_basepath", FS_BasePath(), 0, "read-only engine/share data directory");
     Cvar_GetD("fs_homepath", FS_HomePath(), 0, "writable per-user directory (empty if unavailable)");
     Cvar_GetD("data",             "",                  CVAR_ARCHIVE, "override game data directory path");
-    Cvar_GetD("fs_expansion",     "0",                 0,            "0=RoC data only, 1=include TFT expansion data");
+    Cvar_GetD("fs_expansion",     "0",                 0,            "0=RoC data/skin, 1=TFT data/skin (include expansion archives)");
 #ifdef SC2_DEFAULT_MAP
     Cvar_GetD("map",              SC2_DEFAULT_MAP,     0,            "map file to load at startup");
 #else
