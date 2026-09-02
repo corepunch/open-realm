@@ -210,8 +210,9 @@ The following remain separate follow-up work:
 - MDX `EVTS` -> `AnimLookups.slk` -> `AnimSounds.slk` playback;
 - `CreateSoundFromLabel` and the remaining JASS sound-handle controls;
 - music/thematic-music natives;
-- race alerts such as `UnderAttack`, `GoldMineLow`, hero death, upgrade and
-  research completion.
+- race alerts such as `UnderAttack`, `GoldMineLow`, and hero death. Research
+  completion now resolves the active race skin's `ResearchComplete` alias; the
+  remaining race-alert families are still incomplete.
 
 ### Client/server flow
 

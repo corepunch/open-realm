@@ -44,6 +44,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 enemy/neutral selection, relationship colours, command authority, fog/death deselection | [docs/games/warcraft-3/selection-and-control.md](docs/games/warcraft-3/selection-and-control.md) |
 | WC3 persistent Hero and idle-worker HUD shortcuts, event-driven invalidation, F1-F8 cycling | [docs/games/warcraft-3/unit-shortcuts.md](docs/games/warcraft-3/unit-shortcuts.md) |
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
+| WC3 research queues, upgrade costs/requirements, player tech state, Blacksmith attack/armor effects | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
 | WC3 building damage fire thresholds, MDX Sprite attachments, race-specific effect families | [docs/games/warcraft-3/building-damage-rendering.md](docs/games/warcraft-3/building-damage-rendering.md) |
 | WC3 Build/Repair blocked-footprint approach routing | [docs/games/warcraft-3/build-repair-routing.md](docs/games/warcraft-3/build-repair-routing.md) |
 | WC3 food/supply ownership, training reservations, provider lifecycle, upkeep income | [docs/games/warcraft-3/food-and-upkeep.md](docs/games/warcraft-3/food-and-upkeep.md) |

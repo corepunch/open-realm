@@ -239,21 +239,128 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     }
 }
 
-static void SetTypedInfoPanelIcon(LPFRAMEDEF frame, LPCSTR prefix, LPCSTR type) {
-    char code[32];
+typedef struct {
+    BOOL resolved;
+    LPCSTR texture;
+} infoPanelIconCache_t;
+
+/* Damage and defense each have eight Warsmash enum entries. Cache the final
+ * path so HP/mana-driven info-panel refreshes do not repeatedly probe MPQs. */
+static infoPanelIconCache_t info_panel_icon_cache[2][8][2];
+
+static BOOL InfoPanelTextureExists(LPCSTR path) {
+    DWORD size = 0;
+    HANDLE data;
+
+    if (!path || !*path) return false;
+    path = UI_ResolveTextureAlias(path);
+    data = gi.ReadFile(path, &size);
+    if (!data) return false;
+    gi.MemFree(data);
+    return true;
+}
+
+static int InfoPanelIconTypeIndex(LPCSTR prefix, LPCSTR type, LPCSTR *normalized) {
+    static LPCSTR const damage_types[] = {
+        "Unknown", "Normal", "Pierce", "Siege", "Spells", "Chaos", "Magic", "Hero",
+    };
+    static LPCSTR const armor_types[] = {
+        "Small", "Medium", "Large", "Fort", "Normal", "Hero", "Divine", "None",
+    };
+    LPCSTR const *types;
+    LPCSTR fallback;
+
+    if (!strcasecmp(prefix, "Armor")) {
+        types = armor_types;
+        fallback = armor_types[0];
+        if (type && !strcasecmp(type, "heavy")) type = "Large";
+    } else {
+        types = damage_types;
+        fallback = damage_types[0];
+        if (type && !strcasecmp(type, "seige")) type = "Siege";
+    }
+    if (type && *type) {
+        FOR_LOOP(i, 8) {
+            if (!strcasecmp(type, types[i])) {
+                if (normalized) *normalized = types[i];
+                return (int)i;
+            }
+        }
+    }
+    if (normalized) *normalized = fallback;
+    return 0;
+}
+
+static LPCSTR InfoPanelThemeIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
     char key[96];
     LPCSTR texture;
-    size_t length;
 
-    if (!frame || !prefix || !type || !*type) return;
-    length = MIN(strlen(type), sizeof(code) - 1);
-    memcpy(code, type, length);
-    code[length] = '\0';
-    code[0] = (char)toupper((unsigned char)code[0]);
-    snprintf(key, sizeof(key), "InfoPanelIcon%s%s", prefix, code);
+    UI_InfoPanelIconSkinKey(prefix, type, has_upgrade, key, sizeof(key));
     texture = Theme_String(key, NULL);
-    if (!texture || !*texture) {
-        fprintf(stderr, "SetTypedInfoPanelIcon: missing war3skins key %s\n", key);
+    if ((!texture || !*texture) && !strcasecmp(prefix, "Damage") &&
+        !strcasecmp(type, "Spells")) {
+        /* Warsmash only aliases Spells to Magic when the authored Spells skin
+         * field is absent; a custom skin is allowed to provide Spells art. */
+        UI_InfoPanelIconSkinKey(prefix, "Magic", has_upgrade, key, sizeof(key));
+        texture = Theme_String(key, NULL);
+    }
+    return texture;
+}
+
+static LPCSTR ResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
+    LPCSTR normalized;
+    LPCSTR texture, fallback;
+    int const family = !strcasecmp(prefix, "Armor") ? 1 : 0;
+    int const type_index = InfoPanelIconTypeIndex(prefix, type, &normalized);
+    int const upgrade_index = has_upgrade ? 1 : 0;
+    infoPanelIconCache_t *cache = &info_panel_icon_cache[family][type_index][upgrade_index];
+
+    if (cache->resolved) return cache->texture;
+    cache->resolved = true;
+
+    texture = InfoPanelThemeIcon(prefix, normalized, has_upgrade);
+    if (texture && *texture && InfoPanelTextureExists(texture)) {
+        cache->texture = texture;
+        return texture;
+    }
+
+    if (!has_upgrade) {
+        /* InfoPanelIconBackdrops in Warsmash tries the Neutral texture first,
+         * then retries the same attack/defense type from the normal family if
+         * the Neutral asset fails to load (not merely when its skin key is
+         * absent). This is especially important for stock HeroNeutral entries
+         * whose path may be unavailable in a particular archive set. */
+        fallback = InfoPanelThemeIcon(prefix, normalized, true);
+        if (fallback && *fallback && InfoPanelTextureExists(fallback)) {
+            fprintf(stderr, "WC3 info panel: %s %s Neutral icon '%s' unavailable; using '%s'\n",
+                    prefix, normalized, texture && *texture ? texture : "<missing skin field>", fallback);
+            cache->texture = fallback;
+            return fallback;
+        }
+    }
+
+    fprintf(stderr, "WC3 info panel: missing %s %s%s icon '%s'\n", prefix, normalized,
+            has_upgrade ? "" : " Neutral", texture && *texture ? texture : "<missing skin field>");
+    cache->texture = NULL;
+    return NULL;
+}
+
+#ifdef BZ_TESTS
+void UI_TestResetInfoPanelIconCache(void) { memset(info_panel_icon_cache, 0, sizeof(info_panel_icon_cache)); }
+LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
+    return ResolveTypedInfoPanelIcon(prefix, type, has_upgrade);
+}
+#endif
+
+static void SetTypedInfoPanelIcon(LPFRAMEDEF frame, LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
+    LPCSTR texture;
+
+    if (!frame || !prefix) return;
+    texture = ResolveTypedInfoPanelIcon(prefix, type, has_upgrade);
+    if (!texture) {
+        /* Warsmash's backdrop table stores NULL when neither candidate loads.
+         * Clear the frame instead of retaining artwork from the last unit. */
+        frame->Texture.Image = 0;
         return;
     }
     UI_SetTexture(frame, texture, false);
@@ -301,48 +408,20 @@ static DWORD RawcodeFromListToken(LPCSTR text) {
     return length == 4 ? FS_SLKKey(rawcode) : 0;
 }
 
-static DWORD UnitUpgradeForClass(LPCSTR upgrades, LPCSTR wanted_class) {
-    LPCSTR cursor = upgrades;
-
-    if (!cursor || !wanted_class) return 0;
-    while (*cursor) {
-        char rawcode[5] = { 0 };
-        DWORD length = 0;
-        LPCSTR upgrade_class;
-        UpgradeData_t const *upgrade;
-
-        while (*cursor && (isspace((unsigned char)*cursor) || *cursor == ',' || *cursor == ';')) cursor++;
-        while (cursor[length] && cursor[length] != ',' && cursor[length] != ';' &&
-               !isspace((unsigned char)cursor[length]) && length < 4) {
-            rawcode[length] = cursor[length];
-            length++;
-        }
-        if (length == 4) {
-            upgrade = G_UpgradeData(FS_SLKKey(rawcode));
-            upgrade_class = upgrade && upgrade->id ? upgrade->upgradeClass : NULL;
-            if (upgrade_class && !strcasecmp(upgrade_class, wanted_class))
-                return upgrade->id;
-        }
-        while (*cursor && *cursor != ',' && *cursor != ';') cursor++;
-        if (*cursor) cursor++;
-    }
-    return 0;
-}
-
-static DWORD UnitWeaponUpgrade(LPEDICT ent, BOOL is_hero) {
+static DWORD UnitWeaponUpgrade(LPEDICT ent) {
     static LPCSTR const classes[] = { "melee", "ranged", "artillery" };
 
-    if (!ent || !ent->UnitBalance || is_hero) return 0;
+    if (!ent || !ent->UnitBalance) return 0;
     FOR_LOOP(i, sizeof(classes) / sizeof(classes[0])) {
-        DWORD const upgrade = UnitUpgradeForClass(ent->UnitBalance->upgrades, classes[i]);
+        DWORD const upgrade = G_GetUnitUpgradeForClass(ent, classes[i]);
         if (upgrade) return upgrade;
     }
     return 0;
 }
 
-static DWORD UnitArmorUpgrade(LPEDICT ent, BOOL is_hero) {
-    if (!ent || !ent->UnitBalance || is_hero) return 0;
-    return UnitUpgradeForClass(ent->UnitBalance->upgrades, "armor");
+static DWORD UnitArmorUpgrade(LPEDICT ent) {
+    if (!ent || !ent->UnitBalance) return 0;
+    return G_GetUnitUpgradeForClass(ent, "armor");
 }
 
 static void SetUpgradeLevel(LPFRAMEDEF frame, DWORD upgrade, LPEDICT ent) {
@@ -466,8 +545,8 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
                                           LONG min_damage2, LONG max_damage2,
                                           BOOL is_hero) {
     char value[64];
-    DWORD const weapon_upgrade = UnitWeaponUpgrade(ent, is_hero);
-    DWORD const armor_upgrade = UnitArmorUpgrade(ent, is_hero);
+    DWORD const weapon_upgrade = UnitWeaponUpgrade(ent);
+    DWORD const armor_upgrade = UnitArmorUpgrade(ent);
 
     if (!simple_infopanel_loaded) return;
     RefreshSimpleInfoPanelStrings();
@@ -476,7 +555,8 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
                 FRAMEPOINT_TOPLEFT, 0.0f, has_attack1 ? -0.0705f : -0.0400f);
 
     if (has_attack1) {
-        SetTypedInfoPanelIcon(simple_panel.InfoPanelIconBackdrop, "Damage", weapons->attack1.attackType);
+        SetTypedInfoPanelIcon(simple_panel.InfoPanelIconBackdrop, "Damage", weapons->attack1.attackType,
+                              weapon_upgrade != 0);
         snprintf(value, sizeof(value), "%ld - %ld", (long)min_damage, (long)max_damage);
         UI_SetText(simple_panel.InfoPanelIconValue, "%s", value);
         SetUpgradeLevel(simple_panel.InfoPanelIconLevel, weapon_upgrade, ent);
@@ -484,7 +564,8 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
         UI_WriteFrameWithChildren(simple_panel.SimpleInfoPanelIconDamage, &attack1_wrapper);
     }
     if (has_attack2) {
-        SetTypedInfoPanelIcon(attack2_icon_backdrop, "Damage", weapons->attack2.attackType);
+        SetTypedInfoPanelIcon(attack2_icon_backdrop, "Damage", weapons->attack2.attackType,
+                              weapon_upgrade != 0);
         snprintf(value, sizeof(value), "%ld - %ld", (long)min_damage2, (long)max_damage2);
         UI_SetText(attack2_icon_value, "%s", value);
         SetUpgradeLevel(attack2_icon_level, weapon_upgrade, ent);
@@ -492,7 +573,8 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
         UI_WriteFrameWithChildren(attack2_icon, &attack2_wrapper);
     }
 
-    SetTypedInfoPanelIcon(simple_panel.InfoPanelIconBackdrop_2, "Armor", ent->UnitBalance->defenseType);
+    SetTypedInfoPanelIcon(simple_panel.InfoPanelIconBackdrop_2, "Armor", ent->UnitBalance->defenseType,
+                          armor_upgrade != 0);
     UI_SetText(simple_panel.InfoPanelIconValue_2, "%d", (int)(ent->armor_value + 0.5f));
     SetUpgradeLevel(simple_panel.InfoPanelIconLevel_2, armor_upgrade, ent);
     UI_WriteFrame(&armor_wrapper);
@@ -723,6 +805,7 @@ static DWORD SelectedUnits(LPGAMECLIENT client, LPEDICT *out, DWORD max_out) {
 
 void Get_Commands_f(LPEDICT ent) {
     LPEDICT selected = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
+    LPGAMECLIENT previous_ui_client;
     gameCommandButton_t buttons[12];
     BYTE count;
 
@@ -734,6 +817,12 @@ void Get_Commands_f(LPEDICT ent) {
         return;
     }
 
+    /* Command tooltip formatting is player-sensitive for research because the
+     * next upgrade level determines gold/lumber cost. Keep the same current-
+     * client contract used by UI_WRITE_LAYER while this manually-authored
+     * command-bar layer is serialized. */
+    previous_ui_client = ui_current_client;
+    UI_SetCurrentClient(ent->client);
     UI_WriteStart(LAYER_COMMANDBAR);
     count = G_GetCommandButtons(selected, buttons, 12);
     FOR_LOOP(i, count) {
@@ -741,6 +830,7 @@ void Get_Commands_f(LPEDICT ent) {
     }
     if (count) UI_WriteTooltipFrame();
     UI_WriteEnd(ent);
+    UI_SetCurrentClient(previous_ui_client);
 }
 
 static void WritePortraitFrame(LPEDICT ent) {

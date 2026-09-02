@@ -157,6 +157,7 @@ static LPCSTR G_UIArtPath(LPCSTR art) {
 
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
     char command_code[256];
+    char art_level[256];
     LPCSTR base_code;
     LPCSTR art_code;
     LPCSTR art;
@@ -168,6 +169,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     ability_t const *ability;
     DWORD ability_code = 0;
     BOOL toggle_on = false;
+    BOOL upgrade_research = false;
     DWORD x = UINT_MAX;
     DWORD y = UINT_MAX;
 
@@ -187,17 +189,24 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     if (strlen(code) == 4) {
         ability_code = G_AbilityCodeName(code);
         base_code = GetClassName(ability_code);
+        upgrade_research = research && G_UpgradeData(ability_code)->id == ability_code;
     } else {
         base_code = code;
     }
     art_code = G_CommandArtCode(ent, code);
     toggle_on = !research && ability && ability->is_toggle_on && ability->is_toggle_on(ent);
-    art = FindConfigValue(art_code, toggle_on ? STR_UNART : G_ResearchField(STR_ART, research));
-    buttonpos = FindConfigValue(art_code, toggle_on ? STR_UNBUTTONPOS : G_ResearchField(STR_BUTTONPOS, research));
-    tip = FindConfigValue(art_code, toggle_on ? STR_UNTIP : G_ResearchField(STR_TIP, research));
-    ubertip = FindConfigValue(art_code, toggle_on ? STR_UNUBERTIP : G_ResearchField(STR_UBERTIP, research));
-    hotkey = FindConfigValue(art_code, toggle_on ? STR_UNHOTKEY : G_ResearchField(STR_HOTKEY, research));
-    art_path = G_UIArtPath(art);
+    art = FindConfigValue(art_code, toggle_on ? STR_UNART :
+                         G_ResearchField(STR_ART, research && !upgrade_research));
+    buttonpos = FindConfigValue(art_code, toggle_on ? STR_UNBUTTONPOS :
+                               G_ResearchField(STR_BUTTONPOS, research && !upgrade_research));
+    tip = FindConfigValue(art_code, toggle_on ? STR_UNTIP :
+                         G_ResearchField(STR_TIP, research && !upgrade_research));
+    ubertip = FindConfigValue(art_code, toggle_on ? STR_UNUBERTIP :
+                             G_ResearchField(STR_UBERTIP, research && !upgrade_research));
+    hotkey = FindConfigValue(art_code, toggle_on ? STR_UNHOTKEY :
+                            G_ResearchField(STR_HOTKEY, research && !upgrade_research));
+    G_CopyString(art_level, sizeof(art_level), research ? G_StringForLevel(art, level) : art);
+    art_path = G_UIArtPath(art_level);
 
     if (buttonpos && *buttonpos) {
         sscanf(buttonpos, "%u,%u", &x, &y);
@@ -207,6 +216,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, level));
     G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, level));
     G_CopyString(button->command, sizeof(button->command), code);
+    hotkey = research ? G_StringForLevel(hotkey, level) : hotkey;
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';
     button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);
     button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
@@ -374,6 +384,26 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             }
         }
     }
+    if (G_UnitProfile(ent->class_id)->researches) {
+        PARSE_LIST(G_UnitProfile(ent->class_id)->researches, upgrade, parse_segment) {
+            LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+            DWORD upgrade_id = 0;
+            LONG next_level = 0;
+            buildCommandState_t state;
+            char reason[128];
+            BYTE idx;
+
+            if (strlen(upgrade) != 4 || !client || client->ps.number != ent->s.player) continue;
+            memcpy(&upgrade_id, upgrade, sizeof(upgrade_id));
+            state = G_GetResearchCommandState(client, ent, upgrade_id, &next_level, reason, sizeof(reason));
+            if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
+            idx = count;
+            G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade, true, (DWORD)next_level);
+            if (state == BUILD_COMMAND_DISABLED && count > idx) {
+                G_DisableCommandButton(&buttons[idx], reason);
+            }
+        }
+    }
     if (G_UnitCanReviveHeroes(ent)) {
         FILTER_EDICTS(hero, hero->inuse && hero->s.player == ent->s.player) {
             if (count >= max_buttons) break;
@@ -437,24 +467,39 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     memset(queue, 0, sizeof(*queue) * max_queue);
     for (LPEDICT build = ent->build; build && count < max_queue;
          build = build->revival.reviving ? build->revival.queue_next : build->build) {
-        LPCSTR build_name = GetClassName(build->class_id);
-        DWORD duration = build->revival.reviving
-            ? (DWORD)(G_HeroReviveTime(build) * 1000.0f)
-            : build->UnitBalance->buildTime * 1000;
+        DWORD duration;
         FLOAT progress = 0;
 
-        if (count == 0) {
-            LONG cost = MAX(0, build->UnitBalance->foodUsed);
-            if (build->revival.reviving && duration > 0) {
-                progress = build->revival.progress / ((FLOAT)duration / 1000.0f);
-                progress = MAX(0, MIN(progress, 1));
-            } else if (build->health.max_value > 0) {
-                progress = build->health.value / build->health.max_value;
+        if (build->research.upgrade != 0) {
+            gameCommandButton_t button;
+            duration = (DWORD)(MAX(0.0f, build->research.duration) * 1000.0f);
+            if (G_BuildCommandButton(ent, GetClassName(build->research.upgrade), true,
+                                     (DWORD)build->research.level, &button)) {
+                G_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
+            }
+            if (count == 0 && build->research.duration > 0.0f) {
+                progress = build->research.progress / build->research.duration;
                 progress = MAX(0, MIN(progress, 1));
             }
-            food_blocked = build->training && cost > 0 && build->food.used == 0 && G_FoodLimitsEnabled();
+        } else {
+            LPCSTR build_name = GetClassName(build->class_id);
+            duration = build->revival.reviving
+                ? (DWORD)(G_HeroReviveTime(build) * 1000.0f)
+                : (build->UnitBalance ? (DWORD)MAX(0, build->UnitBalance->buildTime) * 1000 : 0);
+            if (count == 0) {
+                LONG cost = build->UnitBalance ? MAX(0, build->UnitBalance->foodUsed) : 0;
+                if (build->revival.reviving && duration > 0) {
+                    progress = build->revival.progress / ((FLOAT)duration / 1000.0f);
+                    progress = MAX(0, MIN(progress, 1));
+                } else if (build->health.max_value > 0) {
+                    progress = build->health.value / build->health.max_value;
+                    progress = MAX(0, MIN(progress, 1));
+                }
+                food_blocked = build->training && cost > 0 && build->food.used == 0 && G_FoodLimitsEnabled();
+            }
+            G_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
         }
-        G_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
+
         if (food_blocked) {
             /* A food-stalled head has no meaningful predicted completion time.
              * Zero times are an explicit wire sentinel: the client holds the

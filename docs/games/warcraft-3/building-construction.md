@@ -162,7 +162,10 @@ Target eligibility remains intentionally conservative: the target must be a live
 Construction and owned-building Repair now share the behavior described above. The following clean-room-spec items remain incomplete:
 
 - `war3map.w3u` modifications are not yet fully merged into the normalized typed unit rows, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
-- W3I upgrade-availability records are parsed but are not yet applied to a complete research/upgrade production system;
+- research/upgrade production now has a shared queue, per-level costs/times,
+  requirements, cancellation/refunds, and Blacksmith `ratd`/`rarm` effects; W3I
+  upgrade-availability records are still parsed but are not yet applied to that
+  player research state;
 - `SetPlayerAbilityAvailable` remains separate from unit/building technology availability and is not yet backed by per-player disabled-ability state;
 - hero training still lacks the additional hero-count/tier/token rules layered on top of normal `Trains`/maximum/requirement checks;
 - training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; queued unit icons can now cancel/refund their exact hidden queue edict, and producer death/removal cancels/refunds all queued unit entries;

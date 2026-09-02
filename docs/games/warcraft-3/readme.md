@@ -37,7 +37,7 @@ The current build can start from the menu, launch campaign or map content, rende
 ## Not There Yet
 
 - Full campaign scripting and trigger parity.
-- Complete Warcraft III object data, tech tree, upgrades, build rules, and race-specific gameplay.
+- Complete Warcraft III object-data overrides, the remaining upgrade-effect families, build rules, and race-specific gameplay.
 - Full ability, buff, autocast, item, and hero-system parity.
 - Complete save/load, replay, AI, and editor-level map behavior.
 - Production-grade user experience around errors, missing assets, and unsupported maps.
@@ -113,5 +113,6 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Sounds](sounds.md)
 - [Quest And Message Log UI](quest-and-message-log-ui.md)
 - [Building Damage Rendering](building-damage-rendering.md)
+- [Research And Upgrades](research-and-upgrades.md)
 
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.

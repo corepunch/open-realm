@@ -329,7 +329,24 @@ Upgrade-level text is the small `InfoPanelIconLevel` overlay attached to the bot
 slot. Resolve the selected unit's `UnitBalance.upgrades` rawcodes through `UpgradeData.slk` and show the player's researched level only
 for the matching `melee`/`ranged`/`artillery` weapon class or `armor` class. Hero attribute presentation does not inherit an unrelated
 unit upgrade marker. A matching upgrade at researched level zero is still displayed as `0`; if no matching upgrade exists, the level
-overlay is cleared and hidden. Buildings with `foodMade > 0` use the retail `SimpleInfoPanelIconFood` tree, `InfoPanelIconFood` skin
+overlay is cleared and hidden. The icon artwork follows the same Warsmash/War3Skins split: when that weapon or armor class has an
+upgrade rawcode, use `InfoPanelIconDamage<Type>` / `InfoPanelIconArmor<Type>`; otherwise use the corresponding `...Neutral` skin
+key. Warsmash tests the texture load as well as the skin field: if a Neutral texture cannot load, retry the ordinary key for the
+same attack/defense type. This matters for stock Heroes: Hero status icons are not special-cased, so a Hero with no matching upgrade
+class first requests `InfoPanelIconDamageHeroNeutral` / `InfoPanelIconArmorHeroNeutral`, then falls back to the ordinary Hero asset
+if that Neutral asset is unavailable. A custom Hero whose `Upgrades Used` supplies the relevant class uses the ordinary family and
+shows the researched-level badge like any other unit.
+
+`Spells` is also a fallback rather than a hard alias: preserve `InfoPanelIconDamageSpells[Neutral]` when a custom skin defines it,
+and only retry the corresponding Magic skin field when the Spells field is absent. Warcraft's `Heavy` defense spelling normalizes
+to the `Large` icon key, and Warsmash's compatibility spelling `SEIGE` normalizes to `Siege`. Invalid/null attack types use
+Warsmash's first attack-table entry (`Unknown`); invalid/null armor types use
+its first defense-table entry (`Small`). For stock Human data this means Footmen use Normal attack + Large (Heavy) armor artwork and
+Riflemen use Pierce attack + Medium armor artwork, while units with no matching attack/armor upgrade family use the neutral versions.
+If neither the requested Neutral texture nor its ordinary fallback can load, clear the backdrop rather than retaining the previously
+selected unit's icon. The resolver caches each attack/defense-family result; a missing Neutral asset or final missing icon is therefore
+reported once when that cache entry is first resolved rather than on every info-panel refresh. Buildings with `foodMade > 0` use the
+retail `SimpleInfoPanelIconFood` tree, `InfoPanelIconFood` skin
 texture, `COLON_FOOD_PROVIDED` label, and the authored Food Provided value layout. Resource-bearing units such as Gold Mines use the
 parallel `SimpleInfoPanelIconGold` tree, `InfoPanelIconGold` skin texture, `COLON_GOLD`, and the current resource amount.
 

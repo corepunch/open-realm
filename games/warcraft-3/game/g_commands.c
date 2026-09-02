@@ -390,7 +390,11 @@ CLIENTCOMMAND(Research) {
         return;
     }
     memcpy(&abilcode, classname, sizeof(abilcode));
-    G_HeroLearnSkill(ent, abilcode);
+    if (G_ProducerCanResearch(ent, abilcode)) {
+        G_QueueResearch(ent, abilcode);
+    } else {
+        G_HeroLearnSkill(ent, abilcode);
+    }
     Get_Commands_f(clent);
 }
 
