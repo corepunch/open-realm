@@ -408,6 +408,10 @@ static void SinglePlayer_SetView(singlePlayerView_t view) {
     SinglePlayer_SetHidden(single_player.CampaignBackdrop_2, true);
     SinglePlayer_SetHidden(single_player.CampaignSelectFrame, view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
     SinglePlayer_SetHidden(single_player.MissionSelectFrame, view != SINGLE_PLAYER_VIEW_MISSION_SELECT);
+    SinglePlayer_SetHidden(single_player.TutorialFrame, true);
+    SinglePlayer_SetHidden(single_player.HumanFrame, true);
+    SinglePlayer_SetHidden(single_player.TutorialButton, true);
+    SinglePlayer_SetHidden(single_player.HumanButton, true);
     SinglePlayer_SetHidden(single_player.SlidingDoors, true);
     SinglePlayer_SetHidden(campaign_list_frame,
                            view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);

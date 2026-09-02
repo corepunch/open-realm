@@ -21,13 +21,11 @@ Frame "FRAME" "CampaignMenu" {
         // Warsmash does not use them as the campaign list; it builds campaign
         // buttons dynamically from CampaignStrings instead.
         Frame "FRAME" "TutorialFrame" {
-            Hidden,
             Frame "TEXT" "TutorialCampaignLabel" {}
             Frame "TEXT" "TutorialCampaignDesc" {}
             Frame "BUTTON" "TutorialButton" {}
         }
         Frame "FRAME" "HumanFrame" {
-            Hidden,
             Frame "TEXT" "HumanCampaignLabel" {}
             Frame "TEXT" "HumanCampaignDesc" {}
             Frame "BUTTON" "HumanButton" {}
