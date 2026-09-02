@@ -139,8 +139,15 @@ rg -n 'ngol|hpea|autoharvestgold|LocationOfGold' /tmp/human02.j
 
 The local ROC script places `gg_unit_ngol_0009` at (-4736,-3840). Its three initial gold workers are at
 (-4276.2,-3938.2), (-4147.5,-3873.2), and (-4067.4,-3981.1). Both the intro completion and cancellation paths remove/recreate
-these workers and issue `autoharvestgold`. `unit_issueimmediateorder` currently implements only `stop`, so automatic campaign
-gathering is unsupported; this is separate from a manually ordered worker remaining in walk at the mine.
+these workers and issue `autoharvestgold`. Human02 startup traces also show the preplaced lumber workers receiving
+`autoharvestlumber`; these are immediate orders with no explicit resource target.
+
+OpenRealm resolves both orders through `harvest_auto_start`. The worker must have the normal `Ahar` Harvest ability; gold selects
+the nearest live, non-empty Gold Mine and lumber selects the nearest live tree from the worker's current position. The selected
+resource is then handed to the existing targeted state machine (`harvest_gold_order` / `harvest_start`) so mine capacity, pathing,
+carried resources, drop-off selection, and resume behavior stay in one implementation. If no compatible live target exists, the
+immediate order returns false and does not invent a movement target. This fixes the Human02 scripted startup path independently of
+manually ordered workers that may later remain in walk because of pathing/crowding.
 
 At `8204597d`, bounded real-map runs after `cmd cancel` reproduced successful manual mining in both local archive modes.
 A temporary `G_RunFrame` probe at server time 7000 ms issued normal `unit_issuetargetorder(worker, "smart", mine)` calls for the

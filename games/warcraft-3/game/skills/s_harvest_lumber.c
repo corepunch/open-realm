@@ -151,6 +151,40 @@ static LPEDICT find_another_tree(LPEDICT ent) {
     return ent ? find_another_tree_near(&ent->s.origin2) : NULL;
 }
 
+/* Automatic harvest orders have no explicit target.  Retail resolves them
+ * from the worker's current position, then continues through the ordinary
+ * targeted Harvest state machine.  Keep target discovery here so JASS/order
+ * dispatch does not need to know what counts as a live resource. */
+static LPEDICT harvest_find_nearest_resource(LPEDICT worker, returnResource_t resource) {
+    LPEDICT best = NULL;
+    FLOAT best_dist = 0.0f;
+
+    if (!worker)
+        return NULL;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT target = globals.edicts + i;
+        FLOAT dist;
+
+        if (resource == RETURN_RESOURCE_GOLD) {
+            if (!S_GoldMineCanHarvest(target))
+                continue;
+        } else if (resource == RETURN_RESOURCE_LUMBER) {
+            if (!target->inuse || target->targtype != TARG_TREE || M_IsDead(target))
+                continue;
+        } else {
+            return NULL;
+        }
+
+        dist = Vector2_distance(&worker->s.origin2, &target->s.origin2);
+        if (!best || dist < best_dist) {
+            best = target;
+            best_dist = dist;
+        }
+    }
+    return best;
+}
+
 /* Tree interaction keeps the closest direct legal chop point.  Dynamic
  * Peasant separation belongs to the resource-worker local avoidance policy:
  * same-stream workers queue instead of pre-allocating angular lanes, while
@@ -290,6 +324,36 @@ BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
     if (!id || strlen(id) != 4) return false;
     memcpy(&code, id, sizeof(code));
     return actor_has_skill(ent, code);
+}
+
+static BOOL harvest_auto_start(LPEDICT self, returnResource_t resource) {
+    LPEDICT target;
+
+    /* autoharvestgold/autoharvestlumber are worker-internal immediate orders,
+     * not substitutes for giving Harvest to arbitrary units.  OpenRealm's
+     * normal Smart resource path already keys worker authority off Ahar. */
+    if (!self || !G_ActorHasSkill(self, "Ahar") || (self->aiflags & AI_IMMOBILE))
+        return false;
+
+    target = harvest_find_nearest_resource(self, resource);
+    if (!target)
+        return false;
+
+    if (resource == RETURN_RESOURCE_GOLD)
+        return harvest_gold_order(self, target);
+    if (resource == RETURN_RESOURCE_LUMBER) {
+        harvest_start(self, target);
+        return true;
+    }
+    return false;
+}
+
+BOOL harvest_auto_start_gold(LPEDICT self) {
+    return harvest_auto_start(self, RETURN_RESOURCE_GOLD);
+}
+
+BOOL harvest_auto_start_lumber(LPEDICT self) {
+    return harvest_auto_start(self, RETURN_RESOURCE_LUMBER);
 }
 
 BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {

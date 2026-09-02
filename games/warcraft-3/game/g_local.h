@@ -1680,6 +1680,8 @@ void S_GoldMineReleaseWorker(LPEDICT);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
 BOOL harvest_gold_order(LPEDICT, LPEDICT);
+BOOL harvest_auto_start_gold(LPEDICT);
+BOOL harvest_auto_start_lumber(LPEDICT);
 BOOL harvest_lumber_return_to(LPEDICT, LPEDICT);
 BOOL harvest_gold_return_to(LPEDICT, LPEDICT);
 void cargo_drop_all(LPEDICT);
