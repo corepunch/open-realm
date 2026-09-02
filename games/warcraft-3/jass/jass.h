@@ -5,8 +5,6 @@
 #include "game/api/api_macros.h"
 #include "jass_api.h"
 
-#define MAX_GROUP_SIZE 256
-
 #define API_ALLOC(TYPE, NAME) TYPE *NAME = jass_newhandle(j, sizeof(TYPE), #NAME);
 
 KNOWN_AS(jass_type, JASSTYPE);
@@ -62,11 +60,6 @@ struct gtrigger_s {
 };
 
 typedef struct {
-    LPEDICT units[MAX_GROUP_SIZE];
-    DWORD num_units;
-} ggroup_t;
-
-typedef struct {
     PATHSTR fileName;
     BOOL looping;
     BOOL is3D;
@@ -88,6 +81,7 @@ struct jass_context {
     LPEDICT source;
     LPPLAYER playerState;
     LPPLAYER localPlayerState;
+    HANDLE timer;
     LPCJASSFUNC func;
 };
 
@@ -108,6 +102,8 @@ BOOL jass_coroutinedone(LPCJASSCOROUTINE co);
 void jass_runevents(LPJASS j);
 void jass_sleep(LPJASS j, DWORD msec);
 LPCSTR jass_functionname(LPCJASSFUNC func);
+LPCJASSFUNC jass_functionbyname(LPJASS j, LPCSTR name);
+void jass_settimercontext(HANDLE timer);
 BOOL jass_triggerdisabled(LPTRIGGER trigger);
 JASSTYPEID jass_gettype(LPJASS j, int index);
 DWORD jass_pushnull(LPJASS j);

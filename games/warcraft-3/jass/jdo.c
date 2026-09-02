@@ -22,6 +22,9 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
+#define BZ_JASS_SNAPSHOT_VERSION 1 // format version; rejects snapshots with incompatible semantic records
+#define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
+#define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) jass_alloc(sizeof(type))
@@ -69,6 +72,7 @@ DWORD NAME(LPJASS j) { \
 LPPLAYER currentplayer = NULL;
 LPEDICT currentunit = NULL;
 LPPLAYER currentenumplayer = NULL;
+static HANDLE currenttimer = NULL;
 
 LPCSTR keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
@@ -202,7 +206,7 @@ JASS_CMPOP(__ge, >=);
 JASS_CMPOP(__gt, >);
 JASS_CMPOP(__lt, <);
 
-static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
+static BOOL jass_valuehandle(LPCSTR type) {
     static LPCSTR const value_handles[] = {
         "race", "alliancetype", "racepreference", "igamestate", "fgamestate", "playerstate",
         "playergameresult", "unitstate", "gameevent", "playerevent", "playerunitevent", "widgetevent",
@@ -211,6 +215,11 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         "playercolor", "playerslotstate", "volumegroup", "camerafield", "blendmode", "raritycontrol",
         "texmapflags", "fogstate", "effecttype"
     };
+    FOR_LOOP(i, sizeof(value_handles) / sizeof(value_handles[0])) if (!strcmp(type, value_handles[i])) return true;
+    return false;
+}
+
+static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
         case 1: return false;
@@ -226,9 +235,7 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         case jasstype_handle:
             if (a->value == b->value) return true;
             if (a->type != b->type) return false;
-            FOR_LOOP(i, sizeof(value_handles) / sizeof(value_handles[0]))
-                if (!strcmp(a->type->name, value_handles[i])) return !memcmp(a->value, b->value, sizeof(DWORD));
-            return false;
+            return jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(DWORD));
     }
     return false;
 }
@@ -532,6 +539,9 @@ BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name) {
 LPCSTR jass_functionname(LPCJASSFUNC func) {
     return func ? func->name : NULL;
 }
+
+LPCJASSFUNC jass_functionbyname(LPJASS j, LPCSTR name) { return find_function(jass_root(j), name); }
+void jass_settimercontext(HANDLE timer) { currenttimer = timer; }
 
 BOOL jass_triggerdisabled(LPTRIGGER trigger) {
     return trigger ? trigger->disabled : false;
@@ -879,6 +889,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
         tmp_state.context.source = source;
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
+        tmp_state.context.timer = currenttimer;
         jass_pushfunction(&tmp_state, cond->expr);
         LPEDICT previous_unit = currentunit;
         currentunit = unit;
@@ -944,6 +955,7 @@ static void jass_executetriggercontext(LPJASS j,
                                   .source = source,
                                   .playerState = player,
                                   .localPlayerState = currentplayer,
+                                  .timer = currenttimer,
                               ));
     }
 }
@@ -1923,6 +1935,412 @@ BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
 
 BOOL jass_dobuffer(LPJASS j, LPSTR buffer) {
     return jass_dobuffer_ex(j, buffer, JASS_MODE_JASS);
+}
+
+typedef struct {
+    DWORD magic, version, identity, globals, coroutines;
+} JASSSNAPSHOTHEADER;
+
+static DWORD const jass_snapshot_magic = MAKEFOURCC('J', 'S', 'V', 'M');
+
+/* Snapshot identity hashes immutable parser metadata, never process-local addresses. */
+static DWORD jass_snapshot_hashbytes(DWORD hash, LPCVOID data, size_t size) {
+    BYTE const *bytes = data;
+    while (size--) hash = (hash ^ *bytes++) * 16777619u;
+    return hash;
+}
+
+static DWORD jass_snapshot_hashstr(DWORD hash, LPCSTR text) {
+    DWORD len = text ? (DWORD)strlen(text) : 0;
+    hash = jass_snapshot_hashbytes(hash, &len, sizeof(len));
+    return len ? jass_snapshot_hashbytes(hash, text, len) : hash;
+}
+
+static DWORD jass_snapshot_hashtokens(DWORD hash, LPCTOKEN token) {
+    FOR_EACH_LIST(TOKEN const, item, token) {
+        hash = jass_snapshot_hashbytes(hash, &item->type, sizeof(item->type));
+        hash = jass_snapshot_hashbytes(hash, &item->flags, sizeof(item->flags));
+        hash = jass_snapshot_hashstr(hash, item->primary);
+        hash = jass_snapshot_hashstr(hash, item->secondary);
+        hash = jass_snapshot_hashtokens(hash, item->init);
+        hash = jass_snapshot_hashtokens(hash, item->body);
+        hash = jass_snapshot_hashtokens(hash, item->args);
+        hash = jass_snapshot_hashtokens(hash, item->condition);
+        hash = jass_snapshot_hashtokens(hash, item->elseblock);
+        hash = jass_snapshot_hashtokens(hash, item->index);
+    }
+    return hash;
+}
+
+static DWORD jass_snapshot_identity(LPCJASS j) {
+    DWORD hash = 2166136261u;
+    FOR_EACH_LIST(JASSPROGRAM const, program, j->programs) hash = jass_snapshot_hashtokens(hash, program->tokens);
+    return hash;
+}
+
+DWORD jass_programidentity(LPJASS j) { return jass_snapshot_identity(jass_root(j)); }
+
+static BOOL jass_snapshot_io(JASSSNAPSHOT *snapshot, void *data, size_t size) {
+    return size <= UINT32_MAX && snapshot && snapshot->transfer && snapshot->transfer(snapshot->context, data, (DWORD)size);
+}
+
+static BOOL jass_snapshot_writestr(JASSSNAPSHOT *snapshot, LPCSTR text) {
+    DWORD len = text ? (DWORD)strlen(text) + 1 : 0;
+    return jass_snapshot_io(snapshot, &len, sizeof(len)) && (!len || jass_snapshot_io(snapshot, (void *)text, len));
+}
+
+static BOOL jass_snapshot_readstr(JASSSNAPSHOT *snapshot, LPSTR *text) {
+    DWORD len;
+    LPSTR value = NULL;
+    if (!jass_snapshot_io(snapshot, &len, sizeof(len)) || len > BZ_JASS_SNAPSHOT_MAX_STRING) return false;
+    if (len) {
+        value = jass_alloc(len);
+        if (!value || !jass_snapshot_io(snapshot, value, len) || value[len - 1]) { SAFE_DELETE(value, jass_free); return false; }
+    }
+    *text = value;
+    return true;
+}
+
+static DWORD jass_snapshot_arraycount(LPCJASSARRAY array) {
+    DWORD count = 0;
+    FOR_EACH_LIST(JASSARRAY const, item, array) count++;
+    return count;
+}
+
+/* Values carry their declared type so changed scripts and corrupt tags reject before mutation. */
+static BOOL jass_snapshot_writevar(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
+    DWORD present = var->value || var->_array, count = jass_snapshot_arraycount(var->_array);
+    JASSTYPEID base;
+    if (!var->type) { fprintf(stderr, "JASS snapshot: value has no declared type\n"); return false; }
+    base = jass_getvarbasetype(var);
+    if (!jass_snapshot_writestr(snapshot, var->type ? var->type->name : NULL) ||
+        !jass_snapshot_io(snapshot, &present, sizeof(present)) ||
+        !jass_snapshot_io(snapshot, &count, sizeof(count))) return false;
+    FOR_EACH_LIST(JASSARRAY const, item, var->_array)
+        if (!jass_snapshot_io(snapshot, (void *)&item->index, sizeof(item->index)) ||
+            !jass_snapshot_writevar(j, snapshot, &item->value)) return false;
+    if (!present || count) return true;
+    switch (base) {
+    case jasstype_integer: return jass_snapshot_io(snapshot, var->value, sizeof(LONG));
+    case jasstype_real: return jass_snapshot_io(snapshot, var->value, sizeof(FLOAT));
+    case jasstype_boolean: return jass_snapshot_io(snapshot, var->value, sizeof(BOOL));
+    case jasstype_string: return jass_snapshot_writestr(snapshot, var->value);
+    case jasstype_code: return jass_snapshot_writestr(snapshot, jass_functionname(var->value));
+    case jasstype_handle: {
+        DWORD id;
+        if (jass_valuehandle(var->type->name)) return jass_snapshot_io(snapshot, var->value, sizeof(DWORD));
+        if (!jass_host.SaveHandle || !jass_host.SaveHandle(var->type->name, var->value, &id)) {
+            fprintf(stderr, "JASS snapshot: cannot encode %s handle\n", var->type->name);
+            return false;
+        }
+        return jass_snapshot_io(snapshot, &id, sizeof(id));
+    }
+    default: fprintf(stderr, "JASS snapshot: unsupported value type %s\n", var->type->name); return false;
+    }
+}
+
+static BOOL jass_snapshot_readvar(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR var) {
+    LPSTR type = NULL, text = NULL;
+    DWORD present, count;
+    LPCJASSTYPE declared;
+    if (!jass_snapshot_readstr(snapshot, &type) || !type || !(declared = find_type(j, type)) ||
+        !jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1 ||
+        !jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) {
+        SAFE_DELETE(type, jass_free); return false;
+    }
+    SAFE_DELETE(type, jass_free);
+    var->type = declared;
+    FOR_LOOP(i, count) {
+        DWORD index;
+        if (!jass_snapshot_io(snapshot, &index, sizeof(index)) ||
+            !jass_snapshot_readvar(j, snapshot, ensure_array_value(j, var, index))) return false;
+    }
+    if (!present || count) return present == !!count;
+    switch (jass_getvarbasetype(var)) {
+    case jasstype_integer: return (var->value = jass_alloc(sizeof(LONG))) && jass_snapshot_io(snapshot, var->value, sizeof(LONG));
+    case jasstype_real: return (var->value = jass_alloc(sizeof(FLOAT))) && jass_snapshot_io(snapshot, var->value, sizeof(FLOAT));
+    case jasstype_boolean: return (var->value = jass_alloc(sizeof(BOOL))) && jass_snapshot_io(snapshot, var->value, sizeof(BOOL));
+    case jasstype_string:
+        if (!jass_snapshot_readstr(snapshot, &text) || !text) return false;
+        var->value = text; return true;
+    case jasstype_code:
+        if (!jass_snapshot_readstr(snapshot, &text) || !text) return false;
+        var->value = (HANDLE)find_function(j, text); SAFE_DELETE(text, jass_free); return var->value != NULL;
+    case jasstype_handle: {
+        DWORD id;
+        HANDLE value;
+        if (!jass_snapshot_io(snapshot, &id, sizeof(id))) return false;
+        if (jass_valuehandle(var->type->name)) {
+            var->value = jass_alloc(sizeof(DWORD));
+            if (!var->value) return false;
+            *(LPDWORD)var->value = id;
+            var->refcount = jass_alloc(sizeof(DWORD));
+            if (!var->refcount) return false;
+            *var->refcount = 0;
+            return true;
+        }
+        if (!jass_host.LoadHandle || !(value = jass_host.LoadHandle(var->type->name, id))) {
+            fprintf(stderr, "JASS snapshot: cannot resolve %s handle\n", var->type->name);
+            return false;
+        }
+        var->refcount = jass_alloc(sizeof(DWORD));
+        if (!var->refcount) return false;
+        var->value = value;
+        *var->refcount = 1;
+        return true;
+    }
+    default: fprintf(stderr, "JASS snapshot: unsupported value type %s\n", var->type->name); return false;
+    }
+}
+
+static DWORD jass_snapshot_globalcount(LPCJASS j) {
+    DWORD count = 0;
+    FOR_EACH_LIST(JASSDICT const, item, j->globals) if (!item->value.constant) count++;
+    return count;
+}
+
+static DWORD jass_snapshot_coroutinecount(LPCJASS j) {
+    DWORD count = 0;
+    FOR_EACH_LIST(JASSCOROUTINE const, co, j->coroutines) if (!co->done) count++;
+    return count;
+}
+
+static BOOL jass_snapshot_findtoken(LPCTOKEN token, LPCTOKEN wanted, DWORD *ordinal, DWORD *found) {
+    FOR_EACH_LIST(TOKEN const, item, token) {
+        DWORD current = (*ordinal)++;
+        if (item == wanted) { *found = current; return true; }
+        if (jass_snapshot_findtoken(item->init, wanted, ordinal, found) ||
+            jass_snapshot_findtoken(item->body, wanted, ordinal, found) ||
+            jass_snapshot_findtoken(item->args, wanted, ordinal, found) ||
+            jass_snapshot_findtoken(item->condition, wanted, ordinal, found) ||
+            jass_snapshot_findtoken(item->elseblock, wanted, ordinal, found) ||
+            jass_snapshot_findtoken(item->index, wanted, ordinal, found)) return true;
+    }
+    return false;
+}
+
+static DWORD jass_snapshot_tokenid(LPCJASS j, LPCTOKEN wanted) {
+    DWORD ordinal = 0, found = UINT32_MAX;
+    if (!wanted) return UINT32_MAX;
+    FOR_EACH_LIST(JASSPROGRAM const, program, j->programs)
+        if (jass_snapshot_findtoken(program->tokens, wanted, &ordinal, &found)) return found;
+    return UINT32_MAX;
+}
+
+static LPCTOKEN jass_snapshot_gettoken(LPCTOKEN token, DWORD wanted, DWORD *ordinal) {
+    FOR_EACH_LIST(TOKEN const, item, token) {
+        if ((*ordinal)++ == wanted) return item;
+        LPCTOKEN found = jass_snapshot_gettoken(item->init, wanted, ordinal);
+        if (!found) found = jass_snapshot_gettoken(item->body, wanted, ordinal);
+        if (!found) found = jass_snapshot_gettoken(item->args, wanted, ordinal);
+        if (!found) found = jass_snapshot_gettoken(item->condition, wanted, ordinal);
+        if (!found) found = jass_snapshot_gettoken(item->elseblock, wanted, ordinal);
+        if (!found) found = jass_snapshot_gettoken(item->index, wanted, ordinal);
+        if (found) return found;
+    }
+    return NULL;
+}
+
+static LPCTOKEN jass_snapshot_token(LPCJASS j, DWORD wanted) {
+    DWORD ordinal = 0;
+    if (wanted == UINT32_MAX) return NULL;
+    FOR_EACH_LIST(JASSPROGRAM const, program, j->programs) {
+        LPCTOKEN found = jass_snapshot_gettoken(program->tokens, wanted, &ordinal);
+        if (found) return found;
+    }
+    return NULL;
+}
+
+static DWORD jass_snapshot_dictcount(LPCJASSDICT dict) {
+    DWORD count = 0;
+    FOR_EACH_LIST(JASSDICT const, item, dict) count++;
+    return count;
+}
+
+static BOOL jass_snapshot_writedict(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSDICT dict) {
+    DWORD count = jass_snapshot_dictcount(dict);
+    if (!jass_snapshot_io(snapshot, &count, sizeof(count))) return false;
+    FOR_EACH_LIST(JASSDICT const, item, dict)
+        if (!jass_snapshot_writestr(snapshot, item->key) || !jass_snapshot_writevar(j, snapshot, &item->value)) return false;
+    return true;
+}
+
+static BOOL jass_snapshot_readdict(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSDICT *dict) {
+    DWORD count;
+    if (!jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
+    FOR_LOOP(i, count) {
+        LPJASSDICT item = JASSALLOC(JASSDICT);
+        LPSTR name = NULL;
+        if (!jass_snapshot_readstr(snapshot, &name) || !name || find_dict(*dict, name)) {
+            SAFE_DELETE(name, jass_free); jass_free(item); return false;
+        }
+        item->key = name;
+        if (!jass_snapshot_readvar(j, snapshot, &item->value)) { jass_deletedict(item); return false; }
+        PUSH_BACK(JASSDICT, item, *dict);
+    }
+    return true;
+}
+
+static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT context) {
+    struct { LPCSTR type; HANDLE value; } handles[] = {
+        { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->source },
+        { "player", context->playerState }, { "player", context->localPlayerState }, { "timer", context->timer },
+    };
+    if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func))) return false;
+    FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
+        DWORD present = handles[i].value != NULL, id = 0;
+        if (!jass_snapshot_io(snapshot, &present, sizeof(present))) return false;
+        if (present && (!jass_host.SaveHandle || !jass_host.SaveHandle(handles[i].type, handles[i].value, &id) ||
+            !jass_snapshot_io(snapshot, &id, sizeof(id)))) return false;
+    }
+    return true;
+}
+
+static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCONTEXT context) {
+    struct { LPCSTR type; HANDLE *value; } handles[] = {
+        { "trigger", (HANDLE *)&context->trigger }, { "unit", (HANDLE *)&context->unit },
+        { "unit", (HANDLE *)&context->source }, { "player", (HANDLE *)&context->playerState },
+        { "player", (HANDLE *)&context->localPlayerState }, { "timer", &context->timer },
+    };
+    LPSTR func = NULL;
+    BOOL has_func;
+    if (!jass_snapshot_readstr(snapshot, &func)) return false;
+    has_func = func != NULL;
+    context->func = func ? find_function(j, func) : NULL;
+    SAFE_DELETE(func, jass_free);
+    if (has_func && !context->func) return false;
+    FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
+        DWORD present, id;
+        if (!jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1) return false;
+        if (present && (!jass_snapshot_io(snapshot, &id, sizeof(id)) || !jass_host.LoadHandle ||
+            !(*handles[i].value = jass_host.LoadHandle(handles[i].type, id)))) return false;
+    }
+    return true;
+}
+
+static BOOL jass_snapshot_writecoroutines(LPJASS j, JASSSNAPSHOT *snapshot) {
+    DWORD count = jass_snapshot_coroutinecount(j), now = jass_gettime();
+    if (!jass_snapshot_io(snapshot, &count, sizeof(count))) return false;
+    FOR_EACH_LIST(JASSCOROUTINE const, co, j->coroutines) {
+        DWORD frames = 0, remaining = co->wake_time > now ? co->wake_time - now : 0;
+        if (co->done) continue;
+        FOR_EACH_LIST(JASSCOROUTINEFRAME const, frame, co->frames) frames++;
+        if (!jass_snapshot_writecontext(snapshot, &co->state->context) ||
+            !jass_snapshot_io(snapshot, &remaining, sizeof(remaining)) ||
+            !jass_snapshot_io(snapshot, &frames, sizeof(frames))) return false;
+        FOR_EACH_LIST(JASSCOROUTINEFRAME const, frame, co->frames) {
+            DWORD body = jass_snapshot_tokenid(j, frame->body), pc = jass_snapshot_tokenid(j, frame->pc);
+            if ((frame->body && body == UINT32_MAX) || (frame->pc && pc == UINT32_MAX) ||
+                !jass_snapshot_io(snapshot, (void *)&frame->type, sizeof(frame->type)) ||
+                !jass_snapshot_writestr(snapshot, jass_functionname(frame->func)) ||
+                !jass_snapshot_io(snapshot, &body, sizeof(body)) || !jass_snapshot_io(snapshot, &pc, sizeof(pc)) ||
+                !jass_snapshot_io(snapshot, (void *)&frame->loop_count, sizeof(frame->loop_count)) ||
+                !jass_snapshot_writedict(j, snapshot, frame->locals)) return false;
+        }
+    }
+    return true;
+}
+
+static BOOL jass_snapshot_readcoroutines(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCOROUTINE *list) {
+    DWORD count, now = jass_gettime();
+    if (!jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
+    FOR_LOOP(i, count) {
+        LPJASS state = JASSALLOC(JASS);
+        LPJASSCOROUTINE co = JASSALLOC(JASSCOROUTINE);
+        LPJASSCOROUTINEFRAME *tail = &co->frames;
+        DWORD remaining, frames;
+        memcpy(state, j, sizeof(*state));
+        memset(state->stack, 0, sizeof(state->stack));
+        memset(&state->context, 0, sizeof(state->context));
+        state->stack_pointer = state->stack; state->num_stack = 0; state->root = j;
+        state->coroutines = NULL; state->current_coroutine = NULL;
+        co->state = state; co->wake_time = now; co->yielded = true;
+        if (!jass_snapshot_readcontext(j, snapshot, &state->context) ||
+            !jass_snapshot_io(snapshot, &remaining, sizeof(remaining)) ||
+            !jass_snapshot_io(snapshot, &frames, sizeof(frames)) || !frames || frames > BZ_JASS_SNAPSHOT_MAX_COUNT) {
+            jass_free_coroutine(co); return false;
+        }
+        co->wake_time += remaining;
+        FOR_LOOP(k, frames) {
+            LPJASSCOROUTINEFRAME frame = JASSALLOC(JASSCOROUTINEFRAME);
+            LPSTR func = NULL;
+            DWORD body, pc;
+            memset(frame, 0, sizeof(*frame));
+            if (!jass_snapshot_io(snapshot, &frame->type, sizeof(frame->type)) || frame->type > JASS_FRAME_LOOP ||
+                !jass_snapshot_readstr(snapshot, &func) ||
+                !jass_snapshot_io(snapshot, &body, sizeof(body)) || !jass_snapshot_io(snapshot, &pc, sizeof(pc)) ||
+                !jass_snapshot_io(snapshot, &frame->loop_count, sizeof(frame->loop_count)) ||
+                !jass_snapshot_readdict(j, snapshot, &frame->locals)) {
+                SAFE_DELETE(func, jass_free); jass_free(frame); jass_free_coroutine(co); return false;
+            }
+            frame->func = func ? find_function(j, func) : NULL;
+            SAFE_DELETE(func, jass_free);
+            frame->body = jass_snapshot_token(j, body); frame->pc = jass_snapshot_token(j, pc);
+            if ((body != UINT32_MAX && !frame->body) || (pc != UINT32_MAX && !frame->pc) ||
+                (frame->type == JASS_FRAME_FUNCTION && !frame->func)) {
+                jass_free_frame(co, frame); jass_free_coroutine(co); return false;
+            }
+            *tail = frame; tail = &frame->next;
+        }
+        PUSH_BACK(JASSCOROUTINE, co, *list);
+    }
+    return true;
+}
+
+BOOL jass_writesnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
+    LPJASS root = jass_root(j);
+    JASSSNAPSHOTHEADER header = {
+        jass_snapshot_magic, BZ_JASS_SNAPSHOT_VERSION, jass_snapshot_identity(root), jass_snapshot_globalcount(root),
+        jass_snapshot_coroutinecount(root)
+    };
+    if (root->current_coroutine || root->sync_rterror_jmp_set) {
+        fprintf(stderr, "JASS snapshot: save requested inside an active VM frame\n"); return false;
+    }
+    if (!jass_snapshot_io(snapshot, &header, sizeof(header))) return false;
+    FOR_EACH_LIST(JASSDICT const, item, root->globals)
+        if (!item->value.constant && (!jass_snapshot_writestr(snapshot, item->key) ||
+            !jass_snapshot_writevar(root, snapshot, &item->value))) return false;
+    return jass_snapshot_writecoroutines(root, snapshot);
+}
+
+BOOL jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
+    LPJASS root = jass_root(j);
+    JASSSNAPSHOTHEADER header;
+    LPJASSDICT staged = NULL;
+    LPJASSCOROUTINE coroutines = NULL;
+    BOOL ok = false;
+    if (root->current_coroutine || root->sync_rterror_jmp_set || !jass_snapshot_io(snapshot, &header, sizeof(header)) ||
+        header.magic != jass_snapshot_magic || header.version != BZ_JASS_SNAPSHOT_VERSION ||
+        header.identity != jass_snapshot_identity(root) || header.globals != jass_snapshot_globalcount(root) ||
+        header.globals > BZ_JASS_SNAPSHOT_MAX_COUNT || header.coroutines > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
+    FOR_LOOP(i, header.globals) {
+        LPSTR name = NULL;
+        LPJASSDICT item = NULL;
+        LPJASSVAR live;
+        if (!jass_snapshot_readstr(snapshot, &name) || !name || find_dict(staged, name) ||
+            !(live = find_global(root, name)) || live->constant) { SAFE_DELETE(name, jass_free); goto done; }
+        item = JASSALLOC(JASSDICT);
+        item->key = name;
+        if (!jass_snapshot_readvar(root, snapshot, &item->value)) { jass_deletedict(item); goto done; }
+        ADD_TO_LIST(item, staged);
+    }
+    if (!jass_snapshot_readcoroutines(root, snapshot, &coroutines) ||
+        header.coroutines != jass_snapshot_coroutinecount(&(JASS){ .coroutines = coroutines })) goto done;
+    FOR_EACH_LIST(JASSDICT, item, staged) {
+        LPJASSVAR live = find_global(root, item->key);
+        if (live->type != item->value.type) goto done;
+    }
+    FOR_EACH_LIST(JASSDICT, item, staged) jass_copy(root, find_global(root, item->key), &item->value);
+    while (root->coroutines) {
+        LPJASSCOROUTINE next = root->coroutines->next;
+        jass_free_coroutine(root->coroutines); root->coroutines = next;
+    }
+    root->coroutines = coroutines; coroutines = NULL;
+    ok = true;
+done:
+    SAFE_DELETE(staged, jass_deletedict);
+    while (coroutines) { LPJASSCOROUTINE next = coroutines->next; jass_free_coroutine(coroutines); coroutines = next; }
+    return ok;
 }
 
 LPJASS jass_newstate(void) {

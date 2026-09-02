@@ -76,6 +76,7 @@ KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 KNOWN_AS(gregion_s, REGION);
 KNOWN_AS(gevent_s, EVENT);
 KNOWN_AS(gtrigger_s, TRIGGER);
+KNOWN_AS(gtimer_s, GTIMER);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
 
@@ -563,6 +564,21 @@ typedef struct {
     VECTOR2 origin;
 } gitem_t;
 
+#define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
+#define MAX_JASS_GROUPS 1024 // handles; bounds deterministic per-map group save IDs
+#define MAX_JASS_TRIGGERS 4096 // handles; bounds deterministic per-map trigger save IDs
+#define MAX_JASS_TIMERS 1024 // handles; bounds deterministic per-map timer save IDs
+typedef struct {
+    LPEDICT units[MAX_GROUP_SIZE];
+    DWORD num_units;
+} ggroup_t;
+
+struct gtimer_s {
+    struct jass_function const *handler;
+    DWORD started, duration, timeout, remaining;
+    BOOL periodic, paused, running;
+};
+
 struct gquestitem_s {
     LPSTR description;
     LPQUESTITEM next;
@@ -913,6 +929,7 @@ struct gevent_s {
     LPEDICT subject;
     EVENTTYPE type;
     LPTRIGGER trigger;
+    LPGTIMER timer;
     REGION region;
     FLOAT range;
 };
@@ -1055,6 +1072,12 @@ typedef struct {
 
 struct level_locals {
     LPJASS vm;
+    ggroup_t *groups[MAX_JASS_GROUPS];
+    DWORD num_groups;
+    LPTRIGGER triggers[MAX_JASS_TRIGGERS];
+    DWORD num_triggers;
+    LPGTIMER timers[MAX_JASS_TIMERS];
+    DWORD num_timers;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
     struct {
@@ -1176,6 +1199,7 @@ BOOL G_IsNight(void);
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
 void G_BindEntityData(LPEDICT);
+void G_BindEntityRuntime(LPEDICT);
 void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle);
@@ -1184,10 +1208,23 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
 LPEDICT G_CreateDeadDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
 void SP_monster_tree(LPEDICT);
+void tree_stand(LPEDICT);
+void tree_birth(LPEDICT);
+void tree_pain(LPEDICT);
 
 // g_save.c
 BOOL WriteGame(LPCSTR filename);
 BOOL ReadGame(LPCSTR filename);
+BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
+HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
+BOOL G_RegisterJassGroup(ggroup_t *group);
+BOOL G_RegisterJassTrigger(LPTRIGGER trigger);
+BOOL G_RegisterJassTimer(LPGTIMER timer);
+void G_RunTimers(void);
+void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, struct jass_function const *handler);
+void G_TimerPause(LPGTIMER timer);
+void G_TimerResume(LPGTIMER timer);
+DWORD G_TimerRemaining(LPCGTIMER timer);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);
@@ -1511,6 +1548,8 @@ BOOL G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
 BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
 BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
 BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
+void unit_birth(LPEDICT);
+void unit_die(LPEDICT, LPEDICT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
 BOOL unit_additem(LPEDICT, LPEDICT);

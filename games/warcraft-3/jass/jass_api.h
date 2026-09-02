@@ -9,6 +9,12 @@ KNOWN_AS(jass_coroutine, JASSCOROUTINE);
 KNOWN_AS(jass_module, JASSMODULE);
 
 typedef DWORD (*LPJASSCFUNCTION)(LPJASS);
+typedef BOOL (*LPJASSSNAPSHOTIO)(void *context, void *data, DWORD size);
+
+typedef struct {
+    void *context;
+    LPJASSSNAPSHOTIO transfer;
+} JASSSNAPSHOT;
 
 struct jass_module {
     LPCSTR name;
@@ -32,6 +38,8 @@ typedef struct {
     LPCJASSMODULE galaxy_natives;
     struct playerState_s *(*GetPlayerByNumber)(DWORD number);
     void (*RuntimeError)(LPCSTR message);
+    BOOL (*SaveHandle)(LPCSTR type, HANDLE value, DWORD *id);
+    HANDLE (*LoadHandle)(LPCSTR type, DWORD id);
 } JASSHOST;
 
 /* VM lifecycle */
@@ -44,6 +52,9 @@ BOOL   jass_dobuffer(LPJASS j, LPSTR buffer);
 BOOL   jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode);
 void   jass_callbyname(LPJASS j, LPCSTR name, BOOL spawn_coroutine);
 void   jass_runevents(LPJASS j);
+BOOL   jass_writesnapshot(LPJASS j, JASSSNAPSHOT *snapshot);
+BOOL   jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot);
+DWORD  jass_programidentity(LPJASS j);
 
 /* Heap allocation (via jass_host.MemAlloc/MemFree) */
 HANDLE jass_alloc(long size);
@@ -78,5 +89,6 @@ LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
 LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, LPCSTR name, struct playerState_s *player);
 BOOL   jass_callcoroutinebyname(LPJASS j, LPCSTR name);
 void   jass_sleep(LPJASS j, DWORD msec);
+void   jass_settimercontext(HANDLE timer);
 
 #endif

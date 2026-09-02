@@ -13,6 +13,8 @@ void G_InitJassHost(void) {
         .ReadFile = gi.ReadFile,
         .natives = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
+        .SaveHandle = G_SaveJassHandle,
+        .LoadHandle = G_LoadJassHandle,
     ));
 }
 
@@ -195,6 +197,17 @@ void G_BindEntityData(LPEDICT edict) {
     edict->Doodads = G_Doodad(edict->class_id);
     edict->ItemData = G_ItemData(edict->class_id);
     edict->DestructableData = G_DestructableData(edict->class_id);
+}
+
+/* Save files omit process addresses; restore class-owned callbacks without replaying spawn-time gameplay initialization. */
+void G_BindEntityRuntime(LPEDICT edict) {
+    if (edict->DestructableData->file) {
+        edict->stand = tree_stand; edict->birth = tree_birth; edict->pain = tree_pain; edict->die = tree_die;
+        edict->think = monster_think;
+    } else if (edict->UnitBalance->id || edict->UnitUI->modelFile) {
+        edict->stand = unit_stand; edict->birth = unit_birth; edict->die = unit_die;
+        edict->think = monster_think;
+    }
 }
 
 void SP_CallSpawn(LPEDICT edict) {

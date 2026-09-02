@@ -407,7 +407,8 @@ static void G_RunFrame(void) {
         return;
 
     G_StartScripts();
-    
+
+    G_RunTimers();
     G_RunEvents();
     jass_runevents(level.vm);
     G_BotRunFrame();

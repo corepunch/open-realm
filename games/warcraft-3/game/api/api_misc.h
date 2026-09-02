@@ -310,41 +310,43 @@ DWORD GetStartLocationLoc(LPJASS j) {
 }
 
 DWORD CreateTimer(LPJASS j) {
-    return jass_pushnullhandle(j, "timer");
+    API_ALLOC(GTIMER, timer);
+    if (!G_RegisterJassTimer(timer)) jass_rterror(j, "CreateTimer: timer registry is full");
+    return 1;
 }
 DWORD DestroyTimer(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
+    LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    if (whichTimer) whichTimer->running = false;
     return 0;
 }
 DWORD TimerStart(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    //FLOAT timeout = jass_checknumber(j, 2);
-    //BOOL periodic = jass_checkboolean(j, 3);
-    //LPCJASSFUNC handlerFunc = jass_checkcode(j, 4);
+    LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    FLOAT timeout = jass_checknumber(j, 2);
+    BOOL periodic = jass_checkboolean(j, 3);
+    LPCJASSFUNC handlerFunc = jass_checkcode(j, 4);
+    if (whichTimer) G_TimerStart(whichTimer, (DWORD)(MAX(0.0f, timeout) * 1000.0f), periodic, handlerFunc);
     return 0;
 }
 DWORD TimerGetElapsed(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, 0);
+    LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    return jass_pushnumber(j, whichTimer ? (whichTimer->duration - G_TimerRemaining(whichTimer)) / 1000.0f : 0.0f);
 }
 DWORD TimerGetRemaining(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, 0);
+    LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    return jass_pushnumber(j, G_TimerRemaining(whichTimer) / 1000.0f);
 }
 DWORD TimerGetTimeout(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, 0);
+    LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    return jass_pushnumber(j, whichTimer ? whichTimer->duration / 1000.0f : 0.0f);
 }
 DWORD PauseTimer(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return 0;
+    G_TimerPause(jass_checkhandle(j, 1, "timer")); return 0;
 }
 DWORD ResumeTimer(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return 0;
+    G_TimerResume(jass_checkhandle(j, 1, "timer")); return 0;
 }
 DWORD GetExpiredTimer(LPJASS j) {
-    return jass_pushnullhandle(j, "timer");
+    return jass_pushlighthandle(j, jass_getcontext(j)->timer, "timer");
 }
 DWORD CreateForce(LPJASS j) {
     API_ALLOC(DWORD, force);
