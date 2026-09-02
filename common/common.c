@@ -302,9 +302,8 @@ static BOOL FS_FileOnDiskExists(LPCSTR filename) {
  * "share" for in-tree dev builds, where make already runs from the repo root. */
 static PATHSTR fs_share_dir = { 0 };
 
-/* Writable per-user directory (~/.<BZ_GAME>). Empty when $HOME is absent or not
- * writable, in which case FS_UserPath degrades to the base share/<game>/ dir so
- * portable/read-only deployments still work. */
+/* Writable per-user game-data directory. Empty when the platform data root is
+ * absent or not writable, in which case FS_UserPath falls back to share/<game>/. */
 static PATHSTR fs_home_dir = { 0 };
 static PATHSTR fs_save_dir = { 0 };
 
@@ -361,28 +360,16 @@ void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
 /* Resolve a writable save file under the platform's per-user data directory;
  * this is separate from FS_UserPath because configs retain the legacy home path. */
 void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size) {
-    PATHSTR root, game_dir;
-    LPCSTR base;
+    PATHSTR game_dir;
 
     if (!fs_save_dir[0]) {
+        if (fs_home_dir[0]) {
+            snprintf(game_dir, sizeof(game_dir), "%s", fs_home_dir);
 #ifdef _WIN32
-        base = getenv("APPDATA");
-#else
-        base = getenv("XDG_DATA_HOME");
-        if (!base || !*base) {
-            LPCSTR home = getenv("HOME");
-            if (home && *home) { snprintf(root, sizeof(root), "%s/.local/share", home); base = root; }
-        }
-#endif
-        if (base && *base) {
-            snprintf(game_dir, sizeof(game_dir), "%s/%s", base, BZ_GAME);
-#ifdef _WIN32
-            _mkdir(game_dir);
             snprintf(fs_save_dir, sizeof(fs_save_dir), "%s/saves", game_dir);
             _mkdir(fs_save_dir);
             if (_access(fs_save_dir, 2) != 0) fs_save_dir[0] = '\0';
 #else
-            mkdir(game_dir, 0755);
             snprintf(fs_save_dir, sizeof(fs_save_dir), "%s/saves", game_dir);
             mkdir(fs_save_dir, 0755);
             if (access(fs_save_dir, W_OK) != 0) fs_save_dir[0] = '\0';
