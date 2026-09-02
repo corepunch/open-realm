@@ -68,10 +68,12 @@ make test-renderer-model test-ui
 make test
 ```
 
-For the menu regression, launch without `+map`, then select Single Player → Campaign → Human. The console
+For the menu regression, launch without `+map`, then select Single Player → Campaign → Human → the desired mission. The console
 registers `menu_single_player_campaign`, but `menu_single_player_campaign_human` is a UI-handler command,
-not a console command. A diagnostic replay can temporarily invoke that handler after showing the campaign
-screen; remove the hook afterward. Queue `screenshot 1` before the handler to capture the frozen loading plaque.
+not a console command. Campaign selection now enters `MissionSelectFrame`; the selected mission's
+`menu_single_player_mission_select N` handler is what issues the map command. A diagnostic replay can temporarily
+invoke those handlers after showing the campaign screen; remove the hook afterward. Queue `screenshot 1` before
+the mission handler to capture the frozen loading plaque.
 Use `+com_frame_limit 100` for bounded runs; engine screenshots appear under `screenshots/`.
 
 Regression tests cover texture extension lookup and exact-file precedence, SLK replacement sentinels,

@@ -132,13 +132,18 @@ void UI_ShowCreditsMenu(void) {
 }
 
 void UI_ShowLanCreateMenu(void) {
-    UI_SetScreen(&lanJoinScreen);
     LAN_ShowCreate();
+    UI_SetScreen(&lanJoinScreen);
+}
+
+static void UI_ShowSinglePlayerSkirmishMenu(void) {
+    LAN_ShowSinglePlayerCreate();
+    UI_SetScreen(&lanJoinScreen);
 }
 
 void UI_ShowLanBrowserMenu(void) {
-    UI_SetScreen(&lanJoinScreen);
     LAN_ShowBrowser();
+    UI_SetScreen(&lanJoinScreen);
 }
 
 void UI_ShowGameSetupMenu(void) {
@@ -228,6 +233,10 @@ static void UI_MenuSinglePlayerCampaign_f(void) {
     SinglePlayerMenu_ShowCampaign();
 }
 
+static void UI_MenuSinglePlayerSkirmish_f(void) {
+    UI_ShowSinglePlayerSkirmishMenu();
+}
+
 static void UI_MenuLANRefresh_f(void) {
     LAN_RefreshMaps();
 }
@@ -275,6 +284,7 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { "menu_options_sound", UI_MenuOptionsSound_f },
     { "menu_options_apply", UI_MenuOptionsApply_f },
     { "menu_single_player_campaign", UI_MenuSinglePlayerCampaign_f },
+    { "menu_single_player_skirmish", UI_MenuSinglePlayerSkirmish_f },
     { "menu_lan_refresh", UI_MenuLANRefresh_f },
     { "menu_lan_start", UI_MenuLANStart_f },
     { "menu_lan_join", UI_MenuLANJoin_f },
@@ -683,6 +693,14 @@ void UI_MenuCommandLocal(LPCSTR command) {
         UI_MenuSinglePlayerCampaign_f();
         return;
     }
+    if (!strcmp(command, "menu_single_player_skirmish")) {
+        UI_MenuSinglePlayerSkirmish_f();
+        return;
+    }
+    if (!strcmp(command, "menu_single_player_campaign_back")) {
+        SinglePlayerMenu_BackCampaign();
+        return;
+    }
     if (!strcmp(command, "menu_single_player_campaign_human")) {
         SinglePlayerMenu_LaunchCampaign("human");
         return;
@@ -707,7 +725,12 @@ void UI_MenuCommandLocal(LPCSTR command) {
         SinglePlayerMenu_LaunchCampaignIndex(value);
         return;
     }
+    if (sscanf(command, "menu_single_player_mission_select %u", &value) == 1) {
+        SinglePlayerMenu_LaunchMissionIndex(value);
+        return;
+    }
     if (sscanf(command, "menu_single_player_difficulty %u", &value) == 1) {
+        SinglePlayerMenu_SetDifficulty(value);
         return;
     }
     if (!strcmp(command, "menu_lan_refresh")) {

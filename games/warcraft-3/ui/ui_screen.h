@@ -57,16 +57,21 @@ void OptionsMenu_Apply(void);
 
 void SinglePlayerMenu_ShowMain(void);
 void SinglePlayerMenu_ShowCampaign(void);
+void SinglePlayerMenu_BackCampaign(void);
 void SinglePlayerMenu_LaunchCampaign(LPCSTR name);
 void SinglePlayerMenu_LaunchCampaignIndex(DWORD index);
+void SinglePlayerMenu_LaunchMissionIndex(DWORD index);
+void SinglePlayerMenu_SetDifficulty(DWORD difficulty);
 
 void LAN_ShowCreate(void);
+void LAN_ShowSinglePlayerCreate(void);
 void LAN_ShowBrowser(void);
 void LAN_RefreshMaps(void);
 void LAN_SelectMapIndex(DWORD index);
 void LAN_StartSelectedMap(void);
 void LAN_JoinSelectedGame(void);
 void LAN_ApplyPlayerName(void);
+BOOL LAN_IsSinglePlayerCreate(void);
 
 BOOL GameSetup_StartGame(void);
 void GameSetup_LoadMap(LPCSTR map_path);

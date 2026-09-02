@@ -13,6 +13,8 @@
 static const char *captured_image_path;
 static const char *captured_model_path;
 static char captured_command[128];
+static char captured_cvar_name[64];
+static char captured_cvar_value[64];
 static char captured_printf[512];
 static DWORD captured_draw_calls;
 static DWORD captured_dim_draws;
@@ -28,6 +30,8 @@ static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
 static BOOL test_fs_expansion;
+static LPCSTR test_campaign_mission_visibility;
+static int test_campaign_played_mission = -1;
 static VECTOR2 test_mouse_pos;
 static LPCPLAYER test_player;
 static LPCSTR test_map = "";
@@ -235,7 +239,19 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
     if (name && !strcmp(name, "game_port")) {
         return "27910";
     }
+    if (name && !strcmp(name, "wc3_campaign_mission_visibility") && test_campaign_mission_visibility) {
+        return test_campaign_mission_visibility;
+    }
+    if (name && !strncmp(name, "wc3_campaign_played_human_", 26)) {
+        int mission = atoi(name + 26);
+        return mission == test_campaign_played_mission ? "1" : "0";
+    }
     return fallback;
+}
+
+static void test_cvar_set(LPCSTR name, LPCSTR value) {
+    snprintf(captured_cvar_name, sizeof(captured_cvar_name), "%s", name ? name : "");
+    snprintf(captured_cvar_value, sizeof(captured_cvar_value), "%s", value ? value : "");
 }
 
 static LPCPLAYER test_get_player_state(void) {
@@ -1277,6 +1293,42 @@ TEST(ui_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
     T_EQ(captured_draw_calls, 1);
 }
 
+TEST(ui_fdf, control_map_list_receives_mouse_clicks) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF list;
+    uiMapListState_t state = {0};
+
+    reset_ui_state();
+    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    parse_fdf("control_map_list.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"CONTROL\" \"MapListBox\" {"
+              "  Width 0.3, Height 0.1,"
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, -0.1,"
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    list = UI_FindFrame("MapListBox");
+    if (!require_not_null(root)) return;
+    if (!require_not_null(list)) return;
+
+    state.count = 2;
+    snprintf(state.items[0].name, sizeof(state.items[0].name), "Campaign One");
+    snprintf(state.items[1].name, sizeof(state.items[1].name), "Campaign Two");
+    UI_BindMapList(list, &state, NULL, 4, "test_map_list_select %u");
+
+    T_EQ(list->Type, FT_CONTROL);
+    T_NOT_NULL(list->event_handler);
+
+    /* Populate the layout cache, then click in the first 0.019-high row. */
+    UI_DrawFrame(root);
+    captured_command[0] = '\0';
+    UI_MouseEventLocal(UI_MOUSE_UP, 188, 144, 1);
+    T_STREQ(captured_command, "test_map_list_select 0");
+}
+
 TEST(ui_fdf, popup_menu_hover_sets_flag_on_middle_row) {
     LPFRAMEDEF root;
     LPFRAMEDEF popup;
@@ -1803,13 +1855,22 @@ static void test_single_player_campaign_profile(BOOL tft) {
     uiImport_t saved = uiimport;
     LPFRAMEDEF root;
     LPFRAMEDEF campaign_button;
+    LPFRAMEDEF skirmish_button;
     LPFRAMEDEF cancel_button;
     LPFRAMEDEF back_button;
     LPFRAMEDEF campaign_select_frame;
+    LPFRAMEDEF mission_select_frame;
+    LPFRAMEDEF mission_name;
+    LPFRAMEDEF mission_name_header;
+    LPFRAMEDEF mission_list_box;
+    LPFRAMEDEF difficulty_title;
     LPFRAMEDEF campaign_list_box;
+    LPFRAMEDEF human_button;
 
     hide_expansion_campaign_file = false;
     test_fs_expansion = tft;
+    test_campaign_mission_visibility = NULL;
+    test_campaign_played_mission = -1;
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
     memset(&uiimport, 0, sizeof(uiimport));
@@ -1817,6 +1878,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
     uiimport.Cvar_String = test_cvar_string;
+    uiimport.Cvar_Set = test_cvar_set;
     uiimport.FS_ReadFile = test_fs_read_file;
     uiimport.FS_FreeFile = test_fs_free_file;
     uiimport.MemAlloc = test_ui_mem_alloc;
@@ -1832,6 +1894,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
 
     root = UI_FindFrame("SinglePlayerMenu");
     campaign_button = UI_FindFrame("CampaignButton");
+    skirmish_button = UI_FindFrame("SkirmishButton");
     cancel_button = UI_FindFrame("CancelButton");
     back_button = UI_FindFrame("BackButton");
 
@@ -1843,6 +1906,10 @@ static void test_single_player_campaign_profile(BOOL tft) {
         uiimport = saved;
         return;
     }
+    if (!require_not_null(skirmish_button)) {
+        uiimport = saved;
+        return;
+    }
     if (!require_not_null(cancel_button)) {
         uiimport = saved;
         return;
@@ -1850,18 +1917,22 @@ static void test_single_player_campaign_profile(BOOL tft) {
     if (!require_not_null(back_button)) { uiimport = saved; return; }
     T_ASSERT(!root->hidden);
     T_STREQ(campaign_button->OnClick, "menu_single_player_campaign");
+    T_STREQ(skirmish_button->OnClick, "menu_single_player_skirmish");
     T_STREQ(cancel_button->OnClick, "menu_main");
+    T_STREQ(back_button->OnClick, "menu_single_player_campaign_back");
 
     SinglePlayerMenu_ShowCampaign();
     campaign_select_frame = UI_FindFrame("CampaignSelectFrame");
+    human_button = UI_FindFrame("HumanButton");
     campaign_list_box = campaign_select_frame
         ? UI_FindChildFrame(campaign_select_frame, "MapListBox")
         : NULL;
 
-    if (!require_not_null(campaign_list_box)) {
+    if (!require_not_null(human_button) || !require_not_null(campaign_list_box)) {
         uiimport = saved;
         return;
     }
+    T_ASSERT(human_button->hidden);
     T_ASSERT(!campaign_list_box->hidden);
     T_FEQ(campaign_list_box->Width, 0.34f, 0.001f);
     T_FEQ(campaign_list_box->Height, 0.11f, 0.001f);
@@ -1870,6 +1941,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     T_ASSERT(campaign_list_box->Points.x[FPP_MIN].relativeTo == back_button);
     T_ASSERT(campaign_list_box->Points.y[FPP_MAX].relativeTo == back_button);
     T_ASSERT(campaign_list_box->MapListControl.State != NULL);
+    T_NOT_NULL(campaign_list_box->event_handler);
     T_EQ((int)campaign_list_box->MapListControl.State->count, 4);
     T_STREQ(campaign_list_box->MapListControl.State->items[0].name,
                   tft
@@ -1882,13 +1954,74 @@ static void test_single_player_campaign_profile(BOOL tft) {
 
     captured_command[0] = '\0';
     SinglePlayerMenu_LaunchCampaignIndex(tft ? 1 : 0);
+    T_STREQ(captured_command, "");
+
+    mission_select_frame = UI_FindFrame("MissionSelectFrame");
+    mission_name = UI_FindFrame("MissionName");
+    mission_name_header = UI_FindFrame("MissionNameHeader");
+    mission_list_box = mission_select_frame
+        ? UI_FindChildFrame(mission_select_frame, "MapListBox")
+        : NULL;
+    if (!require_not_null(mission_select_frame) ||
+        !require_not_null(mission_name) ||
+        !require_not_null(mission_name_header) ||
+        !require_not_null(mission_list_box)) {
+        uiimport = saved;
+        return;
+    }
+    T_ASSERT(campaign_select_frame->hidden);
+    T_ASSERT(!mission_select_frame->hidden);
+    T_ASSERT(!mission_list_box->hidden);
+    T_STREQ(mission_name->Text,
+            tft ? "Curse of the Blood Elves" : "The Scourge of Lordaeron");
+    T_STREQ(mission_name_header->Text,
+            tft ? "Alliance Campaign" : "Human Campaign");
+    T_EQ((int)mission_list_box->MapListControl.State->count, 3);
+    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
+            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
+    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
+            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+    T_STREQ(mission_list_box->MapListControl.SelectCommand,
+            "menu_single_player_mission_select %u");
+    T_NOT_NULL(mission_list_box->event_handler);
+
+    UI_MenuCommandLocal(back_button->OnClick);
+    T_ASSERT(!campaign_select_frame->hidden);
+    T_ASSERT(mission_select_frame->hidden);
+
+    captured_cvar_name[0] = '\0';
+    captured_cvar_value[0] = '\0';
+    SinglePlayerMenu_SetDifficulty(2);
+    T_STREQ(captured_cvar_name, "wc3_campaign_difficulty");
+    T_STREQ(captured_cvar_value, "2");
+    difficulty_title = UI_FindFrame("CampaignPopupMenuTitleTextTemplate");
+    if (difficulty_title) {
+        T_STREQ(difficulty_title->Text, UI_GetString("HARD"));
+    }
+
+    test_campaign_mission_visibility = "played";
+    test_campaign_played_mission = 1;
+    SinglePlayerMenu_LaunchCampaignIndex(tft ? 1 : 0);
+    T_EQ((int)mission_list_box->MapListControl.State->count, 1);
+    T_EQ((int)mission_list_box->MapListControl.State->items[0].flags, 1);
+    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
+            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+
+    captured_command[0] = '\0';
+    captured_cvar_name[0] = '\0';
+    captured_cvar_value[0] = '\0';
+    SinglePlayerMenu_LaunchMissionIndex(0);
+    T_STREQ(captured_cvar_name, "wc3_campaign_played_human_1");
+    T_STREQ(captured_cvar_value, "1");
     T_STREQ(captured_command,
                   tft
-                      ? "map \"Maps\\FrozenThrone\\Campaign\\HumanX01.w3x\""
-                      : "map \"Maps\\Campaign\\Human01.w3m\"");
+                      ? "map \"Maps\\FrozenThrone\\Campaign\\HumanX02.w3x\""
+                      : "map \"Maps\\Campaign\\Human02.w3m\"");
 
     hide_expansion_campaign_file = false;
     test_fs_expansion = false;
+    test_campaign_mission_visibility = NULL;
+    test_campaign_played_mission = -1;
     uiimport = saved;
 }
 

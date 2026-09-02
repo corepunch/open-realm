@@ -6,9 +6,13 @@ Header="Human Campaign"
 Name="The Scourge of Lordaeron"
 Background="HumanBackdrop"
 Cursor=0
-Entries=1
+Entries=3
 Mission0="The Defense of Strahnbrad"
 File0="Human01"
+Mission1="Blackrock & Roll"
+File1="Human02"
+Mission2="Ravages of the Plague"
+File2="Human03"
 
 [Undead]
 Header="Undead Campaign"
