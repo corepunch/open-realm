@@ -486,30 +486,6 @@ void G_RegisterGlobalSounds(void) {
 /* Unit data decides the persistent AI capabilities assigned at spawn. */
 DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? AI_IMMOBILE : 0; }
 
-/* Keep renderer-only structure classification in the snapshot instead of
- * teaching the generic renderer about UnitData.slk. Human/Orc/other buildings
- * use the standard fire family; only the two races with distinct authored
- * building-fire sets need additional bits. */
-DWORD unit_spawn_entityflags(DWORD class_id) {
-    UnitData_t const *data;
-    DWORD flags = 0;
-
-    if (!G_UnitIsBuilding(class_id)) {
-        return 0;
-    }
-    flags |= EF_BUILDING;
-    data = G_UnitData(class_id);
-    if (!data || !data->race) {
-        return flags;
-    }
-    if (!strcmp(data->race, STR_UNDEAD)) {
-        flags |= EF_BUILDING_FIRE_UNDEAD;
-    } else if (!strcmp(data->race, STR_NIGHTELF)) {
-        flags |= EF_BUILDING_FIRE_NIGHTELF;
-    }
-    return flags;
-}
-
 /* Initialize a unit entity from the unit data tables.
  * Reads model path, scale, collision radius, HP, mana, and attack parameters
  * (type, weapon class, damage dice, range, projectile model/speed) for the
@@ -524,7 +500,7 @@ void SP_SpawnUnit(LPEDICT self) {
     LPCSTR path_tex = d->pathingTexture;
     G_InitStockSlots(self);
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
-    self->s.flags |= unit_spawn_entityflags(self->class_id);
+    if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
     snprintf(model_filename, sizeof(model_filename), "%s.mdx", ui->modelFile);
     self->s.model = G_RegisterModel(model_filename);
     self->s.splat = M_LoadUberSplat(uber_splat);

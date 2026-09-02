@@ -2,9 +2,9 @@
 
 ## Contract
 
-Building combat damage is presentation-only. The server remains authoritative for unit health; the client derives the visible damage phase from the already-networked compressed `ENT_HEALTH` value and only enables this path for entities carrying `EF_BUILDING`.
+Building combat damage is presentation-only. The server remains authoritative for unit health and selects the visible damage phase for entities carrying `EF_BUILDING`; the client only renders the resulting effect data.
 
-The WC3 renderer keeps the building's normal MDX model and overlays authored building-fire models at the building model's `Sprite ... Ref` attachment pivots. The fire does not create a game entity, change HP, affect pathing, or participate in combat.
+The game module keeps the building's normal MDX model and selects the authored building-fire model and attachment slots. The renderer overlays that model at the building model's `Sprite ... Ref` attachment pivots. The fire does not create a game entity, change HP, affect pathing, or participate in combat.
 
 Construction is deliberately separate. Human construction begins at low HP, so `R_RenderModel()` suppresses combat-damage fire while the building model is in a `Birth...` sequence. Once construction leaves Birth, ordinary health thresholds apply.
 
@@ -13,22 +13,21 @@ Construction is deliberately separate. Human construction begins at low HP, so `
 ```text
 UnitData / UnitBalance
     -> G_UnitIsBuilding(class_id)
-    -> unit_spawn_entityflags()
        -> EF_BUILDING
-       -> EF_BUILDING_FIRE_UNDEAD / EF_BUILDING_FIRE_NIGHTELF
-    -> entityState_t.flags
 
 edict health
     -> compress_stat()
     -> entityState_t.stats[ENT_HEALTH] (0..255)
+    -> G_UpdateOnFire()
+    -> entityState_t.effect/effect_flags
     -> client V_AddClientEntity()
-    -> renderEntity_t.health
+    -> renderEntity_t.effect_model/effect_flags
 
 building MDX pose
     -> MDLX_CollectAttachmentPositions(..., "Sprite ", ...)
     -> authored Sprite First..Fifth world positions
     -> R_RenderModel()
-    -> race-family building-fire MDX overlays
+    -> server-selected building-fire MDX overlay
 ```
 
 No additional health network field is needed. `entityState_t.stats[ENT_HEALTH]` already carries the health ratio every snapshot; `renderEntity_t.health` is only a renderer-facing copy of that existing byte.
@@ -54,7 +53,7 @@ The slot staging is based on retail observation rather than recovered Blizzard e
 
 ## Fire Families
 
-Human and Orc buildings use the standard fire family. Undead and Night Elf structures use their authored race-specific families. `unit_spawn_entityflags()` transports only the distinction the renderer needs; it does not expose the SLK layer to the renderer.
+Human and Orc buildings use the standard fire family. Undead and Night Elf structures use their authored race-specific families. `G_UpdateOnFire()` resolves the unit's authored `UnitData.race` and registers the resulting model in the game module; the renderer receives only the selected model index and slot mask.
 
 | Tier | Human / Orc / default | Undead | Night Elf |
 | --- | --- | --- | --- |
@@ -62,7 +61,7 @@ Human and Orc buildings use the standard fire family. Undead and Night Elf struc
 | Medium | `Environment\\LargeBuildingFire\\LargeBuildingFire2.mdx` | `Environment\\UndeadBuildingFire\\UndeadLargeBuildingFire2.mdx` | `Environment\\NightElfBuildingFire\\ElfLargeBuildingFire2.mdx` |
 | Severe | `Environment\\LargeBuildingFire\\LargeBuildingFire1.mdx` | `Environment\\UndeadBuildingFire\\UndeadLargeBuildingFire1.mdx` | `Environment\\NightElfBuildingFire\\ElfLargeBuildingFire1.mdx` |
 
-These Warcraft asset names are corroborated by long-lived community asset lists and a reusable building-fire system; they are external compatibility evidence, not OpenRealm-owned assets:
+These Warcraft asset names are corroborated by the shipped MPQ and by long-lived community asset lists; they are external compatibility evidence, not OpenRealm-owned assets:
 
 - <https://www.hiveworkshop.com/threads/attachment-points-for-buildings.94223/>
 - <https://www.hiveworkshop.com/threads/building-burn.359430/>
@@ -83,9 +82,9 @@ The building renderer filters the returned `Sprite ` attachments by semantic nam
 
 ## Network Contract
 
-`EF_BUILDING`, `EF_BUILDING_FIRE_UNDEAD`, and `EF_BUILDING_FIRE_NIGHTELF` occupy the existing `USHORT entityState_t.flags` field. They are converted client-side to renderer-only `RF_*` bits. The shared delta serializer already transports `flags` as `NFT_SHORT`; `net.entity_delta_preserves_building_damage_flags` guards that contract.
+`EF_BUILDING` remains in the existing `USHORT entityState_t.flags` field. The selected effect model is a separate `BYTE entityState_t.effect`, serialized as `NFT_BYTE`; `USHORT entityState_t.effect_flags` is serialized as `NFT_SHORT` and carries the effect kind plus authored attachment-slot mask. `net.entity_delta_preserves_effect_model` guards that contract.
 
-The race-fire flags are spawn-stable metadata. Per-client `G_CustomizeEntity()` only rewrites hover/relation bits and leaves them intact.
+`model2` remains available for ordinary attached/duplicate models. This separation is important because an effect model must not hijack an unrelated `model2` consumer.
 
 ## Known Gaps
 

@@ -42,42 +42,6 @@ static LPCSTR const cursor_model_name = "UI\\Cursor\\HumanCursor.mdx";
 static LPMODEL cursor_model;
 static BOOL cursor_load_attempted;
 
-enum {
-    BUILDING_FIRE_STANDARD,
-    BUILDING_FIRE_UNDEAD,
-    BUILDING_FIRE_NIGHTELF,
-    BUILDING_FIRE_FAMILY_COUNT,
-};
-
-typedef struct {
-    LPCSTR path[3]; /* small, medium, severe */
-    LPMODEL model[3];
-} buildingFireFamily_t;
-
-static buildingFireFamily_t building_fire[BUILDING_FIRE_FAMILY_COUNT] = {
-    [BUILDING_FIRE_STANDARD] = {
-        .path = {
-            "Environment\\SmallBuildingFire\\SmallBuildingFire2.mdx",
-            "Environment\\LargeBuildingFire\\LargeBuildingFire2.mdx",
-            "Environment\\LargeBuildingFire\\LargeBuildingFire1.mdx",
-        },
-    },
-    [BUILDING_FIRE_UNDEAD] = {
-        .path = {
-            "Environment\\UndeadBuildingFire\\UndeadSmallBuildingFire2.mdx",
-            "Environment\\UndeadBuildingFire\\UndeadLargeBuildingFire2.mdx",
-            "Environment\\UndeadBuildingFire\\UndeadLargeBuildingFire1.mdx",
-        },
-    },
-    [BUILDING_FIRE_NIGHTELF] = {
-        .path = {
-            "Environment\\NightElfBuildingFire\\ElfSmallBuildingFire2.mdx",
-            "Environment\\NightElfBuildingFire\\ElfLargeBuildingFire2.mdx",
-            "Environment\\NightElfBuildingFire\\ElfLargeBuildingFire1.mdx",
-        },
-    },
-};
-
 static w3TerrainArt_t *g_terrain_rows; static DWORD g_terrain_count; static slkIndex_t g_terrain_idx;
 static w3CliffType_t *g_cliff_rows;   static DWORD g_cliff_count;   static slkIndex_t g_cliff_idx;
 
@@ -107,11 +71,6 @@ static BOOL R_W3PathHasExtension(LPCSTR path, LPCSTR extension) {
 void R_LoadAssets(void) {
     FOR_LOOP(i, MODEL_COUNT) {
         tr.model[i] = R_LoadModel(modelNames[i]);
-    }
-    FOR_LOOP(family, BUILDING_FIRE_FAMILY_COUNT) {
-        FOR_LOOP(level, 3) {
-            building_fire[family].model[level] = R_LoadRegisteredModel(building_fire[family].path[level]);
-        }
     }
     FS_SLKFreeIndex(&g_terrain_idx);
     FS_SLKFreeRows(terrain_schema, g_terrain_rows, g_terrain_count, sizeof(w3TerrainArt_t));
@@ -145,9 +104,6 @@ void R_Init(void) {
 void R_Shutdown(void) {
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
     cursor_model = NULL; cursor_load_attempted = false;
-    FOR_LOOP(family, BUILDING_FIRE_FAMILY_COUNT) {
-        FOR_LOOP(level, 3) building_fire[family].model[level] = NULL;
-    }
     FS_SLKFreeIndex(&g_terrain_idx);
     FS_SLKFreeRows(terrain_schema, g_terrain_rows, g_terrain_count, sizeof(w3TerrainArt_t));
     g_terrain_rows = NULL; g_terrain_count = 0;
@@ -301,44 +257,18 @@ void R_RenderModel(renderEntity_t const *entity) {
     R_GetEntityMatrix(entity, &transform);
     MDX_RenderModel(entity, entity->model->mdx, &transform);
 
-    if ((entity->flags & RF_BUILDING) && entity->health && tr.render_phase != RENDER_PHASE_LIGHTS) {
-        enum { FIRE_NONE, FIRE_SMALL, FIRE_MEDIUM, FIRE_SEVERE } fire_level;
-        mdxSequence_t const *seq = R_FindSequenceAtTime(entity->model->mdx, entity->frame);
+    if ((entity->effect_flags & EFX_MODEL) && (entity->effect_flags & EFX_ATTACH_SLOTS) &&
+        entity->effect_model && tr.render_phase != RENDER_PHASE_LIGHTS) {
         mdxAttachmentPosition_t attachments[16];
         DWORD attachment_count;
-        DWORD family = BUILDING_FIRE_STANDARD;
-        DWORD level_index;
         DWORD slot_mask;
-        LPMODEL fire_model;
+        LPCMODEL fire_model = entity->effect_model;
 
-        /* Construction starts at low HP but uses Birth for progress; it must
-         * not look combat-damaged while the structure is being erected. */
-        if (seq && !strncasecmp(seq->name, "birth", 5)) {
-            return;
-        }
-
-        if (entity->health > (255 * 3 / 4)) fire_level = FIRE_NONE;
-        else if (entity->health > (255 / 2)) fire_level = FIRE_SMALL;
-        else if (entity->health > (255 / 4)) fire_level = FIRE_MEDIUM;
-        else fire_level = FIRE_SEVERE;
-
-        if (fire_level == FIRE_NONE) {
-            return;
-        }
-        if (entity->flags & RF_BUILDING_FIRE_UNDEAD) family = BUILDING_FIRE_UNDEAD;
-        else if (entity->flags & RF_BUILDING_FIRE_NIGHTELF) family = BUILDING_FIRE_NIGHTELF;
-
-        level_index = fire_level - FIRE_SMALL;
-        fire_model = building_fire[family].model[level_index];
         if (!fire_model || fire_model->modeltype != ID_MDLX || !fire_model->mdx) {
-            return; /* R_LoadRegisteredModel already reports unresolved required assets. */
+            return;
         }
 
-        /* Retail damage staging: First+Second at 75%, add Fourth+Fifth at
-         * 50%, then Third at 25%. Missing authored points are valid. */
-        slot_mask = (1u << 0) | (1u << 1);
-        if (fire_level >= FIRE_MEDIUM) slot_mask |= (1u << 3) | (1u << 4);
-        if (fire_level >= FIRE_SEVERE) slot_mask |= (1u << 2);
+        slot_mask = (entity->effect_flags & EFX_SLOT_MASK) >> EFX_SLOT_SHIFT;
 
         attachment_count = MDLX_CollectAttachmentPositions(entity->model->mdx, &transform,
                                                             entity->frame, entity->oldframe,

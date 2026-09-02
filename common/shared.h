@@ -193,8 +193,6 @@ enum {
     FLAG(RF_NOT_SELECTABLE, 19), /* render normally but exclude from world hit/box selection */
     FLAG(RF_NEUTRAL, 20),        /* neutral/passive relationship presentation */
     FLAG(RF_BUILDING, 21),       /* WC3 structure; enables building-only presentation */
-    FLAG(RF_BUILDING_FIRE_UNDEAD, 22),    /* use Undead building-damage fire family */
-    FLAG(RF_BUILDING_FIRE_NIGHTELF, 23),  /* use Night Elf building-damage fire family */
 };
 
 enum {
@@ -211,9 +209,20 @@ enum {
     FLAG(EF_HOVER_HEALTH, 8),   /* client may expose this entity's health on world hover */
     FLAG(EF_NEUTRAL, 9),        /* neutral/passive relationship to this snapshot recipient */
     FLAG(EF_BUILDING, 10),      /* WC3 structure presentation metadata */
-    FLAG(EF_BUILDING_FIRE_UNDEAD, 11),   /* WC3 Undead structure fire visuals */
-    FLAG(EF_BUILDING_FIRE_NIGHTELF, 12), /* WC3 Night Elf structure fire visuals */
 };
+
+enum {
+    EFX_MODEL = 1 << 0,
+    EFX_SPLAT = 1 << 1,
+    EFX_ATTACH_SLOTS = 1 << 2,
+    EFX_SLOT_FIRST = 1 << 8,
+    EFX_SLOT_SECOND = 1 << 9,
+    EFX_SLOT_THIRD = 1 << 10,
+    EFX_SLOT_FOURTH = 1 << 11,
+    EFX_SLOT_FIFTH = 1 << 12,
+};
+#define EFX_SLOT_MASK 0x1f00 // bits 8-12; authored attachment slots used by model effects
+#define EFX_SLOT_SHIFT 8 // bits; low bit of the packed attachment-slot mask; used by the renderer
 
 enum {
     FLAG(RDF_NOFOG, 0),
@@ -528,6 +537,8 @@ typedef struct entityState_s {
     BYTE player;
     BYTE model;
     BYTE model2;
+    BYTE effect;
+    USHORT effect_flags; /* EFX_* presentation contract for effect/splat effects */
     USHORT image;
     USHORT name;        /* packed name: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
     USHORT sound;

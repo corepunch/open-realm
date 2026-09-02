@@ -1204,7 +1204,6 @@ DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);
-DWORD unit_spawn_entityflags(DWORD);
 BOOL SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 
@@ -1254,6 +1253,7 @@ BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);
 
 // g_phys.c
 void G_RunEntity(LPEDICT);
+void G_UpdateOnFire(LPEDICT);
 void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction);
