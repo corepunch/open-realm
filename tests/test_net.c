@@ -1139,13 +1139,14 @@ TEST(net, entity_delta_preserves_neutral_flag) {
     T_ASSERT(out.flags & EF_NEUTRAL);
 }
 
-/* WC3 building damage rendering relies on structure/race presentation bits
- * surviving the shared entity delta unchanged. */
-TEST(net, entity_delta_preserves_building_damage_flags) {
+/* WC3 building damage rendering relies on server-authored effect presentation
+ * data surviving the shared entity delta unchanged. */
+TEST(net, entity_delta_preserves_effect_model) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    USHORT const expected = EF_BUILDING | EF_BUILDING_FIRE_UNDEAD | EF_BUILDING_FIRE_NIGHTELF;
-    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = expected }, out = { 0 };
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .effect = 2,
+                                       .flags = EF_BUILDING, .effect_flags = EFX_MODEL | EFX_ATTACH_SLOTS |
+                                                    EFX_SLOT_FIRST | EFX_SLOT_SECOND }, out = { 0 };
     DWORD bits = 0;
     int number;
 
@@ -1155,7 +1156,9 @@ TEST(net, entity_delta_preserves_building_damage_flags) {
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
 
     T_EQ(number, 9);
-    T_EQ(out.flags & expected, expected);
+    T_ASSERT(out.flags & EF_BUILDING);
+    T_EQ(out.effect, 2);
+    T_EQ(out.effect_flags, to.effect_flags);
 }
 
 /* Sound events must travel with the entity snapshot so the client can resolve

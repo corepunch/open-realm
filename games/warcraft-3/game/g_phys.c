@@ -132,6 +132,7 @@ void G_RunEntity(LPEDICT ent) {
                          + (FLOAT)ent->hero.str * STR_REGEN_BONUS;
         ent->health.value = MIN(ent->health.max_value, ent->health.value + rate * (FRAMETIME / 1000.0f));
     }
+    G_UpdateOnFire(ent);
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
     if (ent->currentmove) {
