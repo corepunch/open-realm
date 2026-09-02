@@ -991,6 +991,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
     first->owner = second;
+    first->inventory[2] = second;
+    first->cargo.units[3] = second;
     level.framenum = 1234;
     level.time = 5678;
     level.started = true;
@@ -1002,6 +1004,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(WriteGame(filename));
     first->harvested_gold = 0;
     first->owner = NULL;
+    first->inventory[2] = NULL;
+    first->cargo.units[3] = NULL;
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     T_ASSERT(ReadGame(filename));
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
@@ -1015,6 +1019,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(game.clients[0].jass.controller, 1);
     T_EQ(game.clients[0].ping, 77);
     T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
     T_ASSERT(g_edicts[0].client == &game.clients[0]);
     remove(filename);

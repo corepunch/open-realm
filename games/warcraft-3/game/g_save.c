@@ -22,20 +22,8 @@ field_t fields[] = {
     EDICTFIELD(revival.producer, F_EDICT),
     EDICTFIELD(revival.queue_next, F_EDICT),
     EDICTFIELD(goldmine.mine, F_EDICT),
-    EDICTFIELD(inventory[0], F_EDICT),
-    EDICTFIELD(inventory[1], F_EDICT),
-    EDICTFIELD(inventory[2], F_EDICT),
-    EDICTFIELD(inventory[3], F_EDICT),
-    EDICTFIELD(inventory[4], F_EDICT),
-    EDICTFIELD(inventory[5], F_EDICT),
-    EDICTFIELD(cargo.units[0], F_EDICT),
-    EDICTFIELD(cargo.units[1], F_EDICT),
-    EDICTFIELD(cargo.units[2], F_EDICT),
-    EDICTFIELD(cargo.units[3], F_EDICT),
-    EDICTFIELD(cargo.units[4], F_EDICT),
-    EDICTFIELD(cargo.units[5], F_EDICT),
-    EDICTFIELD(cargo.units[6], F_EDICT),
-    EDICTFIELD(cargo.units[7], F_EDICT),
+    EDICTFIELD(inventory, F_EDICT, MAX_INVENTORY),
+    EDICTFIELD(cargo.units, F_EDICT, MAX_CARGO),
     EDICTFIELD(item.carrier, F_EDICT),
     EDICTFIELD(ground_next, F_EDICT),
     EDICTFIELD(movement.attackmove_waypoint, F_EDICT),
@@ -54,32 +42,53 @@ static BOOL SaveBytes(FILE *f, LPCVOID data, size_t size) { return fwrite(data, 
 static BOOL LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
 
 /* Convert entity and client pointers to stable save-file indexes. */
+static size_t field_size(fieldtype_t type) {
+    switch (type) {
+    case F_INT: return sizeof(int);
+    case F_FLOAT: return sizeof(float);
+    case F_VECTOR: return sizeof(VECTOR3);
+    case F_EDICT: return sizeof(LPEDICT);
+    case F_CLIENT: return sizeof(LPGAMECLIENT);
+    default: return 0;
+    }
+}
+
 static void WriteField1(field_t const *field, BYTE *base) {
-    void *p = base + field->ofs;
+    size_t size = field_size(field->type);
+    DWORD count = field->array_size ? field->array_size : 1;
     int index;
 
-    switch (field->type) {
-    case F_EDICT: index = *(LPEDICT *)p ? (int)(*(LPEDICT *)p - g_edicts) : -1; *(int *)p = index; break;
-    case F_CLIENT: index = *(LPGAMECLIENT *)p ? (int)(*(LPGAMECLIENT *)p - game.clients) : -1; *(int *)p = index; break;
-    default: break;
+    if (!size) return;
+    FOR_LOOP(i, count) {
+        void *p = base + field->ofs + i * size;
+        switch (field->type) {
+        case F_EDICT: index = *(LPEDICT *)p ? (int)(*(LPEDICT *)p - g_edicts) : -1; *(int *)p = index; break;
+        case F_CLIENT: index = *(LPGAMECLIENT *)p ? (int)(*(LPGAMECLIENT *)p - game.clients) : -1; *(int *)p = index; break;
+        default: break;
+        }
     }
 }
 
 /* Restore entity and client pointers after the raw edict block is read. */
 static BOOL ReadField(field_t const *field, BYTE *base) {
-    void *p = base + field->ofs;
-    int index = *(int *)p;
+    size_t size = field_size(field->type);
+    DWORD count = field->array_size ? field->array_size : 1;
 
-    switch (field->type) {
-    case F_EDICT:
-        if (index < -1 || index >= globals.max_edicts) return false;
-        *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
-        break;
-    case F_CLIENT:
-        if (index < -1 || index >= game.max_clients) return false;
-        *(LPGAMECLIENT *)p = index < 0 ? NULL : game.clients + index;
-        break;
-    default: break;
+    if (!size) return true;
+    FOR_LOOP(i, count) {
+        void *p = base + field->ofs + i * size;
+        int index = *(int *)p;
+        switch (field->type) {
+        case F_EDICT:
+            if (index < -1 || index >= globals.max_edicts) return false;
+            *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
+            break;
+        case F_CLIENT:
+            if (index < -1 || index >= game.max_clients) return false;
+            *(LPGAMECLIENT *)p = index < 0 ? NULL : game.clients + index;
+            break;
+        default: break;
+        }
     }
     return true;
 }

@@ -13,7 +13,7 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
-#define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
+#define EDICTFIELD(x, type, ...) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type, ##__VA_ARGS__ }
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
@@ -135,7 +135,7 @@ typedef struct {
     LPCSTR name;
     DWORD ofs;
     fieldtype_t type;
-    DWORD flags;
+    DWORD array_size;
 } field_t;
 
 typedef enum {
