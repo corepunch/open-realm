@@ -31,7 +31,11 @@ LPCSTR UI_FormatMessageText(LPCSTR text);
 LPCSTR UI_LevelStringSafe(LPCSTR text);
 void UI_WriteStart(DWORD layer);
 void UI_WriteEnd(LPEDICT ent);
+void UI_WriteModalLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer);
 void UI_ResetFrameWriteList(void);
+void UI_CenterFrame(LPFRAMEDEF frame);
+BOOL UI_ClientModalOpen(LPGAMECLIENT client);
+void UI_ModalStateChanged(LPEDICT ent);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 
@@ -69,7 +73,14 @@ void UI_WriteSelectedPortraitLayer(LPEDICT ent);
 DWORD UI_QuestIndex(LPCQUEST quest);
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
 void UI_ShowQuests(LPEDICT ent);
+void UI_RefreshQuests(LPEDICT ent);
 void UI_HideQuests(LPEDICT ent);
+
+/* Message log (hud_log.c) */
+void UI_MessageLogAppend(LPEDICT ent, LPCSTR text);
+void UI_ShowLog(LPEDICT ent);
+void UI_RefreshLog(LPEDICT ent);
+void UI_HideLog(LPEDICT ent);
 
 /* Game result dialog (hud_game_result.c) */
 void UI_ShowGameResult(LPEDICT ent, BOOL victory);
@@ -79,6 +90,7 @@ void UI_HideGameResult(LPEDICT ent);
 void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration);
 void UI_ShowGameInterface(LPEDICT ent);
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
+void UI_ShowTransientText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
 void UI_ClearTextMessages(LPEDICT ent);
 void UI_InvalidateDialoguePresentation(LPEDICT ent);
 void UI_WriteDialoguePresentation(LPEDICT ent);

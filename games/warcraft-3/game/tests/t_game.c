@@ -178,6 +178,89 @@ TEST(wc3_game, hud_multiline_fdf_text_keeps_renderer_auto_height) {
     T_FEQ(wire.size.height, 0.0f, 0.0001f);
 }
 
+TEST(wc3_game, hud_simple_button_serializes_button_state) {
+    BYTE typedata[256];
+    char textbuf[128];
+    uiFrame_t out;
+    LPFRAMEDEF button, normal, pushed, disabled;
+
+    UI_ClearTemplates();
+    button = UI_Spawn(FT_SIMPLEBUTTON, NULL);
+    normal = UI_Spawn(FT_TEXTURE, button);
+    pushed = UI_Spawn(FT_TEXTURE, button);
+    disabled = UI_Spawn(FT_TEXTURE, button);
+    T_NOT_NULL(button); T_NOT_NULL(normal); T_NOT_NULL(pushed); T_NOT_NULL(disabled);
+    snprintf(normal->Name, sizeof(normal->Name), "Normal"); normal->Texture.Image = 11;
+    snprintf(pushed->Name, sizeof(pushed->Name), "Pushed"); pushed->Texture.Image = 12;
+    snprintf(disabled->Name, sizeof(disabled->Name), "Disabled"); disabled->Texture.Image = 13;
+    snprintf(button->Button.NormalTexture, sizeof(button->Button.NormalTexture), "Normal");
+    snprintf(button->Button.PushedTexture, sizeof(button->Button.PushedTexture), "Pushed");
+    snprintf(button->Button.DisabledTexture, sizeof(button->Button.DisabledTexture), "Disabled");
+
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(button, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_EQ(out.buffer.size, sizeof(uiSimpleButton_t));
+    T_EQ(((uiSimpleButton_t const *)out.buffer.data)->normal.texture, 11);
+    T_EQ(((uiSimpleButton_t const *)out.buffer.data)->pushed.texture, 12);
+    T_EQ(((uiSimpleButton_t const *)out.buffer.data)->disabled.texture, 13);
+    T_EQ(((uiSimpleButton_t const *)out.buffer.data)->normal.fontcolor.a, 255);
+
+    snprintf(button->Button.NormalText.text, sizeof(button->Button.NormalText.text), "KEY_MENU");
+    snprintf(button->Button.DisabledText.text, sizeof(button->Button.DisabledText.text), "MENU");
+    button->OnClick[0] = '\0';
+    T_ASSERT(UI_BuildFrameForWrite(button, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_STREQ(out.text, "MENU");
+    snprintf(button->OnClick, sizeof(button->OnClick), "menu");
+    T_ASSERT(UI_BuildFrameForWrite(button, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_STREQ(out.text, "KEY_MENU");
+
+    UI_ClearTemplates();
+}
+
+TEST(wc3_game, hud_highlight_serializes_texture_and_mode) {
+    BYTE typedata[256];
+    char textbuf[128];
+    uiFrame_t out;
+    LPFRAMEDEF highlight;
+
+    UI_ClearTemplates();
+    highlight = UI_Spawn(FT_HIGHLIGHT, NULL);
+    T_NOT_NULL(highlight);
+    highlight->Highlight.AlphaFile = 17;
+    highlight->Highlight.AlphaMode = BLEND_MODE_ADD;
+
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(highlight, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_EQ(out.buffer.size, sizeof(uiHighlight_t));
+    T_EQ(((uiHighlight_t const *)out.buffer.data)->alphaFile, 17);
+    T_EQ(((uiHighlight_t const *)out.buffer.data)->alphaMode, BLEND_MODE_ADD);
+    UI_ClearTemplates();
+}
+
+TEST(wc3_game, hud_glue_button_serializes_backdrops) {
+    BYTE typedata[256];
+    char textbuf[128];
+    uiFrame_t out;
+    LPFRAMEDEF button, normal, pushed;
+
+    UI_ClearTemplates();
+    button = UI_Spawn(FT_GLUEBUTTON, NULL);
+    normal = UI_Spawn(FT_BACKDROP, button);
+    pushed = UI_Spawn(FT_BACKDROP, button);
+    T_NOT_NULL(button); T_NOT_NULL(normal); T_NOT_NULL(pushed);
+    snprintf(normal->Name, sizeof(normal->Name), "NormalBackdrop"); normal->Backdrop.Background = 21;
+    snprintf(pushed->Name, sizeof(pushed->Name), "PushedBackdrop"); pushed->Backdrop.Background = 22;
+    snprintf(button->Control.Backdrop.Normal, sizeof(button->Control.Backdrop.Normal), "NormalBackdrop");
+    snprintf(button->Control.Backdrop.Pushed, sizeof(button->Control.Backdrop.Pushed), "PushedBackdrop");
+
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(button, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_EQ(out.buffer.size, sizeof(uiGlueTextButton_t));
+    T_EQ(((uiGlueTextButton_t const *)out.buffer.data)->normal.Background, 21);
+    T_EQ(((uiGlueTextButton_t const *)out.buffer.data)->pushed.Background, 22);
+    UI_ClearTemplates();
+}
+
 TEST(wc3_game, hud_authored_row_keeps_template_size) {
     FRAMEDEF tmpl = { .Type = FT_FRAME, .Width = 0.08f, .Height = 0.033f };
     FRAMEDEF parent = { .Type = FT_FRAME };
@@ -197,8 +280,21 @@ TEST(wc3_game, hud_authored_row_stride_uses_template_height) {
     T_FEQ(row->Points.y[FPP_MIN].offset, -0.036f, 0.001f);
 }
 
+
+TEST(wc3_game, hud_quest_visibility_requires_enabled_and_discovered) {
+    QUEST quest = { 0 };
+
+    T_ASSERT(!QuestIsVisible(&quest));
+    quest.enabled = true;
+    T_ASSERT(!QuestIsVisible(&quest));
+    quest.discovered = true;
+    T_ASSERT(QuestIsVisible(&quest));
+    quest.enabled = false;
+    T_ASSERT(!QuestIsVisible(&quest));
+}
+
 TEST(wc3_game, hud_quest_rows_bind_authored_children) {
-    QUEST quest = { .title = "Test Quest", .discovered = true, .required = true };
+    QUEST quest = { .title = "Test Quest", .discovered = true, .required = true, .enabled = true };
     QUESTITEM item = { .description = "Test Objective" };
     LPFRAMEDEF list, item_list, button, title, item_title;
 
@@ -233,6 +329,11 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     T_STREQ(title->Text, "> Test Quest");
     T_STREQ(button->OnClick, "quest 0");
     T_STREQ(item_title->Text, "- Test Objective");
+
+    /* Refreshing the dialog reuses authored runtime rows instead of consuming
+     * another set of permanent FDF frame slots. */
+    PopulateQuestList(list, true, &quest);
+    T_ASSERT(UI_FindChildFrame(list, "QuestListItemTitle") == title);
 
     level.quests = NULL;
     quest_row_template = quest_item_template = NULL;

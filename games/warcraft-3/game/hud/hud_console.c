@@ -12,9 +12,12 @@
 #include "hud_local.h"
 #include "../generated/console_ui.h"
 #include "../generated/resource_bar.h"
+#include "../generated/upper_button_bar.h"
 
 static ConsoleUI_t console_ui;
 static ResourceBar_t res;
+static UpperButtonBar_t upper;
+static UINAME upper_button_commands[4];
 static BOOL hud_console_loaded;
 
 static void ConsoleEnsureLoaded(void) {
@@ -25,6 +28,24 @@ static void ConsoleEnsureLoaded(void) {
     ResourceBar_Load(&res);
     UI_SetParent(res.ResourceBarFrame, console_ui.ConsoleUI);
     UI_SetPoint(res.ResourceBarFrame, FRAMEPOINT_TOPRIGHT, console_ui.ConsoleUI, FRAMEPOINT_TOPRIGHT, 0.0f, 0.0f);
+    if (UpperButtonBar_Load(&upper)) {
+        /* UpperButtonBar.fdf is a separate authored root. Attach it to the
+         * serialized ConsoleUI tree and bind the same server actions used by
+         * the default F9-F12 bindings in share/config.cfg. */
+        UI_SetParent(upper.UpperButtonBarFrame, console_ui.ConsoleUI);
+        UI_SetOnClick(upper.UpperButtonBarQuestsButton, "quests");
+        UI_SetOnClick(upper.UpperButtonBarMenuButton, "menu");
+        UI_SetOnClick(upper.UpperButtonBarAlliesButton, "allies");
+        UI_SetOnClick(upper.UpperButtonBarChatButton, "log");
+        snprintf(upper_button_commands[0], sizeof(upper_button_commands[0]), "%s",
+                 upper.UpperButtonBarQuestsButton->OnClick);
+        snprintf(upper_button_commands[1], sizeof(upper_button_commands[1]), "%s",
+                 upper.UpperButtonBarMenuButton->OnClick);
+        snprintf(upper_button_commands[2], sizeof(upper_button_commands[2]), "%s",
+                 upper.UpperButtonBarAlliesButton->OnClick);
+        snprintf(upper_button_commands[3], sizeof(upper_button_commands[3]), "%s",
+                 upper.UpperButtonBarChatButton->OnClick);
+    }
     res.ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
     res.ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
     res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
@@ -45,9 +66,27 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
     DWORD upkeep_tier;
     LPCSTR upkeep_text;
     COLOR32 upkeep_color;
+    BOOL modal;
 
+    /* FDF DecorateFileNames are race-skinned, so load/serialize the authored
+     * system bar in the target client's theme context. */
+    UI_SetCurrentClient(client);
     ConsoleEnsureLoaded();
-    if (!hud_console_loaded) return;
+    if (!hud_console_loaded) {
+        UI_SetCurrentClient(NULL);
+        return;
+    }
+
+    modal = UI_ClientModalOpen(client);
+    if (upper.UpperButtonBarFrame) {
+        LPFRAMEDEF buttons[] = {
+            upper.UpperButtonBarQuestsButton,
+            upper.UpperButtonBarMenuButton,
+            upper.UpperButtonBarAlliesButton,
+            upper.UpperButtonBarChatButton,
+        };
+        FOR_LOOP(i, 4) UI_SetOnClick(buttons[i], modal ? "" : "%s", upper_button_commands[i]);
+    }
 
     upkeep_tier = G_GetPlayerUpkeepTier(client);
     upkeep_text = upkeep_tier > 1 ? "High Upkeep" : upkeep_tier == 1 ? "Low Upkeep" : "No Upkeep";
@@ -61,4 +100,5 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
         : COLOR32_WHITE;
 
     UI_WriteFrameWithChildren(console_ui.ConsoleUI, NULL);
+    UI_SetCurrentClient(NULL);
 }

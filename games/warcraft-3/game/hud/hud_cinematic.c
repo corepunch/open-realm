@@ -190,7 +190,8 @@ void UI_ShowGameInterface(LPEDICT ent) {
         ent->client->presentation_dirty = false;
 }
 
-void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+static void UI_ShowTextInternal(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration,
+                                BOOL record_in_log) {
     LPGAMECLIENT client;
     LPCSTR resolved, message;
 
@@ -209,12 +210,21 @@ void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
     client->message.position = pos ? *pos : MAKE(VECTOR2, 0.05f, 0.0f);
     client->message.end_time = gi.GetTime() + MAX(1u, (DWORD)(duration * 1000.0f));
     snprintf(client->message.text, sizeof(client->message.text), "%s", message);
+    if (record_in_log) UI_MessageLogAppend(ent, client->message.text);
 
     /* A gameplay transmission owns LAYER_MESSAGE while active.  Preserve an
      * ordinary message started underneath it and reveal that message when the
      * transmission ends if its own lifetime has not expired. */
     if (client->ps.client_ui_state == CLIENT_UI_GAME && HasTransmission(client)) return;
     UI_InvalidateDialoguePresentation(ent);
+}
+
+void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+    UI_ShowTextInternal(ent, pos, text, duration, true);
+}
+
+void UI_ShowTransientText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+    UI_ShowTextInternal(ent, pos, text, duration, false);
 }
 
 void UI_ClearTextMessages(LPEDICT ent) {

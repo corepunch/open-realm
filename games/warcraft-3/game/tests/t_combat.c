@@ -1242,13 +1242,13 @@ TEST(wc3_combat, quest_make_non_null) {
     G_RemoveQuest(q);
 }
 
-TEST(wc3_combat, quest_fields_default_false) {
+TEST(wc3_combat, quest_fields_default_state) {
     LPQUEST q = G_MakeQuest();
     T_ASSERT(!q->completed);
     T_ASSERT(!q->failed);
     T_ASSERT(!q->discovered);
     T_ASSERT(!q->required);
-    T_ASSERT(!q->enabled);
+    T_ASSERT(q->enabled);
     G_RemoveQuest(q);
 }
 

@@ -440,6 +440,7 @@ typedef enum {
     LAYER_GAME_RESULT,
     LAYER_WORLD_HOVER,
     LAYER_UNIT_SHORTCUTS,
+    LAYER_SECONDARY_DIALOG,
 } UILAYOUTLAYER;
 
 typedef enum {
@@ -816,6 +817,10 @@ typedef struct UIMODEL {
 } UIMODEL;
 typedef struct UIMODEL *LPUIMODEL;
 typedef const struct UIMODEL *LPCUIMODEL;
+
+/* Generic uiFrame_t wire flag. Games may mark a server-authored layout root
+ * modal without teaching the shared client what that dialog represents. */
+#define UIFRAME_FLAG_MODAL (1u << 10)
 
 typedef struct uiFrame_s {
     DWORD number;
