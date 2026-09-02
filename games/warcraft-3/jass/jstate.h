@@ -16,13 +16,14 @@ KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_coroutine_frame, JASSCOROUTINEFRAME);
 KNOWN_AS(jass_program, JASSPROGRAM);
+KNOWN_AS(jass_ref, JASSREF);
 
 #define BZ_JASS_HASH_SIZE 4096 // buckets; keeps Galaxy lookup chains near one entry; used for root globals/functions
 
 struct jass_var {
     LPCJASSTYPE type;
     HANDLE value;
-    DWORD *refcount;
+    LPJASSREF ref;
     BOOL constant;
     BOOL array;
     struct {
@@ -32,6 +33,11 @@ struct jass_var {
         BOOL break_pending;  /* set by Galaxy `break`; cleared by eval_LOOP */
     } env;
     LPJASSARRAY _array;
+};
+
+/* Shared handle metadata distinguishes VM-owned payloads from native light handles. */
+struct jass_ref {
+    DWORD refs, size, id;
 };
 
 struct jass_type {
@@ -125,6 +131,7 @@ struct jass_s {
     char rterror_message[512];
     jmp_buf sync_rterror_jmp;
     BOOL sync_rterror_jmp_set;
+    DWORD next_handle_id;
 };
 
 /* Primitive type table — indexed by JASSTYPEID. Defined in jdo.c. */

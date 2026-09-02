@@ -570,6 +570,7 @@ typedef struct {
 #define MAX_JASS_GROUPS 1024 // handles; bounds deterministic per-map group save IDs
 #define MAX_JASS_TRIGGERS 4096 // handles; bounds deterministic per-map trigger save IDs
 #define MAX_JASS_TIMERS 1024 // handles; bounds deterministic per-map timer save IDs
+#define MAX_WAYPOINTS 256 // entities; fixed circular pool used by point-target movement and save relocation
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
@@ -1240,6 +1241,10 @@ void G_TimerResume(LPGTIMER timer);
 DWORD G_TimerRemaining(LPCGTIMER timer);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
+BOOL G_WaypointId(LPCEDICT waypoint, DWORD *id);
+LPEDICT G_WaypointById(DWORD id);
+DWORD G_WaypointCursor(void);
+void G_SetWaypointCursor(DWORD cursor);
 void M_CheckGround (LPEDICT);
 void G_RegisterGroundSurface(LPEDICT);
 void G_UnregisterGroundSurface(LPEDICT);

@@ -1404,6 +1404,28 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events = old_events; remove(filename);
 }
 
+TEST(wc3_save, round_trip_waypoint_references) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-waypoint-save-test.bin";
+    VECTOR2 destination = { 192.0f, 96.0f };
+    LPEDICT unit, waypoint;
+    DWORD cursor;
+
+    reset_entities();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
+    waypoint = Waypoint_add(&destination); cursor = G_WaypointCursor();
+    unit->goalentity = waypoint;
+    unit->movement.attackmove_waypoint = waypoint;
+    T_ASSERT(WriteGame(filename));
+    waypoint->s.origin2 = (VECTOR2){ 0 };
+    unit->goalentity = unit->movement.attackmove_waypoint = NULL;
+    Waypoint_add(&(VECTOR2){ 1.0f, 1.0f });
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(unit->goalentity == waypoint && unit->movement.attackmove_waypoint == waypoint);
+    T_FEQ(waypoint->s.origin2.x, destination.x, 0.01f); T_FEQ(waypoint->s.origin2.y, destination.y, 0.01f);
+    T_EQ(G_WaypointCursor(), cursor);
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_jass_globals) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-jass-save-test.bin";
     T_ASSERT(run_test_jass(
@@ -1428,11 +1450,27 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  group savedGroupAlias = null\n"
         "  trigger savedTrigger = null\n"
         "  trigger savedTriggerAlias = null\n"
+        "  sound savedSound = null\n"
+        "  sound savedSoundAlias = null\n"
+        "  camerasetup savedCamera = null\n"
+        "  camerasetup savedCameraAlias = null\n"
+        "  rect savedRect = null\n"
+        "  rect savedRectAlias = null\n"
+        "  location savedLocation = null\n"
+        "  location savedLocationAlias = null\n"
+        "  force savedForce = null\n"
+        "  force savedForceAlias = null\n"
+        "  gamecache savedCache = null\n"
+        "  boolexpr savedFilter = null\n"
+        "  boolexpr savedFilterAlias = null\n"
         "  integer array savedArray\n"
         "endglobals\n"
         "function SavedCallback takes nothing returns nothing\n"
         "endfunction\n"
         "function ChangedCallback takes nothing returns nothing\n"
+        "endfunction\n"
+        "function SavedFilter takes nothing returns boolean\n"
+        "  return true\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set savedPlayer = Player(0)\n"
@@ -1449,6 +1487,23 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  set savedTrigger = CreateTrigger()\n"
         "  set savedTriggerAlias = savedTrigger\n"
         "  call DisableTrigger(savedTrigger)\n"
+        "  set savedSound = CreateSound(\"test.wav\", false, false, false, 0, 0, \"\")\n"
+        "  set savedSoundAlias = savedSound\n"
+        "  call SetSoundDuration(savedSound, 1234)\n"
+        "  set savedCamera = CreateCameraSetup()\n"
+        "  set savedCameraAlias = savedCamera\n"
+        "  call CameraSetupSetDestPosition(savedCamera, 12.0, 34.0, 0.0)\n"
+        "  set savedRect = Rect(1.0, 2.0, 3.0, 4.0)\n"
+        "  set savedRectAlias = savedRect\n"
+        "  set savedLocation = Location(5.0, 6.0)\n"
+        "  set savedLocationAlias = savedLocation\n"
+        "  set savedForce = CreateForce()\n"
+        "  set savedForceAlias = savedForce\n"
+        "  call ForceAddPlayer(savedForce, savedPlayer)\n"
+        "  set savedCache = InitGameCache(\"save-test.w3v\")\n"
+        "  call StoreInteger(savedCache, \"mission\", \"key\", 37)\n"
+        "  set savedFilter = Filter(function SavedFilter)\n"
+        "  set savedFilterAlias = savedFilter\n"
         "  set savedArray[7] = 77\n"
         "  set savedArray[4095] = 95\n"
         "endfunction\n"
@@ -1468,6 +1523,14 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  set savedQuestItemAlias = null\n"
         "  call GroupClear(savedGroup)\n"
         "  call EnableTrigger(savedTrigger)\n"
+        "  call SetSoundDuration(savedSound, 1)\n"
+        "  call CameraSetupSetDestPosition(savedCamera, 1.0, 1.0, 0.0)\n"
+        "  call SetRect(savedRect, 0.0, 0.0, 0.0, 0.0)\n"
+        "  call MoveLocation(savedLocation, 0.0, 0.0)\n"
+        "  call ForceClear(savedForce)\n"
+        "  call StoreInteger(savedCache, \"mission\", \"key\", 0)\n"
+        "  set savedFilter = null\n"
+        "  set savedFilterAlias = null\n"
         "  set savedArray[7] = 0\n"
         "  set savedArray[4095] = 0\n"
         "endfunction\n"
@@ -1488,6 +1551,19 @@ TEST(wc3_save, round_trip_jass_globals) {
         "  call BJassAssert(FirstOfGroup(savedGroup) == savedUnit, \"group membership mismatch\")\n"
         "  call BJassAssert(savedTrigger == savedTriggerAlias, \"trigger alias mismatch\")\n"
         "  call BJassAssert(not IsTriggerEnabled(savedTrigger), \"trigger state mismatch\")\n"
+        "  call BJassAssert(savedSound == savedSoundAlias, \"sound alias mismatch\")\n"
+        "  call BJassAssert(GetSoundDuration(savedSound) == 1234, \"sound payload mismatch\")\n"
+        "  call BJassAssert(savedCamera == savedCameraAlias, \"camera alias mismatch\")\n"
+        "  call BJassAssert(CameraSetupGetDestPositionX(savedCamera) == 12.0, \"camera X mismatch\")\n"
+        "  call BJassAssert(CameraSetupGetDestPositionY(savedCamera) == 34.0, \"camera Y mismatch\")\n"
+        "  call BJassAssert(savedRect == savedRectAlias, \"rect alias mismatch\")\n"
+        "  call BJassAssert(GetRectMinX(savedRect) == 1.0 and GetRectMaxY(savedRect) == 4.0, \"rect payload mismatch\")\n"
+        "  call BJassAssert(savedLocation == savedLocationAlias, \"location alias mismatch\")\n"
+        "  call BJassAssert(GetLocationX(savedLocation) == 5.0 and GetLocationY(savedLocation) == 6.0, \"location payload mismatch\")\n"
+        "  call BJassAssert(savedForce == savedForceAlias, \"force alias mismatch\")\n"
+        "  call BJassAssert(IsPlayerInForce(savedPlayer, savedForce), \"force payload mismatch\")\n"
+        "  call BJassAssert(GetStoredInteger(savedCache, \"mission\", \"key\") == 37, \"gamecache payload mismatch\")\n"
+        "  call BJassAssert(savedFilter == savedFilterAlias, \"boolexpr alias mismatch\")\n"
         "  call BJassAssert(savedArray[7] == 77, \"sparse array mismatch\")\n"
         "  call BJassAssert(savedArray[4095] == 95, \"high sparse array mismatch\")\n"
         "endfunction\n"));

@@ -2,7 +2,7 @@
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 6;
+static DWORD const save_version = 7;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 
 typedef struct {
@@ -326,7 +326,16 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
     if (!JassHandleDomain(type, &domain) || !value) return false;
     if (domain == JASS_HANDLE_ENTITY) {
         LPEDICT ent = value;
-        if (ent < g_edicts || ent >= g_edicts + globals.num_edicts || !ent->inuse) return false;
+        uintptr_t ptr = (uintptr_t)ent, base = (uintptr_t)g_edicts;
+        if (ptr < base || ptr >= base + sizeof(*g_edicts) * globals.num_edicts || (ptr - base) % sizeof(*g_edicts)) {
+            fprintf(stderr, "WC3 SaveGame: %s handle %p outside edict table [%p, %p)\n", type, value,
+                (void *)g_edicts, (void *)(g_edicts + globals.num_edicts));
+            return false;
+        }
+        if (!ent->inuse) {
+            fprintf(stderr, "WC3 SaveGame: %s handle %p is unused edict %ld\n", type, value, (long)(ent - g_edicts));
+            return false;
+        }
         *id = (DWORD)(ent - g_edicts); return true;
     }
     if (domain == JASS_HANDLE_PLAYER) {
@@ -454,20 +463,44 @@ static size_t field_size(fieldtype_t type) {
     }
 }
 
-static void WriteField1(field_t const *field, BYTE *base) {
+static BOOL WriteField1(field_t const *field, BYTE *base) {
     size_t size = field_size(field->type);
     DWORD count = field->array_size ? field->array_size : 1;
     int index;
 
-    if (!size) return;
+    if (!size) return true;
     FOR_LOOP(i, count) {
         void *p = base + field->ofs + i * size;
         switch (field->type) {
-        case F_EDICT: index = *(LPEDICT *)p ? (int)(*(LPEDICT *)p - g_edicts) : -1; *(int *)p = index; break;
-        case F_CLIENT: index = *(LPGAMECLIENT *)p ? (int)(*(LPGAMECLIENT *)p - game.clients) : -1; *(int *)p = index; break;
+        case F_EDICT: {
+            LPEDICT value = *(LPEDICT *)p;
+            uintptr_t ptr = (uintptr_t)value, base = (uintptr_t)g_edicts;
+            if (value && (ptr < base || ptr >= base + sizeof(*g_edicts) * globals.num_edicts ||
+                (ptr - base) % sizeof(*g_edicts))) {
+                DWORD waypoint;
+                if (!G_WaypointId(value, &waypoint)) {
+                    fprintf(stderr, "WC3 SaveGame: field %s[%u] points outside entity domains (%p)\n",
+                        field->name, i, (void *)value);
+                    return false;
+                }
+                index = -(int)waypoint - 2; *(int *)p = index; break;
+            }
+            index = value ? (int)(value - g_edicts) : -1; *(int *)p = index; break;
+        }
+        case F_CLIENT: {
+            LPGAMECLIENT value = *(LPGAMECLIENT *)p;
+            uintptr_t ptr = (uintptr_t)value, base = (uintptr_t)game.clients;
+            if (value && (ptr < base || ptr >= base + sizeof(*game.clients) * game.max_clients ||
+                (ptr - base) % sizeof(*game.clients))) {
+                fprintf(stderr, "WC3 SaveGame: field %s[%u] points outside client table (%p)\n", field->name, i, (void *)value);
+                return false;
+            }
+            index = value ? (int)(value - game.clients) : -1; *(int *)p = index; break;
+        }
         default: break;
         }
     }
+    return true;
 }
 
 /* Restore entity and client pointers after the raw edict block is read. */
@@ -481,11 +514,17 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
         int index = *(int *)p;
         switch (field->type) {
         case F_EDICT:
-            if (index < -1 || index >= globals.max_edicts) return false;
-            *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
+            if (index < -(int)MAX_WAYPOINTS - 1 || index >= globals.max_edicts) {
+                fprintf(stderr, "WC3 LoadGame: field %s[%u] has invalid edict index %d\n", field->name, i, index);
+                return false;
+            }
+            *(LPEDICT *)p = index == -1 ? NULL : index < -1 ? G_WaypointById((DWORD)(-index - 2)) : g_edicts + index;
             break;
         case F_CLIENT:
-            if (index < -1 || index >= game.max_clients) return false;
+            if (index < -1 || index >= game.max_clients) {
+                fprintf(stderr, "WC3 LoadGame: field %s[%u] has invalid client index %d\n", field->name, i, index);
+                return false;
+            }
             *(LPGAMECLIENT *)p = index < 0 ? NULL : game.clients + index;
             break;
         default: break;
@@ -511,7 +550,7 @@ static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
     temp.UnitProfile = NULL; temp.UnitBalance = NULL; temp.UnitData = NULL; temp.UnitUI = NULL;
     temp.UnitWeapons = NULL; temp.UnitAbilities = NULL; temp.Doodads = NULL;
     temp.ItemData = NULL; temp.DestructableData = NULL;
-    for (field = fields; field->name; field++) WriteField1(field, (BYTE *)&temp);
+    for (field = fields; field->name; field++) if (!WriteField1(field, (BYTE *)&temp)) return false;
     return SaveBytes(f, &temp, sizeof(temp));
 }
 
@@ -555,6 +594,22 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     return true;
 }
 
+/* Point-order targets live outside g_edicts, so persist their fixed pool before resolving entity references. */
+static BOOL WriteWaypoints(FILE *f) {
+    DWORD cursor = G_WaypointCursor();
+    if (!SaveBytes(f, &cursor, sizeof(cursor))) return false;
+    FOR_LOOP(i, MAX_WAYPOINTS) if (!WriteEdict(f, G_WaypointById(i))) return false;
+    return true;
+}
+
+static BOOL ReadWaypoints(FILE *f) {
+    DWORD cursor;
+    if (!LoadBytes(f, &cursor, sizeof(cursor))) return false;
+    FOR_LOOP(i, MAX_WAYPOINTS) if (!ReadEdict(f, G_WaypointById(i))) return false;
+    G_SetWaypointCursor(cursor);
+    return true;
+}
+
 BOOL WriteGame(LPCSTR filename) {
     FILE *f = fopen(filename, "w+b");
     SAVEHEADER header = {
@@ -564,18 +619,31 @@ BOOL WriteGame(LPCSTR filename) {
     };
 
     BOOL ok = false;
-    if (!f) return false;
-    if (!SaveBytes(f, &header, sizeof(header)) || !SaveBytes(f, &level.framenum, sizeof(level.framenum)) ||
-        !SaveBytes(f, &level.time, sizeof(level.time)) || !SaveBytes(f, &level.started, sizeof(level.started)) ||
-        !SaveBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) goto done;
-    FOR_LOOP(i, game.max_clients) if (!WriteClient(f, game.clients + i)) goto done;
-    if (!WriteQuests(f)) goto done;
+    if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
+    if (!SaveBytes(f, &level.framenum, sizeof(level.framenum))) { fprintf(stderr, "WC3 SaveGame: failed at framenum\n"); goto done; }
+    if (!SaveBytes(f, &level.time, sizeof(level.time))) { fprintf(stderr, "WC3 SaveGame: failed at time\n"); goto done; }
+    if (!SaveBytes(f, &level.started, sizeof(level.started))) { fprintf(stderr, "WC3 SaveGame: failed at started\n"); goto done; }
+    if (!SaveBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) { fprintf(stderr, "WC3 SaveGame: failed at scriptsStarted\n"); goto done; }
+    FOR_LOOP(i, game.max_clients) {
+        if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
+    }
+    if (!WriteQuests(f)) { fprintf(stderr, "WC3 SaveGame: failed at quests\n"); goto done; }
+    if (!WriteWaypoints(f)) { fprintf(stderr, "WC3 SaveGame: failed at waypoints\n"); goto done; }
     FOR_LOOP(i, globals.num_edicts) {
         BOOL used = g_edicts[i].inuse;
-        if (!SaveBytes(f, &used, sizeof(used)) || (used && !SaveBytes(f, &i, sizeof(i)))) goto done;
-        if (used && !WriteEdict(f, g_edicts + i)) goto done;
+        if (!SaveBytes(f, &used, sizeof(used))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d inuse\n", i); goto done; }
+        if (used && !SaveBytes(f, &i, sizeof(i))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d index\n", i); goto done; }
+        if (used && !WriteEdict(f, g_edicts + i)) {
+            fprintf(stderr, "WC3 SaveGame: failed at edict %d class=%08x\n", i, g_edicts[i].class_id); goto done;
+        }
     }
-    if (!WriteGroups(f) || !WriteTriggers(f) || !WriteTimers(f) || !WriteEvents(f) || !WriteJass(f) || !WriteFooter(f)) goto done;
+    if (!WriteGroups(f)) { fprintf(stderr, "WC3 SaveGame: failed at groups\n"); goto done; }
+    if (!WriteTriggers(f)) { fprintf(stderr, "WC3 SaveGame: failed at triggers\n"); goto done; }
+    if (!WriteTimers(f)) { fprintf(stderr, "WC3 SaveGame: failed at timers\n"); goto done; }
+    if (!WriteEvents(f)) { fprintf(stderr, "WC3 SaveGame: failed at events\n"); goto done; }
+    if (!WriteJass(f)) { fprintf(stderr, "WC3 SaveGame: failed at jass\n"); goto done; }
+    if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
 done:
     fclose(f);
@@ -589,33 +657,45 @@ BOOL ReadGame(LPCSTR filename) {
     DWORD index;
     int targets[MAX_CLIENTS];
 
-    if (!f) return false;
-    if (!ReadFooter(f)) { fclose(f); return false; }
+    if (!f) { fprintf(stderr, "WC3 LoadGame: cannot open %s\n", filename); return false; }
+    if (!ReadFooter(f)) { fprintf(stderr, "WC3 LoadGame: invalid footer/checksum\n"); fclose(f); return false; }
     /* All native handle registries must match before clients or edicts are overwritten; timers were previously checked too late. */
     if (!LoadBytes(f, &header, sizeof(header)) || header.magic != save_magic || header.version != save_version ||
         header.edict_size != sizeof(edict_t) || header.num_edicts > globals.max_edicts ||
         header.max_clients != game.max_clients || header.script_identity != (level.vm ? jass_programidentity(level.vm) : 0) ||
         header.quests != QuestCount() || header.groups != level.num_groups || header.triggers != level.num_triggers ||
         header.timers != level.num_timers || header.events != EventCount()) {
+        fprintf(stderr, "WC3 LoadGame: header mismatch version=%u edicts=%u clients=%u registries=%u/%u/%u/%u/%u\n",
+            header.version, header.num_edicts, header.max_clients, header.quests, header.groups, header.triggers,
+            header.timers, header.events);
         fclose(f); return false;
     }
     if (!LoadBytes(f, &level.framenum, sizeof(level.framenum)) || !LoadBytes(f, &level.time, sizeof(level.time)) ||
         !LoadBytes(f, &level.started, sizeof(level.started)) || !LoadBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) {
-        fclose(f); return false;
+        fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
-    FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) { fclose(f); return false; }
-    if (!ReadQuests(f)) { fclose(f); return false; }
+    FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
+        fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;
+    }
+    if (!ReadQuests(f)) { fprintf(stderr, "WC3 LoadGame: failed at quests\n"); fclose(f); return false; }
+    if (!ReadWaypoints(f)) { fprintf(stderr, "WC3 LoadGame: failed at waypoints\n"); fclose(f); return false; }
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
         BOOL used;
-        if (!LoadBytes(f, &used, sizeof(used))) { fclose(f); return false; }
+        if (!LoadBytes(f, &used, sizeof(used))) {
+            fprintf(stderr, "WC3 LoadGame: failed at edict %d inuse\n", i); fclose(f); return false;
+        }
         if (!used) continue;
         if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.max_edicts || !ReadEdict(f, g_edicts + index)) {
-            fclose(f); return false;
+            fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
-    if (!ReadGroups(f) || !ReadTriggers(f) || !ReadTimers(f) || !ReadEvents(f) || !ReadJass(f)) { fclose(f); return false; }
+    if (!ReadGroups(f)) { fprintf(stderr, "WC3 LoadGame: failed at groups\n"); fclose(f); return false; }
+    if (!ReadTriggers(f)) { fprintf(stderr, "WC3 LoadGame: failed at triggers\n"); fclose(f); return false; }
+    if (!ReadTimers(f)) { fprintf(stderr, "WC3 LoadGame: failed at timers\n"); fclose(f); return false; }
+    if (!ReadEvents(f)) { fprintf(stderr, "WC3 LoadGame: failed at events\n"); fclose(f); return false; }
+    if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
     FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];
     FOR_LOOP(i, globals.num_edicts) {

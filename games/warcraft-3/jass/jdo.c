@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 1 // format version; rejects snapshots with incompatible semantic records
+#define BZ_JASS_SNAPSHOT_VERSION 2 // format version; adds relocatable VM-owned and function handle records
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -1143,13 +1143,13 @@ void jass_setnull(LPJASSVAR var) {
     }
     switch (type) {
         case jasstype_handle:
-            if (var->refcount && *var->refcount > 0) {
-                (*var->refcount)--;
+            if (var->ref && var->ref->refs > 0) {
+                var->ref->refs--;
                 var->value = NULL;
-                var->refcount = NULL;
+                var->ref = NULL;
             } else {
                 SAFE_DELETE(var->value, jass_free);
-                SAFE_DELETE(var->refcount, jass_free);
+                SAFE_DELETE(var->ref, jass_free);
             }
             break;
         case jasstype_code:
@@ -1205,9 +1205,9 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
                 fprintf(stderr, "Warning: Passing %s to %s type\n", other->type->name, var->type->name);
             }
             var->value = other->value;
-            var->refcount = other->refcount;
-            if (var->refcount) {
-                (*var->refcount)++;
+            var->ref = other->ref;
+            if (var->ref) {
+                var->ref->refs++;
             }
             break;
         case jasstype_real:
@@ -1262,7 +1262,8 @@ DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type) {
     var->type = find_type(j, type);
     if (value) {
         var->value = value;
-        var->refcount = jass_alloc(sizeof(DWORD));
+        var->ref = jass_alloc(sizeof(*var->ref));
+        *var->ref = (JASSREF){ 0 };
     }
     return 1;
 }
@@ -1274,6 +1275,11 @@ DWORD jass_pushnullhandle(LPJASS j, LPCSTR type) {
 HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type) {
     HANDLE data = size ? jass_alloc(size) : NULL;
     jass_pushhandle(j, data, type);
+    if (data) {
+        LPJASSVAR var = jass_topvalue(j);
+        var->ref->size = size;
+        var->ref->id = ++jass_root(j)->next_handle_id;
+    }
     return data;
 }
 
@@ -1282,8 +1288,8 @@ DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
     jass_setnull(var);
     var->type = find_type(j, type);
     var->value = value;
-    var->refcount = jass_alloc(sizeof(DWORD));
-    *var->refcount = 1;
+    var->ref = jass_alloc(sizeof(*var->ref));
+    *var->ref = (JASSREF){ .refs = 1 };
     return 1;
 }
 
@@ -2007,6 +2013,137 @@ static DWORD jass_snapshot_arraycount(LPCJASSARRAY array) {
     return count;
 }
 
+typedef enum {
+    JASS_SNAPSHOT_HANDLE_VALUE = 1,
+    JASS_SNAPSHOT_HANDLE_HOST,
+    JASS_SNAPSHOT_HANDLE_OWNED,
+    JASS_SNAPSHOT_HANDLE_FUNCTION,
+} jassSnapshotHandleType_t;
+
+typedef struct jass_snapshot_handle_s {
+    struct jass_snapshot_handle_s *next;
+    DWORD id, size;
+    LPCSTR type;
+    HANDLE value;
+    LPJASSREF ref;
+} jassSnapshotHandle_t;
+
+static BOOL jass_snapshot_ownedhandle(LPCSTR type) {
+    static LPCSTR const types[] = {
+        "sound", "camerasetup", "rect", "location", "force", "gamecache", "region", "fogmodifier",
+        "version", "itemtype", "attacktype", "damagetype", "weapontype", "soundtype", "pathingtype",
+        "mousebuttontype", "aidifficulty", "playerscore"
+    };
+    FOR_LOOP(i, sizeof(types) / sizeof(*types)) if (!strcmp(type, types[i])) return true;
+    return false;
+}
+
+static BOOL jass_snapshot_functionhandle(LPCSTR type) {
+    static LPCSTR const types[] = { "boolexpr", "conditionfunc", "filterfunc" };
+    FOR_LOOP(i, sizeof(types) / sizeof(*types)) if (!strcmp(type, types[i])) return true;
+    return false;
+}
+
+static jassSnapshotHandle_t *jass_snapshot_findhandle(JASSSNAPSHOT *snapshot, DWORD id) {
+    jassSnapshotHandle_t *handles = snapshot->handles;
+    FOR_EACH_LIST(jassSnapshotHandle_t, item, handles) if (item->id == id) return item;
+    return NULL;
+}
+
+static void jass_snapshot_freehandles(JASSSNAPSHOT *snapshot) {
+    while (snapshot->handles) {
+        jassSnapshotHandle_t *item = snapshot->handles;
+        snapshot->handles = item->next;
+        jass_free(item);
+    }
+}
+
+/* Handles use explicit encodings: native IDs relocate through the host, while safe VM-owned payloads carry identity+bytes. */
+static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
+    DWORD encoding, id;
+    (void)j;
+    if (jass_valuehandle(var->type->name)) {
+        encoding = JASS_SNAPSHOT_HANDLE_VALUE;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
+            jass_snapshot_io(snapshot, var->value, sizeof(DWORD));
+    }
+    if (jass_host.SaveHandle && jass_host.SaveHandle(var->type->name, var->value, &id)) {
+        encoding = JASS_SNAPSHOT_HANDLE_HOST;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) && jass_snapshot_io(snapshot, &id, sizeof(id));
+    }
+    if (jass_snapshot_ownedhandle(var->type->name) && var->ref && var->ref->size) {
+        encoding = JASS_SNAPSHOT_HANDLE_OWNED;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
+            jass_snapshot_io(snapshot, &var->ref->id, sizeof(var->ref->id)) &&
+            jass_snapshot_io(snapshot, &var->ref->size, sizeof(var->ref->size)) &&
+            jass_snapshot_io(snapshot, var->value, var->ref->size);
+    }
+    if (jass_snapshot_functionhandle(var->type->name)) {
+        encoding = JASS_SNAPSHOT_HANDLE_FUNCTION;
+        return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
+            jass_snapshot_writestr(snapshot, jass_functionname(var->value));
+    }
+    fprintf(stderr, "JASS snapshot: cannot encode %s handle\n", var->type->name);
+    return false;
+}
+
+static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR var) {
+    DWORD encoding, id, size;
+    HANDLE value;
+    LPSTR name = NULL;
+    if (!jass_snapshot_io(snapshot, &encoding, sizeof(encoding))) return false;
+    if (encoding == JASS_SNAPSHOT_HANDLE_VALUE) {
+        if (!jass_valuehandle(var->type->name) || !(var->value = jass_alloc(sizeof(DWORD))) ||
+            !jass_snapshot_io(snapshot, var->value, sizeof(DWORD))) return false;
+        var->ref = jass_alloc(sizeof(*var->ref));
+        if (!var->ref) return false;
+        *var->ref = (JASSREF){ .size = sizeof(DWORD) };
+        return true;
+    }
+    if (encoding == JASS_SNAPSHOT_HANDLE_HOST) {
+        if (!jass_snapshot_io(snapshot, &id, sizeof(id))) return false;
+        if (!jass_host.LoadHandle || !(value = jass_host.LoadHandle(var->type->name, id))) {
+            fprintf(stderr, "JASS snapshot: cannot resolve %s handle %u\n", var->type->name, id);
+            return false;
+        }
+        var->ref = jass_alloc(sizeof(*var->ref));
+        if (!var->ref) return false;
+        var->value = value; *var->ref = (JASSREF){ .refs = 1 };
+        return true;
+    }
+    if (encoding == JASS_SNAPSHOT_HANDLE_FUNCTION) {
+        if (!jass_snapshot_functionhandle(var->type->name) || !jass_snapshot_readstr(snapshot, &name) || !name ||
+            !(var->value = (HANDLE)find_function(j, name))) { SAFE_DELETE(name, jass_free); return false; }
+        SAFE_DELETE(name, jass_free);
+        var->ref = jass_alloc(sizeof(*var->ref));
+        if (!var->ref) return false;
+        *var->ref = (JASSREF){ .refs = 1 };
+        return true;
+    }
+    if (encoding != JASS_SNAPSHOT_HANDLE_OWNED || !jass_snapshot_ownedhandle(var->type->name) ||
+        !jass_snapshot_io(snapshot, &id, sizeof(id)) || !id ||
+        !jass_snapshot_io(snapshot, &size, sizeof(size)) || !size || size > BZ_JASS_SNAPSHOT_MAX_STRING) return false;
+    jassSnapshotHandle_t *item = jass_snapshot_findhandle(snapshot, id);
+    if (item) {
+        if (item->size != size || strcmp(item->type, var->type->name) ||
+            !jass_snapshot_io(snapshot, item->value, size)) return false;
+        var->value = item->value; var->ref = item->ref; var->ref->refs++;
+        return true;
+    }
+    item = jass_alloc(sizeof(*item));
+    if (!item || !(item->value = jass_alloc(size)) || !(item->ref = jass_alloc(sizeof(*item->ref))) ||
+        !jass_snapshot_io(snapshot, item->value, size)) {
+        if (item) { SAFE_DELETE(item->value, jass_free); SAFE_DELETE(item->ref, jass_free); jass_free(item); }
+        return false;
+    }
+    item->id = id; item->size = size; item->type = var->type->name;
+    *item->ref = (JASSREF){ .size = size, .id = id };
+    ADD_TO_LIST(item, snapshot->handles);
+    var->value = item->value; var->ref = item->ref;
+    jass_root(j)->next_handle_id = MAX(jass_root(j)->next_handle_id, id);
+    return true;
+}
+
 /* Values carry their declared type so changed scripts and corrupt tags reject before mutation. */
 static BOOL jass_snapshot_writevar(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
     DWORD present = var->value || var->_array, count = jass_snapshot_arraycount(var->_array);
@@ -2026,15 +2163,7 @@ static BOOL jass_snapshot_writevar(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR 
     case jasstype_boolean: return jass_snapshot_io(snapshot, var->value, sizeof(BOOL));
     case jasstype_string: return jass_snapshot_writestr(snapshot, var->value);
     case jasstype_code: return jass_snapshot_writestr(snapshot, jass_functionname(var->value));
-    case jasstype_handle: {
-        DWORD id;
-        if (jass_valuehandle(var->type->name)) return jass_snapshot_io(snapshot, var->value, sizeof(DWORD));
-        if (!jass_host.SaveHandle || !jass_host.SaveHandle(var->type->name, var->value, &id)) {
-            fprintf(stderr, "JASS snapshot: cannot encode %s handle\n", var->type->name);
-            return false;
-        }
-        return jass_snapshot_io(snapshot, &id, sizeof(id));
-    }
+    case jasstype_handle: return jass_snapshot_writehandle(j, snapshot, var);
     default: fprintf(stderr, "JASS snapshot: unsupported value type %s\n", var->type->name); return false;
     }
 }
@@ -2066,29 +2195,7 @@ static BOOL jass_snapshot_readvar(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR va
     case jasstype_code:
         if (!jass_snapshot_readstr(snapshot, &text) || !text) return false;
         var->value = (HANDLE)find_function(j, text); SAFE_DELETE(text, jass_free); return var->value != NULL;
-    case jasstype_handle: {
-        DWORD id;
-        HANDLE value;
-        if (!jass_snapshot_io(snapshot, &id, sizeof(id))) return false;
-        if (jass_valuehandle(var->type->name)) {
-            var->value = jass_alloc(sizeof(DWORD));
-            if (!var->value) return false;
-            *(LPDWORD)var->value = id;
-            var->refcount = jass_alloc(sizeof(DWORD));
-            if (!var->refcount) return false;
-            *var->refcount = 0;
-            return true;
-        }
-        if (!jass_host.LoadHandle || !(value = jass_host.LoadHandle(var->type->name, id))) {
-            fprintf(stderr, "JASS snapshot: cannot resolve %s handle\n", var->type->name);
-            return false;
-        }
-        var->refcount = jass_alloc(sizeof(DWORD));
-        if (!var->refcount) return false;
-        var->value = value;
-        *var->refcount = 1;
-        return true;
-    }
+    case jasstype_handle: return jass_snapshot_readhandle(j, snapshot, var);
     default: fprintf(stderr, "JASS snapshot: unsupported value type %s\n", var->type->name); return false;
     }
 }
@@ -2299,7 +2406,10 @@ BOOL jass_writesnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
     if (!jass_snapshot_io(snapshot, &header, sizeof(header))) return false;
     FOR_EACH_LIST(JASSDICT const, item, root->globals)
         if (!item->value.constant && (!jass_snapshot_writestr(snapshot, item->key) ||
-            !jass_snapshot_writevar(root, snapshot, &item->value))) return false;
+            !jass_snapshot_writevar(root, snapshot, &item->value))) {
+            fprintf(stderr, "JASS snapshot: global '%s' could not be saved\n", item->key);
+            return false;
+        }
     return jass_snapshot_writecoroutines(root, snapshot);
 }
 
@@ -2340,6 +2450,7 @@ BOOL jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
 done:
     SAFE_DELETE(staged, jass_deletedict);
     while (coroutines) { LPJASSCOROUTINE next = coroutines->next; jass_free_coroutine(coroutines); coroutines = next; }
+    jass_snapshot_freehandles(snapshot);
     return ok;
 }
 

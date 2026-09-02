@@ -14,6 +14,7 @@ typedef BOOL (*LPJASSSNAPSHOTIO)(void *context, void *data, DWORD size);
 typedef struct {
     void *context;
     LPJASSSNAPSHOTIO transfer;
+    void *handles;
 } JASSSNAPSHOT;
 
 struct jass_module {
