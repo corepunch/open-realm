@@ -735,17 +735,42 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
         CL_ParseLobbySetup(&payload);
     } else if (!strcmp(command, "lobby_chat")) {
         CL_ParseLobbyChat(&payload);
-    } else if (!strcmp(command, "snd")) {
-        int idx = MSG_ReadLong(&payload);
-        if (idx > 0) {
-            LPCSTR path = cl.configstrings[CS_SOUNDS + idx];
-            if (path && path[0]) S_PlaySoundFile(path);
-        }
     } else if (!strcmp(command, "select")) {
         CL_ParseSetSelection(&payload);
     }
 
     msg->readcount = payload_start + (DWORD)payload_size;
+}
+
+/* Read the Quake 2 sound packet contract and resolve entity-relative origins
+ * from the current client snapshot before handing playback to the mixer. */
+static void CL_ParseSound(LPSIZEBUF msg) {
+    DWORD flags = (DWORD)MSG_ReadByte(msg);
+    int sound_index = MSG_ReadShort(msg), channel = 0, entity = 0;
+    FLOAT volume = DEFAULT_SOUND_PACKET_VOLUME, attenuation = DEFAULT_SOUND_PACKET_ATTENUATION, timeofs = 0.0f;
+    VECTOR3 origin = { 0 };
+    LPCSTR path;
+
+    if (flags & SND_VOLUME) volume = MSG_ReadByte(msg) / 255.0f;
+    if (flags & SND_ATTENUATION) attenuation = MSG_ReadByte(msg) / 64.0f;
+    if (flags & SND_OFFSET) timeofs = MSG_ReadByte(msg) / 1000.0f;
+    if (flags & SND_ENT) {
+        int packed = MSG_ReadShort(msg);
+        entity = packed >> 3;
+        channel = packed & 7;
+        if (entity <= 0 || entity >= MAX_CLIENT_ENTITIES) {
+            fprintf(stderr, "CL_ParseSound: bad entity=%d sound=%d\n", entity, sound_index);
+            return;
+        }
+        origin = cl.ents[entity].current.origin;
+    }
+    if (flags & SND_POS) MSG_ReadPos(msg, &origin);
+    if (sound_index <= 0 || sound_index >= MAX_SOUNDS) {
+        fprintf(stderr, "CL_ParseSound: bad sound=%d flags=0x%x\n", sound_index, (unsigned)flags);
+        return;
+    }
+    path = cl.configstrings[CS_SOUNDS + sound_index];
+    if (path && path[0]) S_PlaySoundPacket(path, &origin, flags & (SND_POS | SND_ENT), channel, volume, attenuation, timeofs);
 }
 
 static void CL_ParseWindow(LPSIZEBUF msg) {
@@ -791,6 +816,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_cursor_splat:
                 CL_ParseCursorSplat(msg);
+                break;
+            case svc_sound:
+                CL_ParseSound(msg);
                 break;
             case svc_mirror:
                 CL_MirrorMessage(msg);

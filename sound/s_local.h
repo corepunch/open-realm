@@ -80,6 +80,9 @@ typedef struct {
         float       leftvol;
         float       rightvol;
         VECTOR2     origin;
+        FLOAT       attenuation;
+        int         channel;
+        int         delay;
         BOOL        is_positional;
         BOOL        active;
     } channels[S_MAX_CHANNELS];
@@ -98,6 +101,8 @@ void S_EndRegistration(void);
 void S_RegisterSound(LPCSTR path);
 void S_PlaySoundFile(LPCSTR path);
 void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin);
+void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation,
+                       FLOAT timeofs);
 void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right);
 
 #endif

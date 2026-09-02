@@ -47,12 +47,10 @@ static int G_RegisterUISound(LPCSTR alias) {
 void G_PlayUISoundForPlayer(LPEDICT clent, LPCSTR alias) {
     int sound;
 
-    /* UI sounds are immediate client transport, unlike queued entity events.
-     * Reserved/disconnected game-client slots have no initialized server message
-     * buffer, so defer presentation until a real client is connected. */
+    /* UI sounds use the reliable owner-only sound packet and remain non-positional. */
     if (!clent || !clent->client || !clent->client->connected || !alias || !alias[0]) return;
     sound = G_RegisterUISound(alias);
-    if (sound) gi.GameCommand(clent, "snd", &sound, sizeof(sound));
+    if (sound) gi.Sound(clent, CHAN_OWNER | CHAN_RELIABLE, sound, 1.0f, 0.0f, 0.0f);
 }
 
 static LPCSTR G_CommandErrorKeyForText(LPCSTR text) {

@@ -98,22 +98,16 @@ void G_RunEntities(void) {
         LPEDICT ent = globals.edicts+i;
         if (!ent->inuse) continue; /* freed edicts are memset and never re-sent; skip the per-frame clear */
         ent->old_origin = ent->s.origin2;
-        /* Clear one-shot event fields so each event fires for exactly one frame. */
-        ent->s.event = EV_NONE;
-        ent->s.sound = 0;
         if (ent->sound.pending) {
-            ent->s.event = EV_ACK;
-            ent->s.sound = ent->sound.pending;
+            gi.Sound(ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.pending, 1.0f, 0.0f, 0.0f);
             ent->sound.pending = 0;
         }
         if (ent->sound.owner_pending) {
-            ent->s.event = EV_OWNER_SOUND;
-            ent->s.sound = ent->sound.owner_pending;
+            gi.Sound(ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.owner_pending, 1.0f, 0.0f, 0.0f);
             ent->sound.owner_pending = 0;
         }
         if (ent->sound.world_pending) {
-            ent->s.event = ent->sound.world_pending_event;
-            ent->s.sound = ent->sound.world_pending;
+            gi.Sound(ent, CHAN_VOICE, ent->sound.world_pending, 1.0f, 1.0f, 0.0f);
             ent->sound.world_pending = 0;
             ent->sound.world_pending_event = EV_NONE;
         }

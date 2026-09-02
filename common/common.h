@@ -57,7 +57,7 @@ enum svc_ops {
 //    svc_nop,
 //    svc_disconnect,
 //    svc_reconnect,
-//    svc_sound,                    // <see code>
+    svc_sound,                    // [byte flags] [short sound] [optional volume/attenuation/offset/entity/position]
 //    svc_print,                    // [byte] id [string] null terminated string
 //    svc_stufftext,                // [string] stuffed into client's console buffer, should be \n terminated
 //    svc_serverdata,                // [long] protocol ...

@@ -1287,12 +1287,11 @@ TEST(net, entity_delta_preserves_effect_model) {
     T_EQ(out.effect_flags, to.effect_flags);
 }
 
-/* Sound events must travel with the entity snapshot so the client can resolve
- * the server-assigned CS_SOUNDS index and fire the one-shot exactly once. */
-TEST(net, entity_delta_preserves_sound_event) {
+/* Other game entity events remain delta-compatible; WC3 sounds use svc_sound. */
+TEST(net, entity_delta_preserves_entity_event) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    entityState_t from = { 0 }, to = { .number = 9, .event = EV_ACK, .sound = 37 }, out = { 0 };
+    entityState_t from = { 0 }, to = { .number = 9, .event = EV_MOVE, .sound = 37 }, out = { 0 };
     DWORD bits = 0;
     int number;
 
@@ -1302,7 +1301,7 @@ TEST(net, entity_delta_preserves_sound_event) {
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
 
     T_EQ(number, 9);
-    T_EQ(out.event, EV_ACK);
+    T_EQ(out.event, EV_MOVE);
     T_EQ(out.sound, 37);
 }
 

@@ -137,6 +137,15 @@ void PF_Multicast(LPCVECTOR3 origin, multicast_t to) {
     SV_Multicast(origin, to);
 }
 
+static void PF_StartSound(LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
+    SV_StartSound(NULL, ent, channel, sound_index, volume, attenuation, timeofs);
+}
+
+static void PF_PositionedSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
+                               FLOAT attenuation, FLOAT timeofs) {
+    SV_StartSound(origin, ent, channel, sound_index, volume, attenuation, timeofs);
+}
+
 void PF_Unicast(edict_t *ent) {
     if (Cvar_Integer("sv_debug_layout", 0)) SV_DebugLayoutMessage(&sv.multicast);
     if (!ent) {
@@ -212,6 +221,8 @@ void SV_InitGameProgs(void) {
     import.ModelIndex = SV_ModelIndex;
     import.ImageIndex = SV_ImageIndex;
     import.SoundIndex = SV_SoundIndex;
+    import.Sound = PF_StartSound;
+    import.PositionedSound = PF_PositionedSound;
     import.FontIndex = SV_FontIndex;
     import.GetTime = SV_GetTime;
     import.ReadFile = FS_ReadFile;

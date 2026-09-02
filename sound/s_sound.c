@@ -349,6 +349,8 @@ static void S_SpatializeChannel(int ch) {
         ? 1.0f
         : (S_CUTOFF_DIST - dist) / (S_CUTOFF_DIST - S_FULL_DIST);
 
+    if (s.channels[ch].attenuation == 0.0f) att = 1.0f;
+    else if (s.channels[ch].attenuation > 1.0f) att = powf(att, s.channels[ch].attenuation);
     float dot = 0.0f;
     if (dist > 1.0f)
         dot = (dx / dist) * s.listener.right.x + (dy / dist) * s.listener.right.y;
@@ -374,8 +376,11 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
         float       lvol = s.channels[ch].leftvol;
         float       rvol = s.channels[ch].rightvol;
         int         pos  = s.channels[ch].pos;
+        int         skip = MIN(frames, s.channels[ch].delay);
+        s.channels[ch].delay -= skip;
+        if (skip == frames) continue;
 
-        for (int i = 0; i < frames; i++) {
+        for (int i = skip; i < frames; i++) {
             if (pos >= sc->length) {
                 s.channels[ch].active = FALSE;
                 break;
@@ -435,7 +440,9 @@ void S_Shutdown(void) {
  * Playback helpers
  * ========================================================================= */
 
-static void S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL is_positional) {
+static void S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL is_positional, int channel,
+                         FLOAT attenuation, FLOAT timeofs) {
+    (void)timeofs;
     if (!sc) return;
     SDL_LockAudioDevice(s.device);
     for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
@@ -446,6 +453,9 @@ static void S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL i
             s.channels[ch].leftvol      = volume;
             s.channels[ch].rightvol     = volume;
             s.channels[ch].origin       = origin ? *origin : (VECTOR2){ 0.0f, 0.0f };
+            s.channels[ch].attenuation  = attenuation;
+            s.channels[ch].channel      = channel;
+            s.channels[ch].delay        = (int)(timeofs * 44100.0f);
             s.channels[ch].is_positional = is_positional;
             s.channels[ch].active       = TRUE;
             SDL_UnlockAudioDevice(s.device);
@@ -464,7 +474,7 @@ void S_PlaySound(DWORD kit_id) {
     sSoundKit_t *k = &s.kits[kit_id];
     if (k->id != kit_id) return;
     k->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f, NULL, FALSE);
+    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0);
 }
 
 void S_PlaySoundByName(LPCSTR name) {
@@ -488,7 +498,7 @@ void S_PlaySoundFile(LPCSTR path) {
     sfx_t *sfx = S_FindSfx(path, TRUE);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), 1.0f, NULL, FALSE);
+    S_StartSound(S_LoadSfx(sfx), 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0);
 }
 
 /* Play a positional sound at a 2D world origin (distance attenuation + stereo pan). */
@@ -497,7 +507,18 @@ void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin) {
     sfx_t *sfx = S_FindSfx(path, TRUE);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), 1.0f, origin, TRUE);
+    S_StartSound(S_LoadSfx(sfx), 1.0f, origin, TRUE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0);
+}
+
+void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume,
+                       FLOAT attenuation, FLOAT timeofs) {
+    sfx_t *sfx;
+    if (!s.initialized || !path || !*path) return;
+    sfx = S_FindSfx(path, TRUE);
+    if (!sfx) return;
+    sfx->registration_sequence = s.registration_sequence;
+    S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL, positioned,
+                 channel, attenuation, timeofs);
 }
 
 /* Update the listener position and right vector — call once per rendered frame. */

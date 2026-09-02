@@ -76,6 +76,10 @@ void CL_Disconnect(LPCSTR reason, BOOL notify) { (void)reason; (void)notify; cls
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }
 void S_RegisterSound(LPCSTR path) { (void)path; }
 void S_PlaySoundFile(LPCSTR path) { (void)path; }
+void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation,
+                       FLOAT timeofs) {
+    (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
+}
 void Cbuf_AddText(LPCSTR text) { (void)text; }
 unsigned int SDL_GetTicks(void) { return 0; }
 int SDL_ShowCursor(int toggle) { (void)toggle; return 1; }

@@ -350,6 +350,26 @@ typedef enum {
     MULTICAST_PVS_R
 } multicast_t;
 
+/* Quake 2-compatible sound packet flags. */
+#define SND_VOLUME      0x01 // byte; overrides default volume; used by svc_sound
+#define SND_ATTENUATION 0x02 // byte; overrides default attenuation; used by svc_sound
+#define SND_POS         0x04 // packed position; identifies an explicit world origin
+#define SND_ENT         0x08 // short; entity number plus channel; identifies an entity source
+#define SND_OFFSET      0x10 // byte; start delay in milliseconds; used by svc_sound
+
+/* Sound channels follow Quake 2; high bits select server delivery policy. */
+#define CHAN_AUTO       0x00 // units; automatic channel selection; used for generic sounds
+#define CHAN_WEAPON     0x01 // units; weapon channel; used for attack sounds
+#define CHAN_VOICE      0x02 // units; voice channel; used for acknowledgements and death sounds
+#define CHAN_ITEM       0x03 // units; item channel; reserved for item sounds
+#define CHAN_BODY       0x04 // units; body channel; used for impact and movement sounds
+#define CHAN_NO_PHS_ADD 0x08 // units; sends beyond normal PHS; used for global world sounds
+#define CHAN_RELIABLE   0x10 // units; sends through the reliable client message; used for critical sounds
+#define CHAN_OWNER      0x20 // units; unicasts to the source entity owner; used for local acknowledgements
+
+#define DEFAULT_SOUND_PACKET_VOLUME 1.0f // normalized volume; default when SND_VOLUME is absent
+#define DEFAULT_SOUND_PACKET_ATTENUATION 1.0f // attenuation scale; default when SND_ATTENUATION is absent
+
 typedef enum {
     BLEND_MODE_NONE,
     BLEND_MODE_ALPHAKEY,
@@ -480,8 +500,6 @@ typedef enum {
     EV_ATTACK,       /* unit began an attack swing */
     EV_DEATH,        /* unit died */
     EV_MOVE,         /* footstep / movement sound */
-    EV_ACK,          /* unit acknowledged a player selection/order */
-    EV_OWNER_SOUND,  /* one-shot sound audible only to the entity owner */
 } entity_event_t;
 
 /* Packing layout for entityState_t.name.

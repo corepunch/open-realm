@@ -342,7 +342,7 @@ void attack_melee(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint / divisor;
-    if (self->sound.attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound.attack; }
+    if (self->sound.attack) gi.Sound(self, CHAN_WEAPON, self->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
@@ -355,7 +355,7 @@ void attack_ranged(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged);
     self->wait = self->attack1.damagePoint / divisor;
-    if (self->sound.attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound.attack; }
+    if (self->sound.attack) gi.Sound(self, CHAN_WEAPON, self->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
