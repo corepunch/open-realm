@@ -981,9 +981,21 @@ TEST(wc3_perf, acquisition_ranges_1900) {
 
 TEST(wc3_save, round_trip_edict_and_player_state) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-test.bin";
+    QUESTITEM item = { .description = strdup("Find the key"), .completed = true };
+    QUEST quest = {
+        .title = strdup("Open the Gate"),
+        .description = strdup("Find the key and open the gate"),
+        .iconPath = strdup("ReplaceableTextures\\CommandButtons\\BTNKey.blp"),
+        .items = &item,
+        .discovered = true,
+        .required = true,
+        .enabled = true
+    };
+    LPQUEST old_quests = level.quests;
     LPEDICT first, second;
 
     reset_entities();
+    level.quests = &quest;
     first = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 24.0f);
     second = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 48.0f, 72.0f);
     first->harvested_gold = 37;
@@ -999,14 +1011,28 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     level.scriptsStarted = true;
     game.clients[0].jass.race_pref = 2;
     game.clients[0].jass.controller = 1;
+    strlcpy(game.clients[0].jass.name, "Jaina", sizeof(game.clients[0].jass.name));
+    game.clients[0].ps.name = game.clients[0].jass.name;
     game.clients[0].ping = 77;
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 123;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 45;
+    game.clients[0].camera.state.fov = 61.0f;
+    game.clients[0].camera.state.position = (VECTOR2){ 333.0f, 444.0f };
+    game.clients[0].camera.target_controller = second;
     T_ASSERT(WriteGame(filename));
     first->harvested_gold = 0;
     first->owner = NULL;
     first->inventory[2] = NULL;
     first->cargo.units[3] = NULL;
+    strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    game.clients[0].camera.state.fov = 0.0f;
+    game.clients[0].camera.state.position = (VECTOR2){ 0.0f, 0.0f };
+    game.clients[0].camera.target_controller = NULL;
+    quest.discovered = quest.required = quest.enabled = false;
+    quest.completed = true;
+    item.completed = false;
     T_ASSERT(ReadGame(filename));
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
@@ -1022,7 +1048,25 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 45);
+    T_EQ(game.clients[0].camera.state.fov, 61.0f);
+    T_EQ(game.clients[0].camera.state.position.x, 333.0f);
+    T_EQ(game.clients[0].camera.state.position.y, 444.0f);
+    T_ASSERT(game.clients[0].camera.target_controller == &g_edicts[second - g_edicts]);
+    T_ASSERT(game.clients[0].ps.name == game.clients[0].jass.name);
+    T_STREQ(game.clients[0].ps.name, "Jaina");
+    T_ASSERT(!level.mapinfo || game.clients[0].mapplayer == level.mapinfo->players + game.clients[0].ps.number);
+    T_ASSERT(level.quests == &quest && quest.items == &item);
+    T_STREQ(quest.title, "Open the Gate");
+    T_STREQ(quest.description, "Find the key and open the gate");
+    T_STREQ(quest.iconPath, "ReplaceableTextures\\CommandButtons\\BTNKey.blp");
+    T_ASSERT(quest.discovered && quest.required && quest.enabled && !quest.completed);
+    T_STREQ(item.description, "Find the key");
+    T_ASSERT(item.completed);
+    level.quests = old_quests;
+    T_ASSERT(!ReadGame(filename));
     T_ASSERT(g_edicts[0].client == &game.clients[0]);
+    free(item.description); free(quest.title); free(quest.description); free(quest.iconPath);
     remove(filename);
 }
 

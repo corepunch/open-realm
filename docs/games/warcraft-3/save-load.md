@@ -9,9 +9,13 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - `W3SV` magic, format version, `sizeof(edict_t)`, entity count, and client count;
 - level frame/time and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, researched tech, text storage, camera values, messages, and HUD caches;
+- each camera target as an entity index;
+- the quest and quest-item graph's strings and status flags;
 - one used flag per entity slot and a raw `edict_t` block for used slots.
 
-The current format is process-independent for entity relationships: `F_EDICT` fields are written as entity indexes and resolved back to `g_edicts[index]` by `ReadGame()`. Client pointers are restored from player slots after loading. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
+The current format is process-independent for entity relationships: `F_EDICT` fields and camera targets are written as entity indexes and resolved back to `g_edicts[index]` by `ReadGame()`. Client pointers are restored from player slots, player names from inline JASS name storage, and map-player rows from the loaded map plus `PLAYER.number`. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
+
+Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. This supports the normal `+map ... +loadgame ...` path, where map initialization recreates the same quest graph before applying saved state.
 
 ## Field Table
 
@@ -37,7 +41,9 @@ call LoadGame("chapter-01.w3save", false)
 
 `LoadGame` currently restores the loaded state in the already-loaded map; map selection and UI score-screen behavior remain separate work.
 
-Unlike Quake 2's separate `WriteLevel()` path, this first WC3 save format currently stores level timing and lifecycle flags only. The active map, JASS VM, quests, fog grids, bot runtime, and other pointer-bearing level subsystems still need explicit save contracts before they can be included safely.
+Unlike Quake 2's separate `WriteLevel()` path, this WC3 format does not yet snapshot the JASS VM, fog grids, bot runtime, events, messages, alliances, stock state, or cinematic filter. Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses.
+
+The JASS VM cannot be dumped as a raw block. `jass_s` owns linked dictionaries, heap values and refcounts, parser tokens, coroutine frames, stack pointers, `jmp_buf` state, and native light handles that point into game objects. A VM save requires a structured serializer for globals, arrays, coroutines, and typed native handles, followed by pointer reconstruction against loaded entities, players, quests, timers, triggers, and other handle classes.
 
 ## Console Usage
 
@@ -57,4 +63,4 @@ Run the serializer round trip against both ROC and TFT test environments:
 make test-wc3-engine WC3_PATTERN='wc3_save.*'
 ```
 
-The test checks representative integer, float, vector, and entity fields, level timing flags, player resources, and mutable `GAMECLIENT` state. It also verifies restoration of the player edict's client pointer. ROC and TFT are both executed by the target.
+The test checks representative integer, float, vector, scalar and array entity fields, level timing flags, player resources and names, camera state and target fixups, quest strings and flags, quest-item state, and mutable `GAMECLIENT` state. It also verifies restoration of player client/map bindings and stable quest object identities. ROC and TFT are both executed by the target.

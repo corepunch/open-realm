@@ -1,7 +1,8 @@
 #include "g_local.h"
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
-static DWORD const save_version = 3;
+static DWORD const save_version = 4;
+#define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 
 /* Every pointer in edict_s that survives a save must be represented here. */
 field_t fields[] = {
@@ -40,6 +41,77 @@ field_t fields[] = {
 
 static BOOL SaveBytes(FILE *f, LPCVOID data, size_t size) { return fwrite(data, 1, size, f) == size; }
 static BOOL LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
+
+static BOOL WriteString(FILE *f, LPCSTR text) {
+    size_t size = text ? strlen(text) + 1 : 0;
+    DWORD len;
+
+    if (size > MAX_SAVE_STRING) return false;
+    len = (DWORD)size;
+    return SaveBytes(f, &len, sizeof(len)) && (!len || SaveBytes(f, text, len));
+}
+
+static BOOL ReadString(FILE *f, LPSTR *text) {
+    DWORD len;
+    LPSTR value = NULL;
+
+    if (!LoadBytes(f, &len, sizeof(len)) || len > MAX_SAVE_STRING) return false;
+    if (len) {
+        value = malloc(len);
+        if (!value || !LoadBytes(f, value, len) || value[len - 1]) { free(value); return false; }
+    }
+    free(*text); *text = value;
+    return true;
+}
+
+static BOOL WriteQuests(FILE *f) {
+    DWORD count = 0;
+
+    FOR_EACH_LIST(QUEST const, quest, level.quests) count++;
+    if (!SaveBytes(f, &count, sizeof(count))) return false;
+    FOR_EACH_LIST(QUEST const, quest, level.quests) {
+        DWORD items = 0;
+        FOR_EACH_LIST(QUESTITEM const, item, quest->items) items++;
+        if (!WriteString(f, quest->title) || !WriteString(f, quest->description) || !WriteString(f, quest->iconPath) ||
+            !SaveBytes(f, &quest->discovered, sizeof(quest->discovered)) ||
+            !SaveBytes(f, &quest->required, sizeof(quest->required)) ||
+            !SaveBytes(f, &quest->completed, sizeof(quest->completed)) ||
+            !SaveBytes(f, &quest->failed, sizeof(quest->failed)) || !SaveBytes(f, &quest->enabled, sizeof(quest->enabled)) ||
+            !SaveBytes(f, &items, sizeof(items))) return false;
+        FOR_EACH_LIST(QUESTITEM const, item, quest->items)
+            if (!WriteString(f, item->description) || !SaveBytes(f, &item->completed, sizeof(item->completed))) return false;
+    }
+    return true;
+}
+
+static BOOL ReadQuests(FILE *f) {
+    DWORD count = 0, live = 0;
+
+    FOR_EACH_LIST(QUEST const, quest, level.quests) live++;
+    if (!LoadBytes(f, &count, sizeof(count))) return false;
+    if (count != live) {
+        fprintf(stderr, "WC3 LoadGame: quest count does not match live JASS handles (%u saved, %u live)\n", count, live);
+        return false;
+    }
+    FOR_EACH_LIST(QUEST, quest, level.quests) {
+        DWORD items = 0, live_items = 0;
+        FOR_EACH_LIST(QUESTITEM const, item, quest->items) live_items++;
+        if (!ReadString(f, &quest->title) || !ReadString(f, &quest->description) || !ReadString(f, &quest->iconPath) ||
+            !LoadBytes(f, &quest->discovered, sizeof(quest->discovered)) ||
+            !LoadBytes(f, &quest->required, sizeof(quest->required)) ||
+            !LoadBytes(f, &quest->completed, sizeof(quest->completed)) ||
+            !LoadBytes(f, &quest->failed, sizeof(quest->failed)) || !LoadBytes(f, &quest->enabled, sizeof(quest->enabled)) ||
+            !LoadBytes(f, &items, sizeof(items))) return false;
+        if (items != live_items) {
+            fprintf(stderr, "WC3 LoadGame: quest item count does not match live JASS handles (%u saved, %u live)\n",
+                items, live_items);
+            return false;
+        }
+        FOR_EACH_LIST(QUESTITEM, item, quest->items)
+            if (!ReadString(f, &item->description) || !LoadBytes(f, &item->completed, sizeof(item->completed))) return false;
+    }
+    return true;
+}
 
 /* Convert entity and client pointers to stable save-file indexes. */
 static size_t field_size(fieldtype_t type) {
@@ -116,6 +188,7 @@ static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
 
 static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     GAMECLIENT temp = *client;
+    int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
 
     /* Client pointers and callbacks are process-owned; text storage remains inline in GAMECLIENT. */
     temp.ps.name = NULL;
@@ -124,14 +197,17 @@ static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     temp.menu.on_entity_selected = NULL; temp.menu.on_location_selected = NULL;
     temp.menu.cmdbutton = NULL; temp.menu.refresh = NULL;
     temp.camera.target_controller = NULL;
-    return SaveBytes(f, &temp, sizeof(temp));
+    if (target < -1 || target >= (int)globals.max_edicts) return false;
+    return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
 }
 
-static BOOL ReadClient(FILE *f, LPGAMECLIENT client) {
-    if (!LoadBytes(f, client, sizeof(*client))) return false;
+static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
+    if (!LoadBytes(f, client, sizeof(*client)) || !LoadBytes(f, target, sizeof(*target))) return false;
+    if (*target < -1 || *target >= (int)globals.max_edicts) return false;
+    client->ps.name = client->jass.name;
     FOR_LOOP(i, PLAYERTEXT_COUNT) client->ps.texts[i] = client->playerTextCursor[i] ?
         client->playerTextStorage[i][client->playerTextCursor[i] & PLAYER_TEXT_MASK] : NULL;
-    client->mapplayer = NULL;
+    client->mapplayer = level.mapinfo && client->ps.number < MAX_PLAYERS ? level.mapinfo->players + client->ps.number : NULL;
     client->menu.on_entity_selected = NULL; client->menu.on_location_selected = NULL;
     client->menu.cmdbutton = NULL; client->menu.refresh = NULL;
     client->camera.target_controller = NULL;
@@ -158,6 +234,7 @@ BOOL WriteGame(LPCSTR filename) {
         !SaveBytes(f, &level.time, sizeof(level.time)) || !SaveBytes(f, &level.started, sizeof(level.started)) ||
         !SaveBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) { fclose(f); return false; }
     FOR_LOOP(i, game.max_clients) if (!WriteClient(f, game.clients + i)) { fclose(f); return false; }
+    if (!WriteQuests(f)) { fclose(f); return false; }
     FOR_LOOP(i, globals.num_edicts) {
         BOOL used = g_edicts[i].inuse;
         if (!SaveBytes(f, &used, sizeof(used)) || (used && !SaveBytes(f, &i, sizeof(i)))) { fclose(f); return false; }
@@ -171,6 +248,7 @@ BOOL ReadGame(LPCSTR filename) {
     FILE *f = fopen(filename, "rb");
     struct { DWORD magic, version, edict_size, num_edicts, max_clients; } header;
     DWORD index;
+    int targets[MAX_CLIENTS];
 
     if (!f) return false;
     if (!LoadBytes(f, &header, sizeof(header)) || header.magic != save_magic || header.version != save_version ||
@@ -180,7 +258,8 @@ BOOL ReadGame(LPCSTR filename) {
         !LoadBytes(f, &level.started, sizeof(level.started)) || !LoadBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) {
         fclose(f); return false;
     }
-    FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i)) { fclose(f); return false; }
+    FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) { fclose(f); return false; }
+    if (!ReadQuests(f)) { fclose(f); return false; }
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
@@ -192,6 +271,7 @@ BOOL ReadGame(LPCSTR filename) {
         }
     }
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
+    FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
     fclose(f);
     return true;
