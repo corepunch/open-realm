@@ -102,6 +102,62 @@ extern FLOAT HARVEST_SEARCH_RANGE;
 extern void harvest_cooldown(LPEDICT);
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target);
 
+TEST(wc3_movement, harvest_command_button_toggles_to_return_resources_ui) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    gameCommandButton_t button;
+
+    worker->UnitAbilities = &harvest_abilities;
+
+    T_ASSERT(G_BuildCommandButton(worker, "Ahar", false, 0, &button));
+    T_STREQ(button.command, "Ahar");
+    T_STREQ(button.art, "TestUI\\Textures\\gather.blp");
+    T_STREQ(button.tooltip, "Gather");
+    T_STREQ(button.ubertip, "Gather resources from a Gold Mine or tree.");
+    T_EQ(button.hotkey, 'G');
+    T_EQ(button.x, 0);
+    T_EQ(button.y, 1);
+
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 1);
+    T_ASSERT(G_BuildCommandButton(worker, "Ahar", false, 0, &button));
+    T_STREQ(button.command, "Ahar");
+    T_STREQ(button.art, "TestUI\\Textures\\return-resources.blp");
+    T_STREQ(button.tooltip, "Return Resources");
+    T_STREQ(button.ubertip, "Return carried resources to a compatible drop-off.");
+    T_EQ(button.hotkey, 'R');
+    T_EQ(button.x, 3);
+    T_EQ(button.y, 2);
+
+    S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 7);
+    T_ASSERT(G_BuildCommandButton(worker, "Ahar", false, 0, &button));
+    T_STREQ(button.tooltip, "Return Resources");
+
+    S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 0);
+    T_ASSERT(G_BuildCommandButton(worker, "Ahar", false, 0, &button));
+    T_STREQ(button.tooltip, "Gather");
+}
+
+TEST(wc3_movement, carried_resource_toggle_invalidates_selected_command_card) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+
+    worker->s.player = client->ps.number;
+    G_SelectEntity(client, worker);
+    client->commands_dirty = false;
+
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 1);
+    T_ASSERT(client->commands_dirty);
+
+    client->commands_dirty = false;
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 2);
+    T_ASSERT(!client->commands_dirty);
+
+    S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 7);
+    T_ASSERT(!client->commands_dirty);
+
+    S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 0);
+    T_ASSERT(client->commands_dirty);
+}
+
 static const char slk_goldmine_test_data[] =
     "ID;PWXL;N;E\n"
     "C;Y1;X1;K\"alias\"\n"

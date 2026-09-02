@@ -1,0 +1,7 @@
+[Ahar]
+Art=TestUI\Textures\gather.blp
+Buttonpos=0,1
+Hotkey=G
+Unart=TestUI\Textures\return-resources.blp
+UnButtonpos=3,2
+Unhotkey=R

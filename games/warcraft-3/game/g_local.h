@@ -463,6 +463,7 @@ typedef struct spell_info_s {
 typedef struct ability_s {
     void (*init)(LPCSTR, struct ability_s *);
     void (*cmd)(LPEDICT);
+    BOOL (*is_toggle_on)(LPEDICT); /* selects Un* command-card fields when true */
     DWORD flags;
     struct spell_info_s *spell;    /* non-NULL for spells using the unified pipeline */
 } ability_t;
