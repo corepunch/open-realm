@@ -9,6 +9,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Topic | File |
 |-------|------|
 | Architecture, engine boundaries, struct/API discipline, network contracts | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Server-selected presentation effects and generic effect contracts | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
 | Native game coordinate systems and axis migration | [AXIS.md](AXIS.md) |
 | Server-authored UI payload design, limits, diagnostics, scrollbar postmortem | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
@@ -196,7 +197,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full engine/game boundary, module
 Key principles inline:
 - Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports).
 - The server controls what the client draws via state bits in `playerState_t`. The client just reads them.
-- Never hardcode game-specific asset names, animation names, or franchise-specific literals in engine code.
+- Never hardcode game-specific asset names, animation names, or franchise-specific literals in engine code —
+  including enum members, macros, and struct field names in `common/`, `renderer/`, `client/`, `server/`.
+  A named boolean for one race/unit/spell (e.g. `RF_BUILDING_FIRE_UNDEAD`) does not belong in a shared enum
+  even though the flags field itself is generic infrastructure. Test: if a symbol you're adding to a
+  non-`games/` path contains a proper noun from one game's fiction, stop — move the resolution into
+  `games/<game>/` and expose a generic field instead.
 - Never use `#ifdef SC2`/`#ifdef WOW` to vary constants in shared engine code. Per-game constants live in `games/*/common/ui_constants.h` and resolve via the per-game `-I` include path. Each game defines its native coordinate space (`UI_BASE_WIDTH`, `UI_BASE_HEIGHT`, `UI_FRAMEPOINT_SCALE`) — no conversion functions between game-native coords and "engine coords". The engine operates in whatever coordinate space the game header declares.
 - **Never widen `entityState_t` or `playerState_t` without asking.** These structs are network contracts — every byte change affects bandwidth, delta compression, and snapshot size. If you need more data in the entity state, discuss with the developer first. Use existing fields, renderer-side caches, or DBC lookups instead.
 
@@ -272,6 +278,10 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 - Add every new dedicated document to the nearest table of contents (`AGENTS.md`, a game `readme.md`, or an architecture index) and add
   cross-links from adjacent workflow/reference documents when that makes the knowledge easier to find.
 - Follow [docs/documentation-guide.md](docs/documentation-guide.md) for what to capture, where to put it, and the completion checklist.
+- **Before finishing any diff that touches `common/`, `renderer/`, `client/`, or `server/`**, re-read every
+  new enum member, macro, and struct field you added. If any symbol name contains a race, faction, unit, or
+  spell name from a specific game's fiction, stop and move it into `games/<game>/` — see
+  [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md).
 
 ## GitHub Issues
 
