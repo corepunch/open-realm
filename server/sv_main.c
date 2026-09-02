@@ -22,6 +22,10 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
         fprintf(stderr, "configstring: bad index %u\n", index);
         return;
     }
+    if (!value) {
+        value = "";
+        len = 1;
+    }
     if (len > sizeof(sv.configstrings[index]) - 1) len = sizeof(sv.configstrings[index]) - 1;
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
@@ -119,8 +123,7 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
                 name);
         return 0;
     }
-    strncpy(sv.configstrings[start+i], name, sizeof(*sv.configstrings) - 1);
-    sv.configstrings[start+i][sizeof(*sv.configstrings) - 1] = '\0';
+    SV_SetConfigString(start + i, name, (DWORD)(strlen(name) + 1));
     return i;
 }
 

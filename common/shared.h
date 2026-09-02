@@ -451,6 +451,8 @@ typedef enum {
 #define UI_WINDOW_UNIQUE  (1u << 2) // flag bit; keeps one instance per class; used by singleton inventory and journal windows
 #define UI_WINDOW_CLOSE_ACTION "close_window" // client action; closes the owning window without a server command
 #define UI_WINDOW_CLOSE_NOTIFY_ACTION "close_window_notify" // client action; closes locally and notifies server of modal release
+#define UI_WINDOW_DISCONNECT_ACTION "disconnect_game" // client action; leaves the current server/map and returns to the front-end
+#define UI_WINDOW_QUIT_ACTION "quit_application" // client action; exits the application after an explicit local click
 
 typedef struct {
     DWORD id, class_id, flags;

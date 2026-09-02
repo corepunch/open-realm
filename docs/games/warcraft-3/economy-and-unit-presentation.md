@@ -425,9 +425,10 @@ The displayed name comes from the race/campaign `Units\\*UnitStrings.txt` `Name`
 for example, `Units\\NeutralUnitStrings.txt` defines `[nvil] Name=Villager`. `G_CustomizeEntity` interns that text into `CS_GENERAL`
 and sends its 1-based pool index through `entityState_t.name`; the generic `UI_STAT_CONTEXT_NAME` binding resolves that index while
 drawing `LAYER_WORLD_HOVER`. Runtime-created units/buildings may allocate a new pooled name only after a client is already spawned.
-`PF_Confignstring()` must therefore clear `sv.syncstrings[index]` whenever game code changes a configstring, allowing
-`SV_SendClientMessages()` to reliably flush the new value to connected clients. Leaving the sync bit set produces the specific
-regression where pre-existing hover names work but a newly constructed building has an empty hover label. Health and mana use the
+`PF_Confignstring()` therefore delegates to the server-owned `SV_SetConfigString()`, which clears `sv.syncstrings[index]` whenever
+game code changes a configstring and lets `SV_SendClientMessages()` reliably flush the new value to connected clients. Leaving the
+sync bit set produces the specific regression where pre-existing hover names work but a newly constructed building has an empty hover
+label. Health and mana use the
 corresponding context bindings over the snapshot's compressed stat bytes. A configstring is NUL-terminated on the wire, so its sixteen fixed-width name records use
 ASCII Unit Separator (`0x1f`) as padding and retain a single final NUL. `CL_ParseConfigString` converts the separators back to NULs
 after receipt, preserving ordinary fixed-offset C strings for renderer and UI consumers. Embedded NUL records truncate at the first

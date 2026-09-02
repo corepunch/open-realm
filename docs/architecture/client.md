@@ -113,10 +113,12 @@ sends the same command with a leading `-` on mouse-up even if the pointer has le
 modules may use it for press-and-hold controls without adding game-specific branches to `client/`.
 
 Configstrings are also live server state, not connect-time-only metadata. A game-side `gi.configstring()` call reaches
-`PF_Confignstring()`, which delegates storage and sync-bit invalidation to the core server's `SV_SetConfigString()`. At the start of a later
+`PF_Confignstring()`, which delegates storage to the generic server-owned `SV_SetConfigString()`. That helper clears
+`sv.syncstrings[index]`; `SV_FindIndex()` uses the same path when it creates model/sound/image entries. At the start of a later
 `SV_SendClientMessages()` pass, each unsynced entry is sent reliably with `svc_configstring` before normal spawned-client datagrams.
-Code that mutates `sv.configstrings[]` through this API must not leave the sync bit true, or already-connected clients will retain the
-old value.
+Do not mutate `sv.configstrings[]` directly for runtime values, or already-connected clients may retain stale data. Keeping the
+mutation helper in `server/` also lets standalone server-network tests cover the real resync implementation without linking the
+game-import wrapper in `sv_game.c`.
 
 Server-authored text frames may also bind to live snapshot values instead of forcing a complete layout resend whenever a number changes.
 `playerState.stats[18..21]` are reserved generic selection-UI slots (current/max health and current/max mana), serialized as the two
