@@ -740,7 +740,7 @@ TEST(net, window_unique_class_replaces_existing_instance) {
 }
 
 TEST(net, window_click_raises_and_moves_keyboard_focus) {
-    BYTE command_buf[128], message_buf[256];
+    char command_buf[128]; BYTE message_buf[256];
 
     test_client_stubs_init(); CL_WindowClear();
     re.GetTextSize = text_length_mock_size; re.DrawText = capture_textarea;

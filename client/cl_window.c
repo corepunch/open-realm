@@ -130,6 +130,8 @@ BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         if (modal && window != modal) continue;
         if (!CL_WindowContains(window, &point)) continue;
         if (event == UI_MOUSE_DOWN && param == 1) CL_WindowFocus(window);
+        if (event == UI_MOUSE_SCROLL && SCR_LayoutScrollTextAreaAt(window->layout, &point, UI_MOUSE_PARAM_Y(param)))
+            return true;
         frame = CL_WindowClickableAt(window, &point);
         SCR_LayoutSetPointer(window->layout, frame ? frame->number : 0, event == UI_MOUSE_DOWN && param == 1);
         if (event == UI_MOUSE_UP && param == 1 && frame) SCR_LayoutSendFrameCommand(frame);

@@ -433,6 +433,21 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
 
+    if (frame->parent) {
+        LPCUIFRAME parent = SCR_Frame(frame->parent);
+        if (re.GetTextSize && parent && parent->flags.type == FT_TEXTAREA && parent->buffer.data &&
+            parent->buffer.size >= sizeof(uiTextArea_t)) {
+            RECT text_rect = *SCR_LayoutRect(parent);
+            uiTextArea_t const *ta = parent->buffer.data;
+            uiLabel_t label = { .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP };
+            text_rect.x += ta->inset; text_rect.y += ta->inset;
+            text_rect.w -= ta->inset * 2; text_rect.h -= ta->inset * 2;
+            drawText_t measure = SCR_GetDrawText(parent, text_rect.w, SCR_GetStringValue(parent), &label);
+            measure.flags |= DRAW_WORD_WRAP;
+            if (MAX(0.0f, re.GetTextSize(&measure).y - text_rect.h) <= 0.0f) return;
+        }
+    }
+
     if (sb) SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
 
     /* Equal authored pixel dimensions need a taller Y span in WoW's normalized square UI scene. */
@@ -727,7 +742,7 @@ void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
     LPCSTR value = SCR_GetStringValue(frame);
     RECT scr = { screen->x + ta->inset, screen->y + ta->inset,
                  screen->w - ta->inset*2, screen->h - ta->inset*2 };
-    re.DrawText(&MAKE(drawText_t,
+    drawText_t draw = MAKE(drawText_t,
         .font       = cl.fonts[ta->font],
         .text       = value ? value : "",
         .color      = frame->color.a ? frame->color : COLOR32_WHITE,
@@ -739,7 +754,40 @@ void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
         .rect       = scr,
         /* A text area is a viewport; wrapping alone let overflow draw through controls below it. */
         .flags      = DRAW_WORD_WRAP | DRAW_CLIP,
-        .clip       = scr));
+        .clip       = scr);
+    VECTOR2 content = re.GetTextSize ? re.GetTextSize(&draw) : MAKE(VECTOR2, 0, 0);
+    draw.rect.y -= MAX(0.0f, content.y - scr.h) * MIN(MAX(frame->value, 0.0f), 1.0f);
+    re.DrawText(&draw);
+}
+
+/* Wheel scrolling is client-owned because only the client knows the resolved
+ * font metrics and viewport size of a server-authored text area. */
+BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y) {
+    if (!layout || !point || !wheel_y || !re.GetTextSize) return false;
+    for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+        LPUIFRAME frame = SCR_Frame(i - 1);
+        RECT const *rect;
+        uiTextArea_t const *ta;
+        RECT view;
+        drawText_t measure;
+        FLOAT max_scroll;
+
+        if (!frame || frame->flags.type != FT_TEXTAREA) continue;
+        rect = SCR_LayoutRect(frame);
+        if (!Rect_contains(rect, point)) continue;
+        ta = frame->buffer.data;
+        uiLabel_t label = { .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP };
+        view = *rect;
+        view.x += ta->inset; view.y += ta->inset;
+        view.w -= ta->inset * 2; view.h -= ta->inset * 2;
+        measure = SCR_GetDrawText(frame, view.w, SCR_GetStringValue(frame), &label);
+        measure.flags |= DRAW_WORD_WRAP;
+        max_scroll = MAX(0.0f, re.GetTextSize(&measure).y - view.h);
+        if (max_scroll > 0.0f)
+            frame->value = MIN(1.0f, MAX(0.0f, frame->value - wheel_y * 0.1f));
+        return true;
+    }
+    return false;
 }
 
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
