@@ -580,6 +580,9 @@ static bool SC2_LoadMap(LPCSTR mapFilename) {
     /* Open Galaxy VM and load map scripts. */
     if (sc2_level.vm) { galaxy_close(sc2_level.vm); sc2_level.vm = NULL; }
     sc2_level.scriptsStarted = false;
+    /* SC2Map archives contain MapScript.galaxy below the map directory; use that
+     * authoritative path before the development-only extracted-script fallback. */
+    galaxy_set_script_dir(mapFilename);
     sc2_level.vm = galaxy_open(gi.ReadFile, gi.GetTime, gi.MemAlloc, gi.MemFree);
     if (sc2_level.vm)
         galaxy_start(sc2_level.vm);  /* registers triggers via InitMap() */
