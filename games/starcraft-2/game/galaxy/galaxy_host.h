@@ -76,4 +76,8 @@ extern void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
 extern BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
 extern BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
 
+/* Debug-only state inspection for bounded cinematic traces. */
+extern void *sc2_gunits[];
+extern DWORD sc2_gunit_n;
+
 #endif
