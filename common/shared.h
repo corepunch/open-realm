@@ -251,14 +251,9 @@ enum {
     CS_NAME = 0,
     CS_CDTRACK = 1,
     CS_SKY = 2,
-    CS_SKYAXIS = 3,        // %f %f %f format
-    CS_SKYROTATE = 4,
     CS_STATUSBAR = 5,        // display program string
-    CS_HEALTHBAR = 6,
-    CS_MANAHBAR = 6,
     CS_WORLD = 7,
     CS_MINIMAP = 8,            // alert-ping model path; analogous to Quake's CS_SKY
-    CS_AIRACCEL = 29,        // air acceleration control
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,
