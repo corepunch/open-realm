@@ -54,6 +54,7 @@ static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return SaveB
 static BOOL ReadJassBytes(void *context, void *data, DWORD size) { return LoadBytes(context, data, size); }
 static BOOL WriteString(FILE *f, LPCSTR text);
 static BOOL ReadString(FILE *f, LPSTR *text);
+static DWORD EventCount(void);
 
 static DWORD SaveHash(DWORD hash, LPCVOID data, size_t size) {
     BYTE const *bytes = data;
@@ -113,14 +114,23 @@ BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size) {
 
 static ggroup_t *save_groups[MAX_JASS_GROUPS];
 static LPGTIMER save_timers[MAX_JASS_TIMERS];
+static LPTRIGGER save_triggers[MAX_JASS_TRIGGERS];
 
 void G_ClearSaveRegistries(void) {
     FOR_LOOP(i, MAX_JASS_GROUPS) { if (save_groups[i]) jass_free(save_groups[i]); save_groups[i] = NULL; }
     FOR_LOOP(i, MAX_JASS_TIMERS) { if (save_timers[i]) jass_free(save_timers[i]); save_timers[i] = NULL; }
+    FOR_LOOP(i, MAX_JASS_TRIGGERS) {
+        if (!save_triggers[i]) continue;
+        DELETE_LIST(TRIGGERACTION, save_triggers[i]->actions, gi.MemFree);
+        DELETE_LIST(TRIGGERCONDITION, save_triggers[i]->conditions, gi.MemFree);
+        jass_free(save_triggers[i]); save_triggers[i] = NULL;
+    }
 }
 
-static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers) {
-    if (groups < level.num_groups || timers < level.num_timers || groups > MAX_JASS_GROUPS || timers > MAX_JASS_TIMERS)
+static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWORD events) {
+    if (groups < level.num_groups || timers < level.num_timers || triggers < level.num_triggers ||
+        events < EventCount() || groups > MAX_JASS_GROUPS || timers > MAX_JASS_TIMERS ||
+        triggers > MAX_JASS_TRIGGERS || events > MAX_JASS_EVENTS)
         return false;
     while (level.num_groups < groups) {
         DWORD i = level.num_groups;
@@ -134,6 +144,13 @@ static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers) {
         if (!timer || !G_RegisterJassTimer(timer)) return false;
         memset(timer, 0, sizeof(*timer)); save_timers[i] = timer;
     }
+    while (level.num_triggers < triggers) {
+        DWORD i = level.num_triggers;
+        LPTRIGGER trigger = jass_alloc(sizeof(*trigger));
+        if (!trigger || !G_RegisterJassTrigger(trigger)) return false;
+        memset(trigger, 0, sizeof(*trigger)); save_triggers[i] = trigger;
+    }
+    while (EventCount() < events) if (!G_MakeEvent(0)) return false;
     return true;
 }
 
@@ -195,10 +212,32 @@ static LPEVENT EventById(DWORD id) {
     return NULL;
 }
 
+static BOOL TriggerIndex(LPTRIGGER value, DWORD *id) {
+    if (!value) { *id = UINT32_MAX; return true; }
+    FOR_LOOP(i, level.num_triggers) if (level.triggers[i] == value) { *id = i; return true; }
+    return false;
+}
+
+static BOOL TimerIndex(LPGTIMER value, DWORD *id) {
+    if (!value) { *id = UINT32_MAX; return true; }
+    FOR_LOOP(i, level.num_timers) if (level.timers[i] == value) { *id = i; return true; }
+    return false;
+}
+
 static BOOL WriteEvents(FILE *f) {
-    DWORD count = level.events.write - level.events.read;
-    if (count > MAX_EVENT_QUEUE || !SaveBytes(f, &count, sizeof(count))) return false;
-    FOR_LOOP(i, count) {
+    DWORD handlers = EventCount(), queued = level.events.write - level.events.read;
+    if (!SaveBytes(f, &handlers, sizeof(handlers))) return false;
+    FOR_EACH_LIST(EVENT, event, level.events.handlers) {
+        int subject = event->subject ? (int)(event->subject - g_edicts) : -1;
+        DWORD trigger, timer;
+        if (subject >= (int)globals.num_edicts || !TriggerIndex(event->trigger, &trigger) || !TimerIndex(event->timer, &timer) ||
+            !SaveBytes(f, &event->type, sizeof(event->type)) || !SaveBytes(f, &subject, sizeof(subject)) ||
+            !SaveBytes(f, &trigger, sizeof(trigger)) || !SaveBytes(f, &timer, sizeof(timer)) ||
+            !SaveBytes(f, &event->region, sizeof(event->region)) || !SaveBytes(f, &event->range, sizeof(event->range)))
+            return false;
+    }
+    if (queued > MAX_EVENT_QUEUE || !SaveBytes(f, &queued, sizeof(queued))) return false;
+    FOR_LOOP(i, queued) {
         GAMEEVENT const *event = &level.events.queue[(level.events.read + i) % MAX_EVENT_QUEUE];
         int edict = event->edict ? (int)(event->edict - g_edicts) : -1;
         int source = event->source ? (int)(event->source - g_edicts) : -1;
@@ -211,20 +250,35 @@ static BOOL WriteEvents(FILE *f) {
 }
 
 static BOOL ReadEvents(FILE *f) {
-    DWORD count;
-    if (!LoadBytes(f, &count, sizeof(count)) || count > MAX_EVENT_QUEUE) return false;
-    level.events.read = 0; level.events.write = count;
-    FOR_LOOP(i, count) {
-        GAMEEVENT *event = level.events.queue + i;
+    DWORD handlers, queued;
+    LPEVENT event;
+    if (!LoadBytes(f, &handlers, sizeof(handlers)) || handlers != EventCount()) return false;
+    for (event = level.events.handlers; event; event = event->next) {
+        int subject;
+        DWORD trigger, timer;
+        if (!LoadBytes(f, &event->type, sizeof(event->type)) || !LoadBytes(f, &subject, sizeof(subject)) ||
+            !LoadBytes(f, &trigger, sizeof(trigger)) || !LoadBytes(f, &timer, sizeof(timer)) ||
+            !LoadBytes(f, &event->region, sizeof(event->region)) || !LoadBytes(f, &event->range, sizeof(event->range)) ||
+            subject < -1 || subject >= (int)globals.num_edicts ||
+            (trigger != UINT32_MAX && trigger >= level.num_triggers) ||
+            (timer != UINT32_MAX && timer >= level.num_timers)) return false;
+        event->subject = subject < 0 ? NULL : g_edicts + subject;
+        event->trigger = trigger == UINT32_MAX ? NULL : level.triggers[trigger];
+        event->timer = timer == UINT32_MAX ? NULL : level.timers[timer];
+    }
+    if (!LoadBytes(f, &queued, sizeof(queued)) || queued > MAX_EVENT_QUEUE) return false;
+    level.events.read = 0; level.events.write = queued;
+    FOR_LOOP(i, queued) {
+        GAMEEVENT *item = level.events.queue + i;
         int edict, source;
         DWORD response;
-        if (!LoadBytes(f, &event->type, sizeof(event->type)) || !LoadBytes(f, &edict, sizeof(edict)) ||
+        if (!LoadBytes(f, &item->type, sizeof(item->type)) || !LoadBytes(f, &edict, sizeof(edict)) ||
             !LoadBytes(f, &source, sizeof(source)) || !LoadBytes(f, &response, sizeof(response)) ||
             edict < -1 || edict >= (int)globals.num_edicts || source < -1 || source >= (int)globals.num_edicts ||
             (response != UINT32_MAX && response >= EventCount())) return false;
-        event->edict = edict < 0 ? NULL : g_edicts + edict;
-        event->source = source < 0 ? NULL : g_edicts + source;
-        event->responseTo = response == UINT32_MAX ? NULL : EventById(response);
+        item->edict = edict < 0 ? NULL : g_edicts + edict;
+        item->source = source < 0 ? NULL : g_edicts + source;
+        item->responseTo = response == UINT32_MAX ? NULL : EventById(response);
     }
     return true;
 }
@@ -265,10 +319,47 @@ static BOOL ReadGroups(FILE *f) {
     return true;
 }
 
+static DWORD TriggerCodeCount(TRIGGERACTION const *list) {
+    DWORD n = 0;
+    for (; list; list = list->next) n++;
+    return n;
+}
+
+static BOOL WriteTriggerCodeList(FILE *f, TRIGGERACTION const *list) {
+    DWORD n = TriggerCodeCount(list);
+    if (!SaveBytes(f, &n, sizeof(n))) return false;
+    for (; list; list = list->next) if (!WriteString(f, jass_functionname(list->func))) return false;
+    return true;
+}
+
+static BOOL ReadTriggerCodeList(FILE *f, TRIGGERACTION **list) {
+    DWORD n;
+    TRIGGERACTION **tail;
+    if (!LoadBytes(f, &n, sizeof(n))) return false;
+    DELETE_LIST(TRIGGERACTION, *list, gi.MemFree);
+    *list = NULL;
+    tail = list;
+    FOR_LOOP(i, n) {
+        LPSTR name = NULL;
+        TRIGGERACTION *item = gi.MemAlloc(sizeof(*item));
+        if (!item || !ReadString(f, &name)) { free(name); if (item) gi.MemFree(item); return false; }
+        item->func = name ? jass_functionbyname(level.vm, name) : NULL;
+        if (name && !item->func) { free(name); gi.MemFree(item); return false; }
+        free(name);
+        *tail = item;
+        tail = &item->next;
+    }
+    return true;
+}
+
 static BOOL WriteTriggers(FILE *f) {
     if (!SaveBytes(f, &level.num_triggers, sizeof(level.num_triggers))) return false;
-    FOR_LOOP(i, level.num_triggers)
-        if (!level.triggers[i] || !SaveBytes(f, &level.triggers[i]->disabled, sizeof(level.triggers[i]->disabled))) return false;
+    FOR_LOOP(i, level.num_triggers) {
+        LPTRIGGER trigger = level.triggers[i];
+        if (!trigger || !SaveBytes(f, &trigger->disabled, sizeof(trigger->disabled)) ||
+            !WriteTriggerCodeList(f, trigger->actions) ||
+            !WriteTriggerCodeList(f, (TRIGGERACTION *)trigger->conditions)) return false;
+    }
     return true;
 }
 
@@ -277,8 +368,12 @@ static BOOL ReadTriggers(FILE *f) {
     if (!LoadBytes(f, &count, sizeof(count)) || count != level.num_triggers) {
         fprintf(stderr, "WC3 LoadGame: JASS trigger count does not match initialized script\n"); return false;
     }
-    FOR_LOOP(i, count)
-        if (!level.triggers[i] || !LoadBytes(f, &level.triggers[i]->disabled, sizeof(level.triggers[i]->disabled))) return false;
+    FOR_LOOP(i, count) {
+        LPTRIGGER trigger = level.triggers[i];
+        if (!trigger || !LoadBytes(f, &trigger->disabled, sizeof(trigger->disabled)) ||
+            !ReadTriggerCodeList(f, &trigger->actions) ||
+            !ReadTriggerCodeList(f, (TRIGGERACTION **)&trigger->conditions)) return false;
+    }
     return true;
 }
 
@@ -695,17 +790,31 @@ BOOL ReadGame(LPCSTR filename) {
     if (header.version != save_version || !LoadBytes(f, &header, sizeof(header))) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
-    if (header.magic != save_magic ||
-        header.edict_size != sizeof(edict_t) || header.num_edicts > globals.max_edicts ||
-        header.max_clients != game.max_clients || header.script_identity != (level.vm ? jass_programidentity(level.vm) : 0) ||
-        header.quests != QuestCount() || header.groups < level.num_groups || header.triggers != level.num_triggers ||
-        header.timers < level.num_timers || header.events != EventCount() ||
-        (!header.map_path[0] || strcasecmp(header.map_path, level.map_path)) ||
-        !RestoreRegistrySlots(header.groups, header.timers)) {
-        fprintf(stderr, "WC3 LoadGame: header mismatch version=%u edicts=%u clients=%u registries=%u/%u/%u/%u/%u\n",
-            header.version, header.num_edicts, header.max_clients, header.quests, header.groups, header.triggers,
-            header.timers, header.events);
-        fclose(f); return false;
+    {
+        DWORD script = level.vm ? jass_programidentity(level.vm) : 0;
+        LPCSTR field = NULL;
+        if (header.magic != save_magic) field = "magic";
+        else if (header.edict_size != sizeof(edict_t)) field = "edict_size";
+        else if (header.num_edicts > globals.max_edicts) field = "num_edicts";
+        else if (header.max_clients != game.max_clients) field = "max_clients";
+        else if (header.script_identity != script) field = "script_identity";
+        else if (header.quests != QuestCount()) field = "quests";
+        else if (header.groups < level.num_groups) field = "groups";
+        else if (header.triggers < level.num_triggers) field = "triggers";
+        else if (header.timers < level.num_timers) field = "timers";
+        else if (header.events < EventCount()) field = "events";
+        else if (!header.map_path[0] || strcasecmp(header.map_path, level.map_path)) field = "map_path";
+        else if (!RestoreRegistrySlots(header.groups, header.timers, header.triggers, header.events)) field = "registry_slots";
+        if (field) {
+            fprintf(stderr, "WC3 LoadGame: header mismatch field=%s version=%u edict_size=%u/%zu edicts=%u/%u\n",
+                    field, header.version, header.edict_size, sizeof(edict_t), header.num_edicts, globals.max_edicts);
+            fprintf(stderr, "WC3 LoadGame: clients=%u/%u script=%u/%u quests=%u/%u groups=%u/%u triggers=%u/%u\n",
+                    header.max_clients, game.max_clients, header.script_identity, script,
+                    header.quests, QuestCount(), header.groups, level.num_groups, header.triggers, level.num_triggers);
+            fprintf(stderr, "WC3 LoadGame: timers=%u/%u events=%u/%u map='%s'/'%s'\n",
+                    header.timers, level.num_timers, header.events, EventCount(), header.map_path, level.map_path);
+            fclose(f); return false;
+        }
     }
     if (!LoadBytes(f, &level.framenum, sizeof(level.framenum)) || !LoadBytes(f, &level.time, sizeof(level.time)) ||
         !LoadBytes(f, &level.started, sizeof(level.started)) || !LoadBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted)) ||
@@ -720,6 +829,10 @@ BOOL ReadGame(LPCSTR filename) {
         fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;
     }
     if (!ReadQuests(f)) { fprintf(stderr, "WC3 LoadGame: failed at quests\n"); fclose(f); return false; }
+    /* The baseline map already linked these same edict addresses. Clear its
+     * spatial tree before raw records overwrite their area links, then rebuild
+     * one authoritative set below; retaining both creates cyclic area lists. */
+    gi.ClearWorld();
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
@@ -746,5 +859,6 @@ BOOL ReadGame(LPCSTR filename) {
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
     fclose(f);
+    fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;
 }

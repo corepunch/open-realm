@@ -4,6 +4,10 @@ void SV_ParseCameraPosition(LPSIZEBUF msg, LPCLIENT client) {
     edict_t *clent = client->edict;
     float x = MSG_ReadFloat(msg);
     float y = MSG_ReadFloat(msg);
+    /* A map restart can leave the previous world's camera packet queued before
+     * the replacement client completes `begin`; consume it without addressing
+     * the new world's still-unassigned player edict. */
+    if (client->state != cs_spawned || !clent) return;
     ge->ClientSetCameraPosition(clent, &MAKE(VECTOR2, x, y));
 }
 

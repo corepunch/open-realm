@@ -441,7 +441,6 @@ int main(int argc, LPSTR argv[]) {
         }
         if (!dedicated) {
             CL_Frame(msec);
-            SV_LoadPendingGame();
         } else {
             /* Dedicated server: read console commands from stdin. */
             LPSTR cmd = Sys_ConsoleInput();

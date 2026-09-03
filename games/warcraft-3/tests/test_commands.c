@@ -412,7 +412,7 @@ TEST(commands, map_command_rejects_ambiguous_short_name) {
     T_STREQ(last_sv_map, "");
 }
 
-TEST(commands, load_command_reloads_saved_map_then_connects) {
+TEST(commands, load_command_reloads_saved_map_without_connect) {
     setup_command_tests();
     reset_map_handoff();
     Cvar_Set("dedicated", "0"); Cvar_Set("game_port", "28015");
@@ -422,8 +422,8 @@ TEST(commands, load_command_reloads_saved_map_then_connects) {
     T_STREQ(last_loading_map, "Maps\\Campaign\\Human02.w3m");
     T_STREQ(last_load_name, "quick");
     T_STREQ(last_load_map, "Maps\\Campaign\\Human02.w3m");
-    T_STREQ(last_connect_host, "localhost");
-    T_EQ(last_connect_port, 28015);
+    /* Q2 load reconnects with "new" on the existing slot, not CL_Connect. */
+    T_STREQ(last_connect_host, "");
 }
 
 TEST(commands, load_command_stops_when_save_map_is_unreadable) {

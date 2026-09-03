@@ -1619,10 +1619,15 @@ static void Com_LoadGame_f(void) {
     if (!SV_GetSaveMap(Cmd_Argv(1), map, sizeof(map))) return;
     if (!Cvar_Integer("dedicated", 0)) {
         CL_SetGameplayBindings();
+        /* Q2 CL_Changing_f: plaque + ca_connected. Do not CL_Connect; Q2 SV_Map
+         * ends with reconnect, and an already-connected client only sends "new". */
         CL_BeginLoadingMap(map);
     }
-    if (SV_LoadGame(Cmd_Argv(1), map) && !Cvar_Integer("dedicated", 0))
-        CL_Connect("localhost", (unsigned short)Cvar_Integer("game_port", PORT_SERVER));
+    /* Q2: ReadServerFile/ReadGame, then SV_Map(..., loadgame) which SpawnEntities,
+     * ClearWorld, ReadLevel, then reconnect. SV_LoadGame maps so JASS main()
+     * rebuilds registries, then ReadGame immediately — before PrepRefresh/begin.
+     * SV_Map already sent loopback client_connect (the reconnect). */
+    SV_LoadGame(Cmd_Argv(1), map);
 }
 
 /* Run the in-engine test registry and exit with the failure count.  Tests are

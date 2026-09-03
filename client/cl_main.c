@@ -487,6 +487,9 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     CL_InputModeResetMap();
     /* Publish the resolved map before freezing the plaque; menu launches have no startup map cvar. */
     Cvar_Set("map", mapName);
+    /* Same-map load keeps CS_WORLD unchanged; forget the previous world's begin
+     * so PrepRefresh sends it again and CL_ParseFrame can end the plaque. */
+    CL_RestartRefresh();
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_connected;
     CL_MenuCommand("menu_ingame");

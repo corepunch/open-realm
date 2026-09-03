@@ -11,10 +11,6 @@ static BOOL SV_EnsureServerPort(void) {
 }
 
 #ifndef TOOL_COMMON_NO_MPQ
-static PATHSTR pending_load;
-static PATHSTR pending_map;
-static BOOL pending_load_active;
-
 static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
     if (!name || !name[0] || strchr(name, '/') || strchr(name, '\\')) {
         fprintf(stderr, "save: invalid save name\n");
@@ -46,26 +42,17 @@ static void SV_SaveGame_f(void) {
 BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
     PATHSTR path;
     if (!name || !map || !*map || !SV_SavePath(name, path)) return false;
+    /* Q2 SpawnEntities then SV_CheckForSavegame: ClearWorld + ReadLevel before
+     * reconnect/begin. JASS main() must run during SV_Map before ReadGame. */
     SV_Map(map);
     if (sv.state != ss_game) return false;
-    strlcpy(pending_load, path, sizeof(pending_load));
-    strlcpy(pending_map, map, sizeof(pending_map));
-    pending_load_active = true;
+    if (!ge || !ge->LoadGame || !ge->LoadGame(path)) {
+        fprintf(stderr, "load: failed to read %s; restoring map baseline\n", path);
+        SV_Map(map);
+        return false;
+    }
     return true;
 }
-
-void SV_LoadPendingGame(void) {
-    if (!pending_load_active || sv.state != ss_game) return;
-    pending_load_active = false;
-    if (!ge || !ge->LoadGame || !ge->LoadGame(pending_load)) {
-        fprintf(stderr, "load: failed to read %s; restoring map baseline\n", pending_load);
-        /* Quake II treats a bad save as fatal. The host keeps running after game errors,
-         * so rebuild the map here to discard any record-level partial mutation. */
-        SV_Map(pending_map);
-    }
-}
-#else
-void SV_LoadPendingGame(void) { }
 #endif
 
 void SV_CreateBaseline(void) {
@@ -205,9 +192,15 @@ LPCLIENT SV_FindClientByAddr(const netadr_t *from) {
 
 /* Register a new remote client that sent the first connection packet. */
 void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
-    // Ignore if address is already registered
-    if (!from || SV_FindClientByAddr(from))
+    LPCLIENT existing;
+    if (!from) return;
+    /* A repeated request means the first reply was lost or a local map restart
+     * pre-created this address. Re-send the idempotent handshake response so
+     * the client cannot remain on the loading plaque waiting for `new`. */
+    if ((existing = SV_FindClientByAddr(from))) {
+        Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect");
         return;
+    }
     if (svs.num_clients >= MAX_CLIENTS ||
         svs.num_clients >= ge->max_clients) {
         fprintf(stderr, "SV_DirectConnect: server full\n");
@@ -358,7 +351,6 @@ void SV_Init(void) {
     memset(&sv, 0, sizeof(struct server));
 
 #ifndef TOOL_COMMON_NO_MPQ
-    pending_load_active = false;
     Cmd_AddCommand("lobby_start", SV_StartLobby_f);
     Cmd_AddCommand("save", SV_SaveGame_f);
     SV_LobbyAddCommands();

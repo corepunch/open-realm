@@ -601,6 +601,7 @@ typedef struct {
 #define MAX_JASS_GROUPS 1024 // handles; bounds deterministic per-map group save IDs
 #define MAX_JASS_TRIGGERS 4096 // handles; bounds deterministic per-map trigger save IDs
 #define MAX_JASS_TIMERS 1024 // handles; bounds deterministic per-map timer save IDs
+#define MAX_JASS_EVENTS 4096 // handlers; bounds TriggerRegister* objects created after main()
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];

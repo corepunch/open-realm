@@ -1325,13 +1325,15 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
         .enabled = true
     };
     LPQUEST old_quests = level.quests;
-    LPEDICT first, second, indicator;
+    LPEDICT first, second, indicator, found[4];
+    BOX2 area = { .min = { 0, 0 }, .max = { 128, 128 } };
 
     reset_entities();
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     level.quests = &quest;
     first = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 24.0f);
     second = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 48.0f, 72.0f);
+    gi.LinkEntity(first); gi.LinkEntity(second);
     indicator = G_Spawn();
     indicator->svflags = SVF_OWNER_ONLY;
     indicator->rally_indicator = true;
@@ -1377,6 +1379,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     quest.completed = true;
     item.completed = false;
     T_ASSERT(ReadGame(filename));
+    T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 3);
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
     T_EQ(g_edicts[first - g_edicts].s.origin.x, 96.0f);
@@ -1802,6 +1805,56 @@ TEST(wc3_save, round_trip_jass_timers) {
     T_ASSERT(!ReadGame(filename));
     jass_callbyname(level.vm, "addTimer", false);
     T_ASSERT(!ReadGame(filename));
+    remove(filename);
+}
+
+TEST(wc3_save, restores_triggers_and_events_created_after_main) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-late-trigger-save-test.bin";
+    DWORD main_triggers, main_events = 0, saved_triggers, saved_events = 0, skip, live_events;
+    T_ASSERT(run_test_jass(
+        "type trigger extends handle\n"
+        "type triggeraction extends handle\n"
+        "type event extends handle\n"
+        "type timer extends handle\n"
+        "globals\n"
+        "  trigger lateTrig = null\n"
+        "endglobals\n"
+        "function LateAction takes nothing returns nothing\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call CreateTrigger()\n"
+        "endfunction\n"
+        "function later takes nothing returns nothing\n"
+        "  set lateTrig = CreateTrigger()\n"
+        "  call TriggerAddAction(lateTrig, function LateAction)\n"
+        "  call TriggerRegisterTimerEvent(lateTrig, 0.0, false)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(lateTrig != null, \"late trigger handle was lost\")\n"
+        "endfunction\n"));
+    main_triggers = level.num_triggers;
+    FOR_EACH_LIST(EVENT, event, level.events.handlers) main_events++;
+    jass_callbyname(level.vm, "later", false);
+    saved_triggers = level.num_triggers;
+    FOR_EACH_LIST(EVENT, event, level.events.handlers) saved_events++;
+    T_ASSERT(saved_triggers > main_triggers);
+    T_ASSERT(saved_events > main_events);
+    T_ASSERT(WriteGame(filename));
+    /* A map reload only recreates main()'s registries; extras must be allocated from the save. */
+    level.num_triggers = main_triggers;
+    if (!main_events) {
+        level.events.handlers = NULL;
+    } else {
+        skip = saved_events - main_events;
+        FOR_LOOP(i, skip) level.events.handlers = level.events.handlers->next;
+    }
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.num_triggers, saved_triggers);
+    live_events = 0;
+    FOR_EACH_LIST(EVENT, event, level.events.handlers) live_events++;
+    T_EQ(live_events, saved_events);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     remove(filename);
 }
 

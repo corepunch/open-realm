@@ -61,7 +61,7 @@ Session-only cvars (`map`, `connect`) are explicitly skipped. When `com_frame_li
 Config files are split by ownership: read-only defaults ship with the game, writable user settings live in a per-user home directory. The paths are resolved at startup (`Sys_ResolveShareDirectory` / `Sys_ResolveHomeDirectory` in `common/main.c`):
 
 - `fs_basepath` — read-only base `share/` dir, anchored at the executable (`<exe>/share`, `<exe>/../share`, or CWD `share`). Engine-wide assets (`fonts/`) live at its top level.
-- `fs_homepath` — writable `~/.local/share/<game>/` on Unix, `%APPDATA%\<game>\` on Windows, adopted only if creatable and writable; empty otherwise.
+- `fs_homepath` — writable `~/.local/share/<game>/` on Unix (including macOS), `%APPDATA%\<game>\` on Windows, adopted only if creatable and writable; empty otherwise. This is a fixed path, not `$XDG_DATA_HOME` and not `~/Library/Application Support`.
 
 The load order in `Com_Init()` is:
 
@@ -77,6 +77,8 @@ The load order in `Com_Init()` is:
 | 8 | Remaining `+` args (`+set`, `+<cvar>`), consumed | Final command-line overrides |
 
 When `$HOME` is absent or read-only (portable/read-only deploy), `fs_homepath` is empty and steps 5–6 degrade to `<base>/<game>/config.cfg` and `<base>/<game>/autoexec.cfg`, so a `share/` tree copied beside the executable still works.
+
+Gameplay saves resolve under the same home directory: `~/.local/share/<game>/saves/<name>.sav` on Unix, `%APPDATA%\<game>\saves\<name>.sav` on Windows, else `share/<game>/saves/`. See [Warcraft III Save/Load](../games/warcraft-3/save-load.md).
 
 After step 6, `map` and `connect` cvars are explicitly cleared, then re-populated from command-line arguments in steps 7–8.
 

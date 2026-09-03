@@ -195,5 +195,7 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
             return;
         }
     }
+    /* Map restart can leave a stringcmd queued before playerinfo assigns the edict. */
+    if (!client->edict) return;
     ge->ClientCommand(client->edict, argc, argv);
 }

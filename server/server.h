@@ -109,7 +109,6 @@ void SV_StartLobby(LPCSTR mapFilename);
 void SV_Map(LPCSTR pFilename);
 BOOL SV_LoadGame(LPCSTR name, LPCSTR map);
 BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size);
-void SV_LoadPendingGame(void);
 #ifdef WOW
 DWORD SV_PlayerCreateMap(void);
 #endif

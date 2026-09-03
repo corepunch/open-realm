@@ -22,6 +22,15 @@ static bool begin_sent = false;
 
 VECTOR3 lightAngles = {-40,0,60};
 
+/* Q2 CL_ParseServerData calls CL_ClearState, which zeros cl.refresh_prepped.
+ * A same-map load never gets new CS_WORLD, so forget the previous world's
+ * begin/prepped flags here or PrepRefresh never sends begin again. */
+void CL_RestartRefresh(void) {
+    world_loaded = false;
+    begin_sent = false;
+    cl.refresh_prepped = false;
+}
+
 static void CL_SendBegin(void) {
     fprintf(stderr,
             "CL_SendBegin: sending begin world=\"%s\" state=%d player=%u team=%u race=%u color=%u\n",

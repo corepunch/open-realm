@@ -98,14 +98,19 @@ TEST(server_net, pause_publishes_client_render_state) {
     T_ASSERT(!sv.paused); T_EQ(Cvar_Integer("paused", 1), 0);
 }
 
-void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
-    (void)msg;
-    (void)client;
-}
+void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) { (void)msg; (void)client; }
+void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) { (void)client; (void)msg; }
 
 static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
 static DWORD test_game_shutdowns;
+static DWORD test_camera_calls;
+static LPEDICT test_camera_ent;
+static VECTOR2 test_camera_pos;
+
+static void test_set_camera(LPEDICT ent, LPCVECTOR2 position) {
+    test_camera_calls++; test_camera_ent = ent; test_camera_pos = *position;
+}
 
 static void test_spawn_entities(void);
 
@@ -140,6 +145,7 @@ static void reset_server_state(int max_players) {
     test_ge.edicts = test_edicts;
     test_ge.num_edicts = max_players;
     test_ge.RunFrame = test_run_frame;
+    test_ge.ClientSetCameraPosition = test_set_camera;
     test_ge.GetThemeValue = test_theme_value;
     test_ge.LoadMap = test_load_map;
     test_ge.GetWorldBounds = CM_GetWorldBounds;
@@ -147,6 +153,26 @@ static void reset_server_state(int max_players) {
     test_ge.CustomizeEntity = test_customize_entity;
     ge = &test_ge;
     reset_test_gi();
+}
+
+TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
+    BYTE data[16];
+    sizeBuf_t msg = { data, sizeof(data), 0, 0 };
+    LPCLIENT client;
+
+    reset_server_state(1);
+    client = &svs.clients[0]; client->state = cs_connected;
+    test_camera_calls = 0; test_camera_ent = NULL; test_camera_pos = MAKE(VECTOR2, 0, 0);
+    MSG_WriteByte(&msg, clc_camera_position); MSG_WriteFloat(&msg, 12.0f); MSG_WriteFloat(&msg, -34.0f);
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_camera_calls, 0);
+
+    SZ_Clear(&msg); client->state = cs_spawned; client->edict = &test_edicts[0];
+    MSG_WriteByte(&msg, clc_camera_position); MSG_WriteFloat(&msg, 12.0f); MSG_WriteFloat(&msg, -34.0f);
+    msg.readcount = 0;
+    SV_ParseClientMessage(&msg, client);
+    T_EQ(test_camera_calls, 1); T_ASSERT(test_camera_ent == &test_edicts[0]);
+    T_FEQ(test_camera_pos.x, 12.0f, 0.001f); T_FEQ(test_camera_pos.y, -34.0f, 0.001f);
 }
 
 static int open_client_socket(void) {
@@ -531,6 +557,18 @@ TEST(server_net, local_map_uses_loopback_without_udp) {
 
     SV_Shutdown();
     test_mapinfo = NULL;
+}
+
+TEST(server_net, duplicate_loopback_connect_replies_without_allocating_client) {
+    BYTE data[MAX_MSGLEN];
+    sizeBuf_t msg = { data, sizeof(data), 0, 0 };
+    netadr_t loopback = { .type = NA_LOOPBACK }, from;
+
+    NET_Shutdown(); reset_server_state(1); SV_ClientConnect(); drain_client_packets();
+    SV_DirectConnect(&loopback, "\\name\\Player");
+    T_EQ(svs.num_clients, 1); T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
+    T_EQ(*(int *)msg.data, -1); T_ASSERT(!strcmp((char *)msg.data + 4, "client_connect"));
+    SV_Shutdown(); NET_Shutdown();
 }
 
 TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
