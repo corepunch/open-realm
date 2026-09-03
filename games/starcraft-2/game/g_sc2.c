@@ -305,9 +305,11 @@ static void SC2_UpdateCamera(void) {
     if (!duration || now >= sc2_level.camera.end_time) {
         SC2_WriteCamera(&b->origin, &b->angles, b->distance, b->fov);
         if (duration && sc2_level.camera.log_stage < 2) {
+#ifdef SC2_DEBUG_CUTSCENE
             FLOAT ground = CM_GetHeightAtPoint(b->origin.x, b->origin.y), eye_z = SC2_CameraEyeZ(b);
             fprintf(stderr, "SC2 camera move: end t=1.00 target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
                 b->origin.x, b->origin.y, ground, eye_z, eye_z - ground, b->angles.x, b->angles.y, b->distance);
+#endif
             sc2_level.camera.log_stage = 2;
         }
         return;
@@ -320,9 +322,11 @@ static void SC2_UpdateCamera(void) {
     cur.fov = LerpNumber(a->fov, b->fov, k);
     SC2_WriteCamera(&cur.origin, &cur.angles, cur.distance, cur.fov);
     if (k >= 0.5f && !sc2_level.camera.log_stage) {
+#ifdef SC2_DEBUG_CUTSCENE
         FLOAT ground = CM_GetHeightAtPoint(cur.origin.x, cur.origin.y), eye_z = SC2_CameraEyeZ(&cur);
         fprintf(stderr, "SC2 camera move: mid t=%.2f target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
             k, cur.origin.x, cur.origin.y, ground, eye_z, eye_z - ground, cur.angles.x, cur.angles.y, cur.distance);
+#endif
         sc2_level.camera.log_stage = 1;
     }
 }
@@ -338,6 +342,7 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
     sc2_level.camera.end_time = sc2_level.camera.start_time + (DWORD)(MAX(0.0f, duration) * 1000.0f);
     sc2_level.camera.log_stage = duration > 0.0f ? 0 : 2;
     SC2_UpdateCamera();
+#ifdef SC2_DEBUG_CUTSCENE
     if (duration > 0.0f) {
         FLOAT ground = CM_GetHeightAtPoint(sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y);
         FLOAT eye_z = SC2_CameraEyeZ(&sc2_level.camera.old);
@@ -347,6 +352,7 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
         fprintf(stderr, "SC2_GalaxySetCamera: target=(%.1f,%.1f) yaw=%.1f pitch=%.1f dist=%.1f fov=%.1f height=%.2f duration=%.2f\n",
             target_x, target_y, yaw, pitch, dist, fov, height_offset, duration);
     }
+#endif
 }
 
 static void SC2_GalaxyCinematicMode(BOOL enable, float duration) {
@@ -443,6 +449,12 @@ static BOOL SC2_GalaxyUnitIsAlive(void *ent_ptr) {
 }
 
 static void SC2_GalaxyUnitMove(void *ent_ptr, float x, float y) {
+#ifdef SC2_DEBUG_CUTSCENE
+    LPEDICT ent = (LPEDICT)ent_ptr;
+    fprintf(stderr, "SC2 dropship/order move: unit=%u from=(%.2f,%.2f,%.2f) to=(%.2f,%.2f)\n",
+            (unsigned)SC2_EdictNumber(ent), ent ? ent->s.origin.x : 0.0f, ent ? ent->s.origin.y : 0.0f,
+            ent ? ent->s.origin.z : 0.0f, x, y);
+#endif
     SC2_OrderMove((LPEDICT)ent_ptr, &(VECTOR2){ x, y });
 }
 
@@ -654,6 +666,28 @@ static void SC2_RunFrame(void) {
     if (sc2_level.vm && sc2_level.scriptsStarted)
         galaxy_tick(sc2_level.vm);
     SC2_UpdateCamera();
+
+#ifdef SC2_DEBUG_CUTSCENE
+    {
+        static DWORD trace_frame;
+        LPEDICT dropship = sc2_gunit_n ? (LPEDICT)sc2_gunits[0] : NULL;
+        trace_frame++;
+        if (trace_frame % 5 == 0) {
+            VECTOR3 const cam = sc2_clients[0].ps.viewangles;
+            fprintf(stderr, "SC2 cutscene trace: frame=%u camera=(%.2f,%.2f) pitch=%.2f yaw=%.2f dist=%.2f height=%.2f",
+                    (unsigned)trace_frame, sc2_clients[0].ps.origin.x, sc2_clients[0].ps.origin.y,
+                    cam.x, cam.y, (double)sc2_clients[0].ps.distance, cam.z);
+            if (dropship) {
+                DWORD number = SC2_EdictNumber(dropship);
+                fprintf(stderr, " dropship=(%.2f,%.2f,%.2f) moving=%d target=(%.2f,%.2f) flying=%d height=%.2f",
+                        dropship->s.origin.x, dropship->s.origin.y, dropship->s.origin.z,
+                        sc2_move[number].moving, sc2_move[number].target.x, sc2_move[number].target.y,
+                        sc2_move[number].flying, sc2_move[number].height);
+            }
+            fputc('\n', stderr);
+        }
+    }
+#endif
 
     FOR_LOOP(i, globals.num_edicts) {
         if (sc2_edicts[i].inuse)
