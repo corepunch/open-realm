@@ -49,12 +49,16 @@ Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a requ
 
 ## Field Table
 
-`games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`.
+`games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
+`edict_t` and `GAMECLIENT` records are still copied as one block; the adjacent `runtime_fields[]` and
+`client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
+common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.
 
 `EDICTFIELD(x, type)` describes one scalar field with `array_size == 0`. `EDICTFIELD(x, type, count)` describes a contiguous array from the base offset; the serializer walks `count` elements using the field type's element size. For example, the six inventory pointers use `EDICTFIELD(inventory, F_EDICT, MAX_INVENTORY)` rather than six duplicate descriptors.
 
 - Add every persistent `edict_t` entity pointer to `fields[]` as `F_EDICT`, including array elements and nested fields.
 - Do not add process-owned pointers such as path textures, metadata rows, animations, movement callbacks, or function pointers. `WriteEdict()` clears those pointers and `ReadEdict()` rebinds class metadata plus class-owned unit/destructable lifecycle callbacks; spatial links are rebuilt with `gi.LinkEntity`.
+- Add process-owned edict or client pointers/callbacks to the corresponding runtime-field table so the fixed record copy cannot write an address into the save file.
 - When adding a new pointer or changing an existing edict field, update the table and the round-trip test together. A raw pointer omitted from the table can write an address into the save file.
 - Keep the table sentinel `{ NULL, 0, 0, 0 }`; all serializer loops stop at `field->name == NULL`.
 
