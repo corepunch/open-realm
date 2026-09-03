@@ -189,8 +189,8 @@ static void reset_state(void) {
 
     globals.edicts = wow_edicts;
     globals.max_edicts = WOW_MAX_EDICTS;
-    globals.max_clients = MAX_CLIENTS;
-    globals.num_edicts = MAX_CLIENTS;
+    globals.max_clients = 1;
+    globals.num_edicts = 1; /* The fixture creates one player in slot 0; the next spawn is slot 1. */
     globals.edict_size = sizeof(edict_t);
 }
 
@@ -413,7 +413,7 @@ TEST(wow_abilities, firebolt_at_dead_caster_does_nothing) {
 
     Wow_FireFirebolt(caster, target);
     /* No projectile should be spawned */
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = globals.max_clients; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned despite dead caster");
@@ -433,7 +433,7 @@ TEST(wow_abilities, firebolt_at_dead_target_does_nothing) {
 
     Wow_FireFirebolt(caster, target);
     /* No projectile should be spawned */
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = globals.max_clients; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned despite dead target");
@@ -446,7 +446,7 @@ TEST(wow_abilities, firebolt_self_cast_does_nothing) {
 
     T_NOT_NULL(caster);
     Wow_FireFirebolt(caster, caster);
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = globals.max_clients; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned for self-cast");
@@ -654,7 +654,7 @@ TEST(wow_abilities, frostbolt_at_dead_caster_does_nothing) {
     T_NOT_NULL(target);
     Wow_EntityLocal(caster)->dead = true;
     Wow_FireFrostbolt(caster, target);
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = globals.max_clients; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile)
             T_ASSERT(!"frostbolt spawned despite dead caster");
@@ -669,7 +669,7 @@ TEST(wow_abilities, frostbolt_at_dead_target_does_nothing) {
     T_NOT_NULL(target);
     Wow_EntityLocal(target)->dead = true;
     Wow_FireFrostbolt(caster, target);
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = globals.max_clients; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile)
             T_ASSERT(!"frostbolt spawned despite dead target");
