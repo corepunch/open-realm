@@ -223,6 +223,7 @@ void SV_Frame(DWORD msec) {
     }
 
     SV_RunGameFrame();
+    SV_LoadPendingGame();
     sv.next_frame_msec += FRAMETIME;
     SV_SendClientMessages();
 }

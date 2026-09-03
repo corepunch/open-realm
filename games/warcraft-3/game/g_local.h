@@ -1086,6 +1086,7 @@ struct level_locals {
     DWORD num_timers;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
+    PATHSTR map_path;
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
         DWORD teams, players, game_types, game_type, map_flags;
@@ -1237,6 +1238,8 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
 BOOL G_RegisterJassGroup(ggroup_t *group);
 BOOL G_RegisterJassTrigger(LPTRIGGER trigger);
 BOOL G_RegisterJassTimer(LPGTIMER timer);
+void G_ClearSaveRegistries(void);
+BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_RunTimers(void);
 void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, struct jass_function const *handler);
 void G_TimerPause(LPGTIMER timer);

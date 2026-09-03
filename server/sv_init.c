@@ -1,6 +1,8 @@
 #include "server.h"
 #include "common/net_platform.h"
 
+extern void CL_Connect(LPCSTR host, unsigned short port);
+
 static BOOL SV_EnsureServerPort(void) {
     NET_ConfigSource(NS_SERVER, true);
     if (!NET_IsConfigured(NS_SERVER)) {
@@ -11,12 +13,26 @@ static BOOL SV_EnsureServerPort(void) {
 }
 
 #ifndef TOOL_COMMON_NO_MPQ
+static PATHSTR pending_load;
+static BOOL pending_load_active;
+
 static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
     if (!name || !name[0] || strchr(name, '/') || strchr(name, '\\')) {
         fprintf(stderr, "save: invalid save name\n");
         return false;
     }
     FS_SavePath(name, path, sizeof(PATHSTR));
+    return true;
+}
+
+BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
+    PATHSTR path;
+    if (!SV_SavePath(name, path)) return false;
+    if (!ge) SV_InitGameProgs();
+    if (!ge || !ge->GetSaveMap || !ge->GetSaveMap(path, map, map_size)) {
+        fprintf(stderr, "load: save %s has no readable map identity\n", name ? name : "");
+        return false;
+    }
     return true;
 }
 
@@ -30,11 +46,29 @@ static void SV_SaveGame_f(void) {
 
 static void SV_LoadGame_f(void) {
     PATHSTR path;
+    PATHSTR map;
 
     if (Cmd_Argc() != 2) { fprintf(stderr, "usage: load <name>\n"); return; }
-    if (sv.state != ss_game || !SV_SavePath(Cmd_Argv(1), path)) return;
-    if (!ge || !ge->LoadGame || !ge->LoadGame(path)) fprintf(stderr, "load: failed to read %s\n", path);
+    if (!SV_SavePath(Cmd_Argv(1), path)) return;
+    if (!SV_GetSaveMap(Cmd_Argv(1), map, sizeof(map))) {
+        /* Legacy v8 saves remain loadable only from the map already in memory. */
+        strlcpy(map, sv.configstrings[CS_WORLD], sizeof(map));
+    }
+    CL_BeginLoadingMap(map);
+    SV_Map(map);
+    if (!Cvar_Integer("dedicated", 0)) CL_Connect("localhost", Sys_GamePort());
+    strlcpy(pending_load, path, sizeof(pending_load));
+    pending_load_active = true;
 }
+
+void SV_LoadPendingGame(void) {
+    if (!pending_load_active || sv.state != ss_game) return;
+    pending_load_active = false;
+    if (ge && ge->PrepareLoadGame) ge->PrepareLoadGame();
+    if (!ge || !ge->LoadGame || !ge->LoadGame(pending_load)) fprintf(stderr, "load: failed to read %s\n", pending_load);
+}
+#else
+void SV_LoadPendingGame(void) { }
 #endif
 
 void SV_CreateBaseline(void) {
@@ -327,6 +361,7 @@ void SV_Init(void) {
     memset(&sv, 0, sizeof(struct server));
 
 #ifndef TOOL_COMMON_NO_MPQ
+    pending_load_active = false;
     Cmd_AddCommand("lobby_start", SV_StartLobby_f);
     Cmd_AddCommand("save", SV_SaveGame_f);
     Cmd_AddCommand("load", SV_LoadGame_f);

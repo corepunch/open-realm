@@ -24,6 +24,16 @@ void G_FreeActorSkills(LPEDICT ent) {
 
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
+    /* Removed units cannot remain in JASS groups: save files require every group member to resolve to a live edict. */
+    FOR_LOOP(i, level.num_groups) {
+        ggroup_t *group = level.groups[i];
+        if (!group) continue;
+        for (DWORD k = 0; k < group->num_units;) {
+            if (group->units[k] != ent) { k++; continue; }
+            for (DWORD n = k + 1; n < group->num_units; n++) group->units[n - 1] = group->units[n];
+            group->num_units--;
+        }
+    }
     G_UnregisterGroundSurface(ent);
     G_InvalidateUnitShortcutsForUnit(ent);
     G_InvalidateRallyTarget(ent);

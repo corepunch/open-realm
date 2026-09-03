@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 8, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 9, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -20,7 +20,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 The current format is process-independent for entity relationships: `F_EDICT` fields and camera targets are written as entity indexes and resolved back to `g_edicts[index]` by `ReadGame()`. Client pointers are restored from player slots, player names from inline JASS name storage, and map-player rows from the loaded map plus `PLAYER.number`. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
 
-Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. This supports the normal `+map ... +load ...` path, where map initialization recreates the same quest graph before applying saved state.
+Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 Groups, triggers, timers, and events use deterministic creation ordinals. Group membership is stored as entity indexes. Trigger enabled state is restored in place. Timers preserve their handler name, duration, remaining time, periodic/paused/running flags, and resume relative to the load time. Timer callbacks and timer-expire trigger actions enter the normal coroutine queue and retain `GetExpiredTimer()` context.
 
@@ -67,7 +67,7 @@ call SaveGame("chapter-01")
 call LoadGame("chapter-01", false)
 ```
 
-`LoadGame` restores state in the already-loaded map; map selection and UI score-screen behavior remain separate work. The initialized map must have the same JASS program and deterministically recreated native registries. The native names resolve through `FS_SavePath()`.
+`LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program and deterministically recreated native registries. The native names resolve through `FS_SavePath()`.
 
 The format does not yet snapshot fog grids, bot runtime, mutable event-registration fields, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; arbitrary active `umove_t` actions are not yet restored and require stable semantic move IDs. Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu likewise requires a semantic menu-state enum rather than raw function addresses.
 
@@ -81,15 +81,15 @@ The server registers Quake 2-style `save` and `load` commands. Save names are re
 build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +wait +save chapter-01
 ```
 
-Open the in-game console with the backtick/tilde key and enter `save chapter-01` or `load chapter-01`. The load command must run after `+map`, because loading restores state into the already-loaded map. For command-line save diagnostics, place `+wait` between the map and `+save` commands so map initialization and `main()` have created the authoritative native registries first. A load invocation is:
+Open the in-game console with the backtick/tilde key and enter `save chapter-01` or `load chapter-01`. For command-line save diagnostics, place `+wait` between the map and `+save` commands so map initialization and `main()` have created the authoritative native registries first. A load invocation can omit `+map`:
 
 ```sh
-build/bin/openwarcraft3 -data "data/Warcraft III" +map "Maps/(2)Rivercross.w3m" +load chapter-01
+build/bin/openwarcraft3 -data "data/Warcraft III" +load chapter-01
 ```
 
 `FS_SavePath()` appends `.sav` when the supplied name does not already end with that extension. It resolves saves to `~/.local/share/warcraft-3/saves/<name>.sav` on Unix, and `%APPDATA%/warcraft-3/saves/<name>.sav` on Windows. Config files use the same per-user game-data directory under `config/`. If no writable per-user data directory is available, config and saves fall back to `share/warcraft-3/config/` and `share/warcraft-3/saves/`. The save name may not contain `/` or `\`.
 
-The Save Game and Load Game buttons exposed by the WC3 menu layout are not wired yet; use the console commands. The shipped config binds `F6` to `save quick`; `F9` remains the quest log shortcut.
+The Save Game and Load Game buttons exposed by the WC3 menu layout issue `save quick` and `load quick`. The shipped config binds `F6` to `save quick`; `F9` remains the quest log shortcut.
 
 ## Verification
 

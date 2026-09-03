@@ -324,12 +324,14 @@ int main(int argc, LPSTR argv[]) {
     }
 
     PATHSTR resolved_map;
+    PATHSTR load_map;
     LPCSTR map = Cvar_String("map", "");
     LPCSTR connect_addr = Cvar_String("connect", "");
     bool has_map = map && *map;
     bool has_connect_addr = connect_addr && *connect_addr;
     bool menu_mode = !has_map && !has_connect_addr;
     bool listen_server_mode = has_map && !has_connect_addr;
+    bool load_map_from_save = false;
     unsigned short game_port = Sys_GamePort();
 
     if (has_map) {
@@ -337,6 +339,15 @@ int main(int argc, LPSTR argv[]) {
             return 1;
         }
         map = resolved_map;
+    }
+    if (!has_map) {
+        for (int i = 1; i + 1 < COM_Argc(); i++) {
+            if (strcmp(COM_Argv(i), "+load")) continue;
+            if (SV_GetSaveMap(COM_Argv(i + 1), load_map, sizeof(load_map))) {
+                map = load_map; has_map = true; listen_server_mode = !has_connect_addr; load_map_from_save = true;
+            }
+            break;
+        }
     }
     bool dedicated = Cvar_Integer("dedicated", 0) != 0;
 
@@ -388,6 +399,10 @@ int main(int argc, LPSTR argv[]) {
     } else {
         SV_Init();
         CL_Init();
+        if (load_map_from_save) {
+            CL_BeginLoadingMap(map);
+            SV_Map(map);
+        }
         Cbuf_AddLateCommands();
         Cbuf_Execute();
 
@@ -421,6 +436,7 @@ int main(int argc, LPSTR argv[]) {
         }
         if (!dedicated) {
             CL_Frame(msec);
+            SV_LoadPendingGame();
         } else {
             /* Dedicated server: read console commands from stdin. */
             LPSTR cmd = Sys_ConsoleInput();
