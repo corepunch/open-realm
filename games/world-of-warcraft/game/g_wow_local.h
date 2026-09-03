@@ -442,7 +442,6 @@ void UI_HideWindow(LPEDICT ent, LPCSTR window_id);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);
 DWORD Wow_GetPlayerClass(void);
 void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id);
-void UI_WriteWowMessageQueue(LPEDICT ent);
 
 /* Ability/projectile system */
 DWORD      Wow_FireboltModel(void);
