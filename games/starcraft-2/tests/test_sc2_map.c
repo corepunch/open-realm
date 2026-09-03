@@ -148,10 +148,6 @@ void SV_Map(LPCSTR pFilename) {
     (void)pFilename;
 }
 
-void CL_Connect(LPCSTR host, unsigned short port) {
-    (void)host; (void)port;
-}
-
 BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
     (void)name; (void)map; (void)map_size;
     return false;

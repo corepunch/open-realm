@@ -56,10 +56,6 @@ void SV_Map(LPCSTR pFilename) {
     snprintf(last_sv_map, sizeof(last_sv_map), "%s", pFilename ? pFilename : "");
 }
 
-void CL_Connect(LPCSTR host, unsigned short port) {
-    (void)host; (void)port;
-}
-
 BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
     (void)name;
     if (!save_map_readable) return false;
