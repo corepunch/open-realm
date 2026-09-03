@@ -129,6 +129,9 @@ void CL_Input(void) {
                     CON_KeyEvent(event.key.keysym.sym, true);
                     break;
                 }
+                if (cls.key_dest == key_game && CL_MinimapKeyEvent(event.key.keysym.sym, event.key.repeat != 0)) {
+                    break;
+                }
                 if (cls.key_dest == key_game &&
                     CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod, event.key.repeat != 0)) {
                     break; /* consumed by in-game handler (e.g. control groups) */

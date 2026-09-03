@@ -448,7 +448,6 @@ static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
 void UI_InitLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
     memset(&loading_state, 0, sizeof(loading_state));
-    UI_AlertsClear();
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
     
@@ -494,7 +493,6 @@ void UI_InitLocal(void) {
 }
 
 void UI_ShutdownLocal(void) {
-    UI_AlertsClear();
     UI_ResetGlueSceneModels();
     UI_SetScreen(NULL);
     UI_ClearTemplates();
@@ -839,10 +837,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.MouseEvent = UI_MouseEventLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
-    exp.GameCommand = UI_AlertsGameCommand;
-    exp.GameplayKeyEvent = UI_AlertsGameplayKeyEvent;
-    exp.ClearGameState = UI_AlertsClear;
-    exp.DrawGameOverlay = UI_AlertsDraw;
     
     return exp;
 }

@@ -10,24 +10,17 @@ static struct {
     VECTOR3 anchor;
 } camera_drag;
 
-static void CL_SetCameraPosition(VECTOR2 position) {
+VECTOR2 CL_ClampCameraPosition(VECTOR2 position) {
 #ifdef WC3
-    position = CL_ClampCameraPosition(position);
+    if (cl.playerstate.camera_bounds.max.x > cl.playerstate.camera_bounds.min.x)
+        position.x = MAX(cl.playerstate.camera_bounds.min.x, MIN(cl.playerstate.camera_bounds.max.x, position.x));
+    if (cl.playerstate.camera_bounds.max.y > cl.playerstate.camera_bounds.min.y)
+        position.y = MAX(cl.playerstate.camera_bounds.min.y, MIN(cl.playerstate.camera_bounds.max.y, position.y));
 #endif
-    cl.viewDef.camerastate[0].origin.x = position.x;
-    cl.viewDef.camerastate[0].origin.y = position.y;
-    cl.viewDef.camerastate[1].origin.x = position.x;
-    cl.viewDef.camerastate[1].origin.y = position.y;
-    cl.camera_prediction.active = true;
-    cl.camera_prediction.origin = position;
-
-    MSG_WriteByte(&cls.netchan.message, clc_camera_position);
-    MSG_WriteFloat(&cls.netchan.message, position.x);
-    MSG_WriteFloat(&cls.netchan.message, position.y);
+    return position;
 }
 
 static BOOL smart_click_active;
-static BOOL minimap_drag_active;
 
 static BOOL CL_OrderQueueModifierDown(void) {
     return (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
@@ -39,21 +32,6 @@ static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 #else
     return re.TraceLocation(&cl.viewDef, x, y, point);
 #endif
-}
-
-/* Left-click (or click-drag) on the minimap recenters the camera there. */
-BOOL CL_TryMinimapClick(float x, float y) {
-    VECTOR2 world;
-    if (!CL_GameplayInputReady() || !re.TraceMinimap || !re.TraceMinimap(x, y, &world)) {
-        return false;
-    }
-    minimap_drag_active = true;
-    CL_SetCameraPosition(world);
-    return true;
-}
-
-void CL_EndMinimapDrag(void) {
-    minimap_drag_active = false;
 }
 
 /* --- Control groups (Ctrl+0..9 assign, 0..9 recall) ------------------------ */
@@ -121,18 +99,9 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
     DWORD g, now;
     BOOL center_on_group;
     VECTOR2 center;
-    VECTOR2 camera_position = { 0 };
-    DWORD game_key_result = 0;
 
     if (!CL_GameplayInputReady())
         return false;
-    if (!CL_WindowModalActive() && ui.GameplayKeyEvent) {
-        game_key_result = ui.GameplayKeyEvent(sym, (DWORD)mod, repeat, &camera_position);
-        if (game_key_result & UI_GAMEKEY_CAMERA_POSITION)
-            CL_SetCameraPosition(camera_position);
-        if (game_key_result & UI_GAMEKEY_HANDLED)
-            return true;
-    }
     /* Control groups are handled before the generic binding dispatcher.
      * Consume digit keys while a modal client window is active so they cannot
      * change gameplay selection behind Quest/Log. Other keys fall through to
@@ -320,7 +289,7 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     }
     if (!CL_GameplayInputReady()) {
         camera_drag.active = false;
-        minimap_drag_active = false;
+        CL_EndMinimapDrag();
         cl.selection.in_progress = false;
         cl.hover_entity = 0;
         return;
@@ -336,12 +305,7 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     if (camera_drag.active) {
         CL_UpdatePan(motion->x, motion->y);
     }
-    if (minimap_drag_active) {
-        VECTOR2 world;
-        if (re.TraceMinimap && re.TraceMinimap(motion->x, motion->y, &world)) {
-            CL_SetCameraPosition(world);
-        }
-    }
+    CL_UpdateMinimapDrag(motion->x, motion->y);
     if (cl.selection.in_progress) {
         cl.selection.rect.w = motion->x - cl.selection.rect.x;
         cl.selection.rect.h = motion->y - cl.selection.rect.y;
@@ -374,7 +338,7 @@ void CL_InputModeFrame(void) {
      * that began before the modal arrived. */
     if (!CL_GameplayInputReady()) {
         camera_drag.active = false;
-        minimap_drag_active = false;
+        CL_EndMinimapDrag();
         cl.selection.in_progress = false;
         cl.hover_entity = 0;
         return;

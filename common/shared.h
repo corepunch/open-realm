@@ -357,6 +357,11 @@ typedef enum {
 #define SND_ENT         0x08 // short; entity number plus channel; identifies an entity source
 #define SND_OFFSET      0x10 // byte; start delay in milliseconds; used by svc_sound
 
+/* Transient minimap attention-marker flags. */
+#define MINIMAP_PING_REMEMBER      0x01 // bit; add position to recent-alert history; used by svc_minimap_ping
+#define MINIMAP_PING_EXTRA_EFFECTS 0x02 // bit; draw an additional pulse; used by PingMinimapEx
+#define MINIMAP_PING_DURATION_MAX 4294967.0f // seconds; DWORD millisecond clock ceiling; bounds packet lifetime
+
 /* Sound channels follow Quake 2; high bits select server delivery policy. */
 #define CHAN_AUTO       0x00 // units; automatic channel selection; used for generic sounds
 #define CHAN_WEAPON     0x01 // units; weapon channel; used for attack sounds

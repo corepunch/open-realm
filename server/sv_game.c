@@ -213,6 +213,7 @@ void SV_InitGameProgs(void) {
     import.SoundIndex = SV_SoundIndex;
     import.Sound = PF_StartSound;
     import.PositionedSound = PF_PositionedSound;
+    import.MinimapPing = SV_MinimapPing;
     import.FontIndex = SV_FontIndex;
     import.GetTime = SV_GetTime;
     import.SetPaused = SV_SetPaused;

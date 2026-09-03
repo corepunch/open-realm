@@ -959,6 +959,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_sound:
                 CL_ParseSound(msg);
                 break;
+            case svc_minimap_ping:
+                CL_ParseMinimapPing(msg);
+                break;
             case svc_mirror:
                 CL_MirrorMessage(msg);
                 break;

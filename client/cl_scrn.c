@@ -665,10 +665,6 @@ void SCR_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
     }
 }
 
-void SCR_LayoutDrawMinimap(LPCUIFRAME frame, LPCRECT screen) {
-    (void)frame; re.DrawMinimap(screen);
-}
-
 void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     FLOAT const canvas_w = SCR_UICanvasWidth();
     RECT const viewport = {
@@ -890,7 +886,7 @@ static drawer_t drawers[] = {
     { FT_MODEL,          SCR_LayoutDrawPortrait },
     { FT_SPRITE,         SCR_LayoutDrawSprite },
     { FT_PORTRAIT,       SCR_LayoutDrawPortrait },
-    { FT_MINIMAP,        SCR_LayoutDrawMinimap },
+    { FT_MINIMAP,        CL_LayoutDrawMinimap },
     { FT_BUILDQUEUE,     SCR_LayoutDrawBuildQueue },
     { FT_MULTISELECT,    SCR_LayoutDrawMultiSelect },
     { FT_SIMPLEBUTTON,   SCR_LayoutSimpleButton },

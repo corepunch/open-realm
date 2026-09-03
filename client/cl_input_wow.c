@@ -349,8 +349,7 @@ void CL_InputModeFrame(void) {
 }
 
 
-BOOL CL_TryMinimapClick(float x, float y) { (void)x; (void)y; return false; }
-void CL_EndMinimapDrag(void) {}
+VECTOR2 CL_ClampCameraPosition(VECTOR2 position) { return position; }
 
 /* Number keys 1-0 trigger action bar slots. Key 1 = slot 0 (Attack),
  * 2 = slot 1 (Charge), ..., 0 = slot 9 (Backpack). The action bar data

@@ -7,6 +7,7 @@
 
 BOOL CL_MouseOverGameplayUI(void);
 BOOL CL_GameplayInputReady(void);
+void CL_SetCameraPosition(VECTOR2 position);
 
 void CL_InputModeInit(void);
 void CL_InputModeSetGameplay(void);
@@ -19,7 +20,9 @@ void CL_InputModeFrame(void);
 /* Minimap click-to-move-camera. Returns true if the click was on the minimap
  * (and the camera was recentered). No-op / false outside RTS input mode. */
 BOOL CL_TryMinimapClick(float x, float y);
+void CL_UpdateMinimapDrag(float x, float y);
 void CL_EndMinimapDrag(void);
+BOOL CL_MinimapKeyEvent(int key, BOOL repeat);
 
 /* In-game keyboard handling (control groups). Returns true if consumed. */
 BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat);

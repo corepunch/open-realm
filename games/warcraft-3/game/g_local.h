@@ -8,7 +8,6 @@
 #include "common/common.h"
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
-#include "../common/alerts.h"
 #include "server/game.h"
 #include "g_shared.h"
 #include "g_unitrow.h"

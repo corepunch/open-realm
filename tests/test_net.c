@@ -56,6 +56,7 @@ static VECTOR3 test_overhead_point;
 static RECT test_status_rect;
 static DWORD test_status_draws;
 static PATHSTR test_model_load_paths[4];
+
 static LPMODEL capture_load_model(LPCSTR filename) {
     DWORD slot = test_model_loads;
     if (slot < sizeof(test_model_load_paths) / sizeof(test_model_load_paths[0]))
@@ -1785,6 +1786,51 @@ TEST(net, entity_delta_preserves_entity_event) {
     T_EQ(number, 9);
     T_EQ(out.event, EV_MOVE);
     T_EQ(out.sound, 37);
+}
+
+/* Minimap attention markers use a dedicated packet and optional recent-history flag. */
+TEST(net, minimap_ping_packet_reaches_generic_client_state) {
+    BYTE buf[64];
+    sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init(); CL_ClearMinimap(); cl.time = 1000;
+    MSG_WriteByte(&msg, svc_minimap_ping);
+    MSG_WriteFloat(&msg, 123.5f); MSG_WriteFloat(&msg, -44.25f); MSG_WriteFloat(&msg, 2.5f);
+    MSG_WriteByte(&msg, 10); MSG_WriteByte(&msg, 20); MSG_WriteByte(&msg, 30); MSG_WriteByte(&msg, 255);
+    MSG_WriteByte(&msg, MINIMAP_PING_REMEMBER); MSG_WriteShort(&msg, 37);
+    msg.readcount = 0; CL_ParseServerMessage(&msg);
+
+    T_EQ(CL_MinimapPingCount(), 1);
+    T_EQ(CL_MinimapRecentCount(), 1);
+}
+
+/* A truncated marker cannot create partial presentation or history state. */
+TEST(net, minimap_ping_packet_rejects_truncated_payload) {
+    BYTE buf[16];
+    sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init(); CL_ClearMinimap();
+    MSG_WriteByte(&msg, svc_minimap_ping); MSG_WriteFloat(&msg, 1.0f);
+    msg.readcount = 0; CL_ParseServerMessage(&msg);
+
+    T_EQ(CL_MinimapPingCount(), 0);
+    T_EQ(CL_MinimapRecentCount(), 0);
+}
+
+/* Non-finite coordinates and clock-overflowing lifetimes cannot enter client state. */
+TEST(net, minimap_ping_packet_rejects_invalid_values) {
+    BYTE buf[64];
+    sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init(); CL_ClearMinimap();
+    MSG_WriteByte(&msg, svc_minimap_ping);
+    MSG_WriteFloat(&msg, NAN); MSG_WriteFloat(&msg, 1.0f); MSG_WriteFloat(&msg, MINIMAP_PING_DURATION_MAX + 1.0f);
+    MSG_WriteByte(&msg, 255); MSG_WriteByte(&msg, 255); MSG_WriteByte(&msg, 255); MSG_WriteByte(&msg, 255);
+    MSG_WriteByte(&msg, MINIMAP_PING_REMEMBER); MSG_WriteShort(&msg, 0);
+    msg.readcount = 0; CL_ParseServerMessage(&msg);
+
+    T_EQ(CL_MinimapPingCount(), 0);
+    T_EQ(CL_MinimapRecentCount(), 0);
 }
 
 static void net_install_single_layout_frame(DWORD layer, FRAMETYPE type,

@@ -16,7 +16,6 @@
 #include "common/stb_fdf.h"
 #include "client/ui.h"
 #include "games/warcraft-3/common/mapinfo.h"
-#include "games/warcraft-3/common/alerts.h"
 
 /* Forward declarations */
 typedef struct uiScreen_s uiScreen_t;  /* Defined in ui_screen.h */
@@ -31,11 +30,6 @@ void UI_InitLocal(void);
 void UI_SetActive(BOOL active);
 void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD time);
-/* ui_alerts.c */
-void UI_AlertsClear(void);
-void UI_AlertsGameCommand(LPCSTR command, void const *data, DWORD size);
-DWORD UI_AlertsGameplayKeyEvent(int key, DWORD modifiers, BOOL repeat, LPVECTOR2 camera_position);
-void UI_AlertsDraw(void);
 
 /* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
 static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
@@ -67,7 +61,6 @@ void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
 void UI_MenuCommandLocal(LPCSTR command);
-DWORD UI_GetTime(void);
 LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y);
 void UI_TogglePopup(LPCFRAMEDEF frame);
 void UI_SliderBeginDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y);

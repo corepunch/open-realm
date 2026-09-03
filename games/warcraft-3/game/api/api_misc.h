@@ -1257,11 +1257,11 @@ DWORD PingMinimapEx(LPJASS j) {
     if (duration <= 0.0f) return 0;
     if (currentplayer) {
         G_SendMinimapPing(PLAYER_CLIENT(currentplayer), &position, duration, color,
-                          extraEffects ? WC3_MINIMAP_PING_EXTRA_EFFECTS : 0);
+                          extraEffects ? MINIMAP_PING_EXTRA_EFFECTS : 0);
     } else {
         FOR_LOOP(i, game.max_clients)
             G_SendMinimapPing(&game.clients[i], &position, duration, color,
-                              extraEffects ? WC3_MINIMAP_PING_EXTRA_EFFECTS : 0);
+                              extraEffects ? MINIMAP_PING_EXTRA_EFFECTS : 0);
     }
     return 0;
 }

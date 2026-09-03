@@ -204,12 +204,6 @@ static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
         captured_realm_panel_sprites++;
 }
 
-static bool test_world_to_minimap(LPCVECTOR2 world, LPVECTOR2 outScreen) {
-    if (!world || !outScreen) return false;
-    *outScreen = *world;
-    return true;
-}
-
 static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
     (void)draw_backdrop;
     captured_draw_calls++;
@@ -220,12 +214,6 @@ static size2_t test_get_window_size(void) {
 }
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
-
-static DWORD test_ui_clock;
-
-static DWORD test_get_time(void) {
-    return test_ui_clock;
-}
 
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
@@ -238,7 +226,6 @@ static LPRENDERER test_get_renderer(void) {
         .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
-        .WorldToMinimap = test_world_to_minimap,
         .GetTextSize = test_get_text_size,
     };
     return &renderer;
@@ -2329,108 +2316,4 @@ TEST(ui_fdf, loading_rows_support_roc_and_tft_schema) {
         T_EQ(UI_ParseLoadingRow(cases[i].row, &seq, model), cases[i].valid);
         if (cases[i].valid) { T_STREQ(model, cases[i].model); T_EQ(seq, cases[i].seq); }
     }
-}
-
-TEST(ui_fdf, recent_alert_history_keeps_latest_eight_and_cycles_newest_first) {
-    uiImport_t saved = uiimport;
-    wc3MinimapPing_t ping = { .duration = 1.0f, .flags = WC3_MINIMAP_PING_REMEMBER };
-    VECTOR2 camera;
-
-    uiimport.GetRenderer = NULL;
-    UI_AlertsClear();
-    for (DWORD i = 1; i <= 9; i++) {
-        ping.position = MAKE(VECTOR2, (FLOAT)i, (FLOAT)(i * 10));
-        UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
-    }
-
-    for (DWORD expected = 9; expected >= 2; expected--) {
-        DWORD result = UI_AlertsGameplayKeyEvent(' ', 0, false, &camera);
-        T_ASSERT(result & UI_GAMEKEY_HANDLED);
-        T_ASSERT(result & UI_GAMEKEY_CAMERA_POSITION);
-        T_FEQ(camera.x, (FLOAT)expected, 0.001f);
-        T_FEQ(camera.y, (FLOAT)(expected * 10), 0.001f);
-    }
-    T_ASSERT(UI_AlertsGameplayKeyEvent(' ', 0, false, &camera) & UI_GAMEKEY_CAMERA_POSITION);
-    T_FEQ(camera.x, 9.0f, 0.001f);
-    UI_AlertsClear();
-    uiimport = saved;
-}
-
-TEST(ui_fdf, recent_alert_new_entry_resets_spacebar_traversal) {
-    uiImport_t saved = uiimport;
-    wc3MinimapPing_t ping = { .duration = 1.0f, .flags = WC3_MINIMAP_PING_REMEMBER };
-    VECTOR2 camera;
-
-    uiimport.GetRenderer = NULL;
-    UI_AlertsClear();
-    ping.position = MAKE(VECTOR2, 1, 1);
-    UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
-    ping.position = MAKE(VECTOR2, 2, 2);
-    UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
-    UI_AlertsGameplayKeyEvent(' ', 0, false, &camera);
-    T_FEQ(camera.x, 2.0f, 0.001f);
-    T_ASSERT(UI_AlertsGameplayKeyEvent(' ', 0, true, &camera) & UI_GAMEKEY_HANDLED);
-    UI_AlertsGameplayKeyEvent(' ', 0, false, &camera);
-    T_FEQ(camera.x, 1.0f, 0.001f);
-
-    ping.position = MAKE(VECTOR2, 3, 3);
-    UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
-    UI_AlertsGameplayKeyEvent(' ', 0, false, &camera);
-    T_FEQ(camera.x, 3.0f, 0.001f);
-    UI_AlertsClear();
-    uiimport = saved;
-}
-
-TEST(ui_fdf, minimap_ping_expires_on_active_gameplay_client_clock) {
-    uiImport_t saved = uiimport;
-    wc3MinimapPing_t ping = {
-        .position = { 25.0f, 30.0f },
-        .duration = 0.1f,
-    };
-
-    UI_AlertsClear();
-    captured_stand_sprites = 0;
-    test_ui_clock = 1000;
-    uiimport.GetTime = test_get_time;
-    uiimport.GetRenderer = test_get_renderer;
-
-    UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
-    UI_AlertsDraw();
-    T_EQ(captured_stand_sprites, 1);
-
-    test_ui_clock = 1099;
-    UI_AlertsDraw();
-    T_EQ(captured_stand_sprites, 2);
-
-    test_ui_clock = 1100;
-    UI_AlertsDraw();
-    T_EQ(captured_stand_sprites, 2);
-
-    test_ui_clock = 1200;
-    UI_AlertsDraw();
-    T_EQ(captured_stand_sprites, 2);
-
-    UI_AlertsClear();
-    uiimport = saved;
-}
-
-TEST(ui_fdf, spacebar_without_alert_history_requests_authoritative_quick_position) {
-    uiImport_t saved = uiimport;
-    wc3MinimapPing_t ping = { .duration = 1.0f };
-    VECTOR2 camera = { 0 };
-    DWORD result;
-
-    captured_command[0] = '\0';
-    uiimport.GetRenderer = NULL;
-    uiimport.ServerCommand = test_cmd_execute_text;
-    UI_AlertsClear();
-    ping.position = MAKE(VECTOR2, 55, 66);
-    UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
-    result = UI_AlertsGameplayKeyEvent(' ', 0, false, &camera);
-    T_ASSERT(result & UI_GAMEKEY_HANDLED);
-    T_ASSERT(!(result & UI_GAMEKEY_CAMERA_POSITION));
-    T_STREQ(captured_command, "quickcamera");
-    T_EQ(UI_AlertsGameplayKeyEvent('A', 0, false, &camera), 0);
-    UI_AlertsClear();
-    uiimport = saved;
 }

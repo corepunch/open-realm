@@ -6,21 +6,23 @@ Warcraft III location-bearing notifications are local presentation layered over 
 
 ```text
 simulation event / JASS native
-    -> game-owned reliable GameCommand payload
-    -> WC3 UI alert state
+    -> game calls generic gi.MinimapPing
+    -> reliable svc_minimap_ping packet
+    -> client/cl_minimap.c
        -> temporary minimap indicator
        -> eight-entry recent-alert history
-    -> gameplay Space key asks the UI for a camera target
-    -> generic RTS client applies the normal camera-position path
+       -> Space recall through the normal camera-position path
 ```
 
 The server does not move the camera when an alert is emitted, and a ping does not change fog or selection. Recent-alert state is client-local and is not added to `playerState_t`/`entityState_t`.
 
-The game/UI wire payload is `wc3MinimapPing_t` in `games/warcraft-3/common/alerts.h`. It is deliberately game-local; `client/cl_parse.c` treats `svc_game_command` data as opaque and forwards it through `ui.GameCommand`.
+The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, RGBA color, behavior flags, and an optional registered model index. `server/sv_minimap.c` encodes it and `client/cl_minimap.c` owns parsing, expiry, drawing, click/drag projection, recent history, and Space recall. No minimap state belongs to a game UI library.
+
+Ordinary minimap unit dots are not pings. They are derived every frame from replicated entities by each game's renderer. A ping is a transient attention event, analogous to `svc_sound`, and therefore does not widen `entityState_t` or survive save/load.
 
 ## Producers
 
-`G_SendMinimapPing()` in `game/g_sound.c` resolves `MinimapIndicator` from the recipient's active `war3skins.txt` section, falling back to `UI\\Minimap\\Minimap-Ping.mdl`, then sends `minimap_ping` to only that player's entity.
+`G_SendMinimapPing()` in `game/g_minimap.c` resolves `MinimapIndicator` from the recipient's active `war3skins.txt` section, registers it through `gi.ModelIndex`, and passes the resulting optional model index to `gi.MinimapPing`. A zero model index is valid for games that want the generic colored client marker.
 
 The following high-confidence gameplay completions also call `G_SendOwnerMinimapAlert()` and therefore enter recent-alert history:
 
@@ -36,9 +38,9 @@ Under-attack/town/allied alert production is not implemented yet. Its throttling
 
 ## JASS Minimap Pings
 
-`PingMinimap(x, y, duration)` now sends `minimap_ping` through the same renderer path but does **not** add an automatic recent-alert entry. In a `GetLocalPlayer()` context OpenRealm targets that represented player; with no local-player context it sends the presentation to all connected game clients, matching a native invoked on every retail client.
+`PingMinimap(x, y, duration)` sends the generic packet but does **not** add an automatic recent-alert entry. In a `GetLocalPlayer()` context OpenRealm targets that represented player; with no local-player context it sends the presentation to all connected game clients, matching a native invoked on every retail client.
 
-`PingMinimapEx(x, y, duration, red, green, blue, extraEffects)` is registered and transports the clamped RGB values and `extraEffects` flag in `wc3MinimapPing_t`. The current generic sprite export has no tint/extra-effects parameter, so the WC3 overlay presently draws the configured authored model without applying those extended visual parameters. Keep the payload fields: they preserve the JASS contract for a later renderer extension without another wire-format redesign.
+`PingMinimapEx(x, y, duration, red, green, blue, extraEffects)` transports clamped RGB values and `MINIMAP_PING_EXTRA_EFFECTS`. The generic marker uses the color and adds an outer pulse for extra effects. An authored model draws its own materials and animation, so packet tint does not override that model.
 
 ## Minimap Projection And Drawing
 
@@ -46,17 +48,15 @@ Under-attack/town/allied alert production is not implemented yet. Its throttling
 
 For rectangular Warcraft maps, world-space minimap content must **not** be stretched across the whole square HUD frame. Warsmash computes a centred `minimapFilledArea` using `max(worldWidth, worldHeight)`: the authored minimap texture still fills the complete frame, while fog, units, camera geometry, clicks, and alert pings use the aspect-preserving content rectangle. OpenRealm mirrors that contract through `WC3_MinimapContentRect()` and stores that rectangle in `tr.minimapRect` after WC3 draws the minimap. Without this inset, the alert's world coordinate is correct (so Spacebar recall is correct) but its visual ping is displaced relative to the authored map/fog on non-square maps.
 
-`games/warcraft-3/ui/ui_alerts.c` stores up to 16 simultaneously active visual pings. Sixteen is an OpenRealm implementation cap, not a retail Warcraft constant. When all slots are occupied, the oldest active visual ping is replaced.
+`client/cl_minimap.c` stores up to 16 simultaneously active visual pings. Sixteen is an OpenRealm implementation cap, not a retail Warcraft constant. When all slots are occupied, the oldest active visual ping is replaced. Lifetime uses the normal advancing `cl.time` clock.
 
-Ping lifetime uses `UI_GetTime()` backed by the client clock exposed through `uiImport_t.GetTime`, not the menu/glue `ui.Refresh()` timestamp. During normal `ca_active` gameplay `ui.Refresh()` is not called every frame, so using only `ui_state.time` would freeze the elapsed-time calculation and leave minimap indicators active indefinitely.
-
-The WC3 UI draws pings through `ui.DrawGameOverlay` after the server-authored HUD. This is an intentional in-game `ui.dll` exception: `svc_layout` cannot express a transient authored MDX whose screen point is derived from client-local world-to-minimap projection. Keep this exception isolated to the alert overlay; do not move WC3 asset names or alert semantics into the shared HUD/client.
+`FT_MINIMAP` invokes `CL_LayoutDrawMinimap()`, which first asks the game renderer to draw terrain, fog, entities, and camera bounds, then draws active attention markers. A nonzero model index uses the registered authored model. Model zero, or an unavailable model after a logged warning, uses the generic colored cross/pulse.
 
 `MDLX_DrawSpriteTinted()` temporarily replaces `tr.viewDef`. Because minimap pings are drawn after the world, it must restore the previous `tr.viewDef` after its sprite pass; otherwise a post-world sprite can corrupt renderer state expected by subsequent HUD/overlay work.
 
 ## Recent Alert History And Space
 
-The client-local WC3 UI keeps the latest `WC3_RECENT_ALERT_COUNT == 8` remembered alert positions. New entries are inserted newest-first and evict the oldest when full.
+The generic minimap client keeps the latest eight positions from packets carrying `MINIMAP_PING_REMEMBER`. New entries are inserted newest-first and evict the oldest when full.
 
 Space behaviour is:
 
@@ -70,31 +70,24 @@ Space -> C  (wrap)
 
 If a new alert arrives during traversal, the cursor resets so the next Space goes to that newest alert. SDL key-repeat is consumed without advancing the cursor, so holding Space does not race through the history.
 
-The game-specific UI handles Space through the generic `ui.GameplayKeyEvent` hook. It returns `UI_GAMEKEY_CAMERA_POSITION` with a world coordinate; `client/cl_input_w3.c` applies that coordinate through its existing `CL_SetCameraPosition()` path, preserving local prediction, camera-bounds clamping, and the normal `clc_camera_position` server update. The UI does not select the source unit and does not retain a live entity pointer; stored X/Y remains valid if the source later dies or is removed.
+`CL_MinimapKeyEvent()` consumes Space only while recent history exists, then calls `CL_SetCameraPosition()`, preserving local prediction, replicated camera-bounds clamping, and the normal `clc_camera_position` server update. It stores coordinates rather than entity pointers, so a source may die or be removed without invalidating history.
 
 ## `SetCameraQuickPosition`
 
 `SetCameraQuickPosition` remains non-moving server-side state in `game/api/api_camera.h`. It records `client->camera.quick_position` and does not move the current camera.
 
-If the automatic eight-entry alert history is empty, the WC3 UI sends the game-owned `quickcamera` client command. `CMD_QuickCamera` reads the authoritative server-side quick position and applies it through `G_ClientSetCameraPosition()`. Automatic alert history takes priority while it contains entries. This precedence is a conservative OpenRealm policy; the exact retail interaction between explicit `SetCameraQuickPosition` calls and the built-in transmission history has not been established and should be compatibility-tested before changing it.
+When recent history is empty, the minimap handler leaves Space unconsumed. WC3's normal `SPACE "cmd quickcamera"` binding then invokes `CMD_QuickCamera`, which reads the authoritative server-side quick position and applies it through `G_ClientSetCameraPosition()`. Automatic alert history therefore retains priority without a game-specific branch in client code.
 
-`CL_ClearState()` calls the generic `ui.ClearGameState` callback. WC3 uses it to clear active pings, history, and traversal state across disconnect/map-state resets; scripted quick-position state remains server-owned.
+`CL_ClearState()` calls `CL_ClearMinimap()` directly to clear active pings, history, and dragging across disconnect/map resets; scripted quick-position state remains server-owned.
 
 ## Engine Boundary
 
-Shared additions are intentionally content-neutral:
-
-- `ui.GameplayKeyEvent` returns generic handled/camera-target flags.
-- `ui.ClearGameState` clears game-owned transient client state.
-- `refExport_t.WorldToMinimap` projects a world point through the renderer's current minimap.
-
-Warcraft-specific payloads, command names, history limits, asset fallbacks, and alert semantics remain under `games/warcraft-3/`.
+Shared additions are intentionally content-neutral: `game_import.MinimapPing` sends `svc_minimap_ping`, `CL_ParseMinimapPing` owns transient state, and `refExport_t.WorldToMinimap` projects a world point through the renderer's current minimap. Warcraft-specific producers, skin lookup, and alert policy remain under `games/warcraft-3/`.
 
 ## Known Gaps
 
 - under-attack, town-under-attack and allied alert producers/throttling;
 - hero-revive and building-morph completion alert policy;
-- `PingMinimapEx` RGB tint and `extraEffects` visual treatment;
 - verified retail timing/animation choice and ping-relative MDX animation phase for automatic completion pings;
 - exact retail precedence between automatic transmission history and `SetCameraQuickPosition`.
 
@@ -102,7 +95,7 @@ Do not fill these gaps by guessing constants or emitting damage alerts every hit
 
 ## Verification
 
-Automated UI coverage in `games/warcraft-3/tests/test_ui_fdf.c` checks the eight-entry eviction/cycle order, reset-on-new-alert behaviour, that plain scripted pings do not enter recent-alert history, and scripted quick-position fallback. `games/warcraft-3/game/tests/t_game.c` covers the owner-targeted `minimap_ping` game-command payload and the disconnected-client inverse path. The task that introduced this document intentionally did not compile or run tests at the requester's direction.
+`tests/test_net.c` covers valid and truncated `svc_minimap_ping` packets. `games/warcraft-3/game/tests/t_game.c` covers owner targeting, duration/color/flags, optional model registration, and the disconnected-client inverse path.
 
 Recommended runtime checks when testing manually:
 

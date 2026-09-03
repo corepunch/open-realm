@@ -7,10 +7,10 @@ OpenWarcraft3 uses a client-side UI library with a clear split between **menu/gl
 The UI library communicates with the client through two vtables:
 
 **`uiImport_t`** (`client/ui.h`) — services the client provides to the UI library:
-`.FS_ReadFile`, `.MemAlloc`, `.Cmd_ExecuteText`, `.GetTime`, `.GetPlayerState`, renderer/sound access, font/texture indexing. `.GetTime` exposes the advancing client clock to game UI code that must expire transient presentation even when menu/glue `ui.Refresh()` is not running during active gameplay.
+`.FS_ReadFile`, `.MemAlloc`, `.Cmd_ExecuteText`, `.GetPlayerState`, renderer/sound access, and font/texture indexing.
 
 **`uiExport_t`** — functions the UI library exposes to the client:
-`.Init`, `.Shutdown`, `.Refresh`, `.KeyEvent`, `.TextInput`, `.MouseEvent`, `.UpdateUnitUI`, `.UpdateLobbySetup`, plus optional game-owned hooks such as `.GameCommand`, `.GameplayKeyEvent`, `.ClearGameState`, and `.DrawGameOverlay`. `GameplayKeyEvent` remains content-neutral: a UI module may consume a gameplay key and optionally return a world-space camera target; franchise-specific meanings stay inside `games/<game>/`.
+`.Init`, `.Shutdown`, `.Refresh`, `.KeyEvent`, `.TextInput`, `.MouseEvent`, `.UpdateUnitUI`, `.UpdateLobbySetup`, plus optional game-owned hooks such as `.GameCommand` and `.DrawGameOverlay`. Generic gameplay systems such as minimap input and transient markers stay in `client/`, not in the menu UI module.
 
 The client creates both at startup in `CL_Init`:
 

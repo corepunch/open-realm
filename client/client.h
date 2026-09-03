@@ -129,9 +129,7 @@ void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 BOOL CL_AltModifierDown(void);
-#ifdef WC3
 VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
-#endif
 
 void V_RenderView(void);
 void V_Shutdown(void);
@@ -182,6 +180,13 @@ LPCUIFRAME SCR_ClearWindow(HANDLE data);
 DWORD SCR_NumFrames(void);
 LPUIFRAME SCR_Frame(DWORD number);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
+void CL_LayoutDrawMinimap(LPCUIFRAME frame, LPCRECT screen);
+void CL_ClearMinimap(void);
+void CL_ParseMinimapPing(LPSIZEBUF msg);
+#ifdef BZ_TESTS
+DWORD CL_MinimapPingCount(void);
+DWORD CL_MinimapRecentCount(void);
+#endif
 LPCENTITYSTATE SCR_LayoutContextEntity(void);
 BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value);
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root);

@@ -62,6 +62,7 @@ static void mock_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
 
 void V_RenderView(void) {}
 void CON_DrawConsole(void) {}
+BOOL CL_GameplayInputReady(void) { return false; }
 
 int Cvar_Integer(LPCSTR name, int fallback) {
     FOR_LOOP(i, MOCK_CVAR_COUNT) {
