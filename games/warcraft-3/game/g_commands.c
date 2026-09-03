@@ -657,9 +657,12 @@ CLIENTCOMMAND(Inventory) {
         }
     }
 
-    Get_Portrait_f(clent);
-    if (!handled) {
-        Get_Commands_f(clent);
+    /* HUD serialization is only valid after ClientBegin; disconnected slots retain authoritative state only. */
+    if (client->connected) {
+        Get_Portrait_f(clent);
+        if (!handled) Get_Commands_f(clent);
+    } else if (!handled) {
+        G_InvalidateCommands(client);
     }
 }
 
