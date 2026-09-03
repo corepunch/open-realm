@@ -27,7 +27,7 @@ TFT has an additional independent schema difference: ROC `LoadingScreens` rows a
 under TFT archives. Fixed ROC indices interpreted HumanX01's sequence `6` as a filename. `UI_ParseLoadingRow`
 consumes the optional numeric category and validates the sequence/model fields; malformed rows log their key.
 
-Preserve the loading-state draw check before `game_mode` dispatch: menu commands are queued asynchronously.
+Preserve the loading-state draw check before standalone-screen dispatch: `menu_ingame` is queued asynchronously, so loading must remain authoritative even after the glue screen is released.
 
 ## Asset names are data
 

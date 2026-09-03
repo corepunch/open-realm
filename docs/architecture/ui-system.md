@@ -49,11 +49,13 @@ void SCR_DrawScreenField(DWORD msec) {
 
 **Key rule**: `ui.Refresh()` draws menu/glue screens. When in `ca_active` (gameplay), `SCR_DrawLayout()` draws the in-game HUD via a completely separate path. The UI library's screens only appear when the console key (`key_menu`) is toggled (ESC menu overlay).
 
-Inside `ui.Refresh()` → `UI_RefreshLocal()`, there are three branches:
+Inside `ui.Refresh()` → `UI_RefreshLocal()`, presentation ownership has two independent signals:
 
-1. **Loading** (`playerState_t.client_ui_state == CLIENT_UI_LOADING`): Draws the loading screen. This is checked first and is **not** gated on `game_mode` — `menu_ingame` sets `game_mode` asynchronously through the command buffer, after `SCR_BeginLoadingPlaque` has already frozen the frame that would have drawn the loading screen.
-2. **Menu/glue mode** (`game_mode == false`): Calls current `uiScreen_t->draw()` — main menu, single player, options, LAN lobby, etc.
-3. **Game mode + active** (`game_mode == true` + `CLIENT_UI_GAME`): Does nothing — the in-game HUD is handled entirely by `SCR_DrawLayout()`.
+1. **Loading** (`playerState_t.client_ui_state == CLIENT_UI_LOADING`): Draws the loading screen first. This remains authoritative even if `menu_ingame` has already been queued through the command buffer.
+2. **Standalone menu/glue screen** (`UI_GetCurrentScreen() != NULL`): Calls the current `uiScreen_t->draw()` — main menu, single player, options, LAN lobby, etc.
+3. **No standalone screen** (`UI_GetCurrentScreen() == NULL`): The UI module draws no glue screen. During gameplay the in-game HUD is handled by `SCR_DrawLayout()`.
+
+`ui_current_screen` is the WC3 UI module's ownership token; do not add a parallel `game_mode` boolean. `UI_SetScreen(NULL)` is the handoff from standalone glue/menu presentation to loading/gameplay presentation.
 
 ## Screen Controllers
 
@@ -98,7 +100,7 @@ Navigation is command-driven — buttons in FDF files have `OnClick = "menu_game
 | `menu_game` | Single-player menu |
 | `menu_lan_refresh` | Refresh LAN game list |
 | `menu_startserver` | Create LAN game |
-| `menu_ingame` | Enter game mode (sets `game_mode = true`) |
+| `menu_ingame` | Release the standalone menu screen with `UI_SetScreen(NULL)` |
 
 The startup command is hardcoded: `menu_main` for Warcraft III, `menu_login` for World of Warcraft.
 
@@ -256,11 +258,14 @@ ui.MouseEvent(x, y, button, down);
 ```
 
 `UI_MouseEventLocal()`:
-1. Converts pixel coords to FDF space
-2. Hit tests all interactive frames back-to-front
-3. Updates frame flags (`UIFLAG_HOVERED`, `UIFLAG_PRESSED`)
-4. Dispatches to per-frame `event_handler` (e.g., `UI_ButtonEventHandler`)
-5. Handles globals: editbox focus loss, slider drag, popup close on outside click
+1. In an initialized runtime, returns immediately when there is no current standalone screen
+2. Converts pixel coords to FDF space
+3. Hit tests all interactive frames back-to-front
+4. Updates frame flags (`UIFLAG_HOVERED`, `UIFLAG_PRESSED`)
+5. Dispatches to per-frame `event_handler` (e.g., `UI_ButtonEventHandler`)
+6. Handles globals: editbox focus loss, slider drag, popup close on outside click
+
+The no-screen guard matters because `UI_SetScreen(NULL)` stops drawing the menu but does not clear `ui_render.c`'s last layout cache. Without the ownership check, an invisible stale glue button can consume a gameplay click before `CL_WindowMouseEvent()` and `SCR_LayoutMouseEvent()` see it.
 
 Button clicks execute `UI_MenuCommandLocal(frame->OnClick)`, which routes through the registered menu command table.
 
@@ -268,7 +273,7 @@ Game-mode mouse behavior lives in per-game `cl_input_<game>.c` files. Never crea
 
 ## Loading Screen
 
-The loading screen is owned by the UI library and drawn when `playerState_t.client_ui_state == CLIENT_UI_LOADING` (regardless of `game_mode`). It:
+The loading screen is owned by the UI library and drawn when `playerState_t.client_ui_state == CLIENT_UI_LOADING`, before standalone-screen dispatch. It:
 
 1. Loads `Loading.fdf` frames
 2. Reads map info from `.w3m`/`.w3x` (title, subtitle, custom loading screen model)

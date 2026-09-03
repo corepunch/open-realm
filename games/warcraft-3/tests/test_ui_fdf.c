@@ -127,6 +127,12 @@ static int test_fs_read_file(LPCSTR file_name, void **buf) {
     return (int)size;
 }
 
+static int test_missing_fs_read(LPCSTR file_name, void **buf) {
+    (void)file_name;
+    if (buf) *buf = NULL;
+    return -1;
+}
+
 static void test_fs_free_file(void *buf) {
     free(buf);
 }
@@ -1321,6 +1327,53 @@ TEST(ui_fdf, single_line_text_auto_height_uses_fdf_font_size) {
     T_EQ(captured_text_draws, 2);
     T_FEQ(captured_text_rects[0].h, 0.013f, 0.0001f);
     T_FEQ(captured_text_rects[1].h, 0.016f, 0.0001f);
+}
+
+TEST(ui_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
+    uiImport_t saved = uiimport;
+    LPFRAMEDEF root;
+    LPFRAMEDEF button;
+
+    reset_ui_state();
+    uiimport.FS_ReadFile = test_missing_fs_read;
+    uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.Cvar_String = test_cvar_string;
+    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+
+    /* A startup map enters the initialized runtime with no standalone screen. */
+    test_map = "Maps\\Campaign\\Human02.w3m";
+    UI_InitLocal();
+
+    parse_fdf("gameplay_input_ownership.fdf",
+              "Frame \"FRAME\" \"InputOwnershipRoot\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"GLUETEXTBUTTON\" \"StaleMenuButton\" {"
+              "  Width 0.2, Height 0.1,"
+              "  SetPoint TOPLEFT, \"InputOwnershipRoot\", TOPLEFT, 0.1, -0.1,"
+              " }"
+              "}");
+
+    root = UI_FindFrame("InputOwnershipRoot");
+    button = UI_FindFrame("StaleMenuButton");
+    if (!require_not_null(root) || !require_not_null(button)) {
+        UI_ShutdownLocal();
+        test_map = "";
+        uiimport = saved;
+        return;
+    }
+    UI_SetOnClick(button, "test_stale_menu_click");
+
+    /* Simulate the retained rectangle from the last glue draw. The cache is
+     * still hit-testable internally, but gameplay must not dispatch through it. */
+    UI_DrawFrame(root);
+    T_ASSERT(UI_HitTest(0.15f, 0.15f) != NULL);
+    captured_command[0] = '\0';
+    T_ASSERT(!UI_MouseEventLocal(UI_MOUSE_UP, 188, 144, 1));
+    T_STREQ(captured_command, "");
+
+    UI_ShutdownLocal();
+    test_map = "";
+    uiimport = saved;
 }
 
 TEST(ui_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
