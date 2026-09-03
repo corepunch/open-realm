@@ -10,58 +10,41 @@
 
 #include "hud_local.h"
 #include "hud_utils.h"
-#include "../generated/cinematic_panel.h"
 
 #define WC3_MESSAGE_CHARS_PER_SECOND 6.0f
 #define WC3_MESSAGE_BASE_DURATION 5.0f
 
-static CinematicPanel_t cin;
-static FRAMEDEF msg_overlay_root, msg_overlay_text;
-static BOOL cinematic_loaded;
-static BOOL msg_overlay_loaded;
-
-void UI_ResetHudCinematic(void) {
-    memset(&cin, 0, sizeof(cin));
-    memset(&msg_overlay_root, 0, sizeof(msg_overlay_root));
-    memset(&msg_overlay_text, 0, sizeof(msg_overlay_text));
-    cinematic_loaded = false;
-    msg_overlay_loaded = false;
-}
-
-static void CinematicEnsureLoaded(void) {
-    if (cinematic_loaded) return;
-    cinematic_loaded = true;
-    CinematicPanel_Load(&cin);
+void UI_LoadHudCinematic(void) {
+    if (hud.cinematic.CinematicPanel) return;
+    CinematicPanel_Load(&hud.cinematic);
 }
 
 /* Construct the message overlay frame tree inline; no FDF needed. */
-static BOOL MessageEnsureLoaded(void) {
-    if (msg_overlay_loaded) return true;
-    msg_overlay_loaded = true;
-    UI_InitFrame(&msg_overlay_root, FT_FRAME);
-    snprintf(msg_overlay_root.Name, sizeof(msg_overlay_root.Name), "OpenWarcraftMessageOverlay");
-    UI_SetAllPoints(&msg_overlay_root);
-    UI_InitFrame(&msg_overlay_text, FT_TEXTAREA);
-    snprintf(msg_overlay_text.Name, sizeof(msg_overlay_text.Name), "OpenWarcraftMessageText");
-    UI_SetParent(&msg_overlay_text, &msg_overlay_root);
-    UI_SetSize(&msg_overlay_text, 0.30f, 0.145f);
-    UI_SetPoint(&msg_overlay_text, FRAMEPOINT_TOPLEFT, &msg_overlay_root, FRAMEPOINT_TOPLEFT, 0.05f, -0.30f);
-    msg_overlay_text.Font.Size = 0.010f;
-    msg_overlay_text.Font.Index = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
-    msg_overlay_text.TextArea.Inset = 0.0f;
-    return true;
+void UI_LoadHudMessage(void) {
+    if (hud.msg_text.Name[0]) return;
+    UI_InitFrame(&hud.msg_root, FT_FRAME);
+    snprintf(hud.msg_root.Name, sizeof(hud.msg_root.Name), "OpenWarcraftMessageOverlay");
+    UI_SetAllPoints(&hud.msg_root);
+    UI_InitFrame(&hud.msg_text, FT_TEXTAREA);
+    snprintf(hud.msg_text.Name, sizeof(hud.msg_text.Name), "OpenWarcraftMessageText");
+    UI_SetParent(&hud.msg_text, &hud.msg_root);
+    UI_SetSize(&hud.msg_text, 0.30f, 0.145f);
+    UI_SetPoint(&hud.msg_text, FRAMEPOINT_TOPLEFT, &hud.msg_root, FRAMEPOINT_TOPLEFT, 0.05f, -0.30f);
+    hud.msg_text.Font.Size = 0.010f;
+    hud.msg_text.Font.Index = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
+    hud.msg_text.TextArea.Inset = 0.0f;
 }
 
 /* Copy the constructed frame so one player's runtime text/position never mutates the shared template. */
 static FRAMEDEF MessageFrame(LPCVECTOR2 pos, LPCSTR message) {
-    FRAMEDEF frame = msg_overlay_text;
+    FRAMEDEF frame = hud.msg_text;
     frame.Text = (LPSTR)message;
     frame.TextLength = strlen(message);
     /* WC3 DisplayTextToPlayer standard position is center-left (y=0.30 from screen top).
      * JASS y=0 is the baseline; positive y shifts the text upward.
      * WarSmash anchors messages at FramePoint.LEFT, y=0 (screen center) regardless of JASS y. */
     if (pos && pos->x >= 0.0f && pos->x <= UI_BASE_WIDTH && pos->y >= 0.0f && pos->y <= UI_BASE_HEIGHT)
-        UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, &msg_overlay_root, FRAMEPOINT_TOPLEFT, pos->x, -(0.30f - pos->y));
+        UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, &hud.msg_root, FRAMEPOINT_TOPLEFT, pos->x, -(0.30f - pos->y));
     return frame;
 }
 
@@ -83,12 +66,12 @@ static BOOL TransmissionTalking(LPGAMECLIENT client) {
 static void WriteMessageLayer(LPEDICT ent, LPCVECTOR2 pos, LPCSTR message) {
     FRAMEDEF frame;
 
-    if (!ent || !MessageEnsureLoaded()) return;
+    if (!ent || !hud.msg_text.Name[0]) return;
     UI_WriteStart(LAYER_MESSAGE);
     if (message && *message) {
         frame = MessageFrame(pos, message);
-        UI_WriteFrame(&msg_overlay_root);
-        UI_WriteFrameWithChildren(&frame, &msg_overlay_root);
+        UI_WriteFrame(&hud.msg_root);
+        UI_WriteFrameWithChildren(&frame, &hud.msg_root);
     }
     UI_WriteEnd(ent);
 }
@@ -159,6 +142,11 @@ void UI_WriteDialoguePresentation(LPEDICT ent) {
     if (!ent || !ent->client) return;
     client = ent->client;
 
+    /* G_LoadMap normally binds both roots. Keep presentation APIs usable before
+     * map load, matching the former per-panel lazy loaders. */
+    if (!hud.cinematic.CinematicPanel) UI_LoadHudCinematic();
+    if (!hud.msg_text.Name[0]) UI_LoadHudMessage();
+
     /* svc_layout is a server->client write and is not valid until ClientBegin
      * has completed.  JASS-facing state mutations retain presentation_dirty,
      * so skipping this transport write does not discard presentation state. */
@@ -201,7 +189,11 @@ static void UI_ShowTextInternal(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT 
     LPGAMECLIENT client;
     LPCSTR resolved, message;
 
-    if (!ent || !ent->client || !MessageEnsureLoaded()) return;
+    if (!ent || !ent->client) return;
+    /* G_LoadMap eagerly binds the HUD, but JASS tests and startup callbacks can
+     * reach this API before a map exists; preserve the old lazy-init contract. */
+    if (!hud.msg_text.Name[0]) UI_LoadHudMessage();
+    if (!hud.msg_text.Name[0]) return;
     client = ent->client;
     resolved = UI_LevelStringSafe(text);
     message = UI_FormatMessageText(resolved);
@@ -251,7 +243,12 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     client = ent->client;
     ps = &client->ps;
 
-    CinematicEnsureLoaded();
+    if (!hud.cinematic.CinematicPanel) {
+        /* A pre-map presentation has no authored cinematic root; clear the
+         * client layer so the state transition still reaches the network. */
+        UI_ClearLayer(ent, LAYER_CINEMATIC);
+        return;
+    }
 
     BOOL has_portrait = ps->cinematic_portrait != 0;
     BOOL has_speaker = ps->texts[PLAYERTEXT_SPEAKER] && ps->texts[PLAYERTEXT_SPEAKER][0];
@@ -259,29 +256,29 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     BOOL has_scene = has_portrait || has_speaker || has_dialogue;
 
     /* Hide the whole scene panel only when there's nothing to show. */
-    UI_SetHidden(cin.CinematicScenePanel, !has_scene);
+    UI_SetHidden(hud.cinematic.CinematicScenePanel, !has_scene);
     /* Hide portrait sub-frames individually when there's no portrait. */
-    UI_SetHidden(cin.CinematicPortraitBackground, !has_portrait);
-    UI_SetHidden(cin.CinematicPortrait, !has_portrait);
-    UI_SetHidden(cin.CinematicPortraitCover, !has_portrait);
-    UI_SetHidden(cin.CinematicSpeakerText, !has_speaker);
-    UI_SetHidden(cin.CinematicDialogueText, !has_dialogue);
+    UI_SetHidden(hud.cinematic.CinematicPortraitBackground, !has_portrait);
+    UI_SetHidden(hud.cinematic.CinematicPortrait, !has_portrait);
+    UI_SetHidden(hud.cinematic.CinematicPortraitCover, !has_portrait);
+    UI_SetHidden(hud.cinematic.CinematicSpeakerText, !has_speaker);
+    UI_SetHidden(hud.cinematic.CinematicDialogueText, !has_dialogue);
 
     if (has_portrait) {
         /* FT_PORTRAIT serialization reads Portrait.model; Texture.Image left the transmitted model at zero. */
-        UI_SetPortraitFrameModel(cin.CinematicPortrait, ps->cinematic_portrait);
-        cin.CinematicPortrait->Text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
+        UI_SetPortraitFrameModel(hud.cinematic.CinematicPortrait, ps->cinematic_portrait);
+        hud.cinematic.CinematicPortrait->Text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
     }
 
     if (has_speaker) {
-        UI_SetText(cin.CinematicSpeakerText, "%s", ps->texts[PLAYERTEXT_SPEAKER]);
-        cin.CinematicSpeakerText->Font.Color = MAKE(COLOR32, 252, 211, 18, 255);
+        UI_SetText(hud.cinematic.CinematicSpeakerText, "%s", ps->texts[PLAYERTEXT_SPEAKER]);
+        hud.cinematic.CinematicSpeakerText->Font.Color = MAKE(COLOR32, 252, 211, 18, 255);
     }
 
     if (has_dialogue) {
-        cin.CinematicDialogueText->Stat = MAX_STATS + PLAYERTEXT_DIALOGUE;
-        cin.CinematicDialogueText->Font.Color = COLOR32_WHITE;
+        hud.cinematic.CinematicDialogueText->Stat = MAX_STATS + PLAYERTEXT_DIALOGUE;
+        hud.cinematic.CinematicDialogueText->Font.Color = COLOR32_WHITE;
     }
 
-    UI_WriteLayout(ent, cin.CinematicPanel, LAYER_CINEMATIC);
+    UI_WriteLayout(ent, hud.cinematic.CinematicPanel, LAYER_CINEMATIC);
 }

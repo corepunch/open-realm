@@ -572,17 +572,17 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     LPFRAMEDEF list, item_list, button, title, item_title;
 
     UI_ClearTemplates();
-    quest_row_template = UI_Spawn(FT_FRAME, NULL);
-    snprintf(quest_row_template->Name, sizeof(quest_row_template->Name), "QuestListItem");
-    UI_SetSize(quest_row_template, 0.08f, 0.033f);
-    button = UI_Spawn(FT_GLUEBUTTON, quest_row_template);
+    hud.quest_row = UI_Spawn(FT_FRAME, NULL);
+    snprintf(hud.quest_row->Name, sizeof(hud.quest_row->Name), "QuestListItem");
+    UI_SetSize(hud.quest_row, 0.08f, 0.033f);
+    button = UI_Spawn(FT_GLUEBUTTON, hud.quest_row);
     snprintf(button->Name, sizeof(button->Name), "QuestListItemButton");
-    title = UI_Spawn(FT_TEXT, quest_row_template);
+    title = UI_Spawn(FT_TEXT, hud.quest_row);
     snprintf(title->Name, sizeof(title->Name), "QuestListItemTitle");
-    quest_item_template = UI_Spawn(FT_FRAME, NULL);
-    snprintf(quest_item_template->Name, sizeof(quest_item_template->Name), "QuestItemListItem");
-    UI_SetSize(quest_item_template, 0.15f, 0.012f);
-    item_title = UI_Spawn(FT_TEXT, quest_item_template);
+    hud.quest_item = UI_Spawn(FT_FRAME, NULL);
+    snprintf(hud.quest_item->Name, sizeof(hud.quest_item->Name), "QuestItemListItem");
+    UI_SetSize(hud.quest_item, 0.15f, 0.012f);
+    item_title = UI_Spawn(FT_TEXT, hud.quest_item);
     snprintf(item_title->Name, sizeof(item_title->Name), "QuestItemListItemTitle");
     list = UI_Spawn(FT_FRAME, NULL);
     item_list = UI_Spawn(FT_FRAME, NULL);
@@ -609,9 +609,8 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     T_ASSERT(UI_FindChildFrame(list, "QuestListItemTitle") == title);
 
     level.quests = NULL;
-    quest_row_template = quest_item_template = NULL;
-    quests_loaded = false;
-    memset(&qd, 0, sizeof(qd));
+    hud.quest_row = hud.quest_item = NULL;
+    memset(&hud.quest, 0, sizeof(hud.quest));
     UI_ClearTemplates();
 }
 
@@ -622,14 +621,14 @@ TEST(wc3_game, hud_quest_rows_show_undiscovered_and_completed_state) {
 
     done.next = &hidden;
     UI_ClearTemplates();
-    quest_row_template = UI_Spawn(FT_FRAME, NULL);
-    UI_SetSize(quest_row_template, 0.08f, 0.033f);
-    button = UI_Spawn(FT_GLUEBUTTON, quest_row_template);
+    hud.quest_row = UI_Spawn(FT_FRAME, NULL);
+    UI_SetSize(hud.quest_row, 0.08f, 0.033f);
+    button = UI_Spawn(FT_GLUEBUTTON, hud.quest_row);
     snprintf(button->Name, sizeof(button->Name), "QuestListItemButton");
-    title = UI_Spawn(FT_TEXT, quest_row_template);
+    title = UI_Spawn(FT_TEXT, hud.quest_row);
     snprintf(title->Name, sizeof(title->Name), "QuestListItemTitle");
     title->Font.DisabledColor = MAKE(COLOR32, 64, 80, 96, 160);
-    complete = UI_Spawn(FT_TEXT, quest_row_template);
+    complete = UI_Spawn(FT_TEXT, hud.quest_row);
     snprintf(complete->Name, sizeof(complete->Name), "QuestListItemComplete");
     optional = UI_Spawn(FT_FRAME, NULL);
     UI_SetSize(list = UI_Spawn(FT_FRAME, NULL), 0.21f, 0.11f);
@@ -647,20 +646,21 @@ TEST(wc3_game, hud_quest_rows_show_undiscovered_and_completed_state) {
     T_STREQ(title->Text, "UNDISCOVERED_QUEST");
 
     level.quests = NULL;
-    quest_row_template = quest_item_template = NULL;
-    quests_loaded = false;
-    memset(&qd, 0, sizeof(qd));
+    hud.quest_row = hud.quest_item = NULL;
+    memset(&hud.quest, 0, sizeof(hud.quest));
     UI_ClearTemplates();
 }
 
 TEST(wc3_game, hud_message_overlay_loads_authored_geometry) {
-    msg_overlay_loaded = false;
-    T_ASSERT(MessageEnsureLoaded());
-    T_FEQ(msg_overlay_text.Width, 0.30f, 0.001f);
-    T_FEQ(msg_overlay_text.Height, 0.145f, 0.001f);
-    T_FEQ(msg_overlay_text.Font.Size, 0.010f, 0.001f);
-    T_FEQ(msg_overlay_text.Points.x[FPP_MIN].offset, 0.05f, 0.001f);
-    T_FEQ(msg_overlay_text.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
+    memset(&hud.msg_root, 0, sizeof(hud.msg_root));
+    memset(&hud.msg_text, 0, sizeof(hud.msg_text));
+    UI_LoadHudMessage();
+    T_ASSERT(hud.msg_text.Name[0]);
+    T_FEQ(hud.msg_text.Width, 0.30f, 0.001f);
+    T_FEQ(hud.msg_text.Height, 0.145f, 0.001f);
+    T_FEQ(hud.msg_text.Font.Size, 0.010f, 0.001f);
+    T_FEQ(hud.msg_text.Points.x[FPP_MIN].offset, 0.05f, 0.001f);
+    T_FEQ(hud.msg_text.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
 }
 
 TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {

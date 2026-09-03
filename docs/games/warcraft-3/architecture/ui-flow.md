@@ -242,7 +242,7 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 
 The HUD screen renders from this cache on later frames.
 
-In-game HUD chrome is server-authored `svc_layout` from `game/hud/`. Parsed FDF trees are per-level: `G_LoadMap` calls `UI_ResetHud()` because `SV_Map` wipes `CS_IMAGES` / `CS_FONTS`. See [HUD Media Lifetime](../hud-media.md).
+In-game HUD chrome is server-authored `svc_layout` from `game/hud/`. All HUD bindings live in one `hud` object. `G_LoadMap` memsets it and `UI_LoadHud()` binds every panel because `SV_Map` wipes `CS_IMAGES` / `CS_FONTS`. See [HUD Media Lifetime](../hud-media.md).
 
 ## Key Decisions
 

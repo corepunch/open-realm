@@ -257,30 +257,23 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
 
 #define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
-/* Names outlive CS_IMAGES/CS_FONTS. SV_Map zeros those tables; FRAMEDEF still
- * holds the old slot, so serialize must re-ImageIndex from this process cache. */
-static PATHSTR hud_image_keys[MAX_IMAGES];
-static PATHSTR hud_image_names[MAX_IMAGES];
-static BOOL hud_image_decorated[MAX_IMAGES];
-static PATHSTR hud_font_specs[MAX_FONTSTYLES];
-
 static void UI_RememberImage(DWORD index, LPCSTR key, LPCSTR resolved, BOOL decorate) {
     if (!index || index >= MAX_IMAGES) return;
     /* After SV_Map reuses CS_IMAGES slots, a stale FRAMEDEF still holds the old
-     * index. Keep the original name until UI_ResetHud; overwriting it with the
+     * index. Keep the original name until memset(&hud); overwriting it with the
      * new occupant is the shuffled-icon bug. */
-    if (hud_image_keys[index][0] && key && strcmp(hud_image_keys[index], key))
+    if (hud.image_key[index][0] && key && strcmp(hud.image_key[index], key))
         return;
-    snprintf(hud_image_keys[index], sizeof(hud_image_keys[index]), "%s", key ? key : "");
-    snprintf(hud_image_names[index], sizeof(hud_image_names[index]), "%s", resolved ? resolved : "");
-    hud_image_decorated[index] = decorate;
+    snprintf(hud.image_key[index], sizeof(hud.image_key[index]), "%s", key ? key : "");
+    snprintf(hud.image_name[index], sizeof(hud.image_name[index]), "%s", resolved ? resolved : "");
+    hud.image_decorated[index] = decorate;
 }
 
 BZ_HOST_HIDDEN void UI_ClearTextures(void) {
-    memset(hud_image_keys, 0, sizeof(hud_image_keys));
-    memset(hud_image_names, 0, sizeof(hud_image_names));
-    memset(hud_image_decorated, 0, sizeof(hud_image_decorated));
-    memset(hud_font_specs, 0, sizeof(hud_font_specs));
+    memset(hud.image_key, 0, sizeof(hud.image_key));
+    memset(hud.image_name, 0, sizeof(hud.image_name));
+    memset(hud.image_decorated, 0, sizeof(hud.image_decorated));
+    memset(hud.font_spec, 0, sizeof(hud.font_spec));
 }
 
 BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) {
@@ -288,7 +281,7 @@ BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) {
     if (!name || !*name || !gi.FontIndex) return 0;
     index = gi.FontIndex(name, size);
     if (index && index < MAX_FONTSTYLES)
-        snprintf(hud_font_specs[index], sizeof(hud_font_specs[index]), "%s,%u", name, (unsigned)size);
+        snprintf(hud.font_spec[index], sizeof(hud.font_spec[index]), "%s,%u", name, (unsigned)size);
     return index;
 }
 
@@ -298,8 +291,8 @@ DWORD UI_LiveFont(DWORD font) {
     DWORD size;
 
     if (!font) return 0;
-    if (font >= MAX_FONTSTYLES || !hud_font_specs[font][0] || !gi.FontIndex) return font;
-    spec = hud_font_specs[font];
+    if (font >= MAX_FONTSTYLES || !hud.font_spec[font][0] || !gi.FontIndex) return font;
+    spec = hud.font_spec[font];
     comma = strstr(spec, ",");
     if (!comma) return gi.FontIndex(spec, HUD_FONT_SIZE);
     memcpy(name, spec, (size_t)(comma - spec));
@@ -307,7 +300,7 @@ DWORD UI_LiveFont(DWORD font) {
     size = (DWORD)atoi(comma + 1);
     font = gi.FontIndex(name, size ? size : HUD_FONT_SIZE);
     if (font && font < MAX_FONTSTYLES)
-        snprintf(hud_font_specs[font], sizeof(hud_font_specs[font]), "%s", spec);
+        snprintf(hud.font_spec[font], sizeof(hud.font_spec[font]), "%s", spec);
     return font;
 }
 
@@ -317,10 +310,10 @@ DWORD UI_LiveImage(DWORD image) {
     DWORD live;
 
     if (!image) return 0;
-    if (image < MAX_IMAGES && hud_image_keys[image][0]) {
-        key = hud_image_keys[image];
-        name = hud_image_names[image];
-        decorate = hud_image_decorated[image];
+    if (image < MAX_IMAGES && hud.image_key[image][0]) {
+        key = hud.image_key[image];
+        name = hud.image_name[image];
+        decorate = hud.image_decorated[image];
     }
     if (!key || !*key) return image;
     if (!gi.ImageIndex) return image;

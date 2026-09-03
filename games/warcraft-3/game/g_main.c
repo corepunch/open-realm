@@ -44,8 +44,10 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     if (gi.ClearWorld) {
         gi.ClearWorld();
     }
-    /* SV_Map already wiped CS_IMAGES/CS_FONTS; drop HUD trees that cached those slots. */
+    /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
+     * panel once so write paths do not parse FDF on first use. */
     UI_ResetHud();
+    UI_LoadHud();
     G_SpawnEntities();
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
     G_StartScripts();
@@ -196,6 +198,7 @@ static void G_InitGame(void) {
     InitUnitData();
     InitAbilities();
     G_RegisterGlobalSounds();
+    UI_ResetHud();
     fprintf(stderr, "Game initialized.\n\n");
 }
 

@@ -18,6 +18,8 @@
 #include "hud_local.h"
 #include "hud_utils.h"
 
+hud_t hud;
+
 /* frames[] is defined in fdf_parser.c (common/) */
 
 #define MAX_FRAMES_WRITE 1024
@@ -509,18 +511,22 @@ void UI_AddCreateGameSlot(DWORD slot, LPCSTR name, LPCSTR race, LPCSTR color, DW
 #define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
 void UI_ResetHud(void) {
-    /* Parsed FDF trees cache CS_IMAGES/CS_FONTS slots. SV_Map wipes those
-     * tables; drop the trees so the next EnsureLoaded re-indexes against the
-     * new level. Isolated scene files keep their own loaded flags. */
-    UI_ResetHudConsole();
-    UI_ResetHudInfoPanel();
-    UI_ResetHudQuests();
-    UI_ResetHudLog();
-    UI_ResetHudMenu();
-    UI_ResetHudAllies();
-    UI_ResetHudGameResult();
-    UI_ResetHudCinematic();
+    memset(&hud, 0, sizeof(hud));
     UI_ClearTemplates();
+}
+
+void UI_LoadHud(void) {
+    /* Parse every in-game panel once per level, after SV_Map has a live
+     * CS_IMAGES table. Write paths then serialize hud.* without EnsureFDF. */
+    UI_LoadHudConsole();
+    UI_LoadHudInfoPanel();
+    UI_LoadHudQuests();
+    UI_LoadHudLog();
+    UI_LoadHudMenu();
+    UI_LoadHudAllies();
+    UI_LoadHudGameResult();
+    UI_LoadHudCinematic();
+    UI_LoadHudMessage();
 }
 
 /* FDF host services — game module implementations using gi */

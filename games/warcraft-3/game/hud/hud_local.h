@@ -3,11 +3,62 @@
 
 #include "../g_local.h"
 #include "common/ui_constants.h"
+#include "../generated/console_ui.h"
+#include "../generated/resource_bar.h"
+#include "../generated/upper_button_bar.h"
+#include "../generated/info_panel_unit_detail.h"
+#include "../generated/info_panel_building_detail.h"
+#include "../generated/simple_info_panel.h"
+#include "../generated/quest_dialog.h"
+#include "../generated/log_dialog.h"
+#include "../generated/esc_menu_main_panel.h"
+#include "../generated/alliance_dialog.h"
+#include "../generated/game_result_dialog.h"
+#include "../generated/cinematic_panel.h"
 
 /* HUD font sizes */
 #define HUD_FONT_SIZE 10
 #define HUD_SMALL_FONT_SIZE 8
 #define HUD_TITLE_FONT_SIZE 12
+#define WC3_MESSAGE_LOG_TEXT_SIZE \
+    (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
+
+typedef struct {
+    BOOL resolved;
+    PATHSTR texture;
+} infoPanelIconCache_t;
+
+/* Process-lifetime HUD bindings. memset(&hud, 0, sizeof(hud)) on map load. */
+typedef struct {
+    ConsoleUI_t console;
+    ResourceBar_t res;
+    UpperButtonBar_t upper;
+    UINAME upper_cmds[4];
+    InfoPanelUnitDetail_t unit;
+    InfoPanelBuildingDetail_t building;
+    SimpleInfoPanel_t simple;
+    FRAMEDEF bottom, attack1, attack2, armor, hero, food, gold;
+    FRAMEDEF buff_label, buff_icon[MAX_UNIT_STATUSES], buff_tex[MAX_UNIT_STATUSES];
+    LPFRAMEDEF attack2_icon, attack2_icon_backdrop, attack2_icon_level, attack2_icon_label, attack2_icon_value;
+    infoPanelIconCache_t icon_cache[2][8][2];
+    QuestDialog_t quest;
+    LPFRAMEDEF quest_row, quest_item;
+    LPFRAMEDEF required_rows[MAX_UI_CLASSES], optional_rows[MAX_UI_CLASSES], quest_item_rows[MAX_UI_CLASSES];
+    DWORD required_row_count, optional_row_count, quest_item_row_count;
+    LogDialog_t log;
+    char log_text[WC3_MESSAGE_LOG_TEXT_SIZE];
+    EscMenuMainPanelGame_t menu;
+    AllianceDialog_t allies;
+    GameResultDialog_t result;
+    CinematicPanel_t cinematic;
+    FRAMEDEF msg_root, msg_text;
+    PATHSTR image_key[MAX_IMAGES];
+    PATHSTR image_name[MAX_IMAGES];
+    BOOL image_decorated[MAX_IMAGES];
+    PATHSTR font_spec[MAX_FONTSTYLES];
+} hud_t;
+
+extern hud_t hud;
 
 /* Frame-write primitives (hud_write.c) */
 extern DWORD ui_next_frame_number;
@@ -41,14 +92,16 @@ void UI_CenterFrame(LPFRAMEDEF frame);
 DWORD UI_LiveImage(DWORD image);
 DWORD UI_LiveFont(DWORD font);
 void UI_ResetHud(void);
-void UI_ResetHudConsole(void);
-void UI_ResetHudInfoPanel(void);
-void UI_ResetHudQuests(void);
-void UI_ResetHudLog(void);
-void UI_ResetHudMenu(void);
-void UI_ResetHudAllies(void);
-void UI_ResetHudGameResult(void);
-void UI_ResetHudCinematic(void);
+void UI_LoadHud(void);
+void UI_LoadHudConsole(void);
+void UI_LoadHudInfoPanel(void);
+void UI_LoadHudQuests(void);
+void UI_LoadHudLog(void);
+void UI_LoadHudMenu(void);
+void UI_LoadHudAllies(void);
+void UI_LoadHudGameResult(void);
+void UI_LoadHudCinematic(void);
+void UI_LoadHudMessage(void);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 

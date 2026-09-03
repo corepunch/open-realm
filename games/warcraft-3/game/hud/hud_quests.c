@@ -8,40 +8,16 @@
 
 #include "hud_local.h"
 #include "hud_utils.h"
-#include "../generated/quest_dialog.h"
-
-static QuestDialog_t qd;
-static LPFRAMEDEF quest_row_template, quest_item_template;
-static LPFRAMEDEF required_rows[MAX_UI_CLASSES], optional_rows[MAX_UI_CLASSES];
-static LPFRAMEDEF quest_item_rows[MAX_UI_CLASSES];
-static DWORD required_row_count, optional_row_count, quest_item_row_count;
-static BOOL quests_loaded;
-
-void UI_ResetHudQuests(void) {
-    memset(&qd, 0, sizeof(qd));
-    quest_row_template = quest_item_template = NULL;
-    memset(required_rows, 0, sizeof(required_rows));
-    memset(optional_rows, 0, sizeof(optional_rows));
-    memset(quest_item_rows, 0, sizeof(quest_item_rows));
-    required_row_count = optional_row_count = quest_item_row_count = 0;
-    quests_loaded = false;
-}
 
 /* QuestDialog.fdf owns both repeated row schemas in addition to the dialog root. */
-static BOOL QuestsEnsureLoaded(void) {
-    if (quests_loaded) return qd.QuestDialog && quest_row_template && quest_item_template;
-    quests_loaded = true;
-    memset(required_rows, 0, sizeof(required_rows));
-    memset(optional_rows, 0, sizeof(optional_rows));
-    memset(quest_item_rows, 0, sizeof(quest_item_rows));
-    required_row_count = optional_row_count = quest_item_row_count = 0;
-    if (!QuestDialog_Load(&qd)) return false;
-    UI_CenterFrame(qd.QuestDialog);
-    quest_row_template = UI_FindFrame("QuestListItem");
-    quest_item_template = UI_FindFrame("QuestItemListItem");
-    if (!quest_row_template) BZ_FDF_REPORT_MISSING("QuestListItem");
-    if (!quest_item_template) BZ_FDF_REPORT_MISSING("QuestItemListItem");
-    return quest_row_template && quest_item_template;
+void UI_LoadHudQuests(void) {
+    if (hud.quest.QuestDialog) return;
+    if (!QuestDialog_Load(&hud.quest)) return;
+    UI_CenterFrame(hud.quest.QuestDialog);
+    hud.quest_row = UI_FindFrame("QuestListItem");
+    hud.quest_item = UI_FindFrame("QuestItemListItem");
+    if (!hud.quest_row) BZ_FDF_REPORT_MISSING("QuestListItem");
+    if (!hud.quest_item) BZ_FDF_REPORT_MISSING("QuestItemListItem");
 }
 
 
@@ -144,8 +120,8 @@ static void HideUnusedRows(LPFRAMEDEF *rows, DWORD count, DWORD used) {
 }
 
 static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST selected) {
-    LPFRAMEDEF *rows = required ? required_rows : optional_rows;
-    DWORD *row_count = required ? &required_row_count : &optional_row_count;
+    LPFRAMEDEF *rows = required ? hud.required_rows : hud.optional_rows;
+    DWORD *row_count = required ? &hud.required_row_count : &hud.optional_row_count;
     DWORD row = 0;
 
     if (!container) return;
@@ -161,7 +137,7 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
 
         if (!QuestIsListVisible(quest) || quest->required != required) continue;
 
-        row_frame = QuestRowAt(rows, row_count, container, row, quest_row_template);
+        row_frame = QuestRowAt(rows, row_count, container, row, hud.quest_row);
         button = row_frame ? UI_FindChildFrame(row_frame, "QuestListItemButton") : NULL;
         title = row_frame ? UI_FindChildFrame(row_frame, "QuestListItemTitle") : NULL;
         if (!row_frame) {
@@ -238,7 +214,7 @@ static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
     DWORD row = 0;
 
     if (!container || !quest) return;
-    ResetRowsForParent(quest_item_rows, &quest_item_row_count, container);
+    ResetRowsForParent(hud.quest_item_rows, &hud.quest_item_row_count, container);
     FOR_EACH_LIST(QUESTITEM, item, quest->items) {
         char text[512];
         LPFRAMEDEF item_frame, title;
@@ -247,8 +223,8 @@ static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
                  item->completed ? "- |cff80ff80" : "-",
                  UI_LevelStringSafe(item->description));
 
-        item_frame = QuestRowAt(quest_item_rows, &quest_item_row_count,
-                                container, row, quest_item_template);
+        item_frame = QuestRowAt(hud.quest_item_rows, &hud.quest_item_row_count,
+                                container, row, hud.quest_item);
         title = item_frame ? UI_FindChildFrame(item_frame, "QuestItemListItemTitle") : NULL;
         if (!item_frame) {
             fprintf(stderr, "WC3 HUD: failed to clone QuestItemListItem row %u\n", (unsigned)row);
@@ -267,7 +243,7 @@ static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
         }
         row++;
     }
-    HideUnusedRows(quest_item_rows, quest_item_row_count, row);
+    HideUnusedRows(hud.quest_item_rows, hud.quest_item_row_count, row);
 }
 
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
@@ -275,24 +251,24 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
 
     if (!ent || !ent->client || !QuestIsVisibleMember(quest)) return;
     UI_SetCurrentClient(ent->client);
-    if (!QuestsEnsureLoaded()) {
+    if (!hud.quest.QuestDialog || !hud.quest_row || !hud.quest_item) {
         UI_SetCurrentClient(NULL);
         return;
     }
 
     title = UI_LevelStringSafe(quest->title);
     description = UI_LevelStringSafe(quest->description);
-    UI_SetText(qd.QuestTitleValue, "%s", title);
-    qd.QuestTitleValue->Font.Color = MAKE(COLOR32, 252, 210, 18, 255);
-    UI_SetTextPointer(qd.QuestDisplay, description);
-    if (qd.QuestDetailsTitle)
-        UI_SetText(qd.QuestDetailsTitle, "%s", UI_GetString("QUESTDESCRIPTION"));
+    UI_SetText(hud.quest.QuestTitleValue, "%s", title);
+    hud.quest.QuestTitleValue->Font.Color = MAKE(COLOR32, 252, 210, 18, 255);
+    UI_SetTextPointer(hud.quest.QuestDisplay, description);
+    if (hud.quest.QuestDetailsTitle)
+        UI_SetText(hud.quest.QuestDetailsTitle, "%s", UI_GetString("QUESTDESCRIPTION"));
 
     subtitle = level.mapinfo ? UI_LevelStringSafe(level.mapinfo->loadingScreenTitle) : NULL;
     if (subtitle && *subtitle) {
-        UI_SetText(qd.QuestSubtitleValue, "%s", subtitle);
+        UI_SetText(hud.quest.QuestSubtitleValue, "%s", subtitle);
     } else {
-        UI_SetText(qd.QuestSubtitleValue, " ");
+        UI_SetText(hud.quest.QuestSubtitleValue, " ");
         subtitle = " ";
     }
 
@@ -302,28 +278,28 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
                    level.mapinfo ? level.mapinfo->loadingScreenTitle : NULL, subtitle);
     if (QuestDebugEnabled()) {
         QuestDebugText(UI_QuestIndex(quest), "required_heading",
-                       qd.QuestMainTitle ? qd.QuestMainTitle->Text : NULL,
-                       qd.QuestMainTitle ? qd.QuestMainTitle->Text : NULL);
+                       hud.quest.QuestMainTitle ? hud.quest.QuestMainTitle->Text : NULL,
+                       hud.quest.QuestMainTitle ? hud.quest.QuestMainTitle->Text : NULL);
         QuestDebugText(UI_QuestIndex(quest), "optional_heading",
-                       qd.QuestOptionalTitle ? qd.QuestOptionalTitle->Text : NULL,
-                       qd.QuestOptionalTitle ? qd.QuestOptionalTitle->Text : NULL);
+                       hud.quest.QuestOptionalTitle ? hud.quest.QuestOptionalTitle->Text : NULL,
+                       hud.quest.QuestOptionalTitle ? hud.quest.QuestOptionalTitle->Text : NULL);
         QuestDebugText(UI_QuestIndex(quest), "details_heading",
-                       qd.QuestDetailsTitle ? qd.QuestDetailsTitle->Text : NULL,
-                       qd.QuestDetailsTitle ? qd.QuestDetailsTitle->Text : NULL);
+                       hud.quest.QuestDetailsTitle ? hud.quest.QuestDetailsTitle->Text : NULL,
+                       hud.quest.QuestDetailsTitle ? hud.quest.QuestDetailsTitle->Text : NULL);
         QuestDebugText(UI_QuestIndex(quest), "done_button",
-                       qd.QuestAcceptButtonText ? qd.QuestAcceptButtonText->Text : NULL,
-                       qd.QuestAcceptButtonText ? qd.QuestAcceptButtonText->Text : NULL);
+                       hud.quest.QuestAcceptButtonText ? hud.quest.QuestAcceptButtonText->Text : NULL,
+                       hud.quest.QuestAcceptButtonText ? hud.quest.QuestAcceptButtonText->Text : NULL);
     }
 
     /* Done is presentation-only: let the client close this window without a round trip. */
-    UI_SetOnClick(qd.QuestAcceptButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
+    UI_SetOnClick(hud.quest.QuestAcceptButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
 
-    PopulateQuestList(qd.QuestMainContainer, true, quest);
-    PopulateQuestList(qd.QuestOptionalContainer, false, quest);
-    PopulateQuestItems(qd.QuestItemListContainer, quest);
+    PopulateQuestList(hud.quest.QuestMainContainer, true, quest);
+    PopulateQuestList(hud.quest.QuestOptionalContainer, false, quest);
+    PopulateQuestItems(hud.quest.QuestItemListContainer, quest);
 
     if (ent->client->connected)
-        UI_WriteWindow(ent, qd.QuestDialog, &MAKE(uiWindowDef_t,
+        UI_WriteWindow(ent, hud.quest.QuestDialog, &MAKE(uiWindowDef_t,
             .id = BZ_WC3_WINDOW_QUEST, .class_id = BZ_WC3_WINDOW_QUEST,
             .flags = UI_WINDOW_MOVABLE | UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
     UI_SetCurrentClient(NULL);

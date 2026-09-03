@@ -4,7 +4,7 @@
 
 HUD FDF trees may stay cached for a level. **Texture and font configstring indices must not.** Names live for the process; indices live for the level.
 
-`SV_Map` does `memset(&sv, 0, sizeof(sv))`, which empties `CS_IMAGES` and `CS_FONTS`. The game module is not unloaded, so a `static BOOL *_loaded` flag and a `FRAMEDEF.Texture.Image` slot from the previous map are still there. Serializing those slots after the wipe sends the old numbers into a new table that command-button `gi.ImageIndex(art)` fills from slot 1. `MAX_IMAGES` is 256, so chrome and command art collide. That is the save/load shuffled-icon bug.
+`SV_Map` does `memset(&sv, 0, sizeof(sv))`, which empties `CS_IMAGES` and `CS_FONTS`. The game module is not unloaded. All in-game HUD bindings live in one BSS object, `hud`. `UI_ResetHud` is `memset(&hud, 0, sizeof(hud))` plus `UI_ClearTemplates()` for the FDF `frames[]` pool. Scene files bind into `hud.console`, `hud.simple`, and so on; a NULL root means "not bound yet".
 
 Quake 2 does not parse UI files every frame. `G_SetStats` calls `gi.imageindex(item->icon)` from a **name** every frame, and `DrawPic` looks up that name. The one cached pic (`level.pic_health`) is assigned again in `SpawnEntities` after `memset(&sv)`. Same rule here.
 
@@ -12,20 +12,16 @@ Quake 2 does not parse UI files every frame. `G_SetStats` calls `gi.imageindex(i
 
 ```text
 G_LoadMap
-  -> UI_ResetHud()
-       scene *_loaded flags and binding structs
-       UI_ClearTemplates()          // frames[], StringList, HUD name tables
-  -> SpawnEntities / ImageIndex of unit art
-  -> ClientBegin
-       EnsureLoaded parses FDF once
-       UI_LoadTexture / FontIndex record name -> new CS_IMAGES/CS_FONTS slot
+  -> memset(&hud, 0, sizeof(hud))
+  -> UI_ClearTemplates()
+  -> UI_LoadHud()                   // every panel, once per level
   -> UI_Write* / UI_BuildFrameForWrite
-       UI_LiveImage / UI_LiveFont re-ImageIndex from the name table
+       UI_LiveImage / UI_LiveFont re-ImageIndex from hud.image_key[]
 ```
 
-The HUD name table is write-once per slot until `UI_ResetHud`. After a wipe, `ImageIndex` reuses slot 1; overwriting that slot's remembered chrome name with the new command-button occupant is the same collision. Stale `FRAMEDEF` indices keep their original names; `UI_LiveImage` then `ImageIndex`es a fresh slot.
+`hud.image_key[]` is write-once per slot until the next memset. After a wipe, `ImageIndex` reuses slot 1; overwriting that slot's remembered chrome name with the new command-button occupant is the same collision.
 
-Do not parse ConsoleUI.fdf on every resource-bar write. Re-parse once per map. Isolated scene files (`hud_console.c`, `hud_infopanel.c`, …) stay; only media lifetime is centralized in `UI_ResetHud`.
+Do not parse ConsoleUI.fdf on every resource-bar write. Isolated scene files stay; they share one accumulator.
 
 Glue UI (`games/warcraft-3/ui/`) is a separate `stb_fdf` instance with its own `ui_textures[]`. It is not this contract.
 
@@ -48,6 +44,6 @@ Repeat with `-tft`. Engine coverage: `make test-wc3-engine WC3_PATTERN='wc3_game
 ## Known Pitfalls
 
 - Copying `FRAMEDEF.Texture.Image` onto the wire without `UI_LiveImage` after a configstring wipe.
-- Keeping `*_loaded` true across `G_LoadMap` while `frames[]` was cleared.
+- Leaving `hud` bindings live across `G_LoadMap` while `frames[]` was cleared.
 - Treating `GetConfigstring(CS_IMAGES + old_index)` as the name of a cached frame after the slot has been reused.
 - Preserving `CS_IMAGES` across `SV_Map` as a workaround. The table is per-level.
