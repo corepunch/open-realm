@@ -25,12 +25,15 @@ static FLOAT item_stat_int_val;
 #define ID_ITEM_STAT     MAKEFOURCC('A', 'I', 'a', 'b')
 
 static void apply_attack(LPEDICT unit, FLOAT amount) {
-    unit->attack1.damageBase += amount;
-    unit->attack2.damageBase += amount;
+    unit->attack1.temporaryDamageBonus += amount;
+    unit->attack2.temporaryDamageBonus += amount;
+    G_InvalidateUnitInfoPanel(unit);
 }
 
 static void apply_defense(LPEDICT unit, FLOAT amount) {
+    unit->temporary_armor_bonus += amount;
     unit->armor_value += amount;
+    G_InvalidateUnitInfoPanel(unit);
 }
 
 static void apply_life(LPEDICT unit, FLOAT amount) {
@@ -53,9 +56,9 @@ static void apply_stat(LPEDICT unit, FLOAT str, FLOAT agi, FLOAT intel) {
     if (!G_UnitIsHero(unit)) {
         return;
     }
-    unit->hero.str += (DWORD)str;
-    unit->hero.agi += (DWORD)agi;
-    unit->hero.intel += (DWORD)intel;
+    unit->hero.str = (DWORD)MAX(0, (LONG)unit->hero.str + (LONG)str);
+    unit->hero.agi = (DWORD)MAX(0, (LONG)unit->hero.agi + (LONG)agi);
+    unit->hero.intel = (DWORD)MAX(0, (LONG)unit->hero.intel + (LONG)intel);
     G_RecomputeHeroStats(unit);
 }
 

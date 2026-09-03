@@ -72,10 +72,15 @@ void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
 
 static FLOAT ai_rolldamage1(LPEDICT self, int weapon) {
     FLOAT damageBase = self->attack1.damageBase;
+    (void)weapon;
     FOR_LOOP(i, self->attack1.numberOfDice) {
-        damageBase += rand() % self->attack1.sidesPerDie + 1;
+        /* Warsmash treats a malformed zero-sided die as contributing +1
+         * instead of taking modulo zero. Normal Warcraft data has S > 0. */
+        damageBase += self->attack1.sidesPerDie
+                    ? (FLOAT)(rand() % self->attack1.sidesPerDie + 1)
+                    : 1.0f;
     }
-    return damageBase;
+    return damageBase + self->attack1.temporaryDamageBonus;
 }
 
 void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
@@ -130,25 +135,26 @@ static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
     return true;
 }
 
-/* WC3 1.29 attack-type × defense-type damage multiplier table (verified from
- * MiscGame.txt). Rows = attack1.type (none,normal,pierce,siege,spells,chaos,
- * magic,hero); cols = defense_type (small,medium,large,fort,normal,hero,divine,
- * none). */
-static FLOAT const g_damage_table[8][8] = {
+/* Stock fallback for attack-type × defense-type values. Production games load
+ * the active table from MiscGame/war3mapMisc into game.constants; these values
+ * keep unit-level tests and early bootstrap callers deterministic. */
+static FLOAT const g_default_damage_table[8][8] = {
+    /* BZ_HARDCODED_DATA_FALLBACK: WC3 1.29 / Warsmash defaults. */
     /* small  medium large  fort   normal hero   divine none  */
     { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* none   */
-    { 1.00f, 1.50f, 1.00f, 0.70f, 1.00f, 1.00f, 1.00f, 1.00f }, /* normal */
-    { 2.00f, 0.75f, 1.00f, 0.35f, 1.00f, 0.50f, 1.00f, 1.50f }, /* pierce */
-    { 1.00f, 0.50f, 1.00f, 1.50f, 1.00f, 0.50f, 1.00f, 1.50f }, /* siege  */
-    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.70f, 1.00f, 1.00f }, /* spells */
+    { 1.00f, 1.50f, 1.00f, 0.70f, 1.00f, 1.00f, 0.05f, 1.00f }, /* normal */
+    { 2.00f, 0.75f, 1.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.50f }, /* pierce */
+    { 1.00f, 0.50f, 1.00f, 1.50f, 1.00f, 0.50f, 0.05f, 1.50f }, /* siege  */
+    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.70f, 0.05f, 1.00f }, /* spells */
     { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* chaos  */
-    { 1.25f, 0.75f, 2.00f, 0.35f, 1.00f, 0.50f, 1.00f, 1.00f }, /* magic  */
-    { 1.00f, 1.00f, 1.00f, 0.50f, 1.00f, 1.00f, 1.00f, 1.00f }, /* hero   */
+    { 1.25f, 0.75f, 2.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.00f }, /* magic  */
+    { 1.00f, 1.00f, 1.00f, 0.50f, 1.00f, 1.00f, 0.05f, 1.00f }, /* hero   */
 };
 
-/* Apply the WC3 damage formula: attack×defense type multiplier, then armor
- * reduction (0.06 coefficient).  Chaos attack bypasses the type table.
- * Result is clamped to a minimum of 1. */
+/* Apply the Warsmash/WC3 damage formula: active attack×defense multiplier,
+ * then numeric armor. Positive armor is 1/(1+K*A); negative armor uses the
+ * Warcraft exponential curve 2-(1-K)^(-A). Result remains minimum 1 for the
+ * existing OpenRealm physical-attack contract. */
 int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     if (!attacker || !target || base <= 0)
         return base;
@@ -156,13 +162,19 @@ int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     DWORD def = target->defense_type;
     if (atk >= 8) atk = 0;
     if (def >= 8) def = 7;
-    FLOAT mult = (atk == ATK_CHAOS) ? 1.0f : g_damage_table[atk][def];
+
+    FLOAT const mult = game.constants.combatConstantsLoaded
+                     ? game.constants.damageBonus[atk][def]
+                     : g_default_damage_table[atk][def];
+    FLOAT const armor_coefficient = game.constants.combatConstantsLoaded
+                                  ? game.constants.defenseArmor
+                                  : 0.06f;
     FLOAT dmg = (FLOAT)base * mult;
     FLOAT armor = G_UnitArmorValue(target);
     if (armor >= 0.0f)
-        dmg = dmg / (1.0f + armor * 0.06f);
+        dmg = dmg / (1.0f + armor * armor_coefficient);
     else
-        dmg = dmg * (2.0f - 1.0f / (1.0f - armor * 0.06f));
+        dmg = dmg * (2.0f - powf(1.0f - armor_coefficient, -armor));
     int result = (int)dmg;
     return result < 1 ? 1 : result;
 }
@@ -216,7 +228,9 @@ static void throw_missile(LPEDICT ent) {
         return;
     }
     LPEDICT other = ent->goalentity;
-    int damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
+    /* Roll at launch, but defer target armor/type mitigation until impact so
+     * armor or defense changes while the projectile is in flight are honored. */
+    int damage = (int)ai_rolldamage1(ent, 1);
     MATRIX4 matrix;
     M_GetEntityMatrix(&ent->s, &matrix);
     VECTOR3 origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
@@ -327,9 +341,15 @@ void order_attack(LPEDICT self, LPEDICT target) {
 }
 
 static FLOAT attack_speed_divisor(LPEDICT self) {
-    if (self->hero.agi > 0)
-        return 1.0f + (FLOAT)self->hero.agi * 0.02f;
-    return 1.0f;
+    FLOAT const agi_bonus = game.constants.combatConstantsLoaded
+                          ? game.constants.agiAttackSpeedBonus
+                          : 0.02f;
+    FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus;
+    /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
+     * currently has only the Agility contribution, but keeping the clamp here
+     * makes extreme/custom hero data follow the same timing bounds. */
+    total_bonus = MAX(-0.9f, MIN(4.0f, total_bonus));
+    return 1.0f + total_bonus;
 }
 
 void attack_melee_cooldown(LPEDICT self) {

@@ -103,7 +103,7 @@ static const char building_repair_slk[] =
 
 static const char building_upgrade_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X13;Y6;D0\n"
+    "B;X13;Y7;D0\n"
     "C;X1;Y1;K\"upgradeid\"\n"
     "C;X2;K\"class\"\n"
     "C;X3;K\"maxlevel\"\n"
@@ -160,6 +160,12 @@ static const char building_upgrade_slk[] =
     "C;X10;K\"rarm\"\n"
     "C;X11;K0\n"
     "C;X12;K0\n"
+    "C;X1;Y7;K\"Rhat\"\n"
+    "C;X2;K\"melee\"\n"
+    "C;X3;K3\n"
+    "C;X10;K\"ratx\"\n"
+    "C;X11;K2\n"
+    "C;X12;K1\n"
     "E\n";
 
 static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
@@ -356,6 +362,43 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
 
     G_SetPlayerTechResearched(client, weapon, 0);
     G_SetPlayerTechResearched(client, armor, 0);
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    UnitBalance_t balance = { .upgrades = "Rhat" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const attack_damage = MAKEFOURCC('R','h','a','t');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    unit->s.player = client->ps.number;
+    unit->UnitBalance = &balance;
+    unit->attack1.numberOfDice = 1;
+    unit->attack1.damageBase = 10;
+    unit->attack2.numberOfDice = 1;
+    unit->attack2.damageBase = 20;
+
+    G_SetPlayerTechResearched(client, attack_damage, 1);
+    T_EQ(unit->attack1.damageBase, 12);
+    T_EQ(unit->attack2.damageBase, 22);
+    T_FEQ(unit->attack1.permanentDamageBonus, 2.0f, 0.001f);
+    T_FEQ(unit->attack2.permanentDamageBonus, 2.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, attack_damage, 3);
+    T_EQ(unit->attack1.damageBase, 14);
+    T_EQ(unit->attack2.damageBase, 24);
+    T_FEQ(unit->attack1.permanentDamageBonus, 4.0f, 0.001f);
+    T_FEQ(unit->attack2.permanentDamageBonus, 4.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, attack_damage, 0);
+    T_EQ(unit->attack1.damageBase, 10);
+    T_EQ(unit->attack2.damageBase, 20);
+    T_FEQ(unit->attack1.permanentDamageBonus, 0.0f, 0.001f);
+    T_FEQ(unit->attack2.permanentDamageBonus, 0.0f, 0.001f);
+
     building_restore_upgrade_data(old, rows);
 }
 

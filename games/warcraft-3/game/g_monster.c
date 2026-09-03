@@ -606,8 +606,27 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.factorSmall = w->attack1.factorSmall;
     self->attack1.maxTargets = w->attack1.maxTargets;
     self->attack1.damageLoss = w->attack1.damageLossFactor;
-    /* Heroes: fold the primary-attribute attack-damage bonus into damageBase now
-     * that base attributes + attack1 are loaded (no-op for non-heroes). */
+
+    /* Keep Attack 2 runtime state parallel with Attack 1 even though order
+     * selection still uses Attack 1 today. This lets upgrades/HUD math operate
+     * on mutable runtime values instead of immutable SLK rows. */
+    self->attack2.type = FindEnumValue(w->attack2.attackType, attack_type);
+    self->attack2.weapon = FindEnumValue(w->attack2.weaponType, weapon_type);
+    self->attack2.damageBase = w->attack2.damageBase;
+    self->attack2.numberOfDice = w->attack2.damageDice;
+    self->attack2.sidesPerDie = w->attack2.damageSides;
+    self->attack2.cooldown = w->attack2.cooldown;
+    self->attack2.damagePoint = w->attack2.damagePoint;
+    self->attack2.range = w->attack2.range;
+    self->attack2.areaFull = w->attack2.areaFull;
+    self->attack2.areaMedium = w->attack2.areaMedium;
+    self->attack2.areaSmall = w->attack2.areaSmall;
+    self->attack2.factorMedium = w->attack2.factorMedium;
+    self->attack2.factorSmall = w->attack2.factorSmall;
+    self->attack2.maxTargets = w->attack2.maxTargets;
+    self->attack2.damageLoss = w->attack2.damageLossFactor;
+    /* Heroes: fold the primary-attribute attack-damage bonus into runtime
+     * attacks now that base attributes and both weapon slots are loaded. */
     G_RecomputeHeroStats(self);
     /* Completed player upgrades are persistent techtree state, not producer
      * buffs. New units inherit the owner's current levels at spawn. */

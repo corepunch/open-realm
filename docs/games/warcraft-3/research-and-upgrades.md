@@ -121,6 +121,16 @@ stats rather than only changing the integer queried by JASS/AI.
 This implementation intentionally enables only the upgrade effect codes whose
 current Warsmash behavior is sufficiently unambiguous for the stock Blacksmith:
 
+### `ratx` — flat attack damage
+
+For an affected runtime attack, each level's effect value is:
+
+```text
+base + mod * (level - 1)
+```
+
+Changing level applies only the old/new delta to `damageBase` and records the same delta in `permanentDamageBonus`. The ledger keeps the research bonus intact when Hero primary-attribute recomputation rebuilds the base attack range.
+
 ### `ratd` — attack dice
 
 For an affected unit, each level's effect value is:
@@ -141,8 +151,8 @@ Armor follows the Warcraft unit type's `defUp` / `armorPerUpgrade` value:
 upgrade armor = armorPerUpgrade * researched level
 ```
 
-Changing level applies the delta between old and new levels to
-`edict_t.armor_value`, preserving unrelated armor modifiers.
+Changing level applies the delta between old and new levels to both
+`edict_t.permanent_armor_bonus` and `edict_t.armor_value`. Hero Agility recomputation rebuilds base armor plus this persistent ledger, so researched armor is not lost when attributes change.
 
 Existing owned units whose `Upgrades Used` list contains the upgrade are updated
 when player tech changes. Newly spawned/trained units run the same application
@@ -183,9 +193,9 @@ The following compatibility work also remains:
 - `EVENT_*_RESEARCH_START/CANCEL/FINISH` are declared but the JASS event context
   still lacks the researched rawcode needed for a correct `GetResearched()`
   implementation, so this patch does not publish incomplete research events;
-- second-attack runtime initialization is still incomplete elsewhere in the
-  unit combat path, so `ratd` updates attack 2 only when that runtime attack is
-  already present;
+- Attack 2 runtime stats are initialized and receive `ratx`/`ratd`, but combat
+  order selection still attacks through Attack 1; full WC3 Attack 1/Attack 2
+  selection remains unresolved;
 - ownership-transfer semantics for upgrades whose `inherit` flag controls
   transfer are not changed here;
 - UpgradeData `global` semantics and any timing/game-speed adjustment beyond the
@@ -193,3 +203,5 @@ The following compatibility work also remains:
 
 These gaps should be completed from authoritative Warcraft/Warsmash behavior
 rather than by adding Blacksmith-specific rawcode tables.
+
+See also [Attack Damage](attack-damage.md) for the runtime damage/armor formula and modifier ownership.

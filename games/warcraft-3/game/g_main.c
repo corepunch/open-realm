@@ -139,6 +139,13 @@ static void InitMiscValue(LPCSTR name, FLOAT *dest) {
     *dest = strvalue ? atof(strvalue) : 0;
 }
 
+static void InitMiscValueDefault(LPCSTR name, FLOAT *dest, FLOAT fallback) {
+    LPCSTR strvalue = Stb_IniCacheFind(&game.config.misc, "Misc", name);
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 1.29 defaults are used only when
+     * the authoritative MiscGame field is absent from the active data set. */
+    *dest = strvalue && *strvalue ? (FLOAT)atof(strvalue) : fallback;
+}
+
 static DWORD InitMiscList(LPCSTR name, FLOAT *dest, DWORD capacity) {
     LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
     DWORD count = 0;
@@ -166,6 +173,25 @@ static DWORD InitMiscList(LPCSTR name, FLOAT *dest, DWORD capacity) {
 }
 
 static void InitConstants(void) {
+    static FLOAT const default_damage_bonus[8][8] = {
+        /* BZ_HARDCODED_DATA_FALLBACK: WC3 1.29 MiscGame defaults. */
+        { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* unknown */
+        { 1.00f, 1.50f, 1.00f, 0.70f, 1.00f, 1.00f, 0.05f, 1.00f }, /* normal  */
+        { 2.00f, 0.75f, 1.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.50f }, /* pierce  */
+        { 1.00f, 0.50f, 1.00f, 1.50f, 1.00f, 0.50f, 0.05f, 1.50f }, /* siege   */
+        { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.70f, 0.05f, 1.00f }, /* spells  */
+        { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* chaos   */
+        { 1.25f, 0.75f, 2.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.00f }, /* magic   */
+        { 1.00f, 1.00f, 1.00f, 0.50f, 1.00f, 1.00f, 0.05f, 1.00f }, /* hero    */
+    };
+    static struct { DWORD type; LPCSTR key; } const damage_rows[] = {
+        { ATK_NORMAL, "DamageBonusNormal" },
+        { ATK_PIERCE, "DamageBonusPierce" },
+        { ATK_SIEGE,  "DamageBonusSiege"  },
+        { ATK_CHAOS,  "DamageBonusChaos"  },
+        { ATK_MAGIC,  "DamageBonusMagic"  },
+        { ATK_HERO,   "DamageBonusHero"   },
+    };
     FLOAT food_ceiling;
     Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
@@ -182,6 +208,24 @@ static void InitConstants(void) {
     InitMiscValue("DayLength", &game.constants.gameDayLength);
     InitMiscValue("BuildingAngle", &game.constants.buildingAngle);
     InitMiscValue("RootAngle", &game.constants.rootAngle);
+
+    memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
+    FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
+        DWORD const row = damage_rows[i].type;
+        InitMiscList(damage_rows[i].key, game.constants.damageBonus[row], 8);
+    }
+    /* Warsmash falls SPELLS back to the active Magic row when a dedicated
+     * DamageBonusSpells field is absent. */
+    if (!InitMiscList("DamageBonusSpells", game.constants.damageBonus[ATK_SPELLS], 8)) {
+        memcpy(game.constants.damageBonus[ATK_SPELLS], game.constants.damageBonus[ATK_MAGIC],
+               sizeof(game.constants.damageBonus[ATK_SPELLS]));
+    }
+    InitMiscValueDefault("DefenseArmor", &game.constants.defenseArmor, 0.06f);
+    InitMiscValueDefault("StrAttackBonus", &game.constants.strAttackBonus, 1.0f);
+    InitMiscValueDefault("AgiDefenseBonus", &game.constants.agiDefenseBonus, 0.3f);
+    InitMiscValueDefault("AgiAttackSpeedBonus", &game.constants.agiAttackSpeedBonus, 0.02f);
+    game.constants.combatConstantsLoaded = true;
+
     InitMiscValue("FoodCeiling", &food_ceiling);
     game.constants.foodCeiling = MAX(0, (LONG)food_ceiling);
     game.constants.upkeepUsageCount = InitMiscList("UpkeepUsage", game.constants.upkeepUsage, MAX_UPKEEP_TIERS);

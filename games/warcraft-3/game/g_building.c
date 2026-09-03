@@ -6,8 +6,9 @@
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLIGHTED 0x20
-#define ID_UPGRADE_EFFECT_ATTACK_DICE MAKEFOURCC('r', 'a', 't', 'd')
-#define ID_UPGRADE_EFFECT_ARMOR       MAKEFOURCC('r', 'a', 'r', 'm')
+#define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
+#define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
+#define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
 
 static BYTE G_PlacementFlags(LPCSTR list) {
     BYTE flags = 0;
@@ -139,7 +140,22 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
     FOR_LOOP(i, 4) {
         DWORD const effect = upgrade->effect[i];
         if (!effect) continue;
-        if (effect == ID_UPGRADE_EFFECT_ATTACK_DICE) {
+        if (effect == ID_UPGRADE_EFFECT_ATTACK_DAMAGE) {
+            LONG const old_value = (LONG)G_UpgradeEffectValue(upgrade, i, old_level);
+            LONG const new_value = (LONG)G_UpgradeEffectValue(upgrade, i, new_level);
+            LONG const delta = new_value - old_value;
+
+            if (delta && unit->attack1.numberOfDice) {
+                unit->attack1.permanentDamageBonus += (FLOAT)delta;
+                unit->attack1.damageBase = (DWORD)MAX(0, (LONG)unit->attack1.damageBase + delta);
+                changed = true;
+            }
+            if (delta && unit->attack2.numberOfDice) {
+                unit->attack2.permanentDamageBonus += (FLOAT)delta;
+                unit->attack2.damageBase = (DWORD)MAX(0, (LONG)unit->attack2.damageBase + delta);
+                changed = true;
+            }
+        } else if (effect == ID_UPGRADE_EFFECT_ATTACK_DICE) {
             LONG const old_value = (LONG)G_UpgradeEffectValue(upgrade, i, old_level);
             LONG const new_value = (LONG)G_UpgradeEffectValue(upgrade, i, new_level);
             LONG const delta = new_value - old_value;
@@ -155,6 +171,7 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
         } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
             FLOAT const delta = unit->UnitBalance->armorPerUpgrade * (FLOAT)(new_level - old_level);
             if (delta != 0.0f) {
+                unit->permanent_armor_bonus += delta;
                 unit->armor_value += delta;
                 changed = true;
             }

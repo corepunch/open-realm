@@ -54,7 +54,12 @@ void SV_Physics_Toss(LPEDICT ent) {
         if (ent->currentmove && ent->currentmove->endfunc) {
             ent->currentmove->endfunc(ent);
         } else {
-            T_Damage(ent->goalentity, ent->owner, ent->damage);
+            /* Basic attack missiles carry the launch-time raw roll. Resolve
+             * target defense/armor on impact, matching Warsmash and allowing
+             * in-flight armor/defense changes to affect the hit. Spell
+             * missiles install currentmove/endfunc and bypass this branch. */
+            int const damage = G_AttackDamage(ent->owner, ent->goalentity, ent->damage);
+            T_Damage(ent->goalentity, ent->owner, damage);
             G_FreeEdict(ent);
         }
     } else {

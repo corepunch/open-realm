@@ -159,9 +159,21 @@ hero          1.00   1.00   1.00  0.50    1.00  1.00    0.05  1.00
 ```
 
 ### Armor Reduction
-`dmg /= (1 + armor * 0.06)` for positive armor.
-`dmg *= (2 - 1 / (1 + (-armor) * 0.06))` for negative armor.
-Minimum final damage: 1.
+`DefenseArmor` is loaded from the active Misc data (`Units\MiscGame.txt` plus `war3mapMisc.txt` overrides; stock fallback `0.06`).
+
+For non-negative armor `A` and coefficient `K`:
+
+`dmg *= 1 / (1 + K * A)`
+
+For negative armor:
+
+`dmg *= 2 - (1 - K)^(-A)`
+
+This is the Warsmash/WC3 exponential negative-armor curve. Minimum final physical-attack damage remains 1 in the current OpenRealm path.
+
+Attack-type/defense-type rows are also loaded from the active `DamageBonus*` Misc fields rather than being fixed in `s_attack.c`; if `DamageBonusSpells` is absent, the active Magic row is used as Warsmash's fallback. Basic missile attacks roll at launch and apply type/armor mitigation at impact.
+
+See [Attack Damage](games/warcraft-3/attack-damage.md) for the runtime modifier and timing contract.
 
 ### Defense Type Is a String
 `defType` in `UnitBalance.slk` is a string column (`"large"`, `"medium"`, etc.), not an integer. `atoi` returns 0 for every unit. Use `FindEnumValue` against the `defense_type[]` enum table. Base armor is `udef`; load `udfc` (realdef) at spawn.
@@ -171,8 +183,8 @@ Minimum final damage: 1.
 ### Attribute → Derived Stats (per-point constants from UnitBalance.slk)
 - **Strength**: +25 max HP per point
 - **Intelligence**: +15 max mana per point
-- **Agility**: +0.3 armor per point; scales attack speed
-- **Primary attribute**: +1 attack damage per point (`upra` column: `"STR"/"AGI"/"INT"`)
+- **Agility**: armor contribution uses `Misc.AgiDefenseBonus` (stock 0.3); attack speed uses `Misc.AgiAttackSpeedBonus` (stock 0.02)
+- **Primary attribute**: attack damage uses `Misc.StrAttackBonus` (stock 1.0) for whichever `upra` primary attribute is active
 
 Stats are precomputed at base attributes; deltas are applied live on attribute change. Gaining STR heals by the HP gained; losing attributes cannot drop a living hero below 1 HP. Call `G_RecomputeHeroStats` whenever `hero.str/agi/intel` change.
 
