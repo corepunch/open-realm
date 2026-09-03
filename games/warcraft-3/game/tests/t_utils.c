@@ -103,6 +103,10 @@ static void reset_test_state(void) {
     /* Restore player-slot client pointers so G_GetPlayerEntityByNumber works. */
     FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
     memset(game.clients, 0, game.max_clients * sizeof(*game.clients));
+    game.constants.dawnTimeGameHours = 6.0f;
+    game.constants.duskTimeGameHours = 18.0f;
+    game.constants.gameDayHours = 24.0f;
+    game.constants.gameDayLength = 480.0f;
     game.constants.foodCeiling = 100;
     game.constants.upkeepUsageCount = 2;
     game.constants.upkeepGoldTaxCount = 3;

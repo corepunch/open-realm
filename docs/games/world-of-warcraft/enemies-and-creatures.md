@@ -167,9 +167,15 @@ Spells are data-driven via the `wowSpellDef_t` table (`wow_spells[]`) following 
 - `SPELL_NONE` sentinel is `(DWORD)-1` — not `0` — to avoid collision with `WOW_SPELL_ATTACK=0`.
 - Projectile impact visuals go through `svc_temp_entity` + `TE_FIREBOLT_IMPACT`/`TE_FROSTBOLT_IMPACT` (Q2 pattern); do not spawn `DynamicObject` entities for that path.
 
+### Edict Reservation and Dynamic Allocation
+
+WoW uses the engine-wide `MAX_CLIENTS` reservation at the front of `wow_edicts[]`. Client slots are therefore `0 .. MAX_CLIENTS - 1`, and `Wow_Spawn()` starts dynamic creatures, projectiles, game objects, and other non-client entities at `MAX_CLIENTS`. Tests must initialize `globals.max_clients` and `globals.num_edicts` to `MAX_CLIENTS`; do not assume the first creature/projectile lives at edict `1`/`2`. Locate spawned entities from the dynamic range (for example by their `wowEntityLocal_t.think` callback) or compare stored target IDs with the entity's actual `s.number`.
+
+This matters when changing client capacity: the former WoW-private one-client reservation made hard-coded `1`/`2` test slots appear valid, but those slots are reserved clients under the shared engine contract.
+
 ### Per-Frame Spawn Budget
 
-`WOW_MAX_SPAWNS_PER_FRAME = 64` — the `wow_spawns_this_frame` counter is reset each frame. Spawning functions check this budget before allocating edicts to prevent burst stalls on large initial entity loads.
+`WOW_MAX_SPAWNS_PER_FRAME = 64` — the `wow_spawns_this_frame` counter is reset each frame. Spawning functions check this budget before allocating edicts to prevent burst stalls on large initial entity loads. Unit tests that call `Wow_Spawn()` directly must reset `wow_spawns_this_frame` with the rest of their isolated world fixture.
 
 ### Creature Info Cache
 

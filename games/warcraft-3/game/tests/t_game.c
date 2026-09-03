@@ -1539,6 +1539,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->cargo.units[3] = second;
     level.framenum = 1234;
     level.time = 5678;
+    level.timeofday = (TIMEOFDAY){ .elapsed = 240.0f, .pending = 18.0f, .pending_valid = true, .suspended = true };
     level.started = true;
     level.scriptsStarted = true;
     game.clients[0].jass.race_pref = 2;
@@ -1569,6 +1570,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     quest.discovered = quest.required = quest.enabled = false;
     quest.completed = true;
     item.completed = false;
+    memset(&level.timeofday, 0, sizeof(level.timeofday));
     T_ASSERT(ReadGame(filename));
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 3);
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
@@ -1577,6 +1579,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(g_edicts[first - g_edicts].s.origin.y, 128.0f);
     T_EQ(level.framenum, 1234);
     T_EQ(level.time, 5678);
+    T_FEQ(level.timeofday.elapsed, 240.0f, 0.001f);
+    T_FEQ(level.timeofday.pending, 18.0f, 0.001f);
+    T_ASSERT(level.timeofday.pending_valid && level.timeofday.suspended);
     T_ASSERT(level.started && level.scriptsStarted);
     T_EQ(game.clients[0].jass.race_pref, 2);
     T_EQ(game.clients[0].jass.controller, 1);
@@ -1719,6 +1724,29 @@ TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
     T_ASSERT(dest.stand == tree_stand && dest.birth == tree_birth && dest.pain == tree_pain && dest.die == tree_die);
     T_ASSERT(dest.think == monster_think);
     T_ASSERT(!unknown.stand && !unknown.birth && !unknown.pain && !unknown.die && !unknown.think);
+}
+
+TEST(wc3_save, round_trip_game_state_event_condition) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-game-state-event-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+    EVENT handler = {
+        .type = EVENT_GAME_STATE_LIMIT,
+        .state = WC3_GAME_STATE_TIME_OF_DAY,
+        .limitop = WC3_LIMITOP_GREATER_THAN_OR_EQUAL,
+        .limitval = 6.0f,
+    };
+
+    reset_entities();
+    memset(&level.events, 0, sizeof(level.events));
+    level.events.handlers = &handler;
+    T_ASSERT(WriteGame(filename));
+    handler.state = handler.limitop = 0; handler.limitval = 0.0f;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(handler.state, WC3_GAME_STATE_TIME_OF_DAY);
+    T_EQ(handler.limitop, WC3_LIMITOP_GREATER_THAN_OR_EQUAL);
+    T_FEQ(handler.limitval, 6.0f, 0.001f);
+    level.events = old_events;
+    remove(filename);
 }
 
 TEST(wc3_save, round_trip_unread_event_queue) {

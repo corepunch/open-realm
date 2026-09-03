@@ -13,6 +13,9 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
             case EVENT_GAME_VARIABLE_LIMIT:
                 break;
             case EVENT_GAME_STATE_LIMIT:
+                if (evt->responseTo == e) {
+                    jass_calltrigger(level.vm, e->trigger, NULL, NULL);
+                }
                 break;
             case EVENT_GAME_TIMER_EXPIRED:
                 break;

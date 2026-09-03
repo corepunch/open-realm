@@ -183,6 +183,7 @@ static void reset_state(void) {
     test_apply_lobby_calls = 0;
     test_unicast_calls = 0;
     test_multicast_size = 0;
+    wow_spawns_this_frame = 0;
     memset(test_multicast_buf, 0, sizeof(test_multicast_buf));
     memset(test_last_error, 0, sizeof(test_last_error));
 
@@ -248,6 +249,18 @@ static LPEDICT make_creature(FLOAT x, FLOAT y) {
     return ent;
 }
 
+static LPEDICT find_projectile(void) {
+    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+        LPEDICT ent = &wow_edicts[i];
+        wowEntityLocal_t *local;
+
+        if (!ent->inuse) continue;
+        local = Wow_EntityLocal(ent);
+        if (local && local->think == Wow_RunProjectile) return ent;
+    }
+    return NULL;
+}
+
 /* ---- Ability tests ---- */
 
 TEST(wow_abilities, firebolt_spawns_projectile) {
@@ -256,19 +269,20 @@ TEST(wow_abilities, firebolt_spawns_projectile) {
 
     T_NOT_NULL(caster);
     T_NOT_NULL(target);
-    T_EQ((int)target->s.number, 1);
+    T_EQ((int)target->s.number, MAX_CLIENTS);
 
     Wow_FireFirebolt(caster, target);
 
     {
-        /* Projectile should be spawned at edict index 2 */
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
         wowEntityLocal_t *pl = Wow_EntityLocal(proj);
 
         T_ASSERT(proj->inuse);
         T_NOT_NULL(pl);
         T_ASSERT(pl->think == Wow_RunProjectile);
-        T_EQ((int)pl->projectile_target, 1);
+        T_EQ((int)pl->projectile_target, (int)target->s.number);
         T_EQ((int)pl->projectile_caster, 0);
         T_FEQ(pl->projectile_speed, 25.0f, 0.001f);
         T_EQ((int)pl->projectile_damage, 2);
@@ -288,7 +302,9 @@ TEST(wow_abilities, firebolt_homing_moves_toward_target) {
     T_NOT_NULL(target);
     Wow_FireFirebolt(caster, target);
 
-    proj = &wow_edicts[2];
+    proj = find_projectile();
+    T_NOT_NULL(proj);
+    if (!proj) return;
     T_ASSERT(proj->inuse);
 
     /* Run a few projectile frames — should move toward target at x=10 */
@@ -317,7 +333,9 @@ TEST(wow_abilities, firebolt_z_height_interpolates_correctly) {
     target->s.radius = 2.0f;
 
     Wow_FireFirebolt(caster, target);
-    proj = &wow_edicts[2];
+    proj = find_projectile();
+    T_NOT_NULL(proj);
+    if (!proj) return;
     pl = Wow_EntityLocal(proj);
     T_ASSERT(proj->inuse);
     T_NOT_NULL(pl);
@@ -354,7 +372,9 @@ TEST(wow_abilities, firebolt_applies_damage_on_hit) {
 
     Wow_FireFirebolt(caster, target);
     {
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
         T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
     }
     T_EQ((int)target_local->health, 1);
@@ -372,7 +392,9 @@ TEST(wow_abilities, firebolt_lethal_kills_target) {
 
     Wow_FireFirebolt(caster, target);
     {
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
         T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
     }
     T_ASSERT(target_local->dead);
@@ -443,7 +465,9 @@ TEST(wow_abilities, projectile_disappears_when_target_dies) {
 
     Wow_FireFirebolt(caster, target);
     {
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
 
         T_ASSERT(proj->inuse);
         /* Move a bit */
@@ -567,7 +591,9 @@ TEST(wow_abilities, frostbolt_spawns_projectile) {
     T_NOT_NULL(target);
     Wow_FireFrostbolt(caster, target);
     {
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
         wowEntityLocal_t *pl = Wow_EntityLocal(proj);
         T_ASSERT(proj->inuse);
         T_NOT_NULL(pl);
@@ -592,7 +618,9 @@ TEST(wow_abilities, frostbolt_applies_slow_on_hit) {
     target_local->health = 10; /* must survive the hit (frostbolt deals 3) so slow is applied */
     Wow_FireFrostbolt(caster, target);
     {
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
         T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
     }
     T_EQ((int)target_local->slow_timer, 2000);
@@ -609,7 +637,9 @@ TEST(wow_abilities, frostbolt_lethal_kills_target) {
     target_local->health = 1;
     Wow_FireFrostbolt(caster, target);
     {
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
         T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
     }
     T_ASSERT(target_local->dead);
@@ -656,7 +686,9 @@ TEST(wow_abilities, frostbolt_disappears_when_target_dies) {
     target_local = Wow_EntityLocal(target);
     Wow_FireFrostbolt(caster, target);
     {
-        LPEDICT proj = &wow_edicts[2];
+        LPEDICT proj = find_projectile();
+        T_NOT_NULL(proj);
+        if (!proj) return;
         T_ASSERT(proj->inuse);
         Wow_RunProjectile(proj);
         T_ASSERT(proj->inuse);

@@ -372,6 +372,7 @@ void G_SpawnEntities(void) {
     G_ClearSaveRegistries();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
+    level.time = gi.GetTime ? gi.GetTime() : 0;
 
     level.mapinfo = mapinfo;
     level.setup.teams = mapinfo ? mapinfo->num_teams : 0;

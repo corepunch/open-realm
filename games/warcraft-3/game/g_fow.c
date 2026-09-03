@@ -506,11 +506,12 @@ static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
     }
 }
 
-/* WC3 day/night cycle: a full day is 480 game-seconds over 24 hours (20s per
- * hour); daytime is 06:00-18:00 (MiscData.txt). */
+/* MiscData owns the dawn/dusk thresholds. The same authoritative simulation
+ * time drives sight, regeneration, JASS game state and future presentation. */
 BOOL G_IsNight(void) {
-    DWORD const hour = (level.time % 480000) / 20000;
-    return hour < 6 || hour >= 18;
+    FLOAT const time = G_GetTimeOfDay();
+    return !(time >= game.constants.dawnTimeGameHours &&
+             time < game.constants.duskTimeGameHours);
 }
 
 static FLOAT G_FowEntitySightRadius(LPCEDICT ent) {

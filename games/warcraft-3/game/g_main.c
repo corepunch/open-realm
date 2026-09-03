@@ -15,10 +15,12 @@
  *   ClientCommand — routes player commands to the skills system.
  *
  * G_RunFrame() is the inner loop:
- *   1. G_RunEvents()      — dispatch queued game events to triggers.
- *   2. G_RunClients()     — interpolate camera positions for smooth panning.
- *   3. G_RunEntities()    — call G_RunEntity() on every live entity.
- *   4. G_SolveCollisions() — resolve entity overlaps (g_phys.c).
+ *   1. Sync level.time and advance the Warcraft time-of-day clock.
+ *   2. G_RunTimers()      — publish expired timer events.
+ *   3. G_RunEvents()      — dispatch queued game events to triggers.
+ *   4. G_RunClients()     — interpolate camera positions for smooth panning.
+ *   5. G_RunEntities()    — call G_RunEntity() on every live entity.
+ *   6. G_SolveCollisions() — resolve entity overlaps (g_phys.c).
  */
 #include "common/common.h"
 #include "g_local.h"
@@ -33,6 +35,73 @@ struct edict_s *g_edicts;
 extern JASSMODULE jass_funcs[];
 
 static void G_StartScripts(void);
+
+static BOOL G_TimeLimitMatches(DWORD op, FLOAT value, FLOAT limit) {
+    switch (op) {
+        case WC3_LIMITOP_LESS_THAN: return value < limit;
+        case WC3_LIMITOP_LESS_THAN_OR_EQUAL: return value <= limit;
+        case WC3_LIMITOP_EQUAL: return value == limit;
+        case WC3_LIMITOP_GREATER_THAN_OR_EQUAL: return value >= limit;
+        case WC3_LIMITOP_GREATER_THAN: return value > limit;
+        case WC3_LIMITOP_NOT_EQUAL: return value != limit;
+        default: return false;
+    }
+}
+
+FLOAT G_GetTimeOfDay(void) {
+    FLOAT const day_hours = game.constants.gameDayHours;
+    FLOAT const day_length = game.constants.gameDayLength;
+
+    if (day_hours <= 0.0f || day_length <= 0.0f)
+        return 0.0f;
+    return (level.timeofday.elapsed / day_length) * day_hours;
+}
+
+void G_SetTimeOfDay(FLOAT value) {
+    level.timeofday.pending = value;
+    level.timeofday.pending_valid = true;
+}
+
+void G_SuspendTimeOfDay(BOOL suspended) {
+    level.timeofday.suspended = suspended;
+}
+
+static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
+    FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
+        if (evt->type != EVENT_GAME_STATE_LIMIT || evt->state != WC3_GAME_STATE_TIME_OF_DAY)
+            continue;
+        if (!G_TimeLimitMatches(evt->limitop, before, evt->limitval) &&
+            G_TimeLimitMatches(evt->limitop, after, evt->limitval))
+        {
+            G_PublishEvent(NULL, EVENT_GAME_STATE_LIMIT)->responseTo = evt;
+        }
+    }
+}
+
+/* Warcraft owns one simulation clock for gameplay time of day. Misc.Dawn,
+ * Dusk, DayHours and DayLength define its scale; presentation systems should
+ * consume G_GetTimeOfDay() rather than maintain an independent timer. */
+void G_UpdateTimeOfDay(void) {
+    FLOAT const day_hours = game.constants.gameDayHours;
+    FLOAT const day_length = game.constants.gameDayLength;
+    FLOAT before, after;
+
+    if (day_hours <= 0.0f || day_length <= 0.0f)
+        return;
+
+    before = G_GetTimeOfDay();
+    if (level.timeofday.pending_valid) {
+        level.timeofday.elapsed =
+            (level.timeofday.pending / day_hours) * day_length;
+        level.timeofday.pending_valid = false;
+    } else if (!level.timeofday.suspended) {
+        level.timeofday.elapsed = fmodf(
+            level.timeofday.elapsed + (FLOAT)FRAMETIME / 1000.0f,
+            day_length);
+    }
+    after = G_GetTimeOfDay();
+    G_CheckTimeOfDayEvents(before, after);
+}
 
 static bool G_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
@@ -418,8 +487,11 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    G_StartScripts();
+    if (gi.GetTime)
+        level.time = gi.GetTime();
 
+    G_StartScripts();
+    G_UpdateTimeOfDay();
     G_RunTimers();
     G_RunEvents();
     jass_runevents(level.vm);

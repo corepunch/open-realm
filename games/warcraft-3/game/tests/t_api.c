@@ -567,6 +567,87 @@ TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {
     G_FogModifierStop(&mod);
 }
 
+TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetFloatGameState(GAME_STATE_TIME_OF_DAY, 12.0)\n"
+        "endfunction\n"));
+    /* Warsmash defers SetFloatGameState until the simulation clock update. */
+    T_FEQ(G_GetTimeOfDay(), 0.0f, 0.001f);
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(GetFloatGameState(GAME_STATE_TIME_OF_DAY) == 12.0, \"time getter\")\n"
+        "  call SuspendTimeOfDay(true)\n"
+        "endfunction\n"));
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+
+    /* An explicit set still applies while ordinary progression is suspended. */
+    G_SetTimeOfDay(18.0f);
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 18.0f, 0.001f);
+    T_ASSERT(G_IsNight());
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SuspendTimeOfDay(false)\n"
+        "endfunction\n"));
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 18.005f, 0.001f);
+}
+
+TEST(wc3_time, dawn_and_dusk_use_misc_thresholds) {
+    G_SetTimeOfDay(5.99f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_IsNight());
+
+    G_SetTimeOfDay(game.constants.dawnTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(!G_IsNight());
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours - 0.01f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(!G_IsNight());
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_IsNight());
+}
+
+TEST(wc3_time, game_state_event_fires_on_false_to_true_transition) {
+    DWORD writes;
+
+    G_SetTimeOfDay(5.0f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(run_test_jass(
+        "function onTime takes nothing returns nothing\n"
+        "  call SetFloatGameState(GAME_STATE_TIME_OF_DAY, 12.0)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterGameStateEvent(t, GAME_STATE_TIME_OF_DAY, GREATER_THAN_OR_EQUAL, 6.0)\n"
+        "  call TriggerAddAction(t, function onTime)\n"
+        "endfunction\n"));
+
+    G_SetTimeOfDay(6.0f);
+    G_UpdateTimeOfDay();
+    writes = level.events.write;
+    T_EQ(writes, 1);
+    G_RunEvents();
+    jass_runevents(level.vm);
+
+    /* The trigger action queues 12:00; applying it does not refire because
+     * both 06:00 and 12:00 satisfy the registered >= 6 condition. */
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+    T_EQ(level.events.write, writes);
+    G_UpdateTimeOfDay();
+    T_EQ(level.events.write, writes);
+}
+
 TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     LPGAMECLIENT gc = &game.clients[0];
 
