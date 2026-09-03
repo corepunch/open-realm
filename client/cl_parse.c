@@ -18,6 +18,19 @@
 #include "games/starcraft-2/common/sc2_map.h"
 #endif
 
+#ifndef WOW
+/* Keep predicted camera targets inside the server-authored camera bounds. */
+VECTOR2 CL_ClampCameraPosition(VECTOR2 position) {
+#ifdef WC3
+    if (cl.playerstate.camera_bounds.max.x > cl.playerstate.camera_bounds.min.x)
+        position.x = MAX(cl.playerstate.camera_bounds.min.x, MIN(cl.playerstate.camera_bounds.max.x, position.x));
+    if (cl.playerstate.camera_bounds.max.y > cl.playerstate.camera_bounds.min.y)
+        position.y = MAX(cl.playerstate.camera_bounds.min.y, MIN(cl.playerstate.camera_bounds.max.y, position.y));
+#endif
+    return position;
+}
+#endif
+
 static LPCSTR CL_LobbySlotTypeName(lobbySlotType_t type) {
     switch (type) {
         case LOBBY_SLOT_OPEN: return "open";
