@@ -1370,6 +1370,98 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     remove(filename);
 }
 
+extern field_t fields[];
+
+/* Tests resolve descriptors by their source-level field name to guard the fixup schema itself. */
+static field_t const *find_save_field(LPCSTR name) {
+    for (field_t const *field = fields; field->name; field++)
+        if (!strcmp(field->name, name)) return field;
+    return NULL;
+}
+
+/* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
+#define SAVE_INT_FIELD_TEST(name, field, saved) \
+TEST(wc3_save, name) { \
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
+    field_t const *desc = find_save_field(#field); \
+    reset_entities(); \
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_INT); T_EQ(desc->array_size, 0); } \
+    unit->field = saved; \
+    T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_EQ(unit->field, saved); \
+    remove(filename); \
+}
+
+#define SAVE_PTR_FIELD_TEST(name, schema, field, count) \
+TEST(wc3_save, name) { \
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
+    field_t const *desc = find_save_field(schema); \
+    reset_entities(); \
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f); \
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, count); } \
+    unit->field = target; \
+    T_ASSERT(WriteGame(filename)); unit->field = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(unit->field == target); \
+    unit->field = (LPEDICT)((BYTE *)g_edicts + 1); T_ASSERT(!WriteGame(filename)); \
+    remove(filename); \
+}
+
+SAVE_INT_FIELD_TEST(field_class_id_round_trip, class_id, MAKEFOURCC('h', 'p', 'e', 'a'))
+SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
+SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
+SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
+SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
+SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)
+SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)
+SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
+SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
+SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
+
+TEST(wc3_save, field_collision_round_trip) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-field-collision.bin";
+    field_t const *desc = find_save_field("collision");
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); }
+    unit->collision = 42.5f;
+    T_ASSERT(WriteGame(filename)); unit->collision = 0.0f; T_ASSERT(ReadGame(filename));
+    T_FEQ(unit->collision, 42.5f, 0.001f); remove(filename);
+}
+
+TEST(wc3_save, field_origin_round_trip) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-field-origin.bin";
+    field_t const *desc = find_save_field("s.origin");
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_VECTOR); T_EQ(desc->array_size, 0); }
+    unit->s.origin = (VECTOR3){ 12.5f, 34.5f, 56.5f };
+    T_ASSERT(WriteGame(filename)); unit->s.origin = (VECTOR3){ 0 }; T_ASSERT(ReadGame(filename));
+    T_FEQ(unit->s.origin.x, 12.5f, 0.001f); T_FEQ(unit->s.origin.y, 34.5f, 0.001f);
+    T_FEQ(unit->s.origin.z, 56.5f, 0.001f); remove(filename);
+}
+
+SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction.primary_builder", construction.primary_builder, 0)
+SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally.entity", rally.entity, 0)
+SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival.producer", revival.producer, 0)
+SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival.queue_next", revival.queue_next, 0)
+SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine.mine", goldmine.mine, 0)
+SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory", inventory[3], MAX_INVENTORY)
+SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo.units", cargo.units[4], MAX_CARGO)
+SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item.carrier", item.carrier, 0)
+SAVE_PTR_FIELD_TEST(field_ground_next_round_trip, "ground_next", ground_next, 0)
+SAVE_PTR_FIELD_TEST(field_attackmove_waypoint_round_trip, "movement.attackmove_waypoint", movement.attackmove_waypoint, 0)
+SAVE_PTR_FIELD_TEST(field_patrol_a_round_trip, "movement.patrol_a", movement.patrol_a, 0)
+SAVE_PTR_FIELD_TEST(field_patrol_b_round_trip, "movement.patrol_b", movement.patrol_b, 0)
+SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "movement.patrol_target", movement.patrol_target, 0)
+SAVE_PTR_FIELD_TEST(field_goal_entity_round_trip, "goalentity", goalentity, 0)
+SAVE_PTR_FIELD_TEST(field_combat_entity_round_trip, "combatentity", combatentity, 0)
+SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "secondarygoal", secondarygoal, 0)
+SAVE_PTR_FIELD_TEST(field_owner_round_trip, "owner", owner, 0)
+SAVE_PTR_FIELD_TEST(field_build_round_trip, "build", build, 0)
+
+#undef SAVE_PTR_FIELD_TEST
+#undef SAVE_INT_FIELD_TEST
+
 BOOL run_test_jass(LPCSTR src);
 
 TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
