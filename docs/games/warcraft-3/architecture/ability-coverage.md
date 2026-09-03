@@ -111,13 +111,13 @@ generic `Button` command path rather than by a registered ability code.
 | `AIhe` | Item Heal | Partial | Inventory dispatch, selected-unit heal, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |
 | `AIma` | Item Mana Regain | Partial | Inventory dispatch, selected-unit mana restore, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |
 | `AIda` | Item Defense AOE | Partial | Authored area/duration/target mask applies `Bdef`; live status contributes its authored armor bonus to combat/HUD. Persistent buff-world-art ownership and shared item cooldown groups remain. |
-| `AIat` | Item Attack Bonus | TODO | Needs item stat modifier system. |
+| `AIat` | Item Attack Bonus | Partial | Passive item bonus updates temporary Attack 1/2 damage and HUD modifier; broader stacking/modifier framework remains. |
 | `AIab` | Item Stat Bonus | TODO | Needs hero stat modifier system. |
 | `AIim` | Permanent Intelligence Gain | TODO | Needs permanent hero stat updates. |
 | `AIsm` | Permanent Strength Gain | TODO | Needs permanent hero stat updates. |
 | `AIam` | Permanent Agility Gain | TODO | Needs permanent hero stat updates. |
 | `AIxm` | Permanent Multi-stat Gain | TODO | Needs permanent hero stat updates. |
-| `AIde` | Item Defense Bonus | TODO | Needs armor/stat modifier system. |
+| `AIde` | Item Defense Bonus | Partial | Passive item armor modifier is preserved across Hero Agility recomputation; broader armor modifier framework remains. |
 | `AIml` | Item Life Bonus | TODO | Needs max-health modifier system. |
 | `AImm` | Item Mana Bonus | TODO | Needs max-mana modifier system. |
 | `AIfs` | Figurine Summon | TODO | Needs item summon behavior. |

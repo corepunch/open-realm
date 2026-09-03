@@ -159,6 +159,20 @@ static void HideLegacyUnitStats(void) {
         UI_SetHidden(frames_to_hide[i], true);
 }
 
+static void FormatAttackDamageValue(char *buffer, size_t buffer_size,
+                                    LONG min_damage, LONG max_damage, FLOAT temporary_bonus) {
+    LONG const bonus = (LONG)temporary_bonus;
+    if (bonus > 0) {
+        snprintf(buffer, buffer_size, "%ld - %ld |cff00ff00+%ld|r",
+                 (long)min_damage, (long)max_damage, (long)bonus);
+    } else if (bonus < 0) {
+        snprintf(buffer, buffer_size, "%ld - %ld |cffff0000%ld|r",
+                 (long)min_damage, (long)max_damage, (long)bonus);
+    } else {
+        snprintf(buffer, buffer_size, "%ld - %ld", (long)min_damage, (long)max_damage);
+    }
+}
+
 static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
                                  BOOL has_attack2, LONG min_damage, LONG max_damage,
                                  LONG min_damage2, LONG max_damage2, BOOL is_hero,
@@ -166,9 +180,13 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     char buffer[128];
 
     UI_SetText(hud.unit.AttackLabel1, "Damage:");
-    UI_SetText(hud.unit.AttackValue1, "%ld - %ld", (long)min_damage, (long)max_damage);
+    FormatAttackDamageValue(buffer, sizeof(buffer), min_damage, max_damage,
+                            ent->attack1.temporaryDamageBonus);
+    UI_SetText(hud.unit.AttackValue1, "%s", buffer);
     UI_SetText(hud.unit.AttackLabel2, "Damage:");
-    UI_SetText(hud.unit.AttackValue2, "%ld - %ld", (long)min_damage2, (long)max_damage2);
+    FormatAttackDamageValue(buffer, sizeof(buffer), min_damage2, max_damage2,
+                            ent->attack2.temporaryDamageBonus);
+    UI_SetText(hud.unit.AttackValue2, "%s", buffer);
     UI_SetHidden(hud.unit.AttackLabel2, !has_attack2);
     UI_SetHidden(hud.unit.AttackValue2, !has_attack2);
     UI_SetText(hud.unit.DefenseLabel, "Armor:");
@@ -178,7 +196,7 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     UI_SetText(hud.unit.RangeTitle1, "Range:");
     UI_SetText(hud.unit.RangeValue1, "%d", (int)(ent->attack1.range + 0.5f));
     UI_SetText(hud.unit.RangeTitle2, "Range:");
-    UI_SetText(hud.unit.RangeValue2, "%d", (int)(weapons->attack2.range + 0.5f));
+    UI_SetText(hud.unit.RangeValue2, "%d", (int)(ent->attack2.range + 0.5f));
     UI_SetHidden(hud.unit.RangeTitle2, !has_attack2);
     UI_SetHidden(hud.unit.RangeValue2, !has_attack2);
 
@@ -518,7 +536,8 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
     if (has_attack1) {
         SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop, "Damage", weapons->attack1.attackType,
                               weapon_upgrade != 0);
-        snprintf(value, sizeof(value), "%ld - %ld", (long)min_damage, (long)max_damage);
+        FormatAttackDamageValue(value, sizeof(value), min_damage, max_damage,
+                                ent->attack1.temporaryDamageBonus);
         UI_SetText(hud.simple.InfoPanelIconValue, "%s", value);
         SetUpgradeLevel(hud.simple.InfoPanelIconLevel, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack1);
@@ -527,7 +546,8 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
     if (has_attack2) {
         SetTypedInfoPanelIcon(hud.attack2_icon_backdrop, "Damage", weapons->attack2.attackType,
                               weapon_upgrade != 0);
-        snprintf(value, sizeof(value), "%ld - %ld", (long)min_damage2, (long)max_damage2);
+        FormatAttackDamageValue(value, sizeof(value), min_damage2, max_damage2,
+                                ent->attack2.temporaryDamageBonus);
         UI_SetText(hud.attack2_icon_value, "%s", value);
         SetUpgradeLevel(hud.attack2_icon_level, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack2);
@@ -659,12 +679,12 @@ void UI_WriteSingleInfo(LPEDICT ent) {
                                                  : MAX(1, balance->level);
     LONG dice = ent->attack1.numberOfDice;
     BOOL has_attack1 = dice > 0;
-    LONG min_damage = has_attack1 ? (LONG)(ent->attack1.damageBase + dice) : 0;
-    LONG max_damage = has_attack1 ? (LONG)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie) : 0;
-    LONG dice2 = weapons->attack2.damageDice;
-    BOOL has_attack2 = UI_HasSecondAttack(weapons);
-    LONG min_damage2 = has_attack2 ? weapons->attack2.damageBase + dice2 : 0;
-    LONG max_damage2 = has_attack2 ? weapons->attack2.damageBase + dice2 * weapons->attack2.damageSides : 0;
+    LONG min_damage = has_attack1 ? MAX(0, (LONG)(ent->attack1.damageBase + dice)) : 0;
+    LONG max_damage = has_attack1 ? MAX(0, (LONG)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie)) : 0;
+    LONG dice2 = ent->attack2.numberOfDice;
+    BOOL has_attack2 = UI_HasSecondAttack(weapons) && dice2 > 0;
+    LONG min_damage2 = has_attack2 ? MAX(0, (LONG)(ent->attack2.damageBase + dice2)) : 0;
+    LONG max_damage2 = has_attack2 ? MAX(0, (LONG)(ent->attack2.damageBase + dice2 * ent->attack2.sidesPerDie)) : 0;
 
     if (!unit_name || !*unit_name) unit_name = GetClassName(ent->class_id);
     if (!name || !*name) name = unit_name;

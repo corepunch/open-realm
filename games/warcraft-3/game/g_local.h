@@ -549,6 +549,11 @@ typedef struct {
     DWORD damageBase;
     DWORD numberOfDice;
     DWORD sidesPerDie;
+    /* Warsmash keeps permanent range changes separate from temporary green/red
+     * attack bonuses. damageBase includes permanentDamageBonus; rolls add
+     * temporaryDamageBonus after the dice. */
+    FLOAT permanentDamageBonus;
+    FLOAT temporaryDamageBonus;
     FLOAT damagePoint;
     FLOAT cooldown;
     FLOAT range;
@@ -915,7 +920,9 @@ struct edict_s {
     unitAttack_t attack1;
     unitAttack_t attack2;
     DWORD defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
-    FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI) for damage reduction */
+    FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
+    FLOAT permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
+    FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
     struct {
         BYTE select[MAX_UNIT_SELECT_SOUNDS];
         BYTE num_select;
@@ -982,6 +989,14 @@ struct game_locals {
         FLOAT gameDayLength;
         FLOAT buildingAngle;
         FLOAT rootAngle;
+        /* Combat constants are sourced from Units\MiscGame.txt (and
+         * war3mapMisc.txt overrides) rather than baked into attack code. */
+        FLOAT defenseArmor;
+        FLOAT strAttackBonus;
+        FLOAT agiDefenseBonus;
+        FLOAT agiAttackSpeedBonus;
+        FLOAT damageBonus[8][8];
+        BOOL combatConstantsLoaded;
         LONG foodCeiling;
         DWORD upkeepUsageCount;
         DWORD upkeepGoldTaxCount;
@@ -1651,6 +1666,7 @@ FLOAT AB_Data(LPCSTR, DWORD, DWORD);
 DWORD GetAbilityIndex(ability_t const *);
 
 // g_combat.c
+int G_AttackDamage(LPEDICT, LPEDICT, int);
 void T_Damage(LPEDICT, LPEDICT, int);
 
 // g_utils.c

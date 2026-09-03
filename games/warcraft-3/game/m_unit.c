@@ -761,7 +761,10 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     }
     FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f;
     FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f;
-    FLOAT const newArmor = balance->armor + ((LONG)ent->hero.agi - baseAgi) * 0.3f;
+    FLOAT const agiDefenseBonus = game.constants.combatConstantsLoaded
+                                ? game.constants.agiDefenseBonus
+                                : 0.3f;
+    FLOAT const newArmor = balance->armor + ((LONG)ent->hero.agi - baseAgi) * agiDefenseBonus;
 
     BOOL const alive = ent->health.value > 0.0f;
     FLOAT const dHP = newMaxHP - ent->health.max_value;
@@ -775,19 +778,32 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     ent->mana.max_value = MAX(0.0f, newMaxMana);
     ent->mana.value = MAX(0.0f, MIN(ent->mana.max_value, ent->mana.value + dMana));
 
-    ent->armor_value = newArmor;
+    ent->armor_value = newArmor + ent->permanent_armor_bonus + ent->temporary_armor_bonus;
 
-    /* Primary attribute adds +1 attack damage per point (WC3 "green" bonus
-     * damage = the hero's current primary-attribute value).  Primary is the
-     * UnitBalance "Primary" column: STR/AGI/INT. */
+    /* Warsmash applies Misc.StrAttackBonus to whichever attribute is primary.
+     * OpenRealm does not yet split hero base-vs-bonus attributes, so the current
+     * primary value remains in the permanent displayed range; attack/item
+     * bonuses themselves are kept separate below. */
     {
         LPCSTR const prim = balance->primaryAttribute;
         DWORD primVal = ent->hero.str;
+        FLOAT const strAttackBonus = game.constants.combatConstantsLoaded
+                                   ? game.constants.strAttackBonus
+                                   : 1.0f;
+        LONG primaryDamage;
         if (prim) {
             if (!strcmp(prim, "AGI")) primVal = ent->hero.agi;
             else if (!strcmp(prim, "INT")) primVal = ent->hero.intel;
         }
-        ent->attack1.damageBase = ent->UnitWeapons->attack1.damageBase + (FLOAT)primVal;
+        primaryDamage = (LONG)((FLOAT)primVal * strAttackBonus);
+        if (ent->UnitWeapons) {
+            ent->attack1.damageBase = (DWORD)MAX(0,
+                (LONG)ent->UnitWeapons->attack1.damageBase + primaryDamage
+                + (LONG)ent->attack1.permanentDamageBonus);
+            ent->attack2.damageBase = (DWORD)MAX(0,
+                (LONG)ent->UnitWeapons->attack2.damageBase + primaryDamage
+                + (LONG)ent->attack2.permanentDamageBonus);
+        }
     }
 }
 

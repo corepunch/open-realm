@@ -18,8 +18,8 @@ void free_slk_rows(slkTestData_t *rows);
  *   G_AttackDamage       — representative attack×defense table cells (pierce/
  *                          small=2.0, normal/medium=1.5, siege/fort=1.5,
  *                          magic/large=2.0, chaos passthrough, hero/fort=0.5),
- *                          armor reduction (0.06/point), negative armor,
- *                          minimum-1 clamp, zero-armor passthrough
+ *                          data-driven armor/type constants, Divine reduction,
+ *                          exponential negative armor, minimum-1 clamp
  *   Ability lookup       — FindAbilityByClassname hit/miss,
  *                          command-name/rawcode resolution, GetAbilityByIndex,
  *                          GetAbilityIndex
@@ -540,6 +540,28 @@ TEST(wc3_combat, hero_primary_attribute_adds_damage) {
     T_FEQ(h->attack1.damageBase, dmg0 + 8.0f, 0.01f);
 }
 
+TEST(wc3_combat, hero_recompute_preserves_attack_and_armor_modifiers) {
+    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    h->hero.str = 22;
+    h->hero.agi = 13;
+    h->attack1.permanentDamageBonus = 2.0f;
+    h->attack1.temporaryDamageBonus = 5.0f;
+    h->permanent_armor_bonus = 2.0f;
+    h->temporary_armor_bonus = 3.0f;
+
+    G_RecomputeHeroStats(h);
+    T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
+    T_EQ(h->attack1.damageBase, h->UnitWeapons->attack1.damageBase + 22 + 2);
+    T_FEQ(h->armor_value, h->UnitBalance->armor + 5.0f, 0.001f);
+
+    h->hero.str = 30;
+    h->hero.agi = 23;
+    G_RecomputeHeroStats(h);
+    T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
+    T_EQ(h->attack1.damageBase, h->UnitWeapons->attack1.damageBase + 30 + 2);
+    T_FEQ(h->armor_value, h->UnitBalance->armor + 10 * 0.3f + 5.0f, 0.001f);
+}
+
 TEST(wc3_combat, hero_stats_noop_for_non_hero) {
     /* Footman has no attributes — recompute must leave its stats untouched. */
     LPEDICT u            = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -828,6 +850,18 @@ TEST(wc3_combat, attack_speed_scales_with_agility) {
     T_FEQ(h->wait, 0.3f / 1.4f, 0.001f);            /* windup scaled */
 }
 
+TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
+    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    h->hero.agi = 1000;
+    h->attack1.cooldown = 1.5f;
+    h->attack1.damagePoint = 0.3f;
+
+    attack_melee_cooldown(h);
+    T_FEQ(h->wait, (1.5f - 0.3f) / 5.0f, 0.001f);
+    attack_melee(h);
+    T_FEQ(h->wait, 0.3f / 5.0f, 0.001f);
+}
+
 /* ==========================================================================
  * G_AttackDamage — attack×defense table and armor reduction
  *
@@ -894,6 +928,33 @@ TEST(wc3_combat, attack_damage_hero_vs_fort) {
     T_EQ(G_AttackDamage(a, t, 100), 50);
 }
 
+/* Divine defense takes only 5% from ordinary attack classes; Chaos remains 100%. */
+TEST(wc3_combat, attack_damage_divine_uses_wc3_multiplier) {
+    LPEDICT normal = make_attacker(ATK_NORMAL);
+    LPEDICT chaos = make_attacker(ATK_CHAOS);
+    LPEDICT divine = make_target(6 /* divine */, 0.0f);
+    T_EQ(G_AttackDamage(normal, divine, 100), 5);
+    T_EQ(G_AttackDamage(chaos, divine, 100), 100);
+}
+
+/* Active Misc/war3mapMisc values override the stock fallback table/coefficient. */
+TEST(wc3_combat, attack_damage_uses_loaded_gameplay_constants) {
+    BOOL const old_loaded = game.constants.combatConstantsLoaded;
+    FLOAT const old_mult = game.constants.damageBonus[ATK_NORMAL][4];
+    FLOAT const old_armor = game.constants.defenseArmor;
+    LPEDICT a = make_attacker(ATK_NORMAL);
+    LPEDICT t = make_target(4 /* normal */, 2.0f);
+
+    game.constants.combatConstantsLoaded = true;
+    game.constants.damageBonus[ATK_NORMAL][4] = 1.25f;
+    game.constants.defenseArmor = 0.10f;
+    T_EQ(G_AttackDamage(a, t, 100), 104); /* 125 / 1.2 = 104.16... */
+
+    game.constants.combatConstantsLoaded = old_loaded;
+    game.constants.damageBonus[ATK_NORMAL][4] = old_mult;
+    game.constants.defenseArmor = old_armor;
+}
+
 /* Armor reduction: dmg / (1 + armor * 0.06). 100 base, 2 armor: 100/1.12 ≈ 89. */
 TEST(wc3_combat, attack_damage_armor_reduces_damage) {
     LPEDICT a = make_attacker(ATK_NORMAL);
@@ -902,12 +963,14 @@ TEST(wc3_combat, attack_damage_armor_reduces_damage) {
     T_ASSERT(result >= 88 && result <= 90);
 }
 
-/* Negative armor amplifies damage: dmg * (2 - 1/(1 + 2*0.06)) ≈ 111. */
-TEST(wc3_combat, attack_damage_negative_armor_amplifies) {
+/* Negative armor uses Warsmash's exponential WC3 curve: 2-(1-K)^(-armor).
+ * At -10 armor and K=.06 this is about 1.4614x, clearly distinct from the old
+ * reciprocal approximation (~1.375x). */
+TEST(wc3_combat, attack_damage_negative_armor_uses_exponential_curve) {
     LPEDICT a = make_attacker(ATK_NORMAL);
-    LPEDICT t = make_target(4 /* normal */, -2.0f);
+    LPEDICT t = make_target(4 /* normal */, -10.0f);
     int result = G_AttackDamage(a, t, 100);
-    T_ASSERT(result >= 110 && result <= 112);
+    T_ASSERT(result >= 145 && result <= 147);
 }
 
 /* Minimum 1: even a tiny base through heavy armor can't go below 1. */

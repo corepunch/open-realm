@@ -178,7 +178,7 @@ Undead unit-inventory variants. Plain `AInv` and custom `AInv`-derived inventory
 abilities are not implicitly gated.
 
 `UpgradeData.slk` is now normalized for research costs/times and its four
-effect slots, with `ratd` and `rarm` implemented generically for Blacksmith-style
+effect slots, with `ratx`, `ratd`, and `rarm` implemented generically for Blacksmith-style
 stat research. The stock inventory-ability-to-Backpack relationships remain a
 small explicit table in `g_items.c` because that Backpack effect has not yet been
 moved onto the generic upgrade-effect dispatcher.
@@ -271,3 +271,5 @@ race-skin selection, and the native cover frame's crop/geometry. Synthetic
 ability-only unit IDs such as `H001` have no `UnitBalance` life value, so the
 shared test-unit allocator initializes a minimum positive life value without
 weakening the runtime rule that zero-life units are corpses and cannot be selected.
+
+`AIat` is represented as `unitAttack_t.temporaryDamageBonus`, so it survives Hero stat recomputation and is rendered as a separate green/red attack modifier. `AIde` uses `temporary_armor_bonus` so Hero Agility recomputation likewise preserves item armor. See [Attack Damage](attack-damage.md).
