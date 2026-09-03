@@ -297,7 +297,9 @@ static BOOL WriteEvents(FILE *f) {
         if (subject >= (int)globals.num_edicts || !TriggerIndex(event->trigger, &trigger) || !TimerIndex(event->timer, &timer) ||
             !SaveBytes(f, &event->type, sizeof(event->type)) || !SaveBytes(f, &subject, sizeof(subject)) ||
             !SaveBytes(f, &trigger, sizeof(trigger)) || !SaveBytes(f, &timer, sizeof(timer)) ||
-            !SaveBytes(f, &event->region, sizeof(event->region)) || !SaveBytes(f, &event->range, sizeof(event->range)))
+            !SaveBytes(f, &event->region, sizeof(event->region)) || !SaveBytes(f, &event->range, sizeof(event->range)) ||
+            !SaveBytes(f, &event->state, sizeof(event->state)) || !SaveBytes(f, &event->limitop, sizeof(event->limitop)) ||
+            !SaveBytes(f, &event->limitval, sizeof(event->limitval)))
             return false;
     }
     if (queued > MAX_EVENT_QUEUE || !SaveBytes(f, &queued, sizeof(queued))) return false;
@@ -323,6 +325,8 @@ static BOOL ReadEvents(FILE *f) {
         if (!LoadBytes(f, &event->type, sizeof(event->type)) || !LoadBytes(f, &subject, sizeof(subject)) ||
             !LoadBytes(f, &trigger, sizeof(trigger)) || !LoadBytes(f, &timer, sizeof(timer)) ||
             !LoadBytes(f, &event->region, sizeof(event->region)) || !LoadBytes(f, &event->range, sizeof(event->range)) ||
+            !LoadBytes(f, &event->state, sizeof(event->state)) || !LoadBytes(f, &event->limitop, sizeof(event->limitop)) ||
+            !LoadBytes(f, &event->limitval, sizeof(event->limitval)) ||
             subject < -1 || subject >= (int)globals.num_edicts ||
             (trigger != UINT32_MAX && trigger >= level.num_triggers) ||
             (timer != UINT32_MAX && timer >= level.num_timers)) return false;
@@ -793,6 +797,7 @@ BOOL WriteGame(LPCSTR filename) {
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!SaveBytes(f, &level.framenum, sizeof(level.framenum))) { fprintf(stderr, "WC3 SaveGame: failed at framenum\n"); goto done; }
     if (!SaveBytes(f, &level.time, sizeof(level.time))) { fprintf(stderr, "WC3 SaveGame: failed at time\n"); goto done; }
+    if (!SaveBytes(f, &level.timeofday, sizeof(level.timeofday))) { fprintf(stderr, "WC3 SaveGame: failed at time of day\n"); goto done; }
     if (!SaveBytes(f, &level.started, sizeof(level.started))) { fprintf(stderr, "WC3 SaveGame: failed at started\n"); goto done; }
     if (!SaveBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) { fprintf(stderr, "WC3 SaveGame: failed at scriptsStarted\n"); goto done; }
     if (!SaveBytes(f, &level.waypoints, sizeof(level.waypoints))) { fprintf(stderr, "WC3 SaveGame: failed at waypoint state\n"); goto done; }
@@ -863,6 +868,7 @@ BOOL ReadGame(LPCSTR filename) {
         }
     }
     if (!LoadBytes(f, &level.framenum, sizeof(level.framenum)) || !LoadBytes(f, &level.time, sizeof(level.time)) ||
+        !LoadBytes(f, &level.timeofday, sizeof(level.timeofday)) ||
         !LoadBytes(f, &level.started, sizeof(level.started)) || !LoadBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted)) ||
         !LoadBytes(f, &level.waypoints, sizeof(level.waypoints)) || level.waypoints.count > MAX_WAYPOINTS ||
         (level.waypoints.count && (level.waypoints.count != MAX_WAYPOINTS || level.waypoints.cursor >= MAX_WAYPOINTS ||

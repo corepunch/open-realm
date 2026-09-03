@@ -111,6 +111,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Map Renderer](architecture/map-renderer.md)
 - [Hero Ability Progression](hero-abilities.md)
 - [Cinematics](cinematics.md)
+- [Time Of Day](time-of-day.md)
 - [Hero Revival](hero-revival.md)
 - [Sounds](sounds.md)
 - [HUD Media Lifetime](hud-media.md)

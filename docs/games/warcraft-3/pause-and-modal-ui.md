@@ -111,7 +111,7 @@ Global pause freezes anything that depends on server simulation advancement beca
 
 `PauseTimer` / `ResumeTimer` remain separate JASS timer work; their native bodies are still stubs in `games/warcraft-3/game/api/api_misc.h`. Global pause does not make those object-level natives implemented.
 
-`SuspendTimeOfDay` and `SetTimeOfDayScale` are likewise separate incomplete natives. Do not couple them to the global server pause gate.
+`SuspendTimeOfDay` is a separate implemented clock control: it freezes only ordinary Warcraft daily-cycle progression and does not call the global server pause gate. `SetTimeOfDayScale` remains incomplete. See [Time Of Day](time-of-day.md).
 
 ## Known Pitfalls
 
