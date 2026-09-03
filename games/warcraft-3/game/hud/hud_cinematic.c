@@ -20,6 +20,14 @@ static FRAMEDEF msg_overlay_root, msg_overlay_text;
 static BOOL cinematic_loaded;
 static BOOL msg_overlay_loaded;
 
+void UI_ResetHudCinematic(void) {
+    memset(&cin, 0, sizeof(cin));
+    memset(&msg_overlay_root, 0, sizeof(msg_overlay_root));
+    memset(&msg_overlay_text, 0, sizeof(msg_overlay_text));
+    cinematic_loaded = false;
+    msg_overlay_loaded = false;
+}
+
 static void CinematicEnsureLoaded(void) {
     if (cinematic_loaded) return;
     cinematic_loaded = true;

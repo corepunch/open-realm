@@ -44,6 +44,8 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     if (gi.ClearWorld) {
         gi.ClearWorld();
     }
+    /* SV_Map already wiped CS_IMAGES/CS_FONTS; drop HUD trees that cached those slots. */
+    UI_ResetHud();
     G_SpawnEntities();
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
     G_StartScripts();
@@ -201,6 +203,7 @@ static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
         return;
     }
+    UI_ResetHud();
     gi.SetPaused(false);
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }

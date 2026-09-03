@@ -411,6 +411,85 @@ TEST(wc3_game, hud_simple_button_serializes_button_state) {
     UI_ClearTemplates();
 }
 
+static PATHSTR hud_test_images[MAX_IMAGES];
+static LPCSTR hud_test_get_configstring(DWORD index) {
+    if (index >= CS_IMAGES && index < CS_IMAGES + MAX_IMAGES)
+        return hud_test_images[index - CS_IMAGES];
+    return "";
+}
+static int hud_test_image_index(LPCSTR name) {
+    DWORD i;
+    if (!name || !*name) return 0;
+    for (i = 1; i < MAX_IMAGES; i++)
+        if (hud_test_images[i][0] && !strcmp(hud_test_images[i], name)) return (int)i;
+    for (i = 1; i < MAX_IMAGES; i++) {
+        if (!hud_test_images[i][0]) {
+            snprintf(hud_test_images[i], sizeof(hud_test_images[i]), "%s", name);
+            return (int)i;
+        }
+    }
+    return 0;
+}
+
+TEST(wc3_game, hud_image_rebinds_after_configstring_wipe) {
+    int (*old_image)(LPCSTR) = gi.ImageIndex;
+    LPCSTR (*old_get)(DWORD) = gi.GetConfigstring;
+    FRAMEDEF frame = { .Type = FT_TEXTURE };
+    uiFrame_t wire = { 0 };
+    BYTE typedata[128] = { 0 };
+    char textbuf[128] = { 0 };
+    DWORD chrome, button, reused;
+
+    gi.ImageIndex = hud_test_image_index;
+    gi.GetConfigstring = hud_test_get_configstring;
+    memset(hud_test_images, 0, sizeof(hud_test_images));
+    UI_ResetHud();
+
+    chrome = UI_LoadTexture("UI\\Console\\HumanUITile-InventoryCover.blp", false);
+    button = UI_LoadTexture("ReplaceableTextures\\CommandButtons\\BTNMove.blp", false);
+    T_ASSERT(chrome != 0); T_ASSERT(button != 0); T_ASSERT(chrome != button);
+    frame.Texture.Image = chrome;
+
+    memset(hud_test_images, 0, sizeof(hud_test_images));
+    reused = UI_LoadTexture("ReplaceableTextures\\CommandButtons\\BTNMove.blp", false);
+    T_EQ(reused, 1);
+
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_STREQ(hud_test_images[wire.tex.index], "UI\\Console\\HumanUITile-InventoryCover.blp");
+    T_ASSERT(wire.tex.index != reused);
+
+    UI_ResetHud();
+    gi.ImageIndex = old_image;
+    gi.GetConfigstring = old_get;
+}
+
+TEST(wc3_game, hud_reset_drops_cached_image_names) {
+    int (*old_image)(LPCSTR) = gi.ImageIndex;
+    FRAMEDEF frame = { .Type = FT_TEXTURE };
+    uiFrame_t wire = { 0 };
+    BYTE typedata[128] = { 0 };
+    char textbuf[128] = { 0 };
+    DWORD chrome;
+
+    gi.ImageIndex = hud_test_image_index;
+    memset(hud_test_images, 0, sizeof(hud_test_images));
+    UI_ResetHud();
+    chrome = UI_LoadTexture("UI\\Console\\HumanUITile-InventoryCover.blp", false);
+    frame.Texture.Image = chrome;
+    UI_ResetHud();
+    memset(hud_test_images, 0, sizeof(hud_test_images));
+    UI_LoadTexture("ReplaceableTextures\\CommandButtons\\BTNMove.blp", false);
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    /* Without a remembered name the stale slot is left unchanged, not rewritten
+     * as whatever now occupies CS_IMAGES+1. ResetHud drops the FDF tree so this
+     * path is only reachable from a leftover FRAMEDEF. */
+    T_EQ(wire.tex.index, chrome);
+
+    gi.ImageIndex = old_image;
+}
+
 TEST(wc3_game, hud_highlight_serializes_texture_and_mode) {
     BYTE typedata[256];
     char textbuf[128];

@@ -6,6 +6,11 @@
 static AllianceDialog_t alliance;
 static BOOL alliance_loaded;
 
+void UI_ResetHudAllies(void) {
+    memset(&alliance, 0, sizeof(alliance));
+    alliance_loaded = false;
+}
+
 static BOOL AlliesEnsureLoaded(void) {
     if (alliance_loaded) return alliance.AllianceDialog != NULL;
     alliance_loaded = true;

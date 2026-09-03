@@ -21,6 +21,11 @@ static LPFRAMEDEF MenuPanel(menuPanel_t panel) {
     }
 }
 
+void UI_ResetHudMenu(void) {
+    memset(&menu, 0, sizeof(menu));
+    menu_loaded = menu_valid = false;
+}
+
 static BOOL MenuEnsureLoaded(void) {
     if (menu_loaded) return menu_valid;
     menu_loaded = true;

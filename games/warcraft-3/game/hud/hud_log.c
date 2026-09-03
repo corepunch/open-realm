@@ -15,6 +15,11 @@ static LogDialog_t log_dialog;
 static BOOL log_loaded;
 static char log_text[WC3_MESSAGE_LOG_TEXT_SIZE];
 
+void UI_ResetHudLog(void) {
+    memset(&log_dialog, 0, sizeof(log_dialog));
+    log_loaded = false;
+}
+
 static BOOL LogEnsureLoaded(void) {
     if (log_loaded) return log_dialog.LogDialog && log_dialog.LogArea && log_dialog.LogOkButton;
     log_loaded = true;

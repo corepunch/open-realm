@@ -20,6 +20,14 @@ static UpperButtonBar_t upper;
 static UINAME upper_button_commands[4];
 static BOOL hud_console_loaded;
 
+void UI_ResetHudConsole(void) {
+    memset(&console_ui, 0, sizeof(console_ui));
+    memset(&res, 0, sizeof(res));
+    memset(&upper, 0, sizeof(upper));
+    memset(upper_button_commands, 0, sizeof(upper_button_commands));
+    hud_console_loaded = false;
+}
+
 static void ConsoleEnsureLoaded(void) {
     if (hud_console_loaded) return;
     hud_console_loaded = true;

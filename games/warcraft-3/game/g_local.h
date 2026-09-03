@@ -1495,6 +1495,7 @@ void UI_AddCreateGameSlot(DWORD, LPCSTR, LPCSTR, LPCSTR, DWORD);
 // p_fdf.c
 void UI_PrintClasses(void);
 void UI_ClearTemplates(void);
+void UI_ResetHud(void);
 void UI_ParseFDF(LPCSTR);
 void UI_ParseFDF_Buffer(LPCSTR, LPSTR);
 void UI_SetAllPoints(LPFRAMEDEF);

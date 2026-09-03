@@ -22,13 +22,18 @@ static bool begin_sent = false;
 
 VECTOR3 lightAngles = {-40,0,60};
 
-/* Q2 CL_ParseServerData calls CL_ClearState, which zeros cl.refresh_prepped.
- * A same-map load never gets new CS_WORLD, so forget the previous world's
- * begin/prepped flags here or PrepRefresh never sends begin again. */
+/* Q2 CL_ParseServerData calls CL_ClearState, which zeros cl.refresh_prepped
+ * and image_precache. A same-map load never gets new CS_WORLD, so forget the
+ * previous world's begin/prepped flags and media slots here or PrepRefresh
+ * never sends begin again and leftover pics keep the old CS_IMAGES mapping. */
 void CL_RestartRefresh(void) {
     world_loaded = false;
     begin_sent = false;
     cl.refresh_prepped = false;
+    memset(cl.models, 0, sizeof(cl.models));
+    memset(cl.portraits, 0, sizeof(cl.portraits));
+    memset(cl.pics, 0, sizeof(cl.pics));
+    memset(cl.fonts, 0, sizeof(cl.fonts));
 }
 
 static void CL_SendBegin(void) {
@@ -426,10 +431,11 @@ void CL_PrepRefresh(void) {
 #endif
 
     for (DWORD i = 1; i < MAX_MODELS; i++) {
-        if (!*cl.configstrings[CS_MODELS + i])
+        if (!*cl.configstrings[CS_MODELS + i]) {
+            cl.models[i] = NULL;
+            cl.portraits[i] = NULL;
             continue;
-        if (cl.models[i])
-            continue;
+        }
         LPCSTR filename = cl.configstrings[CS_MODELS + i];
         PATHSTR portrait = { 0 };
         LPCSTR ext = strstr(filename, ".m");
@@ -455,10 +461,10 @@ void CL_PrepRefresh(void) {
     }
 
     for (DWORD i = 1; i < MAX_IMAGES; i++) {
-        if (!*cl.configstrings[CS_IMAGES + i])
+        if (!*cl.configstrings[CS_IMAGES + i]) {
+            cl.pics[i] = NULL;
             continue;
-        if (cl.pics[i])
-            continue;
+        }
         cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
     }
 
@@ -467,10 +473,10 @@ void CL_PrepRefresh(void) {
             if (*cl.configstrings[CS_SOUNDS + i]) S_RegisterSound(cl.configstrings[CS_SOUNDS + i]);
 
     for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
-        if (!*cl.configstrings[CS_FONTS + i])
+        if (!*cl.configstrings[CS_FONTS + i]) {
+            cl.fonts[i] = NULL;
             continue;
-        if (cl.fonts[i])
-            continue;
+        }
         LPCSTR fontspec = cl.configstrings[CS_FONTS + i];
         LPCSTR split = strstr(fontspec, ",");
         if (split) {

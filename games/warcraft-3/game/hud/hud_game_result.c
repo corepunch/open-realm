@@ -11,6 +11,11 @@
 static GameResultDialog_t grd;
 static BOOL game_result_loaded;
 
+void UI_ResetHudGameResult(void) {
+    memset(&grd, 0, sizeof(grd));
+    game_result_loaded = false;
+}
+
 static void GameResultEnsureLoaded(void) {
     if (game_result_loaded) return;
     game_result_loaded = true;

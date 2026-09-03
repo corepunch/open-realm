@@ -56,8 +56,6 @@ DWORD UI_FindFrameNumber(LPCSTR name) {
     DEST[2] = SRC.min.y * 0xff; \
     DEST[3] = SRC.max.y * 0xff;
 
-static DWORD UI_PlayerImage(DWORD image);
-
 static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     AddFrame(src);
     FOR_LOOP(i, FPP_COUNT * 2) {
@@ -79,8 +77,8 @@ static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->color = src->Color;
     dest->size.width = src->Width;
     dest->size.height = src->Height;
-    dest->tex.index = UI_PlayerImage(src->Texture.Image);
-    dest->tex.index2 = UI_PlayerImage(src->Texture.Image2);
+    dest->tex.index = UI_LiveImage(src->Texture.Image);
+    dest->tex.index2 = UI_LiveImage(src->Texture.Image2);
     dest->flags.type = src->Type;
     dest->flags.alphaMode = src->AlphaMode;
     dest->textLength = src->TextLength;
@@ -90,27 +88,12 @@ static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->onclick = src->OnClick;
 }
 
-/* FDF templates are cached globally, and shared templates such as
- * EscMenuButtonTemplate may have been parsed before a player-race skin
- * context was available.  If an already-indexed image is a symbolic
- * war3skins key, resolve it again for the client being serialized. */
-static DWORD UI_PlayerImage(DWORD image) {
-    LPCSTR key, resolved;
-
-    if (!image || !ui_current_client || !gi.GetConfigstring) return image;
-    key = gi.GetConfigstring(CS_IMAGES + image);
-    if (!key || !*key || strchr(key, '\\') || strchr(key, '/')) return image;
-    resolved = Theme_PlayerString(ui_current_client, key, NULL);
-    if (!resolved || !*resolved || !strcmp(resolved, key)) return image;
-    return gi.ImageIndex(UI_ResolveTextureAlias(resolved));
-}
-
 static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
     if (!frame) return (uiBackdrop_t){ 0 };
     return MAKE(uiBackdrop_t,
         .CornerFlags = frame->Backdrop.CornerFlags,
         .TileBackground = frame->Backdrop.TileBackground,
-        .Background = UI_PlayerImage(frame->Backdrop.Background),
+        .Background = UI_LiveImage(frame->Backdrop.Background),
         .CornerSize = frame->Backdrop.CornerSize,
         .BackgroundSize = frame->Backdrop.BackgroundSize,
         .BackgroundInsets = {
@@ -119,7 +102,7 @@ static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
             frame->Backdrop.BackgroundInsets[2],
             frame->Backdrop.BackgroundInsets[3],
         },
-        .EdgeFile = UI_PlayerImage(frame->Backdrop.EdgeFile),
+        .EdgeFile = UI_LiveImage(frame->Backdrop.EdgeFile),
         .BlendAll = frame->Backdrop.BlendAll,
         .Mirrored = frame->Backdrop.Mirrored,
     );
@@ -128,7 +111,7 @@ static uiBackdrop_t MakeBackdrop(LPCFRAMEDEF frame) {
 static uiHighlight_t MakeHighlight(LPCFRAMEDEF frame) {
     if (!frame) return (uiHighlight_t){ 0 };
     return MAKE(uiHighlight_t,
-        .alphaFile = UI_PlayerImage(frame->Highlight.AlphaFile),
+        .alphaFile = UI_LiveImage(frame->Highlight.AlphaFile),
         .alphaMode = frame->Highlight.AlphaMode,
     );
 }
@@ -141,7 +124,7 @@ static uiLabel_t MakeLabel(LPCFRAMEDEF frame) {
          * assigning normalized FDF floats directly truncated authored padding. */
         .offsetx = frame->Font.Justification.Offset.x * UI_FRAMEPOINT_SCALE,
         .offsety = frame->Font.Justification.Offset.y * UI_FRAMEPOINT_SCALE,
-        .font = frame->Font.Index,
+        .font = UI_LiveFont(frame->Font.Index),
     );
 }
 
@@ -157,7 +140,7 @@ static uiBackdrop_t MakeButtonBackdrop(LPCFRAMEDEF frame, LPCSTR name) {
     if (!part) return result;
     if (part->Type == FT_BACKDROP) return MakeBackdrop(part);
     if (part->Type == FT_TEXTURE) {
-        result.Background = UI_PlayerImage(part->Texture.Image);
+        result.Background = UI_LiveImage(part->Texture.Image);
         return result;
     }
     return result;
@@ -168,13 +151,13 @@ static uiHighlight_t MakeButtonHighlight(LPCFRAMEDEF frame, LPCSTR name) {
     if (!part) return (uiHighlight_t){ 0 };
     if (part->Type == FT_HIGHLIGHT) {
         return MAKE(uiHighlight_t,
-            .alphaFile = UI_PlayerImage(part->Highlight.AlphaFile),
+            .alphaFile = UI_LiveImage(part->Highlight.AlphaFile),
             .alphaMode = part->Highlight.AlphaMode,
         );
     }
     if (part->Type == FT_TEXTURE) {
         return MAKE(uiHighlight_t,
-            .alphaFile = UI_PlayerImage(part->Texture.Image),
+            .alphaFile = UI_LiveImage(part->Texture.Image),
             .alphaMode = part->AlphaMode,
         );
     }
@@ -220,9 +203,9 @@ static uiSimpleButtonState_t MakeSimpleButtonState(LPCFRAMEDEF frame,
         ? text->Font.Color
         : fallback_color.a ? fallback_color : COLOR32_WHITE;
     uiSimpleButtonState_t result = {
-        .texture = UI_PlayerImage(texture && texture->Type == FT_TEXTURE
+        .texture = UI_LiveImage(texture && texture->Type == FT_TEXTURE
             ? texture->Texture.Image : frame->Texture.Image),
-        .font = text ? text->Font.Index : frame->Font.Index,
+        .font = UI_LiveFont(text ? text->Font.Index : frame->Font.Index),
         .fontcolor = fontcolor,
     };
     BOX2 const uv = texture && texture->Type == FT_TEXTURE
@@ -349,7 +332,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             break;
         }
         case FT_TEXTAREA: {
-            uiTextArea_t data = { .font = frame->Font.Index, .inset = frame->TextArea.Inset };
+            uiTextArea_t data = { .font = UI_LiveFont(frame->Font.Index), .inset = frame->TextArea.Inset };
             if (buf.cursize + sizeof(data) <= buf.maxsize) {
                 memcpy(buf.data + buf.cursize, &data, sizeof(data));
                 buf.cursize += sizeof(data);
@@ -525,10 +508,24 @@ void UI_AddCreateGameSlot(DWORD slot, LPCSTR name, LPCSTR race, LPCSTR color, DW
 
 #define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
+void UI_ResetHud(void) {
+    /* Parsed FDF trees cache CS_IMAGES/CS_FONTS slots. SV_Map wipes those
+     * tables; drop the trees so the next EnsureLoaded re-indexes against the
+     * new level. Isolated scene files keep their own loaded flags. */
+    UI_ResetHudConsole();
+    UI_ResetHudInfoPanel();
+    UI_ResetHudQuests();
+    UI_ResetHudLog();
+    UI_ResetHudMenu();
+    UI_ResetHudAllies();
+    UI_ResetHudGameResult();
+    UI_ResetHudCinematic();
+    UI_ClearTemplates();
+}
+
 /* FDF host services — game module implementations using gi */
 BZ_HOST_HIDDEN HANDLE UI_FdfAlloc(long size) { return gi.MemAlloc(size); }
 BZ_HOST_HIDDEN void UI_FdfFree(HANDLE ptr) { gi.MemFree(ptr); }
-BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return gi.FontIndex(name, size); }
 BZ_HOST_HIDDEN int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
     DWORD size = 0;
     *out = gi.ReadFile(name, &size);
@@ -539,7 +536,6 @@ BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { gi.MemFree(buf); }
 /* Game module doesn't handle UI events or themes — stub these */
 BZ_HOST_HIDDEN void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) { (void)frame; }
 BZ_HOST_HIDDEN void UI_ClearTheme(void) {}
-BZ_HOST_HIDDEN void UI_ClearTextures(void) {}
 
 /* Game module doesn't load 3D models for UI — stub */
 BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) { (void)file; (void)decorate; return 0; }

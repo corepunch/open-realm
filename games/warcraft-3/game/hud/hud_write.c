@@ -5,6 +5,8 @@
  * to the network via gi.Write.  All HUD panels use these to emit frames.
  */
 
+#include <string.h>
+
 #include "hud_local.h"
 #include "hud_utils.h"
 
@@ -255,8 +257,94 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
 
 #define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
+/* Names outlive CS_IMAGES/CS_FONTS. SV_Map zeros those tables; FRAMEDEF still
+ * holds the old slot, so serialize must re-ImageIndex from this process cache. */
+static PATHSTR hud_image_keys[MAX_IMAGES];
+static PATHSTR hud_image_names[MAX_IMAGES];
+static BOOL hud_image_decorated[MAX_IMAGES];
+static PATHSTR hud_font_specs[MAX_FONTSTYLES];
+
+static void UI_RememberImage(DWORD index, LPCSTR key, LPCSTR resolved, BOOL decorate) {
+    if (!index || index >= MAX_IMAGES) return;
+    /* After SV_Map reuses CS_IMAGES slots, a stale FRAMEDEF still holds the old
+     * index. Keep the original name until UI_ResetHud; overwriting it with the
+     * new occupant is the shuffled-icon bug. */
+    if (hud_image_keys[index][0] && key && strcmp(hud_image_keys[index], key))
+        return;
+    snprintf(hud_image_keys[index], sizeof(hud_image_keys[index]), "%s", key ? key : "");
+    snprintf(hud_image_names[index], sizeof(hud_image_names[index]), "%s", resolved ? resolved : "");
+    hud_image_decorated[index] = decorate;
+}
+
+BZ_HOST_HIDDEN void UI_ClearTextures(void) {
+    memset(hud_image_keys, 0, sizeof(hud_image_keys));
+    memset(hud_image_names, 0, sizeof(hud_image_names));
+    memset(hud_image_decorated, 0, sizeof(hud_image_decorated));
+    memset(hud_font_specs, 0, sizeof(hud_font_specs));
+}
+
+BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) {
+    DWORD index;
+    if (!name || !*name || !gi.FontIndex) return 0;
+    index = gi.FontIndex(name, size);
+    if (index && index < MAX_FONTSTYLES)
+        snprintf(hud_font_specs[index], sizeof(hud_font_specs[index]), "%s,%u", name, (unsigned)size);
+    return index;
+}
+
+DWORD UI_LiveFont(DWORD font) {
+    LPCSTR spec, comma;
+    PATHSTR name;
+    DWORD size;
+
+    if (!font) return 0;
+    if (font >= MAX_FONTSTYLES || !hud_font_specs[font][0] || !gi.FontIndex) return font;
+    spec = hud_font_specs[font];
+    comma = strstr(spec, ",");
+    if (!comma) return gi.FontIndex(spec, HUD_FONT_SIZE);
+    memcpy(name, spec, (size_t)(comma - spec));
+    name[comma - spec] = '\0';
+    size = (DWORD)atoi(comma + 1);
+    font = gi.FontIndex(name, size ? size : HUD_FONT_SIZE);
+    if (font && font < MAX_FONTSTYLES)
+        snprintf(hud_font_specs[font], sizeof(hud_font_specs[font]), "%s", spec);
+    return font;
+}
+
+DWORD UI_LiveImage(DWORD image) {
+    LPCSTR key = NULL, name = NULL, resolved, path;
+    BOOL decorate = false;
+    DWORD live;
+
+    if (!image) return 0;
+    if (image < MAX_IMAGES && hud_image_keys[image][0]) {
+        key = hud_image_keys[image];
+        name = hud_image_names[image];
+        decorate = hud_image_decorated[image];
+    }
+    if (!key || !*key) return image;
+    if (!gi.ImageIndex) return image;
+
+    /* Decorated war3skins keys have no slash; re-resolve for the client being serialized. */
+    if (decorate || (!strchr(key, '\\') && !strchr(key, '/'))) {
+        resolved = ui_current_client ? Theme_PlayerString(ui_current_client, key, NULL) : NULL;
+        if (!resolved) resolved = Theme_String(key, NULL);
+        if (resolved && *resolved) {
+            path = UI_ResolveTextureAlias(resolved);
+            live = gi.ImageIndex(path);
+            UI_RememberImage(live, key, path, true);
+            return live;
+        }
+    }
+    path = UI_ResolveTextureAlias(name && *name ? name : key);
+    live = gi.ImageIndex(path);
+    UI_RememberImage(live, key, path, decorate);
+    return live;
+}
+
 BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL decorate) {
     LPCSTR resolved;
+    DWORD index;
 
     if (!path || !*path) return 0;
 
@@ -266,7 +354,10 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL decorate) {
      * EscMenuButtonBackground/Border used by QuestAcceptButton/LogOkButton. */
     resolved = decorate ? Theme_PlayerString(ui_current_client, path, NULL) : NULL;
     if (!resolved) resolved = decorate ? Theme_String(path, path) : path;
-    return gi.ImageIndex(UI_ResolveTextureAlias(resolved));
+    resolved = UI_ResolveTextureAlias(resolved);
+    index = gi.ImageIndex(resolved);
+    UI_RememberImage(index, path, resolved, decorate);
+    return index;
 }
 
 BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {

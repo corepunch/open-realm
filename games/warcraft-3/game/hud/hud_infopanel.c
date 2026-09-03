@@ -33,6 +33,35 @@ static LPFRAMEDEF attack2_icon_value;
 static BOOL simple_infopanel_loaded;
 static BOOL infopanel_loaded;
 
+typedef struct {
+    BOOL resolved;
+    PATHSTR texture;
+} infoPanelIconCache_t;
+
+/* Damage and defense each have eight Warsmash enum entries. Cache the final
+ * path so HP/mana-driven info-panel refreshes do not repeatedly probe MPQs. */
+static infoPanelIconCache_t info_panel_icon_cache[2][8][2];
+
+void UI_ResetHudInfoPanel(void) {
+    memset(&unit_panel, 0, sizeof(unit_panel));
+    memset(&building_panel, 0, sizeof(building_panel));
+    memset(&simple_panel, 0, sizeof(simple_panel));
+    memset(&bottom_panel, 0, sizeof(bottom_panel));
+    memset(&attack1_wrapper, 0, sizeof(attack1_wrapper));
+    memset(&attack2_wrapper, 0, sizeof(attack2_wrapper));
+    memset(&armor_wrapper, 0, sizeof(armor_wrapper));
+    memset(&hero_wrapper, 0, sizeof(hero_wrapper));
+    memset(&food_wrapper, 0, sizeof(food_wrapper));
+    memset(&gold_wrapper, 0, sizeof(gold_wrapper));
+    memset(&buff_status_label, 0, sizeof(buff_status_label));
+    memset(buff_status_icons, 0, sizeof(buff_status_icons));
+    memset(buff_status_icon_textures, 0, sizeof(buff_status_icon_textures));
+    memset(info_panel_icon_cache, 0, sizeof(info_panel_icon_cache));
+    attack2_icon = attack2_icon_backdrop = attack2_icon_level = NULL;
+    attack2_icon_label = attack2_icon_value = NULL;
+    simple_infopanel_loaded = infopanel_loaded = false;
+}
+
 #define INVENTORY_CHARGE_FONT_SIZE 10
 
 static BOOL InfoPanelStringsResolved(void) {
@@ -238,15 +267,6 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
         }
     }
 }
-
-typedef struct {
-    BOOL resolved;
-    PATHSTR texture;
-} infoPanelIconCache_t;
-
-/* Damage and defense each have eight Warsmash enum entries. Cache the final
- * path so HP/mana-driven info-panel refreshes do not repeatedly probe MPQs. */
-static infoPanelIconCache_t info_panel_icon_cache[2][8][2];
 
 static BOOL InfoPanelTextureExists(LPCSTR path) {
     DWORD size = 0;

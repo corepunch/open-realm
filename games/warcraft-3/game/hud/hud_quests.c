@@ -17,6 +17,16 @@ static LPFRAMEDEF quest_item_rows[MAX_UI_CLASSES];
 static DWORD required_row_count, optional_row_count, quest_item_row_count;
 static BOOL quests_loaded;
 
+void UI_ResetHudQuests(void) {
+    memset(&qd, 0, sizeof(qd));
+    quest_row_template = quest_item_template = NULL;
+    memset(required_rows, 0, sizeof(required_rows));
+    memset(optional_rows, 0, sizeof(optional_rows));
+    memset(quest_item_rows, 0, sizeof(quest_item_rows));
+    required_row_count = optional_row_count = quest_item_row_count = 0;
+    quests_loaded = false;
+}
+
 /* QuestDialog.fdf owns both repeated row schemas in addition to the dialog root. */
 static BOOL QuestsEnsureLoaded(void) {
     if (quests_loaded) return qd.QuestDialog && quest_row_template && quest_item_template;

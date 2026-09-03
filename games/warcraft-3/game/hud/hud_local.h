@@ -38,6 +38,17 @@ void UI_WriteWindowEnd(LPEDICT ent);
 DWORD UI_WindowTextOffset(LPCSTR text);
 void UI_ResetFrameWriteList(void);
 void UI_CenterFrame(LPFRAMEDEF frame);
+DWORD UI_LiveImage(DWORD image);
+DWORD UI_LiveFont(DWORD font);
+void UI_ResetHud(void);
+void UI_ResetHudConsole(void);
+void UI_ResetHudInfoPanel(void);
+void UI_ResetHudQuests(void);
+void UI_ResetHudLog(void);
+void UI_ResetHudMenu(void);
+void UI_ResetHudAllies(void);
+void UI_ResetHudGameResult(void);
+void UI_ResetHudCinematic(void);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 
