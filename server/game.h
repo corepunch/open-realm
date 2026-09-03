@@ -102,6 +102,8 @@ typedef struct {
     DWORD number; /* optional command-button numeric overlay; 0 hides it */
     FLOAT cooldown; /* fraction of the ability's cooldown still remaining (0=ready, 1=just used) */
     FLOAT manacost; /* mana cost to cast this ability at its current level (0 if not a spell) */
+    char alternate[256]; /* optional secondary command, normally activated by right click */
+    BYTE alternate_active; /* presentation state for the secondary command */
 } gameCommandButton_t;
 
 typedef struct {

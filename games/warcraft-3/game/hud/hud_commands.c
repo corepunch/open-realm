@@ -108,10 +108,12 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.stat = button->active;
     frame.value = button->cooldown;
     frame.hotkey = button->disabled ? 0 : (BYTE)button->hotkey;
+    if (button->alternate_active) frame.flagsvalue |= UIFLAG_ALTERNATE_ACTIVE;
     UI_FormatTooltip(button->command, button->tooltip, button->ubertip, button->manacost, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
     frame.onclick = button->disabled ? NULL : onclick;
+    frame.text = button->disabled || !button->alternate[0] ? NULL : button->alternate;
     UI_SetFrameRect(&frame, x, y, 0.039f, 0.039f);
     UI_WriteProxyFrame(&frame, NULL, 0);
     UI_WriteCommandButtonNumber(x, y, 0.039f, 0.039f, button->number);

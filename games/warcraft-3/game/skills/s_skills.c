@@ -1,5 +1,15 @@
 #include "s_skills.h"
 
+#ifdef WC3_DEBUG_AUTOCAST
+int G_AutocastDebugLevel(void) {
+    LPCSTR value;
+
+    if (!gi.CvarString) return 0;
+    value = gi.CvarString("wc3_autocast_debug", "0");
+    return value ? atoi(value) : 0;
+}
+#endif
+
 typedef struct {
     LPCSTR classname;
     ability_t *ability;
@@ -118,6 +128,126 @@ ability_t const *FindAbilityForCommand(LPCSTR classname) {
         return FindAbilityByClassname(classname);
     }
     return FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
+}
+
+static BOOL unit_has_ability_handler(LPEDICT ent, ability_t const *wanted) {
+    LPCSTR abilities;
+
+    if (!ent || !wanted || !ent->UnitAbilities) return false;
+    abilities = ent->UnitAbilities->abilList;
+    if (!abilities) return false;
+
+    PARSE_LIST(abilities, ability_name, parse_segment) {
+        if (FindAbilityForCommand(ability_name) == wanted) return true;
+    }
+    return false;
+}
+
+BOOL G_UnitAutocastIsOn(LPEDICT ent, ability_t const *ability) {
+    return ent && ability && ability->autocast_is_on && unit_has_ability_handler(ent, ability) &&
+           ability->autocast_is_on(ent);
+}
+
+BOOL G_SetUnitAutocast(LPEDICT ent, ability_t const *ability, BOOL enabled) {
+    LPCSTR abilities;
+
+    if (!ent || !ability || !ability->autocast_set || !unit_has_ability_handler(ent, ability)) {
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 1) {
+            fprintf(stderr, "WC3_AUTOCAST toggle rejected unit=%ld ability=%p enabled=%d flags=0x%x\n",
+                    ent && g_edicts ? (long)(ent - g_edicts) : -1L, (void *)ability,
+                    enabled ? 1 : 0, ent ? ent->aiflags : 0);
+        }
+#endif
+        return false;
+    }
+
+    /* Warsmash keeps one selected autocast ability per unit. Turning a new one
+     * on first disables every other autocast-capable ability currently present
+     * on this unit; abilities without autocast hooks remain untouched. */
+    if (enabled && ent->UnitAbilities && (abilities = ent->UnitAbilities->abilList)) {
+        PARSE_LIST(abilities, ability_name, parse_segment) {
+            ability_t const *other = FindAbilityForCommand(ability_name);
+            if (other && other != ability && other->autocast_set) other->autocast_set(ent, false);
+        }
+    }
+    ability->autocast_set(ent, enabled);
+    if (enabled) {
+        ent->aiflags |= AI_AUTOCAST_ACTIVE;
+    } else {
+        BOOL any_enabled = false;
+        if (ent->UnitAbilities && (abilities = ent->UnitAbilities->abilList)) {
+            PARSE_LIST(abilities, ability_name, parse_segment) {
+                ability_t const *other = FindAbilityForCommand(ability_name);
+                if (other && other->autocast_is_on && other->autocast_is_on(ent)) {
+                    any_enabled = true;
+                    break;
+                }
+            }
+        }
+        if (!any_enabled) ent->aiflags &= ~AI_AUTOCAST_ACTIVE;
+    }
+#ifdef WC3_DEBUG_AUTOCAST
+    if (G_AutocastDebugLevel() >= 1) {
+        fprintf(stderr, "WC3_AUTOCAST toggle unit=%ld class=%.4s enabled=%d flags=0x%x idle_worker=%d abilities=%s\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L, (LPCSTR)&ent->class_id,
+                enabled ? 1 : 0, ent->aiflags, G_UnitIsIdleWorker(ent) ? 1 : 0,
+                ent->UnitAbilities && ent->UnitAbilities->abilList ? ent->UnitAbilities->abilList : "<none>");
+    }
+#endif
+    return true;
+}
+
+BOOL G_TryUnitAutocast(LPEDICT ent) {
+    LPCSTR abilities;
+
+    if (!ent || !(ent->aiflags & AI_AUTOCAST_ACTIVE) || !ent->UnitAbilities ||
+        !(abilities = ent->UnitAbilities->abilList)) {
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 2 && ent) {
+            fprintf(stderr, "WC3_AUTOCAST skip unit=%ld class=%.4s flags=0x%x abilities=%s\n",
+                    g_edicts ? (long)(ent - g_edicts) : -1L, (LPCSTR)&ent->class_id,
+                    ent->aiflags,
+                    ent->UnitAbilities && ent->UnitAbilities->abilList ? ent->UnitAbilities->abilList : "<none>");
+        }
+#endif
+        return false;
+    }
+#ifdef WC3_DEBUG_AUTOCAST
+    if (G_AutocastDebugLevel() >= 2) {
+        fprintf(stderr, "WC3_AUTOCAST try unit=%ld class=%.4s flags=0x%x abilities=%s\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L, (LPCSTR)&ent->class_id,
+                ent->aiflags, abilities);
+    }
+#endif
+    PARSE_LIST(abilities, ability_name, parse_segment) {
+        ability_t const *ability = FindAbilityForCommand(ability_name);
+        BOOL is_on;
+        if (!ability || !ability->autocast_is_on || !ability->autocast_acquire) continue;
+        is_on = ability->autocast_is_on(ent);
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 2) {
+            fprintf(stderr, "WC3_AUTOCAST ability unit=%ld code=%s on=%d\n",
+                    g_edicts ? (long)(ent - g_edicts) : -1L, ability_name, is_on ? 1 : 0);
+        }
+#endif
+        if (is_on && ability->autocast_acquire(ent)) {
+#ifdef WC3_DEBUG_AUTOCAST
+            if (G_AutocastDebugLevel() >= 1) {
+                fprintf(stderr, "WC3_AUTOCAST acquired unit=%ld code=%s\n",
+                        g_edicts ? (long)(ent - g_edicts) : -1L, ability_name);
+            }
+#endif
+            return true;
+        }
+    }
+#ifdef WC3_DEBUG_AUTOCAST
+    if (G_AutocastDebugLevel() >= 2) {
+        fprintf(stderr, "WC3_AUTOCAST no_target unit=%ld\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L);
+    }
+#endif
+    return false;
 }
 
 DWORD FindAbilityIndex(LPCSTR classname) {

@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include <float.h>
 
 void repair_build_primary(LPEDICT ent, LPEDICT building);
 void repair_build_legacy(LPEDICT ent, LPEDICT building);
@@ -8,6 +9,8 @@ static umove_t repair_move_work;
 static umove_t repair_generic_move_walk;
 static umove_t repair_generic_move_work;
 static umove_t repair_legacy_move_work;
+
+static BOOL repair_autocast_is_on(LPEDICT ent);
 
 static void repair_code_string(DWORD code, char out[5]) {
     memcpy(out, &code, 4);
@@ -60,7 +63,6 @@ static void repair_release(LPEDICT ent) {
     if (ent->buildwork.primary && building && building->construction.primary_builder == ent) {
         building->construction.primary_builder = NULL;
     }
-    ent->goalentity = NULL;
     if (ent->build == building) ent->build = NULL;
     ent->buildwork.primary = false;
     ent->buildwork.ability = 0;
@@ -70,12 +72,54 @@ static void repair_release(LPEDICT ent) {
 
 void S_CancelRepair(LPEDICT ent) {
     ability_t const *ability;
+    LPEDICT building;
+    LPEDICT goal;
+
     if (!ent || !ent->buildwork.ability) return;
     ability = repair_handler(ent->buildwork.ability);
-    if (ability == &a_repair || ability == &a_repair_generic) repair_release(ent);
+    if (ability != &a_repair && ability != &a_repair_generic) return;
+    building = ent->build;
+    goal = ent->goalentity;
+    /* A replacement order installs its goal before unit_setmove() cancels the
+     * old Repair move. Preserve that replacement goal, but still retire the
+     * Repair-owned goal on an ordinary Stop/stand transition. unit_stand()
+     * clears build before switching moves, so when no build pointer remains the
+     * current Repair goal is the best surviving identity for the old target. */
+    if (!building && ent->currentmove && ent->currentmove->ability == ability)
+        building = goal;
+#ifdef WC3_DEBUG_AUTOCAST
+    if (G_AutocastDebugLevel() >= 1) {
+        fprintf(stderr,
+                "WC3_AUTOREPAIR cancel worker=%ld build=%ld goal=%ld move=%s autocast=%d\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L,
+                building && g_edicts ? (long)(building - g_edicts) : -1L,
+                goal && g_edicts ? (long)(goal - g_edicts) : -1L,
+                ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
+                repair_autocast_is_on(ent) ? 1 : 0);
+    }
+#endif
+    repair_release(ent);
+    if (ent->goalentity == building) ent->goalentity = NULL;
 }
 
-static void repair_stop(LPEDICT ent) {
+static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
+#ifdef WC3_DEBUG_AUTOCAST
+    LPEDICT building = ent ? ent->build : NULL;
+
+    if (G_AutocastDebugLevel() >= 1 && ent) {
+        fprintf(stderr,
+                "WC3_AUTOREPAIR stop worker=%ld build=%ld reason=%s hp=%.1f/%.1f autocast=%d\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L,
+                building && g_edicts ? (long)(building - g_edicts) : -1L,
+                reason ? reason : "unknown",
+                building ? building->health.value : 0.0f,
+                building ? building->health.max_value : 0.0f,
+                repair_autocast_is_on(ent) ? 1 : 0);
+    }
+#else
+    (void)reason;
+#endif
+    if (ent) ent->goalentity = NULL;
     repair_release(ent);
     if (ent && ent->stand) ent->stand(ent);
 }
@@ -223,7 +267,7 @@ static BOOL repair_prepare_approach(LPEDICT ent) {
 
 static BOOL repair_set_walk(LPEDICT ent) {
     if (!repair_prepare_approach(ent)) {
-        repair_stop(ent);
+        repair_stop_reason(ent, "no_approach");
         return false;
     }
     if (repair_handler(ent->buildwork.ability) == &a_repair_generic)
@@ -239,7 +283,7 @@ static void ai_repair_walk(LPEDICT ent) {
 
     if (!building || !repair_target_valid(ent, building, ent->buildwork.ability,
                                            ent->buildwork.primary)) {
-        repair_stop(ent);
+        repair_stop_reason(ent, "walk_target_invalid");
         return;
     }
     if (repair_in_range(ent, building)) {
@@ -250,18 +294,18 @@ static void ai_repair_walk(LPEDICT ent) {
     distance = M_DistanceToGoal(ent);
     step = unit_movedistance(ent);
     if (move_is_blocked(ent, distance, step)) {
-        repair_stop(ent);
+        repair_stop_reason(ent, "walk_blocked");
         return;
     }
 
     unit_changeangle_for_radius(ent, ent->collision);
 
     if (ent->movement.flow_goal_reached && !repair_in_range(ent, building)) {
-        repair_stop(ent);
+        repair_stop_reason(ent, "walk_goal_reached_out_of_range");
         return;
     }
     if (ent->movement.flow_unreachable) {
-        repair_stop(ent);
+        repair_stop_reason(ent, "walk_unreachable");
         return;
     }
     unit_moveindirection(ent);
@@ -274,7 +318,7 @@ static void ai_repair(LPEDICT ent) {
 
     if (!building || !repair_target_valid(ent, building, ent->buildwork.ability,
                                            ent->buildwork.primary)) {
-        repair_stop(ent);
+        repair_stop_reason(ent, "work_target_invalid");
         return;
     }
     if (!repair_in_range(ent, building)) {
@@ -293,24 +337,24 @@ static void ai_repair(LPEDICT ent) {
         FLOAT start_hp;
 
         if (!building->construction.paused || !data) {
-            repair_stop(ent);
+            repair_stop_reason(ent, "construction_not_paused_or_no_data");
             return;
         }
         if (ent->buildwork.primary) {
             if (building->construction.primary_builder != ent) {
-                repair_stop(ent);
+                repair_stop_reason(ent, "lost_primary_builder");
                 return;
             }
             ratio = 1.0f;
         } else {
             ratio = data->data[0][3];
             if (ratio <= 0.0f) {
-                repair_stop(ent);
+                repair_stop_reason(ent, "invalid_power_build_ratio");
                 return;
             }
         }
         if (!repair_charge_power_cost(ent, building, data)) {
-            repair_stop(ent);
+            repair_stop_reason(ent, "power_build_unaffordable");
             return;
         }
 
@@ -322,7 +366,7 @@ static void ai_repair(LPEDICT ent) {
         hp->value = MIN(hp->max_value, hp->value + hp_gain);
         if (building->construction.progress >= duration) {
             G_CompleteConstruction(building);
-            repair_stop(ent);
+            repair_stop_reason(ent, "construction_complete");
         }
         return;
     }
@@ -336,14 +380,14 @@ static void ai_repair(LPEDICT ent) {
         FLOAT hp_rate;
 
         if (duration <= 0.0f || time_ratio <= 0.0f) {
-            repair_stop(ent);
+            repair_stop_reason(ent, "invalid_repair_rates");
             return;
         }
         hp_rate = (hp->max_value / duration) * time_ratio;
         if (!repair_charge(ent,
                 ((FLOAT)balance->goldRep / duration) * cost_ratio * time_ratio,
                 ((FLOAT)balance->lumberRep / duration) * cost_ratio * time_ratio)) {
-            repair_stop(ent);
+            repair_stop_reason(ent, "repair_unaffordable");
             return;
         }
         hp->value = MIN(hp->max_value, hp->value + hp_rate * seconds);
@@ -351,7 +395,7 @@ static void ai_repair(LPEDICT ent) {
     if (hp->value >= hp->max_value) {
         hp->value = hp->max_value;
         building->stand(building);
-        repair_stop(ent);
+        repair_stop_reason(ent, "repair_complete");
     }
 }
 
@@ -392,6 +436,19 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
     ent->buildwork.gold_accum = 0.0f;
     ent->buildwork.lumber_accum = 0.0f;
     move_reset_progress(ent);
+#ifdef WC3_DEBUG_AUTOCAST
+    if (G_AutocastDebugLevel() >= 1) {
+        char rawcode[5];
+        repair_code_string(code, rawcode);
+        fprintf(stderr,
+                "WC3_AUTOREPAIR begin worker=%ld target=%ld code=%s primary=%d in_range=%d autocast=%d\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L,
+                g_edicts ? (long)(building - g_edicts) : -1L,
+                rawcode, primary ? 1 : 0,
+                repair_in_range(ent, building) ? 1 : 0,
+                repair_autocast_is_on(ent) ? 1 : 0);
+    }
+#endif
 
     if (primary) {
         /* The initial Human builder starts inside the newly baked footprint.
@@ -475,6 +532,195 @@ BOOL S_RepairSmart(LPEDICT ent, LPEDICT target) {
     return S_OrderRepair(ent, target, 0);
 }
 
+#define REPAIR_AUTOCAST_MAX_TARGETS 256 // entities; bounded candidates considered by one Auto Repair acquisition scan
+
+static BOOL repair_autocast_is_on(LPEDICT ent) {
+    return ent && (ent->aiflags & AI_AUTOCAST_REPAIR) != 0;
+}
+
+static void repair_autocast_set(LPEDICT ent, BOOL enabled) {
+    if (!ent) return;
+    if (enabled) ent->aiflags |= AI_AUTOCAST_REPAIR;
+    else ent->aiflags &= ~AI_AUTOCAST_REPAIR;
+}
+
+static LPCSTR repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, DWORD code) {
+    ability_t const *handler;
+    AbilityData_t const *data;
+    BOOL primary = false;
+
+    if (!ent) return "no_worker";
+    if (!target) return "no_target";
+    if (!code) return "no_repair_code";
+    if (!target->inuse) return "unused";
+    if (M_IsDead(target)) return "dead";
+    if (!G_UnitIsBuilding(target->class_id)) return "not_building";
+    if (!target->UnitBalance) return "no_balance";
+    if (target->s.player != ent->s.player) return "wrong_owner";
+
+    handler = repair_handler(code);
+    data = G_AbilityData(code);
+    if (target->construction.active) {
+        if (handler != &a_repair) return "construction_requires_human_repair";
+        if (!target->construction.paused) return "construction_not_paused";
+        if (!repair_primary_active(target)) primary = true;
+        if (!primary && (!data || data->data[0][3] <= 0.0f)) return "no_power_build_ratio";
+    } else if (target->health.value >= target->health.max_value) {
+        return "full_health";
+    }
+    return repair_target_valid(ent, target, code, primary) ? NULL : "repair_target_rules";
+}
+
+/* Warsmash CUnit.distance() compares unit edges by subtracting both collision
+ * sizes, not just center-to-center distance. This matters most for large
+ * buildings: a Peasant can be visibly close to the footprint while the
+ * building center lies beyond uacq. */
+static FLOAT repair_autocast_distance(LPCEDICT ent, LPCEDICT target) {
+    FLOAT distance;
+
+    if (!ent || !target) return FLT_MAX;
+    distance = Vector2_distance(&target->s.origin2, &ent->s.origin2) -
+               MAX(0.0f, ent->collision) - MAX(0.0f, target->collision);
+    return MAX(0.0f, distance);
+}
+
+BOOL S_SetRepairAutocast(LPEDICT ent, BOOL enabled) {
+    DWORD code;
+    ability_t const *ability;
+
+    if (!ent) return false;
+    code = repair_find_code(ent, NULL, 0);
+    ability = repair_handler(code);
+    if (!ability) return false;
+    return G_SetUnitAutocast(ent, ability, enabled);
+}
+
+/* Repair uses Warsmash's NEARESTVALID autocast policy: acquisition range only
+ * bounds candidate discovery. Once chosen, the ordinary Repair order owns
+ * pathing into Repair range and all subsequent validation/cost behavior. */
+static BOOL repair_autocast_acquire(LPEDICT ent) {
+    LPEDICT candidates[REPAIR_AUTOCAST_MAX_TARGETS];
+    LPEDICT best = NULL;
+    FLOAT radius;
+    FLOAT best_distance;
+    DWORD code;
+    BOX2 area;
+    DWORD count;
+
+    if (!ent) return false;
+    if (M_IsDead(ent) || S_GoldMineWorkerIsInside(ent)) {
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 1) {
+            fprintf(stderr,
+                    "WC3_AUTOREPAIR scan_skip worker=%ld reason=%s\n",
+                    g_edicts ? (long)(ent - g_edicts) : -1L,
+                    M_IsDead(ent) ? "worker_dead" : "worker_inside_goldmine");
+        }
+#endif
+        return false;
+    }
+    code = repair_find_code(ent, NULL, 0);
+    radius = G_AcquisitionRange(ent);
+    if (!code || radius <= 0.0f) {
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 1) {
+            fprintf(stderr,
+                    "WC3_AUTOREPAIR scan_skip worker=%ld reason=%s radius=%.1f abilities=%s\n",
+                    g_edicts ? (long)(ent - g_edicts) : -1L,
+                    !code ? "no_repair_code" : "zero_acquisition_range", radius,
+                    ent->UnitAbilities && ent->UnitAbilities->abilList ? ent->UnitAbilities->abilList : "<none>");
+        }
+#endif
+        return false;
+    }
+
+    /* Warsmash expands from the source collision rectangle, then lets
+     * NEARESTVALID compare collision-aware distances among enumerated units. */
+    area = (BOX2){
+        { ent->s.origin2.x - radius - ent->collision,
+          ent->s.origin2.y - radius - ent->collision },
+        { ent->s.origin2.x + radius + ent->collision,
+          ent->s.origin2.y + radius + ent->collision },
+    };
+    count = gi.BoxEdicts(&area, candidates, REPAIR_AUTOCAST_MAX_TARGETS, NULL);
+    best_distance = FLT_MAX;
+#ifdef WC3_DEBUG_AUTOCAST
+    if (G_AutocastDebugLevel() >= 1) {
+        char rawcode[5];
+        repair_code_string(code, rawcode);
+        fprintf(stderr,
+                "WC3_AUTOREPAIR scan worker=%ld code=%s pos=(%.1f,%.1f) radius=%.1f collision=%.1f candidates=%u\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L, rawcode,
+                ent->s.origin2.x, ent->s.origin2.y, radius, ent->collision, count);
+    }
+#endif
+    FOR_LOOP(i, count) {
+        LPEDICT target = candidates[i];
+        LPCSTR reject;
+        FLOAT distance;
+
+        reject = repair_autocast_reject_reason(ent, target, code);
+        if (reject) {
+#ifdef WC3_DEBUG_AUTOCAST
+            if (G_AutocastDebugLevel() >= 2 && target) {
+                fprintf(stderr,
+                        "WC3_AUTOREPAIR candidate worker=%ld target=%ld class=%.4s owner=%u hp=%.1f/%.1f reject=%s\n",
+                        g_edicts ? (long)(ent - g_edicts) : -1L,
+                        g_edicts ? (long)(target - g_edicts) : -1L,
+                        (LPCSTR)&target->class_id, target->s.player,
+                        target->health.value, target->health.max_value, reject);
+            }
+#endif
+            continue;
+        }
+        distance = repair_autocast_distance(ent, target);
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 2) {
+            fprintf(stderr,
+                    "WC3_AUTOREPAIR candidate worker=%ld target=%ld class=%.4s hp=%.1f/%.1f distance=%.1f valid=1\n",
+                    g_edicts ? (long)(ent - g_edicts) : -1L,
+                    g_edicts ? (long)(target - g_edicts) : -1L,
+                    (LPCSTR)&target->class_id,
+                    target->health.value, target->health.max_value, distance);
+        }
+#endif
+        if (distance < best_distance) {
+            best = target;
+            best_distance = distance;
+        }
+    }
+    if (!best) {
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 1) {
+            fprintf(stderr, "WC3_AUTOREPAIR no_target worker=%ld\n",
+                    g_edicts ? (long)(ent - g_edicts) : -1L);
+        }
+#endif
+        return false;
+    }
+#ifdef WC3_DEBUG_AUTOCAST
+    if (G_AutocastDebugLevel() >= 1) {
+        fprintf(stderr,
+                "WC3_AUTOREPAIR choose worker=%ld target=%ld class=%.4s distance=%.1f hp=%.1f/%.1f\n",
+                g_edicts ? (long)(ent - g_edicts) : -1L,
+                g_edicts ? (long)(best - g_edicts) : -1L,
+                (LPCSTR)&best->class_id, best_distance,
+                best->health.value, best->health.max_value);
+    }
+#endif
+    if (!G_IssueUnitTargetOrder(ent, "repair", best, false, ent->s.player)) {
+#ifdef WC3_DEBUG_AUTOCAST
+        if (G_AutocastDebugLevel() >= 1) {
+            fprintf(stderr, "WC3_AUTOREPAIR order_failed worker=%ld target=%ld\n",
+                    g_edicts ? (long)(ent - g_edicts) : -1L,
+                    g_edicts ? (long)(best - g_edicts) : -1L);
+        }
+#endif
+        return false;
+    }
+    return true;
+}
+
 static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
     DWORD code;
     ability_t const *handler;
@@ -500,7 +746,11 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
     }
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        if (S_OrderRepair(ent, target, code)) issued = true;
+        if (G_IssueUnitTargetOrder(ent, "repair", target,
+                                   clent->client->menu.order_queued,
+                                   clent->client->ps.number)) {
+            issued = true;
+        }
     }
     return issued;
 }
@@ -508,12 +758,19 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
 static void repair_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = repair_selecttarget;
+    clent->client->menu.supports_order_queue = true;
 }
 
 ability_t a_repair = {
     .cmd = repair_command,
+    .autocast_is_on = repair_autocast_is_on,
+    .autocast_set = repair_autocast_set,
+    .autocast_acquire = repair_autocast_acquire,
 };
 
 ability_t a_repair_generic = {
     .cmd = repair_command,
+    .autocast_is_on = repair_autocast_is_on,
+    .autocast_set = repair_autocast_set,
+    .autocast_acquire = repair_autocast_acquire,
 };
