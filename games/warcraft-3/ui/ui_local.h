@@ -31,8 +31,6 @@ void UI_InitLocal(void);
 void UI_SetActive(BOOL active);
 void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD time);
-DWORD UI_GameTime(void);
-
 /* ui_alerts.c */
 void UI_AlertsClear(void);
 void UI_AlertsGameCommand(LPCSTR command, void const *data, DWORD size);

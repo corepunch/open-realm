@@ -137,6 +137,7 @@ typedef struct {
     void (*LAN_ConnectServer)(DWORD index);
    
     /* Game state access (for in-game HUD) */
+    DWORD (*GetTime)(void);                    /* Current client clock in milliseconds */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
     DWORD (*GetNumEntities)(void);              /* cl.num_entities */
     LPCENTITYSTATE (*GetEntity)(DWORD idx);     /* &cl.ents[idx].current */

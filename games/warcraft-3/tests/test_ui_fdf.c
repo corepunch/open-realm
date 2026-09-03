@@ -177,6 +177,12 @@ static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
         captured_realm_panel_sprites++;
 }
 
+static bool test_world_to_minimap(LPCVECTOR2 world, LPVECTOR2 outScreen) {
+    if (!world || !outScreen) return false;
+    *outScreen = *world;
+    return true;
+}
+
 static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
     (void)draw_backdrop;
     captured_draw_calls++;
@@ -187,6 +193,12 @@ static size2_t test_get_window_size(void) {
 }
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
+
+static DWORD test_ui_clock;
+
+static DWORD test_get_time(void) {
+    return test_ui_clock;
+}
 
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
@@ -199,6 +211,7 @@ static LPRENDERER test_get_renderer(void) {
         .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
+        .WorldToMinimap = test_world_to_minimap,
         .GetTextSize = test_get_text_size,
     };
     return &renderer;
@@ -2337,6 +2350,39 @@ TEST(ui_fdf, recent_alert_new_entry_resets_spacebar_traversal) {
     UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
     UI_AlertsGameplayKeyEvent(' ', 0, false, &camera);
     T_FEQ(camera.x, 3.0f, 0.001f);
+    UI_AlertsClear();
+    uiimport = saved;
+}
+
+TEST(ui_fdf, minimap_ping_expires_on_active_gameplay_client_clock) {
+    uiImport_t saved = uiimport;
+    wc3MinimapPing_t ping = {
+        .position = { 25.0f, 30.0f },
+        .duration = 0.1f,
+    };
+
+    UI_AlertsClear();
+    captured_stand_sprites = 0;
+    test_ui_clock = 1000;
+    uiimport.GetTime = test_get_time;
+    uiimport.GetRenderer = test_get_renderer;
+
+    UI_AlertsGameCommand("minimap_ping", &ping, sizeof(ping));
+    UI_AlertsDraw();
+    T_EQ(captured_stand_sprites, 1);
+
+    test_ui_clock = 1099;
+    UI_AlertsDraw();
+    T_EQ(captured_stand_sprites, 2);
+
+    test_ui_clock = 1100;
+    UI_AlertsDraw();
+    T_EQ(captured_stand_sprites, 2);
+
+    test_ui_clock = 1200;
+    UI_AlertsDraw();
+    T_EQ(captured_stand_sprites, 2);
+
     UI_AlertsClear();
     uiimport = saved;
 }

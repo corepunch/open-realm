@@ -116,6 +116,7 @@ void CL_ClearState(void) {
 }
 
 /* Forward declarations for UI callbacks */
+static DWORD CL_UIGetTime(void);
 static LPCPLAYER CL_UIGetPlayerState(void);
 static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
@@ -310,6 +311,10 @@ static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int b
 }
 
 /* Game state access callbacks for UI library */
+static DWORD CL_UIGetTime(void) {
+    return cl.time;
+}
+
 static LPCPLAYER CL_UIGetPlayerState(void) {
     return &cl.playerstate;
 }
@@ -627,6 +632,7 @@ void CL_Init(void) {
         .LAN_NumServers = CL_LANNumServers,
         .LAN_Server = CL_LANServer,
         .LAN_ConnectServer = CL_LANConnectServer,
+        .GetTime = CL_UIGetTime,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,

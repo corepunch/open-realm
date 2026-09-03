@@ -505,10 +505,6 @@ void UI_SetActive(BOOL active) {
     ui_state.active = active;
 }
 
-DWORD UI_GameTime(void) {
-    return ui_state.time;
-}
-
 void UI_RefreshLocal(DWORD time) {
     if (!ui_state.active) {
         return;
