@@ -4,8 +4,6 @@
 #define ID_FIRE_BOLT MAKEFOURCC('A', 'N', 'f', 'b')
 #define ID_STUN_BUFF "Bstu"
 
-static LPCSTR thunderbolt_missile_art;
-static LPCSTR firebolt_missile_art;
 static FLOAT thunderbolt_missile_speed;
 static FLOAT firebolt_missile_speed;
 
@@ -16,10 +14,6 @@ static void thunderbolt_projectile_hit(LPEDICT missile);
 static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &a_thunderbolt };
 static umove_t firebolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &a_firebolt };
 static umove_t spell_cast_move = { "spell", ai_idle, NULL, &a_thunderbolt };
-
-static LPCSTR bolt_missile_art(DWORD code) {
-    return code == ID_FIRE_BOLT ? firebolt_missile_art : thunderbolt_missile_art;
-}
 
 static FLOAT bolt_missile_speed(DWORD code) {
     FLOAT speed = code == ID_FIRE_BOLT ? firebolt_missile_speed : thunderbolt_missile_speed;
@@ -43,7 +37,7 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     LPEDICT target = st.entity;
     DWORD code = spell->code;
     DWORD level = S_SpellLevel(caster, code);
-    LPCSTR art = bolt_missile_art(code);
+    LPCSTR art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     FLOAT speed = bolt_missile_speed(code);
     FLOAT duration = S_SpellDuration(code, level, target->UnitBalance->level >= 5);
     LPEDICT missile;
@@ -64,13 +58,11 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 
 static void SP_ability_thunderbolt(LPCSTR classname, ability_t *self) {
     (void)self;
-    thunderbolt_missile_art = FindConfigValue(classname, "Missileart");
     thunderbolt_missile_speed = ConfigNumber(classname, "Missilespeed");
 }
 
 static void SP_ability_firebolt(LPCSTR classname, ability_t *self) {
     (void)self;
-    firebolt_missile_art = FindConfigValue(classname, "Missileart");
     firebolt_missile_speed = ConfigNumber(classname, "Missilespeed");
 }
 

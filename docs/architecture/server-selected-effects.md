@@ -35,7 +35,7 @@ the new `games/warcraft-3/game/skills/s_onfire.c`.
 - `games/warcraft-3/renderer/r_game.c` `R_RenderModel()` — generic consumer, no
   per-race branching.
 
-See also: [Building Damage Rendering](../games/warcraft-3/building-damage-rendering.md)
+See also: [Building Damage Rendering](../games/warcraft-3/building-damage-rendering.md) and [WC3 Ability, Buff, And Item Presentation Effects](../games/warcraft-3/ability-and-item-effects.md).
 
 ## Anti-pattern #2: `#ifdef` branch in a shared dispatcher (do not repeat)
 

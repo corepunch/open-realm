@@ -2,8 +2,6 @@
 
 #include <ctype.h>
 
-static umove_t spell_effect_birth = { "birth", NULL, G_FreeEdict };
-
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
 
 /* ---- Unified Spell Pipeline ----
@@ -36,6 +34,21 @@ void S_SpellCodeString(DWORD code, LPSTR out) {
 DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback) {
     DWORD code = clent && clent->client ? clent->client->menu.ability_code : 0;
     return code ? code : fallback;
+}
+
+spell_info_t const *S_SpellInfoForCode(DWORD code) {
+    ability_t const *ability;
+
+    if (!code) return NULL;
+
+    /* A rawcode stored in a DWORD is four bytes, not a C string. The old
+     * spell path cast &code to LPCSTR and handed it to strcmp(), so lookup
+     * depended on the unrelated byte immediately after the DWORD being zero.
+     * Convert through GetClassName(), which supplies the required terminator,
+     * and use the normal alias-aware command resolver so custom abilities
+     * inherit their registered base handler as well. */
+    ability = FindAbilityForCommand(GetClassName(code));
+    return ability ? ability->spell : NULL;
 }
 
 DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
@@ -272,23 +285,6 @@ void S_SpellHeal(LPEDICT target, FLOAT amount) {
     target->health.value = MIN(target->health.max_value, target->health.value + amount);
 }
 
-void S_SpellSpawnTargetArt(LPEDICT target, LPCSTR art) {
-    LPEDICT effect;
-
-    if (!target || !art || !*art) {
-        return;
-    }
-
-    effect = G_Spawn();
-    effect->s.origin = target->s.origin;
-    effect->s.angle = target->s.angle;
-    effect->s.model = G_RegisterModel(art);
-    effect->goalentity = target;
-    effect->movetype = MOVETYPE_LINK;
-    effect->think = M_MoveFrame;
-    unit_setmove(effect, &spell_effect_birth);
-}
-
 void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {
     LONG image = 0;
 
@@ -396,8 +392,7 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
     DWORD code = S_SpellCurrentCode(clent, 0);
     DWORD level = S_SpellLevel(caster, code);
     FLOAT range = S_SpellRange(code, level);
-    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
-    spell_info_t const *spell = abil ? abil->spell : NULL;
+    spell_info_t const *spell = S_SpellInfoForCode(code);
 
     if (!spell) return false;
     if (!spell_validate(clent, caster, code, level, target, range)) return false;
@@ -419,8 +414,7 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
     DWORD code = S_SpellCurrentCode(clent, 0);
     DWORD level = S_SpellLevel(caster, code);
     FLOAT range = S_SpellRange(code, level);
-    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
-    spell_info_t const *spell = abil ? abil->spell : NULL;
+    spell_info_t const *spell = S_SpellInfoForCode(code);
 
     if (!spell) return false;
     if (!spell_validate_point(clent, caster, code, level, point, range))
@@ -442,8 +436,7 @@ static void spell_no_target_execute(LPEDICT clent) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
     DWORD level = S_SpellLevel(caster, code);
-    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
-    spell_info_t const *spell = abil ? abil->spell : NULL;
+    spell_info_t const *spell = S_SpellInfoForCode(code);
 
     if (!spell) return;
     if (!spell_validate(clent, caster, code, level, NULL, 0.0f)) return;
@@ -460,8 +453,7 @@ static void spell_no_target_execute(LPEDICT clent) {
 void spell_cmd(LPEDICT clent) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
-    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
-    spell_info_t const *spell = abil ? abil->spell : NULL;
+    spell_info_t const *spell = S_SpellInfoForCode(code);
 
     if (!spell) {
         fprintf(stderr, "spell_cmd: no spell_info for code '%.4s'\n", (LPCSTR)&code);

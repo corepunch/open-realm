@@ -71,6 +71,7 @@ extern ability_t a_item_figurine_summon;
 extern ability_t a_item_permanent_life_gain;
 extern ability_t a_item_experience_gain;
 extern ability_t a_item_level_gain;
+extern ability_t a_item_defense_aoe;
 extern ability_t a_flame_strike;
 extern ability_t a_siphon_mana;
 
@@ -95,6 +96,7 @@ typedef enum {
 	ABILITY_NUMBER_RANGE
 } abilityNumber_t;
 DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback);
+spell_info_t const *S_SpellInfoForCode(DWORD code);
 DWORD S_SpellLevel(LPEDICT caster, DWORD code);
 FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level);
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
@@ -113,7 +115,6 @@ BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target);
 BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target);
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target);
 void S_SpellHeal(LPEDICT target, FLOAT amount);
-void S_SpellSpawnTargetArt(LPEDICT target, LPCSTR art);
 void S_SpellCursorSplat(LPEDICT clent, FLOAT radius);
 void S_SpellCodeString(DWORD code, LPSTR out);
 BOOL S_SpellIsChanneling(LPEDICT caster);

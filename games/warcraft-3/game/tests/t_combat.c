@@ -1,4 +1,5 @@
 #ifdef BZ_TESTS
+#include <stddef.h>
 /* Forward declarations — defined in t_slk.c, compiled together in unity build. */
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
@@ -87,6 +88,34 @@ static animation_t _stub_anim = {
 /* Wire a real animation into an entity so M_MoveFrame has something to work with. */
 static void attach_stub_anim(LPEDICT ent) {
     ent->animation = &_stub_anim;
+}
+
+/* ==========================================================================
+ * Ability presentation effects
+ * ========================================================================== */
+
+TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) {
+    DWORD const holy_light = MAKEFOURCC('A','H','h','b');
+
+    setup_test_world();
+    T_STREQ(G_AbilityEffectArt(holy_light, WC3_EFFECT_TARGET, 0),
+            "TestUI\\Models\\anim_pulse.mdx");
+    T_STREQ(G_AbilityEffectArt(holy_light, WC3_EFFECT_TARGET, 1),
+            "TestUI\\Models\\quad_sprite.mdx");
+    T_STREQ(G_AbilityEffectArt(holy_light, WC3_EFFECT_TARGET, 99),
+            "TestUI\\Models\\quad_sprite.mdx");
+    T_STREQ(G_AbilityEffectArt(holy_light, WC3_EFFECT_SPECIAL, 0),
+            "TestUI\\Models\\panel_sprite.mdx");
+    T_STREQ(G_AbilityEffectArt(holy_light, WC3_EFFECT_AREA_EFFECT, 0),
+            "TestUI\\Models\\ui_panel.mdx");
+    T_NULL(G_AbilityEffectArt(holy_light, WC3_EFFECT_LIGHTNING, 0));
+
+    T_STREQ(G_AbilityEffectArt(MAKEFOURCC('B','i','m','l'), WC3_EFFECT_TARGET, 0),
+            "TestUI\\Models\\anim_pulse.mdx");
+    T_STREQ(G_AbilityEffectArt(MAKEFOURCC('B','i','m','l'), WC3_EFFECT_SPECIAL, 0),
+            "TestUI\\Models\\panel_sprite.mdx");
+    T_STREQ(G_AbilityEffectArt(MAKEFOURCC('B','i','m','l'), WC3_EFFECT_EFFECT, 0),
+            "TestUI\\Models\\quad_sprite.mdx");
 }
 
 /* ==========================================================================
@@ -993,6 +1022,10 @@ static const char slk_ability_helpers[] =
     "C;Y4;X1;K\"Ahrp\"\n"
     "C;Y4;X2;K\"Arep\"\n"
     "E\n";
+
+TEST(wc3_combat, ability_dispatch_extension_is_append_only) {
+    T_ASSERT(offsetof(ability_t, item_use) > offsetof(ability_t, spell));
+}
 
 TEST(wc3_combat, command_lookup_resolves_fourcc_ability_alias) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers);

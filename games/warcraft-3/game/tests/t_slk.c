@@ -285,6 +285,10 @@ TEST(wc3_slk, ability_buff_ui_columns_decode) {
     T_EQ(buff->id, MAKEFOURCC('B','i','m','l'));
     T_STREQ(buff->buffArt, "ReplaceableTextures\\CommandButtons\\BTNImmolationOn.blp");
     T_STREQ(buff->buffTip, "Immolation");
+    T_STREQ(buff->targetArt, "TestUI\\Models\\anim_pulse.mdx");
+    T_STREQ(buff->specialArt, "TestUI\\Models\\panel_sprite.mdx");
+    T_STREQ(buff->effectArt, "TestUI\\Models\\quad_sprite.mdx");
+    T_STREQ(buff->missileArt, "TestUI\\Models\\ui_panel.mdx");
 }
 
 TEST(wc3_slk, upgrade_class_column_decodes) {

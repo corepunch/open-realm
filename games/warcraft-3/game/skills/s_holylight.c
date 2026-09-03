@@ -1,7 +1,5 @@
 #include "s_skills.h"
 
-static LPCSTR holylight_target_art;
-
 void holylight_done(LPEDICT self);
 
 static umove_t move_heal = { "stand channel", ai_idle, holylight_done, &a_holylight };
@@ -29,16 +27,12 @@ static void holylight_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT amount = S_SpellData(spell->code, level, 1);
 
-    S_SpellSpawnTargetArt(target, holylight_target_art);
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     unit_setmove(caster, &move_heal);
     if (S_SpellIsFriend(caster, target))
         S_SpellHeal(target, amount);
     else
         T_Damage(target, caster, (int)(amount * 0.5f));
-}
-
-static void SP_ability_holylight(LPCSTR classname, ability_t *self) {
-    holylight_target_art = FindConfigValue(classname, STR_TARGET_ART);
 }
 
 static spell_info_t spell_holylight = {
@@ -50,7 +44,6 @@ static spell_info_t spell_holylight = {
 };
 
 ability_t a_holylight = {
-    .init = SP_ability_holylight,
     .cmd = spell_cmd,
     .spell = &spell_holylight,
 };

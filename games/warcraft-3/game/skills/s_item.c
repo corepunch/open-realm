@@ -10,46 +10,53 @@
 #define ID_ITEM_XP_GAIN        MAKEFOURCC('A', 'I', 'e', 'm')
 #define ID_ITEM_LEVEL_GAIN     MAKEFOURCC('A', 'I', 'l', 'm')
 #define ID_ITEM_FIGURINE       MAKEFOURCC('A', 'I', 'f', 's')
+#define ID_ITEM_DEFENSE_AOE     MAKEFOURCC('A', 'I', 'd', 'a')
 
 /* ---- Active items (consume on use) -------------------------------------- */
 
-static void item_heal_command(LPEDICT clent) {
+static BOOL item_heal_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
     FLOAT amount = S_SpellData(code, 1, 1);
 
-    if (!S_SpellIsAliveTarget(target)) {
-        return;
+    if (!S_SpellIsAliveTarget(target) || amount <= 0 || target->health.value >= target->health.max_value) {
+        return false;
     }
     S_SpellHeal(target, amount);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return true;
 }
 
-static void item_mana_command(LPEDICT clent) {
+static BOOL item_mana_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_MANA);
     FLOAT amount = S_SpellData(code, 1, 1);
 
-    if (!target || amount <= 0) {
-        return;
+    if (!target || amount <= 0 || target->mana.value >= target->mana.max_value) {
+        return false;
     }
     target->mana.value = MIN(target->mana.max_value, target->mana.value + amount);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return true;
 }
 
-static void item_permanent_life_command(LPEDICT clent) {
+static BOOL item_permanent_life_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_LIFE_GAIN);
     FLOAT amount = S_SpellData(code, 1, 1);
 
     if (!target || amount <= 0) {
-        return;
+        return false;
     }
     target->health.max_value += amount;
     target->health.value += amount;
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return true;
 }
 
 /* WarSmash: CAbilityItemPermanentStatGain.checkBeforeQueue
  * Permanently adds to hero base stats, consumes the item. */
-static void item_permanent_stat_command(LPEDICT clent) {
+static BOOL item_permanent_stat_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
     FLOAT str = S_SpellData(code, 1, 1);
@@ -57,67 +64,113 @@ static void item_permanent_stat_command(LPEDICT clent) {
     FLOAT intel = S_SpellData(code, 1, 3);
 
     if (!target || !G_UnitIsHero(target)) {
-        return;
+        return false;
     }
     target->hero.str += (DWORD)str;
     target->hero.agi += (DWORD)agi;
     target->hero.intel += (DWORD)intel;
     G_RecomputeHeroStats(target);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return true;
 }
 
 /* WarSmash: CAbilityItemExperienceGain — grants XP. */
-static void item_experience_command(LPEDICT clent) {
+static BOOL item_experience_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
     DWORD amount = (DWORD)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || amount == 0) {
-        return;
+        return false;
     }
     G_HeroSetXP(target, target->hero.xp + amount);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return true;
 }
 
 /* WarSmash: CAbilityItemLevelGain — grants hero level. */
-static void item_level_command(LPEDICT clent) {
+static BOOL item_level_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
     DWORD levels = (DWORD)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || levels == 0) {
-        return;
+        return false;
     }
     DWORD target_level = MIN(target->hero.level + levels, G_MaxHeroLevel());
     DWORD target_xp = G_HeroXPForLevel(target_level);
-    if (target_xp > target->hero.xp) {
-        G_HeroSetXP(target, target_xp);
+    if (target_xp <= target->hero.xp) {
+        return false;
     }
+    G_HeroSetXP(target, target_xp);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return true;
 }
 
 /* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
-static void item_figurine_command(LPEDICT clent) {
+static BOOL item_figurine_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
     DWORD unit_id = S_SpellUnitId(code, 1);
 
     if (!target || !unit_id) {
-        return;
+        return false;
     }
     LPEDICT summon = SP_SpawnAtLocation(unit_id, target->s.player, &target->s.origin2);
+    if (!summon) {
+        return false;
+    }
     G_ActivateUnitFood(summon);
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
+    return true;
+}
+
+/* Scroll of Protection / item defense AOE (AIda). Warcraft data carries the
+ * defense amount in DataA, radius in Area, duration in Dur/HeroDur and the
+ * visible status rawcode in BuffID. Keep the item itself as a thin ability
+ * carrier: the ability data decides the actual numbers. */
+static BOOL item_defense_aoe_command(LPEDICT clent) {
+    LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
+    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
+    DWORD level = 1;
+    AbilityData_t const *data = G_AbilityData(code);
+    FLOAT bonus = S_SpellData(code, level, 1);
+    FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    LPCSTR buff = data->buffID[level - 1];
+    DWORD affected = 0;
+
+    if (!caster || bonus <= 0.0f || area < 0.0f || !buff || strlen(buff) < 4) {
+        return false;
+    }
+
+#define ITEM_DEFENSE_AOE_TARGET(t) \
+    ((t)->inuse && S_SpellIsAliveTarget(t) && S_SpellIsFriend(caster, (t)) && \
+     S_SpellAllowsTarget(code, caster, (t)) && \
+     Vector2_distance(&(t)->s.origin2, &caster->s.origin2) <= area)
+
+    FILTER_EDICTS(target, ITEM_DEFENSE_AOE_TARGET(target)) {
+        FLOAT duration = S_SpellDuration(code, level, G_UnitIsHero(target));
+        unit_addtimedstatus(target, buff, level, duration);
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        affected++;
+    }
+#undef ITEM_DEFENSE_AOE_TARGET
+
+    return affected != 0;
 }
 
 /* ---- Ability definitions ------------------------------------------------ */
 
 ability_t a_item_heal = {
-    .cmd = item_heal_command,
+    .item_use = item_heal_command,
 };
 
 ability_t a_item_mana_regain = {
-    .cmd = item_mana_command,
+    .item_use = item_mana_command,
 };
 
 ability_t a_item_permanent_life_gain = {
-    .cmd = item_permanent_life_command,
+    .item_use = item_permanent_life_command,
 };
 
 /* Passive items: init reads bonus value from SLK, actual apply/remove
@@ -144,17 +197,21 @@ ability_t a_item_mana_bonus = {
 
 /* Consume-on-use items. */
 ability_t a_item_permanent_stat_gain = {
-    .cmd = item_permanent_stat_command,
+    .item_use = item_permanent_stat_command,
 };
 
 ability_t a_item_figurine_summon = {
-    .cmd = item_figurine_command,
+    .item_use = item_figurine_command,
 };
 
 ability_t a_item_experience_gain = {
-    .cmd = item_experience_command,
+    .item_use = item_experience_command,
 };
 
 ability_t a_item_level_gain = {
-    .cmd = item_level_command,
+    .item_use = item_level_command,
+};
+
+ability_t a_item_defense_aoe = {
+    .item_use = item_defense_aoe_command,
 };

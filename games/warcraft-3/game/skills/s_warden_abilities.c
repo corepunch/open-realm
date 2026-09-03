@@ -20,16 +20,14 @@ static BOOL blink_validate(LPEDICT caster, spellTarget_t st) {
 }
 
 static void blink_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-
-    S_SpellSpawnTargetArt(caster, S_SpellString(spell->code, "Specialart", level));
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, NULL, true);
     VECTOR2 dest = st.point;
     CM_ClosestPathablePointForRadius(&st.point, caster->collision, &dest);
     caster->s.origin2 = dest;
     caster->s.origin.x = dest.x;
     caster->s.origin.y = dest.y;
     gi.LinkEntity(caster);
-    S_SpellSpawnTargetArt(caster, S_SpellString(spell->code, "Areaeffectart", level));
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_AREA_EFFECT, 0, caster, NULL, true);
 }
 
 static spell_info_t spell_blink = {

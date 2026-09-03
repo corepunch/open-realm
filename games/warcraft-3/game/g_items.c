@@ -65,10 +65,27 @@ static void G_ShowInventoryFull(LPEDICT unit) {
     }
 }
 
+LPCSTR G_ItemAbilityList(LPCEDICT item) {
+    LPCSTR abilities;
+
+    if (!item || !item->class_id) return NULL;
+
+    /* abilList is authored on ItemData.slk. Prefer the normalized typed row:
+     * FindConfigValue() searches the TXT/INI configuration tables and cannot
+     * be relied on to find this SLK field. Keep the config lookup only as a
+     * compatibility fallback for hand-authored/custom data that did not make
+     * it into the typed item row. */
+    if (item->ItemData && item->ItemData->abilList && *item->ItemData->abilList)
+        return item->ItemData->abilList;
+
+    abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
+    return abilities && *abilities ? abilities : NULL;
+}
+
 /* ItemData stores passive effects as an ability list; the item rawcode itself
  * is not an ability code. */
 static void G_ApplyItemStats(LPEDICT unit, LPCEDICT item, BOOL apply) {
-    LPCSTR abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
+    LPCSTR abilities = G_ItemAbilityList(item);
     if (!abilities || !*abilities) return;
     PARSE_LIST(abilities, ability, parse_segment) {
         DWORD code = *((DWORD const *)ability);
@@ -197,6 +214,21 @@ void G_SetItemCharges(LPEDICT item, DWORD charges) {
     if (!G_IsItem(item) || item->item.charges == charges) return;
     item->item.charges = charges;
     if (item->item.carrier) G_RefreshInventoryUI(item->item.carrier);
+}
+
+void G_ConsumeItemCharge(LPEDICT item) {
+    if (!G_IsItem(item) || !item->ItemData || item->item.charges == 0) return;
+
+    /* All charged item uses decrement charges. Perishable only controls the
+     * zero-charge lifetime: Warsmash removes perishables, while reusable
+     * zero-charge items remain held. Avoid publishing a transient zero-charge
+     * copy immediately before final perishable removal. */
+    if (item->item.charges == 1 && item->ItemData->perishable) {
+        item->item.charges = 0;
+        G_RemoveItem(item);
+        return;
+    }
+    G_SetItemCharges(item, item->item.charges - 1);
 }
 
 LONG G_FindFreeInventorySlot(LPCEDICT unit) {
@@ -372,20 +404,42 @@ void G_RemoveItem(LPEDICT item) {
 /* Use an item in inventory by slot index. Calls the item's ability cmd handler. */
 void G_UseItem(LPEDICT unit, DWORD slot) {
     LPEDICT item;
-    ability_t const *abil;
+    LPEDICT clent;
+    LPCSTR abilities;
 
-    if (!unit || !unit->client || slot >= G_InventoryCapacity(unit)) {
+    if (!unit || slot >= G_InventoryCapacity(unit) || unit->s.player >= MAX_PLAYERS) {
         return;
     }
     item = unit->inventory[slot];
     if (!item) {
         return;
     }
-    /* Look up the item's ability code in the ability registry.
-     * Item abilities use the item's class_id as their ability code. */
-    abil = FindAbilityByClassname((LPCSTR)&item->class_id);
-    if (abil && abil->cmd) {
-        unit->client->menu.ability_code = item->class_id;
-        abil->cmd(unit);
+
+    clent = G_GetPlayerEntityByNumber(unit->s.player);
+    if (!clent || !clent->client) return;
+    abilities = G_ItemAbilityList(item);
+    if (!abilities) return;
+
+    PARSE_LIST(abilities, ability_name, parse_segment) {
+        ability_t const *ability = FindAbilityForCommand(ability_name);
+        BOOL succeeded = false;
+
+        if (!ability) continue;
+        clent->client->menu.ability_code = *((DWORD const *)ability_name);
+        if (ability->item_use) {
+            succeeded = ability->item_use(clent);
+        } else if (ability->cmd) {
+            ability->cmd(clent);
+            return;
+        } else {
+            continue;
+        }
+
+        if (succeeded) {
+            G_PublishEvent(unit, EVENT_PLAYER_UNIT_USE_ITEM);
+            G_PublishEvent(unit, EVENT_UNIT_USE_ITEM);
+            G_ConsumeItemCharge(item);
+        }
+        return;
     }
 }

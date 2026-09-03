@@ -764,6 +764,20 @@ static LPEDICT make_unit_hero(void) {
     return ent;
 }
 
+TEST(wc3_api, effect_natives_return_independent_handles) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local effect direct = AddSpecialEffect(\"TestUI\\\\Models\\\\anim_pulse.mdx\", 64.0, 64.0)\n"
+        "  local effect spell = AddSpellEffectById('AHhb', EFFECT_TYPE_TARGET, 96.0, 96.0)\n"
+        "  call BJassAssert(direct != null, \"AddSpecialEffect returned null\")\n"
+        "  call BJassAssert(spell != null, \"AddSpellEffectById returned null\")\n"
+        "  call BJassAssert(direct != spell, \"effect handles aliased\")\n"
+        "  call DestroyEffect(direct)\n"
+        "  call DestroyEffect(spell)\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
     GAMECLIENT client = { 0 };
     edict_t ent = { .client = &client };

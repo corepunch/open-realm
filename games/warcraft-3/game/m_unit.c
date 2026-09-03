@@ -460,6 +460,27 @@ static BOOL unit_status_timedlife(DWORD code) {
     return code == MAKEFOURCC('B', 'T', 'L', 'F');
 }
 
+FLOAT G_UnitArmorValue(LPCEDICT ent) {
+    FLOAT armor;
+
+    if (!ent) return 0.0f;
+    armor = ent->armor_value;
+
+    /* Bdef is the stock Scroll of Protection status. Keep the authored armor
+     * amount in AbilityData (AIda/DataA) rather than baking it into the unit or
+     * status record; status expiry then removes the bonus automatically from
+     * both combat and HUD calculations without adding save-state fields. */
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
+        if (status->level && status->code == MAKEFOURCC('B', 'd', 'e', 'f')) {
+            DWORD level = MAX(1, MIN(status->level, 4));
+            AbilityData_t const *ability = G_AbilityData(MAKEFOURCC('A', 'I', 'd', 'a'));
+            armor += ability->data[level - 1][0];
+        }
+    }
+    return armor;
+}
+
 static void unit_refreshstatusflags(LPEDICT ent) {
     ent->stunned = false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {

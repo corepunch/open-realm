@@ -504,12 +504,29 @@ typedef struct spell_info_s {
     void (*execute)(LPEDICT caster, spellTarget_t target, struct spell_info_s const *spell);
 } spell_info_t;
 
+
+typedef enum {
+    WC3_EFFECT_EFFECT = 0,
+    WC3_EFFECT_TARGET = 1,
+    WC3_EFFECT_CASTER = 2,
+    WC3_EFFECT_SPECIAL = 3,
+    WC3_EFFECT_AREA_EFFECT = 4,
+    WC3_EFFECT_MISSILE = 5,
+    WC3_EFFECT_LIGHTNING = 6,
+} wc3EffectType_t;
+
 typedef struct ability_s {
     void (*init)(LPCSTR, struct ability_s *);
     void (*cmd)(LPEDICT);
     BOOL (*is_toggle_on)(LPEDICT); /* selects Un* command-card fields when true */
     DWORD flags;
     struct spell_info_s *spell;    /* non-NULL for spells using the unified pipeline */
+
+    /* Keep new dispatch hooks append-only. ability_t is defined in a widely
+     * included game header and incremental builds may retain objects compiled
+     * against the previous layout; inserting a field above spell changes the
+     * offsets of every existing dispatch member. */
+    BOOL (*item_use)(LPEDICT); /* synchronous inventory activation; true only when gameplay effect applies */
 } ability_t;
 
 typedef struct {
@@ -1392,6 +1409,13 @@ void SetAbilityNames(void);
 LPCSTR FindConfigValue(LPCSTR, LPCSTR);
 LPCSTR GetClassName(DWORD);
 
+// g_effects.c
+LPCSTR G_AbilityEffectArt(DWORD ability_id, wc3EffectType_t type, DWORD index);
+LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target, LPCSTR attach_point, BOOL temporary);
+LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point, BOOL temporary);
+LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index, LPEDICT target, LPCSTR attach_point, BOOL temporary);
+void G_DestroyEffect(LPEDICT effect);
+
 // g_unit_ui.c (Phase 8)
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
@@ -1657,6 +1681,7 @@ void G_HeroSetXP(LPEDICT, DWORD xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
 void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
 BOOL G_UnitIsHero(LPCEDICT ent);
+FLOAT G_UnitArmorValue(LPCEDICT ent);
 BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 
@@ -1722,6 +1747,8 @@ DWORD G_InventoryCapacity(LPCEDICT unit);
 BOOL G_UnitHasInventory(LPEDICT unit);
 DWORD G_ItemCharges(LPCEDICT item);
 void G_SetItemCharges(LPEDICT item, DWORD charges);
+void G_ConsumeItemCharge(LPEDICT item);
+LPCSTR G_ItemAbilityList(LPCEDICT item);
 LONG G_FindFreeInventorySlot(LPCEDICT unit);
 BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);

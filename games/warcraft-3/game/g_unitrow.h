@@ -288,6 +288,7 @@ typedef struct {
     LONG version;
     BOOL isEffect, useInEditor, InBeta;
     LPCSTR buffArt, buffTip, buffUberTip;
+    LPCSTR targetArt, specialArt, effectArt, missileArt;
 } AbilityBuffData_t;
 
 /* =========================================================================

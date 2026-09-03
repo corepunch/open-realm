@@ -501,6 +501,10 @@ static slkField_t const ability_buff_schema[] = {
     { "Buffart",     offsetof(AbilityBuffData_t, buffArt),     STB_SLK_STR    },
     { "Bufftip",     offsetof(AbilityBuffData_t, buffTip),     STB_SLK_STR    },
     { "Buffubertip", offsetof(AbilityBuffData_t, buffUberTip), STB_SLK_STR    },
+    { "TargetArt",   offsetof(AbilityBuffData_t, targetArt),   STB_SLK_STR    },
+    { "SpecialArt",  offsetof(AbilityBuffData_t, specialArt),  STB_SLK_STR    },
+    { "EffectArt",   offsetof(AbilityBuffData_t, effectArt),   STB_SLK_STR    },
+    { "Missileart",  offsetof(AbilityBuffData_t, missileArt),  STB_SLK_STR    },
     { NULL, 0, 0 }
 };
 

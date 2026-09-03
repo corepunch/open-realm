@@ -158,7 +158,7 @@ int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     if (def >= 8) def = 7;
     FLOAT mult = (atk == ATK_CHAOS) ? 1.0f : g_damage_table[atk][def];
     FLOAT dmg = (FLOAT)base * mult;
-    FLOAT armor = target->armor_value;
+    FLOAT armor = G_UnitArmorValue(target);
     if (armor >= 0.0f)
         dmg = dmg / (1.0f + armor * 0.06f);
     else

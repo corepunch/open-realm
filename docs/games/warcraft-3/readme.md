@@ -103,6 +103,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Inventory And World Items](inventory-and-items.md)
+- [Ability And Item Effects](ability-and-item-effects.md)
 - [Breakable Destructables](breakable-destructables.md)
 - [Warcraft III UI System](architecture/ui.md)
 - [UI Flow](architecture/ui-flow.md)
