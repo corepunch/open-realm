@@ -41,7 +41,7 @@ static void UI_AlertsAddPing(wc3MinimapPing_t const *ping) {
     DWORD slot = WC3_ACTIVE_MINIMAP_PINGS;
     DWORD oldest = 0;
     DWORD oldest_age = 0;
-    DWORD now = UI_GameTime();
+    DWORD now = UI_GetTime();
 
     if (!ping || ping->duration <= 0.0f) return;
     FOR_LOOP(i, WC3_ACTIVE_MINIMAP_PINGS) {
@@ -104,7 +104,7 @@ void UI_AlertsDraw(void) {
     if (!uiimport.GetRenderer) return;
     renderer = uiimport.GetRenderer();
     if (!renderer || !renderer->WorldToMinimap || !renderer->DrawSprite) return;
-    now = UI_GameTime();
+    now = UI_GetTime();
 
     FOR_LOOP(i, WC3_ACTIVE_MINIMAP_PINGS) {
         wc3ActiveMinimapPing_t *active = &active_pings[i];

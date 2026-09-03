@@ -135,7 +135,9 @@ BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
     return modelIndex;
 }
 
-DWORD UI_GetTime(void) { return 0; /* TODO: implement via client time */ }
+DWORD UI_GetTime(void) {
+    return uiimport.GetTime ? uiimport.GetTime() : 0;
+}
 
 /* ---- FDF host services (UI module) ---------------------------------------- */
 

@@ -46,6 +46,8 @@ Under-attack/town/allied alert production is not implemented yet. Its throttling
 
 `games/warcraft-3/ui/ui_alerts.c` stores up to 16 simultaneously active visual pings. Sixteen is an OpenRealm implementation cap, not a retail Warcraft constant. When all slots are occupied, the oldest active visual ping is replaced.
 
+Ping lifetime uses `UI_GetTime()` backed by the client clock exposed through `uiImport_t.GetTime`, not the menu/glue `ui.Refresh()` timestamp. During normal `ca_active` gameplay `ui.Refresh()` is not called every frame, so using only `ui_state.time` would freeze the elapsed-time calculation and leave minimap indicators active indefinitely.
+
 The WC3 UI draws pings through `ui.DrawGameOverlay` after the server-authored HUD. This is an intentional in-game `ui.dll` exception: `svc_layout` cannot express a transient authored MDX whose screen point is derived from client-local world-to-minimap projection. Keep this exception isolated to the alert overlay; do not move WC3 asset names or alert semantics into the shared HUD/client.
 
 `MDLX_DrawSpriteTinted()` temporarily replaces `tr.viewDef`. Because minimap pings are drawn after the world, it must restore the previous `tr.viewDef` after its sprite pass; otherwise a post-world sprite can corrupt renderer state expected by subsequent HUD/overlay work.
