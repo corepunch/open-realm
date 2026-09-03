@@ -127,7 +127,7 @@ if several one-shots are pending on the same entity.
 `G_CompleteConstruction` resolves the owner's `JobDoneSound` field through
 `UI\war3skins.txt`, resolves that alias through `UISounds.slk`, and queues the
 chosen authored file as an owner-only `svc_sound` from the completed building. The sound
-is therefore positional at the structure and audible only to its owner.
+is therefore positional at the structure and audible only to its owner. The same completion now emits an owner-only minimap/recent-alert notification at the completed structure; training completion and research completion do the same at their resulting unit/producer locations. Alert rendering/history is documented in [alerts-and-minimap-pings.md](alerts-and-minimap-pings.md).
 
 Immediate UI sounds are sent only when the owning game client is connected.
 Reserved/disconnected player slots may already have simulation state but do not yet

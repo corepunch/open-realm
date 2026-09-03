@@ -232,6 +232,7 @@ typedef struct {
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
     bool (*TraceCameraPlane)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
     bool (*TraceMinimap)(float x, float y, LPVECTOR2 outWorld);
+    bool (*WorldToMinimap)(LPCVECTOR2 world, LPVECTOR2 outScreen);
     DWORD (*EntitiesInRect)(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 
 } refExport_t;

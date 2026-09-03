@@ -179,6 +179,12 @@ static inline void UI_ModelMatrix(LPCUIMODEL model, FLOAT aspect, LPMATRIX4 out)
 
 typedef void (*uiGameCommand_t)(LPCSTR command, void const *data, DWORD size);
 
+/* Gameplay-key callbacks may consume a key and optionally request that the
+ * generic RTS client recentre its camera on the returned world position. */
+#define UI_GAMEKEY_HANDLED         (1u << 0)
+#define UI_GAMEKEY_CAMERA_POSITION (1u << 1)
+typedef DWORD (*uiGameplayKeyEvent_t)(int key, DWORD modifiers, BOOL repeat, LPVECTOR2 camera_position);
+
 /* Function table exported by the UI library to the client. */
 typedef struct {
     /* Initialization and shutdown */
@@ -197,6 +203,8 @@ typedef struct {
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
     uiGameCommand_t GameCommand;
+    uiGameplayKeyEvent_t GameplayKeyEvent;
+    void (*ClearGameState)(void);
     void (*DrawGameOverlay)(void);
 
     /* Legacy named XML windows — show/hide a ui.dll-owned window by ID. */

@@ -93,6 +93,20 @@ static void window_test_write(pfWriteType_t type, void const *value) {
     window_text_offset = (DWORD)(uintptr_t)((LPCUIFRAME)value)->text;
 }
 
+static DWORD alert_game_command_count;
+static LPEDICT alert_game_command_target;
+static UINAME alert_game_command_name;
+static wc3MinimapPing_t alert_game_command_ping;
+
+static void alert_test_game_command(LPEDICT ent, LPCSTR command, void const *data, DWORD size) {
+    alert_game_command_count++;
+    alert_game_command_target = ent;
+    snprintf(alert_game_command_name, sizeof(alert_game_command_name), "%s", command ? command : "");
+    memset(&alert_game_command_ping, 0, sizeof(alert_game_command_ping));
+    if (data && size == sizeof(alert_game_command_ping))
+        memcpy(&alert_game_command_ping, data, sizeof(alert_game_command_ping));
+}
+
 /* =========================================================================
  * HUD frame numbering
  * ========================================================================= */
@@ -103,6 +117,38 @@ TEST(wc3_game, hud_proxy_number_advances_past_fdf_frame) {
 
 TEST(wc3_game, hud_proxy_number_never_moves_backwards) {
     T_EQ(UI_NextProxyFrameNumber(12, 10), 12);
+}
+
+TEST(wc3_game, minimap_ping_uses_bounded_game_command_payload) {
+    void (*saved_game_command)(edict_t *, LPCSTR, void const *, DWORD) = gi.GameCommand;
+    VECTOR2 position = { 123.5f, -44.25f };
+    COLOR32 color = MAKE(COLOR32, 10, 20, 30, 255);
+
+    game.clients[0].connected = true;
+    alert_game_command_count = 0;
+    alert_game_command_target = NULL;
+    alert_game_command_name[0] = '\0';
+    memset(&alert_game_command_ping, 0, sizeof(alert_game_command_ping));
+    gi.GameCommand = alert_test_game_command;
+
+    G_SendMinimapPing(&game.clients[0], &position, 2.5f, color, WC3_MINIMAP_PING_REMEMBER);
+
+    T_EQ(alert_game_command_count, 1);
+    T_EQ(alert_game_command_target, &g_edicts[0]);
+    T_STREQ(alert_game_command_name, "minimap_ping");
+    T_FEQ(alert_game_command_ping.position.x, position.x, 0.001f);
+    T_FEQ(alert_game_command_ping.position.y, position.y, 0.001f);
+    T_FEQ(alert_game_command_ping.duration, 2.5f, 0.001f);
+    T_EQ(alert_game_command_ping.color.r, 10);
+    T_EQ(alert_game_command_ping.color.g, 20);
+    T_EQ(alert_game_command_ping.color.b, 30);
+    T_ASSERT(alert_game_command_ping.flags & WC3_MINIMAP_PING_REMEMBER);
+    T_STREQ(alert_game_command_ping.model, "UI\\Minimap\\Minimap-Ping.mdl");
+
+    game.clients[0].connected = false;
+    G_SendMinimapPing(&game.clients[0], &position, 2.5f, color, 0);
+    T_EQ(alert_game_command_count, 1);
+    gi.GameCommand = saved_game_command;
 }
 
 TEST(wc3_game, hud_authored_window_frame_uses_offset_codec) {

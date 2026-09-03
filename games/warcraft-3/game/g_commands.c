@@ -816,6 +816,13 @@ static void CMD_PortraitCameraDown(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
     clent->client->camera.target_offset = (VECTOR2){ 0, 0 };
 }
 
+static void CMD_QuickCamera(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
+    (void)argc;
+    (void)argv;
+    if (!clent || !clent->client || !clent->client->camera.quick_position_set) return;
+    G_ClientSetCameraPosition(clent, &clent->client->camera.quick_position);
+}
+
 static void CMD_PortraitCameraUp(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
     DWORD number;
     if (!clent || !clent->client || argc < 2 || !G_DebugIsNumber(argv[1])) return;
@@ -887,6 +894,7 @@ clientCommand_t clientCommands[] = {
     { "focus", CMD_Focus },
     { "+portraitcamera", CMD_PortraitCameraDown },
     { "-portraitcamera", CMD_PortraitCameraUp },
+    { "quickcamera", CMD_QuickCamera },
     { "herobutton", CMD_HeroButton },
     { "herokey", CMD_HeroKey },
     { "idleworker", CMD_IdleWorker },

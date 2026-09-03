@@ -111,3 +111,35 @@ void G_QueueOwnerUISound(LPEDICT ent, LPCSTR skin_key) {
     if (!alias || !alias[0]) return;
     G_QueueOwnerSoundAlias(ent, alias);
 }
+
+#define WC3_DEFAULT_MINIMAP_INDICATOR "UI\\Minimap\\Minimap-Ping.mdl"
+#define WC3_DEFAULT_ALERT_PING_DURATION 1.0f
+
+void G_SendMinimapPing(LPGAMECLIENT client, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags) {
+    LPEDICT clent;
+    wc3MinimapPing_t ping = { 0 };
+    LPCSTR model;
+
+    if (!client || !position || duration <= 0.0f || !client->connected || !gi.GameCommand) return;
+    clent = G_GetPlayerEntityByNumber(client->ps.number);
+    if (!clent || !clent->client) return;
+
+    model = Theme_PlayerString(client, "MinimapIndicator", WC3_DEFAULT_MINIMAP_INDICATOR);
+    ping.position = *position;
+    ping.duration = duration;
+    ping.color = color.a ? color : COLOR32_WHITE;
+    ping.flags = flags;
+    snprintf(ping.model, sizeof(ping.model), "%s",
+             model && model[0] ? model : WC3_DEFAULT_MINIMAP_INDICATOR);
+    gi.GameCommand(clent, "minimap_ping", &ping, sizeof(ping));
+}
+
+void G_SendOwnerMinimapAlert(LPEDICT ent) {
+    LPGAMECLIENT client;
+
+    if (!ent || ent->s.player >= MAX_PLAYERS) return;
+    client = G_GetPlayerClientByNumber(ent->s.player);
+    if (!client || client->ps.number != ent->s.player) return;
+    G_SendMinimapPing(client, &ent->s.origin2, WC3_DEFAULT_ALERT_PING_DURATION,
+                      COLOR32_WHITE, WC3_MINIMAP_PING_REMEMBER);
+}

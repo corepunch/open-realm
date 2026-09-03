@@ -324,6 +324,16 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
 }
 
+bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen) {
+    VECTOR3 point;
+
+    if (!tr.hasMinimap || !tr.world || !world || !outScreen) {
+        return false;
+    }
+    point = (VECTOR3){ world->x, world->y, 0.0f };
+    return R_MinimapPointForWorld(&point, &tr.minimapRect, outScreen);
+}
+
 /* Inverse of R_MinimapPointForWorld: map a window-pixel click over the minimap
  * to a world position, so a minimap click can recenter the camera. */
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {

@@ -730,6 +730,7 @@ void G_CompleteConstruction(LPEDICT building) {
 #endif
     G_SetUnitFoodMade(building, building->UnitBalance->foodMade);
     G_QueueOwnerUISound(building, "JobDoneSound");
+    G_SendOwnerMinimapAlert(building);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     if (client) {
         LPEDICT clent = G_GetPlayerEntityByNumber(client->ps.number);

@@ -177,6 +177,7 @@ bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *e
 void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint) {
     renderEntity_t entity;
     viewDef_t viewdef;
+    viewDef_t saved_viewdef;
     bool const fdf_sprite_coords = anim && anim[0] == '#' && anim[1] == '!';
 
     if (!model || !model->mdx) {
@@ -213,12 +214,14 @@ void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR3
     Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y, screen.y + screen.h, 0.0f, 100.0f);
     Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
 
+    saved_viewdef = tr.viewDef;
     tr.viewDef = viewdef;
 
 #ifdef USE_SHADOWMAPS
     R_RenderShadowMap();
 #endif
     R_RenderView();
+    tr.viewDef = saved_viewdef;
 }
 
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
