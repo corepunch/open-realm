@@ -2071,35 +2071,6 @@ static DWORD Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *loca
     return 0;
 }
 
-/* Serialize the complete bounded inbox so reconnects and repeated reward
- * commands converge on the same client-side message state. */
-void Wow_SendInbox(LPEDICT ent) {
-    wowClient_t *client;
-    BYTE payload[2 + WOW_UI_MAX_MESSAGES * (4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY)];
-    DWORD cursor = 0;
-
-    if (!ent || !ent->client || !gi.GameCommand) return;
-    client = (wowClient_t *)ent->client;
-    payload[cursor++] = 1;
-    payload[cursor++] = (BYTE)client->message_count;
-    FOR_LOOP(i, client->message_count) {
-        wowUiMessage_t const *message = &client->messages[i];
-        payload[cursor++] = (BYTE)message->message_id;
-        payload[cursor++] = (BYTE)(message->message_id >> 8);
-        payload[cursor++] = (BYTE)(message->message_id >> 16);
-        payload[cursor++] = (BYTE)(message->message_id >> 24);
-        payload[cursor++] = message->kind;
-        payload[cursor++] = message->flags;
-        payload[cursor++] = (BYTE)message->quest_id;
-        payload[cursor++] = (BYTE)(message->quest_id >> 8);
-        payload[cursor++] = (BYTE)(message->quest_id >> 16);
-        payload[cursor++] = (BYTE)(message->quest_id >> 24);
-        memcpy(payload + cursor, message->title, WOW_UI_MESSAGE_TITLE); cursor += WOW_UI_MESSAGE_TITLE;
-        memcpy(payload + cursor, message->body, WOW_UI_MESSAGE_BODY); cursor += WOW_UI_MESSAGE_BODY;
-    }
-    gi.GameCommand(ent, "wow_inbox", payload, cursor);
-}
-
 static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
     svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, quest_id);
     LPCWOWQUESTDETAIL detail;
@@ -2247,7 +2218,6 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         wowClient_t *client = (wowClient_t *)ent->client;
         DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : client->quest_id;
         Wow_CompleteQuest(client, quest_id);
-        Wow_SendInbox(ent);
         client->quest_open = false;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "questlog")) {
@@ -2255,15 +2225,20 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         client->questlog_open = !client->questlog_open;
         client->quest_open = false;
         UI_WriteWowHud(ent);
-    } else if (argc >= 2 && !strcasecmp(argv[0], "message_read")) {
+    } else if (argc >= 2 && !strcasecmp(argv[0], "message_open")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         DWORD message_id = (DWORD)strtoul(argv[1], NULL, 10);
         FOR_LOOP(i, client->message_count) {
             if (client->messages[i].message_id != message_id) continue;
+            client->message_open_id = message_id;
             client->messages[i].flags &= (BYTE)~WOW_UI_MESSAGE_UNREAD;
-            Wow_SendInbox(ent);
+            UI_WriteWowMessageQueue(ent);
             break;
         }
+    } else if (argc >= 1 && !strcasecmp(argv[0], "message_close")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->message_open_id = 0;
+        UI_WriteWowMessageQueue(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "loot")) {
         /* Open loot window for the nearest corpse within melee+loot range. */
         LPEDICT corpse = Wow_FindNearestCorpse(ent, 10.0f);
@@ -2533,7 +2508,6 @@ static void Wow_ClientBegin(LPEDICT ent) {
     ent->client = &wow_clients[0].client;
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
     Wow_SendPlayerUi(ent);
-    Wow_SendInbox(ent);
     UI_WriteWowHud(ent);
     UI_WriteWowHover(ent);
     UI_WriteWelcomeWindow(ent);

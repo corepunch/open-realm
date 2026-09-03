@@ -1,13 +1,12 @@
-# Client-rendered message inbox UI
+# Server-authored message inbox UI
 
 ## Decision
 
-Quest completion messages and similar bottom-of-screen notifications should use a
-server-owned data model with client-owned presentation. The server decides which
-message exists, its stable ID, recipient, text/content references, and read state.
-The client receives a bounded inbox payload over `svc_gamecmd`, stores it in the
-WoW UI module, and renders notification icons and message windows through the
-existing Lua/FDF UI path.
+Quest completion messages and similar notifications use a server-owned data model
+and a server-authored UI control. The server decides which message exists, its
+stable ID, recipient, text, and read state. It sends a bounded `FT_MESSAGE_QUEUE`
+frame on `LAYER_MESSAGE`; `cl_scrn` draws the unread notification controls and the
+selected message window.
 
 The server must not send absolute window coordinates or a complete UI frame tree
 for this feature. Positions, scaling, input hit-testing, stacking, and window
@@ -16,36 +15,29 @@ protocol.
 
 ## Why this matches the engine
 
-- `svc_gamecmd` is already a reliable server-to-client channel for typed game
-  payloads and is separate from snapshot/network-contract structs.
-- The current WoW HUD is drawn by the client UI library, while server code still
-  emits `svc_layout` frames for quest dialogs and the HUD. The inbox is a useful
-  migration target away from server-positioned frames.
-- Quake 3's reliable server commands are the closest lifecycle analogue: durable
-  UI events must not depend on a particular snapshot arriving, while movement and
-  continuously changing state remain snapshot-like.
+- `FT_MESSAGE_QUEUE` follows the existing `FT_BUILDQUEUE` special-control pattern:
+  the server supplies bounded data and the client screen renderer owns pixels.
+- The message control is part of the same `svc_layout` stream as the server-owned
+  WoW HUD and quest dialog, so it is redrawn with the authoritative UI state.
 - Inventory should use the same split: server-authoritative item IDs/counts and
   permissions; client-owned bag/equipment window layout and drag/drop visuals.
   Client actions remain requests validated by the server.
 
-## Proposed payload
+## Payload
 
-The first protocol version is a bounded full snapshot, not a stream of individual
-notifications. A snapshot is idempotent, easy to resend after reconnect/map load,
-and avoids client/server divergence when several quest rewards arrive together.
+Each visible message is one bounded `FT_MESSAGE_QUEUE` frame. The server emits all
+unread records and the currently open record, making the layer idempotent and easy
+to resend after reconnect, map load, or other HUD refreshes.
 
 Each message record should contain only gameplay data needed by the client:
 
 | Field | Owner | Purpose |
 | --- | --- | --- |
 | `message_id` | server | Stable per-character ID used by UI actions |
-| `kind` | server | Quest reward, system, mail, etc. |
-| `flags` | server | Unread/urgent/has-choice state |
-| `sender_key` | server/data | Localization or display identity |
-| `title_key` | server/data | Localizable title |
-| `body_key` + parameters | server/data | Localizable body/content |
-| `quest_id` / `item_id` | server | Optional semantic links |
-| `created_time` | server | Ordering and display metadata |
+| `image` | server/data | Notification art resource |
+| `title_font` / `body_font` | server/data | Text resources |
+| `flags` | server | Unread/open state |
+| `text` / `tooltip` | server | Title and body strings |
 
 Prefer bounded IDs and data keys over arbitrary client-executable text. If the
 initial implementation needs literal text for tests, keep it length-delimited and
@@ -54,38 +46,24 @@ validate its maximum length at the protocol boundary.
 ## Interaction contract
 
 1. Server creates or updates a record after the authoritative quest/reward event.
-2. Server sends the current inbox snapshot through `svc_gamecmd`.
-3. Client stores the records and draws one notification icon per unread record,
-   capped by a client layout limit.
-4. Clicking an icon opens the client-positioned message window.
-5. Client sends a semantic command containing only the message ID.
-6. Server validates ownership/state, marks the record read if appropriate, and
-   sends a refreshed snapshot.
+2. Server emits the current `LAYER_MESSAGE` controls through `svc_layout`.
+3. `cl_scrn` draws one notification icon per unread record and the open panel.
+4. Clicking an icon sends `message_open <id>`; closing sends `message_close`.
+5. Server validates the ID, owns open/read state, and emits refreshed controls.
 
 Opening a window is a presentation action; accepting a reward, claiming an item,
 or acknowledging a quest consequence remains server-authoritative.
 
 ## Implementation plan
 
-### Phase 1 — transport and data model
-
-- Add a generic game-command callback from the client parser to `uiExport_t` so
-  game-specific payloads do not become engine-specific branches.
-- Add a WoW inbox payload schema and bounded parser in the WoW UI module.
-- Add server-side per-client message records and a helper that sends a full
-  snapshot through the existing game-command transport.
-- Add tests for round-trip parsing, truncation/rejection, duplicate IDs, and
-  idempotent replacement.
-
-### Phase 2 — first visible slice
+### Phase 1 — first visible slice
 
 - Create one message when a quest is rewarded.
-- Expose `ow3.messages()` to the existing Lua HUD.
-- Render unread notification squares at a client-owned bottom-screen anchor and
-  open a client-owned message window on click.
-- Add tests for reward → inbox payload and read command validation.
+- Emit it as an `FT_MESSAGE_QUEUE` frame on `LAYER_MESSAGE`.
+- Render unread notification icons and the selected message panel in `cl_scrn`.
+- Validate `message_open <id>` and `message_close` on the server.
 
-### Phase 3 — reusable client windows
+### Phase 2 — reusable client windows
 
 - Introduce a small client-side window registry with IDs, anchors, modal state,
   and z-order. Keep layout in Lua/FDF rather than in game C.
@@ -114,14 +92,11 @@ or acknowledging a quest consequence remains server-authoritative.
 
 Implemented in the current tree:
 
-- generic `svc_gamecmd` dispatch into `uiExport_t.GameCommand`;
-- bounded version-1 `wow_inbox` snapshots with up to eight records;
-- quest reward → unread inbox record and client-begin snapshot delivery;
-- server-validated `message_read <id>` handling;
-- runtime notification strip using the native `TutorialFrameAlert` art, 34x42 crop, bottom-55 anchor, and 36px stride from
-  `TutorialFrame.xml`/`TutorialFrame.lua`;
-- runtime message panel for the project-specific inbox model; classic WoW has no FrameXML window for this server payload;
-- regression coverage for reward delivery and read-state changes.
+- `FT_MESSAGE_QUEUE` controls on `LAYER_MESSAGE`;
+- quest reward → unread server message record;
+- `cl_scrn` notification icon and message panel drawing;
+- server-owned open/read state and `message_open`/`message_close` commands;
+- regression coverage for reward delivery and open/close state changes.
 
 ## Tutorial tips
 

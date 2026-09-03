@@ -649,6 +649,31 @@ void SCR_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     }
 }
 
+static void SCR_LayoutDrawMessageQueue(LPCUIFRAME frame, LPCRECT screen) {
+    uiMessageQueue_t const *message = frame->buffer.data;
+    RECT uv = MAKE(RECT, 0, 0, 0.53125f, 0.6875f);
+    if (!message || frame->buffer.size < sizeof(*message)) {
+        fprintf(stderr, "SCR_LayoutDrawMessageQueue: invalid payload size %u\n", (unsigned)frame->buffer.size);
+        return;
+    }
+    if (message->flags & UI_MESSAGE_UNREAD) {
+        LPCTEXTURE icon = SCR_LayoutPic(message->image);
+        if (icon) re.DrawImage(icon, screen, &uv, COLOR32_WHITE);
+    }
+    if (message->flags & UI_MESSAGE_OPEN) {
+        RECT title = MAKE(RECT, screen->x + 0.04f, screen->y + 0.02f, screen->w - 0.08f, 0.04f);
+        RECT body = MAKE(RECT, screen->x + 0.06f, screen->y + 0.07f, screen->w - 0.12f, screen->h - 0.09f);
+        re.DrawFill(screen, MAKE(COLOR32, 10, 8, 5, 245));
+        re.DrawText(&MAKE(drawText_t, .font = cl.fonts[message->title_font], .text = frame->text,
+                          .rect = title, .color = MAKE(COLOR32, 255, 215, 120, 255),
+                          .textWidth = title.w, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
+        re.DrawText(&MAKE(drawText_t, .font = cl.fonts[message->body_font], .text = frame->tooltip,
+                          .rect = body, .color = MAKE(COLOR32, 240, 230, 205, 255),
+                          .textWidth = body.w, .lineHeight = body.h, .flags = DRAW_WORD_WRAP,
+                          .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
+    }
+}
+
 void SCR_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
     uiBuildQueue_t const *queue = frame->buffer.data;
     LPUIFRAME buildtimer = SCR_Frame(queue->buildtimer);
@@ -955,6 +980,7 @@ static drawer_t drawers[] = {
     { FT_PORTRAIT,       SCR_LayoutDrawPortrait },
     { FT_MINIMAP,        CL_LayoutDrawMinimap },
     { FT_BUILDQUEUE,     SCR_LayoutDrawBuildQueue },
+    { FT_MESSAGE_QUEUE,  SCR_LayoutDrawMessageQueue },
     { FT_MULTISELECT,    SCR_LayoutDrawMultiSelect },
     { FT_CHECKBOX,       SCR_LayoutCheckBox },
     { FT_GLUECHECKBOX,   SCR_LayoutCheckBox },
@@ -1187,6 +1213,7 @@ static BOOL SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
         case FT_PORTRAIT:
         case FT_MINIMAP:
         case FT_BUILDQUEUE:
+        case FT_MESSAGE_QUEUE:
         case FT_MULTISELECT:
         case FT_CHECKBOX:
         case FT_GLUECHECKBOX:

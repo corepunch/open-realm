@@ -26,6 +26,10 @@ The legacy `ui.dll` is a menu module, following the Quake II `key_dest` split: `
 and `cl_input.c` forwards its keyboard/mouse events only for `key_menu`. The active-game pass draws server-authored layout and
 windows through `SCR_DrawLayout()`/`CL_WindowDraw()`; it must not call a UI-DLL game overlay or send UI-DLL input.
 
+WoW incoming messages use `FT_MESSAGE_QUEUE` on `LAYER_MESSAGE`. The server emits one compact record per unread message and,
+when selected, one additional record carrying the server-owned popup text. `cl_scrn.c` draws both the unread icon pool and the
+popup; clicks send `message_open <id>` or `message_close` back to the server, which updates the authoritative layer.
+
 `UI_WINDOW_MODAL`, `UI_WINDOW_NO_PAUSE`, and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost modal window consumes
 input outside its bounds. `NO_PAUSE` means that modal does not acquire the client-owned simulation pause. Unique means only one
 instance of that class may exist. Inventory and quest-detail windows can be unique without being modal; confirmation-style
