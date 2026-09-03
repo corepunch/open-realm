@@ -1109,22 +1109,26 @@ void G_UpdateClientInfoPanels(void) {
     }
 }
 
-/* Re-send LAYER_CONSOLE only when a resource value changed. */
+/* Re-send LAYER_CONSOLE only when resource display/tooltip state changed. */
 void G_RefreshResourceBar(LPEDICT ent) {
     LPPLAYER ps;
-    LONG gold, lumber, food_u, food_c;
+    LONG gold, lumber, food_u, food_c, gold_rate, lumber_rate;
 
     if (!ent || !ent->client) return;
-    ps     = &ent->client->ps;
-    gold   = (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
-    lumber = (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
-    food_u = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
-    food_c = G_GetEffectiveFoodCap(ent->client);
+    ps          = &ent->client->ps;
+    gold        = (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
+    lumber      = (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
+    food_u      = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+    food_c      = G_GetEffectiveFoodCap(ent->client);
+    gold_rate   = (LONG)ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE];
+    lumber_rate = (LONG)ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE];
 
-    if (gold   == ent->client->resourcebar.gold   &&
-        lumber == ent->client->resourcebar.lumber  &&
-        food_u == ent->client->resourcebar.food_used &&
-        food_c == ent->client->resourcebar.food_cap)
+    if (gold        == ent->client->resourcebar.gold        &&
+        lumber      == ent->client->resourcebar.lumber      &&
+        food_u      == ent->client->resourcebar.food_used   &&
+        food_c      == ent->client->resourcebar.food_cap    &&
+        gold_rate   == ent->client->resourcebar.gold_rate   &&
+        lumber_rate == ent->client->resourcebar.lumber_rate)
         return;
 
     UI_WriteStart(LAYER_CONSOLE);
@@ -1132,10 +1136,12 @@ void G_RefreshResourceBar(LPEDICT ent) {
     UI_WriteMinimapFrame();
     UI_WriteEnd(ent);
 
-    ent->client->resourcebar.gold      = gold;
-    ent->client->resourcebar.lumber    = lumber;
-    ent->client->resourcebar.food_used = food_u;
-    ent->client->resourcebar.food_cap  = food_c;
+    ent->client->resourcebar.gold        = gold;
+    ent->client->resourcebar.lumber      = lumber;
+    ent->client->resourcebar.food_used   = food_u;
+    ent->client->resourcebar.food_cap    = food_c;
+    ent->client->resourcebar.gold_rate   = gold_rate;
+    ent->client->resourcebar.lumber_rate = lumber_rate;
 }
 
 /* Once per server frame, keep every player's resource bar in sync. */

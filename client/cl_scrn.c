@@ -238,6 +238,7 @@ static DWORD layout_hovered_layer;
 static DWORD layout_current_layer;
 static HANDLE layout_hovered;
 static HANDLE layout_current;
+static BOOL layout_current_window;
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
@@ -533,9 +534,14 @@ static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
     return layout_left_down && SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame);
 }
 static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
-    return frame && frame->number == layout_hovered_number &&
-           ((layout_current && layout_current == layout_hovered) ||
-            (!layout_current && layout_current_layer == layout_hovered_layer));
+    if (!frame || frame->number != layout_hovered_number) return false;
+    /* Transient windows identify the hovered layout by handle. Persistent HUD
+     * layers identify it by layer number; layout_current is also used while
+     * drawing those layers, so it must not make ordinary HUD hover look like a
+     * window hover. */
+    if (layout_hovered)
+        return layout_current_window && layout_current == layout_hovered;
+    return !layout_current_window && layout_current_layer == layout_hovered_layer;
 }
 
 static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
@@ -580,6 +586,7 @@ void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down) {
 }
 
 void SCR_WindowPrepare(HANDLE layout, LPCRECT root) {
+    layout_current_window = true;
     SCR_ClearWindow(layout);
     if (root) SCR_SetLayoutRoot(root);
 }
@@ -933,6 +940,14 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
     if (!active_tooltip) return;
+    /* Several HUD layers may carry the shared tooltip presentation frame.
+     * Draw it only in the layer/window that owns the hovered source frame so a
+     * passive resource tooltip is not overdrawn again by command-card layers. */
+    if (layout_hovered) {
+        if (!layout_current_window || layout_current != layout_hovered) return;
+    } else if (layout_current_window || layout_current_layer != layout_hovered_layer) {
+        return;
+    }
     uiTooltip_t const *tt = frame->buffer.data;
     FLOAT const PAD = 0.005f;
     RECT screen = *scrn;
@@ -950,16 +965,10 @@ void SCR_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
     re.DrawText(&dt);
 }
 
-void SCR_LayoutUpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
-    if (SCR_LayoutFrameIsHovered(frame) && frame->tooltip)
-        active_tooltip = frame->tooltip;
-}
-
 typedef struct { FRAMETYPE type; void (*func)(LPCUIFRAME, LPCRECT); } drawer_t;
 
 static drawer_t updaters[] = {
-    { FT_COMMANDBUTTON, SCR_LayoutUpdateCommandButton },
-    { FT_BUILDQUEUE,    SCR_LayoutUpdateBuildQueue },
+    { FT_BUILDQUEUE, SCR_LayoutUpdateBuildQueue },
 };
 
 static drawer_t drawers[] = {
@@ -1006,6 +1015,13 @@ void SCR_LayoutDrawFrame(LPCUIFRAME frame) {
 
 void SCR_LayoutUpdateFrame(LPCUIFRAME frame) {
     RECT const *screen = SCR_LayoutRect(frame);
+
+    /* Tooltip ownership is a generic frame contract, not a command-button
+     * behavior. Resource-bar labels/icons and other passive HUD frames may
+     * carry tooltip text without becoming clickable controls. */
+    if (SCR_LayoutFrameIsHovered(frame) && frame->tooltip && *frame->tooltip)
+        active_tooltip = SCR_GetTooltipText(frame);
+
     FOR_LOOP(j, sizeof(updaters)/sizeof(*updaters)) {
         if (updaters[j].type == frame->flags.type) {
             updaters[j].func(frame, screen);
@@ -1057,6 +1073,7 @@ void SCR_DrawLayout(void) {
         HANDLE layout = layout_layers[layer];
         if (layout) {
             RECT root;
+            layout_current_window = false;
             layout_current_layer = layer;
             SCR_Clear(layout);
             if (layer == LAYER_WORLD_HOVER) {
@@ -1095,6 +1112,9 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
     LPCUIFRAME hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
+    /* This path handles persistent layout layers, not client-managed windows. */
+    layout_current_window = false;
+    layout_hovered = NULL;
     layout_hovered_number = 0;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
@@ -1110,7 +1130,9 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             if (frame->flags.type == FT_MULTISELECT)
                 hit = SCR_LayoutMultiselectEntityAt(frame, &point) != 0;
             else
-                hit = SCR_LayoutFrameHasClickCommand(frame) && Rect_contains(SCR_LayoutRect(frame), &point);
+                hit = (SCR_LayoutFrameHasClickCommand(frame) ||
+                       (frame->tooltip && *frame->tooltip)) &&
+                      Rect_contains(SCR_LayoutRect(frame), &point);
             if (hit) {
                 layout_hovered_number = frame->number;
                 hovered_frame = frame;
@@ -1308,7 +1330,9 @@ BOOL SCR_LayoutHitTest(int x, int y) {
                 if (SCR_LayoutMultiselectEntityAt(frame, &point)) return true;
                 continue;
             }
-            if (frame->flags.type != FT_TEXTURE && !SCR_LayoutFrameHasClickCommand(frame)) continue;
+            if (frame->flags.type != FT_TEXTURE &&
+                !SCR_LayoutFrameHasClickCommand(frame) &&
+                !(frame->tooltip && *frame->tooltip)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) return true;
         }
     }

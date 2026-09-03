@@ -202,6 +202,7 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               bool is_x_axis,
                               bool assigned_size);
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
+LPCSTR SCR_GetTooltipText(LPCUIFRAME frame);
 drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          FLOAT avl_width,
                          LPCSTR text,

@@ -119,6 +119,33 @@ TEST(client_layout, unknown_high_stat_binding_resolves_empty) {
     T_STREQ(SCR_GetStringValue(&frame), "");
 }
 
+TEST(client_layout, tooltip_value_token_uses_live_player_stat) {
+    uiFrame_t frame = {
+        .stat = PLAYERSTATE_RESOURCE_GOLD,
+        .tooltip = "Gold: {value}\nGold resource help.",
+    };
+
+    test_client_stubs_init();
+    cl.playerstate.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    T_STREQ(SCR_GetTooltipText(&frame), "Gold: 500\nGold resource help.");
+
+    cl.playerstate.stats[PLAYERSTATE_RESOURCE_GOLD] = 725;
+    T_STREQ(SCR_GetTooltipText(&frame), "Gold: 725\nGold resource help.");
+}
+
+TEST(client_layout, tooltip_value_token_uses_food_display_format) {
+    uiFrame_t frame = {
+        .stat = PLAYERSTATE_RESOURCE_FOOD_USED,
+        .tooltip = "Food: {value}\nFood resource help.",
+    };
+
+    test_client_stubs_init();
+    cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 18;
+    cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 24;
+    cl.playerstate.stats[PLAYERSTATE_FOOD_CAP_CEILING] = 100;
+    T_STREQ(SCR_GetTooltipText(&frame), "Food: 18/24\nFood resource help.");
+}
+
 TEST(client_layout, world_hover_root_projects_model_top_into_ui_canvas) {
     RECT root;
     renderEntity_t render = { .number = 7 };
