@@ -1,0 +1,27 @@
+{
+    "version": 2,
+    "name": "open-realm.zip",
+    "items": [
+        "open-realm.sh",
+        "open-realm"
+    ],
+    "items_opt": null,
+    "attr": {
+        "title": "OpenRealm",
+        "desc": "OpenRealm is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.",
+        "inst": "",
+        "genres": [
+            "strategy"
+        ],
+        "porter": [
+            "sookyboo","Corepunch"
+        ],
+        "image": {},
+        "rtr": false,
+        "runtime": [],
+        "reqs": [],
+        "arch": [
+            "aarch64"
+        ]
+    }
+}

@@ -1,0 +1,89 @@
+# syntax=docker/dockerfile:1
+
+# portmaster supported cfw are based on ubuntu 22.04 - needed for libc
+FROM ubuntu:22.04 AS builder
+
+ARG TARGETARCH
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Ensure this build was requested as ARM64.     libbsd-dev 
+RUN test "${TARGETARCH}" = "arm64"
+
+#    libbsd-dev \ not needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    pkg-config \
+    findutils \
+    gawk \
+    libsdl2-dev \
+    libegl1-mesa-dev \
+    libgl1-mesa-dev \
+    libepoxy-dev \
+    zlib1g-dev \
+    libjpeg-dev
+
+# gl4es build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        pkg-config \
+        ca-certificates \
+        file \
+        libegl1-mesa-dev \
+        libgbm-dev \
+        libdrm-dev
+
+# Make sure this stage really is ARM64
+RUN test "$(dpkg --print-architecture)" = "arm64"
+
+# Fetch latest gl4es - provide OpenGL 2.x functionality for GLES2.0 accelerated Hardware
+RUN git clone --depth 1 https://github.com/ptitSeb/gl4es.git /opt/gl4es
+
+# gl4es: fix CMake module + function usage for older CMake
+RUN sed -i \
+    -e 's/include(CheckCompilerFlag)/include(CheckCCompilerFlag)/' \
+    -e 's/check_compiler_flag(C /check_c_compiler_flag(/g' \
+    /opt/gl4es/CMakeLists.txt
+
+# Sanity check patch
+RUN grep -n "CheckCCompilerFlag" /opt/gl4es/CMakeLists.txt && \
+    grep -n "check_c_compiler_flag" /opt/gl4es/CMakeLists.txt
+
+# Configure native ARM64 build
+RUN cmake \
+      -S /opt/gl4es \
+      -B /opt/gl4es/build \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DNOX11=ON \
+      -DGLX_STUBS=ON \
+      -DEGL_WRAPPER=ON \
+      -DGBM=ON
+
+# Build
+RUN cmake --build /opt/gl4es/build -j"$(nproc)"
+
+# Verify architecture
+RUN file /opt/gl4es/lib/libGL.so.1 && \
+    file /opt/gl4es/lib/libEGL.so.1
+
+    
+# main build for open-realm
+WORKDIR /src
+
+COPY . .
+
+RUN make GL_BACKEND=gles3 MSAA=0 build
+
+RUN mkdir -p release &&  \
+      cp build/bin/openwarcraft3 release/ && \
+      cp build/bin/openwow release/ && \
+      cp -r build/lib/. release/ && \
+      mv  release/openwarcraft3 release/openwarcraft3.aarch64 && \
+      mv  release/openwow release/openwow.aarch64
+
+      #	  cp /opt/gl4es/lib/libGL.so.1 release/ && \
+      #	  cp /opt/gl4es/lib/libEGL.so.1 release/ && \
+
+# Abuse port provided libglx so and libgldispatch so until I add them to the build

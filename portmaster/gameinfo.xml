@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<gameList>
+  <game>
+    <path>./open-realm.sh</path>
+    <name>OpenRealm</name>
+    <desc>OpenRealm is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.</desc>
+    <releasedate>20260822T000000</releasedate>
+    <developer>Blizzard/Corepunch/Sookyboo</developer>
+    <publisher>Blizzard</publisher>
+    <genre>RPG</genre>
+    <image>./open-realm/cover.png</image>
+  </game>
+</gameList>
