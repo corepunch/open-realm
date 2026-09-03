@@ -111,6 +111,8 @@ Death has a stronger immediate path in `unit_die`: it sets health to zero, clear
 
 ## Known Gaps
 
+Shift order queuing is documented separately in [Shift Order Queue](order-queue.md); the remaining Shift-click item below is selection toggling, not command queuing.
+
 The following are deliberately not inferred by the current implementation:
 
 - invisibility/detection-aware selectability (`IsUnitDetected`/`IsUnitInvisible` coverage is incomplete);

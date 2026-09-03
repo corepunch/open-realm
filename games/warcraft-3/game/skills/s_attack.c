@@ -370,9 +370,11 @@ BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
     }
     FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
         if (e == target) continue;
-        e->movement.attackmove_waypoint = NULL;
-        order_attack(e, target);
-        issued = true;
+        if (G_IssueUnitTargetOrder(e, "attack", target,
+                                   ent->client->menu.order_queued,
+                                   ent->client->ps.number)) {
+            issued = true;
+        }
     }
     return issued;
 }
@@ -428,8 +430,11 @@ static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
             continue;
         }
         CM_ClosestPathablePointForRadius(location, ent->collision, &target);
-        order_attackmove(ent, Waypoint_add(&target));
-        any = true;
+        if (G_IssueUnitPointOrder(ent, "attack", &target,
+                                  clent->client->menu.order_queued,
+                                  clent->client->ps.number, 0.0f)) {
+            any = true;
+        }
     }
     if (any) G_SendPointConfirmation(clent, location, true);
     return any;
@@ -439,6 +444,7 @@ void attack_command(LPEDICT ent) {
     UI_AddCancelButton(ent);
     ent->client->menu.on_entity_selected = attack_menu_selecttarget;
     ent->client->menu.on_location_selected = attackmove_selectlocation;
+    ent->client->menu.supports_order_queue = true;
 }
 
 ability_t a_attack = {

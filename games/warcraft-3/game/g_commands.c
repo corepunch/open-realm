@@ -21,6 +21,24 @@ static BOOL G_TargetModeActive(LPGAMECLIENT client) {
     return client && (client->menu.on_entity_selected || client->menu.on_location_selected);
 }
 
+static BOOL G_CommandQueueRequested(DWORD argc, LPCSTR argv[], DWORD first_optional) {
+    for (DWORD i = first_optional; i < argc; i++) {
+        if (!strcmp(argv[i], "queue")) return true;
+    }
+    return false;
+}
+
+static BOOL G_ParseEntityNumber(LPCSTR text, DWORD *number) {
+    char *end = NULL;
+    unsigned long value;
+
+    if (!text || !*text || !number) return false;
+    value = strtoul(text, &end, 10);
+    if (!end || *end || value >= globals.num_edicts) return false;
+    *number = (DWORD)value;
+    return true;
+}
+
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
     DWORD *focus = G_SelectionFocusSlot(client);
 
@@ -252,21 +270,26 @@ void CMD_CancelCommand(LPEDICT ent) {
 CLIENTCOMMAND(Select) {
     LPGAMECLIENT client = clent->client;
     if (client->menu.on_entity_selected) {
-        DWORD number = atoi(argv[1]);
-        if (number >= globals.num_edicts)
-            return;
-        if (client->menu.on_entity_selected(clent, &globals.edicts[number])) {
-            Get_Commands_f(clent);
-        }
+        DWORD number;
+        BOOL const queued = client->menu.supports_order_queue &&
+                            G_CommandQueueRequested(argc, argv, 2);
+        BOOL accepted;
+
+        if (argc < 2 || !G_ParseEntityNumber(argv[1], &number)) return;
+        client->menu.order_queued = queued;
+        accepted = client->menu.on_entity_selected(clent, &globals.edicts[number]);
+        client->menu.order_queued = false;
+        /* Warsmash keeps a target command armed while Shift is held so the
+         * player can click several waypoints/targets without reopening it. */
+        if (accepted && !queued) Get_Commands_f(clent);
     } else {
         BOOL cleared = false;
         BOOL hasunits = false;
         LPEDICT voice = NULL;
         DWORD selected_count = 0;
         for (DWORD i = 1; i < argc; i++) {
-            DWORD number = atoi(argv[i]);
-            if (number >= globals.num_edicts)
-                continue;
+            DWORD number;
+            if (!G_ParseEntityNumber(argv[i], &number)) continue;
             LPEDICT e = &globals.edicts[number];
             if (G_UnitCanBeSelected(client, e) && G_UnitCanControl(client, e) &&
                 !G_UnitIsBuilding(e->class_id)) {
@@ -274,9 +297,8 @@ CLIENTCOMMAND(Select) {
             }
         }
         for (DWORD i = 1; i < argc; i++) {
-            DWORD number = atoi(argv[i]);
-            if (number >= globals.num_edicts)
-                continue;
+            DWORD number;
+            if (!G_ParseEntityNumber(argv[i], &number)) continue;
             LPEDICT e = &globals.edicts[number];
             if (G_UnitCanBeSelected(client, e)) {
                 if (hasunits && (!G_UnitCanControl(client, e) || G_UnitIsBuilding(e->class_id)))
@@ -356,11 +378,17 @@ CLIENTCOMMAND(Focus) {
 
 CLIENTCOMMAND(Point) {
     LPGAMECLIENT client = clent->client;
+    if (argc < 3) return;
     if (client->menu.on_location_selected) {
+        BOOL const queued = client->menu.supports_order_queue &&
+                            G_CommandQueueRequested(argc, argv, 3);
         VECTOR2 loc = { atoi(argv[1]), atoi(argv[2]) };
-        if (client->menu.on_location_selected(clent, &loc)) {
-            Get_Commands_f(clent);
-        }
+        BOOL accepted;
+
+        client->menu.order_queued = queued;
+        accepted = client->menu.on_location_selected(clent, &loc);
+        client->menu.order_queued = false;
+        if (accepted && !queued) Get_Commands_f(clent);
     }
 }
 
@@ -368,6 +396,7 @@ CLIENTCOMMAND(Smart) {
     LPGAMECLIENT client = clent->client;
     BOOL issued = false;
     BOOL rallied = false;
+    BOOL queued;
     DWORD number;
     LPEDICT target;
 
@@ -381,16 +410,13 @@ CLIENTCOMMAND(Smart) {
         Get_Commands_f(clent);
         return;
     }
-    if (argc < 2) {
-        return;
-    }
-    number = atoi(argv[1]);
-    if (number >= globals.num_edicts) {
+    if (argc < 2 || !G_ParseEntityNumber(argv[1], &number)) {
         return;
     }
     target = &globals.edicts[number];
+    queued = G_CommandQueueRequested(argc, argv, 2);
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
-        if (unit_issuetargetorder(ent, "smart", target)) {
+        if (G_IssueUnitTargetOrder(ent, "smart", target, queued, client->ps.number)) {
             if (G_UnitHasRally(ent)) rallied = true;
             issued = true;
         }
@@ -408,6 +434,7 @@ CLIENTCOMMAND(SmartPoint) {
     BOOL rally = false;
     BOOL non_rally = false;
     BOOL issued = false;
+    BOOL queued;
 
     if (G_CancelBuildPlacement(clent) || G_CancelTargetMode(clent)) {
         return;
@@ -423,9 +450,11 @@ CLIENTCOMMAND(SmartPoint) {
         return;
     }
     loc = (VECTOR2){ atoi(argv[1]), atoi(argv[2]) };
+    queued = G_CommandQueueRequested(argc, argv, 3);
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (G_UnitHasRally(ent)) {
-            if (unit_issueorder(ent, "smart", &loc)) rally = true;
+            if (G_IssueUnitPointOrder(ent, "smart", &loc, queued, client->ps.number, 0.0f))
+                rally = true;
         } else {
             non_rally = true;
         }
@@ -433,7 +462,12 @@ CLIENTCOMMAND(SmartPoint) {
     /* Normal unit SmartPoint retains the existing formation-aware move path.
      * Selection rules normally keep production structures separate from mobile
      * units, so rally-capable selections do not enter this path. */
-    if (non_rally && move_selectlocation(clent, &loc)) issued = true;
+    if (non_rally) {
+        BOOL const old_queued = client->menu.order_queued;
+        client->menu.order_queued = queued;
+        if (move_selectlocation(clent, &loc)) issued = true;
+        client->menu.order_queued = old_queued;
+    }
     if (rally || issued) {
         G_QueueOrderSound(G_GetMainControllableUnit(client));
     }

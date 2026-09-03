@@ -6,6 +6,7 @@
 void order_stop(LPEDICT ent) {
     if (S_GoldMineWorkerIsInside(ent))
         return;
+    G_ClearUnitOrderQueue(ent);
     ent->movement.attackmove_waypoint = NULL;
     ent->movement.patrol_a = NULL;
     unit_leavecombat(ent);
@@ -14,7 +15,7 @@ void order_stop(LPEDICT ent) {
 
 static void stop_command(LPEDICT ent) {
     FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
-        order_stop(e);
+        unit_issueimmediateorder(e, "stop");
     }
 }
 

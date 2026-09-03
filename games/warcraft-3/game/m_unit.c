@@ -91,6 +91,18 @@ BOOL unit_affectingcombat(LPEDICT self) {
 }
 
 void unit_stand(LPEDICT self) {
+    /* Reaching stand is the common completion edge for Move, direct Attack,
+     * Repair, Harvest, and several cast behaviors. Retire transient state first,
+     * then let a pending Shift order become authoritative before installing the
+     * idle/default stand behavior. */
+    self->build = NULL;
+    self->s.renderfx &= ~RF_NO_UBERSPLAT;
+    self->s.ability = 255;
+    self->movement.last_distance = 0;
+    self->movement.blocked_frames = 0;
+    if (G_UnitStartNextQueuedOrder(self)) {
+        return;
+    }
     if (self->movement.holding_position) {
         unit_setmove(self, unit_affectingcombat(self)
             ? &holdpos_move_stand_ready
@@ -100,17 +112,12 @@ void unit_stand(LPEDICT self) {
             ? &unit_move_stand_ready
             : &unit_move_stand);
     }
-    self->build = NULL;
-    self->s.renderfx &= ~RF_NO_UBERSPLAT;
-    self->s.ability = 255;
-    self->movement.last_distance = 0;
-    self->movement.blocked_frames = 0;
-    
 }
 
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
 
+    G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
     self->health.value = 0.0f;
     if (self->training) G_ClearTrainingQueueFood(self);
@@ -178,19 +185,74 @@ static BOOL unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
     return true;
 }
 
-BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
-    if (!self || !order || !target) {
-        return false;
+static BOOL unit_order_name_valid(LPCSTR order) {
+    return order && *order && strlen(order) < UNIT_ORDER_NAME_SIZE;
+}
+
+static BOOL unit_has_active_order(LPCEDICT self) {
+    return self && self->currentmove && self->currentmove->ability != NULL &&
+           !move_is_terminal_hold(self);
+}
+
+static BOOL unit_queue_push(LPEDICT self, LPCSTR order, unitOrderTargetType_t target_type,
+                            LPCVECTOR2 point, LPEDICT target, DWORD issuer_player,
+                            FLOAT group_speed) {
+    unitOrderQueue_t *queue;
+    unitOrder_t *queued;
+    DWORD slot;
+
+    if (!self || !unit_order_name_valid(order)) return false;
+    queue = &self->order_queue;
+    if (queue->count >= MAX_UNIT_ORDER_QUEUE) return false;
+    slot = (queue->head + queue->count) % MAX_UNIT_ORDER_QUEUE;
+    queued = &queue->entries[slot];
+    memset(queued, 0, sizeof(*queued));
+    snprintf(queued->order, sizeof(queued->order), "%s", order);
+    queued->target_type = target_type;
+    queued->issuer_player = issuer_player;
+    queued->group_speed = group_speed;
+    if (point) queued->point = *point;
+    if (target) {
+        DWORD const number = target->s.number;
+        if (number >= globals.num_edicts || globals.edicts + number != target) return false;
+        queued->target_number = number;
+        queued->target_spawn_time = target->spawn_time;
     }
+    queue->count++;
+    return true;
+}
+
+static BOOL unit_queue_pop(LPEDICT self, unitOrder_t *out) {
+    unitOrderQueue_t *queue;
+
+    if (!self || !out) return false;
+    queue = &self->order_queue;
+    if (!queue->count) return false;
+    *out = queue->entries[queue->head];
+    memset(&queue->entries[queue->head], 0, sizeof(queue->entries[queue->head]));
+    queue->head = (queue->head + 1) % MAX_UNIT_ORDER_QUEUE;
+    queue->count--;
+    if (!queue->count) queue->head = 0;
+    return true;
+}
+
+void G_ClearUnitOrderQueue(LPEDICT self) {
+    if (!self) return;
+    memset(&self->order_queue, 0, sizeof(self->order_queue));
+}
+
+DWORD G_UnitQueuedOrderCount(LPCEDICT self) {
+    return self ? self->order_queue.count : 0;
+}
+
+static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FLOAT group_speed);
+
+static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target) {
+    if (!self || !order || !target) return false;
     if (M_IsDead(self)) return false;
-    /* Rally is producer metadata, not movement. It must be accepted before
-     * immobility/mining guards so structures and other producers can use both
-     * the explicit setrally order and Warcraft's Smart/right-click shortcut. */
-    if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
-        return G_SetRallyEntity(self, target);
-    }
-    if (S_GoldMineWorkerIsInside(self))
-        return false;
+    if (S_GoldMineWorkerIsInside(self)) return false;
+
+    self->movement.holding_position = false;
     if (!strcmp(order, "smart")) {
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
@@ -224,7 +286,7 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
         if (S_RepairSmart(self, target)) {
             return true;
         }
-        return unit_issueorder(self, "move", &target->s.origin2);
+        return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f);
     }
     if (!strcmp(order, "attack")) {
         if (G_IsDestructable(target) && !G_DestructableIsAttackable(target)) {
@@ -236,28 +298,100 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
     return false;
 }
 
-BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
-//    printf("%.4s %s\n", &self->class_id, order);
-    if (!self || !order || !point) {
-        return false;
-    }
+static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FLOAT group_speed) {
+    VECTOR2 target;
+    LPEDICT waypoint;
+
+    if (!self || !order || !point) return false;
     if (M_IsDead(self)) return false;
-    if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
-        return G_SetRallyPoint(self, point);
-    }
-    if (S_GoldMineWorkerIsInside(self))
-        return false;
-    if (self->aiflags & AI_IMMOBILE)
-        return false;
-    /* Smart + point resolves through ordinary movement for movable units. */
-    if (!strcmp(order, "smart") || !strcmp(order, "move") || !strcmp(order, "attack")) {
-        VECTOR2 target = *point;
-        CM_ClosestPathablePointForRadius(point, self->collision, &target);
-        LPEDICT waypoint = Waypoint_add(&target);
+    if (S_GoldMineWorkerIsInside(self)) return false;
+    if (self->aiflags & AI_IMMOBILE) return false;
+
+    target = *point;
+    CM_ClosestPathablePointForRadius(point, self->collision, &target);
+    waypoint = Waypoint_add(&target);
+    if (!waypoint) return false;
+    self->movement.holding_position = false;
+    if (!strcmp(order, "smart") || !strcmp(order, "move")) {
         order_move(self, waypoint);
+        self->movement.group_speed = group_speed;
+        return true;
+    }
+    if (!strcmp(order, "attack")) {
+        order_attackmove(self, waypoint);
         return true;
     }
     return false;
+}
+
+BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
+                            BOOL queue, DWORD issuer_player) {
+    if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) return false;
+    if (M_IsDead(self)) return false;
+    /* Rally is producer metadata rather than an interruptible unit behavior. */
+    if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
+        if (!queue) G_ClearUnitOrderQueue(self);
+        return G_SetRallyEntity(self, target);
+    }
+    if (S_GoldMineWorkerIsInside(self)) return false;
+    if (strcmp(order, "smart") && strcmp(order, "attack")) return false;
+
+    if (queue && unit_has_active_order(self)) {
+        return unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
+                               issuer_player, 0.0f);
+    }
+    if (!queue) G_ClearUnitOrderQueue(self);
+    return unit_issuetargetorder_now(self, order, target);
+}
+
+BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
+                           BOOL queue, DWORD issuer_player, FLOAT group_speed) {
+    if (!self || !order || !point || !unit_order_name_valid(order)) return false;
+    if (M_IsDead(self)) return false;
+    /* Rally-point changes are metadata and apply immediately even when Shift is down. */
+    if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
+        if (!queue) G_ClearUnitOrderQueue(self);
+        return G_SetRallyPoint(self, point);
+    }
+    if (S_GoldMineWorkerIsInside(self)) return false;
+    if (self->aiflags & AI_IMMOBILE) return false;
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) return false;
+
+    if (queue && unit_has_active_order(self)) {
+        return unit_queue_push(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
+                               issuer_player, group_speed);
+    }
+    if (!queue) G_ClearUnitOrderQueue(self);
+    return unit_issueorder_now(self, order, point, group_speed);
+}
+
+BOOL G_UnitStartNextQueuedOrder(LPEDICT self) {
+    unitOrder_t queued;
+
+    if (!self || M_IsDead(self)) return false;
+    while (unit_queue_pop(self, &queued)) {
+        if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
+            if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed))
+                return true;
+        } else if (queued.target_type == UNIT_ORDER_TARGET_ENTITY) {
+            LPEDICT target;
+            if (queued.target_number >= globals.num_edicts) continue;
+            target = globals.edicts + queued.target_number;
+            if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
+            if (unit_issuetargetorder_now(self, queued.order, target)) return true;
+        }
+    }
+    return false;
+}
+
+BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
+    return G_IssueUnitTargetOrder(self, order, target, false,
+                                  self ? self->s.player : 0);
+}
+
+BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
+    return G_IssueUnitPointOrder(self, order, point, false,
+                                 self ? self->s.player : 0, 0.0f);
 }
 
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
@@ -269,6 +403,7 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     if (S_GoldMineWorkerIsInside(self))
         return false;
     if (!strcmp(order, "stop")) {
+        G_ClearUnitOrderQueue(self);
         order_stop(self);
         return true;
     }

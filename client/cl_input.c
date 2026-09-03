@@ -277,18 +277,21 @@ void IN_SelectUp(void) {
     DWORD entnum;
     VECTOR3 point;
     if (fabs(r.w)+fabs(r.h) < 10) {
+        BOOL const queue = (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
         if (re.TraceEntity(&cl.viewDef, r.x, r.y, &entnum)) {
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, "select %d", entnum);
-            
-            /* Store selected entity and request UI data (Phase 8.6) */
+            SZ_Printf(&cls.netchan.message, queue ? "select %d queue" : "select %d", entnum);
+
+            /* The game resolves whether this click is command targeting or a
+             * selection change. Keep the local cache as a best-effort hint;
+             * authoritative WC3 selection remains server-owned. */
             cl.selection.num_selected = 1;
             cl.selection.entity_nums[0] = entnum;
             CL_RequestUnitUI(1, cl.selection.entity_nums);
-        }
-        if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
+        } else if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, "point %d %d", (int)point.x, (int)point.y);
+            SZ_Printf(&cls.netchan.message, queue ? "point %d %d queue" : "point %d %d",
+                      (int)point.x, (int)point.y);
             if (cl.selection.num_selected) {
                 CL_RequestUnitUI(cl.selection.num_selected, cl.selection.entity_nums);
             }
