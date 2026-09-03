@@ -149,6 +149,69 @@ Single Player Custom Game deliberately reuses the existing local map-selection a
 of duplicating their W3I parsing, map info, slot, race, team, color, and game-speed logic. The source mode only
 changes glue presentation and Cancel destinations; the final local-server launch path remains shared.
 
+### Victory / defeat handoff
+
+`RemovePlayer` owns authoritative per-player result state, not campaign navigation. It records
+`PLAYER_STATE_GAME_RESULT`, moves the runtime slot to `PLAYER_SLOT_STATE_LEFT`, and publishes the appropriate player
+result event. Because map result handlers may start an ending cinematic, the temporary native `GameResultDialog`
+fallback is queued rather than written inline. `UI_FlushPendingGameResults()` normally writes it only after queued
+JASS result work and outside `CLIENT_UI_CINEMATIC`.
+
+There is one terminal exception. Stock Blizzard.j `CustomVictoryBJ` / `CustomDefeatBJ` calls `RemovePlayer` and then
+its single-player result dialog path calls `PauseGame(true)`. When `RemovePlayer` ran from JASS work scheduled by the
+frame's first event pass, the new VICTORY/DEFEAT event was otherwise stranded: the server pause prevented the next
+simulation frame that would consume it. `G_DrainPausedResultEvents()` therefore drains only result events actively
+blocking pending result handoffs before the paused scheduler takes over. Once that event has run, a script-paused
+result fallback may overlay `CLIENT_UI_CINEMATIC`, because waiting for a later cinematic-to-game transition would
+again require a simulation frame that the script pause has intentionally frozen. `UI_ShowGameResult()` clears only
+the `LAYER_GAME_RESULT` hide bit from `playerState_t.uiflags`; it does not restore the rest of the gameplay HUD over
+the ending cinematic.
+
+The fallback exists because the stock Blizzard.j result path still cannot build its normal ScriptDialogs: generic
+`DialogCreate` / `DialogAddButton` / `DialogDisplay` and dialog-button event support remain incomplete. It therefore
+does not try to recreate every campaign/melee policy. It uses Warcraft `GAMEOVER_*` global strings where available,
+uses Restart/Load/Quit Mission for the supported single-player defeat subset, uses Continue/Continue Game for
+victory, and routes those executable actions through game/session boundaries. Observer continuation remains deferred
+until observer-on-death simulation policy exists.
+
+End-of-session operations cross `gi.MenuAction` instead of making the WC3 HUD own client teardown:
+
+```text
+JASS / result UI
+  -> G_RequestEndGame / G_RequestChangeLevel / G_RequestRestartGame
+      -> gi.MenuAction
+          -> client MenuAction (copy/defer request)
+              -> next CL_Frame after SV_Frame returns
+                  -> frontend menu or SV_Map
+```
+
+`gi.MenuAction` is deliberately a deferred session boundary. A JASS native such as `ChangeLevel` can run while the
+old map's VM is still on the C stack; calling `SV_Map` inline from that native destroys/reinitializes map-owned state
+under the active VM. `MenuAction` therefore copies the resolved map/menu argument and `CL_Frame` consumes it only
+after the enclosing `SV_Frame` has returned. Keep `CustomVictoryOkBJ` itself synchronous so its `PauseGame(false)`
+executes, but keep the actual world replacement deferred.
+
+`EndGame(doScoreScreen)` currently returns to the frontend and consumes but cannot yet honor `doScoreScreen`; there
+is no score-screen controller. `ChangeLevel` loads its map, `RestartGame` reloads the current `map` cvar,
+`DisplayLoadDialog` enters the frontend load-game screen, and `ForceCampaignSelectScreen` returns to
+`menu_single_player_campaign`. On single-player victory, the fallback Continue button delegates to Blizzard.j's
+`CustomVictoryOkBJ`, preserving its `bj_changeLevelMapName` decision instead of guessing the next map in HUD code.
+Because `CustomVictoryDialogBJ` has already paused single-player simulation, this fallback invocation is synchronous:
+queuing `CustomVictoryOkBJ` as a coroutine would leave its `PauseGame(false)` and `ChangeLevel(...)` calls stranded
+behind the very pause they are supposed to release. Multiplayer victory Continue still only dismisses the fallback.
+
+For result-lifecycle diagnosis, `wc3_game_result_debug 1` enables game-module `WC3_RESULT` breadcrumbs for
+`RemovePlayer` arguments and player/client mapping, result-event publication and matching trigger dispatch, pending-result
+deferral (`event_queue`, `cinematic`, or `disconnected`), paused-result event draining/cinematic override, FDF binding,
+server layout emission, and result-button session actions. Pair it with the shared `ui_layout_debug 1` transport trace when client receipt/storage must also be observed;
+that generic trace logs every UI layer and the server-side result breadcrumb identifies the numeric result layer to correlate.
+Both diagnostics are runtime-gated and keep Warcraft-specific knowledge out of shared client code.
+
+Single-player result pausing is also intentionally still missing. Result UI should reuse the existing WC3 pause/modal
+ownership path rather than suppressing `SV_Frame` or creating a second clock-freeze mechanism. `PauseGame` and
+single-client modal pausing already flow through the generic server scheduler, which freezes simulation time while
+continuing network reads and client traffic.
+
 ### Remaining frontend lifecycle gaps
 
 The following Warsmash/retail-style lifecycle work is intentionally not approximated in the current UI code:

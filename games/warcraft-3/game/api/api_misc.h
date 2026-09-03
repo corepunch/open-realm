@@ -702,16 +702,19 @@ DWORD GetFoodUsed(LPJASS j) {
 }
 
 DWORD EndGame(LPJASS j) {
-    //BOOL doScoreScreen = jass_checkboolean(j, 1);
+    BOOL doScoreScreen = jass_checkboolean(j, 1);
+    G_RequestEndGame(doScoreScreen);
     return 0;
 }
 DWORD ChangeLevel(LPJASS j) {
-    //LPCSTR newLevel = jass_checkstring(j, 1);
-    //BOOL doScoreScreen = jass_checkboolean(j, 2);
+    LPCSTR newLevel = jass_checkstring(j, 1);
+    BOOL doScoreScreen = jass_checkboolean(j, 2);
+    G_RequestChangeLevel(newLevel, doScoreScreen);
     return 0;
 }
 DWORD RestartGame(LPJASS j) {
-    //BOOL doScoreScreen = jass_checkboolean(j, 1);
+    BOOL doScoreScreen = jass_checkboolean(j, 1);
+    G_RequestRestartGame(doScoreScreen);
     return 0;
 }
 DWORD ReloadGame(LPJASS j) {
@@ -746,6 +749,7 @@ DWORD SetCampaignMenuRace(LPJASS j) {
     return 0;
 }
 DWORD ForceCampaignSelectScreen(LPJASS j) {
+    G_RequestCampaignSelect();
     return 0;
 }
 DWORD SyncSelections(LPJASS j) {
@@ -799,10 +803,11 @@ DWORD SetEdCinematicAvailable(LPJASS j) {
     return 0;
 }
 DWORD GetDefaultDifficulty(LPJASS j) {
-    return jass_pushnullhandle(j, "gamedifficulty");
+    return JassPushGameDifficultyHandle(j, level.setup.default_difficulty);
 }
 DWORD SetDefaultDifficulty(LPJASS j) {
-    //HANDLE g = jass_checkhandle(j, 1, "gamedifficulty");
+    DWORD *difficulty = jass_checkhandle(j, 1, "gamedifficulty");
+    if (difficulty) level.setup.default_difficulty = MIN(*difficulty, 3);
     return 0;
 }
 DWORD DialogCreate(LPJASS j) {
@@ -1297,6 +1302,7 @@ DWORD ForceUICancel(LPJASS j) {
     return 0;
 }
 DWORD DisplayLoadDialog(LPJASS j) {
+    G_RequestLoadGameMenu();
     return 0;
 }
 DWORD CreateTrackable(LPJASS j) {

@@ -377,6 +377,9 @@ struct client_s {
         BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
         FLOAT handicap, handicap_xp;
         BOOL race_selectable, on_score_screen;
+        BOOL removed;
+        BYTE pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
+        DWORD pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
         char name[MAX_PATHLEN];
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
@@ -1180,7 +1183,7 @@ struct level_locals {
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
         DWORD teams, players, game_types, game_type, map_flags;
-        DWORD placement, speed, difficulty, resource_density, creature_density;
+        DWORD placement, speed, difficulty, default_difficulty, resource_density, creature_density;
         DWORD forced_start_locations;
         struct {
             DWORD count;
@@ -1229,6 +1232,14 @@ void G_InitJassHost(void);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 void G_SetClientConnected(LPEDICT player, BOOL connected);
+BOOL G_GameResultDebugEnabled(void);
+void G_GameResultDebug(LPCSTR format, ...);
+BOOL G_IsSinglePlayer(void);
+void G_RequestEndGame(BOOL do_score_screen);
+void G_RequestChangeLevel(LPCSTR map, BOOL do_score_screen);
+void G_RequestRestartGame(BOOL do_score_screen);
+void G_RequestLoadGameMenu(void);
+void G_RequestCampaignSelect(void);
 void G_SetScriptPaused(BOOL paused);
 void G_SetClientModal(LPEDICT player, DWORD modal, BOOL open);
 void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
@@ -1585,7 +1596,8 @@ LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upg
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteStart(DWORD);
 void UI_ClearLayer(LPEDICT, DWORD);
-void UI_ShowGameResult(LPEDICT, BOOL);
+void UI_ShowGameResult(LPEDICT, DWORD);
+void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(LPEDICT);
 void UI_ShowQuests(LPEDICT);
 void UI_HideQuests(LPEDICT);
@@ -1794,6 +1806,7 @@ void jass_runevents(LPJASS);
 // g_events.c
 void G_RunEntities(void);
 void G_RunEvents(void);
+void G_DrainPausedResultEvents(void);
 
 // g_items.c
 void SP_SpawnItem(LPEDICT);

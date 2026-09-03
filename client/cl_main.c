@@ -16,6 +16,9 @@
 #include "ui_layout.h"
 #include "sound/s_local.h"
 #include "common/net_platform.h"
+#ifdef BZ_TESTS
+#include "shared/test.h"
+#endif
 
 refExport_t re;
 uiExport_t ui;
@@ -29,6 +32,20 @@ static DWORD cl_last_packet_time = 0;
 static DWORD cl_realtime = 0;
 static char cl_pending_game_commands[8][256];
 static DWORD cl_pending_game_command_count;
+
+typedef enum {
+    CL_MENU_ACTION_NONE,
+    CL_MENU_ACTION_MAP,
+    CL_MENU_ACTION_MENU,
+    CL_MENU_ACTION_QUIT,
+} clMenuActionType_t;
+
+typedef struct {
+    clMenuActionType_t type;
+    PATHSTR arg;
+} clPendingMenuAction_t;
+
+static clPendingMenuAction_t cl_pending_menu_action;
 
 static BOOL CL_IsDeferredGameCommand(LPCSTR text) {
     return text && (!strncmp(text, "give ", 5) || !strcmp(text, "give") ||
@@ -563,19 +580,76 @@ static void CL_Quit_f(void) {
     Com_Quit();
 }
 
-/* Map-or-quit dispatcher called from the server game import (gi.MenuAction). */
+/* Game modules request session-boundary actions through gi.MenuAction while
+ * their simulation/JASS call stack may still be active.  Never tear down or
+ * replace the current world inline from that callback.  Copy the request and
+ * execute it from the following client frame, after SV_Frame has returned. */
 void MenuAction(LPCSTR action, LPCSTR arg) {
+    clPendingMenuAction_t pending = { 0 };
+
+    if (!action || !*action) return;
     if (!strcmp(action, "map")) {
-        PATHSTR map;
         if (!arg || !*arg) return;
-        if (!Com_ResolveMapArgument(arg, map, sizeof(map))) return;
-        CL_SetGameplayBindings();
-        CL_BeginLoadingMap(map);
-        SV_Map(map);
+        if (!Com_ResolveMapArgument(arg, pending.arg, sizeof(pending.arg))) return;
+        pending.type = CL_MENU_ACTION_MAP;
+    } else if (!strcmp(action, "menu")) {
+        pending.type = CL_MENU_ACTION_MENU;
+        if (arg && *arg) strlcpy(pending.arg, arg, sizeof(pending.arg));
     } else if (!strcmp(action, "quit")) {
+        pending.type = CL_MENU_ACTION_QUIT;
+    } else {
+        return;
+    }
+
+    if (cl_pending_menu_action.type != CL_MENU_ACTION_NONE) {
+        fprintf(stderr, "MenuAction: replacing pending session action %u with %u\n",
+                (unsigned)cl_pending_menu_action.type, (unsigned)pending.type);
+    }
+    cl_pending_menu_action = pending;
+}
+
+static void CL_ProcessPendingMenuAction(void) {
+    clPendingMenuAction_t pending;
+
+    if (cl_pending_menu_action.type == CL_MENU_ACTION_NONE) return;
+
+    /* Clear first: the transition may initialize a new game module which can
+     * itself publish a later session action without being overwritten here. */
+    pending = cl_pending_menu_action;
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+
+    switch (pending.type) {
+    case CL_MENU_ACTION_MAP:
+        CL_SetGameplayBindings();
+        CL_BeginLoadingMap(pending.arg);
+        SV_Map(pending.arg);
+        break;
+    case CL_MENU_ACTION_MENU:
+        CL_Disconnect("Game ended.", false);
+        if (pending.arg[0] && strcmp(pending.arg, "menu_main")) CL_MenuCommand(pending.arg);
+        break;
+    case CL_MENU_ACTION_QUIT:
         CL_Quit_f();
+        break;
+    case CL_MENU_ACTION_NONE:
+        break;
     }
 }
+
+#ifdef BZ_TESTS
+TEST(client_session, menu_action_map_is_deferred_until_client_frame) {
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+
+    MenuAction("map", "Maps\\Campaign\\Human02.w3m");
+
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_MAP);
+    T_STREQ(cl_pending_menu_action.arg, "Maps\\Campaign\\Human02.w3m");
+
+    /* Do not call CL_ProcessPendingMenuAction here: the regression contract is
+     * specifically that MenuAction itself cannot enter SV_Map re-entrantly. */
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+}
+#endif
 
 void CL_Init(void) {
     VIDEOMODE mode;
@@ -833,6 +907,7 @@ void CL_Frame(DWORD msec) {
     cl_realtime += msec;
     cl.time += msec;
 
+    CL_ProcessPendingMenuAction();
     CL_Input();
     CL_ReadPackets();
     CL_CheckTimeout();

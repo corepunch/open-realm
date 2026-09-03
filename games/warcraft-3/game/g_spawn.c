@@ -388,6 +388,7 @@ void G_SpawnEntities(void) {
     if (difficulty < 0) difficulty = 0;
     if (difficulty > 3) difficulty = 3;
     level.setup.difficulty = (DWORD)difficulty;
+    level.setup.default_difficulty = (DWORD)difficulty;
     level.setup.resource_density = level.setup.creature_density = 2;
     if (mapinfo) {
         strlcpy(level.setup.name, mapinfo->mapName ? mapinfo->mapName : "", sizeof(level.setup.name));

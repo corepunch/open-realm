@@ -343,6 +343,13 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         return;
     }
 
+    if (Cvar_Integer("ui_layout_debug", 0)) {
+        fprintf(stderr, "UI_LAYOUT_DEBUG begin layer=%u packet_read=%u packet_size=%u uiflags=0x%08x hidden=%u\n",
+            (unsigned)layer, (unsigned)msg->readcount, (unsigned)msg->cursize,
+            (unsigned)cl.playerstate.uiflags,
+            (unsigned)((cl.playerstate.uiflags & (1u << layer)) != 0));
+    }
+
     SCR_ClearLayoutLayer(layer);
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
@@ -386,6 +393,9 @@ void CL_ParseLayout(LPSIZEBUF msg) {
      * allocated terminator-only blob: callers use a non-NULL layer as evidence
      * that the layer exists, including generic modal ownership. */
     if (!has_frames) {
+        if (Cvar_Integer("ui_layout_debug", 0)) {
+            fprintf(stderr, "UI_LAYOUT_DEBUG clear layer=%u\n", (unsigned)layer);
+        }
         return;
     }
     payload_size = msg->readcount - start;
@@ -398,6 +408,11 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
     SCR_SetLayoutLayer(layer, cl.layout[layer]);
+    if (Cvar_Integer("ui_layout_debug", 0)) {
+        fprintf(stderr, "UI_LAYOUT_DEBUG stored layer=%u payload=%u uiflags=0x%08x hidden=%u\n",
+            (unsigned)layer, (unsigned)payload_size, (unsigned)cl.playerstate.uiflags,
+            (unsigned)((cl.playerstate.uiflags & (1u << layer)) != 0));
+    }
 #ifdef BZ_TESTS
     {
         static BOOL quest_layout_screenshot_done;

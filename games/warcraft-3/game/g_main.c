@@ -25,6 +25,7 @@
 #include "common/common.h"
 #include "g_local.h"
 #include "jass/jass.h"
+#include <stdarg.h>
 
 struct game_export globals;
 struct game_import gi;
@@ -520,6 +521,63 @@ static void G_StartScripts(void) {
     G_SetDestructableScriptBinding(false);
 }
 
+BOOL G_IsSinglePlayer(void) {
+    DWORD humans = 0;
+
+    if (!level.mapinfo) return true;
+    FOR_LOOP(i, MAX_PLAYERS) {
+        LPCMAPPLAYER player = level.mapinfo->players + i;
+        if (player->used && player->playerType == kPlayerTypeHuman) humans++;
+    }
+    return humans <= 1;
+}
+
+BOOL G_GameResultDebugEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_game_result_debug", "0")) != 0;
+}
+
+void G_GameResultDebug(LPCSTR format, ...) {
+    va_list args;
+
+    if (!G_GameResultDebugEnabled()) return;
+    fprintf(stderr, "WC3_RESULT ");
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fputc('\n', stderr);
+}
+
+void G_RequestEndGame(BOOL do_score_screen) {
+    /* Score-screen transport is not implemented yet. Keep the argument at the
+     * game/session boundary so EndGame(true) does not get baked into HUD code. */
+    G_GameResultDebug("request EndGame score_screen=%u menu_action=%u",
+        (unsigned)do_score_screen, (unsigned)(gi.MenuAction != NULL));
+    if (gi.MenuAction) gi.MenuAction("menu", "menu_main");
+}
+
+void G_RequestChangeLevel(LPCSTR map, BOOL do_score_screen) {
+    G_GameResultDebug("request ChangeLevel map=%s score_screen=%u menu_action=%u",
+        map ? map : "(null)", (unsigned)do_score_screen, (unsigned)(gi.MenuAction != NULL));
+    if (gi.MenuAction && map && *map) gi.MenuAction("map", map);
+}
+
+void G_RequestRestartGame(BOOL do_score_screen) {
+    LPCSTR map = gi.CvarString ? gi.CvarString("map", "") : "";
+    G_GameResultDebug("request RestartGame map=%s score_screen=%u menu_action=%u",
+        map ? map : "(null)", (unsigned)do_score_screen, (unsigned)(gi.MenuAction != NULL));
+    if (gi.MenuAction && map && *map) gi.MenuAction("map", map);
+}
+
+void G_RequestLoadGameMenu(void) {
+    G_GameResultDebug("request LoadGameMenu menu_action=%u", (unsigned)(gi.MenuAction != NULL));
+    if (gi.MenuAction) gi.MenuAction("menu", "menu_loadgame");
+}
+
+void G_RequestCampaignSelect(void) {
+    G_GameResultDebug("request CampaignSelect menu_action=%u", (unsigned)(gi.MenuAction != NULL));
+    if (gi.MenuAction) gi.MenuAction("menu", "menu_single_player_campaign");
+}
+
 /* One complete server-frame simulation step.
  * Skipped until the first map has been started; on the very first frame after
  * a map loads, the JASS "main" function is invoked to run map initialization
@@ -539,6 +597,12 @@ static void G_RunFrame(void) {
     G_RunTimers();
     G_RunEvents();
     jass_runevents(level.vm);
+
+    /* A result action may call RemovePlayer() and then PauseGame(true) from
+     * the JASS work above.  The pause takes effect immediately at the server
+     * boundary, so consume the newly published terminal result event before
+     * this becomes the last simulation frame. */
+    G_DrainPausedResultEvents();
     G_BotRunFrame();
 
     G_RunClients();
@@ -560,6 +624,11 @@ static void G_RunFrame(void) {
     G_UpdateClientInfoPanels();
     G_UpdateClientResourceBars();
     G_UpdateClientUnitShortcuts();
+
+    /* RemovePlayer queues its fallback result UI instead of writing it inline.
+     * This gives victory/defeat event handlers a chance to enter cinematic mode
+     * first; the overlay is emitted once that cinematic has returned to gameplay. */
+    UI_FlushPendingGameResults();
 
     G_SolveCollisions();
     G_FowUpdate();
@@ -614,6 +683,14 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT sourc
     evt->type = type;
     evt->edict = edict;
     evt->source = source;
+    if (type == EVENT_PLAYER_VICTORY || type == EVENT_PLAYER_DEFEAT) {
+        G_GameResultDebug("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",
+            type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
+            (unsigned)(index + 1),
+            edict ? (long)edict->s.number : -1L,
+            edict ? (unsigned)edict->s.player : 0u,
+            (unsigned)level.events.read, (unsigned)level.events.write);
+    }
     return evt;
 }
 

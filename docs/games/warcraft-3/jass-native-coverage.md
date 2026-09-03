@@ -63,8 +63,6 @@ Known examples include:
   `boolexpr` filter. Counted variants must apply the filter before decrementing
   the accepted-unit limit.
 - `ForceEnumPlayers` and its variants do not yet evaluate filters.
-- `GetPlayerSlotState` derives only empty/playing from W3I and cannot report the
-  runtime `PLAYER_SLOT_STATE_LEFT` transition.
 - `ForcePlayerStartLocation` changes the index but does not reserve it against
   random placement.
 
@@ -90,6 +88,38 @@ callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
 
 Camera bounds are an example of client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives a `BOX2 camera_bounds` initialized from W3I, `SetCameraBounds` changes that per-player copy, and the snapshot transports it so camera prediction uses the same limits as the server. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
+
+## Player Result / End-Game Lifecycle
+
+`RemovePlayer` now consumes all four `PLAYER_GAME_RESULT_*` values, stores the result in
+`PLAYER_STATE_GAME_RESULT`, marks the runtime player slot `PLAYER_SLOT_STATE_LEFT`, stops that player's bot, and
+publishes `EVENT_PLAYER_VICTORY` / `EVENT_PLAYER_DEFEAT` for the two corresponding results. Repeated removal is
+idempotent. `TIE` and `NEUTRAL` record the result and slot transition without inventing victory/defeat events.
+
+The native FDF `GameResultDialog` remains a temporary compatibility fallback while the generic ScriptDialog native
+family is incomplete. Result presentation is queued by `RemovePlayer` and normally flushed after JASS result events;
+if the player is in `CLIENT_UI_CINEMATIC`, the fallback normally waits until cinematic UI returns to gameplay. Stock
+Blizzard.j single-player result dialogs are the exception: `CustomVictoryBJ` / `CustomDefeatBJ` call `RemovePlayer`
+and then `PauseGame(true)`. A result event published from that late JASS action must be drained before the pause can
+stop future simulation frames, and the fallback may then display over cinematic UI because the paused scheduler cannot
+advance that UI state. When this override is used, only `LAYER_GAME_RESULT` is unhidden in `playerState_t.uiflags`;
+the rest of the cinematic HUD suppression remains intact. The fallback uses `GlobalStrings.fdf` `GAMEOVER_*` labels
+where available, distinguishes the safe single-player/multiplayer button subset, and only exposes actions the current
+engine can execute.
+
+`EndGame`, `ChangeLevel`, `RestartGame`, `DisplayLoadDialog`, and `ForceCampaignSelectScreen` now cross the existing
+`gi.MenuAction` session boundary. `EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested
+map, `RestartGame` reloads the current `map` cvar, `DisplayLoadDialog` enters the frontend load-game screen, and
+`ForceCampaignSelectScreen` returns to campaign selection. The `doScoreScreen` parameter is consumed but score-screen
+presentation is not implemented yet.
+
+`GetDefaultDifficulty` / `SetDefaultDifficulty` now own a per-level default distinct from mutable
+`GetGameDifficulty()` state. Campaign map startup seeds both values from `wc3_campaign_difficulty`; scripts may then
+change current and default difficulty independently.
+
+Still incomplete: the generic `Dialog*` / dialog-button event natives, `DialogAddQuitButton`, actual score-screen
+presentation, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal
+pausing. The existing `PauseGame` / modal path should be reused for that work rather than adding a second pause model.
 
 ## Campaign Game Cache
 

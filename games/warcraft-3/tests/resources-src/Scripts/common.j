@@ -32,6 +32,7 @@ type gamedifficulty  extends handle
 type aidifficulty    extends handle
 type gamespeed       extends handle
 type playerstate     extends handle
+type playerslotstate extends handle
 type gamestate        extends handle
 type fgamestate       extends gamestate
 type limitop          extends handle
@@ -58,6 +59,7 @@ native TriggerAddAction           takes trigger whichTrigger, code actionFunc re
 native GetLocalPlayer             takes nothing returns player
 native ShowInterface              takes boolean flag, real fadeDuration returns nothing
 native EnableUserControl          takes boolean b returns nothing
+native PauseGame                  takes boolean flag returns nothing
 native ResetToGameCamera          takes real duration returns nothing
 native PanCameraTo                takes real x, real y returns nothing
 native SetCameraPosition          takes real x, real y returns nothing
@@ -81,6 +83,7 @@ native ConvertGameDifficulty takes integer i returns gamedifficulty
 native ConvertAIDifficulty   takes integer i returns aidifficulty
 native ConvertGameSpeed      takes integer i returns gamespeed
 native ConvertPlayerState    takes integer i returns playerstate
+native ConvertPlayerSlotState takes integer i returns playerslotstate
 native ConvertFGameState     takes integer i returns fgamestate
 native ConvertLimitOp        takes integer i returns limitop
 native ConvertFogState       takes integer i returns fogstate
@@ -110,6 +113,8 @@ native SetGameSpeed          takes gamespeed whichSpeed returns nothing
 native GetGameSpeed          takes nothing returns gamespeed
 native SetGameDifficulty     takes gamedifficulty whichDifficulty returns nothing
 native GetGameDifficulty     takes nothing returns gamedifficulty
+native GetDefaultDifficulty  takes nothing returns gamedifficulty
+native SetDefaultDifficulty  takes gamedifficulty whichDifficulty returns nothing
 native GetAIDifficulty       takes player num returns aidifficulty
 native SetResourceDensity    takes mapdensity whichDensity returns nothing
 native GetResourceDensity    takes nothing returns mapdensity
@@ -136,6 +141,8 @@ native SetPlayerTechResearched takes player whichPlayer, integer techid, integer
 native GetPlayerTechResearched takes player whichPlayer, integer techid, boolean specificonly returns boolean
 native GetPlayerTechCount      takes player whichPlayer, integer techid, boolean specificonly returns integer
 native SetPlayerOnScoreScreen takes player whichPlayer, boolean flag returns nothing
+native GetPlayerState         takes player whichPlayer, playerstate whichPlayerState returns integer
+native GetPlayerSlotState     takes player whichPlayer returns playerslotstate
 native Rect                   takes real minx, real miny, real maxx, real maxy returns rect
 native SetRect                takes rect whichRect, real minx, real miny, real maxx, real maxy returns nothing
 native GetRectMinX            takes rect whichRect returns real
@@ -239,6 +246,7 @@ globals
     constant integer CAMERA_MARGIN_RIGHT  = 1
     constant integer CAMERA_MARGIN_TOP    = 2
     constant integer CAMERA_MARGIN_BOTTOM = 3
+    constant playerevent     EVENT_PLAYER_VICTORY       = ConvertPlayerEvent(14)
     constant playerevent     EVENT_PLAYER_END_CINEMATIC = ConvertPlayerEvent(17)
     constant playerunitevent EVENT_PLAYER_UNIT_DEATH   = ConvertPlayerUnitEvent(20)
     constant fogstate FOG_OF_WAR_MASKED  = ConvertFogState(1)
@@ -261,10 +269,13 @@ globals
     constant startlocprio MAP_LOC_PRIO_NOT = ConvertStartLocPrio(2)
     constant mapdensity MAP_DENSITY_LIGHT = ConvertMapDensity(1)
     constant mapdensity MAP_DENSITY_HEAVY = ConvertMapDensity(3)
+    constant gamedifficulty MAP_DIFFICULTY_EASY = ConvertGameDifficulty(0)
     constant gamedifficulty MAP_DIFFICULTY_HARD = ConvertGameDifficulty(2)
     constant aidifficulty AI_DIFFICULTY_NORMAL = ConvertAIDifficulty(1)
     constant gamespeed MAP_SPEED_FAST = ConvertGameSpeed(3)
+    constant playerstate PLAYER_STATE_GAME_RESULT = ConvertPlayerState(0)
     constant playerstate PLAYER_STATE_RESOURCE_GOLD = ConvertPlayerState(1)
+    constant playerslotstate PLAYER_SLOT_STATE_LEFT = ConvertPlayerSlotState(2)
     constant fgamestate GAME_STATE_TIME_OF_DAY = ConvertFGameState(2)
     constant limitop LESS_THAN = ConvertLimitOp(0)
     constant limitop LESS_THAN_OR_EQUAL = ConvertLimitOp(1)
