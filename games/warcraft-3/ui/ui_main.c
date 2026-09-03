@@ -177,9 +177,11 @@ static void UI_MenuKeys_f(void) {
 }
 
 static void UI_MenuLoadGame_f(void) {
+    uiimport.Cmd_ExecuteText("load quick\n");
 }
 
 static void UI_MenuSaveGame_f(void) {
+    uiimport.Cmd_ExecuteText("save quick\n");
 }
 
 static void UI_MenuPlayerConfig_f(void) {

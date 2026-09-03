@@ -371,6 +371,7 @@ void G_SpawnEntities(void) {
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
+    G_ClearSaveRegistries();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
 
@@ -440,6 +441,8 @@ void G_SpawnEntities(void) {
 
     UI_Init();
     CM_BakeStaticObstacles();
+    /* Start simulation from the map load itself so dedicated and listen-server restores share one lifecycle. */
+    level.started = true;
 }
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {

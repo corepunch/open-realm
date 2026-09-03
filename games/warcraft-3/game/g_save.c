@@ -2,13 +2,19 @@
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 8;
+static DWORD const save_version = 9;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 
 typedef struct {
     DWORD magic, version, edict_size, num_edicts, max_clients;
     DWORD script_identity, quests, groups, triggers, timers, events;
+    PATHSTR map_path;
 } SAVEHEADER;
+
+typedef struct {
+    DWORD magic, version, edict_size, num_edicts, max_clients;
+    DWORD script_identity, quests, groups, triggers, timers, events;
+} SAVEHEADER_V8;
 
 typedef struct { DWORD checksum, commit; } SAVEFOOTER;
 
@@ -91,6 +97,49 @@ static BOOL ReadFooter(FILE *f) {
         checksum = SaveHash(checksum, bytes, size); remaining -= (long)size;
     }
     return checksum == footer.checksum && fseek(f, 0, SEEK_SET) == 0;
+}
+
+/* Save files carry the canonical map path so the server can rebuild the map before restoring state. */
+BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size) {
+    FILE *f = fopen(filename, "rb");
+    SAVEHEADER header;
+    DWORD magic, version;
+    if (!f || !map || !map_size) { if (f) fclose(f); return false; }
+    if (!ReadFooter(f) || !LoadBytes(f, &magic, sizeof(magic)) || !LoadBytes(f, &version, sizeof(version)) ||
+        magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
+        !header.map_path[0]) {
+        if (f) fclose(f);
+        return false;
+    }
+    strlcpy(map, header.map_path, map_size);
+    fclose(f);
+    return true;
+}
+
+static ggroup_t *save_groups[MAX_JASS_GROUPS];
+static LPGTIMER save_timers[MAX_JASS_TIMERS];
+
+void G_ClearSaveRegistries(void) {
+    FOR_LOOP(i, MAX_JASS_GROUPS) { if (save_groups[i]) jass_free(save_groups[i]); save_groups[i] = NULL; }
+    FOR_LOOP(i, MAX_JASS_TIMERS) { if (save_timers[i]) jass_free(save_timers[i]); save_timers[i] = NULL; }
+}
+
+static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers) {
+    if (groups < level.num_groups || timers < level.num_timers || groups > MAX_JASS_GROUPS || timers > MAX_JASS_TIMERS)
+        return false;
+    while (level.num_groups < groups) {
+        DWORD i = level.num_groups;
+        ggroup_t *group = jass_alloc(sizeof(*group));
+        if (!group || !G_RegisterJassGroup(group)) return false;
+        memset(group, 0, sizeof(*group)); save_groups[i] = group;
+    }
+    while (level.num_timers < timers) {
+        DWORD i = level.num_timers;
+        LPGTIMER timer = jass_alloc(sizeof(*timer));
+        if (!timer || !G_RegisterJassTimer(timer)) return false;
+        memset(timer, 0, sizeof(*timer)); save_timers[i] = timer;
+    }
+    return true;
 }
 
 /* VM state follows native domains so load-side handle relocation sees restored objects. */
@@ -210,8 +259,11 @@ static BOOL ReadGroups(FILE *f) {
         group->num_units = 0;
         FOR_LOOP(k, units) {
             int index;
-            if (!LoadBytes(f, &index, sizeof(index)) || index < 0 || index >= (int)globals.num_edicts ||
-                !g_edicts[index].inuse) return false;
+            if (!LoadBytes(f, &index, sizeof(index))) return false;
+            if (index < 0 || index >= (int)globals.num_edicts || !g_edicts[index].inuse) {
+                fprintf(stderr, "WC3 LoadGame: dropping stale group[%u] member index=%d\n", i, index);
+                continue;
+            }
             group->units[group->num_units++] = g_edicts + index;
         }
     }
@@ -593,10 +645,12 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
 BOOL WriteGame(LPCSTR filename) {
     FILE *f = fopen(filename, "w+b");
     SAVEHEADER header = {
-        save_magic, save_version, sizeof(edict_t), globals.num_edicts, game.max_clients,
-        level.vm ? jass_programidentity(level.vm) : 0, QuestCount(), level.num_groups, level.num_triggers, level.num_timers,
-        EventCount()
+        .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
+        .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
+        .quests = QuestCount(), .groups = level.num_groups, .triggers = level.num_triggers, .timers = level.num_timers,
+        .events = EventCount()
     };
+    strlcpy(header.map_path, level.map_path, sizeof(header.map_path));
 
     BOOL ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
@@ -633,18 +687,34 @@ done:
 
 BOOL ReadGame(LPCSTR filename) {
     FILE *f = fopen(filename, "rb");
-    SAVEHEADER header;
+    SAVEHEADER header = { 0 };
+    SAVEHEADER_V8 legacy;
     DWORD index;
     int targets[MAX_CLIENTS];
+    BOOL old_format = false;
 
     if (!f) { fprintf(stderr, "WC3 LoadGame: cannot open %s\n", filename); return false; }
     if (!ReadFooter(f)) { fprintf(stderr, "WC3 LoadGame: invalid footer/checksum\n"); fclose(f); return false; }
-    /* All native handle registries must match before clients or edicts are overwritten; timers were previously checked too late. */
-    if (!LoadBytes(f, &header, sizeof(header)) || header.magic != save_magic || header.version != save_version ||
+    /* Read the compact legacy header too: old saves can still load in the map they were created from. */
+    if (!LoadBytes(f, &header.magic, sizeof(header.magic)) || !LoadBytes(f, &header.version, sizeof(header.version)) ||
+        fseek(f, 0, SEEK_SET)) {
+        fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
+    }
+    if (header.version == 8) {
+        if (!LoadBytes(f, &legacy, sizeof(legacy))) { fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false; }
+        memcpy(&header, &legacy, sizeof(legacy)); old_format = true;
+    } else if (header.version == save_version) {
+        if (!LoadBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false; }
+    } else {
+        fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
+    }
+    if (header.magic != save_magic ||
         header.edict_size != sizeof(edict_t) || header.num_edicts > globals.max_edicts ||
         header.max_clients != game.max_clients || header.script_identity != (level.vm ? jass_programidentity(level.vm) : 0) ||
-        header.quests != QuestCount() || header.groups != level.num_groups || header.triggers != level.num_triggers ||
-        header.timers != level.num_timers || header.events != EventCount()) {
+        header.quests != QuestCount() || header.groups < level.num_groups || header.triggers != level.num_triggers ||
+        header.timers < level.num_timers || header.events != EventCount() ||
+        (!old_format && level.map_path[0] && (!header.map_path[0] || strcasecmp(header.map_path, level.map_path))) ||
+        !RestoreRegistrySlots(header.groups, header.timers)) {
         fprintf(stderr, "WC3 LoadGame: header mismatch version=%u edicts=%u clients=%u registries=%u/%u/%u/%u/%u\n",
             header.version, header.num_edicts, header.max_clients, header.quests, header.groups, header.triggers,
             header.timers, header.events);

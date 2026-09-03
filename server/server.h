@@ -107,6 +107,8 @@ extern struct game_export *ge;
 // sv_init.c
 void SV_StartLobby(LPCSTR mapFilename);
 void SV_Map(LPCSTR pFilename);
+BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size);
+void SV_LoadPendingGame(void);
 #ifdef WOW
 DWORD SV_PlayerCreateMap(void);
 #endif

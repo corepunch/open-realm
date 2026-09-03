@@ -46,6 +46,7 @@ static LPPLAYER game_player(int idx) {
 
 static LPEDICT make_test_unit(void) {
     reset_entities();
+    strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     ent->health.value     = 250.0f;
     ent->health.max_value = 250.0f;
@@ -1281,6 +1282,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     LPEDICT first, second, indicator;
 
     reset_entities();
+    strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     level.quests = &quest;
     first = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 24.0f);
     second = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 48.0f, 72.0f);
@@ -1311,6 +1313,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.state.position = (VECTOR2){ 333.0f, 444.0f };
     game.clients[0].camera.target_controller = second;
     T_ASSERT(WriteGame(filename));
+    PATHSTR saved_map;
+    T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
+    T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
     first->owner = NULL;
     first->inventory[2] = NULL;
@@ -1737,6 +1742,32 @@ TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
         "  call BJassAssert(killedUnit == null, \"stale handle should be null after load\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+/* A removed unit must be removed from every live group before the group is saved. */
+TEST(wc3_save, removed_unit_is_removed_from_group_before_save) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-stale-group-save-test.bin";
+    T_ASSERT(run_test_jass(
+        "type group extends handle\n"
+        "type unit extends handle\n"
+        "globals\n"
+        "  group savedGroup = null\n"
+        "  unit removedUnit = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set savedGroup = CreateGroup()\n"
+        "  set removedUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call GroupAddUnit(savedGroup, removedUnit)\n"
+        "  call RemoveUnit(removedUnit)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(FirstOfGroup(savedGroup) == null, \"removed unit remains in group\")\n"
         "endfunction\n"));
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
