@@ -188,14 +188,14 @@ The console accepts the same commands and cvars used by the command line. For ex
 
 ### Configuration and cvars
 
-OpenRealm uses Quake-style cvars and config files. Shipped game defaults live in `games/<game>/share/config.cfg` (installed to `build/share/<game>/`); generated user settings are written to `~/.<game>/config.cfg`; optional local overrides can be placed in `~/.<game>/autoexec.cfg`.
+OpenRealm uses Quake-style cvars and config files. Shipped game defaults live in `games/<game>/share/config.cfg` (installed to `build/share/<game>/`); generated user settings are written to `~/.local/share/<game>/config.cfg`; optional local overrides can be placed in `~/.local/share/<game>/autoexec.cfg`.
 
 Config load order:
 
 1. Built-in cvar defaults
 2. `build/share/<game>/config.cfg` (shipped game defaults, e.g. key bindings)
-3. `~/.<game>/config.cfg` (generated user config, written by `writeconfig`)
-4. `~/.<game>/autoexec.cfg` (optional local overrides)
+3. `~/.local/share/<game>/config.cfg` (generated user config, written on shutdown or by `writeconfig`)
+4. `~/.local/share/<game>/autoexec.cfg` (optional local overrides)
 5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+r_module stdout`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
 
 Common runtime cvars:

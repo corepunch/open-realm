@@ -148,8 +148,19 @@ void SV_Map(LPCSTR pFilename) {
     (void)pFilename;
 }
 
-BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) { (void)name; (void)map; (void)map_size; return false; }
-BOOL SV_LoadGame(LPCSTR name, LPCSTR map) { (void)name; (void)map; return false; }
+void CL_Connect(LPCSTR host, unsigned short port) {
+    (void)host; (void)port;
+}
+
+BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
+    (void)name; (void)map; (void)map_size;
+    return false;
+}
+
+BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
+    (void)name; (void)map;
+    return false;
+}
 
 void SV_Shutdown(void) {
 }

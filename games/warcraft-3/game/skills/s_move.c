@@ -270,7 +270,15 @@ BOOL move_is_settled_near_goal(LPEDICT ent, FLOAT distance, FLOAT move_distance)
 
 static umove_t move_move_hold = { "stand", NULL, NULL, &a_move };
 
+BOOL move_is_terminal_hold(LPCEDICT ent) {
+    return ent && ent->currentmove == &move_move_hold;
+}
+
 static void move_hold(LPEDICT ent) {
+    /* A terminal blocked/unreachable Move is complete for queue purposes.
+     * Continue a Shift chain instead of stranding pending commands behind the
+     * legacy hold pose. */
+    if (G_UnitStartNextQueuedOrder(ent)) return;
     ent->build = NULL;
     ent->s.renderfx &= ~RF_NO_UBERSPLAT;
     ent->s.ability = 0;
@@ -360,6 +368,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     VECTOR2 center;
     VECTOR2 confirmation = *location;
     BOOL have_confirmation = false;
+    BOOL issued = false;
     DWORD num_units = move_collect_selected(clent->client, units, MAX_SELECTED_ENTITIES, &center);
     FLOAT spacing = move_slot_spacing(units, num_units);
     LPEDICT route_waypoint;
@@ -370,7 +379,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     /* A multi-unit move travels at the slowest member's speed so the group
      * stays together (WC3).  A lone unit keeps its own speed (cap 0). */
     FLOAT const group_speed = num_units > 1 ? move_group_speed(units, num_units) : 0;
-    route_waypoint = Waypoint_add(location);
+    route_waypoint = clent->client->menu.order_queued ? NULL : Waypoint_add(location);
 
     FOR_LOOP(i, num_units) {
         LPEDICT ent = units[i];
@@ -389,22 +398,35 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
             CM_ClosestPathablePointForRadius(location, ent->collision, &target);
         }
         reserved[i] = (moveSlot_t){ target, ent->collision };
-        LPEDICT waypoint = Waypoint_add(&target);
-        waypoint->secondarygoal = route_waypoint;
         if (!have_confirmation) {
             confirmation = target;
             have_confirmation = true;
         }
-        order_move(ent, waypoint);
-        ent->movement.group_speed = group_speed;  /* after order_move, which resets it */
+        if (clent->client->menu.order_queued) {
+            /* Queued units may reach this leg at different times, so retain the
+             * resolved per-unit slot and speed in the unit's own FIFO. */
+            if (G_IssueUnitPointOrder(ent, "move", &target, true,
+                                      clent->client->ps.number, group_speed)) {
+                issued = true;
+            }
+        } else {
+            LPEDICT waypoint = Waypoint_add(&target);
+            waypoint->secondarygoal = route_waypoint;
+            G_ClearUnitOrderQueue(ent);
+            ent->movement.holding_position = false;
+            order_move(ent, waypoint);
+            ent->movement.group_speed = group_speed;  /* after order_move, which resets it */
+            issued = true;
+        }
     }
-    G_SendPointConfirmation(clent, &confirmation, false);
-    return true;
+    if (issued) G_SendPointConfirmation(clent, &confirmation, false);
+    return issued;
 }
 
 void move_command(LPEDICT ent) {
     UI_AddCancelButton(ent);
     ent->client->menu.on_location_selected = move_selectlocation;
+    ent->client->menu.supports_order_queue = true;
 }
 
 ability_t a_move = {

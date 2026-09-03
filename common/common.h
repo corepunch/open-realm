@@ -322,7 +322,7 @@ cvar_t *Cvar_SetValue(LPCSTR name, FLOAT value);
 LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback);
 int Cvar_Integer(LPCSTR name, int fallback);
 FLOAT Cvar_Value(LPCSTR name, FLOAT fallback);
-void Cvar_LoadConfig(LPCSTR filename);
+bool Cvar_LoadConfig(LPCSTR filename);
 void Cvar_WriteConfig(LPCSTR filename);
 void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv);
 void Cvar_ApplyCommandLine(int argc, LPCSTR *argv);

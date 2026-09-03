@@ -10,6 +10,7 @@
  * CL_Init() sets up the renderer and input bindings at startup.
  */
 #include "client.h"
+#include "cl_input_local.h"
 #include "../common/video_modes.h"
 #include "tr_public.h"
 #include "ui_layout.h"
@@ -475,6 +476,9 @@ static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
+    /* Per-map input conveniences must never retain entity numbers into the
+     * next world, where those numbers may refer to unrelated entities. */
+    CL_InputModeResetMap();
     /* Publish the resolved map before freezing the plaque; menu launches have no startup map cvar. */
     Cvar_Set("map", mapName);
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;

@@ -307,6 +307,36 @@ static PATHSTR fs_share_dir = { 0 };
 static PATHSTR fs_home_dir = { 0 };
 static PATHSTR fs_save_dir = { 0 };
 
+/* Create every component of a user path because ~/.local/share/<game> may not exist on first launch. */
+static BOOL FS_CreateDirectoryPath(LPCSTR dir) {
+    PATHSTR path;
+    LPSTR p;
+
+    if (!dir || !*dir || strlen(dir) >= sizeof(path)) {
+        return false;
+    }
+    snprintf(path, sizeof(path), "%s", dir);
+    for (p = path + 1; *p; p++) {
+        if (*p != '/') {
+            continue;
+        }
+        *p = '\0';
+#ifdef _WIN32
+        _mkdir(path);
+#else
+        mkdir(path, 0755);
+#endif
+        *p = '/';
+    }
+#ifdef _WIN32
+    _mkdir(path);
+    return _access(path, 2) == 0;
+#else
+    mkdir(path, 0755);
+    return access(path, W_OK) == 0;
+#endif
+}
+
 void FS_SetShareDirectory(LPCSTR dir) {
     /* First-match-wins: main() probes candidates in priority order (flat exe
      * dir, then the FHS build tree, then CWD); once resolved, later fallbacks
@@ -324,17 +354,9 @@ void FS_SetHomeDirectory(LPCSTR dir) {
     if (!dir || !*dir) {
         return;
     }
-#ifdef _WIN32
-    _mkdir(dir);
-    if (_access(dir, 2) != 0) { /* 2 = write access */
+    if (!FS_CreateDirectoryPath(dir)) {
         return;
     }
-#else
-    mkdir(dir, 0755);
-    if (access(dir, W_OK) != 0) {
-        return;
-    }
-#endif
     snprintf(fs_home_dir, sizeof(fs_home_dir), "%s", dir);
 }
 
@@ -355,20 +377,12 @@ void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
     }
 }
 
-/* Resolve a writable configuration file below the platform's per-user config directory. */
+/* Resolve a writable per-game configuration file beside autoexec.cfg. */
 void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size) {
-    PATHSTR dir;
-
     if (fs_home_dir[0]) {
-        snprintf(dir, sizeof(dir), "%s/config", fs_home_dir);
-#ifdef _WIN32
-        _mkdir(dir);
-#else
-        mkdir(dir, 0755);
-#endif
-        snprintf(out, out_size, "%s/%s", dir, rel);
+        snprintf(out, out_size, "%s/%s", fs_home_dir, rel);
     } else {
-        snprintf(out, out_size, "%s/%s/config/%s", FS_BasePath(), BZ_GAME, rel);
+        snprintf(out, out_size, "%s/%s/%s", FS_BasePath(), BZ_GAME, rel);
     }
 }
 
@@ -1373,14 +1387,11 @@ void MemFree(HANDLE mem) {
 }
 
 void Com_Quit(void) {
-    if (Cvar_Integer("com_frame_limit", 0) <= 0) {
-        /* TODO: re-enable when config-overwrite-on-exit is acceptable during dev.
-         * Currently disabled because developer-run config changes (e.g. bind
-         * experiments, debug cvars) clobber hand-edited ~/.<game>/config.cfg. */
-        /* Cvar_WriteConfig(Cvar_String("config", "")); */
-    }
-    if (!Cvar_Integer("dedicated", 0))
+    if (!Cvar_Integer("dedicated", 0)) {
+        /* Persist the client snapshot after all commands have run, matching Quake's shutdown lifecycle. */
+        Cvar_WriteConfig(Cvar_String("config", ""));
         CL_Shutdown();
+    }
     SV_Shutdown();
     NET_Shutdown();
     FS_Shutdown();
@@ -1650,8 +1661,8 @@ void Com_Init(int argc, LPCSTR *argv) {
         Cvar_LoadConfig(cfg);
     }
     Cbuf_Execute();
-    /* Writable user config (~/.<game>/config.cfg, or share/<game>/config.cfg
-     * when $HOME is unavailable): written by `writeconfig`. */
+    /* Writable user config (~/.local/share/<game>/config.cfg, or the
+     * share/<game>/ copy when no writable home is available). */
     Cvar_LoadConfig(Cvar_String("config", ""));
     Cbuf_Execute();
     {

@@ -1059,6 +1059,53 @@ static void test_update_unit_ui(DWORD num_units, uiUnitData_t *units) {
     }
 }
 
+TEST(net, game_command_selection_accepts_authoritative_multi_selection) {
+    BYTE buf[128];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init();
+    test_unit_ui_calls = 0;
+    ui.UpdateUnitUI = test_update_unit_ui;
+    cl.selection.num_selected = 1;
+    cl.selection.entity_nums[0] = 99;
+
+    MSG_WriteByte(&sb, svc_gamecmd);
+    MSG_WriteString(&sb, "select");
+    MSG_WriteShort(&sb, 3 * sizeof(DWORD));
+    MSG_WriteLong(&sb, 4);
+    MSG_WriteLong(&sb, 7);
+    MSG_WriteLong(&sb, 11);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+
+    T_EQ(cl.selection.num_selected, 3);
+    T_EQ(cl.selection.entity_nums[0], 4);
+    T_EQ(cl.selection.entity_nums[1], 7);
+    T_EQ(cl.selection.entity_nums[2], 11);
+    T_EQ(test_unit_ui_calls, 1);
+}
+
+TEST(net, game_command_empty_selection_clears_client_cache) {
+    BYTE buf[64];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    test_client_stubs_init();
+    test_unit_ui_calls = 0;
+    ui.UpdateUnitUI = test_update_unit_ui;
+    cl.selection.num_selected = 2;
+    cl.selection.entity_nums[0] = 4;
+    cl.selection.entity_nums[1] = 7;
+
+    MSG_WriteByte(&sb, svc_gamecmd);
+    MSG_WriteString(&sb, "select");
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+
+    T_EQ(cl.selection.num_selected, 0);
+    T_EQ(test_unit_ui_calls, 1);
+}
+
 TEST(net, unit_ui_parser_preserves_distinct_strings) {
     BYTE buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

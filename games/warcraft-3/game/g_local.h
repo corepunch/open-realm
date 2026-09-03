@@ -111,6 +111,8 @@ typedef struct {
     void (*cmdbutton)(LPEDICT, DWORD);
     void (*refresh)(LPEDICT);
     DWORD ability_code;
+    BOOL supports_order_queue; /* active target mode accepts Shift chaining */
+    BOOL order_queued;         /* transient modifier for the current target callback */
 } menu_t;
 
 enum {
@@ -426,6 +428,34 @@ typedef struct {
     void (*endfunc)(LPEDICT);
     struct ability_s *ability;
 } umove_t;
+
+/* Player-issued WC3 Shift orders are simulation state, separate from the
+ * training/research queue. Targets are retained by edict number + spawn_time
+ * so a recycled slot cannot silently retarget an old queued command. */
+#define MAX_UNIT_ORDER_QUEUE 16
+#define UNIT_ORDER_NAME_SIZE 12
+
+typedef enum {
+    UNIT_ORDER_TARGET_NONE,
+    UNIT_ORDER_TARGET_POINT,
+    UNIT_ORDER_TARGET_ENTITY,
+} unitOrderTargetType_t;
+
+typedef struct {
+    char order[UNIT_ORDER_NAME_SIZE];
+    unitOrderTargetType_t target_type;
+    VECTOR2 point;
+    DWORD target_number;
+    DWORD target_spawn_time;
+    DWORD issuer_player;
+    FLOAT group_speed;
+} unitOrder_t;
+
+typedef struct {
+    unitOrder_t entries[MAX_UNIT_ORDER_QUEUE];
+    DWORD head;
+    DWORD count;
+} unitOrderQueue_t;
 
 #define ABILITY_PASSIVE  (1 << 0)
 #define ABILITY_TOGGLE   (1 << 1)
@@ -814,6 +844,7 @@ struct edict_s {
     } channel;
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
+    unitOrderQueue_t order_queue;
     struct {
         VECTOR2 last_origin;
         FLOAT last_distance;
@@ -1573,6 +1604,11 @@ BOOL G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
 BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
 BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
 BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
+BOOL G_IssueUnitPointOrder(LPEDICT, LPCSTR, LPCVECTOR2, BOOL, DWORD, FLOAT);
+BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
+BOOL G_UnitStartNextQueuedOrder(LPEDICT);
+void G_ClearUnitOrderQueue(LPEDICT);
+DWORD G_UnitQueuedOrderCount(LPCEDICT);
 void unit_birth(LPEDICT);
 void unit_die(LPEDICT, LPEDICT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
@@ -1652,6 +1688,7 @@ BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
 BOOL move_should_arrive(LPEDICT, FLOAT);
 BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);
 BOOL move_is_settled_near_goal(LPEDICT, FLOAT, FLOAT);
+BOOL move_is_terminal_hold(LPCEDICT);
 void move_reset_progress(LPEDICT);
 LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
 FLOAT G_AcquisitionRange(LPCEDICT);

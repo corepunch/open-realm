@@ -454,6 +454,91 @@ TEST(wc3_unit, issueorder_move_sets_walk_animation) {
     T_STREQ(ent->currentmove->animation, "walk");
 }
 
+TEST(wc3_unit, shift_move_starts_immediately_when_idle_then_queues_fifo) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    VECTOR2 a = { 96.0f, 0.0f };
+    VECTOR2 b = { 192.0f, 0.0f };
+    VECTOR2 c = { 288.0f, 0.0f };
+
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
+    T_EQ(G_UnitQueuedOrderCount(ent), 0);
+    T_STREQ(ent->currentmove->animation, "walk");
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &b, true, 0, 0.0f));
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &c, true, 0, 0.0f));
+    T_EQ(G_UnitQueuedOrderCount(ent), 2);
+
+    unit_stand(ent);
+    T_EQ(G_UnitQueuedOrderCount(ent), 1);
+    T_FEQ(ent->goalentity->s.origin2.x, b.x, 0.01f);
+
+    unit_stand(ent);
+    T_EQ(G_UnitQueuedOrderCount(ent), 0);
+    T_FEQ(ent->goalentity->s.origin2.x, c.x, 0.01f);
+}
+
+TEST(wc3_unit, nonqueued_move_replaces_pending_shift_orders) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    VECTOR2 a = { 96.0f, 0.0f };
+    VECTOR2 b = { 192.0f, 0.0f };
+    VECTOR2 replacement = { 320.0f, 0.0f };
+
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &b, true, 0, 0.0f));
+    T_EQ(G_UnitQueuedOrderCount(ent), 1);
+
+    T_ASSERT(unit_issueorder(ent, "move", &replacement));
+    T_EQ(G_UnitQueuedOrderCount(ent), 0);
+    T_FEQ(ent->goalentity->s.origin2.x, replacement.x, 0.01f);
+}
+
+TEST(wc3_unit, stale_queued_entity_target_is_skipped_for_next_order) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    LPEDICT target = make_unit(128, 0);
+    VECTOR2 a = { 64.0f, 0.0f };
+    VECTOR2 b = { 256.0f, 0.0f };
+
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
+    T_ASSERT(G_IssueUnitTargetOrder(ent, "attack", target, true, 0));
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &b, true, 0, 0.0f));
+    T_EQ(G_UnitQueuedOrderCount(ent), 2);
+
+    /* Simulate recycling the target slot before the queued Attack begins. */
+    target->spawn_time++;
+    unit_stand(ent);
+
+    T_EQ(G_UnitQueuedOrderCount(ent), 0);
+    T_STREQ(ent->currentmove->animation, "walk");
+    T_FEQ(ent->goalentity->s.origin2.x, b.x, 0.01f);
+}
+
+TEST(wc3_unit, stop_clears_pending_shift_orders) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    VECTOR2 a = { 96.0f, 0.0f };
+    VECTOR2 b = { 192.0f, 0.0f };
+
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
+    T_ASSERT(G_IssueUnitPointOrder(ent, "move", &b, true, 0, 0.0f));
+    T_EQ(G_UnitQueuedOrderCount(ent), 1);
+
+    T_ASSERT(unit_issueimmediateorder(ent, "stop"));
+    T_EQ(G_UnitQueuedOrderCount(ent), 0);
+    T_STREQ(ent->currentmove->animation, "stand");
+}
+
+TEST(wc3_unit, point_attack_order_uses_attack_move_behavior) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    VECTOR2 dest = { 128.0f, 0.0f };
+
+    T_ASSERT(unit_issueorder(ent, "attack", &dest));
+    T_NOT_NULL(ent->movement.attackmove_waypoint);
+    T_ASSERT(ent->goalentity == ent->movement.attackmove_waypoint);
+}
+
 TEST(wc3_unit, issueorder_move_preserves_combat_state) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);

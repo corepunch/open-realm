@@ -10,6 +10,7 @@ BOOL CL_GameplayInputReady(void);
 
 void CL_InputModeInit(void);
 void CL_InputModeSetGameplay(void);
+void CL_InputModeResetMap(void);
 void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down);
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion);
 BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel);
@@ -21,6 +22,6 @@ BOOL CL_TryMinimapClick(float x, float y);
 void CL_EndMinimapDrag(void);
 
 /* In-game keyboard handling (control groups). Returns true if consumed. */
-BOOL CL_HandleGameKey(int sym, Uint16 mod);
+BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat);
 
 #endif
