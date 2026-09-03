@@ -181,6 +181,7 @@ Key flags: `-prefix <Name>` sets the struct and function prefix; `-root <FrameNa
   paths and may replace whole FDF/string/data files rather than extending them, so confirm both variants explicitly.
 
 - **Every structural change must include or update tests.** When you add a function, change a behavior path, fix a bug, or modify a struct/API contract, check whether existing tests cover the change.
+- **Audit every WC3 `edict_t` field against save/load.** Any field added, removed, moved, or retyped in `games/warcraft-3/game/g_local.h` must update the persistence contract in `games/warcraft-3/game/g_save.c` in the same change. Plain value fields are retained by the raw `edict_t` record; entity/client pointers must use a stable `fields[]` fixup, and process-owned pointers must be cleared and rebuilt explicitly. Add a focused ROC/TFT round-trip test for the field and an invalid-reference test when applicable; never rely only on the save header's `sizeof(edict_t)` check.
 - **Engine/game-boundary diff check:** Before finishing any diff that touches `client/`, `common/`, `renderer/`, or
   `server/`, check the diff for two things: (1) any new enum member, macro, or struct field whose name contains a
   race/faction/unit/spell/franchise-specific proper noun, and (2) any new `#ifdef <GAME>` guard or hardcoded
