@@ -345,6 +345,20 @@ TEST(server_net, runtime_configstring_change_marks_value_for_reliable_resync) {
     T_ASSERT(!sv.syncstrings[index]);
 }
 
+TEST(server_net, findindex_new_slot_marks_value_for_reliable_resync) {
+    int first, second;
+
+    reset_server_state(1);
+    first = SV_FontIndex("ReviewFont", 12);
+    T_ASSERT(first > 0);
+    sv.syncstrings[CS_FONTS + first] = true;
+    second = SV_FontIndex("ReviewFontBold", 13);
+
+    T_EQ(second, first + 1);
+    T_STREQ(sv.configstrings[CS_FONTS + second], "ReviewFontBold,13");
+    T_ASSERT(!sv.syncstrings[CS_FONTS + second]);
+}
+
 TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();
