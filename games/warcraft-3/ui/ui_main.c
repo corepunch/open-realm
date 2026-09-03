@@ -565,7 +565,12 @@ BOOL UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
     BOOL const up = event == UI_MOUSE_UP;
     BOOL const left = param == 1;
     int const wheel_y = event == UI_MOUSE_SCROLL ? UI_MOUSE_PARAM_Y(param) : 0;
-    if (!ui_state.active) {
+    /* In the initialized runtime, a current screen is the ownership token for
+     * standalone FDF input. Gameplay clears the screen, but ui_render.c keeps
+     * the previous layout cache; never hit-test those stale invisible frames.
+     * Uninitialized unit tests may exercise the low-level FDF event path
+     * directly without installing a screen controller. */
+    if (!ui_state.active || (ui_state.initialized && !UI_GetCurrentScreen())) {
         return false;
     }
 
@@ -809,6 +814,11 @@ void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
 }
 
 static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
+    /* No current standalone screen means loading/gameplay owns presentation;
+     * late lobby packets must not resurrect the game-setup glue screen. */
+    if (!UI_GetCurrentScreen()) {
+        return;
+    }
     UI_SetScreen(&gameSetupScreen);
     GameSetup_UpdateLobbySetup(state);
 }
