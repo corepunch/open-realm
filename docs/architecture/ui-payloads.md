@@ -142,6 +142,8 @@ author.
 
 When a layout reports `malformed layer N`:
 
+`ui_layout_debug 1` prints generic client-side `svc_layout` begin/clear/store breadcrumbs, including the layer number, payload size, UI flags, and whether the layer is hidden. Use it only while tracing transport or layer-state problems; game modules should keep their own semantic diagnostics on the game side.
+
 1. Inspect `PF_Write(PF_UIFRAME)` and `CL_ParseLayout` together; verify frame
    number, raw payload byte, decoded payload size, read offset, and message size.
 2. Reproduce with a serialization test that writes delta-frame metadata, the

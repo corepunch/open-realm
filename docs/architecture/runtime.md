@@ -116,6 +116,8 @@ SDL owns the native platform cursor on macOS, Linux, Windows, and other supporte
 
 Early commands (`+set`, `+<cvar>`) are processed during `Com_Init()`, before module registration. Late commands (`+map`, `+menu_main`, etc.) are processed after `CL_Init()` when all command handlers are registered.
 
+Game-module `gi.MenuAction` requests are also deferred. The callback only copies a validated map/menu/quit request; the next `CL_Frame` consumes it after `SV_Frame` has returned. This prevents a `ChangeLevel` native from entering `SV_Map` while the old game's VM or gameplay callback is still on the stack. Do not make `MenuAction("map", ...)` synchronously replace the world.
+
 In code, always use the bare command name: `"map ..."`, not `"+map ..."`.
 
 ### Standard Invocations

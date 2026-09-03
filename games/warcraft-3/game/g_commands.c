@@ -738,16 +738,39 @@ CLIENTCOMMAND(Log) {
 }
 
 CLIENTCOMMAND(HideGameResult) {
+    DWORD result = clent && clent->client ? clent->client->ps.stats[PLAYERSTATE_GAME_RESULT] : 3;
+    G_GameResultDebug("command hidegameresult ent=%u result=%u",
+        clent ? (unsigned)clent->s.number : 0u, (unsigned)result);
     UI_HideGameResult(clent);
+    if (result == 0 && G_IsSinglePlayer() && level.vm) {
+        /* The fallback has no copy of Blizzard.j's bj_changeLevelMapName. Let
+         * the stock continuation own EndGame vs ChangeLevel when available. */
+        /* The stock dialog-button action runs even while CustomVictoryDialogBJ
+         * has the single-player simulation paused.  Running this as a queued
+         * coroutine would strand it behind that pause, so execute the Blizzard.j
+         * continuation synchronously from the button command. */
+        G_GameResultDebug("command hidegameresult calling CustomVictoryOkBJ synchronously");
+        jass_callbyname(level.vm, "CustomVictoryOkBJ", false);
+    }
 }
 
-/* TODO: restart / quit require engine-level session teardown not yet plumbed. */
 CLIENTCOMMAND(GameResultRestart) {
     (void)clent; (void)argc; (void)argv;
+    G_GameResultDebug("command gameresult_restart");
+    G_RequestRestartGame(true);
+}
+
+CLIENTCOMMAND(GameResultLoad) {
+    (void)clent; (void)argc; (void)argv;
+    G_GameResultDebug("command gameresult_load");
+    G_RequestLoadGameMenu();
 }
 
 CLIENTCOMMAND(GameResultQuit) {
     (void)clent; (void)argc; (void)argv;
+    G_GameResultDebug("command gameresult_quit single_player=%u", (unsigned)G_IsSinglePlayer());
+    if (G_IsSinglePlayer()) level.setup.difficulty = level.setup.default_difficulty;
+    G_RequestEndGame(true);
 }
 
 /* F10 and the authored Menu button share this route. Submenu transitions
@@ -949,6 +972,7 @@ clientCommand_t clientCommands[] = {
     { "log", CMD_Log },
     { "hidegameresult", CMD_HideGameResult },
     { "gameresult_restart", CMD_GameResultRestart },
+    { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },

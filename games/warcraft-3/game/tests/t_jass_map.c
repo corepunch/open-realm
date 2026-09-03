@@ -36,6 +36,23 @@ static BOOL event_in_queue(EVENTTYPE type) {
     return false;
 }
 
+static char victory_menu_action[32];
+static char victory_menu_arg[256];
+
+static void capture_victory_menu_action(LPCSTR action, LPCSTR arg) {
+    strlcpy(victory_menu_action, action ? action : "", sizeof(victory_menu_action));
+    strlcpy(victory_menu_arg, arg ? arg : "", sizeof(victory_menu_arg));
+}
+
+static void victory_noop_write(pfWriteType_t type, void const *value) {
+    (void)type;
+    (void)value;
+}
+
+static void victory_noop_unicast(LPEDICT ent) {
+    (void)ent;
+}
+
 /* =========================================================================
  * Shared JASS/list lexer regressions
  * ========================================================================= */
@@ -126,6 +143,7 @@ TEST(wc3_jass_map, map_configuration_roundtrip) {
         "  call SetGamePlacement(MAP_PLACEMENT_FIXED)\n"
         "  call SetGameSpeed(MAP_SPEED_FAST)\n"
         "  call SetGameDifficulty(MAP_DIFFICULTY_HARD)\n"
+        "  call SetDefaultDifficulty(MAP_DIFFICULTY_EASY)\n"
         "  call SetResourceDensity(MAP_DENSITY_HEAVY)\n"
         "  call SetCreatureDensity(MAP_DENSITY_LIGHT)\n"
         "  call BJassAssert(GetTeams() == 3, \"team count\")\n"
@@ -137,6 +155,7 @@ TEST(wc3_jass_map, map_configuration_roundtrip) {
         "  call BJassAssert(GetGamePlacement() == MAP_PLACEMENT_FIXED, \"placement\")\n"
         "  call BJassAssert(GetGameSpeed() == MAP_SPEED_FAST, \"speed\")\n"
         "  call BJassAssert(GetGameDifficulty() == MAP_DIFFICULTY_HARD, \"difficulty\")\n"
+        "  call BJassAssert(GetDefaultDifficulty() == MAP_DIFFICULTY_EASY, \"default difficulty\")\n"
         "  call BJassAssert(GetResourceDensity() == MAP_DENSITY_HEAVY, \"resource density\")\n"
         "  call BJassAssert(GetCreatureDensity() == MAP_DENSITY_LIGHT, \"creature density\")\n"
         "endfunction\n"
@@ -375,6 +394,8 @@ TEST(wc3_jass_map, defeat_publishes_event) {
     BOOL ok = run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call RemovePlayer(Player(0), PLAYER_GAME_RESULT_DEFEAT)\n"
+        "  call BJassAssert(GetPlayerState(Player(0), PLAYER_STATE_GAME_RESULT) == 1, \"defeat result\")\n"
+        "  call BJassAssert(GetPlayerSlotState(Player(0)) == PLAYER_SLOT_STATE_LEFT, \"defeated player left\")\n"
         "endfunction\n"
     );
     T_ASSERT(ok);
@@ -386,10 +407,109 @@ TEST(wc3_jass_map, victory_publishes_event) {
     BOOL ok = run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call RemovePlayer(Player(0), PLAYER_GAME_RESULT_VICTORY)\n"
+        "  call BJassAssert(GetPlayerState(Player(0), PLAYER_STATE_GAME_RESULT) == 0, \"victory result\")\n"
+        "  call BJassAssert(GetPlayerSlotState(Player(0)) == PLAYER_SLOT_STATE_LEFT, \"victorious player left\")\n"
         "endfunction\n"
     );
     T_ASSERT(ok);
     T_ASSERT( event_in_queue(EVENT_PLAYER_VICTORY));
+    T_ASSERT(!event_in_queue(EVENT_PLAYER_DEFEAT));
+}
+
+TEST(wc3_jass_map, paused_victory_drains_result_event_and_releases_fallback) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  boolean victoryFired = false\n"
+        "endglobals\n"
+        "function onEndCinematic takes nothing returns nothing\n"
+        "  call RemovePlayer(Player(0), PLAYER_GAME_RESULT_VICTORY)\n"
+        "  call PauseGame(true)\n"
+        "endfunction\n"
+        "function onVictory takes nothing returns nothing\n"
+        "  set victoryFired = true\n"
+        "endfunction\n"
+        "function verifyVictory takes nothing returns nothing\n"
+        "  call BJassAssert(victoryFired, \"victory event stranded behind pause\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger endTrigger = CreateTrigger()\n"
+        "  local trigger victoryTrigger = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerEvent(endTrigger, Player(0), EVENT_PLAYER_END_CINEMATIC)\n"
+        "  call TriggerAddAction(endTrigger, function onEndCinematic)\n"
+        "  call TriggerRegisterPlayerEvent(victoryTrigger, Player(0), EVENT_PLAYER_VICTORY)\n"
+        "  call TriggerAddAction(victoryTrigger, function onVictory)\n"
+        "endfunction\n"
+    ));
+
+    game.clients[0].connected = true;
+    game.clients[0].ps.client_ui_state = CLIENT_UI_CINEMATIC;
+    G_PublishEvent(&g_edicts[0], EVENT_PLAYER_END_CINEMATIC);
+
+    /* This is the normal frame ordering: the first event pass schedules a
+     * JASS action, and that action publishes VICTORY too late for the pass. */
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(level.script_paused);
+    T_EQ(game.clients[0].jass.pending_game_result, 1);
+    T_ASSERT(level.events.read < game.clients[0].jass.pending_game_result_event);
+
+    G_DrainPausedResultEvents();
+    T_EQ(level.events.read, level.events.write);
+    jass_callbyname(level.vm, "verifyVictory", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    /* Stock CustomVictoryDialogBJ pauses while the map can still be in
+     * cinematic UI state. The fallback must not wait for another sim frame. */
+    UI_FlushPendingGameResults();
+    T_EQ(game.clients[0].jass.pending_game_result, 0);
+}
+
+
+TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
+    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPCSTR command[] = { "hidegameresult" };
+
+    T_ASSERT(run_test_jass(
+        "function CustomVictoryOkBJ takes nothing returns nothing\n"
+        "  call PauseGame(false)\n"
+        "  call ChangeLevel(\"Maps\\Campaign\\Human03.w3m\", false)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "endfunction\n"
+    ));
+
+    victory_menu_action[0] = '\0';
+    victory_menu_arg[0] = '\0';
+    gi.MenuAction = capture_victory_menu_action;
+    gi.Write = victory_noop_write;
+    gi.unicast = victory_noop_unicast;
+    level.script_paused = true;
+    game.clients[0].ps.stats[PLAYERSTATE_GAME_RESULT] = 0;
+
+    G_ClientCommand(&g_edicts[0], 1, command);
+
+    T_ASSERT(!level.script_paused);
+    T_STREQ(victory_menu_action, "map");
+    T_STREQ(victory_menu_arg, "Maps\\Campaign\\Human03.w3m");
+
+    gi.MenuAction = old_menu_action;
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_jass_map, neutral_remove_records_result_without_victory_or_defeat_event) {
+    BOOL ok = run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call RemovePlayer(Player(0), PLAYER_GAME_RESULT_NEUTRAL)\n"
+        "  call BJassAssert(GetPlayerState(Player(0), PLAYER_STATE_GAME_RESULT) == 3, \"neutral result\")\n"
+        "  call BJassAssert(GetPlayerSlotState(Player(0)) == PLAYER_SLOT_STATE_LEFT, \"neutral player left\")\n"
+        "endfunction\n"
+    );
+    T_ASSERT(ok);
+    T_ASSERT(!event_in_queue(EVENT_PLAYER_VICTORY));
     T_ASSERT(!event_in_queue(EVENT_PLAYER_DEFEAT));
 }
 

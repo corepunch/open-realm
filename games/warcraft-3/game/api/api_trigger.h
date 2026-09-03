@@ -142,6 +142,12 @@ DWORD TriggerRegisterPlayerEvent(LPJASS j) {
     LPEVENT evt = G_MakeEvent(*whichPlayerEvent);
     evt->subject = PLAYER_ENT(whichPlayer);
     evt->trigger = whichTrigger;
+    if (*whichPlayerEvent == EVENT_PLAYER_VICTORY || *whichPlayerEvent == EVENT_PLAYER_DEFEAT) {
+        G_GameResultDebug("register player event type=%s player=%u trigger=%p subject_ent=%ld",
+            *whichPlayerEvent == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
+            whichPlayer ? (unsigned)PLAYER_NUM(whichPlayer) : 0u,
+            (void *)whichTrigger, evt->subject ? (long)evt->subject->s.number : -1L);
+    }
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD GetTriggerPlayer(LPJASS j) {

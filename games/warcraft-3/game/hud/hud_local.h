@@ -153,7 +153,7 @@ void UI_ShowGameMenuEndGame(LPEDICT ent);
 void UI_ShowGameMenuConfirmExit(LPEDICT ent);
 
 /* Game result dialog (hud_game_result.c) */
-void UI_ShowGameResult(LPEDICT ent, BOOL victory);
+void UI_ShowGameResult(LPEDICT ent, DWORD result);
 void UI_HideGameResult(LPEDICT ent);
 
 /* Cinematic / interface (hud_cinematic.c) */
