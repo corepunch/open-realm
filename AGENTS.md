@@ -251,6 +251,7 @@ Key principles inline:
 
 ## UI Module Boundary
 
+- **Never use `ui.dll` for in-game UI.** `ui.dll` is reserved for the main menu/glue screens and may be unloaded in the future while a game is loading. In-game UI state, input, presentation, and client-owned gameplay widgets belong in `client/`. Use commit `611e3bbb` (`refactor: centralize generic minimap handling`) as the reference implementation for this ownership model.
 - Keep `ui.dll` focused on loading screens and menu/glue UI. New in-game HUD presentation must be server-authored through
   `svc_layout`; the generic client may bind declared frames to already-replicated `playerState_t`, `entityState_t`, and configstring
   data, but `ui.dll` must not independently construct or populate gameplay HUD widgets.
