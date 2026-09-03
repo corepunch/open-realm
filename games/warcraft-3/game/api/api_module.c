@@ -725,6 +725,7 @@ JASSMODULE jass_funcs[] = {
     { "UnitAddIndicator", UnitAddIndicator },
     { "AddIndicator", AddIndicator },
     { "PingMinimap", PingMinimap },
+    { "PingMinimapEx", PingMinimapEx },
     { "EnableOcclusion", EnableOcclusion },
     { "SetIntroShotText", SetIntroShotText },
     { "SetIntroShotModel", SetIntroShotModel },

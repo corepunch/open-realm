@@ -1226,9 +1226,43 @@ DWORD AddIndicator(LPJASS j) {
     return 0;
 }
 DWORD PingMinimap(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
-    //FLOAT duration = jass_checknumber(j, 3);
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
+    FLOAT duration = jass_checknumber(j, 3);
+    VECTOR2 position = { x, y };
+
+    if (duration <= 0.0f) return 0;
+    if (currentplayer) {
+        G_SendMinimapPing(PLAYER_CLIENT(currentplayer), &position, duration, COLOR32_WHITE, 0);
+    } else {
+        FOR_LOOP(i, game.max_clients)
+            G_SendMinimapPing(&game.clients[i], &position, duration, COLOR32_WHITE, 0);
+    }
+    return 0;
+}
+DWORD PingMinimapEx(LPJASS j) {
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
+    FLOAT duration = jass_checknumber(j, 3);
+    LONG red = jass_checkinteger(j, 4);
+    LONG green = jass_checkinteger(j, 5);
+    LONG blue = jass_checkinteger(j, 6);
+    BOOL extraEffects = jass_checkboolean(j, 7);
+    VECTOR2 position = { x, y };
+    COLOR32 color = MAKE(COLOR32,
+        (BYTE)MAX(0, MIN(255, red)),
+        (BYTE)MAX(0, MIN(255, green)),
+        (BYTE)MAX(0, MIN(255, blue)), 255);
+
+    if (duration <= 0.0f) return 0;
+    if (currentplayer) {
+        G_SendMinimapPing(PLAYER_CLIENT(currentplayer), &position, duration, color,
+                          extraEffects ? WC3_MINIMAP_PING_EXTRA_EFFECTS : 0);
+    } else {
+        FOR_LOOP(i, game.max_clients)
+            G_SendMinimapPing(&game.clients[i], &position, duration, color,
+                              extraEffects ? WC3_MINIMAP_PING_EXTRA_EFFECTS : 0);
+    }
     return 0;
 }
 DWORD EnableOcclusion(LPJASS j) {

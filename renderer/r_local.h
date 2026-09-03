@@ -421,6 +421,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
 void R_DrawMinimapScene(LPCRECT screen);
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
+bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen);
 void R_DrawMinimapCameraRect(LPCRECT screen);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);

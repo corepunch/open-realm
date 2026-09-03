@@ -103,6 +103,7 @@ static void ShowResearchComplete(LPEDICT producer, DWORD upgrade_id, LONG level_
     }
     sound = Theme_PlayerString(client, "ResearchComplete", NULL);
     if (sound && *sound) G_PlayUISoundForPlayer(clent, sound);
+    G_SendOwnerMinimapAlert(producer);
 }
 
 static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, BOOL activate_next) {
@@ -404,6 +405,7 @@ void ai_train_build(LPEDICT ent) {
                 ReserveTrainingFood(ent, ent->build);
             G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
             G_QueueReadySound(completed);
+            G_SendOwnerMinimapAlert(completed);
             G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
             G_ApplyRallyOrder(ent, completed);
 #ifdef WC3_DEBUG_AI

@@ -153,12 +153,12 @@ player membership.
 
 ## Known Gaps
 
-The following transmission features remain separate work because the current
-engine has no established representation for them:
+The following transmission limitations remain:
 
-- `PingMinimap` / `PingMinimapEx` are still stubs. A correct implementation
-  should reuse the renderer's existing world-to-minimap conversion rather than
-  duplicate map-coordinate math in JASS/UI code.
+- `PingMinimap` / `PingMinimapEx` now use the shared renderer world-to-minimap
+  projection and the WC3 `MinimapIndicator` overlay. `PingMinimapEx` currently
+  transports RGB/`extraEffects` but the overlay does not yet apply those extended
+  visual parameters. See [alerts-and-minimap-pings.md](alerts-and-minimap-pings.md).
 - `UnitAddIndicator` / `AddIndicator` are still stubs. A speaking-unit marker
   needs per-client lifetime/color state and must not reveal a fogged unit.
 - `SetCinematicScene` player color is not yet applied to the portrait. The MDX
@@ -202,3 +202,5 @@ the transmission itself, and fog state is unchanged.
 - [Quest And Message Log UI](quest-and-message-log-ui.md)
 - [Server-Authored UI Payloads](../../architecture/ui-payloads.md)
 - [JASS Native Coverage](jass-native-coverage.md)
+
+See also: [Alerts And Minimap Pings](alerts-and-minimap-pings.md).

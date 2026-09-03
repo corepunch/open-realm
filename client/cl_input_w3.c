@@ -121,8 +121,18 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
     DWORD g, now;
     BOOL center_on_group;
     VECTOR2 center;
+    VECTOR2 camera_position = { 0 };
+    DWORD game_key_result = 0;
+
     if (!CL_GameplayInputReady())
         return false;
+    if (!CL_WindowModalActive() && ui.GameplayKeyEvent) {
+        game_key_result = ui.GameplayKeyEvent(sym, (DWORD)mod, repeat, &camera_position);
+        if (game_key_result & UI_GAMEKEY_CAMERA_POSITION)
+            CL_SetCameraPosition(camera_position);
+        if (game_key_result & UI_GAMEKEY_HANDLED)
+            return true;
+    }
     /* Control groups are handled before the generic binding dispatcher.
      * Consume digit keys while a modal client window is active so they cannot
      * change gameplay selection behind Quest/Log. Other keys fall through to

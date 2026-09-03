@@ -918,6 +918,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .TraceLocation = R_TraceLocation,
         .TraceCameraPlane = R_TraceCameraPlane,
         .TraceMinimap = R_TraceMinimap,
+        .WorldToMinimap = R_WorldToMinimap,
         .EntitiesInRect = R_EntitiesInRect,
     };
 }

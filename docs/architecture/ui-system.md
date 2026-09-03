@@ -10,7 +10,7 @@ The UI library communicates with the client through two vtables:
 `.FS_ReadFile`, `.MemAlloc`, `.Cmd_ExecuteText`, `.GetPlayerState`, renderer/sound access, font/texture indexing.
 
 **`uiExport_t`** — functions the UI library exposes to the client:
-`.Init`, `.Shutdown`, `.Refresh`, `.KeyEvent`, `.TextInput`, `.MouseEvent`, `.UpdateUnitUI`, `.UpdateLobbySetup`.
+`.Init`, `.Shutdown`, `.Refresh`, `.KeyEvent`, `.TextInput`, `.MouseEvent`, `.UpdateUnitUI`, `.UpdateLobbySetup`, plus optional game-owned hooks such as `.GameCommand`, `.GameplayKeyEvent`, `.ClearGameState`, and `.DrawGameOverlay`. `GameplayKeyEvent` remains content-neutral: a UI module may consume a gameplay key and optionally return a world-space camera target; franchise-specific meanings stay inside `games/<game>/`.
 
 The client creates both at startup in `CL_Init`:
 
@@ -38,6 +38,8 @@ void SCR_DrawScreenField(DWORD msec) {
     case ca_active:
         V_RenderView();          // 3D world
         SCR_DrawLayout();        // server-authored in-game HUD
+        if (ui.DrawGameOverlay)
+            ui.DrawGameOverlay();// narrow game-owned overlay exceptions
         if (cls.key_dest == key_menu)
             ui.Refresh(cl.time); // ESC menu overlay
         break;
@@ -47,7 +49,7 @@ void SCR_DrawScreenField(DWORD msec) {
 }
 ```
 
-**Key rule**: `ui.Refresh()` draws menu/glue screens. When in `ca_active` (gameplay), `SCR_DrawLayout()` draws the in-game HUD via a completely separate path. The UI library's screens only appear when the console key (`key_menu`) is toggled (ESC menu overlay).
+**Key rule**: `ui.Refresh()` draws menu/glue screens. When in `ca_active` (gameplay), `SCR_DrawLayout()` draws the in-game HUD via a completely separate path. `ui.DrawGameOverlay()` is an optional narrow overlay hook for presentation that cannot be represented by `svc_layout`; it must not become a second general HUD. The UI library's screens only appear when the console key (`key_menu`) is toggled (ESC menu overlay).
 
 Inside `ui.Refresh()` → `UI_RefreshLocal()`, there are three branches:
 
