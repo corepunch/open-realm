@@ -456,6 +456,7 @@ TEST(wc3_unit, issueorder_move_sets_walk_animation) {
 
 TEST(wc3_unit, shift_move_starts_immediately_when_idle_then_queues_fifo) {
     reset_test_entities();
+    setup_test_world();
     LPEDICT ent = make_unit(0, 0);
     VECTOR2 a = { 96.0f, 0.0f };
     VECTOR2 b = { 192.0f, 0.0f };
@@ -479,6 +480,7 @@ TEST(wc3_unit, shift_move_starts_immediately_when_idle_then_queues_fifo) {
 
 TEST(wc3_unit, nonqueued_move_replaces_pending_shift_orders) {
     reset_test_entities();
+    setup_test_world();
     LPEDICT ent = make_unit(0, 0);
     VECTOR2 a = { 96.0f, 0.0f };
     VECTOR2 b = { 192.0f, 0.0f };
@@ -495,6 +497,7 @@ TEST(wc3_unit, nonqueued_move_replaces_pending_shift_orders) {
 
 TEST(wc3_unit, stale_queued_entity_target_is_skipped_for_next_order) {
     reset_test_entities();
+    setup_test_world();
     LPEDICT ent = make_unit(0, 0);
     LPEDICT target = make_unit(128, 0);
     VECTOR2 a = { 64.0f, 0.0f };
