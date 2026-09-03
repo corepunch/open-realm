@@ -57,8 +57,8 @@ void CL_EndMinimapDrag(void) {
 }
 
 /* --- Control groups (Ctrl+0..9 assign, 0..9 recall) ------------------------ */
-#define CL_CONTROL_GROUP_COUNT 10
-#define CL_CONTROL_GROUP_DOUBLE_TAP_MS 500
+#define CL_CONTROL_GROUP_COUNT 10 // groups; Warcraft III number-key groups; used for client control-group storage
+#define CL_CONTROL_GROUP_DOUBLE_TAP_MS 500 // milliseconds; double-tap focus window; used to recenter a recalled group
 #define CL_CONTROL_GROUP_NONE CL_CONTROL_GROUP_COUNT
 
 static DWORD cg_ids[CL_CONTROL_GROUP_COUNT][MAX_SELECTED_ENTITIES];
@@ -121,7 +121,6 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
     DWORD g, now;
     BOOL center_on_group;
     VECTOR2 center;
-
     if (!CL_GameplayInputReady())
         return false;
     /* Control groups are handled before the generic binding dispatcher.

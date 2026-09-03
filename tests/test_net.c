@@ -1911,3 +1911,53 @@ TEST(net, active_entity_list_frame_copy_and_map_reset) {
     CL_BeginLoadingMap("Maps\\Test.w3m");
     T_EQ(cl.num_active, 0);
 }
+
+TEST(net, set_selection_rejects_undersized_payload) {
+    BYTE buf[4];
+    sizeBuf_t sb;
+    DWORD saved_num = cl.selection.num_selected;
+    DWORD saved_ent = cl.selection.entity_nums[0];
+
+    test_client_stubs_init();
+    /* Payload smaller than sizeof(DWORD) should be rejected. */
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, svc_gamecmd);
+    MSG_WriteShort(&sb, 1); /* payload size */
+    MSG_WriteByte(&sb, 'x'); /* 1 byte of payload */
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+    T_EQ(cl.selection.num_selected, saved_num);
+    T_EQ(cl.selection.entity_nums[0], saved_ent);
+}
+
+TEST(net, set_selection_rejects_zero_entity) {
+    BYTE buf[64];
+    sizeBuf_t sb;
+    DWORD saved_num = cl.selection.num_selected;
+
+    test_client_stubs_init();
+    /* Entity number 0 should be rejected. */
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, svc_gamecmd);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 0); /* entity 0 */
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+    T_EQ(cl.selection.num_selected, saved_num);
+}
+
+TEST(net, set_selection_rejects_entity_exceeding_max) {
+    BYTE buf[64];
+    sizeBuf_t sb;
+    DWORD saved_num = cl.selection.num_selected;
+
+    test_client_stubs_init();
+    /* Entity number >= MAX_CLIENT_ENTITIES should be rejected. */
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, svc_gamecmd);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, MAX_CLIENT_ENTITIES);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+    T_EQ(cl.selection.num_selected, saved_num);
+}
