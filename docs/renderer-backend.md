@@ -208,7 +208,6 @@ This is a separate step because the current renderer doesn't maintain a `drawSur
 ## Key Constraints
 
 - The `R_Call(gl...)` macro is kept for now — it wraps with error checking under `DIAG_OUTPUT`. `RB_*` helpers will use `R_Call` internally.
-- The stdout renderer (`r_stdout.c`) does not need GL state — it already prints draw calls. It stays as-is.
 - The `refExport_t` API boundary is unchanged — this is internal renderer cleanup.
 - Game-specific renderers access `RB_*` through `r_backend.h` (included via `r_local.h`).
 
@@ -237,6 +236,5 @@ This is a separate step because the current renderer doesn't maintain a `drawSur
 ## Verification
 
 1. `make clean && make` — builds without warnings
-2. `make run-ui-text UI_CMD=menu_main` — stdout renderer unaffected
-3. Visual regression: launch each game (WC3, SC2, WoW), load a map, verify rendering matches pre-change
-4. Grep for stray GL state calls: `rg 'gl(Enable|Disable|BlendFunc|DepthFunc|DepthMask|ColorMask|CullFace|PolygonOffset|BlendEquation)\b' renderer/ games/*/renderer/` — should only appear inside `r_backend.c`
+2. Visual regression: launch each game (WC3, SC2, WoW), load a map, verify rendering matches pre-change
+3. Grep for stray GL state calls: `rg 'gl(Enable|Disable|BlendFunc|DepthFunc|DepthMask|ColorMask|CullFace|PolygonOffset|BlendEquation)\b' renderer/ games/*/renderer/` — should only appear inside `r_backend.c`

@@ -164,21 +164,6 @@ Useful run targets:
 
 - `make run` — start the client menu using `WC3DATA`
 - `make run-map` — start a listen-server game using `MAP`
-- `make run-ui-text` — render one UI frame through the stdout renderer
-
-The stdout UI renderer is meant for layout and draw-call debugging without opening a window or taking screenshots:
-
-```bash
-make run-ui-text
-```
-
-That expands to:
-
-```bash
-build/bin/open-realm -data data/Warcraft\ III +r_module stdout +com_frame_limit 1 +menu_main
-```
-
-It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, and `draw_sys_text`, then exits after one frame.
 
 ### In-game console
 
@@ -196,7 +181,7 @@ Config load order:
 2. `build/share/<game>/config.cfg` (shipped game defaults, e.g. key bindings)
 3. `~/.local/share/<game>/config.cfg` (generated user config, written on shutdown or by `writeconfig`)
 4. `~/.local/share/<game>/autoexec.cfg` (optional local overrides)
-5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+r_module stdout`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
+5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+vid_mode 2`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
 
 Common runtime cvars:
 
@@ -205,10 +190,9 @@ Common runtime cvars:
 | `data` | `""` | Saved Warcraft III data folder |
 | `map` | `""` | Internal map path for listen-server mode |
 | `connect` | `""` | Remote server address |
-| `r_module` | `"renderer"` | Renderer backend: `renderer` or `stdout` |
 | `ui_module` | `"ui"` | UI module name for the Quake-style module boundary |
 | `g_module` | `"game"` | Game module name for the server game boundary |
-| `com_frame_limit` | `"0"` | Exit after N frames; useful with `r_module=stdout` |
+| `com_frame_limit` | `"0"` | Exit after N frames |
 | `vid_modes` | `"0"` | Log SDL display modes at renderer startup; enabled by `-vid_modes`, not archived |
 | `r_cursor` | `"0"` | Native SDL platform cursor; set to `1` for Warcraft III's authored animated cursor |
 
@@ -291,7 +275,7 @@ SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
                     └─────────── UDP socket ←──────────────┘
 ```
 
-See [Network Architecture](docs/architecture/network.md) for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](docs/architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
+See [Network Architecture](docs/architecture/network.md) for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](docs/architecture/runtime.md) for config files and module cvars.
 
 ## Frame Syncing
 
@@ -445,21 +429,6 @@ The UI library dispatches rendering to screen controllers (e.g., `games/warcraft
 
 No serialized UI blobs are transmitted over the network. The server is game-agnostic and provides only data.
 
-### Text Renderer Diagnostics
-
-For UI work, use the stdout renderer before reaching for screenshots:
-
-```bash
-make run-ui-text
-```
-
-This runs the configured UI command for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing the user config. It is useful for checking:
-
-- which textures, models, fonts, and screens were loaded
-- button/backdrop rects, UVs, colors, and blend modes
-- text content after FDF string translation and Warcraft color-code expansion
-- scene placement across commands such as `menu_main`, `menu_startserver`, or `menu_game`
-
 ---
 
 ## Build System
@@ -478,7 +447,7 @@ Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librende
 
 The renderer module is intentionally compound. Engine renderer code in `renderer/` owns common GL, scene, font, texture, and diagnostic behavior. The selected game's `games/<game>/renderer/` sources implement the `R_Game*` hooks in `renderer/r_game.h`, so the engine renderer does not branch on MDX/M2/M3 model formats.
 
-The module boundary follows the Quake 2/Quake 3 style: subsystems expose function tables (`R_GetAPI`, `UI_GetAPI`, game exports/imports) rather than sharing global implementation details. The cvars `r_module`, `ui_module`, and `g_module` name the active modules. Today `r_module=stdout` selects the text renderer backend; the cvar layout is also the path toward fully dynamic library selection.
+The module boundary follows the Quake 2/Quake 3 style: subsystems expose function tables (`R_GetAPI`, `UI_GetAPI`, game exports/imports) rather than sharing global implementation details. The cvars `ui_module` and `g_module` name the active UI and game modules.
 
 The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
 
@@ -509,7 +478,7 @@ Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI 
 - Functional game implementation with basic Warcraft III features
 - Client-side main menu, Single Player menu, campaign selection, and campaign-map launching
 - Quake-style runtime console with command history, cvar lookup, and completion
-- Client-side Warcraft III FDF UI rendering with stdout renderer diagnostics
+- Client-side Warcraft III FDF UI rendering
 - Support for original v1.0 assets with ongoing work for v1.29b compatibility
 - Active development focused on expanding game feature completeness
 - Cross-platform support for Linux and macOS environments

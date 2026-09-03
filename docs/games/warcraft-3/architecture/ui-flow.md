@@ -11,7 +11,7 @@ Client input
   -> frame tree update
   -> UI_DrawFrame
   -> renderer API
-  -> OpenGL renderer or stdout renderer
+  -> OpenGL renderer
 ```
 
 All FDF parsing, layout solving, screen transitions, and frame rendering happen client-side. The server sends data for game-dependent UI, but it does not author UI frame trees.
@@ -26,7 +26,7 @@ common/main.c
       -> ~/.local/share/warcraft-3/autoexec.cfg    (optional local overrides)
       -> command-line cvars
   -> CL_Init
-      -> select renderer from r_module
+      -> R_GetAPI
       -> re.Init
       -> UI_GetAPI
       -> ui.Init
@@ -37,7 +37,6 @@ Important cvars:
 
 | cvar | Purpose |
 |------|---------|
-| `r_module` | `renderer` for OpenGL, `stdout` for text output |
 | `ui_start_command` | Initial command, usually `menu_main` |
 | `com_frame_limit` | Exit after N frames |
 
@@ -189,31 +188,6 @@ SCR_UpdateScreen();
 
 `ui.DrawFrame` dispatches to the active screen. For `menu_main`, `games/warcraft-3/ui/screens/main_menu.c` draws the `MainMenu3d` portrait background, the logo sprite, and the main menu frame tree.
 
-## Stdout Renderer Flow
-
-For automated or text-first diagnostics, use:
-
-```bash
-make run-ui-text
-```
-
-This expands to a one-frame run with:
-
-```bash
--r_module=stdout -ui_start_command=menu_main -com_frame_limit=1
-```
-
-The stdout renderer receives the same UI draw calls as the OpenGL renderer but prints them:
-
-```text
-draw_portrait model="UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdl" anim="Stand" viewport={...}
-draw_sprite model="UI\\Glues\\MainMenu\\WarCraftIIILogo\\WarCraftIIILogo.mdl" anim="Stand" x=0.130000 y=0.080000
-draw_image name="UI\\Widgets\\Glues\\GlueScreen-Button1-Border.blp" screen={...} uv={...}
-draw_text font="Fonts\\FRIZQT__.TTF" rect={...} text="|CffffffffS|Ringle Player"
-```
-
-Use this output to verify screen composition, layout rects, UVs, text translation, color codes, and button state art before taking screenshots.
-
 ## Server-Authored Modal Gameplay UI
 
 `LAYER_QUESTDIALOG` and `LAYER_GAME_RESULT` are modal `svc_layout` layers. The generic client layout path, not the glue UI module, owns their input exclusion. While either is visible, lower HUD hotkeys and all WC3 world interaction/camera scrolling are suppressed, but the modal's own button commands continue to reach the server.
@@ -274,7 +248,6 @@ The HUD screen renders from this cache on later frames.
 - The server remains authoritative for game data.
 - FDF assets are parsed by the UI library, not by the game DLL.
 - Runtime modules communicate through Quake-style function tables.
-- `r_module=stdout` makes draw-call output scriptable for UI debugging.
 - Campaign selection and mission selection are separate states; only a mission issues `map`.
 - Campaign difficulty is startup game state, not merely a menu label.
 - Single-player Custom Game reuses the local map browser/Game Setup data path instead of maintaining a second copy.

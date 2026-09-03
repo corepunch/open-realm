@@ -112,21 +112,12 @@ When investigating animation crop/truncation bugs, the relevant source files are
 - `data/WarsmashModEngine/.../mdx/Sd.java`
 - `data/WarsmashModEngine/.../mdx/MdxComplexInstance.java` (updateAnimations method)
 
-## UI Text Renderer
+## UI Diagnostics
 
-- Use `make run-ui-text` to inspect client-side UI rendering without opening a window.
-- Default command: `make run-ui-text UI_CMD=menu_main`
-- Equivalent explicit command: `build/bin/openwarcraft3 -data data/Warcraft\ III +r_module stdout +com_frame_limit 1 +menu_main`
-- `+r_module stdout` selects the text renderer. `+com_frame_limit 1` exits after one frame.
-
-Expected output includes: `load_texture`, `load_model`, `load_font`, `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, `draw_sys_text`.
-
-Agent guidance:
-- Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color, and menu-command bugs.
 - Use `mdxtool --info` first when a UI model itself may be missing or malformed.
 - For startup-menu diagnostics, invoke a concrete menu command directly with `+`. Do not add router-style paths, a generic `ui` console command, or startup cvars for menu routing. Register concrete commands such as `menu_credits` or `menu_options`. Examples:
-	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main`
-	- `make run-ui-text UI_CMD=menu_single_player_campaign`
+	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main +com_frame_limit 1`
+	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_single_player_campaign +screenshot 5 +com_frame_limit 10``
 
 ## AzerothCore SQL Extraction (extract_quest_data.py)
 

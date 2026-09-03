@@ -136,7 +136,7 @@ A listen-server Human02 save/load is not covered by dedicated `+test`. Confirm i
 ```sh
 # wait-lines omitted; keep enough frames for main() plus a few seconds of play
 build/bin/openwarcraft3 -data "data/Warcraft III" -roc -com_fast_forward \
-  +set r_module stdout +set vid_hidden 1 +set r_norefresh 1 \
+  +set vid_hidden 1 +set r_norefresh 1 \
   +map "Maps/Campaign/Human02.w3m" +exec /tmp/save-load.cfg +com_frame_limit 250
 ```
 

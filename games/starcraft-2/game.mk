@@ -78,19 +78,5 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	echo "$$diag" | grep -q "footprint=Footprint2x2 size=2.000x2.000 fpRadius=1.414" && \
 	echo "  sc2map diag OK"
 
-SC2_HUD_LIVE_BIN := $(BIN_DIR)/test_sc2_hud_live$(EXE_EXT)
-SC2_HUD_LIVE_SRC := tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_hud_live.c
-
-$(SC2_HUD_LIVE_BIN): $(SC2_HUD_LIVE_SRC) $(SHARED_LIB) | $(BIN_DIR)
-	$(CC) $(CFLAGS) -I. -Itests -DSC2_BINARY=\"$(SC2_BINARY)\" -DSC2_DATA=\"data/StarCraft2\" \
-	    -o $@ $(SC2_HUD_LIVE_SRC) $(RPATH) $(LDFLAGS) -lshared -lm
-
-# Requires Blizzard SC2 archives under data/StarCraft2/ — local-only.
-test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)
-	@if [ ! -d data/StarCraft2 ]; then \
-	    echo "SKIP test-sc2-live: data/StarCraft2 not found"; exit 0; \
-	fi
-	$(SC2_HUD_LIVE_BIN)
-
 SC2_PHONY := renderer-sc2 game-sc2 ui-sc2 opensc2 run-sc2 build-run-sc2 \
-	test-sc2 test-sc2-assets test-sc2-live
+	test-sc2 test-sc2-assets

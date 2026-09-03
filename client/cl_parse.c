@@ -18,20 +18,6 @@
 #include "games/starcraft-2/common/sc2_map.h"
 #endif
 
-#ifdef WC3
-VECTOR2 CL_ClampCameraPosition(VECTOR2 position) {
-    if (cl.playerstate.camera_bounds.max.x > cl.playerstate.camera_bounds.min.x) {
-        position.x = MAX(cl.playerstate.camera_bounds.min.x,
-                         MIN(cl.playerstate.camera_bounds.max.x, position.x));
-    }
-    if (cl.playerstate.camera_bounds.max.y > cl.playerstate.camera_bounds.min.y) {
-        position.y = MAX(cl.playerstate.camera_bounds.min.y,
-                         MIN(cl.playerstate.camera_bounds.max.y, position.y));
-    }
-    return position;
-}
-#endif
-
 static LPCSTR CL_LobbySlotTypeName(lobbySlotType_t type) {
     switch (type) {
         case LOBBY_SLOT_OPEN: return "open";
@@ -190,12 +176,20 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     }
 }
 
+/* Resent identical paths after begin/load used to Release+Load every slot. */
+static BOOL CL_SameResource(void const *handle, LPCSTR olds, LPCSTR name) {
+    return handle && name && name[0] && olds && !strcmp(olds, name);
+}
+
 static void CL_ParseConfigString(LPSIZEBUF msg) {
     static PATHSTR last_world;
+    PATHSTR olds;
     int const index = MSG_ReadShort(msg);
+    olds[0] = '\0';
     if (index == CS_STATUSBAR) {
         MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings));
     } else {
+        snprintf(olds, sizeof(olds), "%s", cl.configstrings[index]);
         MSG_ReadString(msg, cl.configstrings[index]);
     }
 #ifdef WOW
@@ -206,14 +200,15 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         entity_name_pool_decode(cl.configstrings[index]);
     if (index > CS_MODELS && index < CS_MODELS + MAX_MODELS) {
         DWORD model = index - CS_MODELS;
-
+        LPCSTR name = cl.configstrings[index];
         /* Initial model configstrings arrive before CL_PrepRefresh(), which
          * loads both the world model and Warcraft's optional *_Portrait model.
          * Do not pre-populate cl.models[] here or CL_PrepRefresh() will skip the
          * slot and the talking-head portrait will never be registered.  After
          * refresh, however, model configstrings are genuinely dynamic and must
-         * refresh both caches together. */
-        if (cl.refresh_prepped) {
+         * refresh both caches together. Identical late resends keep the loaded
+         * handles so begin/load does not reload every model. */
+        if (cl.refresh_prepped && !CL_SameResource(cl.models[model], olds, name)) {
             if (cl.models[model]) {
                 re.ReleaseModel((LPMODEL)cl.models[model]);
                 cl.models[model] = NULL;
@@ -242,16 +237,15 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
     }
     if (index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) {
         DWORD pic = index - CS_IMAGES;
-
-        /* Image configstrings can arrive after CL_PrepRefresh() has already
-         * populated cl.pics[]. Reload here so late HUD art replaces whatever
-         * was cached in that slot before the configstring changed. */
-        if (cl.pics[pic]) {
-            re.ReleaseTexture((LPTEXTURE)cl.pics[pic]);
-            cl.pics[pic] = NULL;
+        LPCSTR name = cl.configstrings[index];
+        if (!CL_SameResource(cl.pics[pic], olds, name)) {
+            if (cl.pics[pic]) {
+                re.ReleaseTexture((LPTEXTURE)cl.pics[pic]);
+                cl.pics[pic] = NULL;
+            }
+            if (name[0])
+                cl.pics[pic] = re.LoadTexture(name);
         }
-        if (cl.configstrings[index][0])
-            cl.pics[pic] = re.LoadTexture(cl.configstrings[index]);
     }
     if (cl.refresh_prepped && index > CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS && cl.configstrings[index][0])
         S_RegisterSound(cl.configstrings[index]);
@@ -951,6 +945,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_sound:
                 CL_ParseSound(msg);
+                break;
+            case svc_minimap_ping:
+                CL_ParseMinimapPing(msg);
                 break;
             case svc_mirror:
                 CL_MirrorMessage(msg);

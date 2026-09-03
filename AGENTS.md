@@ -15,7 +15,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Client-managed gameplay windows, focus, z-order, dragging, modal input, text arenas | [docs/architecture/client-windows.md](docs/architecture/client-windows.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
-| Diagnostic tools (mpqtool, dbctool, mdxtool, text renderer, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
+| Diagnostic tools (mpqtool, dbctool, mdxtool, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
 | Vendored Lua 5.4 and the libxml2-free XML parser (`common/tinyxml.h`) | [docs/vendored-dependencies.md](docs/vendored-dependencies.md) |
 | UI screen authoring, FDF conventions, ConsoleUI, stb_fdf.h | [docs/ui-authoring.md](docs/ui-authoring.md) |
 | Test-suite performance measurement and parallel execution | [docs/test-performance.md](docs/test-performance.md) |

@@ -290,7 +290,6 @@ Four 64×64 alpha textures per chunk:
 ### Configuration
 
 **Runtime cvars:**
-- `r_module`: Select renderer (must be "wow" for grass)
 - `r_grass`: Toggle grass rendering (if implemented)
 - `r_grass_density`: Density multiplier (0.0-2.0)
 - `r_grass_distance`: Draw distance in units

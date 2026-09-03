@@ -241,6 +241,5 @@ typedef refExport_t *LPRENDERER;
 typedef refExport_t const *LPCRENDERER;
 
 refExport_t R_GetAPI(refImport_t imp);
-refExport_t R_StdoutGetAPI(refImport_t imp);
 
 #endif

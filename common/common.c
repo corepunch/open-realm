@@ -1388,8 +1388,9 @@ void MemFree(HANDLE mem) {
 
 void Com_Quit(void) {
     if (!Cvar_Integer("dedicated", 0)) {
-        /* Persist the client snapshot after all commands have run, matching Quake's shutdown lifecycle. */
-        Cvar_WriteConfig(Cvar_String("config", ""));
+        /* Frame-limited runs are diagnostics; writing them would persist command-line cvars into the user config. */
+        if (Cvar_Integer("com_frame_limit", 0) <= 0)
+            Cvar_WriteConfig(Cvar_String("config", ""));
         CL_Shutdown();
     }
     SV_Shutdown();

@@ -51,6 +51,7 @@ static DWORD test_scroll_draws;
 static drawText_t test_textarea_draw;
 static DWORD test_textarea_draws;
 static DWORD test_begin_frames, test_end_frames;
+static DWORD test_model_loads, test_model_releases, test_tex_loads, test_tex_releases;
 static VECTOR3 test_overhead_point;
 static RECT test_status_rect;
 static DWORD test_status_draws;
@@ -87,6 +88,14 @@ static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) 
 static void capture_status_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)texture; (void)uv; (void)color; test_status_rect = *screen; test_status_draws++;
 }
+static LPMODEL capture_load_model(LPCSTR name) {
+    (void)name; test_model_loads++; return (LPMODEL)(uintptr_t)test_model_loads;
+}
+static void capture_release_model(LPMODEL model) { (void)model; test_model_releases++; }
+static LPTEXTURE capture_load_texture(LPCSTR name) {
+    (void)name; test_tex_loads++; return (LPTEXTURE)(uintptr_t)test_tex_loads;
+}
+static void capture_release_texture(LPTEXTURE texture) { (void)texture; test_tex_releases++; }
 
 TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME };
@@ -1282,6 +1291,76 @@ TEST(net, packed_entity_names_survive_configstring_transport) {
     CL_ParseServerMessage(&sb);
     T_STREQ(cl.configstrings[CS_GENERAL], "Peasant");
     T_STREQ(cl.configstrings[CS_GENERAL] + ENT_NAME_SLOT_SIZE, "Villager");
+}
+
+/* Same-map load/begin resends CS_MODELS; keep the handle unless the path changed. */
+TEST(net, model_configstring_skips_identical_reload) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    LPMODEL first;
+
+    test_client_stubs_init();
+    test_model_loads = test_model_releases = 0;
+    re.LoadModel = capture_load_model;
+    re.ReleaseModel = capture_release_model;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_MODELS + 3);
+    MSG_WriteString(&sb, "units\\human\\Peasant\\Peasant.mdx");
+    CL_ParseServerMessage(&sb);
+    first = cl.models[3];
+    T_EQ(test_model_loads, 1); T_EQ(test_model_releases, 0); T_NOT_NULL(first);
+
+    SZ_Clear(&sb); sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_MODELS + 3);
+    MSG_WriteString(&sb, "units\\human\\Peasant\\Peasant.mdx");
+    CL_ParseServerMessage(&sb);
+    T_EQ(test_model_loads, 1); T_EQ(test_model_releases, 0); T_EQ(cl.models[3], first);
+
+    SZ_Clear(&sb); sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_MODELS + 3);
+    MSG_WriteString(&sb, "units\\orc\\Grunt\\Grunt.mdx");
+    CL_ParseServerMessage(&sb);
+    T_EQ(test_model_loads, 2); T_EQ(test_model_releases, 1); T_NE(cl.models[3], first);
+
+    SZ_Clear(&sb); sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_MODELS + 3);
+    MSG_WriteString(&sb, "");
+    CL_ParseServerMessage(&sb);
+    T_EQ(test_model_loads, 2); T_EQ(test_model_releases, 2); T_NULL(cl.models[3]);
+}
+
+TEST(net, image_configstring_skips_identical_reload) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    LPCTEXTURE first;
+
+    test_client_stubs_init();
+    test_tex_loads = test_tex_releases = 0;
+    re.LoadTexture = capture_load_texture;
+    re.ReleaseTexture = capture_release_texture;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_IMAGES + 4);
+    MSG_WriteString(&sb, "ReplaceableTextures\\Shadows\\Shadow.blp");
+    CL_ParseServerMessage(&sb);
+    first = cl.pics[4];
+    T_EQ(test_tex_loads, 1); T_EQ(test_tex_releases, 0); T_NOT_NULL(first);
+
+    SZ_Clear(&sb); sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_IMAGES + 4);
+    MSG_WriteString(&sb, "ReplaceableTextures\\Shadows\\Shadow.blp");
+    CL_ParseServerMessage(&sb);
+    T_EQ(test_tex_loads, 1); T_EQ(test_tex_releases, 0); T_EQ(cl.pics[4], first);
+
+    SZ_Clear(&sb); sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_IMAGES + 4);
+    MSG_WriteString(&sb, "ReplaceableTextures\\Shadows\\ShadowFlyer.blp");
+    CL_ParseServerMessage(&sb);
+    T_EQ(test_tex_loads, 2); T_EQ(test_tex_releases, 1); T_NE(cl.pics[4], first);
 }
 
 TEST(net, playerinfo_game_state_preserves_open_menu_input) {

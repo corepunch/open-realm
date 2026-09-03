@@ -13,7 +13,7 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 **Looking for a specific topic?**
 
 - **Complete end-to-end flow** (client input → command/data update → rendering): See [UI Flow](ui-flow.md)
-- **Runtime cvars and stdout renderer**: See [Runtime Modules and Cvars](../../../architecture/runtime.md)
+- **Runtime cvars**: See [Runtime Modules and Cvars](../../../architecture/runtime.md)
 - **How to add a new UI element**: See [Adding a New UI Element](#adding-a-new-ui-element) below
 - **FDF file syntax**: See [FDF File Format](../file-formats/fdf.md)
 
@@ -138,14 +138,6 @@ The startup command is configurable:
 build/bin/openwarcraft3 -data=data/Warcraft\ III -ui_start_command=menu_main
 ```
 
-For isolated UI diagnostics:
-
-```bash
-make run-ui-text
-```
-
-That command uses `r_module=stdout` and `com_frame_limit=1` to print one frame of draw calls and exit. Menu-only diagnostics do not open UDP sockets.
-
 ## Dynamic Updates
 
 UI updates happen client-side in response to:
@@ -156,18 +148,6 @@ UI updates happen client-side in response to:
 - **Chat messages** — (future) append frames to chat panel.
 
 All rendering happens client-side; server only provides game data (unit stats, abilities, inventory).
-
-## Stdout Renderer Diagnostics
-
-The stdout renderer is the preferred first-pass diagnostic for UI rendering. It implements the same renderer API as the OpenGL renderer but writes draw calls to stdout:
-
-- `load_texture`, `load_model`, `load_font`
-- `draw_portrait`, `draw_sprite`
-- `draw_image` with texture name, screen rect, UV rect, color, blend mode, and rotation
-- `draw_text` with font, rect, measured size, color, and translated text
-- `draw_sys_text` for console overlay text
-
-Use it to check screen composition, frame positions, backdrop tiling, missing assets, hover/pressed state changes, translated strings, and Warcraft color codes without taking screenshots.
 
 ## UI Test Asset Policy
 
@@ -186,7 +166,7 @@ For UI-impacting changes, use `make test-ui` as the required gate. It runs:
 - End-to-end client UI rendering suites
 - Tool-backed oracle suites (`mdxtool --info`)
 
-Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code. Use `make run-ui-text` for UI draw-call inspection and `mdxtool --info` for model data inspection.
+Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code. Use `mdxtool --info` for model data inspection and screenshots for visual UI review.
 
 ## Adding a New UI Element
 

@@ -109,12 +109,6 @@ Helper functions:
 | `UI_SetParent(frame, parent)` | Attach to a parent frame |
 | `UI_DrawFrame(frame)` | Draw a frame and its descendants |
 
-For draw-call inspection, use the stdout renderer:
-
-```bash
-make run-ui-text
-```
-
 ## Related Source Files
 
 | Source | Purpose |
@@ -124,4 +118,3 @@ make run-ui-text
 | `games/warcraft-3/ui/ui_render.c` | Layout solving and frame rendering |
 | `games/warcraft-3/ui/ui_theme.c` | Warcraft theme file loading |
 | `games/warcraft-3/ui/screens/*.c` | Screen controllers |
-| `renderer/r_stdout.c` | Text renderer for draw-call diagnostics |

@@ -83,9 +83,16 @@ static cvar_t *Cvar_FindVar(LPCSTR name) {
     return NULL;
 }
 
+/* Removed cvars from old configs must not be recreated by seta. */
+static bool Cvar_IsObsolete(LPCSTR name) {
+    return name && !strcmp(name, "r_module");
+}
+
 cvar_t *Cvar_Get(LPCSTR name, LPCSTR value, DWORD flags) {
     cvar_t *var;
 
+    if (Cvar_IsObsolete(name))
+        return NULL;
     if (!Cvar_NameIsValid(name)) {
         fprintf(stderr, "Cvar_Get: invalid cvar name \"%s\"\n", name ? name : "");
         return NULL;
@@ -343,7 +350,7 @@ void Cvar_WriteConfig(LPCSTR filename) {
     Key_WriteBindings(file);
     fprintf(file, "\n");
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
-        if (!(var->flags & CVAR_ARCHIVE) || Cvar_IsSessionOnly(var->name)) {
+        if (!(var->flags & CVAR_ARCHIVE) || Cvar_IsSessionOnly(var->name) || Cvar_IsObsolete(var->name)) {
             continue;
         }
         fprintf(file, "seta %s \"", var->name);
@@ -458,7 +465,6 @@ void Cvar_Init(void) {
     Cvar_GetD("cl_debug_entities","0",                 0,            "log client-side entity sync events");
     Cvar_GetD("sv_debug_entities","0",                 0,            "log server-side entity sync events");
     Cvar_GetD("r_debug_entities", "0",                 0,            "log renderer entity lifecycle events");
-    Cvar_GetD("r_module",         "renderer",          CVAR_ARCHIVE, "renderer shared library name");
     Cvar_GetD("ui_module",        "ui",                CVAR_ARCHIVE, "UI shared library name");
     Cvar_GetD("g_module",         "game",              CVAR_ARCHIVE, "game logic shared library name");
     Cvar_GetD("ui_game_setup_map","",                  0,            "map pre-selected in game setup UI");

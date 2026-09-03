@@ -163,18 +163,6 @@ void CL_Disconnect(LPCSTR reason, BOOL notify) {
     }
 }
 
-static refExport_t CL_GetRendererAPI(refImport_t imp) {
-    LPCSTR module = Cvar_String("r_module", "renderer");
-
-    if (module && (!strcmp(module, "stdout") || !strcmp(module, "text"))) {
-        return R_StdoutGetAPI(imp);
-    }
-    if (module && *module && strcmp(module, "renderer")) {
-        fprintf(stderr, "Unknown renderer module \"%s\", using renderer\n", module);
-    }
-    return R_GetAPI(imp);
-}
-
 /* UI library FS_ReadFile wrapper — tries engine filesystem first,
  * then falls back to a raw CWD fopen so share/ files written by
  * CL_UI_WriteFile (which writes relative to CWD) are readable. */
@@ -595,7 +583,7 @@ void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
     fprintf(stderr, "Console initialized.\n");
 
-    re = CL_GetRendererAPI((refImport_t) {
+    re = R_GetAPI((refImport_t) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .FS_ReadFile = FS_ReadFileQ3,

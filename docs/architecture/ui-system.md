@@ -279,25 +279,6 @@ The loading screen is owned by the UI library and drawn when `playerState_t.clie
 
 The loading screen stays visible until the server sets `client_ui_state = CLIENT_UI_GAME` and the client reaches `ca_active`.
 
-## Stdout Renderer for UI Diagnostics
-
-The text renderer (`r_module=stdout`) prints every draw call to stdout:
-
-```bash
-build/bin/openwarcraft3 -data "Warcraft III" +r_module stdout +menu_main +com_frame_limit 1
-```
-
-Output:
-
-```text
-draw_portrait model="UI\\Glues\\MainMenu\\MainMenu3d\\MainMenu3d.mdl" anim="Stand" viewport={...}
-draw_sprite  model="UI\\Glues\\MainMenu\\WarCraftIIILogo\\WarCraftIIILogo.mdl" anim="Stand" x=0.13 y=0.08
-draw_image   texture=39 name="UI\\Widgets\\Glues\\GlueScreen-Button1-Border.blp" screen={...} uv={...}
-draw_text    font="Fonts\\FRIZQT__.TTF" rect={...} text="Single Player"
-```
-
-Use this to verify layout rects, UVs, text translation, color codes, and screen composition before taking screenshots.
-
 ## WC3 vs SC2 vs WoW UI
 
 | Aspect | Warcraft III | StarCraft II | World of Warcraft |
@@ -307,7 +288,6 @@ Use this to verify layout rects, UVs, text translation, color codes, and screen 
 | In-game HUD | Server-authored `svc_layout` | Server-authored `svc_layout` | Server-authored `svc_layout` |
 | Screen controllers | `uiScreen_t` in `screens/` | Fallback only | N/A (loading screen only) |
 | Startup screen | `menu_main` | `menu_main` (default) | `menu_login` |
-| Renderer diagnostics | `make run-ui-text` | `+r_module stdout` | `+r_module stdout` |
 
 ## Authored Pixel Aspect
 
@@ -348,6 +328,6 @@ Frames with authoritative width and height already converted independently
 
 - [Server-Authored UI Payloads](ui-payloads.md) — compact type-specific wire schemas, byte limits, and diagnostics
 - [Client Architecture](client.md) — client main loop and scene rendering
-- [Runtime Modules and Cvars](runtime.md) — cvar system, config loading, stdout renderer
+- [Runtime Modules and Cvars](runtime.md) — cvar system and config loading
 - [Warcraft III UI System](../games/warcraft-3/architecture/ui.md) — WC3-specific UI detail
 - `docs/ui-authoring.md` — FDF conventions and ConsoleUI controller (source tree only)

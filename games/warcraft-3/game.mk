@@ -6,7 +6,6 @@ WC3DATA  := data/Warcraft\ III
 DEMODATA := data/Warcraft3demo
 MPQ      := $(WC3DATA)/War3.mpq
 MAP      := Maps/Campaign/Human02.w3m
-UI_CMD   := menu_main
 
 WC3_DIR := games/warcraft-3
 WC3_JASS_DIR := $(WC3_DIR)/jass
@@ -63,9 +62,6 @@ profile-map: $(BINARY) xctraceprof
 		--xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' \
 		> build/time-profile.xml
 	$(BIN_DIR)/xctraceprof --window 3:20 --top 40 build/time-profile.xml
-
-run-ui-text: $(BINARY) install-share
-	$(BINARY) -data $(WC3DATA) +r_module stdout +com_frame_limit 1 +$(UI_CMD)
 
 # Golden-image render regression test (deterministic MDX renders vs committed
 # references). Requires a display/GL, so it is opt-in and NOT part of `make test`
@@ -243,6 +239,6 @@ download: $(ZIP_FILE)
 $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test \
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map test \
 	test-commands test-server-net test-renderer-model test-renderer-shadows test-galaxy test-ui test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine download

@@ -13,12 +13,6 @@ make openwarcraft3
 build/bin/openwarcraft3 -data 'data/Warcraft III' +ui_start_command menu_main
 ```
 
-For text-only layout inspection, which does not require a display:
-
-```bash
-make run-ui-text
-```
-
 The 3D portrait is created by the `MainMenu3d` UI scene in `games/warcraft-3/ui/screens/main_menu.c`.
 
 ### White MDX geometry diagnosis

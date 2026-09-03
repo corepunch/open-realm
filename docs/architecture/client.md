@@ -6,8 +6,8 @@ The client (`client/`) is the presentation layer of OpenWarcraft3. In the normal
 
 The client is initialised by `CL_Init` in `cl_main.c`, which:
 
-1. Chooses a renderer API from `r_module`.
-2. Initialises the selected renderer.
+1. Binds the OpenGL renderer through `R_GetAPI`.
+2. Initialises the renderer.
 3. Initialises the client-side UI library with `UI_GetAPI`.
 4. Registers client-side console commands.
 5. Installs menu or gameplay key bindings depending on startup mode.
@@ -19,11 +19,6 @@ Startup mode is selected in `common/main.c` from the `map` and `connect` cvars:
 - `connect` set — remote-client mode
 
 The initial menu command comes from `ui_start_command`, defaulting to `menu_main`.
-
-Renderer choices:
-
-- `r_module=renderer` — normal OpenGL renderer
-- `r_module=stdout` or `r_module=text` — text renderer for one-frame UI diagnostics
 
 ## Main Loop
 
@@ -91,13 +86,7 @@ Calls into the renderer API:
 2. `R_RenderFrame` — draw all entities, terrain, water, particles.
 3. `ui.DrawFrame` — draw the active client-side UI screen.
 4. Console overlay draws debug text.
-5. `R_EndFrame` — present the frame or flush the stdout renderer.
-
-With `r_module=stdout`, the same calls produce text lines such as `draw_image`, `draw_text`, and `draw_portrait` instead of pixels. This is useful for scriptable UI checks:
-
-```bash
-make run-ui-text
-```
+5. `R_EndFrame` — present the frame.
 
 ## Entity Interpolation
 
@@ -116,9 +105,11 @@ Configstrings are also live server state, not connect-time-only metadata. A game
 `PF_Confignstring()`, which delegates storage to the generic server-owned `SV_SetConfigString()`. That helper clears
 `sv.syncstrings[index]`; `SV_FindIndex()` uses the same path when it creates model/sound/image entries. At the start of a later
 `SV_SendClientMessages()` pass, each unsynced entry is sent reliably with `svc_configstring` before normal spawned-client datagrams.
-Do not mutate `sv.configstrings[]` directly for runtime values, or already-connected clients may retain stale data. Keeping the
-mutation helper in `server/` also lets standalone server-network tests cover the real resync implementation without linking the
-game-import wrapper in `sv_game.c`.
+`CL_ParseConfigString` keeps the already-loaded model/image handle when the resent path is unchanged; begin and same-map load
+used to `ReleaseModel`/`LoadModel` every slot. A changed or newly filled slot still binds immediately
+so late presentation models (after `CL_PrepRefresh`) stay coherent. Do not mutate `sv.configstrings[]` directly for runtime values,
+or already-connected clients may retain stale data. Keeping the mutation helper in `server/` also lets standalone server-network
+tests cover the real resync implementation without linking the game-import wrapper in `sv_game.c`.
 
 Server-authored text frames may also bind to live snapshot values instead of forcing a complete layout resend whenever a number changes.
 `playerState.stats[18..21]` are reserved generic selection-UI slots (current/max health and current/max mana), serialized as the two
@@ -139,4 +130,3 @@ the binding generic rather than looking up game-specific entity types or rules.
 | `client/cl_console.c` | In-game console |
 | `client/keys.c` | Key event dispatch and binding table |
 | `common/net.c` | Loopback transport shared by client and server |
-| `renderer/r_stdout.c` | Text renderer backend for draw-call diagnostics |

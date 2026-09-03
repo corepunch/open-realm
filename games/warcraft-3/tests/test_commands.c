@@ -236,13 +236,13 @@ TEST(commands, roc_uses_base_ai_scripts_without_dropping_localized_data) {
 }
 
 TEST(commands, dash_cvars_are_not_command_line_cvars) {
-    LPCSTR argv[] = { "test_commands", "-r_module=stdout" };
+    LPCSTR argv[] = { "test_commands", "-scr_showfps=0" };
 
     setup_command_tests();
-    Cvar_Set("r_module", "renderer");
+    Cvar_Set("scr_showfps", "1");
     Cvar_ApplyCommandLine(2, argv);
 
-    T_STREQ(Cvar_String("r_module", NULL), "renderer");
+    T_STREQ(Cvar_String("scr_showfps", NULL), "1");
 }
 
 TEST(commands, display_modes_require_explicit_flag) {
@@ -272,16 +272,23 @@ TEST(commands, fast_forward_requires_explicit_flag) {
 }
 
 TEST(commands, plus_cvars_apply_immediately) {
-    LPCSTR argv[] = { "test_commands", "+game_port", "28010", "+r_module", "stdout" };
+    LPCSTR argv[] = { "test_commands", "+game_port", "28010", "+scr_showfps", "0" };
 
     setup_command_tests();
     Cvar_Set("game_port", PORT_SERVER_STRING);
-    Cvar_Set("r_module", "renderer");
+    Cvar_Set("scr_showfps", "1");
     COM_InitArgv(5, argv);
     Cbuf_AddEarlyCommands(true);
 
     T_STREQ(Cvar_String("game_port", NULL), "28010");
-    T_STREQ(Cvar_String("r_module", NULL), "stdout");
+    T_STREQ(Cvar_String("scr_showfps", NULL), "0");
+    Cvar_Set("scr_showfps", "1");
+}
+
+TEST(commands, obsolete_r_module_is_ignored) {
+    setup_command_tests();
+    T_NULL(Cvar_Set("r_module", "stdout"));
+    T_NULL(Cvar_String("r_module", NULL));
 }
 
 TEST(commands, plus_map_is_early_launch_selector) {

@@ -12,7 +12,7 @@ The engine is structured as vertical layers communicating through explicit funct
 flowchart TB
     subgraph RendererLayer["Top: Renderer Layer (renderer/ + games/*/renderer/)"]
         R_Main["R_RenderFrame / V_RenderView / R_DrawPic / R_DrawString"]
-        R_Backends["OpenGL / Metal / stdout backend"]
+        R_Backends["OpenGL / Metal"]
     end
 
     subgraph ClientPresentation["Client Layer (client/ + games/*/ui/)"]
