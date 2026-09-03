@@ -197,7 +197,6 @@ typedef struct {
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
     uiGameCommand_t GameCommand;
-    void (*DrawGameOverlay)(void);
 
     /* Resolve a Warcraft-specific symbolic image key for the local player. */
     LPCSTR (*ResolveImagePath)(LPCSTR key);

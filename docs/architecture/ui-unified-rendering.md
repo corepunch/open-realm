@@ -70,7 +70,7 @@ Once no UI lib calls `GetRenderer()`, remove it from the import table. This enfo
 
 1. **SC2** — already done (UI lib is a stub, all HUD via `svc_layout`).
 2. **WC3** — add `SetLayout` import, rewrite `ui_render.c` to serialize instead of draw. Menu and HUD unify under `SCR_DrawLayout()`.
-3. **WoW** — same as WC3. WoW's Lua-driven `DrawGameOverlay` path needs a separate assessment.
+3. **WoW** — same as WC3; in-game presentation follows the client/server-authored gameplay path.
 
 ## What UI Libs Retain
 
