@@ -17,6 +17,13 @@ static AllianceSlot_t alliance_slots[ALLIES_MAX_TARGETS];
 static alliesDraft_t allies_drafts[MAX_PLAYERS];
 static BOOL alliance_loaded;
 
+static BOOL AlliesEnsureLoaded(void);
+
+void UI_LoadHudAllies(void) {
+    alliance_loaded = false;
+    AlliesEnsureLoaded();
+}
+
 static BOOL AlliesDebugEnabled(void) {
     return gi.CvarString && atoi(gi.CvarString("ui_window_debug", "0")) != 0;
 }
