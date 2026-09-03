@@ -222,6 +222,8 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
          * refresh both caches together. Identical late resends keep the loaded
          * handles so begin/load does not reload every model. */
         if (cl.refresh_prepped && !CL_SameResource(cl.models[model], olds, name)) {
+         * handles so begin/load does not reload every model. */
+        if (cl.refresh_prepped && !CL_SameResource(cl.models[model], olds, name)) {
             if (cl.models[model]) {
                 re.ReleaseModel((LPMODEL)cl.models[model]);
                 cl.models[model] = NULL;
