@@ -22,6 +22,12 @@ small proxy frame in C. Warsmash ships a project-owned `UI\FrameDef\SmashUI\Unit
 that file is not a retail MPQ source and must not be introduced as an OpenRealm data dependency. OpenRealm's portrait remains a runtime
 proxy, with its coordinates kept in parity with the reference runtime layout.
 
+### Passive FDF tooltips
+
+`uiFrame_t.tooltip` is a generic hover contract, not a command-button-only field. Persistent HUD hit testing treats a frame with non-empty tooltip text as hoverable even when `onclick` is empty; this is required for passive FDF labels such as the WC3 resource bar. Do not add fake click commands merely to make a frame hoverable. `FT_TOOLTIPTEXT` remains the shared presentation proxy. When multiple visible HUD layers serialize that presentation frame, the client draws it only in the layer/window that owns the current hovered source.
+
+For the WC3 resource bar, `ResourceBarGoldText`, `ResourceBarLumberText`, `ResourceBarSupplyText`, and `ResourceBarUpkeepText` are the stable named anchors. The retail resource icon textures are unnamed, so bind passive resource help to the named FDF value frames rather than creating project-owned icon geometry. Gold/Lumber/Food resource `Tip` headings use the generic `{value}` marker; `SCR_GetTooltipText()` expands it from the hovered frame's current `Stat` display value, preventing a server-authored layout packet from freezing an older amount while replicated playerstate continues to change. The descriptive `Ubertip` remains driven by Warcraft `GlobalStrings.fdf`. Upkeep prefers split `RESOURCE_UBERTIP_UPKEEP_INFO[_WOOD]` rows, preserves a base body that already contains tier ranges, and generates a gameplay-data-backed fallback legend if neither representation supplies one. See [WC3 food and upkeep](games/warcraft-3/food-and-upkeep.md).
+
 ### TextLength semantics
 
 WC3 FDF `TextLength` is layout geometry, not merely a character limit. When a text frame has no explicit `Width`, its implicit width

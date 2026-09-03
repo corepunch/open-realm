@@ -407,12 +407,14 @@ struct client_s {
         LONG xp;     /* hero experience, so the XP/attribute display updates live */
     } infopanel;
     /* Last resource values reflected in the resource bar, so the server only
-     * re-sends LAYER_CONSOLE when gold/lumber/food changes. */
+     * re-sends LAYER_CONSOLE when a displayed value or tooltip income rate changes. */
     struct {
         LONG gold;
         LONG lumber;
         LONG food_used;
         LONG food_cap;
+        LONG gold_rate;
+        LONG lumber_rate;
     } resourcebar;
     /* Persistent Hero/idle-worker HUD is rebuilt only after gameplay marks it
      * dirty. last_idle_worker is the cycling cursor, not a per-frame cache. */
@@ -1391,6 +1393,8 @@ BOOL player_pay(LPPLAYER, DWORD);
 BOOL G_FoodLimitsEnabled(void);
 LONG G_GetEffectiveFoodCap(LPGAMECLIENT client);
 DWORD G_GetPlayerUpkeepTier(LPGAMECLIENT client);
+LONG G_GetUpkeepGoldRateForTier(DWORD tier);
+LONG G_GetUpkeepLumberRateForTier(DWORD tier);
 BOOL G_PlayerHasFoodFor(LPGAMECLIENT client, LONG food_cost);
 BOOL G_ReserveTrainingFood(LPEDICT unit);
 void G_SetUnitFoodUsed(LPEDICT unit, LONG amount);

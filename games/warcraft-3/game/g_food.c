@@ -48,6 +48,14 @@ static LONG G_UpkeepRate(LPCFLOAT taxes, DWORD count, DWORD tier) {
     return MAX(0, MIN(100, (LONG)(100.0f - tax * 100.0f + 0.5f)));
 }
 
+LONG G_GetUpkeepGoldRateForTier(DWORD tier) {
+    return G_UpkeepRate(game.constants.upkeepGoldTax, game.constants.upkeepGoldTaxCount, tier);
+}
+
+LONG G_GetUpkeepLumberRateForTier(DWORD tier) {
+    return G_UpkeepRate(game.constants.upkeepLumberTax, game.constants.upkeepLumberTaxCount, tier);
+}
+
 static void G_AdjustFoodStat(LPGAMECLIENT client, DWORD state, LONG delta) {
     LONG value;
 
@@ -65,10 +73,8 @@ void G_RecomputePlayerUpkeep(LPGAMECLIENT client) {
 
     if (!client) return;
     tier = G_GetPlayerUpkeepTier(client);
-    client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = (USHORT)G_UpkeepRate(
-        game.constants.upkeepGoldTax, game.constants.upkeepGoldTaxCount, tier);
-    client->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = (USHORT)G_UpkeepRate(
-        game.constants.upkeepLumberTax, game.constants.upkeepLumberTaxCount, tier);
+    client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = (USHORT)G_GetUpkeepGoldRateForTier(tier);
+    client->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = (USHORT)G_GetUpkeepLumberRateForTier(tier);
 }
 
 BOOL G_PlayerHasFoodFor(LPGAMECLIENT client, LONG food_cost) {

@@ -210,6 +210,23 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     return text;
 }
 
+LPCSTR SCR_GetTooltipText(LPCUIFRAME frame) {
+    static char text[2048];
+    LPCSTR src, token, value;
+    size_t prefix;
+
+    if (!frame || !frame->tooltip) return NULL;
+    src = frame->tooltip;
+    token = strstr(src, "{value}");
+    if (!token) return src;
+
+    value = SCR_GetStringValue(frame);
+    prefix = (size_t)(token - src);
+    snprintf(text, sizeof(text), "%.*s%s%s", (int)prefix, src,
+             value ? value : "", token + strlen("{value}"));
+    return text;
+}
+
 drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                       FLOAT avl_width,
                       LPCSTR text,

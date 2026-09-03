@@ -386,6 +386,22 @@ TEST(wc3_game, hud_multiline_fdf_text_keeps_renderer_auto_height) {
     T_FEQ(wire.size.height, 0.0f, 0.0001f);
 }
 
+TEST(wc3_game, hud_passive_string_serializes_tooltip) {
+    FRAMEDEF frame = { .Type = FT_STRING };
+    uiFrame_t wire = { 0 };
+    BYTE typedata[128] = { 0 };
+    char textbuf[128] = { 0 };
+
+    frame.Text = "500";
+    frame.Tip = "Gold: {value}";
+    frame.Ubertip = "Gold is mined from gold mines.";
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_STREQ(wire.tooltip, "Gold: {value}\nGold is mined from gold mines.");
+    T_ASSERT(!wire.onclick || !*wire.onclick);
+}
+
 TEST(wc3_game, hud_checkbox_serializes_authored_states_and_checked_value) {
     BYTE typedata[256];
     char textbuf[128];

@@ -9,6 +9,9 @@ void ai_train_build(LPEDICT ent);
 void unit_build(LPEDICT ent, DWORD class_id);
 BOOL run_test_jass(LPCSTR src);
 
+BOOL UI_TestUpkeepBodyHasTierRanges(LPCSTR text);
+void UI_TestFormatUpkeepLegend(LPSTR out, DWORD out_size, LPCSTR info, BOOL use_wood_info);
+
 static LPCSTR food_limits_off_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_food_limits") ? "0" : fallback;
 }
@@ -117,6 +120,35 @@ TEST(wc3_food, food_limits_cvar_allows_training_over_cap_but_keeps_accounting) {
     T_EQ(client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE], 70);
 
     gi.CvarString = saved_cvar;
+}
+
+TEST(wc3_food, upkeep_tier_rate_helpers_match_gameplay_tax_data) {
+    T_EQ(G_GetUpkeepGoldRateForTier(0), 100);
+    T_EQ(G_GetUpkeepGoldRateForTier(1), 70);
+    T_EQ(G_GetUpkeepGoldRateForTier(2), 40);
+    T_EQ(G_GetUpkeepLumberRateForTier(0), 100);
+    T_EQ(G_GetUpkeepLumberRateForTier(1), 100);
+    T_EQ(G_GetUpkeepLumberRateForTier(2), 100);
+}
+
+TEST(wc3_food, upkeep_tooltip_detects_embedded_legend_ranges) {
+    T_ASSERT(UI_TestUpkeepBodyHasTierRanges(
+        "0-50 Food: No Upkeep|n51-80 Food: Low Upkeep|n81-100 Food: High Upkeep"));
+    T_ASSERT(!UI_TestUpkeepBodyHasTierRanges(
+        "Upkeep is determined by the amount of Food your forces are using."));
+}
+
+TEST(wc3_food, upkeep_tooltip_fallback_legend_uses_gameplay_thresholds_and_rates) {
+    char text[1024];
+
+    UI_TestFormatUpkeepLegend(text, sizeof(text),
+                              "|n%d-%d Food: %s|R (%d%% income)", false);
+    T_ASSERT(strstr(text, "0-50 Food:"));
+    T_ASSERT(strstr(text, "51-80 Food:"));
+    T_ASSERT(strstr(text, "81-100 Food:"));
+    T_ASSERT(strstr(text, "(100% income)"));
+    T_ASSERT(strstr(text, "(70% income)"));
+    T_ASSERT(strstr(text, "(40% income)"));
 }
 
 TEST(wc3_food, upkeep_rates_follow_food_used_thresholds) {
