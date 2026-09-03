@@ -327,7 +327,6 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 }
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
-    DWORD old_race = cl.playerstate.race;
     DWORD bits;
     DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
     BOOL first_camera_sample = cl.viewDef.camerastate[0].znear <= 0 ||
@@ -335,8 +334,6 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     FLOAT znear;
     FLOAT zfar;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
-    if (cl.refresh_prepped && old_race != cl.playerstate.race)
-        CL_ReloadImageResources();
     VECTOR2 server_origin = cl.playerstate.origin;
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME &&
         cls.key_dest != key_console && cls.key_dest != key_menu) {

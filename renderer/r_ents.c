@@ -41,7 +41,7 @@ static BOOL R_EntityInView(renderEntity_t const *entity) {
     });
 }
 
-static void R_DrawEntityShadows(void);
+static void R_DrawEntityShadows(BOOL shad);
 
 void R_DrawEntities(void) {
     static BYTE prev_state[MAX_GAME_ENTITIES];
@@ -58,7 +58,9 @@ void R_DrawEntities(void) {
         initialized = false;
     }
 
-    R_DrawEntityShadows();
+    BOOL shad = R_CvarEnabled("r_unit_shadows", "1");
+
+    R_DrawEntityShadows(shad);
 
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *ent = tr.viewDef.entities+i;
@@ -69,7 +71,7 @@ void R_DrawEntities(void) {
         }
         if (in_view) {
             drawn++;
-            R_DrawEntity(ent);
+            R_DrawEntity(ent, shad);
         } else {
             culled++;
         }
@@ -245,7 +247,7 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     }
 }
 
-static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
+static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin, BOOL shad) {
 #ifndef USE_SHADOWMAPS
     LPCTEXTURE shadow = entity->shadow;
     BOX3 bounds;
@@ -253,7 +255,7 @@ static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin) 
     if (R_RenderShadow(entity, origin)) {
         return;
     }
-    if (!shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
+    if (!shad || !shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
         return;
     }
 
@@ -294,15 +296,16 @@ static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin) 
  * and re-issued all splat GL state per unit; batching them across the scene
  * collapses runs of same-texture shadows into one upload + draw (flushing on
  * texture change or buffer capacity), instead of one per unit. */
-static void R_DrawEntityShadows(void) {
+static void R_DrawEntityShadows(BOOL shad) {
 #ifndef USE_SHADOWMAPS
+    if (!shad) return;
     R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_shadowSplat));
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *ent = tr.viewDef.entities + i;
         if ((ent->flags & RF_HIDDEN) || !ent->model) {
             continue;
         }
-        R_DrawEntityShadow(ent, (LPCVECTOR2)&ent->origin);
+        R_DrawEntityShadow(ent, (LPCVECTOR2)&ent->origin, shad);
     }
     R_EndSplatBatch();
 #endif
@@ -356,13 +359,13 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
     }
 }
 
-void R_DrawEntity(renderEntity_t const *entity) {
+void R_DrawEntity(renderEntity_t const *entity, BOOL shad) {
     if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
 
 #ifdef USE_SHADOWMAPS
     if (tr.render_phase == RENDER_PHASE_LIGHTS) {
-        if (!(entity->flags & RF_NO_SHADOW))
+        if (shad && !(entity->flags & RF_NO_SHADOW))
             R_RenderModel(entity);
         return;
     }

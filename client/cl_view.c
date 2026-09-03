@@ -22,18 +22,12 @@ static bool begin_sent = false;
 
 VECTOR3 lightAngles = {-40,0,60};
 
-/* Q2 CL_ParseServerData calls CL_ClearState, which zeros cl.refresh_prepped
- * and image_precache. A same-map load never gets new CS_WORLD, so forget the
- * previous world's begin/prepped flags and media slots here or PrepRefresh
- * never sends begin again and leftover pics keep the old CS_IMAGES mapping. */
+/* A reconnect receives a fresh configstring table; reset only the refresh
+ * lifecycle flags so CL_PrepRefresh performs one registration pass. */
 void CL_RestartRefresh(void) {
     world_loaded = false;
     begin_sent = false;
     cl.refresh_prepped = false;
-    memset(cl.models, 0, sizeof(cl.models));
-    memset(cl.portraits, 0, sizeof(cl.portraits));
-    memset(cl.pics, 0, sizeof(cl.pics));
-    memset(cl.fonts, 0, sizeof(cl.fonts));
 }
 
 static void CL_SendBegin(void) {
@@ -271,9 +265,6 @@ static void V_AddClientEntity(centity_t const *ent) {
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 16) & 0xff)),
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 24) & 0xff)));
 #endif
-    if (!Cvar_Integer("r_unit_shadows", 1)) {
-        re.flags |= RF_NO_SHADOW;
-    }
 #ifdef WOW
     /* model2 is a BYTE, so every nonzero value is a valid MAX_MODELS index. */
     if (ent->current.model2 > 0 && (ent->current.renderfx & RF_ATTACH_OVERHEAD))
@@ -431,11 +422,10 @@ void CL_PrepRefresh(void) {
 #endif
 
     for (DWORD i = 1; i < MAX_MODELS; i++) {
-        if (!*cl.configstrings[CS_MODELS + i]) {
-            cl.models[i] = NULL;
-            cl.portraits[i] = NULL;
+        if (!*cl.configstrings[CS_MODELS + i])
             continue;
-        }
+        if (cl.models[i])
+            continue;
         LPCSTR filename = cl.configstrings[CS_MODELS + i];
         PATHSTR portrait = { 0 };
         LPCSTR ext = strstr(filename, ".m");
@@ -459,13 +449,12 @@ void CL_PrepRefresh(void) {
             cl.portraits[i] = re.LoadModel(portrait);
         }
     }
-    CL_UpdateMinimapModel();
 
     for (DWORD i = 1; i < MAX_IMAGES; i++) {
-        if (!*cl.configstrings[CS_IMAGES + i]) {
-            cl.pics[i] = NULL;
+        if (!*cl.configstrings[CS_IMAGES + i])
             continue;
-        }
+        if (cl.pics[i])
+            continue;
         cl.pics[i] = re.LoadTexture(CL_ResolveImagePath(cl.configstrings[CS_IMAGES + i]));
     }
 
@@ -474,10 +463,10 @@ void CL_PrepRefresh(void) {
             if (*cl.configstrings[CS_SOUNDS + i]) S_RegisterSound(cl.configstrings[CS_SOUNDS + i]);
 
     for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
-        if (!*cl.configstrings[CS_FONTS + i]) {
-            cl.fonts[i] = NULL;
+        if (!*cl.configstrings[CS_FONTS + i])
             continue;
-        }
+        if (cl.fonts[i])
+            continue;
         LPCSTR fontspec = cl.configstrings[CS_FONTS + i];
         LPCSTR split = strstr(fontspec, ",");
         if (split) {
@@ -498,14 +487,6 @@ void CL_PrepRefresh(void) {
     if (world_loaded && !cl.refresh_prepped) {
         S_EndRegistration();
         cl.refresh_prepped = true;
-    }
-}
-
-void CL_ReloadImageResources(void) {
-    FOR_LOOP(i, MAX_IMAGES) {
-        if (cl.pics[i]) re.ReleaseTexture((LPTEXTURE)cl.pics[i]);
-        cl.pics[i] = cl.configstrings[CS_IMAGES + i][0]
-            ? re.LoadTexture(CL_ResolveImagePath(cl.configstrings[CS_IMAGES + i])) : NULL;
     }
 }
 

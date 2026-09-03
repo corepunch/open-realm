@@ -683,6 +683,11 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
         return;
     }
 
+    /* Q2 resets the client at the new connection boundary. The server sends
+     * the complete configstring/baseline stream again, so old media indices
+     * must not be retained or rebound after a same-map save/load. */
+    CL_ClearState();
+    CL_RestartRefresh();
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "new");
     if (cls.state < ca_connected) {
