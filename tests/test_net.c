@@ -56,8 +56,6 @@ static VECTOR3 test_overhead_point;
 static RECT test_status_rect;
 static DWORD test_status_draws;
 static PATHSTR test_model_load_paths[4];
-static DWORD test_model_loads, test_model_releases;
-
 static LPMODEL capture_load_model(LPCSTR filename) {
     DWORD slot = test_model_loads;
     if (slot < sizeof(test_model_load_paths) / sizeof(test_model_load_paths[0]))
@@ -88,10 +86,6 @@ static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) 
 static void capture_status_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)texture; (void)uv; (void)color; test_status_rect = *screen; test_status_draws++;
 }
-static LPMODEL capture_load_model(LPCSTR name) {
-    (void)name; test_model_loads++; return (LPMODEL)(uintptr_t)test_model_loads;
-}
-static void capture_release_model(LPMODEL model) { (void)model; test_model_releases++; }
 static LPTEXTURE capture_load_texture(LPCSTR name) {
     (void)name; test_tex_loads++; return (LPTEXTURE)(uintptr_t)test_tex_loads;
 }
@@ -1303,6 +1297,7 @@ TEST(net, model_configstring_skips_identical_reload) {
     test_model_loads = test_model_releases = 0;
     re.LoadModel = capture_load_model;
     re.ReleaseModel = capture_release_model;
+    cl.refresh_prepped = true;
     MSG_WriteByte(&sb, svc_configstring);
     MSG_WriteShort(&sb, CS_MODELS + 3);
     MSG_WriteString(&sb, "units\\human\\Peasant\\Peasant.mdx");
