@@ -293,23 +293,24 @@ static LPSTR Cvar_ReadLocalConfig(LPCSTR filename) {
     return buffer;
 }
 
-void Cvar_LoadConfig(LPCSTR filename) {
+bool Cvar_LoadConfig(LPCSTR filename) {
     LPSTR text;
 
     if (!filename || !*filename) {
-        return;
+        return false;
     }
     text = FS_ReadFileIntoString(filename);
     if (!text) {
         text = Cvar_ReadLocalConfig(filename);
     }
     if (!text) {
-        return;
+        return false;
     }
     fprintf(stderr, "Executing %s\n", filename);
     Cbuf_AddText(text);
     Cbuf_AddText("\n");
     FS_FreeFileString(text);
+    return true;
 }
 
 static void Cvar_WriteEscaped(FILE *file, LPCSTR text) {
@@ -440,7 +441,7 @@ void Cvar_Init(void) {
         static PATHSTR config_path;
 
         FS_ConfigPath("config.cfg", config_path, sizeof(config_path));
-        Cvar_GetD("config", config_path, CVAR_ARCHIVE, "writable config file; loaded/saved on startup");
+        Cvar_GetD("config", config_path, 0, "writable config file; loaded/saved on startup");
     }
     /* Resolved filesystem roots, exposed as cvars so UI/game modules (shared
      * libs that can't reach common.c statics) can locate their own user files. */

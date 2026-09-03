@@ -71,7 +71,7 @@ The load order in `Com_Init()` is:
 | 2 | `-config` CLI arg | Override config path |
 | 3 | Early `+` args (`+set`, `+<cvar>`) | Command-line overrides |
 | 4 | **`<base>/<game>/config.cfg`** | Shipped game defaults (key bindings) |
-| 5 | **Cvar `config`** (default `~/.local/share/<game>/config.cfg`) | Generated user config — created by `writeconfig` |
+| 5 | **Cvar `config`** (default `~/.local/share/<game>/config.cfg`) | Generated user config — written on shutdown or by `writeconfig` |
 | 6 | **`~/.local/share/<game>/autoexec.cfg`** | Optional local overrides |
 | 7 | `-data`, `-connect`, `-tft`, `-roc` CLI args | Data-dir / expansion settings |
 | 8 | Remaining `+` args (`+set`, `+<cvar>`), consumed | Final command-line overrides |

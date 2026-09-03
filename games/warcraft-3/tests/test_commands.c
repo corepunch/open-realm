@@ -56,6 +56,10 @@ void SV_Map(LPCSTR pFilename) {
     snprintf(last_sv_map, sizeof(last_sv_map), "%s", pFilename ? pFilename : "");
 }
 
+void CL_Connect(LPCSTR host, unsigned short port) {
+    (void)host; (void)port;
+}
+
 BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
     (void)name;
     if (!save_map_readable) return false;
@@ -128,6 +132,23 @@ TEST(commands, save_path_adds_one_sav_extension) {
     T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/quick.sav");
     FS_SavePath("manual.SAV", path, sizeof(path));
     T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/manual.SAV");
+}
+
+TEST(commands, config_path_uses_home_game_directory) {
+    PATHSTR path;
+
+    setup_command_tests();
+    FS_SetHomeDirectory("/tmp/openwarcraft3-config-path-test");
+    FS_ConfigPath("config.cfg", path, sizeof(path));
+    T_STREQ(path, "/tmp/openwarcraft3-config-path-test/config.cfg");
+}
+
+TEST(commands, config_loader_reports_missing_files) {
+    setup_command_tests();
+
+    T_ASSERT(!Cvar_LoadConfig("/tmp/openwarcraft3-config-path-test/missing.cfg"));
+    T_ASSERT(Cvar_LoadConfig("games/world-of-warcraft/share/config.cfg"));
+    Cbuf_Execute();
 }
 
 TEST(commands, share_authored_ui_assets_are_readable) {
