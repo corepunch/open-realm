@@ -2232,13 +2232,13 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             if (client->messages[i].message_id != message_id) continue;
             client->message_open_id = message_id;
             client->messages[i].flags &= (BYTE)~WOW_UI_MESSAGE_UNREAD;
-            UI_WriteWowMessageQueue(ent);
+            UI_WriteWowHud(ent);
             break;
         }
     } else if (argc >= 1 && !strcasecmp(argv[0], "message_close")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         client->message_open_id = 0;
-        UI_WriteWowMessageQueue(ent);
+        UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "loot")) {
         /* Open loot window for the nearest corpse within melee+loot range. */
         LPEDICT corpse = Wow_FindNearestCorpse(ent, 10.0f);
