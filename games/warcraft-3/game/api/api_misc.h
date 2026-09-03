@@ -752,12 +752,16 @@ DWORD SyncSelections(LPJASS j) {
     return 0;
 }
 DWORD SetFloatGameState(LPJASS j) {
-    //HANDLE whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
-    //FLOAT value = jass_checknumber(j, 2);
+    LPDWORD whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
+    FLOAT value = jass_checknumber(j, 2);
+    if (whichFloatGameState && *whichFloatGameState == WC3_GAME_STATE_TIME_OF_DAY)
+        G_SetTimeOfDay(value);
     return 0;
 }
 DWORD GetFloatGameState(LPJASS j) {
-    //HANDLE whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
+    LPDWORD whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
+    if (whichFloatGameState && *whichFloatGameState == WC3_GAME_STATE_TIME_OF_DAY)
+        return jass_pushnumber(j, G_GetTimeOfDay());
     return jass_pushnumber(j, 0);
 }
 DWORD SetIntegerGameState(LPJASS j) {
@@ -1193,7 +1197,7 @@ DWORD EnableUserUI(LPJASS j) {
     return 0;
 }
 DWORD SuspendTimeOfDay(LPJASS j) {
-    //BOOL b = jass_checkboolean(j, 1);
+    G_SuspendTimeOfDay(jass_checkboolean(j, 1));
     return 0;
 }
 DWORD SetTimeOfDayScale(LPJASS j) {

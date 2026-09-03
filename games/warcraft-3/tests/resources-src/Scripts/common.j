@@ -32,6 +32,9 @@ type gamedifficulty  extends handle
 type aidifficulty    extends handle
 type gamespeed       extends handle
 type playerstate     extends handle
+type gamestate        extends handle
+type fgamestate       extends gamestate
+type limitop          extends handle
 type fogstate         extends handle
 type unittype        extends handle
 type rect            extends handle
@@ -78,6 +81,8 @@ native ConvertGameDifficulty takes integer i returns gamedifficulty
 native ConvertAIDifficulty   takes integer i returns aidifficulty
 native ConvertGameSpeed      takes integer i returns gamespeed
 native ConvertPlayerState    takes integer i returns playerstate
+native ConvertFGameState     takes integer i returns fgamestate
+native ConvertLimitOp        takes integer i returns limitop
 native ConvertFogState       takes integer i returns fogstate
 native ConvertUnitType       takes integer i returns unittype
 native ConvertEffectType     takes integer i returns effecttype
@@ -172,6 +177,14 @@ native InitGameCache takes string campaignFile returns gamecache
 native StoreInteger takes gamecache cache, string missionKey, string key, integer value returns nothing
 native GetStoredInteger takes gamecache cache, string missionKey, string key returns integer
 
+// Time-of-day game-state coverage. Keep these declarations aligned with the
+// production common.j contract because the synthetic JASS tests use the
+// converted handles exactly like campaign scripts do.
+native SetFloatGameState          takes fgamestate whichFloatGameState, real value returns nothing
+constant native GetFloatGameState takes fgamestate whichFloatGameState returns real
+native SuspendTimeOfDay           takes boolean b returns nothing
+native TriggerRegisterGameStateEvent takes trigger whichTrigger, gamestate whichState, limitop opcode, real limitval returns event
+
 // Unit/death-event coverage used by player structure-count regression tests.
 native CreateUnit                takes player id, integer unitid, real x, real y, real face returns unit
 native TriggerRegisterDeathEvent takes trigger whichTrigger, widget whichWidget returns event
@@ -252,6 +265,13 @@ globals
     constant aidifficulty AI_DIFFICULTY_NORMAL = ConvertAIDifficulty(1)
     constant gamespeed MAP_SPEED_FAST = ConvertGameSpeed(3)
     constant playerstate PLAYER_STATE_RESOURCE_GOLD = ConvertPlayerState(1)
+    constant fgamestate GAME_STATE_TIME_OF_DAY = ConvertFGameState(2)
+    constant limitop LESS_THAN = ConvertLimitOp(0)
+    constant limitop LESS_THAN_OR_EQUAL = ConvertLimitOp(1)
+    constant limitop EQUAL = ConvertLimitOp(2)
+    constant limitop GREATER_THAN_OR_EQUAL = ConvertLimitOp(3)
+    constant limitop GREATER_THAN = ConvertLimitOp(4)
+    constant limitop NOT_EQUAL = ConvertLimitOp(5)
     constant unittype UNIT_TYPE_STRUCTURE = ConvertUnitType(2)
     constant effecttype EFFECT_TYPE_TARGET = ConvertEffectType(1)
 endglobals

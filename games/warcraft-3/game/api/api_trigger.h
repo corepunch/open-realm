@@ -81,11 +81,16 @@ DWORD TriggerRegisterTimerExpireEvent(LPJASS j) {
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterGameStateEvent(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichState = jass_checkhandle(j, 2, "gamestate");
-    //HANDLE opcode = jass_checkhandle(j, 3, "limitop");
-    //FLOAT limitval = jass_checknumber(j, 4);
-    return jass_pushnullhandle(j, "event");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPDWORD whichState = jass_checkhandle(j, 2, "gamestate");
+    LPDWORD opcode = jass_checkhandle(j, 3, "limitop");
+    FLOAT limitval = jass_checknumber(j, 4);
+    LPEVENT evt = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    evt->trigger = whichTrigger;
+    evt->state = whichState ? *whichState : 0;
+    evt->limitop = opcode ? *opcode : 0;
+    evt->limitval = limitval;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterDialogEvent(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");

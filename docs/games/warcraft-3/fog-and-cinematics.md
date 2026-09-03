@@ -51,6 +51,9 @@ The server's existing `G_FowPlayerCanSeeEntity()` remains the foreign-entity vis
 fog as separate planes, so world fog and minimap fog consume the same authoritative state while the minimap camera box continues to
 derive from camera state independently.
 
+Day/night sight-radius selection consumes the server-owned clock documented in [time-of-day.md](time-of-day.md); fog must not derive a
+second clock from `level.time`.
+
 ## Known Gaps
 
 This change intentionally does not alter unrelated compatibility areas that need broader evidence:

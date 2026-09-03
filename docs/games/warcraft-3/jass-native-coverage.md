@@ -175,6 +175,17 @@ in the registry: `SetEnemyStartLocPrioCount`, `SetEnemyStartLocPrio`, and
 - Tech maximums and researched levels use the keyed `game.clients[].tech` table rather than `ps.stats[]`. `SetPlayerTechMaxAllowed`, `GetPlayerTechMaxAllowed`, `AddPlayerTechResearched`, `SetPlayerTechResearched`, `GetPlayerTechResearched`, and `GetPlayerTechCount` round-trip through that state. `-1` is preserved as the unlimited maximum sentinel; non-negative values are exact maxima. W3I technology-unavailability entries seed a maximum of zero before map scripts may override it. Build and train command availability consume the same state, and mutations invalidate the owning player's command card for deferred refresh after simulation. The table is bounded by `MAX_PLAYER_TECH_STATE` and reports exhaustion rather than silently overwriting state. The bundled `game/common.txt` declares `GetPlayerTechResearched` as `boolean`, so it reports whether the exact rawcode has a researched level above zero; `GetPlayerTechCount` returns the exact-rawcode count/level. Both currently ignore technology-equivalence expansion when `specificonly` is false because equivalence groups are not represented yet. Ability availability remains separate work.
 - `GetPlayerStructureCount` scans live owned unit edicts classified by `G_UnitIsBuilding`. `includeIncomplete=false` excludes `construction.active` structures; dead/zero-life structures never count. Campaign defeat conditions may query this native from an ordinary unit-death trigger, so the result is derived from all surviving structures rather than from the triggering unit. `GetPlayerUnitCount` and `GetPlayerTypedUnitCount` remain separate coverage work.
 
+## Time Of Day Game State
+
+`GAME_STATE_TIME_OF_DAY` is the sole `fgamestate` declared by the bundled `common.txt`. `SetFloatGameState` and
+`GetFloatGameState` now round-trip through the server-owned Warcraft daily cycle, and `SuspendTimeOfDay` freezes only ordinary clock
+progression. Explicit sets are deferred until the next time-of-day update and still apply while suspended.
+
+`TriggerRegisterGameStateEvent` is **partial**: registrations for `GAME_STATE_TIME_OF_DAY` store the `limitop` and threshold and fire
+once on a false-to-true transition; integer game-state limit events are not implemented yet. `SetTimeOfDayScale` and
+`GetTimeOfDayScale` remain placeholders because the inspected Warsmash source does not provide a behavior to mirror. See
+[time-of-day.md](time-of-day.md) for ownership, `Misc` fields, gameplay consumers, and the intentionally deferred HUD/DNC work.
+
 ## Trigger Context Contract
 
 Event response natives such as `GetTriggerPlayer`, `GetTriggerUnit`,

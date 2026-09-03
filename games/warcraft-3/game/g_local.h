@@ -234,6 +234,19 @@ typedef enum {
     MOVETYPE_BOUNCE
 } MOVETYPE;
 
+enum {
+    WC3_GAME_STATE_TIME_OF_DAY = 2,
+};
+
+typedef enum {
+    WC3_LIMITOP_LESS_THAN = 0,
+    WC3_LIMITOP_LESS_THAN_OR_EQUAL = 1,
+    WC3_LIMITOP_EQUAL = 2,
+    WC3_LIMITOP_GREATER_THAN_OR_EQUAL = 3,
+    WC3_LIMITOP_GREATER_THAN = 4,
+    WC3_LIMITOP_NOT_EQUAL = 5,
+} WC3LIMITOP;
+
 typedef enum {
     EVENT_GAME_VICTORY = 0,
     EVENT_GAME_END_LEVEL = 1,
@@ -987,6 +1000,9 @@ struct gevent_s {
     LPGTIMER timer;
     REGION region;
     FLOAT range;
+    DWORD state;
+    DWORD limitop;
+    FLOAT limitval;
 };
 
 typedef struct {
@@ -1125,6 +1141,13 @@ typedef struct {
     char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
 } bot_t;
 
+typedef struct {
+    FLOAT elapsed;
+    FLOAT pending;
+    BOOL pending_valid;
+    BOOL suspended;
+} TIMEOFDAY;
+
 struct level_locals {
     LPJASS vm;
     ggroup_t *groups[MAX_JASS_GROUPS];
@@ -1164,6 +1187,7 @@ struct level_locals {
     BOOL script_paused;
     BOOL quest_paused;
     BOOL modal_paused;
+    TIMEOFDAY timeofday;
     BOOL started;
     BOOL scriptsStarted;
 };
@@ -1258,6 +1282,10 @@ void G_FogModifierStart(LPFOGMODIFIER mod);
 void G_FogModifierStop(LPFOGMODIFIER mod);
 DWORD G_FowWorldToCellX(FLOAT x);
 DWORD G_FowWorldToCellY(FLOAT y);
+FLOAT G_GetTimeOfDay(void);
+void G_SetTimeOfDay(FLOAT value);
+void G_SuspendTimeOfDay(BOOL suspended);
+void G_UpdateTimeOfDay(void);
 BOOL G_IsNight(void);
 
 // g_spawn.c
