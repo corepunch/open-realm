@@ -1,8 +1,6 @@
 #include "server.h"
 #include "common/net_platform.h"
 
-extern void CL_Connect(LPCSTR host, unsigned short port);
-
 static BOOL SV_EnsureServerPort(void) {
     NET_ConfigSource(NS_SERVER, true);
     if (!NET_IsConfigured(NS_SERVER)) {
@@ -14,6 +12,7 @@ static BOOL SV_EnsureServerPort(void) {
 
 #ifndef TOOL_COMMON_NO_MPQ
 static PATHSTR pending_load;
+static PATHSTR pending_map;
 static BOOL pending_load_active;
 
 static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
@@ -44,28 +43,26 @@ static void SV_SaveGame_f(void) {
     if (!ge || !ge->SaveGame || !ge->SaveGame(path)) fprintf(stderr, "save: failed to write %s\n", path);
 }
 
-static void SV_LoadGame_f(void) {
+BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
     PATHSTR path;
-    PATHSTR map;
-
-    if (Cmd_Argc() != 2) { fprintf(stderr, "usage: load <name>\n"); return; }
-    if (!SV_SavePath(Cmd_Argv(1), path)) return;
-    if (!SV_GetSaveMap(Cmd_Argv(1), map, sizeof(map))) {
-        /* Legacy v8 saves remain loadable only from the map already in memory. */
-        strlcpy(map, sv.configstrings[CS_WORLD], sizeof(map));
-    }
-    CL_BeginLoadingMap(map);
+    if (!name || !map || !*map || !SV_SavePath(name, path)) return false;
     SV_Map(map);
-    if (!Cvar_Integer("dedicated", 0)) CL_Connect("localhost", Sys_GamePort());
+    if (sv.state != ss_game) return false;
     strlcpy(pending_load, path, sizeof(pending_load));
+    strlcpy(pending_map, map, sizeof(pending_map));
     pending_load_active = true;
+    return true;
 }
 
 void SV_LoadPendingGame(void) {
     if (!pending_load_active || sv.state != ss_game) return;
     pending_load_active = false;
-    if (ge && ge->PrepareLoadGame) ge->PrepareLoadGame();
-    if (!ge || !ge->LoadGame || !ge->LoadGame(pending_load)) fprintf(stderr, "load: failed to read %s\n", pending_load);
+    if (!ge || !ge->LoadGame || !ge->LoadGame(pending_load)) {
+        fprintf(stderr, "load: failed to read %s; restoring map baseline\n", pending_load);
+        /* Quake II treats a bad save as fatal. The host keeps running after game errors,
+         * so rebuild the map here to discard any record-level partial mutation. */
+        SV_Map(pending_map);
+    }
 }
 #else
 void SV_LoadPendingGame(void) { }
@@ -364,7 +361,6 @@ void SV_Init(void) {
     pending_load_active = false;
     Cmd_AddCommand("lobby_start", SV_StartLobby_f);
     Cmd_AddCommand("save", SV_SaveGame_f);
-    Cmd_AddCommand("load", SV_LoadGame_f);
     SV_LobbyAddCommands();
 #endif
 }

@@ -131,7 +131,6 @@ struct game_export {
     bool (*LoadMap)(LPCSTR mapFilename);
     BOOL (*SaveGame)(LPCSTR filename);
     BOOL (*LoadGame)(LPCSTR filename);
-    void (*PrepareLoadGame)(void);
     BOOL (*GetSaveMap)(LPCSTR filename, LPSTR map, DWORD map_size);
     BOX2 (*GetWorldBounds)(void);
     

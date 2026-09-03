@@ -123,6 +123,7 @@ static void reset_test_state(void) {
         g_edicts[i].client = &game.clients[i];
     }
     memset(&level, 0, sizeof(level));
+    strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));
     level.mapinfo = &test_mapinfo;
     gi.GetTime = test_get_time;
