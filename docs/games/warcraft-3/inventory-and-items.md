@@ -70,6 +70,41 @@ When every slot exposed by the inventory ability is occupied, the transition
 does not modify either entity. The world item stays linked and visible, and
 contextual pickup displays an `Inventory is full.` message to the owning player.
 
+## Active Item Use
+
+The focused-unit `inventory <slot>` command resolves the carried item's
+`abilList` from the normalized `ItemData_t` row in authored order and dispatches
+the first registered item ability it can handle. This matters because
+`abilList` is an `ItemData.slk` field; `FindConfigValue` searches TXT/INI
+configuration and therefore cannot be the primary lookup for a real carried
+item. A TXT/INI lookup remains only as a fallback when the typed field is
+absent. Immediate effects use `ability_t.item_use`, which returns
+true only when the gameplay effect actually applies. Current handlers cover the
+existing heal, mana, permanent-life/stat, experience/level, and figurine item
+abilities, plus stock item-defense AOE (`AIda`, used by Scroll of Protection).
+Their successful presentation uses the same ability `TargetArt`
+resolver documented in [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md).
+
+For `AIda`, OpenRealm reads the authored defense amount, area, normal/hero
+duration, target mask and BuffID. Eligible friendly units receive the timed
+`Bdef` status. Combat armor calculation and the displayed armor value both
+include the status bonus while it is live, so normal status expiration removes
+the bonus automatically.
+
+For a synchronous successful use, the server publishes
+`EVENT_PLAYER_UNIT_USE_ITEM` and `EVENT_UNIT_USE_ITEM` and then calls
+`G_ConsumeItemCharge`. Failed uses (for example, healing an already full-health
+unit) publish neither event and consume no charge. Every successful synchronous charged-item use decrements a positive runtime
+charge count. If that reaches zero on a perishable item, `G_RemoveItem` destroys
+it, clearing the slot and reversing passive item-stat hooks. A non-perishable
+item also decrements to zero but remains present.
+
+Existing item abilities that enter an asynchronous targeting command through
+`ability_t.cmd` are still dispatched, but the click handler cannot yet know
+whether that later target operation succeeds. It therefore does not consume
+their charge or publish a success event at click time. That completion path is
+explicitly future work rather than speculative charge consumption.
+
 ## Inventory Presentation
 
 The HUD has no item-specific branches. `G_GetInventory` walks only the selected
@@ -91,9 +126,10 @@ state, so no second item-UI cache is maintained.
 
 The runtime charge count is copied into `gameInventoryItem_t`. `WriteInventory`
 draws a bottom-right number overlay whenever `charges > 0`, including a
-single-charge item. A zero-charge item therefore keeps its icon but has no
-number overlay. Cooldown/disabled-state presentation and charge consumption are
-separate active-item work.
+single-charge item. A zero-charge non-perishable item therefore keeps its icon
+but has no number overlay. Successful synchronous use of a perishable item now
+consumes its runtime charge and removes the item at zero; cooldown/disabled-state
+presentation remains separate active-item work.
 
 For Human02 this means a carried Scroll of Protection is handled generically:
 rawcode `spro` resolves its item UI data, appears in the first free slot, and
@@ -200,11 +236,15 @@ flight.
 
 ## Phase Boundary
 
-This slice includes generic item icon/tooltips, ability-defined capacity, and
-runtime/displayed charges. It deliberately does not consume charges, destroy a
-perishable item at zero, implement automatic use, active target modes, item-use
-cooldowns/disabled icons, slot swapping, giving, or death-drop rules. Existing
-passive-effect hooks remain attached to inventory entry and exit.
+This slice includes generic item icon/tooltips, ability-defined capacity,
+runtime/displayed charges, and successful synchronous use of the existing
+immediate item ability handlers. Perishable synchronous uses consume one charge
+and destroy the item at zero. Existing passive-effect hooks remain attached to
+inventory entry and exit.
+
+Still missing are automatic `powerup` acquisition/use, asynchronous targeted
+item completion and its charge/event semantics, `cooldownID`/`ignoreCD` item
+cooldowns and disabled icons, slot swapping, giving, and death-drop rules.
 
 The implementation is derived from observable behavior and Warcraft III data
 formats described by the clean-room specification. It does not depend on
@@ -218,8 +258,9 @@ capacity (including reduced, zero, above-storage-limit, and implicit ROC Hero
 first-empty-slot insertion,
 full-inventory failure, pickup range and revalidation, drop identity, renderer
 visibility flags, carried-item removal, connection-state refresh gating, charge
-initialization/preservation, carried-charge refresh/no-op behavior, JASS charge
-access, and generic `spro` Art/Tip/Ubertip/charge presentation.
+initialization/preservation, carried-charge refresh/no-op behavior, perishable
+use decrement/removal, non-perishable decrement-without-removal behavior, JASS charge access,
+and generic `spro` Art/Tip/Ubertip/charge presentation.
 They also cover mixed-selection Smart pickup where a non-inventory unit is the
 first selected entity and a later ROC Hero must still receive the item order.
 Minimal `AbilityData.slk`, `UnitAbilities.slk`, `ItemData.slk`, `ItemFunc.txt`,

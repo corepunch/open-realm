@@ -625,19 +625,36 @@ CLIENTCOMMAND(Inventory) {
         return;
     }
 
-    G_PublishEvent(ent, EVENT_PLAYER_UNIT_USE_ITEM);
-    G_PublishEvent(ent, EVENT_UNIT_USE_ITEM);
-
-    abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
+    /* Item ability lists are authored in ItemData.slk. Resolve through the
+     * typed row first; FindConfigValue() is only a compatibility fallback in
+     * G_ItemAbilityList() because it searches TXT/INI tables rather than the
+     * ItemData SLK. */
+    abilities = G_ItemAbilityList(item);
     if (abilities && *abilities) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
             ability_t const *ability = FindAbilityForCommand(ability_name);
-            if (ability && ability->cmd) {
-                client->menu.ability_code = *((DWORD const *)ability_name);
+            BOOL succeeded = false;
+
+            if (!ability) continue;
+            client->menu.ability_code = *((DWORD const *)ability_name);
+            if (ability->item_use) {
+                succeeded = ability->item_use(clent);
+                handled = true;
+            } else if (ability->cmd) {
+                /* Preserve existing support for item-authored command abilities
+                 * that enter an asynchronous targeting mode. Their eventual
+                 * success is not known here, so charge consumption remains the
+                 * responsibility of a future targeted-item completion path. */
                 ability->cmd(clent);
                 handled = true;
-                break;
             }
+
+            if (succeeded) {
+                G_PublishEvent(ent, EVENT_PLAYER_UNIT_USE_ITEM);
+                G_PublishEvent(ent, EVENT_UNIT_USE_ITEM);
+                G_ConsumeItemCharge(item);
+            }
+            if (handled) break;
         }
     }
 

@@ -15,8 +15,8 @@ native behavior, commonly followed by `PauseTimer` when resetting getter state.
 ## Baseline
 
 The registry currently contains 917 callbacks. The last conservative source
-audit snapshot classified 487 as implemented and 349 as clear placeholders
-across 836 callbacks (58.3% overall at that snapshot). Newer registrations,
+audit snapshot now classifies 495 as implemented and 341 as clear placeholders
+across 836 callbacks (59.2% overall at that snapshot). Newer registrations,
 including `GetUnitAbilityLevel`, are not folded into the implementation split
 below yet. This count treats a callback as a placeholder only when it ignores its
 arguments and unconditionally returns no value, zero, false, or a null handle.
@@ -37,7 +37,7 @@ raw `return 0` counts are not meaningful.
 | `api_quest.h` | 24 | 22 | 2 |
 | `api_destructable.h` | 22 | 17 | 5 |
 | `api_item.h` | 16 | 10 | 6 |
-| `api_effect.h` | 13 | 2 | 11 |
+| `api_effect.h` | 13 | 10 | 3 |
 | `api_cinefilter.h` | 10 | 10 | 0 |
 | `api_test.h` | 1 | 1 | 0 |
 
@@ -48,7 +48,14 @@ to the registry or a placeholder begins consuming authoritative state.
 
 Coverage is not conformance. Several callbacks consume state but still violate
 their JASS contract and therefore need a `partial` status in any future generated
-ledger. Known examples include:
+ledger. The effect module now has functional independent handles for
+`AddSpecialEffect*`, `AddSpellEffect*`, and `DestroyEffect`; its three weather
+effect callbacks remain placeholders. Target effects currently implement only
+the `overhead` attachment specially, and `LIGHTNING` spell effects remain
+unsupported, so those paths are partial rather than proof of full retail
+conformance. See [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md).
+
+Known examples include:
 
 - `GroupAddUnit` and `GroupRemoveUnit` are declared to return `boolean`, but the
   current callbacks push no return value.

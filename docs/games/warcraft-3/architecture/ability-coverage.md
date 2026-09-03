@@ -59,7 +59,8 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `AHwe`, `AOsf` | `s_summon.c` | Partial no-target summon; reads unit id/count/duration, spawns owned timed-life units. |
 | `AHbz`, `AUcs`, `ANcl` | `s_area_spell.c` | Partial point/channel spell family; Blizzard ticks area damage, Carrion Swarm applies a simple point blast, Channel opens cancel mode. |
 | `ANch`, `AIco`, `Aeat`, `Ambt`, `Aroo` | `s_utility_abilities.c` | Partial utility behaviors: Charm ownership transfer, Eat Tree heal/remove, Moon Well transfer, Root toggle. |
-| `AIhe`, `AIma`, `AImi` | `s_item.c` | Partial item use for heal, mana restore, and permanent life gain; item consumption is not yet wired. |
+| `AIhe`, `AIma`, `AImi` | `s_item.c` | Synchronous item use for heal, mana restore, and permanent life gain; successful charged uses decrement charges and zero-charge perishables are removed. |
+| `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 
 `a_train` exists in `s_train.c`, but training is currently handled by the
@@ -107,8 +108,9 @@ generic `Button` command path rather than by a registered ability code.
 | `Aneu` | Neutral Building | TODO | Needs neutral interaction and command card behavior. |
 | `Aall` | Shop Sharing | TODO | Depends on shop/neutral building systems. |
 | `Acoi` | Couple Instant | TODO | Test/special ability; low priority unless map data requires it. |
-| `AIhe` | Item Heal | Partial | Inventory alias dispatch and selected-unit heal exist. Needs item charge/consume rules. |
-| `AIma` | Item Mana Regain | Partial | Inventory alias dispatch and selected-unit mana restore exist. Needs item charge/consume rules. |
+| `AIhe` | Item Heal | Partial | Inventory dispatch, selected-unit heal, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |
+| `AIma` | Item Mana Regain | Partial | Inventory dispatch, selected-unit mana restore, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |
+| `AIda` | Item Defense AOE | Partial | Authored area/duration/target mask applies `Bdef`; live status contributes its authored armor bonus to combat/HUD. Persistent buff-world-art ownership and shared item cooldown groups remain. |
 | `AIat` | Item Attack Bonus | TODO | Needs item stat modifier system. |
 | `AIab` | Item Stat Bonus | TODO | Needs hero stat modifier system. |
 | `AIim` | Permanent Intelligence Gain | TODO | Needs permanent hero stat updates. |
@@ -119,7 +121,7 @@ generic `Button` command path rather than by a registered ability code.
 | `AIml` | Item Life Bonus | TODO | Needs max-health modifier system. |
 | `AImm` | Item Mana Bonus | TODO | Needs max-mana modifier system. |
 | `AIfs` | Figurine Summon | TODO | Needs item summon behavior. |
-| `AImi` | Permanent Life Gain | Partial | Selected-unit max-health and current-health gain exist. Needs item charge/consume rules. |
+| `AImi` | Permanent Life Gain | Partial | Selected-unit max-health/current-health gain plus synchronous charge/consume rules exist. Shared item cooldown groups remain. |
 | `AIem` | Experience Gain | TODO | Needs hero XP/level flow. |
 | `AIlm` | Level Gain | TODO | Needs hero level-up flow. |
 | `Acar` | Cargo Hold | TODO | Needs cargo slots and load/unload state. |

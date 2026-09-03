@@ -1,11 +1,24 @@
 ID;PWXL;N;E
-B;X4;Y2;D0
+B;X8;Y3;D0
 C;X1;Y1;K"alias"
 C;X2;K"Buffart"
 C;X3;K"Bufftip"
 C;X4;K"Buffubertip"
+C;X5;K"TargetArt"
+C;X6;K"SpecialArt"
+C;X7;K"EffectArt"
+C;X8;K"Missileart"
 C;X1;Y2;K"Biml"
 C;X2;K"ReplaceableTextures\CommandButtons\BTNImmolationOn.blp"
 C;X3;K"Immolation"
 C;X4;K"Deals damage to nearby enemy units."
+C;X5;K"TestUI\Models\anim_pulse.mdx"
+C;X6;K"TestUI\Models\panel_sprite.mdx"
+C;X7;K"TestUI\Models\quad_sprite.mdx"
+C;X8;K"TestUI\Models\ui_panel.mdx"
+C;X1;Y3;K"Bdef"
+C;X2;K"TestUI\Textures\solid_white.blp"
+C;X3;K"Scroll of Protection"
+C;X4;K"Increases armor temporarily."
+C;X5;K"TestUI\Models\anim_pulse.mdx"
 E

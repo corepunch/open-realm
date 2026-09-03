@@ -177,6 +177,21 @@ TEST(wc3_spell, spell_info_attached_to_ability) {
 	T_EQ((int)abil->spell->target_type, (int)SPELL_TARGET_UNIT);
 }
 
+TEST(wc3_spell, holy_light_rawcode_lookup_is_nul_safe) {
+	DWORD code = MAKEFOURCC('A','H','h','b');
+	spell_info_t const *spell = S_SpellInfoForCode(code);
+	ability_t const *abil = FindAbilityForCommand(GetClassName(code));
+
+	/* Runtime spell dispatch starts from a DWORD rawcode. This specifically
+	 * guards against treating &code as a C string: that only worked when the
+	 * unrelated byte after the four rawcode bytes happened to be zero. */
+	T_NOT_NULL(abil);
+	T_ASSERT(abil->cmd == spell_cmd);
+	T_NOT_NULL(spell);
+	T_EQ((int)spell->code, (int)code);
+	T_EQ((int)spell->target_type, (int)SPELL_TARGET_UNIT);
+}
+
 TEST(wc3_spell, blizzard_is_channel) {
 	ability_t const *abil = FindAbilityByClassname("AHbz");
 	T_NOT_NULL(abil);

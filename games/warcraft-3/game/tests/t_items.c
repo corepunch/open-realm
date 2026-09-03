@@ -574,6 +574,89 @@ TEST(wc3_items, carried_charge_change_refreshes_inventory_and_same_value_is_noop
     T_ASSERT(!inventory_refresh_saw_inventory_layer);
 }
 
+TEST(wc3_items, perishable_success_consumes_charge_and_removes_at_zero) {
+    ItemData_t perishable = { .perishable = true };
+    LPEDICT item;
+
+    setup_test_world();
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
+    item->ItemData = &perishable;
+    item->item.charges = 2;
+
+    G_ConsumeItemCharge(item);
+    T_ASSERT(item->inuse);
+    T_EQ(item->item.charges, 1);
+
+    G_ConsumeItemCharge(item);
+    T_ASSERT(!item->inuse);
+}
+
+TEST(wc3_items, nonperishable_use_decrements_charges_but_keeps_item_at_zero) {
+    ItemData_t reusable = { .perishable = false };
+    LPEDICT item;
+
+    setup_test_world();
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
+    item->ItemData = &reusable;
+    item->item.charges = 2;
+
+    G_ConsumeItemCharge(item);
+    T_ASSERT(item->inuse);
+    T_EQ(item->item.charges, 1);
+
+    G_ConsumeItemCharge(item);
+    T_ASSERT(item->inuse);
+    T_EQ(item->item.charges, 0);
+}
+
+TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent;
+    LPGAMECLIENT client;
+    LPEDICT unit;
+    LPEDICT item;
+    FLOAT base_armor;
+    BOOL found_buff = false;
+    LPCSTR command[] = { "inventory", "0" };
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    client = clent->client;
+    gi.Write = item_noop_write;
+    gi.unicast = item_noop_unicast;
+
+    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    unit->s.player = client->ps.number;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    unit->armor_value = 3.0f;
+    base_armor = G_UnitArmorValue(unit);
+    G_SelectEntity(client, unit);
+
+    item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 0);
+    SP_SpawnItem(item);
+    gi.LinkEntity(item);
+    T_STREQ(G_ItemAbilityList(item), "AIda");
+    T_ASSERT(G_AddItemToSlot(unit, item, 0));
+
+    G_ClientCommand(clent, 2, command);
+
+    T_FEQ(G_UnitArmorValue(unit), base_armor + 2.0f, 0.01f);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        if (unit->abilstatus[i].level && unit->abilstatus[i].code == MAKEFOURCC('B','d','e','f')) {
+            found_buff = true;
+            break;
+        }
+    }
+    T_ASSERT(found_buff);
+    T_NULL(unit->inventory[0]);
+    T_ASSERT(!item->inuse);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
 TEST(wc3_items, drop_preserves_item_charges) {
     setup_test_world();
     LPEDICT unit = make_item_test_inventory_unit(128, 256);

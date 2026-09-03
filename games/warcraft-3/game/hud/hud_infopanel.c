@@ -172,7 +172,7 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     UI_SetHidden(hud.unit.AttackLabel2, !has_attack2);
     UI_SetHidden(hud.unit.AttackValue2, !has_attack2);
     UI_SetText(hud.unit.DefenseLabel, "Armor:");
-    UI_SetText(hud.unit.DefenseValue, "%d", (int)(ent->armor_value + 0.5f));
+    UI_SetText(hud.unit.DefenseValue, "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
     UI_SetText(hud.unit.SpeedTitle, "Speed:");
     UI_SetText(hud.unit.SpeedValue, "%d", (int)(ent->unitinfo.MoveSpeed + 0.5f));
     UI_SetText(hud.unit.RangeTitle1, "Range:");
@@ -536,7 +536,7 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
 
     SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop_2, "Armor", ent->UnitBalance->defenseType,
                           armor_upgrade != 0);
-    UI_SetText(hud.simple.InfoPanelIconValue_2, "%d", (int)(ent->armor_value + 0.5f));
+    UI_SetText(hud.simple.InfoPanelIconValue_2, "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
     SetUpgradeLevel(hud.simple.InfoPanelIconLevel_2, armor_upgrade, ent);
     UI_WriteFrame(&hud.armor);
     UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconArmor, &hud.armor);

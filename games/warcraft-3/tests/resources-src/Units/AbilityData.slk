@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X9;Y8;D0
+B;X14;Y9;D0
 C;X1;Y1;K"alias"
 C;X2;K"code"
 C;X3;K"Data11"
@@ -9,6 +9,11 @@ C;X6;K"Data13"
 C;X7;K"levels"
 C;X8;K"reqLevel"
 C;X9;K"levelSkip"
+C;X10;K"targs"
+C;X11;K"Dur1"
+C;X12;K"HeroDur1"
+C;X13;K"Area1"
+C;X14;K"BuffID1"
 C;X1;Y2;K"AInv"
 C;X2;K"AInv"
 C;X3;K"6"
@@ -39,4 +44,12 @@ C;X2;K"AHhb"
 C;X7;K3
 C;X8;K1
 C;X9;K2
+C;X1;Y9;K"AIda"
+C;X2;K"AIda"
+C;X4;K"2"
+C;X10;K"air,ground,friend,self"
+C;X11;K"30"
+C;X12;K"30"
+C;X13;K"600"
+C;X14;K"Bdef"
 E
