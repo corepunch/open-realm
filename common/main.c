@@ -365,13 +365,15 @@ int main(int argc, LPSTR argv[]) {
      * without a map.  The game module is a link dependency, so its TEST()
      * constructors have already registered by the time we get here. */
     bool run_tests = false;
+    bool has_load = false;
     for (int i = 1; i < COM_Argc(); i++) {
         if (!strcmp(COM_Argv(i), "+test")) { run_tests = true; break; }
+        if (!strcmp(COM_Argv(i), "+load")) has_load = true;
     }
 
     if (dedicated) {
         // Dedicated server mode: no client stack, no SDL window.
-        if (!has_map && !run_tests) {
+        if (!has_map && !run_tests && !has_load) {
             fprintf(stderr, "Dedicated server requires +map <map>\n");
             return 1;
         }
@@ -393,6 +395,9 @@ int main(int argc, LPSTR argv[]) {
             }
             /* Fire the queued `test` command; Com_Test_f exits with the
              * failure count once the registry has run. */
+            Cbuf_AddLateCommands();
+            Cbuf_Execute();
+        } else {
             Cbuf_AddLateCommands();
             Cbuf_Execute();
         }

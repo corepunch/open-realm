@@ -135,6 +135,8 @@ void Cmd_ForwardToServer(LPCSTR text) {
 void CL_SetGameplayBindings(void) {
 }
 
+void CL_Connect(LPCSTR host, unsigned short port) { (void)host; (void)port; }
+
 void CL_BeginLoadingMap(LPCSTR mapName) {
     (void)mapName;
 }
@@ -145,6 +147,9 @@ void CL_Shutdown(void) {
 void SV_Map(LPCSTR pFilename) {
     (void)pFilename;
 }
+
+BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) { (void)name; (void)map; (void)map_size; return false; }
+BOOL SV_LoadGame(LPCSTR name, LPCSTR map) { (void)name; (void)map; return false; }
 
 void SV_Shutdown(void) {
 }

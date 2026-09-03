@@ -1602,6 +1602,18 @@ static void Com_Map_f(void) {
     SV_Map(map);
 }
 
+static void Com_LoadGame_f(void) {
+    PATHSTR map;
+    if (Cmd_Argc() != 2) { fprintf(stderr, "usage: load <name>\n"); return; }
+    if (!SV_GetSaveMap(Cmd_Argv(1), map, sizeof(map))) return;
+    if (!Cvar_Integer("dedicated", 0)) {
+        CL_SetGameplayBindings();
+        CL_BeginLoadingMap(map);
+    }
+    if (SV_LoadGame(Cmd_Argv(1), map) && !Cvar_Integer("dedicated", 0))
+        CL_Connect("localhost", (unsigned short)Cvar_Integer("game_port", PORT_SERVER));
+}
+
 /* Run the in-engine test registry and exit with the failure count.  Tests are
  * compiled into the game module only when it is built with -DBZ_TESTS; in a
  * production build the registry is empty and this reports zero tests. */
@@ -1622,6 +1634,7 @@ void Com_Init(int argc, LPCSTR *argv) {
     ));
     Key_Init();
     Cmd_AddCommand("map", Com_Map_f);
+    Cmd_AddCommand("load", Com_LoadGame_f);
     Cmd_AddCommand("maps", Com_Maps_f);
     Cmd_AddCommand("path", Com_Path_f);
     Cmd_AddCommand("dir", Com_Dir_f);

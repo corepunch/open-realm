@@ -32,6 +32,8 @@ struct edict_s *g_edicts;
 
 extern JASSMODULE jass_funcs[];
 
+static void G_StartScripts(void);
+
 static bool G_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
         return false;
@@ -44,6 +46,8 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     }
     G_SpawnEntities();
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
+    G_StartScripts();
+    level.started = true;
     return true;
 }
 
@@ -396,8 +400,6 @@ static void G_StartScripts(void) {
 
     G_SetDestructableScriptBinding(false);
 }
-
-static void G_PrepareLoadGame(void) { level.started = true; G_StartScripts(); }
 
 /* One complete server-frame simulation step.
  * Skipped until the first map has been started; on the very first frame after
@@ -764,7 +766,6 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.LoadMap = G_LoadMap;
     globals.SaveGame = WriteGame;
     globals.LoadGame = ReadGame;
-    globals.PrepareLoadGame = G_PrepareLoadGame;
     globals.GetSaveMap = G_GetSaveMap;
     globals.GetWorldBounds = CM_GetWorldBounds;
     globals.edict_size = sizeof(struct edict_s);

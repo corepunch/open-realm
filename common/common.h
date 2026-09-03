@@ -232,6 +232,8 @@ void SV_Frame(DWORD msec);
 void SV_Shutdown(void);
 void SV_StartLobby(LPCSTR pFilename);
 void SV_Map(LPCSTR pFilename);
+BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size);
+BOOL SV_LoadGame(LPCSTR name, LPCSTR map);
 #ifdef WOW
 DWORD SV_PlayerCreateMap(void);
 #endif

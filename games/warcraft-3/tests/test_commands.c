@@ -11,9 +11,15 @@
 
 static PATHSTR last_loading_map;
 static PATHSTR last_sv_map;
+static PATHSTR last_load_name;
+static PATHSTR last_load_map;
+static PATHSTR last_connect_host;
 static char last_forwarded[1024];
 static bool command_tests_initialized;
 static bool late_command_called;
+static bool save_map_readable;
+static bool load_game_ok;
+static unsigned short last_connect_port;
 
 extern BOOL cl_screenshot_pending;
 extern DWORD cl_screenshot_delay;
@@ -34,6 +40,11 @@ void Cmd_ForwardToServer(LPCSTR text) {
 void CL_SetGameplayBindings(void) {
 }
 
+void CL_Connect(LPCSTR host, unsigned short port) {
+    snprintf(last_connect_host, sizeof(last_connect_host), "%s", host ? host : "");
+    last_connect_port = port;
+}
+
 void CL_BeginLoadingMap(LPCSTR mapName) {
     snprintf(last_loading_map, sizeof(last_loading_map), "%s", mapName ? mapName : "");
 }
@@ -43,6 +54,19 @@ void CL_Shutdown(void) {
 
 void SV_Map(LPCSTR pFilename) {
     snprintf(last_sv_map, sizeof(last_sv_map), "%s", pFilename ? pFilename : "");
+}
+
+BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
+    (void)name;
+    if (!save_map_readable) return false;
+    strlcpy(map, "Maps\\Campaign\\Human02.w3m", map_size);
+    return true;
+}
+
+BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
+    snprintf(last_load_name, sizeof(last_load_name), "%s", name ? name : "");
+    snprintf(last_load_map, sizeof(last_load_map), "%s", map ? map : "");
+    return load_game_ok;
 }
 
 void SV_Shutdown(void) {
@@ -58,8 +82,13 @@ void PF_Sleep(DWORD msec) {
 static void reset_map_handoff(void) {
     last_loading_map[0] = '\0';
     last_sv_map[0] = '\0';
+    last_load_name[0] = '\0';
+    last_load_map[0] = '\0';
+    last_connect_host[0] = '\0';
     last_forwarded[0] = '\0';
     late_command_called = false;
+    save_map_readable = load_game_ok = true;
+    last_connect_port = 0;
 }
 
 static void Test_LateCommand_f(void) {
@@ -83,6 +112,7 @@ TEST(commands, command_registration) {
     setup_command_tests();
 
     T_ASSERT(Cmd_Exists("cmdlist"));
+    T_ASSERT(Cmd_Exists("load"));
     T_ASSERT(Cmd_Exists("map"));
     T_ASSERT(Cmd_Exists("maps"));
     T_ASSERT(Cmd_Exists("dir"));
@@ -363,6 +393,32 @@ TEST(commands, map_command_rejects_ambiguous_short_name) {
 
     T_STREQ(last_loading_map, "");
     T_STREQ(last_sv_map, "");
+}
+
+TEST(commands, load_command_reloads_saved_map_then_connects) {
+    setup_command_tests();
+    reset_map_handoff();
+    Cvar_Set("dedicated", "0"); Cvar_Set("game_port", "28015");
+
+    Cmd_ExecuteString("load quick");
+
+    T_STREQ(last_loading_map, "Maps\\Campaign\\Human02.w3m");
+    T_STREQ(last_load_name, "quick");
+    T_STREQ(last_load_map, "Maps\\Campaign\\Human02.w3m");
+    T_STREQ(last_connect_host, "localhost");
+    T_EQ(last_connect_port, 28015);
+}
+
+TEST(commands, load_command_stops_when_save_map_is_unreadable) {
+    setup_command_tests();
+    reset_map_handoff();
+    save_map_readable = false;
+
+    Cmd_ExecuteString("load broken");
+
+    T_STREQ(last_loading_map, "");
+    T_STREQ(last_load_name, "");
+    T_STREQ(last_connect_host, "");
 }
 TEST(video_modes, invalid_index_uses_safe_default) {
     T_EQ(video_mode_get(-1)->width, (DWORD)640); T_EQ(video_mode_get(99)->height, (DWORD)480);
