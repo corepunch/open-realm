@@ -10,6 +10,8 @@ type widget           extends agent
 type unit             extends widget
 type destructable     extends widget
 type item             extends widget
+type effect           extends agent
+type effecttype       extends handle
 type player           extends agent
 type quest            extends handle
 type questitem        extends handle
@@ -78,6 +80,12 @@ native ConvertGameSpeed      takes integer i returns gamespeed
 native ConvertPlayerState    takes integer i returns playerstate
 native ConvertFogState       takes integer i returns fogstate
 native ConvertUnitType       takes integer i returns unittype
+native ConvertEffectType     takes integer i returns effecttype
+
+// Effect natives used by the independent-handle lifecycle regression.
+native AddSpecialEffect      takes string modelName, real x, real y returns effect
+native AddSpellEffectById    takes integer abilityId, effecttype t, real x, real y returns effect
+native DestroyEffect         takes effect whichEffect returns nothing
 native IsUnitType             takes unit whichUnit, unittype whichUnitType returns boolean
 native SetMapName            takes string name returns nothing
 native SetMapDescription     takes string description returns nothing
@@ -245,4 +253,5 @@ globals
     constant gamespeed MAP_SPEED_FAST = ConvertGameSpeed(3)
     constant playerstate PLAYER_STATE_RESOURCE_GOLD = ConvertPlayerState(1)
     constant unittype UNIT_TYPE_STRUCTURE = ConvertUnitType(2)
+    constant effecttype EFFECT_TYPE_TARGET = ConvertEffectType(1)
 endglobals
