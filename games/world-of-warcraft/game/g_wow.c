@@ -1359,7 +1359,7 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, FLOAT range) {
         return NULL;
     }
 
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
+    for (DWORD i = globals.max_clients; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
         LPEDICT candidate = &wow_edicts[i];
         VECTOR2 delta;
         FLOAT dist2;
