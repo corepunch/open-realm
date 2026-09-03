@@ -129,6 +129,9 @@ See [build/platform contracts](../../build-and-renderer-platforms.md) for increm
 **Cinematic HUD layers hidden:**
 `CLIENT_UI_CINEMATIC` hides portrait, console, command bar, info panel, inventory via `UI_LayoutShouldSkipLayoutLayer` in `client/cl_unit_layout.c`.
 
+**Cinematic chrome/text visible but talking-head portraits missing:**
+Warcraft unit portraits use a companion model (`Foo_Portrait.mdx`) stored in `cl.portraits[]` beside the world model in `cl.models[]`. Initial `CS_MODELS` configstrings must remain registration data until `CL_PrepRefresh()`, because that pass loads both files. Do not eagerly populate `cl.models[]` from `CL_ParseConfigString()` before `cl.refresh_prepped`: `CL_PrepRefresh()` skips non-null model slots, which otherwise prevents every companion portrait from loading. Once refresh is prepared, a dynamic model configstring must release and reload both the world-model and portrait-model slots together. `SetCinematicScene` transports the normal model configstring index; `FT_PORTRAIT` prefers `cl.portraits[index]` on the client.
+
 **Fast-forward ends at the last cinematic camera position:**
 Log server `playerState.origin`, client camera prediction, `client_ui_state`, and `no_control` together. If gameplay input
 becomes active before the final camera native, edge scrolling can send `clc_camera_position` during the accelerated script

@@ -207,15 +207,38 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
     if (index > CS_MODELS && index < CS_MODELS + MAX_MODELS) {
         DWORD model = index - CS_MODELS;
 
-        /* Game-selected presentation models can be registered after
-         * CL_PrepRefresh(). Keep the configstring/model table coherent just as
-         * late HUD images and sounds are kept coherent below. */
-        if (cl.models[model]) {
-            re.ReleaseModel((LPMODEL)cl.models[model]);
-            cl.models[model] = NULL;
+        /* Initial model configstrings arrive before CL_PrepRefresh(), which
+         * loads both the world model and Warcraft's optional *_Portrait model.
+         * Do not pre-populate cl.models[] here or CL_PrepRefresh() will skip the
+         * slot and the talking-head portrait will never be registered.  After
+         * refresh, however, model configstrings are genuinely dynamic and must
+         * refresh both caches together. */
+        if (cl.refresh_prepped) {
+            if (cl.models[model]) {
+                re.ReleaseModel((LPMODEL)cl.models[model]);
+                cl.models[model] = NULL;
+            }
+            if (cl.portraits[model]) {
+                re.ReleaseModel((LPMODEL)cl.portraits[model]);
+                cl.portraits[model] = NULL;
+            }
+            if (cl.configstrings[index][0]) {
+                LPCSTR filename = cl.configstrings[index];
+                PATHSTR portrait = { 0 };
+                LPCSTR ext = strstr(filename, ".m");
+                if (ext) {
+                    size_t base_len = (size_t)(ext - filename);
+                    if (base_len >= sizeof(portrait))
+                        base_len = sizeof(portrait) - 1;
+                    memcpy(portrait, filename, base_len);
+                    portrait[base_len] = '\0';
+                    snprintf(portrait + base_len, sizeof(portrait) - base_len, "_Portrait%s", ext);
+                }
+                cl.models[model] = re.LoadModel(filename);
+                if (portrait[0] && FS_FileExists(portrait))
+                    cl.portraits[model] = re.LoadModel(portrait);
+            }
         }
-        if (cl.configstrings[index][0])
-            cl.models[model] = re.LoadModel(cl.configstrings[index]);
     }
     if (index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) {
         DWORD pic = index - CS_IMAGES;
