@@ -135,6 +135,8 @@ VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
 void V_RenderView(void);
 void V_Shutdown(void);
 void CL_PrepRefresh(void);
+void CL_RegisterConfigString(DWORD index);
+void CL_UpdateConfigString(DWORD index, LPCSTR olds);
 void CL_RestartRefresh(void);
 // cl_parse.c
 void CL_ParseServerMessage(LPSIZEBUF msg);

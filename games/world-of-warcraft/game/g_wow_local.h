@@ -199,7 +199,6 @@ LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);
 #define WOW_CREATURE_DISPLAY_KOBOLD 163 // Kobold Vermin; kobold family
 #define WOW_CREATURE_DISPLAY_MURLOC 188 // Murloc; coastal murloc variant
 
-#define WOW_MAX_CLIENTS 1
 #define WOW_MAX_EDICTS 128
 #define BZ_WOW_MOVE_MASK (WOW_MOVE_FORWARD | WOW_MOVE_BACK | WOW_MOVE_LEFT | WOW_MOVE_RIGHT)
 #define WOW_PLAYER_MODEL "Character\\Orc\\Male\\OrcMale.m2"
@@ -209,10 +208,8 @@ LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);
 #define WOW_CLASS_MAGE    8
 #define WOW_START_WEAPON_ENTRY 37
 
-/* CS_GENERAL slot used to pass selected character data from UI to game module.
-   Set by the UI via a single userinfo-style cvar before map load, read by
-   Wow_Init.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
-#define WOW_CS_PLAYERINFO 0
+/* CS_PLAYERSKINS + client number payload set from the selected-character cvar
+   before map load. Format: \race\Human\sex\Male\class\1\appearance\12345 */
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
 #define WOW_MOVE_LEFT 4
@@ -376,7 +373,7 @@ extern struct game_import gi;
 extern struct game_export globals;
 extern edict_t wow_edicts[WOW_MAX_EDICTS];
 extern wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
-extern wowClient_t wow_clients[WOW_MAX_CLIENTS];
+extern wowClient_t wow_clients[MAX_CLIENTS];
 
 /* Game adapts gi.* onto stb_dbc.h's shared cache I/O table (see common/stb_dbc.h). */
 static inline void *G_DbcRead(LPCSTR filename, DWORD *size) {

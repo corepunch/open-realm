@@ -189,15 +189,14 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     }
 }
 
-/* Resent identical paths after begin/load used to Release+Load every slot. */
-static BOOL CL_SameResource(void const *handle, LPCSTR olds, LPCSTR name) {
-    return handle && name && name[0] && olds && !strcmp(olds, name);
-}
-
 static void CL_ParseConfigString(LPSIZEBUF msg) {
     static PATHSTR last_world;
     PATHSTR olds;
     int const index = MSG_ReadShort(msg);
+    if (index < 0 || index >= MAX_CONFIGSTRINGS) {
+        Com_Error(ERR_DROP, "configstring %d > MAX_CONFIGSTRINGS", index);
+        return;
+    }
     olds[0] = '\0';
     if (index == CS_STATUSBAR) {
         MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings));
@@ -205,80 +204,12 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         snprintf(olds, sizeof(olds), "%s", cl.configstrings[index]);
         MSG_ReadString(msg, cl.configstrings[index]);
     }
-#ifdef WOW
-    if (index >= CS_GENERAL + WOW_CS_NPC_NAME_FIRST && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
-#else
     if (index >= CS_GENERAL && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
-#endif
         entity_name_pool_decode(cl.configstrings[index]);
-    if (index > CS_MODELS && index < CS_MODELS + MAX_MODELS) {
-        DWORD model = index - CS_MODELS;
-        LPCSTR name = cl.configstrings[index];
-        /* Initial model configstrings arrive before CL_PrepRefresh(), which
-         * loads both the world model and Warcraft's optional *_Portrait model.
-         * Do not pre-populate cl.models[] here or CL_PrepRefresh() will skip the
-         * slot and the talking-head portrait will never be registered.  After
-         * refresh, however, model configstrings are genuinely dynamic and must
-         * refresh both caches together. Identical late resends keep the loaded
-         * handles so begin/load does not reload every model. */
-        if (cl.refresh_prepped && !CL_SameResource(cl.models[model], olds, name)) {
-            if (cl.models[model]) {
-                re.ReleaseModel((LPMODEL)cl.models[model]);
-                cl.models[model] = NULL;
-            }
-            if (cl.portraits[model]) {
-                re.ReleaseModel((LPMODEL)cl.portraits[model]);
-                cl.portraits[model] = NULL;
-            }
-            if (cl.configstrings[index][0]) {
-                LPCSTR filename = cl.configstrings[index];
-                PATHSTR portrait = { 0 };
-                LPCSTR ext = strstr(filename, ".m");
-                if (ext) {
-                    size_t base_len = (size_t)(ext - filename);
-                    if (base_len >= sizeof(portrait))
-                        base_len = sizeof(portrait) - 1;
-                    memcpy(portrait, filename, base_len);
-                    portrait[base_len] = '\0';
-                    snprintf(portrait + base_len, sizeof(portrait) - base_len, "_Portrait%s", ext);
-                }
-                cl.models[model] = re.LoadModel(filename);
-                if (portrait[0] && FS_FileExists(portrait))
-                    cl.portraits[model] = re.LoadModel(portrait);
-            }
-        }
-    }
-    if (index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) {
-        DWORD pic = index - CS_IMAGES;
-        LPCSTR name = cl.configstrings[index];
-        if (!CL_SameResource(cl.pics[pic], olds, name)) {
-            if (cl.pics[pic]) {
-                re.ReleaseTexture((LPTEXTURE)cl.pics[pic]);
-                cl.pics[pic] = NULL;
-            }
-            if (name[0])
-                cl.pics[pic] = re.LoadTexture(CL_ResolveImagePath(name));
-        }
-    }
+    if (cl.refresh_prepped)
+        CL_UpdateConfigString(index, olds);
     if (index == CS_MINIMAP && cl.refresh_prepped && strcmp(olds, cl.configstrings[index]))
         CL_UpdateMinimapModel();
-    if (cl.refresh_prepped && index > CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS && cl.configstrings[index][0])
-        S_RegisterSound(cl.configstrings[index]);
-    if (index > CS_FONTS && index < CS_FONTS + MAX_FONTSTYLES) {
-        DWORD font = index - CS_FONTS;
-        if (cl.configstrings[index][0] && !cl.fonts[font]) {
-            LPCSTR fontspec = cl.configstrings[index];
-            LPCSTR split = strstr(fontspec, ",");
-            if (split) {
-                PATHSTR filename = {0};
-                memcpy(filename, fontspec, split - fontspec);
-                DWORD fontsize = atoi(split + 1);
-                cl.fonts[font] = re.LoadFont(filename, fontsize);
-            } else {
-                cl.fonts[font] = re.LoadFont(fontspec, 16);
-            }
-        }
-    }
     if (index == CS_WORLD && cl.configstrings[index][0] &&
         strcmp(last_world, cl.configstrings[index])) {
         snprintf(last_world, sizeof(last_world), "%s", cl.configstrings[index]);

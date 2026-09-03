@@ -424,38 +424,13 @@ void CL_PrepRefresh(void) {
     for (DWORD i = 1; i < MAX_MODELS; i++) {
         if (!*cl.configstrings[CS_MODELS + i])
             continue;
-        if (cl.models[i])
-            continue;
-        LPCSTR filename = cl.configstrings[CS_MODELS + i];
-        PATHSTR portrait = { 0 };
-        LPCSTR ext = strstr(filename, ".m");
-        if (ext) {
-            size_t base_len = (size_t)(ext - filename);
-            if (base_len >= sizeof(portrait)) {
-                base_len = sizeof(portrait) - 1;
-            }
-            memcpy(portrait, filename, base_len);
-            portrait[base_len] = '\0';
-            snprintf(portrait + base_len, sizeof(portrait) - base_len, "_Portrait%s", ext);
-        }
-        cl.models[i] = re.LoadModel(filename);
-        if (!cl.models[i]) {
-            fprintf(stderr,
-                    "CL_PrepRefresh: model configstring %u failed to load: %s\n",
-                    (unsigned)i,
-                    filename);
-        }
-        if (portrait[0] && FS_FileExists(portrait)) {
-            cl.portraits[i] = re.LoadModel(portrait);
-        }
+        CL_RegisterConfigString(CS_MODELS + i);
     }
 
     for (DWORD i = 1; i < MAX_IMAGES; i++) {
         if (!*cl.configstrings[CS_IMAGES + i])
             continue;
-        if (cl.pics[i])
-            continue;
-        cl.pics[i] = re.LoadTexture(CL_ResolveImagePath(cl.configstrings[CS_IMAGES + i]));
+        CL_RegisterConfigString(CS_IMAGES + i);
     }
 
     if (register_sounds)
@@ -465,18 +440,7 @@ void CL_PrepRefresh(void) {
     for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
         if (!*cl.configstrings[CS_FONTS + i])
             continue;
-        if (cl.fonts[i])
-            continue;
-        LPCSTR fontspec = cl.configstrings[CS_FONTS + i];
-        LPCSTR split = strstr(fontspec, ",");
-        if (split) {
-            PATHSTR filename = { 0 };
-            memcpy(filename, fontspec, split - fontspec);
-            DWORD fontsize = atoi(split+1);
-            cl.fonts[i] = re.LoadFont(filename, fontsize);
-        } else {
-            cl.fonts[i] = re.LoadFont(cl.configstrings[CS_FONTS + i], 16);
-        }
+        CL_RegisterConfigString(CS_FONTS + i);
     }
 
     if (world_loaded && !begin_sent) {

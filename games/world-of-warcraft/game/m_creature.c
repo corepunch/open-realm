@@ -59,8 +59,7 @@ static wowCreatureModelCache_t wow_creature_model_cache[sizeof(wow_ambient_creat
 static USHORT G_UnitNameConfigstring(LPCSTR name) {
     char buf[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS];
     if (!name || !*name) return 0;
-    /* WOW_CS_PLAYERINFO occupies CS_GENERAL+0; NPC names start from slot 1. */
-    for (DWORD slot = WOW_CS_NPC_NAME_FIRST; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
+    for (DWORD slot = 0; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
         DWORD idx = CS_GENERAL + slot;
         LPCSTR cs = gi.GetConfigstring(idx);
         for (DWORD sub = 0; sub < ENT_NAMES_PER_CS; sub++) {

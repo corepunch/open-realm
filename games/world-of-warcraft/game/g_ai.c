@@ -98,11 +98,11 @@ void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
 
     actual = MIN(damage, target_local->health);
     /* Push damage flash events to player client (entity 0). */
-    if (Wow_EntityIndex(target) < WOW_MAX_CLIENTS) {
+    if (Wow_EntityIndex(target) < MAX_CLIENTS) {
         wow_clients[0].incoming_damage = actual;
         wow_clients[0].incoming_dmg_timer = 1500;
     }
-    if (attacker && Wow_EntityIndex(attacker) < WOW_MAX_CLIENTS) {
+    if (attacker && Wow_EntityIndex(attacker) < MAX_CLIENTS) {
         wow_clients[0].outgoing_damage = actual;
         wow_clients[0].outgoing_dmg_timer = 1500;
     }

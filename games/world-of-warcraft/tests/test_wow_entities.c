@@ -240,7 +240,7 @@ static struct game_export *init_game(void) {
 /* Entities are identified by their game-local think function pointer (Quake2
  * style); there is no kind tag. */
 static LPEDICT first_with_think(void (*think)(LPEDICT)) {
-    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == think) return &wow_edicts[i];
     }
     return NULL;
@@ -248,7 +248,7 @@ static LPEDICT first_with_think(void (*think)(LPEDICT)) {
 
 static DWORD count_with_think(void (*think)(LPEDICT)) {
     DWORD count = 0;
-    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == think) count++;
     }
     return count;
@@ -552,4 +552,3 @@ TEST(wow_entities, stb_dbc_parses_header_and_fields) {
     T_EQ((int)Stb_DbcField(&h, wide + 20, 39), 0);  /* field >= fields */
     free(wide);
 }
-

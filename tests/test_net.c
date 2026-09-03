@@ -1405,6 +1405,7 @@ TEST(net, image_configstring_skips_identical_reload) {
     test_tex_loads = test_tex_releases = 0;
     re.LoadTexture = capture_load_texture;
     re.ReleaseTexture = capture_release_texture;
+    cl.refresh_prepped = true;
     MSG_WriteByte(&sb, svc_configstring);
     MSG_WriteShort(&sb, CS_IMAGES + 4);
     MSG_WriteString(&sb, "ReplaceableTextures\\Shadows\\Shadow.blp");

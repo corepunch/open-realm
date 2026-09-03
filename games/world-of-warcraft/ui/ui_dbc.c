@@ -656,7 +656,7 @@ DWORD UIWow_GetCharacterSelectAppearance(void) {
 
 /* Pack the selected character's race/sex/class/appearance into a single
    userinfo-style cvar so the game module can read it during Wow_Init and
-   store in one CS_GENERAL configstring.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
+   store in CS_PLAYERSKINS + client number.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
 void UIWow_SetSelectedCharCvars(void) {
     wowCharEntry_t const *e;
     LPCSTR race = "Orc";

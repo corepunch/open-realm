@@ -16,7 +16,7 @@ struct game_import gi;
 struct game_export globals;
 edict_t wow_edicts[WOW_MAX_EDICTS];
 wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
-wowClient_t wow_clients[WOW_MAX_CLIENTS];
+wowClient_t wow_clients[MAX_CLIENTS];
 /* Configstring model indices for spell impact visuals; set during map load. */
 static int wow_firebolt_impact_model = 0;
 static int wow_frostbolt_impact_model = 0;
@@ -200,7 +200,7 @@ LPEDICT Wow_FindNearestCorpse(LPEDICT ent, FLOAT range) {
     FLOAT best_dist2 = range * range;
 
     if (!ent) return NULL;
-    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
+    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
         LPEDICT c = &wow_edicts[i];
         wowEntityLocal_t *local;
         VECTOR2 delta;
@@ -1359,7 +1359,7 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, FLOAT range) {
         return NULL;
     }
 
-    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
+    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
         LPEDICT candidate = &wow_edicts[i];
         VECTOR2 delta;
         FLOAT dist2;
@@ -1391,7 +1391,7 @@ LPEDICT Wow_Spawn(void) {
         index = globals.num_edicts++;
         ent = &wow_edicts[index];
     } else {
-        for (index = WOW_MAX_CLIENTS; index < WOW_MAX_EDICTS; index++) {
+        for (index = MAX_CLIENTS; index < WOW_MAX_EDICTS; index++) {
             if (!wow_edicts[index].inuse) {
                 ent = &wow_edicts[index];
                 break;
@@ -1486,10 +1486,10 @@ static DWORD Wow_SelectedPlayerCreateMap(void) {
     return Wow_PlayerCreateMap(race, class_id);
 }
 
-/* Read the selected character's race/sex from the CS_GENERAL configstring for
+/* Read the selected character's race/sex from the dedicated player configstring for
    server-authored UI (unit-frame portrait).  Fallback matches Wow_InitPlayer. */
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz) {
-    LPCSTR val = gi.GetConfigstring(CS_GENERAL + WOW_CS_PLAYERINFO);
+    LPCSTR val = gi.GetConfigstring(CS_PLAYERSKINS);
 
     snprintf(race, race_sz, "Orc");
     snprintf(sex, sex_sz, "Male");
@@ -1501,7 +1501,7 @@ void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz) 
     }
 }
 
-/* Read selected character data from the single CS_GENERAL configstring set by
+/* Read selected character data from the dedicated player configstring set by
    Wow_Init.  Fallbacks to OrcMale Warrior when no character was selected. */
 static void Wow_ReadSelectedCharFromCS(char *race, size_t race_sz, char *sex, size_t sex_sz, DWORD *class_out, DWORD *appearance_out) {
     LPCSTR val;
@@ -1511,7 +1511,7 @@ static void Wow_ReadSelectedCharFromCS(char *race, size_t race_sz, char *sex, si
     *class_out = WOW_CLASS_WARRIOR;
     *appearance_out = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
 
-    val = gi.GetConfigstring(CS_GENERAL + WOW_CS_PLAYERINFO);
+    val = gi.GetConfigstring(CS_PLAYERSKINS);
     if (val && val[0]) {
         LPCSTR v;
         v = Wow_InfoValueForKey(val, "race", "");
@@ -1540,7 +1540,7 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
     DWORD class_id, appearance;
     char model_path[MAX_PATHLEN * 2];
 
-    /* Read selected character from CS_GENERAL configstrings (set by Wow_Init from cvars). */
+    /* Read selected character from the dedicated player configstring (set by Wow_Init from cvars). */
     Wow_ReadSelectedCharFromCS(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
 
     memset(ent, 0, sizeof(*ent));
@@ -1617,8 +1617,8 @@ static void Wow_Init(void) {
 
     globals.edicts = wow_edicts;
     globals.max_edicts = WOW_MAX_EDICTS;
-    globals.max_clients = WOW_MAX_CLIENTS;
-    globals.num_edicts = WOW_MAX_CLIENTS;
+    globals.max_clients = MAX_CLIENTS;
+    globals.num_edicts = MAX_CLIENTS;
     globals.edict_size = sizeof(edict_t);
 }
 
@@ -1636,7 +1636,7 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
      * Use as: make run-wow-preview  then type "quest <id>" in-game. */
     if (!strcmp(mapFilename, "preview")) {
         if (gi.ClearWorld) gi.ClearWorld();
-        gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO,
+        gi.configstring(CS_PLAYERSKINS,
             "\\race\\Human\\sex\\Male\\class\\2\\appearance\\0");
         Wow_SelectLoadingScreen("preview");
         Wow_InitPlayer(&wow_edicts[0], (VECTOR2){0, 0}, -1);
@@ -1814,7 +1814,7 @@ static bool Wow_SpawnEntities(void) {
        memset cleared all configstrings (same pattern as Q3: game module
        re-sets configstrings after the server wipes them on map load). */
     snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u", race, sex, (unsigned)class_id, (unsigned)appearance);
-    gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
+    gi.configstring(CS_PLAYERSKINS, buf);
     wow_move.flags = 0;
     wow_move.yaw = 0.0f;
     wow_move.pitch = 328.0f;
@@ -1829,7 +1829,7 @@ static bool Wow_SpawnEntities(void) {
         p->s.angle    = wow_pending_teleport.orientation;
         wow_pending_teleport.pending = false;
     }
-    globals.num_edicts = WOW_MAX_CLIENTS;
+    globals.num_edicts = MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&spawn_origin);
     /* Initial world population is intentionally split into budgets so the
      * imported quest anchors do not starve ambient creatures or vice versa. */
@@ -1982,7 +1982,7 @@ static void Wow_RunFrame(void) {
     Wow_UpdatePlayerHud(ent);
 
 process_entities:
-    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         wowEntityLocal_t *local = Wow_EntityLocal(e);
         if (e->inuse && local && local->think)
@@ -2372,7 +2372,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         }
     } else if (argc >= 1 && (!strcasecmp(argv[0], "wow_cycle_target") || !strcasecmp(argv[0], "cycletarget"))) {
         DWORD old = ((wowClient_t *)ent->client)->selected_entity;
-        DWORD start = old > 0 ? old + 1 : WOW_MAX_CLIENTS;
+        DWORD start = old > 0 ? old + 1 : MAX_CLIENTS;
         for (DWORD i = start; i < (DWORD)globals.num_edicts; i++) {
             LPEDICT t = &wow_edicts[i];
             if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
@@ -2380,7 +2380,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
                 return;
             }
         }
-        for (DWORD i = WOW_MAX_CLIENTS; i < start && i < (DWORD)globals.num_edicts; i++) {
+        for (DWORD i = MAX_CLIENTS; i < start && i < (DWORD)globals.num_edicts; i++) {
             LPEDICT t = &wow_edicts[i];
             if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
                 Wow_SelectEntity(ent, t);
@@ -2495,7 +2495,7 @@ static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal
 /* Author recipient-specific hover and quest presentation from the private creature state. */
 static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    if (player >= WOW_MAX_CLIENTS) return;
+    if (player >= MAX_CLIENTS) return;
     state->flags &= ~EF_HOVER_HEALTH;
     state->stats[ENT_HEALTH] = state->stats[ENT_MANA] = 0;
     if (local && state->model && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER) &&
@@ -2556,7 +2556,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.LoadMap = Wow_LoadMap;
     globals.GetWorldBounds = CM_GetWorldBounds;
     globals.max_edicts = WOW_MAX_EDICTS;
-    globals.max_clients = WOW_MAX_CLIENTS;
+    globals.max_clients = MAX_CLIENTS;
     globals.edict_size = sizeof(edict_t);
 
     return &globals;

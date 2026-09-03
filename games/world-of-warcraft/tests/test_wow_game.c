@@ -442,7 +442,7 @@ static struct game_import test_import(void) {
 }
 
 static LPEDICT first_creature(void) {
-    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == Wow_RunCreatureFrame) {
             return &wow_edicts[i];
         }
@@ -697,11 +697,11 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
 
 TEST(wow_game, customize_entity_authors_live_creature_hover_vitals) {
     struct game_export *game = init_game();
-    LPEDICT ent = &wow_edicts[WOW_MAX_CLIENTS];
+    LPEDICT ent = &wow_edicts[MAX_CLIENTS];
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     entityState_t state;
 
-    ent->inuse = true; ent->svflags = SVF_MONSTER; ent->s.number = WOW_MAX_CLIENTS; ent->s.model = 1;
+    ent->inuse = true; ent->svflags = SVF_MONSTER; ent->s.number = MAX_CLIENTS; ent->s.model = 1;
     local->health = 50; local->mana = 100;
     state = ent->s;
     game->CustomizeEntity(0, ent, &state);
@@ -712,11 +712,11 @@ TEST(wow_game, customize_entity_authors_live_creature_hover_vitals) {
 
 TEST(wow_game, customize_entity_clears_dead_creature_hover_vitals) {
     struct game_export *game = init_game();
-    LPEDICT ent = &wow_edicts[WOW_MAX_CLIENTS];
+    LPEDICT ent = &wow_edicts[MAX_CLIENTS];
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     entityState_t state;
 
-    ent->inuse = true; ent->svflags = SVF_MONSTER | SVF_DEADMONSTER; ent->s.number = WOW_MAX_CLIENTS; ent->s.model = 1;
+    ent->inuse = true; ent->svflags = SVF_MONSTER | SVF_DEADMONSTER; ent->s.number = MAX_CLIENTS; ent->s.model = 1;
     local->health = 50; local->dead = true;
     state = ent->s; state.flags |= EF_HOVER_HEALTH;
     state.stats[ENT_HEALTH] = state.stats[ENT_MANA] = 255;
@@ -1233,7 +1233,8 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     wowEntityLocal_t *creature_local;
     wowEntityLocal_t *player_local;
     VECTOR2 before;
-    LPCSTR attack_argv[] = { "attack", "1" };
+    char target_num[16];
+    LPCSTR attack_argv[] = { "attack", target_num };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1243,7 +1244,8 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     player_local = Wow_EntityLocal(player);
     before = creature->s.origin2;
 
-    T_EQ((int)creature->s.number, 1);
+    snprintf(target_num, sizeof(target_num), "%u", (unsigned)creature->s.number);
+    T_EQ((int)creature->s.number, MAX_CLIENTS);
     T_ASSERT(creature_local->think == Wow_RunCreatureFrame);
     T_EQ((int)creature_local->display_id, 161);
     T_EQ((int)creature_local->health, 3);
@@ -1260,8 +1262,8 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     T_ASSERT(fabsf(creature->s.origin2.x - before.x) > 0.001f || fabsf(creature->s.origin2.y - before.y) > 0.001f);
 
     game->ClientCommand(player, 2, attack_argv);
-    T_EQ((int)(player_local->enemy ? player_local->enemy->s.number : 0), 1);
-    T_EQ((int)((wowClient_t *)player->client)->selected_entity, 1);
+    T_EQ((int)(player_local->enemy ? player_local->enemy->s.number : 0), MAX_CLIENTS);
+    T_EQ((int)((wowClient_t *)player->client)->selected_entity, MAX_CLIENTS);
 
     /* Run frames until the player chases into melee range and starts swinging. */
     for (int i = 0; i < 300; i++) {
@@ -1284,11 +1286,13 @@ TEST(wow_game, selecting_target_does_not_start_combat_or_chase) {
     LPEDICT player, creature;
     wowEntityLocal_t *local;
     VECTOR2 before;
-    LPCSTR select_argv[] = { "select", "1" };
+    char target_num[16];
+    LPCSTR select_argv[] = { "select", target_num };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     creature = first_creature();
+    snprintf(target_num, sizeof(target_num), "%u", (unsigned)creature->s.number);
     local = Wow_EntityLocal(player);
     before = player->s.origin2;
 

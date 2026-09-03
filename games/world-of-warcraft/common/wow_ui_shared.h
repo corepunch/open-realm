@@ -23,7 +23,7 @@ typedef struct {
 /* Single userinfo-style cvar used to pass selected character data from UI to
    game module.  Format: \race\Human\sex\Male\class\1\appearance\12345
    The UI sets this before map load; the game module reads it in Wow_Init
-   and stores the value in one CS_GENERAL configstring. */
+   and stores the value in CS_PLAYERSKINS + client number. */
 #define WOW_CVAR_PLAYERINFO "wow_playerinfo"
 
 typedef enum {

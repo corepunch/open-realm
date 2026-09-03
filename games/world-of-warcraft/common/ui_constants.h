@@ -18,7 +18,6 @@
 #define WOW_WORLD_FOG_GREEN 0.70f
 #define WOW_WORLD_FOG_BLUE 0.85f
 #define WOW_CAMERA_EYE_HEIGHT 1.6f // world units; raises the third-person camera target above the grounded player origin
-#define WOW_CS_NPC_NAME_FIRST 1 // CS_GENERAL slot; slot zero carries selected-character data instead of packed entity names
 
 /* Sun light colors. Classic has no Light*.dbc / .lit, so the authored sun
    path is unavailable; these use WoWee's documented no-DBC fallback tint
