@@ -36,9 +36,12 @@ void order_patrol_resume(LPEDICT self) {
 void order_patrol(LPEDICT self, LPEDICT b) {
     if (S_GoldMineWorkerIsInside(self))
         return;
+    self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = Waypoint_add(&self->s.origin2);
     self->movement.patrol_b = b;
     self->movement.patrol_target = b;
+    self->movement.follow_target = NULL;
+    self->movement.holding_position = false;
     order_patrol_resume(self);
 }
 

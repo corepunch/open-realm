@@ -108,7 +108,7 @@ static BOOL attack_target_is_valid(LPCEDICT target) {
     return !M_IsDead((LPEDICT)target);
 }
 
-static void attack_finish_after_kill(LPEDICT attacker) {
+static void attack_finish_after_combat(LPEDICT attacker) {
     if (!attacker) {
         return;
     }
@@ -116,6 +116,8 @@ static void attack_finish_after_kill(LPEDICT attacker) {
         order_patrol_resume(attacker);
     } else if (attacker->movement.attackmove_waypoint) {
         order_attackmove(attacker, attacker->movement.attackmove_waypoint);
+    } else if (attacker->movement.follow_target) {
+        order_follow_resume(attacker);
     } else if (attacker->stand) {
         attacker->stand(attacker);
     }
@@ -128,9 +130,7 @@ static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
     if (attacker) {
         unit_leavecombat(attacker);
         attacker->goalentity = NULL;
-        if (attacker->stand) {
-            attacker->stand(attacker);
-        }
+        attack_finish_after_combat(attacker);
     }
     return true;
 }
@@ -189,7 +189,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     }
     if (G_IsDestructable(target)) {
         if (G_DestructableApplyDamage(target, attacker, (FLOAT)damage)) {
-            attack_finish_after_kill(attacker);
+            attack_finish_after_combat(attacker);
         }
         return;
     }
@@ -201,7 +201,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         unit_leavecombat(target);
         unit_leavecombat(attacker);
         target->die(target, attacker);
-        attack_finish_after_kill(attacker);
+        attack_finish_after_combat(attacker);
         return;
     } else {
         target->health.value -= damage;
@@ -436,6 +436,11 @@ void order_attackmove(LPEDICT self, LPEDICT waypoint) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     self->movement.attackmove_waypoint = waypoint;
+    self->movement.patrol_a = NULL;
+    self->movement.patrol_b = NULL;
+    self->movement.patrol_target = NULL;
+    self->movement.follow_target = NULL;
+    self->movement.holding_position = false;
     self->goalentity = waypoint;
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);

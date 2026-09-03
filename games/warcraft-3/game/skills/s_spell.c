@@ -222,32 +222,41 @@ BOOL S_SpellIsAliveTarget(LPEDICT target) {
 }
 
 BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target) {
-    if (!caster || !target || caster->s.player == target->s.player) {
+    DWORD owner;
+
+    if (!caster || !target || caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
         return false;
     }
-    if (caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
+    owner = target->s.player;
+    if (caster->s.player == owner) {
         return false;
     }
-    if (level.mapinfo) {
-        playerType_t type = level.mapinfo->players[target->s.player].playerType;
-        if (type == kPlayerTypeNone) {
-            return false;
-        }
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
+        return true;
     }
-    return level.alliances[caster->s.player][target->s.player] == 0;
+    if (owner == PLAYER_NEUTRAL_PASSIVE) {
+        return false;
+    }
+    if (level.mapinfo && level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
+        return false;
+    }
+    return (level.alliances[caster->s.player][owner] & (1 << ALLIANCE_PASSIVE)) == 0;
 }
 
 BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
-    if (!caster || !target) {
+    DWORD owner;
+
+    if (!caster || !target || caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
         return false;
     }
-    if (caster->s.player == target->s.player) {
+    owner = target->s.player;
+    if (caster->s.player == owner) {
         return true;
     }
-    if (caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE) {
         return false;
     }
-    return level.alliances[caster->s.player][target->s.player] != 0;
+    return (level.alliances[caster->s.player][owner] & (1 << ALLIANCE_PASSIVE)) != 0;
 }
 
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {

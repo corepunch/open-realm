@@ -40,6 +40,7 @@ field_t fields[] = {
     EDICTFIELD(movement.patrol_a, F_EDICT),
     EDICTFIELD(movement.patrol_b, F_EDICT),
     EDICTFIELD(movement.patrol_target, F_EDICT),
+    EDICTFIELD(movement.follow_target, F_EDICT),
     EDICTFIELD(goalentity, F_EDICT),
     EDICTFIELD(combatentity, F_EDICT),
     EDICTFIELD(secondarygoal, F_EDICT),

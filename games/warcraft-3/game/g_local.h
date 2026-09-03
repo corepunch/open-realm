@@ -902,6 +902,7 @@ struct edict_s {
         BOOL worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
         LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour
         LPEDICT patrol_a, patrol_b, patrol_target;
+        LPEDICT follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         BOOL holding_position;
     } movement;
     EDICTSTAT health;
@@ -1743,6 +1744,8 @@ void order_stop(LPEDICT);
 void order_attackmove(LPEDICT, LPEDICT);
 void order_patrol(LPEDICT, LPEDICT);
 void order_patrol_resume(LPEDICT);
+void order_follow(LPEDICT, LPEDICT);
+void order_follow_resume(LPEDICT);
 extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(LPEDICT);
