@@ -13,6 +13,7 @@ visible/selectable -> relationship presentation -> control authority
 - `G_UnitCanBeSelected(client, ent)` accepts a live `SVF_MONSTER` that is in use, not hidden, not `EF_NOT_SELECTABLE`, and actively visible through `G_FowPlayerCanHoverEntity`.
 - `G_SelectionRelation(viewer, ent)` returns friend, neutral, or enemy independently of command authority.
 - `G_UnitCanControl(client, ent)` is a pure authority check: it accepts locally owned units and passive allies that grant `ALLIANCE_SHARED_CONTROL`, independent of fog/hover/selectability state. Active selection/order paths separately reject dead, hidden, and unselectable entities. Neutral Hostile and Neutral Passive slots never become controllable through alliance-bit accidents.
+- Alliance state is directional, matching the JASS `SetPlayerAlliance(source, other, type, value)` contract. `G_SetPlayerAlliance` changes only `level.alliances[source][other]`; callers that want mutual alliance must set both directions. Friend/enemy tests use `ALLIANCE_PASSIVE` specifically—shared vision, shared XP, or shared-control bits by themselves do not make a hostile unit friendly.
 
 This means a visible foreign unit may be inspected without giving the viewer ownership or order authority.
 
@@ -93,6 +94,16 @@ pickup. The first/primary selected entity is used for focused HUD/response
 presentation, not as a capability gate for the rest of the selection. See
 [Inventory And World Items](inventory-and-items.md) for the ROC Hero `AInv`
 fallback and item lifecycle.
+
+For a live allied unit target that is not consumed by a higher-priority Smart
+interaction such as Repair, Smart uses a persistent unit-target Move/follow
+order rather than copying the target's current coordinates. `movement.follow_target`
+remains the authoritative default movement goal: the follower stops within its
+data-defined acquisition range, may auto-acquire nearby enemies, and resumes
+following after that combat ends. Point Move, Attack-Move, Patrol, Stop, and
+Hold Position replace this persistent follow goal. Explicit target Attack is a
+combat detour and may return to the retained follow goal afterward, matching the
+Warsmash default-behavior split.
 
 `Get_Commands_f` clears the command card for a selected unit that the local player cannot control. A foreign building may still use the ordinary inspection panel, but its production queue is not serialized to the viewer. Shared-control units retain command-card access.
 

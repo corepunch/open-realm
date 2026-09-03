@@ -537,7 +537,7 @@ DWORD GetWinningPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }
 DWORD GetEnteringUnit(LPJASS j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->trigger, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetLeavingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");

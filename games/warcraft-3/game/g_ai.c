@@ -612,22 +612,23 @@ static LPEDICT ai_current_entity = NULL;
 static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];
 
 static BOOL filter_sight(LPCEDICT ent) {
-    if (!(ent->svflags & SVF_MONSTER) || ent->s.player == ai_current_entity->s.player)
+    if (!(ent->svflags & SVF_MONSTER) || !ai_current_entity ||
+        ai_current_entity->s.player >= MAX_PLAYERS || ent->s.player >= MAX_PLAYERS ||
+        ent->s.player == ai_current_entity->s.player)
         return false;
-    /* Any non-allied player's units are valid targets — WC3 auto-acquisition
-     * applies to the player's units too, not only the AI's. */
-    if (level.alliances[ent->s.player][ai_current_entity->s.player] != 0)
+    /* Friend/enemy is the acquiring player's directional PASSIVE alliance.
+     * Shared vision/control/XP alone must never suppress hostile acquisition. */
+    if (level.alliances[ai_current_entity->s.player][ent->s.player] & (1 << ALLIANCE_PASSIVE))
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;
     if (ent->runtime.flags & UNIT_BALANCE_BUILDING)
         return false;
-    /* Only auto-engage fights that involve the human player (player vs anyone,
-     * and anyone vs player). This preserves the original computer->player
-     * aggression while letting the player's units fight back, without spawning
-     * map-wide computer-vs-neutral and neutral-vs-neutral brawls. */
-    if (level.mapinfo->players[ai_current_entity->s.player].playerType != kPlayerTypeHuman &&
-        level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
+    /* Local acquisition is a unit behavior, not a Human-vs-AI special case.
+     * Computer allies must be able to defend against other computer players.
+     * Neutral units already do not initiate from ai_stand(); keep Neutral
+     * Passive widgets out of ordinary hostile acquisition as well. */
+    if (ent->s.player == PLAYER_NEUTRAL_PASSIVE)
         return false;
     return true;
 }

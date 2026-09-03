@@ -9,6 +9,10 @@ void order_stop(LPEDICT ent) {
     G_ClearUnitOrderQueue(ent);
     ent->movement.attackmove_waypoint = NULL;
     ent->movement.patrol_a = NULL;
+    ent->movement.patrol_b = NULL;
+    ent->movement.patrol_target = NULL;
+    ent->movement.follow_target = NULL;
+    ent->movement.holding_position = false;
     unit_leavecombat(ent);
     ent->stand(ent);
 }

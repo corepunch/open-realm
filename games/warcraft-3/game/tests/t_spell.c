@@ -49,6 +49,33 @@ static LPEDICT make_hero(DWORD class_id, FLOAT hp, FLOAT mana, FLOAT x, FLOAT y)
 	return ent;
 }
 
+TEST(wc3_spell, relationship_uses_passive_alliance_not_other_flags) {
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+	caster->s.player = 0;
+	target->s.player = 1;
+	target->svflags |= SVF_MONSTER;
+	target->health.value = target->health.max_value = 100;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+
+	memset(level.alliances, 0, sizeof(level.alliances));
+	level.alliances[0][1] = 1 << ALLIANCE_SHARED_VISION;
+	T_ASSERT(S_SpellIsEnemy(caster, target));
+	T_ASSERT(!S_SpellIsFriend(caster, target));
+
+	level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
+	T_ASSERT(!S_SpellIsEnemy(caster, target));
+	T_ASSERT(S_SpellIsFriend(caster, target));
+
+	target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+	T_ASSERT(S_SpellIsEnemy(caster, target));
+	T_ASSERT(!S_SpellIsFriend(caster, target));
+	target->s.player = PLAYER_NEUTRAL_PASSIVE;
+	T_ASSERT(!S_SpellIsEnemy(caster, target));
+	T_ASSERT(!S_SpellIsFriend(caster, target));
+}
+
 /* ---- Channel enforcement ---- */
 
 TEST(wc3_spell, channel_cancel_stun) {

@@ -651,6 +651,78 @@ TEST(wc3_combat, grant_kill_xp_out_of_range) {
     T_EQ((int)killer->hero.xp, 0); /* > HeroExpRange (1200) away */
 }
 
+TEST(wc3_combat, grant_kill_xp_splits_between_nearby_owned_heroes) {
+    LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    /* The test archive has one hero row; a second Hpal still proves per-entity XP splitting. */
+    LPEDICT ally = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 100.0f, 0.0f);
+    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    killer->s.player = ally->s.player = 0;
+    killer->hero.level = ally->hero.level = 1;
+    killer->hero.xp = ally->hero.xp = 0;
+    victim->s.player = 1;
+
+    G_GrantKillXP(victim, killer);
+
+    T_ASSERT(killer->hero.xp > 0);
+    T_EQ((int)killer->hero.xp, (int)ally->hero.xp);
+    T_ASSERT(killer->hero.xp < 25);
+}
+
+TEST(wc3_combat, grant_kill_xp_honors_directional_shared_xp) {
+    LPEDICT killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    LPEDICT alliedHero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 100.0f, 0.0f);
+    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    killer->s.player = 0;
+    alliedHero->s.player = 1;
+    alliedHero->hero.level = 1;
+    alliedHero->hero.xp = 0;
+    victim->s.player = 2;
+    memset(level.alliances, 0, sizeof(level.alliances));
+
+    G_GrantKillXP(victim, killer);
+    T_EQ((int)alliedHero->hero.xp, 0);
+
+    level.alliances[1][0] |= 1 << ALLIANCE_SHARED_XP;
+    G_GrantKillXP(victim, killer);
+    T_EQ((int)alliedHero->hero.xp, 0); /* reverse direction does not grant killer-side sharing */
+
+    level.alliances[0][1] |= 1 << ALLIANCE_SHARED_XP;
+    G_GrantKillXP(victim, killer);
+    T_ASSERT(alliedHero->hero.xp > 0);
+}
+
+TEST(wc3_combat, grant_kill_xp_does_not_reward_passive_ally_kill) {
+    LPEDICT hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    hero->s.player = 0;
+    hero->hero.level = 1;
+    hero->hero.xp = 0;
+    victim->s.player = 1;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
+
+    G_GrantKillXP(victim, hero);
+
+    T_EQ((int)hero->hero.xp, 0);
+}
+
+TEST(wc3_combat, attack_completion_resumes_persistent_follow) {
+    LPEDICT follower = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    LPEDICT leader = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 100.0f, 0.0f);
+    LPEDICT enemy = make_combat_unit(MAKEFOURCC('h','g','r','u'), 100.0f, 50.0f, 0.0f);
+    follower->s.player = leader->s.player = 0;
+    enemy->s.player = 1;
+
+    order_follow(follower, leader);
+    T_ASSERT(follower->movement.follow_target == leader);
+    order_attack(follower, enemy);
+    T_Damage(enemy, follower, 100);
+
+    T_ASSERT(follower->movement.follow_target == leader);
+    T_ASSERT(follower->goalentity == leader);
+    T_ASSERT(follower->currentmove && follower->currentmove->ability == &a_move);
+}
+
 /* unit_learnability (used by the SelectHeroSkill native): learning an ability
  * adds it at level 1; learning it again raises its level; a second ability
  * takes its own slot. */

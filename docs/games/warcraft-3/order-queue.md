@@ -7,7 +7,7 @@ Player-issued movement/combat orders use a per-unit pending FIFO that is separat
 The current implementation deliberately covers the high-confidence Warsmash-compatible core:
 
 - Shift + right-click point (`Smart`) queues movement for mobile units;
-- Shift + right-click entity queues Smart target resolution, including attack, harvest, repair, item pickup, and fallback movement when those existing Smart rules accept the target;
+- Shift + right-click entity queues Smart target resolution, including attack, harvest, repair, item pickup, persistent follow for a passive allied unit, and fallback point movement for other accepted targets;
 - Shift + Move queues point movement;
 - Shift + Attack queues either an entity attack or point attack-move;
 - an idle/Stop/Hold unit starts the first Shift order immediately instead of leaving it pending;
@@ -105,7 +105,8 @@ A queued entity `smart` re-runs the existing Smart decision when the command beg
 - destructable attack;
 - enemy attack;
 - Smart repair;
-- fallback movement to the target's then-current position.
+- persistent follow when the target is a live passive allied unit;
+- fallback movement to the target's then-current position for other accepted targets.
 
 This revalidation is important because a delayed Smart target can change state before its turn arrives.
 
@@ -145,7 +146,7 @@ OpenRealm does not yet have Warsmash's per-ability `onCancelFromQueue()` reserva
 
 The queue is inline numeric data inside `edict_t`; it contains no process pointers, so it persists with the existing raw-edict save record without adding an `F_EDICT` field. Entity targets remain number + `spawn_time` and are re-resolved only at execution.
 
-Adding the queue changes `sizeof(edict_t)`, and the new transient menu flags change `GAMECLIENT`. Save format version 7 therefore rejects older incompatible raw-struct saves. `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue` and `order_queued` because targeting callbacks/menu modes remain process-local transient state.
+Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves even though the current outer `W3SV` format version remains 1. The transient menu flags also change `GAMECLIENT`; `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue` and `order_queued` because targeting callbacks/menu modes remain process-local transient state.
 
 The existing save/load limitation still applies: arbitrary active `umove_t` behavior identity is not semantically restored. Pending queue records are persisted, but exact mid-order resume requires the separate active-behavior save work described in [Save/Load](save-load.md).
 

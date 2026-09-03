@@ -8,6 +8,7 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "../game/skills/s_skills.h"
 
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
@@ -342,6 +343,100 @@ TEST(wc3_unit, dead_unit_rejects_orders_that_would_replace_death_animation) {
     T_ASSERT(!unit_issuetargetorder(ent, "smart", target));
     T_NOT_NULL(ent->currentmove);
     T_STREQ(ent->currentmove->animation, "death");
+}
+
+TEST(wc3_unit, smart_on_passive_ally_starts_persistent_follow) {
+    reset_test_entities();
+    LPEDICT follower = make_unit(0, 0);
+    LPEDICT leader = make_unit(256, 0);
+    follower->svflags |= SVF_MONSTER;
+    leader->svflags |= SVF_MONSTER;
+    follower->s.player = 0;
+    leader->s.player = 1;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
+
+    T_ASSERT(unit_issuetargetorder(follower, "smart", leader));
+    T_ASSERT(follower->movement.follow_target == leader);
+    T_ASSERT(follower->goalentity == leader);
+    T_ASSERT(follower->currentmove && follower->currentmove->ability == &a_move);
+}
+
+TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
+    reset_test_entities();
+    LPEDICT follower = make_unit(0, 0);
+    LPEDICT leader = make_unit(256, 0);
+    follower->svflags |= SVF_MONSTER;
+    leader->svflags |= SVF_MONSTER;
+    follower->s.player = leader->s.player = 0;
+
+    T_ASSERT(unit_issuetargetorder(follower, "move", leader));
+    T_ASSERT(follower->movement.follow_target == leader);
+    T_ASSERT(follower->goalentity == leader);
+    T_ASSERT(follower->currentmove && follower->currentmove->ability == &a_move);
+}
+
+TEST(wc3_unit, queued_smart_on_passive_ally_revalidates_to_follow) {
+    reset_test_entities();
+    setup_test_world();
+    LPEDICT follower = make_unit(0, 0);
+    LPEDICT leader = make_unit(256, 0);
+    VECTOR2 first = { 96.0f, 0.0f };
+    follower->svflags |= SVF_MONSTER;
+    leader->svflags |= SVF_MONSTER;
+    follower->s.player = 0;
+    leader->s.player = 1;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
+
+    T_ASSERT(G_IssueUnitPointOrder(follower, "move", &first, true, 0, 0.0f));
+    T_ASSERT(G_IssueUnitTargetOrder(follower, "smart", leader, true, 0));
+    T_EQ(G_UnitQueuedOrderCount(follower), 1);
+
+    unit_stand(follower);
+
+    T_EQ(G_UnitQueuedOrderCount(follower), 0);
+    T_ASSERT(follower->movement.follow_target == leader);
+    T_ASSERT(follower->goalentity == leader);
+}
+
+TEST(wc3_unit, smart_on_neutral_aggressive_attacks_not_follows) {
+    reset_test_entities();
+    LPEDICT unit = make_unit(0, 0);
+    LPEDICT target = make_unit(128, 0);
+    unit->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER;
+    unit->s.player = 0;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    memset(level.alliances, 0, sizeof(level.alliances));
+
+    T_ASSERT(unit_issuetargetorder(unit, "smart", target));
+    T_ASSERT(unit->goalentity == target);
+    T_ASSERT(unit->movement.follow_target == NULL);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_attack);
+}
+
+TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
+    reset_test_entities();
+    LPEDICT unit = make_unit(0, 0);
+    LPEDICT target = make_unit(128, 0);
+    unit->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER;
+    unit->s.player = 0;
+    target->s.player = 1;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    level.alliances[0][1] |= 1 << ALLIANCE_SHARED_VISION;
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+
+    T_ASSERT(unit_issuetargetorder(unit, "smart", target));
+    T_ASSERT(unit->goalentity == target);
+    T_ASSERT(unit->movement.follow_target == NULL);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_attack);
 }
 
 TEST(wc3_unit, die_publishes_death_event) {

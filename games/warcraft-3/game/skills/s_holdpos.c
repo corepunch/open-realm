@@ -19,6 +19,11 @@ static void holdpos_command(LPEDICT ent) {
         if (S_GoldMineWorkerIsInside(e))
             continue;
         G_ClearUnitOrderQueue(e);
+        e->movement.attackmove_waypoint = NULL;
+        e->movement.patrol_a = NULL;
+        e->movement.patrol_b = NULL;
+        e->movement.patrol_target = NULL;
+        e->movement.follow_target = NULL;
         e->movement.holding_position = true;
         unit_leavecombat(e);
         unit_stand(e);

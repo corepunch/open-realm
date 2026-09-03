@@ -77,6 +77,10 @@ The map's authored resource setup and recurring resource triggers remain authori
 - **Attacks are blocking script procedures.** `SuicideOnPlayer` does not enqueue a fire-and-forget order. It prepares and fills the attack captain, starts the player assault, then yields until combat and captain-empty conditions finish or time out before the script advances.
 - **`CommandAI` is a per-player ordered interrupt channel.** `CommandsWaiting`, `GetLastCommand`, `GetLastData`, and `PopLastCommand` support polling and interruptible sleeps. Preserve command/data pairing and determine FIFO versus LIFO behavior from authoritative runtime evidence before implementing it; do not model this as one overwriteable flag.
 - **AI mode is native state.** `StandardAI` and `CampaignAI` select different flee, repair, hero, targeting, timed-life, and artillery policies through setter natives. These settings belong to the player AI runtime even when Human02 does not exercise every one.
+- **Alliance capabilities are independent and directional.** Combat/targeting friendship is `ALLIANCE_PASSIVE`; `SHARED_VISION`, `SHARED_XP`, and control flags do not independently make a target friendly. `SetPlayerAlliance` changes only the source player's relation, so Blizzard/map helpers must author the reverse direction separately when they require mutual alliance.
+- **Unit-target Move is persistent follow.** Smart on a passive allied unit (after higher-priority interactions such as Repair) and explicit target `move` retain the live unit as `movement.follow_target`. The follower uses its acquisition range as the stand-off distance, auto-acquires nearby hostiles, and resumes the retained follow after combat. Point Move, Attack-Move, Patrol, Stop, and Hold Position replace that default movement goal.
+- **Local acquisition is controller-agnostic.** `G_FindNearestEnemy` uses the acquiring unit owner's directional `PASSIVE` relation; it is not restricted to fights where one side is the human slot. This allows an allied computer Hero to defend against another computer player while keeping Neutral Passive out of ordinary acquisition. Neutral-owned units still do not initiate through `ai_stand`.
+- **Kill XP honors shared XP.** Nearby living, unsuspended Heroes owned by the killer or covered by the killer player's directional `ALLIANCE_SHARED_XP` participate in one recipient set. The victim's available XP is divided by that set before the existing per-Hero level factor is applied. A forced kill against a `PASSIVE` ally awards no Hero XP. Global-experience fallback remains unimplemented.
 
 `Blizzard.j` adds map-facing lifecycle rules:
 
@@ -250,6 +254,8 @@ TFT `common.ai` uses JASS `debug call`, `debug set`, and `debug if` statements. 
 
 `DisplayText`, `DisplayTextI`, `DisplayTextII`, and `DisplayTextIII` are AI diagnostics, not client UI messages. They write one player-prefixed line to `stderr`, decode Blizzard's literal `\\n`, and substitute only the native family's zero to three `%d` values into a bounded buffer; unknown format sequences remain literal. With these diagnostics and `GetUnitBuildTime`, a bounded TFT Human02 run starts `h02_red.ai`, reports its authored wave estimates, and completes 6000 frames without a parser, unresolved-native, or JASS runtime error.
 
+Human02's allied Uther patrol is map-trigger driven rather than an engine Patrol order. `Trig_Uther_Patrol_to_01_Actions` and `_02_Actions` issue alternating point `attack` orders; the corresponding region-entry triggers disable themselves, wait 12 seconds with `TriggerSleepAction`, enable the opposite reach/patrol triggers, and execute the next leg. Region conditions identify Uther through `GetEnteringUnit()`, so that native must return `JASSCONTEXT.unit` (the event subject), not `JASSCONTEXT.trigger`. Returning the trigger handle causes the generated `GetEnteringUnit() == <Uther>` condition to fail after the first leg and permanently stops the scripted patrol.
+
 `IgnoredUnits` counts live, matching, bot-owned members across the assault and defense captain rosters. `common.ai` adds this value to desired production because captain members still contribute to `TownCount` after assignment away from town duties. A bounded ROC Human02 run now passes this query and reports `CommandsWaiting` as the next unresolved native.
 
 `CommandAI` appends to a per-player command stack; `CommandsWaiting`, `GetLastCommand`, `GetLastData`, and `PopLastCommand` expose Blizzard's newest-command consumer contract to the bound bot VM. Empty reads return zero, commands remain isolated by player, and pending storage is released on bot replacement or shutdown.
@@ -309,7 +315,8 @@ This phase is not part of Human02's definition of done.
 Full multiplayer melee AI is tracked by [issue #215](https://github.com/corepunch/open-realm/issues/215). A two-player
 Booty Bay lobby with an Orc computer slot reaches `MeleeStartingAI`, starts the unchanged `Scripts/orc.ai`, and uses the
 same per-player VM as campaign AI. The first confirmed melee-only registration is `SetHeroLevels(function SkillArrays)`:
-the callback is VM-owned bot policy consumed when heroes gain levels, not an eager call during `StandardAI` startup.
+the callback is retained as VM-owned bot policy rather than eagerly called during `StandardAI` startup. A level-up
+consumer has not yet been proven/implemented, so the stored callback must not be described as active skill-selection AI.
 
 TFT melee initialization adds `Amic` to each starting town hall and marks it permanent before race AI starts.
 `UnitAddAbility` and `UnitRemoveAbility` therefore maintain per-unit runtime additions and suppressions over immutable
@@ -321,6 +328,15 @@ The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty
 `AI_DIFFICULTY_NORMAL` for valid players. `aidifficulty` is a value-like JASS enum handle and must remain in the VM's
 payload-comparison type table. Add a lobby field before supporting newbie or insane; do not infer difficulty from race,
 team, or map settings.
+
+Hero-policy setters remain registration/state only unless explicitly documented
+otherwise. In particular, `SetHeroLevels`, `SetHeroesFlee`,
+`SetHeroesTakeItems`, `SetHeroesBuyItems`, and `SetTargetHeroes` currently store
+VM-owned policy but do not yet provide a proven generic C consumer for skill
+selection, retreat, item pickup/purchase, or target prioritization. Do not invent
+those behaviors from the flag names; implement them only when the unchanged
+Blizzard AI scripts and runtime contract establish when/how the policy is
+consumed.
 
 With these startup APIs, bounded TFT Booty Bay launches start all four unchanged race scripts without a JASS runtime
 error: `Scripts/human.ai`, `Scripts/orc.ai`, `Scripts/undead.ai`, and `Scripts/elf.ai`. Keep slot type fixed at `2`

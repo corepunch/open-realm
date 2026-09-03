@@ -268,6 +268,117 @@ BOOL move_is_settled_near_goal(LPEDICT ent, FLOAT distance, FLOAT move_distance)
     return blocked && ent->movement.last_distance <= settle_distance;
 }
 
+/* Unit-target Move/Smart is a persistent follow order rather than a snapshot
+ * point move. Keep the target entity authoritative so a moving ally can be
+ * tracked and the retained goal can be resumed after opportunistic combat. */
+static BOOL follow_target_is_valid(LPCEDICT self, LPCEDICT target) {
+    DWORD owner;
+
+    if (!self || !target || !target->inuse || !(target->svflags & SVF_MONSTER) || M_IsDead((LPEDICT)target)) {
+        return false;
+    }
+    if (self->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
+        return false;
+    }
+    owner = target->s.player;
+    if (owner == self->s.player) {
+        return true;
+    }
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE) {
+        return false;
+    }
+    if (level.mapinfo && level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
+        return false;
+    }
+    return (level.alliances[self->s.player][owner] & (1 << ALLIANCE_PASSIVE)) != 0;
+}
+
+static BOOL follow_can_auto_attack(LPCEDICT self) {
+    if (!self || self->attack1.cooldown <= 0.0f ||
+        (self->attack1.damageBase <= 0 && self->attack1.numberOfDice <= 0)) {
+        return false;
+    }
+    return !level.mapinfo || level.mapinfo->players[self->s.player].playerType != kPlayerTypeNeutral;
+}
+
+static void ai_follow_walk(LPEDICT ent) {
+    LPEDICT target = ent->movement.follow_target;
+    FLOAT distance;
+    FLOAT follow_range;
+    BOOL standing;
+
+    if (!follow_target_is_valid(ent, target)) {
+        ent->movement.follow_target = NULL;
+        if (ent->goalentity == target) ent->goalentity = NULL;
+        unit_stand(ent);
+        return;
+    }
+
+    ent->goalentity = target;
+    if (follow_can_auto_attack(ent) && G_ShouldAcquireThisFrame(ent)) {
+        LPEDICT enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
+        if (enemy) {
+            order_attack(ent, enemy);
+            return;
+        }
+    }
+
+    distance = M_DistanceToGoal(ent);
+    follow_range = MAX(G_AcquisitionRange(ent), ent->collision + target->collision);
+    standing = ent->animation && !strcmp(ent->animation->name, "stand");
+    if (distance <= follow_range) {
+        if (!standing) {
+            move_reset_progress(ent);
+            unit_setanimation(ent, "stand");
+        }
+        return;
+    }
+
+    if (standing) move_reset_progress(ent);
+    unit_setanimation(ent, "walk");
+    unit_changeangle(ent);
+    if (ent->movement.flow_unreachable) {
+        unit_setanimation(ent, "stand");
+        return;
+    }
+    unit_moveindirection(ent);
+}
+
+static umove_t follow_move_walk = { "walk", ai_follow_walk, NULL, &a_move };
+
+void order_follow_resume(LPEDICT self) {
+    LPEDICT target;
+
+    if (!self || S_GoldMineWorkerIsInside(self) || (self->aiflags & AI_IMMOBILE)) {
+        return;
+    }
+    target = self->movement.follow_target;
+    if (!follow_target_is_valid(self, target)) {
+        self->movement.follow_target = NULL;
+        if (self->goalentity == target) self->goalentity = NULL;
+        unit_stand(self);
+        return;
+    }
+    self->goalentity = target;
+    self->movement.holding_position = false;
+    move_reset_progress(self);
+    unit_setmove(self, &follow_move_walk);
+}
+
+void order_follow(LPEDICT self, LPEDICT target) {
+    if (!self || (self->aiflags & AI_IMMOBILE) || S_GoldMineWorkerIsInside(self) ||
+        !follow_target_is_valid(self, target)) {
+        return;
+    }
+    self->movement.attackmove_waypoint = NULL;
+    self->movement.patrol_a = NULL;
+    self->movement.patrol_b = NULL;
+    self->movement.patrol_target = NULL;
+    self->movement.follow_target = target;
+    self->movement.holding_position = false;
+    order_follow_resume(self);
+}
+
 static umove_t move_move_hold = { "stand", NULL, NULL, &a_move };
 
 BOOL move_is_terminal_hold(LPCEDICT ent) {
@@ -351,6 +462,10 @@ void order_move(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = NULL;
+    self->movement.patrol_b = NULL;
+    self->movement.patrol_target = NULL;
+    self->movement.follow_target = NULL;
+    self->movement.holding_position = false;
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
     /* No route heading exists at submission time. Hold the stand pose instead

@@ -173,16 +173,45 @@ void unit_birth(LPEDICT self) {
 }
 
 static BOOL unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
-    if (!self || !target || target->s.player == self->s.player || target->s.player >= MAX_PLAYERS) {
+    DWORD owner;
+
+    if (!self || !target || self->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
         return false;
     }
-    if (level.mapinfo) {
-        playerType_t type = level.mapinfo->players[target->s.player].playerType;
-        if (type == kPlayerTypeNone || type == kPlayerTypeNeutral) {
-            return false;
-        }
+    owner = target->s.player;
+    if (owner == self->s.player) {
+        return false;
     }
-    return true;
+    /* Warcraft reserves separate neutral-aggressive/passive player slots. Keep
+     * those semantics explicit instead of treating every kPlayerTypeNeutral
+     * slot identically: creeps are hostile Smart targets; passive widgets are
+     * neutral interactions and must never become follow targets by accident. */
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
+        return true;
+    }
+    if (owner == PLAYER_NEUTRAL_PASSIVE) {
+        return false;
+    }
+    if (level.mapinfo && level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
+        return false;
+    }
+    return (level.alliances[self->s.player][owner] & (1 << ALLIANCE_PASSIVE)) == 0;
+}
+
+static BOOL unit_smart_target_is_followable(LPEDICT self, LPEDICT target) {
+    DWORD owner;
+
+    if (!self || !target || self->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
+        return false;
+    }
+    owner = target->s.player;
+    if (owner == self->s.player) {
+        return true;
+    }
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE) {
+        return false;
+    }
+    return (level.alliances[self->s.player][owner] & (1 << ALLIANCE_PASSIVE)) != 0;
 }
 
 static BOOL unit_order_name_valid(LPCSTR order) {
@@ -286,7 +315,15 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         if (S_RepairSmart(self, target)) {
             return true;
         }
+        if ((target->svflags & SVF_MONSTER) && unit_smart_target_is_followable(self, target)) {
+            order_follow(self, target);
+            return self->movement.follow_target == target;
+        }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f);
+    }
+    if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
+        order_follow(self, target);
+        return self->movement.follow_target == target;
     }
     if (!strcmp(order, "attack")) {
         if (G_IsDestructable(target) && !G_DestructableIsAttackable(target)) {
@@ -334,7 +371,7 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         return G_SetRallyEntity(self, target);
     }
     if (S_GoldMineWorkerIsInside(self)) return false;
-    if (strcmp(order, "smart") && strcmp(order, "attack")) return false;
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) return false;
 
     if (queue && unit_has_active_order(self)) {
         return unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
@@ -909,10 +946,30 @@ BOOL G_UnitIsHero(LPCEDICT ent) {
     return ent->UnitBalance->strength > 0 || ent->UnitBalance->agility > 0 || ent->UnitBalance->intelligence > 0;
 }
 
-/* Award experience for killing `victim` to the killer's heroes within range,
- * applying the per-victim base XP and the level-difference diminishing returns. */
+static BOOL G_HeroReceivesKillXP(LPCEDICT hero, LPCEDICT victim, LPCEDICT killer, FLOAT range) {
+    if (!hero->inuse || !(hero->svflags & SVF_MONSTER) || !hero->UnitBalance ||
+        hero->health.value <= 0 || hero->hero.suspend_xp || !G_UnitIsHero(hero) ||
+        Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range) {
+        return false;
+    }
+    if (hero->s.player == killer->s.player) {
+        return true;
+    }
+    return hero->s.player < MAX_PLAYERS && killer->s.player < MAX_PLAYERS &&
+           (level.alliances[killer->s.player][hero->s.player] & (1 << ALLIANCE_SHARED_XP));
+}
+
+/* Award experience for killing `victim` to nearby heroes owned by the killer
+ * or covered by the killer player's directional SHARED_XP alliance. Warcraft
+ * divides the available victim XP across all eligible nearby heroes before
+ * applying each receiving Hero's level factor. */
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
     DWORD const vcls = victim->class_id;
+    DWORD receivers = 0;
+    if (victim->s.player < MAX_PLAYERS && killer->s.player < MAX_PLAYERS &&
+        (level.alliances[killer->s.player][victim->s.player] & (1 << ALLIANCE_PASSIVE))) {
+        return; /* forced attacks on passive allies do not award Hero XP */
+    }
     if (G_UnitIsBuilding(vcls) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {
         return;
     }
@@ -930,12 +987,17 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
     FLOAT const range = G_MiscNum("HeroExpRange", 1200.0f);
 
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT h = &globals.edicts[i];
-        if (!h->inuse || h->s.player != killer->s.player || h->health.value <= 0) {
-            continue;
+        if (G_HeroReceivesKillXP(&globals.edicts[i], victim, killer, range)) {
+            receivers++;
         }
-        if (!G_UnitIsHero(h) ||
-            Vector2_distance(&h->s.origin2, &victim->s.origin2) > range) {
+    }
+    if (!receivers) {
+        return;
+    }
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT h = &globals.edicts[i];
+        if (!G_HeroReceivesKillXP(h, victim, killer, range)) {
             continue;
         }
         /* Diminishing returns: hero N levels above the victim earns
@@ -945,7 +1007,7 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
         if (diff > 0) {
             factor = G_MiscListNum("HeroFactorXP", (DWORD)(diff - 1), 0.0f) / 100.0f;
         }
-        DWORD const award = (DWORD)(baseXP * factor + 0.5f);
+        DWORD const award = (DWORD)(((FLOAT)baseXP / (FLOAT)receivers) * factor + 0.5f);
         if (award > 0) {
             G_HeroSetXP(h, h->hero.xp + award);
         }

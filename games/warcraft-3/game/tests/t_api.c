@@ -229,6 +229,55 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_FEQ(gc->ps.viewquat.x, quat.x, 0.001f); T_FEQ(gc->ps.viewquat.w, quat.w, 0.001f);
 }
 
+TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
+    LPEDICT entering = NULL;
+    LPEVENT handler = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit udg_Entering = null\n"
+        "  boolean udg_Entered = false\n"
+        "endglobals\n"
+        "function onEnter takes nothing returns nothing\n"
+        "  call BJassAssert(GetEnteringUnit() == udg_Entering, \"GetEnteringUnit did not return event subject\")\n"
+        "  call BJassAssert(GetTriggerUnit() == udg_Entering, \"GetTriggerUnit did not return event subject\")\n"
+        "  set udg_Entered = true\n"
+        "endfunction\n"
+        "function verifyEnter takes nothing returns nothing\n"
+        "  call BJassAssert(udg_Entered, \"region enter action did not run\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  call RegionAddRect(r, Rect(100.0, 100.0, 200.0, 200.0))\n"
+        "  set udg_Entering = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterEnterRegion(t, r, null)\n"
+        "  call TriggerAddAction(t, function onEnter)\n"
+        "endfunction\n"
+    ));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            g_edicts[i].s.player == 0) {
+            entering = &g_edicts[i];
+        }
+    }
+    T_NOT_NULL(entering);
+    FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
+        if (evt->type == EVENT_GAME_ENTER_REGION) {
+            handler = evt;
+            break;
+        }
+    }
+    T_NOT_NULL(handler);
+    G_PublishEvent(entering, EVENT_GAME_ENTER_REGION)->responseTo = handler;
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyEnter", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 /* An event's owner is GetTriggerPlayer(), not the local-player selector used by GetLocalPlayer().
  * Human02's victory chain starts from the Blademaster (player 4) dying, then
  * TriggerExecute()s nested cinematic triggers whose local UI branch targets

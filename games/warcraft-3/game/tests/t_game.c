@@ -1551,6 +1551,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
     first->owner = second;
+    first->movement.follow_target = second;
     first->inventory[2] = second;
     first->cargo.units[3] = second;
     level.framenum = 1234;
@@ -1574,6 +1575,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
     first->owner = NULL;
+    first->movement.follow_target = NULL;
     first->inventory[2] = NULL;
     first->cargo.units[3] = NULL;
     strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
@@ -1603,6 +1605,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(game.clients[0].jass.controller, 1);
     T_EQ(game.clients[0].ping, 77);
     T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
+    T_ASSERT(g_edicts[first - g_edicts].movement.follow_target == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
