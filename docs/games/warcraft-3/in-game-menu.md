@@ -66,7 +66,10 @@ copies the active panel's assigned width and height to both the controller and b
 preserves that existing policy rather than restoring the older direct TOP/-0.05 anchor experiment.
 
 The recipient's Warcraft race skin must be active before the FDF is first resolved because the Esc-menu art uses `DecorateFileNames`
-skin keys. Keep menu load/write between `UI_SetCurrentClient(client)` and `UI_SetCurrentClient(NULL)`.
+skin keys. `EscMenuBackdrop` is additionally refreshed from the stock `EscMenuBackground` and `EscMenuBorder` keys for each recipient
+before serialization. The FDF template cache is global, so this late resolution prevents stale decorated image indexes from turning
+the menu backdrop into unrelated Esc-menu highlight/slider art. Keep menu load/write between `UI_SetCurrentClient(client)` and
+`UI_SetCurrentClient(NULL)`.
 
 ## Pause And Modal Input
 

@@ -17,6 +17,25 @@ static LPFRAMEDEF MenuPanel(menuPanel_t panel) {
     }
 }
 
+static void MenuApplyBackdropSkin(LPGAMECLIENT client) {
+    LPCSTR background, border;
+
+    if (!client || !hud.menu.EscMenuBackdrop || hud.menu.EscMenuBackdrop->Type != FT_BACKDROP) return;
+
+    /* EscMenuBackdrop is a globally cached decorated FDF frame.  Resolve its
+     * two stock skin keys for the concrete recipient at write time instead of
+     * trusting whatever image indexes were captured when the shared template
+     * was first parsed. */
+    background = Theme_PlayerString(client, "EscMenuBackground", NULL);
+    border = Theme_PlayerString(client, "EscMenuBorder", NULL);
+    if (background && *background) {
+        hud.menu.EscMenuBackdrop->Backdrop.Background = gi.ImageIndex(background);
+    }
+    if (border && *border) {
+        hud.menu.EscMenuBackdrop->Backdrop.EdgeFile = gi.ImageIndex(border);
+    }
+}
+
 void UI_LoadHudMenu(void) {
     if (hud.menu.EscMenuBackdrop) return;
     if (!EscMenuMainPanelGame_Load(&hud.menu)) return;
@@ -89,6 +108,7 @@ static void MenuWrite(LPEDICT ent, menuPanel_t panel) {
         UI_SetCurrentClient(NULL);
         return;
     }
+    MenuApplyBackdropSkin(ent->client);
     MenuSelectPanel(panel);
     UI_WriteWindow(ent, hud.menu.EscMenuMainPanel, &MAKE(uiWindowDef_t,
         .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU,
