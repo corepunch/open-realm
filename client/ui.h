@@ -199,6 +199,9 @@ typedef struct {
     uiGameCommand_t GameCommand;
     void (*DrawGameOverlay)(void);
 
+    /* Resolve a Warcraft-specific symbolic image key for the local player. */
+    LPCSTR (*ResolveImagePath)(LPCSTR key);
+
     /* Legacy named XML windows — show/hide a ui.dll-owned window by ID. */
     void (*ShowWindow)(const char *window_id, int show);
 } uiExport_t;

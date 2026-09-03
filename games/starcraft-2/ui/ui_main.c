@@ -10,6 +10,7 @@ static void UI_TextInputLocal(LPCSTR text) { (void)text; }
 static BOOL UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) { (void)event; (void)x; (void)y; (void)param; return false; }
 static void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) { (void)num_units; (void)units; }
 static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) { (void)state; }
+static LPCSTR UI_ResolveImagePathLocal(LPCSTR key) { return key; }
 
 uiExport_t UI_GetAPI(uiImport_t import) {
     uiimport = import;
@@ -22,5 +23,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .MouseEvent       = UI_MouseEventLocal,
         .UpdateUnitUI     = UI_UpdateUnitUILocal,
         .UpdateLobbySetup = UI_UpdateLobbySetupLocal,
+        .ResolveImagePath  = UI_ResolveImagePathLocal,
     };
 }

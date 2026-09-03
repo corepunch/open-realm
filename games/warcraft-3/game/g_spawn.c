@@ -246,8 +246,8 @@ void SP_CallSpawn(LPEDICT edict) {
 
 void SP_worldspawn(LPEDICT ent) {
     SetAbilityNames();
-    gi.configstring(CS_HEALTHBAR, Theme_String("SimpleHpBarConsole", "Default"));
-    gi.configstring(CS_MANAHBAR, Theme_String("SimpleManaBarConsole", "Default"));
+    gi.configstring(CS_HEALTHBAR, "SimpleHpBarConsole");
+    gi.configstring(CS_MANAHBAR, "SimpleManaBarConsole");
 }
 
 static DWORD G_MapPlayerTeam(LPCMAPINFO mapinfo, DWORD playernum) {

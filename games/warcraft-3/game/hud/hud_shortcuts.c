@@ -39,7 +39,6 @@ static void UI_WriteUnitShortcutButton(FLOAT x, FLOAT y, FLOAT size, LPCEDICT un
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_COMMANDBUTTON;
     frame.color = COLOR32_WHITE;
-    art = Theme_String(art, art);
     frame.tex.index = gi.ImageIndex(art);
     frame.onclick = command;
     frame.tooltip = tooltip;

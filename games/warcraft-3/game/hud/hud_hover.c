@@ -29,8 +29,8 @@ static void UI_WriteHoverBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWO
 void UI_WriteHoverLayout(LPEDICT ent) {
     uiFrame_t frame = { 0 };
     LPCSTR black = "Textures\\Black32.blp";
-    LPCSTR hp = Theme_String("SimpleHpBarConsoleSmall", "SimpleHpBarConsoleSmall");
-    LPCSTR mana = Theme_String("SimpleManaBarConsoleSmall", "SimpleManaBarConsoleSmall");
+    LPCSTR hp = "SimpleHpBarConsoleSmall";
+    LPCSTR mana = "SimpleManaBarConsoleSmall";
 
     if (!ent || !ent->client || !ent->client->connected) return;
     UI_WriteStart(LAYER_WORLD_HOVER);
@@ -39,8 +39,8 @@ void UI_WriteHoverLayout(LPEDICT ent) {
     frame.color = COLOR32_WHITE;
     uiNameTag_t data = MAKE(uiNameTag_t,
         .background = MAKE(uiBackdrop_t,
-            .Background = gi.ImageIndex(Theme_String("ToolTipBackground", "ToolTipBackground")),
-            .EdgeFile = gi.ImageIndex(Theme_String("ToolTipBorder", "ToolTipBorder")),
+            .Background = gi.ImageIndex("ToolTipBackground"),
+            .EdgeFile = gi.ImageIndex("ToolTipBorder"),
             .CornerFlags = 0x1ff,
             .CornerSize = 0.010f,
             .BackgroundSize = 0.036f,

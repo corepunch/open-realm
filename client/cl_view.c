@@ -466,7 +466,7 @@ void CL_PrepRefresh(void) {
             cl.pics[i] = NULL;
             continue;
         }
-        cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
+        cl.pics[i] = re.LoadTexture(CL_ResolveImagePath(cl.configstrings[CS_IMAGES + i]));
     }
 
     if (register_sounds)
@@ -498,6 +498,14 @@ void CL_PrepRefresh(void) {
     if (world_loaded && !cl.refresh_prepped) {
         S_EndRegistration();
         cl.refresh_prepped = true;
+    }
+}
+
+void CL_ReloadImageResources(void) {
+    FOR_LOOP(i, MAX_IMAGES) {
+        if (cl.pics[i]) re.ReleaseTexture((LPTEXTURE)cl.pics[i]);
+        cl.pics[i] = cl.configstrings[CS_IMAGES + i][0]
+            ? re.LoadTexture(CL_ResolveImagePath(cl.configstrings[CS_IMAGES + i])) : NULL;
     }
 }
 

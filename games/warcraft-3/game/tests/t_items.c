@@ -339,7 +339,7 @@ TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_invent
     T_ASSERT(inventory_refresh_saw_inventory_layer);
     T_ASSERT(!inventory_refresh_saw_other_layer);
     T_EQ(inventory_panel_image_count, 1);
-    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\human-inventory-cover.blp");
+    T_STREQ(inventory_panel_images[0], "ConsoleInventoryCoverTexture");
     T_ASSERT(inventory_panel_frame_seen);
     T_EQ(inventory_panel_frame.flags.type, FT_TEXTURE);
     T_EQ(inventory_panel_frame.flags.alphaMode, BLEND_MODE_ALPHAKEY);
@@ -377,7 +377,7 @@ TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_res
     G_RefreshInventoryLayer(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
     T_EQ(inventory_panel_image_count, 1);
-    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\human-inventory-cover.blp");
+    T_STREQ(inventory_panel_images[0], "ConsoleInventoryCoverTexture");
 
     G_SetPlayerTechResearched(client, MAKEFOURCC('R','h','p','m'), 1);
     T_EQ(G_InventoryCapacity(footman), 2);
@@ -387,7 +387,7 @@ TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_res
     G_RefreshInventoryLayer(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
     T_EQ(inventory_panel_image_count, 4);
-    FOR_LOOP(i, 4) T_STREQ(inventory_panel_images[i], "TestUI\\Textures\\human-inventory-no-capacity.blp");
+    FOR_LOOP(i, 4) T_STREQ(inventory_panel_images[i], "ConsoleInventoryNoCapacity");
 }
 
 TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
@@ -404,7 +404,7 @@ TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
     gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
     T_EQ(inventory_panel_image_count, 1);
-    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\orc-inventory-cover.blp");
+    T_STREQ(inventory_panel_images[0], "ConsoleInventoryCoverTexture");
 }
 
 TEST(wc3_items, inventory_panel_falls_back_to_default_skin_for_unknown_player_race) {
@@ -421,7 +421,7 @@ TEST(wc3_items, inventory_panel_falls_back_to_default_skin_for_unknown_player_ra
     gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
     T_EQ(inventory_panel_image_count, 1);
-    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\default-inventory-cover.blp");
+    T_STREQ(inventory_panel_images[0], "ConsoleInventoryCoverTexture");
 }
 
 TEST(wc3_items, inventory_panel_marks_only_slots_outside_reduced_capacity) {
@@ -438,7 +438,7 @@ TEST(wc3_items, inventory_panel_marks_only_slots_outside_reduced_capacity) {
     gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
     T_EQ(G_InventoryCapacity(unit), 2); T_EQ(inventory_panel_image_count, 4);
-    FOR_LOOP(i, 4) T_STREQ(inventory_panel_images[i], "TestUI\\Textures\\human-inventory-no-capacity.blp");
+    FOR_LOOP(i, 4) T_STREQ(inventory_panel_images[i], "ConsoleInventoryNoCapacity");
 }
 
 TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
@@ -482,7 +482,7 @@ TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
     gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
     T_EQ(inventory_panel_image_count, 1);
-    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\human-inventory-cover.blp");
+    T_STREQ(inventory_panel_images[0], "ConsoleInventoryCoverTexture");
 
     T_ASSERT(G_FocusSelectedUnit(client, inventory_unit));
     T_ASSERT(G_GetMainSelectedUnit(client) == inventory_unit);
@@ -495,7 +495,7 @@ TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
     T_EQ(inventory_panel_image_count, 4);
     FOR_LOOP(i, 4)
-        T_STREQ(inventory_panel_images[i], "TestUI\\Textures\\human-inventory-no-capacity.blp");
+        T_STREQ(inventory_panel_images[i], "ConsoleInventoryNoCapacity");
 }
 
 TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {

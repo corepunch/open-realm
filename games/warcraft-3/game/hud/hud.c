@@ -194,12 +194,8 @@ static LPCSTR UI_ControlHighlightSkin(LPCSTR name) {
 }
 
 static DWORD UI_ControlThemeImage(LPCSTR key) {
-    LPCSTR resolved;
     if (!key || !*key) return 0;
-    resolved = Theme_PlayerString(ui_current_client, key, NULL);
-    if (!resolved || !*resolved) resolved = Theme_String(key, NULL);
-    if (!resolved || !*resolved || !strcmp(resolved, key)) return 0;
-    return gi.ImageIndex(UI_ResolveTextureAlias(resolved));
+    return gi.ImageIndex(key);
 }
 
 static uiBackdrop_t MakeButtonBackdrop(LPCFRAMEDEF frame, LPCSTR name) {

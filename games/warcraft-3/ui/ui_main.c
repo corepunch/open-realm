@@ -27,6 +27,12 @@ static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
 static LoadingScreen_t loading_screen;
 
+/* Resolve symbolic server-authored WC3 image names using the local player's skin. */
+LPCSTR UI_ResolveImagePathLocal(LPCSTR key) {
+    if (!key || !*key || strchr(key, '\\') || strchr(key, '/')) return key;
+    return Theme_String(key, "Default");
+}
+
 static void UI_EnterGameMode(void);
 
 static BOOL UI_IsMapCommand(LPCSTR command) {
@@ -837,6 +843,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.MouseEvent = UI_MouseEventLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
+    exp.ResolveImagePath = UI_ResolveImagePathLocal;
     
     return exp;
 }

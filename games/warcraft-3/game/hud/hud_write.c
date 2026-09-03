@@ -146,8 +146,8 @@ void UI_WriteBackdropFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR background
     memset(&backdrop, 0, sizeof(backdrop));
     frame.flags.type = FT_BACKDROP;
     frame.color = MAKE(COLOR32, 255, 255, 255, 235);
-    backdrop.Background = gi.ImageIndex(Theme_String(background, background));
-    backdrop.EdgeFile = gi.ImageIndex(Theme_String(edge, edge));
+    backdrop.Background = gi.ImageIndex(background);
+    backdrop.EdgeFile = gi.ImageIndex(edge);
     backdrop.CornerFlags = 0x1ff;
     backdrop.CornerSize = 0.008f;
     backdrop.BackgroundSize = 0.036f;
@@ -185,8 +185,8 @@ void UI_WriteTooltipFrame(void) {
     memset(&tooltip, 0, sizeof(tooltip));
     frame.flags.type = FT_TOOLTIPTEXT;
     frame.color = COLOR32_WHITE;
-    tooltip.background.Background = gi.ImageIndex(Theme_String("ToolTipBackground", "ToolTipBackground"));
-    tooltip.background.EdgeFile = gi.ImageIndex(Theme_String("ToolTipBorder", "ToolTipBorder"));
+    tooltip.background.Background = gi.ImageIndex("ToolTipBackground");
+    tooltip.background.EdgeFile = gi.ImageIndex("ToolTipBorder");
     tooltip.background.CornerFlags = 0x1ff;
     tooltip.background.CornerSize = 0.008f;
     tooltip.background.BackgroundSize = 0.036f;
@@ -305,7 +305,7 @@ DWORD UI_LiveFont(DWORD font) {
 }
 
 DWORD UI_LiveImage(DWORD image) {
-    LPCSTR key = NULL, name = NULL, resolved, path;
+    LPCSTR key = NULL, name = NULL, path;
     BOOL decorate = false;
     DWORD live;
 
@@ -318,16 +318,11 @@ DWORD UI_LiveImage(DWORD image) {
     if (!key || !*key) return image;
     if (!gi.ImageIndex) return image;
 
-    /* Decorated war3skins keys have no slash; re-resolve for the client being serialized. */
+    /* Preserve symbolic keys in CS_IMAGES; the recipient resolves war3skins locally. */
     if (decorate || (!strchr(key, '\\') && !strchr(key, '/'))) {
-        resolved = ui_current_client ? Theme_PlayerString(ui_current_client, key, NULL) : NULL;
-        if (!resolved) resolved = Theme_String(key, NULL);
-        if (resolved && *resolved) {
-            path = UI_ResolveTextureAlias(resolved);
-            live = gi.ImageIndex(path);
-            UI_RememberImage(live, key, path, true);
-            return live;
-        }
+        live = gi.ImageIndex(key);
+        UI_RememberImage(live, key, key, decorate);
+        return live;
     }
     path = UI_ResolveTextureAlias(name && *name ? name : key);
     live = gi.ImageIndex(path);
@@ -336,20 +331,12 @@ DWORD UI_LiveImage(DWORD image) {
 }
 
 BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL decorate) {
-    LPCSTR resolved;
     DWORD index;
 
     if (!path || !*path) return 0;
 
-    /* Decorated in-game FDF art is race-skinned.  The standalone UI module
-     * maps its Default category to the local player's race; do the same for
-     * server-authored HUD FDF while a client is being built.  This matters for
-     * EscMenuButtonBackground/Border used by QuestAcceptButton/LogOkButton. */
-    resolved = decorate ? Theme_PlayerString(ui_current_client, path, NULL) : NULL;
-    if (!resolved) resolved = decorate ? Theme_String(path, path) : path;
-    resolved = UI_ResolveTextureAlias(resolved);
-    index = gi.ImageIndex(resolved);
-    UI_RememberImage(index, path, resolved, decorate);
+    index = gi.ImageIndex(path);
+    UI_RememberImage(index, path, path, decorate);
     return index;
 }
 

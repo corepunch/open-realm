@@ -88,6 +88,8 @@ cvar_t *Cvar_Set(LPCSTR name, LPCSTR value) {
 void CL_ParseTEnt(LPSIZEBUF msg) { (void)msg; }
 void CL_BeginLoadingMap(LPCSTR mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = 0; }
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }
+LPCSTR CL_ResolveImagePath(LPCSTR imageName) { return imageName; }
+void CL_ReloadImageResources(void) {}
 void CL_Disconnect(LPCSTR reason, BOOL notify) { (void)reason; (void)notify; cls.state = ca_disconnected; }
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }
 void S_RegisterSound(LPCSTR path) { (void)path; }
