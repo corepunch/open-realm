@@ -170,6 +170,25 @@ TEST(wc3_game, hud_valid_texture_path_is_unchanged) {
     T_STREQ(UI_ResolveTextureAlias("UI\\Feedback\\Resources\\ResourceGold.blp"),
                   "UI\\Feedback\\Resources\\ResourceGold.blp");
 }
+TEST(wc3_game, hud_stock_escmenu_control_parts_map_to_skin_keys) {
+    uiControlSkin_t skin;
+
+    T_ASSERT(UI_ControlBackdropSkin("ButtonBackdropTemplate", &skin));
+    T_STREQ(skin.background, "EscMenuButtonBackground");
+    T_STREQ(skin.edge, "EscMenuButtonBorder");
+    T_ASSERT(UI_ControlBackdropSkin("ButtonPushedBackdropTemplate", &skin));
+    T_STREQ(skin.background, "EscMenuButtonPushedBackground");
+    T_STREQ(skin.edge, "EscMenuButtonPushedBorder");
+    T_ASSERT(UI_ControlBackdropSkin("EscMenuCheckBoxBackdrop", &skin));
+    T_STREQ(skin.background, "EscMenuCheckBoxBackground");
+    T_NULL(skin.edge);
+    T_STREQ(UI_ControlHighlightSkin("ButtonMouseOverHighlightTemplate"),
+            "EscMenuButtonMouseOverHighlight");
+    T_STREQ(UI_ControlHighlightSkin("EscMenuCheckHighlightTemplate"),
+            "EscMenuCheckBoxCheckHighlight");
+    T_STREQ(UI_ControlHighlightSkin("EscMenuDisabledCheckHighlightTemplate"),
+            "EscMenuDisabledCheckHighlight");
+}
 TEST(wc3_game, hud_status_icon_keys_follow_upgrade_and_neutral_families) {
     char key[96];
 
@@ -367,6 +386,52 @@ TEST(wc3_game, hud_multiline_fdf_text_keeps_renderer_auto_height) {
     T_FEQ(wire.size.height, 0.0f, 0.0001f);
 }
 
+TEST(wc3_game, hud_checkbox_serializes_authored_states_and_checked_value) {
+    BYTE typedata[256];
+    char textbuf[128];
+    uiFrame_t out;
+    LPFRAMEDEF box, normal, pushed, disabled, over, checked, disabled_checked;
+    uiCheckBox_t const *wire;
+
+    UI_ClearTemplates();
+    box = UI_Spawn(FT_GLUECHECKBOX, NULL);
+    normal = UI_Spawn(FT_BACKDROP, box);
+    pushed = UI_Spawn(FT_BACKDROP, box);
+    disabled = UI_Spawn(FT_BACKDROP, box);
+    over = UI_Spawn(FT_HIGHLIGHT, box);
+    checked = UI_Spawn(FT_HIGHLIGHT, box);
+    disabled_checked = UI_Spawn(FT_HIGHLIGHT, box);
+    T_NOT_NULL(box); T_NOT_NULL(normal); T_NOT_NULL(pushed); T_NOT_NULL(disabled);
+    T_NOT_NULL(over); T_NOT_NULL(checked); T_NOT_NULL(disabled_checked);
+
+    snprintf(normal->Name, sizeof(normal->Name), "Normal"); normal->Backdrop.Background = 11;
+    snprintf(pushed->Name, sizeof(pushed->Name), "Pushed"); pushed->Backdrop.Background = 12;
+    snprintf(disabled->Name, sizeof(disabled->Name), "Disabled"); disabled->Backdrop.Background = 13;
+    snprintf(over->Name, sizeof(over->Name), "Over"); over->Highlight.AlphaFile = 14;
+    snprintf(checked->Name, sizeof(checked->Name), "Checked"); checked->Highlight.AlphaFile = 15;
+    snprintf(disabled_checked->Name, sizeof(disabled_checked->Name), "DisabledChecked");
+    disabled_checked->Highlight.AlphaFile = 16;
+    snprintf(box->Control.Backdrop.Normal, sizeof(box->Control.Backdrop.Normal), "Normal");
+    snprintf(box->Control.Backdrop.Pushed, sizeof(box->Control.Backdrop.Pushed), "Pushed");
+    snprintf(box->Control.Backdrop.Disabled, sizeof(box->Control.Backdrop.Disabled), "Disabled");
+    snprintf(box->Control.Backdrop.MouseOver, sizeof(box->Control.Backdrop.MouseOver), "Over");
+    snprintf(box->CheckBox.CheckHighlight, sizeof(box->CheckBox.CheckHighlight), "Checked");
+    snprintf(box->CheckBox.DisabledCheckHighlight, sizeof(box->CheckBox.DisabledCheckHighlight), "DisabledChecked");
+    box->CheckBox.Checked = true;
+
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(box, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_EQ(out.buffer.size, sizeof(uiCheckBox_t));
+    T_FEQ(out.value, 1.0f, 0.0001f);
+    wire = (uiCheckBox_t const *)out.buffer.data;
+    T_EQ(wire->normal.Background, 11);
+    T_EQ(wire->pushed.Background, 12);
+    T_EQ(wire->disabled.Background, 13);
+    T_EQ(wire->mouseOver.alphaFile, 14);
+    T_EQ(wire->checked.alphaFile, 15);
+    T_EQ(wire->disabledChecked.alphaFile, 16);
+}
+
 TEST(wc3_game, hud_simple_button_serializes_button_state) {
     BYTE typedata[256];
     char textbuf[128];
@@ -483,6 +548,58 @@ TEST(wc3_game, hud_reset_drops_cached_image_names) {
     T_EQ(wire.tex.index, chrome);
 
     gi.ImageIndex = old_image;
+}
+
+TEST(wc3_game, hud_control_state_art_is_embedded_but_button_text_is_not_art) {
+    LPFRAMEDEF button, normal, pushed, label;
+
+    UI_ClearTemplates();
+    button = UI_Spawn(FT_GLUETEXTBUTTON, NULL);
+    normal = UI_Spawn(FT_BACKDROP, button);
+    pushed = UI_Spawn(FT_TEXTURE, button);
+    label = UI_Spawn(FT_TEXT, button);
+    T_NOT_NULL(button); T_NOT_NULL(normal); T_NOT_NULL(pushed); T_NOT_NULL(label);
+
+    snprintf(normal->Name, sizeof(normal->Name), "NormalBackdrop");
+    snprintf(pushed->Name, sizeof(pushed->Name), "PushedTexture");
+    snprintf(label->Name, sizeof(label->Name), "ButtonText");
+    snprintf(button->Control.Backdrop.Normal, sizeof(button->Control.Backdrop.Normal), "NormalBackdrop");
+    snprintf(button->Button.PushedTexture, sizeof(button->Button.PushedTexture), "PushedTexture");
+    snprintf(button->Button.NormalText.frame, sizeof(button->Button.NormalText.frame), "ButtonText");
+
+    T_ASSERT(UI_IsEmbeddedControlPart(button, normal));
+    T_ASSERT(UI_IsEmbeddedControlArtPart(button, normal));
+    T_ASSERT(UI_IsEmbeddedControlPart(button, pushed));
+    T_ASSERT(UI_IsEmbeddedControlArtPart(button, pushed));
+    T_ASSERT(UI_IsEmbeddedControlPart(button, label));
+    T_ASSERT(!UI_IsEmbeddedControlArtPart(button, label));
+    UI_ClearTemplates();
+}
+
+TEST(wc3_game, hud_scrollbar_buttons_are_embedded_control_art) {
+    LPFRAMEDEF scrollbar, inc, dec, thumb;
+
+    UI_ClearTemplates();
+    scrollbar = UI_Spawn(FT_SCROLLBAR, NULL);
+    inc = UI_Spawn(FT_GLUEBUTTON, scrollbar);
+    dec = UI_Spawn(FT_GLUEBUTTON, scrollbar);
+    thumb = UI_Spawn(FT_GLUEBUTTON, scrollbar);
+    T_NOT_NULL(scrollbar); T_NOT_NULL(inc); T_NOT_NULL(dec); T_NOT_NULL(thumb);
+
+    snprintf(inc->Name, sizeof(inc->Name), "ScrollInc");
+    snprintf(dec->Name, sizeof(dec->Name), "ScrollDec");
+    snprintf(thumb->Name, sizeof(thumb->Name), "ScrollThumb");
+    snprintf(scrollbar->Slider.IncButtonFrame, sizeof(scrollbar->Slider.IncButtonFrame), "ScrollInc");
+    snprintf(scrollbar->Slider.DecButtonFrame, sizeof(scrollbar->Slider.DecButtonFrame), "ScrollDec");
+    snprintf(scrollbar->Slider.ThumbButtonFrame, sizeof(scrollbar->Slider.ThumbButtonFrame), "ScrollThumb");
+
+    T_ASSERT(UI_IsEmbeddedControlPart(scrollbar, inc));
+    T_ASSERT(UI_IsEmbeddedControlArtPart(scrollbar, inc));
+    T_ASSERT(UI_IsEmbeddedControlPart(scrollbar, dec));
+    T_ASSERT(UI_IsEmbeddedControlArtPart(scrollbar, dec));
+    T_ASSERT(UI_IsEmbeddedControlPart(scrollbar, thumb));
+    T_ASSERT(UI_IsEmbeddedControlArtPart(scrollbar, thumb));
+    UI_ClearTemplates();
 }
 
 TEST(wc3_game, hud_highlight_serializes_texture_and_mode) {

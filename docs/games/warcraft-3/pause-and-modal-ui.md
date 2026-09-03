@@ -25,14 +25,18 @@ PauseGame(true) / single-client Quest dialog opens
        but does not call SV_RunGameFrame
 ```
 
-For client-owned modal windows, serialization precedes pause acquisition:
+For client-owned pause-owning modal windows, serialization precedes pause acquisition:
 
 ```text
 UI_WriteWindow -> client parses and opens svc_window
-    -> first modal sends pause 1
+    -> first modal without UI_WINDOW_NO_PAUSE sends pause 1
     -> G_SetClientModal(..., WC3_MODAL_CLIENT, true)
     -> G_RefreshPauseState
 ```
+
+A window may combine `UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE` when it must capture world/camera input without freezing the
+simulation. The Warcraft III Allies dialog uses that combination. Pause synchronization scans all windows for a remaining
+pause-owning modal rather than assuming the topmost modal owns pause.
 
 Do not acquire the modal pause owner in the command that writes the window. The local client shares the authoritative
 `paused` cvar and can observe it before reliable window delivery; modal-list synchronization makes the popup itself the pause
@@ -115,6 +119,7 @@ Global pause freezes anything that depends on server simulation advancement beca
 - **Do not let paused wall-clock time become resume work.** Rebase `sv.next_frame_msec` when leaving pause; keep `svs.realtime` monotonic for application/network timing.
 - **Do not use only frame hit-testing for a modal.** Transparent modal areas must still block world input, and camera edge/arrow scrolling has no pointer hit-test at all.
 - **Do not globally pause multiplayer because one Quest dialog opened.** Quest ownership is local presentation; only the single-client session policy maps it to a simulation pause.
+- **Do not equate modal input with simulation pause.** `UI_WINDOW_NO_PAUSE` exists for dialogs such as Allies that must block world input while time continues.
 - **Do not conflate `PauseUnit` with global pause.** `PauseUnit` is WC3 entity state and intentionally has narrower gameplay semantics.
 - **Do not keep rebuilding or advancing the world refdef while paused.** Cached MDX entities still execute model render code, so submit them with zero `deltaTime` or particle emitters can saturate the main thread.
 

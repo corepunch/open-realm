@@ -82,6 +82,16 @@ matches `sizeof(uiScrollBarImage_t)`. Otherwise it accepts the full legacy
 `uiScrollBar_t` FDF backdrop payload. Thus the optimization does not remove the
 generic scrollbar path.
 
+Warcraft III server-authored FDF windows use that legacy path. A serialized
+`FT_SCROLLBAR` owns its track, increment arrow, decrement arrow, and thumb art
+in one `uiScrollBar_t`; the authored button children are embedded control art
+and must not also be emitted as independent frames. This is important for the
+stock TextArea controls: serializing those children independently leaves their
+template-relative geometry unresolved and can place unrelated placeholder art
+at the window origin. The WC3 bridge also applies TextArea's declared scrollbar
+relationship before flattening anchors, so a template that provides only a
+scrollbar width still resolves to the text viewport's right edge.
+
 Compact mode deliberately supports only what the authoritative WoW template
 requires:
 
@@ -200,3 +210,13 @@ there is no ALT-driven show-all mode because one `LAYER_WORLD_HOVER` instance ha
 - [UI Screen Authoring](../ui-authoring.md)
 - [WoW Quest UI](../games/world-of-warcraft/quest-ui.md)
 - [WC3 Triggered Dialogue](../games/warcraft-3/triggered-dialogue.md)
+
+## Checkbox Payloads
+
+### Race-skinned stock control artwork
+
+Server-authored WC3 windows serialize stock FDF controls after the FDF tree has already been cached. Runtime logging showed that the embedded `ButtonBackdropTemplate` and `EscMenuCheckBox...` children can contain placeholder image indexes even while ordinary dialog backdrops are correct. The typed button/checkbox payload must therefore not trust those cached placeholder images for Blizzard's stock EscMenu control roles.
+
+`games/warcraft-3/game/hud/hud.c` recognizes the stable stock child-role names used by `EscMenuButtonTemplate` and `EscMenuCheckBoxTemplate` and resolves their `war3skins.txt` keys through `Theme_PlayerString()` while serializing for the concrete player. Normal/pushed/disabled button backdrops, button hover highlight, checkbox normal/pushed/disabled backdrops, and checked/disabled-check highlights all use this path. Custom control child names keep their authored image indexes unchanged.
+
+Do **not** globally defer every decorated FDF texture. That experiment fixed the Alliance root backdrop but also caused unrelated decorated backdrops to arrive with empty image paths, while the embedded control parts still carried the placeholder art. Keep per-player late resolution limited to the stock control roles whose authored skin keys are known.

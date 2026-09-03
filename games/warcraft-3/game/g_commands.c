@@ -7,6 +7,7 @@
  * gameplay relationship. Keep it out of GAMECLIENT so save compatibility does
  * not depend on which multiselect subgroup happened to own the HUD. */
 static DWORD selection_focus[MAX_CLIENTS];
+static BOOL G_DebugIsNumber(LPCSTR text);
 
 static DWORD *G_SelectionFocusSlot(LPGAMECLIENT client) {
     LONG index;
@@ -763,6 +764,26 @@ CLIENTCOMMAND(Allies) {
     UI_ShowAllies(clent);
 }
 
+CLIENTCOMMAND(AlliesToggle) {
+    if (argc < 3 || !G_DebugIsNumber(argv[1]) || !G_DebugIsNumber(argv[2])) return;
+    UI_AlliesToggle(clent, (DWORD)atoi(argv[1]), (PLAYERALLIANCE)atoi(argv[2]));
+}
+
+CLIENTCOMMAND(AlliesToggleVictory) {
+    (void)argc; (void)argv;
+    UI_AlliesToggleVictory(clent);
+}
+
+CLIENTCOMMAND(AlliesAccept) {
+    (void)argc; (void)argv;
+    UI_AlliesAccept(clent);
+}
+
+CLIENTCOMMAND(AlliesCancel) {
+    (void)argc; (void)argv;
+    UI_AlliesCancel(clent);
+}
+
 CLIENTCOMMAND(Quest) {
     DWORD index;
 
@@ -916,6 +937,10 @@ clientCommand_t clientCommands[] = {
     { "resume", CMD_Resume },
     { "pause", CMD_Pause },
     { "allies", CMD_Allies },
+    { "allies_toggle", CMD_AlliesToggle },
+    { "allies_toggle_victory", CMD_AlliesToggleVictory },
+    { "allies_accept", CMD_AlliesAccept },
+    { "allies_cancel", CMD_AlliesCancel },
     { NULL }
 };
 

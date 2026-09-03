@@ -135,35 +135,119 @@ static LPCFRAMEDEF UI_ButtonPart(LPCFRAMEDEF frame, LPCSTR name) {
     return UI_FindFrameNear(frame, name);
 }
 
+typedef struct {
+    LPCSTR background;
+    LPCSTR edge;
+} uiControlSkin_t;
+
+/* Blizzard's EscMenu templates clone these child names into every stock
+ * GLUETEXTBUTTON/GLUECHECKBOX. The cached child FRAMEDEF can already contain a
+ * placeholder image by the time the server-authored window is serialized, so
+ * the original skin key is no longer recoverable from the image configstring.
+ * The child role itself is stable, however. Resolve the stock role through
+ * war3skins for the concrete local player instead of trusting the cached art. */
+static BOOL UI_ControlBackdropSkin(LPCSTR name, uiControlSkin_t *skin) {
+    if (!name || !skin) return false;
+    *skin = (uiControlSkin_t){ 0 };
+
+    if (!strcmp(name, "ButtonBackdropTemplate") ||
+        !strcmp(name, "EscMenuButtonBackdropTemplate")) {
+        skin->background = "EscMenuButtonBackground";
+        skin->edge = "EscMenuButtonBorder";
+    } else if (!strcmp(name, "ButtonPushedBackdropTemplate") ||
+               !strcmp(name, "EscMenuButtonPushedBackdropTemplate")) {
+        skin->background = "EscMenuButtonPushedBackground";
+        skin->edge = "EscMenuButtonPushedBorder";
+    } else if (!strcmp(name, "ButtonDisabledBackdropTemplate") ||
+               !strcmp(name, "EscMenuButtonDisabledBackdropTemplate")) {
+        skin->background = "EscMenuButtonDisabledBackground";
+        skin->edge = "EscMenuButtonDisabledBorder";
+    } else if (!strcmp(name, "ButtonDisabledPushedBackdropTemplate") ||
+               !strcmp(name, "EscMenuButtonDisabledPushedBackdropTemplate")) {
+        skin->background = "EscMenuButtonDisabledPushedBackground";
+        skin->edge = "EscMenuButtonDisabledPushedBorder";
+    } else if (!strcmp(name, "EscMenuCheckBoxBackdrop")) {
+        skin->background = "EscMenuCheckBoxBackground";
+    } else if (!strcmp(name, "EscMenuCheckBoxPushedBackdrop")) {
+        skin->background = "EscMenuCheckBoxPushedBackground";
+    } else if (!strcmp(name, "EscMenuDisabledCheckBoxBackdrop")) {
+        skin->background = "EscMenuDisabledCheckBoxBackground";
+    } else {
+        return false;
+    }
+    return true;
+}
+
+static LPCSTR UI_ControlHighlightSkin(LPCSTR name) {
+    if (!name) return NULL;
+    if (!strcmp(name, "ButtonMouseOverHighlightTemplate") ||
+        !strcmp(name, "EscMenuButtonMouseOverHighlightTemplate")) {
+        return "EscMenuButtonMouseOverHighlight";
+    }
+    if (!strcmp(name, "EscMenuCheckHighlightTemplate")) {
+        return "EscMenuCheckBoxCheckHighlight";
+    }
+    if (!strcmp(name, "EscMenuDisabledCheckHighlightTemplate")) {
+        return "EscMenuDisabledCheckHighlight";
+    }
+    return NULL;
+}
+
+static DWORD UI_ControlThemeImage(LPCSTR key) {
+    LPCSTR resolved;
+    if (!key || !*key) return 0;
+    resolved = Theme_PlayerString(ui_current_client, key, NULL);
+    if (!resolved || !*resolved) resolved = Theme_String(key, NULL);
+    if (!resolved || !*resolved || !strcmp(resolved, key)) return 0;
+    return gi.ImageIndex(UI_ResolveTextureAlias(resolved));
+}
+
 static uiBackdrop_t MakeButtonBackdrop(LPCFRAMEDEF frame, LPCSTR name) {
     LPCFRAMEDEF part = UI_ButtonPart(frame, name);
     uiBackdrop_t result = { 0 };
+    uiControlSkin_t skin;
+    DWORD themed;
 
     if (!part) return result;
-    if (part->Type == FT_BACKDROP) return MakeBackdrop(part);
-    if (part->Type == FT_TEXTURE) {
-        result.Background = UI_LiveImage(part->Texture.Image);
-        return result;
+    if (part->Type == FT_BACKDROP) result = MakeBackdrop(part);
+    else if (part->Type == FT_TEXTURE) result.Background = UI_LiveImage(part->Texture.Image);
+    else return result;
+
+    if (UI_ControlBackdropSkin(name, &skin) || UI_ControlBackdropSkin(part->Name, &skin)) {
+        themed = UI_ControlThemeImage(skin.background);
+        if (themed) result.Background = themed;
+        themed = UI_ControlThemeImage(skin.edge);
+        if (themed) result.EdgeFile = themed;
     }
     return result;
 }
 
 static uiHighlight_t MakeButtonHighlight(LPCFRAMEDEF frame, LPCSTR name) {
     LPCFRAMEDEF part = UI_ButtonPart(frame, name);
-    if (!part) return (uiHighlight_t){ 0 };
+    uiHighlight_t result = { 0 };
+    LPCSTR skin_key;
+    DWORD themed;
+
+    if (!part) return result;
     if (part->Type == FT_HIGHLIGHT) {
-        return MAKE(uiHighlight_t,
+        result = MAKE(uiHighlight_t,
             .alphaFile = UI_LiveImage(part->Highlight.AlphaFile),
             .alphaMode = part->Highlight.AlphaMode,
         );
-    }
-    if (part->Type == FT_TEXTURE) {
-        return MAKE(uiHighlight_t,
+    } else if (part->Type == FT_TEXTURE) {
+        result = MAKE(uiHighlight_t,
             .alphaFile = UI_LiveImage(part->Texture.Image),
             .alphaMode = part->AlphaMode,
         );
+    } else {
+        return result;
     }
-    return (uiHighlight_t){ 0 };
+
+    skin_key = UI_ControlHighlightSkin(name);
+    if (!skin_key) skin_key = UI_ControlHighlightSkin(part->Name);
+    themed = UI_ControlThemeImage(skin_key);
+    if (themed) result.alphaFile = themed;
+    return result;
 }
 
 static LPCSTR UI_ButtonStateName(LPCSTR preferred, LPCSTR fallback) {
@@ -190,6 +274,100 @@ static uiGlueTextButton_t MakeGlueTextButton(LPCFRAMEDEF frame) {
     if (!result.disabledPushed.Background && !result.disabledPushed.EdgeFile)
         result.disabledPushed = result.disabled;
     return result;
+}
+
+static uiCheckBox_t MakeCheckBox(LPCFRAMEDEF frame) {
+    LPCSTR normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
+    LPCSTR pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
+    LPCSTR disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
+    LPCSTR disabled_pushed = UI_ButtonStateName(frame->Control.Backdrop.DisabledPushed, disabled);
+    uiCheckBox_t result = {
+        .normal = MakeButtonBackdrop(frame, normal),
+        .pushed = MakeButtonBackdrop(frame, UI_ButtonStateName(pushed, normal)),
+        .disabled = MakeButtonBackdrop(frame, UI_ButtonStateName(disabled, normal)),
+        .disabledPushed = MakeButtonBackdrop(frame, UI_ButtonStateName(disabled_pushed, disabled)),
+        .mouseOver = MakeButtonHighlight(frame, frame->Control.Backdrop.MouseOver),
+        .checked = MakeButtonHighlight(frame, frame->CheckBox.CheckHighlight),
+        .disabledChecked = MakeButtonHighlight(frame, frame->CheckBox.DisabledCheckHighlight),
+    };
+
+    if (!result.pushed.Background && !result.pushed.EdgeFile) result.pushed = result.normal;
+    if (!result.disabled.Background && !result.disabled.EdgeFile) result.disabled = result.normal;
+    if (!result.disabledPushed.Background && !result.disabledPushed.EdgeFile)
+        result.disabledPushed = result.disabled;
+    if (!result.disabledChecked.alphaFile) result.disabledChecked = result.checked;
+    return result;
+}
+
+
+/* Server-authored Warcraft FDF scrollbars keep their increment/decrement/thumb
+ * buttons as child frames.  Those children are control art, not standalone
+ * layout objects, so serialize the complete legacy scrollbar payload here. */
+static uiBackdrop_t MakeScrollBarImage(DWORD image) {
+    return MAKE(uiBackdrop_t,
+        .Background = image,
+        .BlendAll = true,
+    );
+}
+
+static DWORD UI_ScrollBarThemeImage(LPCSTR key, LPCSTR fallback) {
+    DWORD image = UI_ControlThemeImage(key);
+    if (!image && fallback && *fallback)
+        image = gi.ImageIndex(UI_ResolveTextureAlias(fallback));
+    return image;
+}
+
+static uiScrollBar_t MakeScrollBar(LPCFRAMEDEF frame) {
+    uiScrollBar_t result = { 0 };
+    DWORD track = UI_ScrollBarThemeImage(
+        "EscMenuSliderBackground", "UI\\Widgets\\EscMenu\\Human\\slider-background.blp");
+    DWORD border = UI_ScrollBarThemeImage(
+        "EscMenuSliderBorder", "UI\\Widgets\\EscMenu\\Human\\slider-border.blp");
+    DWORD thumb = UI_ScrollBarThemeImage(
+        "EscMenuSliderThumbButton", "UI\\Widgets\\EscMenu\\Human\\slider-knob.blp");
+    DWORD up = gi.ImageIndex(UI_ResolveTextureAlias(
+        "UI\\Widgets\\Glues\\GlueScreen-Scrollbar-UpArrow.blp"));
+    DWORD down = gi.ImageIndex(UI_ResolveTextureAlias(
+        "UI\\Widgets\\Glues\\GlueScreen-Scrollbar-DownArrow.blp"));
+
+    if (!frame) return result;
+
+    /* Keep authored backdrop geometry when present, but make stock EscMenu art
+     * deterministic for cached FDF templates just like buttons/checkboxes. */
+    result.background = MakeBackdrop(frame);
+    if (track) result.background.Background = track;
+    if (border) result.background.EdgeFile = border;
+    if (!result.background.CornerSize) result.background.CornerSize = 0.006f;
+    if (!result.background.BackgroundSize) result.background.BackgroundSize = 0.006f;
+    result.background.BlendAll = true;
+    result.background.TileBackground = true;
+
+    result.decButton = MakeScrollBarImage(up);
+    result.incButton = MakeScrollBarImage(down);
+    result.thumbButton = MakeScrollBarImage(thumb);
+    return result;
+}
+
+static void UI_PrepareTextAreaScrollBar(LPCFRAMEDEF text_area) {
+    LPFRAMEDEF scrollbar;
+    FLOAT inset;
+
+    if (!text_area || text_area->Type != FT_TEXTAREA || !text_area->TextArea.ScrollBar[0]) return;
+    scrollbar = UI_FindFrameNear(text_area, text_area->TextArea.ScrollBar);
+    if (!scrollbar || scrollbar->Type != FT_SCROLLBAR || scrollbar->hidden) return;
+
+    /* Blizzard TextArea semantics attach the declared scrollbar to the right
+     * edge of the text viewport even when the FDF scrollbar template itself
+     * supplies only a width.  The server-authored bridge must reproduce that
+     * relationship before flattening the tree to uiFrame_t anchors. */
+    inset = text_area->TextArea.Inset;
+    memset(&scrollbar->Points, 0, sizeof(scrollbar->Points));
+    scrollbar->AnyPointsSet = true;
+    UI_SetPoint(scrollbar, FRAMEPOINT_TOPRIGHT, text_area, FRAMEPOINT_TOPRIGHT,
+                -inset, -inset);
+    UI_SetPoint(scrollbar, FRAMEPOINT_BOTTOMRIGHT, text_area, FRAMEPOINT_BOTTOMRIGHT,
+                -inset, inset);
+    if (scrollbar->Width <= 0.0f) scrollbar->Width = 0.015f;
 }
 
 static uiSimpleButtonState_t MakeSimpleButtonState(LPCFRAMEDEF frame,
@@ -341,6 +519,19 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             } else { buf.overflowed = true; }
             break;
         }
+        case FT_SCROLLBAR: {
+            uiScrollBar_t data = MakeScrollBar(frame);
+            FLOAT range = frame->Slider.MaxValue - frame->Slider.MinValue;
+            out->value = range > 0.0f
+                ? (frame->Slider.InitialValue - frame->Slider.MinValue) / range
+                : 0.0f;
+            out->value = MAX(0.0f, MIN(out->value, 1.0f));
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data));
+                buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
         case FT_SIMPLEBUTTON: {
             uiSimpleButton_t data = MakeSimpleButton(frame);
             LPCSTR text_key = frame->OnClick[0] || !frame->Button.DisabledText.text[0]
@@ -348,6 +539,17 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                 : frame->Button.DisabledText.text;
             if ((!out->text || !*out->text) && text_key && *text_key)
                 out->text = UI_GetString(text_key);
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data));
+                buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
+        case FT_CHECKBOX:
+        case FT_GLUECHECKBOX:
+        case FT_SIMPLECHECKBOX: {
+            uiCheckBox_t data = MakeCheckBox(frame);
+            out->value = frame->CheckBox.Checked ? 1.0f : 0.0f;
             if (buf.cursize + sizeof(data) <= buf.maxsize) {
                 memcpy(buf.data + buf.cursize, &data, sizeof(data));
                 buf.cursize += sizeof(data);
@@ -445,6 +647,7 @@ DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame) {
 }
 
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
+    UI_PrepareTextAreaScrollBar(frame);
     if (parent) {
         LPCFRAMEDEF oldparent = frame->Parent;
         ((LPFRAMEDEF)frame)->Parent = parent;
@@ -455,13 +658,15 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
     }
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF it = frames + i;
-        if (it->Parent == frame && !it->hidden) {
+        if (it->Parent == frame && !it->hidden &&
+            !UI_IsEmbeddedControlArtPart(frame, it)) {
             UI_WriteFrameWithChildren(it, NULL);
         }
     }
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {
+    UI_PrepareTextAreaScrollBar(frame);
     if (parent) {
         LPCFRAMEDEF oldparent = frame->Parent;
         ((LPFRAMEDEF)frame)->Parent = parent;
@@ -477,7 +682,8 @@ void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFR
     }
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF it = frames + i;
-        if (it->Parent == frame && !it->hidden) {
+        if (it->Parent == frame && !it->hidden &&
+            !UI_IsEmbeddedControlArtPart(frame, it)) {
             UI_WriteFrameWithChildrenWithTriggers(ent, it, NULL, triggers);
         }
     }

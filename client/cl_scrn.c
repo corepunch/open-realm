@@ -274,6 +274,10 @@ static RECT get_uvrect(uint8_t const *tc) {
     return (RECT){ tc[0], tc[2], tc[1]-tc[0], tc[3]-tc[2] };
 }
 
+static LPCTEXTURE SCR_LayoutPic(RESOURCE image) {
+    return image && image < MAX_IMAGES ? cl.pics[image] : NULL;
+}
+
 static LPCTEXTURE SCR_LayoutGetDynamicTexture(LPCSTR resource) {
     if (!resource || !*resource || !strcmp(resource, " ")) return NULL;
 
@@ -351,9 +355,10 @@ void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, LPCRECT screen) {
-    if (!h || !h->alphaFile) return;
+    LPCTEXTURE texture;
+    if (!h || !screen || !(texture = SCR_LayoutPic(h->alphaFile))) return;
     re.DrawImageEx(&MAKE(drawImage_t,
-        .texture   = cl.pics[h->alphaFile],
+        .texture   = texture,
         .alphamode = h->alphaMode,
         .screen    = *screen,
         .uv        = MAKE(RECT,0,0,1,1),
@@ -373,10 +378,16 @@ void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
     BOOL const hovered = SCR_LayoutFrameIsHovered(frame);
     BOOL const pushed = enabled && hovered && layout_left_down;
     uiSimpleButtonState_t const *state = !enabled ? &b->disabled : pushed ? &b->pushed : &b->normal;
-    if (!state->texture) state = &b->normal;
-    RECT const uv = get_uvrect((BYTE *)&state->texcoord);
-    RECT const suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[state->texture], screen, &suv, COLOR32_WHITE);
+    LPCTEXTURE texture = SCR_LayoutPic(state->texture);
+    if (!texture) {
+        state = &b->normal;
+        texture = SCR_LayoutPic(state->texture);
+    }
+    if (texture) {
+        RECT const uv = get_uvrect((BYTE *)&state->texcoord);
+        RECT const suv = Rect_div(&uv, 0xff);
+        re.DrawImage(texture, screen, &suv, COLOR32_WHITE);
+    }
     re.DrawText(&MAKE(drawText_t,
         .rect      = *screen,
         .font      = cl.fonts[state->font],
@@ -386,13 +397,16 @@ void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bd) {
+    LPCTEXTURE background, edge;
     if (!bd || !screen || screen->w <= 0 || screen->h <= 0) return;
-    if (!bd->Background && !bd->EdgeFile) return;
+    background = SCR_LayoutPic(bd->Background);
+    edge = SCR_LayoutPic(bd->EdgeFile);
+    if (!background && !edge) return;
     re.DrawBackdrop(&MAKE(drawBackdrop_t,
         .screen        = *screen,
-        .bg.texture    = cl.pics[bd->Background],
+        .bg.texture    = background,
         .bg.color      = frame->color,
-        .edge.texture  = cl.pics[bd->EdgeFile],
+        .edge.texture  = edge,
         .edge.color    = frame->color,
         .corner.flags  = bd->CornerFlags,
         .corner.size   = bd->CornerSize,
@@ -420,16 +434,65 @@ static void SCR_LayoutDrawBackdropPart(LPCUIFRAME frame, LPCRECT screen, uiBackd
 /* WoW sliders use compact cropped textures; retain backdrop drawing for legacy FDF scrollbars. */
 static BOOL SCR_LayoutDrawScrollImage(RESOURCE texture, BYTE const *texcoord, LPCRECT screen) {
     RECT uv, suv;
-    if (!texture) return false;
+    LPCTEXTURE image = SCR_LayoutPic(texture);
+    if (!image) return false;
     uv = get_uvrect(texcoord); suv = Rect_div(&uv, 0xff);
-    re.DrawImage(cl.pics[texture], screen, &suv, COLOR32_WHITE);
+    re.DrawImage(image, screen, &suv, COLOR32_WHITE);
     return true;
+}
+
+
+static LPCUIFRAME SCR_LayoutTextAreaScrollBar(LPCUIFRAME frame) {
+    if (!frame || !frame->number || frame->flags.type != FT_TEXTAREA) return NULL;
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME child = SCR_Frame(i);
+        if (child && child->parent == frame->number && child->flags.type == FT_SCROLLBAR)
+            return child;
+    }
+    return NULL;
+}
+
+static RECT SCR_LayoutTextAreaView(LPCUIFRAME frame, LPCRECT screen) {
+    uiTextArea_t const *ta = frame && frame->buffer.data ? frame->buffer.data : NULL;
+    FLOAT inset = ta ? ta->inset : 0.0f;
+    RECT view = { screen->x + inset, screen->y + inset,
+                  MAX(0.0f, screen->w - inset * 2), MAX(0.0f, screen->h - inset * 2) };
+    LPCUIFRAME scrollbar = SCR_LayoutTextAreaScrollBar(frame);
+    if (scrollbar) {
+        FLOAT sw = SCR_LayoutRect(scrollbar)->w;
+        if (sw > 0.0f && sw < view.w) view.w = MAX(0.0f, view.w - sw);
+    }
+    return view;
+}
+
+FLOAT SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame) {
+    uiTextArea_t const *ta;
+    RECT view;
+    drawText_t measure;
+    LPCSTR value;
+
+    if (!frame || frame->flags.type != FT_TEXTAREA || !frame->buffer.data || !re.GetTextSize)
+        return 0.0f;
+    ta = frame->buffer.data;
+    view = SCR_LayoutTextAreaView(frame, SCR_LayoutRect(frame));
+    if (view.w <= 0.0f || view.h <= 0.0f) return 0.0f;
+    value = SCR_GetStringValue(frame);
+    measure = SCR_GetDrawText(frame, view.w, value ? value : "", &(uiLabel_t){
+        .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP });
+    measure.flags |= DRAW_WORD_WRAP;
+    return MAX(0.0f, re.GetTextSize(&measure).y - view.h);
 }
 
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBarImage_t const *art = frame->buffer.size == sizeof(*art) ? frame->buffer.data : NULL;
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
+    LPCUIFRAME parent = frame->parent < SCR_NumFrames() ? SCR_Frame(frame->parent) : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
+
+    if (parent && parent->flags.type == FT_TEXTAREA) {
+        if (SCR_LayoutTextAreaMaxScroll(parent) <= 0.0f) return;
+        ((LPUIFRAME)frame)->value = parent->value;
+    }
 
     if (sb) SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
 
@@ -522,6 +585,21 @@ void SCR_WindowPrepare(HANDLE layout, LPCRECT root) {
     if (root) SCR_SetLayoutRoot(root);
 }
 
+static void SCR_LayoutCheckBox(LPCUIFRAME frame, LPCRECT screen) {
+    uiCheckBox_t const *cb = frame->buffer.data;
+    BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
+    BOOL const pushed = enabled && SCR_LayoutFrameIsHovered(frame) && layout_left_down;
+    uiBackdrop_t const *bd = enabled
+        ? (pushed ? &cb->pushed : &cb->normal)
+        : (pushed ? &cb->disabledPushed : &cb->disabled);
+
+    SCR_LayoutDrawBackdrop2(frame, screen, bd);
+    if (frame->value >= 0.5f)
+        SCR_LayoutDrawHighlightData(enabled ? &cb->checked : &cb->disabledChecked, screen);
+    if (enabled && SCR_LayoutFrameIsHovered(frame))
+        SCR_LayoutDrawHighlightData(&cb->mouseOver, screen);
+}
+
 void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     uiGlueTextButton_t const *gb = frame->buffer.data;
     BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
@@ -539,26 +617,14 @@ static void SCR_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
 }
 
 BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y) {
-    if (!layout || !point || !wheel_y || !re.GetTextSize) return false;
+    (void)layout;
+    if (!point || !wheel_y) return false;
     for (DWORD i = SCR_NumFrames(); i > 0; i--) {
         LPUIFRAME frame = SCR_Frame(i - 1);
-        RECT const *rect;
-        uiTextArea_t const *ta;
-        RECT view;
-        drawText_t measure;
-        FLOAT max_scroll;
-        if (!frame || frame->flags.type != FT_TEXTAREA) continue;
-        rect = SCR_LayoutRect(frame);
-        if (!Rect_contains(rect, point)) continue;
-        ta = frame->buffer.data;
-        view = *rect;
-        view.x += ta->inset; view.y += ta->inset;
-        view.w -= ta->inset * 2; view.h -= ta->inset * 2;
-        measure = SCR_GetDrawText(frame, view.w, SCR_GetStringValue(frame), &(uiLabel_t){
-            .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP});
-        measure.flags |= DRAW_WORD_WRAP;
-        max_scroll = MAX(0.0f, re.GetTextSize(&measure).y - view.h);
-        if (max_scroll > 0.0f) frame->value = MIN(1.0f, MAX(0.0f, frame->value - wheel_y * 0.1f));
+        if (!frame || frame->flags.type != FT_TEXTAREA ||
+            !Rect_contains(SCR_LayoutRect(frame), point)) continue;
+        if (SCR_LayoutTextAreaMaxScroll(frame) > 0.0f)
+            frame->value = MIN(1.0f, MAX(0.0f, frame->value - wheel_y * 0.1f));
         return true;
     }
     return false;
@@ -764,21 +830,23 @@ void SCR_LayoutDrawNameTag(LPCUIFRAME frame, LPCRECT screen) {
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
     uiTextArea_t const *ta = frame->buffer.data;
     LPCSTR value = SCR_GetStringValue(frame);
-    RECT scr = { screen->x + ta->inset, screen->y + ta->inset,
-                 screen->w - ta->inset*2, screen->h - ta->inset*2 };
-    re.DrawText(&MAKE(drawText_t,
-        .font       = cl.fonts[ta->font],
-        .text       = value ? value : "",
-        .color      = frame->color.a ? frame->color : COLOR32_WHITE,
-        .halign     = FONT_JUSTIFYLEFT,
-        .valign     = FONT_JUSTIFYTOP,
-        .icons      = cl.pics,
-        .lineHeight = 1.33,
-        .textWidth  = scr.w,
-        .rect       = scr,
-        /* A text area is a viewport; wrapping alone let overflow draw through controls below it. */
-        .flags      = DRAW_WORD_WRAP | DRAW_CLIP,
-        .clip       = scr));
+    RECT view = SCR_LayoutTextAreaView(frame, screen);
+    drawText_t dt = SCR_GetDrawText(frame, view.w, value ? value : "", &(uiLabel_t){
+        .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP });
+    FLOAT full_height = view.h;
+    FLOAT max_scroll = 0.0f;
+
+    dt.flags |= DRAW_WORD_WRAP;
+    if (re.GetTextSize && view.w > 0.0f && view.h > 0.0f) {
+        full_height = MAX(view.h, re.GetTextSize(&dt).y);
+        max_scroll = MAX(0.0f, full_height - view.h);
+    }
+    dt.rect = MAKE(RECT, view.x,
+                   view.y - max_scroll * MIN(MAX(frame->value, 0.0f), 1.0f),
+                   view.w, full_height);
+    dt.flags |= DRAW_CLIP;
+    dt.clip = view;
+    re.DrawText(&dt);
 }
 
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
@@ -889,6 +957,9 @@ static drawer_t drawers[] = {
     { FT_MINIMAP,        CL_LayoutDrawMinimap },
     { FT_BUILDQUEUE,     SCR_LayoutDrawBuildQueue },
     { FT_MULTISELECT,    SCR_LayoutDrawMultiSelect },
+    { FT_CHECKBOX,       SCR_LayoutCheckBox },
+    { FT_GLUECHECKBOX,   SCR_LayoutCheckBox },
+    { FT_SIMPLECHECKBOX, SCR_LayoutCheckBox },
     { FT_SIMPLEBUTTON,   SCR_LayoutSimpleButton },
     { FT_BUTTON,         SCR_LayoutGlueTextButton },
     { FT_TEXTBUTTON,     SCR_LayoutGlueTextButton },
@@ -1118,6 +1189,9 @@ static BOOL SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
         case FT_MINIMAP:
         case FT_BUILDQUEUE:
         case FT_MULTISELECT:
+        case FT_CHECKBOX:
+        case FT_GLUECHECKBOX:
+        case FT_SIMPLECHECKBOX:
         case FT_SIMPLEBUTTON:
         case FT_BUTTON:
         case FT_TEXTBUTTON:

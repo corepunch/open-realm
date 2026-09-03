@@ -9,9 +9,11 @@ The server owns a window's instance ID, opaque game-local class ID, flags, frame
 z-order, keyboard focus, pointer capture, and the local drag offset. Updating an existing instance preserves its drag offset.
 Opening a `UI_WINDOW_UNIQUE` class replaces and focuses its existing instance.
 
-After opening a modal `svc_window`, the client compares modal-list presence with its last reported pause state. The first modal
-sends `pause 1`; closing the last modal sends `pause 0`. Opening or closing nested modals sends nothing while the list remains
-modal. The game keeps this client request as an independent pause owner, so it cannot clear a script-owned `PauseGame(true)`.
+After opening a pause-owning modal `svc_window`, the client compares pause-owner presence with its last reported pause state.
+The first modal without `UI_WINDOW_NO_PAUSE` sends `pause 1`; closing the last pause-owning modal sends `pause 0`. Opening or
+closing nested modals sends nothing while a pause owner remains. The game keeps this client request as an independent pause
+owner, so it cannot clear a script-owned `PauseGame(true)`. `UI_WINDOW_NO_PAUSE` keeps modal input capture while opting that
+window out of this pause handshake; the Warcraft III Allies dialog uses this split.
 
 Windows form a doubly linked list. The head is backmost and the tail is frontmost. Drawing walks head to tail; pointer hit
 testing walks tail to head. Left-clicking a window unlinks it and appends it at the tail, making draw order and keyboard focus
@@ -20,9 +22,10 @@ change together. Closing the focused window focuses the new tail.
 `SCR_DrawLayout()` draws persistent layout layers first and then calls `CL_WindowDraw()`, placing transient windows above the
 HUD. Parsing and retaining `svc_window` does not make a window visible by itself; the screen layout pass owns submission.
 
-`UI_WINDOW_MODAL` and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost modal window consumes input outside its
-bounds. Unique means only one instance of that class may exist. Inventory and quest-detail windows can be unique without being
-modal; confirmation-style windows are modal.
+`UI_WINDOW_MODAL`, `UI_WINDOW_NO_PAUSE`, and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost modal window consumes
+input outside its bounds. `NO_PAUSE` means that modal does not acquire the client-owned simulation pause. Unique means only one
+instance of that class may exist. Inventory and quest-detail windows can be unique without being modal; confirmation-style
+windows are normally modal pause owners, while the WC3 Allies dialog is modal plus `NO_PAUSE`.
 
 ## Wire Format
 
@@ -59,6 +62,11 @@ retained arena; it does not duplicate strings.
 - Clicking outside all non-modal windows clears focus.
 - A modal window blocks world hit testing, control groups, bindings, minimap actions, and manual camera movement.
 - Key-up still reaches gameplay `+command` releases so opening or focusing a window cannot leave an input held.
+- `close_window_command <command>` forwards the suffix to the server and then closes the owning window; use it for transactional
+  Accept/Cancel buttons that must commit or discard server-owned draft state before dismissal.
+- Scrollable TextArea state is client-owned. Because a retained `svc_window` packet is reparsed for each draw/hit test,
+  `client/cl_window.c` stores scroll fractions by frame number and reapplies them after each parse. Mouse wheel input, scrollbar
+  arrows/track, and thumb dragging update that retained value rather than mutating only the temporary parsed frame.
 
 ### Client-owned button actions
 
@@ -99,3 +107,7 @@ select the offset-aware codec. `wc3_game.hud_authored_window_frame_uses_offset_c
 
 The standalone net tests cover text offsets, a text arena above 255 bytes, screen-pass drawing, unique-class replacement,
 linked-list raise order, keyboard focus, and malformed packets without a frame terminator.
+
+## See Also
+
+- [Warcraft III Allies Menu](../games/warcraft-3/allies-menu.md)

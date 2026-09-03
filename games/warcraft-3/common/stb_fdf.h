@@ -843,13 +843,22 @@ void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
 
 static inline BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     if (!parent || !child) return false;
-    if (child->Type == FT_BACKDROP) {
-        return UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
-               UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
-               UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
-               UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
+    if (child->Type == FT_BACKDROP || child->Type == FT_TEXTURE) {
+        if (UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
+            UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
+            UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
+            UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed)) {
+            return true;
+        }
+        if ((UI_IsButtonFrameType(parent->Type) || UI_IsCheckBoxFrameType(parent->Type)) &&
+            (UI_FrameNameEquals(child, parent->Button.NormalTexture) ||
+             UI_FrameNameEquals(child, parent->Button.PushedTexture) ||
+             UI_FrameNameEquals(child, parent->Button.DisabledTexture) ||
+             UI_FrameNameEquals(child, parent->Button.UseHighlight))) {
+            return true;
+        }
     }
-    if (child->Type == FT_HIGHLIGHT) {
+    if (child->Type == FT_HIGHLIGHT || child->Type == FT_TEXTURE) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver) ||
                (UI_IsCheckBoxFrameType(parent->Type) &&
                 (UI_FrameNameEquals(child, parent->CheckBox.CheckHighlight) ||
@@ -863,12 +872,20 @@ static inline BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF chil
         }
         return UI_FrameNameEquals(child, parent->Edit.TextFrame);
     }
-    if (parent->Type == FT_SLIDER && UI_IsButtonFrameType(child->Type)) {
+    if ((parent->Type == FT_SLIDER || parent->Type == FT_SCROLLBAR) &&
+        UI_IsButtonFrameType(child->Type)) {
         return UI_FrameNameEquals(child, parent->Slider.ThumbButtonFrame) ||
                UI_FrameNameEquals(child, parent->Slider.IncButtonFrame) ||
                UI_FrameNameEquals(child, parent->Slider.DecButtonFrame);
     }
     return false;
+}
+
+/* Server-authored control payloads fold state artwork into their typed parent
+ * frame.  The text child of a GLUETEXTBUTTON remains a separately serialized
+ * frame because the generic layout client draws that label independently. */
+static inline BOOL UI_IsEmbeddedControlArtPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
+    return child && child->Type != FT_TEXT && UI_IsEmbeddedControlPart(parent, child);
 }
 
 /* ---- Frame tree collection ------------------------------------------------ */
