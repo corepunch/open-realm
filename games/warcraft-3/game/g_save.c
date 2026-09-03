@@ -48,6 +48,70 @@ field_t fields[] = {
     { NULL, 0, 0, 0 }
 };
 
+typedef struct {
+    DWORD ofs, size;
+} runtimeField_t;
+
+#define RUNTIMEFIELD(x) { FOFS(edict_s, x) - (HANDLE)NULL, sizeof(((edict_t *)NULL)->x) }
+#define CLIENTRUNTIMEFIELD(x) { FOFS(client_s, x) - (HANDLE)NULL, sizeof(((GAMECLIENT *)NULL)->x) }
+
+/* Process-owned edict data is one schema too: it is cleared before the raw record is written,
+ * then rebuilt from class data or the live world after loading. */
+static runtimeField_t const runtime_fields[] = {
+    RUNTIMEFIELD(client),
+    RUNTIMEFIELD(pathtex),
+    RUNTIMEFIELD(area.prev),
+    RUNTIMEFIELD(area.next),
+    RUNTIMEFIELD(destructable.alive_pathtex),
+    RUNTIMEFIELD(destructable.death_pathtex),
+    RUNTIMEFIELD(destructable.drop_sets),
+    RUNTIMEFIELD(destructable.drop_sets_count),
+    RUNTIMEFIELD(added_abilities),
+    RUNTIMEFIELD(added_abilities_count),
+    RUNTIMEFIELD(removed_abilities),
+    RUNTIMEFIELD(removed_abilities_count),
+    RUNTIMEFIELD(permanent_abilities),
+    RUNTIMEFIELD(permanent_abilities_count),
+    RUNTIMEFIELD(animation),
+    RUNTIMEFIELD(currentmove),
+    RUNTIMEFIELD(stand),
+    RUNTIMEFIELD(birth),
+    RUNTIMEFIELD(prethink),
+    RUNTIMEFIELD(think),
+    RUNTIMEFIELD(die),
+    RUNTIMEFIELD(idle),
+    RUNTIMEFIELD(move),
+    RUNTIMEFIELD(run),
+    RUNTIMEFIELD(attack),
+    RUNTIMEFIELD(pain),
+    RUNTIMEFIELD(UnitProfile),
+    RUNTIMEFIELD(UnitBalance),
+    RUNTIMEFIELD(UnitData),
+    RUNTIMEFIELD(UnitUI),
+    RUNTIMEFIELD(UnitWeapons),
+    RUNTIMEFIELD(UnitAbilities),
+    RUNTIMEFIELD(Doodads),
+    RUNTIMEFIELD(ItemData),
+    RUNTIMEFIELD(DestructableData),
+};
+
+/* Client callbacks and cross-object pointers are rebuilt from live game state after the fixed copy loads. */
+static runtimeField_t const client_runtime_fields[] = {
+    CLIENTRUNTIMEFIELD(ps.name),
+    CLIENTRUNTIMEFIELD(ps.texts),
+    CLIENTRUNTIMEFIELD(mapplayer),
+    CLIENTRUNTIMEFIELD(menu.on_entity_selected),
+    CLIENTRUNTIMEFIELD(menu.on_location_selected),
+    CLIENTRUNTIMEFIELD(menu.cmdbutton),
+    CLIENTRUNTIMEFIELD(menu.refresh),
+    CLIENTRUNTIMEFIELD(camera.target_controller),
+    CLIENTRUNTIMEFIELD(rally_indicator),
+};
+
+static void ClearRuntimeFields(void *object, runtimeField_t const *fields, DWORD count) {
+    FOR_LOOP(i, count) memset((BYTE *)object + fields[i].ofs, 0, fields[i].size);
+}
+
 static BOOL SaveBytes(FILE *f, LPCVOID data, size_t size) { return fwrite(data, 1, size, f) == size; }
 static BOOL LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
 static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return SaveBytes(context, data, size); }
@@ -675,19 +739,7 @@ static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
     edict_t temp = *ent;
     field_t const *field;
 
-    /* Process-owned pointers are rebound from class data after loading. */
-    temp.client = NULL; temp.pathtex = NULL; temp.area.prev = NULL; temp.area.next = NULL;
-    temp.destructable.alive_pathtex = NULL; temp.destructable.death_pathtex = NULL;
-    temp.destructable.drop_sets = NULL; temp.destructable.drop_sets_count = 0;
-    temp.added_abilities = NULL; temp.added_abilities_count = 0;
-    temp.removed_abilities = NULL; temp.removed_abilities_count = 0;
-    temp.permanent_abilities = NULL; temp.permanent_abilities_count = 0;
-    temp.animation = NULL; temp.currentmove = NULL;
-    temp.stand = NULL; temp.birth = NULL; temp.prethink = NULL; temp.think = NULL;
-    temp.die = NULL; temp.idle = NULL; temp.move = NULL; temp.run = NULL; temp.attack = NULL; temp.pain = NULL;
-    temp.UnitProfile = NULL; temp.UnitBalance = NULL; temp.UnitData = NULL; temp.UnitUI = NULL;
-    temp.UnitWeapons = NULL; temp.UnitAbilities = NULL; temp.Doodads = NULL;
-    temp.ItemData = NULL; temp.DestructableData = NULL;
+    ClearRuntimeFields(&temp, runtime_fields, sizeof(runtime_fields) / sizeof(*runtime_fields));
     for (field = fields; field->name; field++) if (!WriteField1(field, (BYTE *)&temp)) return false;
     return SaveBytes(f, &temp, sizeof(temp));
 }
@@ -697,13 +749,7 @@ static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
 
     /* Client pointers and callbacks are process-owned; text storage remains inline in GAMECLIENT. */
-    temp.ps.name = NULL;
-    memset(temp.ps.texts, 0, sizeof(temp.ps.texts));
-    temp.mapplayer = NULL;
-    temp.menu.on_entity_selected = NULL; temp.menu.on_location_selected = NULL;
-    temp.menu.cmdbutton = NULL; temp.menu.refresh = NULL;
-    temp.camera.target_controller = NULL;
-    temp.rally_indicator = NULL;
+    ClearRuntimeFields(&temp, client_runtime_fields, sizeof(client_runtime_fields) / sizeof(*client_runtime_fields));
     if (target < -1 || target >= (int)globals.max_edicts) return false;
     return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
 }
