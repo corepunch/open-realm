@@ -49,6 +49,8 @@ typedef struct {
     RESOURCE scroll_image[3];
     BYTE scroll_uv[4];
     DWORD payload_size;
+    DWORD message_id;
+    BYTE message_flags;
 } testUiFrame_t;
 
 static testUiFrame_t test_ui_frames[256];
@@ -393,6 +395,12 @@ static void test_write(pfWriteType_t type, void const *value) {
                 FOR_LOOP(i, 3) capture->scroll_image[i] = scroll->image[i];
                 memcpy(capture->scroll_uv, scroll->texcoord, sizeof(capture->scroll_uv));
                 capture->payload_size = frame->buffer.size;
+            }
+            if (frame->buffer.data && frame->flags.type == FT_MESSAGE_QUEUE) {
+                uiMessageQueue_t const *message = frame->buffer.data;
+                capture->payload_size = frame->buffer.size;
+                capture->message_id = message->message_id;
+                capture->message_flags = message->flags;
             }
             break;
         }
@@ -988,47 +996,49 @@ TEST(wow_game, quest_complete_delivers_rewards) {
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
 }
 
-TEST(wow_game, quest_completion_delivers_client_inbox_snapshot) {
+TEST(wow_game, quest_completion_delivers_server_message_queue) {
     struct game_export *game = init_game();
     LPEDICT player;
     LPCSTR accept_command[] = { "quest_accept", "788" };
     LPCSTR complete_command[] = { "quest_complete", "788" };
-    BYTE const *payload;
+    BOOL found = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     game->ClientBegin(player);
-    test_last_game_command[0] = '\0';
-    test_last_game_payload_size = 0;
     game->ClientCommand(player, 2, accept_command);
+    test_ui_frame_count = 0;
     game->ClientCommand(player, 2, complete_command);
-    T_STREQ(test_last_game_command, "wow_inbox");
-    T_ASSERT(test_last_game_payload_size >= 2 + 4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY);
-    payload = test_last_game_payload;
-    T_EQ(payload[0], 1);
-    T_EQ(payload[1], 1);
-    T_EQ((int)(payload[2] | (payload[3] << 8) | (payload[4] << 16) | (payload[5] << 24)), 788);
-    T_EQ(payload[6], WOW_UI_MESSAGE_QUEST_REWARD);
-    T_EQ(payload[7], WOW_UI_MESSAGE_UNREAD);
-    T_STREQ((LPCSTR)payload + 12, "Quest complete");
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer == LAYER_MESSAGE && frame->type == FT_MESSAGE_QUEUE && frame->message_id == 788) {
+            found = true;
+            T_EQ(frame->message_flags, UI_MESSAGE_UNREAD);
+            T_STREQ(frame->text, "Quest complete");
+            T_STREQ(frame->onclick, "message_open 788");
+        }
+    }
+    T_ASSERT(found);
 }
 
-TEST(wow_game, message_read_requires_owned_id_and_clears_unread) {
+TEST(wow_game, message_open_and_close_are_server_owned) {
     struct game_export *game = init_game();
     LPEDICT player;
     LPCSTR accept_command[] = { "quest_accept", "788" };
     LPCSTR complete_command[] = { "quest_complete", "788" };
-    LPCSTR read_command[] = { "message_read", "788" };
+    LPCSTR open_command[] = { "message_open", "788" };
+    LPCSTR close_command[] = { "message_close" };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     game->ClientBegin(player);
     game->ClientCommand(player, 2, accept_command);
     game->ClientCommand(player, 2, complete_command);
-    game->ClientCommand(player, 2, read_command);
-    T_STREQ(test_last_game_command, "wow_inbox");
-    T_EQ(test_last_game_payload[1], 1);
-    T_EQ(test_last_game_payload[7], 0);
+    game->ClientCommand(player, 2, open_command);
+    T_EQ((int)((wowClient_t *)player->client)->message_open_id, 788);
+    T_EQ((int)((wowClient_t *)player->client)->messages[0].flags, 0);
+    game->ClientCommand(player, 1, close_command);
+    T_EQ((int)((wowClient_t *)player->client)->message_open_id, 0);
 }
 
 TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {

@@ -368,30 +368,6 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
     test_archive = NULL;
 }
 
-TEST(wow_ui, inbox_message_uses_runtime_panel_without_project_framexml) {
-    BYTE payload[2 + 4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY] = {0};
-    uiExport_t ui; DWORD cursor = 0; RECT alert;
-
-    reset_test_state();
-    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-    ui = init_ui(); UIWow_EnterGameMode();
-    payload[cursor++] = 1; payload[cursor++] = 1;
-    payload[cursor++] = 7; cursor += 3;
-    payload[cursor++] = WOW_UI_MESSAGE_QUEST_REWARD; payload[cursor++] = WOW_UI_MESSAGE_UNREAD;
-    payload[cursor++] = 42; cursor += 3;
-    snprintf((char *)payload + cursor, WOW_UI_MESSAGE_TITLE, "Quest complete"); cursor += WOW_UI_MESSAGE_TITLE;
-    snprintf((char *)payload + cursor, WOW_UI_MESSAGE_BODY, "A hero's reward."); cursor += WOW_UI_MESSAGE_BODY;
-    ui.GameCommand("wow_inbox", payload, cursor);
-    alert = MAKE(RECT, 0.5f-17.0f/1024.0f, 671.0f/768.0f, 34.0f/1024.0f, 42.0f/768.0f);
-    T_FEQ(alert.w, 34.0f / 1024.0f, 0.001f); T_FEQ(alert.h, 42.0f / 768.0f, 0.001f);
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, (int)((alert.x + alert.w * 0.5f) * 1024.0f), (int)((alert.y + alert.h * 0.5f) * 768.0f), 1));
-    T_EQ((int)wow_ui.open_message_id, 7);
-    T_STREQ(last_server_command, "message_read 7");
-    T_EQ(UIWow_XmlFindByNamePub("OpenWarcraftInbox"), -1);
-
-    ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
-}
-
 TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     uiExport_t ui;
     BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };

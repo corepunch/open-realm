@@ -348,6 +348,7 @@ typedef struct {
     DWORD questlog_open;
     wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
     DWORD message_count;
+    DWORD message_open_id;
     /* Loot window state: snapshot taken on loot open, consumed by loot_take. */
     DWORD loot_target;                          /* entity# of open corpse (0=closed) */
     wowHudIcon_t loot_snap[WOW_MAX_LOOT_ITEMS]; /* item snapshot at open time */
@@ -441,7 +442,7 @@ void UI_HideWindow(LPEDICT ent, LPCSTR window_id);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);
 DWORD Wow_GetPlayerClass(void);
 void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id);
-void Wow_SendInbox(LPEDICT ent);
+void UI_WriteWowMessageQueue(LPEDICT ent);
 
 /* Ability/projectile system */
 DWORD      Wow_FireboltModel(void);

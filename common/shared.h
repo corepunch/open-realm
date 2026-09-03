@@ -785,6 +785,7 @@ typedef enum {
     FT_STRINGLIST,
     // custom types
     FT_BUILDQUEUE,
+    FT_MESSAGE_QUEUE,
     FT_MULTISELECT,
     FT_TOOLTIPTEXT,
     FT_MINIMAP,
@@ -897,6 +898,17 @@ typedef struct {
     USHORT numitems;
     uiBuildQueueItem_t items[];
 } uiBuildQueue_t;
+
+typedef struct {
+    DWORD message_id;
+    RESOURCE image;
+    RESOURCE title_font;
+    RESOURCE body_font;
+    BYTE flags;
+} uiMessageQueue_t;
+
+#define UI_MESSAGE_UNREAD (1u << 0) // flag bit; server marks an unread message; used by FT_MESSAGE_QUEUE
+#define UI_MESSAGE_OPEN   (1u << 1) // flag bit; server marks the message panel; used by FT_MESSAGE_QUEUE
 
 typedef struct {
     RESOURCE hp_bar;

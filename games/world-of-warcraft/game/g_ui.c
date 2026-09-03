@@ -400,6 +400,50 @@ static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR
     UI_WriteImageUV(path, x, y, w, h, 0.0f, 1.0f, 0.0f, 1.0f, color);
 }
 
+/* Draw the server-owned unread message pool and its selected message panel. */
+void UI_WriteWowMessageQueue(LPEDICT ent) {
+    wowClient_t *wc = ent ? (wowClient_t *)ent->client : NULL;
+    uiMessageQueue_t queue = {0};
+    char command[64];
+    DWORD unread = 0;
+
+    if (!wc) return;
+    UI_WriteStart(LAYER_MESSAGE);
+    FOR_LOOP(i, wc->message_count) {
+        wowUiMessage_t const *message = &wc->messages[i];
+        if (!(message->flags & WOW_UI_MESSAGE_UNREAD) && message->message_id != wc->message_open_id) continue;
+        queue = (uiMessageQueue_t){
+            .message_id = message->message_id,
+            .image = gi.ImageIndex("Interface\\TutorialFrame\\TutorialFrameAlert"),
+            .title_font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 16),
+            .body_font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 12),
+            .flags = (message->flags & WOW_UI_MESSAGE_UNREAD ? UI_MESSAGE_UNREAD : 0) |
+                     (message->message_id == wc->message_open_id ? UI_MESSAGE_OPEN : 0),
+        };
+        uiFrame_t frame = {0};
+        frame.flags.type = FT_MESSAGE_QUEUE;
+        frame.text = message->title;
+        frame.tooltip = message->body;
+        if (message->message_id == wc->message_open_id)
+            snprintf(command, sizeof(command), "message_close");
+        else
+            snprintf(command, sizeof(command), "message_open %u", (unsigned)message->message_id);
+        frame.onclick = command;
+        UI_SetFrameRect(&frame, message->message_id == wc->message_open_id ? PX(256) : PX(360) + PW(unread * 42),
+                        message->message_id == wc->message_open_id ? PY(192) : PY(680),
+                        message->message_id == wc->message_open_id ? PW(512) : PW(32),
+                        message->message_id == wc->message_open_id ? PH(169) : PH(32));
+        frame.buffer.data = &queue;
+        frame.buffer.size = sizeof(queue);
+        frame.color = COLOR32_WHITE;
+        frame.number = ui_next_frame_number++;
+        gi.Write(PF_UIFRAME, &frame);
+        if (message->flags & WOW_UI_MESSAGE_UNREAD) unread++;
+    }
+    UI_WriteEnd();
+    gi.unicast(ent);
+}
+
 /* Solid-color quad via a null texture slot */
 static void UI_WriteColorRect(FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color) {
     uiFrame_t frame;
@@ -769,6 +813,7 @@ void UI_WriteWowHud(LPEDICT ent) {
     UI_WriteLootWindow(ent);
     UI_WriteBackpackWindow(ent);
     UI_WriteEnd();
+    UI_WriteWowMessageQueue(ent);
     UI_WriteQuestDialog(ent);
     UI_WriteQuestLog(ent);
     gi.unicast(ent);

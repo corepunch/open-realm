@@ -78,9 +78,6 @@ typedef struct {
     uiWowFont_t font_cache[WOW_UI_MAX_FONTS];
     uiWowIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
-    wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
-    DWORD message_count;
-    DWORD open_message_id;
     DWORD tutorial_id;
     DWORD tutorial_alerts[WOW_UI_MAX_TUTORIAL_ALERTS];
     DWORD tutorial_alert_count;
