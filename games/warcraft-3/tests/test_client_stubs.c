@@ -7,6 +7,7 @@
  * — these are the real global symbols the code expects.
  */
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -21,12 +22,20 @@ DWORD test_fow_upload_calls;
 DWORD test_cursor_draw_calls;
 COLOR32 test_cursor_tint;
 char test_forwarded_command[128];
+static PATHSTR test_existing_file;
 
 typedef struct { char name[64]; char value[128]; } mockCvar_t;
 static mockCvar_t mock_cvars[32];
 #define MOCK_CVAR_COUNT (sizeof(mock_cvars) / sizeof(mock_cvars[0]))
 
 void test_client_stubs_clear_cvars(void) { memset(mock_cvars, 0, sizeof(mock_cvars)); }
+void test_client_stubs_set_existing_file(LPCSTR path) {
+    snprintf(test_existing_file, sizeof(test_existing_file), "%s", path ? path : "");
+}
+
+bool FS_FileExists(LPCSTR fileName) {
+    return fileName && test_existing_file[0] && !strcasecmp(fileName, test_existing_file);
+}
 
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value) {
     FOR_LOOP(i, MOCK_CVAR_COUNT) {
@@ -104,6 +113,7 @@ void test_client_stubs_init(void) {
     test_cursor_draw_calls = 0;
     test_cursor_tint = COLOR32_WHITE;
     test_forwarded_command[0] = '\0';
+    test_existing_file[0] = '\0';
     re.GetWindowSize = mock_GetWindowSize;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
     re.DrawFill = mock_DrawFill;

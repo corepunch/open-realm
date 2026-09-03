@@ -30,6 +30,7 @@
 
 void test_client_stubs_init(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
+void test_client_stubs_set_existing_file(LPCSTR path);
 void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
@@ -53,6 +54,21 @@ static DWORD test_begin_frames, test_end_frames;
 static VECTOR3 test_overhead_point;
 static RECT test_status_rect;
 static DWORD test_status_draws;
+static PATHSTR test_model_load_paths[4];
+static DWORD test_model_loads, test_model_releases;
+
+static LPMODEL capture_load_model(LPCSTR filename) {
+    DWORD slot = test_model_loads;
+    if (slot < sizeof(test_model_load_paths) / sizeof(test_model_load_paths[0]))
+        snprintf(test_model_load_paths[slot], sizeof(test_model_load_paths[slot]), "%s", filename ? filename : "");
+    test_model_loads++;
+    return (LPMODEL)(uintptr_t)(0x1000u + test_model_loads);
+}
+
+static void capture_release_model(LPMODEL model) {
+    (void)model;
+    test_model_releases++;
+}
 
 static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)color;
@@ -1194,6 +1210,61 @@ TEST(net, cursor_splat_message_sets_and_clears_state) {
     CL_ParseServerMessage(&sb);
     T_EQ(cl.cursor_splat.image, 0);
     T_FEQ(cl.cursor_splat.radius, 0.0f, 0.0001f);
+}
+
+TEST(net, initial_model_configstring_defers_registration_until_refresh) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    DWORD const model = 7;
+    LPCSTR const path = "Units\\Human\\Footman\\Footman.mdx";
+
+    test_client_stubs_init();
+    test_model_loads = test_model_releases = 0;
+    memset(test_model_load_paths, 0, sizeof(test_model_load_paths));
+    re.LoadModel = capture_load_model;
+    re.ReleaseModel = capture_release_model;
+    cl.refresh_prepped = false;
+
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_MODELS + model);
+    MSG_WriteString(&sb, path);
+    CL_ParseServerMessage(&sb);
+
+    T_STREQ(cl.configstrings[CS_MODELS + model], path);
+    T_NULL(cl.models[model]);
+    T_NULL(cl.portraits[model]);
+    T_EQ(test_model_loads, 0);
+    T_EQ(test_model_releases, 0);
+}
+
+TEST(net, late_model_configstring_refreshes_world_and_portrait_models_together) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    DWORD const model = 7;
+    LPCSTR const path = "Units\\Human\\Footman\\Footman.mdx";
+    LPCSTR const portrait = "Units\\Human\\Footman\\Footman_Portrait.mdx";
+
+    test_client_stubs_init();
+    test_model_loads = test_model_releases = 0;
+    memset(test_model_load_paths, 0, sizeof(test_model_load_paths));
+    re.LoadModel = capture_load_model;
+    re.ReleaseModel = capture_release_model;
+    cl.refresh_prepped = true;
+    cl.models[model] = (LPMODEL)(uintptr_t)0x2001u;
+    cl.portraits[model] = (LPMODEL)(uintptr_t)0x2002u;
+    test_client_stubs_set_existing_file(portrait);
+
+    MSG_WriteByte(&sb, svc_configstring);
+    MSG_WriteShort(&sb, CS_MODELS + model);
+    MSG_WriteString(&sb, path);
+    CL_ParseServerMessage(&sb);
+
+    T_EQ(test_model_releases, 2);
+    T_EQ(test_model_loads, 2);
+    T_STREQ(test_model_load_paths[0], path);
+    T_STREQ(test_model_load_paths[1], portrait);
+    T_NOT_NULL(cl.models[model]);
+    T_NOT_NULL(cl.portraits[model]);
 }
 
 TEST(net, packed_entity_names_survive_configstring_transport) {
