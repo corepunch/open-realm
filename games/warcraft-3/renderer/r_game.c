@@ -2,6 +2,7 @@
 #include "mdx/r_mdx.h"
 #include "w3m/r_war3map.h"
 #include "common/stb_slk.h"
+#include "games/warcraft-3/common/minimap.h"
 
 void _W3M_RegisterMap(LPCSTR mapFileName);
 void _W3M_DrawWorld(void);
@@ -137,7 +138,13 @@ void R_SetupTextureMatrix(void) {
 
 void R_DrawMinimap(LPCRECT screen) {
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
+    VECTOR2 const map_size = R_WorldSize();
+    RECT const content = WC3_MinimapContentRect(screen, &map_size);
+
+    /* The authored war3mapMap texture fills the frame. World-space overlays
+     * (fog, camera, pings, click projection) use the centred map-aspect area. */
     R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
+    tr.minimapRect = content;
 
     if (tr.world && tr.shader_minimapFog.prog.progid) {
         DWORD const fow_texid = R_GetMinimapFogOfWarTexture();
@@ -149,7 +156,7 @@ void R_DrawMinimap(LPCRECT screen) {
             };
             R_DrawImageEx(&MAKE(drawImage_t,
                                 .texture = &fog_texture,
-                                .screen = *screen,
+                                .screen = content,
                                 .uv = MAKE(RECT, 0, 0, 1, 1),
                                 .color = MAKE(COLOR32, 0, 0, 0, 230),
                                 .shader = SHADER_MINIMAP_FOG,
@@ -157,7 +164,7 @@ void R_DrawMinimap(LPCRECT screen) {
         }
     }
 
-    R_DrawMinimapCameraRect(screen);
+    R_DrawMinimapCameraRect(&content);
 }
 
 void R_RegisterMap(LPCSTR mapFileName) {

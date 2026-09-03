@@ -8,6 +8,7 @@
 #include "../ui/ui_local.h"
 #include "../ui/ui_dialog.h"
 #include "../ui/ui_screen.h"
+#include "../common/minimap.h"
 #include "../../../common/mpq.h"
 
 static const char *captured_image_path;
@@ -54,6 +55,32 @@ static void parse_fdf(const char *name, const char *src) {
 static int require_not_null(const void *ptr) {
     T_NOT_NULL(ptr);
     return ptr != NULL;
+}
+
+TEST(ui_fdf, minimap_content_rect_preserves_rectangular_map_aspect) {
+    RECT frame = { 10.0f, 20.0f, 100.0f, 100.0f };
+    VECTOR2 wide = { 200.0f, 100.0f };
+    VECTOR2 tall = { 100.0f, 200.0f };
+    VECTOR2 invalid = { 0.0f, 100.0f };
+    RECT content;
+
+    content = WC3_MinimapContentRect(&frame, &wide);
+    T_FEQ(content.x, 10.0f, 0.001f);
+    T_FEQ(content.y, 45.0f, 0.001f);
+    T_FEQ(content.w, 100.0f, 0.001f);
+    T_FEQ(content.h, 50.0f, 0.001f);
+
+    content = WC3_MinimapContentRect(&frame, &tall);
+    T_FEQ(content.x, 35.0f, 0.001f);
+    T_FEQ(content.y, 20.0f, 0.001f);
+    T_FEQ(content.w, 50.0f, 0.001f);
+    T_FEQ(content.h, 100.0f, 0.001f);
+
+    content = WC3_MinimapContentRect(&frame, &invalid);
+    T_FEQ(content.x, frame.x, 0.001f);
+    T_FEQ(content.y, frame.y, 0.001f);
+    T_FEQ(content.w, frame.w, 0.001f);
+    T_FEQ(content.h, frame.h, 0.001f);
 }
 
 static int test_fs_read_file(LPCSTR file_name, void **buf) {
