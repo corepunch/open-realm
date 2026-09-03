@@ -79,6 +79,10 @@ static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv,
 }
 
 static void capture_textarea(LPCDRAWTEXT text) { test_textarea_draw = *text; test_textarea_draws++; }
+static VECTOR2 tall_textarea_size(LPCDRAWTEXT text) {
+    (void)text;
+    return MAKE(VECTOR2, 0.2f, 0.8f);
+}
 static void capture_begin_frame(void) { test_begin_frames++; }
 static void capture_end_frame(void) { test_end_frames++; }
 static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) {
@@ -326,6 +330,28 @@ TEST(net, layout_textarea_clips_to_inset_viewport) {
     T_FEQ(test_textarea_draw.clip.y, test_textarea_draw.rect.y, 0.0001f);
     T_FEQ(test_textarea_draw.clip.w, test_textarea_draw.rect.w, 0.0001f);
     T_FEQ(test_textarea_draw.clip.h, test_textarea_draw.rect.h, 0.0001f);
+}
+
+TEST(net, layout_textarea_value_scrolls_wrapped_content_inside_clip) {
+    uiTextArea_t area = { .font = 1, .inset = 0.01f };
+    uiFrame_t frame = { .text = "many wrapped lines", .value = 0.5f,
+                        .buffer = { &area, sizeof(area) } };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.3f, 0.4f);
+
+    test_client_stubs_init(); test_textarea_draws = 0;
+    re.GetTextSize = tall_textarea_size; re.DrawText = capture_textarea;
+    SCR_LayoutDrawTextArea(&frame, &screen);
+
+    /* View height is .38, content is .80, so value=.5 offsets by .21. */
+    T_EQ((int)test_textarea_draws, 1);
+    T_FEQ(test_textarea_draw.rect.x, 0.11f, 0.0001f);
+    T_FEQ(test_textarea_draw.rect.y, 0.0f, 0.0001f);
+    T_FEQ(test_textarea_draw.rect.w, 0.28f, 0.0001f);
+    T_FEQ(test_textarea_draw.rect.h, 0.8f, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.x, 0.11f, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.y, 0.21f, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.w, 0.28f, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.h, 0.38f, 0.0001f);
 }
 
 /* -----------------------------------------------------------------------
@@ -860,6 +886,48 @@ TEST(net, nonmodal_window_does_not_request_pause) {
     test_send_window(8, 98, 0, 0.05f, "Info", UI_WINDOW_CLOSE_ACTION);
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "");
+    CL_WindowClear();
+}
+
+TEST(net, no_pause_modal_blocks_input_without_requesting_pause) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_forwarded_command[0] = '\0';
+    test_send_window(9, 99, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Allies", UI_WINDOW_CLOSE_ACTION);
+    T_ASSERT(CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "");
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(!CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "");
+    CL_WindowClear();
+}
+
+TEST(net, no_pause_modal_does_not_release_underlying_pause_owner) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_send_window(11, 101, UI_WINDOW_MODAL, 0.05f, "Menu", UI_WINDOW_CLOSE_ACTION);
+    T_STREQ(test_forwarded_command, "pause 1");
+    test_forwarded_command[0] = '\0';
+    test_send_window(12, 102, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Allies", UI_WINDOW_CLOSE_ACTION);
+    T_STREQ(test_forwarded_command, "");
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "");
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(!CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "pause 0");
+    CL_WindowClear();
+}
+
+TEST(net, window_close_command_forwards_suffix_and_closes) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_forwarded_command[0] = '\0';
+    test_send_window(10, 100, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Accept", UI_WINDOW_CLOSE_COMMAND_PREFIX "allies_accept");
+    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
+    T_ASSERT(!CL_WindowModalActive());
+    T_STREQ(test_forwarded_command, "allies_accept");
     CL_WindowClear();
 }
 

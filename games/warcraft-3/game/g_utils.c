@@ -91,19 +91,17 @@ void G_RemoveQuest(LPQUEST quest) {
 }
 
 void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL value) {
-    DWORD flag = 1 << type;
-    DWORD before12 = level.alliances[p1->number][p2->number];
-    DWORD before21 = level.alliances[p2->number][p1->number];
-    if (value) {
-        level.alliances[p1->number][p2->number] |= flag;
-        level.alliances[p2->number][p1->number] |= flag;
-    } else {
-        level.alliances[p1->number][p2->number] &= ~flag;
-        level.alliances[p2->number][p1->number] &= ~flag;
-    }
+    DWORD const flag = 1u << type;
+    DWORD const before = level.alliances[p1->number][p2->number];
+
+    if (value) level.alliances[p1->number][p2->number] |= flag;
+    else level.alliances[p1->number][p2->number] &= ~flag;
+
+    /* Warcraft alliance state is directional: SetPlayerAlliance(source, other, ...)
+     * changes only source -> other. Consumers such as fog and shared command
+     * authority already read the matrix in that direction. */
     if ((type == ALLIANCE_PASSIVE || type == ALLIANCE_SHARED_CONTROL) &&
-        (before12 != level.alliances[p1->number][p2->number] ||
-         before21 != level.alliances[p2->number][p1->number])) {
+        before != level.alliances[p1->number][p2->number]) {
         G_InvalidateAllUnitShortcuts();
     }
 }

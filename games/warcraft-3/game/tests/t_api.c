@@ -1090,11 +1090,21 @@ TEST(wc3_api, alliance_set_true) {
     T_ASSERT(G_GetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE));
 }
 
-TEST(wc3_api, alliance_symmetric) {
-    /* G_SetPlayerAlliance sets both directions. */
+TEST(wc3_api, alliance_is_directional) {
     LPPLAYER p0 = test_player(0);
     LPPLAYER p1 = test_player(1);
     G_SetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE, true);
+    T_ASSERT(G_GetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(p1, p0, ALLIANCE_PASSIVE));
+}
+
+TEST(wc3_api, alliance_revoke_does_not_change_reverse_relation) {
+    LPPLAYER p0 = test_player(0);
+    LPPLAYER p1 = test_player(1);
+    G_SetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(p1, p0, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE, false);
+    T_ASSERT(!G_GetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE));
     T_ASSERT(G_GetPlayerAlliance(p1, p0, ALLIANCE_PASSIVE));
 }
 

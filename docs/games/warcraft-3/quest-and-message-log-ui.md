@@ -225,10 +225,11 @@ Menu route opens the separate modal Esc-menu window documented in
 
 - The fourth upper button is wired to the single-player `log` command. Runtime
   selection between single-player Log and multiplayer Chat is not yet modeled.
-- The client `FT_TEXTAREA` path lays out/clips text but does not currently apply
-  interactive scrollbar offsets. `LogAreaScrollBar` and the Quest scrollbars
-  may render from FDF, but true long-history/list scrolling requires client UI
-  input/scroll support rather than a server-side workaround.
+- Server-authored `FT_TEXTAREA` windows now keep a client-local scroll fraction
+  across layout reparses. Mouse wheel input over the text area or its scrollbar,
+  arrow clicks, track clicks, and thumb dragging all update the same viewport
+  state. `LogAreaScrollBar` is attached to the text area's authored right edge
+  and is hidden automatically when the wrapped history fits without scrolling.
 - Message history is bounded by 128 logical entries. Retail's FDF expresses a
   128-line text-area limit; wrapped-line-equivalent eviction is not yet modeled.
 - `FlashQuestDialogButton` is still unimplemented; modal disabled-button art is
@@ -247,6 +248,8 @@ Relevant tests live under `games/warcraft-3/game/tests/`:
 - `wc3_api.display_text_tracks_lifetime_and_clear`
 - `wc3_api.transient_command_style_text_does_not_enter_message_log`
 - `wc3_api.message_log_is_bounded_and_evicts_oldest_entry`
+- `net.layout_textarea_clips_to_inset_viewport`
+- `net.layout_textarea_value_scrolls_wrapped_content_inside_clip`
 
 When validating this work, run the normal WC3 test target and then verify a
 campaign map manually:

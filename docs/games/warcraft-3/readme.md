@@ -114,6 +114,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Sounds](sounds.md)
 - [HUD Media Lifetime](hud-media.md)
 - [Quest And Message Log UI](quest-and-message-log-ui.md)
+- [Allies Menu](allies-menu.md)
 - [Building Damage Rendering](building-damage-rendering.md)
 - [Research And Upgrades](research-and-upgrades.md)
 
