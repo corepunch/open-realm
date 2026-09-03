@@ -23,9 +23,10 @@ server-authored HUD dialogs.
 - Default system-button key bindings use the same configurable input path as
   Hero/idle-worker shortcuts: F9 sends `cmd quests`, F10 `cmd menu`, F11
   `cmd allies`, and F12 `cmd log`. Mouse clicks on the four authored upper
-  buttons send the same server actions. Menu and Allies dialog rendering remain
-  separate work; their command handlers are intentionally no-op until those
-  screens are implemented.
+  buttons send the same server actions. `UpperButtonBar.fdf` stores these labels
+  as `KEY_QUESTS`, `KEY_MENU`, `KEY_ALLIES`, and `KEY_CHAT`; load
+  `GlobalStrings.fdf` before the button bar so they resolve to strings such as
+  `Menu (F10)` instead of appearing as raw keys.
 
 The dialogs are rendered through stock Warcraft FDF roots:
 

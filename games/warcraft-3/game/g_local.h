@@ -1446,6 +1446,7 @@ void G_UpdateClientInfoPanels(void);
 void UI_WriteSelectedPortraitLayer(LPEDICT);
 void G_RefreshResourceBar(LPEDICT);
 void G_AccumulatePlayerFood(LPGAMECLIENT client);
+void G_InitClientUIState(LPGAMECLIENT client);
 void G_UpdateClientResourceBars(void);
 BOOL G_UnitIsIdleWorker(LPCEDICT ent);
 BOOL G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent);

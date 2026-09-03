@@ -67,6 +67,14 @@ initial-HUD path because `G_ClientBegin` sets `connected` first. Selection/HUD
 refresh paths may also request an immediate write, but the writer will not
 serialize for an unconnected reserved player edict.
 
+Map scripts run during `G_LoadMap` before the local client completes its
+connection handshake so save restoration can rebuild deterministic JASS state.
+`G_ClientBegin` must preserve `client_ui_state`, `uiflags`, and
+`presentation_dirty` authored during that startup; zero-initialized clients
+already represent `CLIENT_UI_GAME`. Commit `697d5f51` exposed this lifecycle by
+starting scripts during map load while `G_ClientBegin` still reset the UI mode,
+which kept the cinematic camera but replaced the cinematic HUD with gameplay.
+
 Commit `39193e6` (`wc3: implement triggered in-game dialogue`) introduced the
 regression by calling `UI_WriteDialoguePresentation` synchronously from
 `UI_ShowInterface`. In-engine JASS tests use reserved player edicts whose

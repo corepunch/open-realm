@@ -618,6 +618,12 @@ void G_AccumulatePlayerFood(LPGAMECLIENT client) {
     G_RecomputePlayerUpkeep(client);
 }
 
+/* Preserve valid map/save-authored modes while keeping corrupt connection state out of the network contract. */
+void G_InitClientUIState(LPGAMECLIENT client) {
+    if (client && client->ps.client_ui_state > CLIENT_UI_CINEMATIC)
+        client->ps.client_ui_state = CLIENT_UI_GAME;
+}
+
 /* Called when a client finishes the connection handshake and is ready to play.
  * The in-game HUD is server-authored through svc_layout; this binds the game
  * client and initializes gameplay state when a map is loaded. */
@@ -628,7 +634,7 @@ static void G_ClientBegin(LPEDICT edict) {
     }
 
     G_SetClientConnected(edict, true);
-    client->ps.client_ui_state = CLIENT_UI_GAME;
+    G_InitClientUIState(client);
     if (!client->mapplayer) {
         client->ps.origin = (VECTOR2){ 0, 0 };
     }

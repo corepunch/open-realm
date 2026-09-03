@@ -146,6 +146,23 @@ TEST(wc3_api, disconnected_presentation_defers_network_write_until_connected) {
     gi.unicast = old_unicast;
 }
 
+TEST(wc3_api, client_ui_init_preserves_authored_state_and_rejects_invalid_state) {
+    LPGAMECLIENT gc = &game.clients[0];
+    gc->ps.client_ui_state = CLIENT_UI_CINEMATIC;
+    gc->ps.uiflags = ~(1u << LAYER_CINEMATIC);
+    gc->presentation_dirty = true;
+
+    G_InitClientUIState(gc);
+
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_CINEMATIC);
+    T_EQ(gc->ps.uiflags, ~(1u << LAYER_CINEMATIC));
+    T_ASSERT(gc->presentation_dirty);
+
+    gc->ps.client_ui_state = CLIENT_UI_CINEMATIC + 1;
+    G_InitClientUIState(gc);
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
+}
+
 static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
 }

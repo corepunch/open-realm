@@ -28,7 +28,7 @@ static void ConsoleEnsureLoaded(void) {
     ResourceBar_Load(&res);
     UI_SetParent(res.ResourceBarFrame, console_ui.ConsoleUI);
     UI_SetPoint(res.ResourceBarFrame, FRAMEPOINT_TOPRIGHT, console_ui.ConsoleUI, FRAMEPOINT_TOPRIGHT, 0.0f, 0.0f);
-    if (UpperButtonBar_Load(&upper)) {
+    if (UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") && UpperButtonBar_Load(&upper)) {
         /* UpperButtonBar.fdf is a separate authored root. Attach it to the
          * serialized ConsoleUI tree and bind the same server actions used by
          * the default F9-F12 bindings in share/config.cfg. */
