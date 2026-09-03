@@ -792,7 +792,8 @@ typedef enum {
     FT_NAMETAG,
 } FRAMETYPE;
 
-#define UIFLAG_SIZE_TO_CONTENT (1 << 10) // flag bit; derives a composite frame's size from rendered content; used by FT_NAMETAG
+#define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; derives a composite frame's size from rendered content; used by FT_NAMETAG
+#define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
 
 typedef enum {
     BACKDROP_TOP_LEFT_CORNER,
@@ -871,7 +872,7 @@ typedef struct uiFrame_s {
     } buffer;
     DWORD textLength;
     DWORD stat;
-    LPCSTR text;
+    LPCSTR text; /* type-specific text; FT_COMMANDBUTTON uses this for its optional secondary click command */
     LPCSTR tooltip;
     LPCSTR onclick;
     FLOAT value;

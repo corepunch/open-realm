@@ -676,17 +676,24 @@ LPEDICT G_FindNearestEnemy(LPEDICT self, FLOAT radius) {
 void ai_stand(LPEDICT self) {
     if (!(self->svflags & SVF_MONSTER))
         return;
-    /* Idle units auto-engage the nearest enemy within acquisition range — for
-     * the player's own units too. Units with no attack (workers/critters) and
-     * units already chasing/attacking stay as they are. */
-    if (!unit_has_attack(self))
-        return;
     /* Neutral/creep units do not initiate (avoids map-wide neutral-vs-neutral
      * aggression); campaign defenders may be rescuable until script takeover
      * and still use normal unit auto-acquisition while hostile. */
     if (level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral)
         return;
     if (!G_ShouldAcquireThisFrame(self))
+        return;
+
+    /* Autocast gets the first acquisition opportunity. Its ability owns target
+     * policy and emits an ordinary order; only if no autocast action starts do
+     * we fall through to the existing automatic attack scan. */
+    if (G_TryUnitAutocast(self))
+        return;
+
+    /* Idle units auto-engage the nearest enemy within acquisition range — for
+     * the player's own units too. Units with no attack (workers/critters) and
+     * units already chasing/attacking stay as they are. */
+    if (!unit_has_attack(self))
         return;
 
     LPEDICT best = G_FindNearestEnemy(self, G_AcquisitionRange(self));

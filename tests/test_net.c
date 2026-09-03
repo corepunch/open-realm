@@ -2012,6 +2012,78 @@ TEST(client_screen, selection_rect_stops_at_bottom_console_command_button) {
     T_FEQ(rect.y + rect.h, 0.41f / UI_BASE_HEIGHT * 768.0f, 1.0f);
 }
 
+TEST(client_screen, command_button_right_click_sends_secondary_command) {
+    BYTE layout_buf[512];
+    BYTE message_buf[256];
+    char command_buf[128];
+    sizeBuf_t sb = make_msg_buf(layout_buf, sizeof(layout_buf));
+    uiFrame_t empty = {0}, frame = {0};
+
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
+
+    frame.number = 1;
+    frame.flags.type = FT_COMMANDBUTTON;
+    frame.size.width = 0.20f;
+    frame.size.height = 0.20f;
+    frame.points.x[FPP_MIN].used = 1;
+    frame.points.x[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.y[FPP_MIN].used = 1;
+    frame.points.y[FPP_MIN].targetPos = FPP_MIN;
+    frame.onclick = "button Arep";
+    frame.text = "autocast Arep";
+
+    MSG_WriteByte(&sb, LAYER_COMMANDBAR);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+
+    T_ASSERT(SCR_LayoutMouseEvent(UI_MOUSE_DOWN, 10, 10, 3));
+    T_EQ(cls.netchan.message.cursize, 0);
+    T_ASSERT(SCR_LayoutMouseEvent(UI_MOUSE_UP, 10, 10, 3));
+    cls.netchan.message.readcount = 0;
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command_buf);
+    T_STREQ(command_buf, "autocast Arep");
+}
+
+TEST(client_screen, command_button_right_click_without_secondary_command_is_not_consumed) {
+    BYTE layout_buf[512];
+    BYTE message_buf[256];
+    sizeBuf_t sb = make_msg_buf(layout_buf, sizeof(layout_buf));
+    uiFrame_t empty = {0}, frame = {0};
+
+    test_client_stubs_init();
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(layer);
+    SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
+
+    frame.number = 1;
+    frame.flags.type = FT_COMMANDBUTTON;
+    frame.size.width = 0.20f;
+    frame.size.height = 0.20f;
+    frame.points.x[FPP_MIN].used = 1;
+    frame.points.x[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.y[FPP_MIN].used = 1;
+    frame.points.y[FPP_MIN].targetPos = FPP_MIN;
+    frame.onclick = "button Amov";
+
+    MSG_WriteByte(&sb, LAYER_COMMANDBAR);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+
+    T_ASSERT(!SCR_LayoutMouseEvent(UI_MOUSE_DOWN, 10, 10, 3));
+    T_ASSERT(!SCR_LayoutMouseEvent(UI_MOUSE_UP, 10, 10, 3));
+    T_EQ(cls.netchan.message.cursize, 0);
+}
+
 /* Upper HUD elements are not part of the bottom-console mask; crossing the
  * resource/upper-button region must not shrink an otherwise valid world drag. */
 TEST(client_screen, selection_rect_ignores_upper_ui_outside_bottom_console) {

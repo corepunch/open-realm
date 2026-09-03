@@ -13,3 +13,8 @@ AreaEffectArt=TestUI\Models\ui_panel.mdx
 
 [AIda]
 TargetArt=TestUI\Models\anim_pulse.mdx
+
+[Arep]
+Art=TestUI\Textures\gather.blp
+Buttonpos=1,1
+Hotkey=R

@@ -45,7 +45,7 @@ A small world click now sends either the entity target or the terrain point, not
 
 Each pending entry stores:
 
-- the normalized order name (`smart`, `move`, or `attack` in the currently supported path);
+- the normalized order name (`smart`, `move`, `attack`, or `repair` in the currently supported path);
 - point vs entity target kind;
 - the resolved point for a point order;
 - entity number plus `spawn_time` for an entity order;

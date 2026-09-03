@@ -817,7 +817,8 @@ void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         .uv          = suv,
         .color       = COLOR32_WHITE,
         .shader      = SHADER_COMMANDBUTTON,
-        .uActiveGlow = sel ? sel->ability == frame->stat : 0));
+        .uActiveGlow = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) ||
+                       (sel && sel->ability == frame->stat)));
     (void)frame;
 }
 
@@ -1108,7 +1109,7 @@ static int SCR_LayoutModalLayer(void) {
 
 BOOL SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
-void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+BOOL SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
     LPCUIFRAME hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
@@ -1143,19 +1144,35 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         if (layout_hovered_number) break;
     }
 
-    if (param != 1) return;
+    /* Proxy command buttons may carry a secondary command in text. Warcraft
+     * uses this for right-click autocast toggles while preserving left-click
+     * targeting on the same icon. Consume both right-button edges so the click
+     * cannot also become a world Smart order. */
+    if (param == SDL_BUTTON_RIGHT) {
+        if (!hovered_frame || hovered_frame->flags.type != FT_COMMANDBUTTON ||
+            !hovered_frame->text || !*hovered_frame->text) {
+            return false;
+        }
+        if (event == UI_MOUSE_DOWN) return true;
+        if (event != UI_MOUSE_UP) return false;
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "%s", hovered_frame->text);
+        return true;
+    }
+
+    if (param != SDL_BUTTON_LEFT) return false;
     if (event == UI_MOUSE_DOWN) {
         char command[CMDARG_LEN * 2];
         layout_left_down = true;
-        if (!hovered_frame || layout_held_command[0]) return;
+        if (!hovered_frame || layout_held_command[0]) return false;
         SCR_LayoutFormatOnClickCommand(hovered_frame->onclick, command, sizeof(command));
-        if (command[0] != '+') return;
+        if (command[0] != '+') return false;
         strlcpy(layout_held_command, command, sizeof(layout_held_command));
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, "%s", layout_held_command);
-        return;
+        return false;
     }
-    if (event != UI_MOUSE_UP) return;
+    if (event != UI_MOUSE_UP) return false;
     layout_left_down = false;
     if (layout_held_command[0]) {
         char command[sizeof(layout_held_command)];
@@ -1164,7 +1181,7 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         layout_held_command[0] = '\0';
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, "%s", command);
-        return;
+        return false;
     }
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
@@ -1182,7 +1199,7 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
                 if (entity) {
                     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                     SZ_Printf(&cls.netchan.message, "focus %u", (unsigned)entity);
-                    return;
+                    return false;
                 }
                 continue;
             }
@@ -1192,10 +1209,11 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                 SZ_Printf(&cls.netchan.message, "%s", command);
-                return;
+                return false;
             }
         }
     }
+    return false;
 }
 
 /* Dispatch a command-button hotkey the same way a mouse click on that */

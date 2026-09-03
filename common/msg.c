@@ -100,7 +100,8 @@ netField_t entityStateFields[] = {
  *   stat          — player stat index shown as a live number;
  *                   0 means use the text string instead
  *   color         — RGBA tint
- *   text          — static display string (label, button caption, …)
+ *   text          — type-specific string (display text for text frames; optional
+ *                   secondary click command for command buttons)
  *   tooltip       — tooltip string shown on hover
  *   onclick       — server command sent back when the element is clicked
  *                   (e.g. "button Amov")

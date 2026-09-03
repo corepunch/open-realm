@@ -31,7 +31,7 @@ BOOL SCR_LayoutHitTest(int x, int y);
 BOOL SCR_LayoutModalActive(void);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 void SCR_DrawLayout(void);
-void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
+BOOL SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
 BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y);
 FLOAT SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame);
 BOOL SCR_LayoutKeyEvent(int key);

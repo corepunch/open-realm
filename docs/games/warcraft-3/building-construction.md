@@ -155,6 +155,10 @@ Repair range comes from ability `Rng`. A worker outside range enters a walk beha
 
 Smart/right-click tries Repair on an otherwise non-enemy target before falling back to Move. A full-health target declines Smart Repair silently. Explicit Repair reports `Target is not damaged.` for a completed full-health building and rejects standard Repair on construction.
 
+Repair also participates in the generic autocast hooks documented in [autocast.md](autocast.md). Right-clicking the Repair command button sends the secondary `autocast <rawcode>` command while left click remains ordinary target selection. `Arep`, `Aren`, and `Arst` share the persisted `AI_AUTOCAST_REPAIR` toggle. During an automatic acquisition opportunity, Repair scans the worker's `runtime.acquisition_range`, chooses the **nearest** target accepted by the same Repair validation used by an explicit order, then submits the normal `repair` entity order. The existing Repair behavior therefore remains authoritative for movement into `Rng`, footprint contact, costs, work animation, construction contribution, interruption, and completion. Completing one target does not disable Auto Repair; a later idle/default stand acquisition pass may choose another damaged target. Repair cancellation clears `goalentity` only when it still names the Repair-owned target: Stop/stand therefore retires the old target, while a replacement Move/Attack goal installed before the behavior switch is preserved.
+
+Explicit Repair target selection now submits through `G_IssueUnitTargetOrder("repair", ...)`, so Shift-queued Repair uses the ordinary per-unit FIFO and target `spawn_time` revalidation rather than a Repair-specific queue.
+
 Target eligibility remains intentionally conservative: the target must be a live owned building. Repair deliberately does **not** route this check through `S_SpellAllowsTarget()` because that helper models a smaller spell-oriented subset and treats air/ground as exclusive target types; WC3 Repair targets can combine categories such as ground + structure. Full Repair `Targets Allowed` evaluation remains a separate gap rather than silently rejecting otherwise-valid owned buildings.
 
 ## Known gaps
@@ -175,7 +179,7 @@ Construction and owned-building Repair now share the behavior described above. T
 - Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior;
 - Repair target masks are not yet complete enough to safely enable allied structures, repairable mechanical non-buildings, or destructibles; the current implementation keeps the pre-existing owned-building boundary;
 - Repair `DataE` naval-range behavior is not implemented;
-- Repair autocast (`repairon` / `repairoff`, nearest-valid acquisition) is not implemented;
+- Auto Repair currently implements the high-confidence nearest-valid owned-building path. Warcraft string immediate orders `repairon` / `repairoff` are exposed through the existing `IssueImmediateOrder` path; broader generic autocast policies and numeric `IssueImmediateOrderById` order-ID exposure remain future work. The command-card transport uses the normalized multi-selection `autocast <rawcode>` command;
 - the per-player technology table is intentionally bounded at `MAX_PLAYER_TECH_STATE`; exhaustion is reported as a warning and does not overwrite an existing entry;
 - `GetPlayerTechResearched` / `GetPlayerTechCount` currently have exact-rawcode semantics for both `specificonly` values because technology-equivalence groups are not represented yet.
 

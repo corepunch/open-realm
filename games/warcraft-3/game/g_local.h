@@ -119,6 +119,8 @@ enum {
     AI_HOLD_FRAME = 1 << 0,
     AI_FLYING     = 1 << 1,  /* air-layer unit (movetp "fly"): ignores ground collision */
     AI_IMMOBILE   = 1 << 2,  /* fixed unit: may act, but never translates or changes facing */
+    AI_AUTOCAST_REPAIR = 1 << 3, /* persisted Repair-family autocast toggle */
+    AI_AUTOCAST_ACTIVE = 1 << 4, /* fast unit-wide marker: some autocast ability is enabled */
 };
 
 typedef enum {
@@ -545,6 +547,13 @@ typedef struct ability_s {
      * against the previous layout; inserting a field above spell changes the
      * offsets of every existing dispatch member. */
     BOOL (*item_use)(LPEDICT); /* synchronous inventory activation; true only when gameplay effect applies */
+
+    /* Optional generic autocast hooks. Keep these append-only for the same ABI
+     * reason as item_use above. The unit scheduler owns when to try autocast;
+     * each ability owns its toggle state and target acquisition policy. */
+    BOOL (*autocast_is_on)(LPEDICT);
+    void (*autocast_set)(LPEDICT, BOOL);
+    BOOL (*autocast_acquire)(LPEDICT);
 } ability_t;
 
 typedef struct {
@@ -1463,6 +1472,12 @@ ability_t const *GetAbilityByIndex(DWORD);
 DWORD FindAbilityIndex(LPCSTR);
 void InitAbilities(void);
 void SetAbilityNames(void);
+#ifdef WC3_DEBUG_AUTOCAST
+int G_AutocastDebugLevel(void);
+#endif
+BOOL G_UnitAutocastIsOn(LPEDICT ent, ability_t const *ability);
+BOOL G_SetUnitAutocast(LPEDICT ent, ability_t const *ability, BOOL enabled);
+BOOL G_TryUnitAutocast(LPEDICT ent);
 
 // g_metadata.c
 LPCSTR FindConfigValue(LPCSTR, LPCSTR);
@@ -1502,6 +1517,7 @@ void G_UpdateConstructionAnimation(LPEDICT building);
 void G_CompleteConstruction(LPEDICT building);
 BOOL G_UnitHasHumanRepair(LPEDICT ent);
 BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred);
+BOOL S_SetRepairAutocast(LPEDICT ent, BOOL enabled);
 BOOL S_RepairSmart(LPEDICT ent, LPEDICT target);
 void S_CancelRepair(LPEDICT ent);
 void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum);

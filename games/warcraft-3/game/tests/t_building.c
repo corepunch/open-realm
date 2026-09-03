@@ -643,6 +643,32 @@ TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clic
     gi.ImageIndex = old_image_index;
 }
 
+TEST(wc3_building, command_button_serializes_secondary_autocast_command_and_state) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    gameCommandButton_t button;
+
+    memset(&button, 0, sizeof(button));
+    snprintf(button.command, sizeof(button.command), "Arep");
+    snprintf(button.alternate, sizeof(button.alternate), "autocast Arep");
+    snprintf(button.art, sizeof(button.art), "test");
+    button.alternate_active = 1;
+
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_command_frame_seen = false;
+
+    UI_WriteCommandButtonFrame(&button);
+
+    T_ASSERT(building_command_frame_seen);
+    T_STREQ(building_command_frame.onclick, "button Arep");
+    T_STREQ(building_command_frame.text, "autocast Arep");
+    T_ASSERT(building_command_frame.flagsvalue & UIFLAG_ALTERNATE_ACTIVE);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
 
 TEST(wc3_building, command_button_geometry_matches_warcraft_grid) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
@@ -1072,12 +1098,325 @@ TEST(wc3_building, repair_button_then_target_issues_repair_order) {
     G_ClientCommand(clent, 2, button);
     T_NOT_NULL(client->menu.on_entity_selected);
     T_EQ(client->menu.ability_code, MAKEFOURCC('A','r','e','p'));
+    T_ASSERT(client->menu.supports_order_queue);
 
     G_ClientCommand(clent, 2, select_target);
 
     T_ASSERT(worker->build == building);
     T_EQ(worker->buildwork.ability, MAKEFOURCC('A','r','e','p'));
     T_NOT_NULL(worker->currentmove);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
+    LPEDICT worker;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    worker->UnitAbilities = &abilities;
+    repair = FindAbilityForCommand("Aren");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(!G_UnitAutocastIsOn(worker, repair));
+    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
+    T_ASSERT(G_UnitAutocastIsOn(worker, repair));
+    T_ASSERT(G_SetUnitAutocast(worker, repair, false));
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+    T_ASSERT(!(worker->aiflags & AI_AUTOCAST_ACTIVE));
+    T_ASSERT(!G_UnitAutocastIsOn(worker, repair));
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starting_repair) {
+    LPEDICT worker;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    worker->UnitAbilities = &abilities;
+    repair = FindAbilityForCommand("Aren");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(unit_issueimmediateorder(worker, "repairon"));
+    T_ASSERT(G_UnitAutocastIsOn(worker, repair));
+    T_NULL(worker->build);
+    T_ASSERT(unit_issueimmediateorder(worker, "repairoff"));
+    T_ASSERT(!G_UnitAutocastIsOn(worker, repair));
+    T_NULL(worker->build);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_command_button_exposes_autocast_secondary_command) {
+    LPEDICT worker;
+    UnitAbilities_t abilities = { .abilList = "Arep" };
+    gameCommandButton_t button;
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    worker->UnitAbilities = &abilities;
+    repair = FindAbilityForCommand("Arep");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(G_BuildCommandButton(worker, "Arep", false, 0, &button));
+    T_STREQ(button.alternate, "autocast Arep");
+    T_EQ(button.alternate_active, 0);
+
+    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_BuildCommandButton(worker, "Arep", false, 0, &button));
+    T_STREQ(button.alternate, "autocast Arep");
+    T_EQ(button.alternate_active, 1);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_autocast_chooses_nearest_valid_damaged_building) {
+    LPEDICT worker;
+    LPEDICT near_building;
+    LPEDICT far_building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    near_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 96, 0);
+    far_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 256, 0);
+    worker->UnitAbilities = &abilities;
+    worker->runtime.acquisition_range = 400.0f;
+    worker->collision = 16.0f;
+    near_building->collision = far_building->collision = 32.0f;
+    near_building->s.player = far_building->s.player = worker->s.player;
+    near_building->health.max_value = far_building->health.max_value = 1000.0f;
+    near_building->health.value = 900.0f;
+    far_building->health.value = 100.0f;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(near_building);
+    gi.LinkEntity(far_building);
+    repair = FindAbilityForCommand("Aren");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_TryUnitAutocast(worker));
+    T_ASSERT(worker->build == near_building);
+    T_ASSERT(worker->build != far_building);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_autocast_uses_collision_aware_nearest_valid_distance) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 410, 0);
+    worker->UnitAbilities = &abilities;
+    worker->runtime.acquisition_range = 400.0f;
+    worker->collision = 16.0f;
+    building->collision = 64.0f;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(building);
+    repair = FindAbilityForCommand("Aren");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    /* Center distance is 410 (> uacq 400), but edge distance is only 330.
+     * Warsmash expands from the caster collision rectangle and compares unit
+     * edge distance, so the nearby building remains a valid acquisition. */
+    T_ASSERT(G_TryUnitAutocast(worker));
+    T_ASSERT(worker->build == building);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
+    LPEDICT worker;
+    LPEDICT building;
+    LPEDICT waypoint;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+    VECTOR2 destination = { 512.0f, 0.0f };
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->UnitAbilities = &abilities;
+    worker->stand = unit_stand;
+    worker->collision = 16.0f;
+    building->collision = 32.0f;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(building);
+    repair = FindAbilityForCommand("Aren");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(worker->build == building);
+    T_NE(worker->buildwork.ability, 0);
+
+    waypoint = Waypoint_add(&destination);
+    T_NOT_NULL(waypoint);
+    order_move(worker, waypoint);
+
+    T_ASSERT(worker->goalentity == waypoint);
+    T_NULL(worker->build);
+    T_EQ(worker->buildwork.ability, 0);
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+    T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
+    LPEDICT worker;
+    LPEDICT building;
+    LPEDICT enemy;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+    DWORD stagger;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 160, 0);
+    enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+    worker->UnitAbilities = &abilities;
+    worker->svflags |= SVF_MONSTER;
+    worker->runtime.acquisition_range = 400.0f;
+    worker->attack1.cooldown = 1.0f;
+    worker->attack1.damageBase = 1;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    enemy->s.player = 1;
+    enemy->svflags |= SVF_MONSTER;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(building);
+    gi.LinkEntity(enemy);
+    repair = FindAbilityForCommand("Aren");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    stagger = (DWORD)(worker - g_edicts) % 300;
+    level.time = (300 - stagger) % 300;
+    ai_stand(worker);
+
+    T_ASSERT(worker->build == building);
+    T_ASSERT(worker->goalentity == building);
+    T_ASSERT(worker->goalentity != enemy);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
+    LPEDICT worker;
+    LPEDICT enemy;
+    DWORD stagger;
+
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+    worker->svflags |= SVF_MONSTER;
+    worker->runtime.acquisition_range = 400.0f;
+    worker->attack1.cooldown = 1.0f;
+    worker->attack1.damageBase = 1;
+    enemy->s.player = 1;
+    enemy->svflags |= SVF_MONSTER;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(enemy);
+
+    stagger = (DWORD)(worker - g_edicts) % 300;
+    level.time = (300 - stagger) % 300;
+    ai_stand(worker);
+
+    T_ASSERT(worker->goalentity == enemy);
+}
+
+TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
+    LPEDICT worker;
+    LPEDICT full_building;
+    LPEDICT damaged_building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    ability_t const *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    full_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    damaged_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 192, 0);
+    worker->UnitAbilities = &abilities;
+    worker->runtime.acquisition_range = 400.0f;
+    worker->collision = 16.0f;
+    full_building->collision = damaged_building->collision = 32.0f;
+    full_building->s.player = damaged_building->s.player = worker->s.player;
+    full_building->health.max_value = full_building->health.value = 1000.0f;
+    damaged_building->health.max_value = 1000.0f;
+    damaged_building->health.value = 500.0f;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(full_building);
+    gi.LinkEntity(damaged_building);
+    repair = FindAbilityForCommand("Aren");
+
+    T_NOT_NULL(repair);
+    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_TryUnitAutocast(worker));
+    T_ASSERT(worker->build == damaged_building);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->UnitAbilities = &abilities;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", building, false, worker->s.player));
+    T_ASSERT(worker->build == building);
+    T_EQ(worker->buildwork.ability, MAKEFOURCC('A','r','e','n'));
 
     building_restore_repair_data(old_abilities, rows);
 }

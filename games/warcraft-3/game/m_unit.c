@@ -282,6 +282,9 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
     if (S_GoldMineWorkerIsInside(self)) return false;
 
     self->movement.holding_position = false;
+    if (!strcmp(order, "repair")) {
+        return S_OrderRepair(self, target, 0);
+    }
     if (!strcmp(order, "smart")) {
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
@@ -371,7 +374,7 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         return G_SetRallyEntity(self, target);
     }
     if (S_GoldMineWorkerIsInside(self)) return false;
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) return false;
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "repair")) return false;
 
     if (queue && unit_has_active_order(self)) {
         return unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
@@ -444,6 +447,10 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         order_stop(self);
         return true;
     }
+    if (!strcmp(order, "repairon"))
+        return S_SetRepairAutocast(self, true);
+    if (!strcmp(order, "repairoff"))
+        return S_SetRepairAutocast(self, false);
     if (!strcmp(order, "autoharvestgold"))
         return harvest_auto_start_gold(self);
     if (!strcmp(order, "autoharvestlumber"))

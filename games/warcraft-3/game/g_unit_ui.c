@@ -216,6 +216,11 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, level));
     G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, level));
     G_CopyString(button->command, sizeof(button->command), code);
+    if (!research && ability && ability->autocast_set && ability->autocast_is_on) {
+        strlcpy(button->alternate, "autocast ", sizeof(button->alternate));
+        strlcat(button->alternate, code, sizeof(button->alternate));
+        button->alternate_active = G_UnitAutocastIsOn(ent, ability) ? 1 : 0;
+    }
     hotkey = research ? G_StringForLevel(hotkey, level) : hotkey;
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';
     button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);

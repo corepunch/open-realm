@@ -50,7 +50,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `CmdSelectSkill` | `s_selectskill.c` | Partial; candidate skill menu, next-rank Research UI, point/level gating, max-rank hiding, and authoritative learning are implemented. Skill-point and next-rank numeric overlays are implemented; multi-selection presentation remains. |
 | `Ahar` | `s_harvest_lumber.c` | Partial worker harvest implementation. |
 | `Amil` | `s_militia.c` | Registered stub. |
-| `Arep` | `s_repair.c` | Partial; entity command, Smart Repair, ranged approach, completed-building DataA/DataB costs, and paused Human power building are wired. Full target masks/naval/autocast remain. |
+| `Arep` | `s_repair.c` | Partial; entity command, Smart Repair, Shift target order, ranged approach, completed-building DataA/DataB costs, paused Human power building, and nearest-valid Auto Repair are wired. Full target masks/naval and broader autocast policy coverage remain. |
 | `Agld` | `s_goldmine.c` | Basic gold mine harvest loop. |
 | `AHad` | `s_devotionaura.c` | Partial local-only aura effect; status application is stubbed. |
 | `AHhb` | `s_holylight.c` | Partial target spell; validates target/range/masks, spends mana, starts cooldown, heals allies, damages undead enemies, and plays target art. |
@@ -100,9 +100,9 @@ generic `Button` command path rather than by a registered ability code.
 | `ANcl` | Channel test | Stub | Opens cancel mode as a generic channel scaffold. |
 | `AUcs` | Carrion Swarm dummy | Partial | Simple point-area enemy damage exists. Needs missile/line travel and art. |
 | `AInv` | Inventory | Partial | Inventory storage and item use exist, but no `AInv` ability type/capacity/drop rules. |
-| `Arep` | Human Repair | Partial | Entity targeting, Smart Repair, ranged approach, DataA/DataB completed repair, and paused Human DataC/DataD power building are implemented. Needs full target masks, naval bonus, destructibles, and autocast. |
-| `Aren` | Repair | Partial | Shares completed-building Repair command/range/cost behavior and rejects construction. Full target masks/destructibles/naval/autocast remain. |
-| `Arst` | Repair | Partial | Shares completed-building Repair command/range/cost behavior and rejects construction. Full target masks/destructibles/naval/autocast remain. |
+| `Arep` | Human Repair | Partial | Entity targeting, Smart Repair, Shift target order, ranged approach, DataA/DataB completed repair, paused Human DataC/DataD power building, right-click toggle, and nearest-valid Auto Repair are implemented. Needs full target masks, naval bonus, and destructibles. |
+| `Aren` | Repair | Partial | Shares completed-building Repair command/range/cost behavior, Shift target order, and nearest-valid Auto Repair; rejects construction. Full target masks/destructibles/naval remain. |
+| `Arst` | Repair | Partial | Shares completed-building Repair command/range/cost behavior, Shift target order, and nearest-valid Auto Repair; rejects construction. Full target masks/destructibles/naval remain. |
 | `Avul` | Invulnerable | Partial | Units with `Avul` spawn with damage immunity; damage guard is tested. Needs targetability/UI status polish. |
 | `Apit` | Shop Purchase Item | TODO | Needs shop inventory and purchase flow. |
 | `Aneu` | Neutral Building | TODO | Needs neutral interaction and command card behavior. |
@@ -140,7 +140,7 @@ generic `Button` command path rather than by a registered ability code.
    implementation with target validation and healing.
 4. Add no-target summon spells (`AHwe`, `AOsf`) once timed-life units are
    available.
-5. Finish Repair target-category coverage, destructible/naval/autocast behavior, and then generalize remaining harvest variants (`Ahrl`, `Awha`, `Aaha`).
+5. Finish Repair target-category coverage and destructible/naval behavior, expand generic autocast beyond Repair's nearest-valid policy, and then generalize remaining harvest variants (`Ahrl`, `Awha`, `Aaha`).
 6. Defer cargo, shops, inventory item modifiers, root/entangle mine, and passive
    autocast abilities until the underlying status, item, and transform systems
    exist.
