@@ -3,14 +3,14 @@
 
 #define CL_MINIMAP_PING_COUNT 16 // markers; bounds simultaneous transient minimap attention effects
 #define CL_MINIMAP_RECENT_COUNT 8 // positions; bounds Warcraft-style recent-alert Space recall
-#define CL_MINIMAP_PACKET_SIZE 19 // bytes; fixed svc_minimap_ping payload size used for bounds validation
+#define CL_MINIMAP_PACKET_SIZE 17 // bytes; fixed svc_minimap_ping payload size used for bounds validation
 
 typedef struct {
     BOOL active;
     VECTOR2 position;
     COLOR32 color;
     DWORD start_time, end_time;
-    DWORD flags, model;
+    DWORD flags;
 } minimapPing_t;
 
 static BOOL minimap_drag_active;
@@ -62,10 +62,10 @@ void CL_ParseMinimapPing(LPSIZEBUF msg) {
     ping.position.x = MSG_ReadFloat(msg); ping.position.y = MSG_ReadFloat(msg);
     duration = MSG_ReadFloat(msg);
     ping.color = MAKE(COLOR32, MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg));
-    ping.flags = (DWORD)MSG_ReadByte(msg); ping.model = (DWORD)MSG_ReadShort(msg);
+    ping.flags = (DWORD)MSG_ReadByte(msg);
     if (!isfinite(ping.position.x) || !isfinite(ping.position.y) || !isfinite(duration) || duration <= 0.0f ||
-        duration > MINIMAP_PING_DURATION_MAX || ping.model >= MAX_MODELS) {
-        fprintf(stderr, "CL_ParseMinimapPing: invalid duration=%.3f model=%u\n", duration, (unsigned)ping.model);
+        duration > MINIMAP_PING_DURATION_MAX) {
+        fprintf(stderr, "CL_ParseMinimapPing: invalid duration=%.3f\n", duration);
         return;
     }
     ping.end_time = cl.time + (DWORD)MAX(1.0f, duration * 1000.0f);
@@ -82,7 +82,6 @@ void CL_ParseMinimapPing(LPSIZEBUF msg) {
 
 /* Draw authored models when supplied; otherwise use a generic colored attention marker. */
 static void CL_DrawMinimapPings(void) {
-    static DWORD last_missing_model = MAX_MODELS;
     FOR_LOOP(i, CL_MINIMAP_PING_COUNT) {
         minimapPing_t *ping = &minimap_pings[i];
         VECTOR2 screen;
@@ -91,13 +90,9 @@ static void CL_DrawMinimapPings(void) {
         if (!ping->active) continue;
         if ((LONG)(cl.time - ping->end_time) >= 0) { ping->active = false; continue; }
         if (!re.WorldToMinimap(&ping->position, &screen)) continue;
-        if (ping->model && cl.models[ping->model]) {
-            re.DrawSprite(cl.models[ping->model], "Stand", screen.x, screen.y);
+        if (cl.minimap_model) {
+            re.DrawSprite(cl.minimap_model, "Stand", screen.x, screen.y);
             continue;
-        }
-        if (ping->model && ping->model != last_missing_model) {
-            fprintf(stderr, "CL_DrawMinimapPings: model %u unavailable; drawing generic marker\n", (unsigned)ping->model);
-            last_missing_model = ping->model;
         }
         pulse = 3.0f + (FLOAT)((cl.time - ping->start_time) % 500) / 250.0f;
         marker = MAKE(RECT, screen.x - pulse, screen.y - 1.0f, pulse * 2.0f, 2.0f);
@@ -109,6 +104,17 @@ static void CL_DrawMinimapPings(void) {
             re.DrawFill(&marker, ping->color);
         }
     }
+}
+
+/* Load the authored alert model named by the Quake-style CS_MINIMAP slot. */
+void CL_UpdateMinimapModel(void) {
+    LPCSTR name = cl.configstrings[CS_MINIMAP];
+
+    SAFE_DELETE(cl.minimap_model, re.ReleaseModel);
+    if (!name[0]) return;
+    cl.minimap_model = re.LoadModel(name);
+    if (!cl.minimap_model)
+        fprintf(stderr, "CL_UpdateMinimapModel: failed to load %s\n", name);
 }
 
 /* Draw the server-authored minimap frame and all transient attention markers. */

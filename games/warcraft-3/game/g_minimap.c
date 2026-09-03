@@ -7,15 +7,14 @@
 void G_SendMinimapPing(LPGAMECLIENT client, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags) {
     LPEDICT clent;
     LPCSTR model;
-    int model_index;
 
     if (!client || !position || duration <= 0.0f || !client->connected || !gi.MinimapPing) return;
     clent = G_GetPlayerEntityByNumber(client->ps.number);
     if (!clent || !clent->client) return;
 
     model = Theme_PlayerString(client, "MinimapIndicator", WC3_DEFAULT_MINIMAP_INDICATOR);
-    model_index = gi.ModelIndex(model && model[0] ? model : WC3_DEFAULT_MINIMAP_INDICATOR);
-    gi.MinimapPing(clent, position, duration, color.a ? color : COLOR32_WHITE, flags, model_index);
+    gi.configstring(CS_MINIMAP, model && model[0] ? model : WC3_DEFAULT_MINIMAP_INDICATOR);
+    gi.MinimapPing(clent, position, duration, color.a ? color : COLOR32_WHITE, flags);
 }
 
 /* Derive owner alerts from the completed entity so no alert state enters save/load. */

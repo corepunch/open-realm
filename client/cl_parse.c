@@ -260,6 +260,8 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
                 cl.pics[pic] = re.LoadTexture(name);
         }
     }
+    if (index == CS_MINIMAP && cl.refresh_prepped && strcmp(olds, cl.configstrings[index]))
+        CL_UpdateMinimapModel();
     if (cl.refresh_prepped && index > CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS && cl.configstrings[index][0])
         S_RegisterSound(cl.configstrings[index]);
     if (index > CS_FONTS && index < CS_FONTS + MAX_FONTSTYLES) {

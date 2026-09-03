@@ -459,6 +459,7 @@ void CL_PrepRefresh(void) {
             cl.portraits[i] = re.LoadModel(portrait);
         }
     }
+    CL_UpdateMinimapModel();
 
     for (DWORD i = 1; i < MAX_IMAGES; i++) {
         if (!*cl.configstrings[CS_IMAGES + i]) {

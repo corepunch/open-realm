@@ -105,6 +105,7 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.visible, MemFree);
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
+    SAFE_DELETE(cl.minimap_model, re.ReleaseModel);
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         SCR_ClearLayoutLayer(layer);
@@ -801,6 +802,7 @@ void CL_Shutdown(void) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
     }
+    SAFE_DELETE(cl.minimap_model, re.ReleaseModel);
     FOR_LOOP(imageIndex, MAX_DYNAMIC_IMAGES) {
         SAFE_DELETE(cl.dynamicPics[imageIndex], re.ReleaseTexture);
     }

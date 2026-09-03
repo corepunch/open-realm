@@ -48,7 +48,7 @@ struct game_import {
     void (*Sound)(LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation, FLOAT timeofs);
     void (*PositionedSound)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
                             FLOAT attenuation, FLOAT timeofs);
-    void (*MinimapPing)(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags, int model);
+    void (*MinimapPing)(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     void (*LinkEntity)(LPEDICT ent);

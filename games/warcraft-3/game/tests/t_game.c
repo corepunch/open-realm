@@ -98,15 +98,14 @@ static LPEDICT alert_ping_target;
 static VECTOR2 alert_ping_position;
 static FLOAT alert_ping_duration;
 static COLOR32 alert_ping_color;
-static int alert_ping_model;
+static PATHSTR alert_ping_model;
 
-static void alert_test_minimap_ping(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags, int model) {
-    alert_ping_count++; alert_ping_target = ent; alert_ping_position = *position; alert_ping_duration = duration;
-    alert_ping_color = color; alert_ping_flags = flags; alert_ping_model = model;
+static void alert_test_configstring(DWORD index, LPCSTR value) {
+    if (index == CS_MINIMAP) snprintf(alert_ping_model, sizeof(alert_ping_model), "%s", value);
 }
-static int alert_test_model_index(LPCSTR model) {
-    T_STREQ(model, "UI\\Minimap\\Minimap-Ping.mdl");
-    return 37;
+static void alert_test_minimap_ping(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags) {
+    alert_ping_count++; alert_ping_target = ent; alert_ping_position = *position; alert_ping_duration = duration;
+    alert_ping_color = color; alert_ping_flags = flags;
 }
 
 /* =========================================================================
@@ -122,14 +121,15 @@ TEST(wc3_game, hud_proxy_number_never_moves_backwards) {
 }
 
 TEST(wc3_game, minimap_ping_uses_generic_packet_import) {
-    void (*saved_ping)(edict_t *, LPCVECTOR2, FLOAT, COLOR32, DWORD, int) = gi.MinimapPing;
-    int (*saved_model_index)(LPCSTR) = gi.ModelIndex;
+    void (*saved_ping)(edict_t *, LPCVECTOR2, FLOAT, COLOR32, DWORD) = gi.MinimapPing;
+    void (*saved_configstring)(DWORD, LPCSTR) = gi.configstring;
     VECTOR2 position = { 123.5f, -44.25f };
     COLOR32 color = MAKE(COLOR32, 10, 20, 30, 255);
 
     game.clients[0].connected = true;
     alert_ping_count = 0; alert_ping_target = NULL;
-    gi.MinimapPing = alert_test_minimap_ping; gi.ModelIndex = alert_test_model_index;
+    alert_ping_model[0] = '\0';
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
 
     G_SendMinimapPing(&game.clients[0], &position, 2.5f, color, MINIMAP_PING_REMEMBER);
 
@@ -137,12 +137,13 @@ TEST(wc3_game, minimap_ping_uses_generic_packet_import) {
     T_FEQ(alert_ping_position.x, position.x, 0.001f); T_FEQ(alert_ping_position.y, position.y, 0.001f);
     T_FEQ(alert_ping_duration, 2.5f, 0.001f);
     T_EQ(alert_ping_color.r, 10); T_EQ(alert_ping_color.g, 20); T_EQ(alert_ping_color.b, 30);
-    T_ASSERT(alert_ping_flags & MINIMAP_PING_REMEMBER); T_EQ(alert_ping_model, 37);
+    T_ASSERT(alert_ping_flags & MINIMAP_PING_REMEMBER);
+    T_STREQ(alert_ping_model, "UI\\Minimap\\Minimap-Ping.mdl");
 
     game.clients[0].connected = false;
     G_SendMinimapPing(&game.clients[0], &position, 2.5f, color, 0);
     T_EQ(alert_ping_count, 1);
-    gi.MinimapPing = saved_ping; gi.ModelIndex = saved_model_index;
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
 }
 
 TEST(wc3_game, hud_authored_window_frame_uses_offset_codec) {
