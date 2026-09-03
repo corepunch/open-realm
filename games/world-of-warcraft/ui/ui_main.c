@@ -603,40 +603,6 @@ static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y) {
     return false;
 }
 
-/* Draw client-owned inbox notifications over the active game view. */
-static void UIWow_DrawGameOverlay(void) {
-    RECT rect; DWORD unread = 0; wowUiMessage_t const *open = NULL;
-    UIWow_EnsureRenderer(); UIWow_DrawWindows();
-    if (!wow_ui.renderer || !wow_ui.renderer->DrawImageEx || !wow_ui.renderer->DrawText || !wow_ui.renderer->DrawFill) return;
-    if (!UIWow_TipsEnabled()) wow_ui.tutorial_alert_count = 0;
-    FOR_LOOP(i, wow_ui.tutorial_alert_count) {
-        rect = MAKE(RECT, 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f,
-            WOW_TIP_ALERT_Y/768.0f, WOW_TIP_ALERT_W/1024.0f, WOW_TIP_ALERT_H/768.0f);
-        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture = UIWow_LoadTexture("Interface\\TutorialFrame\\TutorialFrameAlert"),
-            .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND, .screen = rect,
-            .uv = MAKE(RECT,0,0,0.53125f,0.6875f), .color = COLOR32_WHITE));
-    }
-    FOR_LOOP(i, wow_ui.message_count) {
-        wowUiMessage_t const *message = &wow_ui.messages[i];
-        if (message->message_id == wow_ui.open_message_id) open = message;
-        if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
-        rect = MAKE(RECT, 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f,
-            WOW_TIP_ALERT_Y/768.0f, WOW_TIP_ALERT_W/1024.0f, WOW_TIP_ALERT_H/768.0f);
-        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture = UIWow_LoadTexture("Interface\\TutorialFrame\\TutorialFrameAlert"),
-            .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND, .screen = rect,
-            .uv = MAKE(RECT,0,0,0.53125f,0.6875f), .color = COLOR32_WHITE));
-    }
-    if (!open) return;
-    rect = MAKE(RECT, 0.25f, 0.25f, 0.50f, 0.22f);
-    wow_ui.renderer->DrawFill(&rect, MAKE(COLOR32, 10, 8, 5, 245));
-    wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(16), .text = open->title,
-        .rect = MAKE(RECT,0.27f,0.27f,0.46f,0.04f), .color = MAKE(COLOR32,255,215,120,255),
-        .textWidth = 0.46f, .lineHeight = 0.04f, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
-    wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(12), .text = open->body,
-        .rect = MAKE(RECT,0.28f,0.32f,0.44f,0.13f), .color = MAKE(COLOR32,240,230,205,255),
-        .textWidth = 0.44f, .lineHeight = 0.13f, .flags = DRAW_WORD_WRAP, .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
-}
-
 /* -------------------------------------------------------------------------
  * Entry point
  * ---------------------------------------------------------------------- */
@@ -656,7 +622,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .UpdateUnitUI     = UIWow_UpdateUnitUI,
         .UpdateLobbySetup = UIWow_UpdateLobbySetup,
         .GameCommand      = UIWow_GameCommand,
-        .DrawGameOverlay  = UIWow_DrawGameOverlay,
         .ShowWindow       = UIWow_ShowWindow,
     };
 }

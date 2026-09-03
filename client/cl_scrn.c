@@ -155,7 +155,6 @@ void SCR_DrawScreenField(DWORD msec) {
         V_RenderView();
         if (Cvar_Integer("r_hud", 1)) {
             SCR_DrawLayout();
-            if (ui.DrawGameOverlay) ui.DrawGameOverlay();
         }
         /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
         * like Q3 — multiple input consumers can be active simultaneously. */

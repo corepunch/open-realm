@@ -22,6 +22,10 @@ change together. Closing the focused window focuses the new tail.
 `SCR_DrawLayout()` draws persistent layout layers first and then calls `CL_WindowDraw()`, placing transient windows above the
 HUD. Parsing and retaining `svc_window` does not make a window visible by itself; the screen layout pass owns submission.
 
+The legacy `ui.dll` is a menu module, following the Quake II `key_dest` split: `cl_scrn.c` refreshes it only for `key_menu`,
+and `cl_input.c` forwards its keyboard/mouse events only for `key_menu`. The active-game pass draws server-authored layout and
+windows through `SCR_DrawLayout()`/`CL_WindowDraw()`; it must not call a UI-DLL game overlay or send UI-DLL input.
+
 `UI_WINDOW_MODAL`, `UI_WINDOW_NO_PAUSE`, and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost modal window consumes
 input outside its bounds. `NO_PAUSE` means that modal does not acquire the client-owned simulation pause. Unique means only one
 instance of that class may exist. Inventory and quest-detail windows can be unique without being modal; confirmation-style

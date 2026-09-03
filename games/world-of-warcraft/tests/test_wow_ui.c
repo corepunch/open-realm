@@ -387,8 +387,6 @@ TEST(wow_ui, inbox_message_uses_runtime_panel_without_project_framexml) {
     T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, (int)((alert.x + alert.w * 0.5f) * 1024.0f), (int)((alert.y + alert.h * 0.5f) * 768.0f), 1));
     T_EQ((int)wow_ui.open_message_id, 7);
     T_STREQ(last_server_command, "message_read 7");
-    ui.DrawGameOverlay();
-    T_ASSERT(draw_fill_count > 0); T_ASSERT(draw_text_count >= 2);
     T_EQ(UIWow_XmlFindByNamePub("OpenWarcraftInbox"), -1);
 
     ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
@@ -421,8 +419,7 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     T_ASSERT(check_idx >= 0);
     UIWow_XmlComputeRectPub(check_idx, &check.x, &check.y, &check.w, &check.h);
     T_FEQ(check.w, 24.0f / 1024.0f, 0.001f); T_FEQ(check.h, 24.0f / 768.0f, 0.001f);
-    wow_ui.tutorial_open = false; ui.DrawGameOverlay();
-    T_EQ((int)draw_tip_alert_count, 2);
+    wow_ui.tutorial_open = false;
     alert1 = MAKE(RECT, 0.5f-17.0f/1024.0f, 671.0f/768.0f, 34.0f/1024.0f, 42.0f/768.0f);
     alert2 = alert1; alert2.x += 36.0f/1024.0f;
     T_FEQ(alert2.x - alert1.x, 36.0f / 1024.0f, 0.001f); T_FEQ(alert2.y, alert1.y, 0.001f);

@@ -17,7 +17,6 @@ uiImport_t uiimport;
 typedef struct {
     BOOL initialized;
     BOOL active;
-    BOOL game_mode;
     DWORD time;
     VECTOR2 mouse_fdf;
 } uiState_t;
@@ -33,7 +32,7 @@ LPCSTR UI_ResolveImagePathLocal(LPCSTR key) {
     return Theme_String(key, "Default");
 }
 
-static void UI_EnterGameMode(void);
+static void UI_ClearScreen(void);
 
 static BOOL UI_IsMapCommand(LPCSTR command) {
     if (!command) {
@@ -67,10 +66,6 @@ static uiLoadingState_t loading_state;
 
 static void UI_SetScreen(uiScreen_t *screen) {
     uiScreen_t *previous_screen = ui_current_screen;
-
-    if (screen) {
-        ui_state.game_mode = false;
-    }
 
     if (ui_current_screen == screen) {
         return;
@@ -259,12 +254,12 @@ static void UI_MenuLANJoin_f(void) {
 
 static void UI_MenuGameSetupStart_f(void) {
     if (GameSetup_StartGame()) {
-        UI_EnterGameMode();
+        UI_ClearScreen();
     }
 }
 
 static void UI_MenuInGame_f(void) {
-    UI_EnterGameMode();
+    UI_ClearScreen();
 }
 
 typedef struct {
@@ -311,8 +306,7 @@ static void UI_RegisterMenuCommands(void) {
     ui_menu_commands_registered = true;
 }
 
-static void UI_EnterGameMode(void) {
-    ui_state.game_mode = true;
+static void UI_ClearScreen(void) {
     UI_SetScreen(NULL);
 }
 
@@ -491,7 +485,7 @@ void UI_InitLocal(void) {
         ? uiimport.Cvar_String("map", "")
         : "";
     if (map && *map) {
-        UI_EnterGameMode();
+        UI_ClearScreen();
         return;
     }
 
@@ -522,21 +516,15 @@ void UI_RefreshLocal(DWORD time) {
         screen->refresh((int)time);
     }
 
-    /* Draw the loading screen whenever the server reports CLIENT_UI_LOADING.
-     * Do not gate on game_mode: menu_ingame sets it asynchronously through the
-     * command buffer, after SCR_BeginLoadingPlaque has already frozen the frame
-     * that would have drawn the loading screen. */
+    /* Draw the loading screen whenever the server reports CLIENT_UI_LOADING. */
     LPCPLAYER ps = uiimport.GetPlayerState();
     if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
         UI_DrawLoadingScreenLocal();
         return;
     }
 
-    /* Draw current screen (menus/glue only — in-game HUD is server-authored via svc_layout) */
-    if (!ui_state.game_mode) {
-        if (screen && screen->draw)
-            screen->draw();
-    }
+    if (screen && screen->draw)
+        screen->draw();
 }
 
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
@@ -803,7 +791,7 @@ void UI_MenuCommandLocal(LPCSTR command) {
     }
 
     if (UI_IsMapCommand(command)) {
-        UI_EnterGameMode();
+        UI_ClearScreen();
     }
     uiimport.Cmd_ExecuteText(command);
 }
@@ -821,9 +809,6 @@ void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
 }
 
 static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
-    if (ui_state.game_mode) {
-        return;
-    }
     UI_SetScreen(&gameSetupScreen);
     GameSetup_UpdateLobbySetup(state);
 }
