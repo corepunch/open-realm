@@ -293,7 +293,7 @@ struct render_globals {
     size2_t drawableSize;
     int msaa_samples;
     LPTEXTURE minimap;
-    RECT minimapRect;   /* last UI-space rect the minimap was drawn at */
+    RECT minimapRect;   /* UI-space world-content rect used for minimap projection */
     BOOL hasMinimap;
 };
 

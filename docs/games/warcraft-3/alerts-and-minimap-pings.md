@@ -42,7 +42,9 @@ Under-attack/town/allied alert production is not implemented yet. Its throttling
 
 ## Minimap Projection And Drawing
 
-`refExport_t.WorldToMinimap` is the renderer-side inverse companion of `TraceMinimap`. `R_WorldToMinimap()` calls the same `R_MinimapPointForWorld()` helper used by normal minimap drawing, so pings and clicks share one world/minimap transform instead of duplicating map-coordinate math in JASS or UI code.
+`refExport_t.WorldToMinimap` is the renderer-side inverse companion of `TraceMinimap`. `R_WorldToMinimap()` calls the same `R_MinimapPointForWorld()` helper used by minimap camera/click projection, so pings and clicks share one world/minimap transform instead of duplicating map-coordinate math in JASS or UI code.
+
+For rectangular Warcraft maps, world-space minimap content must **not** be stretched across the whole square HUD frame. Warsmash computes a centred `minimapFilledArea` using `max(worldWidth, worldHeight)`: the authored minimap texture still fills the complete frame, while fog, units, camera geometry, clicks, and alert pings use the aspect-preserving content rectangle. OpenRealm mirrors that contract through `WC3_MinimapContentRect()` and stores that rectangle in `tr.minimapRect` after WC3 draws the minimap. Without this inset, the alert's world coordinate is correct (so Spacebar recall is correct) but its visual ping is displaced relative to the authored map/fog on non-square maps.
 
 `games/warcraft-3/ui/ui_alerts.c` stores up to 16 simultaneously active visual pings. Sixteen is an OpenRealm implementation cap, not a retail Warcraft constant. When all slots are occupied, the oldest active visual ping is replaced.
 
@@ -108,7 +110,7 @@ Recommended runtime checks when testing manually:
 2. Complete more than eight location-bearing notifications and verify Space walks newest to oldest, retaining only the latest eight.
 3. Complete a trained unit and verify the remembered point is the spawned unit location.
 4. Complete research and verify the remembered point is the researching building.
-5. Call `PingMinimap` with an arbitrary map point/duration and verify the indicator aligns with normal minimap entities and expires independently of recent-alert history.
+5. On a rectangular map, call `PingMinimap` at several known world points and verify the indicator aligns with the authored minimap/fog reveal inside the centred aspect-preserving content area, then verify it expires independently of recent-alert history.
 6. Call `SetCameraQuickPosition` with no automatic alert history and verify assignment does not move the camera, then Space recalls it.
 7. Verify a ping in fog does not reveal terrain or units.
 
