@@ -65,11 +65,10 @@ copies the active panel's assigned width and height to both the controller and b
 `updateEscMenuCurrentPanel()` sizing rule. The latest OpenRealm implementation centers the bounded controller/backdrop; this rebase
 preserves that existing policy rather than restoring the older direct TOP/-0.05 anchor experiment.
 
-The recipient's Warcraft race skin must be active before the FDF is first resolved because the Esc-menu art uses `DecorateFileNames`
-skin keys. `EscMenuBackdrop` is additionally refreshed from the stock `EscMenuBackground` and `EscMenuBorder` keys for each recipient
-before serialization. The FDF template cache is global, so this late resolution prevents stale decorated image indexes from turning
-the menu backdrop into unrelated Esc-menu highlight/slider art. Keep menu load/write between `UI_SetCurrentClient(client)` and
-`UI_SetCurrentClient(NULL)`.
+The client resolves the symbolic `DecorateFileNames` and Esc-menu skin keys through its local `war3skins.txt` after the server sends
+the generic image configstrings. The FDF template cache is global, so the server must preserve those symbolic keys rather than
+materializing a recipient's race-specific image index. Keep menu serialization between `UI_SetCurrentClient(client)` and
+`UI_SetCurrentClient(NULL)` for per-recipient state, but do not resolve menu artwork on the server.
 
 ## Pause And Modal Input
 

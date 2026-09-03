@@ -226,6 +226,8 @@ void CL_ClearTEnts(void);
 // cl_main.c - UI integration
 int CL_ModelIndex(LPCSTR modelName);
 int CL_ImageIndex(LPCSTR imageName);
+LPCSTR CL_ResolveImagePath(LPCSTR imageName);
+void CL_ReloadImageResources(void);
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
 void CL_UIMenuCommand(LPCSTR command);
 

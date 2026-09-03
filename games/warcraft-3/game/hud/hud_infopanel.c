@@ -99,14 +99,14 @@ void UI_LoadHudInfoPanel(void) {
          * The FDF owns their anchors; Warsmash supplies only width, textures,
          * colour and the live progress value. */
         UI_SetSize(hud.simple.SimpleHeroLevelBar, 0.180f, hud.simple.SimpleHeroLevelBar->Height);
-        UI_SetTexture(hud.simple.SimpleHeroLevelBar, Theme_String("SimpleXpBarConsole", "SimpleXpBarConsole"), false);
-        UI_SetTexture2(hud.simple.SimpleHeroLevelBar, Theme_String("SimpleXpBarBorder", "SimpleXpBarBorder"), false);
+        UI_SetTexture(hud.simple.SimpleHeroLevelBar, "SimpleXpBarConsole", false);
+        UI_SetTexture2(hud.simple.SimpleHeroLevelBar, "SimpleXpBarBorder", false);
         hud.simple.SimpleHeroLevelBar->Color = MAKE(COLOR32, 138, 0, 131, 255);
         UI_SetSize(hud.simple.SimpleBuildTimeIndicator, 0.10538f, 0.0103f);
         UI_SetTexture(hud.simple.SimpleBuildTimeIndicator,
-                      Theme_String("SimpleBuildTimeIndicator", "SimpleBuildTimeIndicator"), false);
+                      "SimpleBuildTimeIndicator", false);
         UI_SetTexture2(hud.simple.SimpleBuildTimeIndicator,
-                       Theme_String("SimpleBuildTimeIndicatorBorder", "SimpleBuildTimeIndicatorBorder"), false);
+                       "SimpleBuildTimeIndicatorBorder", false);
         UI_SetSize(hud.simple.SimpleBuildQueueBackdrop, 0.180f, 0.090f);
 
         /* Warsmash's status strip is runtime-owned rather than defined by the
@@ -444,7 +444,7 @@ static LPCSTR StatusBuffArt(DWORD code) {
     if (code == MAKEFOURCC('B', 'T', 'L', 'F')) return NULL;
     art = StatusBuffField(code, "Buffart");
     if (!art || !*art) return NULL;
-    return Theme_String(art, art);
+    return art;
 }
 
 static void WriteBuffStatusFrames(LPEDICT ent) {
@@ -542,7 +542,7 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
     UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconArmor, &hud.armor);
 
     if (ent->resources > 0) {
-        LPCSTR const gold_art = Theme_String("InfoPanelIconGold", NULL);
+        LPCSTR const gold_art = "InfoPanelIconGold";
         if (!gold_art || !*gold_art) {
             fprintf(stderr, "WriteSelectedUnitStatusFrames: missing war3skins InfoPanelIconGold\n");
         } else {
@@ -554,7 +554,7 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
         UI_WriteFrame(&hud.gold);
         UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconGold, &hud.gold);
     } else if (ent->UnitBalance->foodMade > 0) {
-        LPCSTR const food_art = Theme_String("InfoPanelIconFood", NULL);
+        LPCSTR const food_art = "InfoPanelIconFood";
         if (!food_art || !*food_art) {
             fprintf(stderr, "WriteSelectedUnitStatusFrames: missing war3skins InfoPanelIconFood\n");
         } else {
@@ -699,8 +699,8 @@ void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
     uiFrame_t frame;
 
     memset(buffer, 0, size);
-    multi->hp_bar = gi.ImageIndex(Theme_String("SimpleHpBarConsole", "UI\\Widgets\\Console\\Human\\human-statbar-fill.blp"));
-    multi->mana_bar = gi.ImageIndex(Theme_String("SimpleManaBarConsole", "UI\\Widgets\\Console\\Human\\human-statbar-fill.blp"));
+    multi->hp_bar = gi.ImageIndex("SimpleHpBarConsole");
+    multi->mana_bar = gi.ImageIndex("SimpleManaBarConsole");
     multi->offset = MAKE(VECTOR2, 0.031f, 0.050f);
     multi->numcolumns = 6;
     multi->numitems = count;
@@ -903,10 +903,10 @@ static void WriteInventoryCharge(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD charg
 }
 
 /* WC3's classic inventory cover has no usable ROC FDF definition, so construct
- * the native frame directly while keeping its texture race-selected from war3skins. */
+ * the native frame directly and send its symbolic war3skins key to the client. */
 static void WriteInventoryCover(LPEDICT player) {
     static FRAMEDEF frame;
-    LPCSTR art = Theme_PlayerString(player ? player->client : NULL, "ConsoleInventoryCoverTexture", NULL);
+    LPCSTR art = "ConsoleInventoryCoverTexture";
 
     if (!art || !*art) {
         fprintf(stderr, "WriteInventoryCover: missing ConsoleInventoryCoverTexture for player skin\n");
@@ -951,7 +951,7 @@ static void WriteInventory(LPEDICT player, LPEDICT ent) {
     if (!capacity) { WriteInventoryCover(player); return; }
     WriteInventoryTitle();
     if (capacity < MAX_INVENTORY) {
-        LPCSTR art = Theme_PlayerString(player ? player->client : NULL, "ConsoleInventoryNoCapacity", NULL);
+        LPCSTR art = "ConsoleInventoryNoCapacity";
         if (!art || !*art) {
             fprintf(stderr, "WriteInventory: missing ConsoleInventoryNoCapacity for player skin\n");
             return;

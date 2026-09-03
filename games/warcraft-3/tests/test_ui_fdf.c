@@ -2317,3 +2317,18 @@ TEST(ui_fdf, loading_rows_support_roc_and_tft_schema) {
         if (cases[i].valid) { T_STREQ(model, cases[i].model); T_EQ(seq, cases[i].seq); }
     }
 }
+
+TEST(ui_fdf, exported_image_resolver_uses_local_player_skin) {
+    uiImport_t saved = uiimport;
+    PLAYER player = { .race = kPlayerRaceHuman };
+
+    reset_ui_state();
+    uiimport.FS_ReadFile = test_theme_read; uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.GetPlayerState = test_get_player_state;
+    test_player = &player;
+    UI_LoadTheme("UI\\war3skins.txt");
+    T_STREQ(UI_ResolveImagePathLocal("Background"), "Human.blp");
+    T_STREQ(UI_ResolveImagePathLocal("UI\\Textures\\fixed.blp"), "UI\\Textures\\fixed.blp");
+    test_player = NULL;
+    UI_ClearTheme(); uiimport = saved;
+}

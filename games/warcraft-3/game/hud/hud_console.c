@@ -56,8 +56,8 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
     LPCSTR upkeep_text;
     COLOR32 upkeep_color;
 
-    /* FDF DecorateFileNames are race-skinned, so load/serialize the authored
-     * system bar in the target client's theme context. */
+    /* Keep symbolic DecorateFileNames keys in the payload; the local WC3 UI
+     * resolves them for the recipient's race when the image configstring loads. */
     UI_SetCurrentClient(client);
     if (!hud.console.ConsoleUI) {
         UI_SetCurrentClient(NULL);

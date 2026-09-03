@@ -520,6 +520,10 @@ int CL_ImageIndex(LPCSTR imageName) {
     return 0;
 }
 
+LPCSTR CL_ResolveImagePath(LPCSTR imageName) {
+    return ui.ResolveImagePath ? ui.ResolveImagePath(imageName) : imageName;
+}
+
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize) {
     /* Create font spec string */
     char fontspec[256];

@@ -43,10 +43,10 @@ void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, L
     out[0] = '\0';
     snprintf(out, out_size, "%s", tip && *tip ? tip : " ");
     if (gold_cost || lumber_cost || mana_cost || food_cost) {
-        gold_icon = gi.ImageIndex(Theme_String("ToolTipGoldIcon", "ToolTipGoldIcon"));
-        lumber_icon = gi.ImageIndex(Theme_String("ToolTipLumberIcon", "ToolTipLumberIcon"));
-        mana_icon = gi.ImageIndex(Theme_String("ToolTipManaIcon", "ToolTipManaIcon"));
-        supply_icon = gi.ImageIndex(Theme_String("ToolTipSupplyIcon", "ToolTipSupplyIcon"));
+        gold_icon = gi.ImageIndex("ToolTipGoldIcon");
+        lumber_icon = gi.ImageIndex("ToolTipLumberIcon");
+        mana_icon = gi.ImageIndex("ToolTipManaIcon");
+        supply_icon = gi.ImageIndex("ToolTipSupplyIcon");
         snprintf(out + strlen(out), out_size - strlen(out), "|n");
         if (gold_cost) {
             snprintf(out + strlen(out), out_size - strlen(out), "<Icon,%u> %u   ",
@@ -164,8 +164,8 @@ void UI_WriteBuildQueue(LPEDICT ent) {
         memset(&buildtimer, 0, sizeof(buildtimer));
         buildtimer.flags.type = FT_SIMPLESTATUSBAR;
         buildtimer.color = COLOR32_WHITE;
-        buildtimer.tex.index = gi.ImageIndex(Theme_String("SimpleBuildTimeIndicator", "SimpleBuildTimeIndicator"));
-        buildtimer.tex.index2 = gi.ImageIndex(Theme_String("SimpleBuildTimeIndicatorBorder", "SimpleBuildTimeIndicatorBorder"));
+        buildtimer.tex.index = gi.ImageIndex("SimpleBuildTimeIndicator");
+        buildtimer.tex.index2 = gi.ImageIndex("SimpleBuildTimeIndicatorBorder");
         UI_SetFrameRect(&buildtimer, 0.371250f, 0.518125f, 0.105380f, 0.010300f);
         UI_WriteProxyFrame(&buildtimer, NULL, 0);
         buildtimer_number = buildtimer.number;

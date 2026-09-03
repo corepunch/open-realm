@@ -60,6 +60,7 @@ void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
+LPCSTR UI_ResolveImagePathLocal(LPCSTR key);
 void UI_MenuCommandLocal(LPCSTR command);
 LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y);
 void UI_TogglePopup(LPCFRAMEDEF frame);
