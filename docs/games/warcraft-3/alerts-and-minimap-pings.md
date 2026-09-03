@@ -16,13 +16,13 @@ simulation event / JASS native
 
 The server does not move the camera when an alert is emitted, and a ping does not change fog or selection. Recent-alert state is client-local and is not added to `playerState_t`/`entityState_t`.
 
-The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, RGBA color, behavior flags, and an optional registered model index. `server/sv_minimap.c` encodes it and `client/cl_minimap.c` owns parsing, expiry, drawing, click/drag projection, recent history, and Space recall. No minimap state belongs to a game UI library.
+The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, RGBA color, and behavior flags. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
 
 Ordinary minimap unit dots are not pings. They are derived every frame from replicated entities by each game's renderer. A ping is a transient attention event, analogous to `svc_sound`, and therefore does not widen `entityState_t` or survive save/load.
 
 ## Producers
 
-`G_SendMinimapPing()` in `game/g_minimap.c` resolves `MinimapIndicator` from the recipient's active `war3skins.txt` section, registers it through `gi.ModelIndex`, and passes the resulting optional model index to `gi.MinimapPing`. A zero model index is valid for games that want the generic colored client marker.
+`G_SendMinimapPing()` in `game/g_minimap.c` resolves `MinimapIndicator` from the recipient's active `war3skins.txt` section and publishes the model path through `CS_MINIMAP` before sending the generic ping packet. An empty model path leaves the client with its generic colored marker.
 
 The following high-confidence gameplay completions also call `G_SendOwnerMinimapAlert()` and therefore enter recent-alert history:
 

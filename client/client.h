@@ -67,6 +67,7 @@ struct client_state {
     BOOL refresh_prepped;
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
+    LPMODEL minimap_model;
     LPCTEXTURE pics[MAX_IMAGES];
     LPTEXTURE dynamicPics[MAX_DYNAMIC_IMAGES];
     char dynamicPicNames[MAX_DYNAMIC_IMAGES][512];
@@ -183,6 +184,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 void CL_LayoutDrawMinimap(LPCUIFRAME frame, LPCRECT screen);
 void CL_ClearMinimap(void);
 void CL_ParseMinimapPing(LPSIZEBUF msg);
+void CL_UpdateMinimapModel(void);
 #ifdef BZ_TESTS
 DWORD CL_MinimapPingCount(void);
 DWORD CL_MinimapRecentCount(void);
