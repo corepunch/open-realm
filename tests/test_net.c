@@ -920,7 +920,7 @@ TEST(net, no_pause_modal_does_not_release_underlying_pause_owner) {
 }
 
 TEST(net, window_close_command_forwards_suffix_and_closes) {
-    test_client_stubs_init(); CL_WindowClear();
+    test_client_stubs_init(); CL_WindowClear(); re.GetTextSize = text_length_mock_size;
     test_forwarded_command[0] = '\0';
     test_send_window(10, 100, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
                      "Accept", UI_WINDOW_CLOSE_COMMAND_PREFIX "allies_accept");
