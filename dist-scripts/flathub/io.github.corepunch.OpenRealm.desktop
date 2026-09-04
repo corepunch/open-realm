@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=OpenRealm
+Comment=Open-source Warcraft III implementation using original game data
+Exec=openrealm-start
+Icon=io.github.corepunch.OpenRealm
+Categories=Game;StrategyGame;
+Terminal=false
+Keywords=Warcraft;RTS;Strategy;OpenRealm;
+Actions=SelectData;
+
+[Desktop Action SelectData]
+Name=Select Warcraft III Data
+Exec=openrealm-start --select-data

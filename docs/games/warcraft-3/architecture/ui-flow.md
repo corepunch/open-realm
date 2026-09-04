@@ -22,8 +22,8 @@ All FDF parsing, layout solving, screen transitions, and frame rendering happen 
 common/main.c
   -> Com_Init
       -> share/warcraft-3/config.cfg   (shipped game defaults)
-      -> ~/.local/share/warcraft-3/config.cfg      (writable user config)
-      -> ~/.local/share/warcraft-3/autoexec.cfg    (optional local overrides)
+      -> $XDG_DATA_HOME/warcraft-3/config.cfg     (writable user config; ~/.local/share fallback)
+      -> $XDG_DATA_HOME/warcraft-3/autoexec.cfg   (optional local overrides; same fallback)
       -> command-line cvars
   -> CL_Init
       -> R_GetAPI

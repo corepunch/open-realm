@@ -482,6 +482,8 @@ void Cvar_Init(void) {
     Cvar_GetD("scr_showfps",      "1",                 CVAR_ARCHIVE, "show FPS counter on screen");
     Cvar_GetD("skip_cutscene",    "0",                 0,            "skip intro cutscene on startup");
     Cvar_GetD("vid_mode",         "0",                 CVAR_ARCHIVE, "resolution index: 0=640x480, 1=800x600, 2=1024x768, ...");
+    Cvar_GetD("vid_native",       "0",                 CVAR_ARCHIVE, "use the current desktop resolution instead of vid_mode");
+    Cvar_GetD("vid_fullscreen",   "0",                 CVAR_ARCHIVE, "window mode: 0=windowed, 1=fullscreen");
     Cvar_GetD("vid_modes",        "0",                 0,            "log SDL display modes during video initialization");
     Cvar_GetD("r_model_detail",   "2",                 CVAR_ARCHIVE, "model LOD quality: 0=low, 1=medium, 2=high");
     Cvar_GetD("r_anim_quality",   "2",                 CVAR_ARCHIVE, "animation interpolation quality: 0=off, 2=full");

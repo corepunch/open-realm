@@ -60,7 +60,7 @@ Session-only cvars (`map`, `connect`) are explicitly skipped. The removed `r_mod
 Config files are split by ownership: read-only defaults ship with the game, writable user settings live in a per-user home directory. The paths are resolved at startup (`Sys_ResolveShareDirectory` / `Sys_ResolveHomeDirectory` in `common/main.c`):
 
 - `fs_basepath` — read-only base `share/` dir, anchored at the executable (`<exe>/share`, `<exe>/../share`, or CWD `share`). Engine-wide assets (`fonts/`) live at its top level.
-- `fs_homepath` — writable `~/.local/share/<game>/` on Unix (including macOS), `%APPDATA%\<game>\` on Windows, adopted only if creatable and writable; empty otherwise. This is a fixed path, not `$XDG_DATA_HOME` and not `~/Library/Application Support`.
+- `fs_homepath` — writable `$XDG_DATA_HOME/<game>/` on Unix when `XDG_DATA_HOME` is set to an absolute path, otherwise `~/.local/share/<game>/`; `%APPDATA%\<game>\` on Windows. It is adopted only if creatable and writable and is empty otherwise. macOS follows the same XDG-or-`~/.local/share` rule rather than `~/Library/Application Support`.
 
 The load order in `Com_Init()` is:
 
@@ -70,14 +70,14 @@ The load order in `Com_Init()` is:
 | 2 | `-config` CLI arg | Override config path |
 | 3 | Early `+` args (`+set`, `+<cvar>`) | Command-line overrides |
 | 4 | **`<base>/<game>/config.cfg`** | Shipped game defaults (key bindings) |
-| 5 | **Cvar `config`** (default `~/.local/share/<game>/config.cfg`) | Generated user config — written on shutdown or by `writeconfig` |
-| 6 | **`~/.local/share/<game>/autoexec.cfg`** | Optional local overrides |
+| 5 | **Cvar `config`** (default `$XDG_DATA_HOME/<game>/config.cfg`, or `~/.local/share/<game>/config.cfg`) | Generated user config — written on shutdown or by `writeconfig` |
+| 6 | **`<fs_homepath>/autoexec.cfg`** | Optional local overrides |
 | 7 | `-data`, `-connect`, `-tft`, `-roc` CLI args | Data-dir / expansion settings |
 | 8 | Remaining `+` args (`+set`, `+<cvar>`), consumed | Final command-line overrides |
 
-When `$HOME` is absent or read-only (portable/read-only deploy), `fs_homepath` is empty and steps 5–6 degrade to `<base>/<game>/config.cfg` and `<base>/<game>/autoexec.cfg`, so a `share/` tree copied beside the executable still works.
+When neither a usable `$XDG_DATA_HOME` nor `$HOME` is available (portable/read-only deploy), `fs_homepath` is empty and steps 5–6 degrade to `<base>/<game>/config.cfg` and `<base>/<game>/autoexec.cfg`, so a `share/` tree copied beside the executable still works.
 
-Gameplay saves resolve under the same home directory: `~/.local/share/<game>/saves/<name>.sav` on Unix, `%APPDATA%\<game>\saves\<name>.sav` on Windows, else `share/<game>/saves/`. See [Warcraft III Save/Load](../games/warcraft-3/save-load.md).
+Gameplay saves resolve under the same home directory: `$XDG_DATA_HOME/<game>/saves/<name>.sav` when set to an absolute path, otherwise `~/.local/share/<game>/saves/<name>.sav` on Unix; `%APPDATA%\<game>\saves\<name>.sav` on Windows; else `share/<game>/saves/`. See [Warcraft III Save/Load](../games/warcraft-3/save-load.md).
 
 After step 6, `map` and `connect` cvars are explicitly cleared, then re-populated from command-line arguments in steps 7–8.
 
@@ -167,9 +167,9 @@ All cvars registered in `Cvar_Init()`:
 
 | cvar | Default | Flags | Description |
 |------|---------|-------|-------------|
-| `config` | `~/.local/share/<game>/config.cfg` (resolved) | CVAR_ARCHIVE | Generated config path |
+| `config` | `<fs_homepath>/config.cfg` (resolved) | CVAR_ARCHIVE | Generated config path |
 | `fs_basepath` | resolved share dir | 0 | Read-only engine/share data directory |
-| `fs_homepath` | `~/.local/share/<game>/` (empty if unavailable) | 0 | Writable per-user directory |
+| `fs_homepath` | `$XDG_DATA_HOME/<game>/` or `~/.local/share/<game>/` (empty if unavailable) | 0 | Writable per-user directory |
 | `data` | `""` | CVAR_ARCHIVE | Game asset directory (contains MPQs) |
 | `fs_expansion` | `"0"` | 0 | Select RoC (`0`) vs TFT (`1`) data/skin version; TFT mounts expansion archives |
 | `map` | `""` | 0 | Internal MPQ map path for listen-server mode |
@@ -186,7 +186,9 @@ All cvars registered in `Cvar_Init()`:
 | `com_frame_limit` | `"0"` | 0 | Exit after N frames; `0` means run forever |
 | `scr_showfps` | `"1"` | CVAR_ARCHIVE | Show FPS counter |
 | `skip_cutscene` | `"0"` | 0 | Skip cutscenes |
-| `vid_mode` | `"0"` | CVAR_ARCHIVE | Resolution-table index; mode 0 is 640x480 |
+| `vid_mode` | `"0"` | CVAR_ARCHIVE | Fallback resolution-table index; mode 0 is 640x480 |
+| `vid_native` | `"0"` | CVAR_ARCHIVE | Use the current SDL desktop resolution instead of `vid_mode` |
+| `vid_fullscreen` | `"0"` | CVAR_ARCHIVE | Fullscreen policy; native + fullscreen uses fullscreen-desktop |
 | `r_model_detail` | `"2"` | CVAR_ARCHIVE | Model detail level |
 | `r_anim_quality` | `"2"` | CVAR_ARCHIVE | Animation quality |
 | `r_texture_quality` | `"2"` | CVAR_ARCHIVE | Texture quality |

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.corepunch.OpenRealm</id>
+  <name>OpenRealm</name>
+  <summary>Open-source Warcraft III implementation using original game data</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <developer id="io.github.corepunch">
+    <name>corepunch</name>
+  </developer>
+
+  <launchable type="desktop-id">io.github.corepunch.OpenRealm.desktop</launchable>
+
+  <description>
+    <p>
+      OpenRealm is an open-source implementation of Warcraft III built around a
+      Quake-style engine architecture and SDL.
+    </p>
+    <p>
+      This package does not contain Blizzard game assets. A legally obtained
+      Warcraft III data folder containing War3.mpq is required. On first launch,
+      OpenRealm asks you to select that folder through the desktop file chooser.
+    </p>
+    <p>
+      When War3x.mpq is present, the launcher starts the Frozen Throne data set;
+      otherwise it starts Reign of Chaos. Steam Deck users can optionally add a
+      non-Steam shortcut with packaged artwork and a Steam Input gamepad-and-mouse
+      template.
+    </p>
+  </description>
+
+  <provides>
+    <binary>openwarcraft3</binary>
+    <binary>openrealm-start</binary>
+  </provides>
+
+  <categories>
+    <category>Game</category>
+    <category>StrategyGame</category>
+  </categories>
+
+  <keywords>
+    <keyword>Warcraft</keyword>
+    <keyword>RTS</keyword>
+    <keyword>strategy</keyword>
+    <keyword>Steam Deck</keyword>
+  </keywords>
+
+  <icon type="stock">io.github.corepunch.OpenRealm</icon>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>OpenRealm</caption>
+      <image type="source">https://raw.githubusercontent.com/corepunch/open-realm/main/docs/images/openrealm.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/corepunch/open-realm</url>
+  <url type="bugtracker">https://github.com/corepunch/open-realm/issues</url>
+  <url type="vcs-browser">https://github.com/corepunch/open-realm</url>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-cartoon">moderate</content_attribute>
+    <content_attribute id="violence-fantasy">moderate</content_attribute>
+  </content_rating>
+</component>

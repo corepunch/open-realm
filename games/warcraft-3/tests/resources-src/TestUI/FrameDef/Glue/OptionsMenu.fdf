@@ -21,6 +21,17 @@ Frame "FRAME" "OptionsMenu" {
         }
 
         Frame "FRAME" "VideoPanel" {
+            Frame "BACKDROP" "ResolutionBackdrop" {
+                Frame "POPUPMENU" "ResolutionMenu" {
+                    PopupTitleFrame "ResolutionPopupMenuTitle",
+                    PopupMenuFrame "ResolutionPopupMenuMenu",
+
+                    Frame "TEXT" "ResolutionPopupMenuTitle" {
+                        Frame "TEXT" "StandardPopupMenuTitleTextTemplate" {}
+                    }
+                    Frame "MENU" "ResolutionPopupMenuMenu" {}
+                }
+            }
         }
 
         Frame "FRAME" "SoundPanel" {
