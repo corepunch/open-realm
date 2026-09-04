@@ -10,6 +10,7 @@
  * CL_Init() sets up the renderer and input bindings at startup.
  */
 #include "client.h"
+#include "cl_control_groups.h"
 #include "cl_input_local.h"
 #include "../common/video_modes.h"
 #include "tr_public.h"
@@ -123,6 +124,7 @@ void CL_ClearState(void) {
     if (re.RegisterMap) re.RegisterMap(NULL);
 
     memset(&cl, 0, sizeof(struct client_state));
+    CL_ControlGroupsReset();
 
     SZ_Clear (&cls.netchan.message);
 }
@@ -445,6 +447,7 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     /* Per-map input conveniences must never retain entity numbers into the
      * next world, where those numbers may refer to unrelated entities. */
     CL_InputModeResetMap();
+    CL_ControlGroupsReset();
     /* Publish the resolved map before freezing the plaque; menu launches have no startup map cvar. */
     Cvar_Set("map", mapName);
     /* Same-map load keeps CS_WORLD unchanged; forget the previous world's begin

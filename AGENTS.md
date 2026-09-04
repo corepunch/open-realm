@@ -53,7 +53,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Human Call to Arms, Peasant/Militia pairing, timed in-place transform, Back to Work | [docs/games/warcraft-3/call-to-arms-and-militia.md](docs/games/warcraft-3/call-to-arms-and-militia.md) |
 | WC3 selected-unit timed-status countdown bar, Bmil/BTLF eligibility, HUD data flow | [docs/games/warcraft-3/timed-status-presentation.md](docs/games/warcraft-3/timed-status-presentation.md) |
 | WC3 enemy/neutral selection, relationship colours, command authority, fog/death deselection | [docs/games/warcraft-3/selection-and-control.md](docs/games/warcraft-3/selection-and-control.md) |
-| WC3 numbered control groups, recall reconciliation, double-tap camera focus, map lifecycle | [docs/games/warcraft-3/control-groups.md](docs/games/warcraft-3/control-groups.md) |
+| Client numbered control groups (`cl.groups`), WC3/SC2 binds, double-tap camera focus | [docs/games/warcraft-3/control-groups.md](docs/games/warcraft-3/control-groups.md) |
 | WC3 Shift command queuing, per-unit FIFO orders, target revalidation, replacement/Stop semantics | [docs/games/warcraft-3/order-queue.md](docs/games/warcraft-3/order-queue.md) |
 | WC3 persistent Hero and idle-worker HUD shortcuts, event-driven invalidation, F1-F8 cycling | [docs/games/warcraft-3/unit-shortcuts.md](docs/games/warcraft-3/unit-shortcuts.md) |
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |

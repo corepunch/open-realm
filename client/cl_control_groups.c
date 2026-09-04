@@ -1,4 +1,7 @@
 #include "cl_control_groups.h"
+#include "client.h"
+
+#include <string.h>
 
 DWORD CL_ControlGroupAppendUnique(DWORD *group, DWORD count, DWORD capacity,
                                   DWORD const *ids, DWORD num_ids) {
@@ -19,4 +22,10 @@ DWORD CL_ControlGroupAppendUnique(DWORD *group, DWORD count, DWORD capacity,
         }
     }
     return count;
+}
+
+void CL_ControlGroupsReset(void) {
+    memset(cl.groups, 0, sizeof(cl.groups));
+    cl.group_last = MAX_CONTROL_GROUPS;
+    cl.group_last_ms = 0;
 }

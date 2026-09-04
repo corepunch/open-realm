@@ -2,11 +2,11 @@
 
 ## Contract
 
-Warcraft III control groups allow players to assign a selection of units to a number key (0–9), append newly selected units to an existing group, and recall that group later. The stored group is entirely client-side; recalling it uses the normal server-authoritative selection mechanism.
+Numbered control groups are a generic client feature stored on `cl.groups`. Warcraft III and StarCraft II ship default 0–9 binds; other games can bind `group` the same way. Recalling a group uses the normal server-authoritative selection mechanism.
 
 ## Key Bindings
 
-Shipped in `games/warcraft-3/share/config.cfg` (and the StarCraft II config, which shares `cl_input_w3.c`). Do **not** add number-key handling in `CL_Input`; new gameplay hotkeys belong in `bind` lines.
+Shipped in `games/warcraft-3/share/config.cfg` and `games/starcraft-2/share/config.cfg`. Do **not** add number-key handling in `CL_Input`; new gameplay hotkeys belong in `bind` lines. WoW does not ship these binds because 0–9 are action-bar slots.
 
 | Key | Bind | Action |
 |-----|------|--------|
@@ -20,18 +20,22 @@ If Ctrl and Shift are both held, the bind dispatcher keeps Ctrl: it drops Alt, t
 
 ### Storage
 
-Control groups are stored in static arrays in `client/cl_input_w3.c`:
+Groups live on `struct client_state` next to `cl.selection`:
 
 ```c
-static DWORD cg_ids[10][MAX_SELECTED_ENTITIES];
-static DWORD cg_count[10];
+struct {
+    DWORD entity_nums[MAX_SELECTED_ENTITIES];
+    DWORD num_selected;
+} groups[MAX_CONTROL_GROUPS];
+DWORD group_last;
+DWORD group_last_ms;
 ```
 
 Each group stores up to `MAX_SELECTED_ENTITIES` (64) entity IDs. Warcraft III's authoritative `CMD_Select` path currently applies `WC3_SELECTION_LIMIT` (12) when the group is recalled, so the client storage ceiling is intentionally broader than the server-side simultaneous-selection ceiling.
 
 ### Command
 
-`group` is registered in `CL_InputModeInit`. Config binds invoke it through `Key_Event` / `Cbuf_AddText` like every other gameplay hotkey.
+`group` is registered in `CL_InitInput` via `CL_ControlGroupsInit`. Config binds invoke it through `Key_Event` / `Cbuf_AddText` like every other gameplay hotkey.
 
 | Command | Effect |
 |---------|--------|
@@ -44,7 +48,7 @@ The command no-ops unless `CL_GameplayInputReady()` and no client window is moda
 ### Assign (Ctrl+N)
 
 When `group assign N` runs:
-1. The current `cl.selection.num_selected` and `cl.selection.entity_nums` replace the stored group.
+1. The current `cl.selection` replaces `cl.groups[N]`.
 2. The count is clamped to `MAX_SELECTED_ENTITIES`.
 3. Control-group double-tap state is reset.
 
@@ -67,14 +71,14 @@ Keeping append separate from recall is important for the Warcraft III workflow: 
 ### Recall (N)
 
 When `group N` runs:
-1. If `cg_count[g] > 0`, `CL_ApplySelection` is called with the stored IDs.
+1. If `cl.groups[g].num_selected > 0`, `CL_ApplySelection` is called with the stored IDs.
 2. `CL_ApplySelection` writes a `select` command to the netchan and updates the local selection cache.
 3. `CL_RequestUnitUI` refreshes the UI with the new local selection hint.
 4. The server's Warcraft III `CMD_Select` path remains authoritative and filters/reconciles the actual selected unit set.
 
 ### Camera Focus
 
-Recall always selects immediately. A second deliberate press of the same group within `CL_CONTROL_GROUP_DOUBLE_TAP_MS` (500 ms) centers the camera on the average position of live, modeled, selectable members. SDL key-repeat is ignored for gameplay `Key_Event` so holding a number cannot count as the second tap.
+Recall always selects immediately. A second deliberate press of the same group within `CL_GROUP_TAP_MS` (500 ms) centers the camera on the average position of live, modeled, selectable members. SDL key-repeat is ignored for gameplay `Key_Event` so holding a number cannot count as the second tap.
 
 `group assign` and `group add` both reset double-tap recall state.
 
@@ -92,7 +96,7 @@ This blocks control-group mutation behind Quest/Log/modals.
 
 ## Map Lifecycle Reset
 
-`CL_InputModeResetMap` clears all group IDs, counts, and double-tap timing. `CL_MapLoading` calls it when a new map begins, so entity IDs from a previous map cannot be recalled in the new map.
+`CL_ControlGroupsReset` clears `cl.groups` and double-tap timing. `CL_BeginLoadingMap` and `CL_ClearState` call it so entity IDs from a previous map cannot be recalled in the new map.
 
 ## Filtering on Recall
 
@@ -117,7 +121,7 @@ Groups are client-local and last until reassignment, map reset, or process exit.
 
 ### Automated Tests
 
-`games/warcraft-3/tests/test_control_groups.c` covers the pure append contract:
+`games/warcraft-3/tests/test_control_groups.c` (`client_groups.*`) covers the pure append contract:
 
 - existing-order preservation and duplicate suppression;
 - append-to-empty behavior;
@@ -129,9 +133,10 @@ The network parser has rejection coverage in `tests/test_net.c`; in-engine selec
 
 ## References
 
-- `games/warcraft-3/share/config.cfg` — `group` / `SHIFT+N` / `CTRL+N` binds and arrow-key `+cam*` pan
-- `client/cl_input_w3.c` — `group` command, stored groups, and `+camleft`/`+camright`/`+camnorth`/`+camsouth`
-- `client/cl_control_groups.c` — pure append/deduplication helper
+- `client/client.h` — `cl.groups` / `cl.group_last` on `struct client_state`
+- `client/cl_control_groups.c` — `group` command and append helper
+- `games/warcraft-3/share/config.cfg` — default `group` / `SHIFT+N` / `CTRL+N` binds
+- `client/cl_input_w3.c` — `+camleft`/`+camright`/`+camnorth`/`+camsouth`
 - `client/keys.c` / `client/keys_name.h` — modifier bind table and lookup
 - `client/cl_input.c` — SDL events to `Key_Event`
 - `client/cl_parse.c` — `CL_ParseSetSelection` for server-authoritative selection reconciliation

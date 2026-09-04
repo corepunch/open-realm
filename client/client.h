@@ -16,6 +16,7 @@
 #define VIEW_SHADOW_SIZE 1500
 #define MAX_CONFIRMATION_OBJECTS 16
 #define MAX_LAYOUT_LAYERS 16
+#define MAX_CONTROL_GROUPS 10 // groups; numbered 0-9; stored in cl.groups
 
 typedef struct {
     entityState_t baseline;
@@ -111,6 +112,12 @@ struct client_state {
         DWORD entity_nums[MAX_SELECTED_ENTITIES];  /* Currently selected entity numbers */
         DWORD num_selected;                         /* Number of currently selected entities */
     } selection;
+    struct {
+        DWORD entity_nums[MAX_SELECTED_ENTITIES];
+        DWORD num_selected;
+    } groups[MAX_CONTROL_GROUPS];
+    DWORD group_last;    /* last recalled group, MAX_CONTROL_GROUPS if none */
+    DWORD group_last_ms;
 };
 
 struct client_static {
