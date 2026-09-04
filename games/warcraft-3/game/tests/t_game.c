@@ -1708,7 +1708,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
 
 /* SV_Map restarts gi.GetTime() at zero before ReadGame runs, so a load must install a
  * clock offset; otherwise every persisted deadline sits a whole save-length in the
- * future and units plus JASS timers stall for exactly that long. */
+ * future and units stall for exactly that long. Timers are clock-free countdowns and
+ * must survive the same load without any rebase. */
 TEST(wc3_save, load_rebases_simulation_clock_onto_saved_time) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-clock.bin";
     LPGTIMER timer;
@@ -1718,16 +1719,21 @@ TEST(wc3_save, load_rebases_simulation_clock_onto_saved_time) {
     level.time_offset = 0;
     T_ASSERT((timer = G_AllocJassTimer()) != NULL);
     G_TimerStart(timer, 2000, false, NULL);
-    T_EQ(timer->end, 22800);
+    T_EQ(G_TimerRemaining(timer), 2000u);
     T_ASSERT(WriteGame(filename));
 
     /* Emulate the post-SV_Map state: engine clock back near zero, live timer wiped. */
     level.time = 100;
     level.time_offset = 0;
+    timer->remaining = 0; timer->running = false;
     T_ASSERT(ReadGame(filename));
     T_EQ(level.time_offset, 20800u - gi.GetTime());
     T_EQ(gi.GetTime() + level.time_offset, 20800u);
-    T_EQ(G_TimerRemaining(&level.timers[level.num_timers - 1]), 2000u);
+    timer = &level.timers[level.num_timers - 1];
+    T_ASSERT(timer->running && !timer->paused);
+    T_EQ(G_TimerRemaining(timer), 2000u);
+    G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 2000u - FRAMETIME);
     level.time_offset = 0;
     remove(filename);
 }
@@ -2193,20 +2199,18 @@ TEST(wc3_save, round_trip_jass_timers) {
         "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
         "endfunction\n"));
     level.time = 100;
-    level.timers[1].duration = 400; level.timers[1].end = 500; level.timers[1].remaining = 400;
+    level.timers[1].duration = 4 * FRAMETIME; level.timers[1].remaining = 4 * FRAMETIME;
     T_ASSERT(WriteGame(filename));
     jass_callbyname(level.vm, "mutate", false);
     T_ASSERT(ReadGame(filename));
     T_EQ(level.time, 100);
-    T_EQ(level.timers[1].end, 500);
-    T_EQ(G_TimerRemaining(&level.timers[1]), 400);
+    T_EQ(G_TimerRemaining(&level.timers[1]), 4 * FRAMETIME);
     jass_callbyname(level.vm, "verifyRestored", false);
-    level.time = 500;
-    G_RunTimers();
+    /* Countdown timers ignore level.time entirely: only elapsed frames expire them. */
+    FOR_LOOP(i, 4) G_RunTimers();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyExpired", false);
-    level.time = 900;
-    G_RunTimers();
+    FOR_LOOP(i, 4) G_RunTimers();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyPeriodic", false);
     T_ASSERT(!jass_rterror_pending(level.vm));

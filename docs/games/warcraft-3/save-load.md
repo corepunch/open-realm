@@ -137,17 +137,21 @@ level.time_offset = level.time - gi.GetTime();
 
 `memset(&level, 0, sizeof(level))` in `G_LoadMap` resets it to zero for a normal map start.
 
-Every persisted absolute deadline lives in this clock: `gtimer_s.end`, `edict_s.spawn_time`,
-`edict_s.freetime`, `edict_s.heatmap2_time`, `heroabilitystatus_t.timestamp`, client
-`camera.start_time` / `message.end_time` / `cinematic_end_time`, and `level.cinefilter`. Without the
-offset, a save taken at `level.time = 20800` reloads into a clock that starts at `100`: every deadline
-sits ~20.7 s in the future, units stall waiting for cooldowns that already elapsed, and JASS timers
-(`(LONG)(level.time - timer->end) < 0`) fire a full save-length late. Symptom seen in the field:
+Every persisted absolute deadline lives in this clock: `edict_s.spawn_time`, `edict_s.freetime`,
+`edict_s.heatmap2_time`, `heroabilitystatus_t.timestamp`, client `camera.start_time` /
+`message.end_time` / `cinematic_end_time`, and `level.cinefilter`. Without the offset, a save taken
+at `level.time = 20800` reloads into a clock that starts at `100`: every deadline sits ~20.7 s in the
+future and units stall waiting for cooldowns that already elapsed. Symptom seen in the field:
 everything stands frozen while one script-controlled unit walks off to a stale waypoint goal.
 
 Do not "fix" this by re-basing individual subsystems at load (the older per-timer
 `started = gi.GetTime(); timeout = remaining` rebase). One clock offset covers every deadline; a
 per-subsystem rebase silently misses the edict and client-presentation deadlines.
+
+JASS timers deliberately hold **no** clock-absolute state. `gtimer_s` stores `duration` plus a
+`remaining` countdown that `G_RunTimers` decrements by `FRAMETIME` each frame, so a timer reloads
+with exactly the time it had left and needs no rebase at all. Prefer this shape for any new
+persisted deadline; the clock offset exists for the fields that already store timestamps.
 
 Regression test: `wc3_save.load_rebases_simulation_clock_onto_saved_time` in
 `games/warcraft-3/game/tests/t_game.c`.

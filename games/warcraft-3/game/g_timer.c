@@ -7,35 +7,34 @@ LPGTIMER G_AllocJassTimer(void) {
     memset(timer, 0, sizeof(*timer)); return timer;
 }
 
-DWORD G_TimerRemaining(LPCGTIMER timer) {
-    if (!timer || !timer->running) return timer ? timer->remaining : 0;
-    if (timer->paused) return timer->remaining;
-    /* Signed clock deltas keep absolute deadlines valid across DWORD wraparound. */
-    return (LONG)(level.time - timer->end) >= 0 ? 0 : timer->end - level.time;
-}
+DWORD G_TimerRemaining(LPCGTIMER timer) { return timer ? timer->remaining : 0; }
 
 void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, LPCJASSFUNC handler) {
-    timer->handler = handler; timer->duration = timeout; timer->end = level.time + timeout; timer->remaining = timeout;
+    timer->handler = handler; timer->duration = timeout; timer->remaining = timeout;
     timer->periodic = periodic; timer->paused = false; timer->running = true;
 }
 
 void G_TimerPause(LPGTIMER timer) {
     if (!timer || !timer->running || timer->paused) return;
-    timer->remaining = G_TimerRemaining(timer); timer->paused = true;
+    timer->paused = true;
 }
 
 void G_TimerResume(LPGTIMER timer) {
     if (!timer || !timer->running || !timer->paused) return;
-    timer->end = level.time + timer->remaining; timer->paused = false;
+    timer->paused = false;
 }
 
 /* Timer callbacks enter the same coroutine/event path as authored map triggers. */
 void G_RunTimers(void) {
     FOR_LOOP(i, level.num_timers) {
         LPGTIMER timer = &level.timers[i];
-        if (!timer->running || timer->paused || (LONG)(level.time - timer->end) < 0) continue;
+        if (!timer->running || timer->paused) continue;
+        /* Countdown rather than a level.time deadline: a save carries no clock-absolute
+         * state, so a loaded timer resumes with exactly the time it had left. */
+        timer->remaining = timer->remaining > FRAMETIME ? timer->remaining - FRAMETIME : 0;
+        if (timer->remaining) continue;
         timer->remaining = timer->periodic ? timer->duration : 0;
-        timer->end = level.time + timer->duration; timer->running = timer->periodic;
+        timer->running = timer->periodic;
         if (timer->handler)
             jass_startcoroutine(level.vm, &MAKE(JASSCONTEXT, .func = timer->handler, .timer = timer));
         jass_settimercontext(timer);

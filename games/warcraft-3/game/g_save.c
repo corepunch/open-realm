@@ -68,7 +68,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 5;
+static DWORD const save_version = 6;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 
 typedef struct {
@@ -141,7 +141,6 @@ static field_t const trigger_fields[] = {
 
 static field_t const timer_fields[] = {
     F(gtimer_s, duration, F_INT),
-    F(gtimer_s, end, F_INT),
     F(gtimer_s, remaining, F_INT),
     F(gtimer_s, periodic, F_INT),
     F(gtimer_s, paused, F_INT),
@@ -1004,9 +1003,9 @@ BOOL ReadGame(LPCSTR filename) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
     /* SV_Map restarted the engine clock, so re-base the simulation clock onto the saved
-     * level.time: every persisted deadline (timer->end, spawn_time, freetime, status
+     * level.time: every persisted deadline (spawn_time, freetime, heatmap2_time, status
      * timestamps) is expressed in that clock and would otherwise sit a whole save-length
-     * in the future, stalling units and script timers. */
+     * in the future, stalling units. */
     level.time_offset = level.time - gi.GetTime();
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
         fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;

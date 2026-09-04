@@ -656,7 +656,7 @@ struct gtrigger_s {
 
 struct gtimer_s {
     struct jass_function const *handler;
-    DWORD duration, end, remaining;
+    DWORD duration, remaining;
     BOOL periodic, paused, running;
 };
 
@@ -1229,7 +1229,7 @@ struct level_locals {
     DWORD time;
     /* Offset from the engine clock to the simulation clock. SV_Map restarts gi.GetTime()
      * at zero, so a loaded game re-bases here and every persisted level.time deadline
-     * (timer->end, spawn_time, freetime, status timestamps) stays valid. */
+     * (spawn_time, freetime, heatmap2_time, status timestamps) stays valid. */
     DWORD time_offset;
     BOOL script_paused;
     BOOL quest_paused;
