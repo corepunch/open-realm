@@ -13,6 +13,42 @@
 
 static DWORD game_result_last_defer_log[MAX_PLAYERS];
 
+/* The stock GameResult dialog is authored as a standalone DIALOG, while the
+ * rest of OpenRealm's in-game menus are sent through the client window path.
+ * Reuse the already-loaded Esc-menu frame art so victory/defeat has the same
+ * race-skinned panel background, pinned to the authored dialog bounds. */
+static void GameResultPrepareWindow(void) {
+    LPFRAMEDEF dialog = hud.result.GameResultDialog;
+    LPFRAMEDEF backdrop = hud.result.GameResultBackdrop;
+    LPFRAMEDEF menu_backdrop = hud.menu.EscMenuBackdrop;
+
+    if (!dialog || !backdrop || backdrop->Type != FT_BACKDROP) return;
+    if (menu_backdrop && menu_backdrop->Type == FT_BACKDROP)
+        backdrop->Backdrop = menu_backdrop->Backdrop;
+
+    memset(&backdrop->Points, 0, sizeof(backdrop->Points));
+    backdrop->AnyPointsSet = true;
+    UI_SetPoint(backdrop, FRAMEPOINT_TOPLEFT, dialog, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+    UI_SetPoint(backdrop, FRAMEPOINT_BOTTOMRIGHT, dialog, FRAMEPOINT_BOTTOMRIGHT,
+                0.0f, 0.0f);
+    UI_SetHidden(backdrop, false);
+    UI_CenterFrame(dialog);
+}
+
+/* The stock victory fallback leaves Quit below the nominal dialog rectangle.
+ * Keep the window itself unchanged and place Quit directly below Continue,
+ * matching the compact vertical button stack used by the other game menus. */
+static void GameResultPositionVictoryQuit(void) {
+    LPFRAMEDEF quit = hud.result.GameResultQuitButton;
+    LPFRAMEDEF continue_button = hud.result.GameResultContinueButton;
+
+    if (!quit || !continue_button) return;
+    memset(&quit->Points, 0, sizeof(quit->Points));
+    quit->AnyPointsSet = true;
+    UI_SetPoint(quit, FRAMEPOINT_TOP, continue_button, FRAMEPOINT_BOTTOM,
+                0.0f, -0.008f);
+}
+
 void UI_LoadHudGameResult(void) {
     BOOL global_strings;
     BOOL dialog_loaded;
@@ -20,6 +56,7 @@ void UI_LoadHudGameResult(void) {
     if (hud.result.GameResultDialog) return;
     global_strings = UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf");
     dialog_loaded = GameResultDialog_Load(&hud.result);
+    if (dialog_loaded) GameResultPrepareWindow();
     G_GameResultDebug("hud load global_strings=%u dialog_loaded=%u root=%p text=%p continue=%p restart=%p quit=%p",
         (unsigned)global_strings, (unsigned)dialog_loaded,
         (void *)hud.result.GameResultDialog, (void *)hud.result.GameResultText,
@@ -52,12 +89,6 @@ void UI_ShowGameResult(LPEDICT ent, DWORD result) {
         return;
     }
 
-    /* ShowInterface(false) hides every ordinary HUD layer while cinematic UI
-     * is active. Stock result dialogs are allowed to appear on top of that
-     * state, so explicitly expose only the result layer rather than restoring
-     * the whole gameplay interface. */
-    ent->client->ps.uiflags &= ~(1u << LAYER_GAME_RESULT);
-
     UI_SetText(hud.result.GameResultText, "%s", GameResultString(
         victory ? "GAMEOVER_VICTORY_MSG" : "GAMEOVER_DEFEAT_MSG",
         victory ? "Victory!" : "Defeat!"));
@@ -69,27 +100,36 @@ void UI_ShowGameResult(LPEDICT ent, DWORD result) {
             : "GAMEOVER_LOAD",
         victory ? (single_player ? "Continue" : "Continue Game") : "Load"));
     UI_SetOnClick(hud.result.GameResultContinueButton,
-        !victory && single_player ? "gameresult_load" : "hidegameresult");
+        !victory && single_player
+            ? UI_WINDOW_CLOSE_COMMAND_PREFIX "gameresult_load"
+            : UI_WINDOW_CLOSE_COMMAND_PREFIX "hidegameresult");
 
     UI_SetHidden(hud.result.GameResultRestartButton, victory || !single_player);
     UI_SetText(hud.result.GameResultRestartButtonText, "%s",
         GameResultString("GAMEOVER_RESTART", "Restart"));
-    UI_SetOnClick(hud.result.GameResultRestartButton, "gameresult_restart");
+    UI_SetOnClick(hud.result.GameResultRestartButton,
+        UI_WINDOW_CLOSE_COMMAND_PREFIX "gameresult_restart");
 
     UI_SetHidden(hud.result.GameResultQuitButton, false);
     UI_SetText(hud.result.GameResultQuitButtonText, "%s", GameResultString(
         single_player ? "GAMEOVER_QUIT_MISSION" : "GAMEOVER_QUIT_GAME",
         single_player ? "Quit Mission" : "Quit Game"));
-    UI_SetOnClick(hud.result.GameResultQuitButton, "gameresult_quit");
+    UI_SetOnClick(hud.result.GameResultQuitButton,
+        UI_WINDOW_CLOSE_COMMAND_PREFIX "gameresult_quit");
+    if (victory) GameResultPositionVictoryQuit();
 
-    G_GameResultDebug("hud show write layer=%u ent=%u connected=%u victory=%u single_player=%u uiflags=0x%08x hidden=%u",
-        (unsigned)LAYER_GAME_RESULT, (unsigned)ent->s.number,
+    G_GameResultDebug("hud show write window=%08x ent=%u connected=%u victory=%u single_player=%u uiflags=0x%08x",
+        (unsigned)BZ_WC3_WINDOW_RESULT, (unsigned)ent->s.number,
         (unsigned)ent->client->connected, (unsigned)victory, (unsigned)single_player,
-        (unsigned)ent->client->ps.uiflags,
-        (unsigned)((ent->client->ps.uiflags & (1u << LAYER_GAME_RESULT)) != 0));
-    UI_WriteLayout(ent, hud.result.GameResultDialog, LAYER_GAME_RESULT);
-    G_GameResultDebug("hud show write complete layer=%u ent=%u",
-        (unsigned)LAYER_GAME_RESULT, (unsigned)ent->s.number);
+        (unsigned)ent->client->ps.uiflags);
+    UI_SetCurrentClient(ent->client);
+    UI_WriteWindow(ent, hud.result.GameResultDialog, &MAKE(uiWindowDef_t,
+        .id = BZ_WC3_WINDOW_RESULT,
+        .class_id = BZ_WC3_WINDOW_RESULT,
+        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE | UI_WINDOW_NO_PAUSE | UI_WINDOW_NO_ESCAPE));
+    UI_SetCurrentClient(NULL);
+    G_GameResultDebug("hud show write complete window=%08x ent=%u",
+        (unsigned)BZ_WC3_WINDOW_RESULT, (unsigned)ent->s.number);
 }
 
 void UI_FlushPendingGameResults(void) {
@@ -148,5 +188,8 @@ void UI_FlushPendingGameResults(void) {
 void UI_HideGameResult(LPEDICT ent) {
     if (!ent) return;
     G_GameResultDebug("hud hide ent=%u", (unsigned)ent->s.number);
+    /* svc_window result buttons close the client-owned window before forwarding
+     * their server command.  Retain the legacy layer clear so upgraded clients
+     * cannot keep a stale pre-window result layout around. */
     UI_ClearLayer(ent, LAYER_GAME_RESULT);
 }

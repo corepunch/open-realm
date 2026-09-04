@@ -1238,6 +1238,7 @@ struct level_locals {
     TIMEOFDAY timeofday;
     BOOL started;
     BOOL scriptsStarted;
+    BOOL cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
 };
 
 typedef struct {

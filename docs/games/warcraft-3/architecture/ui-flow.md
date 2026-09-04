@@ -163,9 +163,12 @@ frame's first event pass, the new VICTORY/DEFEAT event was otherwise stranded: t
 simulation frame that would consume it. `G_DrainPausedResultEvents()` therefore drains only result events actively
 blocking pending result handoffs before the paused scheduler takes over. Once that event has run, a script-paused
 result fallback may overlay `CLIENT_UI_CINEMATIC`, because waiting for a later cinematic-to-game transition would
-again require a simulation frame that the script pause has intentionally frozen. `UI_ShowGameResult()` clears only
-the `LAYER_GAME_RESULT` hide bit from `playerState_t.uiflags`; it does not restore the rest of the gameplay HUD over
-the ending cinematic.
+again require a simulation frame that the script pause has intentionally frozen. `UI_ShowGameResult()` sends a
+dedicated modal `svc_window` instead of un-hiding a persistent layout layer. Transient windows render above the
+persistent HUD, so the rest of the ending-cinematic suppression stays untouched. The result window reuses the
+Esc-menu backdrop art at the authored dialog bounds; on victory, Quit is re-anchored directly below Continue with a
+small gap so both actions stay inside that window. The result is not Escape-dismissable because its explicit buttons
+own the Blizzard.j/session continuation.
 
 The fallback exists because the stock Blizzard.j result path still cannot build its normal ScriptDialogs: generic
 `DialogCreate` / `DialogAddButton` / `DialogDisplay` and dialog-button event support remain incomplete. It therefore
@@ -253,7 +256,11 @@ SCR_UpdateScreen();
 
 ## Server-Authored Modal Gameplay UI
 
-`LAYER_QUESTDIALOG` and `LAYER_GAME_RESULT` are modal `svc_layout` layers. The generic client layout path, not the glue UI module, owns their input exclusion. While either is visible, lower HUD hotkeys and all WC3 world interaction/camera scrolling are suppressed, but the modal's own button commands continue to reach the server.
+Quest, Log, Allies, Menu, and the temporary Game Result fallback use the generic `svc_window` manager. Modal windows
+own their input exclusion there: while the topmost modal is visible, lower HUD/world interaction and camera scrolling
+are suppressed, while the modal's own button commands continue to reach the server. The game-result window uses
+`UI_WINDOW_NO_PAUSE` because stock result scripts may already own `PauseGame(true)`, and `UI_WINDOW_NO_ESCAPE` because
+closing it without choosing a result action would strand the result lifecycle.
 
 The single-client Quest dialog additionally owns a Warcraft simulation pause. The server continues packet processing and frozen-state client traffic while `SV_RunGameFrame()` is gated, so the modal can close without deadlocking and the normal 10-second client timeout does not fire. See [Pause And Modal UI](../pause-and-modal-ui.md).
 
