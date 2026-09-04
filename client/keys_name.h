@@ -35,15 +35,17 @@ static keyname_t const key_names[] = {
     { NULL, 0 },
 };
 
+/* Stroke order is ctrl, alt, shift — same as lite's keymap.modkeys. */
 static struct {
     LPCSTR name;
     DWORD bit;
+    int rank;
 } const key_mod_names[] = {
-    { "SHIFT", KEY_MOD_SHIFT },
-    { "CTRL", KEY_MOD_CTRL },
-    { "CONTROL", KEY_MOD_CTRL },
-    { "ALT", KEY_MOD_ALT },
-    { NULL, 0 },
+    { "CTRL", KEY_MOD_CTRL, 0 },
+    { "CONTROL", KEY_MOD_CTRL, 0 },
+    { "ALT", KEY_MOD_ALT, 1 },
+    { "SHIFT", KEY_MOD_SHIFT, 2 },
+    { NULL, 0, 0 },
 };
 
 /* Map one bind token (F1, MOUSE1, a) to a key code. Letters fold to lowercase
@@ -63,13 +65,14 @@ static keyCode_t Key_TokenToKeynum(LPCSTR tok) {
     return 0;
 }
 
-/* Parse "CTRL+SHIFT+1" / "alt+mouse1". Modifier order does not matter; the last
- * non-modifier token is the key. Returns false when the name is empty or unknown. */
+/* Parse "CTRL+SHIFT+1" / "ALT+MOUSE1". Modifiers must appear in ctrl, alt, shift
+ * order (lite keymap). The last non-modifier token is the key. */
 static BOOL Key_ParseName(LPCSTR str, keyCode_t *key, DWORD *mods) {
     char buf[64];
     char *p, *next;
     DWORD m = 0;
     LPCSTR keytok = NULL;
+    int last_rank = -1;
 
     if (!str || !*str || !key || !mods) return false;
     snprintf(buf, sizeof(buf), "%s", str);
@@ -80,6 +83,8 @@ static BOOL Key_ParseName(LPCSTR str, keyCode_t *key, DWORD *mods) {
         if (!*p) return false;
         for (DWORD i = 0; key_mod_names[i].name; i++) {
             if (!strcasecmp(p, key_mod_names[i].name)) {
+                if (key_mod_names[i].rank <= last_rank) return false;
+                last_rank = key_mod_names[i].rank;
                 m |= key_mod_names[i].bit;
                 ismod = true;
                 break;
@@ -95,7 +100,7 @@ static BOOL Key_ParseName(LPCSTR str, keyCode_t *key, DWORD *mods) {
     return *key != 0;
 }
 
-/* Canonical bind name: CTRL+ALT+SHIFT+<key>, matching existing ALT+MOUSE1 configs. */
+/* Canonical stroke: ctrl, alt, shift, then the key. */
 static void Key_FormatName(keyCode_t key, DWORD mods, LPSTR dst, DWORD dst_size) {
     char tiny[2] = { 0 };
     LPCSTR name = NULL;
@@ -118,20 +123,12 @@ static void Key_FormatName(keyCode_t key, DWORD mods, LPSTR dst, DWORD dst_size)
              name);
 }
 
-/* Choose the bind-table slot for a held modifier set. Exact combos win; then
- * weaker modifiers are dropped in Alt, Shift, Ctrl order so Ctrl beats Shift
- * when both are held and only single-modifier binds exist. Slot 0 is the
- * unmodified fallback. KEY_MOD_COUNT means no matching bind. */
+#ifdef BZ_TESTS
+/* Exact stroke only: held mods in ctrl/alt/shift order. Shift+1 is not 1. */
 static DWORD Key_SelectSlot(DWORD mods, DWORD occupied) {
     DWORD slot = mods & KEY_MOD_MASK;
-
-    while (slot) {
-        if (occupied & (1u << slot)) return slot;
-        if (slot & KEY_MOD_ALT) slot &= ~KEY_MOD_ALT;
-        else if (slot & KEY_MOD_SHIFT) slot &= ~KEY_MOD_SHIFT;
-        else slot &= ~KEY_MOD_CTRL;
-    }
-    return (occupied & 1u) ? 0 : KEY_MOD_COUNT;
+    return (occupied & (1u << slot)) ? slot : KEY_MOD_COUNT;
 }
+#endif
 
 #endif

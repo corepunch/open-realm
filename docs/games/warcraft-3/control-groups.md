@@ -14,7 +14,7 @@ Shipped in `games/warcraft-3/share/config.cfg` and `games/starcraft-2/share/conf
 | Shift+0–9 | `bind SHIFT+N "group add N"` | Append the current selection without changing the active selection |
 | 0–9 | `bind N "group N"` | Recall the control group |
 
-If Ctrl and Shift are both held, the bind dispatcher keeps Ctrl: it drops Alt, then Shift, then Ctrl until a matching slot exists, so `CTRL+SHIFT+1` fires `CTRL+1` (`group assign 1`) rather than `SHIFT+1`. See [modifier key binds](../../architecture/runtime.md#key-bindings).
+Strokes match exactly in ctrl, alt, shift order (see [modifier key binds](../../architecture/runtime.md#key-bindings)). `CTRL+SHIFT+N` is a separate bind from `CTRL+N`; both assign.
 
 ## Implementation
 

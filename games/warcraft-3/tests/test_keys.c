@@ -74,9 +74,9 @@ TEST(keys, parse_modifier_combos) {
     T_EQ(key, (keyCode_t)'1');
     T_EQ(mods, KEY_MOD_CTRL | KEY_MOD_SHIFT);
 
-    T_ASSERT(Key_ParseName("SHIFT+CTRL+1", &key, &mods));
+    T_ASSERT(Key_ParseName("CTRL+ALT+SHIFT+1", &key, &mods));
     T_EQ(key, (keyCode_t)'1');
-    T_EQ(mods, KEY_MOD_CTRL | KEY_MOD_SHIFT);
+    T_EQ(mods, KEY_MOD_CTRL | KEY_MOD_ALT | KEY_MOD_SHIFT);
 }
 
 TEST(keys, parse_rejects_unknown_names) {
@@ -87,6 +87,8 @@ TEST(keys, parse_rejects_unknown_names) {
     T_ASSERT(!Key_ParseName("SHIFT+", &key, &mods));
     T_ASSERT(!Key_ParseName("SHIFT++1", &key, &mods));
     T_ASSERT(!Key_ParseName("SHIFT+CTRL", &key, &mods));
+    T_ASSERT(!Key_ParseName("SHIFT+CTRL+1", &key, &mods));
+    T_ASSERT(!Key_ParseName("ALT+CTRL+1", &key, &mods));
     T_ASSERT(!Key_ParseName("NOTAKEY", &key, &mods));
 }
 
@@ -103,14 +105,13 @@ TEST(keys, format_canonical_modifier_order) {
     T_STREQ(name, "CTRL+SHIFT+1");
 }
 
-TEST(keys, select_slot_prefers_ctrl_then_unmodified_fallback) {
+TEST(keys, select_slot_is_exact_stroke) {
     DWORD shift_and_plain = (1u << KEY_MOD_SHIFT) | 1u;
-    DWORD ctrl_shift_plain = (1u << KEY_MOD_CTRL) | (1u << KEY_MOD_SHIFT) | 1u;
+    DWORD ctrl_only = 1u << KEY_MOD_CTRL;
 
     T_EQ(Key_SelectSlot(0, shift_and_plain), 0u);
     T_EQ(Key_SelectSlot(KEY_MOD_SHIFT, shift_and_plain), KEY_MOD_SHIFT);
-    T_EQ(Key_SelectSlot(KEY_MOD_CTRL, shift_and_plain), 0u);
-    T_EQ(Key_SelectSlot(KEY_MOD_CTRL | KEY_MOD_SHIFT, ctrl_shift_plain), KEY_MOD_CTRL);
-    T_EQ(Key_SelectSlot(KEY_MOD_SHIFT, 1u), 0u);
-    T_EQ(Key_SelectSlot(KEY_MOD_SHIFT, 0u), KEY_MOD_COUNT);
+    T_EQ(Key_SelectSlot(KEY_MOD_CTRL, shift_and_plain), KEY_MOD_COUNT);
+    T_EQ(Key_SelectSlot(KEY_MOD_CTRL | KEY_MOD_SHIFT, ctrl_only), KEY_MOD_COUNT);
+    T_EQ(Key_SelectSlot(KEY_MOD_SHIFT, 1u), KEY_MOD_COUNT);
 }
