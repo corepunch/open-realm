@@ -13,6 +13,7 @@ void G_InitJassHost(void) {
         .ReadFile = gi.ReadFile,
         .natives = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
+        .IsHandleDomain = G_IsJassHandleDomain,
         .SaveHandle = G_SaveJassHandle,
         .LoadHandle = G_LoadJassHandle,
     ));

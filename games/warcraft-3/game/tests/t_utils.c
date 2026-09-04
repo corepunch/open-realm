@@ -165,6 +165,7 @@ static BOOL run_test_jass_impl(LPCSTR src, LPCSTR expected) {
         .natives          = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
         .RuntimeError     = ignore_jass_error,
+        .IsHandleDomain   = G_IsJassHandleDomain,
         .SaveHandle       = G_SaveJassHandle,
         .LoadHandle       = G_LoadJassHandle,
     ));

@@ -29,16 +29,17 @@
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) jass_alloc(sizeof(type))
 
-static void jass_setnull(LPJASSVAR var);
-static void jass_deletedict(LPJASSDICT dict);
+static void jass_setnull(LPJASS j, LPJASSVAR var);
+static void jass_deletedict(LPJASS j, LPJASSDICT dict);
+static LPJASS jass_root(LPJASS j);
 
 #define JASS_ADD_STACK(j, VAR, TYPE) \
 LPJASSVAR VAR = &j->stack[j->num_stack++]; \
 memset(VAR, 0, sizeof(*VAR)); \
 VAR->type = &jass_types[TYPE];
 
-static void jass_store_value(LPJASSVAR var, LPCVOID value, DWORD size) {
-    jass_setnull(var);
+static void jass_store_value(LPJASS j, LPJASSVAR var, LPCVOID value, DWORD size) {
+    jass_setnull(j, var);
     if (!value) {
         return;
     }
@@ -123,7 +124,7 @@ static void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other);
 void jass_setreturn(LPJASS j);
 BOOL jass_mustreturn(LPJASS j);
 BOOL uses_localplayer(LPCTOKEN token);
-static void jass_setnull(LPJASSVAR var);
+static void jass_setnull(LPJASS j, LPJASSVAR var);
 static LPCJASSTYPE find_type(LPCJASS j, LPCSTR name);
 static LPCJASSTYPE get_base_type(LPCJASSTYPE type);
 static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, DWORD index);
@@ -150,6 +151,52 @@ HANDLE jass_alloc(long size) {
 
 void jass_free(HANDLE ptr) {
     jass_host.MemFree(ptr);
+}
+
+static BOOL jass_valuehandle(LPCSTR type);
+static BOOL jass_snapshot_ownedhandle(LPCSTR type);
+
+/* Script-owned handle types (boxed enums + API_ALLOC blobs + trigger condition/action
+ * nodes): no host array backs these, so route them through the VM's own agent table
+ * instead of a raw pointer. Reuses the exact create-site lists jass_valuehandle and
+ * jass_snapshot_ownedhandle already maintain, plus the two trigger list-node types
+ * that aren't snapshotted at all today. */
+static BOOL jass_agenthandle(LPCSTR type) {
+    return jass_valuehandle(type) || jass_snapshot_ownedhandle(type) ||
+        !strcmp(type, "triggercondition") || !strcmp(type, "triggeraction");
+}
+
+static DWORD jass_agent_alloc(LPJASS j, HANDLE payload) {
+    LPJASS root = jass_root(j);
+    DWORD id;
+    if (root->free_agent) {
+        id = root->free_agent - 1;
+        root->free_agent = (DWORD)(uintptr_t)root->agents[id];
+    } else {
+        if (root->num_agents == root->cap_agents) {
+            DWORD cap = root->cap_agents ? root->cap_agents * 2 : 64;
+            HANDLE *agents = jass_alloc(cap * sizeof(HANDLE));
+            if (root->agents) memcpy(agents, root->agents, root->num_agents * sizeof(HANDLE));
+            SAFE_DELETE(root->agents, jass_free);
+            root->agents = agents;
+            root->cap_agents = cap;
+        }
+        id = root->num_agents++;
+    }
+    root->agents[id] = payload;
+    return id + 1;
+}
+
+static HANDLE jass_agent_get(LPJASS j, DWORD id) {
+    LPJASS root = jass_root(j);
+    return (id && id <= root->num_agents) ? root->agents[id - 1] : NULL;
+}
+
+static void jass_agent_free(LPJASS j, DWORD id) {
+    LPJASS root = jass_root(j);
+    if (!id || id > root->num_agents) return;
+    root->agents[id - 1] = (HANDLE)(uintptr_t)root->free_agent;
+    root->free_agent = id;
 }
 
 static DWORD jass_gettime(void) {
@@ -219,7 +266,7 @@ static BOOL jass_valuehandle(LPCSTR type) {
     return false;
 }
 
-static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
+static BOOL var_eq(LPJASS j, LPCJASSVAR a, LPCJASSVAR b) {
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
         case 1: return false;
@@ -235,17 +282,19 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         case jasstype_handle:
             if (a->value == b->value) return true;
             if (a->type != b->type) return false;
-            return jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(DWORD));
+            if (!jass_valuehandle(a->type->name)) return false;
+            /* Value handles box their content behind an agent-table id now — compare the boxed bytes, not the ids. */
+            return !memcmp(jass_agent_get(j, (DWORD)(uintptr_t)a->value), jass_agent_get(j, (DWORD)(uintptr_t)b->value), sizeof(DWORD));
     }
     return false;
 }
 
 DWORD __eq(LPJASS j) {
-    return jass_pushboolean(j, var_eq(jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
+    return jass_pushboolean(j, var_eq(j, jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
 }
 
 DWORD __ne(LPJASS j) {
-    return jass_pushboolean(j, !var_eq(jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
+    return jass_pushboolean(j, !var_eq(j, jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
 }
 
 DWORD __and(LPJASS j) {
@@ -375,7 +424,7 @@ static void jass_free_frame(LPJASSCOROUTINE co, LPJASSCOROUTINEFRAME frame) {
     if (frame->locals) {
         FOR_LOOP(i, co->state->num_stack)
             if (co->state->stack[i].env.locals == frame->locals) co->state->stack[i].env.locals = NULL;
-        jass_deletedict(frame->locals);
+        jass_deletedict(co->state, frame->locals);
     }
     jass_free(frame);
 }
@@ -386,7 +435,7 @@ static void jass_free_coroutine(LPJASSCOROUTINE co) {
         jass_free_frame(co, co->frames);
         co->frames = next;
     }
-    FOR_LOOP(i, co->state->num_stack) jass_setnull(co->state->stack + i);
+    FOR_LOOP(i, co->state->num_stack) jass_setnull(co->state, co->state->stack + i);
     SAFE_DELETE(co->state, jass_free);
     jass_free(co);
 }
@@ -1105,7 +1154,7 @@ void jass_pop(LPJASS j, DWORD count) {
 
 static void jass_discard(LPJASS j, DWORD count) {
     while (count-- && j->num_stack) {
-        jass_setnull(jass_topvalue(j));
+        jass_setnull(j, jass_topvalue(j));
         jass_pop(j, 1);
     }
 }
@@ -1114,20 +1163,20 @@ static void jass_discard(LPJASS j, DWORD count) {
  * Memory: null / copy / free
  * ========================================================================= */
 
-static void jass_deletedict(LPJASSDICT dict) {
-    SAFE_DELETE(dict->next, jass_deletedict);
-    jass_setnull(&dict->value);
+static void jass_deletedict(LPJASS j, LPJASSDICT dict) {
+    if (dict->next) jass_deletedict(j, dict->next);
+    jass_setnull(j, &dict->value);
     jass_free(dict);
 }
 
-static void jass_deletearray(LPJASSARRAY array) {
+static void jass_deletearray(LPJASS j, LPJASSARRAY array) {
     if (!array) return;
-    jass_deletearray(array->next);
-    jass_setnull(&array->value);
+    jass_deletearray(j, array->next);
+    jass_setnull(j, &array->value);
     jass_free(array);
 }
 
-void jass_setnull(LPJASSVAR var) {
+void jass_setnull(LPJASS j, LPJASSVAR var) {
     if (!var || !var->type) {
         return;
     }
@@ -1136,10 +1185,10 @@ void jass_setnull(LPJASSVAR var) {
         memset(var, 0, sizeof(*var));
         return;
     }
-    SAFE_DELETE(var->_array, jass_deletearray);
+    if (var->_array) { jass_deletearray(j, var->_array); var->_array = NULL; }
     JASSTYPEID type = jass_getvarbasetype(var);
     if (type == jasstype_code || type == jasstype_cfunction) {
-        SAFE_DELETE(var->env.locals, jass_deletedict);
+        if (var->env.locals) { jass_deletedict(j, var->env.locals); var->env.locals = NULL; }
     }
     switch (type) {
         case jasstype_handle:
@@ -1148,7 +1197,13 @@ void jass_setnull(LPJASSVAR var) {
                 var->value = NULL;
                 var->ref = NULL;
             } else {
-                SAFE_DELETE(var->value, jass_free);
+                /* Only jass_newhandle() leaves refs at 0: var->value is always an agent-table
+                 * id here, never a raw pointer (host/light handles always seed refs=1). */
+                if (var->value) {
+                    DWORD id = (DWORD)(uintptr_t)var->value;
+                    jass_free(jass_agent_get(j, id));
+                    jass_agent_free(j, id);
+                }
                 SAFE_DELETE(var->ref, jass_free);
             }
             break;
@@ -1187,7 +1242,7 @@ static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, DWORD index) {
 
 void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
     FLOAT fval = 0;
-    jass_setnull(var);
+    jass_setnull(j, var);
     if (other->_array) {
         var->type = other->type;
         FOR_EACH_LIST(JASSARRAY, srcar, other->_array) {
@@ -1198,7 +1253,7 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
         return;
     } else switch (jass_getvarbasetype(var)) {
         case jasstype_integer:
-            jass_store_value(var, other->value, sizeof(LONG));
+            jass_store_value(j, var, other->value, sizeof(LONG));
             break;
         case jasstype_handle:
             if (var->type && other->type && !is_handle_convertible(other->type, var->type)) {
@@ -1222,13 +1277,13 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
                     fval = 0.0f;
                     break;
             }
-            jass_store_value(var, &fval, sizeof(FLOAT));
+            jass_store_value(j, var, &fval, sizeof(FLOAT));
             break;
         case jasstype_boolean:
-            jass_store_value(var, other->value, sizeof(BOOL));
+            jass_store_value(j, var, other->value, sizeof(BOOL));
             break;
         case jasstype_string:
-            jass_store_value(var, other->value, strlen((char *)other->value)+1);
+            jass_store_value(j, var, other->value, strlen((char *)other->value)+1);
             break;
         case jasstype_code:
         case jasstype_cfunction:
@@ -1252,13 +1307,13 @@ DWORD jass_pushnull(LPJASS j) {
 
 DWORD jass_pushinteger(LPJASS j, LONG value) {
     JASS_ADD_STACK(j, var, jasstype_integer);
-    jass_store_value(var, &value, sizeof(value));
+    jass_store_value(j, var, &value, sizeof(value));
     return 1;
 }
 
 DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
-    jass_setnull(var);
+    jass_setnull(j, var);
     var->type = find_type(j, type);
     if (value) {
         var->value = value;
@@ -1274,7 +1329,9 @@ DWORD jass_pushnullhandle(LPJASS j, LPCSTR type) {
 
 HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type) {
     HANDLE data = size ? jass_alloc(size) : NULL;
-    jass_pushhandle(j, data, type);
+    /* jass_newhandle is only ever called for script-owned blobs (API_ALLOC): store the
+     * agent-table id, not the raw pointer, but still hand the caller the real memory. */
+    jass_pushhandle(j, data ? (HANDLE)(uintptr_t)jass_agent_alloc(j, data) : NULL, type);
     if (data) {
         LPJASSVAR var = jass_topvalue(j);
         var->ref->size = size;
@@ -1285,8 +1342,17 @@ HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type) {
 
 DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
-    jass_setnull(var);
+    jass_setnull(j, var);
     var->type = find_type(j, type);
+    if (value && jass_host.IsHandleDomain && jass_host.IsHandleDomain(type)) {
+        /* Host-array-backed domain (unit/trigger/timer/...): store the stable array index the
+         * host already hands out for save/load, so the runtime never holds a raw native pointer. */
+        DWORD id;
+        value = (jass_host.SaveHandle && jass_host.SaveHandle(type, value, &id)) ? (HANDLE)(uintptr_t)(id + 1) : NULL;
+    } else if (value && jass_agenthandle(type)) {
+        /* Script-owned node with no host array (trigger condition/action lists, etc.). */
+        value = (HANDLE)(uintptr_t)jass_agent_alloc(j, value);
+    }
     var->value = value;
     var->ref = jass_alloc(sizeof(*var->ref));
     *var->ref = (JASSREF){ .refs = 1 };
@@ -1295,19 +1361,19 @@ DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
 
 DWORD jass_pushnumber(LPJASS j, FLOAT value) {
     JASS_ADD_STACK(j, var, jasstype_real);
-    jass_store_value(var, &value, sizeof(value));
+    jass_store_value(j, var, &value, sizeof(value));
     return 1;
 }
 
 DWORD jass_pushboolean(LPJASS j, BOOL value) {
     JASS_ADD_STACK(j, var, jasstype_boolean);
-    jass_store_value(var, &value, sizeof(value));
+    jass_store_value(j, var, &value, sizeof(value));
     return 1;
 }
 
 DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len) {
     JASS_ADD_STACK(j, var, jasstype_string);
-    jass_store_value(var, value, len+1);
+    jass_store_value(j, var, value, len+1);
     ((LPSTR)var->value)[len] = '\0';
     removeDoubleBackslashes(var->value);
     return 1;
@@ -1324,7 +1390,7 @@ DWORD jass_pushstring(LPJASS j, LPCSTR value) {
 
 DWORD jass_pushcfunction(LPJASS j, LPJASSCFUNCTION func) {
     JASS_ADD_STACK(j, var, jasstype_cfunction);
-    jass_store_value(var, &func, sizeof(LPJASSCFUNCTION));
+    jass_store_value(j, var, &func, sizeof(LPJASSCFUNCTION));
     return 1;
 }
 
@@ -1415,6 +1481,14 @@ HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
         if (expected && !is_handle_convertible(var->type, expected)) {
             fprintf(stderr, "Warning: jass_checkhandle type mismatch\n");
         }
+    }
+    LPCSTR name = var->type ? var->type->name : type;
+    if (jass_host.IsHandleDomain && jass_host.IsHandleDomain(name)) {
+        /* Recognized but stale (freed unit/trigger/timer/...) must return NULL, not fall through. */
+        return jass_host.LoadHandle ? jass_host.LoadHandle(name, (DWORD)(uintptr_t)var->value - 1) : NULL;
+    }
+    if (jass_agenthandle(name)) {
+        return jass_agent_get(j, (DWORD)(uintptr_t)var->value);
     }
     return var->value;
 }
@@ -2023,7 +2097,7 @@ typedef enum {
 
 typedef struct jass_snapshot_handle_s {
     struct jass_snapshot_handle_s *next;
-    DWORD id, size;
+    DWORD id, size, agent_id;
     LPCSTR type;
     HANDLE value;
     LPJASSREF ref;
@@ -2062,31 +2136,35 @@ static void jass_snapshot_freehandles(JASSSNAPSHOT *snapshot) {
 /* Handles use explicit encodings: native IDs relocate through the host, while safe VM-owned payloads carry identity+bytes. */
 static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
     DWORD encoding, id;
-    (void)j;
+    HANDLE payload;
     if (jass_valuehandle(var->type->name)) {
         encoding = JASS_SNAPSHOT_HANDLE_VALUE;
+        payload = jass_agent_get(j, (DWORD)(uintptr_t)var->value);
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
-            jass_snapshot_io(snapshot, var->value, sizeof(DWORD));
+            jass_snapshot_io(snapshot, payload, sizeof(DWORD));
     }
     /* VM-owned and function handles must bypass the host: a host miss means stale only for host-owned domains. */
     if (jass_snapshot_ownedhandle(var->type->name) && var->ref && var->ref->size) {
         encoding = JASS_SNAPSHOT_HANDLE_OWNED;
+        payload = jass_agent_get(j, (DWORD)(uintptr_t)var->value);
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
             jass_snapshot_io(snapshot, &var->ref->id, sizeof(var->ref->id)) &&
             jass_snapshot_io(snapshot, &var->ref->size, sizeof(var->ref->size)) &&
-            jass_snapshot_io(snapshot, var->value, var->ref->size);
+            jass_snapshot_io(snapshot, payload, var->ref->size);
     }
     if (jass_snapshot_functionhandle(var->type->name)) {
         encoding = JASS_SNAPSHOT_HANDLE_FUNCTION;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
             jass_snapshot_writestr(snapshot, jass_functionname(var->value));
     }
-    if (jass_host.SaveHandle) {
-        if (jass_host.SaveHandle(var->type->name, var->value, &id)) {
+    if (jass_host.IsHandleDomain && jass_host.IsHandleDomain(var->type->name)) {
+        /* var->value is already the host's id+1 (jass_pushlighthandle encodes it at push time);
+         * re-check liveness so a since-freed unit/item/etc. still saves as null. */
+        id = var->value ? (DWORD)(uintptr_t)var->value - 1 : 0;
+        if (var->value && jass_host.LoadHandle && jass_host.LoadHandle(var->type->name, id)) {
             encoding = JASS_SNAPSHOT_HANDLE_HOST;
             return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) && jass_snapshot_io(snapshot, &id, sizeof(id));
         }
-        /* Host owns this type but the handle is stale (freed unit/item/etc.) — save as null. */
         encoding = JASS_SNAPSHOT_HANDLE_NULL;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding));
     }
@@ -2096,7 +2174,7 @@ static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSV
 
 static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR var) {
     DWORD encoding, id, size;
-    HANDLE value;
+    HANDLE payload;
     LPSTR name = NULL;
     if (!jass_snapshot_io(snapshot, &encoding, sizeof(encoding))) return false;
     if (encoding == JASS_SNAPSHOT_HANDLE_NULL) {
@@ -2104,22 +2182,23 @@ static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR
         return true;
     }
     if (encoding == JASS_SNAPSHOT_HANDLE_VALUE) {
-        if (!jass_valuehandle(var->type->name) || !(var->value = jass_alloc(sizeof(DWORD))) ||
-            !jass_snapshot_io(snapshot, var->value, sizeof(DWORD))) return false;
+        if (!jass_valuehandle(var->type->name) || !(payload = jass_alloc(sizeof(DWORD))) ||
+            !jass_snapshot_io(snapshot, payload, sizeof(DWORD))) return false;
         var->ref = jass_alloc(sizeof(*var->ref));
-        if (!var->ref) return false;
+        if (!var->ref) { jass_free(payload); return false; }
+        var->value = (HANDLE)(uintptr_t)jass_agent_alloc(j, payload);
         *var->ref = (JASSREF){ .size = sizeof(DWORD) };
         return true;
     }
     if (encoding == JASS_SNAPSHOT_HANDLE_HOST) {
         if (!jass_snapshot_io(snapshot, &id, sizeof(id))) return false;
-        if (!jass_host.LoadHandle || !(value = jass_host.LoadHandle(var->type->name, id))) {
+        if (!jass_host.LoadHandle || !jass_host.LoadHandle(var->type->name, id)) {
             fprintf(stderr, "JASS snapshot: cannot resolve %s handle %u\n", var->type->name, id);
             return false;
         }
         var->ref = jass_alloc(sizeof(*var->ref));
         if (!var->ref) return false;
-        var->value = value; *var->ref = (JASSREF){ .refs = 1 };
+        var->value = (HANDLE)(uintptr_t)(id + 1); *var->ref = (JASSREF){ .refs = 1 };
         return true;
     }
     if (encoding == JASS_SNAPSHOT_HANDLE_FUNCTION) {
@@ -2138,7 +2217,7 @@ static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR
     if (item) {
         if (item->size != size || strcmp(item->type, var->type->name) ||
             !jass_snapshot_io(snapshot, item->value, size)) return false;
-        var->value = item->value; var->ref = item->ref; var->ref->refs++;
+        var->value = (HANDLE)(uintptr_t)item->agent_id; var->ref = item->ref; var->ref->refs++;
         return true;
     }
     item = jass_alloc(sizeof(*item));
@@ -2148,9 +2227,10 @@ static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR
         return false;
     }
     item->id = id; item->size = size; item->type = var->type->name;
+    item->agent_id = jass_agent_alloc(j, item->value);
     *item->ref = (JASSREF){ .size = size, .id = id };
     ADD_TO_LIST(item, snapshot->handles);
-    var->value = item->value; var->ref = item->ref;
+    var->value = (HANDLE)(uintptr_t)item->agent_id; var->ref = item->ref;
     jass_root(j)->next_handle_id = MAX(jass_root(j)->next_handle_id, id);
     return true;
 }
@@ -2293,7 +2373,7 @@ static BOOL jass_snapshot_readdict(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSDICT 
             SAFE_DELETE(name, jass_free); jass_free(item); return false;
         }
         item->key = name;
-        if (!jass_snapshot_readvar(j, snapshot, &item->value)) { jass_deletedict(item); return false; }
+        if (!jass_snapshot_readvar(j, snapshot, &item->value)) { jass_deletedict(j, item); return false; }
         PUSH_BACK(JASSDICT, item, *dict);
     }
     return true;
@@ -2442,7 +2522,7 @@ BOOL jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
             !(live = find_global(root, name)) || live->constant) { SAFE_DELETE(name, jass_free); goto done; }
         item = JASSALLOC(JASSDICT);
         item->key = name;
-        if (!jass_snapshot_readvar(root, snapshot, &item->value)) { jass_deletedict(item); goto done; }
+        if (!jass_snapshot_readvar(root, snapshot, &item->value)) { jass_deletedict(root, item); goto done; }
         ADD_TO_LIST(item, staged);
     }
     if (!jass_snapshot_readcoroutines(root, snapshot, &coroutines) ||
@@ -2459,7 +2539,7 @@ BOOL jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
     root->coroutines = coroutines; coroutines = NULL;
     ok = true;
 done:
-    SAFE_DELETE(staged, jass_deletedict);
+    if (staged) { jass_deletedict(root, staged); staged = NULL; }
     while (coroutines) { LPJASSCOROUTINE next = coroutines->next; jass_free_coroutine(coroutines); coroutines = next; }
     jass_snapshot_freehandles(snapshot);
     return ok;
@@ -2481,8 +2561,8 @@ void jass_close(LPJASS j) {
         jass_free_coroutine(co);
         co = next;
     }
-    FOR_LOOP(i, root->num_stack) jass_setnull(root->stack + i);
-    SAFE_DELETE(root->globals, jass_deletedict);
+    FOR_LOOP(i, root->num_stack) jass_setnull(root, root->stack + i);
+    if (root->globals) { jass_deletedict(root, root->globals); root->globals = NULL; }
     while (root->functions) {
         LPJASSFUNC func = root->functions, next = func->next;
         DELETE_LIST(JASSARG, func->args, jass_free);
@@ -2496,6 +2576,7 @@ void jass_close(LPJASS j) {
         jass_free(program);
         root->programs = next;
     }
+    SAFE_DELETE(root->agents, jass_free);
     jass_free(root);
 }
 
@@ -2582,7 +2663,7 @@ static DWORD jass_call_impl(LPJASS j, DWORD args) {
         }
     }
     LPJASSVAR last = &j->stack[j->num_stack - ret];
-    for (LPJASSVAR it = root; it < last; it++) jass_setnull(it);
+    for (LPJASSVAR it = root; it < last; it++) jass_setnull(j, it);
     memmove(root, last, ret * sizeof(JASSVAR));
     j->num_stack -= last - root;
     j->stack_pointer = old_stack_pointer;

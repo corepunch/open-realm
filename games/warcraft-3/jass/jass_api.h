@@ -39,6 +39,7 @@ typedef struct {
     LPCJASSMODULE galaxy_natives;
     struct playerState_s *(*GetPlayerByNumber)(DWORD number);
     void (*RuntimeError)(LPCSTR message);
+    BOOL (*IsHandleDomain)(LPCSTR type);
     BOOL (*SaveHandle)(LPCSTR type, HANDLE value, DWORD *id);
     HANDLE (*LoadHandle)(LPCSTR type, DWORD id);
 } JASSHOST;

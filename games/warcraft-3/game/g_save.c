@@ -546,6 +546,14 @@ static BOOL JassHandleDomain(LPCSTR type, jassHandleDomain_t *domain) {
     return false;
 }
 
+/* Lets jdo.c tell a host-array-backed domain type (unit/trigger/timer/...) apart from a
+ * script-owned handle before it decodes var->value, so a stale domain handle decodes to
+ * NULL instead of falling through to the wrong codec. */
+BOOL G_IsJassHandleDomain(LPCSTR type) {
+    jassHandleDomain_t domain;
+    return JassHandleDomain(type, &domain);
+}
+
 static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
     DWORD index = 0;
     if (domain == JASS_HANDLE_QUEST) {

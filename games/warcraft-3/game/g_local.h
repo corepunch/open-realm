@@ -1366,6 +1366,7 @@ void tree_pain(LPEDICT);
 // g_save.c
 BOOL WriteGame(LPCSTR filename);
 BOOL ReadGame(LPCSTR filename);
+BOOL G_IsJassHandleDomain(LPCSTR type);
 BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
 HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
 ggroup_t *G_AllocJassGroup(void);

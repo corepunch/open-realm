@@ -1,18 +1,3 @@
-#define UNIT_TYPED_ACCESS(NAME, FIELD, TYPE) \
-DWORD SetUnit##NAME(LPJASS j) {  \
-    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    if (whichUnit) { \
-        memcpy(&whichUnit->FIELD, jass_checkhandle(j, 2, #TYPE), sizeof(whichUnit->FIELD)); \
-        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty(); \
-        gi.LinkEntity(whichUnit); \
-    } \
-    return 0; \
-}  \
-DWORD GetUnit##NAME(LPJASS j) {  \
-    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    return whichUnit ? jass_pushlighthandle(j, &whichUnit->FIELD, #TYPE) : jass_pushnullhandle(j, #TYPE); \
-}
-
 #define UNIT_ACCESS(NAME, FIELD) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
@@ -29,7 +14,24 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
-UNIT_TYPED_ACCESS(PositionLoc, s.origin2, location);
+/* "location" is a fresh script-owned agent per call (matches GetUnitLoc), never an alias
+ * into the unit's own field \u2014 the agent table has no slot for a mid-struct address. */
+DWORD SetUnitPositionLoc(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCVECTOR2 loc = jass_checkhandle(j, 2, "location");
+    if (whichUnit && loc) {
+        whichUnit->s.origin2 = *loc;
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+        gi.LinkEntity(whichUnit);
+    }
+    return 0;
+}
+DWORD GetUnitPositionLoc(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    API_ALLOC(VECTOR2, location);
+    if (whichUnit) *location = whichUnit->s.origin2;
+    return 1;
+}
 UNIT_ACCESS(X, s.origin.x);
 UNIT_ACCESS(Y, s.origin.y);
 UNITINFO_ACCESS(MoveSpeed);

@@ -132,6 +132,10 @@ struct jass_s {
     jmp_buf sync_rterror_jmp;
     BOOL sync_rterror_jmp_set;
     DWORD next_handle_id;
+    /* Script-owned handle slots (rect/location/force/... + trigger condition/action nodes):
+     * a domain+index id would need a parallel table anyway, so just use the slot index itself. */
+    HANDLE *agents;
+    DWORD num_agents, cap_agents, free_agent; // free_agent: 1-based head of free list, 0 = none
 };
 
 /* Primitive type table — indexed by JASSTYPEID. Defined in jdo.c. */
