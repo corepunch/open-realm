@@ -279,6 +279,19 @@ static void SC2_SolveCollisions(void) {
 /* -------------------------------------------------------------------------
  * Galaxy callbacks — bridge between galaxy_host.c natives and SC2 game state.
  * ------------------------------------------------------------------------- */
+/* playerState.viewangles is ROTATE_ZYX {pitch, roll, yaw}; SC2CAMERA.angles is {pitch, yaw, height}. */
+static VECTOR3 SC2_ViewAngles(LPCVECTOR3 camera_angles) {
+    return (VECTOR3){ camera_angles->x, 0.0f, camera_angles->y };
+}
+
+static VECTOR3 SC2_CameraAnglesFromPlayer(LPCPLAYER ps) {
+    return (VECTOR3){
+        ps->viewangles.x,
+        ps->viewangles.z,
+        ps->origin.z - SC2_MapCameraHeightAtPoint(ps->origin.x, ps->origin.y)
+    };
+}
+
 static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance, FLOAT fov) {
     gameCamera_t defaults;
 
@@ -287,12 +300,11 @@ static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance
         sc2_clients[i].ps.origin = (VECTOR3){
             origin->x, origin->y, SC2_MapCameraHeightAtPoint(origin->x, origin->y) + angles->z
         };
-        sc2_clients[i].ps.viewangles = *angles;
+        sc2_clients[i].ps.viewangles = SC2_ViewAngles(angles);
         sc2_clients[i].ps.fov = (DWORD)fov;
         sc2_clients[i].ps.distance = distance;
         sc2_clients[i].ps.znear = defaults.znear;
         sc2_clients[i].ps.zfar = defaults.zfar;
-        sc2_clients[i].ps.viewquat = Quaternion_fromEuler(angles, ROTATE_ZYX);
     }
 }
 
@@ -344,7 +356,7 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
     SC2_UpdateCamera();
     sc2_level.camera.old = (SC2CAMERA){
         { sc2_clients[0].ps.origin.x, sc2_clients[0].ps.origin.y },
-        sc2_clients[0].ps.viewangles,
+        SC2_CameraAnglesFromPlayer(&sc2_clients[0].ps),
         sc2_clients[0].ps.distance, sc2_clients[0].ps.fov };
     sc2_level.camera.state = (SC2CAMERA){ { target_x, target_y }, { pitch, yaw, height_offset }, dist, fov };
     sc2_level.camera.start_time = gi.GetTime();
@@ -556,8 +568,7 @@ static void SC2_InitClients(void) {
         ent->client->ps.znear = camera.znear;
         ent->client->ps.zfar = camera.zfar;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
-        ent->client->ps.viewangles = (VECTOR3){ camera.pitch, camera.yaw, camera.height_offset };
-        ent->client->ps.viewquat = Quaternion_fromEuler(&ent->client->ps.viewangles, ROTATE_ZYX);
+        ent->client->ps.viewangles = (VECTOR3){ camera.pitch, 0.0f, camera.yaw };
     }
     sc2_level.camera.old = sc2_level.camera.state = (SC2CAMERA){ { camera.target.x, camera.target.y },
         { camera.pitch, camera.yaw, camera.height_offset }, camera.distance, camera.fov };
@@ -686,7 +697,8 @@ static void SC2_RunFrame(void) {
             VECTOR3 const cam = sc2_clients[0].ps.viewangles;
             fprintf(stderr, "SC2 cutscene trace: frame=%u camera=(%.2f,%.2f) pitch=%.2f yaw=%.2f dist=%.2f height=%.2f",
                     (unsigned)trace_frame, sc2_clients[0].ps.origin.x, sc2_clients[0].ps.origin.y,
-                    cam.x, cam.y, (double)sc2_clients[0].ps.distance, cam.z);
+                    cam.x, cam.z, (double)sc2_clients[0].ps.distance,
+                    sc2_clients[0].ps.origin.z - SC2_MapCameraHeightAtPoint(sc2_clients[0].ps.origin.x, sc2_clients[0].ps.origin.y));
             if (dropship) {
                 DWORD number = SC2_EdictNumber(dropship);
                 fprintf(stderr, " dropship=(%.2f,%.2f,%.2f) moving=%d target=(%.2f,%.2f) flying=%d height=%.2f",
@@ -796,9 +808,10 @@ static void SC2_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (!ent || !ent->client || !position) {
         return;
     }
+    FLOAT height = ent->client->ps.origin.z - SC2_MapCameraHeightAtPoint(ent->client->ps.origin.x, ent->client->ps.origin.y);
     ent->client->ps.origin = (VECTOR3){
         position->x, position->y,
-        SC2_MapCameraHeightAtPoint(position->x, position->y) + ent->client->ps.viewangles.z
+        SC2_MapCameraHeightAtPoint(position->x, position->y) + height
     };
 }
 

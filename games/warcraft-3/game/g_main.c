@@ -470,18 +470,17 @@ static void G_RunClients(void) {
             FLOAT k = (G_Time() - client->camera.start_time) / (FLOAT)duration;
             LPCCAMERASETUP a = &client->camera.old_state;
             LPCCAMERASETUP b = &client->camera.state;
-            QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
-            QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
             client->ps.origin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
-            client->ps.viewquat = Quaternion_slerp(&qa, &qb, k);
+            /* JASS interpolates camera fields independently; the client slerps the snapshot Eulers. */
+            client->ps.viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, k);
             client->ps.fov = LerpNumber(a->fov, b->fov, k);
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
             client->ps.znear = LerpNumber(a->near_z, b->near_z, k);
             client->ps.zfar = LerpNumber(a->far_z, b->far_z, k);
         } else {
             client->ps.origin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
-            client->ps.viewquat = Quaternion_fromEuler(&client->camera.state.viewangles, ROTATE_ZYX);
+            client->ps.viewangles = client->camera.state.viewangles;
             client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
             client->ps.znear = client->camera.state.near_z;

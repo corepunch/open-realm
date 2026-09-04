@@ -2,9 +2,6 @@
 
 #include "client.h"
 #include "sound/s_local.h"
-#ifdef WOW
-#include "common/wow_view.h"
-#endif
 #include "tr_public.h"
 
 static struct {
@@ -90,41 +87,6 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
     Matrix4_translate(output, &vieworg);
 }
 
-#ifdef SC2
-static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
-                                       LPCVECTOR3 angles,
-                                       FLOAT distance,
-                                       FLOAT height_offset,
-                                       FLOAT fov,
-                                       FLOAT aspect,
-                                       FLOAT znear,
-                                       FLOAT zfar,
-                                       LPMATRIX4 output) {
-    FLOAT const pitch = (FLOAT)DEG2RAD(angles && angles->x != 0.0f ? angles->x : 56.0f);
-    FLOAT const yaw = (FLOAT)DEG2RAD(angles && angles->y != 0.0f ? angles->y : 180.0f);
-    FLOAT const horizontal = cosf(pitch);
-    VECTOR3 target = *origin;
-    VECTOR3 dir = {
-        sinf(yaw) * horizontal,
-        cosf(yaw) * horizontal,
-        -sinf(pitch),
-    };
-    VECTOR3 eye;
-    MATRIX4 proj, view;
-
-    distance = distance > 0.0f ? distance : 34.07f;
-    fov = fov > 0.0f ? fov : 27.8f;
-    znear = znear > 0.0f ? znear : 0.1f;
-    zfar = zfar > 0.0f ? zfar : 400.0f;
-    (void)height_offset;
-    /* Look-at Z is server-authored in playerState.origin. */
-    eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
-    Matrix4_perspective(&proj, fov, aspect, znear, zfar);
-    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
-    Matrix4_multiply(&proj, &view, output);
-}
-#endif
-
 static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
     viewCamera_t const *a = cl.viewDef.camerastate+1;
@@ -168,9 +130,9 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     viewCamera_t *a = cl.viewDef.camerastate+1;
     viewCamera_t *b = cl.viewDef.camerastate+0;
     VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
-#if !defined(WOW) && !defined(SC2)
-    QUATERNION quat = Quaternion_slerp(&a->viewquat, &b->viewquat, cl.viewDef.lerpfrac);
-#endif
+    QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
+    QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
+    QUATERNION quat = Quaternion_slerp(&qa, &qb, cl.viewDef.lerpfrac);
     FLOAT distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
     FLOAT fov = LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac);
     FLOAT viewport_width = cl.viewDef.viewport.w * windowSize.width;
@@ -182,39 +144,11 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
     
 #ifdef WOW
-    VECTOR3 angles = {
-        Wow_LerpDegrees(a->viewangles.x, b->viewangles.x, cl.viewDef.lerpfrac),
-        Wow_LerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
-        Wow_LerpDegrees(a->viewangles.z, b->viewangles.z, cl.viewDef.lerpfrac),
-    };
-    VECTOR3 forward;
-    VECTOR3 offset;
-    VECTOR3 eye;
-
-    /* The authoritative entity already carries the game-side WMO floor; do not repeat collision in the client. */
+    /* Look-at Z comes from the player entity, not the camera sample. */
     origin.z = LerpNumber(cl.ents[0].prev.origin.z, cl.ents[0].current.origin.z, cl.viewDef.lerpfrac) + WOW_CAMERA_EYE_HEIGHT;
-    forward = Wow_ViewForward(&angles);
-    offset = Vector3_scale(&forward, -distance);
-    eye = Vector3_add(&origin, &offset);
-
-    Matrix4_perspective(&proj, fov, aspect, znear, zfar);
-    Matrix4_lookAt(&view, &eye, &forward, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
-#else
-#ifdef SC2
-    VECTOR3 angles = {
-        LerpNumber(a->viewangles.x, b->viewangles.x, cl.viewDef.lerpfrac),
-        CL_GameLerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
-        LerpNumber(a->viewangles.z, b->viewangles.z, cl.viewDef.lerpfrac),
-    };
-    (void)proj;
-    (void)view;
-    Matrix4_getSc2CameraMatrix(&origin, &angles, distance, angles.z, fov, aspect, znear, zfar, output);
-    return;
-#else
+#endif
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
-#endif
-#endif
     Matrix4_multiply(&proj, &view, output);
 }
 
@@ -435,7 +369,7 @@ void CL_PrepRefresh(void) {
 
         CL_GameDefaultCamera(&defaults);
         camera.origin = defaults.target;
-        camera.viewangles = (VECTOR3){ defaults.pitch, defaults.yaw, 0.0f };
+        camera.viewangles = (VECTOR3){ defaults.pitch, 0.0f, defaults.yaw };
         camera.fov = defaults.fov;
         camera.distance = defaults.distance;
         camera.znear = defaults.znear;
@@ -446,7 +380,6 @@ void CL_PrepRefresh(void) {
         cl.playerstate.fov = camera.fov;
         cl.playerstate.distance = camera.distance;
         cl.playerstate.viewangles = camera.viewangles;
-        cl.playerstate.viewquat = Quaternion_fromEuler(&camera.viewangles, ROTATE_ZYX);
     }
 #endif
 

@@ -11,7 +11,7 @@ static FLOAT Wow_LerpDegrees(FLOAT a, FLOAT b, FLOAT t) {
     return a + delta * t;
 }
 
-/* WoW viewangles use pitch/yaw degrees and a Z-up world in both client and renderer. */
+/* Helper Euler is {pitch, yaw, roll} in degrees, Z-up. playerState.viewangles is ROTATE_ZYX {pitch, roll, yaw}. */
 static VECTOR3 Wow_ViewForward(LPCVECTOR3 angles) {
     FLOAT yaw = (FLOAT)DEG2RAD(angles->y), pitch = (FLOAT)DEG2RAD(angles->x);
     return (VECTOR3){ cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw), -sinf(pitch) };

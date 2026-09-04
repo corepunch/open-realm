@@ -1257,8 +1257,7 @@ static void Wow_UpdateCamera(LPEDICT ent) {
         return;
     }
     ent->client->ps.origin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, 0 };
-    ent->client->ps.viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
-    ent->client->ps.viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, wow_move.pitch, 0.0f, wow_move.yaw), ROTATE_ZYX);
+    ent->client->ps.viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
     ent->client->ps.fov = 45.0f;
     ent->client->ps.distance = wow_move.distance;
 }
@@ -1556,13 +1555,12 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
     }
 #ifdef WOW
     ps->origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
-    ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
-    ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, wow_move.pitch, 0.0f, wow_move.yaw), ROTATE_ZYX);
+    ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
     ps->fov = 45;
     ps->distance = wow_move.distance;
 #else
     ps->origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
-    ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326.0f, 0.0f, 0.0f), ROTATE_ZYX);
+    ps->viewangles = (VECTOR3){ 326.0f, 0.0f, 0.0f };
     ps->fov = 54;
     ps->distance = 250.0f;
 #endif

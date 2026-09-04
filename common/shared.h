@@ -519,8 +519,7 @@ _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR
 
 struct playerState_s {
     DWORD number;                   // client slot index
-    QUATERNION viewquat;            // canonical 3D view orientation sent to the renderer
-    VECTOR3 viewangles;             // euler pitch/yaw for orbit camera math; cannot round-trip losslessly from viewquat
+    VECTOR3 viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
     VECTOR3 origin;                 // server-authored camera look-at in world space (XY focus + composed Z)
     FLOAT distance;                 // camera distance from origin for orbit/isometric view
     FLOAT znear;                    // optional near clip; 0 keeps the previous sample / client default

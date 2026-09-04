@@ -107,7 +107,6 @@ typedef struct {
 typedef struct {
     VECTOR3 origin;
     VECTOR3 eye;
-    QUATERNION viewquat;
     VECTOR3 viewangles;
     float distance;
     float fov;      /* vertical field of view in degrees */
