@@ -1,9 +1,5 @@
 #include "cl_input_local.h"
-#include "cl_control_groups.h"
 #include "ui_layout.h"
-
-#include <stdlib.h>
-#include <strings.h>
 
 #ifndef WOW
 static struct {
@@ -26,138 +22,8 @@ static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 #endif
 }
 
-/* --- Control groups. Keys come from config binds (`group` / `group add` / `group assign`). ------ */
-#define CL_CONTROL_GROUP_COUNT 10 // groups; Warcraft III number-key groups; used for client control-group storage
-#define CL_CONTROL_GROUP_DOUBLE_TAP_MS 500 // milliseconds; double-tap focus window; used to recenter a recalled group
-#define CL_CONTROL_GROUP_NONE CL_CONTROL_GROUP_COUNT
-
-static DWORD cg_ids[CL_CONTROL_GROUP_COUNT][MAX_SELECTED_ENTITIES];
-static DWORD cg_count[CL_CONTROL_GROUP_COUNT];
-static DWORD cg_last_recall = CL_CONTROL_GROUP_NONE;
-static DWORD cg_last_recall_ms;
-
 void CL_InputModeResetMap(void) {
-    memset(cg_ids, 0, sizeof(cg_ids));
-    memset(cg_count, 0, sizeof(cg_count));
-    cg_last_recall = CL_CONTROL_GROUP_NONE;
-    cg_last_recall_ms = 0;
     cam_left = cam_right = cam_north = cam_south = false;
-}
-
-static void CL_ResetControlGroupRecall(void) {
-    cg_last_recall = CL_CONTROL_GROUP_NONE;
-    cg_last_recall_ms = 0;
-}
-
-static BOOL CL_ControlGroupCenter(DWORD const *ids, DWORD n, LPVECTOR2 center) {
-    double x = 0.0, y = 0.0;
-    DWORD valid = 0;
-
-    if (!ids || !center) return false;
-    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
-    FOR_LOOP(i, n) {
-        DWORD const number = ids[i];
-        LPCENTITYSTATE state;
-        if (!number || number >= MAX_CLIENT_ENTITIES) continue;
-        state = &cl.ents[number].current;
-        if (!state->model || state->stats[ENT_HEALTH] == 0 ||
-            (state->flags & EF_NOT_SELECTABLE)) continue;
-        x += state->origin.x;
-        y += state->origin.y;
-        valid++;
-    }
-    if (!valid) return false;
-    center->x = (FLOAT)(x / valid);
-    center->y = (FLOAT)(y / valid);
-    return true;
-}
-
-static void CL_ApplySelection(DWORD const *ids, DWORD n) {
-    char buffer[1024];
-    if (n == 0) return;
-    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
-    strlcpy(buffer, "select", sizeof(buffer));
-    FOR_LOOP(i, n) {
-        size_t used = strlen(buffer);
-        snprintf(buffer + used, sizeof(buffer) - used, " %d", ids[i]);
-    }
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, "%s", buffer);
-    cl.selection.num_selected = n;
-    memcpy(cl.selection.entity_nums, ids, sizeof(DWORD) * n);
-    CL_RequestUnitUI(n, cl.selection.entity_nums);
-}
-
-static void CL_GroupAssign(DWORD g) {
-    DWORD n = cl.selection.num_selected;
-    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
-    cg_count[g] = n;
-    memcpy(cg_ids[g], cl.selection.entity_nums, sizeof(DWORD) * n);
-    CL_ResetControlGroupRecall();
-}
-
-static void CL_GroupAdd(DWORD g) {
-    DWORD n = cl.selection.num_selected;
-    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
-    /* Append without recalling. The active selection stays so newly selected
-     * units can still receive the player's next command by themselves. */
-    cg_count[g] = CL_ControlGroupAppendUnique(
-        cg_ids[g], cg_count[g], MAX_SELECTED_ENTITIES,
-        cl.selection.entity_nums, n);
-    CL_ResetControlGroupRecall();
-}
-
-static void CL_GroupRecall(DWORD g) {
-    DWORD now;
-    BOOL center_on_group;
-    VECTOR2 center;
-
-    if (cg_count[g] == 0) {
-        CL_ResetControlGroupRecall();
-        return;
-    }
-    /* Recall immediately. A deliberate rapid second press also recenters
-     * the gameplay camera; the first press is never delayed. */
-    now = SDL_GetTicks();
-    center_on_group = cg_last_recall == g &&
-        (DWORD)(now - cg_last_recall_ms) <= CL_CONTROL_GROUP_DOUBLE_TAP_MS;
-    CL_ApplySelection(cg_ids[g], cg_count[g]);
-    if (center_on_group && CL_ControlGroupCenter(cg_ids[g], cg_count[g], &center))
-        CL_SetCameraPosition(center);
-    cg_last_recall = g;
-    cg_last_recall_ms = now;
-}
-
-/* Console command used by config binds: `group 1`, `group add 1`, `group assign 1`. */
-static void CL_Group_f(void) {
-    static struct { LPCSTR name; DWORD op; } const verbs[] = {
-        { "assign", 1 },
-        { "add", 2 },
-        { NULL, 0 },
-    };
-    LPCSTR a1 = Cmd_Argv(1);
-    DWORD g, op = 0;
-
-    if (!CL_GameplayInputReady() || CL_WindowModalActive()) return;
-    if (Cmd_Argc() < 2) {
-        fprintf(stderr, "group [assign|add] <0-9>\n");
-        return;
-    }
-    for (DWORD i = 0; verbs[i].name; i++) {
-        if (!strcasecmp(a1, verbs[i].name)) {
-            op = verbs[i].op;
-            a1 = Cmd_Argv(2);
-            break;
-        }
-    }
-    g = (DWORD)atoi(a1);
-    if (!a1 || a1[0] < '0' || a1[0] > '9' || a1[1] || g >= CL_CONTROL_GROUP_COUNT) {
-        fprintf(stderr, "group: %s is not a group number (0-9)\n", a1 ? a1 : "");
-        return;
-    }
-    if (op == 1) CL_GroupAssign(g);
-    else if (op == 2) CL_GroupAdd(g);
-    else CL_GroupRecall(g);
 }
 
 static void CL_BeginPan(float x, float y) {
@@ -271,7 +137,6 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("-camnorth", IN_CamNorthUp);
     Cmd_AddCommand("+camsouth", IN_CamSouthDown);
     Cmd_AddCommand("-camsouth", IN_CamSouthUp);
-    Cmd_AddCommand("group", CL_Group_f);
 }
 
 void CL_InputModeSetGameplay(void) {

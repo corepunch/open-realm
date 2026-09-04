@@ -145,6 +145,7 @@ the binding generic rather than looking up game-specific entity types or rules.
 | `client/cl_scrn.c` | Screen update and UI draw pass |
 | `client/cl_console.c` | In-game console |
 | `client/keys.c` | Key event dispatch and modifier-aware binding table (`bind SHIFT+1`) |
+| `client/cl_control_groups.c` | Numbered control groups on `cl.groups`; `group` / `group add` / `group assign` |
 | `common/net.c` | Loopback transport shared by client and server |
 
 ## See Also

@@ -1,5 +1,9 @@
 #include "cl_input_local.h"
+#include "cl_control_groups.h"
 #include "ui_layout.h"
+
+#include <stdlib.h>
+#include <strings.h>
 
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
@@ -352,6 +356,124 @@ void IN_SelectUp(void) {
     }
 }
 
+/* Numbered control groups stored on cl.groups. Config binds `group N`. */
+#define CL_GROUP_TAP_MS 500 // milliseconds; double-tap camera recenter window
+
+static void CL_ResetGroupTap(void) {
+    cl.group_last = MAX_CONTROL_GROUPS;
+    cl.group_last_ms = 0;
+}
+
+static BOOL CL_GroupCenter(DWORD const *ids, DWORD n, LPVECTOR2 center) {
+    double x = 0.0, y = 0.0;
+    DWORD valid = 0;
+
+    if (!ids || !center) return false;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    FOR_LOOP(i, n) {
+        DWORD const number = ids[i];
+        LPCENTITYSTATE state;
+        if (!number || number >= MAX_CLIENT_ENTITIES) continue;
+        state = &cl.ents[number].current;
+        if (!state->model || state->stats[ENT_HEALTH] == 0 ||
+            (state->flags & EF_NOT_SELECTABLE)) continue;
+        x += state->origin.x;
+        y += state->origin.y;
+        valid++;
+    }
+    if (!valid) return false;
+    center->x = (FLOAT)(x / valid);
+    center->y = (FLOAT)(y / valid);
+    return true;
+}
+
+static void CL_ApplySelection(DWORD const *ids, DWORD n) {
+    char buffer[1024];
+    if (n == 0) return;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    strlcpy(buffer, "select", sizeof(buffer));
+    FOR_LOOP(i, n) {
+        size_t used = strlen(buffer);
+        snprintf(buffer + used, sizeof(buffer) - used, " %d", ids[i]);
+    }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "%s", buffer);
+    cl.selection.num_selected = n;
+    memcpy(cl.selection.entity_nums, ids, sizeof(DWORD) * n);
+    CL_RequestUnitUI(n, cl.selection.entity_nums);
+}
+
+static void CL_GroupAssign(DWORD g) {
+    DWORD n = cl.selection.num_selected;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    cl.groups[g].num_selected = n;
+    memcpy(cl.groups[g].entity_nums, cl.selection.entity_nums, sizeof(DWORD) * n);
+    CL_ResetGroupTap();
+}
+
+static void CL_GroupAdd(DWORD g) {
+    DWORD n = cl.selection.num_selected;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    cl.groups[g].num_selected = CL_ControlGroupAppendUnique(
+        cl.groups[g].entity_nums, cl.groups[g].num_selected, MAX_SELECTED_ENTITIES,
+        cl.selection.entity_nums, n);
+    CL_ResetGroupTap();
+}
+
+static void CL_GroupRecall(DWORD g) {
+    DWORD now;
+    BOOL center_on_group;
+    VECTOR2 center;
+
+    if (cl.groups[g].num_selected == 0) {
+        CL_ResetGroupTap();
+        return;
+    }
+    now = cl.time;
+    center_on_group = cl.group_last == g &&
+        (DWORD)(now - cl.group_last_ms) <= CL_GROUP_TAP_MS;
+    CL_ApplySelection(cl.groups[g].entity_nums, cl.groups[g].num_selected);
+    if (center_on_group && CL_GroupCenter(cl.groups[g].entity_nums, cl.groups[g].num_selected, &center))
+        CL_SetCameraPosition(center);
+    cl.group_last = g;
+    cl.group_last_ms = now;
+}
+
+static void CL_Group_f(void) {
+    static struct { LPCSTR name; DWORD op; } const verbs[] = {
+        { "assign", 1 },
+        { "add", 2 },
+        { NULL, 0 },
+    };
+    LPCSTR a1 = Cmd_Argv(1);
+    DWORD g, op = 0;
+
+    if (!CL_GameplayInputReady() || CL_WindowModalActive()) return;
+    if (Cmd_Argc() < 2) {
+        fprintf(stderr, "group [assign|add] <0-9>\n");
+        return;
+    }
+    for (DWORD i = 0; verbs[i].name; i++) {
+        if (!strcasecmp(a1, verbs[i].name)) {
+            op = verbs[i].op;
+            a1 = Cmd_Argv(2);
+            break;
+        }
+    }
+    g = (DWORD)atoi(a1);
+    if (!a1 || a1[0] < '0' || a1[0] > '9' || a1[1] || g >= MAX_CONTROL_GROUPS) {
+        fprintf(stderr, "group: %s is not a group number (0-9)\n", a1 ? a1 : "");
+        return;
+    }
+    if (op == 1) CL_GroupAssign(g);
+    else if (op == 2) CL_GroupAdd(g);
+    else CL_GroupRecall(g);
+}
+
+static void CL_ControlGroupsInit(void) {
+    Cmd_AddCommand("group", CL_Group_f);
+}
+
 void CL_ForwardToServer_f(void) {
     extern LPCSTR current_command;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -366,5 +488,6 @@ void CL_InitInput(void) {
     Cmd_AddCommand("+select", IN_SelectDown);
     Cmd_AddCommand("-select", IN_SelectUp);
     Cmd_AddCommand("cmd", CL_ForwardToServer_f);
+    CL_ControlGroupsInit();
     CL_InputModeInit();
 }
