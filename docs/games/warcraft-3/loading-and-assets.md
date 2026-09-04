@@ -29,6 +29,46 @@ consumes the optional numeric category and validates the sequence/model fields; 
 
 Preserve the loading-state draw check before standalone-screen dispatch: `menu_ingame` is queued asynchronously, so loading must remain authoritative even after the glue screen is released.
 
+## Level-transition asset ownership
+
+A campaign `ChangeLevel` is a **map replacement**, not a mutation of the current world. The client clears its
+map-owned renderer handles before the next registration sequence, while `G_LoadMap` clears the server-side model
+metadata cache because `CS_MODELS` indices restart for each `SV_Map`. The WC3 map loader releases the previous
+map's W3I/WTS/object-modification allocations, placements, terrain arrays, and pathing storage before reading the
+destination archive. These boundaries prevent a model index, trigger string, placement, or pathing allocation from
+retaining the previous level by accident.
+
+The WC3 renderer likewise replaces its map state at `_W3M_RegisterMap`: old terrain segment/layer VAOs, ground
+layer lists, cliff model choices, fog render targets, minimap handle, terrain shadow, and source W3E arrays are
+released before the destination world is built. Ground and cliff lookup caches are map-scoped and reset at the
+same boundary. Do not append a new campaign map to the previous terrain lists.
+
+### Map-imported model and texture overrides
+
+The MPQ reader supports nested archive paths: a lookup such as
+`Maps\Campaign\Human03.w3m\Textures\Foo.blp` opens `Human03.w3m` and then resolves the inner path. WC3 installs
+the currently registered map as the renderer's generic map-asset scope, so ordinary model and texture references
+resolve with this order:
+
+1. `<current .w3m/.w3x>\<logical Warcraft asset path>`;
+2. the ordinary base-data path.
+
+The resolved scoped path is also the renderer cache key. This is required for consecutive maps that import
+different bytes under the same logical name; a `Textures\Foo.blp` cached for Human02 must not satisfy Human03's
+own `Textures\Foo.blp`. Missing scoped models/textures fall back to Blizzard data without turning the scoped miss
+into a missing-resource placeholder. Texture fallbacks alias the scoped key to the resolved base texture so later
+lookups do not repeat the nested-archive miss. Clearing client state clears the generic renderer asset scope so a
+map import cannot continue overriding menu assets after disconnect.
+
+Standalone renderer regression coverage exercises both a present scoped model/cache hit and a missing scoped
+model that falls back to the base path, including scope clearing at a registration boundary.
+
+This is intentionally narrower than a full Warsmash-style data-source stack. The current transition still does
+**not** rebuild all WC3 SLK/TXT data per map, merge all `war3map.w3a/.w3t/.w3b/.w3d/.w3q` object modifications,
+implement JASS `Preload`/`Preloader`, or expose staged byte/task loading progress. `war3map.w3u` field application
+and true per-map `war3mapMisc.txt`/skin overlays remain separate data-layer work; do not infer those capabilities
+from the renderer's map-import lookup.
+
 ## Asset names are data
 
 | Source | Meaning / resolution |

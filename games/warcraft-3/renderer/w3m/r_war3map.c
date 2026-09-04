@@ -3,6 +3,49 @@
 LPMAPSEGMENT g_mapSegments = NULL;
 LPMAPLAYER g_groundLayers = NULL;
 
+static void R_FreeMapLayers(LPMAPLAYER *layers) {
+    while (*layers) {
+        LPMAPLAYER layer = *layers;
+        *layers = layer->next;
+        if (layer->buffer) R_ReleaseVertexArrayObject((LPBUFFER)layer->buffer);
+        ri.MemFree(layer);
+    }
+}
+
+static void R_FreeMapSegments(void) {
+    while (g_mapSegments) {
+        LPMAPSEGMENT segment = g_mapSegments;
+        g_mapSegments = segment->next;
+        R_FreeMapLayers(&segment->layers);
+        ri.MemFree(segment);
+    }
+}
+
+static void R_FreeWar3Map(LPWAR3MAP map) {
+    if (!map) return;
+    SAFE_DELETE(map->grounds, ri.MemFree);
+    SAFE_DELETE(map->cliffs, ri.MemFree);
+    SAFE_DELETE(map->vertices, ri.MemFree);
+    ri.MemFree(map);
+}
+
+void _W3M_ClearMap(void) {
+    LPTEXTURE shadow = tr.texture[TEX_TERRAIN_SHADOW];
+
+    R_FreeMapSegments();
+    R_FreeMapLayers(&g_groundLayers);
+    R_ResetGroundTextures();
+    R_ResetCliffCache();
+    R_ShutdownFogOfWar();
+    SAFE_DELETE(tr.minimap, R_ReleaseTexture);
+    tr.texture[TEX_TERRAIN_SHADOW] = NULL;
+    if (shadow) R_ReleaseTexture(shadow);
+    if (tr.world) {
+        R_FreeWar3Map((LPWAR3MAP)tr.world);
+        tr.world = NULL;
+    }
+}
+
 static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     HANDLE file;
     if (!SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file)) {
@@ -208,6 +251,11 @@ void _W3M_RegisterMap(char const *mapFilename) {
     LPBYTE mapData;
     int mapSize;
     LPWAR3MAP map;
+
+    /* A map registration replaces the whole WC3 world.  Free GPU buffers,
+     * map-owned models, fog targets and source terrain before creating the
+     * next level so repeated campaign transitions do not accumulate state. */
+    _W3M_ClearMap();
 
     /* Load .w3m file (which is itself an MPQ archive) */
     mapSize = ri.FS_ReadFile(mapFilename, (void **)&mapData);

@@ -234,19 +234,22 @@ static LPTEXTURE R_MakeBlobShadowTexture(void) {
     return texture;
 }
 
-LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
-    LPTEXTURE texture = NULL;
+static LPTEXTURE R_LoadTexturePath(LPCSTR textureFilename, BOOL *found) {
+    LPTEXTURE texture = R_FindLoadedTexture(textureFilename);
     void *buffer = NULL;
     PATHSTR load_path;
-    texture = R_FindLoadedTexture(textureFilename);
-    if (texture) return texture;
-    int fileSize = R_ReadTextureFile(textureFilename, load_path, &buffer);
-    if (fileSize < 0 || !buffer) {
-        /* Missing registrations are resident too: repeated draw paths must not search every MPQ again. */
-        fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
-        R_CacheLoadedTexture(textureFilename, tr.texture[TEX_PLACEHOLDER]);
-        return tr.texture[TEX_PLACEHOLDER];
+    int fileSize;
+
+    if (texture) {
+        if (found) *found = true;
+        return texture;
     }
+    fileSize = R_ReadTextureFile(textureFilename, load_path, &buffer);
+    if (fileSize < 0 || !buffer) {
+        if (found) *found = false;
+        return NULL;
+    }
+    if (found) *found = true;
     switch (*(DWORD *)buffer) {
         case ID_BLP1:
             texture = R_LoadTextureBLP1(buffer, fileSize);
@@ -272,6 +275,30 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     if (!texture) texture = tr.texture[TEX_PLACEHOLDER];
     R_CacheLoadedTexture(textureFilename, texture);
     return texture;
+}
+
+LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
+    PATHSTR scoped;
+    LPTEXTURE texture;
+    BOOL found = false;
+    BOOL has_scope;
+
+    if (!textureFilename || !*textureFilename) return tr.texture[TEX_PLACEHOLDER];
+    has_scope = R_MapAssetCandidate(textureFilename, scoped, sizeof(scoped));
+    if (has_scope) {
+        texture = R_LoadTexturePath(scoped, &found);
+        if (found) return texture;
+    }
+    texture = R_LoadTexturePath(textureFilename, &found);
+    if (found) {
+        if (has_scope) R_CacheLoadedTexture(scoped, texture);
+        return texture;
+    }
+    /* Missing registrations are resident too: repeated draw paths must not search every MPQ again. */
+    fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
+    R_CacheLoadedTexture(textureFilename, tr.texture[TEX_PLACEHOLDER]);
+    if (has_scope) R_CacheLoadedTexture(scoped, tr.texture[TEX_PLACEHOLDER]);
+    return tr.texture[TEX_PLACEHOLDER];
 }
 
 LPRENDERTARGET

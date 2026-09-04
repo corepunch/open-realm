@@ -13,7 +13,10 @@
 | `FS_ReadFileAll(name, cb, ud)` | loose or MPQ path | none (callback) | same as FS_ReadFile | caller owns buffer in callback |
 
 `FS_ReadFile` tries MPQ archives first (`FS_OpenFile` → the in-tree `common/mpq.c` reader), then falls back to
-`FS_ReadLooseFile`.
+`FS_ReadLooseFile`. `SFileOpenFileEx` also recognizes an archive component inside the requested path and can open
+that file as a nested MPQ. A game renderer can use the generic map-asset scope to probe
+`<map/archive path>\<model-or-texture path>` before its ordinary asset path. Keep the full nested path as the cache
+identity; path-only caches otherwise let one map's imported resource satisfy a later map's lookup.
 
 WC3 voice WAV sectors commonly use an encrypted mixed compression stream: the first sector is zlib (`0x02`), while
 later sectors use adaptive Huffman followed by mono ADPCM (`0x41`; stereo is `0x81`). `common/mpq.c` applies

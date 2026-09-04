@@ -127,6 +127,10 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
         return false;
     }
+    /* CS_MODELS is rebuilt from index 1 for every SV_Map.  The server-side
+     * animation metadata cache uses those indices too, so retaining it across
+     * levels can make a new index resolve to the previous map's filename. */
+    G_FreeModels();
     if (gi.ApplyLobbySettings) {
         gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     }

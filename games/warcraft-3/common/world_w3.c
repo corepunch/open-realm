@@ -41,12 +41,60 @@ void CM_ReadUnits(HANDLE archive);
 void CM_ReadStrings(HANDLE archive);
 void CM_ReadMapScript(HANDLE archive);
 
+static void CM_W3FreeUnitOverrides(DWORD count, unitData_t **units_ptr) {
+    unitData_t *units = units_ptr ? *units_ptr : NULL;
+
+    if (!units) return;
+    FOR_LOOP(i, count) {
+        FOR_LOOP(j, units[i].numbeOfModifications)
+            SAFE_DELETE(units[i].modifications[j].data, MemFree);
+        SAFE_DELETE(units[i].modifications, MemFree);
+    }
+    MemFree(units);
+    *units_ptr = NULL;
+}
+
+static void CM_W3FreeDroppedItemSets(DWORD num_sets, droppableItemSet_t *sets) {
+    if (!sets) return;
+    FOR_LOOP(i, num_sets)
+        SAFE_DELETE(sets[i].droppableItems, MemFree);
+    MemFree(sets);
+}
+
+static void CM_W3FreeDoodadPlacement(LPDOODAD doodad) {
+    if (!doodad) return;
+    CM_W3FreeDroppedItemSets(doodad->num_droppedItemSets, doodad->droppableItemSets);
+    SAFE_DELETE(doodad->inventoryItems, MemFree);
+    SAFE_DELETE(doodad->modifiedAbilities, MemFree);
+    SAFE_DELETE(doodad->diffAvailUnits, MemFree);
+}
+
+static void CM_W3ClearMapData(void) {
+    CM_W3FreeUnitOverrides(world.info.num_originalUnits, &world.info.originalUnits);
+    CM_W3FreeUnitOverrides(world.info.num_userCreatedUnits, &world.info.userCreatedUnits);
+    CM_ReleaseModel();
+    while (world.doodads) {
+        LPDOODAD doodad = world.doodads;
+        world.doodads = doodad->next;
+        CM_W3FreeDoodadPlacement(doodad);
+        MemFree(doodad);
+    }
+    if (world.map) {
+        SAFE_DELETE(world.map->grounds, MemFree);
+        SAFE_DELETE(world.map->cliffs, MemFree);
+        SAFE_DELETE(world.map->vertices, MemFree);
+        MemFree(world.map);
+    }
+    CM_SetupPathMap(0, 0, NULL);
+    memset(&world, 0, sizeof(world));
+}
+
 bool CM_LoadMapFormat(LPCSTR mapFilename) {
     HANDLE mapArchive;
     HANDLE mapData;
     DWORD mapSize = 0;
 
-    memset(&world, 0, sizeof(world));
+    CM_W3ClearMapData();
     mapData = FS_ReadFile(mapFilename, &mapSize);
     if (!mapData || mapSize == 0) {
         Com_Error(ERR_DROP, "CM_LoadMap: failed to read map %s\n", mapFilename);
