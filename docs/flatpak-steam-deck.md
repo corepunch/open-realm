@@ -228,12 +228,20 @@ than treating this development manifest as a final Flathub submission.
 
 `.github/workflows/c-cpp.yml` builds the Flatpak as the final CI job. The
 `build-flatpak` job waits for the unit-test, Linux native-build, and Windows
-native-build jobs to succeed before it runs. It then installs host Flatpak
-tooling plus the 25.08 runtime/SDK, runs the same `dist-scripts/flathub/build.sh`
-used by developers, and uploads `build/io.github.corepunch.OpenRealm.flatpak` as
-the `openrealm-flatpak-linux-x64` workflow artifact. This makes every successful
+native-build jobs to succeed before it runs. Frequent CI builds run inside the
+official Flathub Freedesktop 25.08 build container and invoke the pinned
+`flatpak-github-actions` builder action instead of installing Flatpak tooling and
+the runtime/SDK with `apt`/`deps.sh` on every fresh GitHub-hosted runner. Builder
+state under `.flatpak-builder` is restored/saved through the action cache, while
+Flatpak Builder still invalidates changed local-source modules from the checked-
+out tree. The job uploads `build/io.github.corepunch.OpenRealm.flatpak` as the
+`openrealm-flatpak-linux-x64` workflow artifact. This makes every successful
 main/tag/PR CI run exercise the distributable Flatpak after the normal build
 work has completed.
+
+`dist-scripts/flathub/deps.sh` remains the supported local-developer setup path.
+The separate release workflow intentionally keeps the local-style build flow so
+its bundle/installer-ZIP assembly remains independent of the frequent CI job.
 
 `.github/workflows/release.yml` keeps its separate Linux `flatpak` job for
 published releases. It installs host Flatpak tooling, installs the 25.08
