@@ -67,7 +67,7 @@ static BOOL QuestIsListVisible(LPCQUEST quest) {
 
 static BOOL QuestIsVisibleMember(LPCQUEST quest) {
     if (!quest) return false;
-    FOR_EACH_LIST(QUEST, q, level.quests) {
+    FOR_EACH_QUEST(q) {
         if (q == quest) return QuestIsVisible(q);
     }
     return false;
@@ -75,7 +75,7 @@ static BOOL QuestIsVisibleMember(LPCQUEST quest) {
 
 DWORD UI_QuestIndex(LPCQUEST quest) {
     DWORD index = 0;
-    FOR_EACH_LIST(QUEST, q, level.quests) {
+    FOR_EACH_QUEST(q) {
         if (q == quest) return index;
         index++;
     }
@@ -126,7 +126,7 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
 
     if (!container) return;
     ResetRowsForParent(rows, row_count, container);
-    FOR_EACH_LIST(QUEST, quest, level.quests) {
+    FOR_EACH_QUEST(quest) {
         char text[256];
         char command[64];
         LPFRAMEDEF row_frame, button, title, icon_container;
@@ -215,7 +215,7 @@ static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
 
     if (!container || !quest) return;
     ResetRowsForParent(hud.quest_item_rows, &hud.quest_item_row_count, container);
-    FOR_EACH_LIST(QUESTITEM, item, quest->items) {
+    FOR_EACH_QUESTITEM(quest, item) {
         char text[512];
         LPFRAMEDEF item_frame, title;
 
@@ -309,11 +309,11 @@ void UI_ShowQuests(LPEDICT ent) {
     LPCQUEST quest = NULL;
 
     if (!ent || !ent->client) return;
-    FOR_EACH_LIST(QUEST, q, level.quests) {
+    FOR_EACH_QUEST(q) {
         if (q->required && QuestIsVisible(q)) { quest = q; break; }
     }
     if (!quest) {
-        FOR_EACH_LIST(QUEST, q, level.quests) {
+        FOR_EACH_QUEST(q) {
             if (QuestIsVisible(q)) { quest = q; break; }
         }
     }

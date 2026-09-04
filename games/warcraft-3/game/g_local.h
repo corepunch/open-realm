@@ -629,7 +629,10 @@ typedef struct {
 #define MAX_JASS_GROUPS 1024 // handles; bounds deterministic per-map group save IDs
 #define MAX_JASS_TRIGGERS 4096 // handles; bounds deterministic per-map trigger save IDs
 #define MAX_JASS_TIMERS 1024 // handles; bounds deterministic per-map timer save IDs
-#define MAX_JASS_EVENTS 4096 // handlers; bounds TriggerRegister* objects created after main()
+#define MAX_EVENTS 4096 // handlers; fixed event slots preserve stable JASS pointers across removal
+#define MAX_JASS_EVENTS MAX_EVENTS // compatibility alias; event handles use the fixed MAX_EVENTS slots
+#define MAX_QUESTS 256 // quests; fixed quest slots preserve stable JASS pointers across removal
+#define MAX_QUESTITEMS 256 // items per quest; fixed quest-item slots preserve stable JASS pointers
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];
@@ -644,21 +647,22 @@ struct gtimer_s {
 
 struct gquestitem_s {
     LPSTR description;
-    LPQUESTITEM next;
     BOOL completed;
+    BOOL inuse;
 };
 
 struct gquest_s {
     LPSTR title;
     LPSTR description;
     LPSTR iconPath;
-    LPQUESTITEM items;
-    LPQUEST next;
+    QUESTITEM items[MAX_QUESTITEMS];
+    DWORD num_items;
     BOOL discovered;
     BOOL required;
     BOOL completed;
     BOOL failed;
     BOOL enabled;
+    BOOL inuse;
 };
 
 /* Quest rows are present in the journal only while both server visibility gates are enabled. */
@@ -1017,7 +1021,6 @@ struct game_locals {
 };
 
 struct gevent_s {
-    LPEVENT next;
     LPEDICT subject;
     EVENTTYPE type;
     LPTRIGGER trigger;
@@ -1027,6 +1030,7 @@ struct gevent_s {
     DWORD state;
     DWORD limitop;
     FLOAT limitval;
+    BOOL inuse;
 };
 
 typedef struct {
@@ -1042,7 +1046,7 @@ typedef struct {
 } CINEFILTER;
 
 typedef struct {
-    LPEVENT handlers;
+    EVENT handlers[MAX_EVENTS];
     GAMEEVENT queue[MAX_EVENT_QUEUE];
     DWORD write, read;
 } LEVELEVENTS;
@@ -1202,7 +1206,7 @@ struct level_locals {
     struct {
         DWORD base, cursor, count;
     } waypoints;
-    LPQUEST quests;
+    QUEST quests[MAX_QUESTS];
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
     CINEFILTER cinefilter;
@@ -1215,6 +1219,21 @@ struct level_locals {
     BOOL started;
     BOOL scriptsStarted;
 };
+
+#define FOR_EACH_EVENT(property) \
+for (DWORD event_index = 0; event_index < MAX_EVENTS; ++event_index) \
+    for (LPEVENT property = &level.events.handlers[event_index]; property; property = NULL) \
+        if (property->inuse)
+
+#define FOR_EACH_QUEST(property) \
+for (DWORD quest_index = 0; quest_index < MAX_QUESTS; ++quest_index) \
+    for (LPQUEST property = &level.quests[quest_index]; property; property = NULL) \
+        if (property->inuse)
+
+#define FOR_EACH_QUESTITEM(quest, property) \
+for (DWORD questitem_index = 0; questitem_index < MAX_QUESTITEMS; ++questitem_index) \
+    for (__typeof__((quest)->items[0]) *property = &(quest)->items[questitem_index]; property; property = NULL) \
+        if (property->inuse)
 
 typedef struct {
     LPCSTR id;
