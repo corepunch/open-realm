@@ -2,6 +2,9 @@
 #include "cl_control_groups.h"
 #include "ui_layout.h"
 
+#include <stdlib.h>
+#include <strings.h>
+
 #ifndef WOW
 static struct {
     BOOL active;
@@ -22,7 +25,7 @@ static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 #endif
 }
 
-/* --- Control groups (Ctrl+0..9 assign, Shift+0..9 append, 0..9 recall) ------ */
+/* --- Control groups. Keys come from config binds, not CL_HandleGameKey. ------ */
 #define CL_CONTROL_GROUP_COUNT 10 // groups; Warcraft III number-key groups; used for client control-group storage
 #define CL_CONTROL_GROUP_DOUBLE_TAP_MS 500 // milliseconds; double-tap focus window; used to recenter a recalled group
 #define CL_CONTROL_GROUP_NONE CL_CONTROL_GROUP_COUNT
@@ -83,64 +86,81 @@ static void CL_ApplySelection(DWORD const *ids, DWORD n) {
     CL_RequestUnitUI(n, cl.selection.entity_nums);
 }
 
-BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
-    DWORD g, now;
+static void CL_GroupAssign(DWORD g) {
+    DWORD n = cl.selection.num_selected;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    cg_count[g] = n;
+    memcpy(cg_ids[g], cl.selection.entity_nums, sizeof(DWORD) * n);
+    CL_ResetControlGroupRecall();
+}
+
+static void CL_GroupAdd(DWORD g) {
+    DWORD n = cl.selection.num_selected;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    /* Append without recalling. The active selection stays so newly selected
+     * units can still receive the player's next command by themselves. */
+    cg_count[g] = CL_ControlGroupAppendUnique(
+        cg_ids[g], cg_count[g], MAX_SELECTED_ENTITIES,
+        cl.selection.entity_nums, n);
+    CL_ResetControlGroupRecall();
+}
+
+static void CL_GroupRecall(DWORD g) {
+    DWORD now;
     BOOL center_on_group;
     VECTOR2 center;
 
-    if (!CL_GameplayInputReady())
-        return false;
-    /* Control groups are handled before the generic binding dispatcher.
-     * Consume digit keys while a modal client window is active so they cannot
-     * change gameplay selection behind Quest/Log. Other keys fall through to
-     * Key_Event, which applies the generic modal binding block. */
-    if (CL_WindowModalActive() && sym >= SDLK_0 && sym <= SDLK_9) {
+    if (cg_count[g] == 0) {
         CL_ResetControlGroupRecall();
-        return true;
+        return;
     }
-    if (sym < SDLK_0 || sym > SDLK_9) {
-        CL_ResetControlGroupRecall();
-        return false;
-    }
-    /* SDL key-repeat from holding a number is not a deliberate second tap. */
-    if (repeat)
-        return true;
+    /* Recall immediately. A deliberate rapid second press also recenters
+     * the gameplay camera; the first press is never delayed. */
+    now = SDL_GetTicks();
+    center_on_group = cg_last_recall == g &&
+        (DWORD)(now - cg_last_recall_ms) <= CL_CONTROL_GROUP_DOUBLE_TAP_MS;
+    CL_ApplySelection(cg_ids[g], cg_count[g]);
+    if (center_on_group && CL_ControlGroupCenter(cg_ids[g], cg_count[g], &center))
+        CL_SetCameraPosition(center);
+    cg_last_recall = g;
+    cg_last_recall_ms = now;
+}
 
-    g = (DWORD)(sym - SDLK_0); /* 0..9 */
-    if (mod & KMOD_CTRL) {
-        /* Assign the current selection to this control group. Ctrl keeps
-         * precedence when both Ctrl and Shift are held. */
-        DWORD n = cl.selection.num_selected;
-        if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
-        cg_count[g] = n;
-        memcpy(cg_ids[g], cl.selection.entity_nums, sizeof(DWORD) * n);
-        CL_ResetControlGroupRecall();
-    } else if (mod & KMOD_SHIFT) {
-        /* Append without recalling the group. This deliberately leaves the
-         * active selection untouched so newly selected units can be added to
-         * a group and still receive the player's next command by themselves. */
-        DWORD n = cl.selection.num_selected;
-        if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
-        cg_count[g] = CL_ControlGroupAppendUnique(
-            cg_ids[g], cg_count[g], MAX_SELECTED_ENTITIES,
-            cl.selection.entity_nums, n);
-        CL_ResetControlGroupRecall();
-    } else if (cg_count[g] > 0) {
-        /* Recall immediately. A deliberate rapid second press also recenters
-         * the gameplay camera; the first press is never delayed. */
-        now = SDL_GetTicks();
-        center_on_group = cg_last_recall == g &&
-            (DWORD)(now - cg_last_recall_ms) <= CL_CONTROL_GROUP_DOUBLE_TAP_MS;
-        CL_ApplySelection(cg_ids[g], cg_count[g]);
-        if (center_on_group && CL_ControlGroupCenter(cg_ids[g], cg_count[g], &center)) {
-            CL_SetCameraPosition(center);
-        }
-        cg_last_recall = g;
-        cg_last_recall_ms = now;
-    } else {
-        CL_ResetControlGroupRecall();
+/* Console command used by config binds: `group 1`, `group add 1`, `group assign 1`. */
+static void CL_Group_f(void) {
+    static struct { LPCSTR name; DWORD op; } const verbs[] = {
+        { "assign", 1 },
+        { "add", 2 },
+        { NULL, 0 },
+    };
+    LPCSTR a1 = Cmd_Argv(1);
+    DWORD g, op = 0;
+
+    if (!CL_GameplayInputReady() || CL_WindowModalActive()) return;
+    if (Cmd_Argc() < 2) {
+        fprintf(stderr, "group [assign|add] <0-9>\n");
+        return;
     }
-    return true;
+    for (DWORD i = 0; verbs[i].name; i++) {
+        if (!strcasecmp(a1, verbs[i].name)) {
+            op = verbs[i].op;
+            a1 = Cmd_Argv(2);
+            break;
+        }
+    }
+    g = (DWORD)atoi(a1);
+    if (!a1 || a1[0] < '0' || a1[0] > '9' || a1[1] || g >= CL_CONTROL_GROUP_COUNT) {
+        fprintf(stderr, "group: %s is not a group number (0-9)\n", a1 ? a1 : "");
+        return;
+    }
+    if (op == 1) CL_GroupAssign(g);
+    else if (op == 2) CL_GroupAdd(g);
+    else CL_GroupRecall(g);
+}
+
+BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
+    (void)sym; (void)mod; (void)repeat;
+    return false;
 }
 
 static void CL_BeginPan(float x, float y) {
@@ -237,6 +257,7 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("-pan", IN_PanUp);
     Cmd_AddCommand("+smart", IN_SmartDown);
     Cmd_AddCommand("-smart", IN_SmartUp);
+    Cmd_AddCommand("group", CL_Group_f);
 }
 
 void CL_InputModeSetGameplay(void) {

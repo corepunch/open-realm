@@ -6,13 +6,15 @@ Warcraft III control groups allow players to assign a selection of units to a nu
 
 ## Key Bindings
 
-| Key | Action |
-|-----|--------|
-| Ctrl+0–9 | Replace the control group with the current selection |
-| Shift+0–9 | Append the current selection to the control group without changing the active selection |
-| 0–9 | Recall the control group |
+Shipped in `games/warcraft-3/share/config.cfg` (and the StarCraft II config, which shares `cl_input_w3.c`). Do **not** add number-key handling to `CL_HandleGameKey`; that hook is a leftover per-game interceptor and new gameplay hotkeys belong in `bind` lines.
 
-If Ctrl and Shift are both held, Ctrl assignment takes precedence. This preserves the existing Ctrl+number replacement path and avoids interpreting Ctrl+Shift+number as an append.
+| Key | Bind | Action |
+|-----|------|--------|
+| Ctrl+0–9 | `bind CTRL+N "group assign N"` | Replace the control group with the current selection |
+| Shift+0–9 | `bind SHIFT+N "group add N"` | Append the current selection without changing the active selection |
+| 0–9 | `bind N "group N"` | Recall the control group |
+
+If Ctrl and Shift are both held, the bind dispatcher keeps Ctrl: it drops Alt, then Shift, then Ctrl until a matching slot exists, so `CTRL+SHIFT+1` fires `CTRL+1` (`group assign 1`) rather than `SHIFT+1`. See [modifier key binds](../../architecture/runtime.md#key-bindings).
 
 ## Implementation
 
@@ -27,9 +29,21 @@ static DWORD cg_count[10];
 
 Each group stores up to `MAX_SELECTED_ENTITIES` (64) entity IDs. Warcraft III's authoritative `CMD_Select` path currently applies `WC3_SELECTION_LIMIT` (12) when the group is recalled, so the client storage ceiling is intentionally broader than the server-side simultaneous-selection ceiling.
 
+### Command
+
+`group` is registered in `CL_InputModeInit`. Config binds invoke it through `Key_Event` / `Cbuf_AddText` like every other gameplay hotkey.
+
+| Command | Effect |
+|---------|--------|
+| `group N` | Recall group N |
+| `group add N` | Append the current selection to group N |
+| `group assign N` | Replace group N with the current selection |
+
+The command no-ops unless `CL_GameplayInputReady()` and no client window is modal, so Quest/Log cannot mutate groups behind the overlay.
+
 ### Assign (Ctrl+N)
 
-When Ctrl+0–9 is pressed:
+When `group assign N` runs:
 1. The current `cl.selection.num_selected` and `cl.selection.entity_nums` replace the stored group.
 2. The count is clamped to `MAX_SELECTED_ENTITIES`.
 3. Control-group double-tap state is reset.
@@ -38,7 +52,7 @@ Assignment does not itself send a selection command because the assigned units a
 
 ### Append (Shift+N)
 
-When Shift+0–9 is pressed:
+When `group add N` runs:
 1. `CL_ControlGroupAppendUnique` in `client/cl_control_groups.c` walks the current selection in order.
 2. IDs already present in the group are skipped.
 3. New IDs are appended after existing members.
@@ -52,7 +66,7 @@ Keeping append separate from recall is important for the Warcraft III workflow: 
 
 ### Recall (N)
 
-When 0–9 is pressed (without Ctrl or Shift):
+When `group N` runs:
 1. If `cg_count[g] > 0`, `CL_ApplySelection` is called with the stored IDs.
 2. `CL_ApplySelection` writes a `select` command to the netchan and updates the local selection cache.
 3. `CL_RequestUnitUI` refreshes the UI with the new local selection hint.
@@ -60,20 +74,21 @@ When 0–9 is pressed (without Ctrl or Shift):
 
 ### Camera Focus
 
-Recall always selects immediately. A second deliberate press of the same group within `CL_CONTROL_GROUP_DOUBLE_TAP_MS` (500 ms) centers the camera on the average position of live, modeled, selectable members. Key-repeat events are consumed but do not count as a second deliberate press.
+Recall always selects immediately. A second deliberate press of the same group within `CL_CONTROL_GROUP_DOUBLE_TAP_MS` (500 ms) centers the camera on the average position of live, modeled, selectable members. SDL key-repeat is ignored for gameplay `Key_Event` so holding a number cannot count as the second tap.
 
-Ctrl+N and Shift+N both reset double-tap recall state.
+`group assign` and `group add` both reset double-tap recall state.
 
 ## Modal Window Interaction
 
-`CL_HandleGameKey` is called from `CL_Input` in the main event loop. The function checks `CL_GameplayInputReady()` before processing any keys. `CL_GameplayInputReady()` returns `false` when:
+`Key_Event` calls `CL_WindowKeyEvent` before looking up binds, so a focused or modal client window consumes the key. `group` also refuses to run when `CL_GameplayInputReady()` is false or `CL_WindowModalActive()` is true:
 
 - `cls.key_dest != key_game`
 - `cls.state != ca_active`
 - `cl.playerstate.client_ui_state != CLIENT_UI_GAME`
 - `SCR_LayoutModalActive()` returns true (WC3 only)
+- a `UI_WINDOW_MODAL` client window is open
 
-This means all digit presses, including Ctrl+N assignment and Shift+N append, are swallowed while a modal window is open. This is intentional: blocking control-group mutation behind Quest/Log/modals prevents accidental group changes during UI interactions.
+This blocks control-group mutation behind Quest/Log/modals.
 
 ## Map Lifecycle Reset
 
@@ -108,13 +123,18 @@ Groups are client-local and last until reassignment, map reset, or process exit.
 - append-to-empty behavior;
 - existing-member priority at capacity.
 
+`games/warcraft-3/tests/test_keys.c` covers `SHIFT+1` / `CTRL+1` / `ALT+MOUSE1` bind-name parsing and Ctrl-over-Shift slot selection.
+
 The network parser has rejection coverage in `tests/test_net.c`; in-engine selection behavior is covered by `games/warcraft-3/game/tests/t_api.c`.
 
 ## References
 
-- `client/cl_input_w3.c` — Warcraft III control-group key handling and stored groups
+- `games/warcraft-3/share/config.cfg` — default `group` / `SHIFT+N` / `CTRL+N` binds
+- `client/cl_input_w3.c` — `group` command and stored groups
 - `client/cl_control_groups.c` — pure append/deduplication helper
-- `client/cl_input.c` — main input dispatch, calls `CL_HandleGameKey`
+- `client/keys.c` / `client/keys_name.h` — modifier bind table and lookup
+- `client/cl_input.c` — SDL events to `Key_Event`
 - `client/cl_parse.c` — `CL_ParseSetSelection` for server-authoritative selection reconciliation
 - `games/warcraft-3/game/g_commands.c` — authoritative `CMD_Select` filtering and 12-unit selection ceiling
 - `docs/games/warcraft-3/selection-and-control.md` — server-authoritative selection contract
+- [Modifier key binds](../../architecture/runtime.md#key-bindings)

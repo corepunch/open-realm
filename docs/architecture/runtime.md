@@ -85,6 +85,29 @@ After step 6, `map` and `connect` cvars are explicitly cleared, then re-populate
 
 `Cvar_LoadConfig(path)` tries `FS_ReadFileIntoString` first (MPQ/loose filesystem), then falls back to raw `fopen` for local files. It queues the text; startup calls `Cbuf_Execute()` after each config load before consuming the resulting cvars.
 
+## Key Bindings
+
+`bind <key> <command>` stores a command string in `client/keys.c`. `Key_Init` registers `bind` before configs load, so shipped `share/<game>/config.cfg` lines populate the table. The bound command does not need to exist until the key is pressed.
+
+### Modifier keys
+
+`bind` accepts `CTRL+`, `ALT+`, and `SHIFT+` prefixes, combined in any order, case-insensitive (`CONTROL` is an alias for `CTRL`):
+
+```
+bind 1 "group 1"
+bind SHIFT+1 "group add 1"
+bind CTRL+1 "group assign 1"
+bind ALT+MOUSE1 "+pan"
+```
+
+Letters fold to lowercase (`SHIFT+Q` is the Q key). `writeconfig` emits the canonical order `CTRL+ALT+SHIFT+<key>`, so `ALT+MOUSE1` stays `ALT+MOUSE1`.
+
+On key-down, `Key_Event` looks up the exact modifier combo, then drops Alt, then Shift, then Ctrl until a bind exists, then falls back to the unmodified key. That is why `CTRL+SHIFT+1` fires `CTRL+1` when both are bound, and why `SHIFT+Q` still runs `bind q` when no `SHIFT+Q` bind exists.
+
+`+command` key-up reuses the modifiers captured on key-down, so releasing Alt before the mouse button still ends `ALT+MOUSE1 "+pan"`.
+
+SDL key-repeat is ignored while `key_dest == key_game`. New gameplay hotkeys belong in config `bind` lines, not in `CL_HandleGameKey`.
+
 ## Command-Line Arguments
 
 ### `-` (dash) Prefix — set cvars immediately

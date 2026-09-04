@@ -11,34 +11,22 @@ static keyCode_t CL_SDLKeyToKeyCode(int sym) {
     return (keyCode_t)sym;
 }
 
-BOOL CL_AltModifierDown(void) {
-    SDL_Keymod const mod = SDL_GetModState();
-    return (mod & (KMOD_LALT | KMOD_RALT)) != 0;
+static DWORD CL_BindMods(SDL_Keymod m) {
+    DWORD mods = 0;
+    if (m & KMOD_CTRL) mods |= KEY_MOD_CTRL;
+    if (m & KMOD_ALT) mods |= KEY_MOD_ALT;
+    if (m & KMOD_SHIFT) mods |= KEY_MOD_SHIFT;
+    return mods;
 }
 
 static keyCode_t CL_MouseButtonKey(SDL_MouseButtonEvent const *button) {
-    keyCode_t key = 0;
-
-    if (!button) {
-        return 0;
-    }
+    if (!button) return 0;
     switch (button->button) {
-        case SDL_BUTTON_LEFT:
-            key = K_MOUSE1;
-            break;
-        case SDL_BUTTON_RIGHT:
-            key = K_MOUSE2;
-            break;
-        case SDL_BUTTON_MIDDLE:
-            key = K_MOUSE3;
-            break;
-        default:
-            return 0;
+        case SDL_BUTTON_LEFT: return K_MOUSE1;
+        case SDL_BUTTON_RIGHT: return K_MOUSE2;
+        case SDL_BUTTON_MIDDLE: return K_MOUSE3;
+        default: return 0;
     }
-    if (cls.key_dest == key_game && CL_AltModifierDown()) {
-        key = (keyCode_t)(K_ALT_MOUSE1 + key - K_MOUSE1);
-    }
-    return key;
 }
 
 BOOL CL_MouseOverGameplayUI(void) {
@@ -75,7 +63,7 @@ void CL_Input(void) {
                     }
                     if (mousevt && cls.key_dest != key_console) {
                         mouse_button_keys[event.button.button] = mousevt;
-                        Key_Event(mousevt, true, event.button.timestamp);
+                        Key_Event(mousevt, CL_BindMods(SDL_GetModState()), true, event.button.timestamp);
                     }
                 }
                 break;
@@ -90,7 +78,7 @@ void CL_Input(void) {
                         CL_InputModeMouseButton(&event.button, false);
                     }
                     if (mousevt && cls.key_dest != key_console) {
-                        Key_Event(mousevt, false, event.button.timestamp);
+                        Key_Event(mousevt, CL_BindMods(SDL_GetModState()), false, event.button.timestamp);
                         mouse_button_keys[event.button.button] = 0;
                     }
                 }
@@ -129,21 +117,25 @@ void CL_Input(void) {
                     CON_KeyEvent(event.key.keysym.sym, true);
                     break;
                 }
+                /* SDL key-repeat is not a deliberate second press; skip it for
+                 * gameplay so held number binds cannot double-tap a control group. */
+                if (cls.key_dest == key_game && event.key.repeat)
+                    break;
                 if (cls.key_dest == key_game && CL_MinimapKeyEvent(event.key.keysym.sym, event.key.repeat != 0)) {
                     break;
                 }
                 if (cls.key_dest == key_game &&
                     CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod, event.key.repeat != 0)) {
-                    break; /* consumed by in-game handler (e.g. control groups) */
+                    break; /* consumed by in-game handler (e.g. WoW action bar) */
                 }
-                Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), true, event.key.timestamp);
+                Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), CL_BindMods(event.key.keysym.mod), true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
                 if (cls.key_dest == key_console || event.key.keysym.sym == SDLK_BACKQUOTE) {
                     CON_KeyEvent(event.key.keysym.sym, false);
                     break;
                 }
-                Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), false, event.key.timestamp);
+                Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), CL_BindMods(event.key.keysym.mod), false, event.key.timestamp);
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 mouse.origin.x = event.button.x;
