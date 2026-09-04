@@ -84,6 +84,7 @@ static inline void R_PackModelGrass(LPMATRIX4 out, LPCMODELGRASS in) {
     }};
 }
 
+void R_SetDefaultLighting(DEFAULTPROG *shader, LPCMODELLIGHTING lighting);
 void R_SetModelLighting(MODELPROG *shader, LPCMODELLIGHTING lighting);
 void R_SetModelGrass(MODELPROG *shader, LPCMODELGRASS grass);
 

@@ -2,6 +2,7 @@
 #define __r_mdx_h__
 
 #include "renderer/r_local.h"
+#include "renderer/r_shader.h"
 #include "renderer/r_trail.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
@@ -405,6 +406,11 @@ extern MATRIX4 node_matrices[MDX_MAX_NODES];
 
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time);
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output);
+void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0);
+BOOL MDLX_EvaluateLight(mdxModel_t const *model, mdxLight_t const *light,
+                        LPCMATRIX4 model_matrix, DWORD frame, BOOL use_visibility,
+                        LPRMODELLIGHT output);
+BOOL MDLX_SampleFirstLight(LPCMODEL model, FLOAT ratio, LPRMODELLIGHT output);
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name);
 DWORD MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_matrix,
                                       DWORD frame, DWORD oldframe, LPCSTR prefix,

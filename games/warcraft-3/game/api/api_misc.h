@@ -1176,8 +1176,23 @@ DWORD SetWaterDeforms(LPJASS j) {
 DWORD SetDayNightModels(LPJASS j) {
     LPCSTR terrainDNCFile = jass_checkstring(j, 1);
     LPCSTR unitDNCFile = jass_checkstring(j, 2);
-    (void)terrainDNCFile;
-    (void)unitDNCFile;
+    int terrain_model = 0, unit_model = 0;
+    char value[16];
+
+    /* The map script owns the DNC asset choice. Register both models through
+     * the ordinary model configstring pool, then publish only their compact
+     * indices. The generic client turns those indices back into model handles
+     * and the WC3 renderer samples their first animated lights. */
+    if (gi.ModelIndex) {
+        if (terrainDNCFile && *terrainDNCFile) terrain_model = gi.ModelIndex(terrainDNCFile);
+        if (unitDNCFile && *unitDNCFile) unit_model = gi.ModelIndex(unitDNCFile);
+    }
+    if (gi.configstring) {
+        snprintf(value, sizeof(value), "%d", terrain_model);
+        gi.configstring(CS_TERRAIN_LIGHT_MODEL, value);
+        snprintf(value, sizeof(value), "%d", unit_model);
+        gi.configstring(CS_ENTITY_LIGHT_MODEL, value);
+    }
     return 0;
 }
 DWORD SetSkyModel(LPJASS j) {

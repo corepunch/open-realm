@@ -1,4 +1,6 @@
 #include "r_war3map.h"
+#include "../mdx/r_mdx.h"
+#include "renderer/r_shader.h"
 
 LPMAPSEGMENT g_mapSegments = NULL;
 LPMAPLAYER g_groundLayers = NULL;
@@ -304,6 +306,18 @@ void _W3M_DrawWorld(void) {
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
+
+    {
+        MODELLIGHTING lighting = { 0 };
+        if (MDLX_SampleFirstLight(tr.viewDef.terrainLightModel,
+                                  tr.viewDef.environmentPhase,
+                                  &lighting.lights[0])) {
+            lighting.count = 1;
+            R_SetDefaultLighting(&tr.shader_default, &lighting);
+        } else {
+            R_SetDefaultLighting(&tr.shader_default, NULL);
+        }
+    }
 
     FOR_EACH_LIST(MAPLAYER, layer, g_groundLayers) {
         if (layer == g_groundLayers) {

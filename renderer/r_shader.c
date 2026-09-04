@@ -226,6 +226,8 @@ const shader_desc_t sd_default = {
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightMatrix,    UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(normalMatrix,   UT_FLOAT_MAT3_TRANSPOSE, PRECISION_HIGH),
+        UNIFORM(lightCount,     UT_INT,        PRECISION_LOW),
+        UNIFORM(lights,         UT_FLOAT_MAT4, PRECISION_HIGH, BZ_MODEL_LIGHT_MAX),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(shadowmap,      UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
@@ -237,25 +239,60 @@ const shader_desc_t sd_default = {
         ATTRIB(color,    attrib_color,    UT_COLOR),
     },
     .Shared = {
-        SHARED(texcoord,  UT_FLOAT_VEC2),
-        SHARED(texcoord2, UT_FLOAT_VEC2),
-        SHARED(normal,    UT_FLOAT_VEC3),
-        SHARED(lightDir,  UT_FLOAT_VEC3),
-        SHARED(color,     UT_COLOR),
-        SHARED(shadow,    UT_FLOAT_VEC4),
+        SHARED(texcoord,    UT_FLOAT_VEC2),
+        SHARED(texcoord2,   UT_FLOAT_VEC2),
+        SHARED(normal,      UT_FLOAT_VEC3),
+        SHARED(lightDir,    UT_FLOAT_VEC3),
+        SHARED(lighting,    UT_FLOAT_VEC3),
+        SHARED(shadowlight, UT_FLOAT_VEC3),
+        SHARED(color,       UT_COLOR),
+        SHARED(shadow,      UT_FLOAT_VEC4),
     },
     .VertexBody =
+        "const int MODEL_LIGHT_OMNI = 0;\n"
+        "const int MODEL_LIGHT_DIRECT = 1;\n"
+        "const int MODEL_LIGHT_AMBIENT = 2;\n"
+        "vec3 apply_environment_light(mat4 light, vec3 n, vec3 worldPos) {\n"
+        "  int type = int(light[0].w + 0.5);\n"
+        "  vec3 color = light[2].rgb * light[2].a;\n"
+        "  vec3 ambient = light[3].rgb * light[3].a;\n"
+        "  if (type == MODEL_LIGHT_AMBIENT) return color + ambient;\n"
+        "  if (type == MODEL_LIGHT_DIRECT) {\n"
+        "    vec3 l = normalize(-light[1].xyz);\n"
+        "    return clamp(color * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient;\n"
+        "  }\n"
+        "  vec3 delta = light[0].xyz - worldPos;\n"
+        "  vec3 l = normalize(delta);\n"
+        "  float dist = length(delta) / 64.0 + 1.0;\n"
+        "  float atten = 1.0 / (dist * dist);\n"
+        "  return clamp(color * atten * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient * atten;\n"
+        "}\n"
+        "vec3 environment_lighting(vec3 normal, vec3 worldPos) {\n"
+        "  vec3 n = normalize(normal);\n"
+        "  vec3 result = vec3(0.0);\n"
+        "  v_shadowlight = vec3(0.0);\n"
+        "  for (int i = 0; i < 8; ++i) {\n"
+        "    if (i >= u_lightCount) break;\n"
+        "    vec3 contribution = apply_environment_light(u_lights[i], n, worldPos);\n"
+        "    result += contribution;\n"
+        "    if (i == 0 && int(u_lights[i][0].w + 0.5) == MODEL_LIGHT_DIRECT)\n"
+        "      v_shadowlight = contribution - u_lights[i][3].rgb * u_lights[i][3].a;\n"
+        "  }\n"
+        "  return result;\n"
+        "}\n"
         "vec4 vert() {\n"
         "  vec4 pos = u_model * vec4(a_position, 1.0);\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_texcoord2 = (u_textureMatrix * pos).xy;\n"
         "  v_normal = normalize(u_normalMatrix * a_normal);\n"
+        "  v_shadowlight = vec3(0.0);\n"
+        "  v_lighting = u_lightCount > 0 ? environment_lighting(v_normal, pos.xyz) : vec3(0.0);\n"
         "#ifdef USE_SHADOWMAPS\n"
         "  v_shadow = u_lightMatrix * pos;\n"
         "#endif\n"
         "  v_color = a_color;\n"
         "  v_lightDir = -normalize(vec3(u_lightMatrix[0][2], u_lightMatrix[1][2], u_lightMatrix[2][2])) * 1.2;\n"
-        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "  return u_viewProjection * pos;\n"
         "}\n",
     .FragmentBody =
         "float get_light() {\n"
@@ -266,9 +303,15 @@ const shader_desc_t sd_default = {
         "  float depth = texture(u_shadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
         "  return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
         "}\n"
-        "float get_lighting() { return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1); }\n"
+        "vec3 get_lighting() {\n"
+        "  if (u_lightCount > 0) return clamp(v_lighting - v_shadowlight * (1.0 - get_shadow()), vec3(0.0), vec3(1.0));\n"
+        "  return vec3(min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1));\n"
+        "}\n"
         "#else\n"
-        "float get_lighting() { return min(1.0, mix(0.35, 1.0, get_light()) * 1.1); }\n"
+        "vec3 get_lighting() {\n"
+        "  if (u_lightCount > 0) return clamp(v_lighting, vec3(0.0), vec3(1.0));\n"
+        "  return vec3(min(1.0, mix(0.35, 1.0, get_light()) * 1.1));\n"
+        "}\n"
         "#endif\n"
         "#ifdef USE_FOGOFWAR\n"
         "float get_fogofwar() {\n"
@@ -743,6 +786,24 @@ MODELPROG *R_ModelShaderInstanced(void) {
         instanced_shader_loaded = true;
     }
     return &instanced_shader;
+}
+
+/* Ground/world callers use the same semantic light schema as models. A zero
+ * count explicitly selects the legacy fixed terrain light so games without an
+ * environment-light model retain their existing appearance. */
+void R_SetDefaultLighting(DEFAULTPROG *shader, LPCMODELLIGHTING lighting) {
+    if (!shader) return;
+    if (!lighting || lighting->count == 0) {
+        shader->state.lightCount = 0;
+        return;
+    }
+    if (lighting->count > BZ_MODEL_LIGHT_MAX) {
+        ri.error("R_SetDefaultLighting: light count must be 0..%u, got %u", BZ_MODEL_LIGHT_MAX,
+                 lighting->count);
+        return;
+    }
+    R_PackModelLighting(shader->state.lights, lighting);
+    shader->state.lightCount = lighting->count;
 }
 
 /* Model callers submit one semantic lighting state; only this proxy knows the uniform packing contract. */

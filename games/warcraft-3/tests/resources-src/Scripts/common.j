@@ -202,6 +202,7 @@ native GetStoredInteger takes gamecache cache, string missionKey, string key ret
 native SetFloatGameState          takes fgamestate whichFloatGameState, real value returns nothing
 constant native GetFloatGameState takes fgamestate whichFloatGameState returns real
 native SuspendTimeOfDay           takes boolean b returns nothing
+native SetDayNightModels          takes string terrainDNCFile, string unitDNCFile returns nothing
 native TriggerRegisterGameStateEvent takes trigger whichTrigger, gamestate whichState, limitop opcode, real limitval returns event
 
 // Unit/death-event coverage used by player structure-count regression tests.

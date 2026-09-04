@@ -95,6 +95,14 @@ Each `uLights[i]` mat4 stores one source by GLSL column:
 
 `RMODELLIGHT.dir` points from the surface toward the light. The proxy negates it for the stored source-direction convention used by the shader. Game code must not access the shader uniform locations or packed mat4 schema.
 
+The ground/world `sd_default` program can consume the same packed semantic schema through `R_SetDefaultLighting`. Unlike the model
+program, its count may be zero: zero deliberately preserves the historical fixed terrain sun/ambient fallback. A nonzero count enables
+explicit environment lighting without giving the shared shader any title-specific DNC or time-of-day knowledge. `viewDef_t` likewise
+exposes only optional terrain/entity environment-light model handles and a normalized animation phase; the active game renderer owns
+how those inputs are sampled. WC3 uses this boundary for authored Day/Night Cycle models, while other games may leave it unused.
+Both model and ground paths clamp the final accumulated RGB light factor to `[0, 1]` before texture modulation; game-specific MDX
+channel/animation conventions must be normalized before constructing `MODELLIGHTING`, not encoded in the shared shader schema.
+
 ## Instanced grass
 
 The instanced model shader receives the complete effect state in `uGrassParams`, not seven independent uniforms. Its columns are:

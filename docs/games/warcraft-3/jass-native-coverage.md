@@ -214,9 +214,11 @@ progression. Explicit sets are deferred until the next time-of-day update and st
 `TriggerRegisterGameStateEvent` is **partial**: registrations for `GAME_STATE_TIME_OF_DAY` store the `limitop` and threshold and fire
 once on a false-to-true transition; integer game-state limit events are not implemented yet. The server-authored
 `TimeOfDayIndicator` now binds to the replicated normalized day phase and the WC3 MDX renderer scrubs its selected sequence with an
-explicit `@ratio`. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain placeholders because the inspected Warsmash source does not
-provide a behavior to mirror, while `SetDayNightModels` still lacks the global terrain/unit DNC-light contract. See
-[time-of-day.md](time-of-day.md) for ownership, `Misc` fields, gameplay consumers, HUD synchronization, and the remaining DNC work.
+explicit `@ratio`. `SetDayNightModels` now registers the map-authored terrain/unit DNC models, republishes their model indices to
+the client, and the WC3 renderer samples sequence 0 at the same normalized phase to use each model's first light as the corresponding
+base world light. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain placeholders because the inspected Warsmash source does not
+provide a behavior to mirror. See [time-of-day.md](time-of-day.md) for ownership, `Misc` fields, gameplay consumers, HUD
+synchronization, DNC rendering, and the remaining visual-lighting gaps.
 
 ## Trigger Context Contract
 

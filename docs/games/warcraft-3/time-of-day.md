@@ -51,19 +51,51 @@ bars deterministic.
 This mirrors the important Warsmash ownership rule: the clock model does **not** advance itself. It is a presentation of the
 authoritative simulation time.
 
-## DNC Lighting Status
+## DNC Lighting
 
-Warsmash loads separate terrain and unit Day/Night Cycle (DNC) MDX models and scrubs both to the same `time / DayHours` ratio. The
-first animated light from those models becomes the base terrain/unit world light; `SetDayNightModels` can replace the DNC model
-paths.
+Warsmash keeps two hidden Day/Night Cycle MDX instances: one for terrain and one for units. Generated Warcraft map scripts call
+`SetDayNightModels(terrainDNC, unitDNC)` from `main()`, so the map script already supplies the correct environment-specific assets;
+OpenRealm must not invent a tileset-to-DNC filename table. Warsmash holds both instances on sequence 0, scrubs them with the same
+`time / DayHours` ratio used by the HUD clock, and uses the **first light** from each model as the base terrain/unit world light.
 
-OpenRealm does **not** yet implement that global DNC-light contract. The WC3 MDX renderer can evaluate light tracks embedded in a
-model, but those lights currently belong to the rendered model itself; there is no renderer/world interface for one hidden DNC model
-to provide the base light for every terrain or unit draw. `SetDayNightModels` therefore remains a placeholder. Do not substitute a
-binary dawn/dusk tint: that would lose the authored continuous DNC color/intensity animation and would not match Warsmash.
+OpenRealm now follows that ownership contract:
 
-The next lighting implementation should add a game-specific DNC owner that loads the requested terrain/unit models, evaluates their
-first lights at the authoritative normalized phase, and passes only generic lighting data through the renderer boundary.
+1. `SetDayNightModels` registers both authored paths through `gi.ModelIndex()`. The ordinary `CS_MODELS` pool therefore owns the
+   resources and late calls use the existing reliable configstring resynchronization path.
+2. The native publishes the resulting model indices through `CS_TERRAIN_LIGHT_MODEL` and `CS_ENTITY_LIGHT_MODEL`; these small
+   configstrings contain decimal model indices, not duplicated paths.
+3. The generic client resolves those indices to loaded model handles and places them, together with the existing normalized
+   `WC3_UI_PLAYERSTAT_TIME_PHASE`, in generic environment-light fields on `viewDef_t`.
+4. The WC3 MDX renderer samples sequence 0 of each DNC model at that phase and evaluates its first authored light. Terrain uses the
+   terrain DNC light in the default world shader. Non-portrait MDX entities prepend the unit DNC light before any model-local lights.
+5. Missing/unloaded DNC models or DNC models without a light fall back to the previous fixed terrain/unit lighting, so maps that do
+   not establish DNC models keep their existing appearance. Portraits deliberately retain the separate portrait-lighting path.
+
+The DNC light uses the authored MDX color, intensity, ambient color/intensity, attenuation, node orientation, and animated key tracks.
+Because the phase advances continuously, dusk and dawn are continuous authored lighting transitions; the binary `Dawn`/`Dusk`
+gameplay thresholds do not switch the renderer between hard-coded day/night colors. The terrain and model shaders clamp the final
+accumulated light factor to `[0, 1]`, matching Warsmash before texture modulation rather than relying on framebuffer saturation.
+
+### MDX light-track compatibility
+
+Two MDX animation details are easy to miss and materially affect the stock DNC appearance:
+
+- Warsmash reverses the red/blue components of **animated** light `KLAC` (Color) and `KLBC` (AmbColor) vectors before they are
+  consumed. Static `MdlxLight.color` / `ambientColor` fields are not put through that animation-track conversion. OpenRealm mirrors
+  this at light evaluation time, after interpolation; component-wise interpolation makes that equivalent to flipping every authored
+  key and tangent before interpolation. Without it, the Lordaeron night track presents as warm brown/orange instead of cool blue.
+- For a global-sequence key track whose first authored key lies beyond the declared global-sequence duration, Warsmash treats that
+  first value as a constant. This includes the zero-duration-global-sequence pattern used by DNC-style node rotations. Returning the
+  default transform instead leaves a directional light pointing along the unrotated model axis. `MDLX_GetModelKeytrackValue()`
+  therefore preserves the first authored key for this case.
+
+These rules belong to the generic MDX animation/light implementation, not to `SetDayNightModels`: ordinary animated model lights
+benefit from the same compatibility behavior.
+
+This is the high-confidence terrain/unit DNC base-light contract, not complete Warsmash world-light parity. Remaining gaps include the
+separate target DNC model, portrait-light natives/ownership, aggregation of arbitrary scene lights exactly like Warsmash's world light
+manager, and driving the shadow-map projection direction from the animated DNC directional light. The current shadow map still uses
+the renderer's existing light matrix even while DNC color/intensity/direction affect surface lighting.
 
 ## JASS Coverage
 
@@ -77,7 +109,6 @@ Implemented against the authoritative clock:
 Still intentionally unresolved:
 
 - `SetTimeOfDayScale` / `GetTimeOfDayScale` (no matching behavior was found in the inspected Warsmash snapshot)
-- `SetDayNightModels` visual DNC ownership
 - temporary/false time-of-day presentation (for example Moonstone-style alternate clock sequence)
 
 ## Verification
@@ -88,10 +119,15 @@ The focused simulation tests are:
 build/bin/openwarcraft3 +dedicated 1 +test 'wc3_time.*'
 ```
 
+The `wc3_time` coverage includes `SetDayNightModels` model registration/configstring publication. Generic renderer coverage verifies
+that sequence-0 DNC light sampling follows a normalized phase and that the default world shader exposes the environment-light inputs.
+`MDLX_SampleFirstLight()` and the shared MDX light evaluator live in `r_mdx_light.c`. The normal renderer unity build discovers that
+file automatically, while the standalone `test-renderer-model` and `test-renderer-shadows` targets list it explicitly alongside the
+animation/interpolation units. Keep this dependency explicit: these tests intentionally avoid linking the full geoset/render path.
 The generic client tests cover preservation of the player-stat pair containing the WC3 phase slot and conversion of a bound sprite
 stat into an `@ratio` animation selector. Runtime verification should additionally confirm that the race-specific clock model tracks
-JASS time changes immediately, freezes under `SuspendTimeOfDay(true)`, and resumes without the HUD drifting from sight/regeneration
-state.
+JASS time changes immediately, terrain and units transition continuously through dusk/night/dawn, `SuspendTimeOfDay(true)` freezes
+both clock and lighting, and maps without DNC models retain the legacy fixed lighting.
 
 ## See Also
 

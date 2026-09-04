@@ -264,6 +264,108 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
 }
 
+TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_it) {
+    BYTE storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(QUATERNION)] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxGlobalSequence_t global = { .value = 0 };
+    mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1 };
+    QUATERNION authored = { 0.25f, -0.5f, 0.75f, 1.0f };
+    QUATERNION value = { 0, 0, 0, 1 };
+    mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
+
+    track->keyframeCount = 1;
+    track->datatype = TDATA_FLOAT4;
+    track->linetype = TRACK_NO_INTERP;
+    track->globalSeqId = 0;
+    key->time = 333;
+    memcpy(key->data, &authored, sizeof(authored));
+
+    tr.viewDef.time = 9000;
+    MDLX_GetModelKeytrackValue(&model, track, 0, &value);
+    T_FEQ(value.x, authored.x, 0.001f);
+    T_FEQ(value.y, authored.y, 0.001f);
+    T_FEQ(value.z, authored.z, 0.001f);
+    T_FEQ(value.w, authored.w, 0.001f);
+}
+
+TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
+    BYTE storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *intensity = (mdxKeyTrack_t *)storage;
+    float values[] = { 0.2f, 0.8f };
+    mdxSequence_t seq = { .interval = { 0, 1000 } };
+    mdxLight_t light = {
+        .type = MODELLIGHTTYPE_DIRECT,
+        .Color = { 0.4f, 0.5f, 0.6f },
+        .Intensity = 1.0f,
+        .AmbColor = { 0.1f, 0.2f, 0.3f },
+        .AmbIntensity = 0.25f,
+    };
+    mdxModel_t mdx = { .sequences = &seq, .num_sequences = 1, .lights = &light };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    RMODELLIGHT sampled = { 0 };
+
+    intensity->keyframeCount = 2;
+    intensity->datatype = TDATA_FLOAT1;
+    intensity->linetype = TRACK_LINEAR;
+    intensity->globalSeqId = (DWORD)-1;
+    FOR_LOOP(i, 2) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((BYTE *)intensity->values +
+                                               i * (sizeof(int) + sizeof(float)));
+        key->time = i ? 1000 : 0;
+        memcpy(key->data, &values[i], sizeof(values[i]));
+    }
+    light.keytracks.Intensity = intensity;
+    tr.viewDef.time = 1234;
+
+    T_ASSERT(MDLX_SampleFirstLight(&model, 0.5f, &sampled));
+    T_EQ(sampled.type, R_MODEL_LIGHT_DIRECT);
+    T_FEQ(sampled.intensity, 0.5f, 0.001f);
+    T_FEQ(sampled.color.x, 0.4f, 0.001f);
+    T_FEQ(sampled.color.y, 0.5f, 0.001f);
+    T_FEQ(sampled.color.z, 0.6f, 0.001f);
+    T_FEQ(sampled.ambient_intensity, 0.25f, 0.001f);
+}
+
+TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
+    BYTE color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    BYTE ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    mdxKeyTrack_t *color_track = (mdxKeyTrack_t *)color_storage;
+    mdxKeyTrack_t *ambient_track = (mdxKeyTrack_t *)ambient_storage;
+    mdxKeyFrame_t *color_key = (mdxKeyFrame_t *)color_track->values;
+    mdxKeyFrame_t *ambient_key = (mdxKeyFrame_t *)ambient_track->values;
+    VECTOR3 authored_bgr = { 0.799191f, 0.532794f, 0.313408f };
+    mdxSequence_t seq = { .interval = { 0, 1000 } };
+    mdxLight_t light = {
+        .type = MODELLIGHTTYPE_DIRECT,
+        .Color = { 1, 1, 1 },
+        .Intensity = 1.0f,
+        .AmbColor = { 1, 1, 1 },
+        .AmbIntensity = 0.25f,
+    };
+    mdxModel_t mdx = { .sequences = &seq, .num_sequences = 1, .lights = &light };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    RMODELLIGHT sampled = { 0 };
+
+    color_track->keyframeCount = ambient_track->keyframeCount = 1;
+    color_track->datatype = ambient_track->datatype = TDATA_FLOAT3;
+    color_track->linetype = ambient_track->linetype = TRACK_LINEAR;
+    color_track->globalSeqId = ambient_track->globalSeqId = (DWORD)-1;
+    color_key->time = ambient_key->time = 0;
+    memcpy(color_key->data, &authored_bgr, sizeof(authored_bgr));
+    memcpy(ambient_key->data, &authored_bgr, sizeof(authored_bgr));
+    light.keytracks.Color = color_track;
+    light.keytracks.AmbColor = ambient_track;
+    tr.viewDef.time = 4321;
+
+    T_ASSERT(MDLX_SampleFirstLight(&model, 0.5f, &sampled));
+    T_FEQ(sampled.color.x, authored_bgr.z, 0.001f);
+    T_FEQ(sampled.color.y, authored_bgr.y, 0.001f);
+    T_FEQ(sampled.color.z, authored_bgr.x, 0.001f);
+    T_FEQ(sampled.ambient.x, authored_bgr.z, 0.001f);
+    T_FEQ(sampled.ambient.y, authored_bgr.y, 0.001f);
+    T_FEQ(sampled.ambient.z, authored_bgr.x, 0.001f);
+}
+
 TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
     T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_BLEND), BLEND_MODE_BLEND);
     T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_ADDITIVE), BLEND_MODE_ADD);
@@ -624,6 +726,20 @@ static void reset_shader(void) {
     R_ShutdownModelShader();
     memset(&shader_test, 0, sizeof(shader_test));
     shader_test.logsize = 64;
+}
+
+TEST(renderer_shader, default_world_shader_accepts_environment_lights) {
+    memset(shader_src, 0, sizeof(shader_src));
+    R_SetShaderSourceFromDesc(1, &sd_default, true, NULL);
+    T_ASSERT(strstr(shader_src, "uniform int u_lightCount;") != NULL);
+    T_ASSERT(strstr(shader_src, "uniform mat4 u_lights[8];") != NULL);
+    T_ASSERT(strstr(shader_src, "environment_lighting") != NULL);
+
+    memset(shader_src, 0, sizeof(shader_src));
+    R_SetShaderSourceFromDesc(1, &sd_default, false, NULL);
+    T_ASSERT(strstr(shader_src, "if (u_lightCount > 0)") != NULL);
+    T_ASSERT(strstr(shader_src, "clamp(v_lighting, vec3(0.0), vec3(1.0))") != NULL);
+    T_ASSERT(strstr(shader_src, "mix(0.35, 1.0") != NULL);
 }
 
 TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
