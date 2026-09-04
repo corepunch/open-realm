@@ -43,6 +43,7 @@ struct war3map {
 };
 
 bool CM_LoadMap(LPCSTR mapFilename);
+DWORD CM_GetMapChecksum(void);
 BOOL CM_IsMapLoaded(LPCSTR mapFilename);
 float CM_GetHeightAtPoint(float sx, float sy);
 LPDOODAD CM_GetDoodads(void);

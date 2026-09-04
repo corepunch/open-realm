@@ -21,6 +21,7 @@ struct game_import gi;
 void SV_InitGameProgs(void) {}
 void SV_ClearWorld(void) {}
 bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
+DWORD CM_GetMapChecksum(void) { return 0x1234; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 static LPMAPINFO test_mapinfo;
 LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
@@ -550,6 +551,8 @@ TEST(server_net, local_map_uses_loopback_without_udp) {
     SV_Map("Maps\\Melee\\Test.w3m");
 
     T_EQ(sv.state, ss_game);
+    T_STREQ(sv.configstrings[CS_MAXCLIENTS], "4");
+    T_STREQ(sv.configstrings[CS_MAPCHECKSUM], "4660");
     T_EQ(svs.num_clients, 1);
     T_EQ(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
     T_ASSERT(!NET_IsConfigured(NS_CLIENT));

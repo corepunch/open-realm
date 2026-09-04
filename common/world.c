@@ -7,6 +7,21 @@
 
 struct world_state world = { 0 };
 static PATHSTR cm_loaded_map = { 0 };
+static DWORD cm_map_checksum;
+
+#define CM_MAP_CRC32_POLY 0xedb88320u // CRC-32 polynomial; identifies the authoritative bytes accepted by the map loader
+
+/* Hash the exact virtual map file supplied to the format loader for Q2-style client map validation. */
+static DWORD CM_CalcMapChecksum(const BYTE *bytes, DWORD size) {
+    DWORD crc = 0xffffffffu;
+
+    FOR_LOOP(i, size) {
+        DWORD bit;
+        crc ^= bytes[i];
+        for (bit = 0; bit < 8; ++bit) crc = (crc >> 1) ^ (CM_MAP_CRC32_POLY & (DWORD)-(LONG)(crc & 1));
+    }
+    return ~crc;
+}
 
 void CM_ReadPathMap(HANDLE archive);
 
@@ -915,15 +930,29 @@ void CM_ReadMapScript(HANDLE archive) {
 }
 
 bool CM_LoadMap(LPCSTR mapFilename) {
+    HANDLE data;
+    DWORD size = 0;
     bool loaded;
 
+    cm_map_checksum = 0;
     snprintf(cm_loaded_map, sizeof(cm_loaded_map), "%s", mapFilename ? mapFilename : "");
+    data = FS_ReadFile(mapFilename, &size);
+    if (data && size) {
+        cm_map_checksum = CM_CalcMapChecksum((const BYTE *)data, size);
+        FS_FreeFile(data);
+    } else {
+        fprintf(stderr, "CM_LoadMap: unable to read map bytes for checksum %s\n", mapFilename ? mapFilename : "");
+        if (data) FS_FreeFile(data);
+    }
     loaded = CM_LoadMapFormat(mapFilename);
     if (!loaded) {
         cm_loaded_map[0] = '\0';
+        cm_map_checksum = 0;
     }
     return loaded;
 }
+
+DWORD CM_GetMapChecksum(void) { return cm_map_checksum; }
 
 BOOL CM_IsMapLoaded(LPCSTR mapFilename) {
 #ifdef WOW
