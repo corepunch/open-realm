@@ -1716,6 +1716,31 @@ TEST(wc3_save, field_origin_round_trip) {
     T_FEQ(unit->s.origin.z, 56.5f, 0.001f); remove(filename);
 }
 
+TEST(wc3_save, construction_payment_round_trip) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-construction-payment.bin";
+    LPEDICT unit;
+
+    reset_entities();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
+    unit->construction.active = true;
+    unit->construction.paid = true;
+    unit->construction.payer = 3;
+    unit->construction.gold = 100;
+    unit->construction.lumber = 80;
+
+    T_ASSERT(WriteGame(filename));
+    unit->construction.paid = false;
+    unit->construction.payer = 0;
+    unit->construction.gold = 0;
+    unit->construction.lumber = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(unit->construction.paid);
+    T_EQ(unit->construction.payer, 3);
+    T_EQ(unit->construction.gold, 100);
+    T_EQ(unit->construction.lumber, 80);
+    remove(filename);
+}
+
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction.primary_builder", construction.primary_builder, 0)
 SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally.entity", rally.entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival.producer", revival.producer, 0)

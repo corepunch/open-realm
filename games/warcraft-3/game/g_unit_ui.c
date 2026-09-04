@@ -365,6 +365,12 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     w = ent->UnitWeapons;
     a = ent->UnitAbilities;
 
+    /* Construction has its own command-card state.  Returning no buttons for
+     * every birth move made spawned Human buildings impossible to cancel. */
+    if (ent->construction.active) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancelBuild, false, 0);
+        return count;
+    }
     if (ent->currentmove && ent->currentmove->think == ai_birth) {
         return 0;
     }

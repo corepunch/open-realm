@@ -97,9 +97,35 @@ Placement is checked once when the player confirms the ghost and again when the 
 
 Build placement is a server-owned UI mode. `G_CancelBuildPlacement()` is the single teardown path: it clears the player's pending `build_project`, sends an empty `svc_cursor` so the client removes the ghost model, and restores the normal command card. The command-card `CmdCancel`, the gameplay `cancel` command, and both `smart`/`smartpoint` right-click paths use this teardown. A right-click while the build ghost is active is therefore consumed as cancellation and must not issue an order to the selected worker.
 
-A successful left-click copies the pending project to the worker order before clearing the player's placement cursor state. This avoids stale `build_project` state making a later right-click look like an active placement.
+A successful left-click copies the pending project to the worker order before clearing the player's placement cursor state. Leaving the worker's pre-spawn Build move (Stop, Move, or another replacement order) also clears the worker-owned `build_project`; no structure exists yet and no resources have been charged, so this is a full pre-payment cancellation rather than a construction refund.
 
 The current client ghost snaps correctly but does not yet render the full per-cell green/red placement texture. Live units are therefore authoritative server blockers but are not painted into the preview.
+
+### Spawned Human construction cancellation
+
+Once a Human structure has spawned, cancellation is owned by the unfinished structure rather than by the Peasant's placement mode. `G_GetCommandButtons()` exposes Warcraft's `CmdCancelBuild` while `construction.active` is true, and the active construction icon in the info panel submits the same command. `CmdCancelBuild` resolves through the shared Cancel handler to `G_CancelStructureConstruction()`.
+
+The authoritative lifecycle is:
+
+```text
+validate live controlled construction
+    -> publish EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL
+    -> publish EVENT_UNIT_CONSTRUCT_CANCEL
+    -> refund 75% of the recorded base gold/lumber payment
+    -> unit_die()
+       -> release every Human Repair/power-build worker
+       -> clear construction/self-linked queue state
+       -> clear food and selection through normal death cleanup
+       -> publish ordinary death events
+       -> mark the structure dead
+       -> rebake static pathing without the dead building footprint
+```
+
+The construction record stores the payer and exact base gold/lumber charge at spawn time. This avoids refunding later Human power-build Repair spending and keeps ownership changes from redirecting the refund to the structure's current owner. `wc3_build_all` constructions record no payment and therefore receive no cancellation refund. The refund calculation is isolated in `G_ConstructionCancelRefund()` so integer-rounding parity can be refined independently if retail observation shows a different edge case.
+
+`G_StopConstruction()` is also called when an unfinished Human structure dies to combat. That path releases builders and the construction HUD self-link but does **not** publish construct-cancel events or refund resources. Cancellation therefore remains distinct from enemy destruction while still sharing the normal death, food, selection, and pathing lifecycle.
+
+Static building footprints are rebuilt after building death. `common/routing.c` excludes dead `SVF_MONSTER` entities from static footprint baking even when their authored `pathtex` remains attached for presentation/save state; dead destructables retain their separate death-path-texture behavior. This prevents cancelled or destroyed buildings from leaving invisible route blockers.
 
 ## Human construction and power building
 
@@ -175,8 +201,8 @@ Construction and owned-building Repair now share the behavior described above. T
 - training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; queued unit icons can now cancel/refund their exact hidden queue edict, and producer death/removal cancels/refunds all queued unit entries;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
 - placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
-- build cancellation after a structure has spawned does not yet have the retail partial-refund lifecycle;
-- Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior;
+- spawned Human construction cancellation now has the base 75% gold/lumber refund, worker release, cancel/death events, command/UI wiring, and footprint teardown; retail damage-adjusted cancellation refund behavior is not yet modeled because the exact damage/repair interaction still needs observation;
+- Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior, so their spawned-construction cancellation lifecycles are not yet enabled;
 - Repair target masks are not yet complete enough to safely enable allied structures, repairable mechanical non-buildings, or destructibles; the current implementation keeps the pre-existing owned-building boundary;
 - Repair `DataE` naval-range behavior is not implemented;
 - Auto Repair currently implements the high-confidence nearest-valid owned-building path. Warcraft string immediate orders `repairon` / `repairoff` are exposed through the existing `IssueImmediateOrder` path; broader generic autocast policies and numeric `IssueImmediateOrderById` order-ID exposure remain future work. The command-card transport uses the normalized multi-selection `autocast <rawcode>` command;
@@ -219,7 +245,15 @@ Runtime checks should cover at least:
 20. Order Repair from outside `Rng`; the worker must walk to the building footprint rather than teleport to it.
 21. Right-click a damaged owned building with a Repair-capable worker; Smart Repair should start. Right-click a full-health building; Repair should decline and normal Smart fallback remains available.
 22. Interrupt Repair or kill the worker and verify a paused building retains no stale primary-builder association.
+23. Stop/Move a Peasant while it is still walking to a build site and verify `build_project` is cleared with no resource loss.
+24. Select an unfinished Human building and verify `CmdCancelBuild` appears; clicking either it or the active construction icon cancels the structure.
+25. Cancel an undamaged Human construction with known paid costs and verify the payer receives the 75% base gold/lumber refund, while subsequent cancellation attempts refund nothing.
+26. Cancel a Human construction with primary/additional builders and verify every Repair participant is released and stops spending power-build resources.
+27. Verify construct-cancel events precede the ordinary death events and `GetCancelledStructure()` resolves the unfinished building.
+28. Cancel or destroy a footprint-bearing building and verify the vacated footprint becomes pathable immediately.
 
 ## See Also
 
 - [Building Damage Rendering](building-damage-rendering.md) — health-driven fire overlays are renderer presentation; construction Birth suppresses them even though construction starts at low HP.
+- [Pathfinding](pathfinding.md) — static footprint baking and dynamic-unit obstacle handling used by construction placement and teardown.
+- [Save / Load](save-load.md) — raw `edict_t` scalar persistence and `F_EDICT` fixups for `construction.primary_builder`.

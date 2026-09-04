@@ -779,6 +779,29 @@ TEST(wc3_pathfinding, closest_pathable_keeps_exact_open_point) {
     T_FEQ(out.y, point.y, 0.001f);
 }
 
+/* Dead units/buildings are hollow and must not be reintroduced by the
+ * command-time dynamic obstacle pass after their static footprint is gone. */
+TEST(wc3_pathfinding, closest_pathable_ignores_dead_dynamic_unit) {
+    VECTOR2 point = { 2.0f, 5.0f }, live_out = {0}, dead_out = {0};
+    LPEDICT blocker;
+
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+    blocker = make_unit_at(point.x, point.y);
+    blocker->svflags |= SVF_MONSTER;
+    blocker->collision = 0.5f;
+
+    T_ASSERT(CM_ClosestPathablePointForRadius(&point, 0, &live_out));
+    T_ASSERT(fabsf(live_out.x - point.x) > 0.001f ||
+             fabsf(live_out.y - point.y) > 0.001f);
+
+    blocker->svflags |= SVF_DEADMONSTER;
+    T_ASSERT(CM_ClosestPathablePointForRadius(&point, 0, &dead_out));
+    T_FEQ(dead_out.x, point.x, 0.001f);
+    T_FEQ(dead_out.y, point.y, 0.001f);
+}
+
 TEST(wc3_pathfinding, closest_reachable_keeps_exact_reachable_point) {
     VECTOR2 from = { 1.25f, 5.25f }, target = { 3.75f, 5.75f }, out = {0};
     build_open_map();

@@ -12,7 +12,7 @@ static FLOAT angle_wrap(FLOAT a) {
 /* unit_changeangle is defined lower down — it needs the move-validity test and
  * the give-way helpers, which are declared below. */
 
-extern ability_t a_move, a_attack, a_patrol, a_militia;
+extern ability_t a_move, a_attack, a_patrol, a_militia, a_build;
 
 /* A unit is actively executing a ground move order (right-click move). */
 BOOL unit_is_walking(LPCEDICT ent) {
@@ -577,6 +577,12 @@ void unit_setmove(LPEDICT self, umove_t *move) {
     if (self->currentmove && self->currentmove->ability == &a_militia &&
         move->ability != &a_militia) {
         S_CancelMilitiaPairing(self);
+    }
+    /* A replaced pre-spawn Build order used to leave build_project set after
+     * Stop/Move, so later code could mistake an idle worker for an active build. */
+    if (self->currentmove && self->currentmove->ability == &a_build &&
+        move->ability != &a_build) {
+        self->build_project = 0;
     }
     self->currentmove = move;
     self->animation = G_GetAnimation(self->s.model, move->animation);

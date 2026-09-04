@@ -120,6 +120,9 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
     self->health.value = 0.0f;
+    /* Construction owns Repair workers and a self-linked HUD queue marker.
+     * Tear that state down before generic production/revival death cleanup. */
+    if (self->construction.active) G_StopConstruction(self);
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
@@ -153,6 +156,10 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
+    /* Static building footprints are baked into pathmap.original. Rebuild after
+     * the death flag becomes authoritative so destroyed/cancelled structures
+     * stop blocking routes immediately. */
+    if (G_UnitIsBuilding(self->class_id)) CM_BakeStaticObstacles();
     G_InvalidateRallyTarget(self);
     /* A dead producer cannot retain ownership of a revival.  This clears each
      * Hero's reviving flag and refunds what this Altar charged. */
