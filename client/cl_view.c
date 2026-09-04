@@ -29,6 +29,14 @@ static LPCMODEL V_ConfigLightModel(DWORD configstring) {
     return cl.models[index];
 }
 
+static LPCMODEL V_ConfigSkyModel(void) {
+    char *end = NULL;
+    unsigned long index = strtoul(cl.configstrings[CS_SKY], &end, 10);
+    if (!*cl.configstrings[CS_SKY] || end == cl.configstrings[CS_SKY] || *end || index == 0 || index >= MAX_MODELS)
+        return NULL;
+    return cl.models[index];
+}
+
 /* Client copies sampling inputs and the day-phase stat. The game renderer
  * evaluates those into viewDef.terrainLight / entityLight; this path must
  * not include a game header or compile-guard the clock slot. */
@@ -44,6 +52,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, BOOL world) {
     }
     view->terrainLightModel = V_ConfigLightModel(CS_TERRAIN_LIGHT_MODEL);
     view->entityLightModel = V_ConfigLightModel(CS_ENTITY_LIGHT_MODEL);
+    view->skyModel = V_ConfigSkyModel();
     view->environmentPhase =
         (FLOAT)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] / (FLOAT)USHRT_MAX;
 }

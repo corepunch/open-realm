@@ -659,6 +659,29 @@ void R_RevertSettings(void) {
     R_SetupScissor(&(RECT){0,0,1,1});
 }
 
+void R_DrawSky(void) {
+    renderEntity_t sky;
+    viewCamera_t const *a = tr.viewDef.camerastate + 1;
+    viewCamera_t const *b = tr.viewDef.camerastate + 0;
+    DWORD rdflags;
+
+    if (!tr.viewDef.skyModel) return;
+    sky = (renderEntity_t){
+        .origin = Vector3_lerp(&a->origin, &b->origin, tr.viewDef.lerpfrac),
+        .model = tr.viewDef.skyModel,
+        .flags = RF_NO_LIGHTING | RF_NO_FOGOFWAR | RF_NO_SHADOW,
+        .scale = 1.0f,
+    };
+    rdflags = tr.viewDef.rdflags;
+    tr.viewDef.rdflags |= RDF_NOFRUSTUMCULL;
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_RenderModel(&sky);
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_TRUE);
+    tr.viewDef.rdflags = rdflags;
+}
+
 #ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void) {
     tr.render_phase = RENDER_PHASE_LIGHTS;
@@ -683,6 +706,7 @@ void R_RenderView(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     }
+    R_DrawSky();
     R_DrawWorld();
     R_DrawDecals();
     R_DrawEntities();

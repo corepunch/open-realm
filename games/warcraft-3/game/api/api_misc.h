@@ -1196,7 +1196,11 @@ DWORD SetDayNightModels(LPJASS j) {
     return 0;
 }
 DWORD SetSkyModel(LPJASS j) {
-    //LPCSTR skyModelFile = jass_checkstring(j, 1);
+    LPCSTR skyModelFile = jass_checkstring(j, 1);
+    int sky_model = skyModelFile && *skyModelFile ? gi.ModelIndex(skyModelFile) : 0;
+    char value[16];
+    snprintf(value, sizeof(value), "%d", sky_model);
+    gi.configstring(CS_SKY, value);
     return 0;
 }
 DWORD EnableUserControl(LPJASS j) {
