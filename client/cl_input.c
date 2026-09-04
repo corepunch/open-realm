@@ -474,6 +474,22 @@ static void CL_ControlGroupsInit(void) {
     Cmd_AddCommand("group", CL_Group_f);
 }
 
+/* `zoom <delta>` — bound to MWHEELUP/MWHEELDOWN. Negative delta zooms out.
+ * Clamps with camera_min_distance / camera_max_distance when max > min. */
+static void CL_Zoom_f(void) {
+    FLOAT steps = Cmd_Argc() > 1 ? (FLOAT)atof(Cmd_Argv(1)) : 1.0f;
+    FLOAT speed = Cvar_Value("zoom_speed", 1.0f);
+    FLOAT min_dist = Cvar_Value("camera_min_distance", 0.0f);
+    FLOAT max_dist = Cvar_Value("camera_max_distance", 0.0f);
+    FLOAT dist = cl.playerstate.distance - steps * speed;
+
+    if (max_dist > min_dist)
+        dist = MAX(min_dist, MIN(max_dist, dist));
+    cl.playerstate.distance = dist;
+    cl.viewDef.camerastate[0].distance = dist;
+    cl.viewDef.camerastate[1].distance = dist;
+}
+
 void CL_ForwardToServer_f(void) {
     extern LPCSTR current_command;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -488,6 +504,8 @@ void CL_InitInput(void) {
     Cmd_AddCommand("+select", IN_SelectDown);
     Cmd_AddCommand("-select", IN_SelectUp);
     Cmd_AddCommand("cmd", CL_ForwardToServer_f);
+    Cmd_AddCommand("zoom", CL_Zoom_f);
+    Cvar_Get("zoom_speed", "1.0", CVAR_ARCHIVE);
     CL_ControlGroupsInit();
     CL_InputModeInit();
 }

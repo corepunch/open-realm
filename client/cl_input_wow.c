@@ -1,7 +1,5 @@
 #include "cl_input_local.h"
 
-#include <stdlib.h>
-
 #ifdef WOW
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
@@ -19,7 +17,6 @@ static struct {
     DWORD last_time;
     FLOAT yaw;
     FLOAT pitch;
-    FLOAT distance;
     /* Click-vs-drag tracking for LMB and RMB. */
     BOOL lmb_down;
     BOOL rmb_dragging;
@@ -33,7 +30,6 @@ static struct {
     DWORD selected_entity;
 } wow_input = {
     .pitch = 342.0f,
-    .distance = 8.0f,
 };
 
 static FLOAT CL_WowClamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
@@ -47,7 +43,8 @@ static void CL_WowInitInputState(void) {
     wow_input.initialized = true;
     wow_input.last_time = SDL_GetTicks();
     wow_input.pitch = 342.0f;
-    wow_input.distance = 8.0f;
+    if (cl.playerstate.distance <= 0.0f)
+        cl.playerstate.distance = 8.0f;
     wow_input.cursor_arrow = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
     wow_input.cursor_crosshair = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
     wow_input.cursor_hand = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
@@ -58,9 +55,8 @@ static void CL_WowInitInputState(void) {
     Cvar_Get("wow_mouse_speed", "0.18", CVAR_ARCHIVE);
     Cvar_Get("wow_camera_min_pitch", "305.0", 0);
     Cvar_Get("wow_camera_max_pitch", "355.0", 0);
-    Cvar_Get("wow_camera_min_distance", "5.5", 0);
-    Cvar_Get("wow_camera_max_distance", "25.0", 0);
-    Cvar_Get("wow_zoom_speed", "1.0", CVAR_ARCHIVE);
+    Cvar_Get("camera_min_distance", "5.5", 0);
+    Cvar_Get("camera_max_distance", "25.0", 0);
     Cvar_Get("wow_click_threshold", "10", 0);
 }
 
@@ -209,18 +205,6 @@ static void IN_MoveRightUp(void) {
     wow_input.move_right = false;
 }
 
-/* `zoom <delta>` — bound to MWHEELUP/MWHEELDOWN in config. Negative delta zooms out. */
-static void CL_WowZoom_f(void) {
-    FLOAT steps, speed, min_dist, max_dist;
-
-    CL_WowInitInputState();
-    steps = Cmd_Argc() > 1 ? (FLOAT)atof(Cmd_Argv(1)) : 1.0f;
-    speed = Cvar_Value("wow_zoom_speed", 1.0f);
-    min_dist = Cvar_Value("wow_camera_min_distance", 3.0f);
-    max_dist = Cvar_Value("wow_camera_max_distance", 35.0f);
-    wow_input.distance = CL_WowClamp(wow_input.distance - steps * speed, min_dist, max_dist);
-}
-
 void CL_InputModeInit(void) {
     Cmd_AddCommand("+attack", IN_AttackDown);
     Cmd_AddCommand("-attack", IN_AttackUp);
@@ -234,7 +218,6 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("-moveleft", IN_MoveLeftUp);
     Cmd_AddCommand("+moveright", IN_MoveRightDown);
     Cmd_AddCommand("-moveright", IN_MoveRightUp);
-    Cmd_AddCommand("zoom", CL_WowZoom_f);
 }
 
 void CL_InputModeSetGameplay(void) {
@@ -338,7 +321,7 @@ void CL_InputModeFrame(void) {
               (unsigned)flags,
               (double)wow_input.yaw,
               (double)wow_input.pitch,
-              (double)wow_input.distance);
+              (double)cl.playerstate.distance);
 }
 
 
