@@ -27,6 +27,7 @@ typedef struct {
     size_t size;
     DWORD array_size;
     uintptr_t flags; /* field flags, or child schema pointer for F_STRUCT */
+    DWORD count_ofs;
 } field_t;
 
 #define F_METADATA(kind, ...) F_METADATA_INNER(kind, __VA_ARGS__)
@@ -48,7 +49,9 @@ typedef struct {
 #define F_METADATA_F_EVENT(count, flags) count, flags
 #define F_METADATA_F_FUNCTION(...) 0, 0
 #define F_METADATA_F_MMOVE(...) 0, 0
-#define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__) }
+#define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
+#define FC(TYPE, x, kind, count, schema, count_field) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(schema), FOFS(TYPE, count_field) - (HANDLE)NULL }
+#define TFC(TYPE, x, kind, count, count_field) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), count, 0, offsetof(TYPE, count_field) }
 
 enum {
     FIELD_NONE,
@@ -104,10 +107,6 @@ typedef struct saveTimer_s {
     BOOL periodic, paused, running;
 } SAVE_TIMER;
 
-typedef struct saveGroup_s {
-    DWORD num_units;
-} SAVE_GROUP;
-
 static field_t const save_event_fields[] = {
     F(gevent_s, type, F_INT),
     F(gevent_s, subject, F_EDICT, 0, FIELD_NONE),
@@ -131,7 +130,7 @@ static field_t const save_game_event_fields[] = {
 };
 
 static field_t const group_fields[] = {
-    F(saveGroup_s, num_units, F_INT),
+    TFC(ggroup_t, units, F_EDICT, MAX_GROUP_SIZE, num_units),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -166,8 +165,7 @@ static field_t const quest_fields[] = {
     F(gquest_s, failed, F_INT),
     F(gquest_s, enabled, F_INT),
     F(gquest_s, inuse, F_INT),
-    F(gquest_s, num_items, F_INT),
-    F(gquest_s, items, F_STRUCT, MAX_QUESTITEMS, questitem_fields),
+    FC(gquest_s, items, F_STRUCT, MAX_QUESTITEMS, questitem_fields, num_items),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -457,12 +455,7 @@ static BOOL WriteGroups(FILE *f) {
     if (!SaveBytes(f, &level.num_groups, sizeof(level.num_groups))) return false;
     FOR_LOOP(i, level.num_groups) {
         ggroup_t const *group = level.groups[i];
-        SAVE_GROUP save = { .num_units = group ? group->num_units : 0 };
-        if (!group || group->num_units > MAX_GROUP_SIZE || !WriteMappedFields(f, group_fields, (BYTE *)&save)) return false;
-        FOR_LOOP(k, group->num_units) {
-            int index = group->units[k] ? (int)(group->units[k] - g_edicts) : -1;
-            if (index < 0 || index >= (int)globals.num_edicts || !SaveBytes(f, &index, sizeof(index))) return false;
-        }
+        if (!group || !WriteMappedFields(f, group_fields, (BYTE *)group)) return false;
     }
     return true;
 }
@@ -474,19 +467,9 @@ static BOOL ReadGroups(FILE *f) {
     }
     FOR_LOOP(i, count) {
         ggroup_t *group = level.groups[i];
-        SAVE_GROUP save;
-        DWORD units;
-        if (!group || !ReadMappedFields(f, group_fields, (BYTE *)&save) || (units = save.num_units) > MAX_GROUP_SIZE) return false;
-        group->num_units = 0;
-        FOR_LOOP(k, units) {
-            int index;
-            if (!LoadBytes(f, &index, sizeof(index))) return false;
-            if (index < 0 || index >= (int)globals.num_edicts || !g_edicts[index].inuse) {
-                fprintf(stderr, "WC3 LoadGame: dropping stale group[%u] member index=%d\n", i, index);
-                continue;
-            }
-            group->units[group->num_units++] = g_edicts + index;
-        }
+        if (!group) return false;
+        memset(group, 0, sizeof(*group));
+        if (!ReadMappedFields(f, group_fields, (BYTE *)group)) return false;
     }
     return true;
 }
@@ -804,8 +787,11 @@ static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
 /* Serialize mapped records, converting pointer-domain fields to stable indexes from their field types. */
 static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
     for (; fields->name; fields++) {
-        DWORD count = fields->array_size ? fields->array_size : 1;
+        DWORD count = fields->count_ofs != UINT32_MAX ? *(DWORD *)(base + fields->count_ofs) :
+            fields->array_size ? fields->array_size : 1;
         size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
+        if (fields->count_ofs != UINT32_MAX && count > fields->array_size) return false;
+        if (fields->count_ofs != UINT32_MAX && !SaveBytes(f, &count, sizeof(count))) return false;
         if (fields->type == F_STRUCT) {
             FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
         } else if (fields->type == F_LSTRING || fields->type == F_GSTRING) {
@@ -829,6 +815,10 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
     for (; fields->name; fields++) {
         DWORD count = fields->array_size ? fields->array_size : 1;
         size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
+        if (fields->count_ofs != UINT32_MAX) {
+            if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
+            *(DWORD *)(base + fields->count_ofs) = count;
+        }
         if (fields->type == F_STRUCT) {
             FOR_LOOP(i, count) if (!ReadMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
         } else if (fields->type == F_LSTRING || fields->type == F_GSTRING) {
