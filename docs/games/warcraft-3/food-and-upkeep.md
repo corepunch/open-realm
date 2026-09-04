@@ -101,7 +101,7 @@ Upkeep is derived from authoritative Food Used, not Food Cap. `InitConstants()` 
 
 `G_SetUnitFoodUsed()` recomputes the rates whenever accounted food changes. Direct JASS `SetPlayerState(PLAYER_STATE_RESOURCE_FOOD_USED, ...)` does the same. Fresh player state initializes both upkeep-rate slots to 100 before the first food recomputation.
 
-Resource acquisition remains split into gross gathering and player income. Workers keep the full carried amount; gold/lumber deposit calls `G_ApplyResourceIncome()` immediately before crediting the player. Standard lumber remains 100%, while the generic lumber-rate player state is still honored if explicitly changed. Blighted-mine and Wisp interval income use the same helper rather than bypassing player income policy.
+Resource acquisition remains split into gross gathering and player income. Workers keep the full carried amount; income sites now commit through `G_CreditResourceIncome()`, which uses the pure `G_ApplyResourceIncome()` calculation, credits the resulting net amount, then emits the matching resource-gain presentation event. Standard lumber remains 100%, while the generic lumber-rate player state is still honored if explicitly changed. Blighted-mine and Wisp interval income use the same commit helper rather than bypassing player income policy. The floating `+N` therefore reports the same net amount that reached the resource bar; see [resource-gain-text.md](resource-gain-text.md).
 
 Stored resources are never retroactively changed when the upkeep tier changes.
 

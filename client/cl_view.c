@@ -511,6 +511,7 @@ void V_RenderView(void) {
     }
 
     re.RenderFrame(&cl.viewDef);
+    CL_DrawTEnts();
     
 //    re.DrawPic(tex1, 0, 0);
 //    re.DrawPic(tex2, 512, 0);

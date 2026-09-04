@@ -145,13 +145,13 @@ static void militia_return_carried_resources(LPEDICT worker) {
 
     if (!worker || !(player = G_GetPlayerByNumber(worker->s.player))) return;
     if (worker->harvested_gold) {
-        player->stats[PLAYERSTATE_RESOURCE_GOLD] +=
-            G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, (LONG)worker->harvested_gold);
+        G_CreditResourceIncome(player, worker, PLAYERSTATE_RESOURCE_GOLD,
+                               (LONG)worker->harvested_gold);
         S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 0);
     }
     if (worker->harvested_lumber) {
-        player->stats[PLAYERSTATE_RESOURCE_LUMBER] +=
-            G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_LUMBER, (LONG)worker->harvested_lumber);
+        G_CreditResourceIncome(player, worker, PLAYERSTATE_RESOURCE_LUMBER,
+                               (LONG)worker->harvested_lumber);
         S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 0);
     }
 }

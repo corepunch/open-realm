@@ -16,6 +16,61 @@ static LPCSTR food_limits_off_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_food_limits") ? "0" : fallback;
 }
 
+typedef struct {
+    pfWriteType_t types[16];
+    LONG integral[16];
+    FLOAT real[16];
+    VECTOR3 position;
+    char text[32];
+    DWORD count;
+    DWORD font_size;
+    char font_name[MAX_PATHLEN];
+    DWORD multicast_count;
+    multicast_t multicast_to;
+    VECTOR3 multicast_origin;
+} resourceGainCapture_t;
+
+static resourceGainCapture_t resource_gain_capture;
+
+static void resource_gain_test_write(pfWriteType_t type, void const *value) {
+    DWORD const slot = resource_gain_capture.count++;
+
+    DWORD const capacity = sizeof(resource_gain_capture.types) / sizeof(resource_gain_capture.types[0]);
+
+    if (slot < capacity) resource_gain_capture.types[slot] = type;
+    if (!value || slot >= capacity) return;
+    switch (type) {
+        case PF_BYTE:
+        case PF_SHORT:
+        case PF_LONG:
+            resource_gain_capture.integral[slot] = *(LONG const *)value;
+            break;
+        case PF_FLOAT:
+            resource_gain_capture.real[slot] = *(FLOAT const *)value;
+            break;
+        case PF_POSITION:
+            resource_gain_capture.position = *(LPCVECTOR3)value;
+            break;
+        case PF_STRING:
+            strlcpy(resource_gain_capture.text, value, sizeof(resource_gain_capture.text));
+            break;
+        default:
+            break;
+    }
+}
+
+static int resource_gain_test_font(LPCSTR name, DWORD size) {
+    strlcpy(resource_gain_capture.font_name, name ? name : "", sizeof(resource_gain_capture.font_name));
+    resource_gain_capture.font_size = size;
+    return 17;
+}
+
+static void resource_gain_test_multicast(LPCVECTOR3 origin, multicast_t to) {
+    resource_gain_capture.multicast_count++;
+    resource_gain_capture.multicast_to = to;
+    if (origin) resource_gain_capture.multicast_origin = *origin;
+}
+
 TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
@@ -181,6 +236,57 @@ TEST(wc3_food, resource_income_applies_upkeep_rate_only_to_selected_resource) {
 
     player->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 40;
     T_EQ(G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, 10), 4);
+}
+
+TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
+    LPPLAYER player = &game.clients[0].ps;
+    LPEDICT source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_multicast)(LPCVECTOR3, multicast_t) = gi.multicast;
+    int (*saved_font)(LPCSTR, DWORD) = gi.FontIndex;
+
+    memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
+    source->s.origin = MAKE(VECTOR3, 100.0f, 200.0f, 3.0f);
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    player->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 70;
+    gi.Write = resource_gain_test_write;
+    gi.multicast = resource_gain_test_multicast;
+    gi.FontIndex = resource_gain_test_font;
+
+    T_EQ(G_CreditResourceIncome(player, source, PLAYERSTATE_RESOURCE_GOLD, 10), 7);
+    T_EQ(player->stats[PLAYERSTATE_RESOURCE_GOLD], 507);
+    T_EQ(resource_gain_capture.count, 10);
+    T_EQ(resource_gain_capture.types[0], PF_BYTE);
+    T_EQ(resource_gain_capture.integral[0], svc_temp_entity);
+    T_EQ(resource_gain_capture.types[1], PF_BYTE);
+    T_EQ(resource_gain_capture.integral[1], TE_FLOATING_TEXT);
+    T_EQ(resource_gain_capture.types[2], PF_POSITION);
+    T_FEQ(resource_gain_capture.position.x, 100.0f, 0.001f);
+    T_FEQ(resource_gain_capture.position.y, 200.0f, 0.001f);
+    T_FEQ(resource_gain_capture.position.z, 13.0f, 0.001f);
+    T_EQ(resource_gain_capture.types[3], PF_STRING);
+    T_STREQ(resource_gain_capture.text, "+7");
+    T_EQ(resource_gain_capture.types[4], PF_LONG);
+    T_EQ((DWORD)resource_gain_capture.integral[4], 0xff00dcffu);
+    T_EQ(resource_gain_capture.types[5], PF_SHORT);
+    T_EQ(resource_gain_capture.integral[5], 17);
+    T_EQ(resource_gain_capture.types[6], PF_LONG);
+    T_EQ(resource_gain_capture.integral[6], 2000);
+    T_EQ(resource_gain_capture.types[7], PF_LONG);
+    T_EQ(resource_gain_capture.integral[7], 1000);
+    T_EQ(resource_gain_capture.types[8], PF_FLOAT);
+    T_FEQ(resource_gain_capture.real[8], 0.0f, 0.001f);
+    T_EQ(resource_gain_capture.types[9], PF_FLOAT);
+    T_FEQ(resource_gain_capture.real[9], 60.0f, 0.001f);
+    T_STREQ(resource_gain_capture.font_name, "Fonts\\FRIZQT__.TTF");
+    T_EQ(resource_gain_capture.font_size, 12);
+    T_EQ(resource_gain_capture.multicast_count, 1);
+    T_EQ(resource_gain_capture.multicast_to, MULTICAST_ALL);
+    T_FEQ(resource_gain_capture.multicast_origin.z, 13.0f, 0.001f);
+
+    gi.Write = saved_write;
+    gi.multicast = saved_multicast;
+    gi.FontIndex = saved_font;
 }
 
 TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {

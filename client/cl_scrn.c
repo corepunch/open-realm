@@ -242,27 +242,39 @@ static HANDLE layout_hovered;
 static HANDLE layout_current;
 static BOOL layout_current_window;
 
+/* Project a world point through the active camera into the virtual UI canvas.
+ * The world scissor is authoritative: callers should not turn an off-screen
+ * world event into a HUD notification pinned to the nearest edge. */
+BOOL SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen) {
+    FLOAT const *m;
+    FLOAT cx, cy, cw, vx, vy;
+
+    if (!point || !screen) return false;
+    m = cl.viewDef.viewProjectionMatrix.v;
+    cx = m[0] * point->x + m[4] * point->y + m[8] * point->z + m[12];
+    cy = m[1] * point->x + m[5] * point->y + m[9] * point->z + m[13];
+    cw = m[3] * point->x + m[7] * point->y + m[11] * point->z + m[15];
+    if (cw <= 0.0001f) return false;
+    vx = cl.viewDef.viewport.x + (cx / cw * 0.5f + 0.5f) * cl.viewDef.viewport.w;
+    vy = cl.viewDef.viewport.y + (cy / cw * 0.5f + 0.5f) * cl.viewDef.viewport.h;
+    if (vx < cl.viewDef.scissor.x || vx > cl.viewDef.scissor.x + cl.viewDef.scissor.w ||
+        vy < cl.viewDef.scissor.y || vy > cl.viewDef.scissor.y + cl.viewDef.scissor.h) return false;
+    *screen = MAKE(VECTOR2, vx * SCR_UICanvasWidth(), (1.0f - vy) * UI_BASE_HEIGHT);
+    return true;
+}
+
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
     LPCENTITYSTATE ent = SCR_LayoutContextEntity();
-    FLOAT const *m;
-    FLOAT cx, cy, cw, vx, vy;
     VECTOR3 top;
+    VECTOR2 screen;
 
     if (!root || !ent) return false;
     FOR_LOOP(i, cl.viewDef.num_entities) {
         if (cl.viewDef.entities[i].number != cl.hover_entity) continue;
         if (!re.GetEntityOverheadPosition(&cl.viewDef.entities[i], &top)) return false;
-        m = cl.viewDef.viewProjectionMatrix.v;
-        cx = m[0] * top.x + m[4] * top.y + m[8] * top.z + m[12];
-        cy = m[1] * top.x + m[5] * top.y + m[9] * top.z + m[13];
-        cw = m[3] * top.x + m[7] * top.y + m[11] * top.z + m[15];
-        if (cw <= 0.0001f) return false;
-        vx = cl.viewDef.viewport.x + (cx / cw * 0.5f + 0.5f) * cl.viewDef.viewport.w;
-        vy = cl.viewDef.viewport.y + (cy / cw * 0.5f + 0.5f) * cl.viewDef.viewport.h;
-        if (vx < cl.viewDef.scissor.x || vx > cl.viewDef.scissor.x + cl.viewDef.scissor.w ||
-            vy < cl.viewDef.scissor.y || vy > cl.viewDef.scissor.y + cl.viewDef.scissor.h) return false;
-        *root = MAKE(RECT, vx * UI_BASE_WIDTH, (1.0f - vy) * UI_BASE_HEIGHT, 0, 0);
+        if (!SCR_ProjectWorldPoint(&top, &screen)) return false;
+        *root = MAKE(RECT, screen.x, screen.y, 0, 0);
         return true;
     }
     return false;

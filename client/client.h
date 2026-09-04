@@ -194,6 +194,9 @@ DWORD CL_MinimapRecentCount(void);
 LPCENTITYSTATE SCR_LayoutContextEntity(void);
 BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value);
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root);
+FLOAT SCR_UICanvasWidth(void);
+VECTOR2 SCR_ScreenToUI(int x, int y);
+BOOL SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen);
 VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
 FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
@@ -224,6 +227,7 @@ void CL_InitInput(void);
 // cl_tent.c
 void CL_ParseTEnt(LPSIZEBUF msg);
 void CL_AddTEnts(void);
+void CL_DrawTEnts(void);
 void CL_ClearTEnts(void);
 
 // cl_main.c - UI integration
