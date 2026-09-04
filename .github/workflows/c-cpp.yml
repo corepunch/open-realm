@@ -123,22 +123,28 @@ jobs:
       - build-windows
     permissions:
       contents: read
+    container:
+      # Official Flathub CI image matching the manifest runtime/SDK.
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
+      options: --privileged
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Flatpak build tooling
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder ostree
-
-      - name: Install Flatpak runtime and SDK
-        working-directory: dist-scripts/flathub
-        run: ./deps.sh
+      - name: Prepare Flatpak output directory
+        run: mkdir -p build
 
       - name: Build Flatpak bundle
-        working-directory: dist-scripts/flathub
-        run: ./build.sh
+        # flatpak-github-actions v6.8, pinned to its immutable release commit.
+        uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3
+        with:
+          manifest-path: dist-scripts/flathub/io.github.corepunch.OpenRealm.yml
+          bundle: build/io.github.corepunch.OpenRealm.flatpak
+          arch: x86_64
+          cache: true
+          restore-cache: true
+          save-cache: true
+          upload-artifact: false
 
       - name: Upload Flatpak build artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
