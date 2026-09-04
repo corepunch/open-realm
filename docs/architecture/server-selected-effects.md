@@ -37,6 +37,16 @@ the new `games/warcraft-3/game/skills/s_onfire.c`.
 
 See also: [Building Damage Rendering](../games/warcraft-3/building-damage-rendering.md) and [WC3 Ability, Buff, And Item Presentation Effects](../games/warcraft-3/ability-and-item-effects.md).
 
+## Anti-pattern #4: `#ifdef` around environment lighting in `client/` (do not repeat)
+
+PR #296 published generic `CS_TERRAIN_LIGHT_MODEL` / `CS_ENTITY_LIGHT_MODEL` slots, then resolved
+`WC3_UI_PLAYERSTAT_TIME_PHASE` in `client/cl_view.c` behind `#if !defined(WOW) && !defined(SC2)`
+and included `games/warcraft-3/common/ui_constants.h`. Day phase is an ordinary player stat, and
+the evaluated scene light is an ordinary view sample. The client copies optional model-index
+configstrings plus `UI_PLAYERSTAT_ENV_PHASE`; `R_SetupEnvironmentLighting` in `games/*/renderer`
+evaluates those inputs into `viewDef.terrainLight` / `entityLight`. See
+[Environment Lighting](environment-lighting.md).
+
 ## Anti-pattern #3: `#ifdef WC3` around generic camera samples (do not repeat)
 
 PR #287 added `playerState.camera_render` and `#ifdef WC3` copies in `CL_ParsePlayerInfo`. Target height offset, near clip, and far clip are ordinary camera sample fields, not Warcraft-only data. Hiding them behind a compile guard also consumed the final 32-bit player-state field. They now live in generic `origin` (world-space look-at) plus `znear`/`zfar` packed with `distance`. `viewangles` and `camera_bounds` travel on the same snapshot, while unused WoW map metadata moved to one WoW map-info configstring. The player-state delta mask remains 32 bits. The server composes Z; the client copies the sample.

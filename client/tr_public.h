@@ -169,9 +169,11 @@ typedef struct {
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;
-    LPCMODEL terrainLightModel; /* optional environment light model sampled by the active game renderer */
-    LPCMODEL entityLightModel;  /* optional base light model for render entities */
-    FLOAT environmentPhase;     /* normalized 0..1 animation phase for the environment light models */
+    LPCMODEL terrainLightModel; /* optional sampling source; game renderer evaluates into terrainLight */
+    LPCMODEL entityLightModel;  /* optional sampling source; game renderer evaluates into entityLight */
+    FLOAT environmentPhase;     /* normalized 0..1 clock used to sample environment light models */
+    ENVIRONLIGHT terrainLight;  /* evaluated world/terrain light; valid=0 keeps the renderer fallback */
+    ENVIRONLIGHT entityLight;   /* evaluated entity light; valid=0 reuses terrainLight or the fallback */
     DWORD player;
     DWORD rdflags;
     DWORD hover_entity;     /* entity under mouse cursor (0 = none) */

@@ -604,6 +604,25 @@ TEST(renderer_instances, dynamic_capacity_reuses_and_grows_power_of_two) {
     T_EQ(R_InstanceBufferCapacity(16, 17), (DWORD)32);
 }
 
+TEST(renderer_shader, environ_light_converts_to_model_lighting) {
+    ENVIRONLIGHT env = {
+        .dir = { 1, 0, 0 }, .color = { 0.4f, 0.5f, 0.6f }, .ambient = { 0.1f, 0.2f, 0.3f },
+        .intensity = 0.8f, .ambient_intensity = 0.25f, .type = R_MODEL_LIGHT_DIRECT, .valid = true,
+    };
+    MODELLIGHTING lighting;
+    ENVIRONLIGHT empty = {0};
+    T_ASSERT(R_LightingFromEnviron(&env, &lighting));
+    T_EQ(lighting.count, 1);
+    T_EQ(lighting.lights[0].type, R_MODEL_LIGHT_DIRECT);
+    T_FEQ(lighting.lights[0].dir.x, 1.0f, 0.001f);
+    T_FEQ(lighting.lights[0].color.y, 0.5f, 0.001f);
+    T_FEQ(lighting.lights[0].ambient_intensity, 0.25f, 0.001f);
+    T_ASSERT(!R_LightingFromEnviron(&empty, &lighting));
+    T_EQ(lighting.count, 0);
+    T_EQ(UI_PLAYERSTAT_ENV_PHASE, 16);
+    T_EQ(UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR, 17);
+}
+
 TEST(renderer_shader, directional_light_uses_array_schema) {
     MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
     MODELLIGHTING state = {

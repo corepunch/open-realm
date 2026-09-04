@@ -6,9 +6,6 @@
 #include "common/wow_view.h"
 #endif
 #include "tr_public.h"
-#if !defined(WOW) && !defined(SC2)
-#include "games/warcraft-3/common/ui_constants.h"
-#endif
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
@@ -20,11 +17,8 @@ static struct {
 static bool world_loaded = false;
 static bool begin_sent = false;
 
-#if !defined(WOW) && !defined(SC2)
-/* WC3 publishes DNC model indices once through configstrings and the live
- * normalized phase through the already-replicated player stat used by the
- * HUD clock. Keep the generic view contract in model handles + a ratio; the
- * renderer remains unaware of player-stat/configstring ownership. */
+/* Optional CS_MODELS indices become handles here. Games that do not publish
+ * CS_TERRAIN_LIGHT_MODEL / CS_ENTITY_LIGHT_MODEL leave the slots empty. */
 static LPCMODEL V_ConfigLightModel(DWORD configstring) {
     LPCSTR value;
     char *end = NULL;
@@ -38,14 +32,24 @@ static LPCMODEL V_ConfigLightModel(DWORD configstring) {
     return cl.models[index];
 }
 
-static void V_UpdateEnvironmentLighting(viewDef_t *view) {
+/* Client copies sampling inputs and the day-phase stat. The game renderer
+ * evaluates those into viewDef.terrainLight / entityLight; this path must
+ * not include a game header or compile-guard the clock slot. */
+static void V_UpdateEnvironmentLighting(viewDef_t *view, BOOL world) {
     if (!view) return;
+    view->terrainLight = (ENVIRONLIGHT){0};
+    view->entityLight = (ENVIRONLIGHT){0};
+    if (!world) {
+        view->terrainLightModel = NULL;
+        view->entityLightModel = NULL;
+        view->environmentPhase = 0.0f;
+        return;
+    }
     view->terrainLightModel = V_ConfigLightModel(CS_TERRAIN_LIGHT_MODEL);
     view->entityLightModel = V_ConfigLightModel(CS_ENTITY_LIGHT_MODEL);
     view->environmentPhase =
-        (FLOAT)cl.playerstate.stats[WC3_UI_PLAYERSTAT_TIME_PHASE] / (FLOAT)USHRT_MAX;
+        (FLOAT)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] / (FLOAT)USHRT_MAX;
 }
-#endif
 
 VECTOR3 lightAngles = {-40,0,60};
 
@@ -497,11 +501,7 @@ void V_RenderView(void) {
         Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
         Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
         Matrix4_identity(&cl.viewDef.textureMatrix);
-#if !defined(WOW) && !defined(SC2)
-        cl.viewDef.terrainLightModel = NULL;
-        cl.viewDef.entityLightModel = NULL;
-        cl.viewDef.environmentPhase = 0.0f;
-#endif
+        V_UpdateEnvironmentLighting(&cl.viewDef, false);
 
         re.RenderFrame(&cl.viewDef);
         lastTime = cl.time;
@@ -541,9 +541,7 @@ void V_RenderView(void) {
         CL_AddEntities();
     }
 
-#if !defined(WOW) && !defined(SC2)
-    V_UpdateEnvironmentLighting(&cl.viewDef);
-#endif
+    V_UpdateEnvironmentLighting(&cl.viewDef, true);
     re.RenderFrame(&cl.viewDef);
     CL_DrawTEnts();
     

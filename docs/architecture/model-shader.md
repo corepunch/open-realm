@@ -97,11 +97,12 @@ Each `uLights[i]` mat4 stores one source by GLSL column:
 
 The ground/world `sd_default` program can consume the same packed semantic schema through `R_SetDefaultLighting`. Unlike the model
 program, its count may be zero: zero deliberately preserves the historical fixed terrain sun/ambient fallback. A nonzero count enables
-explicit environment lighting without giving the shared shader any title-specific DNC or time-of-day knowledge. `viewDef_t` likewise
-exposes only optional terrain/entity environment-light model handles and a normalized animation phase; the active game renderer owns
-how those inputs are sampled. WC3 uses this boundary for authored Day/Night Cycle models, while other games may leave it unused.
-Both model and ground paths clamp the final accumulated RGB light factor to `[0, 1]` before texture modulation; game-specific MDX
-channel/animation conventions must be normalized before constructing `MODELLIGHTING`, not encoded in the shared shader schema.
+explicit environment lighting without giving the shared shader any title-specific DNC or time-of-day knowledge. `viewDef_t` carries
+evaluated `ENVIRONLIGHT` samples (`terrainLight` / `entityLight`); optional model handles plus `environmentPhase` are sampling
+inputs for games that author lights as animated models. `R_SetupEnvironmentLighting` fills the samples. See
+[Environment Lighting](environment-lighting.md). Both model and ground paths clamp the final accumulated RGB light factor to
+`[0, 1]` before texture modulation; game-specific MDX channel/animation conventions must be normalized before constructing
+`MODELLIGHTING`, not encoded in the shared shader schema.
 
 ## Instanced grass
 

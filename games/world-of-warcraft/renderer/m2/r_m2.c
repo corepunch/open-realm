@@ -2040,16 +2040,19 @@ static void M2_SetBlendMode(MODELPROG * shader, DWORD mode) {
 
 /* WoW's world sun is an ordinary directional entry; the shared shader never has a zero-light mode. */
 static void M2_BindSunLight(MODELPROG * shader) {
-    MODELLIGHTING light = {
-        .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
-        .count = 1,
-        .lights[0] = {
-            .color = { WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B },
-            .intensity = 1.0f,
-            .type = R_MODEL_LIGHT_DIRECT,
-        },
-    };
-    Wow_SunDirection(Wow_DayFraction(), &light.lights[0].dir);
+    MODELLIGHTING light;
+    if (!R_LightingFromEnviron(&tr.viewDef.entityLight, &light)) {
+        light = (MODELLIGHTING){
+            .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
+            .count = 1,
+            .lights[0] = {
+                .color = { WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B },
+                .intensity = 1.0f,
+                .type = R_MODEL_LIGHT_DIRECT,
+            },
+        };
+        Wow_SunDirection(Wow_DayFraction(), &light.lights[0].dir);
+    }
     R_SetModelLighting(shader, &light);
 }
 

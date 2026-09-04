@@ -10,6 +10,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 |-------|------|
 | Architecture, engine boundaries, struct/API discipline, network contracts | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Server-selected presentation effects and generic effect contracts | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
+| Environment lighting samples, day-phase stat, per-game fill hook | [docs/architecture/environment-lighting.md](docs/architecture/environment-lighting.md) |
 | Native game coordinate systems and axis migration | [AXIS.md](AXIS.md) |
 | Server-authored UI payload design, limits, diagnostics, scrollbar postmortem | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | Client-managed gameplay windows, focus, z-order, dragging, modal input, text arenas | [docs/architecture/client-windows.md](docs/architecture/client-windows.md) |

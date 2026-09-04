@@ -96,10 +96,17 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     wow_terrain_shader.state.model = identity;
     {
         VECTOR3 sun_dir;
-        Wow_SunDirection(Wow_DayFraction(), &sun_dir);
-        wow_terrain_shader.state.sunDir = (VECTOR3){ sun_dir.x, sun_dir.y, sun_dir.z };
-        wow_terrain_shader.state.sunAmbient = (VECTOR3){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
-        wow_terrain_shader.state.sunDiffuse = (VECTOR3){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
+        LPCENVIRONLIGHT sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
+        if (sun) {
+            wow_terrain_shader.state.sunDir = sun->dir;
+            wow_terrain_shader.state.sunAmbient = sun->ambient;
+            wow_terrain_shader.state.sunDiffuse = Vector3_scale(&sun->color, sun->intensity);
+        } else {
+            Wow_SunDirection(Wow_DayFraction(), &sun_dir);
+            wow_terrain_shader.state.sunDir = sun_dir;
+            wow_terrain_shader.state.sunAmbient = (VECTOR3){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
+            wow_terrain_shader.state.sunDiffuse = (VECTOR3){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
+        }
     }
     wow_terrain_shader.state.normalMatrix = normal_matrix;
     wow_terrain_shader.state.useWeightedBlend = wow_world.use_weighted_blend ? 1 : 0;

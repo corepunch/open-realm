@@ -1,4 +1,5 @@
 #include "renderer/r_game.h"
+#include "renderer/r_shader.h"
 #include "m3/r_m3.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "sc2/r_sc2map.h"
@@ -208,6 +209,24 @@ void R_DrawMinimap(LPCRECT screen) {
 
 void R_RegisterMap(LPCSTR mapFileName) {
     R_SC2RegisterMap(mapFileName);
+}
+
+void R_SetupEnvironmentLighting(void) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    sc2MapLighting_t const *src = map ? &map->lighting : NULL;
+    sc2DirectionalLight_t const *key = src && src->enabled ? &src->directional[SC2_LIGHT_KEY] : NULL;
+    tr.viewDef.terrainLight = (ENVIRONLIGHT){0};
+    tr.viewDef.entityLight = (ENVIRONLIGHT){0};
+    if (!key || !key->enabled) return;
+    tr.viewDef.terrainLight = tr.viewDef.entityLight = (ENVIRONLIGHT){
+        .dir = Vector3_unm(&key->direction),
+        .color = key->color,
+        .ambient = sc2_light_ambient(src),
+        .intensity = key->color_multiplier,
+        .ambient_intensity = 1.0f,
+        .type = R_MODEL_LIGHT_DIRECT,
+        .valid = true,
+    };
 }
 
 void R_DrawWorld(void) {

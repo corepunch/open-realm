@@ -1,6 +1,7 @@
 #include "renderer/r_game.h"
 #include "wow_assets.h"
 #include "renderer/r_local.h"
+#include "renderer/r_shader.h"
 #include "common/wow_view.h"
 #include "wow/r_wowmap.h"
 #include "m2/r_m2_format.h"
@@ -110,6 +111,23 @@ void R_DrawMinimap(LPCRECT screen) {
 
 void R_RegisterMap(LPCSTR mapFileName) {
     Wow_RegisterMap(mapFileName);
+}
+
+void R_SetupEnvironmentLighting(void) {
+    VECTOR3 dir;
+    ENVIRONLIGHT sun;
+    Wow_SunDirection(Wow_DayFraction(), &dir);
+    sun = (ENVIRONLIGHT){
+        .dir = dir,
+        .color = { WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B },
+        .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
+        .intensity = 1.0f,
+        .ambient_intensity = 1.0f,
+        .type = R_MODEL_LIGHT_DIRECT,
+        .valid = true,
+    };
+    tr.viewDef.terrainLight = sun;
+    tr.viewDef.entityLight = sun;
 }
 
 void R_DrawWorld(void) {

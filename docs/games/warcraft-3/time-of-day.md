@@ -35,9 +35,10 @@ night-regeneration consumers call `G_IsNight()` and therefore follow the same th
 
 The in-game clock is server-authored through `svc_layout`; `ui.dll` does not construct it.
 
-`G_UpdateTimeOfDay()` publishes `G_GetTimeOfDay() / DayHours` into the WC3-private numeric player-stat slot
-`WC3_UI_PLAYERSTAT_TIME_PHASE`. The value is quantized to the existing `USHORT` `playerState_t.stats[]` representation, so no network
-struct is widened. `common/msg.c` already transports the `stats[16..17]` pair together.
+`G_UpdateTimeOfDay()` publishes `G_GetTimeOfDay() / DayHours` into the generic numeric player-stat slot
+`UI_PLAYERSTAT_ENV_PHASE` (`stats[16]`). The value is quantized to the existing `USHORT` `playerState_t.stats[]` representation, so no
+network struct is widened. `common/msg.c` already transports the `stats[16..17]` pair together. Slot 17 remains
+`UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR`; the two must not share a USHORT.
 
 `UI_WriteConsoleBackdrop()` appends one `FT_SPRITE` under `ConsoleUI` when the recipient's `war3skins.txt` resolves the
 `TimeOfDayIndicator` model key. The sprite selects MDX sequence `#0` and binds its `stat` to the normalized day-phase slot. The layout
@@ -64,12 +65,14 @@ OpenRealm now follows that ownership contract:
    resources and late calls use the existing reliable configstring resynchronization path.
 2. The native publishes the resulting model indices through `CS_TERRAIN_LIGHT_MODEL` and `CS_ENTITY_LIGHT_MODEL`; these small
    configstrings contain decimal model indices, not duplicated paths.
-3. The generic client resolves those indices to loaded model handles and places them, together with the existing normalized
-   `WC3_UI_PLAYERSTAT_TIME_PHASE`, in generic environment-light fields on `viewDef_t`.
-4. The WC3 MDX renderer samples sequence 0 of each DNC model at that phase and evaluates its first authored light. Terrain uses the
-   terrain DNC light in the default world shader. Non-portrait MDX entities prepend the unit DNC light before any model-local lights.
-5. Missing/unloaded DNC models or DNC models without a light fall back to the previous fixed terrain/unit lighting, so maps that do
-   not establish DNC models keep their existing appearance. Portraits deliberately retain the separate portrait-lighting path.
+3. The generic client resolves those indices to loaded model handles and copies `UI_PLAYERSTAT_ENV_PHASE` onto `viewDef_t` without a
+   Warcraft include. `R_SetupEnvironmentLighting` samples sequence 0 of each DNC model and writes evaluated `ENVIRONLIGHT` samples.
+4. Terrain consumes `viewDef.terrainLight` through `R_SetDefaultLighting`. Non-portrait MDX entities prepend `viewDef.entityLight`
+   before any model-local lights.
+5. Missing/unloaded DNC models or DNC models without a light leave `valid == 0`, so the previous fixed terrain/unit lighting remains.
+   Portraits deliberately retain the separate portrait-lighting path.
+
+See [Environment Lighting](../../architecture/environment-lighting.md) for the engine sample contract.
 
 The DNC light uses the authored MDX color, intensity, ambient color/intensity, attenuation, node orientation, and animated key tracks.
 Because the phase advances continuously, dusk and dawn are continuous authored lighting transitions; the binary `Dawn`/`Dusk`
@@ -124,13 +127,14 @@ that sequence-0 DNC light sampling follows a normalized phase and that the defau
 `MDLX_SampleFirstLight()` and the shared MDX light evaluator live in `r_mdx_light.c`. The normal renderer unity build discovers that
 file automatically, while the standalone `test-renderer-model` and `test-renderer-shadows` targets list it explicitly alongside the
 animation/interpolation units. Keep this dependency explicit: these tests intentionally avoid linking the full geoset/render path.
-The generic client tests cover preservation of the player-stat pair containing the WC3 phase slot and conversion of a bound sprite
+The generic client tests cover preservation of the player-stat pair containing the environment-phase slot and conversion of a bound sprite
 stat into an `@ratio` animation selector. Runtime verification should additionally confirm that the race-specific clock model tracks
 JASS time changes immediately, terrain and units transition continuously through dusk/night/dawn, `SuspendTimeOfDay(true)` freezes
 both clock and lighting, and maps without DNC models retain the legacy fixed lighting.
 
 ## See Also
 
+- [Environment Lighting](../../architecture/environment-lighting.md)
 - [Fog And Cinematics](fog-and-cinematics.md)
 - [JASS Native Coverage](jass-native-coverage.md)
 - [HUD Media Lifetime](hud-media.md)

@@ -113,11 +113,13 @@ tests cover the real resync implementation without linking the game-import wrapp
 
 Low fixed configstrings may also carry compact references to resources already owned by a normal precache pool. For example, the
 optional generic environment-light slots `CS_TERRAIN_LIGHT_MODEL` and `CS_ENTITY_LIGHT_MODEL` contain decimal `CS_MODELS` indices;
-they do not duplicate model paths or create a second loader. The client resolves those references to model handles before filling the
-generic renderer view. Game modules choose what those models mean, while `viewDef_t` exposes only generic terrain/entity environment
-light model handles plus a normalized animation phase.
+they do not duplicate model paths or create a second loader. The client resolves those references to model handles and copies the
+generic `UI_PLAYERSTAT_ENV_PHASE` clock onto `viewDef_t`. It does not include a game header to do that. The active game renderer
+evaluates those optional inputs into `ENVIRONLIGHT` samples (`terrainLight` / `entityLight`); draw paths consume the samples, not
+the MDX handles. See [Environment Lighting](environment-lighting.md).
 
 Server-authored text frames may also bind to live snapshot values instead of forcing a complete layout resend whenever a number changes.
+`playerState.stats[16]` is the generic environment/day-phase clock (`UI_PLAYERSTAT_ENV_PHASE`).
 `playerState.stats[18..21]` are reserved generic selection-UI slots (current/max health and current/max mana), serialized as the two
 existing packed `NFT_LONG` stat pairs. `UI_STAT_SELECTION_HEALTH_TEXT` and `UI_STAT_SELECTION_MANA_TEXT` make `SCR_GetStringValue()`
 format those values at draw time. Game modules may populate these reserved slots for a sole-selected entity; client layout code must keep

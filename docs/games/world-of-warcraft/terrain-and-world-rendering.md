@@ -325,6 +325,11 @@ sun path or light color to read. The client therefore synthesizes both:
   tint (cool ambient, warm diffuse). Diffuse is halved from WoWee's `(1.0,0.95,0.85)`
   so `ambient + diffuse` stays ≤ 1.0 in the engine's non-HDR lighting.
 
+`R_SetupEnvironmentLighting` writes that synthesized sun into `viewDef.terrainLight` /
+`entityLight`. Terrain, grass, and M2 consume those `ENVIRONLIGHT` samples, with the
+previous per-draw `Wow_SunDirection` path as fallback when `valid` is false. See
+[Environment Lighting](../../architecture/environment-lighting.md).
+
 Consumers: terrain (`r_wowmap_shader.c` vertex shader computes
 `v_lighting = ambient + diffuse·N·L`), grass (`uSunDir.z` elevation), and M2 models
 (`r_m2.c` submits the sun through `R_SetModelLighting`). For the authoritative chain that

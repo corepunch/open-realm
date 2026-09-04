@@ -80,7 +80,7 @@ static void G_PublishTimeOfDayPhase(void) {
     phase = MAX(0.0f, MIN(phase, 1.0f));
     packed = (USHORT)lroundf(phase * (FLOAT)USHRT_MAX);
     FOR_LOOP(i, game.max_clients)
-        game.clients[i].ps.stats[WC3_UI_PLAYERSTAT_TIME_PHASE] = packed;
+        game.clients[i].ps.stats[UI_PLAYERSTAT_ENV_PHASE] = packed;
 }
 
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {

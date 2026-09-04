@@ -254,7 +254,7 @@ static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
     frame.flags.type = FT_SPRITE;
     frame.color = COLOR32_WHITE;
     frame.tex.index = gi.ModelIndex(model);
-    frame.stat = WC3_UI_PLAYERSTAT_TIME_PHASE;
+    frame.stat = UI_PLAYERSTAT_ENV_PHASE;
     frame.text = "#0";
     if (!frame.tex.index) return;
 

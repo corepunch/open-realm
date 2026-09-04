@@ -84,6 +84,28 @@ static inline void R_PackModelGrass(LPMATRIX4 out, LPCMODELGRASS in) {
     }};
 }
 
+static inline ENVIRONLIGHT R_EnvironLightFromModel(LPCRMODELLIGHT in) {
+    if (!in) return (ENVIRONLIGHT){0};
+    return (ENVIRONLIGHT){
+        .dir = in->dir, .color = in->color, .ambient = in->ambient,
+        .intensity = in->intensity, .ambient_intensity = in->ambient_intensity,
+        .type = (DWORD)in->type, .valid = true,
+    };
+}
+
+static inline BOOL R_LightingFromEnviron(LPCENVIRONLIGHT in, LPMODELLIGHTING out) {
+    if (!out) return false;
+    *out = (MODELLIGHTING){0};
+    if (!in || !in->valid) return false;
+    out->count = 1;
+    out->lights[0] = (RMODELLIGHT){
+        .dir = in->dir, .color = in->color, .ambient = in->ambient,
+        .intensity = in->intensity, .ambient_intensity = in->ambient_intensity,
+        .type = (RMODELLIGHTTYPE)in->type,
+    };
+    return true;
+}
+
 void R_SetDefaultLighting(DEFAULTPROG *shader, LPCMODELLIGHTING lighting);
 void R_SetModelLighting(MODELPROG *shader, LPCMODELLIGHTING lighting);
 void R_SetModelGrass(MODELPROG *shader, LPCMODELGRASS grass);

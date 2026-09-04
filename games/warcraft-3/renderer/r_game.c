@@ -174,6 +174,16 @@ void R_RegisterMap(LPCSTR mapFileName) {
     _W3M_RegisterMap(mapFileName);
 }
 
+void R_SetupEnvironmentLighting(void) {
+    RMODELLIGHT light;
+    tr.viewDef.terrainLight = (ENVIRONLIGHT){0};
+    tr.viewDef.entityLight = (ENVIRONLIGHT){0};
+    if (MDLX_SampleFirstLight(tr.viewDef.terrainLightModel, tr.viewDef.environmentPhase, &light))
+        tr.viewDef.terrainLight = R_EnvironLightFromModel(&light);
+    if (MDLX_SampleFirstLight(tr.viewDef.entityLightModel, tr.viewDef.environmentPhase, &light))
+        tr.viewDef.entityLight = R_EnvironLightFromModel(&light);
+}
+
 void R_DrawWorld(void) {
     _W3M_DrawWorld();
 }

@@ -308,15 +308,10 @@ void _W3M_DrawWorld(void) {
     R_Call(glDepthFunc, GL_LEQUAL);
 
     {
-        MODELLIGHTING lighting = { 0 };
-        if (MDLX_SampleFirstLight(tr.viewDef.terrainLightModel,
-                                  tr.viewDef.environmentPhase,
-                                  &lighting.lights[0])) {
-            lighting.count = 1;
-            R_SetDefaultLighting(&tr.shader_default, &lighting);
-        } else {
-            R_SetDefaultLighting(&tr.shader_default, NULL);
-        }
+        MODELLIGHTING lighting;
+        R_SetDefaultLighting(&tr.shader_default,
+                             R_LightingFromEnviron(&tr.viewDef.terrainLight, &lighting)
+                                 ? &lighting : NULL);
     }
 
     FOR_EACH_LIST(MAPLAYER, layer, g_groundLayers) {

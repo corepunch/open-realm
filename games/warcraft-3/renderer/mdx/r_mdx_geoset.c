@@ -836,18 +836,17 @@ void MDX_RenderModel(renderEntity_t const *entity,
         last_valid = true;
     }
     MODELLIGHTING lighting = { 0 };
-    RMODELLIGHT environmentLight;
     BOOL const portraitLighting = (entity->flags & RF_PORTRAIT_LIGHTING) != 0;
-    BOOL const hasEnvironmentLight = !portraitLighting &&
-        MDLX_SampleFirstLight(tr.viewDef.entityLightModel, tr.viewDef.environmentPhase, &environmentLight);
+    LPCENVIRONLIGHT environment = !portraitLighting && tr.viewDef.entityLight.valid
+        ? &tr.viewDef.entityLight
+        : (!portraitLighting && tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL);
     int numLights = 0;
 
-    if (hasEnvironmentLight)
-        lighting.lights[numLights++] = environmentLight;
+    if (environment && R_LightingFromEnviron(environment, &lighting))
+        numLights = lighting.count;
 
-    /* Sampling the DNC model uses the shared MDX node matrix scratch space.
-     * Rebind this entity immediately afterwards before evaluating its local
-     * lights or rendering geometry. */
+    /* Environment light is already on viewDef from R_SetupEnvironmentLighting.
+     * Rebind this entity before evaluating its local lights or rendering. */
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
     numLights += MDLX_CollectModelLights(model, transform, entity->frame,
                                         &lighting.lights[numLights],

@@ -458,6 +458,7 @@ typedef struct {
 } uiWindowDef_t;
 
 typedef enum {
+    UI_PLAYERSTAT_ENV_PHASE = 16, /* normalized 0..USHRT_MAX environment/day phase; 0 if unused */
     UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR = 17, /* WC3 presentation-only team-color slot for talking portraits */
     UI_PLAYERSTAT_SELECTION_HEALTH = 18,
     UI_PLAYERSTAT_SELECTION_MAX_HEALTH,
@@ -500,6 +501,19 @@ typedef struct {
     DWORD quest_id;
     svQuestStatus_t status;
 } svQuestEntry_t;
+
+/* Evaluated scene light. type matches RMODELLIGHTTYPE; 0 is omni, so presence is `valid`. */
+typedef struct ENVIRONLIGHT {
+    VECTOR3 dir, color, ambient;
+    FLOAT intensity, ambient_intensity;
+    DWORD type;
+    BOOL valid;
+} ENVIRONLIGHT;
+typedef struct ENVIRONLIGHT *LPENVIRONLIGHT;
+typedef const struct ENVIRONLIGHT *LPCENVIRONLIGHT;
+
+_Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR,
+               "env phase and cinematic portrait color must occupy distinct stats[] slots");
 
 struct playerState_s {
     DWORD number;                   // client slot index

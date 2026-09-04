@@ -740,7 +740,7 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
     T_FEQ(G_GetTimeOfDay(), 0.0f, 0.001f);
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
-    T_EQ(game.clients[0].ps.stats[WC3_UI_PLAYERSTAT_TIME_PHASE],
+    T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_ENV_PHASE],
          (USHORT)lroundf(0.5f * (FLOAT)USHRT_MAX));
 
     T_ASSERT(run_test_jass(
@@ -750,7 +750,7 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
         "endfunction\n"));
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
-    T_EQ(game.clients[0].ps.stats[WC3_UI_PLAYERSTAT_TIME_PHASE],
+    T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_ENV_PHASE],
          (USHORT)lroundf(0.5f * (FLOAT)USHRT_MAX));
 
     /* An explicit set still applies while ordinary progression is suspended. */

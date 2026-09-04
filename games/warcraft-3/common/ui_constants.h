@@ -7,7 +7,6 @@
 #define UI_FRAMEPOINT_SCALE 32767.0 // signed wire units per FDF unit; packs layout anchor offsets
 #define UI_FONT_COORD_SCALE 1000.0f // font coordinates per FDF unit; converts authored font heights
 #define UI_PIXEL_ASPECT (UI_MIN_ASPECT * UI_BASE_HEIGHT / UI_BASE_WIDTH) // y/x; square authored pixels in UI coordinates
-#define WC3_UI_PLAYERSTAT_TIME_PHASE 17 // stats[] slot; normalized Warcraft day phase, 0..USHRT_MAX for HUD/DNC animation
 #define BZ_WC3_WINDOW_QUEST MAKEFOURCC('Q','U','S','T') // opaque class/instance ID; identifies the singleton Quest window
 #define BZ_WC3_WINDOW_LOG   MAKEFOURCC('L','O','G',' ') // opaque class/instance ID; identifies the singleton Message Log window
 #define BZ_WC3_WINDOW_MENU  MAKEFOURCC('M','E','N','U') // opaque class/instance ID; identifies the singleton pause menu window
