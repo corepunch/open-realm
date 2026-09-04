@@ -13,8 +13,6 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
-#define EDICTFIELD(x, type, ...) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type, ##__VA_ARGS__ }
-
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
 #define SEL_SCALE 72
@@ -123,28 +121,6 @@ enum {
     AI_AUTOCAST_REPAIR = 1 << 3, /* persisted Repair-family autocast toggle */
     AI_AUTOCAST_ACTIVE = 1 << 4, /* fast unit-wide marker: some autocast ability is enabled */
 };
-
-typedef enum {
-    F_INT,
-    F_FLOAT,
-    F_LSTRING,            // string on disk, pointer in memory, TAG_LEVEL
-    F_GSTRING,            // string on disk, pointer in memory, TAG_GAME
-    F_VECTOR,
-    F_ANGLEHACK,
-    F_EDICT,            // index on disk, pointer in memory
-    F_ITEM,                // index on disk, pointer in memory
-    F_CLIENT,            // index on disk, pointer in memory
-    F_FUNCTION,
-    F_MMOVE,
-    F_IGNORE
-} fieldtype_t;
-
-typedef struct {
-    LPCSTR name;
-    DWORD ofs;
-    fieldtype_t type;
-    DWORD array_size;
-} field_t;
 
 typedef enum {
     ATK_NONE,
@@ -605,7 +581,7 @@ typedef struct {
     float AcquireRange;
 } UNITINFO;
 
-typedef struct {
+typedef struct gameevent_s {
     EVENTTYPE type;
     LPEDICT edict;
     LPEDICT source;

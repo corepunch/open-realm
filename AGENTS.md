@@ -114,6 +114,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - Keep runtime structs concise. Group related fields; use anonymous structs for repeated shapes; prefer `DWORD flags` over many standalone `BOOL` fields.
 - Declare a pointer + element-count pair as one unit with `ARRAY(type, name)` (defines `type *name; DWORD name##_count;`). Access the count via `ARRAY_COUNT(name)`, test emptiness with `IS_ARRAY_EMPTY(name)` (checks both pointer and count), and iterate with `FOR_EACH_ARRAY(type, it, name)` — or `FOR_LOOP(i, ARRAY_COUNT(name))` when the index is needed — never read or write `name##_count` directly.
 - Keep schema and field tables in a single column: put one descriptor or field entry on each line so the table is easy to scan and compare with its corresponding struct. Keep array entries on separate lines too, except for arrays of numbers or other genuinely short entries where a compact row remains clearer.
+- In C source files, declare all file-scope types and arrays before function definitions; keep the function implementations below those declarations.
 - Test flag membership with implicit bool conversion: `flags & FLAG` not `(flags & FLAG) != 0`.
 - Use `snake_case` for functions and variables, `ALL_CAPS` for constants and macros, matching Quake 2 conventions.
 - Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants.
