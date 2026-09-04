@@ -284,13 +284,11 @@ static BOOL follow_target_is_valid(LPCEDICT self, LPCEDICT target) {
     if (owner == self->s.player) {
         return true;
     }
-    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE) {
+    if (owner < PLAYER_NEUTRAL_AGGRESSIVE && level.mapinfo &&
+        level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
         return false;
     }
-    if (level.mapinfo && level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
-        return false;
-    }
-    return (level.alliances[self->s.player][owner] & (1 << ALLIANCE_PASSIVE)) != 0;
+    return G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
 }
 
 static BOOL follow_can_auto_attack(LPCEDICT self) {

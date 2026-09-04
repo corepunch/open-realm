@@ -1791,8 +1791,10 @@ LPEVENT G_MakeEvent(EVENTTYPE);
 LPQUEST G_MakeQuest(void);
 BOOL G_RegionContains(LPCREGION, LPCVECTOR2);
 void G_RemoveQuest(LPQUEST);
+void G_InitPlayerAlliances(LPCMAPINFO);
 void G_SetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE, BOOL);
 BOOL G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
+BOOL G_PlayerTreatsPlayerAsAlly(DWORD, DWORD);
 
 // m_unit.c
 BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);

@@ -99,6 +99,34 @@ void G_RemoveQuest(LPQUEST quest) {
     if (quest && quest->inuse) DeleteQuest(quest);
 }
 
+void G_InitPlayerAlliances(LPCMAPINFO mapinfo) {
+    DWORD const passive = 1u << ALLIANCE_PASSIVE;
+
+    memset(level.alliances, 0, sizeof(level.alliances));
+
+    /* Warcraft's reserved Neutral Passive owner is mutually passive-allied
+     * with every player.  Keep this in the normal directional alliance table
+     * so triggers can subsequently revoke/change the relation instead of
+     * relying on owner-ID special cases in every consumer. */
+    FOR_LOOP(player, MAX_PLAYERS) {
+        level.alliances[player][PLAYER_NEUTRAL_PASSIVE] |= passive;
+        level.alliances[PLAYER_NEUTRAL_PASSIVE][player] |= passive;
+    }
+
+    /* Ordinary W3I player slots controlled by MAP_CONTROL_NEUTRAL receive the
+     * same bilateral passive alliance defaults.  The four reserved neutral
+     * slots have distinct Warcraft semantics; only Neutral Passive is covered
+     * above, so do not turn Neutral Aggressive/Victim/Extra into allies here. */
+    if (!mapinfo) return;
+    FOR_LOOP(neutral, PLAYER_NEUTRAL_AGGRESSIVE) {
+        if (mapinfo->players[neutral].playerType != kPlayerTypeNeutral) continue;
+        FOR_LOOP(player, MAX_PLAYERS) {
+            level.alliances[neutral][player] |= passive;
+            level.alliances[player][neutral] |= passive;
+        }
+    }
+}
+
 void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL value) {
     DWORD const flag = 1u << type;
     DWORD const before = level.alliances[p1->number][p2->number];
@@ -117,4 +145,10 @@ void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL v
 
 BOOL G_GetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type) {
     return level.alliances[p1->number][p2->number] & (1 << type);
+}
+
+BOOL G_PlayerTreatsPlayerAsAlly(DWORD source, DWORD other) {
+    if (source >= MAX_PLAYERS || other >= MAX_PLAYERS) return false;
+    if (source == other) return true;
+    return (level.alliances[source][other] & (1u << ALLIANCE_PASSIVE)) != 0;
 }

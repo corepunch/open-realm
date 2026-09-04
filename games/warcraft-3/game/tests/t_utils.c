@@ -70,6 +70,7 @@ void setup_test_world(void) {
     G_ClearGroundSurfaces();
 	memset(&test_mapinfo, 0, sizeof(test_mapinfo));
 	level.mapinfo = &test_mapinfo;
+	G_InitPlayerAlliances(level.mapinfo);
 
 	memset(&test_worldmap, 0, sizeof(test_worldmap));
 	test_worldmap.width = TEST_PATHMAP_CELLS;
@@ -132,6 +133,7 @@ static void reset_test_state(void) {
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));
     level.mapinfo = &test_mapinfo;
+    G_InitPlayerAlliances(level.mapinfo);
     gi.GetTime = test_get_time;
     gi.SetPaused = test_set_paused;
     CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {512, 384}));

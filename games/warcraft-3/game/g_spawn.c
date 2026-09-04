@@ -384,6 +384,7 @@ void G_SpawnEntities(void) {
     level.time = gi.GetTime();
 
     level.mapinfo = mapinfo;
+    G_InitPlayerAlliances(mapinfo);
     level.setup.teams = mapinfo ? mapinfo->num_teams : 0;
     if (mapinfo) FOR_LOOP(i, MAX_PLAYERS) level.setup.players += mapinfo->players[i].used;
     level.setup.game_type = 4;

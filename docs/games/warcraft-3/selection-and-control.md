@@ -12,8 +12,23 @@ visible/selectable -> relationship presentation -> control authority
 
 - `G_UnitCanBeSelected(client, ent)` accepts a live `SVF_MONSTER` that is in use, not hidden, not `EF_NOT_SELECTABLE`, and actively visible through `G_FowPlayerCanHoverEntity`.
 - `G_SelectionRelation(viewer, ent)` returns friend, neutral, or enemy independently of command authority.
-- `G_UnitCanControl(client, ent)` is a pure authority check: it accepts locally owned units and passive allies that grant `ALLIANCE_SHARED_CONTROL`, independent of fog/hover/selectability state. Active selection/order paths separately reject dead, hidden, and unselectable entities. Neutral Hostile and Neutral Passive slots never become controllable through alliance-bit accidents.
+- `G_UnitCanControl(client, ent)` is a pure authority check: it accepts locally owned units and passive allies that grant `ALLIANCE_SHARED_CONTROL`, independent of fog/hover/selectability state. Active selection/order paths separately reject dead, hidden, and unselectable entities. Reserved neutral owners use the same alliance table; their default state simply does not grant shared control.
 - Alliance state is directional, matching the JASS `SetPlayerAlliance(source, other, type, value)` contract. `G_SetPlayerAlliance` changes only `level.alliances[source][other]`; callers that want mutual alliance must set both directions. Friend/enemy tests use `ALLIANCE_PASSIVE` specifically—shared vision, shared XP, or shared-control bits by themselves do not make a hostile unit friendly.
+
+`G_InitPlayerAlliances()` establishes Warcraft's map-start defaults before map
+script execution. Reserved `PLAYER_NEUTRAL_PASSIVE` (15) receives a bilateral
+`ALLIANCE_PASSIVE` relation with every player. Ordinary W3I slots below the four
+reserved neutral owners whose `playerType == kPlayerTypeNeutral` receive the same
+bilateral passive defaults. `PLAYER_NEUTRAL_AGGRESSIVE` (12), Neutral Victim
+(13), and Neutral Extra (14) are not made passive allies by that rule. These are
+initial values, not permanent owner-ID exceptions: later `SetPlayerAlliance`
+calls may revoke Neutral Passive friendship or ally Neutral Aggressive.
+
+Relationship consumers use `G_PlayerTreatsPlayerAsAlly(source, other)`. The
+arguments are deliberately directional: the acting/querying player is the
+source and the target unit's owner is the other player. JASS `IsUnitAlly` and
+`IsUnitEnemy`, Smart orders, Follow, spell relationship checks, selection-ring
+classification, and automatic acquisition use that same direction.
 
 This means a visible foreign unit may be inspected without giving the viewer ownership or order authority.
 
@@ -69,10 +84,14 @@ reasons to merge inventory state across the group.
 | Relationship | Snapshot flag | Ring family |
 |---|---|---|
 | friend / own / shared control | neither | green |
-| passive ally / Neutral Passive | `EF_NEUTRAL` | yellow |
-| enemy / Neutral Hostile | `EF_HOSTILE` | red |
+| passive ally without shared control | `EF_NEUTRAL` | yellow |
+| non-passive relationship | `EF_HOSTILE` | red |
 
-The neutral player slots are `PLAYER_NEUTRAL_AGGRESSIVE == 12` and `PLAYER_NEUTRAL_PASSIVE == 15`.
+The commonly visible reserved neutral player slots are
+`PLAYER_NEUTRAL_AGGRESSIVE == 12` and `PLAYER_NEUTRAL_PASSIVE == 15`. Their
+usual red/yellow presentation comes from the default alliance matrix, not a
+hard-coded color exception, so map scripts can change the relationship at
+runtime.
 
 `renderer/r_ents.c` uses the same flags for both hover and full selected circles. The selection-circle texture and radius remain the existing WC3 data/model choice; relationship colours are currently renderer constants rather than `SelectionCircle/ColorFriend`, `ColorNeutral`, and `ColorEnemy` skin data.
 
@@ -103,7 +122,9 @@ data-defined acquisition range, may auto-acquire nearby enemies, and resumes
 following after that combat ends. Point Move, Attack-Move, Patrol, Stop, and
 Hold Position replace this persistent follow goal. Explicit target Attack is a
 combat detour and may return to the retained follow goal afterward, matching the
-Warsmash default-behavior split.
+Warsmash default-behavior split. This includes Neutral Passive units while their
+directional passive alliance remains enabled; revoking that alliance makes the
+same unit a Smart Attack candidate instead.
 
 `Get_Commands_f` clears the command card for a selected unit that the local player cannot control. A foreign building may still use the ordinary inspection panel, but its production queue is not serialized to the viewer. Shared-control units retain command-card access.
 
@@ -134,6 +155,13 @@ The following are deliberately not inferred by the current implementation:
 - data-driven `SelectionCircle` relationship colours;
 - Neutral Passive critter-specific selection response rules;
 - exact retail behavior for `ALLIANCE_SHARED_ADVANCED_CONTROL`.
+
+Combat reaction remains a separate gap from relationship classification:
+OpenRealm does not yet apply Warsmash's PEON suppression/`canFlee` civilian
+reaction policy when a non-combat unit is damaged. Likewise, a hostile
+relationship does not yet imply correct per-weapon attackability because
+`UnitWeapons.targs1`/`targs2` are not enforced by ordinary Attack; see
+[Warcraft III Attack Damage](attack-damage.md#known-gaps).
 
 Do not bypass these gaps by weakening `G_UnitCanControl` or by restoring owner checks inside selection itself. Selection and command authority must remain separate.
 

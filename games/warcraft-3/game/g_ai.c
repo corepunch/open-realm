@@ -725,17 +725,11 @@ static BOOL filter_sight(LPCEDICT ent) {
         return false;
     /* Friend/enemy is the acquiring player's directional PASSIVE alliance.
      * Shared vision/control/XP alone must never suppress hostile acquisition. */
-    if (level.alliances[ai_current_entity->s.player][ent->s.player] & (1 << ALLIANCE_PASSIVE))
+    if (G_PlayerTreatsPlayerAsAlly(ai_current_entity->s.player, ent->s.player))
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;
     if (ent->runtime.flags & UNIT_BALANCE_BUILDING)
-        return false;
-    /* Local acquisition is a unit behavior, not a Human-vs-AI special case.
-     * Computer allies must be able to defend against other computer players.
-     * Neutral units already do not initiate from ai_stand(); keep Neutral
-     * Passive widgets out of ordinary hostile acquisition as well. */
-    if (ent->s.player == PLAYER_NEUTRAL_PASSIVE)
         return false;
     return true;
 }
