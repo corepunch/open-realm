@@ -207,7 +207,7 @@ void G_BotHarvest(LPPLAYER player, LONG town_id, LONG peons, BOOL gold) {
         FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && !unit->training &&
             !unit->construction.active && !unit->build_project &&
             (!unit->currentmove || (unit->currentmove->ability != &a_goldmine &&
-             unit->currentmove->ability != &a_harvest && unit->currentmove->ability != &a_repair)) && unit->UnitAbilities &&
+             unit->currentmove->ability != &a_harvest && unit->currentmove->ability != &a_repair)) && unit->data.UnitAbilities &&
             G_ActorHasSkill(unit, "Ahar") && !G_BotHarvesterReserved(bot, unit)) {
             FLOAT dist = Vector2_distance(&town->s.origin2, &unit->s.origin2);
             if (!best || dist < best_dist) { best = unit; best_dist = dist; }

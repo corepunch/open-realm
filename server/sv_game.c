@@ -123,6 +123,10 @@ DWORD SV_GetTime(void) {
     return sv.time;
 }
 
+void SV_SetGameTime(DWORD time) {
+    sv.time = time;
+}
+
 void PF_Multicast(LPCVECTOR3 origin, multicast_t to) {
     SV_Multicast(origin, to);
 }
@@ -216,6 +220,7 @@ void SV_InitGameProgs(void) {
     import.MinimapPing = SV_MinimapPing;
     import.FontIndex = SV_FontIndex;
     import.GetTime = SV_GetTime;
+    import.SetGameTime = SV_SetGameTime;
     import.SetPaused = SV_SetPaused;
     import.ReadFile = FS_ReadFile;
     import.ReadFileAll = FS_ReadFileAll;

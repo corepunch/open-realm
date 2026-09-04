@@ -1,9 +1,82 @@
 #include "g_local.h"
 
+typedef enum {
+    F_INT,
+    F_FLOAT,
+    F_LSTRING,            // string on disk, pointer in memory, TAG_LEVEL
+    F_GSTRING,            // string on disk, pointer in memory, TAG_GAME
+    F_VECTOR,
+    F_REGION,
+    F_ANGLEHACK,
+    F_EDICT,            // index on disk, pointer in memory
+    F_ITEM,                // index on disk, pointer in memory
+    F_TRIGGER,          // index on disk, pointer in memory
+    F_TIMER,            // index on disk, pointer in memory
+    F_EVENT,            // index on disk, pointer in memory
+    F_FUNCTION,
+    F_FUNCTION_LIST,
+    F_MMOVE,
+    F_STRUCT,
+    F_STRUCT_RING,
+    F_IGNORE
+} fieldtype_t;
+
+typedef struct {
+    LPCSTR name;
+    DWORD ofs;
+    fieldtype_t type;
+    size_t size;
+    DWORD array_size;
+    uintptr_t flags; /* field flags, or child schema pointer for F_STRUCT */
+    DWORD count_ofs;
+} field_t;
+
+typedef struct {
+    field_t const *fields;
+    DWORD read_ofs, write_ofs;
+} fieldRing_t;
+
+#define F_METADATA(kind, ...) F_METADATA_INNER(kind, __VA_ARGS__)
+#define F_METADATA_INNER(kind, ...) F_METADATA_##kind(__VA_ARGS__)
+#define F_METADATA_F_STRUCT(count, schema) count, (uintptr_t)(schema)
+#define F_METADATA_F_IGNORE(count, flags) count, flags
+#define F_METADATA_F_INT(...) 0, 0
+#define F_METADATA_F_FLOAT(...) 0, 0
+#define F_METADATA_F_LSTRING(...) 0, 0
+#define F_METADATA_F_GSTRING(...) 0, 0
+#define F_METADATA_F_VECTOR(...) 0, 0
+#define F_METADATA_F_REGION(...) 0, 0
+#define F_METADATA_F_ANGLEHACK(...) 0, 0
+#define F_METADATA_F_EDICT(count, flags) count, flags
+#define F_METADATA_F_ITEM(count, flags) count, flags
+#define F_METADATA_F_TRIGGER(count, flags) count, flags
+#define F_METADATA_F_TIMER(count, flags) count, flags
+#define F_METADATA_F_EVENT(count, flags) count, flags
+#define F_METADATA_F_FUNCTION(...) 0, 0
+#define F_METADATA_F_FUNCTION_LIST(...) 0, 0
+#define F_METADATA_F_MMOVE(...) 0, 0
+#define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
+#define TF(TYPE, x, kind, ...) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
+#define FC(TYPE, x, kind, count, schema, count_field) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(schema), FOFS(TYPE, count_field) - (HANDLE)NULL }
+#define FR(TYPE, x, count, ring) { #x, FOFS(TYPE, x) - (HANDLE)NULL, F_STRUCT_RING, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(ring), UINT32_MAX }
+#define TFC(TYPE, x, kind, count, count_field) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), count, 0, offsetof(TYPE, count_field) }
+
+enum {
+    FIELD_NONE,
+    FIELD_RUNTIME = 1 << 0,
+};
+
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 3;
+static DWORD const save_version = 7;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
+#define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
+
+/* F_MMOVE anchor: umove_t instances are file-scope statics, so a move pointer
+ * survives a save as a signed offset from a fixed symbol in the same data segment. */
+static umove_t umove_reloc;
+
+_Static_assert(sizeof(umove_t *) == 8, "F_MMOVE packs a relocation offset and a validation hash into the pointer field");
 
 typedef struct {
     DWORD magic, version, edict_size, num_edicts, max_clients;
@@ -13,116 +86,308 @@ typedef struct {
 
 typedef struct { DWORD checksum, commit; } SAVEFOOTER;
 
-/* Every pointer in edict_s that survives a save must be represented here. */
-field_t fields[] = {
-    EDICTFIELD(class_id, F_INT),
-    EDICTFIELD(variation, F_INT),
-    EDICTFIELD(build_project, F_INT),
-    EDICTFIELD(spawn_time, F_INT),
-    EDICTFIELD(harvested_lumber, F_INT),
-    EDICTFIELD(harvested_gold, F_INT),
-    EDICTFIELD(heatmap2, F_INT),
-    EDICTFIELD(peonsinside, F_INT),
-    EDICTFIELD(aiflags, F_INT),
-    EDICTFIELD(damage, F_INT),
-    EDICTFIELD(collision, F_FLOAT),
-    EDICTFIELD(s.origin, F_VECTOR),
-    EDICTFIELD(construction.primary_builder, F_EDICT),
-    EDICTFIELD(rally.entity, F_EDICT),
-    EDICTFIELD(revival.producer, F_EDICT),
-    EDICTFIELD(revival.queue_next, F_EDICT),
-    EDICTFIELD(goldmine.mine, F_EDICT),
-    EDICTFIELD(inventory, F_EDICT, MAX_INVENTORY),
-    EDICTFIELD(cargo.units, F_EDICT, MAX_CARGO),
-    EDICTFIELD(item.carrier, F_EDICT),
-    EDICTFIELD(ground_next, F_EDICT),
-    EDICTFIELD(movement.attackmove_waypoint, F_EDICT),
-    EDICTFIELD(movement.patrol_a, F_EDICT),
-    EDICTFIELD(movement.patrol_b, F_EDICT),
-    EDICTFIELD(movement.patrol_target, F_EDICT),
-    EDICTFIELD(movement.follow_target, F_EDICT),
-    EDICTFIELD(goalentity, F_EDICT),
-    EDICTFIELD(combatentity, F_EDICT),
-    EDICTFIELD(secondarygoal, F_EDICT),
-    EDICTFIELD(owner, F_EDICT),
-    EDICTFIELD(build, F_EDICT),
-    { NULL, 0, 0, 0 }
+typedef enum {
+    JASS_HANDLE_ENTITY,
+    JASS_HANDLE_PLAYER,
+    JASS_HANDLE_QUEST,
+    JASS_HANDLE_QUESTITEM,
+    JASS_HANDLE_EVENT,
+    JASS_HANDLE_TRIGGER,
+    JASS_HANDLE_GROUP,
+    JASS_HANDLE_TIMER,
+} jassHandleDomain_t;
+
+static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
+    { "unit", JASS_HANDLE_ENTITY },
+    { "widget", JASS_HANDLE_ENTITY },
+    { "destructable", JASS_HANDLE_ENTITY },
+    { "item", JASS_HANDLE_ENTITY },
+    { "effect", JASS_HANDLE_ENTITY },
+    { "player", JASS_HANDLE_PLAYER },
+    { "quest", JASS_HANDLE_QUEST },
+    { "questitem", JASS_HANDLE_QUESTITEM },
+    { "event", JASS_HANDLE_EVENT },
+    { "trigger", JASS_HANDLE_TRIGGER },
+    { "group", JASS_HANDLE_GROUP },
+    { "timer", JASS_HANDLE_TIMER },
 };
 
-typedef struct {
-    DWORD ofs, size;
-} runtimeField_t;
-
-#define RUNTIMEFIELD(x) { FOFS(edict_s, x) - (HANDLE)NULL, sizeof(((edict_t *)NULL)->x) }
-#define CLIENTRUNTIMEFIELD(x) { FOFS(client_s, x) - (HANDLE)NULL, sizeof(((GAMECLIENT *)NULL)->x) }
-
-/* Process-owned edict data is one schema too: it is cleared before the raw record is written,
- * then rebuilt from class data or the live world after loading. */
-static runtimeField_t const runtime_fields[] = {
-    RUNTIMEFIELD(client),
-    RUNTIMEFIELD(pathtex),
-    RUNTIMEFIELD(area.prev),
-    RUNTIMEFIELD(area.next),
-    RUNTIMEFIELD(destructable.alive_pathtex),
-    RUNTIMEFIELD(destructable.death_pathtex),
-    RUNTIMEFIELD(destructable.drop_sets),
-    RUNTIMEFIELD(destructable.drop_sets_count),
-    RUNTIMEFIELD(added_abilities),
-    RUNTIMEFIELD(added_abilities_count),
-    RUNTIMEFIELD(removed_abilities),
-    RUNTIMEFIELD(removed_abilities_count),
-    RUNTIMEFIELD(permanent_abilities),
-    RUNTIMEFIELD(permanent_abilities_count),
-    RUNTIMEFIELD(animation),
-    RUNTIMEFIELD(currentmove),
-    RUNTIMEFIELD(militia.partner),
-    RUNTIMEFIELD(militia.partner_spawn_time),
-    RUNTIMEFIELD(militia.returning),
-    RUNTIMEFIELD(stand),
-    RUNTIMEFIELD(birth),
-    RUNTIMEFIELD(prethink),
-    RUNTIMEFIELD(think),
-    RUNTIMEFIELD(die),
-    RUNTIMEFIELD(idle),
-    RUNTIMEFIELD(move),
-    RUNTIMEFIELD(run),
-    RUNTIMEFIELD(attack),
-    RUNTIMEFIELD(pain),
-    RUNTIMEFIELD(UnitProfile),
-    RUNTIMEFIELD(UnitBalance),
-    RUNTIMEFIELD(UnitData),
-    RUNTIMEFIELD(UnitUI),
-    RUNTIMEFIELD(UnitWeapons),
-    RUNTIMEFIELD(UnitAbilities),
-    RUNTIMEFIELD(Doodads),
-    RUNTIMEFIELD(ItemData),
-    RUNTIMEFIELD(DestructableData),
+static field_t const save_event_fields[] = {
+    F(gevent_s, type, F_INT),
+    F(gevent_s, subject, F_EDICT, 0, FIELD_NONE),
+    F(gevent_s, trigger, F_TRIGGER, 0, FIELD_NONE),
+    F(gevent_s, timer, F_TIMER, 0, FIELD_NONE),
+    F(gevent_s, region, F_REGION),
+    F(gevent_s, range, F_FLOAT),
+    F(gevent_s, state, F_INT),
+    F(gevent_s, limitop, F_INT),
+    F(gevent_s, limitval, F_FLOAT),
+    F(gevent_s, inuse, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
 };
 
-/* Client callbacks and cross-object pointers are rebuilt from live game state after the fixed copy loads. */
-static runtimeField_t const client_runtime_fields[] = {
-    CLIENTRUNTIMEFIELD(ps.name),
-    CLIENTRUNTIMEFIELD(ps.texts),
-    CLIENTRUNTIMEFIELD(mapplayer),
-    CLIENTRUNTIMEFIELD(menu.on_entity_selected),
-    CLIENTRUNTIMEFIELD(menu.on_location_selected),
-    CLIENTRUNTIMEFIELD(menu.cmdbutton),
-    CLIENTRUNTIMEFIELD(menu.refresh),
-    CLIENTRUNTIMEFIELD(camera.target_controller),
-    CLIENTRUNTIMEFIELD(rally_indicator),
+static field_t const save_game_event_fields[] = {
+    F(gameevent_s, type, F_INT),
+    F(gameevent_s, edict, F_EDICT, 0, FIELD_NONE),
+    F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
+    F(gameevent_s, responseTo, F_EVENT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
 };
 
-static void ClearRuntimeFields(void *object, runtimeField_t const *fields, DWORD count) {
-    FOR_LOOP(i, count) memset((BYTE *)object + fields[i].ofs, 0, fields[i].size);
+static field_t const group_fields[] = {
+    TFC(ggroup_t, units, F_EDICT, MAX_GROUP_SIZE, num_units),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const trigger_fields[] = {
+    F(gtrigger_s, disabled, F_INT),
+    F(gtrigger_s, actions, F_FUNCTION_LIST),
+    F(gtrigger_s, conditions, F_FUNCTION_LIST),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const timer_fields[] = {
+    F(gtimer_s, duration, F_INT),
+    F(gtimer_s, remaining, F_INT),
+    F(gtimer_s, periodic, F_INT),
+    F(gtimer_s, paused, F_INT),
+    F(gtimer_s, running, F_INT),
+    F(gtimer_s, handler, F_FUNCTION),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const questitem_fields[] = {
+    F(gquestitem_s, description, F_LSTRING),
+    F(gquestitem_s, completed, F_INT),
+    F(gquestitem_s, inuse, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const quest_fields[] = {
+    F(gquest_s, title, F_LSTRING),
+    F(gquest_s, description, F_LSTRING),
+    F(gquest_s, iconPath, F_LSTRING),
+    F(gquest_s, discovered, F_INT),
+    F(gquest_s, required, F_INT),
+    F(gquest_s, completed, F_INT),
+    F(gquest_s, failed, F_INT),
+    F(gquest_s, enabled, F_INT),
+    F(gquest_s, inuse, F_INT),
+    FC(gquest_s, items, F_STRUCT, MAX_QUESTITEMS, questitem_fields, num_items),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static fieldRing_t const game_event_ring = {
+    save_game_event_fields,
+    FOFS(level_locals, events.read) - (HANDLE)NULL,
+    FOFS(level_locals, events.write) - (HANDLE)NULL
+};
+
+static field_t const level_fields[] = {
+    F(level_locals, framenum, F_INT),
+    F(level_locals, time, F_INT),
+    F(level_locals, timeofday.elapsed, F_FLOAT),
+    F(level_locals, timeofday.pending, F_FLOAT),
+    F(level_locals, timeofday.pending_valid, F_INT),
+    F(level_locals, timeofday.suspended, F_INT),
+    F(level_locals, started, F_INT),
+    F(level_locals, scriptsStarted, F_INT),
+    F(level_locals, waypoints.base, F_INT),
+    F(level_locals, waypoints.cursor, F_INT),
+    F(level_locals, waypoints.count, F_INT),
+    F(level_locals, quests, F_STRUCT, MAX_QUESTS, quest_fields),
+    FC(level_locals, groups, F_STRUCT, MAX_GROUPS, group_fields, num_groups),
+    FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
+    FC(level_locals, timers, F_STRUCT, MAX_TIMERS, timer_fields, num_timers),
+    F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
+    FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const entity_state_fields[] = {
+    TF(entityState_t, origin, F_VECTOR),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const link_fields[] = {
+    F(link_s, prev, F_IGNORE, 0, FIELD_RUNTIME),
+    F(link_s, next, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const construction_fields[] = {
+    TF(edictConstruction_s, primary_builder, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const rally_fields[] = {
+    TF(edictRally_s, entity, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const revival_fields[] = {
+    TF(edictRevival_s, producer, F_EDICT, 0, FIELD_NONE),
+    TF(edictRevival_s, queue_next, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const militia_fields[] = {
+    TF(edictMilitia_s, partner, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMilitia_s, partner_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMilitia_s, returning, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const goldmine_fields[] = {
+    TF(edictGoldMine_s, mine, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const item_fields[] = {
+    TF(edictItem_s, carrier, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const destructable_fields[] = {
+    TF(edictDestructable_s, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictDestructable_s, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictDestructable_s, drop_sets, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictDestructable_s, drop_sets_count, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const cargo_fields[] = {
+    TF(edictCargo_s, units, F_EDICT, MAX_CARGO, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const abilities_fields[] = {
+    TFC(edictAbilities_s, added, F_INT, MAX_ABILITIES, added_count),
+    TFC(edictAbilities_s, removed, F_INT, MAX_ABILITIES, removed_count),
+    TFC(edictAbilities_s, permanent, F_INT, MAX_ABILITIES, permanent_count),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const movement_fields[] = {
+    TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, patrol_a, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, patrol_b, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, patrol_target, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, follow_target, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const edict_data_fields[] = {
+    TF(edictData_s, UnitProfile, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, UnitBalance, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, UnitData, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, UnitUI, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, UnitWeapons, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, UnitAbilities, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, Doodads, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, ItemData, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictData_s, DestructableData, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const client_menu_fields[] = {
+    TF(clientMenu_s, on_entity_selected, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, on_location_selected, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, cmdbutton, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, refresh, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const client_camera_fields[] = {
+    TF(clientCamera_s, target_controller, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+/* Every persistent and process-owned edict field crossing the save boundary is represented here. */
+field_t edict_fields[] = {
+    F(edict_s, class_id, F_INT),
+    F(edict_s, variation, F_INT),
+    F(edict_s, build_project, F_INT),
+    F(edict_s, spawn_time, F_INT),
+    F(edict_s, harvested_lumber, F_INT),
+    F(edict_s, harvested_gold, F_INT),
+    F(edict_s, heatmap2, F_INT),
+    F(edict_s, peonsinside, F_INT),
+    F(edict_s, aiflags, F_INT),
+    F(edict_s, damage, F_INT),
+    F(edict_s, collision, F_FLOAT),
+    F(edict_s, s, F_STRUCT, 1, entity_state_fields),
+    F(edict_s, construction, F_STRUCT, 1, construction_fields),
+    F(edict_s, rally, F_STRUCT, 1, rally_fields),
+    F(edict_s, revival, F_STRUCT, 1, revival_fields),
+    F(edict_s, goldmine, F_STRUCT, 1, goldmine_fields),
+    F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
+    F(edict_s, cargo, F_STRUCT, 1, cargo_fields),
+    F(edict_s, item, F_STRUCT, 1, item_fields),
+    F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, movement, F_STRUCT, 1, movement_fields),
+    F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, combatentity, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, secondarygoal, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, owner, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, build, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, client, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, pathtex, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, area, F_STRUCT, 1, link_fields),
+    F(edict_s, destructable, F_STRUCT, 1, destructable_fields),
+    F(edict_s, abilities, F_STRUCT, 1, abilities_fields),
+    F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, currentmove, F_MMOVE),
+    F(edict_s, militia, F_STRUCT, 1, militia_fields),
+    F(edict_s, stand, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, birth, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, prethink, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, think, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, die, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, idle, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, move, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, run, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, attack, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, pain, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, data, F_STRUCT, 1, edict_data_fields),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const client_fields[] = {
+    F(client_s, ps.name, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, ps.texts, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, mapplayer, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, menu, F_STRUCT, 1, client_menu_fields),
+    F(client_s, camera, F_STRUCT, 1, client_camera_fields),
+    F(client_s, rally_indicator, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static void ClearRuntimeFields(void *object, field_t const *fields, DWORD flags) {
+    for (field_t const *field = fields; field->name; field++) {
+        DWORD count = field->array_size ? field->array_size : 1;
+        size_t size = field->array_size ? field->size / field->array_size : field->size;
+        switch (field->type) {
+        case F_STRUCT:
+            FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (field_t const *)field->flags, flags);
+            break;
+        case F_IGNORE:
+            if (field->flags == flags) memset((BYTE *)object + field->ofs, 0, field->size);
+            break;
+        default: break;
+        }
+    }
 }
 
 static BOOL SaveBytes(FILE *f, LPCVOID data, size_t size) { return fwrite(data, 1, size, f) == size; }
 static BOOL LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
 static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return SaveBytes(context, data, size); }
 static BOOL ReadJassBytes(void *context, void *data, DWORD size) { return LoadBytes(context, data, size); }
+static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base);
+static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base);
 static BOOL WriteString(FILE *f, LPCSTR text);
 static BOOL ReadString(FILE *f, LPSTR *text);
-static DWORD EventCount(void);
+static DWORD ActiveEventCount(void);
 
 static DWORD SaveHash(DWORD hash, LPCVOID data, size_t size) {
     BYTE const *bytes = data;
@@ -180,45 +445,22 @@ BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size) {
     return true;
 }
 
-static ggroup_t *save_groups[MAX_JASS_GROUPS];
-static LPGTIMER save_timers[MAX_JASS_TIMERS];
-static LPTRIGGER save_triggers[MAX_JASS_TRIGGERS];
-
 void G_ClearSaveRegistries(void) {
-    FOR_LOOP(i, MAX_JASS_GROUPS) { if (save_groups[i]) jass_free(save_groups[i]); save_groups[i] = NULL; }
-    FOR_LOOP(i, MAX_JASS_TIMERS) { if (save_timers[i]) jass_free(save_timers[i]); save_timers[i] = NULL; }
-    FOR_LOOP(i, MAX_JASS_TRIGGERS) {
-        if (!save_triggers[i]) continue;
-        DELETE_LIST(TRIGGERACTION, save_triggers[i]->actions, gi.MemFree);
-        DELETE_LIST(TRIGGERCONDITION, save_triggers[i]->conditions, gi.MemFree);
-        jass_free(save_triggers[i]); save_triggers[i] = NULL;
+    FOR_LOOP(i, level.num_triggers) {
+        DELETE_LIST(TRIGGERACTION, level.triggers[i].actions, gi.MemFree);
+        DELETE_LIST(TRIGGERCONDITION, level.triggers[i].conditions, gi.MemFree);
     }
 }
 
 static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWORD events) {
     if (groups < level.num_groups || timers < level.num_timers || triggers < level.num_triggers ||
-        events < EventCount() || groups > MAX_JASS_GROUPS || timers > MAX_JASS_TIMERS ||
-        triggers > MAX_JASS_TRIGGERS || events > MAX_JASS_EVENTS)
+        events < ActiveEventCount() || groups > MAX_GROUPS || timers > MAX_TIMERS ||
+        triggers > MAX_TRIGGERS || events > MAX_EVENTS)
         return false;
-    while (level.num_groups < groups) {
-        DWORD i = level.num_groups;
-        ggroup_t *group = jass_alloc(sizeof(*group));
-        if (!group || !G_RegisterJassGroup(group)) return false;
-        memset(group, 0, sizeof(*group)); save_groups[i] = group;
-    }
-    while (level.num_timers < timers) {
-        DWORD i = level.num_timers;
-        LPGTIMER timer = jass_alloc(sizeof(*timer));
-        if (!timer || !G_RegisterJassTimer(timer)) return false;
-        memset(timer, 0, sizeof(*timer)); save_timers[i] = timer;
-    }
-    while (level.num_triggers < triggers) {
-        DWORD i = level.num_triggers;
-        LPTRIGGER trigger = jass_alloc(sizeof(*trigger));
-        if (!trigger || !G_RegisterJassTrigger(trigger)) return false;
-        memset(trigger, 0, sizeof(*trigger)); save_triggers[i] = trigger;
-    }
-    while (EventCount() < events) if (!G_MakeEvent(0)) return false;
+    while (level.num_groups < groups) if (!G_AllocJassGroup()) return false;
+    while (level.num_timers < timers) if (!G_AllocJassTimer()) return false;
+    while (level.num_triggers < triggers) if (!G_AllocJassTrigger()) return false;
+    while (ActiveEventCount() < events) if (!G_MakeEvent(0)) return false;
     return true;
 }
 
@@ -239,156 +481,40 @@ static BOOL ReadJass(FILE *f) {
     return !present || jass_readsnapshot(level.vm, &snapshot);
 }
 
-BOOL G_RegisterJassGroup(ggroup_t *group) {
-    if (!group || level.num_groups >= MAX_JASS_GROUPS) return false;
-    level.groups[level.num_groups++] = group;
-    return true;
-}
-
-BOOL G_RegisterJassTrigger(LPTRIGGER trigger) {
-    if (!trigger || level.num_triggers >= MAX_JASS_TRIGGERS) return false;
-    level.triggers[level.num_triggers++] = trigger;
-    return true;
-}
-
-static DWORD QuestCount(void) {
+static DWORD ActiveQuestCount(void) {
     DWORD count = 0;
-    FOR_EACH_LIST(QUEST const, quest, level.quests) count++;
+    FOR_EACH_QUEST(quest) count++;
     return count;
 }
 
-static DWORD EventCount(void) {
+static DWORD ActiveEventCount(void) {
     DWORD count = 0;
-    FOR_EACH_LIST(EVENT const, event, level.events.handlers) count++;
+    FOR_EACH_EVENT(event) count++;
     return count;
 }
 
 static BOOL EventId(LPEVENT value, DWORD *id) {
-    DWORD index = 0;
     if (!value) { *id = UINT32_MAX; return true; }
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-        if (event == value) { *id = index; return true; }
-        index++;
+    if (value >= level.events.handlers && value < level.events.handlers + MAX_EVENTS) {
+        *id = (DWORD)(value - level.events.handlers); return value->inuse;
     }
     return false;
 }
 
 static LPEVENT EventById(DWORD id) {
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-        if (!id--) return event;
-    }
-    return NULL;
+    return id < MAX_EVENTS && level.events.handlers[id].inuse ? &level.events.handlers[id] : NULL;
 }
 
 static BOOL TriggerIndex(LPTRIGGER value, DWORD *id) {
     if (!value) { *id = UINT32_MAX; return true; }
-    FOR_LOOP(i, level.num_triggers) if (level.triggers[i] == value) { *id = i; return true; }
-    return false;
+    if (value < level.triggers || value >= level.triggers + level.num_triggers) return false;
+    *id = (DWORD)(value - level.triggers); return true;
 }
 
 static BOOL TimerIndex(LPGTIMER value, DWORD *id) {
     if (!value) { *id = UINT32_MAX; return true; }
-    FOR_LOOP(i, level.num_timers) if (level.timers[i] == value) { *id = i; return true; }
-    return false;
-}
-
-static BOOL WriteEvents(FILE *f) {
-    DWORD handlers = EventCount(), queued = level.events.write - level.events.read;
-    if (!SaveBytes(f, &handlers, sizeof(handlers))) return false;
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-        int subject = event->subject ? (int)(event->subject - g_edicts) : -1;
-        DWORD trigger, timer;
-        if (subject >= (int)globals.num_edicts || !TriggerIndex(event->trigger, &trigger) || !TimerIndex(event->timer, &timer) ||
-            !SaveBytes(f, &event->type, sizeof(event->type)) || !SaveBytes(f, &subject, sizeof(subject)) ||
-            !SaveBytes(f, &trigger, sizeof(trigger)) || !SaveBytes(f, &timer, sizeof(timer)) ||
-            !SaveBytes(f, &event->region, sizeof(event->region)) || !SaveBytes(f, &event->range, sizeof(event->range)) ||
-            !SaveBytes(f, &event->state, sizeof(event->state)) || !SaveBytes(f, &event->limitop, sizeof(event->limitop)) ||
-            !SaveBytes(f, &event->limitval, sizeof(event->limitval)))
-            return false;
-    }
-    if (queued > MAX_EVENT_QUEUE || !SaveBytes(f, &queued, sizeof(queued))) return false;
-    FOR_LOOP(i, queued) {
-        GAMEEVENT const *event = &level.events.queue[(level.events.read + i) % MAX_EVENT_QUEUE];
-        int edict = event->edict ? (int)(event->edict - g_edicts) : -1;
-        int source = event->source ? (int)(event->source - g_edicts) : -1;
-        DWORD response;
-        if (edict >= (int)globals.num_edicts || source >= (int)globals.num_edicts || !EventId(event->responseTo, &response) ||
-            !SaveBytes(f, &event->type, sizeof(event->type)) || !SaveBytes(f, &edict, sizeof(edict)) ||
-            !SaveBytes(f, &source, sizeof(source)) || !SaveBytes(f, &response, sizeof(response))) return false;
-    }
-    return true;
-}
-
-static BOOL ReadEvents(FILE *f) {
-    DWORD handlers, queued;
-    LPEVENT event;
-    if (!LoadBytes(f, &handlers, sizeof(handlers)) || handlers != EventCount()) return false;
-    for (event = level.events.handlers; event; event = event->next) {
-        int subject;
-        DWORD trigger, timer;
-        if (!LoadBytes(f, &event->type, sizeof(event->type)) || !LoadBytes(f, &subject, sizeof(subject)) ||
-            !LoadBytes(f, &trigger, sizeof(trigger)) || !LoadBytes(f, &timer, sizeof(timer)) ||
-            !LoadBytes(f, &event->region, sizeof(event->region)) || !LoadBytes(f, &event->range, sizeof(event->range)) ||
-            !LoadBytes(f, &event->state, sizeof(event->state)) || !LoadBytes(f, &event->limitop, sizeof(event->limitop)) ||
-            !LoadBytes(f, &event->limitval, sizeof(event->limitval)) ||
-            subject < -1 || subject >= (int)globals.num_edicts ||
-            (trigger != UINT32_MAX && trigger >= level.num_triggers) ||
-            (timer != UINT32_MAX && timer >= level.num_timers)) return false;
-        event->subject = subject < 0 ? NULL : g_edicts + subject;
-        event->trigger = trigger == UINT32_MAX ? NULL : level.triggers[trigger];
-        event->timer = timer == UINT32_MAX ? NULL : level.timers[timer];
-    }
-    if (!LoadBytes(f, &queued, sizeof(queued)) || queued > MAX_EVENT_QUEUE) return false;
-    level.events.read = 0; level.events.write = queued;
-    FOR_LOOP(i, queued) {
-        GAMEEVENT *item = level.events.queue + i;
-        int edict, source;
-        DWORD response;
-        if (!LoadBytes(f, &item->type, sizeof(item->type)) || !LoadBytes(f, &edict, sizeof(edict)) ||
-            !LoadBytes(f, &source, sizeof(source)) || !LoadBytes(f, &response, sizeof(response)) ||
-            edict < -1 || edict >= (int)globals.num_edicts || source < -1 || source >= (int)globals.num_edicts ||
-            (response != UINT32_MAX && response >= EventCount())) return false;
-        item->edict = edict < 0 ? NULL : g_edicts + edict;
-        item->source = source < 0 ? NULL : g_edicts + source;
-        item->responseTo = response == UINT32_MAX ? NULL : EventById(response);
-    }
-    return true;
-}
-
-static BOOL WriteGroups(FILE *f) {
-    if (!SaveBytes(f, &level.num_groups, sizeof(level.num_groups))) return false;
-    FOR_LOOP(i, level.num_groups) {
-        ggroup_t const *group = level.groups[i];
-        if (!group || group->num_units > MAX_GROUP_SIZE || !SaveBytes(f, &group->num_units, sizeof(group->num_units))) return false;
-        FOR_LOOP(k, group->num_units) {
-            int index = group->units[k] ? (int)(group->units[k] - g_edicts) : -1;
-            if (index < 0 || index >= (int)globals.num_edicts || !SaveBytes(f, &index, sizeof(index))) return false;
-        }
-    }
-    return true;
-}
-
-static BOOL ReadGroups(FILE *f) {
-    DWORD count;
-    if (!LoadBytes(f, &count, sizeof(count)) || count != level.num_groups) {
-        fprintf(stderr, "WC3 LoadGame: JASS group count does not match initialized script\n"); return false;
-    }
-    FOR_LOOP(i, count) {
-        ggroup_t *group = level.groups[i];
-        DWORD units;
-        if (!group || !LoadBytes(f, &units, sizeof(units)) || units > MAX_GROUP_SIZE) return false;
-        group->num_units = 0;
-        FOR_LOOP(k, units) {
-            int index;
-            if (!LoadBytes(f, &index, sizeof(index))) return false;
-            if (index < 0 || index >= (int)globals.num_edicts || !g_edicts[index].inuse) {
-                fprintf(stderr, "WC3 LoadGame: dropping stale group[%u] member index=%d\n", i, index);
-                continue;
-            }
-            group->units[group->num_units++] = g_edicts + index;
-        }
-    }
-    return true;
+    if (value < level.timers || value >= level.timers + level.num_timers) return false;
+    *id = (DWORD)(value - level.timers); return true;
 }
 
 static DWORD TriggerCodeCount(TRIGGERACTION const *list) {
@@ -424,91 +550,6 @@ static BOOL ReadTriggerCodeList(FILE *f, TRIGGERACTION **list) {
     return true;
 }
 
-static BOOL WriteTriggers(FILE *f) {
-    if (!SaveBytes(f, &level.num_triggers, sizeof(level.num_triggers))) return false;
-    FOR_LOOP(i, level.num_triggers) {
-        LPTRIGGER trigger = level.triggers[i];
-        if (!trigger || !SaveBytes(f, &trigger->disabled, sizeof(trigger->disabled)) ||
-            !WriteTriggerCodeList(f, trigger->actions) ||
-            !WriteTriggerCodeList(f, (TRIGGERACTION *)trigger->conditions)) return false;
-    }
-    return true;
-}
-
-static BOOL ReadTriggers(FILE *f) {
-    DWORD count;
-    if (!LoadBytes(f, &count, sizeof(count)) || count != level.num_triggers) {
-        fprintf(stderr, "WC3 LoadGame: JASS trigger count does not match initialized script\n"); return false;
-    }
-    FOR_LOOP(i, count) {
-        LPTRIGGER trigger = level.triggers[i];
-        if (!trigger || !LoadBytes(f, &trigger->disabled, sizeof(trigger->disabled)) ||
-            !ReadTriggerCodeList(f, &trigger->actions) ||
-            !ReadTriggerCodeList(f, (TRIGGERACTION **)&trigger->conditions)) return false;
-    }
-    return true;
-}
-
-static BOOL WriteTimers(FILE *f) {
-    if (!SaveBytes(f, &level.num_timers, sizeof(level.num_timers))) return false;
-    FOR_LOOP(i, level.num_timers) {
-        LPGTIMER timer = level.timers[i];
-        DWORD remaining = G_TimerRemaining(timer);
-        if (!timer || !SaveBytes(f, &timer->duration, sizeof(timer->duration)) ||
-            !SaveBytes(f, &remaining, sizeof(remaining)) || !SaveBytes(f, &timer->periodic, sizeof(timer->periodic)) ||
-            !SaveBytes(f, &timer->paused, sizeof(timer->paused)) || !SaveBytes(f, &timer->running, sizeof(timer->running)) ||
-            !WriteString(f, jass_functionname(timer->handler))) return false;
-    }
-    return true;
-}
-
-static BOOL ReadTimers(FILE *f) {
-    DWORD count;
-    if (!LoadBytes(f, &count, sizeof(count)) || count != level.num_timers) {
-        fprintf(stderr, "WC3 LoadGame: JASS timer count does not match initialized script\n"); return false;
-    }
-    FOR_LOOP(i, count) {
-        LPGTIMER timer = level.timers[i];
-        LPSTR handler = NULL;
-        if (!timer || !LoadBytes(f, &timer->duration, sizeof(timer->duration)) ||
-            !LoadBytes(f, &timer->remaining, sizeof(timer->remaining)) ||
-            !LoadBytes(f, &timer->periodic, sizeof(timer->periodic)) ||
-            !LoadBytes(f, &timer->paused, sizeof(timer->paused)) || !LoadBytes(f, &timer->running, sizeof(timer->running)) ||
-            !ReadString(f, &handler)) { free(handler); return false; }
-        timer->handler = handler ? jass_functionbyname(level.vm, handler) : NULL;
-        if (handler && !timer->handler) { free(handler); return false; }
-        free(handler);
-        timer->started = gi.GetTime(); timer->timeout = timer->remaining;
-    }
-    return true;
-}
-
-typedef enum {
-    JASS_HANDLE_ENTITY,
-    JASS_HANDLE_PLAYER,
-    JASS_HANDLE_QUEST,
-    JASS_HANDLE_QUESTITEM,
-    JASS_HANDLE_EVENT,
-    JASS_HANDLE_TRIGGER,
-    JASS_HANDLE_GROUP,
-    JASS_HANDLE_TIMER,
-} jassHandleDomain_t;
-
-static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
-    { "unit", JASS_HANDLE_ENTITY },
-    { "widget", JASS_HANDLE_ENTITY },
-    { "destructable", JASS_HANDLE_ENTITY },
-    { "item", JASS_HANDLE_ENTITY },
-    { "effect", JASS_HANDLE_ENTITY },
-    { "player", JASS_HANDLE_PLAYER },
-    { "quest", JASS_HANDLE_QUEST },
-    { "questitem", JASS_HANDLE_QUESTITEM },
-    { "event", JASS_HANDLE_EVENT },
-    { "trigger", JASS_HANDLE_TRIGGER },
-    { "group", JASS_HANDLE_GROUP },
-    { "timer", JASS_HANDLE_TIMER },
-};
-
 static BOOL JassHandleDomain(LPCSTR type, jassHandleDomain_t *domain) {
     FOR_LOOP(i, sizeof(jass_handle_domains) / sizeof(*jass_handle_domains)) {
         if (!strcmp(type, jass_handle_domains[i].type)) { *domain = jass_handle_domains[i].domain; return true; }
@@ -519,17 +560,14 @@ static BOOL JassHandleDomain(LPCSTR type, jassHandleDomain_t *domain) {
 static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
     DWORD index = 0;
     if (domain == JASS_HANDLE_QUEST) {
-        FOR_EACH_LIST(QUEST, quest, level.quests) if (index++ == id) return quest;
+        if (id < MAX_QUESTS && level.quests[id].inuse) return &level.quests[id];
     } else if (domain == JASS_HANDLE_QUESTITEM) {
-        FOR_EACH_LIST(QUEST, quest, level.quests)
-            FOR_EACH_LIST(QUESTITEM, item, quest->items) if (index++ == id) return item;
+        FOR_EACH_QUEST(quest)
+            FOR_EACH_QUESTITEM(quest, item) if (index++ == id) return item;
     } else if (domain == JASS_HANDLE_EVENT) {
-        FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-            if (index++ != id) continue;
-            return event;
-        }
-    } else if (domain == JASS_HANDLE_TRIGGER && id < level.num_triggers) return level.triggers[id];
-    else if (domain == JASS_HANDLE_TIMER && id < level.num_timers) return level.timers[id];
+        return EventById(id);
+    } else if (domain == JASS_HANDLE_TRIGGER && id < level.num_triggers) return &level.triggers[id];
+    else if (domain == JASS_HANDLE_TIMER && id < level.num_timers) return &level.timers[id];
     return NULL;
 }
 
@@ -557,31 +595,27 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         return false;
     }
     if (domain == JASS_HANDLE_GROUP) {
-        FOR_LOOP(i, level.num_groups) if (level.groups[i] == value) { *id = i; return true; }
-        return false;
+        if ((ggroup_t *)value < level.groups || (ggroup_t *)value >= level.groups + level.num_groups) return false;
+        *id = (DWORD)((ggroup_t *)value - level.groups); return true;
     }
     if (domain == JASS_HANDLE_TIMER) {
-        FOR_LOOP(i, level.num_timers) if (level.timers[i] == value) { *id = i; return true; }
-        return false;
+        return TimerIndex(value, id);
     }
     if (domain == JASS_HANDLE_QUEST) {
-        FOR_EACH_LIST(QUEST, quest, level.quests) { if (quest == value) { *id = index; return true; } index++; }
-        return false;
-    }
-    if (domain == JASS_HANDLE_QUESTITEM) {
-        FOR_EACH_LIST(QUEST, quest, level.quests)
-            FOR_EACH_LIST(QUESTITEM, item, quest->items) { if (item == value) { *id = index; return true; } index++; }
-        return false;
-    }
-    if (domain == JASS_HANDLE_EVENT) {
-        FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-            if (event == value) { *id = index; return true; }
-            index++;
+        if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
+            *id = (DWORD)((LPQUEST)value - level.quests); return true;
         }
         return false;
     }
-    FOR_LOOP(i, level.num_triggers) if (level.triggers[i] == value) { *id = i; return true; }
-    return false;
+    if (domain == JASS_HANDLE_QUESTITEM) {
+        FOR_EACH_QUEST(quest)
+            FOR_EACH_QUESTITEM(quest, item) { if (item == value) { *id = index; return true; } index++; }
+        return false;
+    }
+    if (domain == JASS_HANDLE_EVENT) {
+        return EventId(value, id);
+    }
+    return TriggerIndex(value, id);
 }
 
 HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
@@ -589,8 +623,8 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     if (!JassHandleDomain(type, &domain)) return NULL;
     if (domain == JASS_HANDLE_ENTITY) return id < globals.num_edicts && g_edicts[id].inuse ? g_edicts + id : NULL;
     if (domain == JASS_HANDLE_PLAYER) return id < (DWORD)game.max_clients ? &game.clients[id].ps : NULL;
-    if (domain == JASS_HANDLE_GROUP) return id < level.num_groups ? level.groups[id] : NULL;
-    if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? level.timers[id] : NULL;
+    if (domain == JASS_HANDLE_GROUP) return id < level.num_groups ? &level.groups[id] : NULL;
+    if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? &level.timers[id] : NULL;
     return JassListHandle(domain, id);
 }
 
@@ -616,73 +650,23 @@ static BOOL ReadString(FILE *f, LPSTR *text) {
     return true;
 }
 
-static BOOL WriteQuests(FILE *f) {
-    DWORD count = 0;
-
-    FOR_EACH_LIST(QUEST const, quest, level.quests) count++;
-    if (!SaveBytes(f, &count, sizeof(count))) return false;
-    FOR_EACH_LIST(QUEST const, quest, level.quests) {
-        DWORD items = 0;
-        FOR_EACH_LIST(QUESTITEM const, item, quest->items) items++;
-        if (!WriteString(f, quest->title) || !WriteString(f, quest->description) || !WriteString(f, quest->iconPath) ||
-            !SaveBytes(f, &quest->discovered, sizeof(quest->discovered)) ||
-            !SaveBytes(f, &quest->required, sizeof(quest->required)) ||
-            !SaveBytes(f, &quest->completed, sizeof(quest->completed)) ||
-            !SaveBytes(f, &quest->failed, sizeof(quest->failed)) || !SaveBytes(f, &quest->enabled, sizeof(quest->enabled)) ||
-            !SaveBytes(f, &items, sizeof(items))) return false;
-        FOR_EACH_LIST(QUESTITEM const, item, quest->items)
-            if (!WriteString(f, item->description) || !SaveBytes(f, &item->completed, sizeof(item->completed))) return false;
-    }
-    return true;
-}
-
-static BOOL ReadQuests(FILE *f) {
-    DWORD count = 0, live = 0;
-
-    FOR_EACH_LIST(QUEST const, quest, level.quests) live++;
-    if (!LoadBytes(f, &count, sizeof(count))) return false;
-    if (count != live) {
-        fprintf(stderr, "WC3 LoadGame: quest count does not match live JASS handles (%u saved, %u live)\n", count, live);
-        return false;
-    }
-    FOR_EACH_LIST(QUEST, quest, level.quests) {
-        DWORD items = 0, live_items = 0;
-        FOR_EACH_LIST(QUESTITEM const, item, quest->items) live_items++;
-        if (!ReadString(f, &quest->title) || !ReadString(f, &quest->description) || !ReadString(f, &quest->iconPath) ||
-            !LoadBytes(f, &quest->discovered, sizeof(quest->discovered)) ||
-            !LoadBytes(f, &quest->required, sizeof(quest->required)) ||
-            !LoadBytes(f, &quest->completed, sizeof(quest->completed)) ||
-            !LoadBytes(f, &quest->failed, sizeof(quest->failed)) || !LoadBytes(f, &quest->enabled, sizeof(quest->enabled)) ||
-            !LoadBytes(f, &items, sizeof(items))) return false;
-        if (items != live_items) {
-            fprintf(stderr, "WC3 LoadGame: quest item count does not match live JASS handles (%u saved, %u live)\n",
-                items, live_items);
-            return false;
-        }
-        FOR_EACH_LIST(QUESTITEM, item, quest->items)
-            if (!ReadString(f, &item->description) || !LoadBytes(f, &item->completed, sizeof(item->completed))) return false;
-    }
-    return true;
-}
-
-/* Convert entity and client pointers to stable save-file indexes. */
-static size_t field_size(fieldtype_t type) {
-    switch (type) {
-    case F_INT: return sizeof(int);
-    case F_FLOAT: return sizeof(float);
-    case F_VECTOR: return sizeof(VECTOR3);
-    case F_EDICT: return sizeof(LPEDICT);
-    case F_CLIENT: return sizeof(LPGAMECLIENT);
-    default: return 0;
-    }
-}
-
 static BOOL WriteField1(field_t const *field, BYTE *base) {
-    size_t size = field_size(field->type);
-    DWORD count = field->array_size ? field->array_size : 1;
+    DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
+        field->array_size ? field->array_size : 1;
+    size_t size = field->array_size ? field->size / field->array_size : field->size;
     int index;
 
-    if (!size) return true;
+    if (field->count_ofs != UINT32_MAX && count > field->array_size) {
+        fprintf(stderr, "WC3 SaveGame: field %s count %u exceeds %u\n", field->name, count, field->array_size); return false;
+    }
+    if (field->type == F_STRUCT) {
+        FOR_LOOP(i, count) {
+            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
+                if (!WriteField1(child, base + field->ofs + i * size)) return false;
+        }
+        return true;
+    }
+    if (!size || field->type == F_IGNORE) return true;
     FOR_LOOP(i, count) {
         void *p = base + field->ofs + i * size;
         switch (field->type) {
@@ -697,15 +681,13 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
             }
             index = value ? (int)(value - g_edicts) : -1; *(int *)p = index; break;
         }
-        case F_CLIENT: {
-            LPGAMECLIENT value = *(LPGAMECLIENT *)p;
-            uintptr_t ptr = (uintptr_t)value, base = (uintptr_t)game.clients;
-            if (value && (ptr < base || ptr >= base + sizeof(*game.clients) * game.max_clients ||
-                (ptr - base) % sizeof(*game.clients))) {
-                fprintf(stderr, "WC3 SaveGame: field %s[%u] points outside client table (%p)\n", field->name, i, (void *)value);
-                return false;
-            }
-            index = value ? (int)(value - game.clients) : -1; *(int *)p = index; break;
+        case F_MMOVE: {
+            umove_t const *move = *(umove_t *const *)p;
+            memset(p, 0, size);
+            if (!move) break;
+            *(int *)p = (int)((BYTE const *)move - (BYTE const *)&umove_reloc);
+            *(DWORD *)((BYTE *)p + 4) = SaveHash(0, move->animation, strlen(move->animation) + 1);
+            break;
         }
         default: break;
         }
@@ -715,10 +697,21 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
 
 /* Restore entity and client pointers after the raw edict block is read. */
 static BOOL ReadField(field_t const *field, BYTE *base) {
-    size_t size = field_size(field->type);
-    DWORD count = field->array_size ? field->array_size : 1;
+    DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
+        field->array_size ? field->array_size : 1;
+    size_t size = field->array_size ? field->size / field->array_size : field->size;
 
-    if (!size) return true;
+    if (field->count_ofs != UINT32_MAX && count > field->array_size) {
+        fprintf(stderr, "WC3 LoadGame: field %s count %u exceeds %u\n", field->name, count, field->array_size); return false;
+    }
+    if (field->type == F_STRUCT) {
+        FOR_LOOP(i, count) {
+            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
+                if (!ReadField(child, base + field->ofs + i * size)) return false;
+        }
+        return true;
+    }
+    if (!size || field->type == F_IGNORE) return true;
     FOR_LOOP(i, count) {
         void *p = base + field->ofs + i * size;
         int index = *(int *)p;
@@ -730,14 +723,180 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
             }
             *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
             break;
-        case F_CLIENT:
-            if (index < -1 || index >= game.max_clients) {
-                fprintf(stderr, "WC3 LoadGame: field %s[%u] has invalid client index %d\n", field->name, i, index);
+        case F_MMOVE: {
+            DWORD hash = *(DWORD *)((BYTE *)p + 4);
+            umove_t *move = (umove_t *)((BYTE *)&umove_reloc + index);
+            if (!index && !hash) { *(umove_t **)p = NULL; break; }
+            /* Reject a save written by a different build before dereferencing the move. */
+            if (index < -UMOVE_RELOC_RANGE || index > UMOVE_RELOC_RANGE || (uintptr_t)move % _Alignof(umove_t) ||
+                !move->animation || SaveHash(0, move->animation, strlen(move->animation) + 1) != hash) {
+                fprintf(stderr, "WC3 LoadGame: field %s[%u] move offset %d does not resolve in this build\n",
+                    field->name, i, index);
                 return false;
             }
-            *(LPGAMECLIENT *)p = index < 0 ? NULL : game.clients + index;
+            *(umove_t **)p = move;
             break;
+        }
         default: break;
+        }
+    }
+    return true;
+}
+
+/* Convert one schema pointer to its stable save-domain index without mutating the live object. */
+static BOOL WriteMappedIndex(field_t const *field, void *ptr, int *index) {
+    switch (field->type) {
+    case F_EDICT:
+    case F_ITEM: {
+        LPEDICT value = *(LPEDICT *)ptr;
+        uintptr_t addr = (uintptr_t)value, base = (uintptr_t)g_edicts;
+        if (value && (addr < base || addr >= base + sizeof(*g_edicts) * globals.num_edicts ||
+            (addr - base) % sizeof(*g_edicts))) return false;
+        *index = value ? (int)(value - g_edicts) : -1; return true;
+    }
+    case F_TRIGGER: {
+        DWORD id;
+        if (!TriggerIndex(*(LPTRIGGER *)ptr, &id)) return false;
+        *index = id == UINT32_MAX ? -1 : (int)id; return true;
+    }
+    case F_TIMER: {
+        DWORD id;
+        if (!TimerIndex(*(LPGTIMER *)ptr, &id)) return false;
+        *index = id == UINT32_MAX ? -1 : (int)id; return true;
+    }
+    case F_EVENT: {
+        DWORD id;
+        if (!EventId(*(LPEVENT *)ptr, &id)) return false;
+        *index = id == UINT32_MAX ? -1 : (int)id; return true;
+    }
+    default: return false;
+    }
+}
+
+/* Resolve one schema index directly into the pointer domain declared by its field type. */
+static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
+    if (index < -1) return false;
+    switch (field->type) {
+    case F_EDICT:
+    case F_ITEM:
+        if (index >= (int)globals.max_edicts) return false;
+        *(LPEDICT *)ptr = index < 0 ? NULL : g_edicts + index; return true;
+    case F_TRIGGER:
+        if (index >= (int)level.num_triggers) return false;
+        *(LPTRIGGER *)ptr = index < 0 ? NULL : &level.triggers[index]; return true;
+    case F_TIMER:
+        if (index >= (int)level.num_timers) return false;
+        *(LPGTIMER *)ptr = index < 0 ? NULL : &level.timers[index]; return true;
+    case F_EVENT:
+        if (index >= (int)ActiveEventCount()) return false;
+        *(LPEVENT *)ptr = index < 0 ? NULL : EventById(index); return true;
+    default: return false;
+    }
+}
+
+/* Serialize mapped records, converting pointer-domain fields to stable indexes from their field types. */
+static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
+    for (; fields->name; fields++) {
+        DWORD count = fields->count_ofs != UINT32_MAX ? *(DWORD *)(base + fields->count_ofs) :
+            fields->array_size ? fields->array_size : 1;
+        size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
+        if (fields->count_ofs != UINT32_MAX && count > fields->array_size) return false;
+        if (fields->count_ofs != UINT32_MAX && !SaveBytes(f, &count, sizeof(count))) return false;
+        switch (fields->type) {
+        case F_STRUCT:
+            FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
+            break;
+        case F_STRUCT_RING: {
+            fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
+            DWORD read = *(DWORD *)(base + ring->read_ofs), write = *(DWORD *)(base + ring->write_ofs);
+            count = write - read;
+            if (count > fields->array_size || !SaveBytes(f, &count, sizeof(count))) return false;
+            FOR_LOOP(i, count) if (!WriteMappedFields(f, ring->fields,
+                base + fields->ofs + ((read + i) % fields->array_size) * size)) return false;
+            break;
+        }
+        case F_FUNCTION_LIST:
+            if (!WriteTriggerCodeList(f, *(TRIGGERACTION **)(base + fields->ofs))) return false;
+            break;
+        case F_FUNCTION:
+            if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)(base + fields->ofs)))) return false;
+            break;
+        case F_LSTRING:
+        case F_GSTRING:
+            if (!WriteString(f, *(LPCSTR *)(base + fields->ofs))) return false;
+            break;
+        case F_EDICT:
+        case F_ITEM:
+        case F_TRIGGER:
+        case F_TIMER:
+        case F_EVENT:
+            FOR_LOOP(i, count) {
+                int index;
+                if (!WriteMappedIndex(fields, base + fields->ofs + i * size, &index)) {
+                    fprintf(stderr, "WC3 SaveGame: cannot resolve mapped field %s[%u]\n", fields->name, i); return false;
+                }
+                if (!SaveBytes(f, &index, sizeof(index))) return false;
+            }
+            break;
+        default:
+            if (!SaveBytes(f, base + fields->ofs, fields->size)) return false;
+            break;
+        }
+    }
+    return true;
+}
+
+/* Restore mapped records, resolving pointer-domain fields from stable indexes declared by their field types. */
+static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
+    for (; fields->name; fields++) {
+        DWORD count = fields->array_size ? fields->array_size : 1;
+        size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
+        if (fields->count_ofs != UINT32_MAX) {
+            if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
+            *(DWORD *)(base + fields->count_ofs) = count;
+        }
+        switch (fields->type) {
+        case F_STRUCT:
+            FOR_LOOP(i, count) if (!ReadMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
+            break;
+        case F_STRUCT_RING: {
+            fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
+            if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
+            *(DWORD *)(base + ring->read_ofs) = 0; *(DWORD *)(base + ring->write_ofs) = count;
+            FOR_LOOP(i, count) if (!ReadMappedFields(f, ring->fields, base + fields->ofs + i * size)) return false;
+            break;
+        }
+        case F_FUNCTION_LIST:
+            if (!ReadTriggerCodeList(f, (TRIGGERACTION **)(base + fields->ofs))) return false;
+            break;
+        case F_FUNCTION: {
+            LPSTR name = NULL;
+            if (!ReadString(f, &name)) return false;
+            *(LPCJASSFUNC *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
+            if (name && !*(LPCJASSFUNC *)(base + fields->ofs)) { free(name); return false; }
+            free(name);
+            break;
+        }
+        case F_LSTRING:
+        case F_GSTRING:
+            if (!ReadString(f, (LPSTR *)(base + fields->ofs))) return false;
+            break;
+        case F_EDICT:
+        case F_ITEM:
+        case F_TRIGGER:
+        case F_TIMER:
+        case F_EVENT:
+            FOR_LOOP(i, count) {
+                int index;
+                if (!LoadBytes(f, &index, sizeof(index))) return false;
+                if (!ReadMappedIndex(fields, base + fields->ofs + i * size, index)) {
+                    fprintf(stderr, "WC3 LoadGame: invalid mapped field %s[%u] index=%d\n", fields->name, i, index); return false;
+                }
+            }
+            break;
+        default:
+            if (!LoadBytes(f, base + fields->ofs, fields->size)) return false;
+            break;
         }
     }
     return true;
@@ -747,8 +906,9 @@ static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
     edict_t temp = *ent;
     field_t const *field;
 
-    ClearRuntimeFields(&temp, runtime_fields, sizeof(runtime_fields) / sizeof(*runtime_fields));
-    for (field = fields; field->name; field++) if (!WriteField1(field, (BYTE *)&temp)) return false;
+    ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
+    for (field = edict_fields; field->name; field++)
+        if (!WriteField1(field, (BYTE *)&temp)) return false;
     return SaveBytes(f, &temp, sizeof(temp));
 }
 
@@ -757,7 +917,7 @@ static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
 
     /* Client pointers and callbacks are process-owned; text storage remains inline in GAMECLIENT. */
-    ClearRuntimeFields(&temp, client_runtime_fields, sizeof(client_runtime_fields) / sizeof(*client_runtime_fields));
+    ClearRuntimeFields(&temp, client_fields, FIELD_RUNTIME);
     if (target < -1 || target >= (int)globals.max_edicts) return false;
     return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
 }
@@ -780,7 +940,8 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     field_t const *field;
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
-    for (field = fields; field->name; field++) if (!ReadField(field, (BYTE *)ent)) return false;
+    for (field = edict_fields; field->name; field++)
+        if (!ReadField(field, (BYTE *)ent)) return false;
     /* Raw callback addresses are invalid across processes; class data determines the persistent callback family. */
     if (ent->class_id) { G_BindEntityData(ent); G_BindEntityRuntime(ent); }
     return true;
@@ -791,24 +952,20 @@ BOOL WriteGame(LPCSTR filename) {
     SAVEHEADER header = {
         .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
         .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
-        .quests = QuestCount(), .groups = level.num_groups, .triggers = level.num_triggers, .timers = level.num_timers,
-        .events = EventCount()
+        .quests = ActiveQuestCount(), .groups = level.num_groups, .triggers = level.num_triggers, .timers = level.num_timers,
+        .events = ActiveEventCount()
     };
     strlcpy(header.map_path, level.map_path, sizeof(header.map_path));
 
     BOOL ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
-    if (!SaveBytes(f, &level.framenum, sizeof(level.framenum))) { fprintf(stderr, "WC3 SaveGame: failed at framenum\n"); goto done; }
-    if (!SaveBytes(f, &level.time, sizeof(level.time))) { fprintf(stderr, "WC3 SaveGame: failed at time\n"); goto done; }
-    if (!SaveBytes(f, &level.timeofday, sizeof(level.timeofday))) { fprintf(stderr, "WC3 SaveGame: failed at time of day\n"); goto done; }
-    if (!SaveBytes(f, &level.started, sizeof(level.started))) { fprintf(stderr, "WC3 SaveGame: failed at started\n"); goto done; }
-    if (!SaveBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted))) { fprintf(stderr, "WC3 SaveGame: failed at scriptsStarted\n"); goto done; }
-    if (!SaveBytes(f, &level.waypoints, sizeof(level.waypoints))) { fprintf(stderr, "WC3 SaveGame: failed at waypoint state\n"); goto done; }
+    if (!WriteMappedFields(f, level_fields, (BYTE *)&level)) {
+        fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
+    }
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
     }
-    if (!WriteQuests(f)) { fprintf(stderr, "WC3 SaveGame: failed at quests\n"); goto done; }
     FOR_LOOP(i, globals.num_edicts) {
         BOOL used = g_edicts[i].inuse;
         if (!SaveBytes(f, &used, sizeof(used))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d inuse\n", i); goto done; }
@@ -817,10 +974,6 @@ BOOL WriteGame(LPCSTR filename) {
             fprintf(stderr, "WC3 SaveGame: failed at edict %d class=%08x\n", i, g_edicts[i].class_id); goto done;
         }
     }
-    if (!WriteGroups(f)) { fprintf(stderr, "WC3 SaveGame: failed at groups\n"); goto done; }
-    if (!WriteTriggers(f)) { fprintf(stderr, "WC3 SaveGame: failed at triggers\n"); goto done; }
-    if (!WriteTimers(f)) { fprintf(stderr, "WC3 SaveGame: failed at timers\n"); goto done; }
-    if (!WriteEvents(f)) { fprintf(stderr, "WC3 SaveGame: failed at events\n"); goto done; }
     if (!WriteJass(f)) { fprintf(stderr, "WC3 SaveGame: failed at jass\n"); goto done; }
     if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
@@ -853,11 +1006,11 @@ BOOL ReadGame(LPCSTR filename) {
         else if (header.num_edicts > globals.max_edicts) field = "num_edicts";
         else if (header.max_clients != game.max_clients) field = "max_clients";
         else if (header.script_identity != script) field = "script_identity";
-        else if (header.quests != QuestCount()) field = "quests";
+        else if (header.quests != ActiveQuestCount()) field = "quests";
         else if (header.groups < level.num_groups) field = "groups";
         else if (header.triggers < level.num_triggers) field = "triggers";
         else if (header.timers < level.num_timers) field = "timers";
-        else if (header.events < EventCount()) field = "events";
+        else if (header.events < ActiveEventCount()) field = "events";
         else if (!header.map_path[0] || strcasecmp(header.map_path, level.map_path)) field = "map_path";
         else if (!RestoreRegistrySlots(header.groups, header.timers, header.triggers, header.events)) field = "registry_slots";
         if (field) {
@@ -865,26 +1018,24 @@ BOOL ReadGame(LPCSTR filename) {
                     field, header.version, header.edict_size, sizeof(edict_t), header.num_edicts, globals.max_edicts);
             fprintf(stderr, "WC3 LoadGame: clients=%u/%u script=%u/%u quests=%u/%u groups=%u/%u triggers=%u/%u\n",
                     header.max_clients, game.max_clients, header.script_identity, script,
-                    header.quests, QuestCount(), header.groups, level.num_groups, header.triggers, level.num_triggers);
+                        header.quests, ActiveQuestCount(), header.groups, level.num_groups, header.triggers, level.num_triggers);
             fprintf(stderr, "WC3 LoadGame: timers=%u/%u events=%u/%u map='%s'/'%s'\n",
-                    header.timers, level.num_timers, header.events, EventCount(), header.map_path, level.map_path);
+                        header.timers, level.num_timers, header.events, ActiveEventCount(), header.map_path, level.map_path);
             fclose(f); return false;
         }
     }
-    if (!LoadBytes(f, &level.framenum, sizeof(level.framenum)) || !LoadBytes(f, &level.time, sizeof(level.time)) ||
-        !LoadBytes(f, &level.timeofday, sizeof(level.timeofday)) ||
-        !LoadBytes(f, &level.started, sizeof(level.started)) || !LoadBytes(f, &level.scriptsStarted, sizeof(level.scriptsStarted)) ||
-        !LoadBytes(f, &level.waypoints, sizeof(level.waypoints)) || level.waypoints.count > MAX_WAYPOINTS ||
+    if (!ReadMappedFields(f, level_fields, (BYTE *)&level) || level.waypoints.count > MAX_WAYPOINTS ||
         (level.waypoints.count && (level.waypoints.count != MAX_WAYPOINTS || level.waypoints.cursor >= MAX_WAYPOINTS ||
         header.num_edicts < level.waypoints.count ||
         level.waypoints.base > header.num_edicts - level.waypoints.count)) ||
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
+    /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
+    gi.SetGameTime(level.time);
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
         fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;
     }
-    if (!ReadQuests(f)) { fprintf(stderr, "WC3 LoadGame: failed at quests\n"); fclose(f); return false; }
     /* The baseline map already linked these same edict addresses. Clear its
      * spatial tree before raw records overwrite their area links, then rebuild
      * one authoritative set below; retaining both creates cyclic area lists. */
@@ -901,10 +1052,6 @@ BOOL ReadGame(LPCSTR filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
-    if (!ReadGroups(f)) { fprintf(stderr, "WC3 LoadGame: failed at groups\n"); fclose(f); return false; }
-    if (!ReadTriggers(f)) { fprintf(stderr, "WC3 LoadGame: failed at triggers\n"); fclose(f); return false; }
-    if (!ReadTimers(f)) { fprintf(stderr, "WC3 LoadGame: failed at timers\n"); fclose(f); return false; }
-    if (!ReadEvents(f)) { fprintf(stderr, "WC3 LoadGame: failed at events\n"); fclose(f); return false; }
     if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
     FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];

@@ -43,7 +43,7 @@ static BOOL gold_find_nearest_footprint_approach(LPEDICT worker, LPEDICT target,
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
 
-    if (!mine || !mine->UnitAbilities || !(abilities = mine->UnitAbilities->abilList))
+    if (!mine || !mine->data.UnitAbilities || !(abilities = mine->data.UnitAbilities->abilList))
         return NULL;
 
     PARSE_LIST(abilities, abil, parse_segment) {
@@ -489,7 +489,7 @@ static FLOAT blight_interval_duration;
 
 void blight_mine_think(LPEDICT ent) {
     monster_think(ent);
-    DWORD now = gi.GetTime();
+    DWORD now = G_Time();
     if (ent->freetime && now < ent->freetime)
         return;
     LPPLAYER player = G_GetPlayerByNumber(ent->s.player);

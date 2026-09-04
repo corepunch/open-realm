@@ -74,11 +74,11 @@ static void resource_gain_test_multicast(LPCVECTOR3 origin, multicast_t to) {
 TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    UnitBalance_t balance = *unit->UnitBalance;
+    UnitBalance_t balance = *unit->data.UnitBalance;
 
     balance.foodUsed = 3;
     balance.foodMade = 6;
-    unit->UnitBalance = &balance;
+    unit->data.UnitBalance = &balance;
     unit->s.player = client->ps.number;
 
     G_ActivateUnitFood(unit);
@@ -100,11 +100,11 @@ TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
 TEST(wc3_food, explicit_remove_releases_used_and_made_food) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    UnitBalance_t balance = *unit->UnitBalance;
+    UnitBalance_t balance = *unit->data.UnitBalance;
 
     balance.foodUsed = 2;
     balance.foodMade = 6;
-    unit->UnitBalance = &balance;
+    unit->data.UnitBalance = &balance;
     unit->s.player = client->ps.number;
     G_ActivateUnitFood(unit);
 
@@ -121,11 +121,11 @@ TEST(wc3_food, owner_change_transfers_accounted_food) {
     LPGAMECLIENT old_client = &game.clients[0];
     LPGAMECLIENT new_client = &game.clients[1];
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    UnitBalance_t balance = *unit->UnitBalance;
+    UnitBalance_t balance = *unit->data.UnitBalance;
 
     balance.foodUsed = 3;
     balance.foodMade = 6;
-    unit->UnitBalance = &balance;
+    unit->data.UnitBalance = &balance;
     unit->s.player = old_client->ps.number;
     G_ActivateUnitFood(unit);
 
@@ -158,11 +158,11 @@ TEST(wc3_food, food_cap_ceiling_limits_effective_supply_without_losing_raw_cap) 
 TEST(wc3_food, food_limits_cvar_allows_training_over_cap_but_keeps_accounting) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    UnitBalance_t balance = *unit->UnitBalance;
+    UnitBalance_t balance = *unit->data.UnitBalance;
     LPCSTR (*saved_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
 
     balance.foodUsed = 3;
-    unit->UnitBalance = &balance;
+    unit->data.UnitBalance = &balance;
     unit->s.player = client->ps.number;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 50;
@@ -301,7 +301,7 @@ TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {
     producer->build = first;
     first->build = second;
     first->training = second->training = true;
-    first->UnitBalance = second->UnitBalance = &balance;
+    first->data.UnitBalance = second->data.UnitBalance = &balance;
     first->health.max_value = second->health.max_value = 100.0f;
     first->health.value = second->health.value = 0.0f;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 2;
@@ -353,7 +353,7 @@ TEST(wc3_food, food_blocked_queue_uses_paused_timer_sentinel) {
     producer->s.player = queued->s.player = client->ps.number;
     producer->build = queued;
     queued->training = true;
-    queued->UnitBalance = &balance;
+    queued->data.UnitBalance = &balance;
     queued->health.max_value = 100.0f;
     queued->health.value = 0.0f;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 2;
@@ -374,7 +374,7 @@ TEST(wc3_food, cancelling_unreserved_head_does_not_release_unowned_food) {
     producer->s.player = queued->s.player = client->ps.number;
     producer->build = queued;
     queued->training = true;
-    queued->UnitBalance = &balance;
+    queued->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 5;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 5;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
@@ -404,7 +404,7 @@ TEST(wc3_food, cancelling_waiting_item_refunds_cost_without_touching_head_reserv
     producer->build = first;
     first->build = second;
     first->training = second->training = true;
-    first->UnitBalance = second->UnitBalance = &balance;
+    first->data.UnitBalance = second->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
     T_ASSERT(G_ReserveTrainingFood(first));
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
@@ -430,7 +430,7 @@ TEST(wc3_food, producer_death_cancels_queue_refunds_costs_and_releases_food) {
     producer->s.player = queued->s.player = client->ps.number;
     producer->build = queued;
     queued->training = true;
-    queued->UnitBalance = &balance;
+    queued->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;

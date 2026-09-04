@@ -60,7 +60,7 @@ static BOOL HasTransmission(LPGAMECLIENT client) {
 
 static BOOL TransmissionTalking(LPGAMECLIENT client) {
     return client && client->cinematic_voice_end_time &&
-           gi.GetTime() < client->cinematic_voice_end_time;
+           G_Time() < client->cinematic_voice_end_time;
 }
 
 static void WriteMessageLayer(LPEDICT ent, LPCVECTOR2 pos, LPCSTR message) {
@@ -207,7 +207,7 @@ static void UI_ShowTextInternal(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT 
     }
 
     client->message.position = pos ? *pos : MAKE(VECTOR2, 0.05f, 0.0f);
-    client->message.end_time = gi.GetTime() + MAX(1u, (DWORD)(duration * 1000.0f));
+    client->message.end_time = G_Time() + MAX(1u, (DWORD)(duration * 1000.0f));
     snprintf(client->message.text, sizeof(client->message.text), "%s", message);
     if (record_in_log) UI_MessageLogAppend(ent, client->message.text);
 

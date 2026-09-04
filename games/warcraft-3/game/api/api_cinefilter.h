@@ -62,8 +62,8 @@ DWORD SetCineFilterDuration(LPJASS j) {
     if (G_SkipCutscene()) {
         duration = 0;
     }
-    level.cinefilter.start.time = gi.GetTime();
-    level.cinefilter.end.time = gi.GetTime() + duration * 1000;
+    level.cinefilter.start.time = G_Time();
+    level.cinefilter.end.time = G_Time() + duration * 1000;
     return 0;
 }
 DWORD DisplayCineFilter(LPJASS j) {

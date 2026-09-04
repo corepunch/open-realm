@@ -9,7 +9,7 @@
 static void flame_strike_tick(LPEDICT ent) {
     LPEDICT caster = ent->owner;
     FLOAT radius = ent->collision;
-    DWORD now = gi.GetTime();
+    DWORD now = G_Time();
 
     if (ent->freetime && now < ent->freetime)
         return;
@@ -56,8 +56,8 @@ static void flame_strike_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     thinker->damage = initial_damage;
     thinker->velocity = (FLOAT)burn_damage; /* stash burn per tick */
     thinker->resources = 1; /* bit 0: initial burst pending */
-    /* Freetime = gi.GetTime() + delay_ms so the first tick fires after delay. */
-    thinker->freetime = gi.GetTime() + (DWORD)(MAX(0.1f, delay) * 1000.0f);
+    /* Freetime = G_Time() + delay_ms so the first tick fires after delay. */
+    thinker->freetime = G_Time() + (DWORD)(MAX(0.1f, delay) * 1000.0f);
     thinker->spawn_time = thinker->freetime + burn_ticks * 1000;
     thinker->think = flame_strike_tick;
 }

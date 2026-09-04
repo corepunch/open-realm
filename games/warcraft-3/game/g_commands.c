@@ -790,7 +790,7 @@ CLIENTCOMMAND(Cancel) {
             "Client cancel command: player=%u edict=%u time=%u\n",
             clent && clent->client ? (unsigned)clent->client->ps.number : 999u,
             clent ? (unsigned)clent->s.number : 999u,
-            (unsigned)gi.GetTime());
+            (unsigned)G_Time());
     G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
     if (level.mapinfo) {
         FOR_LOOP(i, game.max_clients) {
@@ -913,7 +913,7 @@ CLIENTCOMMAND(Quest) {
 
     if (argc < 2 || !argv[1] || !*argv[1]) return;
     index = atoi(argv[1]);
-    FOR_EACH_LIST(QUEST, q, level.quests) {
+    FOR_EACH_QUEST(q) {
         if (index == 0) {
             UI_ShowQuest(clent, q);
             break;
@@ -1088,6 +1088,6 @@ void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     G_ClearCameraTarget(ent->client, "G_ClientSetCameraPosition");
     ent->client->camera.old_state = ent->client->camera.state;
     ent->client->camera.state.position = clamped;
-    ent->client->camera.start_time = gi.GetTime();
+    ent->client->camera.start_time = G_Time();
     ent->client->camera.end_time = ent->client->camera.start_time;
 }

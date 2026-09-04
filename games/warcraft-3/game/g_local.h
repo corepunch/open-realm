@@ -13,8 +13,6 @@
 #include "g_unitrow.h"
 #include "jass/jlex.h"
 
-#define EDICTFIELD(x, type, ...) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type, ##__VA_ARGS__ }
-
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
 #define SEL_SCALE 72
@@ -123,28 +121,6 @@ enum {
     AI_AUTOCAST_REPAIR = 1 << 3, /* persisted Repair-family autocast toggle */
     AI_AUTOCAST_ACTIVE = 1 << 4, /* fast unit-wide marker: some autocast ability is enabled */
 };
-
-typedef enum {
-    F_INT,
-    F_FLOAT,
-    F_LSTRING,            // string on disk, pointer in memory, TAG_LEVEL
-    F_GSTRING,            // string on disk, pointer in memory, TAG_GAME
-    F_VECTOR,
-    F_ANGLEHACK,
-    F_EDICT,            // index on disk, pointer in memory
-    F_ITEM,                // index on disk, pointer in memory
-    F_CLIENT,            // index on disk, pointer in memory
-    F_FUNCTION,
-    F_MMOVE,
-    F_IGNORE
-} fieldtype_t;
-
-typedef struct {
-    LPCSTR name;
-    DWORD ofs;
-    fieldtype_t type;
-    DWORD array_size;
-} field_t;
 
 typedef enum {
     ATK_NONE,
@@ -605,7 +581,7 @@ typedef struct {
     float AcquireRange;
 } UNITINFO;
 
-typedef struct {
+typedef struct gameevent_s {
     EVENTTYPE type;
     LPEDICT edict;
     LPEDICT source;
@@ -650,39 +626,58 @@ typedef struct {
 } gitem_t;
 
 #define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
-#define MAX_JASS_GROUPS 1024 // handles; bounds deterministic per-map group save IDs
-#define MAX_JASS_TRIGGERS 4096 // handles; bounds deterministic per-map trigger save IDs
-#define MAX_JASS_TIMERS 1024 // handles; bounds deterministic per-map timer save IDs
-#define MAX_JASS_EVENTS 4096 // handlers; bounds TriggerRegister* objects created after main()
+#define MAX_GROUPS 1024 // handles; bounds deterministic per-map group registry slots
+#define MAX_TRIGGERS 4096 // handles; bounds deterministic per-map trigger registry slots
+#define MAX_TIMERS 1024 // handles; bounds deterministic per-map timer registry slots
+#define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
+#define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
+#define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
 } ggroup_t;
 
+typedef struct gtriggeraction_s {
+    struct jass_function const *func;
+    struct gtriggeraction_s *next;
+} TRIGGERACTION;
+
+typedef struct gtriggercondition_s {
+    struct jass_function const *expr;
+    struct gtriggercondition_s *next;
+} TRIGGERCONDITION;
+
+struct gtrigger_s {
+    TRIGGERACTION *actions;
+    TRIGGERCONDITION *conditions;
+    BOOL disabled;
+};
+
 struct gtimer_s {
     struct jass_function const *handler;
-    DWORD started, duration, timeout, remaining;
+    DWORD duration, remaining;
     BOOL periodic, paused, running;
 };
 
 struct gquestitem_s {
     LPSTR description;
-    LPQUESTITEM next;
     BOOL completed;
+    BOOL inuse;
 };
 
 struct gquest_s {
     LPSTR title;
     LPSTR description;
     LPSTR iconPath;
-    LPQUESTITEM items;
-    LPQUEST next;
+    QUESTITEM items[MAX_QUESTITEMS];
+    DWORD num_items;
     BOOL discovered;
     BOOL required;
     BOOL completed;
     BOOL failed;
     BOOL enabled;
+    BOOL inuse;
 };
 
 /* Quest rows are present in the journal only while both server visibility gates are enabled. */
@@ -1041,7 +1036,6 @@ struct game_locals {
 };
 
 struct gevent_s {
-    LPEVENT next;
     LPEDICT subject;
     EVENTTYPE type;
     LPTRIGGER trigger;
@@ -1051,6 +1045,7 @@ struct gevent_s {
     DWORD state;
     DWORD limitop;
     FLOAT limitval;
+    BOOL inuse;
 };
 
 typedef struct {
@@ -1066,7 +1061,7 @@ typedef struct {
 } CINEFILTER;
 
 typedef struct {
-    LPEVENT handlers;
+    EVENT handlers[MAX_EVENTS];
     GAMEEVENT queue[MAX_EVENT_QUEUE];
     DWORD write, read;
 } LEVELEVENTS;
@@ -1198,11 +1193,11 @@ typedef struct {
 
 struct level_locals {
     LPJASS vm;
-    ggroup_t *groups[MAX_JASS_GROUPS];
+    ggroup_t groups[MAX_GROUPS];
     DWORD num_groups;
-    LPTRIGGER triggers[MAX_JASS_TRIGGERS];
+    TRIGGER triggers[MAX_TRIGGERS];
     DWORD num_triggers;
-    LPGTIMER timers[MAX_JASS_TIMERS];
+    GTIMER timers[MAX_TIMERS];
     DWORD num_timers;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
@@ -1226,7 +1221,7 @@ struct level_locals {
     struct {
         DWORD base, cursor, count;
     } waypoints;
-    LPQUEST quests;
+    QUEST quests[MAX_QUESTS];
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
     CINEFILTER cinefilter;
@@ -1239,6 +1234,21 @@ struct level_locals {
     BOOL started;
     BOOL scriptsStarted;
 };
+
+#define FOR_EACH_EVENT(property) \
+for (DWORD event_index = 0; event_index < MAX_EVENTS; ++event_index) \
+    for (LPEVENT property = &level.events.handlers[event_index]; property; property = NULL) \
+        if (property->inuse)
+
+#define FOR_EACH_QUEST(property) \
+for (DWORD quest_index = 0; quest_index < MAX_QUESTS; ++quest_index) \
+    for (LPQUEST property = &level.quests[quest_index]; property; property = NULL) \
+        if (property->inuse)
+
+#define FOR_EACH_QUESTITEM(quest, property) \
+for (DWORD questitem_index = 0; questitem_index < MAX_QUESTITEMS; ++questitem_index) \
+    for (__typeof__((quest)->items[0]) *property = &(quest)->items[questitem_index]; property; property = NULL) \
+        if (property->inuse)
 
 typedef struct {
     LPCSTR id;
@@ -1369,9 +1379,9 @@ BOOL WriteGame(LPCSTR filename);
 BOOL ReadGame(LPCSTR filename);
 BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
 HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
-BOOL G_RegisterJassGroup(ggroup_t *group);
-BOOL G_RegisterJassTrigger(LPTRIGGER trigger);
-BOOL G_RegisterJassTimer(LPGTIMER timer);
+ggroup_t *G_AllocJassGroup(void);
+LPTRIGGER G_AllocJassTrigger(void);
+LPGTIMER G_AllocJassTimer(void);
 void G_ClearSaveRegistries(void);
 BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_RunTimers(void);
@@ -1914,6 +1924,10 @@ extern struct game_export globals;
 extern struct game_import gi;
 extern struct level_locals level;
 extern struct edict_s *g_edicts;
+
+/* Simulation clock reader. Spell-rank parameters named `level` shadow the global in
+ * several skill functions, so clock reads go through this instead of `level.time`. */
+static inline DWORD G_Time(void) { return level.time; }
 
 extern unitMeta_t const UnitsMetaData[];
 

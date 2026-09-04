@@ -84,7 +84,7 @@ static void G_PublishTimeOfDayPhase(void) {
 }
 
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
-    FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
+    FOR_EACH_EVENT(evt) {
         if (evt->type != EVENT_GAME_STATE_LIMIT || evt->state != WC3_GAME_STATE_TIME_OF_DAY)
             continue;
         if (!G_TimeLimitMatches(evt->limitop, before, evt->limitval) &&
@@ -343,7 +343,6 @@ static void G_ShutdownGame(void) {
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_FowShutdown();
     G_FreeModels();
-    FOR_LOOP(i, globals.max_edicts) G_FreeActorSkills(g_edicts + i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -362,10 +361,10 @@ FLOAT G_Cinefade(void) {
     if (!level.cinefilter.displayed) {
         return 0;
     }
-    if (!duration || gi.GetTime() > level.cinefilter.end.time) {
+    if (!duration || G_Time() > level.cinefilter.end.time) {
         return level.cinefilter.end.color.a / 255.0;
     } else {
-        FLOAT k = (gi.GetTime() - level.cinefilter.start.time) / (FLOAT)duration;
+        FLOAT k = (G_Time() - level.cinefilter.start.time) / (FLOAT)duration;
         return LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) / 255.0;
     }
 }
@@ -452,7 +451,7 @@ static void G_UpdateCameraTarget(LPGAMECLIENT client) {
         client->camera.old_state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(target->s.angle);
         client->camera.state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(target->s.angle);
     }
-    client->camera.start_time = gi.GetTime();
+    client->camera.start_time = G_Time();
     client->camera.end_time = client->camera.start_time;
 }
 
@@ -464,8 +463,8 @@ static void G_RunClients(void) {
         DWORD duration;
         G_UpdateCameraTarget(client);
         duration = client->camera.end_time - client->camera.start_time;
-        if (gi.GetTime() < client->camera.end_time && duration > 0) {
-            FLOAT k = (gi.GetTime() - client->camera.start_time) / (FLOAT)duration;
+        if (G_Time() < client->camera.end_time && duration > 0) {
+            FLOAT k = (G_Time() - client->camera.start_time) / (FLOAT)duration;
             LPCCAMERASETUP a = &client->camera.old_state;
             LPCCAMERASETUP b = &client->camera.state;
             QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
@@ -488,7 +487,7 @@ static void G_RunClients(void) {
         /* Transmission scene and voice lifetimes are independent. Blizzard.j
          * keeps the portrait scene alive past the voice, so Portrait Talk must
          * fall back to Portrait before the entire transmission disappears. */
-        if (client->cinematic_end_time && gi.GetTime() >= client->cinematic_end_time) {
+        if (client->cinematic_end_time && G_Time() >= client->cinematic_end_time) {
             G_SetPlayerText(client, PLAYERTEXT_SPEAKER, "");
             G_SetPlayerText(client, PLAYERTEXT_DIALOGUE, "");
             client->ps.cinematic_portrait = 0;
@@ -496,11 +495,11 @@ static void G_RunClients(void) {
             client->cinematic_end_time = 0;
             client->cinematic_voice_end_time = 0;
             client->presentation_dirty = true;
-        } else if (client->cinematic_voice_end_time && gi.GetTime() >= client->cinematic_voice_end_time) {
+        } else if (client->cinematic_voice_end_time && G_Time() >= client->cinematic_voice_end_time) {
             client->cinematic_voice_end_time = 0;
             client->presentation_dirty = true;
         }
-        if (client->message.end_time && gi.GetTime() >= client->message.end_time) {
+        if (client->message.end_time && G_Time() >= client->message.end_time) {
             memset(&client->message, 0, sizeof(client->message));
             client->presentation_dirty = true;
         }
@@ -619,6 +618,7 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
+    level.framenum++;
     level.time = gi.GetTime();
 
     G_StartScripts();
@@ -838,10 +838,10 @@ void G_SetClientConnected(LPEDICT player, BOOL connected) {
 /* Client slots and free edicts have zero-initialized player ownership but no
  * unit row.  Only live, metadata-bound units contribute authored food values. */
 void G_AccumulatePlayerFood(LPGAMECLIENT client) {
-    FILTER_EDICTS(ent, ent->inuse && ent->UnitBalance && client->ps.number == ent->s.player) {
+    FILTER_EDICTS(ent, ent->inuse && ent->data.UnitBalance && client->ps.number == ent->s.player) {
         if (ent->svflags & SVF_DEADMONSTER || ent->training) continue;
-        G_SetUnitFoodUsed(ent, ent->UnitBalance->foodUsed);
-        if (!ent->construction.active) G_SetUnitFoodMade(ent, ent->UnitBalance->foodMade);
+        G_SetUnitFoodUsed(ent, ent->data.UnitBalance->foodUsed);
+        if (!ent->construction.active) G_SetUnitFoodMade(ent, ent->data.UnitBalance->foodMade);
     }
     G_RecomputePlayerUpkeep(client);
 }
@@ -909,12 +909,9 @@ static void G_ClientBegin(LPEDICT edict) {
             "farms, and keep the footmen ready for the next attack. The enemy will not wait "
             "for the camp to be complete, so reinforce the walls and patrol the forest edge. "
             "When the base is secure, report back to the command tent for further orders.");
-        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct a Barracks");
-        ADD_TO_LIST(it, q->items);
-        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct 2 Farms");
-        ADD_TO_LIST(it, q->items);
-        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Train 6 Footmen");
-        ADD_TO_LIST(it, q->items);
+        it = &q->items[q->num_items++]; memset(it, 0, sizeof(*it)); it->inuse = true; it->description = strdup("Construct a Barracks");
+        it = &q->items[q->num_items++]; memset(it, 0, sizeof(*it)); it->inuse = true; it->description = strdup("Construct 2 Farms");
+        it = &q->items[q->num_items++]; memset(it, 0, sizeof(*it)); it->inuse = true; it->description = strdup("Train 6 Footmen");
         q->discovered = true;
         q->required = true;
         UI_ShowQuests(edict);

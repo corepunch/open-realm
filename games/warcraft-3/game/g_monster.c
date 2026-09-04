@@ -324,7 +324,7 @@ DWORD G_LoadShadowTexture(LPCSTR shadow, BOOL allowDDSFallback) {
 }
 
 static void M_SetUnitShadow(LPEDICT self) {
-    UnitUI_t const *ui = self->UnitUI;
+    UnitUI_t const *ui = self->data.UnitUI;
     LPCSTR unit_shadow = ui->unitShadowTexture;
     DWORD shadow = G_LoadShadowTexture(unit_shadow, true);
     if (!shadow) {
@@ -352,7 +352,7 @@ static void M_SetUnitShadow(LPEDICT self) {
 }
 
 static void M_SetBuildingShadow(LPEDICT self) {
-    UnitUI_t const *ui = self->UnitUI;
+    UnitUI_t const *ui = self->data.UnitUI;
     LPCSTR building_shadow = ui->buildingShadowTexture;
     DWORD shadow = G_LoadShadowTexture(building_shadow, false);
     if (!shadow) {
@@ -433,7 +433,7 @@ void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
  * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
  * missing — sounds simply won't fire for that unit. */
 static void G_RegisterUnitSounds(LPEDICT self) {
-    LPCSTR label = self->UnitUI->soundLabel;
+    LPCSTR label = self->data.UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
     /* Register all order-confirmation variants so clients have them cached;
@@ -450,7 +450,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     self->sound.death = G_RegisterSoundLabel(label, "Death");
     if (!self->sound.death) {
         /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
-        LPCSTR model = self->UnitUI->modelFile;
+        LPCSTR model = self->data.UnitUI->modelFile;
         if (model && model[0]) {
             char path[512];
             snprintf(path, sizeof(path), "%s\\%sDeath.wav",
@@ -467,7 +467,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
         }
     }
     /* Chop-wood impact sound from UnitCombatSounds: {weapType1}Wood (e.g. MetalLightChopWood). */
-    LPCSTR ws = self->UnitWeapons->attack1.weaponSound;
+    LPCSTR ws = self->data.UnitWeapons->attack1.weaponSound;
     if (ws && ws[0] && ws[0] != '_') {
         char key[128];
         snprintf(key, sizeof(key), "%sWood", ws);
@@ -499,10 +499,10 @@ DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? A
  * unit's class_id and stores them in the edict. */
 void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
-    UnitBalance_t const *b = self->UnitBalance;
-    UnitData_t const *d = self->UnitData;
-    UnitUI_t const *ui = self->UnitUI;
-    UnitWeapons_t const *w = self->UnitWeapons;
+    UnitBalance_t const *b = self->data.UnitBalance;
+    UnitData_t const *d = self->data.UnitData;
+    UnitUI_t const *ui = self->data.UnitUI;
+    UnitWeapons_t const *w = self->data.UnitWeapons;
     LPCSTR uber_splat = ui->groundTexture;
     LPCSTR path_tex = d->pathingTexture;
     G_InitStockSlots(self);
@@ -650,7 +650,7 @@ void SP_SpawnUnit(LPEDICT self) {
 
 /* Walkable destructables are sparse, so keep a level list instead of scanning every map edict per unit tick. */
 void G_RegisterGroundSurface(LPEDICT ent) {
-    if (!G_IsDestructable(ent) || !ent->DestructableData->walkable) return;
+    if (!G_IsDestructable(ent) || !ent->data.DestructableData->walkable) return;
     G_UnregisterGroundSurface(ent);
     ent->ground_next = level.ground_surfaces;
     level.ground_surfaces = ent;
@@ -692,7 +692,7 @@ FLOAT M_DistanceToGoal(LPEDICT ent) {
     }
 }
 
-BYTE compress_stat(EDICTSTAT const *stat) {
+BYTE compress_stat(edictStat_s const *stat) {
     if (stat->max_value <= 0) {
         return 0;
     } else {

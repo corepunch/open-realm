@@ -310,9 +310,9 @@ DWORD GetStartLocationLoc(LPJASS j) {
 }
 
 DWORD CreateTimer(LPJASS j) {
-    API_ALLOC(GTIMER, timer);
-    if (!G_RegisterJassTimer(timer)) jass_rterror(j, "CreateTimer: timer registry is full");
-    return 1;
+    LPGTIMER timer = G_AllocJassTimer();
+    if (!timer) { jass_rterror(j, "CreateTimer: timer registry is full"); return 0; }
+    return jass_pushlighthandle(j, timer, "timer");
 }
 DWORD DestroyTimer(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
@@ -1380,7 +1380,7 @@ DWORD SetCinematicScene(LPJASS j) {
     if (G_SkipCutscene()) return 0;
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
-        DWORD now = gi.GetTime();
+        DWORD now = G_Time();
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
         currentplayer->cinematic_portrait = 0;

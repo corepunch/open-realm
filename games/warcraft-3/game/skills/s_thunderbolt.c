@@ -39,7 +39,7 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     DWORD level = S_SpellLevel(caster, code);
     LPCSTR art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     FLOAT speed = bolt_missile_speed(code);
-    FLOAT duration = S_SpellDuration(code, level, target->UnitBalance->level >= 5);
+    FLOAT duration = S_SpellDuration(code, level, target->data.UnitBalance->level >= 5);
     LPEDICT missile;
 
     unit_setmove(caster, &spell_cast_move);

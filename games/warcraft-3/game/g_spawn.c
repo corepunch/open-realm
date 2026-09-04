@@ -110,7 +110,7 @@ LPEDICT G_Spawn(void) {
 }
 
 static void SP_SpawnDoodad(LPEDICT edict) {
-    Doodads_t const *row = edict->Doodads;
+    Doodads_t const *row = edict->data.Doodads;
     LPCSTR dir = row->dir;
     LPCSTR file = row->file;
     PATHSTR buffer;
@@ -125,7 +125,7 @@ static void SP_SpawnDoodad(LPEDICT edict) {
 }
 
 static void SP_SpawnDestructable(LPEDICT edict) {
-    DestructableData_t const *row = edict->DestructableData;
+    DestructableData_t const *row = edict->data.DestructableData;
     LPCSTR dir = row->dir;
     LPCSTR file = row->file;
     LPCSTR path_tex = row->pathingTexture;
@@ -188,23 +188,23 @@ static BOOL G_ClassIdIsPrintable(DWORD class_id) {
 
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
 void G_BindEntityData(LPEDICT edict) {
-    edict->UnitProfile = G_UnitProfile(edict->class_id);
-    edict->UnitBalance = G_UnitBalance(edict->class_id);
-    edict->UnitData = G_UnitData(edict->class_id);
-    edict->UnitUI = G_UnitUI(edict->class_id);
-    edict->UnitWeapons = G_UnitWeapons(edict->class_id);
-    edict->UnitAbilities = G_UnitAbil(edict->class_id);
-    edict->Doodads = G_Doodad(edict->class_id);
-    edict->ItemData = G_ItemData(edict->class_id);
-    edict->DestructableData = G_DestructableData(edict->class_id);
+    edict->data.UnitProfile = G_UnitProfile(edict->class_id);
+    edict->data.UnitBalance = G_UnitBalance(edict->class_id);
+    edict->data.UnitData = G_UnitData(edict->class_id);
+    edict->data.UnitUI = G_UnitUI(edict->class_id);
+    edict->data.UnitWeapons = G_UnitWeapons(edict->class_id);
+    edict->data.UnitAbilities = G_UnitAbil(edict->class_id);
+    edict->data.Doodads = G_Doodad(edict->class_id);
+    edict->data.ItemData = G_ItemData(edict->class_id);
+    edict->data.DestructableData = G_DestructableData(edict->class_id);
 }
 
 /* Save files omit process addresses; restore class-owned callbacks without replaying spawn-time gameplay initialization. */
 void G_BindEntityRuntime(LPEDICT edict) {
-    if (edict->DestructableData->file) {
+    if (edict->data.DestructableData->file) {
         edict->stand = tree_stand; edict->birth = tree_birth; edict->pain = tree_pain; edict->die = tree_die;
         edict->think = monster_think;
-    } else if (edict->UnitBalance->id || edict->UnitUI->modelFile) {
+    } else if (edict->data.UnitBalance->id || edict->data.UnitUI->modelFile) {
         edict->stand = unit_stand; edict->birth = unit_birth; edict->die = unit_die;
         edict->think = monster_think;
     }
@@ -215,15 +215,15 @@ void SP_CallSpawn(LPEDICT edict) {
         return;
     edict->s.class_id = edict->class_id;
     G_BindEntityData(edict);
-    if (edict->Doodads->id) {
+    if (edict->data.Doodads->id) {
         SP_SpawnDoodad(edict);
-    } else if (edict->DestructableData->file) {
+    } else if (edict->data.DestructableData->file) {
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
-    } else if (edict->UnitUI->modelFile) {
+    } else if (edict->data.UnitUI->modelFile) {
         SP_SpawnUnit(edict);
         SP_monster_unit(edict);
-    } else if (edict->ItemData->file) {
+    } else if (edict->data.ItemData->file) {
         SP_SpawnItem(edict);
     } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
         edict->svflags |= SVF_NOCLIENT;
@@ -458,7 +458,7 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     }
     ent->class_id = class_id;
     ent->s.class_id = class_id;
-    ent->spawn_time = gi.GetTime();
+    ent->spawn_time = G_Time();
     ent->s.origin.x = location->x;
     ent->s.origin.y = location->y;
     ent->s.origin.z = CM_GetHeightAtPoint(location->x, location->y);
@@ -557,7 +557,7 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     ent->s.origin = MAKE(VECTOR3, x, y, z);
     ent->s.angle = facing;
     ent->s.scale = scale;
-    ent->spawn_time = gi.GetTime();
+    ent->spawn_time = G_Time();
     SP_CallSpawn(ent);
     G_RegisterGroundSurface(ent);
     gi.LinkEntity(ent);

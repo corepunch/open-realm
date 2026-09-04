@@ -320,8 +320,8 @@ TEST(wc3_game, player_zero_food_ignores_free_edicts) {
     reset_entities();
     client->ps.number = 0;
     owned = G_Spawn(); enemy = G_Spawn();
-    owned->s.player = 0; owned->UnitBalance = &owned_balance;
-    enemy->s.player = 1; enemy->UnitBalance = &enemy_balance;
+    owned->s.player = 0; owned->data.UnitBalance = &owned_balance;
+    enemy->s.player = 1; enemy->data.UnitBalance = &enemy_balance;
 
     G_AccumulatePlayerFood(client);
 
@@ -756,10 +756,14 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     snprintf(item_title->Name, sizeof(item_title->Name), "QuestItemListItemTitle");
     list = UI_Spawn(FT_FRAME, NULL);
     item_list = UI_Spawn(FT_FRAME, NULL);
-    quest.items = &item;
-    level.quests = &quest;
+    quest.inuse = true;
+    quest.items[0] = item;
+    quest.items[0].inuse = true;
+    quest.num_items = 1;
+    memset(level.quests, 0, sizeof(level.quests));
+    level.quests[0] = quest;
 
-    PopulateQuestList(list, true, &quest);
+    PopulateQuestList(list, true, &level.quests[0]);
     PopulateQuestItems(item_list, &quest);
     title = UI_FindChildFrame(list, "QuestListItemTitle");
     button = UI_FindChildFrame(list, "QuestListItemButton");
@@ -778,7 +782,7 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     PopulateQuestList(list, true, &quest);
     T_ASSERT(UI_FindChildFrame(list, "QuestListItemTitle") == title);
 
-    level.quests = NULL;
+    memset(level.quests, 0, sizeof(level.quests));
     hud.quest_row = hud.quest_item = NULL;
     memset(&hud.quest, 0, sizeof(hud.quest));
     UI_ClearTemplates();
@@ -789,7 +793,8 @@ TEST(wc3_game, hud_quest_rows_show_undiscovered_and_completed_state) {
     QUEST hidden = { .title = "Secret", .discovered = false, .required = false, .enabled = true };
     LPFRAMEDEF list, optional, button, title, complete;
 
-    done.next = &hidden;
+    done.inuse = true;
+    hidden.inuse = true;
     UI_ClearTemplates();
     hud.quest_row = UI_Spawn(FT_FRAME, NULL);
     UI_SetSize(hud.quest_row, 0.08f, 0.033f);
@@ -803,10 +808,12 @@ TEST(wc3_game, hud_quest_rows_show_undiscovered_and_completed_state) {
     optional = UI_Spawn(FT_FRAME, NULL);
     UI_SetSize(list = UI_Spawn(FT_FRAME, NULL), 0.21f, 0.11f);
     UI_SetSize(optional, 0.21f, 0.11f);
-    level.quests = &done;
+    memset(level.quests, 0, sizeof(level.quests));
+    level.quests[0] = done;
+    level.quests[1] = hidden;
 
-    PopulateQuestList(list, true, &done);
-    PopulateQuestList(optional, false, &done);
+    PopulateQuestList(list, true, &level.quests[0]);
+    PopulateQuestList(optional, false, &level.quests[0]);
     title = UI_FindChildFrame(list, "QuestListItemTitle");
     complete = UI_FindChildFrame(list, "QuestListItemComplete");
     T_STREQ(title->Text, "> Finished");
@@ -815,7 +822,7 @@ TEST(wc3_game, hud_quest_rows_show_undiscovered_and_completed_state) {
     title = UI_FindChildFrame(optional, "QuestListItemTitle");
     T_STREQ(title->Text, "UNDISCOVERED_QUEST");
 
-    level.quests = NULL;
+    memset(level.quests, 0, sizeof(level.quests));
     hud.quest_row = hud.quest_item = NULL;
     memset(&hud.quest, 0, sizeof(hud.quest));
     UI_ClearTemplates();
@@ -974,23 +981,23 @@ TEST(wc3_game, is_dead_negative_hp_true) {
  * ========================================================================= */
 
 TEST(wc3_game, compress_stat_full_health_is_255) {
-    EDICTSTAT s = { 250.0f, 250.0f };
+    edictStat_s s = { 250.0f, 250.0f };
     T_EQ((int)compress_stat(&s), 255);
 }
 
 TEST(wc3_game, compress_stat_zero_health_is_0) {
-    EDICTSTAT s = { 0.0f, 250.0f };
+    edictStat_s s = { 0.0f, 250.0f };
     T_EQ((int)compress_stat(&s), 0);
 }
 
 TEST(wc3_game, compress_stat_half_health) {
-    EDICTSTAT s = { 125.0f, 250.0f };
+    edictStat_s s = { 125.0f, 250.0f };
     /* 255 * 125 / 250 = 127 (integer truncation). */
     T_EQ((int)compress_stat(&s), 127);
 }
 
 TEST(wc3_game, compress_stat_zero_max_is_0) {
-    EDICTSTAT s = { 0.0f, 0.0f };
+    edictStat_s s = { 0.0f, 0.0f };
     T_EQ((int)compress_stat(&s), 0);
 }
 
@@ -1563,23 +1570,27 @@ TEST(wc3_perf, acquisition_ranges_1900) {
 
 TEST(wc3_save, round_trip_edict_and_player_state) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-test.bin";
-    QUESTITEM item = { .description = strdup("Find the key"), .completed = true };
+    QUESTITEM item = { .description = strdup("Find the key"), .completed = true, .inuse = true };
     QUEST quest = {
         .title = strdup("Open the Gate"),
         .description = strdup("Find the key and open the gate"),
         .iconPath = strdup("ReplaceableTextures\\CommandButtons\\BTNKey.blp"),
-        .items = &item,
         .discovered = true,
         .required = true,
-        .enabled = true
+        .enabled = true,
+        .inuse = true
     };
-    LPQUEST old_quests = level.quests;
     LPEDICT first, second, indicator, found[4];
     BOX2 area = { .min = { 0, 0 }, .max = { 128, 128 } };
 
     reset_entities();
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
-    level.quests = &quest;
+    memset(level.quests, 0, sizeof(level.quests));
+    level.quests[0] = quest;
+    level.quests[0].items[0] = item;
+    level.quests[0].num_items = 1;
+    LPQUEST saved_quest = &level.quests[0];
+    LPQUESTITEM saved_item = &saved_quest->items[0];
     first = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 24.0f);
     second = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 48.0f, 72.0f);
     gi.LinkEntity(first); gi.LinkEntity(second);
@@ -1596,6 +1607,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = second;
     first->inventory[2] = second;
     first->cargo.units[3] = second;
+    unit_stand(first);
+    T_ASSERT(first->currentmove != NULL);
+    umove_t const *const saved_move = first->currentmove;
     first->abilstatus[0] = (heroabilitystatus_t){
         .code = MAKEFOURCC('B','m','i','l'), .level = 1,
         .timestamp = 40000, .duration_ms = 45000
@@ -1640,9 +1654,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.target_controller = NULL;
     game.clients[0].camera.target_inherit_orientation = false;
     game.clients[0].rally_indicator = NULL;
-    quest.discovered = quest.required = quest.enabled = false;
-    quest.completed = true;
-    item.completed = false;
+    saved_quest->discovered = saved_quest->required = saved_quest->enabled = false;
+    saved_quest->completed = true;
+    saved_item->completed = false;
     memset(&level.timeofday, 0, sizeof(level.timeofday));
     T_ASSERT(ReadGame(filename));
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 3);
@@ -1667,6 +1681,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
+    /* currentmove is a process pointer; F_MMOVE relocates it so a loaded unit keeps behaving. */
+    T_ASSERT(g_edicts[first - g_edicts].currentmove == saved_move);
     T_ASSERT(unit_issueimmediateorder(g_edicts + (first - g_edicts), "stop"));
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 45);
@@ -1682,28 +1698,61 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(game.clients[0].ps.name == game.clients[0].jass.name);
     T_STREQ(game.clients[0].ps.name, "Jaina");
     T_ASSERT(!level.mapinfo || game.clients[0].mapplayer == level.mapinfo->players + game.clients[0].ps.number);
-    T_ASSERT(level.quests == &quest && quest.items == &item);
-    T_STREQ(quest.title, "Open the Gate");
-    T_STREQ(quest.description, "Find the key and open the gate");
-    T_STREQ(quest.iconPath, "ReplaceableTextures\\CommandButtons\\BTNKey.blp");
-    T_ASSERT(quest.discovered && quest.required && quest.enabled && !quest.completed);
-    T_STREQ(item.description, "Find the key");
-    T_ASSERT(item.completed);
-    level.quests = old_quests;
+    T_ASSERT(saved_quest->inuse && saved_item->inuse);
+    T_STREQ(saved_quest->title, "Open the Gate");
+    T_STREQ(saved_quest->description, "Find the key and open the gate");
+    T_STREQ(saved_quest->iconPath, "ReplaceableTextures\\CommandButtons\\BTNKey.blp");
+    T_ASSERT(saved_quest->discovered && saved_quest->required && saved_quest->enabled && !saved_quest->completed);
+    T_STREQ(saved_item->description, "Find the key");
+    T_ASSERT(saved_item->completed);
+    G_RemoveQuest(saved_quest);
     T_ASSERT(!ReadGame(filename));
     T_ASSERT(g_edicts[0].client == &game.clients[0]);
-    free(item.description); free(quest.title); free(quest.description); free(quest.iconPath);
     remove(filename);
 }
 
-extern field_t fields[];
+/* A load restores the Q2-style server tick; timers are clock-free countdowns and need no rebase. */
+TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-clock.bin";
+    LPGTIMER timer;
+
+    T_ASSERT(level.map_path[0]);
+    level.time = 20800;
+    level.framenum = level.time / FRAMETIME;
+    T_ASSERT((timer = G_AllocJassTimer()) != NULL);
+    G_TimerStart(timer, 2000, false, NULL);
+    T_EQ(G_TimerRemaining(timer), 2000u);
+    T_ASSERT(WriteGame(filename));
+
+    /* Emulate the post-SV_Map state: engine clock back near zero, live timer wiped. */
+    level.time = 100;
+    level.framenum = 1;
+    timer->remaining = 0; timer->running = false;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(gi.GetTime(), 20800u);
+    timer = &level.timers[level.num_timers - 1];
+    T_ASSERT(timer->running && !timer->paused);
+    T_EQ(G_TimerRemaining(timer), 2000u);
+    G_RunTimers();
+    T_EQ(G_TimerRemaining(timer), 2000u - FRAMETIME);
+    remove(filename);
+}
+
+extern field_t edict_fields[];
 
 /* Tests resolve descriptors by their source-level field name to guard the fixup schema itself. */
-static field_t const *find_save_field(LPCSTR name) {
-    for (field_t const *field = fields; field->name; field++)
-        if (!strcmp(field->name, name)) return field;
+static field_t const *find_save_field_in(field_t const *schema, LPCSTR name) {
+    LPCSTR dot = strchr(name, '.');
+    size_t len = dot ? (size_t)(dot - name) : strlen(name);
+    for (field_t const *field = schema; field->name; field++) {
+        if (strlen(field->name) != len || strncmp(field->name, name, len)) continue;
+        if (!dot) return field;
+        return field->type == F_STRUCT ? find_save_field_in((field_t const *)field->flags, dot + 1) : NULL;
+    }
     return NULL;
 }
+
+static field_t const *find_save_field(LPCSTR name) { return find_save_field_in(edict_fields, name); }
 
 /* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
 #define SAVE_INT_FIELD_TEST(name, field, saved) \
@@ -1815,15 +1864,46 @@ SAVE_PTR_FIELD_TEST(field_build_round_trip, "build", build, 0)
 
 BOOL run_test_jass(LPCSTR src);
 
+TEST(wc3_save, clears_nested_process_owned_fields) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->militia.partner = (LPEDICT)(uintptr_t)1;
+    unit->destructable.drop_sets = (droppableItemSet_t *)(uintptr_t)1;
+    ARRAY_COUNT(unit->destructable.drop_sets) = 7;
+    T_ASSERT(WriteGame(filename));
+    unit->militia.partner = NULL; unit->destructable.drop_sets = NULL;
+    ARRAY_COUNT(unit->destructable.drop_sets) = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(!unit->militia.partner && !unit->destructable.drop_sets);
+    T_EQ(ARRAY_COUNT(unit->destructable.drop_sets), 0);
+    remove(filename);
+}
+
+TEST(wc3_save, round_trip_actor_abilities) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-abilities.bin";
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->abilities.added[0] = MAKEFOURCC('A', '0', '0', '1'); ARRAY_COUNT(unit->abilities.added) = 1;
+    unit->abilities.removed[0] = MAKEFOURCC('A', '0', '0', '2'); ARRAY_COUNT(unit->abilities.removed) = 1;
+    unit->abilities.permanent[0] = MAKEFOURCC('A', '0', '0', '3'); ARRAY_COUNT(unit->abilities.permanent) = 1;
+    T_ASSERT(WriteGame(filename)); memset(&unit->abilities, 0, sizeof(unit->abilities)); T_ASSERT(ReadGame(filename));
+    T_EQ(ARRAY_COUNT(unit->abilities.added), 1); T_EQ(unit->abilities.added[0], MAKEFOURCC('A', '0', '0', '1'));
+    T_EQ(ARRAY_COUNT(unit->abilities.removed), 1); T_EQ(unit->abilities.removed[0], MAKEFOURCC('A', '0', '0', '2'));
+    T_EQ(ARRAY_COUNT(unit->abilities.permanent), 1); T_EQ(unit->abilities.permanent[0], MAKEFOURCC('A', '0', '0', '3'));
+    ARRAY_COUNT(unit->abilities.added) = MAX_ABILITIES + 1;
+    T_ASSERT(!WriteGame(filename)); remove(filename);
+}
+
 TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
     UnitBalance_t unit_row = { .id = MAKEFOURCC('h', 'p', 'e', 'a') };
     UnitBalance_t no_unit = { 0 };
     UnitUI_t unit_ui = { 0 };
     DestructableData_t dest_row = { .file = "Tree" };
     DestructableData_t no_dest = { 0 };
-    edict_t unit = { .UnitBalance = &unit_row, .UnitUI = &unit_ui, .DestructableData = &no_dest };
-    edict_t dest = { .UnitBalance = &no_unit, .UnitUI = &unit_ui, .DestructableData = &dest_row };
-    edict_t unknown = { .UnitBalance = &no_unit, .UnitUI = &unit_ui, .DestructableData = &no_dest };
+    edict_t unit = { .data.UnitBalance = &unit_row, .data.UnitUI = &unit_ui, .data.DestructableData = &no_dest };
+    edict_t dest = { .data.UnitBalance = &no_unit, .data.UnitUI = &unit_ui, .data.DestructableData = &dest_row };
+    edict_t unknown = { .data.UnitBalance = &no_unit, .data.UnitUI = &unit_ui, .data.DestructableData = &no_dest };
 
     G_BindEntityRuntime(&unit); G_BindEntityRuntime(&dest); G_BindEntityRuntime(&unknown);
     T_ASSERT(unit.stand == unit_stand && unit.birth == unit_birth && unit.die == unit_die && unit.think == monster_think);
@@ -1844,13 +1924,14 @@ TEST(wc3_save, round_trip_game_state_event_condition) {
 
     reset_entities();
     memset(&level.events, 0, sizeof(level.events));
-    level.events.handlers = &handler;
+    level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
+    LPEVENT saved_handler = &level.events.handlers[0];
     T_ASSERT(WriteGame(filename));
-    handler.state = handler.limitop = 0; handler.limitval = 0.0f;
+    saved_handler->state = saved_handler->limitop = 0; saved_handler->limitval = 0.0f;
     T_ASSERT(ReadGame(filename));
-    T_EQ(handler.state, WC3_GAME_STATE_TIME_OF_DAY);
-    T_EQ(handler.limitop, WC3_LIMITOP_GREATER_THAN_OR_EQUAL);
-    T_FEQ(handler.limitval, 6.0f, 0.001f);
+    T_EQ(saved_handler->state, WC3_GAME_STATE_TIME_OF_DAY);
+    T_EQ(saved_handler->limitop, WC3_LIMITOP_GREATER_THAN_OR_EQUAL);
+    T_FEQ(saved_handler->limitval, 6.0f, 0.001f);
     level.events = old_events;
     remove(filename);
 }
@@ -1861,17 +1942,19 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     EVENT handler = { .type = EVENT_UNIT_IN_RANGE };
     LPEDICT subject, source;
 
-    reset_entities(); memset(&level.events, 0, sizeof(level.events)); level.events.handlers = &handler;
+    reset_entities(); memset(&level.events, 0, sizeof(level.events));
+    level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
+    LPEVENT saved_handler = &level.events.handlers[0];
     subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
-    G_PublishEventWithSource(subject, EVENT_UNIT_IN_RANGE, source)->responseTo = &handler;
+    G_PublishEventWithSource(subject, EVENT_UNIT_IN_RANGE, source)->responseTo = saved_handler;
     T_ASSERT(WriteGame(filename));
     level.events.read = level.events.write; memset(level.events.queue, 0, sizeof(level.events.queue));
     T_ASSERT(ReadGame(filename));
     T_EQ(level.events.read, 0); T_EQ(level.events.write, 1);
     T_EQ(level.events.queue[0].type, EVENT_UNIT_IN_RANGE);
     T_ASSERT(level.events.queue[0].edict == subject && level.events.queue[0].source == source);
-    T_ASSERT(level.events.queue[0].responseTo == &handler);
+    T_ASSERT(level.events.queue[0].responseTo == saved_handler);
     level.events = old_events; remove(filename);
 }
 
@@ -2115,14 +2198,19 @@ TEST(wc3_save, round_trip_jass_timers) {
         "function addEvent takes nothing returns nothing\n"
         "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
         "endfunction\n"));
+    level.time = 100;
+    level.timers[1].duration = 4 * FRAMETIME; level.timers[1].remaining = 4 * FRAMETIME;
     T_ASSERT(WriteGame(filename));
     jass_callbyname(level.vm, "mutate", false);
     T_ASSERT(ReadGame(filename));
+    T_EQ(level.time, 100);
+    T_EQ(G_TimerRemaining(&level.timers[1]), 4 * FRAMETIME);
     jass_callbyname(level.vm, "verifyRestored", false);
-    G_RunTimers();
+    /* Countdown timers ignore level.time entirely: only elapsed frames expire them. */
+    FOR_LOOP(i, 4) G_RunTimers();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyExpired", false);
-    G_RunTimers();
+    FOR_LOOP(i, 4) G_RunTimers();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyPeriodic", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
@@ -2158,25 +2246,21 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
         "  call BJassAssert(lateTrig != null, \"late trigger handle was lost\")\n"
         "endfunction\n"));
     main_triggers = level.num_triggers;
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) main_events++;
+    FOR_EACH_EVENT(event) main_events++;
     jass_callbyname(level.vm, "later", false);
     saved_triggers = level.num_triggers;
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) saved_events++;
+    FOR_EACH_EVENT(event) saved_events++;
     T_ASSERT(saved_triggers > main_triggers);
     T_ASSERT(saved_events > main_events);
     T_ASSERT(WriteGame(filename));
     /* A map reload only recreates main()'s registries; extras must be allocated from the save. */
     level.num_triggers = main_triggers;
-    if (!main_events) {
-        level.events.handlers = NULL;
-    } else {
-        skip = saved_events - main_events;
-        FOR_LOOP(i, skip) level.events.handlers = level.events.handlers->next;
-    }
+    skip = saved_events - main_events;
+    FOR_LOOP(i, MAX_EVENTS) if (i >= main_events && skip) { memset(&level.events.handlers[i], 0, sizeof(EVENT)); skip--; }
     T_ASSERT(ReadGame(filename));
     T_EQ(level.num_triggers, saved_triggers);
     live_events = 0;
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) live_events++;
+    FOR_EACH_EVENT(event) live_events++;
     T_EQ(live_events, saved_events);
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));

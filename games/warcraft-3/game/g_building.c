@@ -98,8 +98,8 @@ static BOOL G_UnitUsesUpgrade(LPCEDICT unit, DWORD upgrade_id) {
     char token[64];
     LPCSTR upgrades;
 
-    if (!unit || !unit->UnitBalance || !upgrade_id) return false;
-    upgrades = unit->UnitBalance->upgrades;
+    if (!unit || !unit->data.UnitBalance || !upgrade_id) return false;
+    upgrades = unit->data.UnitBalance->upgrades;
     for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
         if (strlen(token) == 4 && !memcmp(token, &upgrade_id, 4)) return true;
     }
@@ -110,8 +110,8 @@ DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class) {
     char token[64];
     LPCSTR upgrades;
 
-    if (!unit || !unit->UnitBalance || !wanted_class || !*wanted_class) return 0;
-    upgrades = unit->UnitBalance->upgrades;
+    if (!unit || !unit->data.UnitBalance || !wanted_class || !*wanted_class) return 0;
+    upgrades = unit->data.UnitBalance->upgrades;
     for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
         DWORD upgrade_id;
         UpgradeData_t const *upgrade;
@@ -170,7 +170,7 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
-            FLOAT const delta = unit->UnitBalance->armorPerUpgrade * (FLOAT)(new_level - old_level);
+            FLOAT const delta = unit->data.UnitBalance->armorPerUpgrade * (FLOAT)(new_level - old_level);
             if (delta != 0.0f) {
                 unit->permanent_armor_bonus += delta;
                 unit->armor_value += delta;
@@ -190,7 +190,7 @@ static void G_ApplyTechLevelToOwnedUnits(LPGAMECLIENT client, DWORD techid,
     upgrade = G_UpgradeData(techid);
     if (!upgrade || upgrade->id != techid) return;
     player = client->ps.number;
-    FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->UnitBalance) {
+    FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->data.UnitBalance) {
         G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
     }
 }
@@ -200,10 +200,10 @@ void G_ApplyPlayerUpgradesToUnit(LPEDICT unit) {
     char token[64];
     LPCSTR upgrades;
 
-    if (!unit || !unit->UnitBalance) return;
+    if (!unit || !unit->data.UnitBalance) return;
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (!client || client->ps.number != unit->s.player) return;
-    upgrades = unit->UnitBalance->upgrades;
+    upgrades = unit->data.UnitBalance->upgrades;
     for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
         DWORD upgrade_id;
         UpgradeData_t const *upgrade;
@@ -318,18 +318,18 @@ static BOOL G_ProducerContains(LPCSTR list, DWORD type_id) {
 }
 
 BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id) {
-    return worker && worker->UnitProfile &&
-        G_ProducerContains(worker->UnitProfile->builds, building_id);
+    return worker && worker->data.UnitProfile &&
+        G_ProducerContains(worker->data.UnitProfile->builds, building_id);
 }
 
 BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id) {
-    return producer && producer->UnitProfile &&
-        G_ProducerContains(producer->UnitProfile->trains, unit_id);
+    return producer && producer->data.UnitProfile &&
+        G_ProducerContains(producer->data.UnitProfile->trains, unit_id);
 }
 
 BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id) {
-    return producer && producer->UnitProfile &&
-        G_ProducerContains(producer->UnitProfile->researches, upgrade_id);
+    return producer && producer->data.UnitProfile &&
+        G_ProducerContains(producer->data.UnitProfile->researches, upgrade_id);
 }
 
 static LONG G_RequirementAmount(UnitProfile_t const *profile, DWORD index) {
@@ -594,7 +594,7 @@ static BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *ou
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
-    FILTER_EDICTS(ent, ent->inuse && G_UnitIsBuilding(ent->class_id) && ent->UnitData->canBuildOn) {
+    FILTER_EDICTS(ent, ent->inuse && G_UnitIsBuilding(ent->class_id) && ent->data.UnitData->canBuildOn) {
         if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_CELL_SIZE &&
             fabsf(ent->s.origin2.y - point->y) <= WC3_BUILD_CELL_SIZE) {
             if (out) *out = ent;
@@ -692,8 +692,8 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     FLOAT duration, fraction;
     DWORD first, last, span, frame;
 
-    if (!building || !building->construction.active || !building->UnitBalance) return;
-    if (building->UnitBalance->buildTime <= 0) return;
+    if (!building || !building->construction.active || !building->data.UnitBalance) return;
+    if (building->data.UnitBalance->buildTime <= 0) return;
 
     /* Construction owns the birth sequence. Re-resolve it instead of relying
      * on whatever animation happened to be left on the entity by a previous
@@ -704,7 +704,7 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    duration = (FLOAT)building->UnitBalance->buildTime * 1000.0f;
+    duration = (FLOAT)building->data.UnitBalance->buildTime * 1000.0f;
     fraction = MAX(0.0f, MIN(1.0f, building->construction.progress / duration));
     first = anim->interval[0];
     last = anim->interval[1];
@@ -715,7 +715,7 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
 }
 
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
-    EDICTSTAT *hp;
+    edictStat_s *hp;
 
     if (!builder || !building || !G_UnitIsBuilding(building->class_id)) return false;
     hp = &building->health;
@@ -817,7 +817,7 @@ void G_CompleteConstruction(LPEDICT building) {
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
         (long)(building - g_edicts), (LPCSTR)&building->class_id, building->s.player);
 #endif
-    G_SetUnitFoodMade(building, building->UnitBalance->foodMade);
+    G_SetUnitFoodMade(building, building->data.UnitBalance->foodMade);
     G_QueueOwnerUISound(building, "JobDoneSound");
     G_SendOwnerMinimapAlert(building);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);

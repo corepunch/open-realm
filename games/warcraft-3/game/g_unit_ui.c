@@ -46,7 +46,7 @@ LPCSTR GetBuildCommand(unitRace_t race) {
 
 static LPCSTR G_CommandArtCode(LPEDICT ent, LPCSTR code) {
     if (!strcmp(code, STR_CmdBuild)) {
-        return GetBuildCommand(G_RaceFromString(ent->UnitData->race));
+        return GetBuildCommand(G_RaceFromString(ent->data.UnitData->race));
     }
     return code;
 }
@@ -329,8 +329,8 @@ static BOOL G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, BYTE slot,
     if (!G_HeroCanBeRevivedAt(altar, hero) || !button) return false;
     code = GetClassName(hero->class_id);
     art = FindConfigValue(code, STR_ART);
-    tip = hero->UnitProfile ? hero->UnitProfile->reviveTip : NULL;
-    ubertip = hero->UnitProfile ? hero->UnitProfile->uberTip : NULL;
+    tip = hero->data.UnitProfile ? hero->data.UnitProfile->reviveTip : NULL;
+    ubertip = hero->data.UnitProfile ? hero->data.UnitProfile->uberTip : NULL;
     if (!art || !*art) return false;
 
     memset(button, 0, sizeof(*button));
@@ -339,7 +339,7 @@ static BOOL G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, BYTE slot,
         G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, 0));
     } else {
         snprintf(fallback, sizeof(fallback), "Revive %s",
-                 hero->UnitProfile && hero->UnitProfile->name ? hero->UnitProfile->name : code);
+                 hero->data.UnitProfile && hero->data.UnitProfile->name ? hero->data.UnitProfile->name : code);
         G_CopyString(button->tooltip, sizeof(button->tooltip), fallback);
     }
     G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, 0));
@@ -361,9 +361,9 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         return 0;
     }
     memset(buttons, 0, sizeof(*buttons) * max_buttons);
-    b = ent->UnitBalance;
-    w = ent->UnitWeapons;
-    a = ent->UnitAbilities;
+    b = ent->data.UnitBalance;
+    w = ent->data.UnitWeapons;
+    a = ent->data.UnitAbilities;
 
     /* Construction has its own command-card state.  Returning no buttons for
      * every birth move made spawned Human buildings impossible to cancel. */
@@ -403,9 +403,9 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
                 G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, abil);
         }
     }
-    FOR_LOOP(i, ARRAY_COUNT(ent->added_abilities)) {
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         char abil[5] = {0};
-        DWORD const code = ent->added_abilities[i];
+        DWORD const code = ent->abilities.added[i];
         if (!code) continue;
         memcpy(abil, &code, 4);
         if (G_IsImplementedAbility(abil) && G_ActorHasSkill(ent, abil))
@@ -514,7 +514,7 @@ BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
 
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     BYTE count = 0;
-    DWORD cursor = gi.GetTime();
+    DWORD cursor = G_Time();
     BOOL food_blocked = false;
 
     if (!ent || !queue) {
@@ -541,9 +541,9 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
             LPCSTR build_name = GetClassName(build->class_id);
             duration = build->revival.reviving
                 ? (DWORD)(G_HeroReviveTime(build) * 1000.0f)
-                : (build->UnitBalance ? (DWORD)MAX(0, build->UnitBalance->buildTime) * 1000 : 0);
+                : (build->data.UnitBalance ? (DWORD)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
-                LONG cost = build->UnitBalance ? MAX(0, build->UnitBalance->foodUsed) : 0;
+                LONG cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
                 if (build->revival.reviving && duration > 0) {
                     progress = build->revival.progress / ((FLOAT)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));

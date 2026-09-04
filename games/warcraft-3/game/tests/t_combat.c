@@ -551,15 +551,15 @@ TEST(wc3_combat, hero_recompute_preserves_attack_and_armor_modifiers) {
 
     G_RecomputeHeroStats(h);
     T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
-    T_EQ(h->attack1.damageBase, h->UnitWeapons->attack1.damageBase + 22 + 2);
-    T_FEQ(h->armor_value, h->UnitBalance->armor + 5.0f, 0.001f);
+    T_EQ(h->attack1.damageBase, h->data.UnitWeapons->attack1.damageBase + 22 + 2);
+    T_FEQ(h->armor_value, h->data.UnitBalance->armor + 5.0f, 0.001f);
 
     h->hero.str = 30;
     h->hero.agi = 23;
     G_RecomputeHeroStats(h);
     T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
-    T_EQ(h->attack1.damageBase, h->UnitWeapons->attack1.damageBase + 30 + 2);
-    T_FEQ(h->armor_value, h->UnitBalance->armor + 10 * 0.3f + 5.0f, 0.001f);
+    T_EQ(h->attack1.damageBase, h->data.UnitWeapons->attack1.damageBase + 30 + 2);
+    T_FEQ(h->armor_value, h->data.UnitBalance->armor + 10 * 0.3f + 5.0f, 0.001f);
 }
 
 TEST(wc3_combat, hero_stats_noop_for_non_hero) {
@@ -797,7 +797,7 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     DWORD const thunder = MAKEFOURCC('A','H','t','b');
     DWORD next = 0, required = 0;
 
-    h->UnitAbilities = &tree;
+    h->data.UnitAbilities = &tree;
     h->hero.level = 1;
     h->hero.skillpoints = 1;
     memset(h->heroabilities, 0, sizeof(h->heroabilities));
@@ -867,8 +867,8 @@ TEST(wc3_combat, hero_revive) {
     T_ASSERT((h->svflags & SVF_DEADMONSTER) == 0);       /* alive again */
     T_FEQ(h->s.origin2.x, 100.0f, 0.01f);
     T_FEQ(h->s.origin2.y, 200.0f, 0.01f);
-    T_EQ(h->food.used, h->UnitBalance->foodUsed);
-    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->UnitBalance->foodUsed);
+    T_EQ(h->food.used, h->data.UnitBalance->foodUsed);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->data.UnitBalance->foodUsed);
 }
 
 TEST(wc3_combat, hero_levelup_fires_event) {
@@ -1472,14 +1472,14 @@ TEST(wc3_combat, quest_set_failed) {
 
 TEST(wc3_combat, quest_remove_clears_from_list) {
     /* Reset the quest list to a known-empty state. */
-    level.quests = NULL;
+    memset(level.quests, 0, sizeof(level.quests));
     LPQUEST q = G_MakeQuest();
-    T_NOT_NULL(level.quests);
+    T_ASSERT(q && q->inuse);
 
     G_RemoveQuest(q);
 
     /* After removing the only quest the list must be empty. */
-    T_NULL(level.quests);
+    T_ASSERT(!q->inuse);
 }
 
 TEST(wc3_combat, quest_discovered_required_enabled_flags) {
@@ -1495,16 +1495,14 @@ TEST(wc3_combat, quest_discovered_required_enabled_flags) {
 
 TEST(wc3_combat, quest_item_create_non_null) {
     LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
-    ADD_TO_LIST(item, q->items);
+    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
     T_NOT_NULL(item);
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_item_set_description) {
     LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
-    ADD_TO_LIST(item, q->items);
+    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
     item->description = strdup("Kill 10 footmen");
     T_STREQ(item->description, "Kill 10 footmen");
     G_RemoveQuest(q);
@@ -1512,8 +1510,7 @@ TEST(wc3_combat, quest_item_set_description) {
 
 TEST(wc3_combat, quest_item_set_completed) {
     LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
-    ADD_TO_LIST(item, q->items);
+    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
     item->completed = true;
     T_ASSERT(item->completed);
     G_RemoveQuest(q);
@@ -1521,21 +1518,18 @@ TEST(wc3_combat, quest_item_set_completed) {
 
 TEST(wc3_combat, quest_item_defaults_incomplete) {
     LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
-    ADD_TO_LIST(item, q->items);
+    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
     T_ASSERT(!item->completed);
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_multiple_items_linked) {
     LPQUEST q = G_MakeQuest();
-    LPQUESTITEM a = gi.MemAlloc(sizeof(QUESTITEM));
-    LPQUESTITEM b = gi.MemAlloc(sizeof(QUESTITEM));
-    ADD_TO_LIST(a, q->items);
-    ADD_TO_LIST(b, q->items);
-    /* Both items must be reachable from the list head. */
+    LPQUESTITEM a = &q->items[q->num_items++]; a->inuse = true;
+    LPQUESTITEM b = &q->items[q->num_items++]; b->inuse = true;
+    /* Both items must be reachable from the quest's bounded storage. */
     BOOL found_a = false, found_b = false;
-    FOR_EACH_LIST(QUESTITEM, it, q->items) {
+    FOR_EACH_QUESTITEM(q, it) {
         if (it == a) found_a = true;
         if (it == b) found_b = true;
     }
@@ -1545,14 +1539,14 @@ TEST(wc3_combat, quest_multiple_items_linked) {
 }
 
 TEST(wc3_combat, quest_multiple_quests_in_list) {
-    level.quests = NULL;
+    memset(level.quests, 0, sizeof(level.quests));
     LPQUEST q1 = G_MakeQuest();
     LPQUEST q2 = G_MakeQuest();
     T_NOT_NULL(q1);
     T_NOT_NULL(q2);
-    /* Both quests must be reachable from level.quests. */
+    /* Both quests must be reachable from the fixed quest slots. */
     BOOL found_q1 = false, found_q2 = false;
-    FOR_EACH_LIST(QUEST, q, level.quests) {
+    FOR_EACH_QUEST(q) {
         if (q == q1) found_q1 = true;
         if (q == q2) found_q2 = true;
     }
@@ -1560,7 +1554,7 @@ TEST(wc3_combat, quest_multiple_quests_in_list) {
     T_ASSERT(found_q2);
     G_RemoveQuest(q1);
     G_RemoveQuest(q2);
-    T_NULL(level.quests);
+    T_ASSERT(!q1->inuse && !q2->inuse);
 }
 
 /* ==========================================================================

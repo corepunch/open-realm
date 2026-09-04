@@ -17,16 +17,15 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
+Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
-The version 2 layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) from version 1, and adds the client removal/pending-result fields used by victory/defeat presentation.
+The version 3 layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) from version 1, and adds the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the active array prefix: quests write `num_items` nested item records and groups write `num_units` `F_EDICT` entries. Counts above their fixed capacities reject the save or load, and unused slots never enter the save format.
 
 The version 3 layout expands the fixed-size `GAMECLIENT` cinematic camera state with target Z offset, near/far clipping planes, and target-controller orientation inheritance. Version 2 saves are rejected because the raw client record layout changed; this prevents older saves from being misread with shifted fields.
 
 Groups, timers, triggers, and event handlers may grow after `main()`. The header accepts a save that has *at least* as many of those objects as the freshly initialized map, then `RestoreRegistrySlots()` allocates the extras. A live count higher than the save still rejects. Quests remain an exact match because they are restored in place.
 
 The current format is process-independent for entity relationships: `F_EDICT` fields and camera targets are written as entity indexes and resolved back to `g_edicts[index]` by `ReadGame()`. Before raw edict records replace the freshly loaded map baseline, `ReadGame()` clears the baseline spatial tree and then links each restored entity exactly once. Client pointers are restored from player slots, player names from inline JASS name storage, and map-player rows from the loaded map plus `PLAYER.number`. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
-
-Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 Groups, triggers, timers, and events use deterministic creation ordinals. Group membership is stored as entity indexes. Each trigger stores its disabled flag plus action/condition function names so a trigger created after `main()` still has its callbacks after load. Timers preserve their handler name, duration, remaining time, periodic/paused/running flags, and resume relative to the load time. Timer callbacks and timer-expire trigger actions enter the normal coroutine queue and retain `GetExpiredTimer()` context.
 
@@ -62,6 +61,7 @@ common path memcpy-shaped while making pointer exceptions declarative rather tha
 `EDICTFIELD(x, type)` describes one scalar field with `array_size == 0`. `EDICTFIELD(x, type, count)` describes a contiguous array from the base offset; the serializer walks `count` elements using the field type's element size. For example, the six inventory pointers use `EDICTFIELD(inventory, F_EDICT, MAX_INVENTORY)` rather than six duplicate descriptors.
 
 - Add every persistent `edict_t` entity pointer to `fields[]` as `F_EDICT`, including array elements and nested fields.
+- Use `TFC(type, field, kind, capacity, count_field)` for a bounded typedef-backed array. The descriptor writes and restores `count_field` itself, then processes that many elements; do not map the count separately.
 - Persistent movement defaults are part of that rule: Attack-Move/Patrol waypoints and `movement.follow_target` must be encoded as entity indexes rather than raw pointers.
 - Do not add process-owned pointers such as path textures, metadata rows, animations, movement callbacks, or function pointers. `WriteEdict()` clears those pointers and `ReadEdict()` rebinds class metadata plus class-owned unit/destructable lifecycle callbacks; spatial links are rebuilt with `gi.LinkEntity`.
 - Add process-owned edict or client pointers/callbacks to the corresponding runtime-field table so the fixed record copy cannot write an address into the save file.
@@ -111,9 +111,63 @@ Integer handle tables inside the interpreter would duplicate that field table, b
 
 HUD FDF trees cache `CS_IMAGES` / `CS_FONTS` slots. Those tables die with `memset(&sv)` in `SV_Map`. `G_LoadMap` memsets the single `hud` accumulator and clears the FDF pool; serialize then re-`ImageIndex`es from names. See [HUD Media Lifetime](hud-media.md).
 
-The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; arbitrary active `umove_t` actions are not yet restored and require stable semantic move IDs. Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu likewise requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v9, v8, or earlier saves.
+The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior-f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v9, v8, or earlier saves.
 
 The checksum and header preflight protect normal partial/corrupt-file and wrong-map failures before mutation. Record-level semantic validation later in the stream is not fully transactional; do not treat save files as untrusted input until native records are decoded into temporary state before commit.
+
+## Simulation Clock Continuity
+
+`level.time` is the only clock the game may read. Game code calls `G_Time()` (an inline read of
+`level.time`); it must not call `gi.GetTime()` directly, because spell-rank parameters named `level`
+shadow the global in several skill functions and would silently pick up the wrong symbol.
+
+The server owns the simulation clock, following Quake II's `sv.time` model. `SV_Map` resets the
+per-level server state, so `ReadGame` restores the saved time through the generic
+`gi.SetGameTime(time)` import before the next server frame. `sv.framenum` is deliberately not
+restored: it indexes the snapshot delta ring (`client->frames[sv.framenum & UPDATE_MASK]`) and is
+process state, so rewinding it would desynchronise a connected client. `G_RunFrame` then reads the
+authoritative server clock:
+
+```c
+level.time = gi.GetTime();
+```
+
+Every persisted absolute deadline lives in this clock: `edict_s.spawn_time`, `edict_s.freetime`,
+`edict_s.heatmap2_time`, `heroabilitystatus_t.timestamp`, client `camera.start_time` /
+`message.end_time` / `cinematic_end_time`, and `level.cinefilter`. A save taken at `level.time = 20800`
+must restore the server clock to `20800`; otherwise every deadline would sit ~20.7 s in the future and
+units would stall waiting for cooldowns that already elapsed. Symptom seen in the field:
+everything stands frozen while one script-controlled unit walks off to a stale waypoint goal.
+
+Do not "fix" this by re-basing individual subsystems at load (the older per-timer
+`started = gi.GetTime(); timeout = remaining` rebase). Restoring the server tick covers every
+deadline; a per-subsystem rebase silently misses the edict and client-presentation deadlines.
+
+JASS timers deliberately hold **no** clock-absolute state. `gtimer_s` stores `duration` plus a
+`remaining` countdown that `G_RunTimers` decrements by `FRAMETIME` each frame, so a timer reloads
+with exactly the time it had left and needs no rebase at all. Prefer this shape for any new
+persisted deadline.
+
+Regression test: `wc3_save.load_restores_server_clock_onto_saved_time` in
+`games/warcraft-3/game/tests/t_game.c`.
+
+## Active Behavior (`F_MMOVE`)
+
+`edict_s.currentmove` is the running `umove_t` state machine. `monster_think` returns immediately
+when it is NULL, so a unit that loads without it does not move, stand, animate, or advance its order
+queue — the whole world stands frozen while scripted units walk off to stale goals.
+
+Quake II solves this with `F_MMOVE` and we copy it exactly: every `umove_t` is a file-scope static in
+`libgame`, so the pointer is saved as a signed byte offset from an anchor symbol in the same data
+segment (`mmove_reloc` there, `umove_reloc` here) and re-added on load.
+
+We add one guard Q2 does not have. A save written by a different build would decode to a wild
+pointer, so the unused upper half of the 8-byte pointer field carries an FNV hash of the move's
+animation name; `ReadField` range-checks the offset and compares the hash before dereferencing, and
+fails the load loudly on a mismatch rather than resuming with a corrupt behavior.
+
+`animation` stays a runtime field: `M_MoveFrame` already rebuilds it via `unit_setmove` when it finds
+a NULL animation, so `currentmove` is the only pointer that has to survive.
 
 ## Console Usage
 

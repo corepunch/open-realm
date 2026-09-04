@@ -104,7 +104,7 @@ void UI_FlushPendingGameResults(void) {
             continue;
         }
 
-        now = gi.GetTime();
+        now = G_Time();
         if (!client->connected ||
             level.events.read < client->jass.pending_game_result_event ||
             (client->ps.client_ui_state == CLIENT_UI_CINEMATIC && !level.script_paused)) {

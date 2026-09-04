@@ -29,7 +29,7 @@ TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
 
 static LPEDICT make_bot_harvest_unit(DWORD class_id, FLOAT x, FLOAT y, DWORD player, UnitAbilities_t const *abilities) {
     LPEDICT unit = alloc_test_unit(class_id, x, y);
-    unit->s.player = player; unit->UnitAbilities = abilities;
+    unit->s.player = player; unit->data.UnitAbilities = abilities;
     unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand;
     return unit;
 }
@@ -156,7 +156,7 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
     UnitProfile_t profile = { .trains = "hfoo" };
     reset_entities();
     producer = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 0, 0, 2, NULL);
-    producer->UnitProfile = &profile;
+    producer->data.UnitProfile = &profile;
     player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
     player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
     player->stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
@@ -498,7 +498,7 @@ TEST(wc3_bot, captain_readiness_uses_lower_hero_and_unit_aggregate) {
     LPEDICT hero = make_bot_harvest_unit(MAKEFOURCC('H','p','a','l'), 0, 0, 2, NULL);
     LPEDICT first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 32, 0, 2, NULL);
     LPEDICT second = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 0, 2, NULL);
-    hero->UnitBalance = &hero_balance; first->UnitBalance = second->UnitBalance = &unit_balance;
+    hero->data.UnitBalance = &hero_balance; first->data.UnitBalance = second->data.UnitBalance = &unit_balance;
     hero->health.value = 333; hero->health.max_value = 1000;
     first->health.value = 100; first->health.max_value = 100;
     second->health.value = 50; second->health.max_value = 100;
@@ -519,7 +519,7 @@ TEST(wc3_bot, captain_readiness_treats_empty_and_zero_mana_categories_as_full) {
     static UnitBalance_t unit_balance = {0};
     bot_t *bot = level.bots + 2;
     LPEDICT unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
-    unit->UnitBalance = &unit_balance;
+    unit->data.UnitBalance = &unit_balance;
     T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, false), 100);
     T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, true), 100);
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(LPEDICT));

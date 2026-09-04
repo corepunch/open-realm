@@ -20,7 +20,7 @@ static int timed_status_debug_level(void) {
 
 static void timed_status_debug_dump(LPEDICT ent, LPGAMECLIENT viewer, LPCSTR stage) {
     int const debug = timed_status_debug_level();
-    DWORD const now = gi.GetTime();
+    DWORD const now = G_Time();
     char unit_code[5] = { 0 };
 
     if (debug < 1 || !ent) return;

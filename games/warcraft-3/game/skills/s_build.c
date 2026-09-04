@@ -173,7 +173,7 @@ void build_build(LPEDICT ent) {
      * make the entity own that accounted Food Used so death/removal can release
      * exactly the same contribution. The build-all override intentionally keeps
      * its historical no-resource-cost behavior. */
-    if (!G_BuildAllEnabled()) G_SetUnitFoodUsed(building, building->UnitBalance->foodUsed);
+    if (!G_BuildAllEnabled()) G_SetUnitFoodUsed(building, building->data.UnitBalance->foodUsed);
     ent->build_project = 0;
 
     /* The structure blocks pathing as soon as construction starts. Bake its
