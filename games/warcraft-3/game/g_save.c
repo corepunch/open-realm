@@ -361,10 +361,15 @@ static void ClearRuntimeFields(void *object, field_t const *fields, DWORD flags)
     for (field_t const *field = fields; field->name; field++) {
         DWORD count = field->array_size ? field->array_size : 1;
         size_t size = field->array_size ? field->size / field->array_size : field->size;
-        if (field->type == F_STRUCT) {
+        switch (field->type) {
+        case F_STRUCT:
             FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (field_t const *)field->flags, flags);
-        } else if (field->type == F_IGNORE && field->flags == flags)
-            memset((BYTE *)object + field->ofs, 0, field->size);
+            break;
+        case F_IGNORE:
+            if (field->flags == flags) memset((BYTE *)object + field->ofs, 0, field->size);
+            break;
+        default: break;
+        }
     }
 }
 
@@ -769,23 +774,34 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
         if (fields->count_ofs != UINT32_MAX && count > fields->array_size) return false;
         if (fields->count_ofs != UINT32_MAX && !SaveBytes(f, &count, sizeof(count))) return false;
-        if (fields->type == F_STRUCT) {
+        switch (fields->type) {
+        case F_STRUCT:
             FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
-        } else if (fields->type == F_STRUCT_RING) {
+            break;
+        case F_STRUCT_RING: {
             fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
             DWORD read = *(DWORD *)(base + ring->read_ofs), write = *(DWORD *)(base + ring->write_ofs);
             count = write - read;
             if (count > fields->array_size || !SaveBytes(f, &count, sizeof(count))) return false;
             FOR_LOOP(i, count) if (!WriteMappedFields(f, ring->fields,
                 base + fields->ofs + ((read + i) % fields->array_size) * size)) return false;
-        } else if (fields->type == F_FUNCTION_LIST) {
+            break;
+        }
+        case F_FUNCTION_LIST:
             if (!WriteTriggerCodeList(f, *(TRIGGERACTION **)(base + fields->ofs))) return false;
-        } else if (fields->type == F_FUNCTION) {
+            break;
+        case F_FUNCTION:
             if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)(base + fields->ofs)))) return false;
-        } else if (fields->type == F_LSTRING || fields->type == F_GSTRING) {
+            break;
+        case F_LSTRING:
+        case F_GSTRING:
             if (!WriteString(f, *(LPCSTR *)(base + fields->ofs))) return false;
-        } else if (fields->type == F_EDICT || fields->type == F_ITEM || fields->type == F_TRIGGER ||
-            fields->type == F_TIMER || fields->type == F_EVENT) {
+            break;
+        case F_EDICT:
+        case F_ITEM:
+        case F_TRIGGER:
+        case F_TIMER:
+        case F_EVENT:
             FOR_LOOP(i, count) {
                 int index;
                 if (!WriteMappedIndex(fields, base + fields->ofs + i * size, &index)) {
@@ -793,7 +809,11 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
                 }
                 if (!SaveBytes(f, &index, sizeof(index))) return false;
             }
-        } else if (!SaveBytes(f, base + fields->ofs, fields->size)) return false;
+            break;
+        default:
+            if (!SaveBytes(f, base + fields->ofs, fields->size)) return false;
+            break;
+        }
     }
     return true;
 }
@@ -807,25 +827,37 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
             *(DWORD *)(base + fields->count_ofs) = count;
         }
-        if (fields->type == F_STRUCT) {
+        switch (fields->type) {
+        case F_STRUCT:
             FOR_LOOP(i, count) if (!ReadMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
-        } else if (fields->type == F_STRUCT_RING) {
+            break;
+        case F_STRUCT_RING: {
             fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
             if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
             *(DWORD *)(base + ring->read_ofs) = 0; *(DWORD *)(base + ring->write_ofs) = count;
             FOR_LOOP(i, count) if (!ReadMappedFields(f, ring->fields, base + fields->ofs + i * size)) return false;
-        } else if (fields->type == F_FUNCTION_LIST) {
+            break;
+        }
+        case F_FUNCTION_LIST:
             if (!ReadTriggerCodeList(f, (TRIGGERACTION **)(base + fields->ofs))) return false;
-        } else if (fields->type == F_FUNCTION) {
+            break;
+        case F_FUNCTION: {
             LPSTR name = NULL;
             if (!ReadString(f, &name)) return false;
             *(LPCJASSFUNC *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
             if (name && !*(LPCJASSFUNC *)(base + fields->ofs)) { free(name); return false; }
             free(name);
-        } else if (fields->type == F_LSTRING || fields->type == F_GSTRING) {
+            break;
+        }
+        case F_LSTRING:
+        case F_GSTRING:
             if (!ReadString(f, (LPSTR *)(base + fields->ofs))) return false;
-        } else if (fields->type == F_EDICT || fields->type == F_ITEM || fields->type == F_TRIGGER ||
-            fields->type == F_TIMER || fields->type == F_EVENT) {
+            break;
+        case F_EDICT:
+        case F_ITEM:
+        case F_TRIGGER:
+        case F_TIMER:
+        case F_EVENT:
             FOR_LOOP(i, count) {
                 int index;
                 if (!LoadBytes(f, &index, sizeof(index))) return false;
@@ -833,7 +865,11 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
                     fprintf(stderr, "WC3 LoadGame: invalid mapped field %s[%u] index=%d\n", fields->name, i, index); return false;
                 }
             }
-        } else if (!LoadBytes(f, base + fields->ofs, fields->size)) return false;
+            break;
+        default:
+            if (!LoadBytes(f, base + fields->ofs, fields->size)) return false;
+            break;
+        }
     }
     return true;
 }
