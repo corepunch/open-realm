@@ -18,6 +18,7 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "common/ui_constants.h"
 
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
@@ -625,6 +626,8 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
     T_FEQ(G_GetTimeOfDay(), 0.0f, 0.001f);
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+    T_EQ(game.clients[0].ps.stats[WC3_UI_PLAYERSTAT_TIME_PHASE],
+         (USHORT)lroundf(0.5f * (FLOAT)USHRT_MAX));
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -633,6 +636,8 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
         "endfunction\n"));
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+    T_EQ(game.clients[0].ps.stats[WC3_UI_PLAYERSTAT_TIME_PHASE],
+         (USHORT)lroundf(0.5f * (FLOAT)USHRT_MAX));
 
     /* An explicit set still applies while ordinary progression is suspended. */
     G_SetTimeOfDay(18.0f);

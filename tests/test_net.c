@@ -35,6 +35,7 @@ void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 BOOL SCR_LayoutModalActive(void);
 void SCR_UpdateScreen(DWORD msec);
@@ -56,6 +57,8 @@ static VECTOR3 test_overhead_point;
 static RECT test_status_rect;
 static DWORD test_status_draws;
 static PATHSTR test_model_load_paths[4];
+static char test_sprite_anim[96];
+static DWORD test_sprite_draws;
 
 static LPMODEL capture_load_model(LPCSTR filename) {
     DWORD slot = test_model_loads;
@@ -95,6 +98,11 @@ static LPTEXTURE capture_load_texture(LPCSTR name) {
     (void)name; test_tex_loads++; return (LPTEXTURE)(uintptr_t)test_tex_loads;
 }
 static void capture_release_texture(LPTEXTURE texture) { (void)texture; test_tex_releases++; }
+static void capture_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+    (void)model; (void)x; (void)y;
+    test_sprite_draws++;
+    snprintf(test_sprite_anim, sizeof(test_sprite_anim), "%s", anim ? anim : "");
+}
 
 TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME };
@@ -1453,6 +1461,42 @@ TEST(net, image_configstring_skips_identical_reload) {
     MSG_WriteString(&sb, "ReplaceableTextures\\Shadows\\ShadowFlyer.blp");
     CL_ParseServerMessage(&sb);
     T_EQ(test_tex_loads, 2); T_EQ(test_tex_releases, 1); T_NE(cl.pics[4], first);
+}
+
+TEST(client_layout, sprite_numeric_stat_drives_normalized_animation_phase) {
+    DWORD const phase_stat = PLAYERSTATE_LUMBER_GATHERED + 1;
+    uiFrame_t frame = { .flags = { .type = FT_SPRITE }, .tex = { .index = 1 }, .stat = phase_stat, .text = "#0" };
+    RECT screen = MAKE(RECT, 0.0f, 0.6f, 0.0f, 0.0f);
+    FLOAT ratio = -1.0f;
+
+    test_client_stubs_init();
+    cl.models[1] = (LPMODEL)(uintptr_t)1;
+    cl.playerstate.stats[phase_stat] = 32768;
+    test_sprite_anim[0] = '\0'; test_sprite_draws = 0; re.DrawSprite = capture_sprite;
+
+    SCR_LayoutDrawSprite(&frame, &screen);
+    T_EQ(test_sprite_draws, 1);
+    T_EQ(sscanf(test_sprite_anim, "#0@%f", &ratio), 1);
+    T_FEQ(ratio, 32768.0f / (FLOAT)UINT16_MAX, 0.00001f);
+}
+
+TEST(net, playerstat_pair_after_gameplay_states_roundtrips) {
+    DWORD const stat = PLAYERSTATE_LUMBER_GATHERED + 1;
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 }, to = { 0 }, out = { 0 };
+    DWORD bits;
+    int number;
+
+    to.number = 3;
+    to.stats[stat] = 49151;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(number, 3);
+    T_EQ(out.stats[stat], 49151);
 }
 
 TEST(net, playerinfo_game_state_preserves_open_menu_input) {

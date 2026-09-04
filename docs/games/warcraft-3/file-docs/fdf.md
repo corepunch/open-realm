@@ -251,6 +251,11 @@ Code: `BlzFrameSetModel(frame, "path.mdl", cameraIndex)`, `BlzFrameSetSpriteAnim
 
 Models ignore frame size; scale with `BlzFrameSetScale`.
 
+OpenRealm's WC3 MDX UI selector accepts an explicit normalized frame suffix: `#0@0.5` selects sequence 0 and scrubs it to the
+midpoint instead of advancing from render time. Named sequences use the same form (`Stand@0.5`). Server-authored `FT_SPRITE`
+frames can bind a numeric `playerState_t.stats[]` slot; the generic layout client maps the `USHORT` value to `0.0..1.0` and supplies
+that `@ratio` each draw.
+
 ### STATUSBAR / SIMPLESTATUSBAR
 
 ```fdf

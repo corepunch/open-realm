@@ -212,9 +212,11 @@ in the registry: `SetEnemyStartLocPrioCount`, `SetEnemyStartLocPrio`, and
 progression. Explicit sets are deferred until the next time-of-day update and still apply while suspended.
 
 `TriggerRegisterGameStateEvent` is **partial**: registrations for `GAME_STATE_TIME_OF_DAY` store the `limitop` and threshold and fire
-once on a false-to-true transition; integer game-state limit events are not implemented yet. `SetTimeOfDayScale` and
-`GetTimeOfDayScale` remain placeholders because the inspected Warsmash source does not provide a behavior to mirror. See
-[time-of-day.md](time-of-day.md) for ownership, `Misc` fields, gameplay consumers, and the intentionally deferred HUD/DNC work.
+once on a false-to-true transition; integer game-state limit events are not implemented yet. The server-authored
+`TimeOfDayIndicator` now binds to the replicated normalized day phase and the WC3 MDX renderer scrubs its selected sequence with an
+explicit `@ratio`. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain placeholders because the inspected Warsmash source does not
+provide a behavior to mirror, while `SetDayNightModels` still lacks the global terrain/unit DNC-light contract. See
+[time-of-day.md](time-of-day.md) for ownership, `Misc` fields, gameplay consumers, HUD synchronization, and the remaining DNC work.
 
 ## Trigger Context Contract
 

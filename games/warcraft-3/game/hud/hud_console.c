@@ -240,6 +240,31 @@ void UI_LoadHudConsole(void) {
     hud.res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
 }
 
+static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
+    uiFrame_t frame;
+    LPCSTR model;
+    DWORD parent;
+
+    if (!client || !gi.ModelIndex) return;
+    model = Theme_PlayerString(client, "TimeOfDayIndicator", NULL);
+    parent = UI_GetWrittenFrameNumber(hud.console.ConsoleUI);
+    if (!model || !*model || !parent) return;
+
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_SPRITE;
+    frame.color = COLOR32_WHITE;
+    frame.tex.index = gi.ModelIndex(model);
+    frame.stat = WC3_UI_PLAYERSTAT_TIME_PHASE;
+    frame.text = "#0";
+    if (!frame.tex.index) return;
+
+    /* Warsmash/retail-style time art is authored in model-space and anchored
+     * at ConsoleUI's bottom-left; the model itself owns the clock geometry. */
+    UI_SetFramePoint(&frame.points.x[FPP_MIN], FPP_MIN, UI_PARENT, 0.0f, false);
+    UI_SetFramePoint(&frame.points.y[FPP_MAX], FPP_MAX, UI_PARENT, 0.0f, true);
+    UI_WriteProxyFrameToParent(&frame, NULL, 0, parent);
+}
+
 void UI_WriteMinimapFrame(void) {
     uiFrame_t frame;
     memset(&frame, 0, sizeof(frame));
@@ -301,6 +326,7 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
                         upkeep_tier, gold_rate);
 
     UI_WriteFrameWithChildren(hud.console.ConsoleUI, NULL);
+    UI_WriteTimeOfDayIndicator(client);
     /* Resource-bar fields are present even with no unit selected, so the
      * console layer must carry its own standard tooltip presentation frame. */
     UI_WriteTooltipFrame();

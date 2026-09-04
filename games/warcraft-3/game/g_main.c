@@ -24,6 +24,7 @@
  */
 #include "common/common.h"
 #include "g_local.h"
+#include "common/ui_constants.h"
 #include "jass/jass.h"
 #include <stdarg.h>
 
@@ -67,6 +68,21 @@ void G_SuspendTimeOfDay(BOOL suspended) {
     level.timeofday.suspended = suspended;
 }
 
+/* Publish one normalized cycle value through an already-replicated player stat.
+ * Static svc_layout sprite frames can bind to this value without resending the
+ * ConsoleUI layer every simulation tick. */
+static void G_PublishTimeOfDayPhase(void) {
+    FLOAT const day_hours = game.constants.gameDayHours;
+    FLOAT phase = day_hours > 0.0f ? G_GetTimeOfDay() / day_hours : 0.0f;
+    USHORT packed;
+
+    if (!isfinite(phase)) phase = 0.0f;
+    phase = MAX(0.0f, MIN(phase, 1.0f));
+    packed = (USHORT)lroundf(phase * (FLOAT)USHRT_MAX);
+    FOR_LOOP(i, game.max_clients)
+        game.clients[i].ps.stats[WC3_UI_PLAYERSTAT_TIME_PHASE] = packed;
+}
+
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
     FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
         if (evt->type != EVENT_GAME_STATE_LIMIT || evt->state != WC3_GAME_STATE_TIME_OF_DAY)
@@ -87,8 +103,10 @@ void G_UpdateTimeOfDay(void) {
     FLOAT const day_length = game.constants.gameDayLength;
     FLOAT before, after;
 
-    if (day_hours <= 0.0f || day_length <= 0.0f)
+    if (day_hours <= 0.0f || day_length <= 0.0f) {
+        G_PublishTimeOfDayPhase();
         return;
+    }
 
     before = G_GetTimeOfDay();
     if (level.timeofday.pending_valid) {
@@ -102,6 +120,7 @@ void G_UpdateTimeOfDay(void) {
     }
     after = G_GetTimeOfDay();
     G_CheckTimeOfDayEvents(before, after);
+    G_PublishTimeOfDayPhase();
 }
 
 static bool G_LoadMap(LPCSTR mapFilename) {

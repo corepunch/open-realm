@@ -2,6 +2,7 @@
 ConsoleInventoryCoverTexture=TestUI\Textures\default-inventory-cover.blp
 ConsoleInventoryNoCapacity=TestUI\Textures\default-inventory-no-capacity.blp
 JobDoneSound=TestJobDone
+TimeOfDayIndicator=TestUI\Models\anim_pulse.mdx
 InfoPanelIconArmorHeroNeutral=TestUI\Textures\missing-hero-neutral.blp
 InfoPanelIconArmorHero=TestUI\Textures\solid_white.blp
 InfoPanelIconArmorDivineNeutral=TestUI\Textures\missing-divine-neutral.blp

@@ -185,6 +185,11 @@ This is not a per-hover network protocol. The server sends the static frame tree
 once; mouse picking, projection, and evaluation of already-replicated values happen locally each render frame. Do not revive
 `clc_request_unit_ui`/`svc_unit_ui`, add an entity-name query, or resend `svc_layout` on mouse motion.
 
+`FT_SPRITE` also has a generic live numeric binding: when `uiFrame_t.stat` names a player numeric stat, the client maps that
+`USHORT` value from `0..UINT16_MAX` to an animation phase of `0.0..1.0` and appends it to the sprite animation selector as
+`@ratio`. The game module still owns the stat slot, model, sequence selector, and meaning. This lets a server author one static
+sprite frame while normal player-state snapshots advance or freeze its MDX frame without repeatedly sending `svc_layout`.
+
 Spawnable and movable gameplay panels use `svc_window`, not new `UILAYOUTLAYER` entries. Window frame strings are DWORD offsets
 into a trailing packet text arena, allowing long text independently of the one-byte frame-type payload size. See
 [Client Windows](client-windows.md).

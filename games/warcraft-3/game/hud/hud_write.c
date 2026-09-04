@@ -286,13 +286,13 @@ BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) {
 }
 
 DWORD UI_LiveFont(DWORD font) {
-    LPCSTR spec, comma;
-    PATHSTR name;
+    PATHSTR spec, name;
+    LPCSTR comma;
     DWORD size;
 
     if (!font) return 0;
     if (font >= MAX_FONTSTYLES || !hud.font_spec[font][0] || !gi.FontIndex) return font;
-    spec = hud.font_spec[font];
+    snprintf(spec, sizeof(spec), "%s", hud.font_spec[font]);
     comma = strstr(spec, ",");
     if (!comma) return gi.FontIndex(spec, HUD_FONT_SIZE);
     memcpy(name, spec, (size_t)(comma - spec));
