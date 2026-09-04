@@ -35,7 +35,7 @@ static void hero_become_revivable(LPEDICT self) {
     LPGAMECLIENT owner;
 
     if (!self || !self->inuse || !G_UnitIsHero(self) ||
-        !(self->svflags & SVF_DEADMONSTER)) return;
+        (self->aiflags & AI_ILLUSION) || !(self->svflags & SVF_DEADMONSTER)) return;
     self->revival.awaiting = true;
     self->revival.reviving = false;
     self->s.renderfx |= RF_HIDDEN;
@@ -49,7 +49,8 @@ static void hero_become_revivable(LPEDICT self) {
 void unit_begin_decay(LPEDICT self) {
     unit_setmove(self, &unit_move_decay);
     self->aiflags |= AI_HOLD_FRAME;
-    self->wait = G_UnitIsHero(self) && game.constants.dissipateTime > 0.0f
+    self->wait = G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION) &&
+        game.constants.dissipateTime > 0.0f
         ? game.constants.dissipateTime
         : UNIT_DECAY_SECONDS;
 }
@@ -57,7 +58,7 @@ void unit_begin_decay(LPEDICT self) {
 /* Ordinary corpses are removed. Heroes instead finish their dissipation timer,
  * become hidden/awaiting-revive, and keep the same authoritative edict. */
 void unit_decay_think(LPEDICT self) {
-    if (G_UnitIsHero(self)) {
+    if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
         if (!self->revival.awaiting) unit_runwait(self, hero_become_revivable);
         return;
     }
@@ -458,6 +459,10 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         order_stop(self);
         return true;
     }
+    if (!strcmp(order, "holdposition"))
+        return S_HoldPosition(self);
+    if (!strcmp(order, "mirrorimage"))
+        return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'O', 'm', 'i'));
     if (!strcmp(order, "repairon"))
         return S_SetRepairAutocast(self, true);
     if (!strcmp(order, "repairoff"))
@@ -1047,7 +1052,8 @@ BOOL G_UnitIsHero(LPCEDICT ent) {
 
 static BOOL G_HeroReceivesKillXP(LPCEDICT hero, LPCEDICT victim, LPCEDICT killer, FLOAT range) {
     if (!hero->inuse || !(hero->svflags & SVF_MONSTER) || !hero->data.UnitBalance ||
-        hero->health.value <= 0 || hero->hero.suspend_xp || !G_UnitIsHero(hero) ||
+        hero->health.value <= 0 || hero->hero.suspend_xp || (hero->aiflags & AI_ILLUSION) ||
+        !G_UnitIsHero(hero) ||
         Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range) {
         return false;
     }
@@ -1064,6 +1070,7 @@ static BOOL G_HeroReceivesKillXP(LPCEDICT hero, LPCEDICT victim, LPCEDICT killer
  * applying each receiving Hero's level factor. */
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
     DWORD const vcls = victim->class_id;
+    if (victim->aiflags & AI_ILLUSION) return;
     DWORD receivers = 0;
     if (victim->s.player < MAX_PLAYERS && killer->s.player < MAX_PLAYERS &&
         (level.alliances[killer->s.player][victim->s.player] & (1 << ALLIANCE_PASSIVE))) {

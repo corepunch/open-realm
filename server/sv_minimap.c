@@ -9,13 +9,9 @@ void SV_MinimapPing(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 co
         fprintf(stderr, "SV_MinimapPing: invalid duration=%.3f flags=0x%x\n", duration, (unsigned)flags);
         return;
     }
-    FOR_LOOP(i, svs.num_clients)
-        if (svs.clients[i].state == cs_spawned && svs.clients[i].playernum == ent->s.player) {
-            client = &svs.clients[i];
-            break;
-        }
+    client = SV_ClientForEntityRecipient(ent);
     if (!client) {
-        fprintf(stderr, "SV_MinimapPing: no client for player=%u\n", (unsigned)ent->s.player);
+        fprintf(stderr, "SV_MinimapPing: no recipient for player=%u\n", (unsigned)ent->s.player);
         return;
     }
 

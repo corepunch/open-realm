@@ -38,7 +38,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `CmdMove` | `s_move.c` | Implemented ground move command. |
 | `CmdAttack` | `s_attack.c` | Implemented basic melee/ranged attack and projectiles. Explicit Attack may target friendly units and buildings; Smart/right-click attack selection remains unchanged. Building attack range is measured to authored pathing footprints so large blocked structures do not cause attackers to orbit their centres. |
 | `CmdBuild` | `s_build.c` | Implemented build menu and placement flow. |
-| `CmdHoldPos` | `s_holdpos.c` | Registered stub. |
+| `CmdHoldPos` | `s_holdpos.c` | Implemented Hold Position state; command-card and scripted `holdposition` orders share the same state transition. |
 | `CmdPatrol` | `s_patrol.c` | Registered stub. |
 | `CmdCancel` | `s_cancel.c` | Implemented UI cancel. |
 | `CmdSelectSkill` | `s_selectskill.c` | Partial; candidate skill menu, next-rank Research UI, point/level gating, max-rank hiding, and authoritative learning are implemented. Skill-point and next-rank numeric overlays are implemented; multi-selection presentation remains. |
@@ -50,7 +50,8 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `AHhb` | `s_holylight.c` | Partial target spell; validates target/range/masks, spends mana, starts cooldown, heals allies, damages undead enemies, and plays target art. |
 | `AHtb` | `s_thunderbolt.c` | Partial target spell; projectile, damage, mana, cooldown, range, target masks, and stun status. |
 | `ANfb` | `s_thunderbolt.c` | Partial target spell sharing Thunder Bolt behavior with Fire Bolt data/art. |
-| `AHwe`, `AOsf` | `s_summon.c` | Partial no-target summon; reads unit id/count/duration, spawns owned timed-life units. |
+| `AHwe`, `AOsf` | `s_summon.c` | Partial no-target summon; reads unit id/count/duration, spawns owned timed-life units, and publishes unit/player summon events. |
+| `AOmi` | `s_mirror_image.c` | Partial Mirror Image; no-target cast creates data-counted timed copies, marks them as illusions, copies visible Hero state, excludes them from persistent Hero shortcut/XP/revival behavior, and publishes summon events. Damage multipliers, dispel, shuffle, and complete visual semantics remain. |
 | `AHbz`, `AUcs`, `ANcl` | `s_area_spell.c` | Partial point/channel spell family; Blizzard ticks area damage, Carrion Swarm applies a simple point blast, Channel opens cancel mode. |
 | `ANch`, `AIco`, `Aeat`, `Ambt`, `Aroo` | `s_utility_abilities.c` | Partial utility behaviors: Charm ownership transfer, Eat Tree heal/remove, Moon Well transfer, Root toggle. |
 | `AIhe`, `AIma`, `AImi` | `s_item.c` | Synchronous item use for heal, mana restore, and permanent life gain; successful charged uses decrement charges and zero-charge perishables are removed. |
@@ -70,7 +71,8 @@ generic `Button` command path rather than by a registered ability code.
 | `AHtb` | Thunder Bolt | Partial | Target selection, projectile, damage, stun, range, mana, cooldown, and target masks exist. Needs better cast animation timing. |
 | `ANfb` | Firebolt via Thunder Bolt type | Partial | Shares Thunder Bolt implementation with Fire Bolt data/art. Needs better cast animation timing. |
 | `Apxf` | Phoenix Fire | Stub | Registered passive stub. Needs autocast/projectile aura behavior. |
-| `AOsf` | Feral Spirit | Partial | No-target summon, level unit id/count, mana/cooldown, ownership, and timed life exist. |
+| `AOsf` | Feral Spirit | Partial | No-target summon, level unit id/count, mana/cooldown, ownership, timed life, and summon events exist. |
+| `AOmi` | Mirror Image | Partial | No-target cast, mana/cooldown, data-defined image count/duration, illusion identity, summon event context, and campaign-script discovery exist. Needs retail damage multipliers, dispel/image shuffle, and richer visual behavior. |
 | `Abun` | Burrow cargo hold | Stub | Needs cargo hold state, load/unload slots, and burrow-specific command behavior. |
 | `Astd` | Stand Down | Stub | Coupled to cargo/burrow state. |
 | `AEim` | Immolation | Stub | Toggle status exists; needs mana drain, periodic area damage, and caster buff art/rules. |

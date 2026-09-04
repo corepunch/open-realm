@@ -1,6 +1,99 @@
 #include "g_local.h"
 #include "g_unitrow.h"
 
+typedef struct jassSoundRuntime_s {
+    struct jassSoundRuntime_s *next;
+    HANDLE handle;
+    FLOAT volume;
+    VECTOR3 position;
+    LONG attached_entity;
+    DWORD attached_spawn_time;
+    BOOL has_position;
+} jassSoundRuntime_t;
+
+static jassSoundRuntime_t *jass_sound_runtime;
+
+static jassSoundRuntime_t *G_FindJassSoundRuntime(HANDLE handle, BOOL create) {
+    jassSoundRuntime_t *state;
+
+    if (!handle) return NULL;
+    FOR_EACH_LIST(jassSoundRuntime_t, item, jass_sound_runtime)
+        if (item->handle == handle) return item;
+    if (!create || !gi.MemAlloc) return NULL;
+
+    state = gi.MemAlloc(sizeof(*state));
+    if (!state) return NULL;
+    memset(state, 0, sizeof(*state));
+    state->handle = handle;
+    state->volume = 1.0f;
+    state->attached_entity = -1;
+    ADD_TO_LIST(state, jass_sound_runtime);
+    return state;
+}
+
+void G_JassSoundRuntimeReset(void) {
+    while (jass_sound_runtime) {
+        jassSoundRuntime_t *state = jass_sound_runtime;
+        jass_sound_runtime = state->next;
+        if (gi.MemFree) gi.MemFree(state);
+    }
+}
+
+void G_JassSoundRuntimeInit(HANDLE handle) {
+    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    if (!state) return;
+    state->volume = 1.0f;
+    state->position = (VECTOR3){ 0 };
+    state->attached_entity = -1;
+    state->attached_spawn_time = 0;
+    state->has_position = false;
+}
+
+void G_JassSoundSetVolume(HANDLE handle, FLOAT volume) {
+    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    if (state) state->volume = MAX(0.0f, MIN(volume, 1.0f));
+}
+
+void G_JassSoundSetPosition(HANDLE handle, LPCVECTOR3 position) {
+    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    if (!state || !position) return;
+    state->position = *position;
+    state->attached_entity = -1;
+    state->attached_spawn_time = 0;
+    state->has_position = true;
+}
+
+void G_JassSoundAttach(HANDLE handle, LPEDICT unit) {
+    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    if (!state) return;
+    state->attached_entity = unit ? (LONG)unit->s.number : -1;
+    state->attached_spawn_time = unit ? unit->spawn_time : 0;
+    state->has_position = false;
+}
+
+void G_JassSoundPlayback(HANDLE handle, jassSoundPlayback_t *playback) {
+    jassSoundRuntime_t *state;
+
+    if (!playback) return;
+    *playback = (jassSoundPlayback_t){ .volume = 1.0f };
+    state = G_FindJassSoundRuntime(handle, false);
+    if (!state) return;
+    playback->volume = state->volume;
+    if (state->attached_entity >= 0 && (DWORD)state->attached_entity < globals.num_edicts) {
+        LPEDICT unit = globals.edicts + state->attached_entity;
+        if (unit->inuse && unit->spawn_time == state->attached_spawn_time) {
+            playback->origin = unit->s.origin;
+            playback->emitter = unit;
+            playback->positioned = true;
+            return;
+        }
+    }
+    if (state->has_position) {
+        playback->origin = state->position;
+        playback->positioned = true;
+    }
+}
+
 /* Register one random authored file from a Warcraft sound-data row.  UI sound
  * aliases use the same FileNames/DirectoryBase schema as UnitAckSounds. */
 static int G_RegisterSoundRow(UnitAckSounds_t const *row) {

@@ -373,6 +373,7 @@ void G_SpawnEntities(void) {
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
+    G_JassSoundRuntimeReset();
     G_ClearSaveRegistries();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));

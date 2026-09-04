@@ -52,6 +52,7 @@ static abilityitem_t abilitylist[] = {
     { "ANfb", &a_firebolt },
     { "Apxf", &a_phoenix_fire },
     { "AOsf", &a_feral_spirit },
+    { "AOmi", &a_mirror_image },
     { "Abun", &a_cargo_hold_burrow },
     { "Astd", &a_stand_down },
     { "AEim", &a_immolation },

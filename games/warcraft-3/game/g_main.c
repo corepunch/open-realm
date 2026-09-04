@@ -341,6 +341,7 @@ static void G_ShutdownGame(void) {
     gi.SetPaused(false);
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
+    G_JassSoundRuntimeReset();
     G_FowShutdown();
     G_FreeModels();
     gi.MemFree(g_edicts);
@@ -727,6 +728,12 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT sourc
 
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     return G_PublishEventWithSource(edict, type, NULL);
+}
+
+void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned) {
+    if (!summoner || !summoned) return;
+    G_PublishEventWithSource(summoner, EVENT_PLAYER_UNIT_SUMMON, summoned);
+    G_PublishEventWithSource(summoner, EVENT_UNIT_SUMMON, summoned);
 }
 
 /* Gameplay messages expose state-machine transitions without turning internal

@@ -612,7 +612,7 @@ DWORD GetSummoningUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetSummonedUnit(LPJASS j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
 DWORD GetTransportUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");

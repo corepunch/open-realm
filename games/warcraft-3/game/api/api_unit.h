@@ -684,8 +684,8 @@ DWORD IsUnitHidden(LPJASS j) {
     return jass_pushboolean(j, whichUnit && (whichUnit->s.renderfx & RF_HIDDEN));
 }
 DWORD IsUnitIllusion(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, whichUnit && (whichUnit->aiflags & AI_ILLUSION));
 }
 DWORD IsUnitInTransport(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
