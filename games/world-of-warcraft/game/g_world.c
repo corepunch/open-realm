@@ -21,7 +21,6 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 #define PF_TextRemoveBom G_WorldTextRemoveBom
 #define Com_Error(code, ...) gi.error(__VA_ARGS__)
 #include "common/world.c"
-#include "games/warcraft-3/common/routing.c"
 #include "common/world_wow.c"
 
 #undef FS_ReadFile

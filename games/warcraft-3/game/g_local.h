@@ -29,6 +29,7 @@
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
+#define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
 #define MAX_UNIT_STATUSES 8
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
@@ -113,6 +114,7 @@ typedef struct {
     BOOL order_queued;         /* transient modifier for the current target callback */
     BOOL ability_off;          /* command-card separate-off variant selected for this dispatch */
 } menu_t;
+typedef menu_t clientMenu_s;
 
 enum {
     AI_HOLD_FRAME = 1 << 0,
@@ -372,7 +374,7 @@ struct client_s {
     DWORD modal_flags;
     BOOL quest_dialog_open;
     menu_t menu;
-    struct {
+    struct clientCamera_s {
         CAMERASETUP state;
         CAMERASETUP old_state;
         DWORD start_time;
@@ -572,6 +574,16 @@ typedef struct {
     FLOAT value;
     FLOAT max_value;
 } EDICTSTAT;
+typedef EDICTSTAT edictStat_s;
+
+typedef struct edictAbilities_s {
+    DWORD added[MAX_ABILITIES];
+    DWORD added_count;
+    DWORD removed[MAX_ABILITIES];
+    DWORD removed_count;
+    DWORD permanent[MAX_ABILITIES];
+    DWORD permanent_count;
+} edictAbilities_s;
 
 typedef struct {
     float MoveSpeed;
@@ -776,7 +788,7 @@ struct edict_s {
     DWORD variation;
     DWORD build_project;
     BOOL rally_indicator;
-    struct {
+    struct edictConstruction_s {
         BOOL active;
         BOOL paused;
         LPEDICT primary_builder;
@@ -794,7 +806,7 @@ struct edict_s {
         FLOAT duration;    /* seconds */
         FLOAT progress;    /* seconds elapsed for the active queue head */
     } research;
-    struct {
+    struct edictRally_s {
         rallyTargetType_t type;
         VECTOR2 point;
         LPEDICT entity;
@@ -813,7 +825,7 @@ struct edict_s {
     /* Hero revival state lives on the persistent Hero edict. While reviving,
      * queue_next links the Hero into a producer's ordinary production chain
      * without borrowing hero->build, which may have independent gameplay use. */
-    struct {
+    struct edictRevival_s {
         BOOL awaiting;
         BOOL reviving;
         LPEDICT producer;
@@ -825,7 +837,7 @@ struct edict_s {
     DWORD spawn_time;
     DWORD harvested_lumber;
     DWORD harvested_gold;
-    struct {
+    struct edictMilitia_s {
         DWORD ability;          /* Amil alias that supplied Data A/B and duration */
         DWORD normal_type;      /* Data A: worker form retained across the timed morph */
         DWORD militia_type;     /* Data B: alternate combat form */
@@ -844,19 +856,19 @@ struct edict_s {
     DWORD damage;
     DWORD resources;
     DWORD freetime;
-    struct {
+    struct edictGoldMine_s {
         LPEDICT mine;
         DWORD mine_spawn_time;
         BOOL restore_invulnerable;
     } goldmine;
     LPEDICT inventory[MAX_INVENTORY];
-    struct {
+    struct edictItem_s {
         LPEDICT carrier;
         LONG inventory_slot;
         BOOL in_world;
         DWORD charges;
     } item;
-    struct {
+    struct edictDestructable_s {
         BOOL initialized;
 
         /* Set only for destructables originating from war3map.doo. */
@@ -883,7 +895,7 @@ struct edict_s {
 
         ARRAY(droppableItemSet_t const, drop_sets);
     } destructable;
-    struct {
+    struct edictCargo_s {
         LPEDICT units[MAX_CARGO];
         DWORD count;
     } cargo;
@@ -895,9 +907,7 @@ struct edict_s {
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
-    ARRAY(DWORD, added_abilities);
-    ARRAY(DWORD, removed_abilities);
-    ARRAY(DWORD, permanent_abilities);
+    edictAbilities_s abilities;
     BOOL invulnerable;  // unit cannot take damage when true
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
@@ -909,7 +919,7 @@ struct edict_s {
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
     unitOrderQueue_t order_queue;
-    struct {
+    struct edictMovement_s {
         VECTOR2 last_origin;
         FLOAT last_distance;
         DWORD blocked_frames;
@@ -978,16 +988,30 @@ struct edict_s {
     void (*attack)(LPEDICT);
     void (*pain)(LPEDICT);
 
-    UnitProfile_t const *UnitProfile;
-    UnitBalance_t const *UnitBalance;
-    UnitData_t const *UnitData;
-    UnitUI_t const *UnitUI;
-    UnitWeapons_t const *UnitWeapons;
-    UnitAbilities_t const *UnitAbilities;
-    Doodads_t const *Doodads;
-    ItemData_t const *ItemData;
-    DestructableData_t const *DestructableData;
+    struct edictData_s {
+        UnitProfile_t const *UnitProfile;
+        UnitBalance_t const *UnitBalance;
+        UnitData_t const *UnitData;
+        UnitUI_t const *UnitUI;
+        UnitWeapons_t const *UnitWeapons;
+        UnitAbilities_t const *UnitAbilities;
+        Doodads_t const *Doodads;
+        ItemData_t const *ItemData;
+        DestructableData_t const *DestructableData;
+    } data;
 };
+
+typedef struct edictConstruction_s edictConstruction_s;
+typedef struct edictRally_s edictRally_s;
+typedef struct edictRevival_s edictRevival_s;
+typedef struct edictMilitia_s edictMilitia_s;
+typedef struct edictGoldMine_s edictGoldMine_s;
+typedef struct edictItem_s edictItem_s;
+typedef struct edictDestructable_s edictDestructable_s;
+typedef struct edictCargo_s edictCargo_s;
+typedef struct edictMovement_s edictMovement_s;
+typedef struct edictData_s edictData_s;
+typedef struct clientCamera_s clientCamera_s;
 
 /* An entity that should be ignored by collision and physics: dead, hidden, or
  * not a live model.  Shared by g_phys.c (M_CheckCollision) and g_ai.c

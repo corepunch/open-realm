@@ -877,7 +877,7 @@ TEST(wc3_building, replacing_pre_spawn_build_order_clears_project) {
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
     builder->s.player = client->ps.number;
-    builder->UnitProfile = &profile;
+    builder->data.UnitProfile = &profile;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
@@ -901,18 +901,18 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(barracks, 64, 0);
-    builder->UnitAbilities = &abilities;
+    builder->data.UnitAbilities = &abilities;
     builder->stand = unit_stand;
     builder->collision = 16.0f;
     builder->s.player = client->ps.number;
     building->s.player = client->ps.number;
     building->svflags |= SVF_MONSTER;
     building->stand = unit_stand;
-    balance = *building->UnitBalance;
+    balance = *building->data.UnitBalance;
     balance.goldCost = 100;
     balance.lumberCost = 80;
     balance.foodUsed = 2;
-    building->UnitBalance = &balance;
+    building->data.UnitBalance = &balance;
     building->health.max_value = 1000.0f;
     building->health.value = 1000.0f;
 
