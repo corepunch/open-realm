@@ -293,6 +293,9 @@ void CL_InputModeSetGameplay(void) {
 #endif
 }
 
+BOOL CL_InputModeSelectDown(void) { return false; }
+BOOL CL_InputModeSelectUp(void) { return false; }
+
 void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
     (void)button;
     (void)down;

@@ -254,6 +254,8 @@ void CL_SetGameplayBindings(void) {
 }
 
 void IN_SelectDown(void) {
+    if (CL_InputModeSelectDown())
+        return;
     if (!CL_GameplayInputReady()) {
         cl.selection.in_progress = false;
         return;
@@ -275,6 +277,8 @@ void IN_SelectDown(void) {
 }
 
 void IN_SelectUp(void) {
+    if (CL_InputModeSelectUp())
+        return;
     CL_EndMinimapDrag();
     if (!CL_GameplayInputReady()) {
         cl.selection.in_progress = false;

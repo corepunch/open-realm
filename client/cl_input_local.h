@@ -16,6 +16,9 @@ void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down);
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion);
 BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel);
 void CL_InputModeFrame(void);
+/* +select/-select. Return true to skip the generic RTS box/point path. */
+BOOL CL_InputModeSelectDown(void);
+BOOL CL_InputModeSelectUp(void);
 
 /* Minimap click-to-move-camera. Returns true if the click was on the minimap
  * (and the camera was recentered). No-op / false outside RTS input mode. */
