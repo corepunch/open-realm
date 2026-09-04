@@ -35,7 +35,7 @@ static void UI_WriteUnitShortcutButton(FLOAT x, FLOAT y, FLOAT size, LPCEDICT un
     uiFrame_t frame;
     LPCSTR art;
 
-    if (!unit || !unit->UnitProfile || !(art = unit->UnitProfile->art) || !*art) return;
+    if (!unit || !unit->data.UnitProfile || !(art = unit->data.UnitProfile->art) || !*art) return;
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_COMMANDBUTTON;
     frame.color = COLOR32_WHITE;
@@ -67,8 +67,8 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
         if (G_UnitShowsHeroShortcut(client, unit)) {
             DWORD number = (DWORD)(unit - globals.edicts);
-            LPCSTR name = unit->UnitProfile && unit->UnitProfile->name
-                ? G_LevelString(unit->UnitProfile->name) : "Hero";
+            LPCSTR name = unit->data.UnitProfile && unit->data.UnitProfile->name
+                ? G_LevelString(unit->data.UnitProfile->name) : "Hero";
 
             snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
             snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");

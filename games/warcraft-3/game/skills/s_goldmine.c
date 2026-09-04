@@ -52,7 +52,7 @@ static BOOL gold_find_direct_footprint_approach(LPEDICT worker, LPEDICT target,
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
 
-    if (!mine || !mine->UnitAbilities || !(abilities = mine->UnitAbilities->abilList))
+    if (!mine || !mine->data.UnitAbilities || !(abilities = mine->data.UnitAbilities->abilList))
         return NULL;
 
     PARSE_LIST(abilities, abil, parse_segment) {

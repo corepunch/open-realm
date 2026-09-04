@@ -18,8 +18,8 @@ static void G_RefreshRallyIndicatorForProducer(LPEDICT producer) {
 BOOL G_UnitHasRally(LPCEDICT producer) {
     LPCSTR trains;
 
-    if (!producer || !producer->UnitProfile) return false;
-    trains = producer->UnitProfile->trains;
+    if (!producer || !producer->data.UnitProfile) return false;
+    trains = producer->data.UnitProfile->trains;
     return (trains && *trains) || G_UnitCanReviveHeroes(producer);
 }
 

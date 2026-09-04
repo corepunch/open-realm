@@ -32,13 +32,13 @@ TEST(wc3_rally, capability_is_train_or_revive_driven) {
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     T_ASSERT(G_UnitHasRally(producer));
 
-    producer->UnitProfile = &rally_revive_profile;
+    producer->data.UnitProfile = &rally_revive_profile;
     T_ASSERT(G_UnitHasRally(producer));
 
-    producer->UnitProfile = &rally_research_profile;
+    producer->data.UnitProfile = &rally_research_profile;
     T_ASSERT(!G_UnitHasRally(producer));
 }
 
@@ -55,7 +55,7 @@ TEST(wc3_rally, default_target_is_producer_itself) {
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 64, 96);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
 
     T_EQ(G_ResolveRallyTarget(producer, &point, &target), RALLY_TARGET_SELF);
     T_ASSERT(target == producer);
@@ -73,7 +73,7 @@ TEST(wc3_rally, setrally_and_smart_store_point_and_widget_targets) {
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     target = rally_unit(MAKEFOURCC('h','f','o','o'), 128, 160);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     producer->aiflags |= AI_IMMOBILE;
 
     T_ASSERT(unit_issueorder(producer, "setrally", &point));
@@ -98,7 +98,7 @@ TEST(wc3_rally, setting_producer_as_target_restores_default) {
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     T_ASSERT(G_SetRallyPoint(producer, &MAKE(VECTOR2, 64.0f, 64.0f)));
     T_ASSERT(G_SetRallyEntity(producer, producer));
     T_EQ(G_ResolveRallyTarget(producer, NULL, &target), RALLY_TARGET_SELF);
@@ -113,7 +113,7 @@ TEST(wc3_rally, dead_unit_target_resets_to_producer) {
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     target = rally_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     T_ASSERT(G_SetRallyEntity(producer, target));
 
     target->svflags |= SVF_DEADMONSTER;
@@ -129,7 +129,7 @@ TEST(wc3_rally, removing_widget_target_resets_before_edict_reuse) {
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     target = rally_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     T_ASSERT(G_SetRallyEntity(producer, target));
 
     G_FreeEdict(target);
@@ -147,7 +147,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     clent->inuse = true; clent->client = client;
     client->connected = true; client->ps.number = 0;
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 64, 96);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     producer->s.player = 0; producer->selected = 1;
 
     T_ASSERT(G_SetRallyPoint(producer, &MAKE(VECTOR2, 320.0f, 448.0f)));
@@ -189,7 +189,7 @@ TEST(wc3_rally, point_handoff_uses_smart_movement) {
     setup_test_world();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     produced = rally_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     produced->collision = 16.0f;
     produced->stand = unit_stand;
 
@@ -211,14 +211,14 @@ TEST(wc3_rally, training_completion_reads_latest_rally_target) {
     setup_test_world();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     trained = rally_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    producer->UnitProfile = &rally_train_profile;
+    producer->data.UnitProfile = &rally_train_profile;
     producer->s.player = trained->s.player = 0;
     producer->movetype = MOVETYPE_NONE;
     producer->collision = 64.0f;
     producer->stand = unit_stand;
     trained->collision = 16.0f;
     trained->stand = unit_stand;
-    trained->UnitBalance = &balance;
+    trained->data.UnitBalance = &balance;
     trained->health.value = trained->health.max_value = 100.0f;
     trained->training = true;
     trained->s.renderfx |= RF_HIDDEN;

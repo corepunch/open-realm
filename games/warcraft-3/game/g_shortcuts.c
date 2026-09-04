@@ -26,8 +26,8 @@ static BOOL G_ShortcutIsControlledMonster(LPGAMECLIENT client, LPCEDICT ent) {
 static BOOL G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
     LPCSTR builds;
 
-    if (!ent || !ent->UnitProfile) return false;
-    builds = ent->UnitProfile->builds;
+    if (!ent || !ent->data.UnitProfile) return false;
+    builds = ent->data.UnitProfile->builds;
     /* Standard workers expose a construction list. Ahar additionally covers
      * harvest-capable custom workers without a build menu. This avoids
      * hard-coding race/unit rawcodes while keeping combat-only resource
@@ -36,14 +36,14 @@ static BOOL G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
 }
 
 BOOL G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent) {
-    return G_ShortcutIsControlledMonster(client, ent) && ent->UnitBalance &&
-        ent->UnitUI && !ent->training && !ent->UnitUI->hideHeroBar &&
+    return G_ShortcutIsControlledMonster(client, ent) && ent->data.UnitBalance &&
+        ent->data.UnitUI && !ent->training && !ent->data.UnitUI->hideHeroBar &&
         G_UnitIsHero(ent);
 }
 
 BOOL G_UnitIsIdleWorker(LPCEDICT ent) {
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
-        !ent->UnitBalance || ent->training || G_UnitIsBuilding(ent->class_id) ||
+        !ent->data.UnitBalance || ent->training || G_UnitIsBuilding(ent->class_id) ||
         M_IsDead(ent) || (ent->s.renderfx & RF_HIDDEN) ||
         S_GoldMineWorkerIsInside(ent) || ent->movement.holding_position ||
         !ent->currentmove || ent->currentmove->ability || !ent->currentmove->animation ||
@@ -70,7 +70,7 @@ void G_InvalidateUnitShortcutsForUnit(LPEDICT ent) {
      * cheap for projectiles, effects, destructables, and ordinary units so
      * they cannot trigger an unnecessary full shortcut-roster rebuild. */
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) return;
-    if ((!ent->UnitBalance || !G_UnitIsHero(ent)) &&
+    if ((!ent->data.UnitBalance || !G_UnitIsHero(ent)) &&
         !G_UnitHasWorkerShortcutCapability(ent)) return;
 
     FOR_LOOP(i, game.max_clients) {

@@ -28,8 +28,8 @@ static DWORD repair_find_code(LPEDICT ent, ability_t const *wanted, DWORD prefer
     DWORD fallback = 0;
     LPCSTR abilities;
 
-    if (!ent || !ent->UnitAbilities) return 0;
-    abilities = ent->UnitAbilities->abilList;
+    if (!ent || !ent->data.UnitAbilities) return 0;
+    abilities = ent->data.UnitAbilities->abilList;
     if (!abilities) return 0;
 
     PARSE_LIST(abilities, ability_name, parse_segment) {
@@ -172,7 +172,7 @@ static BOOL repair_charge_power_cost(LPEDICT ent, LPEDICT building, AbilityData_
     FLOAT cost_ratio;
 
     if (!ent || !building || ent->buildwork.primary || G_BuildAllEnabled()) return true;
-    balance = building->UnitBalance;
+    balance = building->data.UnitBalance;
     build_time = balance ? (FLOAT)balance->buildTime : 0.0f;
     cost_ratio = data ? data->data[0][2] : 0.0f;
     if (build_time <= 0.0f || cost_ratio <= 0.0f) return true;
@@ -187,7 +187,7 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL pr
     AbilityData_t const *data = G_AbilityData(code);
 
     if (!ent || !target || !target->inuse || M_IsDead(target)) return false;
-    if (!G_UnitIsBuilding(target->class_id) || !target->UnitBalance) return false;
+    if (!G_UnitIsBuilding(target->class_id) || !target->data.UnitBalance) return false;
     /* Keep the current ownership/building rule until Repair has a target-mask
      * evaluator that understands WC3's overlapping categories (for example a
      * structure can also be a ground target).  S_SpellAllowsTarget() models a
@@ -314,7 +314,7 @@ static void ai_repair_walk(LPEDICT ent) {
 static void ai_repair(LPEDICT ent) {
     LPEDICT building = ent ? ent->build : NULL;
     AbilityData_t const *data;
-    EDICTSTAT *hp;
+    edictStat_s *hp;
 
     if (!building || !repair_target_valid(ent, building, ent->buildwork.ability,
                                            ent->buildwork.primary)) {
@@ -358,7 +358,7 @@ static void ai_repair(LPEDICT ent) {
             return;
         }
 
-        duration = MAX(1.0f, (FLOAT)building->UnitBalance->buildTime * 1000.0f);
+        duration = MAX(1.0f, (FLOAT)building->data.UnitBalance->buildTime * 1000.0f);
         building->construction.progress += (FLOAT)FRAMETIME * ratio;
         G_UpdateConstructionAnimation(building);
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
@@ -372,7 +372,7 @@ static void ai_repair(LPEDICT ent) {
     }
 
     if (data) {
-        UnitBalance_t const *balance = building->UnitBalance;
+        UnitBalance_t const *balance = building->data.UnitBalance;
         FLOAT seconds = (FLOAT)FRAMETIME / 1000.0f;
         FLOAT duration = repair_time(balance);
         FLOAT cost_ratio = data->data[0][0];
@@ -401,15 +401,15 @@ static void ai_repair(LPEDICT ent) {
 
 static void ai_repair_legacy(LPEDICT ent) {
     LPEDICT building = ent ? ent->build : NULL;
-    EDICTSTAT *hp;
+    edictStat_s *hp;
 
-    if (!building || !building->inuse || M_IsDead(building) || building->UnitBalance->buildTime <= 0) {
+    if (!building || !building->inuse || M_IsDead(building) || building->data.UnitBalance->buildTime <= 0) {
         if (ent) ent->stand(ent);
         return;
     }
     hp = &building->health;
     hp->value += hp->max_value * (FLOAT)FRAMETIME /
-                 ((FLOAT)building->UnitBalance->buildTime * 1000.0f);
+                 ((FLOAT)building->data.UnitBalance->buildTime * 1000.0f);
     if (hp->value >= hp->max_value) {
         hp->value = hp->max_value;
         building->stand(building);
@@ -555,7 +555,7 @@ static LPCSTR repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, DWORD c
     if (!target->inuse) return "unused";
     if (M_IsDead(target)) return "dead";
     if (!G_UnitIsBuilding(target->class_id)) return "not_building";
-    if (!target->UnitBalance) return "no_balance";
+    if (!target->data.UnitBalance) return "no_balance";
     if (target->s.player != ent->s.player) return "wrong_owner";
 
     handler = repair_handler(code);
@@ -628,7 +628,7 @@ static BOOL repair_autocast_acquire(LPEDICT ent) {
                     "WC3_AUTOREPAIR scan_skip worker=%ld reason=%s radius=%.1f abilities=%s\n",
                     g_edicts ? (long)(ent - g_edicts) : -1L,
                     !code ? "no_repair_code" : "zero_acquisition_range", radius,
-                    ent->UnitAbilities && ent->UnitAbilities->abilList ? ent->UnitAbilities->abilList : "<none>");
+                    ent->data.UnitAbilities && ent->data.UnitAbilities->abilList ? ent->data.UnitAbilities->abilList : "<none>");
         }
 #endif
         return false;

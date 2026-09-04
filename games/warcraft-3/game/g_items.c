@@ -75,8 +75,8 @@ LPCSTR G_ItemAbilityList(LPCEDICT item) {
      * be relied on to find this SLK field. Keep the config lookup only as a
      * compatibility fallback for hand-authored/custom data that did not make
      * it into the typed item row. */
-    if (item->ItemData && item->ItemData->abilList && *item->ItemData->abilList)
-        return item->ItemData->abilList;
+    if (item->data.ItemData && item->data.ItemData->abilList && *item->data.ItemData->abilList)
+        return item->data.ItemData->abilList;
 
     abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
     return abilities && *abilities ? abilities : NULL;
@@ -98,16 +98,16 @@ void SP_SpawnItem(LPEDICT self) {
     LPCSTR model;
     FLOAT scale;
 
-    if (!self || !(model = self->ItemData->file)) {
+    if (!self || !(model = self->data.ItemData->file)) {
         return;
     }
     strlcpy(model_filename, model, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
-    scale = self->ItemData->scale;
+    scale = self->data.ItemData->scale;
     if (scale > 0) {
         self->s.scale = scale;
     }
-    self->s.radius = self->ItemData->selectionSize;
+    self->s.radius = self->data.ItemData->selectionSize;
 #ifndef USE_SHADOWMAPS
     self->s.shadow = G_LoadShadowTexture(Stb_IniCacheFind(&game.config.misc, "Misc", "ItemShadowFile"), false);
     self->s.shadow_rect = ShadowPackRect(
@@ -128,7 +128,7 @@ BOOL G_IsItem(LPCEDICT item) {
     if (!item || !item->inuse || !item->class_id) {
         return false;
     }
-    return item->item.in_world || item->item.carrier || item->ItemData->file != NULL;
+    return item->item.in_world || item->item.carrier || item->data.ItemData->file != NULL;
 }
 
 static DWORD G_InventoryRequiredUpgrade(DWORD ability_id) {
@@ -180,7 +180,7 @@ DWORD G_InventoryCapacity(LPCEDICT unit) {
     BOOL has_inventory_ability = false;
 
     if (!unit || !unit->inuse) return 0;
-    if (unit->UnitAbilities) abilities = unit->UnitAbilities->abilList;
+    if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
             /* Typed AbilityData resolves custom inventory abilities without returning to the removed sheet cache. */
@@ -217,13 +217,13 @@ void G_SetItemCharges(LPEDICT item, DWORD charges) {
 }
 
 void G_ConsumeItemCharge(LPEDICT item) {
-    if (!G_IsItem(item) || !item->ItemData || item->item.charges == 0) return;
+    if (!G_IsItem(item) || !item->data.ItemData || item->item.charges == 0) return;
 
     /* All charged item uses decrement charges. Perishable only controls the
      * zero-charge lifetime: Warsmash removes perishables, while reusable
      * zero-charge items remain held. Avoid publishing a transient zero-charge
      * copy immediately before final perishable removal. */
-    if (item->item.charges == 1 && item->ItemData->perishable) {
+    if (item->item.charges == 1 && item->data.ItemData->perishable) {
         item->item.charges = 0;
         G_RemoveItem(item);
         return;

@@ -148,7 +148,7 @@ TEST(wc3_items, roc_hero_without_authored_inventory_gets_default_ainv_capacity) 
     setup_test_world();
     ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    hero->UnitAbilities = &no_inventory;
+    hero->data.UnitAbilities = &no_inventory;
 
     T_ASSERT(G_UnitIsHero(hero));
     T_EQ(G_InventoryCapacity(hero), 6);
@@ -161,7 +161,7 @@ TEST(wc3_items, tft_hero_without_authored_inventory_does_not_get_roc_default) {
     setup_test_world();
     ((LPMAPINFO)level.mapinfo)->fileFormat = 25;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    hero->UnitAbilities = &no_inventory;
+    hero->data.UnitAbilities = &no_inventory;
 
     T_ASSERT(G_UnitIsHero(hero));
     T_EQ(G_InventoryCapacity(hero), 0);
@@ -580,7 +580,7 @@ TEST(wc3_items, perishable_success_consumes_charge_and_removes_at_zero) {
 
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
-    item->ItemData = &perishable;
+    item->data.ItemData = &perishable;
     item->item.charges = 2;
 
     G_ConsumeItemCharge(item);
@@ -597,7 +597,7 @@ TEST(wc3_items, nonperishable_use_decrements_charges_but_keeps_item_at_zero) {
 
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
-    item->ItemData = &reusable;
+    item->data.ItemData = &reusable;
     item->item.charges = 2;
 
     G_ConsumeItemCharge(item);
@@ -743,7 +743,7 @@ TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_
     footman->s.player = hero->s.player = client->ps.number;
     footman->svflags |= SVF_MONSTER;
     hero->svflags |= SVF_MONSTER;
-    hero->UnitAbilities = &no_inventory;
+    hero->data.UnitAbilities = &no_inventory;
     footman->stand = unit_stand;
     hero->stand = unit_stand;
     unit_stand(footman);

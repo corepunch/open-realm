@@ -25,14 +25,14 @@ DWORD GetItemTypeId(LPJASS j) {
  * (an unregistered/void-returning stub here desynced the VM stack). */
 DWORD GetItemType(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    LPCSTR cls = item ? item->ItemData->itemClass : NULL;
+    LPCSTR cls = item ? item->data.ItemData->itemClass : NULL;
     API_ALLOC(DWORD, itemtype);
     *itemtype = G_ItemTypeFromClass(cls);
     return 1;
 }
 DWORD GetItemLevel(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, item ? item->ItemData->level : 0);
+    return jass_pushinteger(j, item ? item->data.ItemData->level : 0);
 }
 DWORD GetItemCharges(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");

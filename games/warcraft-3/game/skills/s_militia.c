@@ -6,16 +6,16 @@ static DWORD militia_actor_ability_alias(LPEDICT ent, DWORD base_code) {
     char alias[5] = {0};
 
     if (!ent) return 0;
-    if (ent->UnitAbilities && ent->UnitAbilities->abilList) {
-        PARSE_LIST(ent->UnitAbilities->abilList, token, parse_segment) {
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
             DWORD code = 0;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&code, token, 4);
             if (G_AbilityCode(code) == base_code) return code;
         }
     }
-    FOR_LOOP(i, ARRAY_COUNT(ent->added_abilities)) {
-        DWORD const code = ent->added_abilities[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        DWORD const code = ent->abilities.added[i];
         if (!code) continue;
         memcpy(alias, &code, 4);
         if (G_ActorHasSkill(ent, alias) && G_AbilityCode(code) == base_code) return code;
@@ -25,16 +25,16 @@ static DWORD militia_actor_ability_alias(LPEDICT ent, DWORD base_code) {
 
 static BOOL militia_actor_ability_removed(LPEDICT ent, DWORD base_code) {
     if (!ent) return false;
-    FOR_LOOP(i, ARRAY_COUNT(ent->removed_abilities)) {
-        DWORD const code = ent->removed_abilities[i];
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.removed)) {
+        DWORD const code = ent->abilities.removed[i];
         if (code && G_AbilityCode(code) == base_code) return true;
     }
     return false;
 }
 
 static DWORD militia_hall_base_type(LPEDICT hall) {
-    return hall && hall->UnitAbilities && hall->UnitAbilities->id
-        ? hall->UnitAbilities->id : (hall ? hall->class_id : 0);
+    return hall && hall->data.UnitAbilities && hall->data.UnitAbilities->id
+        ? hall->data.UnitAbilities->id : (hall ? hall->class_id : 0);
 }
 
 static BOOL militia_is_first_tier_one_hall(LPEDICT hall) {

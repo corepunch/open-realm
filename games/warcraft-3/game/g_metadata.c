@@ -855,7 +855,7 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *data) {
 #endif
 
 #define M(id,table,member,kind) \
-    { id, offsetof(edict_t, table), offsetof(table##_t, member), kind }
+    { id, offsetof(edict_t, data.table), offsetof(table##_t, member), kind }
 
 unitMeta_t const UnitsMetaData[] = {
     M("iabi",ItemData,abilList,BZ_FIELD_CSTR),

@@ -61,7 +61,7 @@ BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t reso
 
     if (!unit || !building || !building->inuse || building->s.player != unit->s.player || M_IsDead(building))
         return false;
-    if (!building->UnitAbilities || !(abilities = building->UnitAbilities->abilList))
+    if (!building->data.UnitAbilities || !(abilities = building->data.UnitAbilities->abilList))
         return false;
 
     PARSE_LIST(abilities, abil, parse_segment) {
@@ -292,10 +292,11 @@ static LONG skill_index(DWORD const *skills, DWORD count, DWORD code) {
     return -1;
 }
 
-static void skill_add(DWORD **skills, DWORD *count, DWORD code) {
-    DWORD *next = gi.MemAlloc((*count + 1) * sizeof(*next));
-    if (*skills) { memcpy(next, *skills, *count * sizeof(*next)); gi.MemFree(*skills); }
-    next[(*count)++] = code; *skills = next;
+static BOOL skill_add(DWORD *skills, DWORD *count, DWORD code) {
+    if (*count >= MAX_ABILITIES) {
+        fprintf(stderr, "WC3: unit ability list full while adding %08x\n", code); return false;
+    }
+    skills[(*count)++] = code; return true;
 }
 
 static void skill_remove(DWORD *skills, DWORD *count, DWORD index) {
@@ -305,10 +306,10 @@ static void skill_remove(DWORD *skills, DWORD *count, DWORD index) {
 static BOOL actor_has_skill(LPEDICT ent, DWORD code) {
     LPCSTR abilities;
     if (!ent || !code) return false;
-    if (skill_index(ent->removed_abilities, ARRAY_COUNT(ent->removed_abilities), code) >= 0) return false;
-    if (skill_index(ent->added_abilities, ARRAY_COUNT(ent->added_abilities), code) >= 0) return true;
-    if (!ent->UnitAbilities) return false;
-    abilities = ent->UnitAbilities->abilList;
+    if (skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code) >= 0) return false;
+    if (skill_index(ent->abilities.added, ARRAY_COUNT(ent->abilities.added), code) >= 0) return true;
+    if (!ent->data.UnitAbilities) return false;
+    abilities = ent->data.UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
             DWORD static_code = 0;
@@ -359,11 +360,11 @@ BOOL harvest_auto_start_lumber(LPEDICT self) {
 BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
     LONG index;
     if (!ent || !code || actor_has_skill(ent, code)) return false;
-    index = skill_index(ent->removed_abilities, ARRAY_COUNT(ent->removed_abilities), code);
-    if (index >= 0) skill_remove(ent->removed_abilities, &ARRAY_COUNT(ent->removed_abilities), index);
+    index = skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code);
+    if (index >= 0) skill_remove(ent->abilities.removed, &ARRAY_COUNT(ent->abilities.removed), index);
     else {
         if (G_AbilityData(code)->id != code) return false;
-        skill_add(&ent->added_abilities, &ARRAY_COUNT(ent->added_abilities), code);
+        if (!skill_add(ent->abilities.added, &ARRAY_COUNT(ent->abilities.added), code)) return false;
     }
     if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
     { LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
@@ -373,14 +374,15 @@ BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
 BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
     LONG index;
     if (!ent || !code || !actor_has_skill(ent, code)) return false;
+    index = skill_index(ent->abilities.added, ARRAY_COUNT(ent->abilities.added), code);
+    if (index < 0 && ARRAY_COUNT(ent->abilities.removed) >= MAX_ABILITIES) return false;
     /* Invalidate while Ahar is still present; the shortcut invalidation hook
      * deliberately ignores ordinary non-worker units for low CPU overhead. */
     if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
-    index = skill_index(ent->added_abilities, ARRAY_COUNT(ent->added_abilities), code);
-    if (index >= 0) skill_remove(ent->added_abilities, &ARRAY_COUNT(ent->added_abilities), index);
-    else skill_add(&ent->removed_abilities, &ARRAY_COUNT(ent->removed_abilities), code);
-    index = skill_index(ent->permanent_abilities, ARRAY_COUNT(ent->permanent_abilities), code);
-    if (index >= 0) skill_remove(ent->permanent_abilities, &ARRAY_COUNT(ent->permanent_abilities), index);
+    if (index >= 0) skill_remove(ent->abilities.added, &ARRAY_COUNT(ent->abilities.added), index);
+    else if (!skill_add(ent->abilities.removed, &ARRAY_COUNT(ent->abilities.removed), code)) return false;
+    index = skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code);
+    if (index >= 0) skill_remove(ent->abilities.permanent, &ARRAY_COUNT(ent->abilities.permanent), index);
     { LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
@@ -388,14 +390,14 @@ BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
 BOOL G_ActorSetSkillPermanent(LPEDICT ent, DWORD code, BOOL permanent) {
     LONG index;
     if (!actor_has_skill(ent, code)) return false;
-    index = skill_index(ent->permanent_abilities, ARRAY_COUNT(ent->permanent_abilities), code);
-    if (permanent && index < 0) skill_add(&ent->permanent_abilities, &ARRAY_COUNT(ent->permanent_abilities), code);
-    else if (!permanent && index >= 0) skill_remove(ent->permanent_abilities, &ARRAY_COUNT(ent->permanent_abilities), index);
+    index = skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code);
+    if (permanent && index < 0 && !skill_add(ent->abilities.permanent, &ARRAY_COUNT(ent->abilities.permanent), code)) return false;
+    else if (!permanent && index >= 0) skill_remove(ent->abilities.permanent, &ARRAY_COUNT(ent->abilities.permanent), index);
     return true;
 }
 
 BOOL G_ActorSkillPermanent(LPEDICT ent, DWORD code) {
-    return ent && skill_index(ent->permanent_abilities, ARRAY_COUNT(ent->permanent_abilities), code) >= 0;
+    return ent && skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code) >= 0;
 }
 
 static void ai_walktree(LPEDICT ent) {
@@ -572,7 +574,7 @@ void harvest_walk(LPEDICT ent) {
 
 void harvest_swing(LPEDICT ent) {
     unit_setmove(ent, &harvest_move_swing);
-    ent->wait = ent->UnitWeapons->attack1.damagePoint;
+    ent->wait = ent->data.UnitWeapons->attack1.damagePoint;
 }
 
 BOOL harvest_lumber_return_to(LPEDICT ent, LPEDICT dropoff) {

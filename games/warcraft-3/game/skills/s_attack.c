@@ -451,7 +451,7 @@ static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         VECTOR2 target = *location;
-        if ((ent->aiflags & AI_IMMOBILE) || ent->UnitBalance->speed <= 0) {
+        if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
         CM_ClosestPathablePointForRadius(location, ent->collision, &target);

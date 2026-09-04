@@ -17,7 +17,7 @@ static BOOL ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
     LONG cost;
     BOOL was_waiting;
 
-    if (!unit || !unit->UnitBalance) return false;
+    if (!unit || !unit->data.UnitBalance) return false;
     was_waiting = unit->training_food_wait_notified;
     if (G_ReserveTrainingFood(unit)) {
         if (was_waiting) {
@@ -27,7 +27,7 @@ static BOOL ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
         return true;
     }
 
-    cost = MAX(0, unit->UnitBalance->foodUsed);
+    cost = MAX(0, unit->data.UnitBalance->foodUsed);
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (cost <= 0 || !client || client->ps.number != unit->s.player ||
         G_PlayerHasFoodFor(client, cost) || unit->training_food_wait_notified) {
@@ -58,10 +58,10 @@ static void RefundTrainingCost(LPEDICT item) {
     UnitBalance_t const *balance;
     LONG gold, lumber;
 
-    if (!item || !item->UnitBalance) return;
+    if (!item || !item->data.UnitBalance) return;
     player = G_GetPlayerByNumber(item->s.player);
     if (!player) return;
-    balance = item->UnitBalance;
+    balance = item->data.UnitBalance;
     gold = (LONG)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, balance->goldCost);
     lumber = (LONG)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, balance->lumberCost);
     player->stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
@@ -179,14 +179,14 @@ static BOOL HeroReviveMisc(LPCSTR key, FLOAT *out) {
 }
 
 BOOL G_UnitCanReviveHeroes(LPCEDICT altar) {
-    LPCSTR revive = altar && altar->UnitProfile ? altar->UnitProfile->revive : NULL;
+    LPCSTR revive = altar && altar->data.UnitProfile ? altar->data.UnitProfile->revive : NULL;
     return revive && *revive && atoi(revive) != 0;
 }
 
 BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero) {
     return altar && hero && altar->inuse && hero->inuse &&
         !(altar->svflags & SVF_DEADMONSTER) && G_UnitCanReviveHeroes(altar) &&
-        altar->s.player == hero->s.player && hero->UnitBalance &&
+        altar->s.player == hero->s.player && hero->data.UnitBalance &&
         G_UnitIsHero(hero) && (hero->svflags & SVF_DEADMONSTER) &&
         hero->revival.awaiting && !hero->revival.reviving;
 }
@@ -195,7 +195,7 @@ static BOOL HeroReviveValues(LPCEDICT hero, DWORD *gold, DWORD *lumber, FLOAT *s
     FLOAT goldBase, goldLevel, lumberBase, lumberLevel, maxFactor;
     FLOAT timeFactor, maxTimeFactor, factor;
     DWORD level;
-    if (!hero || !hero->UnitBalance || !G_UnitIsHero(hero)) return false;
+    if (!hero || !hero->data.UnitBalance || !G_UnitIsHero(hero)) return false;
     if (!HeroReviveMisc("ReviveBaseFactor", &goldBase) ||
         !HeroReviveMisc("ReviveLevelFactor", &goldLevel) ||
         !HeroReviveMisc("ReviveBaseLumberFactor", &lumberBase) ||
@@ -207,15 +207,15 @@ static BOOL HeroReviveValues(LPCEDICT hero, DWORD *gold, DWORD *lumber, FLOAT *s
     level = MAX(1, hero->hero.level);
     factor = goldBase + goldLevel * (FLOAT)(level - 1);
     if (maxFactor > 0.0f) factor = MIN(factor, maxFactor);
-    if (gold) *gold = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->UnitBalance->goldCost) * factor);
+    if (gold) *gold = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->data.UnitBalance->goldCost) * factor);
 
     factor = lumberBase + lumberLevel * (FLOAT)(level - 1);
     if (maxFactor > 0.0f) factor = MIN(factor, maxFactor);
-    if (lumber) *lumber = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->UnitBalance->lumberCost) * factor);
+    if (lumber) *lumber = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->data.UnitBalance->lumberCost) * factor);
 
-    factor = (FLOAT)MAX(0, hero->UnitBalance->buildTime) * (FLOAT)level * timeFactor;
+    factor = (FLOAT)MAX(0, hero->data.UnitBalance->buildTime) * (FLOAT)level * timeFactor;
     if (maxTimeFactor > 0.0f) {
-        FLOAT const maximum = (FLOAT)MAX(0, hero->UnitBalance->buildTime) * maxTimeFactor;
+        FLOAT const maximum = (FLOAT)MAX(0, hero->data.UnitBalance->buildTime) * maxTimeFactor;
         factor = MIN(factor, maximum);
     }
     if (seconds) *seconds = MAX(0.0f, factor);
@@ -286,7 +286,7 @@ static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     unit->s.renderfx &= ~RF_HIDDEN;
     /* Food Used was already reserved on this queue entity. Completion only
      * activates Food Made; it must not charge Food Used a second time. */
-    G_SetUnitFoodMade(unit, unit->UnitBalance->foodMade);
+    G_SetUnitFoodMade(unit, unit->data.UnitBalance->foodMade);
     unit->stand(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
     return true;
@@ -385,8 +385,8 @@ void ai_train_build(LPEDICT ent) {
      * have no food reservation. */
     if (!ReserveTrainingFood(ent, ent->build)) return;
     {
-        FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
-        EDICTSTAT *hp = &ent->build->health;
+        FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->data.UnitBalance->buildTime * 1000.0f);
+        edictStat_s *hp = &ent->build->health;
         hp->value += hp->max_value * k;
         if (hp->value >= hp->max_value) {
             LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);

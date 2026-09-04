@@ -29,6 +29,7 @@
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
+#define MAX_ABILITIES 256 // abilities per unit; bounds JASS-added, removed, and permanent ability state
 #define MAX_UNIT_STATUSES 8
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
@@ -103,7 +104,7 @@ typedef struct {
     LONG max_allowed; /* -1 = unlimited/default */
 } playerTechState_t;
 
-typedef struct {
+typedef struct clientMenu_s {
     BOOL (*on_entity_selected)(LPEDICT, LPEDICT);
     BOOL (*on_location_selected)(LPEDICT, LPCVECTOR2);
     void (*cmdbutton)(LPEDICT, DWORD);
@@ -112,7 +113,7 @@ typedef struct {
     BOOL supports_order_queue; /* active target mode accepts Shift chaining */
     BOOL order_queued;         /* transient modifier for the current target callback */
     BOOL ability_off;          /* command-card separate-off variant selected for this dispatch */
-} menu_t;
+} clientMenu_s;
 
 enum {
     AI_HOLD_FRAME = 1 << 0,
@@ -343,6 +344,17 @@ struct gcamerasetup_s {
     VECTOR2 position;
 };
 
+typedef struct clientCamera_s {
+    CAMERASETUP state;
+    CAMERASETUP old_state;
+    DWORD start_time;
+    DWORD end_time;
+    VECTOR2 quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
+    BOOL quick_position_set;
+    LPEDICT target_controller;
+    VECTOR2 target_offset;
+} clientCamera_s;
+
 #define WC3_MESSAGE_LOG_MAX_ENTRIES 128 // entries; bounded per-client message history for the Message Log dialog
 #define WC3_MESSAGE_LOG_ENTRY_SIZE 1024 // bytes; maximum stored Message Log entry length
 
@@ -369,17 +381,8 @@ struct client_s {
     BOOL no_control, no_ui;
     DWORD modal_flags;
     BOOL quest_dialog_open;
-    menu_t menu;
-    struct {
-        CAMERASETUP state;
-        CAMERASETUP old_state;
-        DWORD start_time;
-        DWORD end_time;
-        VECTOR2 quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
-        BOOL quick_position_set;
-        LPEDICT target_controller;
-        VECTOR2 target_offset;
-    } camera;
+    clientMenu_s menu;
+    clientCamera_s camera;
     /* Single-unit info-panel cache. HP/mana are retained here for save-layout
      * compatibility, but portrait HP/mana now use live player-state bindings. */
     struct {
@@ -568,7 +571,7 @@ typedef struct {
 typedef struct {
     FLOAT value;
     FLOAT max_value;
-} EDICTSTAT;
+} edictStat_s;
 
 typedef struct {
     float MoveSpeed;
@@ -714,8 +717,8 @@ typedef struct {
     DWORD class_id;
     doodadHero_t hero;
     heroability_t abilities[MAX_HERO_ABILITIES];
-    EDICTSTAT health;
-    EDICTSTAT mana;
+    edictStat_s health;
+    edictStat_s mana;
     DWORD unit_color;
     gameCacheItem_t inventory[MAX_INVENTORY];
 } gameCacheUnit_t;
@@ -754,6 +757,127 @@ typedef struct {
     DWORD timestamp;
 } heroabilitystatus_t;
 
+typedef struct {
+    BOOL active, paused;
+    LPEDICT primary_builder;
+    FLOAT progress;
+} edictConstruction_s;
+
+typedef struct {
+    DWORD upgrade;
+    LONG level, gold, lumber;
+    FLOAT duration, progress;
+} edictResearch_s;
+
+typedef struct {
+    rallyTargetType_t type;
+    VECTOR2 point;
+    LPEDICT entity;
+    DWORD entity_spawn_time;
+} edictRally_s;
+
+typedef struct { LONG used, made; } edictFood_s;
+
+typedef struct {
+    DWORD ability;
+    BOOL primary;
+    FLOAT gold_accum, lumber_accum;
+} edictBuildWork_s;
+
+typedef struct {
+    BOOL awaiting, reviving;
+    LPEDICT producer, queue_next;
+    DWORD player;
+    LONG gold, lumber;
+    FLOAT progress;
+} edictRevival_s;
+
+typedef struct {
+    DWORD ability, normal_type, militia_type;
+    LPEDICT partner;
+    DWORD partner_spawn_time;
+    BYTE previous_resource;
+    BOOL active, returning;
+} edictMilitia_s;
+
+typedef struct {
+    LPEDICT mine;
+    DWORD mine_spawn_time;
+    BOOL restore_invulnerable;
+} edictGoldMine_s;
+
+typedef struct {
+    LPEDICT carrier;
+    LONG inventory_slot;
+    BOOL in_world;
+    DWORD charges;
+} edictItem_s;
+
+typedef struct {
+    BOOL initialized, map_placed, script_bound, dead, pathing_active, placement_solid, loot_processed;
+    DWORD editor_id, item_table;
+    pathTex_t *alive_pathtex, *death_pathtex;
+    FLOAT alive_collision;
+    ARRAY(droppableItemSet_t const, drop_sets);
+} edictDestructable_s;
+
+typedef struct {
+    LPEDICT units[MAX_CARGO];
+    DWORD count;
+} edictCargo_s;
+
+typedef struct { DWORD item_slots, unit_slots; } edictStock_s;
+
+typedef struct {
+    DWORD added[MAX_ABILITIES], added_count;
+    DWORD removed[MAX_ABILITIES], removed_count;
+    DWORD permanent[MAX_ABILITIES], permanent_count;
+} edictAbilities_s;
+
+typedef struct {
+    DWORD code;
+    VECTOR2 origin;
+} edictChannel_s;
+
+typedef struct {
+    VECTOR2 last_origin;
+    FLOAT last_distance;
+    DWORD blocked_frames, flow_generation;
+    BOOL flow_goal_reached, flow_unreachable, flow_direct;
+    VECTOR2 path_waypoint, path_target;
+    FLOAT path_radius;
+    BOOL path_valid;
+    FLOAT group_speed, heading;
+    VECTOR2 worker_avoid_origin;
+    FLOAT worker_avoid_heading;
+    DWORD worker_avoid_blocked_frames;
+    BOOL worker_avoid_active;
+    LPEDICT attackmove_waypoint, patrol_a, patrol_b, patrol_target, follow_target;
+    BOOL holding_position;
+} edictMovement_s;
+
+typedef struct {
+    BYTE select[MAX_UNIT_SELECT_SOUNDS], num_select;
+    BYTE yes[MAX_UNIT_SELECT_SOUNDS], num_yes;
+    BYTE ready[MAX_UNIT_SELECT_SOUNDS], num_ready;
+    BYTE chop[3], num_chop, pending;
+    int owner_pending, world_pending;
+    BYTE world_pending_event;
+    int attack, death;
+} edictSound_s;
+
+typedef struct {
+    UnitProfile_t const *UnitProfile;
+    UnitBalance_t const *UnitBalance;
+    UnitData_t const *UnitData;
+    UnitUI_t const *UnitUI;
+    UnitWeapons_t const *UnitWeapons;
+    UnitAbilities_t const *UnitAbilities;
+    Doodads_t const *Doodads;
+    ItemData_t const *ItemData;
+    DestructableData_t const *DestructableData;
+} edictData_s;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -772,62 +896,21 @@ struct edict_s {
     DWORD variation;
     DWORD build_project;
     BOOL rally_indicator;
-    struct {
-        BOOL active;
-        BOOL paused;
-        LPEDICT primary_builder;
-        FLOAT progress;
-    } construction;
+    edictConstruction_s construction;
     BOOL training; /* spawned in a production queue but not yet completed */
     BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
-    struct {
-        DWORD upgrade;     /* non-zero on lightweight research queue edicts */
-        LONG level;        /* 1-based level being researched */
-        LONG gold, lumber; /* exact charged cost, retained for cancellation */
-        FLOAT duration;    /* seconds */
-        FLOAT progress;    /* seconds elapsed for the active queue head */
-    } research;
-    struct {
-        rallyTargetType_t type;
-        VECTOR2 point;
-        LPEDICT entity;
-        DWORD entity_spawn_time;
-    } rally;
-    struct {
-        LONG used; /* food currently accounted to s.player; queue-head reservations live here */
-        LONG made; /* food capacity currently accounted to s.player */
-    } food;
-    struct {
-        DWORD ability;
-        BOOL primary;
-        FLOAT gold_accum;
-        FLOAT lumber_accum;
-    } buildwork;
+    edictResearch_s research;
+    edictRally_s rally;
+    edictFood_s food;
+    edictBuildWork_s buildwork;
     /* Hero revival state lives on the persistent Hero edict. While reviving,
      * queue_next links the Hero into a producer's ordinary production chain
      * without borrowing hero->build, which may have independent gameplay use. */
-    struct {
-        BOOL awaiting;
-        BOOL reviving;
-        LPEDICT producer;
-        LPEDICT queue_next;
-        DWORD player;
-        LONG gold, lumber;
-        FLOAT progress;
-    } revival;
+    edictRevival_s revival;
     DWORD spawn_time;
     DWORD harvested_lumber;
     DWORD harvested_gold;
-    struct {
-        DWORD ability;          /* Amil alias that supplied Data A/B and duration */
-        DWORD normal_type;      /* Data A: worker form retained across the timed morph */
-        DWORD militia_type;     /* Data B: alternate combat form */
-        LPEDICT partner;        /* Hall being approached for militia/militiaoff */
-        DWORD partner_spawn_time;
-        BYTE previous_resource; /* returnResource_t remembered for explicit Back to Work */
-        BOOL active;            /* unit has completed the Peasant -> Militia morph */
-        BOOL returning;         /* current pairing order is militiaoff */
-    } militia;
+    edictMilitia_s militia;
     DWORD heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
     DWORD heatmap2_time;      /* level.time when heatmap2 was last built */
@@ -837,95 +920,29 @@ struct edict_s {
     DWORD damage;
     DWORD resources;
     DWORD freetime;
-    struct {
-        LPEDICT mine;
-        DWORD mine_spawn_time;
-        BOOL restore_invulnerable;
-    } goldmine;
+    edictGoldMine_s goldmine;
     LPEDICT inventory[MAX_INVENTORY];
-    struct {
-        LPEDICT carrier;
-        LONG inventory_slot;
-        BOOL in_world;
-        DWORD charges;
-    } item;
-    struct {
-        BOOL initialized;
-
-        /* Set only for destructables originating from war3map.doo. */
-        BOOL map_placed;
-
-        /*
-         * During generated map initialization, CreateDestructable() binds named
-         * gg_dest_* handles back to these already-created map instances.
-         * One preplaced instance may be claimed only once.
-         */
-        BOOL script_bound;
-
-        BOOL dead;
-        BOOL pathing_active;
-        BOOL placement_solid;
-        BOOL loot_processed;
-
-        DWORD editor_id;
-        DWORD item_table;
-
-        pathTex_t *alive_pathtex;
-        pathTex_t *death_pathtex;
-        FLOAT alive_collision;
-
-        ARRAY(droppableItemSet_t const, drop_sets);
-    } destructable;
-    struct {
-        LPEDICT units[MAX_CARGO];
-        DWORD count;
-    } cargo;
+    edictItem_s item;
+    edictDestructable_s destructable;
+    edictCargo_s cargo;
     LPEDICT ground_next;
-    struct {
-        DWORD item_slots, unit_slots;
-    } stock;
+    edictStock_s stock;
     FLOAT velocity;
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
-    ARRAY(DWORD, added_abilities);
-    ARRAY(DWORD, removed_abilities);
-    ARRAY(DWORD, permanent_abilities);
+    edictAbilities_s abilities;
     BOOL invulnerable;  // unit cannot take damage when true
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
     BOOL no_pathing;    // pathfinding disabled when true
-    struct {
-        DWORD code;     // ability code being channeled (0 = none)
-        VECTOR2 origin; // position when channel started (movement cancels channel)
-    } channel;
+    edictChannel_s channel;
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
     unitOrderQueue_t order_queue;
-    struct {
-        VECTOR2 last_origin;
-        FLOAT last_distance;
-        DWORD blocked_frames;
-        DWORD flow_generation; /* active static-route field selected this tick */
-        BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
-        BOOL flow_unreachable;  /* field exists but current cell has no route */
-        BOOL flow_direct;       /* static path from mover to requested goal is clear */
-        VECTOR2 path_waypoint, path_target; /* persistent accelerated turn and the destination that produced it */
-        FLOAT path_radius;
-        BOOL path_valid;
-        FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
-        FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
-        VECTOR2 worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
-        FLOAT worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
-        DWORD worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
-        BOOL worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
-        LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour
-        LPEDICT patrol_a, patrol_b, patrol_target;
-        LPEDICT follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
-        BOOL holding_position;
-    } movement;
-    EDICTSTAT health;
-    EDICTSTAT mana;
+    edictMovement_s movement;
+    edictStat_s health;
+    edictStat_s mana;
     MOVETYPE movetype;
     TARGTYPE targtype;
     LPEDICT goalentity;
@@ -945,20 +962,7 @@ struct edict_s {
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
     FLOAT permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
     FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
-    struct {
-        BYTE select[MAX_UNIT_SELECT_SOUNDS];
-        BYTE num_select;
-        BYTE yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
-        BYTE num_yes;
-        BYTE ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
-        BYTE num_ready;
-        BYTE chop[3]; BYTE num_chop;        /* weapon-vs-wood impact variants */
-        BYTE pending;
-        int owner_pending;                  /* owner-only one-shot queued for next snapshot */
-        int world_pending;                  /* unfiltered world one-shot queued for next snapshot */
-        BYTE world_pending_event;
-        int attack, death;
-    } sound;
+    edictSound_s sound;
 
     void (*stand)(LPEDICT);
     void (*birth)(LPEDICT);
@@ -971,15 +975,7 @@ struct edict_s {
     void (*attack)(LPEDICT);
     void (*pain)(LPEDICT);
 
-    UnitProfile_t const *UnitProfile;
-    UnitBalance_t const *UnitBalance;
-    UnitData_t const *UnitData;
-    UnitUI_t const *UnitUI;
-    UnitWeapons_t const *UnitWeapons;
-    UnitAbilities_t const *UnitAbilities;
-    Doodads_t const *Doodads;
-    ItemData_t const *ItemData;
-    DestructableData_t const *DestructableData;
+    edictData_s data;
 };
 
 /* An entity that should be ignored by collision and physics: dead, hidden, or
@@ -1469,7 +1465,7 @@ FLOAT G_HeroReviveTime(LPCEDICT hero);
 BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero);
 BOOL G_CancelHeroRevive(LPEDICT altar, LPEDICT hero);
 void G_CancelHeroRevives(LPEDICT altar);
-BYTE compress_stat(EDICTSTAT const *);
+BYTE compress_stat(edictStat_s const *);
 DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 
 // g_pathing.c
@@ -1804,7 +1800,6 @@ BOOL G_ActorAddSkill(LPEDICT, DWORD);
 BOOL G_ActorRemoveSkill(LPEDICT, DWORD);
 BOOL G_ActorSetSkillPermanent(LPEDICT, DWORD, BOOL);
 BOOL G_ActorSkillPermanent(LPEDICT, DWORD);
-void G_FreeActorSkills(LPEDICT);
 BOOL S_GoldMineIsMine(LPCEDICT);
 DWORD S_GoldMineMaximumGold(LPCEDICT);
 FLOAT S_GoldMineMiningDuration(LPCEDICT);

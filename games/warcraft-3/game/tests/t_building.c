@@ -222,7 +222,7 @@ TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock)
     char reason[128];
 
     memset(client->tech, 0, sizeof(client->tech));
-    producer->UnitProfile = &profile;
+    producer->data.UnitProfile = &profile;
     producer->s.player = client->ps.number;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
@@ -297,7 +297,7 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
     DWORD const upgrade = MAKEFOURCC('R','h','m','e');
 
     memset(client->tech, 0, sizeof(client->tech));
-    producer->UnitProfile = &profile;
+    producer->data.UnitProfile = &profile;
     producer->s.player = client->ps.number;
     producer->stand = building_test_stand;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
@@ -337,7 +337,7 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
 
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
-    unit->UnitBalance = &balance;
+    unit->data.UnitBalance = &balance;
     unit->attack1.numberOfDice = 2;
     unit->armor_value = 3.0f;
 
@@ -353,7 +353,7 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
 
     future = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     future->s.player = client->ps.number;
-    future->UnitBalance = &balance;
+    future->data.UnitBalance = &balance;
     future->attack1.numberOfDice = 2;
     future->armor_value = 3.0f;
     G_ApplyPlayerUpgradesToUnit(future);
@@ -375,7 +375,7 @@ TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
 
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
-    unit->UnitBalance = &balance;
+    unit->data.UnitBalance = &balance;
     unit->attack1.numberOfDice = 1;
     unit->attack1.damageBase = 10;
     unit->attack2.numberOfDice = 1;
@@ -421,10 +421,10 @@ TEST(wc3_building, status_upgrade_families_follow_unit_upgrades_used) {
     DWORD const building_armor = MAKEFOURCC('R','h','a','c');
 
     memset(client->tech, 0, sizeof(client->tech));
-    footman->UnitBalance = &footman_balance;
-    rifleman->UnitBalance = &rifleman_balance;
-    building->UnitBalance = &building_balance;
-    peasant->UnitBalance = &peasant_balance;
+    footman->data.UnitBalance = &footman_balance;
+    rifleman->data.UnitBalance = &rifleman_balance;
+    building->data.UnitBalance = &building_balance;
+    peasant->data.UnitBalance = &peasant_balance;
 
     T_EQ(G_GetUnitUpgradeForClass(footman, "melee"), melee);
     T_EQ(G_GetUnitUpgradeForClass(footman, "armor"), heavy_armor);
@@ -481,7 +481,7 @@ TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_
     UnitProfile_t worker_profile = { .builds = "hbar" };
     char reason[128];
 
-    worker->UnitProfile = &worker_profile;
+    worker->data.UnitProfile = &worker_profile;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
@@ -507,7 +507,7 @@ TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
     UnitProfile_t producer_profile = { .trains = "u001" };
     char reason[128];
 
-    producer->UnitProfile = &producer_profile;
+    producer->data.UnitProfile = &producer_profile;
     producer->s.player = client->ps.number;
 
     T_ASSERT(G_ProducerCanTrain(producer, trainee));
@@ -532,7 +532,7 @@ TEST(wc3_building, train_command_state_reports_food_shortage) {
     LPCSTR (*saved_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     char reason[128];
 
-    producer->UnitProfile = &producer_profile;
+    producer->data.UnitProfile = &producer_profile;
     producer->s.player = client->ps.number;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = balance->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = balance->lumberCost;
@@ -557,7 +557,7 @@ TEST(wc3_building, build_all_cvar_bypasses_training_tech_gates_but_not_trains_li
     DWORD const trainee = MAKEFOURCC('u','0','0','1');
     UnitProfile_t producer_profile = { .trains = "u001" };
 
-    producer->UnitProfile = &producer_profile;
+    producer->data.UnitProfile = &producer_profile;
     producer->s.player = client->ps.number;
     G_SetPlayerTechMaxAllowed(client, trainee, 0);
 
@@ -576,7 +576,7 @@ TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
     DWORD const trainee = MAKEFOURCC('u','0','0','1');
     UnitProfile_t producer_profile = { .trains = "u001" };
 
-    producer->UnitProfile = &producer_profile;
+    producer->data.UnitProfile = &producer_profile;
     producer->s.player = client->ps.number;
     queued->s.player = client->ps.number;
     queued->training = true;
@@ -594,7 +594,7 @@ TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {
     LPCSTR button[] = { "button", "CmdBuild" };
 
     setup_test_world();
-    worker->UnitProfile = &worker_profile;
+    worker->data.UnitProfile = &worker_profile;
     worker->s.player = client->ps.number;
     client->no_ui = true;
     client->menu.cmdbutton = NULL;
@@ -800,7 +800,7 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
 
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
-    builder->s.player = client->ps.number; builder->UnitProfile = &profile;
+    builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
@@ -820,7 +820,7 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
     mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -64, -64);
-    builder->s.player = client->ps.number; builder->UnitProfile = &profile;
+    builder->s.player = client->ps.number; builder->data.UnitProfile = &profile;
     builder->goldmine.mine = mine; builder->goldmine.mine_spawn_time = mine->spawn_time;
     builder->invulnerable = true; builder->s.renderfx |= RF_HIDDEN; mine->peonsinside = 1;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
@@ -863,10 +863,10 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
-    UnitBalance_t balance = *building->UnitBalance;
+    UnitBalance_t balance = *building->data.UnitBalance;
 
     balance.foodMade = 6;
-    building->UnitBalance = &balance;
+    building->data.UnitBalance = &balance;
     building->s.player = client->ps.number;
     building->health.max_value = 1000.0f;
     building->health.value = 400.0f;
@@ -927,13 +927,13 @@ TEST(wc3_building, human_repair_capability_comes_from_unit_ability_list) {
     UnitAbilities_t human_repair = { .abilList = "Arep" };
     UnitAbilities_t generic_repair = { .abilList = "Aren" };
 
-    worker->UnitAbilities = &human_repair;
+    worker->data.UnitAbilities = &human_repair;
     T_ASSERT(G_UnitHasHumanRepair(worker));
 
-    worker->UnitAbilities = &generic_repair;
+    worker->data.UnitAbilities = &generic_repair;
     T_ASSERT(!G_UnitHasHumanRepair(worker));
 
-    worker->UnitAbilities = NULL;
+    worker->data.UnitAbilities = NULL;
     T_ASSERT(!G_UnitHasHumanRepair(worker));
 }
 
@@ -951,7 +951,7 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
-    builder->UnitAbilities = &abilities;
+    builder->data.UnitAbilities = &abilities;
     builder->collision = 16.0f;
     builder->s.model = 1;
     building->s.model = 1;
@@ -997,17 +997,17 @@ TEST(wc3_building, completed_repair_uses_repair_time_ratios_and_fractional_costs
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->collision = 16.0f;
     building->collision = 32.0f;
     worker->s.player = client->ps.number;
     building->s.player = client->ps.number;
-    balance = *building->UnitBalance;
+    balance = *building->data.UnitBalance;
     balance.reptm = 10;
     balance.buildTime = 100;
     balance.goldRep = 5;
     balance.lumberRep = 3;
-    building->UnitBalance = &balance;
+    building->data.UnitBalance = &balance;
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
     building->svflags |= SVF_MONSTER;
@@ -1045,7 +1045,7 @@ TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -256, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 256, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->collision = 16.0f;
     building->collision = 32.0f;
     building->health.max_value = 1000.0f;
@@ -1083,7 +1083,7 @@ TEST(wc3_building, repair_button_then_target_issues_repair_order) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->collision = 16.0f;
     building->collision = 32.0f;
     building->svflags |= SVF_MONSTER;
@@ -1118,7 +1118,7 @@ TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
@@ -1144,7 +1144,7 @@ TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starti
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
@@ -1168,7 +1168,7 @@ TEST(wc3_building, repair_command_button_exposes_autocast_secondary_command) {
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     repair = FindAbilityForCommand("Arep");
 
     T_NOT_NULL(repair);
@@ -1197,7 +1197,7 @@ TEST(wc3_building, repair_autocast_chooses_nearest_valid_damaged_building) {
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     near_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 96, 0);
     far_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 256, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->runtime.acquisition_range = 400.0f;
     worker->collision = 16.0f;
     near_building->collision = far_building->collision = 32.0f;
@@ -1230,7 +1230,7 @@ TEST(wc3_building, repair_autocast_uses_collision_aware_nearest_valid_distance) 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 410, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->runtime.acquisition_range = 400.0f;
     worker->collision = 16.0f;
     building->collision = 64.0f;
@@ -1265,7 +1265,7 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->stand = unit_stand;
     worker->collision = 16.0f;
     building->collision = 32.0f;
@@ -1311,7 +1311,7 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 160, 0);
     enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
     worker->attack1.cooldown = 1.0f;
@@ -1378,7 +1378,7 @@ TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     full_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
     damaged_building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 192, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->runtime.acquisition_range = 400.0f;
     worker->collision = 16.0f;
     full_building->collision = damaged_building->collision = 32.0f;
@@ -1409,7 +1409,7 @@ TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     building->s.player = worker->s.player;
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
@@ -1431,7 +1431,7 @@ TEST(wc3_building, smart_order_repairs_damaged_owned_building) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->collision = 16.0f;
     building->collision = 32.0f;
     building->svflags |= SVF_MONSTER;
@@ -1457,7 +1457,7 @@ TEST(wc3_building, repair_stops_and_releases_state_when_target_dies) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->stand = unit_stand;
     worker->collision = 16.0f;
     building->collision = 32.0f;
@@ -1490,8 +1490,8 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
     human = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     standard = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 32);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    human->UnitAbilities = &human_abilities;
-    standard->UnitAbilities = &standard_abilities;
+    human->data.UnitAbilities = &human_abilities;
+    standard->data.UnitAbilities = &standard_abilities;
     human->s.player = 0;
     standard->s.player = 0;
     building->s.player = 0;
@@ -1593,7 +1593,7 @@ TEST(wc3_building, repair_order_from_stand_keeps_staged_target_and_walks) {
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -256, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 256, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->stand = unit_stand;
     worker->collision = 16.0f;
     building->collision = 32.0f;
@@ -1635,7 +1635,7 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
 
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 200, 0);
-    worker->UnitAbilities = &abilities;
+    worker->data.UnitAbilities = &abilities;
     worker->stand = unit_stand;
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
@@ -1647,12 +1647,12 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
     building->health.value = 500.0f;
     /* The minimal hbar fixture has no repair/build duration. Give this test
      * an explicit Repair duration so its work tick exercises HP progression. */
-    balance = *building->UnitBalance;
+    balance = *building->data.UnitBalance;
     balance.reptm = 10;
     balance.buildTime = 100;
     balance.goldRep = 5;
     balance.lumberRep = 3;
-    building->UnitBalance = &balance;
+    building->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
 
@@ -1687,14 +1687,14 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
 
 TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
     LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
-    UnitBalance_t balance = *building->UnitBalance;
+    UnitBalance_t balance = *building->data.UnitBalance;
     animation_t birth = {
         .name = "birth",
         .interval = { 1000, 3000 },
     };
 
     balance.buildTime = 10;
-    building->UnitBalance = &balance;
+    building->data.UnitBalance = &balance;
     building->animation = &birth;
     building->construction.active = true;
     building->construction.paused = true;
@@ -1730,8 +1730,8 @@ TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_require
     primary = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     extra = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 64);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
-    primary->UnitAbilities = &abilities;
-    extra->UnitAbilities = &abilities;
+    primary->data.UnitAbilities = &abilities;
+    extra->data.UnitAbilities = &abilities;
     primary->stand = unit_stand;
     extra->stand = unit_stand;
     primary->collision = 16.0f;
