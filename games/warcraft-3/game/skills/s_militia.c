@@ -202,6 +202,7 @@ static BOOL militia_transform_type(LPEDICT unit, DWORD type) {
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (client && client->ps.number == unit->s.player) G_InvalidateCommands(client);
     G_InvalidateUnitInfoPanel(unit);
+    G_InvalidateUnitPortrait(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
     return true;
 }

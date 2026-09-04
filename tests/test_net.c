@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include <limits.h>
 #include <arpa/inet.h>
 
 #include "test.h"
@@ -187,6 +188,15 @@ TEST(client_layout, context_values_follow_hover_snapshot) {
     T_FEQ(value, 128.0f / 255.0f, 0.0001f);
     T_ASSERT(SCR_LayoutContextValue(UI_STAT_CONTEXT_MANA, &value));
     T_FEQ(value, 64.0f / 255.0f, 0.0001f);
+}
+
+TEST(client_layout, selected_timed_status_reads_normalized_player_stat) {
+    FLOAT value = -1.0f;
+
+    test_client_stubs_init();
+    cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] = USHRT_MAX / 2;
+    T_ASSERT(SCR_LayoutContextValue(UI_STAT_SELECTION_TIMED_STATUS, &value));
+    T_FEQ(value, (USHRT_MAX / 2) / (FLOAT)USHRT_MAX, 0.0001f);
 }
 
 TEST(client_layout, context_rejects_entity_without_server_hover_capability) {
@@ -982,6 +992,25 @@ TEST(net, ui_frame_delta_preserves_text_length) {
     T_EQ(out.textLength, 19);
 }
 
+TEST(net, ui_frame_delta_preserves_timed_status_binding) {
+    BYTE buf[128];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t from = {0};
+    uiFrame_t to = { .number = 8, .stat = UI_STAT_SELECTION_TIMED_STATUS };
+    uiFrame_t out = {0};
+    DWORD bits = 0;
+    int number;
+
+    T_ASSERT(UI_STAT_SELECTION_TIMED_STATUS <= UINT8_MAX);
+    MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaUIFrame(&sb, &out, number, bits);
+
+    T_EQ(number, 8);
+    T_EQ(out.stat, UI_STAT_SELECTION_TIMED_STATUS);
+}
+
 static VECTOR2 text_length_mock_size(LPCDRAWTEXT text) {
     if (text && text->text && !strcmp(text->text, " ")) {
         return MAKE(VECTOR2, 0.006f, 0.012f);
@@ -1543,6 +1572,7 @@ TEST(net, live_selection_stats_roundtrip_and_format) {
     to.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH] = 650;
     to.stats[UI_PLAYERSTAT_SELECTION_MANA] = 74;
     to.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA] = 255;
+    to.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] = 32768;
 
     MSG_WriteDeltaPlayerState(&sb, &from, &to);
     sb.readcount = 0;
@@ -1554,6 +1584,7 @@ TEST(net, live_selection_stats_roundtrip_and_format) {
     T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH], 650);
     T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_MANA], 74);
     T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA], 255);
+    T_EQ(out.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS], 32768);
 
     test_client_stubs_init();
     cl.playerstate = out;

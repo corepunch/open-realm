@@ -1300,6 +1300,35 @@ TEST(wc3_combat, timed_life_status_kills_unit) {
     T_EQ(_die_call_count, 1);
 }
 
+TEST(wc3_combat, timed_status_bar_keeps_duration_and_uses_last_eligible_status) {
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    heroabilitystatus_t const *status;
+
+    level.time = 1000;
+    unit_addtimedstatus(ent, "BTLF", 1, 20.0f);
+    status = unit_findtimedbarstatus(ent);
+    T_NOT_NULL(status);
+    T_EQ(status->code, MAKEFOURCC('B','T','L','F'));
+    T_EQ(status->duration_ms, 20000);
+    T_FEQ(unit_statusremainingfraction(status), 1.0f, 0.0001f);
+
+    level.time = 11000;
+    T_FEQ(unit_statusremainingfraction(status), 0.5f, 0.0001f);
+
+    /* Bmil is also a timed-status-bar buff; the later slot owns Warsmash's
+     * single countdown presentation when both are present. */
+    unit_addtimedstatus(ent, "Bmil", 1, 45.0f);
+    status = unit_findtimedbarstatus(ent);
+    T_NOT_NULL(status);
+    T_EQ(status->code, MAKEFOURCC('B','m','i','l'));
+    T_EQ(status->duration_ms, 45000);
+    T_FEQ(unit_statusremainingfraction(status), 1.0f, 0.0001f);
+
+    T_ASSERT(unit_statusshowstimedbar(MAKEFOURCC('B','T','L','F')));
+    T_ASSERT(unit_statusshowstimedbar(MAKEFOURCC('B','m','i','l')));
+    T_ASSERT(!unit_statusshowstimedbar(MAKEFOURCC('B','s','t','u')));
+}
+
 /* ==========================================================================
  * player_pay
  * ========================================================================== */

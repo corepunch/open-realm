@@ -507,12 +507,77 @@ BOOL unit_additem(LPEDICT edict, LPEDICT item) {
     return G_PickupItem(edict, item);
 }
 
+static int unit_timed_status_debug_level(void) {
+    LPCSTR value;
+
+    if (!gi.CvarString) return 0;
+    value = gi.CvarString("wc3_timed_status_debug", "0");
+    return value ? atoi(value) : 0;
+}
+
+static void unit_timed_status_log(LPCSTR stage, LPCEDICT ent, heroabilitystatus_t const *status) {
+    char code[5] = { 0 };
+    DWORD now;
+    LONG remaining;
+
+    if (unit_timed_status_debug_level() < 1 || !ent || !status ||
+        !unit_statusshowstimedbar(status->code))
+    {
+        return;
+    }
+    now = gi.GetTime();
+    remaining = status->timestamp > now ? (LONG)(status->timestamp - now) : 0;
+    memcpy(code, &status->code, 4);
+    fprintf(stderr,
+            "WC3_TIMED_STATUS sim stage=%s unit=%u code=%s level=%u now=%u timestamp=%u duration_ms=%u remaining_ms=%ld fraction=%.4f\n",
+            stage ? stage : "?", (unsigned)ent->s.number, code,
+            (unsigned)status->level, (unsigned)now, (unsigned)status->timestamp,
+            (unsigned)status->duration_ms, (long)remaining,
+            unit_statusremainingfraction(status));
+}
+
 static BOOL unit_status_stuns(DWORD code) {
     return code == MAKEFOURCC('B', 's', 't', 'u');
 }
 
 static BOOL unit_status_timedlife(DWORD code) {
     return code == MAKEFOURCC('B', 'T', 'L', 'F');
+}
+
+BOOL unit_statusshowstimedbar(DWORD code) {
+    return code == MAKEFOURCC('B', 'T', 'L', 'F') ||
+           code == MAKEFOURCC('B', 'm', 'i', 'l');
+}
+
+FLOAT unit_statusremainingfraction(heroabilitystatus_t const *status) {
+    DWORD now;
+
+    if (!status || !status->level || !status->timestamp || !status->duration_ms) {
+        return 0.0f;
+    }
+    now = gi.GetTime();
+    if (now >= status->timestamp) {
+        return 0.0f;
+    }
+    return MIN(1.0f, (FLOAT)(status->timestamp - now) / (FLOAT)status->duration_ms);
+}
+
+heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT ent) {
+    heroabilitystatus_t const *result = NULL;
+    DWORD now;
+
+    if (!ent) return NULL;
+    now = gi.GetTime();
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
+        if (!status->level || !status->timestamp || !status->duration_ms) continue;
+        if (status->timestamp <= now || !unit_statusshowstimedbar(status->code)) continue;
+        /* Warsmash owns one timed-status slot; later qualifying buffs replace
+         * earlier ones during status population. Preserve that deterministic
+         * single-slot behavior using abilstatus[] order. */
+        result = status;
+    }
+    return result;
 }
 
 FLOAT G_UnitArmorValue(LPCEDICT ent) {
@@ -564,6 +629,7 @@ void unit_updatestatuses(LPEDICT ent) {
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
             }
+            unit_timed_status_log("expire", ent, status);
             memset(status, 0, sizeof(*status));
             changed = true;
         }
@@ -586,6 +652,7 @@ void unit_updatestatuses(LPEDICT ent) {
 void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration) {
     DWORD code;
     DWORD now;
+    DWORD duration_ms;
     heroabilitystatus_t *slot = NULL;
     LPCSTR stacktype;
 
@@ -595,6 +662,7 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
 
     code = *((DWORD const *)skill);
     now = gi.GetTime();
+    duration_ms = duration > 0.0f ? (DWORD)(duration * 1000.0f) : 0;
     stacktype = S_SpellString(code, "BuffStackType", 0);
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -603,23 +671,28 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
             /* Existing buff of same code found — apply stacking rule. */
             if (stacktype && !strcmp(stacktype, "Stack")) {
                 status->level += level;
-                if (duration > 0) {
-                    status->timestamp = now + (DWORD)(duration * 1000.0f);
+                if (duration_ms) {
+                    status->timestamp = now + duration_ms;
+                    status->duration_ms = duration_ms;
                 }
             } else if (stacktype && !strcmp(stacktype, "Refresh")) {
-                if (duration > 0) {
-                    status->timestamp = now + (DWORD)(duration * 1000.0f);
+                if (duration_ms) {
+                    status->timestamp = now + duration_ms;
+                    status->duration_ms = duration_ms;
                 }
             } else {
                 /* "Replace" (default): overwrite level and timestamp. */
                 status->level = level;
-                if (duration > 0) {
-                    status->timestamp = now + (DWORD)(duration * 1000.0f);
+                if (duration_ms) {
+                    status->timestamp = now + duration_ms;
+                    status->duration_ms = duration_ms;
                 } else {
                     status->timestamp = 0;
+                    status->duration_ms = 0;
                 }
             }
             unit_refreshstatusflags(ent);
+            unit_timed_status_log("refresh", ent, status);
             G_InvalidateUnitInfoPanel(ent);
             return;
         }
@@ -633,8 +706,10 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
 
     slot->code = code;
     slot->level = level;
-    slot->timestamp = duration > 0 ? now + (DWORD)(duration * 1000.0f) : 0;
+    slot->timestamp = duration_ms ? now + duration_ms : 0;
+    slot->duration_ms = duration_ms;
     unit_refreshstatusflags(ent);
+    unit_timed_status_log("add", ent, slot);
     G_InvalidateUnitInfoPanel(ent);
 }
 
