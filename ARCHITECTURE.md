@@ -15,10 +15,10 @@ flowchart TB
         R_Backends["OpenGL / Metal"]
     end
 
-    subgraph ClientPresentation["Client Layer (client/ + games/*/ui/)"]
+    subgraph ClientPresentation["Client Layer (client/ + games/*/menu/)"]
         SCR["Screen Dispatcher (client/cl_scrn.c)"]
         CL_Layout["Generic UI Frame Drawer (client/cl_layout.c)"]
-        UI_Lib["Menu / Glue UI Library (games/*/ui/)"]
+        UI_Lib["Menu / Glue UI Library (games/*/menu/)"]
         CL_Parse["Packet Dispatcher (client/cl_parse.c)"]
         CL_Input["Input & Command Builder (client/cl_input.c)"]
     end

@@ -29,7 +29,7 @@ Features here use the Q2 svc_layout / server-authored UI pattern, not WoWee's Im
 | HUD: copper display | `g_ui.c` | Persisted on `wowEntityLocal_t.copper` |
 | Minimap | `g_ui.c` | FT_MINIMAP viewport |
 | Player portrait (2D per-race/sex) | `g_ui.c` | TemporaryPortrait-{sex}-{race}.blp |
-| Character creation / selection | `games/world-of-warcraft/ui/` | Race, sex, class, appearance |
+| Character creation / selection | `games/world-of-warcraft/menu/` | Race, sex, class, appearance |
 | First-login cinematics | `g_wow.c`, WoW UI XML | M2 camera playback via DBC chain |
 | DBC loading (spells, items, areas) | `common/stb_dbc.h` | Shared schema-table decoder |
 

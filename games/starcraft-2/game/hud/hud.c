@@ -20,7 +20,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* uiimport — host services for sc2_layout.c when compiled into the game module.
+/* uiimport — host services for menu_layout.c when compiled into the game module.
  * gi.ReadFile signature (HANDLE, LPDWORD) differs from uiimport.FS_ReadFile
  * (int, void**), so we wrap it. */
 uiImport_t uiimport;

@@ -18,26 +18,26 @@ WC3_CFLAGS += -DWC3_FOW_PACKED_MASK
 endif
 WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION -DSTB_FDF_GLOBALS
 WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
-WC3_UI_HEADERS := $(shell find $(WC3_DIR)/ui -name '*.h' | sort) client/ui.h
+MENU_HEADERS := $(shell find $(WC3_DIR)/menu -name '*.h' | sort) client/ui.h
 
 JASS_LIB     := $(LIB_DIR)/libjass$(LIB_EXT)
 SHEET_LIB    := $(LIB_DIR)/libsheet$(LIB_EXT)
 RENDERER_LIB := $(LIB_DIR)/librenderer$(LIB_EXT)
 GAME_LIB     := $(LIB_DIR)/libgame$(LIB_EXT)
-UI_LIB       := $(LIB_DIR)/libui$(LIB_EXT)
+MENU_LIB       := $(LIB_DIR)/libmenu$(LIB_EXT)
 BINARY       := $(BIN_DIR)/openwarcraft3$(EXE_EXT)
 MPQ_TEST     := $(BIN_DIR)/test_mpq_compat$(EXE_EXT)
 
 JASS_BIN := $(BIN_DIR)/jass$(EXE_EXT)
 
 build: wc3-build
-wc3-build: shared jass sheet renderer game ui openwarcraft3 tools jass-tool
+wc3-build: shared jass sheet renderer game menu openwarcraft3 tools jass-tool
 jass-tool: $(JASS_BIN)
 jass:        $(JASS_LIB)
 sheet:       $(SHEET_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
-ui:          $(UI_LIB)
+menu:          $(MENU_LIB)
 openwarcraft3: $(BINARY)
 
 run: $(BINARY) install-share
@@ -88,8 +88,8 @@ $(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(JASS_HEADERS) $(shell
 $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(WC3_UI_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/ui),ui,$(WC3_DIR)/ui $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
-$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz))
+$(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
+$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
 # In-engine tests (see CONTRIBUTING.md)
@@ -106,7 +106,7 @@ GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game-wc3-test,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lui $(LIBS) -lz))
+$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) -lz))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 
@@ -127,11 +127,11 @@ test-jass-build: $(JASS_LIB)
 
 # Common flags for standalone test binaries.
 TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared -Ishared/types -Iserver -Icommon -Iclient
-TEST_UI_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/ui
+TEST_MENU_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/menu
 
 TEST_UI_SRCS := \
-	$(WC3_TEST_DIR)/test_ui_fdf.c \
-	$(WC3_TEST_DIR)/test_ui_oracle.c \
+	$(WC3_TEST_DIR)/test_menu_fdf.c \
+	$(WC3_TEST_DIR)/test_menu_oracle.c \
 	$(WC3_TEST_DIR)/stb_fdf_impl.c \
 	tests/test_tool_common.c
 
@@ -147,15 +147,15 @@ TEST_JOBS ?= 16
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
 	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net \
 		test-renderer-model test-renderer-shadows test-sc2 test-wow-appearance \
-		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-ui \
-		test-wow-wmo test-ui test-wc3-engine
+		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
+		test-wow-wmo test-menu test-wc3-engine
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c common/net.c common/msg.c,-lsheet -lshared -lm $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c games/starcraft-2/game/galaxy/galaxy_host.c,-lshared -ljass -lm,))
-$(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
+$(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/menu),-lsheet -lshared -ljass -lm -lz,))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	@$(MPQ_TEST) -mpq=$(MPQ)
@@ -239,6 +239,6 @@ download: $(ZIP_FILE)
 $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map test \
-	test-commands test-server-net test-renderer-model test-renderer-shadows test-galaxy test-ui test-mpq-compat test-assets test-render-golden \
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map test \
+	test-commands test-server-net test-renderer-model test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine download

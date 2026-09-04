@@ -3,7 +3,7 @@
  *
  * Converts parsed FRAMEDEF trees (from stb_fdf.h) into uiFrame_t wire
  * format for transmission via svc_layout.  These functions need gi for
- * network writes, so they live in the game module rather than ui_fdf.c.
+ * network writes, so they live in the game module rather than menu_fdf.c.
  *
  * HUD panels have been split into sibling files in game/hud/:
  *   hud_write.c     — frame-write primitives, theme, text formatting

@@ -101,7 +101,7 @@ Additional JASS natives control the scene:
 
 ### FDF Loading
 
-At game init, `UI_Init()` in `game/ui/ui_init.c:76-103` loads FDF files from the MPQ:
+At game init, `UI_Init()` in `game/menu/menu_init.c:76-103` loads FDF files from the MPQ:
 
 ```c
 void UI_Init(void) {
@@ -121,7 +121,7 @@ The FDF file `UI\FrameDef\UI\CinematicPanel.fdf` is loaded from the MPQ (no loca
 
 ### Frame Name Binding
 
-`Init_CinematicPanel()` at `game/ui/ui_init.c:69-74`:
+`Init_CinematicPanel()` at `game/menu/menu_init.c:69-74`:
 ```c
 void Init_CinematicPanel(void) {
     UI_FRAME(CinematicSpeakerText);

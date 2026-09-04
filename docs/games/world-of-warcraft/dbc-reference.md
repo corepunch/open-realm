@@ -98,7 +98,7 @@ directly; callers that need a decoded struct array go through `Stb_DbcCache*`. N
   and `Spell` through the shared cache/schemas; `game/m_creature.c` maps `CreatureDisplayInfo`/`CreatureModelData`;
   `game/g_gameobject.c` maps `GameObjectDisplayInfo`. One shared `g_dbc_io` (`gi.*`) is exported from `g_wow_local.h`.
 - **Common world** — `common/world_wow.c` reads `Map.dbc` and `WorldSafeLocs.dbc` for spawn/map resolution.
-- **UI** — `ui/ui_dbc.c` decodes `ChrRaces`, `ChrClasses`, `FactionTemplate`, `FactionGroup` through the cache
+- **UI** — `ui/menu_dbc.c` decodes `ChrRaces`, `ChrClasses`, `FactionTemplate`, `FactionGroup` through the cache
   (`ui_dbc_io` over `uiimport.*`); `CharBaseInfo` stays a 2-byte-record special case.
 - **Sound** — `sound/s_sound.c` loads `SoundEntries.dbc` for kit name/path lookup.
 - **Engine common** — `common/common.c` resolves numeric map IDs through `Map.dbc` (`Com_WowMapPathForId`, WOW-only).
@@ -267,11 +267,11 @@ exist but not read or unmapped.
 | `ItemDisplayInfo` | read | `r_dbc.c` | item model/texture stems, geoset groups, flags |
 | `CharSections` | read | `r_dbc.c` | skin/face/hair/facial-hair texture variants |
 | `CharStartOutfit` | read | `r_dbc.c` | starter item display IDs by race/class/gender |
-| `ChrRaces` | read | `ui_dbc.c`, `cinematics` | race records, cinematic sequence id |
-| `ChrClasses` | read | `ui_dbc.c` | class records |
-| `CharBaseInfo` | read | `ui_dbc.c` | valid race/class pairs (2-byte records) |
-| `FactionTemplate` | read | `ui_dbc.c` | faction membership/flags |
-| `FactionGroup` | read | `ui_dbc.c` | faction group names |
+| `ChrRaces` | read | `menu_dbc.c`, `cinematics` | race records, cinematic sequence id |
+| `ChrClasses` | read | `menu_dbc.c` | class records |
+| `CharBaseInfo` | read | `menu_dbc.c` | valid race/class pairs (2-byte records) |
+| `FactionTemplate` | read | `menu_dbc.c` | faction membership/flags |
+| `FactionGroup` | read | `menu_dbc.c` | faction group names |
 | `Map` | read | `g_wow.c`, `world_wow.c` | map id ↔ directory ↔ title ↔ loading screen |
 | `WorldSafeLocs` | read | `world_wow.c`, `g_wow.c` | safe spawn locations + names |
 | `LoadingScreens` | read | `g_wow.c` | loading screen texture path |
@@ -666,7 +666,7 @@ math does not apply.
 | 3 | faction group |
 | 5–9 | friend/enemy group masks (WoWee) |
 
-`ui_dbc.c` reads 0–3; WoWee additionally maps `FriendGroup`=4, `EnemyGroup`=5, `Enemy[0..3]`=6–9.
+`menu_dbc.c` reads 0–3; WoWee additionally maps `FriendGroup`=4, `EnemyGroup`=5, `Enemy[0..3]`=6–9.
 
 ### `FactionGroup.dbc`
 

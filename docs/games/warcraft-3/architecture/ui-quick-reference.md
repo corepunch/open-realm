@@ -7,9 +7,9 @@ This is the short version of the current client-side UI architecture.
 ```text
 Mouse/keyboard
   -> client input
-  -> games/warcraft-3/ui/ui_main.c
-  -> games/warcraft-3/ui/screens/*.c
-  -> games/warcraft-3/ui/ui_render.c
+  -> games/warcraft-3/menu/menu_main.c
+  -> games/warcraft-3/menu/screens/*.c
+  -> games/warcraft-3/menu/menu_render.c
   -> renderer API
 ```
 
@@ -45,7 +45,7 @@ client/cl_input.c
   -> svc_unit_ui
   -> client/cl_unit_ui.c
   -> ui.UpdateUnitUI
-  -> games/warcraft-3/ui/screens/console_ui.c
+  -> games/warcraft-3/menu/screens/console_ui.c
 ```
 
 The client caches returned unit data and renders it on subsequent UI frames.
@@ -55,12 +55,12 @@ The client caches returned unit data and renders it on subsequent UI frames.
 | File | Purpose |
 |------|---------|
 | `client/ui.h` | Shared UI module API declaration |
-| `games/warcraft-3/ui/ui_main.c` | UI entry point, lifecycle, startup command, screen selection |
-| `games/warcraft-3/ui/ui_fdf.c` | FDF parsing and frame registry |
-| `games/warcraft-3/ui/ui_render.c` | Layout solving and frame rendering |
-| `games/warcraft-3/ui/ui_theme.c` | Warcraft UI theme resources |
-| `games/warcraft-3/ui/screens/main_menu.c` | Main menu screen |
-| `games/warcraft-3/ui/screens/console_ui.c` | In-game HUD screen |
+| `games/warcraft-3/menu/menu_main.c` | UI entry point, lifecycle, startup command, screen selection |
+| `games/warcraft-3/menu/menu_fdf.c` | FDF parsing and frame registry |
+| `games/warcraft-3/menu/menu_render.c` | Layout solving and frame rendering |
+| `games/warcraft-3/menu/menu_theme.c` | Warcraft UI theme resources |
+| `games/warcraft-3/menu/screens/main_menu.c` | Main menu screen |
+| `games/warcraft-3/menu/screens/console_ui.c` | In-game HUD screen |
 | `client/cl_main.c` | Renderer/UI init and client frame loop |
 | `client/cl_unit_ui.c` | `svc_unit_ui` parser |
 | `server/sv_unit_ui.c` | Unit UI data request handler |

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "games/world-of-warcraft/ui/ui_local.h"
+#include "games/world-of-warcraft/menu/menu_local.h"
 #include "common/mpq.h"
 
 /* Reuse the same test harness pattern as test_wow_ui.c. */

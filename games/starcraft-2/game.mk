@@ -3,7 +3,7 @@ SC2_TEST_DIR := $(SC2_DIR)/tests
 
 RENDERER_SC2_LIB := $(LIB_DIR)/librenderer-sc2$(LIB_EXT)
 GAME_SC2_LIB     := $(LIB_DIR)/libgame-sc2$(LIB_EXT)
-UI_SC2_LIB       := $(LIB_DIR)/libui-sc2$(LIB_EXT)
+MENU_SC2_LIB       := $(LIB_DIR)/libmenu-sc2$(LIB_EXT)
 SC2_BINARY       := $(BIN_DIR)/opensc2$(EXE_EXT)
 SC2_COMMON_SRCS  := $(shell find $(SC2_DIR)/common -name '*.c' 2>/dev/null | sort)
 
@@ -14,7 +14,7 @@ SC2_TEST_CFLAGS  := $(SC2_CFLAGS) -I. -Itests -Icommon -Ishared -DTEST_SC2_MPQ=\
 
 renderer-sc2: $(RENDERER_SC2_LIB)
 game-sc2:     $(GAME_SC2_LIB)
-ui-sc2:       $(UI_SC2_LIB)
+menu-sc2:       $(MENU_SC2_LIB)
 opensc2:      $(SC2_BINARY)
 
 run-sc2: $(SC2_BINARY) install-share
@@ -35,9 +35,9 @@ $(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call 
 
 $(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS),common/mpq.c,-ljass -lshared $(LIBS) -lm -lz))
 
-$(eval $(call unity_lib_schema,$(UI_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/ui),ui-sc2,$(SC2_DIR)/ui,,$(SC2_IMPL_CFLAGS),,-lshared))
+$(eval $(call unity_lib_schema,$(MENU_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/menu),menu-sc2,$(SC2_DIR)/menu,,$(SC2_IMPL_CFLAGS),,-lshared))
 
-$(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_IMPL_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui-sc2 $(LIBS) -lz))
+$(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(MENU_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_IMPL_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lmenu-sc2 $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
 # Standalone test binaries
@@ -79,5 +79,5 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	echo "$$diag" | grep -q "footprint=Footprint2x2 size=2.000x2.000 fpRadius=1.414" && \
 	echo "  sc2map diag OK"
 
-SC2_PHONY := renderer-sc2 game-sc2 ui-sc2 opensc2 run-sc2 build-run-sc2 \
+SC2_PHONY := renderer-sc2 game-sc2 menu-sc2 opensc2 run-sc2 build-run-sc2 \
 	test-sc2 test-sc2-assets

@@ -108,7 +108,7 @@ netField_t entityStateFields[] = {
  *
  * A small type-specific buffer is appended after these base fields for
  * backdrop edge textures, button states, label alignment, etc.
- * See UI_WriteFrame() in src/game/ui/ui_write.c.
+ * See UI_WriteFrame() in games/warcraft-3/game/hud/hud_write.c.
  */
 netField_t uiFrameFields[] = {
     { NETF(uiFrame_t, parent), NFT_SHORT },

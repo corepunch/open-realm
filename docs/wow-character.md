@@ -53,8 +53,8 @@ race, sex, section, skin color, and hair style.
 ## Character Creation And Saved Data
 
 The `+menu_character_create` screen initializes Human, Male, Warrior and zero-valued customization in
-`games/world-of-warcraft/ui/ui_dbc.c`. `UIWow_GetCharacterCreateAppearance()` packs those values for the model drawn by
-`games/world-of-warcraft/ui/ui_xml.c`.
+`games/world-of-warcraft/menu/menu_dbc.c`. `UIWow_GetCharacterCreateAppearance()` packs those values for the model drawn by
+`games/world-of-warcraft/menu/menu_xml.c`.
 
 Saved characters live in `~/.local/share/world-of-warcraft/characters.xml` (or `share/world-of-warcraft/characters.xml` when `$HOME` is unavailable):
 

@@ -9,7 +9,7 @@ OpenWarcraft compiles its own Lua and XML parser from checked-in sources, matchi
 - Only the VM library is compiled; the interpreter/compiler drivers `lua.c` and `luac.c` are excluded.
 - Variables defined in the top-level `Makefile`:
   - `LUA_DIR` / `LUA_SRCS` / `LUA_OBJ` / `LUA_LIB` / `LUA_CFLAGS` (`-Ivendor/lua/src`).
-- Only the WoW UI links it: `games/world-of-warcraft/game.mk` sets `LUA_LIBS := -llua` and lists `$(LUA_LIB)` as a prerequisite of `libui-wow`, `test-wow-ui`, and `test-wow-hud-xml`.
+- Only the WoW UI links it: `games/world-of-warcraft/game.mk` sets `LUA_LIBS := -llua` and lists `$(LUA_LIB)` as a prerequisite of `libmenu-wow`, `test-wow-menu`, and `test-wow-hud-xml`.
 - To upgrade: replace the files under `vendor/lua/src/` (and `README`/`LICENSE`); the Makefile wildcard picks up the new set automatically.
 
 ## XML parser (`common/tinyxml.h`)

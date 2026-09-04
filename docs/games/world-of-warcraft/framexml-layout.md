@@ -1,6 +1,6 @@
 # WoW FrameXML Layout
 
-`games/world-of-warcraft/ui/stb_wowxml.h` parses FrameXML using DDX-style schema tables and owns the element registry, inheritance,
+`games/world-of-warcraft/menu/stb_wowxml.h` parses FrameXML using DDX-style schema tables and owns the element registry, inheritance,
 parent/relative-frame links, anchors, and rectangle calculation. `ui_xml.c` supplies Lua bindings, drawing, and input. Production
 and UI tests compile the single-header implementation with `STB_WOW_XML_IMPLEMENTATION` in `ui_xml.c`.
 
@@ -42,13 +42,13 @@ Production does not ship project-owned files under `share/Interface/FrameXML/`. 
 it exists. If classic WoW creates presentation outside FrameXML, reproduce that runtime path in C instead of authoring a parallel XML
 layout. Test MPQs may carry reduced fixtures under the original Blizzard paths, but production must resolve those paths from WoW data.
 
-Classic `interface.MPQ` has no loading-screen FrameXML, so `ui_loading.c` draws the server-selected map texture and title at runtime.
+Classic `interface.MPQ` has no loading-screen FrameXML, so `menu_loading.c` draws the server-selected map texture and title at runtime.
 The custom message inbox and its combined tutorial/message alert strip also remain runtime presentation because no Blizzard FrameXML
 owns that project-specific data model. Their tutorial alert art and dimensions follow the native `TutorialFrame` contract.
 
 ## Native tutorial layout and height
 
-`ui_windows.c` loads `Fonts.xml`, `BasicControls.xml`, `UIPanelTemplates.xml`, and `TutorialFrame.xml` from `interface.MPQ`. These own
+`menu_windows.c` loads `Fonts.xml`, `BasicControls.xml`, `UIPanelTemplates.xml`, and `TutorialFrame.xml` from `interface.MPQ`. These own
 the 230px frame, backdrop, zero-height natural FontStrings, `UICheckButtonTemplate`, button textures, and input rectangles. The parser
 supports native `CheckedTexture` state; C only binds localized strings and client state.
 

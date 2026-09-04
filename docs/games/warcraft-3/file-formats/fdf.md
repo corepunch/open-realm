@@ -1,6 +1,6 @@
 # UI Frame Definition File (FDF)
 
-FDF (Frame Definition File) is a plain-text declarative format used by Warcraft III to describe the UI frame hierarchy — positions, sizes, textures, fonts, and child frames. OpenWarcraft3 parses FDF files client-side in the Warcraft III UI runtime library (`games/warcraft-3/ui/`).
+FDF (Frame Definition File) is a plain-text declarative format used by Warcraft III to describe the UI frame hierarchy — positions, sizes, textures, fonts, and child frames. OpenWarcraft3 parses FDF files client-side in the Warcraft III UI runtime library (`games/warcraft-3/menu/`).
 
 ## File Format
 
@@ -23,7 +23,7 @@ FrameType "FrameName" {
 
 ### Frame Types
 
-The following frame types are recognised by the Warcraft III UI parser (`games/warcraft-3/ui/ui_fdf.c`):
+The following frame types are recognised by the Warcraft III UI parser (`games/warcraft-3/menu/menu_fdf.c`):
 
 | Type | Purpose |
 |------|---------|
@@ -84,11 +84,11 @@ This aligns the frame's top-left corner 2% from the screen left edge and 2% from
 
 ## Frame Registry
 
-`UI_ParseFDF` (`games/warcraft-3/ui/ui_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. Screen controllers query the registry, parent frames into the active tree, and draw through `games/warcraft-3/ui/ui_render.c`.
+`UI_ParseFDF` (`games/warcraft-3/menu/menu_fdf.c`) tokenises the FDF text, constructs `frameDef_t` structs, and stores them in the global frame registry keyed by name. Screen controllers query the registry, parent frames into the active tree, and draw through `games/warcraft-3/menu/menu_render.c`.
 
 ## Programmatic API
 
-Frames can also be created directly in C without any FDF text using the API described in `ui_fdf.c`:
+Frames can also be created directly in C without any FDF text using the API described in `menu_fdf.c`:
 
 ```c
 FRAMEDEF f;
@@ -113,8 +113,8 @@ Helper functions:
 
 | Source | Purpose |
 |--------|---------|
-| `games/warcraft-3/ui/ui_fdf.c` | FDF text parser and programmatic frame API |
-| `games/warcraft-3/ui/ui_main.c` | Loads FDF/theme assets and executes `ui_start_command` |
-| `games/warcraft-3/ui/ui_render.c` | Layout solving and frame rendering |
-| `games/warcraft-3/ui/ui_theme.c` | Warcraft theme file loading |
-| `games/warcraft-3/ui/screens/*.c` | Screen controllers |
+| `games/warcraft-3/menu/menu_fdf.c` | FDF text parser and programmatic frame API |
+| `games/warcraft-3/menu/menu_main.c` | Loads FDF/theme assets and executes `ui_start_command` |
+| `games/warcraft-3/menu/menu_render.c` | Layout solving and frame rendering |
+| `games/warcraft-3/menu/menu_theme.c` | Warcraft theme file loading |
+| `games/warcraft-3/menu/screens/*.c` | Screen controllers |

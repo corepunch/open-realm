@@ -99,7 +99,7 @@ Per-type payload allocation or carefully designed stable storage can reduce memo
 Menu payload savings overlap pool-sizing savings.
 
 When instrumenting this header, explicitly rebuild both consumers, e.g.
-`make -W games/warcraft-3/ui/ui_main.c -W games/warcraft-3/game/g_main.c openwarcraft3`:
+`make -W games/warcraft-3/menu/menu_main.c -W games/warcraft-3/game/g_main.c openwarcraft3`:
 the UI target does not list this common header directly as a prerequisite.
 
 ## Asset lifetime

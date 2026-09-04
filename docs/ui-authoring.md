@@ -49,7 +49,7 @@ layout.
 
 ## Screen Controller Conventions
 
-- In `games/warcraft-3/ui/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.
+- In `games/warcraft-3/menu/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.
 - Use `UI_FindChildFrame(...)` when it is clearly shorter or cleaner than introducing temporary macro-bound locals.
 - Avoid excessive pointer null-check noise in screen controllers. Prefer one scene-level readiness gate (early return) over repeated per-widget checks.
 - If a required root frame is missing, fail fast for that screen and skip further scene setup/update work.
@@ -62,12 +62,12 @@ layout.
 - Binds player state (gold, lumber, food) via `uiimport.GetPlayerState()`.
 - Receives unit selection/command data via `update_unit_ui` callback from `svc_unit_ui` messages.
 - Draw path: `UI_DrawFrames()` renders FDF FRAMEDEF trees. This is the only draw path for the in-game HUD.
-- Wire into game mode via `UI_EnterGameMode()` in `ui_main.c`, which calls `consoleUIScreen.load()` and `consoleUIScreen.init()`. The `UI_RefreshLocal()` and `UI_UpdateUnitUILocal()` functions route to the screen during game mode.
+- Wire into game mode via `UI_EnterGameMode()` in `menu_main.c`, which calls `consoleUIScreen.load()` and `consoleUIScreen.init()`. The `UI_RefreshLocal()` and `UI_UpdateUnitUILocal()` functions route to the screen during game mode.
 
 ## stb_fdf.h Pattern
 
 - `stb_fdf.h` is the shared declarations-only header for FDF types (`FRAMEDEF`, enums, bind macros) and API declarations (`UI_ParseFDF`, `UI_DrawFrames`, etc.).
-- Parser implementation stays in `ui_fdf.c` (has `uiimport` dependency for MPQ asset loading). `stb_fdf.h` provides shared types + declarations so both modules see identical structs without circular includes.
+- Parser implementation stays in `menu_fdf.c` (has `uiimport` dependency for MPQ asset loading). `stb_fdf.h` provides shared types + declarations so both modules see identical structs without circular includes.
 - Generated binding headers in `generated/` map FDF field names to struct member offsets via macros like `bind_<fieldname>`. Use `fdfbindgen` tool to regenerate from MPQ source FDF files.
 
 ## DDX-Style Schema Tables Across Layout Engines
@@ -78,6 +78,6 @@ All three game layout engines follow the single-header DDX-style schema table ar
 |---|---|---|---|
 | **Warcraft III** | `games/warcraft-3/common/stb_fdf.h` | `items[]`, `classes[]` (`FDF_F` macros) | Parses `.fdf` frame templates into `FRAMEDEF frames[]` |
 | **StarCraft II** | `games/starcraft-2/common/stb_sc2layout.h` | `sc2_frame_attrs[]`, `sc2_frame_fields[]`, `sc2_child_tags[]` | Parses `.SC2Layout` XML into `sc2Frame_t` and flattened `sc2BaseFrame_t` |
-| **World of Warcraft** | `games/world-of-warcraft/ui/stb_wowxml.h` | `uiwow_node_types[]`, `uiwow_script_tags[]`, `uiwow_button_part_tags[]`, `uiwow_shared_attrs[]`, `uiwow_point_factors[]` | Parses FrameXML (`.xml`) into `uiWowXmlElem_t wow_xml.elems[]` |
+| **World of Warcraft** | `games/world-of-warcraft/menu/stb_wowxml.h` | `uiwow_node_types[]`, `uiwow_script_tags[]`, `uiwow_button_part_tags[]`, `uiwow_shared_attrs[]`, `uiwow_point_factors[]` | Parses FrameXML (`.xml`) into `uiWowXmlElem_t wow_xml.elems[]` |
 
 Each parser defines the format grammar as data (table of names, offsets, types, flags/callbacks) and dispatches in one generic loop without manual `if`/`else` ladders.
