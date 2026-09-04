@@ -190,3 +190,15 @@ LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amo
     rate = MAX(0, rate);
     return (gross_amount * rate) / 100;
 }
+
+/* Commit an income transaction before publishing its presentation event.
+ * Callers use the returned net amount when they need the credited value; the
+ * existing G_ApplyResourceIncome helper remains pure for previews/tests. */
+LONG G_CreditResourceIncome(LPPLAYER player, LPEDICT source, DWORD resource_state, LONG gross_amount) {
+    LONG const credited = G_ApplyResourceIncome(player, resource_state, gross_amount);
+
+    if (!player || resource_state >= MAX_STATS || credited <= 0) return 0;
+    player->stats[resource_state] += credited;
+    G_ResourceGainEvent(source, resource_state, credited);
+    return credited;
+}

@@ -227,6 +227,8 @@ and dispatch are the Warcraft/JASS trigger contract. `G_SubscribeMessage` instal
 
 Harvest publishes transitions only: move-to-resource, enter-mine/start-chop, chop/tree-felled, return-to-base, deposit, and resume.
 Movement ticks do not publish messages. Tests subscribe immediately before the order and assert both sequence and entity numbers.
+
+Resource-gain presentation is deliberately separate from this transition stream. `G_CreditResourceIncome()` applies upkeep, commits the net amount to player stats, then emits the one-shot world `+N` presentation from the transaction source. The existing deposit message remains `{type, actor, target}` and may be observed before the accounting statement; consumers that need the amount must use the committed income path rather than extending `GAMEMSG`. See [resource-gain-text.md](resource-gain-text.md) for the server-selected data, generic temporary-event payload, and client lifetime rules.
 The lethal-trip test specifically requires `CHOP -> TREE_FELLED -> RETURN_LUMBER -> DEPOSIT_LUMBER -> RESUME_LUMBER -> START_CHOP`,
 with the resume/start target equal to the next live tree rather than the felled entity.
 

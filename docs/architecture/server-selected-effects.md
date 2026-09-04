@@ -56,3 +56,9 @@ do not substitute a per-game preprocessor guard or a hardcoded command branch in
 Persistent local markers such as Warcraft III's Rally destination are ordinary game-owned edicts. The game resolves and registers the model, sets `SVF_OWNER_ONLY`, and stores the recipient in `entityState_t.player`; `SV_BuildClientFrame` excludes the edict from every other client's snapshot. Point markers use an authoritative world origin, while widget markers use the normal linked-edict movement path to follow their target.
 
 The owning game client keeps the marker edict pointer so selection changes update or free the same entity. Save/load does not serialize that runtime cache pointer: the marker's saved `owner` edict reconstructs it after pointer fixups. One-shot acknowledgements such as move and attack confirmations remain temporary events.
+
+## One-shot resolved world text
+
+Short-lived world text follows the same ownership rule as model effects. `TE_FLOATING_TEXT` is a generic temporary event: it carries an already-resolved string, RGBA colour, font index, lifetime/fade timings, screen-space velocity, and world anchor. The owning game must resolve semantic identity such as Warcraft gold/lumber before writing the event. Shared/client code must not grow `TE_GOLD_TEXT`, race/resource tables, or game-data lookups.
+
+The client captures the event anchor and projects it through the active camera each draw. It does not create a persistent network entity and does not attach the text to the source after spawn. This is appropriate for one-shot feedback such as a committed resource gain; persistent/script-addressable text belongs to a separate handle/entity contract. See [WC3 Resource-Gain Floating Text](../games/warcraft-3/resource-gain-text.md).

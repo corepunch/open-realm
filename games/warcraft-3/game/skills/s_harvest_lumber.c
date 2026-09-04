@@ -479,8 +479,8 @@ static void ai_harvest_walkback(LPEDICT ent) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, dropoff);
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
-            player->stats[PLAYERSTATE_RESOURCE_LUMBER] +=
-                G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_LUMBER, (LONG)ent->harvested_lumber);
+            G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
+                                   (LONG)ent->harvested_lumber);
         }
         S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, 0);
         /* Resolve the next live tree at the deposit boundary.  Resuming with
@@ -623,8 +623,8 @@ static void ai_wisp_mine(LPEDICT ent) {
     /* Wisp gathers lumber and is consumed. */
     LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
-        player->stats[PLAYERSTATE_RESOURCE_LUMBER] +=
-            G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_LUMBER, (LONG)wisp_lumber_per_interval);
+        G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
+                               (LONG)wisp_lumber_per_interval);
     }
     ent->health.value = 0;
     if (ent->die) {

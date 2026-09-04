@@ -744,6 +744,9 @@ typedef enum {
     TE_FIREBOLT_IMPACT,    /* WoW: fire explosion — payload: POSITION, model SHORT */
     TE_FROSTBOLT_IMPACT,   /* WoW: frost burst — payload: POSITION, model SHORT */
     TE_ATTACK_CONFIRMATION,
+    /* Generic server-selected world text. Payload: POSITION, STRING, RGBA LONG,
+     * font SHORT, lifetime LONG ms, fade-start LONG ms, velocity FLOAT/FLOAT px/s. */
+    TE_FLOATING_TEXT,
 } tempEvent_t;
 
 typedef enum {

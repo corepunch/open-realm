@@ -1445,6 +1445,8 @@ void G_CancelTrainingQueue(LPEDICT producer, BOOL refund);
 void G_SetUnitPlayer(LPEDICT unit, DWORD player);
 void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
 LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);
+LONG G_CreditResourceIncome(LPPLAYER player, LPEDICT source, DWORD resource_state, LONG gross_amount);
+void G_ResourceGainEvent(LPEDICT source, DWORD resource_state, LONG amount);
 BOOL G_UnitCanReviveHeroes(LPCEDICT altar);
 BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero);
 

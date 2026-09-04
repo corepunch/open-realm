@@ -283,8 +283,8 @@ static void goldmine_finish_deposit(LPEDICT ent, LPEDICT dropoff, int debug) {
     ent->goalentity = ent->secondarygoal;
     player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
-        player->stats[PLAYERSTATE_RESOURCE_GOLD] +=
-            G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, (LONG)ent->harvested_gold);
+        G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_GOLD,
+                               (LONG)ent->harvested_gold);
     }
     if (debug >= 1)
         fprintf(stderr,
@@ -593,8 +593,8 @@ void blight_mine_think(LPEDICT ent) {
         return;
     }
     /* Apply the same player income rate used by worker deposits. */
-    player->stats[PLAYERSTATE_RESOURCE_GOLD] +=
-        G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, (LONG)blight_gold_per_interval);
+    G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_GOLD,
+                           (LONG)blight_gold_per_interval);
     ent->freetime = now + (DWORD)(blight_interval_duration * 1000.0f);
 }
 
