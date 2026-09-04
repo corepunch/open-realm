@@ -311,6 +311,7 @@ void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture);
 void R_ReleaseTexture(LPTEXTURE texture);
 void R_ShutdownTextureCache(void);
 void R_DrawWorld(void);
+void R_DrawSky(void);
 void R_DrawDecals(void);
 void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
