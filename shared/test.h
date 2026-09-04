@@ -35,6 +35,8 @@
 typedef struct test_s {
     const char    *name;   /* e.g. "wow_combat.pain_interrupts_attack" */
     void         (*fn)(void);
+    const char    *file;   /* TEST() definition site, for reports */
+    int            line;
     struct test_s *next;
 } test_t;
 
@@ -56,7 +58,8 @@ extern int test_failures;
 #define TEST(suite, name)                                                      \
     static void suite##_##name##_fn(void);                                     \
     static test_t suite##_##name##_node = { #suite "." #name,                  \
-                                            suite##_##name##_fn, 0 };          \
+                                            suite##_##name##_fn, __FILE__,      \
+                                            __LINE__, 0 };                      \
     __attribute__((constructor)) static void suite##_##name##_register(void) { \
         Test_Register(&suite##_##name##_node);                                 \
     }                                                                          \

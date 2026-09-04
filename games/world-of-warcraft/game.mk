@@ -129,8 +129,8 @@ $(eval $(call app_schema,$(WOW_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WO
 openwow-tests: $(WOW_TEST_BINARY)
 
 PATTERN ?= *
-test-wow-engine: $(WOW_TEST_BINARY) | test-wow-engine-assets
-	$(WOW_TEST_BINARY) -data $(WOW_ENGINE_TEST_DIR) +dedicated 1 +test '$(PATTERN)'
+test-wow-engine: $(WOW_TEST_BINARY) | test-wow-engine-assets $(TEST_JUNIT_DIR)
+	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wow-engine.xml" TEST_JUNIT_SUITE="test-wow-engine" $(WOW_TEST_BINARY) -data $(WOW_ENGINE_TEST_DIR) +dedicated 1 +test '$(PATTERN)'
 
 # ---------------------------------------------------------------------------
 # Standalone test binaries
