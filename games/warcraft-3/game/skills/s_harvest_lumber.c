@@ -183,34 +183,21 @@ static LPEDICT harvest_find_nearest_resource(LPEDICT worker, returnResource_t re
     return best;
 }
 
-/* Tree interaction keeps the closest direct legal chop point.  Dynamic
- * Peasant separation belongs to the resource-worker local avoidance policy:
- * same-stream workers queue instead of pre-allocating angular lanes, while
- * crossing/pinned traffic uses deterministic bounded passing. */
-static BOOL harvest_find_direct_tree_approach(LPEDICT ent, LPEDICT tree,
-                                               LPVECTOR2 out) {
-    return CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
-                                                HARVEST_RANGE, ent->collision, out);
-}
-
-static BOOL harvest_find_direct_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
-                                                  FLOAT step, LPVECTOR2 out) {
-    FLOAT route_band;
+/* Return routing needs a stable interaction-side endpoint rather than
+ * the drop-off centre.  Restrict the search to the innermost collision-safe
+ * pathing-cell ring so the closest candidate is the nearest edge of the Town
+ * Hall/Lumber Mill from the worker's current side. */
+static BOOL harvest_find_nearest_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
+                                                   LPVECTOR2 out) {
+    FLOAT const route_band = ent ?
+        ent->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
     if (!ent || !dropoff || !dropoff->pathtex || !out)
         return false;
-
-    /* Re-select from the current position so local avoidance can move a
-     * returning worker onto a different free edge lane as nearby workers
-     * change position.  CM_FindApproachPointToFootprintForRadius keeps this
-     * per-think selection bounded without the old nested footprint scan. */
-    route_band = ent->collision + step +
-                 CM_PathCellWorldSize() * 1.41421356237f;
-    if (!CM_FindApproachPointToFootprintForRadius(
-            dropoff, &ent->s.origin2, route_band, ent->collision, out))
-        return false;
-    return CM_LineIsWalkableForRadius(&ent->s.origin2, out, ent->collision);
+    return CM_FindInnerApproachPointToFootprintForRadius(
+        dropoff, &ent->s.origin2, route_band, ent->collision, out);
 }
+
 
 /* Retail WC3 continues lumber work when the explicitly clicked tree is alive
  * but cannot be reached.  Keep target selection in Harvest: routing reports
@@ -398,36 +385,15 @@ BOOL G_ActorSkillPermanent(LPEDICT ent, DWORD code) {
 
 static void ai_walktree(LPEDICT ent) {
     FLOAT const distance = M_DistanceToGoal(ent);
-    FLOAT const step = unit_movedistance(ent);
 
     if (!ent->goalentity || M_IsDead(ent->goalentity)) {
         HARVEST_PATH_LOG(1, "invalid worker=%d target=%d reason=dead_or_missing\n",
                          ent->s.number, ent->goalentity ? ent->goalentity->s.number : -1);
         look_for_another_tree(ent);
     } else if (distance > HARVEST_RANGE) {
-        VECTOR2 approach = { 0, 0 };
-        BOOL const direct_approach =
-            harvest_find_direct_tree_approach(ent, ent->goalentity, &approach);
-
-        if (move_is_blocked(ent, distance, step)) {
-            harvest_route_failed(ent, "movement_blocked");
-            return;
-        }
-        if (direct_approach)
-            unit_changeangle_towards_point_worker(ent, &approach);
-        else
-            unit_changeangle_for_radius_worker(ent, ent->collision);
-        HARVEST_PATH_LOG(2,
-            "approach worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f) "
-            "distance=%.1f range=%.1f step=%.1f blocked_frames=%u direct=%d approach=(%.1f,%.1f) "
-            "flow=%u flow_goal=%d flow_unreachable=%d\n",
-            ent->s.number, ent->goalentity->s.number,
-            ent->s.origin2.x, ent->s.origin2.y,
-            ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y,
-            distance, HARVEST_RANGE, step, ent->movement.blocked_frames,
-            direct_approach, direct_approach ? approach.x : 0.0f,
-            direct_approach ? approach.y : 0.0f, ent->movement.flow_generation,
-            ent->movement.flow_goal_reached, ent->movement.flow_unreachable);
+        /* Warsmash delegates destructable harvesting to ordinary generic move
+         * collision. The Harvest state machine owns target/range semantics. */
+        unit_changeangle_for_radius(ent, ent->collision);
         if (ent->movement.flow_goal_reached) {
             harvest_route_failed(ent, "route_goal_out_of_range");
             return;
@@ -443,6 +409,36 @@ static void ai_walktree(LPEDICT ent) {
             ent->s.number, ent->goalentity->s.number, distance, HARVEST_RANGE);
         G_PublishMessage(ent, GAME_MSG_HARVEST_START_CHOP, ent->goalentity);
         harvest_swing(ent);
+    }
+}
+
+static void harvest_finish_lumber_deposit(LPEDICT ent) {
+    LPEDICT dropoff = ent->goalentity;
+    LPEDICT tree;
+    LPPLAYER player;
+
+    G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, dropoff);
+    player = G_GetPlayerByNumber(ent->s.player);
+    if (player) {
+        G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
+                               (LONG)ent->harvested_lumber);
+    }
+    S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, 0);
+
+    /* Resolve the next live tree at the deposit boundary.  Resuming with the
+     * felled tree left it as the worker's active goal for another tick. */
+    tree = ent->secondarygoal;
+    if (tree && M_IsDead(tree))
+        tree = find_another_tree_near(&tree->s.origin2);
+    else if (!tree)
+        tree = find_another_tree(ent);
+    ent->goalentity = ent->secondarygoal = tree;
+    if (tree) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
+        move_reset_progress(ent);
+        harvest_walk(ent);
+    } else {
+        ent->stand(ent);
     }
 }
 
@@ -473,46 +469,27 @@ static void ai_harvest_walkback(LPEDICT ent) {
      * the deposit when one legal step reaches either the footprint or the
      * collision fallback. */
     if (footprint_deposit || circle_deposit) {
-        LPEDICT dropoff = ent->goalentity;
-        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, dropoff);
-        LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
-        if (player) {
-            G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
-                                   (LONG)ent->harvested_lumber);
-        }
-        S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, 0);
-        /* Resolve the next live tree at the deposit boundary.  Resuming with
-         * the felled tree left it as the worker's active goal for another tick. */
-        LPEDICT tree = ent->secondarygoal;
-        if (tree && M_IsDead(tree))
-            tree = find_another_tree_near(&tree->s.origin2);
-        else if (!tree)
-            tree = find_another_tree(ent);
-        ent->goalentity = ent->secondarygoal = tree;
-        if (tree) {
-            G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
-            move_reset_progress(ent);
-            harvest_walk(ent);
-        } else {
-            ent->stand(ent);
-        }
+        harvest_finish_lumber_deposit(ent);
     } else {
-        VECTOR2 approach = { 0, 0 };
-        BOOL const direct_approach =
-            harvest_find_direct_dropoff_approach(ent, ent->goalentity,
-                                                 step, &approach);
+        VECTOR2 approach;
 
-        /* A Town Hall/Lumber Mill is an authored blocked footprint, not a
-         * reachable centre point.  Prefer a collision-sized edge staging lane
-         * while it is still at least one step away; once there, resume the
-         * ordinary interaction steering so the exact deposit check above owns
-         * completion. */
-        if (direct_approach &&
-            Vector2_distance(&ent->s.origin2, &approach) > step)
-            unit_changeangle_towards_point_worker(ent, &approach);
-        else
-            unit_changeangle_worker(ent);
-        unit_moveindirection(ent);
+        /* Return Resources owns a building interaction, not movement to its
+         * centre. Pick the innermost collision-safe ring and the worker's
+         * current side so lumber uses the nearest Town Hall/Lumber Mill edge. */
+        if (harvest_find_nearest_dropoff_approach(
+                ent, ent->goalentity, &approach)) {
+            if (unit_snap_to_point_ignore_units(ent, &approach)) {
+                harvest_finish_lumber_deposit(ent);
+                return;
+            }
+            if (unit_changeangle_towards_point_ignore_units(ent, &approach)) {
+                unit_moveindirection_ignore_units(ent);
+                return;
+            }
+        }
+
+        unit_changeangle_interaction_ignore_units(ent);
+        unit_moveindirection_ignore_units(ent);
     }
 }
 

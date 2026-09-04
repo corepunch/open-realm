@@ -56,6 +56,7 @@ BOOL   CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLO
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FindApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
+BOOL   CM_FindInnerApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
 BOOL   CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
@@ -231,6 +232,30 @@ TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
     DWORD gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
+}
+
+/* Static pathing rebuilds invalidate the cache while route entities may still
+ * retain their old generation handle.  A replacement field must never recycle
+ * that handle or CM_ActivateCachedFlow could bind the stale route to unrelated
+ * post-build prices. */
+TEST(wc3_pathfinding, invalidation_does_not_recycle_heatmap_generation) {
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+
+    LPEDICT first = make_waypoint(2.0f, 2.0f);
+    LPEDICT second = make_waypoint(7.0f, 7.0f);
+    DWORD old_gen = CM_BuildHeatmap(first);
+
+    T_ASSERT(old_gen != 0);
+    CM_InvalidatePathCache();
+    T_ASSERT(!CM_ActivateCachedFlow(old_gen));
+
+    DWORD new_gen = CM_BuildHeatmap(second);
+    T_ASSERT(new_gen != 0);
+    T_ASSERT(new_gen != old_gen);
+    T_ASSERT(!CM_ActivateCachedFlow(old_gen));
+    T_ASSERT(CM_ActivateCachedFlow(new_gen));
 }
 
 TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing_later_goal) {
@@ -613,6 +638,44 @@ TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_buil
     T_ASSERT(CM_FindApproachPointToFootprintForRadius(building, &from, 2.0f, 0.0f, &approach));
     T_ASSERT(CM_DistanceToPathingFootprint(building, &approach) <= 2.0f);
     T_ASSERT(CM_PointIsPathableForRadius(&approach, 0.0f));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
+/* The generic footprint helper intentionally chooses the candidate closest to
+ * the mover, which is useful for adaptive staging but can be the OUTERMOST
+ * legal point in a broad interaction band.  Return Resources needs the inverse
+ * ordering: choose the innermost legal ring first, then preserve the worker's
+ * side among points on that ring. */
+TEST(wc3_pathfinding, footprint_inner_approach_prefers_contact_ring_over_outer_staging) {
+    BYTE blocked_target[MAP_W * MAP_H];
+    LPEDICT building;
+    pathTex_t *pathtex;
+    VECTOR2 from = { 0.5f, 5.5f };
+    VECTOR2 staging = { 0 }, inner = { 0 };
+
+    memset(blocked_target, 0, sizeof(blocked_target));
+    blocked_target[5 * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_target);
+    reset_entities();
+
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 5.0f, 5.0f);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = 1;
+    pathtex->height = 1;
+    pathtex->map[0] = (COLOR32){ 0, 0, 255, 255 };
+    building->pathtex = pathtex;
+
+    T_ASSERT(CM_FindApproachPointToFootprintForRadius(
+        building, &from, 3.0f, 0.0f, &staging));
+    T_ASSERT(CM_FindInnerApproachPointToFootprintForRadius(
+        building, &from, 3.0f, 0.0f, &inner));
+    T_ASSERT(CM_DistanceToPathingFootprint(building, &inner) <
+             CM_DistanceToPathingFootprint(building, &staging));
+    T_ASSERT(inner.x > staging.x); /* both are on the worker's left/near side */
+    T_ASSERT(inner.x < building->s.origin2.x);
 
     building->pathtex = NULL;
     gi.MemFree(pathtex);

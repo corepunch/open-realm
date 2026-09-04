@@ -156,9 +156,7 @@ the entry threshold, and entered as the capacity-1 slot became free. ROC logged 
 (entry threshold=163); local TFT mode logged mine radius=50, worker=16, step=19 (threshold=85). These are observations of the
 local archive sets, not universal ROC/TFT constants. Do not use one archive mode's radius to diagnose the other without logging it.
 
-A later August 31 Human02 trace exposed a distinct crowding failure at the Town Hall. A gold carrier remained at `(-4075.4,-3838.9)` for 24 logged approach updates while still 107.4 world units from the authored Town Hall footprint. It was well outside the normal one-step deposit boundary and moved again only after the local lane cleared. This is not a deposit-range or mine-capacity condition: centre-directed interaction routing had funnelled multiple returning workers through the same blocked-building approach. Gold and lumber return now prefer a collision-sized directly reachable cell beside the authored footprint, then hand completion back to their unchanged footprint/contact checks.
-
-The same trace also showed multiple Peasants legitimately converging on one tree. Pre-assigning deterministic angular lanes fixed direct overlap but made workers deviate even when the worker ahead would naturally clear the route, and it required full-edict peer scans. Lumber now keeps the closest direct legal chop point. Resource-worker local avoidance treats a same-direction Peasant as a short queue, then uses deterministic bounded right-first passing only for crossing or persistently pinned traffic. Static routing remains independent of transient occupancy; see `worker-crowd-routing.md` for the 30-Peasant Human02 simulation that selected this policy.
+A later August 31 Human02 trace exposed a distinct crowding failure at the Town Hall. A gold carrier remained at `(-4075.4,-3838.9)` for 24 logged approach updates while still 107.4 world units from the authored Town Hall footprint. It was well outside the normal one-step deposit boundary and moved again only after the local lane cleared. This is not a deposit-range or mine-capacity condition: centre-directed interaction routing had funnelled multiple returning workers through the same blocked-building approach. Gold and lumber return now ignore live-unit collision, choose the innermost collision-safe ring around the authored drop-off footprint, and select the worker's near side on that ring. A Farm or other newly baked static obstacle remains solid and causes a collision-sized detour.
 
 An August 31 Human02 trace with all three starting Peasants ordered together exposed a separate regression after generic
 flow fields became resumable. While the shared mine field was still pending, all three reported `flow=0 direct=0`, yet movement
@@ -168,12 +166,7 @@ the field became ready. The fix is shared in `unit_moveindirection`: `flow_gener
 been resolved and the unit holds position without losing its order. Gold's narrower guards remain valid but are no longer the only
 protection against stale-heading movement.
 
-Lumber return is also footprint-aware, matching gold return. A Lumber Mill or Town Hall may have authored no-walk pathing that
-extends beyond its scalar collision circle; carried lumber deposits when the worker's radius plus one simulation step reaches that
-authored footprint (with collision contact as the fallback). When a collision-safe direct point exists inside the drop-off contact
-boundary, lumber return steers to that point immediately instead of requesting a whole-map field toward the blocked building
-centre. The same trace verified that lumber-to-gold switching itself is correct: workers retained carried lumber through mine
-approach/entry and replaced it only when gold was actually collected.
+Lumber return is footprint-aware, matching gold return. A Lumber Mill or Town Hall may have authored no-walk pathing that extends beyond its scalar collision circle; carried lumber deposits when the worker's radius plus one simulation step reaches that authored footprint (with collision contact as the fallback). Return routing targets the innermost collision-safe near-side path cell rather than the blocked building centre. If that rasterized endpoint is the closest legal cell but remains just outside the continuous threshold, reaching it completes the deposit handoff. The same trace verified that lumber-to-gold switching itself is correct: workers retained carried lumber through mine approach/entry and replaced it only when gold was actually collected.
 
 Use the [cinematic skip workflow](cinematics.md#common-issues), with `+set r_vsync 1 +com_frame_limit 2400` to leave time for
 the post-intro approach. A 900-frame uncapped run ended before the 7000-ms probe here: `com_frame_limit` bounds main-loop

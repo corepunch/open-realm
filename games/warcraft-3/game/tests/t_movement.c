@@ -298,6 +298,364 @@ static void trace_message(LPCGAMEMSG msg, void *ctx) {
         trace->msg[trace->count++] = *msg;
 }
 
+/* Worker resource movement mirrors CBehaviorHarvest's
+ * disableCollision=true contract for unit targets.  A live Peasant directly
+ * in the mine lane must therefore not deflect or stop the approaching miner;
+ * static pathing remains enabled separately. */
+TEST(wc3_movement, worker_resource_gold_approach_ignores_live_units) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    VECTOR2 const origin = worker->s.origin2;
+    slkTestData_t *rows, *old_abilities;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->s.angle = 0.0f;
+    blocker->collision = 16.0f;
+    blocker->s.model = 1;
+    blocker->movetype = MOVETYPE_NONE;
+    mine->collision = 128.0f;
+    mine->s.model = 1;
+    mine->movetype = MOVETYPE_NONE;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(blocker);
+    gi.LinkEntity(mine);
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    old_abilities = install_goldmine_test_data(&rows);
+    harvest_gold_start(worker, mine);
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->s.origin2.x > origin.x);
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &blocker->s.origin2) <
+             worker->collision + blocker->collision);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Resource movement must route static geometry with the worker's real collision radius.
+ * A Farm-sized obstacle across the direct mine lane reproduces the failure
+ * where the old point-sized field chose cells a Peasant could not physically
+ * traverse.  The bounded per-mover accelerator should immediately own a
+ * collision-sized detour while the shared field is rebuilt. */
+TEST(wc3_movement, worker_resource_static_detour_uses_worker_radius) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
+    slkTestData_t *rows, *old_abilities;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->s.angle = 0.0f;
+    mine->collision = 128.0f;
+    mine->s.model = 1;
+    mine->movetype = MOVETYPE_NONE;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mine);
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    old_abilities = install_goldmine_test_data(&rows);
+    harvest_gold_start(worker, mine);
+
+    /* Begin on an open lane, then rebuild the static map with a 4x4 block
+     * centred ahead of the already-moving worker, matching construction start. */
+    worker->currentmove->think(worker);
+    T_ASSERT(worker->s.origin2.x > -320.0f);
+    for (int y = 30; y <= 33; y++)
+        for (int x = 30; x <= 33; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->movement.path_valid);
+    T_FEQ(worker->movement.path_radius, worker->collision, 0.001f);
+    T_ASSERT(fabsf(worker->movement.path_waypoint.y) >= CM_PathCellWorldSize());
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Returning gold should target the nearest legal edge of a blocked drop-off,
+ * not the arbitrary pathable cell chosen around its centre.  Keep a Farm-sized
+ * obstacle in the lane so this also proves the mover-owned detour is aimed at
+ * that near-side edge rather than at the Town Hall centre/far side. */
+TEST(wc3_movement, worker_resource_gold_return_targets_near_side_edge) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -500.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->harvested_gold = 10;
+    worker->s.renderfx |= RF_HAS_GOLD;
+    worker->secondarygoal = mine;
+    hall->collision = 64.0f;
+    hall->s.model = 1;
+    hall->s.player = worker->s.player;
+    hall->pathtex = hall_pathtex;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(hall);
+
+    /* Hall authored footprint: centre cell is x=42/y=32 in these bounds and
+     * movement_make_goldmine_pathtex() blocks local cells 4..11. */
+    for (int y = 28; y < 36; y++)
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    /* Farm-sized obstacle between the mine side and the Hall's left edge. */
+    for (int y = 30; y <= 33; y++)
+        for (int x = 30; x <= 33; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(harvest_gold_return_to(worker, hall));
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->movement.path_valid);
+    T_FEQ(worker->movement.path_radius, worker->collision, 0.001f);
+    T_ASSERT(worker->movement.path_target.x < hall->s.origin2.x);
+    T_ASSERT(worker->movement.path_target.x > worker->s.origin2.x);
+
+    hall->pathtex = NULL;
+    gi.MemFree(hall_pathtex);
+}
+
+/* Lumber Return Resources uses the same collision contract but a separate
+ * behavior.  A Lumber Mill to the right must likewise keep the route endpoint
+ * on its left/near edge, even when the worker has to detour around new static
+ * construction on the way there. */
+TEST(wc3_movement, worker_resource_lumber_return_targets_near_side_edge) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 0.0f);
+    pathTex_t *mill_pathtex = movement_make_goldmine_pathtex();
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 10);
+    mill->collision = 64.0f;
+    mill->s.model = 1;
+    mill->s.player = worker->s.player;
+    mill->pathtex = mill_pathtex;
+    make_live_dropoff(mill, &return_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mill);
+
+    for (int y = 28; y < 36; y++)
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    for (int y = 30; y <= 33; y++)
+        for (int x = 30; x <= 33; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(harvest_lumber_return_to(worker, mill));
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->movement.path_valid);
+    T_FEQ(worker->movement.path_radius, worker->collision, 0.001f);
+    T_ASSERT(worker->movement.path_target.x < mill->s.origin2.x);
+    T_ASSERT(worker->movement.path_target.x > worker->s.origin2.x);
+
+    mill->pathtex = NULL;
+    gi.MemFree(mill_pathtex);
+}
+
+/* Collision-sized static routing is cell-centred and therefore can stop just
+ * outside the continuous footprint+step deposit test.  Once resource routing reaches
+ * the innermost legal near-side endpoint, Return Resources must accept that
+ * route end instead of repeatedly steering back across it. */
+TEST(wc3_movement, worker_resource_gold_deposits_at_near_side_route_endpoint) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
+    DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+    VECTOR2 approach;
+    FLOAT route_band;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->harvested_gold = 10;
+    worker->s.renderfx |= RF_HAS_GOLD;
+    hall->collision = 64.0f;
+    hall->s.model = 1;
+    hall->s.player = worker->s.player;
+    hall->pathtex = hall_pathtex;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(hall);
+
+    for (int y = 28; y < 36; y++)
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    route_band = worker->collision + CM_PathCellWorldSize() * 1.41421356237f;
+    T_ASSERT(CM_FindInnerApproachPointToFootprintForRadius(
+        hall, &worker->s.origin2, route_band, worker->collision, &approach));
+    T_ASSERT(CM_DistanceToPathingFootprint(hall, &approach) >
+             worker->collision + unit_movedistance(worker));
+    worker->s.origin2 = approach;
+    gi.LinkEntity(worker);
+
+    T_ASSERT(harvest_gold_return_to(worker, hall));
+    worker->currentmove->think(worker);
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold + 10);
+    T_EQ(worker->harvested_gold, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
+
+    hall->pathtex = NULL;
+    gi.MemFree(hall_pathtex);
+}
+
+TEST(wc3_movement, worker_resource_lumber_deposits_at_near_side_route_endpoint) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 0.0f);
+    pathTex_t *mill_pathtex = movement_make_goldmine_pathtex();
+    DWORD const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+    VECTOR2 approach;
+    FLOAT route_band;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 10);
+    mill->collision = 64.0f;
+    mill->s.model = 1;
+    mill->s.player = worker->s.player;
+    mill->pathtex = mill_pathtex;
+    make_live_dropoff(mill, &return_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mill);
+
+    for (int y = 28; y < 36; y++)
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    route_band = worker->collision + CM_PathCellWorldSize() * 1.41421356237f;
+    T_ASSERT(CM_FindInnerApproachPointToFootprintForRadius(
+        mill, &worker->s.origin2, route_band, worker->collision, &approach));
+    T_ASSERT(CM_DistanceToPathingFootprint(mill, &approach) >
+             worker->collision + unit_movedistance(worker));
+    worker->s.origin2 = approach;
+    gi.LinkEntity(worker);
+
+    T_ASSERT(harvest_lumber_return_to(worker, mill));
+    worker->currentmove->think(worker);
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 10);
+    T_EQ(worker->harvested_lumber, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+
+    mill->pathtex = NULL;
+    gi.MemFree(mill_pathtex);
+}
+
+/* Destructables are the opposite branch in Warsmash: Harvest resets the same
+ * generic mover with collision enabled.  A tree approach may route/slide around
+ * another unit, but must never commit a step through its collision circle. */
+TEST(wc3_movement, worker_resource_tree_approach_keeps_live_unit_collision) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    FLOAT const saved_range = HARVEST_RANGE;
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(400.0f, 0.0f, 100.0f);
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->s.angle = 0.0f;
+    blocker->collision = 16.0f;
+    blocker->s.model = 1;
+    blocker->movetype = MOVETYPE_NONE;
+    gi.LinkEntity(worker);
+    gi.LinkEntity(blocker);
+    gi.LinkEntity(tree);
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    HARVEST_RANGE = 64.0f;
+    harvest_start(worker, tree);
+    worker->currentmove->think(worker);
+
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &blocker->s.origin2) >=
+             worker->collision + blocker->collision);
+    HARVEST_RANGE = saved_range;
+}
+
+/* CBehaviorReturnResources always disables live-unit collision in Warsmash,
+ * independent of whether the carried resource is gold or lumber. */
+TEST(wc3_movement, worker_resource_lumber_return_ignores_live_units) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 400.0f, 0.0f);
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->s.angle = 0.0f;
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 10);
+    blocker->collision = 16.0f;
+    blocker->s.model = 1;
+    blocker->movetype = MOVETYPE_NONE;
+    hall->collision = 64.0f;
+    hall->s.model = 1;
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(blocker);
+    gi.LinkEntity(hall);
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(harvest_lumber_return_to(worker, hall));
+    worker->currentmove->think(worker);
+
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &blocker->s.origin2) <
+             worker->collision + blocker->collision);
+}
+
 /* Gold workers enter at the mine boundary; the mine's collision footprint must
  * not strand them just outside the older fixed interaction radius. */
 TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
@@ -375,13 +733,12 @@ TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
     gi.MemFree(mine_pathtex);
 }
 
-/* Human02 can pack several returning miners into the same final approach lane.
- * The front worker may then settle just outside the strict one-step footprint
- * threshold: in the captured regression a 16u-radius Peasant with a 19u step
- * stopped at 36.9u while the normal threshold was 35u.  A worker that has
- * stopped making progress inside Move's near-goal settle band must hand off to
- * the mine queue instead of remaining in walk forever. */
-TEST(wc3_movement, gold_worker_settled_at_blocked_mine_edge_enters_queue) {
+/* Resource-building legs ignore live units, so the old Human02 crowd-settle
+ * shortcut is no longer part of mine entry. Static pathing remains authoritative:
+ * a worker that cannot get its real collision radius within the authored mine
+ * interaction boundary must keep the Harvest order alive rather than entering
+ * through a blocked edge. */
+TEST(wc3_movement, gold_worker_static_blocked_edge_does_not_fake_mine_entry) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
     LPEDICT worker = make_moving_unit(151.0f, 0.0f);
@@ -421,8 +778,10 @@ TEST(wc3_movement, gold_worker_settled_at_blocked_mine_edge_enters_queue) {
             break;
     }
 
-    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
-    T_EQ(mine->peonsinside, 1);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_EQ(mine->peonsinside, 0);
+    T_ASSERT(worker->goalentity == mine);
+    T_STREQ(worker->currentmove->animation, "walk");
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
     gi.MemFree(mine_pathtex);
@@ -935,10 +1294,11 @@ TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resum
 }
 
 /* Resumable routing returns generation 0 until its shared flow job completes.
- * Three workers ordered together must all hold their starting positions during
- * that interval instead of walking along their previous facing (the Human02
- * regression made all three initially head away from the clicked mine). */
-TEST(wc3_movement, gold_three_workers_accelerate_while_shared_route_is_pending) {
+ * The bounded mover-owned accelerator is intentionally best-effort: a longer
+ * detour may exceed its immediate work budget. Three miners must then hold their
+ * starting positions instead of walking along stale facing, and resume once the
+ * shared collision-sized field becomes available. */
+TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
     enum { CELLS = 64, WORKERS = 3 };
     BYTE pathmap[CELLS * CELLS] = {0};
     LPEDICT mine;
@@ -989,12 +1349,10 @@ TEST(wc3_movement, gold_three_workers_accelerate_while_shared_route_is_pending) 
 
     FOR_LOOP(i, WORKERS) {
         workers[i]->currentmove->think(workers[i]);
-        T_ASSERT(Vector2_distance(&workers[i]->s.origin2, &origin[i]) > 0.001f);
+        T_FEQ(Vector2_distance(&workers[i]->s.origin2, &origin[i]), 0.0f, 0.001f);
         T_EQ(workers[i]->movement.flow_generation, 0);
         T_ASSERT(!workers[i]->movement.flow_direct);
-        T_ASSERT(workers[i]->movement.path_valid);
-        T_ASSERT(CM_LineIsWalkableForRadius(
-            &workers[i]->s.origin2, &workers[i]->movement.path_waypoint, workers[i]->movement.path_radius));
+        T_ASSERT(!workers[i]->movement.path_valid);
     }
 
     CM_ProcessPathJobs(65536);
@@ -1002,6 +1360,7 @@ TEST(wc3_movement, gold_three_workers_accelerate_while_shared_route_is_pending) 
         workers[i]->currentmove->think(workers[i]);
         T_ASSERT(workers[i]->movement.flow_generation != 0);
         T_ASSERT(!workers[i]->movement.path_valid);
+        T_ASSERT(Vector2_distance(&workers[i]->s.origin2, &origin[i]) > 0.001f);
     }
 
     G_SetSLKRows("AbilityData", old_abilities);
@@ -1119,8 +1478,10 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
 }
 
 /* Gold return can miss the shared cache independently of mine approach. The
- * bounded mover route must provide a real heading instead of stale facing. */
-TEST(wc3_movement, gold_return_accelerates_while_shared_route_is_pending) {
+ * bounded mover route is best-effort; when this long detour exceeds that local
+ * accelerator, Return Resources must hold rather than use stale facing, then
+ * resume from the shared collision-sized field when its job completes. */
+TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
     LPEDICT worker = make_moving_unit(320.0f, 0.0f);
@@ -1152,17 +1513,16 @@ TEST(wc3_movement, gold_return_accelerates_while_shared_route_is_pending) {
     origin = worker->s.origin2;
     worker->currentmove->think(worker);
 
-    T_ASSERT(Vector2_distance(&worker->s.origin2, &origin) > 0.001f);
+    T_FEQ(Vector2_distance(&worker->s.origin2, &origin), 0.0f, 0.001f);
     T_EQ(worker->movement.flow_generation, 0);
     T_ASSERT(!worker->movement.flow_direct);
-    T_ASSERT(worker->movement.path_valid);
-    T_ASSERT(CM_LineIsWalkableForRadius(
-        &worker->s.origin2, &worker->movement.path_waypoint, worker->movement.path_radius));
+    T_ASSERT(!worker->movement.path_valid);
 
     CM_ProcessPathJobs(65536);
     worker->currentmove->think(worker);
     T_ASSERT(worker->movement.flow_generation != 0);
     T_ASSERT(!worker->movement.path_valid);
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &origin) > 0.001f);
 }
 
 /* Right-click is also the cancel gesture for an active targeted command.

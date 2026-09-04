@@ -70,7 +70,13 @@ FLOAT unit_movedistance(LPEDICT self) {
 typedef enum {
     MOVE_AVOID_GENERIC,
     MOVE_AVOID_RESOURCE_WORKER,
+    MOVE_AVOID_STATIC_ONLY,
 } moveAvoidPolicy_t;
+
+typedef enum {
+    MOVE_COLLIDE_UNITS,
+    MOVE_IGNORE_UNITS,
+} moveCollisionPolicy_t;
 
 static LPEDICT trymove_self = NULL;
 static LPEDICT trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
@@ -110,7 +116,8 @@ static FLOAT point_segment_distance(LPCVECTOR2 a, LPCVECTOR2 b, LPCVECTOR2 p) {
 /* Is the position 'cand' free for 'self' (static world + other units)?  On a
  * unit rejection, records the blocking unit in trymove_blocker (NULL otherwise)
  * so the slide can apply speed-priority give-way. */
-static BOOL move_is_valid(LPEDICT self, LPCVECTOR2 cand) {
+static BOOL move_is_valid_policy(LPEDICT self, LPCVECTOR2 cand,
+                                 moveCollisionPolicy_t collision_policy) {
     trymove_blocker = NULL;
     /* Pathing-disabled units (SetUnitPathing(false), scripted moves) ignore
      * all collision, matching the old unconditional translate. */
@@ -126,6 +133,9 @@ static BOOL move_is_valid(LPEDICT self, LPCVECTOR2 cand) {
     if (CM_PointIsPathableForRadius(&self->s.origin2, self->collision) &&
         !CM_LineIsWalkableForRadius(&self->s.origin2, cand, self->collision))
         return false;
+
+    if (collision_policy == MOVE_IGNORE_UNITS)
+        return true;
 
     /* Dynamic units: precise circle test.  The "don't deepen penetration" rule
      * ignores a neighbour the unit already overlaps unless the candidate moves
@@ -166,6 +176,10 @@ static BOOL move_is_valid(LPEDICT self, LPCVECTOR2 cand) {
     return true;
 }
 
+static BOOL move_is_valid(LPEDICT self, LPCVECTOR2 cand) {
+    return move_is_valid_policy(self, cand, MOVE_COLLIDE_UNITS);
+}
+
 /* Public: would 'pos' be a free standing spot for 'self' (terrain + units)?
  * Used by the move arrival to avoid snapping a unit onto an occupied goal. */
 BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos) {
@@ -191,7 +205,8 @@ static void unit_commit_step(LPEDICT self, LPCVECTOR2 cand) {
  * disagreed with the heading unit_changeangle had already chosen and re-decided
  * a different direction every tick — that disagreement is what made units
  * visibly rotate/wobble and crab sideways past each other and trees. */
-void unit_moveindirection(LPEDICT self) {
+static void unit_moveindirection_policy(LPEDICT self,
+                                        moveCollisionPolicy_t collision_policy) {
     if (self->aiflags & AI_IMMOBILE)
         return;
 
@@ -207,15 +222,40 @@ void unit_moveindirection(LPEDICT self) {
     FLOAT const dist = unit_movedistance(self);
     VECTOR2 const by_facing = Vector2_mad(&self->s.origin2, dist,
                                           &MAKE(VECTOR2, cosf(self->s.angle), sinf(self->s.angle)));
-    if (move_is_valid(self, &by_facing)) {
+    if (move_is_valid_policy(self, &by_facing, collision_policy)) {
         unit_commit_step(self, &by_facing);
         return;
     }
     VECTOR2 const by_heading = Vector2_mad(&self->s.origin2, dist,
                                            &MAKE(VECTOR2, cosf(self->movement.heading), sinf(self->movement.heading)));
-    if (move_is_valid(self, &by_heading)) {
+    if (move_is_valid_policy(self, &by_heading, collision_policy)) {
         unit_commit_step(self, &by_heading);
     }
+}
+
+void unit_moveindirection(LPEDICT self) {
+    unit_moveindirection_policy(self, MOVE_COLLIDE_UNITS);
+}
+
+void unit_moveindirection_ignore_units(LPEDICT self) {
+    unit_moveindirection_policy(self, MOVE_IGNORE_UNITS);
+}
+
+/* Interaction routing may finish at a collision-safe staging point rather
+ * than at the blocked building centre.  When that endpoint is within this
+ * tick's movement budget, land exactly on it instead of stepping past it and
+ * selecting it again from the opposite side next think.  This is the same
+ * arrival snap used by ordinary Move, but deliberately ignores live units for
+ * Warsmash-style Mine/drop-off legs while retaining all static pathing. */
+BOOL unit_snap_to_point_ignore_units(LPEDICT self, LPCVECTOR2 point) {
+    if (!self || !point || (self->aiflags & AI_IMMOBILE))
+        return false;
+    if (Vector2_distance(&self->s.origin2, point) > unit_movedistance(self) + 0.001f)
+        return false;
+    if (!move_is_valid_policy(self, point, MOVE_IGNORE_UNITS))
+        return false;
+    unit_commit_step(self, point);
+    return true;
 }
 
 /* Turn the facing vector toward a target heading by at most the unit's turn
@@ -326,11 +366,13 @@ static FLOAT unit_worker_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT d
  * queue/pass-right policy above. */
 static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist,
                                   moveAvoidPolicy_t policy) {
+    moveCollisionPolicy_t const collision_policy =
+        policy == MOVE_AVOID_STATIC_ONLY ? MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS;
     VECTOR2 const straight = Vector2_mad(&self->s.origin2, dist,
                                          &MAKE(VECTOR2, cosf(goal_angle), sinf(goal_angle)));
     if (policy == MOVE_AVOID_RESOURCE_WORKER)
         return unit_worker_desired_heading(self, goal_angle, dist);
-    if (move_is_valid(self, &straight))
+    if (move_is_valid_policy(self, &straight, collision_policy))
         return goal_angle;
 
     int max_rings = MOVE_SLIDE_RINGS;
@@ -344,7 +386,7 @@ static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist,
             FLOAT const angle = angle_wrap(goal_angle + sign * ring * MOVE_SLIDE_STEP);
             VECTOR2 const cand = Vector2_mad(&self->s.origin2, dist,
                                              &MAKE(VECTOR2, cosf(angle), sinf(angle)));
-            if (move_is_valid(self, &cand))
+            if (move_is_valid_policy(self, &cand, collision_policy))
                 return angle;
         }
     }
@@ -383,23 +425,32 @@ static void unit_changeangle_towards_point_policy(LPEDICT self, LPCVECTOR2 point
 
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
  * route progress on each mover instead of rebuilding from its current point. */
-static BOOL unit_accel_direction(LPEDICT self, FLOAT radius, LPVECTOR2 dir) {
-    VECTOR2 const target = self->goalentity->s.origin2;
+static BOOL unit_accel_direction_to_point(LPEDICT self, LPCVECTOR2 target,
+                                          FLOAT radius, LPVECTOR2 dir) {
     FLOAT const reached = CM_PathCellWorldSize();
 
+    if (!self || !target || !dir)
+        return false;
     if (self->movement.path_valid &&
-        (Vector2_distance(&self->movement.path_target, &target) >= 1.0f ||
+        (Vector2_distance(&self->movement.path_target, target) >= 1.0f ||
          fabsf(self->movement.path_radius - radius) >= 0.01f ||
          Vector2_distance(&self->s.origin2, &self->movement.path_waypoint) <= reached ||
          !CM_LineIsWalkableForRadius(&self->s.origin2, &self->movement.path_waypoint, radius)))
         self->movement.path_valid = false;
     if (!self->movement.path_valid) {
-        pathAccelParams_t params = { &self->s.origin2, &target, radius };
+        pathAccelParams_t params = { &self->s.origin2, target, radius };
         if (!CM_FindPathWaypoint(&params, &self->movement.path_waypoint)) return false;
-        self->movement.path_target = target; self->movement.path_radius = radius; self->movement.path_valid = true;
+        self->movement.path_target = *target;
+        self->movement.path_radius = radius;
+        self->movement.path_valid = true;
     }
     *dir = Vector2_sub(&self->movement.path_waypoint, &self->s.origin2);
     return true;
+}
+
+static BOOL unit_accel_direction(LPEDICT self, FLOAT radius, LPVECTOR2 dir) {
+    return unit_accel_direction_to_point(self, &self->goalentity->s.origin2,
+                                         radius, dir);
 }
 
 void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
@@ -408,6 +459,35 @@ void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
 
 void unit_changeangle_towards_point_worker(LPEDICT self, LPCVECTOR2 point) {
     unit_changeangle_towards_point_policy(self, point, MOVE_AVOID_RESOURCE_WORKER);
+}
+
+BOOL unit_changeangle_towards_point_ignore_units(LPEDICT self, LPCVECTOR2 point) {
+    VECTOR2 dir;
+
+    if (!self || !point || (self->aiflags & AI_IMMOBILE))
+        return false;
+
+    self->movement.heading = self->s.angle;
+    self->movement.flow_generation = 0;
+    self->movement.flow_goal_reached = false;
+    self->movement.flow_unreachable = false;
+    self->movement.flow_direct = false;
+
+    /* Resource-return behaviors keep the building as their authoritative goal,
+     * but navigation may target a worker-relative footprint edge.  Prefer that
+     * exact point when it is directly reachable; otherwise use the same
+     * collision-sized mover-owned A* accelerator used while shared fields are
+     * pending.  Live units remain ignored by the steering/move policy. */
+    if (CM_LineIsWalkableForRadius(&self->s.origin2, point, self->collision)) {
+        self->movement.path_valid = false;
+        self->movement.flow_direct = true;
+        dir = Vector2_sub(point, &self->s.origin2);
+    } else if (!unit_accel_direction_to_point(self, point, self->collision, &dir)) {
+        return false;
+    }
+
+    unit_apply_heading(self, &dir, MOVE_AVOID_STATIC_ONLY);
+    return true;
 }
 
 static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
@@ -496,7 +576,8 @@ void unit_changeangle_worker(LPEDICT self) {
  * approach points, so reaching the adjusted flow goal never changes their
  * gameplay target. Generic point movement continues through unit_changeangle(). */
 static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
-                                               moveAvoidPolicy_t policy) {
+                                               moveAvoidPolicy_t policy,
+                                               BOOL continue_to_target) {
     if (self->aiflags & AI_IMMOBILE)
         return;
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
@@ -527,10 +608,18 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
 
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             self->movement.flow_goal_reached = true;
-            return;
+            if (!continue_to_target)
+                return;
+            /* Ranged interactions target a blocked unit/building centre.  A
+             * collision-sized route deliberately ends at the nearest legal
+             * cell around that footprint; from there keep steering at the real
+             * target and let the behavior's precise range check complete the
+             * interaction before a step would enter static pathing. */
+            dir = to_goal;
+        } else {
+            dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
         }
-        dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
-        if (Vector2_len(&dir) <= 0.001f) {
+        if (!self->movement.flow_goal_reached && Vector2_len(&dir) <= 0.001f) {
             self->movement.flow_unreachable =
                 !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
             return;
@@ -541,11 +630,19 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
 }
 
 void unit_changeangle_for_radius(LPEDICT self, FLOAT radius) {
-    unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_GENERIC);
+    unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_GENERIC, false);
 }
 
 void unit_changeangle_for_radius_worker(LPEDICT self, FLOAT radius) {
-    unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_RESOURCE_WORKER);
+    unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_RESOURCE_WORKER, false);
+}
+
+void unit_changeangle_interaction_ignore_units(LPEDICT self) {
+    /* Warsmash's mover owns a collision-sized path even when the ranged
+     * behavior disables unit collision.  Use the worker radius for static
+     * routing, but keep mobile-unit collision disabled at steering/move time. */
+    unit_changeangle_for_radius_policy(self, self ? self->collision : 0.0f,
+                                       MOVE_AVOID_STATIC_ONLY, true);
 }
 
 void unit_setanimation(LPEDICT self, LPCSTR anim) {

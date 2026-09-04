@@ -1408,8 +1408,12 @@ void unit_updatestatuses(LPEDICT);
 
 // g_monster.c
 void unit_moveindirection(LPEDICT);
+void unit_moveindirection_ignore_units(LPEDICT);
+BOOL unit_snap_to_point_ignore_units(LPEDICT, LPCVECTOR2);
 void unit_changeangle(LPEDICT);
 void unit_changeangle_worker(LPEDICT);
+void unit_changeangle_interaction_ignore_units(LPEDICT);
+BOOL unit_changeangle_towards_point_ignore_units(LPEDICT, LPCVECTOR2);
 void unit_changeangle_towards_point(LPEDICT, LPCVECTOR2);
 void unit_changeangle_towards_point_worker(LPEDICT, LPCVECTOR2);
 void unit_changeangle_for_radius(LPEDICT, FLOAT);
