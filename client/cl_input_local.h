@@ -24,8 +24,4 @@ void CL_UpdateMinimapDrag(float x, float y);
 void CL_EndMinimapDrag(void);
 BOOL CL_MinimapKeyEvent(int key, BOOL repeat);
 
-/* Optional per-game key hook (WoW action bar). Return true if consumed.
- * New gameplay hotkeys belong in config `bind` lines, not here. */
-BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat);
-
 #endif

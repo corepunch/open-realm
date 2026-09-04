@@ -12,6 +12,7 @@ static struct {
 } camera_drag;
 
 static BOOL smart_click_active;
+static BOOL cam_left, cam_right, cam_north, cam_south;
 
 static BOOL CL_OrderQueueModifierDown(void) {
     return (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
@@ -25,7 +26,7 @@ static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 #endif
 }
 
-/* --- Control groups. Keys come from config binds, not CL_HandleGameKey. ------ */
+/* --- Control groups. Keys come from config binds (`group` / `group add` / `group assign`). ------ */
 #define CL_CONTROL_GROUP_COUNT 10 // groups; Warcraft III number-key groups; used for client control-group storage
 #define CL_CONTROL_GROUP_DOUBLE_TAP_MS 500 // milliseconds; double-tap focus window; used to recenter a recalled group
 #define CL_CONTROL_GROUP_NONE CL_CONTROL_GROUP_COUNT
@@ -40,6 +41,7 @@ void CL_InputModeResetMap(void) {
     memset(cg_count, 0, sizeof(cg_count));
     cg_last_recall = CL_CONTROL_GROUP_NONE;
     cg_last_recall_ms = 0;
+    cam_left = cam_right = cam_north = cam_south = false;
 }
 
 static void CL_ResetControlGroupRecall(void) {
@@ -158,11 +160,6 @@ static void CL_Group_f(void) {
     else CL_GroupRecall(g);
 }
 
-BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
-    (void)sym; (void)mod; (void)repeat;
-    return false;
-}
-
 static void CL_BeginPan(float x, float y) {
     if (!CL_GameplayInputReady()) {
         camera_drag.active = false;
@@ -252,11 +249,28 @@ static void IN_SmartUp(void) {
     CL_SendSmartCommand(mouse.origin.x, mouse.origin.y);
 }
 
+static void IN_CamLeftDown(void) { cam_left = true; }
+static void IN_CamLeftUp(void) { cam_left = false; }
+static void IN_CamRightDown(void) { cam_right = true; }
+static void IN_CamRightUp(void) { cam_right = false; }
+static void IN_CamNorthDown(void) { cam_north = true; }
+static void IN_CamNorthUp(void) { cam_north = false; }
+static void IN_CamSouthDown(void) { cam_south = true; }
+static void IN_CamSouthUp(void) { cam_south = false; }
+
 void CL_InputModeInit(void) {
     Cmd_AddCommand("+pan", IN_PanDown);
     Cmd_AddCommand("-pan", IN_PanUp);
     Cmd_AddCommand("+smart", IN_SmartDown);
     Cmd_AddCommand("-smart", IN_SmartUp);
+    Cmd_AddCommand("+camleft", IN_CamLeftDown);
+    Cmd_AddCommand("-camleft", IN_CamLeftUp);
+    Cmd_AddCommand("+camright", IN_CamRightDown);
+    Cmd_AddCommand("-camright", IN_CamRightUp);
+    Cmd_AddCommand("+camnorth", IN_CamNorthDown);
+    Cmd_AddCommand("-camnorth", IN_CamNorthUp);
+    Cmd_AddCommand("+camsouth", IN_CamSouthDown);
+    Cmd_AddCommand("-camsouth", IN_CamSouthUp);
     Cmd_AddCommand("group", CL_Group_f);
 }
 
@@ -280,14 +294,8 @@ void CL_InputModeSetGameplay(void) {
 }
 
 void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
-    if (!button || button->button != SDL_BUTTON_MIDDLE) {
-        return;
-    }
-    if (down) {
-        CL_BeginPan(button->x, button->y);
-        return;
-    }
-    CL_EndPan();
+    (void)button;
+    (void)down;
 }
 
 static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
@@ -338,8 +346,8 @@ BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel) {
     return false;
 }
 
-/* WC3-style camera scrolling: arrow keys and screen-edge push. Runs every
- * client frame. World +Y is north (up on screen), +X is east (right). */
+/* Camera scrolling: +cam* binds and screen-edge push. Runs every client frame.
+ * World +Y is north (up on screen), +X is east (right). */
 #define CL_CAMERA_SCROLL_SPEED 1400.0f /* world units per second (WC3 default) */
 #ifdef SC2
 #undef  CL_CAMERA_SCROLL_SPEED
@@ -369,13 +377,10 @@ void CL_InputModeFrame(void) {
     }
 
     float dx = 0.0f, dy = 0.0f;
-    Uint8 const *keys = SDL_GetKeyboardState(NULL);
-    if (keys) {
-        if (keys[SDL_SCANCODE_LEFT])  dx -= 1.0f;
-        if (keys[SDL_SCANCODE_RIGHT]) dx += 1.0f;
-        if (keys[SDL_SCANCODE_UP])    dy += 1.0f;
-        if (keys[SDL_SCANCODE_DOWN])  dy -= 1.0f;
-    }
+    if (cam_left)  dx -= 1.0f;
+    if (cam_right) dx += 1.0f;
+    if (cam_north) dy += 1.0f;
+    if (cam_south) dy -= 1.0f;
 
     /* Screen-edge scrolling (only while the cursor is inside the window). */
 #ifndef SC2

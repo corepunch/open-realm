@@ -4,10 +4,18 @@
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
 
-/* SDL2 function keys are 0x4000003A–0x40000045 and don't fit in keyCode_t; map them to K_F1-K_F12. */
+/* SDL2 function/arrow keys are 0x40000000+ and don't fit in keyCode_t. */
 static keyCode_t CL_SDLKeyToKeyCode(int sym) {
+    static struct { int sym; keyCode_t key; } const extra[] = {
+        { SDLK_UP, K_UPARROW },
+        { SDLK_DOWN, K_DOWNARROW },
+        { SDLK_LEFT, K_LEFTARROW },
+        { SDLK_RIGHT, K_RIGHTARROW },
+    };
     if (sym >= SDLK_F1 && sym <= SDLK_F12)
         return (keyCode_t)(K_F1 + (sym - SDLK_F1));
+    FOR_LOOP(i, 4)
+        if (extra[i].sym == sym) return extra[i].key;
     return (keyCode_t)sym;
 }
 
@@ -123,10 +131,6 @@ void CL_Input(void) {
                     break;
                 if (cls.key_dest == key_game && CL_MinimapKeyEvent(event.key.keysym.sym, event.key.repeat != 0)) {
                     break;
-                }
-                if (cls.key_dest == key_game &&
-                    CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod, event.key.repeat != 0)) {
-                    break; /* consumed by in-game handler (e.g. WoW action bar) */
                 }
                 Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), CL_BindMods(event.key.keysym.mod), true, event.key.timestamp);
                 break;

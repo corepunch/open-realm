@@ -7,12 +7,12 @@ Read this before changing action-bar input, casts, projectiles, spell animation,
 Action commands use zero-based slots; keyboard labels are one-based. To cast the current Fireball prototype:
 
 1. Select a living hostile target with left mouse button.
-2. Press `5`, which sends `wow_action 4`.
+2. Press `5`, which is bound in `games/world-of-warcraft/share/config.cfg` as `cmd wow_action 4`.
 3. Remain stationary until the cast bar completes. Starting while moving is rejected; moving afterward cancels without
    spending mana. Escape sends `stopattack`, which cancels an active cast and clears combat targeting.
 4. At completion the server spends mana, launches the missile, and starts the release animation.
 
-`6` sends `wow_action 5` for Frostbolt. The Mage action-bar payload exposes these icons; the current command handler does
+`6` is bound as `cmd wow_action 5` for Frostbolt. Tab is `cmd wow_cycle_target`. Middle mouse shares `+look` with right mouse. The Mage action-bar payload exposes these icons; the current command handler does
 not yet validate the character's spellbook/class, so class authorization remains required work.
 
 ## Implemented Prototype Spells
