@@ -397,9 +397,9 @@ static void G_ReclampClientCamera(LPGAMECLIENT client) {
     VECTOR2 position;
 
     if (!client) return;
-    position = (VECTOR2){ client->ps.origin.x, client->ps.origin.y };
+    position = (VECTOR2){ client->ps.vieworigin.x, client->ps.vieworigin.y };
     position = G_ClampCameraPosition(client, &position);
-    client->ps.origin = G_MakeServerOrigin(position.x, position.y, client->camera.state.z_offset);
+    client->ps.vieworigin = G_MakeServerOrigin(position.x, position.y, client->camera.state.z_offset);
     position = G_ClampCameraPosition(client, &client->camera.old_state.position);
     client->camera.old_state.position = position;
     position = G_ClampCameraPosition(client, &client->camera.state.position);
@@ -471,7 +471,7 @@ static void G_RunClients(void) {
             LPCCAMERASETUP a = &client->camera.old_state;
             LPCCAMERASETUP b = &client->camera.state;
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
-            client->ps.origin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
+            client->ps.vieworigin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             /* JASS interpolates camera fields independently; the client slerps the snapshot Eulers. */
             client->ps.viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, k);
             client->ps.fov = LerpNumber(a->fov, b->fov, k);
@@ -479,7 +479,7 @@ static void G_RunClients(void) {
             client->ps.znear = LerpNumber(a->near_z, b->near_z, k);
             client->ps.zfar = LerpNumber(a->far_z, b->far_z, k);
         } else {
-            client->ps.origin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
+            client->ps.vieworigin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
             client->ps.viewangles = client->camera.state.viewangles;
             client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
@@ -866,7 +866,7 @@ static void G_ClientBegin(LPEDICT edict) {
     G_SetClientConnected(edict, true);
     G_InitClientUIState(client);
     if (!client->mapplayer) {
-        client->ps.origin = (VECTOR3){ 0, 0, 0 };
+        client->ps.vieworigin = (VECTOR3){ 0, 0, 0 };
     }
     fprintf(stderr,
             "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
@@ -876,8 +876,8 @@ static void G_ClientBegin(LPEDICT edict) {
             (unsigned)client->ps.race,
             (unsigned)client->ps.color,
             (long)client->ps.start_location,
-            client->ps.origin.x,
-            client->ps.origin.y,
+            client->ps.vieworigin.x,
+            client->ps.vieworigin.y,
             client->ps.name ? client->ps.name : "");
     level.started = true;
     G_StartScripts();

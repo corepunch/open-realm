@@ -1256,7 +1256,7 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     if (!ent || !ent->client) {
         return;
     }
-    ent->client->ps.origin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, 0 };
+    ent->client->ps.vieworigin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, 0 };
     ent->client->ps.viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
     ent->client->ps.fov = 45.0f;
     ent->client->ps.distance = wow_move.distance;
@@ -1554,12 +1554,12 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
         fprintf(stderr, "WoW: action bar initialized for class %u\n", (unsigned)class_id);
     }
 #ifdef WOW
-    ps->origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
+    ps->vieworigin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
     ps->fov = 45;
     ps->distance = wow_move.distance;
 #else
-    ps->origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
+    ps->vieworigin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
     ps->viewangles = (VECTOR3){ 326.0f, 0.0f, 0.0f };
     ps->fov = 54;
     ps->distance = 250.0f;
@@ -2460,8 +2460,8 @@ static void Wow_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (!ent || !ent->client || !position) {
         return;
     }
-    ent->client->ps.origin.x = position->x;
-    ent->client->ps.origin.y = position->y;
+    ent->client->ps.vieworigin.x = position->x;
+    ent->client->ps.vieworigin.y = position->y;
 }
 
 static void Wow_ClientBegin(LPEDICT ent) {

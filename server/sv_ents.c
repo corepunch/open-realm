@@ -38,9 +38,9 @@ static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCEDICT edict) {
     if (ge->CanSeeEntity) {
         return ge->CanSeeEntity(clent->client->ps.number, edict);
     }
-    if (fabs(edict->s.origin.x - clent->client->ps.origin.x) > VISUAL_DISTANCE)
+    if (fabs(edict->s.origin.x - clent->client->ps.vieworigin.x) > VISUAL_DISTANCE)
         return false;
-    if (fabs(edict->s.origin.y - clent->client->ps.origin.y) > VISUAL_DISTANCE)
+    if (fabs(edict->s.origin.y - clent->client->ps.vieworigin.y) > VISUAL_DISTANCE)
         return false;
     return true;
 #endif
@@ -53,8 +53,8 @@ static FLOAT SV_ClientEntityVisibilityScore(LPCCLIENT client, LPCEDICT edict) {
     return 0.0f;
 #else
     edict_t *clent = client->edict;
-    FLOAT dx = edict->s.origin.x - clent->client->ps.origin.x;
-    FLOAT dy = edict->s.origin.y - clent->client->ps.origin.y;
+    FLOAT dx = edict->s.origin.x - clent->client->ps.vieworigin.x;
+    FLOAT dy = edict->s.origin.y - clent->client->ps.vieworigin.y;
     FLOAT score = dx * dx + dy * dy;
 
     if (edict->s.player == clent->client->ps.number) {

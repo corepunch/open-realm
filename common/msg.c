@@ -138,7 +138,7 @@ netField_t uiFrameFields[] = {
 /* Player-state deltas use a 32-bit mask; map metadata moved to configstrings, leaving room for generic camera fields. */
 netField_t playerStateFields[] = {
     { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
-    { NETF(PLAYER, origin), NFT_VECTOR3_FLOAT },
+    { NETF(PLAYER, vieworigin), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, fov), NFT_BYTE },
     /* distance, znear, zfar are consecutive FLOATs packed as one VECTOR3 field. */
     { NETF(PLAYER, distance), NFT_VECTOR3_FLOAT },
