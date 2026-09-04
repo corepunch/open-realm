@@ -201,15 +201,24 @@ void CL_Input(void) {
                 break;
             case SDL_MOUSEWHEEL:
                 {
-                    int x, y;
+                    int x, y, n;
+                    keyCode_t wheelkey;
                     SDL_GetMouseState(&x, &y);
                     if (cls.key_dest == key_menu)
                         menu.MouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y));
                     if (CL_WindowMouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y))) break;
                     SCR_LayoutMouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y));
-                }
-                if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel)) {
-                    break;
+                    if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel))
+                        break;
+                    /* Discrete wheel ticks are bindable keys (MWHEELUP / MWHEELDOWN). */
+                    if (cls.key_dest == key_console || event.wheel.y == 0)
+                        break;
+                    wheelkey = event.wheel.y > 0 ? K_MWHEELUP : K_MWHEELDOWN;
+                    n = event.wheel.y > 0 ? event.wheel.y : -event.wheel.y;
+                    FOR_LOOP(i, n) {
+                        Key_Event(wheelkey, CL_BindMods(SDL_GetModState()), true, event.wheel.timestamp);
+                        Key_Event(wheelkey, CL_BindMods(SDL_GetModState()), false, event.wheel.timestamp);
+                    }
                 }
                 break;
             case SDL_WINDOWEVENT:
