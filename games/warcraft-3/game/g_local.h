@@ -624,13 +624,12 @@ typedef struct {
 } gitem_t;
 
 #define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
-#define MAX_JASS_GROUPS 1024 // handles; bounds deterministic per-map group save IDs
-#define MAX_JASS_TRIGGERS 4096 // handles; bounds deterministic per-map trigger save IDs
-#define MAX_JASS_TIMERS 1024 // handles; bounds deterministic per-map timer save IDs
-#define MAX_EVENTS 4096 // handlers; fixed event slots preserve stable JASS pointers across removal
-#define MAX_JASS_EVENTS MAX_EVENTS // compatibility alias; event handles use the fixed MAX_EVENTS slots
-#define MAX_QUESTS 256 // quests; fixed quest slots preserve stable JASS pointers across removal
-#define MAX_QUESTITEMS 256 // items per quest; fixed quest-item slots preserve stable JASS pointers
+#define MAX_GROUPS 1024 // handles; bounds deterministic per-map group registry slots
+#define MAX_TRIGGERS 4096 // handles; bounds deterministic per-map trigger registry slots
+#define MAX_TIMERS 1024 // handles; bounds deterministic per-map timer registry slots
+#define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
+#define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
+#define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];
@@ -1172,11 +1171,11 @@ typedef struct {
 
 struct level_locals {
     LPJASS vm;
-    ggroup_t *groups[MAX_JASS_GROUPS];
+    ggroup_t *groups[MAX_GROUPS];
     DWORD num_groups;
-    LPTRIGGER triggers[MAX_JASS_TRIGGERS];
+    LPTRIGGER triggers[MAX_TRIGGERS];
     DWORD num_triggers;
-    LPGTIMER timers[MAX_JASS_TIMERS];
+    LPGTIMER timers[MAX_TIMERS];
     DWORD num_timers;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
