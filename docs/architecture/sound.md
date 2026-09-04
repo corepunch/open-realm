@@ -34,8 +34,7 @@ source are non-positional and are still delivered by the server packet path.
 
 At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and registers authored `What`, `Yes`, `Ready`, `YesAttack`, and death assets. WC3 also loads `UnitCombatSounds.slk` and `UISounds.slk`; construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields into `UISounds.slk`. See `docs/games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
 
-WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`, so the server unicasts them to the owning client.
-World events such as attacks, death, and tree impacts use ordinary entity-relative `gi.Sound` calls.
+WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When game code passes the connected client's own edict (for example local UI, dialogue, or minimap presentation), the server resolves that exact edict to the connection first; it must not assume the game's Warcraft player number equals the engine client slot. For ordinary unit-source owner sounds, it falls back to the entity's player ownership. World events such as attacks, death, and tree impacts use ordinary entity-relative `gi.Sound` calls.
 
 ### Key Files
 

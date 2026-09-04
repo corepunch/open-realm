@@ -210,3 +210,14 @@ During each bounded run, drag a world selection marquee downward through the com
 ### Cinefilter
 
 Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. The runtime interpolation is in `G_Cinefade()` which lerps between start/end alpha.
+
+### Human02 Victory-Cinematic Runtime Findings
+
+A September 2026 trace of the Human02 victory sequence showed the cinematic trigger chain itself continuing correctly through camera moves, sleeps, unit orders, dialogue, cleanup, and level transition. The highest-confidence functional gaps were narrower:
+
+- `IssueImmediateOrder(..., "mirrorimage")` returned false, leaving the campaign's later illusion target null. `AOmi` now runs through the ordinary no-target spell pipeline, creates timed illusion copies, and publishes summon events so the campaign trigger can capture `GetSummonedUnit()`.
+- scripted `holdposition` now routes through the same Hold Position state transition as the command card instead of returning false from `IssueImmediateOrder`.
+- owner-only cinematic sounds and minimap pings must resolve an explicitly supplied client edict before comparing Warcraft player numbers to engine connection slots. The old slot-only lookup caused `owner unavailable` / `no client` failures even for the connected local player.
+- `SetSoundVolume`, `SetSoundPosition`, and `AttachSoundToUnit` now feed the existing one-shot sound packet. MP3 dialogue decoding, stop/fade, volume groups, and thematic music are still separate audio gaps.
+
+The same trace reported authored `.mdl` effects and `.tga` cinefilter masks as missing at the diagnostic lookup layer. Do not special-case those names in cinematic code: the renderer already retries `.mdl` as `.mdx` and missing `.tga` textures as `.blp`. A diagnostic that probes only the authored name can therefore report a false missing asset even when render-time fallback succeeds.

@@ -120,6 +120,7 @@ enum {
     AI_IMMOBILE   = 1 << 2,  /* fixed unit: may act, but never translates or changes facing */
     AI_AUTOCAST_REPAIR = 1 << 3, /* persisted Repair-family autocast toggle */
     AI_AUTOCAST_ACTIVE = 1 << 4, /* fast unit-wide marker: some autocast ability is enabled */
+    AI_ILLUSION    = 1 << 5,  /* summoned copy created by illusion abilities */
 };
 
 typedef enum {
@@ -1296,6 +1297,7 @@ void G_SetStockSlots(LPEDICT, BOOL, LONG);
 void G_InitStockSlots(LPEDICT);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
+void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
@@ -1710,6 +1712,20 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *);
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
+
+typedef struct {
+    FLOAT volume;
+    VECTOR3 origin;
+    LPEDICT emitter;
+    BOOL positioned;
+} jassSoundPlayback_t;
+
+void G_JassSoundRuntimeReset(void);
+void G_JassSoundRuntimeInit(HANDLE sound);
+void G_JassSoundSetVolume(HANDLE sound, FLOAT volume);
+void G_JassSoundSetPosition(HANDLE sound, LPCVECTOR3 position);
+void G_JassSoundAttach(HANDLE sound, LPEDICT unit);
+void G_JassSoundPlayback(HANDLE sound, jassSoundPlayback_t *playback);
 void G_SendPointConfirmation(LPEDICT, LPCVECTOR2, BOOL attack);
 void G_QueueReadySound(LPEDICT);
 void G_QueueOwnerSoundAlias(LPEDICT, LPCSTR);

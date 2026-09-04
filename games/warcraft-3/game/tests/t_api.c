@@ -1066,6 +1066,47 @@ TEST(wc3_api, effect_natives_return_independent_handles) {
         "endfunction\n"));
 }
 
+TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
+    int handle_storage = 0;
+    HANDLE handle = &handle_storage;
+    jassSoundPlayback_t playback;
+    LPEDICT unit;
+
+    reset_entities();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32.0f, 48.0f);
+    unit->spawn_time = 1234;
+
+    G_JassSoundRuntimeInit(handle);
+    G_JassSoundPlayback(handle, &playback);
+    T_FEQ(playback.volume, 1.0f, 0.001f);
+    T_ASSERT(!playback.positioned);
+
+    G_JassSoundSetVolume(handle, 0.5f);
+    G_JassSoundSetPosition(handle, &MAKE(VECTOR3, 10.0f, 20.0f, 30.0f));
+    G_JassSoundPlayback(handle, &playback);
+    T_FEQ(playback.volume, 0.5f, 0.001f);
+    T_ASSERT(playback.positioned);
+    T_FEQ(playback.origin.x, 10.0f, 0.001f);
+    T_FEQ(playback.origin.y, 20.0f, 0.001f);
+    T_NULL(playback.emitter);
+
+    G_JassSoundAttach(handle, unit);
+    G_JassSoundPlayback(handle, &playback);
+    T_ASSERT(playback.positioned);
+    T_ASSERT(playback.emitter == unit);
+    T_FEQ(playback.origin.x, 32.0f, 0.001f);
+    T_FEQ(playback.origin.y, 48.0f, 0.001f);
+
+    /* Reusing the edict slot after the attached unit was freed must not make a
+     * sound follow the replacement entity. */
+    unit->spawn_time++;
+    G_JassSoundPlayback(handle, &playback);
+    T_ASSERT(!playback.positioned);
+    T_NULL(playback.emitter);
+
+    G_JassSoundRuntimeReset();
+}
+
 TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
     GAMECLIENT client = { 0 };
     edict_t ent = { .client = &client };

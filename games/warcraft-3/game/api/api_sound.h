@@ -17,6 +17,7 @@ DWORD CreateSound(LPJASS j) {
     sound->fadeInRate = fadeInRate;
     sound->fadeOutRate = fadeOutRate;
     sound->soundIndex = gi.SoundIndex(fileName);
+    G_JassSoundRuntimeInit(sound);
     return 1;
 }
 /* Label constructors resolve WC3 sound-data rows into the same game-owned sound
@@ -63,8 +64,9 @@ DWORD SetSoundChannel(LPJASS j) {
     return 0;
 }
 DWORD SetSoundVolume(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //LONG volume = jass_checkinteger(j, 2);
+    gsound_t *sound = jass_checkhandle(j, 1, "sound");
+    LONG volume = jass_checkinteger(j, 2);
+    if (sound) G_JassSoundSetVolume(sound, (FLOAT)MAX(0, MIN(volume, 127)) / 127.0f);
     return 0;
 }
 DWORD SetSoundPitch(LPJASS j) {
@@ -93,10 +95,11 @@ DWORD SetSoundConeOrientation(LPJASS j) {
     return 0;
 }
 DWORD SetSoundPosition(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT z = jass_checknumber(j, 4);
+    gsound_t *sound = jass_checkhandle(j, 1, "sound");
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    FLOAT z = jass_checknumber(j, 4);
+    if (sound) G_JassSoundSetPosition(sound, &MAKE(VECTOR3, x, y, z));
     return 0;
 }
 DWORD SetSoundVelocity(LPJASS j) {
@@ -107,25 +110,40 @@ DWORD SetSoundVelocity(LPJASS j) {
     return 0;
 }
 DWORD AttachSoundToUnit(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //HANDLE whichUnit = jass_checkhandle(j, 2, "unit");
+    gsound_t *sound = jass_checkhandle(j, 1, "sound");
+    LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
+    if (sound) G_JassSoundAttach(sound, whichUnit);
     return 0;
 }
-/* Start/stop/query callbacks form one handle state machine. Attachment follows
- * the unit, fade flags affect transition timing, and killWhenDone controls
- * handle lifetime after playback rather than acting as an immediate free. */
+/* StartSound snapshots the current transient sound-handle presentation state
+ * into one generic sound packet. Continuous attachment tracking and stop/fade
+ * playback lifetime remain separate mixer work. */
 DWORD StartSound(LPJASS j) {
     gsound_t *sound = jass_checkhandle(j, 1, "sound");
+    jassSoundPlayback_t playback;
+    FLOAT attenuation;
+
     if (!sound || !sound->soundIndex) return 0;
+    G_JassSoundPlayback(sound, &playback);
+    attenuation = sound->is3D ? 1.0f : 0.0f;
+
     if (currentplayer) {
-        LPEDICT clent = PLAYER_ENT(currentplayer);
-        if (clent) gi.Sound(clent, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex, 1.0f, 0.0f, 0.0f);
+        LPEDICT recipient = PLAYER_ENT(currentplayer);
+        if (!recipient) return 0;
+        if (playback.positioned)
+            gi.PositionedSound(&playback.origin, recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
+                               playback.volume, attenuation, 0.0f);
+        else
+            gi.Sound(recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
+                     playback.volume, attenuation, 0.0f);
         return 0;
     }
-    FOR_LOOP(i, game.max_clients) {
-        LPEDICT clent = G_GetPlayerEntityByNumber(i);
-        if (clent) gi.Sound(NULL, CHAN_RELIABLE, sound->soundIndex, 1.0f, 0.0f, 0.0f);
-    }
+
+    if (playback.positioned)
+        gi.PositionedSound(&playback.origin, playback.emitter, CHAN_RELIABLE, sound->soundIndex,
+                           playback.volume, attenuation, 0.0f);
+    else
+        gi.Sound(NULL, CHAN_RELIABLE, sound->soundIndex, playback.volume, attenuation, 0.0f);
     return 0;
 }
 DWORD StopSound(LPJASS j) {

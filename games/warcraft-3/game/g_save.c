@@ -1053,6 +1053,10 @@ BOOL ReadGame(LPCSTR filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
+    /* JASS sound-handle playback parameters are transient presentation state,
+     * not VM-owned payload bytes. Clear old pointer keys before snapshot handles
+     * are reconstructed so a reused allocation cannot inherit stale state. */
+    G_JassSoundRuntimeReset();
     if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
     FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];

@@ -27,6 +27,7 @@ static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count,
         summon->stand(summon);
     if (duration > 0)
         unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
+    G_PublishSummonEvents(caster, summon);
 }
 
 static void summon_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {

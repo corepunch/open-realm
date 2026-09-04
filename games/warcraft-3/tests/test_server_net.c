@@ -161,6 +161,34 @@ static void reset_server_state(int max_players) {
     reset_test_gi();
 }
 
+TEST(server_net, entity_recipient_prefers_exact_client_edict_over_player_slot) {
+    LPCLIENT client;
+
+    reset_server_state(1);
+    svs.num_clients = 1;
+    client = &svs.clients[0];
+    client->state = cs_spawned;
+    client->playernum = 0;
+    client->edict = &test_edicts[0];
+    test_edicts[0].s.player = 1;
+
+    T_ASSERT(SV_ClientForEntityRecipient(&test_edicts[0]) == client);
+}
+
+TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
+    LPCLIENT client;
+
+    reset_server_state(2);
+    svs.num_clients = 2;
+    client = &svs.clients[1];
+    client->state = cs_spawned;
+    client->playernum = 4;
+    client->edict = &test_edicts[1];
+    test_edicts[5].s.player = 4;
+
+    T_ASSERT(SV_ClientForEntityRecipient(&test_edicts[5]) == client);
+}
+
 TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
     BYTE data[16];
     sizeBuf_t msg = { data, sizeof(data), 0, 0 };

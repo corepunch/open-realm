@@ -33,6 +33,8 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
 }
 
 void reset_entities(void) {
+    G_JassSoundRuntimeReset();
+    FOR_LOOP(i, globals.max_edicts) G_FreeActorSkills(g_edicts + i);
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
@@ -93,6 +95,7 @@ void setup_test_world(void) {
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
     UI_TestResetInfoPanelIconCache();
+    G_JassSoundRuntimeReset();
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); }
     G_FowShutdown();

@@ -731,6 +731,17 @@ TEST(wc3_unit, issueimmediateorder_stop) {
     T_STREQ(ent->currentmove->animation, "stand");
 }
 
+TEST(wc3_unit, issueimmediateorder_holdposition_uses_hold_state) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    VECTOR2 dest = {100.0f, 0.0f};
+    unit_issueorder(ent, "move", &dest);
+
+    T_ASSERT(unit_issueimmediateorder(ent, "holdposition"));
+    T_ASSERT(ent->movement.holding_position);
+    T_STREQ(ent->currentmove->animation, "stand");
+}
+
 TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {
     reset_test_entities();
     LPEDICT worker = make_unit(0, 0);

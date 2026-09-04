@@ -15,8 +15,8 @@ native behavior, commonly followed by `PauseTimer` when resetting getter state.
 ## Baseline
 
 The registry currently contains 917 callbacks. The last conservative source
-audit snapshot now classifies 495 as implemented and 341 as clear placeholders
-across 836 callbacks (59.2% overall at that snapshot). Newer registrations,
+audit snapshot now classifies 499 as implemented and 337 as clear placeholders
+across 836 callbacks (59.7% overall at that snapshot). Newer registrations,
 including `GetUnitAbilityLevel`, are not folded into the implementation split
 below yet. This count treats a callback as a placeholder only when it ignores its
 arguments and unconditionally returns no value, zero, false, or a null handle.
@@ -26,11 +26,11 @@ raw `return 0` counts are not meaningful.
 | Module | Registered | Implemented | Placeholder |
 | --- | ---: | ---: | ---: |
 | `api_misc.h` | 317 | 190 | 127 |
-| `api_unit.h` | 144 | 82 | 62 |
+| `api_unit.h` | 144 | 83 | 61 |
 | `api_player.h` | 86 | 43 | 43 |
 | `api_trigger.h` | 48 | 26 | 22 |
 | `api_camera.h` | 42 | 39 | 3 |
-| `api_sound.h` | 35 | 7 | 28 |
+| `api_sound.h` | 35 | 10 | 25 |
 | `api_leaderboard.h` | 27 | 2 | 25 |
 | `api_math.h` | 26 | 18 | 8 |
 | `api_group.h` | 25 | 18 | 7 |
@@ -339,12 +339,9 @@ player; global calls still broadcast. See
 [triggered-dialogue.md](triggered-dialogue.md) for the gameplay portrait/message
 layer split, independent voice/scene lifetimes, and remaining ping/indicator gaps.
 
-`StartSound`, `StopSound`, attachment, 3D position, and playing/loading queries
-must describe one coherent handle state machine. `killWhenDone` releases only
-after playback completion, while an immediate destroyed/stopped handle cannot
-remain queryable as playing. Music and thematic music are separate channels:
-ending thematic music resumes or restores map music according to the stored
-music state rather than starting an unrelated track.
+`CreateSound`, `SetSoundVolume`, `SetSoundPosition`, `AttachSoundToUnit`, and `StartSound` currently cover the one-shot subset used by campaign cinematics. Position/attachment is sampled when playback begins and transported through generic `svc_sound`; moving attached emitters, `StopSound`/fade lifecycle, playing/loading queries, pitch/cone/distance controls, volume groups, and music remain incomplete. `killWhenDone` eventually needs to release only after playback completion, while an immediate destroyed/stopped handle cannot remain queryable as playing. Music and thematic music are separate channels: ending thematic music resumes or restores map music according to the stored music state rather than starting an unrelated track. The current mixer is WAV-only, so MP3 campaign dialogue remains a separate decoder/transport gap.
+
+Summon event context uses the summoner as the trigger unit and the created unit as the event source: `GetSummoningUnit()` reads the former and `GetSummonedUnit()` the latter. Mirror Image (`AOmi`) uses the common no-target spell path, creates the data-defined number of timed copies, marks them as illusions for `IsUnitIllusion`, and publishes both player-unit and unit summon events. Damage multipliers, dispel interaction, image shuffle, and full illusion visual semantics remain separate parity work.
 
 ## Leaderboards
 

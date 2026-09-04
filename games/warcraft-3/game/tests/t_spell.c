@@ -238,6 +238,52 @@ TEST(wc3_spell, spell_is_channeling_detects_active) {
 	T_ASSERT(!S_SpellIsChanneling(caster));
 }
 
+TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X6\n"
+		"C;Y1;X1;K\"alias\"\n"
+		"C;Y1;X2;K\"code\"\n"
+		"C;Y1;X3;K\"Cost1\"\n"
+		"C;Y1;X4;K\"Cool1\"\n"
+		"C;Y1;X5;K\"Dur1\"\n"
+		"C;Y1;X6;K\"DataA1\"\n"
+		"C;Y2;X1;K\"AOmi\"\n"
+		"C;Y2;X2;K\"AOmi\"\n"
+		"C;Y2;X3;K\"0\"\n"
+		"C;Y2;X4;K\"0\"\n"
+		"C;Y2;X5;K\"0\"\n"
+		"C;Y2;X6;K\"1\"\n"
+		"E\n";
+	slkTestData_t *rows = parse_slk_string(slk);
+	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
+	LPEDICT image;
+	DWORD before;
+
+	caster->heroabilities[0].code = MAKEFOURCC('A','O','m','i');
+	caster->heroabilities[0].level = 1;
+	caster->hero.level = 3;
+	memset(&level.events, 0, sizeof(level.events));
+	before = globals.num_edicts;
+
+	T_ASSERT(unit_issueimmediateorder(caster, "mirrorimage"));
+	T_EQ((int)globals.num_edicts, (int)before + 1);
+	image = &globals.edicts[before];
+	T_ASSERT(image->inuse);
+	T_ASSERT(image != caster);
+	T_EQ((int)image->class_id, (int)caster->class_id);
+	T_ASSERT(image->aiflags & AI_ILLUSION);
+	T_EQ((int)image->hero.level, (int)caster->hero.level);
+	T_ASSERT(image->hero.suspend_xp);
+	T_EQ((int)level.events.queue[0].type, (int)EVENT_PLAYER_UNIT_SUMMON);
+	T_ASSERT(level.events.queue[0].edict == caster);
+	T_ASSERT(level.events.queue[0].source == image);
+	T_EQ((int)level.events.queue[1].type, (int)EVENT_UNIT_SUMMON);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 /* ---- spell_info_t registration ---- */
 
 TEST(wc3_spell, spell_info_attached_to_ability) {

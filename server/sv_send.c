@@ -25,11 +25,32 @@ void SV_Multicast(LPCVECTOR3 origin, multicast_t to) {
     SZ_Clear(&sv.multicast);
 }
 
+
+/* Resolve an entity-backed unicast target without assuming that a game's
+ * player number is identical to the engine connection slot.  UI/game APIs
+ * often pass the connected client's own edict as the recipient; gameplay
+ * sounds instead pass a world entity and use its player ownership. */
+LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
+    if (!ent) return NULL;
+
+    FOR_LOOP(i, svs.num_clients) {
+        LPCLIENT client = &svs.clients[i];
+        if (client->state == cs_spawned && client->edict == ent)
+            return client;
+    }
+    FOR_LOOP(i, svs.num_clients) {
+        LPCLIENT client = &svs.clients[i];
+        if (client->state == cs_spawned && client->playernum == ent->s.player)
+            return client;
+    }
+    return NULL;
+}
+
 /* Encode one Quake 2-compatible sound event and deliver it to the selected
  * recipients.  CHAN_OWNER is a delivery policy and never crosses the wire. */
 void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
                    FLOAT attenuation, FLOAT timeofs) {
-    DWORD flags = 0, ent_num = 0, owner = MAX_CLIENTS;
+    DWORD flags = 0, ent_num = 0;
     VECTOR3 ent_origin;
     LPCVECTOR3 pos = origin;
     BOOL owner_only = channel & CHAN_OWNER;
@@ -47,7 +68,6 @@ void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index,
         if (!(owner_only && !origin)) flags |= SND_ENT;
         ent_origin = ent->s.origin;
         if (!pos) pos = &ent_origin;
-        owner = ent->s.player;
     }
     if (origin) flags |= SND_POS;
     if (volume != DEFAULT_SOUND_PACKET_VOLUME) flags |= SND_VOLUME;
@@ -65,14 +85,10 @@ void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index,
 
     data = sv.multicast.data;
     if (owner_only) {
-        LPCLIENT target = NULL;
-        FOR_LOOP(i, svs.num_clients)
-            if (svs.clients[i].state == cs_spawned && svs.clients[i].playernum == owner) {
-                target = &svs.clients[i];
-                break;
-            }
+        LPCLIENT target = SV_ClientForEntityRecipient(ent);
         if (!target) {
-            fprintf(stderr, "SV_StartSound: owner %u unavailable for sound=%d\n", (unsigned)owner, sound_index);
+            fprintf(stderr, "SV_StartSound: recipient unavailable for player=%u sound=%d\n",
+                    ent ? (unsigned)ent->s.player : 0u, sound_index);
         } else {
             SZ_Write(&target->netchan.message, data, sv.multicast.cursize);
             if (reliable) Netchan_Transmit(NS_SERVER, &target->netchan);

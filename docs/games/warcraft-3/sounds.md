@@ -106,11 +106,7 @@ Selection and normal right-click acknowledgements are queued until
 `G_RunEntities` clears the previous one-shot queue. They are emitted as
 owner-only `svc_sound` packets to the unit owner.
 
-Training completion selects a random registered `Ready` variant and queues it
-as owner-only `svc_sound`. Owner sounds are positional entity sounds, but the
-server unicasts them to `ent->s.player`. This
-matches the local-player nature of WC3 production announcements without
-turning them into globally audible world sounds.
+Training completion selects a random registered `Ready` variant and queues it as owner-only `svc_sound`. For unit-source sounds the server resolves the recipient from the unit's WC3 player ownership. For local presentation APIs such as JASS dialogue, the game passes the connected client edict and the server resolves that exact edict before falling back to player ownership. This distinction is required because a campaign's Warcraft player number is not necessarily the engine connection slot.
 
 ### Death sounds
 
@@ -196,6 +192,12 @@ final WC3 semantic split: `YesAttack` should be an attack-order acknowledgement
 while swing/impact audio should come from combat/model sound data. Keep this as
 a known gap rather than building additional behavior on `sound.attack`.
 
+### JASS sound handles
+
+`CreateSound` now retains the JASS handle's 0..127 volume, optional fixed world position, and optional attached unit. `StartSound` samples that state into the existing generic `svc_sound` packet: fixed/attached one-shot sounds use `gi.PositionedSound`, local-player calls remain owner-only, and unscoped calls broadcast once rather than once per configured player slot. Attachment currently samples the unit position when playback starts; continuous moving-emitter tracking, stop/fade state, pitch/cone/distance controls, and volume-group mixing remain future work.
+
+The client mixer currently decodes WAV PCM only. Campaign dialogue and thematic music assets authored as MP3 therefore remain unsupported even when registration and recipient routing are correct. Music/thematic-music natives should stay explicit gaps until a compressed-audio/music transport exists.
+
 ### Not yet implemented
 
 The following remain separate follow-up work:
@@ -208,8 +210,9 @@ The following remain separate follow-up work:
 - general weapon-vs-armour `UnitCombatSounds.slk` impacts;
 - ability/buff `EffectSound` and `EffectSoundLooped`;
 - MDX `EVTS` -> `AnimLookups.slk` -> `AnimSounds.slk` playback;
-- `CreateSoundFromLabel` and the remaining JASS sound-handle controls;
-- music/thematic-music natives;
+- `CreateSoundFromLabel` and remaining JASS sound-handle controls such as stop/fade, pitch, cone, and distance parameters;
+- volume-group mixing and music/thematic-music natives;
+- MP3 decoding for campaign speech/music assets;
 - race alerts such as `UnderAttack`, `GoldMineLow`, and hero death. Research
   completion now resolves the active race skin's `ResearchComplete` alias; the
   remaining race-alert families are still incomplete.
