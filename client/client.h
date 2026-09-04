@@ -129,7 +129,6 @@ void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
-BOOL CL_AltModifierDown(void);
 VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
 
 void V_RenderView(void);

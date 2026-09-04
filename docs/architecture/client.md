@@ -144,7 +144,7 @@ the binding generic rather than looking up game-specific entity types or rules.
 | `client/cl_tent.c` | Temporary client-side effects |
 | `client/cl_scrn.c` | Screen update and UI draw pass |
 | `client/cl_console.c` | In-game console |
-| `client/keys.c` | Key event dispatch and binding table |
+| `client/keys.c` | Key event dispatch and modifier-aware binding table (`bind SHIFT+1`) |
 | `common/net.c` | Loopback transport shared by client and server |
 
 ## See Also
