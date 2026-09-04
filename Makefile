@@ -185,8 +185,8 @@ define test_schema
 $(4): $(2) $(5) | $$(BIN_DIR)
 	@$$(CC) $(3) -o $(4) $(5) $$(RPATH) $$(LDFLAGS) $(6)
 
-$(1): $(4)
-	@$(4) $(7)
+$(1): $(4) | $$(TEST_JUNIT_DIR)
+	@TEST_JUNIT="$$(TEST_JUNIT_DIR)/$(1).xml" TEST_JUNIT_SUITE="$(1)" $(4) $(7)
 endef
 
 default: build
@@ -228,6 +228,10 @@ UI_BASE_DEPS      := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS)
 $(eval $(call unity_lib_schema,$(SHARED_LIB),$(call CSRC,shared),shared,shared,,$(CFLAGS),,-lm))
 
 TESTS_DIR := build/tests
+TEST_JUNIT_DIR ?= $(TESTS_DIR)/junit
+
+$(TEST_JUNIT_DIR):
+	@mkdir -p $@
 
 include games/warcraft-3/game.mk
 include games/world-of-warcraft/game.mk
