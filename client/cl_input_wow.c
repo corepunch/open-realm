@@ -220,13 +220,7 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("-moveright", IN_MoveRightUp);
 }
 
-void CL_InputModeSetGameplay(void) {
-    /* WoW's hard clip belongs just behind fully opaque fog; 16000 defeated world culling and depth precision. */
-    cl.viewDef.camerastate[0].zfar = WOW_WORLD_FAR_CLIP;
-    cl.viewDef.camerastate[0].znear = 1;
-    cl.viewDef.camerastate[1].zfar = WOW_WORLD_FAR_CLIP;
-    cl.viewDef.camerastate[1].znear = 1;
-}
+void CL_InputModeSetGameplay(void) {}
 
 void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
     (void)button;

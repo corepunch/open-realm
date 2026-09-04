@@ -92,7 +92,7 @@ Calls into the renderer API:
 
 `playerState.viewangles` is the only view orientation on the wire: Euler degrees in `ROTATE_ZYX` order `{pitch, roll, yaw}`. Do not send a parallel quaternion — Euler→quat is lossless, quat→Euler is not.
 
-`CL_ParsePlayerInfo` copies `vieworigin` and `viewangles` onto `viewDef.camerastate[]`. `Matrix4_getCameraMatrix` converts both snapshots with `Quaternion_fromEuler`, slerps, and builds the orbit view with `Matrix4_fromViewQuat`. Games that previously packed a non-Euler value into a component (SC2 camera height on `z`) must put a real Euler on the snapshot; height belongs in `vieworigin.z`.
+`CL_ParsePlayerInfo` copies `vieworigin`, `viewangles`, `distance`, `fov`, `znear`, and `zfar` onto `viewDef.camerastate[]`. Clip planes are required camera samples, same as `fov`: every game must author them on `playerState`. Zero is a real value, not a keep-previous sentinel. Gameplay defaults live next to FOV (`WC3_CAMERA_DEFAULT_*`, `WOW_CAMERA_FOV` plus `WOW_WORLD_*_CLIP`, SC2 map camera); `CL_InputModeSetGameplay` does not invent clip. `CL_GameDefaultCamera` is that same default set, not a second FOV. `Matrix4_getCameraMatrix` converts both snapshots with `Quaternion_fromEuler`, slerps, and builds the orbit view with `Matrix4_fromViewQuat`. Games that previously packed a non-Euler value into a component (SC2 camera height on `z`) must put a real Euler on the snapshot; height belongs in `vieworigin.z`.
 
 WoW still replaces look-at Z from the local player entity (`WOW_CAMERA_EYE_HEIGHT`); that is not an orientation sample.
 

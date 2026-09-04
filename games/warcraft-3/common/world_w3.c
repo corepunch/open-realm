@@ -1,9 +1,16 @@
 #include "common/common.h"
+#include "common/ui_constants.h"
 
 BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     if (!camera) return false;
-    *camera = (gameCamera_t){ .distance = 1650.0f, .pitch = 304.0f, .yaw = 90.0f, .fov = 70.0f,
-        .znear = 10.0f, .zfar = 5000.0f };
+    *camera = (gameCamera_t){
+        .distance = WC3_CAMERA_DEFAULT_DISTANCE,
+        .pitch = WC3_CAMERA_DEFAULT_PITCH,
+        .yaw = WC3_CAMERA_DEFAULT_YAW,
+        .fov = WC3_CAMERA_DEFAULT_FOV,
+        .znear = WC3_CAMERA_DEFAULT_NEAR_Z,
+        .zfar = WC3_CAMERA_DEFAULT_FAR_Z,
+    };
     return true;
 }
 

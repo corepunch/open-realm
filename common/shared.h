@@ -522,8 +522,8 @@ struct playerState_s {
     VECTOR3 viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
     VECTOR3 vieworigin;             // server-authored camera look-at in world space (XY focus + composed Z)
     FLOAT distance;                 // camera distance from vieworigin for orbit/isometric view
-    FLOAT znear;                    // optional near clip; 0 keeps the previous sample / client default
-    FLOAT zfar;                     // optional far clip; 0 keeps the previous sample / client default
+    FLOAT znear;                    // near clip; required camera sample, copied like fov
+    FLOAT zfar;                     // far clip; required camera sample, copied like fov
     DWORD fov;                      // vertical FOV in degrees; transmitted as NFT_BYTE so BYTE would suffice
     DWORD rdflags;                  // refdef flags (underwater tint, etc.)
     DWORD uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline

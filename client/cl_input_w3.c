@@ -140,21 +140,9 @@ void CL_InputModeInit(void) {
 }
 
 void CL_InputModeSetGameplay(void) {
-#ifdef SC2
-    gameCamera_t camera;
-
-    CL_GameDefaultCamera(&camera);
-    cl.viewDef.camerastate[0].zfar = camera.zfar;
-    cl.viewDef.camerastate[0].znear = camera.znear;
-    cl.viewDef.camerastate[1].zfar = camera.zfar;
-    cl.viewDef.camerastate[1].znear = camera.znear;
-#else
+#ifndef SC2
     if (!cl.moveConfirmation)
         cl.moveConfirmation = re.LoadModel("UI\\Feedback\\Confirmation\\Confirmation.mdx");
-    cl.viewDef.camerastate[0].zfar = 5000;
-    cl.viewDef.camerastate[0].znear = 100;
-    cl.viewDef.camerastate[1].zfar = 5000;
-    cl.viewDef.camerastate[1].znear = 100;
 #endif
 }
 

@@ -4,8 +4,6 @@ LPPLAYER NAME = NAME##Context && NAME##Context->unit ? G_GetPlayerByNumber(NAME#
 
 extern LPPLAYER currentplayer;
 
-#define WC3_CAMERA_DEFAULT_NEAR_Z 100.0f /* world units; default near clipping plane */
-#define WC3_CAMERA_DEFAULT_FAR_Z 5000.0f /* world units; default far clipping plane */
 #define WC3_CAMERA_ASPECT 1.66f /* Warcraft camera horizontal/vertical FOV conversion aspect */
 
 static LPGAMECLIENT G_CurrentCameraClient(LPCSTR func) {
@@ -125,9 +123,9 @@ DWORD ResetToGameCamera(LPJASS j) {
     }
     G_ClearCameraTarget(gc, "ResetToGameCamera");
     gc->camera.old_state = gc->camera.state;
-    gc->camera.state.viewangles = (VECTOR3) { 326, 0, 0 };
-    gc->camera.state.fov = 50;
-    gc->camera.state.target_distance = 1650;
+    gc->camera.state.viewangles = (VECTOR3){ WC3_CAMERA_DEFAULT_PITCH, 0, WC3_CAMERA_DEFAULT_YAW };
+    gc->camera.state.fov = WC3_CAMERA_DEFAULT_FOV;
+    gc->camera.state.target_distance = WC3_CAMERA_DEFAULT_DISTANCE;
     gc->camera.state.z_offset = 0.0f;
     gc->camera.state.near_z = WC3_CAMERA_DEFAULT_NEAR_Z;
     gc->camera.state.far_z = WC3_CAMERA_DEFAULT_FAR_Z;
@@ -181,7 +179,11 @@ DWORD AdjustCameraField(LPJASS j) {
 }
 DWORD CreateCameraSetup(LPJASS j) {
     API_ALLOC(CAMERASETUP, camerasetup);
+    camerasetup->viewangles = (VECTOR3){ WC3_CAMERA_DEFAULT_PITCH, 0, WC3_CAMERA_DEFAULT_YAW };
+    camerasetup->fov = WC3_CAMERA_DEFAULT_FOV;
+    camerasetup->target_distance = WC3_CAMERA_DEFAULT_DISTANCE;
     camerasetup->near_z = WC3_CAMERA_DEFAULT_NEAR_Z;
+    camerasetup->far_z = WC3_CAMERA_DEFAULT_FAR_Z;
     return 1;
 }
 DWORD CameraSetupSetField(LPJASS j) {

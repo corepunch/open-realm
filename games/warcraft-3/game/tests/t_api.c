@@ -259,7 +259,9 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_EQ(gc->ps.uiflags, 1u << LAYER_CINEMATIC);
     T_ASSERT(!gc->no_control);
     T_FEQ(gc->ps.vieworigin.x, 128, 0.001f); T_FEQ(gc->ps.vieworigin.y, 256, 0.001f);
-    T_FEQ(gc->ps.distance, 1650, 0.001f); T_EQ(gc->ps.fov, 50);
+    T_FEQ(gc->ps.distance, WC3_CAMERA_DEFAULT_DISTANCE, 0.001f); T_EQ(gc->ps.fov, (DWORD)WC3_CAMERA_DEFAULT_FOV);
+    T_FEQ(gc->ps.znear, WC3_CAMERA_DEFAULT_NEAR_Z, 0.001f);
+    T_FEQ(gc->ps.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);
     T_FEQ(gc->ps.viewangles.x, 326.0f, 0.001f); T_FEQ(gc->ps.viewangles.z, 0.0f, 0.001f);
 }
 
@@ -522,6 +524,9 @@ TEST(wc3_api, camera_setup_applies_clip_planes_z_and_dopan_contract) {
     T_FEQ(gc->camera.state.near_z, 65.0f, 0.001f);
     T_FEQ(gc->camera.state.far_z, 7500.0f, 0.001f);
     T_FEQ(gc->camera.state.z_offset, 275.0f, 0.001f);
+    G_RunClients();
+    T_FEQ(gc->ps.znear, 65.0f, 0.001f);
+    T_FEQ(gc->ps.zfar, 7500.0f, 0.001f);
     currentplayer = NULL;
 }
 

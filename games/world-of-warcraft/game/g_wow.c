@@ -1258,8 +1258,10 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     }
     ent->client->ps.vieworigin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, 0 };
     ent->client->ps.viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
-    ent->client->ps.fov = 45.0f;
+    ent->client->ps.fov = WOW_CAMERA_FOV;
     ent->client->ps.distance = wow_move.distance;
+    ent->client->ps.znear = WOW_WORLD_NEAR_CLIP;
+    ent->client->ps.zfar = WOW_WORLD_FAR_CLIP;
 }
 
 static void Wow_UpdatePlayerHud(LPEDICT ent) {
@@ -1556,13 +1558,17 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
 #ifdef WOW
     ps->vieworigin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
-    ps->fov = 45;
+    ps->fov = WOW_CAMERA_FOV;
     ps->distance = wow_move.distance;
+    ps->znear = WOW_WORLD_NEAR_CLIP;
+    ps->zfar = WOW_WORLD_FAR_CLIP;
 #else
     ps->vieworigin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
     ps->viewangles = (VECTOR3){ 326.0f, 0.0f, 0.0f };
     ps->fov = 54;
     ps->distance = 250.0f;
+    ps->znear = WOW_WORLD_NEAR_CLIP;
+    ps->zfar = WOW_WORLD_FAR_CLIP;
 #endif
     ps->client_ui_state = CLIENT_UI_LOADING;
     ps->name = wow_clients[0].name;

@@ -255,10 +255,6 @@ void CL_ParseFrame(LPSIZEBUF msg) {
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     DWORD bits;
     DWORD plnum = MSG_ReadPlayerBits(msg, &bits);
-    BOOL first_camera_sample = cl.viewDef.camerastate[0].znear <= 0 ||
-                               cl.viewDef.camerastate[0].zfar <= 0;
-    FLOAT znear;
-    FLOAT zfar;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     if (Cvar_Integer("ui_layout_debug", 0) >= 2) {
         static DWORD last_timed_status = ~0u;
@@ -275,21 +271,14 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
         cls.key_dest != key_console && cls.key_dest != key_menu) {
         CL_SetGameplayInput();
     }
-    znear = cl.viewDef.camerastate[0].znear > 0 ? cl.viewDef.camerastate[0].znear : 100;
-    zfar = cl.viewDef.camerastate[0].zfar > 0 ? cl.viewDef.camerastate[0].zfar : 5000;
 
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin = cl.playerstate.vieworigin;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
-    if (cl.playerstate.znear > 0.0f) znear = cl.playerstate.znear;
-    if (cl.playerstate.zfar > 0.0f) zfar = cl.playerstate.zfar;
-    cl.viewDef.camerastate[0].znear = znear;
-    cl.viewDef.camerastate[0].zfar = zfar;
-
-    if (first_camera_sample)
-        cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
+    cl.viewDef.camerastate[0].znear = cl.playerstate.znear;
+    cl.viewDef.camerastate[0].zfar = cl.playerstate.zfar;
 
     if (cl.camera_prediction.active) {
         cl.camera_prediction.origin = CL_ClampCameraPosition(cl.camera_prediction.origin);

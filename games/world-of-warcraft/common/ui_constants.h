@@ -9,6 +9,8 @@
 #define UI_PIXEL_ASPECT (UI_MIN_ASPECT * UI_BASE_HEIGHT / UI_BASE_WIDTH) // y/x; 4:3 WoW pixels inside its normalized 1x1 scene
 
 /* Classic has no Light*.dbc here; keep its explicit outdoor fallback shared by camera and renderer. */
+#define WOW_CAMERA_FOV 45.0f // degrees; third-person vertical FOV; authored on playerState with clip
+#define WOW_WORLD_NEAR_CLIP 1.0f // world units; third-person near plane; authored on playerState with WOW_WORLD_FAR_CLIP
 #define WOW_WORLD_FAR_CLIP 700.0f
 #define WOW_WORLD_FOG_START 500.0f
 #define WOW_WORLD_FOG_END 650.0f

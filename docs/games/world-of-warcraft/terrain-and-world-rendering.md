@@ -299,7 +299,11 @@ build/bin/mpqtool -mpq data/world-of-warcraft/dbc.MPQ ls DBFilesClient | rg '^Li
 ```
 
 Consequently this client uses an explicit outdoor fallback: fog starts at 500, is
-opaque at 650, and the camera hard-clips at 700 world units. This is twice the
+opaque at 650, and the camera hard-clips at 700 world units (`WOW_WORLD_FAR_CLIP`).
+The game module authors that far plane plus `WOW_WORLD_NEAR_CLIP` (1) on
+`playerState.znear`/`zfar` every camera update, the same way it authors `fov`.
+The client copies those samples; it does not invent clip in `CL_InputModeSetGameplay`.
+This is twice the
 reverse-engineered classic `farclip` default of 350 while remaining inside the current
 small ADT streaming design. The local reference is `data/whoa-master/src/world/CWorldParam.cpp`
 (default) plus `data/whoa-master/src/world/CWorld.cpp` (183.33--791.67 classic clamp).

@@ -1,4 +1,5 @@
 #include "common/common.h"
+#include "common/ui_constants.h"
 #include "common/stb_dbc.h"
 #include "wow_chunks.h"
 #include <float.h>
@@ -7,8 +8,8 @@
 
 BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     if (!camera) return false;
-    *camera = (gameCamera_t){ .distance = 1650.0f, .pitch = 304.0f, .yaw = 90.0f, .fov = 70.0f,
-        .znear = 10.0f, .zfar = 5000.0f };
+    *camera = (gameCamera_t){ .distance = 8.0f, .pitch = 342.0f, .yaw = 0.0f, .fov = WOW_CAMERA_FOV,
+        .znear = WOW_WORLD_NEAR_CLIP, .zfar = WOW_WORLD_FAR_CLIP };
     return true;
 }
 
