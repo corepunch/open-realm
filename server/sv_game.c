@@ -123,8 +123,7 @@ DWORD SV_GetTime(void) {
     return sv.time;
 }
 
-void SV_SetGameTime(DWORD framenum, DWORD time) {
-    sv.framenum = framenum;
+void SV_SetGameTime(DWORD time) {
     sv.time = time;
 }
 

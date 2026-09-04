@@ -111,7 +111,7 @@ Integer handle tables inside the interpreter would duplicate that field table, b
 
 HUD FDF trees cache `CS_IMAGES` / `CS_FONTS` slots. Those tables die with `memset(&sv)` in `SV_Map`. `G_LoadMap` memsets the single `hud` accumulator and clears the FDF pool; serialize then re-`ImageIndex`es from names. See [HUD Media Lifetime](hud-media.md).
 
-The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; arbitrary active `umove_t` actions are not yet restored and require stable semantic move IDs. Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu likewise requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v9, v8, or earlier saves.
+The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Unit/destructable lifecycle callbacks are restored from class data, preventing resumed orders from calling stale or null process addresses; the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior-f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v9, v8, or earlier saves.
 
 The checksum and header preflight protect normal partial/corrupt-file and wrong-map failures before mutation. Record-level semantic validation later in the stream is not fully transactional; do not treat save files as untrusted input until native records are decoded into temporary state before commit.
 
@@ -121,9 +121,11 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 `level.time`); it must not call `gi.GetTime()` directly, because spell-rank parameters named `level`
 shadow the global in several skill functions and would silently pick up the wrong symbol.
 
-The server owns the simulation clock, following Quake II's `sv.framenum`/`sv.time` model. `SV_Map`
-resets the per-level server state, so `ReadGame` restores the saved frame and time through the generic
-`gi.SetGameTime(framenum, time)` import before the next server frame. `G_RunFrame` then reads the
+The server owns the simulation clock, following Quake II's `sv.time` model. `SV_Map` resets the
+per-level server state, so `ReadGame` restores the saved time through the generic
+`gi.SetGameTime(time)` import before the next server frame. `sv.framenum` is deliberately not
+restored: it indexes the snapshot delta ring (`client->frames[sv.framenum & UPDATE_MASK]`) and is
+process state, so rewinding it would desynchronise a connected client. `G_RunFrame` then reads the
 authoritative server clock:
 
 ```c
@@ -148,6 +150,24 @@ persisted deadline.
 
 Regression test: `wc3_save.load_restores_server_clock_onto_saved_time` in
 `games/warcraft-3/game/tests/t_game.c`.
+
+## Active Behavior (`F_MMOVE`)
+
+`edict_s.currentmove` is the running `umove_t` state machine. `monster_think` returns immediately
+when it is NULL, so a unit that loads without it does not move, stand, animate, or advance its order
+queue — the whole world stands frozen while scripted units walk off to stale goals.
+
+Quake II solves this with `F_MMOVE` and we copy it exactly: every `umove_t` is a file-scope static in
+`libgame`, so the pointer is saved as a signed byte offset from an anchor symbol in the same data
+segment (`mmove_reloc` there, `umove_reloc` here) and re-added on load.
+
+We add one guard Q2 does not have. A save written by a different build would decode to a wild
+pointer, so the unused upper half of the 8-byte pointer field carries an FNV hash of the move's
+animation name; `ReadField` range-checks the offset and compares the hash before dereferencing, and
+fails the load loudly on a mismatch rather than resuming with a corrupt behavior.
+
+`animation` stays a runtime field: `M_MoveFrame` already rebuilds it via `unit_setmove` when it finds
+a NULL animation, so `currentmove` is the only pointer that has to survive.
 
 ## Console Usage
 

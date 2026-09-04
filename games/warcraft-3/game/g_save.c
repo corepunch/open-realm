@@ -68,8 +68,15 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 6;
+static DWORD const save_version = 7;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
+#define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
+
+/* Quake 2 F_MMOVE anchor: umove_t instances are file-scope statics, so a move pointer
+ * survives a save as a signed offset from a fixed symbol in the same data segment. */
+static umove_t umove_reloc;
+
+_Static_assert(sizeof(umove_t *) == 8, "F_MMOVE packs a relocation offset and a validation hash into the pointer field");
 
 typedef struct {
     DWORD magic, version, edict_size, num_edicts, max_clients;
@@ -330,7 +337,7 @@ field_t edict_fields[] = {
     F(edict_s, destructable, F_STRUCT, 1, destructable_fields),
     F(edict_s, abilities, F_STRUCT, 1, abilities_fields),
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, currentmove, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, currentmove, F_MMOVE),
     F(edict_s, militia, F_STRUCT, 1, militia_fields),
     F(edict_s, stand, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, birth, F_IGNORE, 0, FIELD_RUNTIME),
@@ -674,6 +681,14 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
             }
             index = value ? (int)(value - g_edicts) : -1; *(int *)p = index; break;
         }
+        case F_MMOVE: {
+            umove_t const *move = *(umove_t *const *)p;
+            memset(p, 0, size);
+            if (!move) break;
+            *(int *)p = (int)((BYTE const *)move - (BYTE const *)&umove_reloc);
+            *(DWORD *)((BYTE *)p + 4) = SaveHash(0, move->animation, strlen(move->animation) + 1);
+            break;
+        }
         default: break;
         }
     }
@@ -708,6 +723,20 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
             }
             *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
             break;
+        case F_MMOVE: {
+            DWORD hash = *(DWORD *)((BYTE *)p + 4);
+            umove_t *move = (umove_t *)((BYTE *)&umove_reloc + index);
+            if (!index && !hash) { *(umove_t **)p = NULL; break; }
+            /* Reject a save written by a different build before dereferencing the move. */
+            if (index < -UMOVE_RELOC_RANGE || index > UMOVE_RELOC_RANGE || (uintptr_t)move % _Alignof(umove_t) ||
+                !move->animation || SaveHash(0, move->animation, strlen(move->animation) + 1) != hash) {
+                fprintf(stderr, "WC3 LoadGame: field %s[%u] move offset %d does not resolve in this build\n",
+                    field->name, i, index);
+                return false;
+            }
+            *(umove_t **)p = move;
+            break;
+        }
         default: break;
         }
     }
@@ -1003,7 +1032,8 @@ BOOL ReadGame(LPCSTR filename) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
-    gi.SetGameTime(level.framenum, level.time);
+    /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
+    gi.SetGameTime(level.time);
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
         fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;
     }

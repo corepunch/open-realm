@@ -1607,6 +1607,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = second;
     first->inventory[2] = second;
     first->cargo.units[3] = second;
+    unit_stand(first);
+    T_ASSERT(first->currentmove != NULL);
+    umove_t const *const saved_move = first->currentmove;
     first->abilstatus[0] = (heroabilitystatus_t){
         .code = MAKEFOURCC('B','m','i','l'), .level = 1,
         .timestamp = 40000, .duration_ms = 45000
@@ -1678,6 +1681,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
+    /* currentmove is a process pointer; F_MMOVE relocates it so a loaded unit keeps behaving. */
+    T_ASSERT(g_edicts[first - g_edicts].currentmove == saved_move);
     T_ASSERT(unit_issueimmediateorder(g_edicts + (first - g_edicts), "stop"));
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 45);

@@ -618,6 +618,7 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
+    level.framenum++;
     level.time = gi.GetTime();
 
     G_StartScripts();
