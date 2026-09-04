@@ -22,6 +22,12 @@ FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
     return row->data[level - 1][index - 1];
 }
 
+DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index) {
+    AbilityData_t const *row = G_AbilityDataName(classname);
+    level = MAX(1, MIN(level, 4)); index = MAX(1, MIN(index, 9));
+    return row->dataId[level - 1][index - 1];
+}
+
 static abilityitem_t abilitylist[] = {
     { STR_CmdStop, &a_stop },
     { STR_CmdMove, &a_move },
@@ -34,6 +40,7 @@ static abilityitem_t abilitylist[] = {
     { STR_CmdSelectSkill, &a_selectskill },
 
     { "Ahar", &a_harvest },
+    { "Amic", &a_call_to_arms },
     { "Amil", &a_militia },
     { "Arep", &a_repair },
     { "Agld", &a_goldmine },

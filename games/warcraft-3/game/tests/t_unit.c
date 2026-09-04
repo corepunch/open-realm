@@ -612,6 +612,27 @@ TEST(wc3_unit, nonqueued_move_replaces_pending_shift_orders) {
     T_FEQ(ent->goalentity->s.origin2.x, replacement.x, 0.01f);
 }
 
+TEST(wc3_unit, militia_target_order_reaches_militia_behavior) {
+    static UnitAbilities_t const worker_abilities = { .abilList = "Amil" };
+    static UnitAbilities_t const hall_abilities = { .abilList = "Amic" };
+    LPEDICT worker;
+    LPEDICT hall;
+
+    reset_test_entities();
+    setup_test_world();
+    worker = make_unit(0, 0);
+    hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 256, 0);
+    worker->UnitAbilities = &worker_abilities;
+    hall->UnitAbilities = &hall_abilities;
+    worker->s.player = hall->s.player = 1;
+    hall->pathtex = NULL;
+
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "militia", hall, false, worker->s.player));
+    T_ASSERT(worker->militia.partner == hall);
+    T_NOT_NULL(worker->currentmove);
+    T_ASSERT(worker->currentmove->ability == &a_militia);
+}
+
 TEST(wc3_unit, stale_queued_entity_target_is_skipped_for_next_order) {
     reset_test_entities();
     setup_test_world();

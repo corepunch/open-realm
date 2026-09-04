@@ -98,6 +98,12 @@ FLOAT S_SpellData(DWORD code, DWORD level, DWORD index) {
     return AB_Data(classname, level, index);
 }
 
+DWORD S_SpellDataId(DWORD code, DWORD level, DWORD index) {
+    char classname[5] = {0};
+    memcpy(classname, &code, 4);
+    return AB_DataId(classname, level, index);
+}
+
 DWORD S_SpellUnitId(DWORD code, DWORD level) {
     level = MAX(1, MIN(level, 4));
     return G_AbilityData(code)->unitID[level - 1];

@@ -18,3 +18,11 @@ TargetArt=TestUI\Models\anim_pulse.mdx
 Art=TestUI\Textures\gather.blp
 Buttonpos=1,1
 Hotkey=R
+
+[Amic]
+Art=TestUI\Textures\call-to-arms.blp
+Buttonpos=1,1
+Hotkey=C
+Unart=TestUI\Textures\back-to-work.blp
+UnButtonpos=2,1
+Unhotkey=W

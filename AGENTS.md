@@ -47,6 +47,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Allies/F11 dialog, directional alliances, shared vision/control, draft/Accept semantics | [docs/games/warcraft-3/allies-menu.md](docs/games/warcraft-3/allies-menu.md) |
 | WC3 Hero skill tree, skill points, rank requirements, learning UI, JASS progression | [docs/games/warcraft-3/hero-abilities.md](docs/games/warcraft-3/hero-abilities.md) |
 | WC3 gathering, immobile units, construction HUD, overhead bars | [docs/games/warcraft-3/economy-and-unit-presentation.md](docs/games/warcraft-3/economy-and-unit-presentation.md) |
+| WC3 Human Call to Arms, Peasant/Militia pairing, timed in-place transform, Back to Work | [docs/games/warcraft-3/call-to-arms-and-militia.md](docs/games/warcraft-3/call-to-arms-and-militia.md) |
 | WC3 enemy/neutral selection, relationship colours, command authority, fog/death deselection | [docs/games/warcraft-3/selection-and-control.md](docs/games/warcraft-3/selection-and-control.md) |
 | WC3 numbered control groups, recall reconciliation, double-tap camera focus, map lifecycle | [docs/games/warcraft-3/control-groups.md](docs/games/warcraft-3/control-groups.md) |
 | WC3 Shift command queuing, per-unit FIFO orders, target revalidation, replacement/Stop semantics | [docs/games/warcraft-3/order-queue.md](docs/games/warcraft-3/order-queue.md) |

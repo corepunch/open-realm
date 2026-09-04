@@ -479,10 +479,12 @@ CLIENTCOMMAND(SmartPoint) {
 }
 
 CLIENTCOMMAND(Button) {
+    char ability_name[5] = {0};
     LPCSTR classname;
     LPGAMECLIENT client = clent->client;
     ability_t const *ability;
     LPEDICT producer;
+    BOOL ability_off = false;
 
     if (argc < 2) return;
     producer = G_GetMainSelectedUnit(client);
@@ -495,10 +497,17 @@ CLIENTCOMMAND(Button) {
         G_QueueHeroRevive(producer, &globals.edicts[number]);
         return;
     }
+    if (strlen(classname) == 8 && !strcmp(classname + 4, ":off")) {
+        memcpy(ability_name, classname, 4);
+        classname = ability_name;
+        ability_off = true;
+    }
     ability = FindAbilityForCommand(classname);
     if (ability && ability->cmd) {
         client->menu.ability_code = *((DWORD const *)classname);
+        client->menu.ability_off = ability_off;
         ability->cmd(clent);
+        client->menu.ability_off = false;
     } else if (client->menu.cmdbutton) {
         client->menu.cmdbutton(clent, *((DWORD *)classname));
     } else {

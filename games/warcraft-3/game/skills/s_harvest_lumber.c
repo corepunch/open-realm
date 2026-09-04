@@ -366,6 +366,7 @@ BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
         skill_add(&ent->added_abilities, &ARRAY_COUNT(ent->added_abilities), code);
     }
     if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
+    { LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
 
@@ -380,6 +381,7 @@ BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
     else skill_add(&ent->removed_abilities, &ARRAY_COUNT(ent->removed_abilities), code);
     index = skill_index(ent->permanent_abilities, ARRAY_COUNT(ent->permanent_abilities), code);
     if (index >= 0) skill_remove(ent->permanent_abilities, &ARRAY_COUNT(ent->permanent_abilities), index);
+    { LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
 

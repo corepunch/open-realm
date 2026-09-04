@@ -274,6 +274,7 @@ typedef struct {
     LPCSTR targs[4];
     FLOAT cast[4], dur[4], heroDur[4], cool[4], cost[4], area[4], range[4];
     FLOAT data[4][9];
+    DWORD dataId[4][9]; /* parallel rawcode view for ID-valued DataA..DataI fields */
     DWORD unitID[4];
     LPCSTR buffID[4], efctID[4];
     LPCSTR castCheck, durCheck, heroDurCheck, coolCheck, costCheck, areaCheck, rangeCheck;

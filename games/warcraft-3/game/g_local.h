@@ -113,6 +113,7 @@ typedef struct {
     DWORD ability_code;
     BOOL supports_order_queue; /* active target mode accepts Shift chaining */
     BOOL order_queued;         /* transient modifier for the current target callback */
+    BOOL ability_off;          /* command-card separate-off variant selected for this dispatch */
 } menu_t;
 
 enum {
@@ -514,6 +515,7 @@ typedef struct spell_target_s {
 #define SPELL_TOGGLE     (1 << 1)  /* toggle on/off like Immolation */
 #define SPELL_AUTOCAST   (1 << 2)  /* right-click toggles autocast (Cold Arrows) */
 #define SPELL_NO_SMART   (1 << 3)  /* skip smart-click auto-target (Charm) */
+#define ABILITY_SEPARATE_OFF (1u << 16) /* render an explicit Unart/Untip off button beside the on button */
 
 typedef struct spell_info_s {
     DWORD code;                    /* ability FourCC (must match abilitylist entry) */
@@ -821,6 +823,16 @@ struct edict_s {
     DWORD spawn_time;
     DWORD harvested_lumber;
     DWORD harvested_gold;
+    struct {
+        DWORD ability;          /* Amil alias that supplied Data A/B and duration */
+        DWORD normal_type;      /* Data A: worker form retained across the timed morph */
+        DWORD militia_type;     /* Data B: alternate combat form */
+        LPEDICT partner;        /* Hall being approached for militia/militiaoff */
+        DWORD partner_spawn_time;
+        BYTE previous_resource; /* returnResource_t remembered for explicit Back to Work */
+        BOOL active;            /* unit has completed the Peasant -> Militia morph */
+        BOOL returning;         /* current pairing order is militiaoff */
+    } militia;
     DWORD heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
     DWORD heatmap2_time;      /* level.time when heatmap2 was last built */
@@ -1789,6 +1801,9 @@ FLOAT S_GoldMineMiningDuration(LPCEDICT);
 DWORD S_GoldMineCapacity(LPCEDICT);
 BOOL S_GoldMineCanHarvest(LPCEDICT);
 BOOL S_GoldMineWorkerIsInside(LPCEDICT);
+BOOL S_MilitiaTargetOrder(LPEDICT, LPCSTR, LPEDICT);
+void S_CancelMilitiaPairing(LPEDICT);
+void S_MilitiaExpire(LPEDICT);
 void S_GoldMineInitUnit(LPEDICT);
 void S_GoldMineReleaseWorker(LPEDICT);
 void harvest_start(LPEDICT, LPEDICT);
