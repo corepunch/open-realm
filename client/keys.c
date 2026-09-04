@@ -18,16 +18,8 @@ LPCSTR Key_GetBinding(keyCode_t key, DWORD mods) {
 }
 
 static LPCSTR Key_FindBinding(keyCode_t key, DWORD mods) {
-    DWORD occupied = 0, slot;
-
-    FOR_LOOP(i, KEY_MOD_COUNT) {
-        if (keybindings[i][key][0])
-            occupied |= 1u << i;
-    }
-    slot = Key_SelectSlot(mods, occupied);
-    if (slot >= KEY_MOD_COUNT)
-        return NULL;
-    return keybindings[slot][key];
+    LPCSTR kb = keybindings[mods & KEY_MOD_MASK][key];
+    return kb[0] ? kb : NULL;
 }
 
 static void Key_Bind_f(void) {

@@ -91,18 +91,17 @@ After step 6, `map` and `connect` cvars are explicitly cleared, then re-populate
 
 ### Modifier keys
 
-`bind` accepts `CTRL+`, `ALT+`, and `SHIFT+` prefixes, combined in any order, case-insensitive (`CONTROL` is an alias for `CTRL`):
+Modifiers are a stroke, not a bag of flags. Like lite's keymap (`ctrl`, `alt`, `shift`), they must be written in that order and match exactly:
 
 ```
 bind 1 "group 1"
 bind SHIFT+1 "group add 1"
 bind CTRL+1 "group assign 1"
+bind CTRL+SHIFT+1 "group assign 1"
 bind ALT+MOUSE1 "+pan"
 ```
 
-Letters fold to lowercase (`SHIFT+Q` is the Q key). `writeconfig` emits the canonical order `CTRL+ALT+SHIFT+<key>`, so `ALT+MOUSE1` stays `ALT+MOUSE1`.
-
-On key-down, `Key_Event` looks up the exact modifier combo, then drops Alt, then Shift, then Ctrl until a bind exists, then falls back to the unmodified key. That is why `CTRL+SHIFT+1` fires `CTRL+1` when both are bound, and why `SHIFT+Q` still runs `bind q` when no `SHIFT+Q` bind exists.
+`SHIFT+CTRL+1` is rejected. `CTRL+SHIFT+1` is not `CTRL+1` or `SHIFT+1`. `SHIFT+Q` is not `q`. `CONTROL` is an alias for `CTRL`. Letters fold to lowercase (`SHIFT+Q` is the Q key). `writeconfig` emits `CTRL+ALT+SHIFT+<key>`.
 
 `+command` key-up reuses the modifiers captured on key-down, so releasing Alt before the mouse button still ends `ALT+MOUSE1 "+pan"`.
 
