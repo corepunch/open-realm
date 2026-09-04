@@ -256,9 +256,20 @@ CLIENTCOMMAND(IdleWorker) {
 void CMD_CancelCommand(LPEDICT ent) {
     LPEDICT producer;
     if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
-        G_UnitCanControl(ent->client, producer) &&
-        producer->build && producer->build->revival.reviving) {
-        if (G_CancelHeroRevive(producer, producer->build)) {
+        G_UnitCanControl(ent->client, producer)) {
+        /* Spawned construction is cancelled by the structure itself. Keep it
+         * ahead of queue cancellation so CmdCancelBuild cannot fall through to
+         * unrelated producer state. */
+        if (producer->construction.active && G_CancelStructureConstruction(producer)) {
+            if (ent->client->connected) {
+                G_RefreshResourceBar(ent);
+                Get_Portrait_f(ent);
+                Get_Commands_f(ent);
+            }
+            return;
+        }
+        if (producer->build && producer->build->revival.reviving &&
+            G_CancelHeroRevive(producer, producer->build)) {
             Get_Commands_f(ent);
             return;
         }

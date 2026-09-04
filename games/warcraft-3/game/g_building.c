@@ -3,6 +3,7 @@
 #define WC3_BUILD_CELL_SIZE 32.0f
 #define WC3_BUILD_GRID_SIZE 64.0f
 #define WC3_BUILD_START_LIFE 0.10f
+#define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLIGHTED 0x20
@@ -722,10 +723,77 @@ BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
     building->construction.paused = true;
     building->construction.primary_builder = builder;
     building->construction.progress = 0.0f;
+    building->construction.paid = false;
+    building->construction.payer = 0;
+    building->construction.gold = 0;
+    building->construction.lumber = 0;
     building->aiflags |= AI_HOLD_FRAME;
     hp->value = MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE);
 
     G_UpdateConstructionAnimation(building);
+    return true;
+}
+
+/* Construction teardown must release every Human Repair participant before the
+ * target enters death/completion cleanup; otherwise workers retain pointers to
+ * an entity whose construction state no longer exists. */
+void G_StopConstruction(LPEDICT building) {
+    if (!building || !building->construction.active) return;
+
+    FILTER_EDICTS(worker, worker->inuse && worker != building && worker->build == building &&
+                           worker->buildwork.ability) {
+        S_CancelRepair(worker);
+        if (worker->stand) worker->stand(worker);
+    }
+
+    /* The construction info panel historically used a self-linked build queue.
+     * Clear it before unit_die() walks production/revival ownership. */
+    if (building->build == building) building->build = NULL;
+    building->construction.active = false;
+    building->construction.paused = false;
+    building->construction.primary_builder = NULL;
+    building->construction.progress = 0.0f;
+    building->construction.paid = false;
+    building->construction.payer = 0;
+    building->construction.gold = 0;
+    building->construction.lumber = 0;
+    building->aiflags &= ~AI_HOLD_FRAME;
+}
+
+static LONG G_ConstructionCancelRefund(LONG paid) {
+    if (paid <= 0) return 0;
+    return (paid * WC3_BUILD_CANCEL_REFUND_PERCENT) / 100;
+}
+
+/* A player cancellation is distinct from destruction: publish the Warcraft
+ * construct-cancel events and refund only the recorded base construction
+ * payment, then use ordinary unit death for selection/food/death semantics. */
+BOOL G_CancelStructureConstruction(LPEDICT building) {
+    LPGAMECLIENT payer;
+    LONG gold, lumber;
+
+    if (!building || !building->inuse || !building->construction.active ||
+        (building->svflags & SVF_DEADMONSTER) || !G_UnitIsBuilding(building->class_id)) {
+        return false;
+    }
+
+    gold = building->construction.paid
+        ? G_ConstructionCancelRefund(building->construction.gold) : 0;
+    lumber = building->construction.paid
+        ? G_ConstructionCancelRefund(building->construction.lumber) : 0;
+    payer = G_GetPlayerClientByNumber(building->construction.payer);
+
+    G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
+    G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_CANCEL);
+
+    if (building->construction.paid && payer &&
+        payer->ps.number == building->construction.payer) {
+        payer->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += gold;
+        payer->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += lumber;
+        building->construction.paid = false;
+    }
+
+    unit_die(building, NULL);
     return true;
 }
 
@@ -738,6 +806,10 @@ void G_CompleteConstruction(LPEDICT building) {
     building->construction.paused = false;
     building->construction.primary_builder = NULL;
     building->construction.progress = 0.0f;
+    building->construction.paid = false;
+    building->construction.payer = 0;
+    building->construction.gold = 0;
+    building->construction.lumber = 0;
     building->aiflags &= ~AI_HOLD_FRAME;
     building->health.value = building->health.max_value;
     building->stand(building);

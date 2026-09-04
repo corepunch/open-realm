@@ -182,6 +182,15 @@ void build_build(LPEDICT ent) {
     CM_BakeStaticObstacles();
     if (G_UnitHasHumanRepair(ent)) {
         G_StartHumanConstruction(ent, building);
+        /* Cancellation refunds the exact base construction payment, not later
+         * power-build Repair spending. Record that transaction on the spawned
+         * structure while the paying client and authored cost are still known. */
+        building->construction.payer = client->ps.number;
+        if (!G_BuildAllEnabled()) {
+            building->construction.paid = true;
+            building->construction.gold = MAX(0, building->UnitBalance->goldCost);
+            building->construction.lumber = MAX(0, building->UnitBalance->lumberCost);
+        }
         repair_build_primary(ent, building);
     } else {
         /* Other race lifecycles remain the legacy behavior until their

@@ -405,8 +405,11 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
 
 static BOOL entity_blocks_static_pathing(edict_t const *ent) {
     if (!ent || !ent->inuse || (ent->s.renderfx & RF_HIDDEN)) return false;
-    /* A dead object's replacement path texture remains authoritative; dead
-     * entities without one no longer contribute their alive collision. */
+    /* Unit buildings keep their authored path texture after death for entity
+     * presentation/save state, but that alive footprint must no longer block.
+     * Dead destructables may deliberately swap to a death path texture, so
+     * their non-monster pathtex remains authoritative. */
+    if ((ent->svflags & SVF_MONSTER) && (ent->svflags & SVF_DEADMONSTER)) return false;
     if (ent->pathtex) return true;
     if (ent->svflags & SVF_DEADMONSTER) return false;
     return !(ent->svflags & SVF_MONSTER) && ent->collision > 0.0f;
@@ -445,7 +448,10 @@ static void apply_dynamic_obstacles(edict_t const *ignore) {
             continue;
         /* Only stamp units (SVF_MONSTER) — static obstacles are already in
          * pathmap.original and were restored by reset_pathmap_data(). */
-        if (!(ent->svflags & SVF_MONSTER))
+        /* Dead units are hollow to move-time collision and must not be
+         * resurrected as command-time pathing obstacles after construction
+         * cancellation or ordinary death. */
+        if (!(ent->svflags & SVF_MONSTER) || (ent->svflags & SVF_DEADMONSTER))
             continue;
         point2_t p = LocationToPathMap(&ent->s.origin2);
         DWORD radius = collision_radius_cells(ent->collision);

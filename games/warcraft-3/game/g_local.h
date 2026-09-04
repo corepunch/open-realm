@@ -784,6 +784,9 @@ struct edict_s {
         BOOL paused;
         LPEDICT primary_builder;
         FLOAT progress;
+        BOOL paid;
+        DWORD payer;
+        LONG gold, lumber;
     } construction;
     BOOL training; /* spawned in a production queue but not yet completed */
     BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
@@ -1528,6 +1531,8 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
 void G_UpdateConstructionAnimation(LPEDICT building);
+void G_StopConstruction(LPEDICT building);
+BOOL G_CancelStructureConstruction(LPEDICT building);
 void G_CompleteConstruction(LPEDICT building);
 BOOL G_UnitHasHumanRepair(LPEDICT ent);
 BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred);

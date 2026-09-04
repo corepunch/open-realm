@@ -855,8 +855,189 @@ TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) 
     T_ASSERT(building->construction.paused);
     T_ASSERT(building->construction.primary_builder == builder);
     T_FEQ(building->construction.progress, 0.0f, 0.001f);
+    T_ASSERT(!building->construction.paid);
+    T_EQ(building->construction.payer, 0);
+    T_EQ(building->construction.gold, 0);
+    T_EQ(building->construction.lumber, 0);
     T_ASSERT(building->aiflags & AI_HOLD_FRAME);
     T_FEQ(building->health.value, 100.0f, 0.001f);
+}
+
+TEST(wc3_building, cancel_build_command_resolves_to_shared_cancel_handler) {
+    T_ASSERT(FindAbilityForCommand(STR_CmdCancelBuild) == FindAbilityForCommand(STR_CmdCancel));
+}
+
+TEST(wc3_building, replacing_pre_spawn_build_order_clears_project) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    UnitProfile_t profile = { .builds = "hbar" };
+    VECTOR2 point = { 64.0f, 64.0f };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    builder->s.player = client->ps.number;
+    builder->UnitProfile = &profile;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
+    T_EQ(builder->build_project, barracks);
+    unit_stand(builder);
+    T_EQ(builder->build_project, 0);
+}
+
+TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Arep" };
+    UnitBalance_t balance;
+    slkTestData_t *rows, *old_abilities;
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(barracks, 64, 0);
+    builder->UnitAbilities = &abilities;
+    builder->stand = unit_stand;
+    builder->collision = 16.0f;
+    builder->s.player = client->ps.number;
+    building->s.player = client->ps.number;
+    building->svflags |= SVF_MONSTER;
+    building->stand = unit_stand;
+    balance = *building->UnitBalance;
+    balance.goldCost = 100;
+    balance.lumberCost = 80;
+    balance.foodUsed = 2;
+    building->UnitBalance = &balance;
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    building->construction.paid = true;
+    building->construction.payer = client->ps.number;
+    building->construction.gold = balance.goldCost;
+    building->construction.lumber = balance.lumberCost;
+    building->build = building;
+    G_SetUnitFoodUsed(building, balance.foodUsed);
+    repair_build_primary(builder, building);
+    T_ASSERT(builder->build == building);
+    T_EQ(G_GetPlayerTechCountValue(client, barracks), 1);
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    level.events.read = level.events.write = 0;
+
+    T_ASSERT(G_CancelStructureConstruction(building));
+
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 60);
+    T_ASSERT(building->svflags & SVF_DEADMONSTER);
+    T_ASSERT(!building->construction.active);
+    T_NULL(building->construction.primary_builder);
+    T_NULL(building->build);
+    T_NULL(builder->build);
+    T_EQ(builder->buildwork.ability, 0);
+    T_EQ(building->food.used, 0);
+    T_EQ(G_GetPlayerTechCountValue(client, barracks), 0);
+    T_EQ(level.events.write, 4);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_CONSTRUCT_CANCEL);
+    T_EQ(level.events.queue[2].type, EVENT_UNIT_DEATH);
+    T_EQ(level.events.queue[3].type, EVENT_PLAYER_UNIT_DEATH);
+    T_ASSERT(level.events.queue[0].edict == building);
+    T_ASSERT(!G_CancelStructureConstruction(building));
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 60);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, cancel_human_construction_without_payment_does_not_refund) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    LPEDICT building;
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    builder->s.player = client->ps.number;
+    building->s.player = client->ps.number;
+    building->svflags |= SVF_MONSTER;
+    building->stand = unit_stand;
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    building->build = building;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 7;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 9;
+
+    T_ASSERT(G_CancelStructureConstruction(building));
+
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 7);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 9);
+    T_ASSERT(building->svflags & SVF_DEADMONSTER);
+}
+
+TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
+    LPEDICT clent;
+    LPGAMECLIENT client;
+    LPEDICT building;
+    BOOL was_connected;
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    client = clent->client;
+    was_connected = client->connected;
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    building->s.player = client->ps.number;
+    building->svflags |= SVF_MONSTER;
+    building->stand = unit_stand;
+    building->construction.active = true;
+    building->construction.paid = true;
+    building->construction.payer = client->ps.number;
+    building->construction.gold = 100;
+    building->construction.lumber = 80;
+    building->build = building;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    G_SelectEntity(client, building);
+    client->connected = false;
+
+    CMD_CancelCommand(clent);
+
+    T_ASSERT(building->svflags & SVF_DEADMONSTER);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 60);
+    client->connected = was_connected;
+}
+
+TEST(wc3_building, dead_building_releases_baked_static_pathing) {
+    LPEDICT building;
+    pathTex_t *pathtex;
+    VECTOR2 point = { 0.0f, 0.0f };
+    size_t const pathtex_size = sizeof(*pathtex) + sizeof(COLOR32);
+
+    setup_test_world();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), point.x, point.y);
+    building->svflags |= SVF_MONSTER;
+    building->stand = unit_stand;
+    pathtex = gi.MemAlloc(pathtex_size);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = 1;
+    pathtex->height = 1;
+    pathtex->map[0].b = 0xff;
+    building->pathtex = pathtex;
+    gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
+    unit_die(building, NULL);
+    T_ASSERT(CM_PointIsPathableForRadius(&point, 0.0f));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
 }
 
 TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grants_food_once) {
@@ -874,6 +1055,10 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building->construction.paused = true;
     building->construction.primary_builder = builder;
     building->construction.progress = 500.0f;
+    building->construction.paid = true;
+    building->construction.payer = client->ps.number;
+    building->construction.gold = 100;
+    building->construction.lumber = 50;
     building->aiflags |= AI_HOLD_FRAME;
     building->stand = building_test_stand;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
@@ -895,6 +1080,9 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     T_ASSERT(!building->construction.paused);
     T_NULL(building->construction.primary_builder);
     T_FEQ(building->construction.progress, 0.0f, 0.001f);
+    T_ASSERT(!building->construction.paid);
+    T_EQ(building->construction.gold, 0);
+    T_EQ(building->construction.lumber, 0);
     T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);

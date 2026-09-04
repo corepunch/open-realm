@@ -204,15 +204,19 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     /* Match the repeated icon geometry for cancellation hit targets as well as
      * drawing.  Slot 0 is the larger active item beside the progress bar; the
      * remaining slots are the smaller row along the panel bottom. */
-    if (ent->build && ent->build->training) {
-        FOR_LOOP(i, count) {
+    if (constructing || (ent->build && ent->build->training)) {
+        DWORD const cancel_count = constructing ? 1 : count;
+        FOR_LOOP(i, cancel_count) {
             uiFrame_t cancel;
             char onclick[64];
             FLOAT x, y, w, h;
 
             memset(&cancel, 0, sizeof(cancel));
             cancel.flags.type = FT_SIMPLEFRAME;
-            snprintf(onclick, sizeof(onclick), "canceltrain %u", (unsigned)i);
+            if (constructing)
+                snprintf(onclick, sizeof(onclick), "button %s", STR_CmdCancelBuild);
+            else
+                snprintf(onclick, sizeof(onclick), "canceltrain %u", (unsigned)i);
             cancel.onclick = onclick;
             if (i == 0) {
                 x = active_x; y = active_y; w = active_size; h = active_size;
