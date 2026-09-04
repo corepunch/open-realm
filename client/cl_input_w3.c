@@ -1,4 +1,5 @@
 #include "cl_input_local.h"
+#include "cl_control_groups.h"
 #include "ui_layout.h"
 
 #ifndef WOW
@@ -21,7 +22,7 @@ static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
 #endif
 }
 
-/* --- Control groups (Ctrl+0..9 assign, 0..9 recall) ------------------------ */
+/* --- Control groups (Ctrl+0..9 assign, Shift+0..9 append, 0..9 recall) ------ */
 #define CL_CONTROL_GROUP_COUNT 10 // groups; Warcraft III number-key groups; used for client control-group storage
 #define CL_CONTROL_GROUP_DOUBLE_TAP_MS 500 // milliseconds; double-tap focus window; used to recenter a recalled group
 #define CL_CONTROL_GROUP_NONE CL_CONTROL_GROUP_COUNT
@@ -107,11 +108,22 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
 
     g = (DWORD)(sym - SDLK_0); /* 0..9 */
     if (mod & KMOD_CTRL) {
-        /* Assign the current selection to this control group. */
+        /* Assign the current selection to this control group. Ctrl keeps
+         * precedence when both Ctrl and Shift are held. */
         DWORD n = cl.selection.num_selected;
         if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
         cg_count[g] = n;
         memcpy(cg_ids[g], cl.selection.entity_nums, sizeof(DWORD) * n);
+        CL_ResetControlGroupRecall();
+    } else if (mod & KMOD_SHIFT) {
+        /* Append without recalling the group. This deliberately leaves the
+         * active selection untouched so newly selected units can be added to
+         * a group and still receive the player's next command by themselves. */
+        DWORD n = cl.selection.num_selected;
+        if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+        cg_count[g] = CL_ControlGroupAppendUnique(
+            cg_ids[g], cg_count[g], MAX_SELECTED_ENTITIES,
+            cl.selection.entity_nums, n);
         CL_ResetControlGroupRecall();
     } else if (cg_count[g] > 0) {
         /* Recall immediately. A deliberate rapid second press also recenters
