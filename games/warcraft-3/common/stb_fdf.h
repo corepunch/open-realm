@@ -10,7 +10,7 @@
  * Implementation mode:
  *   #define STB_FDF_IMPLEMENTATION before including this header in exactly
  *   one .c file to get static inline implementations of pure frame helpers.
- *   Functions that depend on host-module services (uiimport, gi) remain as
+ *   Functions that depend on host-module services (menuimport, gi) remain as
  *   extern declarations — the host module provides those.
  */
 #ifndef stb_fdf_h
@@ -41,14 +41,14 @@ typedef frameDef_t const *LPCFRAMEDEF;
 /* -------------------------------------------------------------------------- */
 /* Mouse event types (used by frame event_handler)                             */
 /* -------------------------------------------------------------------------- */
-#ifndef UI_MOUSE_EVENT_DEFINED
-#define UI_MOUSE_EVENT_DEFINED
+#ifndef MENU_MOUSE_EVENT_DEFINED
+#define MENU_MOUSE_EVENT_DEFINED
 typedef enum {
-    UI_MOUSE_MOVE,
-    UI_MOUSE_DOWN,
-    UI_MOUSE_UP,
-    UI_MOUSE_SCROLL,
-} uiMouseEvent_t;
+    MENU_MOUSE_MOVE,
+    MENU_MOUSE_DOWN,
+    MENU_MOUSE_UP,
+    MENU_MOUSE_SCROLL,
+} menuMouseEvent_t;
 #endif
 
 /* -------------------------------------------------------------------------- */
@@ -330,7 +330,7 @@ struct uiFrameDef_s {
     /* Interaction state — updated by event handler, read by draw */
     DWORD ui_flags;
     /* Per-type event handler: called from UI_MouseEventLocal */
-    void (*event_handler)(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param);
+    void (*event_handler)(LPFRAMEDEF frame, menuMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param);
     /* Per-type draw function: called from UI_DrawFrameOne */
     void (*draw)(LPCFRAMEDEF frame, LPCRECT rect);
 };

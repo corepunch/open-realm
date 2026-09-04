@@ -33,7 +33,7 @@ BZ_HOST_HIDDEN void UI_ClearTheme(void) {
 
 void UI_LoadTheme(LPCSTR fileName) {
     void *buffer = NULL;
-    int size = uiimport.FS_ReadFile(fileName, &buffer);
+    int size = menuimport.FS_ReadFile(fileName, &buffer);
     LPSTR text;
     char *cursor;
     UINAME category = "Default";
@@ -44,14 +44,14 @@ void UI_LoadTheme(LPCSTR fileName) {
         return;
     }
 
-    text = uiimport.MemAlloc((DWORD)size + 1);
+    text = menuimport.MemAlloc((DWORD)size + 1);
     if (!text) {
-        uiimport.FS_FreeFile(buffer);
+        menuimport.FS_FreeFile(buffer);
         return;
     }
     memcpy(text, buffer, (size_t)size);
     text[size] = '\0';
-    uiimport.FS_FreeFile(buffer);
+    menuimport.FS_FreeFile(buffer);
 
     cursor = text;
     while (*cursor && theme_count < MAX_THEME_ENTRIES) {
@@ -99,7 +99,7 @@ void UI_LoadTheme(LPCSTR fileName) {
         theme_count++;
     }
 
-    uiimport.MemFree(text);
+    menuimport.MemFree(text);
 }
 
 static LPCSTR UI_FindThemeValue(LPCSTR entry, LPCSTR category) {
@@ -130,15 +130,15 @@ static LPCSTR UI_ThemeEffectiveCategory(LPCSTR category) {
         return category;
     }
 
-    ps = uiimport.GetPlayerState();
+    ps = menuimport.GetPlayerState();
     player_category = ps ? UI_ThemeRaceCategory(ps->race) : NULL;
     return player_category ? player_category : category;
 }
 
 /* Warcraft skin versions follow the mounted data edition: 0=RoC, 1=TFT. */
 static DWORD UI_ThemeGameVersion(void) {
-    LPCSTR expansion = uiimport.Cvar_String
-        ? uiimport.Cvar_String("fs_expansion", "0")
+    LPCSTR expansion = menuimport.Cvar_String
+        ? menuimport.Cvar_String("fs_expansion", "0")
         : "0";
 
     return expansion && atoi(expansion) != 0 ? 1 : 0;

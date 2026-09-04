@@ -114,7 +114,7 @@ make clean && make GLSL=150 openwarcraft3          # macOS Core Profile
 
 See [Build And Renderer Platforms](docs/build-and-renderer-platforms.md) for the full dialect token reference, shader body conventions, and alpha-coverage contracts.
 
-Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `ui`) and the `open-realm` executable into `build/`.
+Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `menu`) and the `open-realm` executable into `build/`.
 
 The default Warcraft III libraries are built from engine sources plus `games/warcraft-3/`. Warcraft III-specific script, sheet, game, renderer, UI, and test sources live under that tree. Alternate game builds use the same engine sources with `games/world-of-warcraft/` or `games/starcraft-2/`.
 
@@ -190,7 +190,7 @@ Common runtime cvars:
 | `data` | `""` | Saved Warcraft III data folder |
 | `map` | `""` | Internal map path for listen-server mode |
 | `connect` | `""` | Remote server address |
-| `ui_module` | `"ui"` | UI module name for the Quake-style module boundary |
+| `menu_module` | `"ui"` | UI module name for the Quake-style module boundary |
 | `g_module` | `"game"` | Game module name for the server game boundary |
 | `com_frame_limit` | `"0"` | Exit after N frames |
 | `vid_modes` | `"0"` | Log SDL display modes at renderer startup; enabled by `-vid_modes`, not archived |
@@ -373,7 +373,7 @@ Animation is driven by `M_MoveFrame` (`games/warcraft-3/game/g_monster.c`), whic
 
 ## UI System (Phase 8: Client-Side Architecture)
 
-All UI logic runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/menu/`; the shared client-facing UI API is declared in `client/ui.h`. The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
+All UI logic runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/menu/`; the shared client-facing UI API is declared in `client/menu.h`. The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
 
 ### Migration from Server-Side UI
 
@@ -416,9 +416,9 @@ for (j = 0; j < num_buttons; j++) {
 **Client Storage:**
 ```c
 // games/warcraft-3/menu/screens/console_ui.c — Cache and render
-static uiUnitData_t cached_units[MAX_CACHED_UNITS];
-void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
-    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+static menuUnitData_t cached_units[MAX_CACHED_UNITS];
+void ConsoleUI_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
+    memcpy(cached_units, units, sizeof(menuUnitData_t) * num_units);
     // Rendering uses cached_units[] to draw command card
 }
 ```
@@ -447,7 +447,7 @@ Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librende
 
 The renderer module is intentionally compound. Engine renderer code in `renderer/` owns common GL, scene, font, texture, and diagnostic behavior. The selected game's `games/<game>/renderer/` sources implement the `R_Game*` hooks in `renderer/r_game.h`, so the engine renderer does not branch on MDX/M2/M3 model formats.
 
-The module boundary follows the Quake 2/Quake 3 style: subsystems expose function tables (`R_GetAPI`, `UI_GetAPI`, game exports/imports) rather than sharing global implementation details. The cvars `ui_module` and `g_module` name the active UI and game modules.
+The module boundary follows the Quake 2/Quake 3 style: subsystems expose function tables (`R_GetAPI`, `M_GetAPI`, game exports/imports) rather than sharing global implementation details. The cvars `menu_module` and `g_module` name the active UI and game modules.
 
 The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute the unit test suite.
 

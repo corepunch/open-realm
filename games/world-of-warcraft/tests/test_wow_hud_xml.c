@@ -113,8 +113,8 @@ static void reset_state(void) {
     test_renderer.GetTextSize     = test_get_text_size;
 }
 
-static uiExport_t init_ui(void) {
-    uiExport_t ui = UI_GetAPI((uiImport_t){
+static menuExport_t init_ui(void) {
+    menuExport_t menu = M_GetAPI((menuImport_t){
         .FS_ReadFile   = test_fs_read_file,
         .FS_FreeFile   = test_fs_free_file,
         .MemAlloc      = test_mem_alloc,
@@ -125,11 +125,11 @@ static uiExport_t init_ui(void) {
         .GetRenderer   = test_get_renderer,
         .Printf        = test_printf,
     });
-    T_NOT_NULL(ui.Init);
-    /* Do NOT call ui.Init() — that spins up the Lua glue state which
+    T_NOT_NULL(menu.Init);
+    /* Do NOT call menu.Init() — that spins up the Lua glue state which
      * requires the full MPQ.  We only need the XML runtime here. */
     UIWow_XMLInitRuntime();
-    return ui;
+    return menu;
 }
 
 /* -------------------------------------------------------------------------- */

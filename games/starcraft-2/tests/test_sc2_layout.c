@@ -13,8 +13,8 @@
 #include "games/starcraft-2/menu/menu_layout.h"
 #include "test.h"
 
-/* Define the uiimport global that menu_layout.c references via extern */
-uiImport_t uiimport;
+/* Define the menuimport global that menu_layout.c references via extern */
+menuImport_t menuimport;
 
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
@@ -30,12 +30,12 @@ static void setup_sc2_layout_tests(void) {
     Com_Init(3, argv);
     T_ASSERT(FS_AddArchive(TEST_SC2_MPQ) != NULL);
 
-    /* Set up the uiimport table so SC2_LayoutParseFile can read from the MPQ */
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.FS_ReadFile = FS_ReadFileQ3;
-    uiimport.FS_FreeFile = FS_FreeFile;
-    uiimport.ImageIndex = test_image_index;
-    uiimport.Printf = (void (*)(LPCSTR, ...))printf;
+    /* Set up the menuimport table so SC2_LayoutParseFile can read from the MPQ */
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.FS_ReadFile = FS_ReadFileQ3;
+    menuimport.FS_FreeFile = FS_FreeFile;
+    menuimport.ImageIndex = test_image_index;
+    menuimport.Printf = (void (*)(LPCSTR, ...))printf;
 
     sc2_layout_tests_initialized = true;
 }
@@ -472,7 +472,7 @@ TEST(sc2_layout, model_camera_widescreen) {
     UIMODEL model = { .eye = {0,-5,0}, .pos = {-1,-1,0}, .scale = {1,1,1},
         .fov = 90, .znear = 1, .zfar = 1000, .aspect = 4.0f / 3, .projection = UI_MODEL_ORTHOGRAPHIC };
     MATRIX4 narrow, wide;
-    UI_ModelMatrix(&model, 4.0f / 3, &narrow); UI_ModelMatrix(&model, 16.0f / 9, &wide);
+    M_ModelMatrix(&model, 4.0f / 3, &narrow); M_ModelMatrix(&model, 16.0f / 9, &wide);
     VECTOR3 a = Matrix4_multiply_vector3(&narrow, &(VECTOR3){0,0,0});
     VECTOR3 b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0});
     T_FEQ(a.x, -1, .0001f); T_FEQ(b.x, a.x, .0001f); T_FEQ(a.y, -1, .0001f);
@@ -480,10 +480,10 @@ TEST(sc2_layout, model_camera_widescreen) {
     a = Matrix4_multiply_vector3(&narrow, &(VECTOR3){.5f,0,.25f});
     b = Matrix4_multiply_vector3(&wide, &(VECTOR3){.5f,0,.25f});
     T_FEQ(b.y, a.y, .0001f); T_FEQ((b.x + 1) * (16.0f/9), (a.x + 1) * (4.0f/3), .0001f);
-    model.pos.x = 1; UI_ModelMatrix(&model, 16.0f/9, &wide);
+    model.pos.x = 1; M_ModelMatrix(&model, 16.0f/9, &wide);
     b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0}); T_FEQ(b.x, 1, .0001f);
     model.projection = UI_MODEL_PERSPECTIVE; model.pos = (VECTOR3){0};
-    UI_ModelMatrix(&model, 16.0f/9, &wide);
+    M_ModelMatrix(&model, 16.0f/9, &wide);
     b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0});
     T_FEQ(b.x, 0, .0001f); T_FEQ(b.y, 0, .0001f); T_ASSERT(b.z > -1 && b.z < 1);
 }

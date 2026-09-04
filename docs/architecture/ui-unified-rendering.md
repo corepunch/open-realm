@@ -2,7 +2,7 @@
 
 ## Problem
 
-Today WC3 and WoW menu screens call the renderer directly through `uiimport.GetRenderer()`. This means every UI library must know about the renderer API, hold a renderer reference, and call draw functions itself. The result is two separate rendering paths for menus and HUDs, and every new game UI lib must reimplement the same drawing logic.
+Today WC3 and WoW menu screens call the renderer directly through `menuimport.GetRenderer()`. This means every UI library must know about the renderer API, hold a renderer reference, and call draw functions itself. The result is two separate rendering paths for menus and HUDs, and every new game UI lib must reimplement the same drawing logic.
 
 SC2 already demonstrates a better model: its UI lib is a pure stub and the entire HUD is driven by `svc_layout` blobs rendered generically by `SCR_DrawLayout()` in the client. The goal of this proposal is to extend that model to **all** UI rendering — including menus — so UI libs only handle loading, layout resolution, and event callbacks.
 
@@ -10,7 +10,7 @@ SC2 already demonstrates a better model: its UI lib is a pure stub and the entir
 
 ```
 [WC3/WoW menu]                      [WC3/WoW/SC2 in-game HUD]
-  ui.Refresh()                         svc_layout (net)
+  menu.Refresh()                         svc_layout (net)
     → UI_DrawFrameOne()                  → CL_ParseLayout()
         → re.DrawImageEx()                   → cl.layout[layer]
         → re.DrawText()                          → SCR_DrawLayout()
@@ -26,10 +26,10 @@ The UI lib resolves layout and serializes to a flat `UIFRAME[]` blob, then hands
 
 ```
 [all UI: menu + HUD]
-  ui.Refresh()                        svc_layout (net, in-game only)
+  menu.Refresh()                        svc_layout (net, in-game only)
     → anchor/layout solver               → CL_ParseLayout()
     → serialize UIFRAME[] blob                ↘
-    → uiimport.SetLayout(layer, blob)    cl.layout[layer]
+    → menuimport.SetLayout(layer, blob)    cl.layout[layer]
                                               ↓
                                          SCR_DrawLayout()
                                            → re.DrawImageEx()
@@ -41,7 +41,7 @@ One rendering path. The renderer lives only in the client.
 
 ## Required Changes
 
-### 1. Add `SetLayout` to `uiImport_t` (`client/ui.h`)
+### 1. Add `SetLayout` to `menuImport_t` (`client/menu.h`)
 
 ```c
 void (*SetLayout)(int layer, const void *data, size_t size);
@@ -55,14 +55,14 @@ Currently `UI_LayoutRect()` and `UI_DrawFrameOne()` are interleaved in `menu_ren
 
 1. Run the anchor/SetPoint solver (`UI_LayoutRect`) to compute screen-space rects — same as today.
 2. Serialize the resolved frame tree to `UIFRAME[]` — the same format `hud_write.c` uses for in-game HUD.
-3. Call `uiimport.SetLayout(layer, blob, size)`.
+3. Call `menuimport.SetLayout(layer, blob, size)`.
 4. Return — no renderer calls.
 
 ### 3. Verify `UIFRAME` coverage for menu frame types
 
 The `UIFRAME` wire format (`common/shared.h`) was designed for in-game HUDs. Before committing, audit whether it covers all WC3 menu frame types: backdrops, 9-slice borders, button states, portrait frames, and font/color variants. Extend the format if gaps exist — this is the only potentially load-bearing unknown.
 
-### 4. Remove `GetRenderer` from `uiImport_t`
+### 4. Remove `GetRenderer` from `menuImport_t`
 
 Once no UI lib calls `GetRenderer()`, remove it from the import table. This enforces the boundary — a UI lib physically cannot reach the renderer.
 

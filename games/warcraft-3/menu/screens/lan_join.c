@@ -219,12 +219,12 @@ static void LAN_LoadMapsWithExtension(LPCSTR extension) {
     int count;
     char *cursor;
 
-    if (!uiimport.FS_GetFileList) {
+    if (!menuimport.FS_GetFileList) {
         return;
     }
 
     memset(listbuf, 0, sizeof(listbuf));
-    count = uiimport.FS_GetFileList("Maps", extension, listbuf, sizeof(listbuf));
+    count = menuimport.FS_GetFileList("Maps", extension, listbuf, sizeof(listbuf));
     cursor = listbuf;
     for (int i = 0; i < count && *cursor; i++) {
         LAN_AddMap(cursor);
@@ -238,7 +238,7 @@ static void LAN_LoadMaps(void) {
     LAN_LoadMapsWithExtension(".w3x");
     qsort(lan.maps.items, lan.maps.count, sizeof(lan.maps.items[0]), LAN_CompareMaps);
     lan.maps.visualScroll = (FLOAT)lan.maps.scroll;
-    uiimport.Printf("LAN_LoadMaps: %d maps\n", (int)lan.maps.count);
+    menuimport.Printf("LAN_LoadMaps: %d maps\n", (int)lan.maps.count);
 }
 
 static void LAN_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
@@ -267,8 +267,8 @@ static LPCSTR LAN_GameSpeedValueText(DWORD value) {
 }
 
 static LPCSTR LAN_PlayerName(void) {
-    LPCSTR name = uiimport.Cvar_String
-        ? uiimport.Cvar_String("name", LAN_PLAYER_NAME_DEFAULT)
+    LPCSTR name = menuimport.Cvar_String
+        ? menuimport.Cvar_String("name", LAN_PLAYER_NAME_DEFAULT)
         : LAN_PLAYER_NAME_DEFAULT;
     return name && name[0] ? name : LAN_PLAYER_NAME_DEFAULT;
 }
@@ -305,8 +305,8 @@ void LAN_ApplyPlayerName(void) {
         text = LAN_PLAYER_NAME_DEFAULT;
         UI_SetEditValue(lan.join_frames.PlayerNameEditBox, text);
     }
-    if (uiimport.Cvar_Set) {
-        uiimport.Cvar_Set("name", text);
+    if (menuimport.Cvar_Set) {
+        menuimport.Cvar_Set("name", text);
     }
 }
 
@@ -333,7 +333,7 @@ static void LAN_BindMapInfoPane(LPFRAMEDEF container, MapInfoPane_t *pane) {
     }
 
     if (!lan.map_info_template.MapInfoPane) {
-        uiimport.Printf("LAN_BindMapInfoPane: MapInfoPane missing\n");
+        menuimport.Printf("LAN_BindMapInfoPane: MapInfoPane missing\n");
         return;
     }
 
@@ -357,7 +357,7 @@ static void LAN_CreateMapListFrame(LPFRAMEDEF container,
         return;
     }
     if (!lan.map_list_template.MapListBox) {
-        uiimport.Printf("LAN_CreateMapListFrame: MapListBox missing\n");
+        menuimport.Printf("LAN_CreateMapListFrame: MapListBox missing\n");
         return;
     }
     root = UI_CloneFrameTree(lan.map_list_template.MapListBox, container);
@@ -409,7 +409,7 @@ static void LAN_ClearGames(void) {
     memset(&lan.games, 0, sizeof(lan.games));
 }
 
-static void LAN_CopyGameMapInfo(uiMapListItem_t *item, const uiLanGame_t *game) {
+static void LAN_CopyGameMapInfo(uiMapListItem_t *item, const menuLanGame_t *game) {
     uiMapListItem_t map_item;
 
     if (!item || !game) {
@@ -437,7 +437,7 @@ static void LAN_CopyGameMapInfo(uiMapListItem_t *item, const uiLanGame_t *game) 
     snprintf(item->tileset, sizeof(item->tileset), "%s", UI_GetString("UNKNOWNMAP_TILESET"));
 }
 
-static void LAN_CopyGame(uiMapListItem_t *item, const uiLanGame_t *game, DWORD index) {
+static void LAN_CopyGame(uiMapListItem_t *item, const menuLanGame_t *game, DWORD index) {
     PATHSTR path;
     BOOL path_changed;
 
@@ -466,19 +466,19 @@ static void LAN_CopyGame(uiMapListItem_t *item, const uiLanGame_t *game, DWORD i
 static void LAN_LoadGames(void) {
     DWORD count;
 
-    if (!uiimport.LAN_NumServers || !uiimport.LAN_Server) {
+    if (!menuimport.LAN_NumServers || !menuimport.LAN_Server) {
         return;
     }
 
-    count = uiimport.LAN_NumServers();
+    count = menuimport.LAN_NumServers();
     if (count > UI_MAX_MAP_LIST_ITEMS) {
         count = UI_MAX_MAP_LIST_ITEMS;
     }
     FOR_LOOP(i, count) {
-        uiLanGame_t game;
+        menuLanGame_t game;
         uiMapListItem_t *item;
 
-        if (!uiimport.LAN_Server(i, &game)) {
+        if (!menuimport.LAN_Server(i, &game)) {
             continue;
         }
         if (i >= lan.games.count) {
@@ -522,10 +522,10 @@ static void LAN_UpdateBrowserControls(void) {
     item = &lan.games.items[lan.games.selected];
     LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, "%s", item->name);
     LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(2));
-    if (uiimport.LAN_Server) {
-        uiLanGame_t game;
+    if (menuimport.LAN_Server) {
+        menuLanGame_t game;
 
-        if (uiimport.LAN_Server(item->flags, &game)) {
+        if (menuimport.LAN_Server(item->flags, &game)) {
             LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(game.speed));
         }
     }
@@ -554,8 +554,8 @@ static void LAN_UpdateControls(void) {
 }
 
 static void LAN_RequestServerRefresh(void) {
-    if (uiimport.LAN_RefreshServers) {
-        uiimport.LAN_RefreshServers();
+    if (menuimport.LAN_RefreshServers) {
+        menuimport.LAN_RefreshServers();
     }
 }
 
@@ -563,14 +563,14 @@ static BOOL LAN_BuildBrowserFrames(void) {
     lan.ready = false;
     lan.root = lan.join_frames.LocalMultiplayerJoin;
     if (!lan.root) {
-        uiimport.Printf("LAN_BuildBrowserFrames: LocalMultiplayerJoin missing\n");
+        menuimport.Printf("LAN_BuildBrowserFrames: LocalMultiplayerJoin missing\n");
         return false;
     }
     UI_SetAllPoints(lan.root);
 
     lan.join_button = lan.join_frames.JoinButton;
     if (!lan.join_button) {
-        uiimport.Printf("LAN_BuildBrowserFrames: JoinButton missing\n");
+        menuimport.Printf("LAN_BuildBrowserFrames: JoinButton missing\n");
         return false;
     }
 
@@ -592,14 +592,14 @@ static BOOL LAN_BuildCreateFrames(void) {
     lan.ready = false;
     lan.root = lan.create_frames.LocalMultiplayerCreate;
     if (!lan.root) {
-        uiimport.Printf("LAN_BuildCreateFrames: LocalMultiplayerCreate missing\n");
+        menuimport.Printf("LAN_BuildCreateFrames: LocalMultiplayerCreate missing\n");
         return false;
     }
     UI_SetAllPoints(lan.root);
 
     lan.play_button = lan.create_frames.PlayButton;
     if (!lan.play_button) {
-        uiimport.Printf("LAN_BuildCreateFrames: PlayButton missing\n");
+        menuimport.Printf("LAN_BuildCreateFrames: PlayButton missing\n");
         return false;
     }
     lan.game_speed_slider = lan.create_frames.GameSpeedSlider;
@@ -634,7 +634,7 @@ static void LAN_BuildFrames(lanMode_t mode) {
 }
 
 static void LANJoin_Init(void) {
-    uiimport.Printf("LANJoin_Init\n");
+    menuimport.Printf("LANJoin_Init\n");
     UI_PreloadGlueSceneModels();
     LAN_BuildFrames(lan.mode);
     if (!lan.ready) {
@@ -752,12 +752,12 @@ void LAN_StartSelectedMap(void) {
     if (!LAN_SelectedMapPath()) {
         return;
     }
-    if (uiimport.Cvar_Set) {
-        uiimport.Cvar_Set("connect", "");
-    } else if (uiimport.Cmd_ExecuteText) {
-        uiimport.Cmd_ExecuteText("seta connect \"\"\n");
+    if (menuimport.Cvar_Set) {
+        menuimport.Cvar_Set("connect", "");
+    } else if (menuimport.Cmd_ExecuteText) {
+        menuimport.Cmd_ExecuteText("seta connect \"\"\n");
     }
-    UI_ShowGameSetupMenu();
+    M_ShowGameSetupMenu();
 }
 
 void LAN_SelectMapIndex(DWORD index) {
@@ -783,14 +783,14 @@ void LAN_SelectMapIndex(DWORD index) {
 }
 
 void LAN_JoinSelectedGame(void) {
-    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !uiimport.LAN_ConnectServer) {
+    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !menuimport.LAN_ConnectServer) {
         return;
     }
     if (lan.games.count == 0 || lan.games.selected >= lan.games.count) {
         return;
     }
     LAN_ApplyPlayerName();
-    uiimport.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
+    menuimport.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
 }
 
 static void LAN_ShowMode(lanMode_t mode) {

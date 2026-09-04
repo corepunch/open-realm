@@ -224,7 +224,7 @@ Key flags: `-prefix <Name>` sets the struct and function prefix; `-root <FrameNa
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full engine/game boundary, module structure, network state contracts, engine struct/API discipline, and UI rendering overview.
 
 Key principles inline:
-- Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports).
+- Runtime modules communicate through function tables (`R_GetAPI`, `M_GetAPI`, game imports/exports).
 - The server controls what the client draws via state bits in `playerState_t`. The client just reads them.
 - Never hardcode game-specific asset names, animation names, or franchise-specific literals in engine code —
   including enum members, macros, and struct field names in `common/`, `renderer/`, `client/`, `server/`.
@@ -250,17 +250,17 @@ Key principles inline:
 ## Mouse Input Architecture
 
 - Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth.
-- The UI library receives mouse events via `ui.MouseEvent(x, y, button, down)` — push-based, called during `SDL_PollEvent` in `CL_Input()`.
+- The UI library receives mouse events via `menu.MouseEvent(x, y, button, down)` — push-based, called during `SDL_PollEvent` in `CL_Input()`.
 - Game-mode-specific mouse behavior lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
 - Never create a separate mouse state struct in game UI code. Never poll mouse event state during draw.
 
 ## UI Module Boundary
 
-- **Never use `ui.dll` for in-game UI.** `ui.dll` is reserved for the main menu/glue screens and may be unloaded in the future while a game is loading. In-game UI state, input, presentation, and client-owned gameplay widgets belong in `client/`. Use commit `611e3bbb` (`refactor: centralize generic minimap handling`) as the reference implementation for this ownership model.
-- Keep `ui.dll` focused on loading screens and menu/glue UI. New in-game HUD presentation must be server-authored through
+- **Never use `menu module` for in-game UI.** `menu module` is reserved for the main menu/glue screens and may be unloaded in the future while a game is loading. In-game UI state, input, presentation, and client-owned gameplay widgets belong in `client/`. Use commit `611e3bbb` (`refactor: centralize generic minimap handling`) as the reference implementation for this ownership model.
+- Keep `menu module` focused on loading screens and menu/glue UI. New in-game HUD presentation must be server-authored through
   `svc_layout`; the generic client may bind declared frames to already-replicated `playerState_t`, `entityState_t`, and configstring
-  data, but `ui.dll` must not independently construct or populate gameplay HUD widgets.
-- An in-game `ui.dll` exception is allowed only when `svc_layout`, replicated state/configstrings, and generic client layout bindings
+  data, but `menu module` must not independently construct or populate gameplay HUD widgets.
+- An in-game `menu module` exception is allowed only when `svc_layout`, replicated state/configstrings, and generic client layout bindings
   demonstrably cannot represent the feature. Mark the implementation at the call site with `/* HACK: */` and explain that specific
   constraint. Convenience, per-game styling, or client-local mouse/projection state are not sufficient reasons for an exception.
 - Do not add UI import callbacks for mouse polling, loading state polling, layout decoding, or map-info helpers. Use pushed events, `DrawLoadingScreen(map, status, progress)`, client-owned layout functions, and direct `CM_*` calls inside the UI module.
@@ -283,7 +283,7 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 - **Fast-forward bounded simulations explicitly.** `com_frame_limit` counts main-loop iterations, not 10 Hz server ticks. For AI and other long simulation diagnostics, pass `-com_fast_forward` (or `+set com_fast_forward 1`) together with `+com_frame_limit N`; each loop then advances one fixed `FRAMETIME` (100 ms) server tick without wall-clock pacing. Example: `build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -com_fast_forward +map 'Maps/(2)Rivercross.w3m' +com_frame_limit 10000`. Do not use fast-forward for rendering, input, networking, or frame-pacing validation.
 - **SDL display modes are opt-in diagnostics.** Pass `-vid_modes` (or `+set vid_modes 1`) to log the available SDL display modes during renderer startup; normal startup omits the list. This works in WC3, WoW and SC2 and is not saved automatically. Plural `vid_modes` controls logging; singular `vid_mode` selects resolution. See [video modes](docs/build-and-renderer-platforms.md#video-modes).
 - The `+` prefix (e.g. `+map`, `+menu_main`) is for **command-line arguments only**. It tells `Cbuf_AddLateCommands` to strip the `+` and queue the command for startup execution.
-- In code, use the bare command name when calling `Cbuf_AddText` or `uiimport.Cmd_ExecuteText`: `"map ..."` not `"+map ..."`.
+- In code, use the bare command name when calling `Cbuf_AddText` or `menuimport.Cmd_ExecuteText`: `"map ..."` not `"+map ..."`.
 - **Launch UI scenes directly** with a `+menu_<scene>` late command — there is no `+ui` command. Scene names come from the `menu_*` commands each game registers via `Cmd_AddCommand` in its `menu_main.c`: WC3 (`menu_main`, `menu_options`, ...) and WoW (`menu_login`, `menu_character_select`, `menu_character_create`, `menu_ingame`). Examples: `build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_main`, `build/bin/openwow -data data/world-of-warcraft +menu_character_create`. See [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md).
 - **Use the engine screenshot command, not desktop capture.** `screenshot` writes `screenshots/shotNNNN.jpg` (JPEG, quality 90). `screenshot N` captures the Nth fully rendered frame after the command executes. From the command line, place it after the map selector and keep `com_frame_limit` larger than the delay:
   ```

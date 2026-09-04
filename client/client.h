@@ -4,7 +4,7 @@
 #include "common/common.h"
 #include "tr_public.h"
 #include "keys.h"
-#include "client/ui.h"
+#include "client/menu.h"
 #include "ui_layout.h"
 
 #define WINDOW_WIDTH 1024
@@ -33,7 +33,7 @@ typedef enum {
     UI_RIGHT_MOUSE_DOWN,
     UI_RIGHT_MOUSE_UP,
     UI_RIGHT_MOUSE_DRAGGED,
-    NUM_UI_MOUSE_EVENTS
+    NUM_MENU_MOUSE_EVENTS
 } mouseEventType_t;
 
 typedef struct {
@@ -148,7 +148,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout);
 void CL_WindowClose(DWORD id);
 void CL_WindowClear(void);
 void CL_WindowDraw(void);
-BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
+BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
 BOOL CL_WindowKeyEvent(int key);
 BOOL CL_WindowModalActive(void);
 
@@ -242,7 +242,7 @@ void CL_ParseUnitUI(LPSIZEBUF msg);
 extern struct client_state cl;
 extern struct client_static cls;
 extern refExport_t re;
-extern uiExport_t ui;
+extern menuExport_t menu;
 extern mouseEvent_t mouse;
 extern BOOL scr_initialized;
 

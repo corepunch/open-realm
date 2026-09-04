@@ -27,7 +27,7 @@ static DWORD UI_SFileReadStringLength(HANDLE file) {
 
 static void UI_SFileReadString(HANDLE file, LPSTR *lppString) {
     DWORD stringLength = UI_SFileReadStringLength(file);
-    *lppString = uiimport.MemAlloc(stringLength);
+    *lppString = menuimport.MemAlloc(stringLength);
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
@@ -116,11 +116,11 @@ static BOOL UI_ReadInfoInto(HANDLE archive, LPMAPINFO info) {
             SFileReadFile(file, &player->enemyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
         }
         if (scratch.playerName)
-            uiimport.MemFree(scratch.playerName);
+            menuimport.MemFree(scratch.playerName);
     }
 
     SFileReadFile(file, &info->num_teams, sizeof(DWORD), NULL, NULL);
-    info->teams = uiimport.MemAlloc(sizeof(mapTeam_t) * info->num_teams);
+    info->teams = menuimport.MemAlloc(sizeof(mapTeam_t) * info->num_teams);
     FOR_LOOP(i, info->num_teams) {
         mapTeam_t *force = &info->teams[i];
         SFileReadFile(file, &force->flags, sizeof(DWORD), NULL, NULL);
@@ -199,7 +199,7 @@ static void UI_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
     if (!archive || !info || !SFileOpenFileEx(archive, "war3map.wts", SFILE_OPEN_FROM_MPQ, &file))
         return;
     size = SFileGetFileSize(file, NULL);
-    buffer = uiimport.MemAlloc(size + 1);
+    buffer = menuimport.MemAlloc(size + 1);
     if (!buffer) {
         SFileCloseFile(file);
         return;
@@ -219,8 +219,8 @@ static void UI_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
         if (!reading_data) {
             if (!strncmp(trimmed, "STRING ", 7)) {
                 if (entry)
-                    uiimport.MemFree(entry);
-                entry = uiimport.MemAlloc(sizeof(*entry));
+                    menuimport.MemFree(entry);
+                entry = menuimport.MemAlloc(sizeof(*entry));
                 memset(entry, 0, sizeof(*entry));
                 entry->id = (DWORD)strtoul(trimmed + 7, NULL, 10);
             } else if (entry && *trimmed == '{') {
@@ -240,24 +240,24 @@ static void UI_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
         if (reading_data) {
             ADD_TO_LIST(entry, info->strings);
         } else {
-            uiimport.MemFree(entry);
+            menuimport.MemFree(entry);
         }
     }
-    uiimport.MemFree(buffer);
+    menuimport.MemFree(buffer);
 }
 
 static BOOL UI_OpenMapArchive(LPCSTR mapFilename, HANDLE *mapArchive, void **mapData) {
     int mapSize;
 
-    if (!mapFilename || !mapArchive || !mapData || !uiimport.FS_ReadFile || !uiimport.FS_FreeFile)
+    if (!mapFilename || !mapArchive || !mapData || !menuimport.FS_ReadFile || !menuimport.FS_FreeFile)
         return false;
     *mapArchive = NULL;
     *mapData = NULL;
-    mapSize = uiimport.FS_ReadFile(mapFilename, mapData);
+    mapSize = menuimport.FS_ReadFile(mapFilename, mapData);
     if (!*mapData || mapSize <= 0)
         return false;
     if (!SFileOpenArchiveFromMemory(*mapData, (DWORD)mapSize, 0, mapArchive)) {
-        uiimport.FS_FreeFile(*mapData);
+        menuimport.FS_FreeFile(*mapData);
         *mapData = NULL;
         return false;
     }
@@ -275,12 +275,12 @@ BOOL UI_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info) {
         return false;
     if (!UI_ReadInfoInto(mapArchive, info)) {
         SFileCloseArchive(mapArchive);
-        uiimport.FS_FreeFile(mapData);
+        menuimport.FS_FreeFile(mapData);
         return false;
     }
     UI_ReadStringsInto(mapArchive, info);
     SFileCloseArchive(mapArchive);
-    uiimport.FS_FreeFile(mapData);
+    menuimport.FS_FreeFile(mapData);
     return true;
 }
 
@@ -306,7 +306,7 @@ BOOL UI_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size) {
         break;
     }
     SFileCloseArchive(mapArchive);
-    uiimport.FS_FreeFile(mapData);
+    menuimport.FS_FreeFile(mapData);
     return found;
 }
 
@@ -315,25 +315,25 @@ void UI_FreeMapInfo(LPMAPINFO mapInfo) {
 
     if (!mapInfo)
         return;
-    FOR_LOOP(i, MAX_PLAYERS) SAFE_DELETE(mapInfo->players[i].playerName, uiimport.MemFree);
-    FOR_LOOP(i, mapInfo->num_teams) SAFE_DELETE(mapInfo->teams[i].name, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->mapName, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->mapAuthor, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->mapDescription, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->playersRecommended, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->loadingScreenModel, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->loadingScreenText, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->loadingScreenTitle, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->loadingScreenSubtitle, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->prologueScreenModel, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->prologueScreenText, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->prologueScreenTitle, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->prologueScreenSubtitle, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->soundEnvironment, uiimport.MemFree);
-    SAFE_DELETE(mapInfo->teams, uiimport.MemFree);
+    FOR_LOOP(i, MAX_PLAYERS) SAFE_DELETE(mapInfo->players[i].playerName, menuimport.MemFree);
+    FOR_LOOP(i, mapInfo->num_teams) SAFE_DELETE(mapInfo->teams[i].name, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->mapName, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->mapAuthor, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->mapDescription, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->playersRecommended, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenModel, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenText, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenTitle, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenSubtitle, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenModel, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenText, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenTitle, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenSubtitle, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->soundEnvironment, menuimport.MemFree);
+    SAFE_DELETE(mapInfo->teams, menuimport.MemFree);
     while (string) {
         mapTrigStr_t *next = string->next;
-        uiimport.MemFree(string);
+        menuimport.MemFree(string);
         string = next;
     }
     memset(mapInfo, 0, sizeof(*mapInfo));

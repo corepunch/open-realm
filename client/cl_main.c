@@ -21,7 +21,7 @@
 #endif
 
 refExport_t re;
-uiExport_t ui;
+menuExport_t menu;
 
 struct client_static cls;
 struct client_state cl;
@@ -140,7 +140,7 @@ static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
-static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
+static BOOL CL_LANServer(DWORD index, menuLanGame_t *out);
 static void CL_LANConnectServer(DWORD index);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
@@ -360,7 +360,7 @@ static LPRENDERER CL_UIGetRenderer(void) {
 
 #define CL_MAX_LAN_SERVERS 64
 
-static uiLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
+static menuLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
 static DWORD cl_num_lan_servers;
 
 static void CL_InfoValue(LPCSTR info, LPCSTR key, LPSTR out, DWORD out_size) {
@@ -419,7 +419,7 @@ static DWORD CL_LANNumServers(void) {
     return cl_num_lan_servers;
 }
 
-static BOOL CL_LANServer(DWORD index, uiLanGame_t *out) {
+static BOOL CL_LANServer(DWORD index, menuLanGame_t *out) {
     if (!out || index >= cl_num_lan_servers) {
         return false;
     }
@@ -428,7 +428,7 @@ static BOOL CL_LANServer(DWORD index, uiLanGame_t *out) {
 }
 
 static void CL_LANConnectServer(DWORD index) {
-    uiLanGame_t *game;
+    menuLanGame_t *game;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
 
     if (index >= cl_num_lan_servers) {
@@ -440,7 +440,7 @@ static void CL_LANConnectServer(DWORD index) {
 }
 
 static void CL_AddLANServer(const netadr_t *from, LPCSTR info) {
-    uiLanGame_t *game;
+    menuLanGame_t *game;
     char value[128];
     LPCSTR address;
 
@@ -504,7 +504,7 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
     (void)entity_nums;
-    ui.UpdateUnitUI(0, NULL);
+    menu.UpdateUnitUI(0, NULL);
 }
 
 int CL_ModelIndex(LPCSTR modelName) {
@@ -538,7 +538,7 @@ int CL_ImageIndex(LPCSTR imageName) {
 }
 
 LPCSTR CL_ResolveImagePath(LPCSTR imageName) {
-    return ui.ResolveImagePath ? ui.ResolveImagePath(imageName) : imageName;
+    return menu.ResolveImagePath ? menu.ResolveImagePath(imageName) : imageName;
 }
 
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize) {
@@ -678,7 +678,7 @@ void CL_Init(void) {
     S_Init();
 
     /* Initialize UI library */
-    ui = UI_GetAPI((uiImport_t) {
+    menu = M_GetAPI((menuImport_t) {
         .FS_ReadFile = CL_UI_ReadFile,
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
@@ -711,7 +711,7 @@ void CL_Init(void) {
         .PlaySoundByName = S_PlaySoundByName,
     });
     
-    ui.Init();
+    menu.Init();
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
@@ -880,7 +880,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
-    ui.Shutdown();
+    menu.Shutdown();
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);

@@ -53,7 +53,7 @@ static void MainMenu_ShowQuitDialog(void) {
 
 static void MainMenu_InitFrames(void) {
     if (!main_menu.MainMenuFrame) {
-        uiimport.Printf("ERROR: MainMenuFrame not found\n");
+        menuimport.Printf("ERROR: MainMenuFrame not found\n");
         return;
     }
 
@@ -93,7 +93,7 @@ static void MainMenu_InitFrames(void) {
 }
 
 static void MainMenu_Init(void) {
-    uiimport.Printf("MainMenu_Init\n");
+    menuimport.Printf("MainMenu_Init\n");
     UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
     MainMenu_ShowMainPanel();

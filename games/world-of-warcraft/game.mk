@@ -113,7 +113,7 @@ $(eval $(call unity_lib_schema,$(RENDERER_WOW_LIB),$(RENDERER_BASE_DEPS) $(call 
 
 $(eval $(call unity_lib_schema,$(GAME_WOW_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow,$(WOW_DIR)/game,,$(WOW_CFLAGS),common/mpq.c $(SERVER_GAME_SRCS),-lshared $(LIBS) -lm -lz))
 
-$(eval $(call unity_lib_schema,$(MENU_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(LUA_LIB) $(call CSRC,$(WOW_DIR)/menu),menu-wow,$(WOW_DIR)/menu,,$(WOW_MENU_CFLAGS),,-lshared -llua -lm))
+$(eval $(call unity_lib_schema,$(MENU_WOW_LIB),$(UI_BASE_DEPS) client/menu.h $(LUA_LIB) $(call CSRC,$(WOW_DIR)/menu),menu-wow,$(WOW_DIR)/menu,,$(WOW_MENU_CFLAGS),,-lshared -llua -lm))
 
 $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(MENU_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow -lrenderer-wow -lmenu-wow $(LIBS) -lz))
 

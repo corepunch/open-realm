@@ -1,7 +1,7 @@
 /*
  * test_client_stubs.c — Global client state and stubs for standalone net tests.
  *
- * Provides the client_state, client_static, refExport_t, uiExport_t, and
+ * Provides the client_state, client_static, refExport_t, menuExport_t, and
  * mouseEvent_t globals that are normally defined in cl_main.c and referenced
  * by client/cl_parse.c, common/net.c, and common/msg.c.  Not a test harness
  * — these are the real global symbols the code expects.
@@ -16,7 +16,7 @@
 struct client_state cl;
 struct client_static cls;
 refExport_t re;
-uiExport_t ui;
+menuExport_t menu;
 mouseEvent_t mouse;
 DWORD test_fow_upload_calls;
 DWORD test_cursor_draw_calls;
@@ -110,7 +110,7 @@ void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));
     memset(&re, 0, sizeof(re));
-    memset(&ui, 0, sizeof(ui));
+    memset(&menu, 0, sizeof(menu));
     memset(&mouse, 0, sizeof(mouse));
     test_fow_upload_calls = 0;
     test_cursor_draw_calls = 0;

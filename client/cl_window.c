@@ -418,7 +418,7 @@ void CL_WindowDraw(void) {
     }
 }
 
-BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal(), *window;
     LPCUIFRAME frame;
@@ -427,19 +427,19 @@ BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         RECT root = CL_WindowRoot(cl_windows.scroll_drag);
         CL_WindowPrepareState(cl_windows.scroll_drag, &root);
         frame = SCR_Frame(cl_windows.scroll_drag_frame);
-        if (event == UI_MOUSE_MOVE && frame && frame->flags.type == FT_SCROLLBAR) {
+        if (event == MENU_MOUSE_MOVE && frame && frame->flags.type == FT_SCROLLBAR) {
             CL_WindowScrollBarSetFromPoint(cl_windows.scroll_drag, (LPUIFRAME)frame, &point, true);
-        } else if (event == UI_MOUSE_UP && param == 1) {
+        } else if (event == MENU_MOUSE_UP && param == 1) {
             cl_windows.scroll_drag = NULL;
             cl_windows.scroll_drag_frame = 0;
         }
         return true;
     }
     if (cl_windows.drag) {
-        if (event == UI_MOUSE_MOVE) {
+        if (event == MENU_MOUSE_MOVE) {
             cl_windows.drag->offset.x = cl_windows.drag_offset.x + point.x - cl_windows.drag_point.x;
             cl_windows.drag->offset.y = cl_windows.drag_offset.y + point.y - cl_windows.drag_point.y;
-        } else if (event == UI_MOUSE_UP && param == 1) cl_windows.drag = NULL;
+        } else if (event == MENU_MOUSE_UP && param == 1) cl_windows.drag = NULL;
         return true;
     }
     for (window = cl_windows.last; window; window = window->prev) {
@@ -447,15 +447,15 @@ BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         LPUIFRAME scrollbar;
         if (modal && window != modal) continue;
         if (!CL_WindowContains(window, &point)) continue;
-        if (event == UI_MOUSE_DOWN && param == 1) CL_WindowFocus(window);
+        if (event == MENU_MOUSE_DOWN && param == 1) CL_WindowFocus(window);
 
         root = CL_WindowRoot(window);
         CL_WindowPrepareState(window, &root);
-        if (event == UI_MOUSE_SCROLL && CL_WindowScrollWheel(window, &point, UI_MOUSE_PARAM_Y(param)))
+        if (event == MENU_MOUSE_SCROLL && CL_WindowScrollWheel(window, &point, MENU_MOUSE_PARAM_Y(param)))
             return true;
 
         scrollbar = CL_WindowFrameAtType(&point, FT_SCROLLBAR);
-        if (scrollbar && event == UI_MOUSE_DOWN && param == 1) {
+        if (scrollbar && event == MENU_MOUSE_DOWN && param == 1) {
             RECT const *sr = SCR_LayoutRect(scrollbar);
             FLOAT bh = MIN(sr->w * UI_PIXEL_ASPECT, sr->h * 0.5f);
             BOOL track = point.y >= sr->y + bh && point.y < sr->y + sr->h - bh;
@@ -469,9 +469,9 @@ BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         }
 
         frame = CL_WindowClickableAt(window, &point);
-        SCR_LayoutSetPointer(window->layout, frame ? frame->number : 0, event == UI_MOUSE_DOWN && param == 1);
-        if (event == UI_MOUSE_UP && param == 1 && frame) CL_WindowActivateFrame(window, frame);
-        else if (event == UI_MOUSE_DOWN && param == 1 && !frame && (window->flags & UI_WINDOW_MOVABLE) &&
+        SCR_LayoutSetPointer(window->layout, frame ? frame->number : 0, event == MENU_MOUSE_DOWN && param == 1);
+        if (event == MENU_MOUSE_UP && param == 1 && frame) CL_WindowActivateFrame(window, frame);
+        else if (event == MENU_MOUSE_DOWN && param == 1 && !frame && (window->flags & UI_WINDOW_MOVABLE) &&
                  point.y <= window->offset.y + 24.0f) {
             cl_windows.drag = window;
             cl_windows.drag_point = point;
@@ -479,7 +479,7 @@ BOOL CL_WindowMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         }
         return true;
     }
-    if (event == UI_MOUSE_DOWN && param == 1 && !modal) cl_windows.focus = NULL;
+    if (event == MENU_MOUSE_DOWN && param == 1 && !modal) cl_windows.focus = NULL;
     return modal != NULL;
 }
 

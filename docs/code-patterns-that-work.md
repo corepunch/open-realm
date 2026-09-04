@@ -120,7 +120,7 @@ Not character walking, not separator loops. The format string IS the parser.
 
 ## Function tables for cross-module boundaries
 
-Renderer ↔ Game ↔ UI boundaries use function tables (`ri.*`, `gi.*`, `uiimport.*`). Each module exports a `*_GetAPI(import_t)` function. This is the Quake 2/3 pattern — no direct includes across module boundaries, no global function calls.
+Renderer ↔ Game ↔ UI boundaries use function tables (`ri.*`, `gi.*`, `menuimport.*`). Each module exports a `*_GetAPI(import_t)` function. This is the Quake 2/3 pattern — no direct includes across module boundaries, no global function calls.
 
 ```c
 // Renderer receives:

@@ -32,6 +32,6 @@ and builds a hash by kit name. Playback:
 - `S_PlaySoundFile(path)` — play raw MPQ path (for WC3 entity event sounds)
 
 UI sounds triggered by Lua/FDF use `PlaySound(kit_id)` / `PlaySoundByName(name)`
-through the `uiImport_t` function table.
+through the `menuImport_t` function table.
 
 Entity event sounds (unit attack, death) use `S_PlaySoundFile` via `CL_EntityEvent`.

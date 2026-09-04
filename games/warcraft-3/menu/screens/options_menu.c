@@ -132,7 +132,7 @@ static void OptionsMenu_SetPopupItems(LPFRAMEDEF popup,
 }
 
 static int OptionsMenu_CvarInteger(LPCSTR name, int fallback) {
-    LPCSTR value = uiimport.Cvar_String(name, NULL);
+    LPCSTR value = menuimport.Cvar_String(name, NULL);
 
     return value && *value ? atoi(value) : fallback;
 }
@@ -153,7 +153,7 @@ static void OptionsMenu_SetPopupCvar(LPFRAMEDEF menu, LPCSTR name) {
 }
 
 static void OptionsMenu_InitGamePortEditBox(void) {
-    LPCSTR port = uiimport.Cvar_String("game_port", "");
+    LPCSTR port = menuimport.Cvar_String("game_port", "");
 
     if (options_menu.GamePortEditBox) {
         options_menu.GamePortEditBox->Edit.MaxChars = 5;
@@ -171,8 +171,8 @@ static void OptionsMenu_ApplyGamePort(void) {
         return;
     }
     snprintf(command, sizeof(command), "seta game_port %d\n", port);
-    if (uiimport.Cmd_ExecuteText) {
-        uiimport.Cmd_ExecuteText(command);
+    if (menuimport.Cmd_ExecuteText) {
+        menuimport.Cmd_ExecuteText(command);
     }
 }
 
@@ -312,7 +312,7 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
 }
 
 static void OptionsMenu_Init(void) {
-    uiimport.Printf("OptionsMenu_Init\n");
+    menuimport.Printf("OptionsMenu_Init\n");
     UI_PreloadGlueSceneModels();
     current_panel = OPTIONS_PANEL_GAMEPLAY;
 
@@ -372,8 +372,8 @@ void OptionsMenu_ShowKeys(void) {
 
 void OptionsMenu_Apply(void) {
     OptionsMenu_ApplyGamePort();
-    if (uiimport.Cmd_ExecuteText) {
-        uiimport.Cmd_ExecuteText("vid_apply\nwriteconfig\n");
+    if (menuimport.Cmd_ExecuteText) {
+        menuimport.Cmd_ExecuteText("vid_apply\nwriteconfig\n");
     }
 }
 

@@ -841,7 +841,7 @@ TEST(net, window_click_raises_and_moves_keyboard_focus) {
     SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
     test_send_window(1, 91, UI_WINDOW_UNIQUE, 0.05f, "First", "first");
     test_send_window(2, 92, UI_WINDOW_UNIQUE, 0.45f, "Second", "second");
-    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     SZ_Clear(&cls.netchan.message);
     T_ASSERT(CL_WindowKeyEvent('Z'));
     cls.netchan.message.readcount = 0;
@@ -863,8 +863,8 @@ TEST(net, window_close_action_closes_without_server_command) {
     test_send_window(3, 93, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_ACTION);
     SZ_Clear(&cls.netchan.message);
     T_ASSERT(CL_WindowModalActive());
-    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
-    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
     T_ASSERT(!CL_WindowModalActive());
     T_EQ(cls.netchan.message.cursize, 0);
     CL_WindowClear();
@@ -875,8 +875,8 @@ TEST(net, window_close_notify_releases_server_modal_owner) {
     re.GetTextSize = text_length_mock_size;
     test_send_window(4, 94, UI_WINDOW_MODAL, 0.05f, "Close", UI_WINDOW_CLOSE_NOTIFY_ACTION);
     T_STREQ(test_forwarded_command, "pause 1");
-    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
-    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "pause 0");
     CL_WindowClear();
@@ -951,8 +951,8 @@ TEST(net, window_close_command_forwards_suffix_and_closes) {
     test_forwarded_command[0] = '\0';
     test_send_window(10, 100, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
                      "Accept", UI_WINDOW_CLOSE_COMMAND_PREFIX "allies_accept");
-    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_DOWN, 128, 256, 1));
-    T_ASSERT(CL_WindowMouseEvent(UI_MOUSE_UP, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
     T_ASSERT(!CL_WindowModalActive());
     T_STREQ(test_forwarded_command, "allies_accept");
     CL_WindowClear();
@@ -1161,11 +1161,11 @@ TEST(net, empty_layout_clears_layer) {
     T_NULL(cl.layout[LAYER_QUESTDIALOG]);
 }
 
-static uiUnitData_t test_unit_ui_last;
+static menuUnitData_t test_unit_ui_last;
 static DWORD test_unit_ui_calls;
 static DWORD test_unit_ui_num_units;
 
-static void test_update_unit_ui(DWORD num_units, uiUnitData_t *units) {
+static void test_update_unit_ui(DWORD num_units, menuUnitData_t *units) {
     test_unit_ui_calls++;
     test_unit_ui_num_units = num_units;
     memset(&test_unit_ui_last, 0, sizeof(test_unit_ui_last));
@@ -1180,7 +1180,7 @@ TEST(net, game_command_selection_accepts_authoritative_multi_selection) {
 
     test_client_stubs_init();
     test_unit_ui_calls = 0;
-    ui.UpdateUnitUI = test_update_unit_ui;
+    menu.UpdateUnitUI = test_update_unit_ui;
     cl.selection.num_selected = 1;
     cl.selection.entity_nums[0] = 99;
 
@@ -1206,7 +1206,7 @@ TEST(net, game_command_empty_selection_clears_client_cache) {
 
     test_client_stubs_init();
     test_unit_ui_calls = 0;
-    ui.UpdateUnitUI = test_update_unit_ui;
+    menu.UpdateUnitUI = test_update_unit_ui;
     cl.selection.num_selected = 2;
     cl.selection.entity_nums[0] = 4;
     cl.selection.entity_nums[1] = 7;
@@ -1229,7 +1229,7 @@ TEST(net, unit_ui_parser_preserves_distinct_strings) {
     test_unit_ui_calls = 0;
     test_unit_ui_num_units = 0;
     memset(&test_unit_ui_last, 0, sizeof(test_unit_ui_last));
-    ui.UpdateUnitUI = test_update_unit_ui;
+    menu.UpdateUnitUI = test_update_unit_ui;
 
     MSG_WriteByte(&sb, 1);
     MSG_WriteShort(&sb, 7);
@@ -2042,9 +2042,9 @@ TEST(client_screen, command_button_right_click_sends_secondary_command) {
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(SCR_LayoutMouseEvent(UI_MOUSE_DOWN, 10, 10, 3));
+    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3));
     T_EQ(cls.netchan.message.cursize, 0);
-    T_ASSERT(SCR_LayoutMouseEvent(UI_MOUSE_UP, 10, 10, 3));
+    T_ASSERT(SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3));
     cls.netchan.message.readcount = 0;
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command_buf);
@@ -2079,8 +2079,8 @@ TEST(client_screen, command_button_right_click_without_secondary_command_is_not_
     sb.readcount = 0;
     CL_ParseLayout(&sb);
 
-    T_ASSERT(!SCR_LayoutMouseEvent(UI_MOUSE_DOWN, 10, 10, 3));
-    T_ASSERT(!SCR_LayoutMouseEvent(UI_MOUSE_UP, 10, 10, 3));
+    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, 10, 10, 3));
+    T_ASSERT(!SCR_LayoutMouseEvent(MENU_MOUSE_UP, 10, 10, 3));
     T_EQ(cls.netchan.message.cursize, 0);
 }
 

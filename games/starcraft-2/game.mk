@@ -35,7 +35,7 @@ $(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call 
 
 $(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS),common/mpq.c,-ljass -lshared $(LIBS) -lm -lz))
 
-$(eval $(call unity_lib_schema,$(MENU_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/menu),menu-sc2,$(SC2_DIR)/menu,,$(SC2_IMPL_CFLAGS),,-lshared))
+$(eval $(call unity_lib_schema,$(MENU_SC2_LIB),$(UI_BASE_DEPS) client/menu.h $(call CSRC,$(SC2_DIR)/menu),menu-sc2,$(SC2_DIR)/menu,,$(SC2_IMPL_CFLAGS),,-lshared))
 
 $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(MENU_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_IMPL_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lmenu-sc2 $(LIBS) -lz))
 

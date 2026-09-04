@@ -686,10 +686,10 @@ static void CL_ParseLobbySetup(LPSIZEBUF msg) {
                 (unsigned)slot->color,
                 slot->name);
     }
-    if (!state.map_path[0] || !ui.UpdateLobbySetup) {
+    if (!state.map_path[0] || !menu.UpdateLobbySetup) {
         return;
     }
-    ui.UpdateLobbySetup(&state);
+    menu.UpdateLobbySetup(&state);
 }
 
 static void CL_ParseLobbyChat(LPSIZEBUF msg) {
@@ -732,7 +732,7 @@ static void CL_ParseSetSelection(LPSIZEBUF msg) {
         }
     }
     cl.selection.num_selected = selected;
-    if (ui.UpdateUnitUI) ui.UpdateUnitUI(0, NULL);
+    if (menu.UpdateUnitUI) menu.UpdateUnitUI(0, NULL);
 }
 
 static void CL_ParseGameCommand(LPSIZEBUF msg) {
@@ -754,8 +754,8 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
     payload.cursize = (DWORD)payload_size;
     payload.readcount = 0;
 
-    if (ui.GameCommand) {
-        ui.GameCommand(command, payload.data, payload.cursize);
+    if (menu.GameCommand) {
+        menu.GameCommand(command, payload.data, payload.cursize);
     }
     if (!strcmp(command, "lobby_setup")) {
         CL_ParseLobbySetup(&payload);
@@ -867,7 +867,7 @@ static void CL_ParseUIWindow(LPSIZEBUF msg) {
     char window_id[64];
     MSG_ReadStringN(msg, window_id, sizeof(window_id));
     int show = MSG_ReadByte(msg);
-    if (ui.ShowWindow) ui.ShowWindow(window_id, show);
+    if (menu.ShowWindow) menu.ShowWindow(window_id, show);
 }
 
 /* Dispatch loop for a complete server message buffer.  Each iteration reads

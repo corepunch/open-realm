@@ -9,7 +9,7 @@
 #include <strings.h>
 
 #include "game/g_wow_local.h"
-#include "client/ui.h"
+#include "client/menu.h"
 
 
 typedef struct {

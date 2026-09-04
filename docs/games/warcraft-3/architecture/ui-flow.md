@@ -28,8 +28,8 @@ common/main.c
   -> CL_Init
       -> R_GetAPI
       -> re.Init
-      -> UI_GetAPI
-      -> ui.Init
+      -> M_GetAPI
+      -> menu.Init
       -> UI_MenuCommandLocal(ui_start_command)
 ```
 
@@ -233,7 +233,7 @@ loading percentages. They require the corresponding lifecycle/data ownership to 
 Each client frame calls:
 
 ```c
-ui.Refresh(msec);
+menu.Refresh(msec);
 CL_Input();
 CL_ReadPackets();
 CL_SendCommand();
@@ -297,9 +297,9 @@ The server serializes command buttons, inventory, and build queue data into `svc
 ### Client Cache
 
 ```c
-void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
+void ConsoleUI_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
     cached_unit_count = num_units;
-    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+    memcpy(cached_units, units, sizeof(menuUnitData_t) * num_units);
 }
 ```
 

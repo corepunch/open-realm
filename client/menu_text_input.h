@@ -7,17 +7,17 @@
  * only visuals.
  *
  * Usage:
- *   1. Game allocates or points uiTextInput_t.text at a buffer.
+ *   1. Game allocates or points menuTextInput_t.text at a buffer.
  *   2. On focus change, game sets text/size/max_chars/cursor.
- *   3. Game calls UI_TextInput_Key() for key events, UI_TextInput_Insert()
+ *   3. Game calls M_TextInput_Key() for key events, M_TextInput_Insert()
  *      for text input.
- *   4. Game renders backdrop and font; calls UI_DrawTextInputCursor() for
+ *   4. Game renders backdrop and font; calls M_DrawTextInputCursor() for
  *      the caret.
  */
-#ifndef ui_text_input_h
-#define ui_text_input_h
+#ifndef menu_text_input_h
+#define menu_text_input_h
 
-#include "client/ui.h"
+#include "client/menu.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -32,22 +32,22 @@ typedef struct {
     DWORD size;       /* allocated size of buffer in bytes */
     DWORD max_chars;  /* max characters (0 = no limit beyond buffer) */
     DWORD cursor;     /* current cursor position (bytes into text) */
-} uiTextInput_t;
+} menuTextInput_t;
 
 /* ---- Key event result ---- */
 
 enum {
-    UI_TEXTINPUT_NONE,
-    UI_TEXTINPUT_CONSUMED,
-    UI_TEXTINPUT_ENTER,
-    UI_TEXTINPUT_ESCAPE,
-    UI_TEXTINPUT_TAB,
+    MENU_TEXTINPUT_NONE,
+    MENU_TEXTINPUT_CONSUMED,
+    MENU_TEXTINPUT_ENTER,
+    MENU_TEXTINPUT_ESCAPE,
+    MENU_TEXTINPUT_TAB,
 };
 
 /* ---- Editing primitives ---- */
 
 /* Insert text at cursor position. Returns true if text was modified. */
-static BOOL UI_TextInput_Insert(uiTextInput_t *ti, LPCSTR text) {
+static BOOL M_TextInput_Insert(menuTextInput_t *ti, LPCSTR text) {
     char buf[512];
     LPCSTR old;
     size_t old_len, add_len, cursor;
@@ -79,7 +79,7 @@ static BOOL UI_TextInput_Insert(uiTextInput_t *ti, LPCSTR text) {
 }
 
 /* Backspace: remove character before cursor. Returns true if modified. */
-static BOOL UI_TextInput_Backspace(uiTextInput_t *ti) {
+static BOOL M_TextInput_Backspace(menuTextInput_t *ti) {
     char *t;
     size_t len, cursor;
 
@@ -96,7 +96,7 @@ static BOOL UI_TextInput_Backspace(uiTextInput_t *ti) {
 }
 
 /* Delete: remove character at cursor. Returns true if modified. */
-static BOOL UI_TextInput_Delete(uiTextInput_t *ti) {
+static BOOL M_TextInput_Delete(menuTextInput_t *ti) {
     char *t;
     size_t len, cursor;
 
@@ -112,7 +112,7 @@ static BOOL UI_TextInput_Delete(uiTextInput_t *ti) {
 }
 
 /* Move cursor. dir: -1=left, +1=right, 0=home, 1=end. */
-static void UI_TextInput_MoveCursor(uiTextInput_t *ti, int dir) {
+static void M_TextInput_MoveCursor(menuTextInput_t *ti, int dir) {
     if (!ti || !ti->text)
         return;
     switch (dir) {
@@ -125,7 +125,7 @@ static void UI_TextInput_MoveCursor(uiTextInput_t *ti, int dir) {
 
 /* Filter text input: copy only printable characters (>= 0x20) to out.
  * Returns number of bytes written (not counting NUL). */
-static DWORD UI_TextInput_Filter(LPCSTR in, LPSTR out, DWORD out_size) {
+static DWORD M_TextInput_Filter(LPCSTR in, LPSTR out, DWORD out_size) {
     DWORD n = 0;
 
     if (!in || !out || out_size == 0)
@@ -141,44 +141,44 @@ static DWORD UI_TextInput_Filter(LPCSTR in, LPSTR out, DWORD out_size) {
 
 /* ---- Key event dispatch ---- */
 
-/* Handle a key event. Returns UI_TEXTINPUT_* result.
+/* Handle a key event. Returns MENU_TEXTINPUT_* result.
  * Games call this from their KeyEvent handler for the focused editbox. */
-static int UI_TextInput_Key(uiTextInput_t *ti, int key) {
+static int M_TextInput_Key(menuTextInput_t *ti, int key) {
     if (!ti || !ti->text)
-        return UI_TEXTINPUT_NONE;
+        return MENU_TEXTINPUT_NONE;
 
     switch (key) {
         case SDLK_BACKSPACE:
-            return UI_TextInput_Backspace(ti) ? UI_TEXTINPUT_CONSUMED : UI_TEXTINPUT_NONE;
+            return M_TextInput_Backspace(ti) ? MENU_TEXTINPUT_CONSUMED : MENU_TEXTINPUT_NONE;
         case SDLK_DELETE:
-            return UI_TextInput_Delete(ti) ? UI_TEXTINPUT_CONSUMED : UI_TEXTINPUT_NONE;
+            return M_TextInput_Delete(ti) ? MENU_TEXTINPUT_CONSUMED : MENU_TEXTINPUT_NONE;
         case SDLK_LEFT:
-            UI_TextInput_MoveCursor(ti, -1);
-            return UI_TEXTINPUT_CONSUMED;
+            M_TextInput_MoveCursor(ti, -1);
+            return MENU_TEXTINPUT_CONSUMED;
         case SDLK_RIGHT:
-            UI_TextInput_MoveCursor(ti, 1);
-            return UI_TEXTINPUT_CONSUMED;
+            M_TextInput_MoveCursor(ti, 1);
+            return MENU_TEXTINPUT_CONSUMED;
         case SDLK_HOME:
-            UI_TextInput_MoveCursor(ti, 0);
-            return UI_TEXTINPUT_CONSUMED;
+            M_TextInput_MoveCursor(ti, 0);
+            return MENU_TEXTINPUT_CONSUMED;
         case SDLK_END:
-            UI_TextInput_MoveCursor(ti, 2);
-            return UI_TEXTINPUT_CONSUMED;
+            M_TextInput_MoveCursor(ti, 2);
+            return MENU_TEXTINPUT_CONSUMED;
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
-            return UI_TEXTINPUT_ENTER;
+            return MENU_TEXTINPUT_ENTER;
         case SDLK_ESCAPE:
-            return UI_TEXTINPUT_ESCAPE;
+            return MENU_TEXTINPUT_ESCAPE;
         case SDLK_TAB:
-            return UI_TEXTINPUT_TAB;
+            return MENU_TEXTINPUT_TAB;
         default:
-            return UI_TEXTINPUT_NONE;
+            return MENU_TEXTINPUT_NONE;
     }
 }
 
 /* ---- Cursor rendering ---- */
 
-static void UI_DrawTextInputCursor(LPRENDERER renderer,
+static void M_DrawTextInputCursor(LPRENDERER renderer,
                                    LPCDRAWTEXT style,
                                    LPCSTR text,
                                    DWORD cursor,
@@ -213,4 +213,4 @@ static void UI_DrawTextInputCursor(LPRENDERER renderer,
     renderer->DrawText(&draw);
 }
 
-#endif /* ui_text_input_h */
+#endif /* menu_text_input_h */

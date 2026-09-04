@@ -12,14 +12,14 @@
  *   one .c file to get the full parser and layout builder.
  *
  * Host services required (provided by the host module):
- *   uiimport for FS_ReadFile, FS_FreeFile, FontIndex, ImageIndex,
+ *   menuimport for FS_ReadFile, FS_FreeFile, FontIndex, ImageIndex,
  *   GetRenderer, GetTexture, GetFont.
  */
 #ifndef stb_sc2layout_h
 #define stb_sc2layout_h
 
 #include "common/shared.h"
-#include "client/ui.h"
+#include "client/menu.h"
 
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                   */
@@ -316,7 +316,7 @@ void SC2_SetEnabled(sc2Frame_t *frame, BOOL enabled);
 #include <ctype.h>
 #include "common/tinyxml.h"
 
-extern uiImport_t uiimport;
+extern menuImport_t menuimport;
 
 #ifndef CLAMP
 #define CLAMP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
@@ -1189,18 +1189,18 @@ static void SC2_ResolveNamedRelatives(void) {
 }
 
 static void SC2_DrawImage(struct sc2BaseFrame_s *frame, LPCRECT rect) {
-    LPRENDERER renderer = uiimport.GetRenderer();
+    LPRENDERER renderer = menuimport.GetRenderer();
     if (!renderer || !renderer->DrawImage) return;
-    LPCTEXTURE tex = frame->image ? uiimport.GetTexture(frame->image) : NULL;
+    LPCTEXTURE tex = frame->image ? menuimport.GetTexture(frame->image) : NULL;
     if (!tex) return;
     static const RECT uv = { 0.0f, 0.0f, 1.0f, 1.0f };
     renderer->DrawImage(tex, rect, &uv, frame->color);
 }
 
 static void SC2_DrawText(struct sc2BaseFrame_s *frame, LPCRECT rect) {
-    LPRENDERER renderer = uiimport.GetRenderer();
+    LPRENDERER renderer = menuimport.GetRenderer();
     if (!renderer || !renderer->DrawText || !frame->text || !*frame->text) return;
-    LPCFONT font = uiimport.GetFont ? uiimport.GetFont(0) : NULL;
+    LPCFONT font = menuimport.GetFont ? menuimport.GetFont(0) : NULL;
     if (!font) return;
     renderer->DrawText(&MAKE(drawText_t,
                              .font = font,
@@ -1213,9 +1213,9 @@ static void SC2_DrawText(struct sc2BaseFrame_s *frame, LPCRECT rect) {
 }
 
 static void SC2_DrawButton(struct sc2BaseFrame_s *frame, LPCRECT rect) {
-    LPRENDERER renderer = uiimport.GetRenderer();
+    LPRENDERER renderer = menuimport.GetRenderer();
     if (!renderer || !renderer->DrawImage) return;
-    LPCTEXTURE tex = frame->image ? uiimport.GetTexture(frame->image) : NULL;
+    LPCTEXTURE tex = frame->image ? menuimport.GetTexture(frame->image) : NULL;
     if (!tex) return;
     static const RECT uv = { 0.0f, 0.0f, 1.0f, 1.0f };
     renderer->DrawImageEx(&MAKE(drawImage_t,
@@ -1245,8 +1245,8 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
         case FT_BUTTON: dst->on_draw = SC2_DrawButton; break;
         case FT_TEXT:
             dst->on_draw = SC2_DrawText;
-            if (uiimport.FontIndex)
-                dst->label.font = (RESOURCE)uiimport.FontIndex("UI/Fonts/EurostileExt-Med.otf", 16);
+            if (menuimport.FontIndex)
+                dst->label.font = (RESOURCE)menuimport.FontIndex("UI/Fonts/EurostileExt-Med.otf", 16);
             dst->label.textaligny = FONT_JUSTIFYMIDDLE;
             break;
         default:        dst->on_draw = NULL;            break;
@@ -1278,9 +1278,9 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     SC2_ResolveAnchors(frame, dst);
 
     if (frame->type == SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
-        dst->image = uiimport.ModelIndex ? (DWORD)uiimport.ModelIndex(frame->textures[0].resource) : 0;
+        dst->image = menuimport.ModelIndex ? (DWORD)menuimport.ModelIndex(frame->textures[0].resource) : 0;
     else if (frame->type != SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
-        dst->image = uiimport.ImageIndex ? (DWORD)uiimport.ImageIndex(frame->textures[0].resource) : 0;
+        dst->image = menuimport.ImageIndex ? (DWORD)menuimport.ImageIndex(frame->textures[0].resource) : 0;
 
     for (int i = 0; i < frame->num_textures; i++) {
         sc2ParsedTexture_t *tex = &frame->textures[i];
@@ -1312,14 +1312,14 @@ void SC2_LayoutShutdown(void) {
 
 BOOL SC2_LayoutParseFile(LPCSTR filename) {
     void *buf = NULL;
-    int len = uiimport.FS_ReadFile(filename, &buf);
+    int len = menuimport.FS_ReadFile(filename, &buf);
     if (len < 0 || !buf) {
         fprintf(stderr, "SC2_Layout: failed to load '%s'\n", filename);
         return false;
     }
 
     xmlDocPtr doc = xmlParseMemory(buf, len);
-    uiimport.FS_FreeFile(buf);
+    menuimport.FS_FreeFile(buf);
     if (!doc) {
         fprintf(stderr, "SC2_Layout: failed to parse '%s'\n", filename);
         return false;

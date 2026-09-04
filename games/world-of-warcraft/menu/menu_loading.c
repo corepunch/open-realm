@@ -47,7 +47,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     RECT full = MAKE(RECT, 0, 0, 1, 1);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
     LPCSTR map_title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
     (void)map;

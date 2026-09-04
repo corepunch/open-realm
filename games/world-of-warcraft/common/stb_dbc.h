@@ -21,7 +21,7 @@
  *    column→field schema table, and an optional integer hash index for hot
  *    lookups. The cache takes a tiny `stbDbcIO_t` function table so the header
  *    stays free of direct FS/allocator dependencies; each module adapts its own
- *    handle (ri / gi / uiimport / common FS). Module files keep only their
+ *    handle (ri / gi / menuimport / common FS). Module files keep only their
  *    structs and schemas (the "mapping") and thin typed finders on top.
  *
  * Typical use (stateless):

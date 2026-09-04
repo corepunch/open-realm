@@ -2,12 +2,12 @@
  * menu_local.h — WoW UI library internal types and declarations.
  *
  * Internal data structures shared across menu_main.c, menu_lua.c, and
- * menu_loading.c.  External code should only include client/ui.h.
+ * menu_loading.c.  External code should only include client/menu.h.
  */
 #ifndef wow_menu_local_h
 #define wow_menu_local_h
 
-#include "client/ui.h"
+#include "client/menu.h"
 #include "common/wow_ui_shared.h"
 
 #include <lauxlib.h>
@@ -99,7 +99,7 @@ typedef struct {
     DWORD time;
 } uiWowState_t;
 
-extern uiImport_t uiimport;
+extern menuImport_t menuimport;
 extern uiWowState_t wow_ui;
 
 /* menu_lua.c */
@@ -169,7 +169,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name);
 LPCFONT UIWow_LoadFont(DWORD size);
 
 /* XML runtime input hooks. */
-BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
+BOOL UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
 BOOL UIWow_XMLTextInput(LPCSTR text);
 BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time);
 

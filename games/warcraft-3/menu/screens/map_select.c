@@ -6,7 +6,7 @@
 #include "../menu_screen.h"
 
 static void MapSelect_Init(void) {
-    uiimport.Printf("MapSelect_Init\n");
+    menuimport.Printf("MapSelect_Init\n");
 }
 
 static void MapSelect_Shutdown(void) {
