@@ -2041,13 +2041,20 @@ TEST(wc3_save, round_trip_jass_timers) {
         "function addEvent takes nothing returns nothing\n"
         "  call TriggerRegisterTimerExpireEvent(timerTrigger, runningTimer)\n"
         "endfunction\n"));
+    level.time = 100;
+    level.timers[1].duration = 400; level.timers[1].end = 500; level.timers[1].remaining = 400;
     T_ASSERT(WriteGame(filename));
     jass_callbyname(level.vm, "mutate", false);
     T_ASSERT(ReadGame(filename));
+    T_EQ(level.time, 100);
+    T_EQ(level.timers[1].end, 500);
+    T_EQ(G_TimerRemaining(&level.timers[1]), 400);
     jass_callbyname(level.vm, "verifyRestored", false);
+    level.time = 500;
     G_RunTimers();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyExpired", false);
+    level.time = 900;
     G_RunTimers();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyPeriodic", false);

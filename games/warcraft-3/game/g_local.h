@@ -636,9 +636,25 @@ typedef struct {
     DWORD num_units;
 } ggroup_t;
 
+typedef struct gtriggeraction_s {
+    struct jass_function const *func;
+    struct gtriggeraction_s *next;
+} TRIGGERACTION;
+
+typedef struct gtriggercondition_s {
+    struct jass_function const *expr;
+    struct gtriggercondition_s *next;
+} TRIGGERCONDITION;
+
+struct gtrigger_s {
+    TRIGGERACTION *actions;
+    TRIGGERCONDITION *conditions;
+    BOOL disabled;
+};
+
 struct gtimer_s {
     struct jass_function const *handler;
-    DWORD started, duration, timeout, remaining;
+    DWORD duration, end, remaining;
     BOOL periodic, paused, running;
 };
 
@@ -1171,11 +1187,11 @@ typedef struct {
 
 struct level_locals {
     LPJASS vm;
-    ggroup_t *groups[MAX_GROUPS];
+    ggroup_t groups[MAX_GROUPS];
     DWORD num_groups;
-    LPTRIGGER triggers[MAX_TRIGGERS];
+    TRIGGER triggers[MAX_TRIGGERS];
     DWORD num_triggers;
-    LPGTIMER timers[MAX_TIMERS];
+    GTIMER timers[MAX_TIMERS];
     DWORD num_timers;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
@@ -1356,9 +1372,9 @@ BOOL WriteGame(LPCSTR filename);
 BOOL ReadGame(LPCSTR filename);
 BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
 HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
-BOOL G_RegisterJassGroup(ggroup_t *group);
-BOOL G_RegisterJassTrigger(LPTRIGGER trigger);
-BOOL G_RegisterJassTimer(LPGTIMER timer);
+ggroup_t *G_AllocJassGroup(void);
+LPTRIGGER G_AllocJassTrigger(void);
+LPGTIMER G_AllocJassTimer(void);
 void G_ClearSaveRegistries(void);
 BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_RunTimers(void);

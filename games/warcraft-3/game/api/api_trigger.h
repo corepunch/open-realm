@@ -1,7 +1,7 @@
 DWORD CreateTrigger(LPJASS j) {
-    API_ALLOC(TRIGGER, trigger);
-    if (!G_RegisterJassTrigger(trigger)) jass_rterror(j, "CreateTrigger: trigger registry is full");
-    return 1;
+    LPTRIGGER trigger = G_AllocJassTrigger();
+    if (!trigger) { jass_rterror(j, "CreateTrigger: trigger registry is full"); return 0; }
+    return jass_pushlighthandle(j, trigger, "trigger");
 }
 DWORD DestroyTrigger(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -65,9 +65,9 @@ DWORD TriggerRegisterTimerEvent(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     FLOAT timeout = jass_checknumber(j, 2);
     BOOL periodic = jass_checkboolean(j, 3);
-    LPGTIMER timer = gi.MemAlloc(sizeof(*timer));
+    LPGTIMER timer;
     LPEVENT evt;
-    if (!whichTrigger || !G_RegisterJassTimer(timer)) { gi.MemFree(timer); return jass_pushnullhandle(j, "event"); }
+    if (!whichTrigger || !(timer = G_AllocJassTimer())) return jass_pushnullhandle(j, "event");
     G_TimerStart(timer, (DWORD)(MAX(0.0f, timeout) * 1000.0f), periodic, NULL);
     evt = G_MakeEvent(EVENT_GAME_TIMER_EXPIRED); evt->trigger = whichTrigger; evt->timer = timer;
     return jass_pushlighthandle(j, evt, "event");

@@ -8,9 +8,9 @@ BOOL group_add_entity(ggroup_t *group, LPEDICT ent) {
 }
 
 DWORD CreateGroup(LPJASS j) {
-    API_ALLOC(ggroup_t, group);
-    if (!G_RegisterJassGroup(group)) jass_rterror(j, "CreateGroup: group registry is full");
-    return 1;
+    ggroup_t *group = G_AllocJassGroup();
+    if (!group) { jass_rterror(j, "CreateGroup: group registry is full"); return 0; }
+    return jass_pushlighthandle(j, group, "group");
 }
 DWORD DestroyGroup(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");

@@ -15,7 +15,7 @@
  *   ClientCommand — routes player commands to the skills system.
  *
  * G_RunFrame() is the inner loop:
- *   1. Sync level.time and advance the Warcraft time-of-day clock.
+ *   1. Advance level.time and the Warcraft time-of-day clock.
  *   2. G_RunTimers()      — publish expired timer events.
  *   3. G_RunEvents()      — dispatch queued game events to triggers.
  *   4. G_RunClients()     — interpolate camera positions for smooth panning.
@@ -608,8 +608,7 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    if (gi.GetTime)
-        level.time = gi.GetTime();
+    level.time += FRAMETIME;
 
     G_StartScripts();
     G_UpdateTimeOfDay();

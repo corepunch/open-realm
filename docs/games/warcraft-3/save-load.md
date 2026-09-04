@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 3, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 4, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -19,13 +19,13 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
-The version 3 layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) from version 1, and adds the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the active array prefix: quests write `num_items` nested item records and groups write `num_units` `F_EDICT` entries. Counts above their fixed capacities reject the save or load, and unused slots never enter the save format.
+The version 4 layout serializes persistent `level_locals` state through one recursive `level_fields[]` schema. Counted descriptors write the count followed by the active array prefix: quests write `num_items` nested item records and groups write `num_units` `F_EDICT` entries. Groups, triggers, and timers are embedded fixed-capacity registries; their active prefixes serialize as ordinary nested structs. A ring descriptor linearizes unread gameplay events and restores the queue with `read == 0`. Counts above fixed capacities reject the save or load, and unused slots never enter the save format.
 
-Groups, timers, triggers, and event handlers may grow after `main()`. The header accepts a save that has *at least* as many of those objects as the freshly initialized map, then `RestoreRegistrySlots()` allocates the extras. A live count higher than the save still rejects. Quests remain an exact match because they are restored in place.
+Groups, timers, triggers, and event handlers may grow after `main()`. The header accepts a save that has *at least* as many of those objects as the freshly initialized map, then `RestoreRegistrySlots()` activates the additional embedded slots. A live count higher than the save still rejects. Quests remain an exact match because they are restored in place.
 
 The current format is process-independent for entity relationships: `F_EDICT` fields and camera targets are written as entity indexes and resolved back to `g_edicts[index]` by `ReadGame()`. Before raw edict records replace the freshly loaded map baseline, `ReadGame()` clears the baseline spatial tree and then links each restored entity exactly once. Client pointers are restored from player slots, player names from inline JASS name storage, and map-player rows from the loaded map plus `PLAYER.number`. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
 
-Groups, triggers, timers, and events use deterministic creation ordinals. Group membership is stored as entity indexes. Each trigger stores its disabled flag plus action/condition function names so a trigger created after `main()` still has its callbacks after load. Timers preserve their handler name, duration, remaining time, periodic/paused/running flags, and resume relative to the load time. Timer callbacks and timer-expire trigger actions enter the normal coroutine queue and retain `GetExpiredTimer()` context.
+Groups, triggers, timers, and events use deterministic creation ordinals. Group membership is stored as entity indexes. Each trigger stores its disabled flag plus action/condition function names so a trigger created after `main()` still has its callbacks after load. Timers store their absolute `end` in the same simulation clock as persisted `level.time`; `G_TimerRemaining()` derives the live interval as `end - level.time`, while paused timers retain their frozen `remaining`. Timer callbacks and timer-expire trigger actions enter the normal coroutine queue and retain `GetExpiredTimer()` context.
 
 Event handler registrations store type, subject entity index, trigger index, timer index, region, range, game-state ID, `limitop`, and limit value. The extra condition fields preserve `TriggerRegisterGameStateEvent` time-of-day registrations across save/load. The unread portion of the bounded gameplay event ring preserves event type, subject/source entity indexes, and the target registration ordinal. Consumed queue entries are not saved. Loads reject queue overflow and unresolved entity or registration IDs.
 
@@ -50,18 +50,15 @@ Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a requ
 
 ## Field Table
 
-`games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
-`edict_t` and `GAMECLIENT` records are still copied as one block; the adjacent `runtime_fields[]` and
-`client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
-common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.
+`games/warcraft-3/game/g_save.c` uses the same `field_t` grammar for `level_locals`, quests, groups, triggers, timers, events, and entity pointer fixups. `level_fields[]` is the root for level-owned state; adding a normal persistent level member requires a descriptor rather than another `Write*`/`Read*` pair. Fixed-size `edict_t` and `GAMECLIENT` records remain block copies, with process-owned fields cleared from temporary records before writing.
 
-`EDICTFIELD(x, type)` describes one scalar field with `array_size == 0`. `EDICTFIELD(x, type, count)` describes a contiguous array from the base offset; the serializer walks `count` elements using the field type's element size. For example, the six inventory pointers use `EDICTFIELD(inventory, F_EDICT, MAX_INVENTORY)` rather than six duplicate descriptors.
+`F` describes scalar, fixed-array, nested-struct, and semantic leaf fields. `FC` and `TFC` describe bounded arrays whose count is another member; the former accepts a struct tag and optional child schema, while the latter accepts an anonymous typedef. `F_STRUCT_RING` linearizes a bounded circular queue. `F_FUNCTION_LIST` and `F_FUNCTION` preserve JASS callbacks by name. Timer timestamps and `level.time` share one persisted clock, so timer timing fields use ordinary `F_INT` descriptors.
 
 - Add every persistent `edict_t` entity pointer to `fields[]` as `F_EDICT`, including array elements and nested fields.
 - Use `TFC(type, field, kind, capacity, count_field)` for a bounded typedef-backed array. The descriptor writes and restores `count_field` itself, then processes that many elements; do not map the count separately.
 - Persistent movement defaults are part of that rule: Attack-Move/Patrol waypoints and `movement.follow_target` must be encoded as entity indexes rather than raw pointers.
 - Do not add process-owned pointers such as path textures, metadata rows, animations, movement callbacks, or function pointers. `WriteEdict()` clears those pointers and `ReadEdict()` rebinds class metadata plus class-owned unit/destructable lifecycle callbacks; spatial links are rebuilt with `gi.LinkEntity`.
-- Add process-owned edict or client pointers/callbacks to the corresponding runtime-field table so the fixed record copy cannot write an address into the save file.
+- Add process-owned edict or client pointers/callbacks to `fields[]` with the appropriate `FIELD_RUNTIME` flags so the fixed record copy cannot write an address into the save file.
 - When adding a new pointer or changing an existing edict field, update the table and the round-trip test together. A raw pointer omitted from the table can write an address into the save file.
 - Keep the table sentinel `{ NULL, 0, 0, 0 }`; all serializer loops stop at `field->name == NULL`.
 
@@ -76,7 +73,7 @@ call SaveGame("chapter-01")
 call LoadGame("chapter-01", false)
 ```
 
-`LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program. `main()` recreates the baseline native registries; objects created later in gameplay are allocated from the save and filled from trigger/event/timer records. The native names resolve through `FS_SavePath()`.
+`LoadGame` completely reloads the saved map before restoring state. The initialized map must have the same JASS program. `main()` recreates the baseline native registries; objects created later in gameplay occupy the remaining embedded slots and are filled from trigger/event/timer records. The native names resolve through `FS_SavePath()`.
 
 ## Quake 2 Lifecycle
 
