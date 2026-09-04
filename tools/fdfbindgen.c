@@ -49,7 +49,7 @@ static int load_path_count = 0;
 static int current_file_index = -1;
 static int parsed_file_count = 0;
 static char prefix[MAX_IDENT] = "";
-static char include_path[256] = "../ui_local.h";
+static char include_path[256] = "../menu_local.h";
 static bool emit_include = true;
 static bool optional_children = false;
 
@@ -62,10 +62,10 @@ static void usage(void) {
             "Use -root more than once to bind selected root frames; without -root,\n"
             "all top-level frames found in the input are emitted.\n"
             "Redirect stdout to choose the output file. Name generated headers after\n"
-            "the consuming .c file, e.g. ui/screens/main_menu.c -> ui/generated/main_menu.h.\n"
+            "the consuming .c file, e.g. menu/screens/main_menu.c -> menu/generated/main_menu.h.\n"
             "\n"
             "Examples:\n"
-            "  fdfbindgen -prefix MainMenu -root MainMenuFrame -load UI\\\\FrameDef\\\\Glue\\\\MainMenu.fdf MainMenu.fdf > ui/generated/main_menu.h\n"
+            "  fdfbindgen -prefix MainMenu -root MainMenuFrame -load UI\\\\FrameDef\\\\Glue\\\\MainMenu.fdf MainMenu.fdf > menu/generated/main_menu.h\n"
             "  mpqtool -mpq War3.mpq cat UI/FrameDef/Glue/MainMenu.fdf | fdfbindgen -prefix MainMenu -root MainMenuFrame -load UI\\\\FrameDef\\\\Glue\\\\MainMenu.fdf -\n");
 }
 

@@ -51,7 +51,7 @@ The client implementation stores the blob into `cl.layout[layer]`, exactly the s
 
 ### 2. Move the layout solver out of draw calls
 
-Currently `UI_LayoutRect()` and `UI_DrawFrameOne()` are interleaved in `ui_render.c`. The UI lib's per-frame work becomes:
+Currently `UI_LayoutRect()` and `UI_DrawFrameOne()` are interleaved in `menu_render.c`. The UI lib's per-frame work becomes:
 
 1. Run the anchor/SetPoint solver (`UI_LayoutRect`) to compute screen-space rects — same as today.
 2. Serialize the resolved frame tree to `UIFRAME[]` — the same format `hud_write.c` uses for in-game HUD.
@@ -69,7 +69,7 @@ Once no UI lib calls `GetRenderer()`, remove it from the import table. This enfo
 ## Migration Order
 
 1. **SC2** — already done (UI lib is a stub, all HUD via `svc_layout`).
-2. **WC3** — add `SetLayout` import, rewrite `ui_render.c` to serialize instead of draw. Menu and HUD unify under `SCR_DrawLayout()`.
+2. **WC3** — add `SetLayout` import, rewrite `menu_render.c` to serialize instead of draw. Menu and HUD unify under `SCR_DrawLayout()`.
 3. **WoW** — same as WC3; in-game presentation follows the client/server-authored gameplay path.
 
 ## What UI Libs Retain

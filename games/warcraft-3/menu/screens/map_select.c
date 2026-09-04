@@ -1,0 +1,34 @@
+/*
+ * ui/screens/map_select.c — Map selection screen.
+ */
+
+#include "../menu_local.h"
+#include "../menu_screen.h"
+
+static void MapSelect_Init(void) {
+    uiimport.Printf("MapSelect_Init\n");
+}
+
+static void MapSelect_Shutdown(void) {
+}
+
+static void MapSelect_Refresh(int msec) {
+    (void)msec;
+}
+
+static void MapSelect_Draw(void) {
+}
+
+static void MapSelect_KeyEvent(int key, BOOL down) {
+    (void)key;
+    (void)down;
+}
+
+uiScreen_t mapSelectScreen = {
+    .name = "map-select",
+    .init = MapSelect_Init,
+    .shutdown = MapSelect_Shutdown,
+    .refresh = MapSelect_Refresh,
+    .draw = MapSelect_Draw,
+    .key_event = MapSelect_KeyEvent,
+};

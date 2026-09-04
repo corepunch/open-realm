@@ -9,7 +9,7 @@
 #include "client/ui.h"
 #include "common/mpq.h"
 #include "common/wow_ui_shared.h"
-#include "ui/ui_local.h"
+#include "menu/menu_local.h"
 
 #ifndef TEST_WOW_MPQ
 #define TEST_WOW_MPQ "build/tests/test-wow.mpq"

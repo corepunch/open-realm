@@ -61,7 +61,7 @@ draws the character/equipment pieces separately; persistent menu overrides do no
 The creation preview and saved-character preview converge on the same renderer-owned DBC lookup:
 
 ```text
-ui_dbc.c selection or ~/.local/share/world-of-warcraft/characters.xml
+menu_dbc.c selection or ~/.local/share/world-of-warcraft/characters.xml
     -> packed appearance (customization + class)
     -> ui_xml.c renderEntity_t
     -> r_m2.c character draw

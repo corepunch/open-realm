@@ -373,7 +373,7 @@ Animation is driven by `M_MoveFrame` (`games/warcraft-3/game/g_monster.c`), whic
 
 ## UI System (Phase 8: Client-Side Architecture)
 
-All UI logic runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/ui/`; the shared client-facing UI API is declared in `client/ui.h`. The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
+All UI logic runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/menu/`; the shared client-facing UI API is declared in `client/ui.h`. The server provides only game data (unit abilities, inventory, build queues) through a query protocol. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
 
 ### Migration from Server-Side UI
 
@@ -381,7 +381,7 @@ Previously (Phase 1-7), UI logic ran on the server in `game/ui/` and `game/hud/`
 
 ### FDF Parsing and Frame Management
 
-The UI library (`games/warcraft-3/ui/ui_main.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF` (`games/warcraft-3/ui/ui_fdf.c`). These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The UI library maintains the complete frame tree and handles all layout calculation and rendering client-side.
+The UI library (`games/warcraft-3/menu/menu_main.c`) loads Warcraft III's `.fdf` (Frame Definition File) assets via `UI_ParseFDF` (`games/warcraft-3/menu/menu_fdf.c`). These files describe the hierarchy of UI frames — their type (backdrop, button, label, etc.), textures, fonts, anchor points, and sizes. The UI library maintains the complete frame tree and handles all layout calculation and rendering client-side.
 
 ### Unit Data Query Protocol
 
@@ -415,7 +415,7 @@ for (j = 0; j < num_buttons; j++) {
 
 **Client Storage:**
 ```c
-// games/warcraft-3/ui/screens/console_ui.c — Cache and render
+// games/warcraft-3/menu/screens/console_ui.c — Cache and render
 static uiUnitData_t cached_units[MAX_CACHED_UNITS];
 void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
     memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
@@ -425,7 +425,7 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 
 ### Client-Side Rendering
 
-The UI library dispatches rendering to screen controllers (e.g., `games/warcraft-3/ui/screens/console_ui.c` for in-game HUD, `games/warcraft-3/ui/screens/main_menu.c` for menus). Each screen manages its own frame tree and updates frames based on game state. The renderer calls back into client import functions to draw quads, text, and models.
+The UI library dispatches rendering to screen controllers (e.g., `games/warcraft-3/menu/screens/console_ui.c` for in-game HUD, `games/warcraft-3/menu/screens/main_menu.c` for menus). Each screen manages its own frame tree and updates frames based on game state. The renderer calls back into client import functions to draw quads, text, and models.
 
 No serialized UI blobs are transmitted over the network. The server is game-agnostic and provides only data.
 
@@ -440,10 +440,10 @@ The default Warcraft III build produces the engine/game libraries and one execut
 3. **libsheet** (`games/warcraft-3/sheet/`) — Warcraft III SLK/profile parser
 4. **librenderer** (`renderer/` + `games/warcraft-3/renderer/`) — generic renderer backend plus Warcraft III model/map hooks; depends on `libshared`, SDL2
 5. **libgame** (`games/warcraft-3/game/`) — server-side Warcraft III game logic; depends on `libshared`
-6. **libui** (`games/warcraft-3/ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
+6. **libmenu** (`games/warcraft-3/menu/`) — client-side FDF parser, command-driven screen controller, and UI renderer
 7. **open-realm** — main executable linking the runtime libraries plus SDL2
 
-Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librenderer-wow`, and `libui-wow` from `games/world-of-warcraft/`; `opensc2` links `libgame-sc2` and `librenderer-sc2` from `games/starcraft-2/`.
+Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librenderer-wow`, and `libmenu-wow` from `games/world-of-warcraft/`; `opensc2` links `libgame-sc2` and `librenderer-sc2` from `games/starcraft-2/`.
 
 The renderer module is intentionally compound. Engine renderer code in `renderer/` owns common GL, scene, font, texture, and diagnostic behavior. The selected game's `games/<game>/renderer/` sources implement the `R_Game*` hooks in `renderer/r_game.h`, so the engine renderer does not branch on MDX/M2/M3 model formats.
 
@@ -463,7 +463,7 @@ UI tests are fully repo-owned and deterministic:
 
 Warcraft III-specific test sources live under `games/warcraft-3/tests/`. Engine/tool tests that are not tied to one game remain under the root `tests/` tree.
 
-For UI-impacting changes (`games/warcraft-3/ui/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, layout, end-to-end, and tool-oracle UI suites.
+For UI-impacting changes (`games/warcraft-3/menu/*`, `client/cl_scrn.c`, `renderer/r_draw.c`, sprite/model UI paths), run `make test-ui` before merging. This gate executes parser, layout, end-to-end, and tool-oracle UI suites.
 
 Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI code (`game/ui/`).
 

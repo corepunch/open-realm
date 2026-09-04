@@ -103,7 +103,7 @@ While a modal is active:
 - selection, Smart orders, minimap recenter/drag, control groups, middle-button pan, arrow-key scrolling, and edge scrolling are suppressed;
 - any world drag already in progress is cancelled.
 
-This is separate from the client-side glue/menu modal system in `games/warcraft-3/ui/ui_render.c`. In-game Quest/Game Result frames arrive through `svc_layout`, so their modal ownership belongs in the generic layout client path.
+This is separate from the client-side glue/menu modal system in `games/warcraft-3/menu/menu_render.c`. In-game Quest/Game Result frames arrive through `svc_layout`, so their modal ownership belongs in the generic layout client path.
 
 ## Time Semantics
 

@@ -62,7 +62,7 @@ The ownership and implementation points are fixed:
 | Which map/position does a race and class use? | AzerothCore `playercreateinfo` | `serverdata/playercreateinfo.csv` → `build/generated/g_playercreateinfo.c` |
 | What directory belongs to numeric map ID N? | Client `DBFilesClient\Map.dbc`, fields 0 and 1 | `Com_WowMapPathForId` in `common/common.c` |
 | Which map is currently loaded? | WDT path resolved through `Map.dbc` | `CM_WowGetMapId` in `common/world_wow.c` |
-| What does Enter World request? | Selected-character cvars plus server table | `map playercreate` in `ui/ui_lua.c` |
+| What does Enter World request? | Selected-character cvars plus server table | `map playercreate` in `ui/menu_lua.c` |
 
 Useful bounded checks:
 

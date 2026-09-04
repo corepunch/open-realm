@@ -65,12 +65,12 @@ fs_expansion
   -> renderer model camera + glue sprite layers
 ```
 
-`games/warcraft-3/ui/ui_theme.c` treats `fs_expansion=0` as skin version 0 and any non-zero value as version 1. An explicit
+`games/warcraft-3/menu/menu_theme.c` treats `fs_expansion=0` as skin version 0 and any non-zero value as version 1. An explicit
 unversioned skin field remains authoritative; otherwise only the matching `_V0`/`_V1` field is considered. The same decorated
 lookup is used by `GlueSpriteLayerTopLeft`, `GlueSpriteLayerTopRight`, `MainMenuLogo`, and other FDF/model/texture keys, so one
 edition selector keeps the glue presentation consistent.
 
-`games/warcraft-3/ui/ui_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
+`games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
 therefore not a static BLP backdrop. Current lifecycle gaps remain deliberate: OpenRealm starts glue layers directly in their
 `Stand` sequences, does not parse `MenuZFog`, and has no safe in-menu RoC/TFT Edition-button restart flow. Because RoC mode omits
 TFT MPQs at the filesystem layer, an Edition button must not be implemented as a UI-only cvar toggle without a corresponding data
@@ -81,7 +81,7 @@ source/UI restart lifecycle.
 1. SDL input is translated by the client input layer.
 2. `UI_MouseEventLocal` or `UI_KeyEventLocal` updates UI state.
 3. The current `uiScreen_t` receives the event.
-4. Button frames inspect mouse containment and event state in `games/warcraft-3/ui/ui_render.c`.
+4. Button frames inspect mouse containment and event state in `games/warcraft-3/menu/menu_render.c`.
 5. If a clicked frame has `OnClick`, `UI_MenuCommandLocal` executes the command.
 6. Menu commands call direct screen/action handlers.
 
@@ -114,7 +114,7 @@ MainMenu.fdf
           -> map "..."
 ```
 
-`games/warcraft-3/ui/screens/single_player.c` parses the skin-selected `CampaignFile` (with the classic campaign
+`games/warcraft-3/menu/screens/single_player.c` parses the skin-selected `CampaignFile` (with the classic campaign
 string files as fallback). Campaign selection changes the campaign backdrop and builds a mission list dynamically
 from every parsed `MissionN` / `FileN` entry; selecting a campaign alone does not start its first map. This mirrors
 Warsmash's `CampaignMenuUI` approach and does not depend on non-portable `Mission0Frame`...`Mission13Frame` children
@@ -249,7 +249,7 @@ SCR_UpdateScreen();
 4. console/debug overlay
 5. `re.EndFrame`
 
-`ui.DrawFrame` dispatches to the active screen. For `menu_main`, `games/warcraft-3/ui/screens/main_menu.c` draws the `MainMenu3d` portrait background, the logo sprite, and the main menu frame tree.
+`ui.DrawFrame` dispatches to the active screen. For `menu_main`, `games/warcraft-3/menu/screens/main_menu.c` draws the `MainMenu3d` portrait background, the logo sprite, and the main menu frame tree.
 
 ## Server-Authored Modal Gameplay UI
 
@@ -270,7 +270,7 @@ client selection
   -> svc_unit_ui
   -> client/cl_unit_ui.c
   -> ui.UpdateUnitUI
-  -> games/warcraft-3/ui/screens/console_ui.c
+  -> games/warcraft-3/menu/screens/console_ui.c
 ```
 
 ### Client Request

@@ -13,7 +13,7 @@ make openwarcraft3
 build/bin/openwarcraft3 -data 'data/Warcraft III' +ui_start_command menu_main
 ```
 
-The 3D portrait is created by the `MainMenu3d` UI scene in `games/warcraft-3/ui/screens/main_menu.c`.
+The 3D portrait is created by the `MainMenu3d` UI scene in `games/warcraft-3/menu/screens/main_menu.c`.
 
 ### White MDX geometry diagnosis
 
@@ -48,7 +48,7 @@ build/bin/openwow -data data/world-of-warcraft \
   +set wow_playerinfo '\race\Human\sex\Male\class\1\appearance\0'
 ```
 
-The character-create model is assembled in `games/world-of-warcraft/ui/ui_xml.c` and rendered through the M2 path in `games/world-of-warcraft/renderer/m2/r_m2.c`.
+The character-create model is assembled in `games/world-of-warcraft/menu/menu_xml.c` and rendered through the M2 path in `games/world-of-warcraft/renderer/m2/r_m2.c`.
 For default appearance, starter-outfit, saved-character, and DBC diagnosis, see [WoW Character Display](wow-character.md).
 
 ### Make shortcuts

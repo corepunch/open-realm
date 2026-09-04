@@ -2,7 +2,7 @@
  * hud.h — SC2 server-authored HUD: sc2BaseFrame_t → uiFrame_t bridge.
  *
  * Mirrors the WC3 hud_local.h pattern.  The server reads parsed .SC2Layout
- * data (sc2BaseFrame_t arrays from sc2_layout.h), overlays dynamic state
+ * data (sc2BaseFrame_t arrays from menu_layout.h), overlays dynamic state
  * (stat bindings, text, visibility), converts to uiFrame_t, and sends via
  * svc_layout.  The client (cl_unit_layout.c) renders generically.
  *
@@ -14,7 +14,7 @@
 #define SC2_HUD_H
 
 #include "../g_sc2_local.h"
-#include "games/starcraft-2/ui/sc2_layout.h"
+#include "games/starcraft-2/menu/menu_layout.h"
 
 /* Build sc2BaseFrame_t → uiFrame_t and queue via gi.Write(PF_UIFRAME).
  * Returns false if frame is NULL or the uiFrame_t buffer overflows. */

@@ -85,7 +85,7 @@ No manual `if/else`, `strcmp` ladders, or ad hoc token handlers. Adding a field 
 
 - **WC3 FDF (`games/warcraft-3/common/stb_fdf.h`)**: `fdf_parseItem_t items[]` and `fdf_parse_class_t classes[]` use `FDF_F(field, type)` descriptors with typed conversion callbacks (`FDF_ParseFloat`, `FDF_ParseVector2`, `FDF_ParseColor`, etc.).
 - **SC2 Layout (`games/starcraft-2/common/stb_sc2layout.h`)**: `sc2_frame_attrs[]` (XML attributes), `sc2_frame_fields[]` with `sc2FrameFieldType_t` typed dispatch (`FLOAT`, `RESOLVED_FLOAT`, `BOOL`, `COLOR`, `DESC_FLAGS`, `PROJECTION`, `LAYER_*`, `TEXTURE_TYPE`), `sc2_child_tags[]` (child node dispatch), and enum tables (`sc2_sides[]`, `sc2_positions[]`, `sc2_frame_types[]`).
-- **WoW FrameXML (`games/world-of-warcraft/ui/stb_wowxml.h`)**: `uiwow_node_types[]` (tag-to-type and flags), `uiwow_script_tags[]` (script handlers), `uiwow_button_part_tags[]` / `uiwow_button_text_tags[]` (button layers), `uiwow_shared_attrs[]` (typed XML attributes), and `uiwow_point_factors[]` (anchor positioning factors).
+- **WoW FrameXML (`games/world-of-warcraft/menu/stb_wowxml.h`)**: `uiwow_node_types[]` (tag-to-type and flags), `uiwow_script_tags[]` (script handlers), `uiwow_button_part_tags[]` / `uiwow_button_text_tags[]` (button layers), `uiwow_shared_attrs[]` (typed XML attributes), and `uiwow_point_factors[]` (anchor positioning factors).
 
 Treat the table as a grammar, not merely a lookup optimization. Ordinary scalar productions use `{ name/column/tag, offset, type, count/flags }`; nested, repeated, versioned, or context-sensitive productions use explicit callbacks referenced by that grammar. Keep data-layer merging and inheritance after decoding so an absent field remains distinguishable from an authored zero.
 
@@ -102,7 +102,7 @@ table's layout shifts across client versions. See
 The remaining high-confidence manual grammars are bounded and should be converted when their subsystem is touched:
 
 - `games/world-of-warcraft/common/world_wow.c`, `renderer/wow/r_wowmap_adt.c`, and `game/g_gameobject.c`: simple WoW chunk-tag bindings; use the descriptor shape already present in `renderer/wow/r_wowmap_wmo.c`.
-- `games/warcraft-3/ui/screens/single_player.c`: scalar campaign keys; keep indexed mission/file productions specialized.
+- `games/warcraft-3/menu/screens/single_player.c`: scalar campaign keys; keep indexed mission/file productions specialized.
 - `games/warcraft-3/game/g_unit_ui.c`, `tools/m2tool.c`, and `tools/mpqtool.c`: direct string-to-value maps.
 
 Do not mechanically table-drive ordinary control flow, two-way checks, or binary productions whose meaning depends on previously decoded context. The table must clarify the format grammar rather than hide it behind generic callbacks.

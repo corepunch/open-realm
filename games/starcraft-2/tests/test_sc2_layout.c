@@ -10,10 +10,10 @@
 #include <string.h>
 
 #include "common.h"
-#include "games/starcraft-2/ui/sc2_layout.h"
+#include "games/starcraft-2/menu/menu_layout.h"
 #include "test.h"
 
-/* Define the uiimport global that sc2_layout.c references via extern */
+/* Define the uiimport global that menu_layout.c references via extern */
 uiImport_t uiimport;
 
 #ifndef TEST_SC2_MPQ

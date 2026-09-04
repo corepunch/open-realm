@@ -18,7 +18,7 @@ The server parses `.SC2Layout` XML files, produces a `sc2BaseFrame_t[]` array, s
 .SC2Layout files (MPQ / filesystem)
     │
     ▼
-SC2_LayoutBuildGameUI()  [sc2_layout.c]
+SC2_LayoutBuildGameUI()  [menu_layout.c]
     │  → sc2BaseFrame_t[] (positions, hierarchy, anchors, types resolved)
     ▼
 Game code stamps dynamic data
@@ -37,7 +37,7 @@ cl_unit_layout.c renders generically (SCR_Clear → SCR_LayoutDrawOverlay)
 
 | File | Role |
 |------|------|
-| `games/starcraft-2/ui/sc2_layout.c` + `.h` | Parser: XML → `sc2BaseFrame_t[]` |
+| `games/starcraft-2/menu/menu_layout.c` + `.h` | Parser: XML → `sc2BaseFrame_t[]` |
 | `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t` → `uiFrame_t` + svc_layout framing |
 | `games/starcraft-2/game/hud/hud_resource.c` | Resource panel (minerals/vespene/supply) |
 | `games/starcraft-2/game/hud/hud_console.c` | Unified console tree (chrome, portrait, minimap, info, commands) |
@@ -78,10 +78,10 @@ while (*resource == '@') resource++;   /* strip leading @ */
 
 ## Layout parser in the game module
 
-`sc2_layout.c` normally lives in `ui/` and links against `libui-sc2`. The game module can't link `libui-sc2` directly. Instead, `hud.c` `#include`s `sc2_layout.c` directly (one extra translation unit in the unity build). A `uiImport_t uiimport` stub in `hud.c` bridges `gi.ReadFile`/`gi.MemFree` to the parser's file I/O. Renderer callbacks (`GetRenderer`, `GetTexture`) are left NULL — the parsing path never calls them.
+`menu_layout.c` normally lives in `ui/` and links against `libmenu-sc2`. The game module can't link `libmenu-sc2` directly. Instead, `hud.c` `#include`s `menu_layout.c` directly (one extra translation unit in the unity build). A `uiImport_t uiimport` stub in `hud.c` bridges `gi.ReadFile`/`gi.MemFree` to the parser's file I/O. Renderer callbacks (`GetRenderer`, `GetTexture`) are left NULL — the parsing path never calls them.
 
 ```c
-/* hud.c — file I/O shim for sc2_layout.c */
+/* hud.c — file I/O shim for menu_layout.c */
 static int sc2_hud_read_file(LPCSTR filename, void **buf) {
     DWORD size = 0;
     *buf = gi.ReadFile(filename, &size);
@@ -98,7 +98,7 @@ void SC2_HUD_InitLayoutHost(void) {
 
 ## Unity build note
 
-The `UNITY` macro in `Makefile` only scans directories. Adding `sc2_layout.c` to the GAME_SC2_LIB dependency list only adds it as a Make prerequisite, not to the compiled unity blob. The `#include "games/starcraft-2/ui/sc2_layout.c"` in `hud.c` is intentional.
+The `UNITY` macro in `Makefile` only scans directories. Adding `menu_layout.c` to the GAME_SC2_LIB dependency list only adds it as a Make prerequisite, not to the compiled unity blob. The `#include "games/starcraft-2/menu/menu_layout.c"` in `hud.c` is intentional.
 
 ## Anchor conversion: sc2BaseFramePoint_t → uiFramePoint_t
 
@@ -166,7 +166,7 @@ SC2 layout files use a shorthand form with no `side`/`pos` attributes to mean "f
 </Frame>
 ```
 
-The parser's `SC2_ParseAnchor()` in `sc2_layout.c` handles this by expanding the shorthand into four anchors when `!side_str && !pos_str && relative`:
+The parser's `SC2_ParseAnchor()` in `menu_layout.c` handles this by expanding the shorthand into four anchors when `!side_str && !pos_str && relative`:
 
 | Side | Pos |
 |------|-----|

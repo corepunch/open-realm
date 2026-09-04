@@ -89,7 +89,7 @@ build/bin/dbctool -file /tmp/test.dbc dump
 ```
 
 Agent guidance:
-- Always use this tool when investigating a DBC layout mismatch or verifying field indices in `ui_dbc.c`.
+- Always use this tool when investigating a DBC layout mismatch or verifying field indices in `menu_dbc.c`.
 - Do not hardcode field indices in C code without first confirming them with `dbctool info` and `dbctool dump`.
 - Before hardcoding any race/class/faction/item/display ID or name in C or Lua: confirm the real value from the authoritative DBC.
 - Prefer `info` first, then `str` for named fields, then `dump` when you need the full picture.

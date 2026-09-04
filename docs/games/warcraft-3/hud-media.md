@@ -23,7 +23,7 @@ G_LoadMap
 
 Do not parse ConsoleUI.fdf on every resource-bar write. Isolated scene files stay; they share one accumulator.
 
-Glue UI (`games/warcraft-3/ui/`) is a separate `stb_fdf` instance with its own `ui_textures[]`. It is not this contract.
+Glue UI (`games/warcraft-3/menu/`) is a separate `stb_fdf` instance with its own `ui_textures[]`. It is not this contract.
 
 ## Client
 

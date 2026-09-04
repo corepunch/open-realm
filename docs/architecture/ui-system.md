@@ -59,7 +59,7 @@ Inside `ui.Refresh()` → `UI_RefreshLocal()`, presentation ownership has two in
 
 ## Screen Controllers
 
-Each menu screen is a `uiScreen_t` struct (`games/warcraft-3/ui/ui_screen.h`):
+Each menu screen is a `uiScreen_t` struct (`games/warcraft-3/menu/menu_screen.h`):
 
 ```c
 typedef struct uiScreen_s {
@@ -106,7 +106,7 @@ The startup command is hardcoded: `menu_main` for Warcraft III, `menu_login` for
 
 ## FDF Layout System
 
-FDF (Frame Definition File) is the layout format inherited from Warcraft III. The parser lives in `stb_fdf.h` (shared types and declarative dispatch) and `ui_fdf.c` (host-side I/O for MPQ loading).
+FDF (Frame Definition File) is the layout format inherited from Warcraft III. The parser lives in `stb_fdf.h` (shared types and declarative dispatch) and `menu_fdf.c` (host-side I/O for MPQ loading).
 
 ### Frame Types
 
@@ -265,7 +265,7 @@ ui.MouseEvent(x, y, button, down);
 5. Dispatches to per-frame `event_handler` (e.g., `UI_ButtonEventHandler`)
 6. Handles globals: editbox focus loss, slider drag, popup close on outside click
 
-The no-screen guard matters because `UI_SetScreen(NULL)` stops drawing the menu but does not clear `ui_render.c`'s last layout cache. Without the ownership check, an invisible stale glue button can consume a gameplay click before `CL_WindowMouseEvent()` and `SCR_LayoutMouseEvent()` see it.
+The no-screen guard matters because `UI_SetScreen(NULL)` stops drawing the menu but does not clear `menu_render.c`'s last layout cache. Without the ownership check, an invisible stale glue button can consume a gameplay click before `CL_WindowMouseEvent()` and `SCR_LayoutMouseEvent()` see it.
 
 Button clicks execute `UI_MenuCommandLocal(frame->OnClick)`, which routes through the registered menu command table.
 
@@ -286,7 +286,7 @@ The loading screen stays visible until the server sets `client_ui_state = CLIENT
 
 | Aspect | Warcraft III | StarCraft II | World of Warcraft |
 |--------|-------------|-------------|-------------------|
-| Menu UI library | `games/warcraft-3/ui/` | Default UI (no SC2-specific) | `games/world-of-warcraft/ui/` |
+| Menu UI library | `games/warcraft-3/menu/` | Default UI (no SC2-specific) | `games/world-of-warcraft/menu/` |
 | Layout format | FDF files (MPQ) | `.SC2Layout` XML | FDF files (wow-specific) |
 | In-game HUD | Server-authored `svc_layout` | Server-authored `svc_layout` | Server-authored `svc_layout` |
 | Screen controllers | `uiScreen_t` in `screens/` | Fallback only | N/A (loading screen only) |
@@ -321,11 +321,11 @@ Frames with authoritative width and height already converted independently
 | `client/cl_input.c` | Mouse state, input sampling |
 | `common/shared.h` | `CLIENTUISTATE` enum, `UILAYOUTLAYER` enum, `playerState_t` |
 | `games/*/common/ui_constants.h` | Per-game scene dimensions and `UI_PIXEL_ASPECT` |
-| `games/warcraft-3/ui/ui_main.c` | UI library entry point, menu command dispatch |
-| `games/warcraft-3/ui/ui_screen.h` | `uiScreen_t` struct and screen declarations |
+| `games/warcraft-3/menu/menu_main.c` | UI library entry point, menu command dispatch |
+| `games/warcraft-3/menu/menu_screen.h` | `uiScreen_t` struct and screen declarations |
 | `games/warcraft-3/common/stb_fdf.h` | FDF parser, `FRAMEDEF` struct, `frames[]` registry |
-| `games/warcraft-3/ui/ui_render.c` | Layout solver, frame drawing dispatch |
-| `games/warcraft-3/ui/screens/` | Per-screen controllers (`main_menu.c`, `console_ui.c`, etc.) |
+| `games/warcraft-3/menu/menu_render.c` | Layout solver, frame drawing dispatch |
+| `games/warcraft-3/menu/screens/` | Per-screen controllers (`main_menu.c`, `console_ui.c`, etc.) |
 
 ## See Also
 
