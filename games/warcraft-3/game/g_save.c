@@ -72,7 +72,7 @@ static DWORD const save_version = 7;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
 
-/* Quake 2 F_MMOVE anchor: umove_t instances are file-scope statics, so a move pointer
+/* F_MMOVE anchor: umove_t instances are file-scope statics, so a move pointer
  * survives a save as a signed offset from a fixed symbol in the same data segment. */
 static umove_t umove_reloc;
 
@@ -1031,7 +1031,6 @@ BOOL ReadGame(LPCSTR filename) {
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
-    /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
     gi.SetGameTime(level.time);
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
