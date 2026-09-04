@@ -6,7 +6,7 @@
 
 #define ID_SIPHON_MANA MAKEFOURCC('A', 'N', 'd', 'r')
 
-static void siphon_mana_think(LPEDICT ent) {
+void siphon_mana_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
     LPEDICT target = ent->goalentity;
     DWORD now = G_Time();

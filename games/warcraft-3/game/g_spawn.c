@@ -199,7 +199,9 @@ void G_BindEntityData(LPEDICT edict) {
     edict->data.DestructableData = G_DestructableData(edict->class_id);
 }
 
-/* Save files omit process addresses; restore class-owned callbacks without replaying spawn-time gameplay initialization. */
+/* Install class-owned unit/destructable lifecycle callbacks. Load restores the saved C callbacks
+ * through F_CFUNCTION; this helper is for spawn/tests that have class data but have not assigned
+ * those pointers yet. */
 void G_BindEntityRuntime(LPEDICT edict) {
     if (edict->data.DestructableData->file) {
         edict->stand = tree_stand; edict->birth = tree_birth; edict->pain = tree_pain; edict->die = tree_die;

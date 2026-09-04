@@ -119,7 +119,7 @@ LPCSTR G_AbilityEffectArt(DWORD ability_id, wc3EffectType_t type, DWORD index) {
     return count ? out : NULL;
 }
 
-static void G_EffectValidateTarget(LPEDICT effect) {
+void G_EffectValidateTarget(LPEDICT effect) {
     if (!effect->goalentity || !effect->goalentity->inuse ||
         effect->goalentity->spawn_time != effect->damage) {
         effect->goalentity = NULL;
@@ -128,7 +128,7 @@ static void G_EffectValidateTarget(LPEDICT effect) {
     }
 }
 
-static void G_EffectThink(LPEDICT effect) {
+void G_EffectThink(LPEDICT effect) {
     if (effect->goalentity && effect->wait != 0.0f) {
         effect->s.origin.z += effect->wait;
     }
