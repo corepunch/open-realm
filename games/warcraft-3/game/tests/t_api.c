@@ -1017,6 +1017,21 @@ TEST(wc3_api, transmission_keeps_gameplay_ui_and_separates_voice_lifetime) {
     T_STREQ(gc->ps.texts[PLAYERTEXT_DIALOGUE], "");
 }
 
+/* Blizzard's cinematic helpers may forward polymorphic JASS null into a string
+ * parameter while an ESC cancellation unwinds the active transmission. */
+TEST(wc3_api, cinematic_string_null_is_accepted) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCinematicScene(0, PLAYER_COLOR_BLUE, null, null, 0.0, 0.0)\n"
+        "endfunction\n"));
+    T_STREQ(gc->ps.texts[PLAYERTEXT_SPEAKER], "");
+    T_STREQ(gc->ps.texts[PLAYERTEXT_DIALOGUE], "");
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, gameplay_transmission_preserves_underlying_timed_message_state) {
     LPGAMECLIENT gc = &game.clients[0];
 

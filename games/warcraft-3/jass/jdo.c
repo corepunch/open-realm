@@ -1394,6 +1394,11 @@ BOOL jass_toboolean(LPJASS j, int index) {
 
 LPCSTR jass_checkstring(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
+    /* JASS null is polymorphic.  The VM stores it as a null handle, but Blizzard's
+     * cinematic helpers pass null through string parameters; treat that value as
+     * the empty string while retaining the type assertion for non-null values. */
+    if (jass_getvarbasetype(var) == jasstype_handle && !var->value)
+        return "";
     assert_type(var, jasstype_string);
     return var->value;
 }
