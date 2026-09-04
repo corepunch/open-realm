@@ -303,7 +303,9 @@ static void reset_test_state(void) {
 static menuExport_t init_ui(void) {
     menuExport_t menu;
 
-    menu = M_GetAPI((menuImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .Cvar_String = test_cvar_string, .Cvar_Set = test_cvar_set, .GetPlayerState = test_get_player_state, .GetTexture = test_get_texture, .GetRenderer = test_get_renderer, .Printf = test_printf, });
+    menu = M_GetAPI((menuImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .Cvar_String = test_cvar_string, .Cvar_Set = test_cvar_set, .GetRenderer = test_get_renderer, .Printf = test_printf, });
+    menu.UpdatePlayerState(&test_ps);
+
     T_NOT_NULL(menu.Init);
     T_NOT_NULL(menu.Refresh);
     T_NOT_NULL(menu.Shutdown);

@@ -6,8 +6,8 @@ OpenWarcraft3 uses a client-side UI library with a clear split between **menu/gl
 
 The UI library communicates with the client through two vtables:
 
-**`menuImport_t`** (`client/menu.h`) — services the client provides to the UI library:
-`.FS_ReadFile`, `.MemAlloc`, `.Cmd_ExecuteText`, `.GetPlayerState`, renderer/sound access, and font/texture indexing.
+**`menuImport_t`** (`client/menu.h`) — services the client provides to the menu library:
+`.FS_ReadFile`, `.MemAlloc`, `.Cmd_ExecuteText`, renderer/sound access, and font/texture indexing. Runtime player state is pushed through the menu export lifecycle instead of pulled from this table.
 
 **`menuExport_t`** — functions the UI library exposes to the client:
 `.Init`, `.Shutdown`, `.Refresh`, `.KeyEvent`, `.TextInput`, `.MouseEvent`, `.UpdateUnitUI`, `.UpdateLobbySetup`, plus the optional `.GameCommand` hook. Generic gameplay systems such as minimap input and transient markers stay in `client/`, not in the menu UI module.
@@ -19,7 +19,6 @@ re = CL_GetRendererAPI(...);
 ui = M_GetAPI((menuImport_t) {
     .FS_ReadFile = CL_UI_ReadFile,
     .Cmd_ExecuteText = Cbuf_AddText,
-    .GetPlayerState = CL_UIGetPlayerState,
 });
 menu.Init();  // loads FDF files, initializes screens
 ```
@@ -267,7 +266,7 @@ menu.MouseEvent(x, y, button, down);
 
 The no-screen guard matters because `UI_SetScreen(NULL)` stops drawing the menu but does not clear `menu_render.c`'s last layout cache. Without the ownership check, an invisible stale glue button can consume a gameplay click before `CL_WindowMouseEvent()` and `SCR_LayoutMouseEvent()` see it.
 
-Button clicks execute `UI_MenuCommandLocal(frame->OnClick)`, which routes through the registered menu command table.
+Button clicks execute `M_MenuCommand(frame->OnClick)`, which routes through the registered menu command table.
 
 Game-mode mouse behavior lives in per-game `cl_input_<game>.c` files. Never create a separate mouse state struct or poll mouse state during draw.
 

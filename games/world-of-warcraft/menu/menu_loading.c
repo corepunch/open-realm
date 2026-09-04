@@ -14,8 +14,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
     LPCSTR screen_path;
 
     LPCSTR map_path = ps && ps->texts[PLAYERTEXT_MAP_PREVIEW] && *ps->texts[PLAYERTEXT_MAP_PREVIEW]
-        ? ps->texts[PLAYERTEXT_MAP_PREVIEW]
-        : default_bg;
+        ? ps->texts[PLAYERTEXT_MAP_PREVIEW] : default_bg;
 
     if (!strcmp(wow_ui.active_map, map_path)) {
         return;
@@ -47,8 +46,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     RECT full = MAKE(RECT, 0, 0, 1, 1);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-    LPCSTR map_title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
+    LPCSTR map_title = wow_player ? wow_player->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
     (void)map;
     (void)status;
@@ -63,14 +61,11 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
         wow_ui.renderer->DrawImage(wow_ui.textures[WOW_UI_TEX_BACKGROUND], &full, &uv, COLOR32_WHITE);
     }
 
-    if (!map_title || !*map_title) {
-        map_title = "";
-    }
-
-    if (*map_title) {
+    if (map_title && *map_title) {
         RECT title = MAKE(RECT, 0.16f, 0.77f, 0.68f, 0.05f);
         wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(22), .text = map_title, .rect = title,
             .color = MAKE(COLOR32,235,210,160,255), .textWidth = title.w, .lineHeight = title.h,
             .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
     }
+
 }

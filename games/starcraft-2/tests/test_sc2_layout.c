@@ -10,11 +10,12 @@
 #include <string.h>
 
 #include "common.h"
+#include "client/model_matrix.h"
 #include "games/starcraft-2/menu/menu_layout.h"
 #include "test.h"
 
-/* Define the menuimport global that menu_layout.c references via extern */
-menuImport_t menuimport;
+/* Define the SC2 layout host table */
+sc2LayoutImport_t sc2_layout_import;
 
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
@@ -30,12 +31,11 @@ static void setup_sc2_layout_tests(void) {
     Com_Init(3, argv);
     T_ASSERT(FS_AddArchive(TEST_SC2_MPQ) != NULL);
 
-    /* Set up the menuimport table so SC2_LayoutParseFile can read from the MPQ */
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.FS_ReadFile = FS_ReadFileQ3;
-    menuimport.FS_FreeFile = FS_FreeFile;
-    menuimport.ImageIndex = test_image_index;
-    menuimport.Printf = (void (*)(LPCSTR, ...))printf;
+    /* Set up the SC2 layout host table so SC2_LayoutParseFile can read from the MPQ */
+    memset(&sc2_layout_import, 0, sizeof(sc2_layout_import));
+    sc2_layout_import.FS_ReadFile = FS_ReadFileQ3;
+    sc2_layout_import.FS_FreeFile = FS_FreeFile;
+    sc2_layout_import.ImageIndex = test_image_index;
 
     sc2_layout_tests_initialized = true;
 }

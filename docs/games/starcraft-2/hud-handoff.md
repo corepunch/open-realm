@@ -18,7 +18,7 @@ Last commit: `a8f4e25 fix(sc2-hud): template resolution two-pass + layer separat
 - `SC2_FRAMETYPE_COUNTDOWN_LABEL` (used for resource labels in ResourcePanel) maps to `FT_TEXT`. ✓
 
 ### HUD bridge (`hud.c`, `hud_resource.c`, `hud_console.c`, `hud_command.c`)
-- `SC2_HUD_InitLayoutHost()` wires `menuimport` (file I/O, `ImageIndex`, `FontIndex`).
+- `SC2_HUD_InitLayoutHost()` wires `sc2_layout_import` (server-owned file I/O, `ImageIndex`, `ModelIndex`, and `FontIndex`).
 - `SC2_HUD_EnsureLayout()` loads the layout once and returns no frames when authoritative layout data is missing or invalid.
 - `SC2_HUD_BuildFrameForWrite()` converts `sc2BaseFrame_t` → `uiFrame_t` (anchors, color, tex, stat/text, label buffer).
 - `SC2_HUD_WriteAncestors` + `SC2_HUD_WriteFrameWithChildren` for correct wire ordering (parents before children).

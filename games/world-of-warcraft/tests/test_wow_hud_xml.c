@@ -87,7 +87,6 @@ static int test_image_index(LPCSTR n) {
     }
     return 0;
 }
-static LPCPLAYER test_get_player_state(void) { return &test_ps; }
 static LPRENDERER test_get_renderer(void) { return &test_renderer; }
 
 static void reset_state(void) {
@@ -120,11 +119,12 @@ static menuExport_t init_ui(void) {
         .MemAlloc      = test_mem_alloc,
         .MemFree       = test_mem_free,
         .ImageIndex    = test_image_index,
-        .GetPlayerState = test_get_player_state,
-        .GetTexture    = test_get_texture,
+
+
         .GetRenderer   = test_get_renderer,
         .Printf        = test_printf,
     });
+    menu.UpdatePlayerState(&test_ps);
     T_NOT_NULL(menu.Init);
     /* Do NOT call menu.Init() — that spins up the Lua glue state which
      * requires the full MPQ.  We only need the XML runtime here. */

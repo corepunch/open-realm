@@ -82,32 +82,6 @@ LPCSTR CL_GetConfigString(DWORD index) {
     return cl.configstrings[index];
 }
 
-LPCENTITYSTATE CL_GetEntityByIndex(DWORD number) {
-    if (number < cl.num_entities) {
-        return &cl.ents[number].current;
-    } else {
-        return NULL;
-    }
-}
-
-LPCTEXTURE CL_GetTextureByIndex(DWORD index) {
-    if (index < MAX_IMAGES) {
-        return cl.pics[index];
-    }
-    return NULL;
-}
-
-static LPCTEXTURE *CL_UIGetTextures(void) {
-    return cl.pics;
-}
-
-static LPCFONT CL_UIGetFont(DWORD index) {
-    if (index < MAX_FONTSTYLES) {
-        return cl.fonts[index];
-    }
-    return NULL;
-}
-
 void CL_ClientCommand(LPCSTR cmd) {
     memset(cls.netchan.message.data, 0, cls.netchan.message.maxsize);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -134,16 +108,11 @@ void CL_ClearState(void) {
 }
 
 /* Forward declarations for UI callbacks */
-static LPCPLAYER CL_UIGetPlayerState(void);
-static DWORD CL_UIGetNumEntities(void);
-static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
 static BOOL CL_LANServer(DWORD index, menuLanGame_t *out);
 static void CL_LANConnectServer(DWORD index);
-static LPCMODEL CL_UIGetModel(DWORD idx);
-static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
 
 static void CL_MenuCommand(LPCSTR command) {
@@ -315,42 +284,12 @@ static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int b
     return count;
 }
 
-/* Game state access callbacks for UI library */
-static LPCPLAYER CL_UIGetPlayerState(void) {
-    return &cl.playerstate;
-}
-
-static DWORD CL_UIGetNumEntities(void) {
-    return cl.num_entities;
-}
-
-static LPCENTITYSTATE CL_UIGetEntity(DWORD idx) {
-    if (idx >= MAX_CLIENT_ENTITIES) {
-        return NULL;
-    }
-    return &cl.ents[idx].current;
-}
-
 static void CL_UIServerCommand(LPCSTR text) {
     if (!text || !*text || *text == '-' || *text == '+') {
         return;
     }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "%s", text);
-}
-
-static LPCMODEL CL_UIGetModel(DWORD idx) {
-    if (idx >= MAX_MODELS) {
-        return NULL;
-    }
-    return cl.models[idx];
-}
-
-static LPCMODEL CL_UIGetPortrait(DWORD idx) {
-    if (idx >= MAX_MODELS) {
-        return NULL;
-    }
-    return cl.portraits[idx];
 }
 
 /* Renderer access callback for UI rendering */
@@ -697,14 +636,6 @@ void CL_Init(void) {
         .LAN_NumServers = CL_LANNumServers,
         .LAN_Server = CL_LANServer,
         .LAN_ConnectServer = CL_LANConnectServer,
-        .GetPlayerState = CL_UIGetPlayerState,
-        .GetNumEntities = CL_UIGetNumEntities,
-        .GetEntity = CL_UIGetEntity,
-        .GetModel = CL_UIGetModel,
-        .GetPortrait = CL_UIGetPortrait,
-        .GetTexture = CL_GetTextureByIndex,
-        .GetTextures = CL_UIGetTextures,
-        .GetFont = CL_UIGetFont,
         .GetRenderer = CL_UIGetRenderer,
         .Printf = CON_printf,
         .PlaySound = S_PlaySound,

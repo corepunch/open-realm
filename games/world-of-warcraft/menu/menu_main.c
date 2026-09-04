@@ -15,6 +15,9 @@
  * ---------------------------------------------------------------------- */
 
 menuImport_t menuimport;
+LPCPLAYER wow_player;
+
+void UIWow_UpdatePlayerState(LPCPLAYER state) { wow_player = state; }
 
 static BOOL UIWow_GameOverlayMouseEvent(menuMouseEvent_t event, int x, int y);
 uiWowState_t wow_ui;
@@ -236,21 +239,8 @@ static void UIWow_Refresh(DWORD time) {
     if (!wow_ui.game_mode)
         UIWow_CallLuaUpdate(time);
 
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-
     UIWow_EnsureRenderer();
-
-    if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
-        UIWow_UpdateMapBackground(ps);
-        UIWow_DrawLoadingScreenC(NULL, NULL, 0.0f);
-        return;
-    }
-    if (wow_ui.current_menu[0]) {
-        UIWow_XMLDraw();
-        UIWow_CallLuaDraw();
-        return;
-    }
-    if (ps && ps->client_ui_state == CLIENT_UI_GAME && !wow_ui.game_mode) {
+    if (wow_ui.current_menu[0] || (wow_player && wow_player->client_ui_state == CLIENT_UI_GAME && !wow_ui.game_mode)) {
         UIWow_XMLDraw();
         UIWow_CallLuaDraw();
     }
@@ -511,6 +501,7 @@ static void UIWow_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
         icon->image = UIWow_ImageIndex(button->art);
         icon->count = UIWow_ParseCount(button->ubertip);
         icon->slot  = i;
+        snprintf(icon->art, sizeof(icon->art), "%s", button->art);
         snprintf(icon->name, sizeof(icon->name), "%s", button->tooltip);
     }
     FOR_LOOP(i, MIN(unit->num_inventory, WOW_UI_INVENTORY_SLOTS)) {
@@ -521,6 +512,7 @@ static void UIWow_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
         icon->image = UIWow_ImageIndex(item->art);
         icon->count = UIWow_ParseCount(item->ubertip);
         icon->slot  = slot;
+        snprintf(icon->art, sizeof(icon->art), "%s", item->art);
         snprintf(icon->name, sizeof(icon->name), "%s", item->tooltip);
     }
 }
@@ -567,6 +559,7 @@ menuExport_t M_GetAPI(menuImport_t import) {
         .TextInput        = UIWow_TextInput,
         .MouseEvent       = UIWow_MouseEvent,
         .UpdateUnitUI     = UIWow_UpdateUnitUI,
+        .UpdatePlayerState = UIWow_UpdatePlayerState,
         .UpdateLobbySetup = UIWow_UpdateLobbySetup,
         .GameCommand      = UIWow_GameCommand,
         .ShowWindow       = UIWow_ShowWindow,

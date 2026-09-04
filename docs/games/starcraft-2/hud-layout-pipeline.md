@@ -78,7 +78,7 @@ while (*resource == '@') resource++;   /* strip leading @ */
 
 ## Layout parser in the game module
 
-`menu_layout.c` normally lives in `ui/` and links against `libmenu-sc2`. The game module can't link `libmenu-sc2` directly. Instead, `hud.c` `#include`s `menu_layout.c` directly (one extra translation unit in the unity build). A `menuImport_t menuimport` stub in `hud.c` bridges `gi.ReadFile`/`gi.MemFree` to the parser's file I/O. Renderer callbacks (`GetRenderer`, `GetTexture`) are left NULL — the parsing path never calls them.
+`menu_layout.c` normally lives in `menu/` and links against `libmenu-sc2`. The SC2 HUD is server-authored, so the game module includes the layout parser directly as one extra translation unit in the unity build. `hud.c` supplies a `sc2LayoutImport_t sc2_layout_import` host table for file I/O and server archive indexes; there are no menu-module or renderer callbacks in this path.
 
 ```c
 /* hud.c — file I/O shim for menu_layout.c */
@@ -87,10 +87,10 @@ static int sc2_hud_read_file(LPCSTR filename, void **buf) {
     *buf = gi.ReadFile(filename, &size);
     return *buf ? (int)size : -1;
 }
-menuImport_t menuimport;
+sc2LayoutImport_t sc2_layout_import;
 void SC2_HUD_InitLayoutHost(void) {
-    menuimport.FS_ReadFile = sc2_hud_read_file;
-    menuimport.FS_FreeFile = (void (*)(void *))gi.MemFree;
+    sc2_layout_import.FS_ReadFile = sc2_hud_read_file;
+    sc2_layout_import.FS_FreeFile = (void (*)(void *))gi.MemFree;
 }
 ```
 

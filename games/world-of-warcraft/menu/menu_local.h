@@ -58,6 +58,7 @@ typedef struct {
     DWORD image;
     DWORD count;
     DWORD slot;
+    char art[256];
     char name[256];
 } uiWowIcon_t;
 
@@ -100,6 +101,8 @@ typedef struct {
 } uiWowState_t;
 
 extern menuImport_t menuimport;
+extern LPCPLAYER wow_player;
+void UIWow_UpdatePlayerState(LPCPLAYER state);
 extern uiWowState_t wow_ui;
 
 /* menu_lua.c */

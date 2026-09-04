@@ -15,8 +15,8 @@
 #include "games/starcraft-2/menu/menu_layout.h"
 #include "test.h"
 
-/* Define the menuimport global that menu_layout.c references via extern */
-extern menuImport_t menuimport;
+/* Define the SC2 layout host table */
+extern sc2LayoutImport_t sc2_layout_import;
 
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
@@ -31,10 +31,9 @@ static void setup_sc2_consoleui_tests(void) {
     Com_Init(3, argv);
     T_ASSERT(FS_AddArchive(TEST_SC2_MPQ) != NULL);
 
-    memset(&menuimport, 0, sizeof(menuimport));
-    menuimport.FS_ReadFile = FS_ReadFileQ3;
-    menuimport.FS_FreeFile = FS_FreeFile;
-    menuimport.Printf = (void (*)(LPCSTR, ...))printf;
+    memset(&sc2_layout_import, 0, sizeof(sc2_layout_import));
+    sc2_layout_import.FS_ReadFile = FS_ReadFileQ3;
+    sc2_layout_import.FS_FreeFile = FS_FreeFile;
 
     sc2_consoleui_tests_initialized = true;
 }
@@ -478,7 +477,7 @@ static int test_stub_font_index(LPCSTR name, DWORD size) {
 TEST(sc2_consoleui, adapter_label_font_set_when_fontindex_wired) {
     setup_sc2_consoleui_tests();
     SC2_LayoutInit();
-    menuimport.FontIndex = test_stub_font_index;
+    sc2_layout_import.FontIndex = test_stub_font_index;
 
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
@@ -490,7 +489,7 @@ TEST(sc2_consoleui, adapter_label_font_set_when_fontindex_wired) {
     T_EQ(label->type, FT_TEXT);
     T_EQ((int)label->label.font, 7);
 
-    menuimport.FontIndex = NULL;
+    sc2_layout_import.FontIndex = NULL;
     SC2_LayoutShutdown();
 }
 
