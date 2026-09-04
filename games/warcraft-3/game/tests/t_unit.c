@@ -420,6 +420,41 @@ TEST(wc3_unit, smart_on_neutral_aggressive_attacks_not_follows) {
     T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_attack);
 }
 
+TEST(wc3_unit, smart_on_neutral_aggressive_follows_after_passive_alliance) {
+    reset_test_entities();
+    LPEDICT unit = make_unit(0, 0);
+    LPEDICT target = make_unit(128, 0);
+    unit->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER;
+    unit->s.player = 0;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    G_SetPlayerAlliance(&game.clients[0].ps,
+                        &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps,
+                        ALLIANCE_PASSIVE, true);
+
+    T_ASSERT(unit_issuetargetorder(unit, "smart", target));
+    T_ASSERT(unit->movement.follow_target == target);
+    T_ASSERT(unit->goalentity == target);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_move);
+}
+
+TEST(wc3_unit, smart_on_neutral_passive_uses_persistent_follow) {
+    reset_test_entities();
+    LPEDICT unit = make_unit(0, 0);
+    LPEDICT target = make_unit(128, 0);
+    unit->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER;
+    unit->s.player = 0;
+    target->s.player = PLAYER_NEUTRAL_PASSIVE;
+    G_InitPlayerAlliances(level.mapinfo);
+
+    T_ASSERT(unit_issuetargetorder(unit, "smart", target));
+    T_ASSERT(unit->movement.follow_target == target);
+    T_ASSERT(unit->goalentity == target);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_move);
+}
+
 TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
     reset_test_entities();
     LPEDICT unit = make_unit(0, 0);

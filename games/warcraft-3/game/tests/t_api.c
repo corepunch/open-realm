@@ -1266,7 +1266,7 @@ TEST(wc3_api, customize_entity_marks_neutral_passive_owner_neutral) {
     T_ASSERT(state.flags & EF_NEUTRAL);
 }
 
-TEST(wc3_api, customize_entity_marks_neutral_aggressive_owner_hostile) {
+TEST(wc3_api, customize_entity_honors_runtime_neutral_aggressive_alliance) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_AGGRESSIVE } };
     ent.health.value = 100.0f;
@@ -1276,8 +1276,18 @@ TEST(wc3_api, customize_entity_marks_neutral_aggressive_owner_hostile) {
     G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_SHARED_CONTROL, true);
     globals.CustomizeEntity(0, &ent, &state);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
-    T_ASSERT(state.flags & EF_HOSTILE);
+    T_ASSERT(!(state.flags & EF_HOSTILE));
     T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
+TEST(wc3_api, neutral_passive_relation_can_be_revoked_at_runtime) {
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_PASSIVE } };
+
+    G_InitPlayerAlliances(level.mapinfo);
+    T_EQ(G_SelectionRelation(0, &ent), SELECT_RELATION_NEUTRAL);
+
+    G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_PASSIVE, false);
+    T_EQ(G_SelectionRelation(0, &ent), SELECT_RELATION_ENEMY);
 }
 
 TEST(wc3_api, customize_entity_marks_shared_control_hover_relation_friendly) {
@@ -1384,6 +1394,9 @@ TEST(wc3_api, control_is_separate_from_selection_and_honors_shared_control) {
     G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
     G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, true);
     T_ASSERT(G_UnitCanControl(client, &enemy));
+
+    G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_SHARED_CONTROL, true);
+    T_ASSERT(G_UnitCanControl(client, &neutral));
 }
 
 TEST(wc3_api, customize_entity_rejects_non_unit_hover_health) {
@@ -1499,8 +1512,21 @@ TEST(wc3_api, player_team_set_get) {
 TEST(wc3_api, alliance_passive_default_false) {
     LPPLAYER p0 = test_player(0);
     LPPLAYER p1 = test_player(1);
-    /* After setup_game(), alliance table is zeroed. */
+    /* Ordinary player pairs begin unallied; neutral defaults are separate. */
     T_ASSERT(!G_GetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE));
+}
+
+TEST(wc3_api, alliance_defaults_include_neutral_passive_and_neutral_controller_slots) {
+    LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
+
+    mapinfo->players[3].playerType = kPlayerTypeNeutral;
+    G_InitPlayerAlliances(level.mapinfo);
+
+    T_ASSERT(G_GetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_PASSIVE), ALLIANCE_PASSIVE));
+    T_ASSERT(G_GetPlayerAlliance(test_player(PLAYER_NEUTRAL_PASSIVE), test_player(0), ALLIANCE_PASSIVE));
+    T_ASSERT(G_GetPlayerAlliance(test_player(0), test_player(3), ALLIANCE_PASSIVE));
+    T_ASSERT(G_GetPlayerAlliance(test_player(3), test_player(0), ALLIANCE_PASSIVE));
+    T_ASSERT(!G_GetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_PASSIVE));
 }
 
 TEST(wc3_api, alliance_set_true) {
@@ -1541,6 +1567,19 @@ TEST(wc3_api, alliance_enemy_when_not_allied) {
     LPPLAYER p2 = test_player(2);
     /* Players 0 and 2 have no alliance — IsUnitEnemy logic is !ally. */
     T_ASSERT(!G_GetPlayerAlliance(p0, p2, ALLIANCE_PASSIVE));
+}
+
+TEST(wc3_api, is_unit_ally_uses_querying_player_direction) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(1), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SetPlayerAlliance(Player(0), Player(1), ALLIANCE_PASSIVE, true)\n"
+        "  call SetPlayerAlliance(Player(1), Player(0), ALLIANCE_PASSIVE, false)\n"
+        "  call BJassAssert(IsUnitAlly(u, Player(0)), \"source player sees unit owner as ally\")\n"
+        "  call BJassAssert(not IsUnitEnemy(u, Player(0)), \"source player does not see ally as enemy\")\n"
+        "  call BJassAssert(IsUnitEnemy(CreateUnit(Player(0), 'hpea', 64.0, 0.0, 0.0), Player(1)), \"reverse direction remains hostile\")\n"
+        "endfunction\n"
+    ));
 }
 
 /* =========================================================================

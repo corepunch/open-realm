@@ -120,17 +120,11 @@ selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent) {
     if (owner == viewer) {
         return SELECT_RELATION_FRIEND;
     }
-    if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
-        return SELECT_RELATION_ENEMY;
-    }
-    if (owner == PLAYER_NEUTRAL_PASSIVE) {
-        return SELECT_RELATION_NEUTRAL;
-    }
     if (viewer >= MAX_PLAYERS || owner >= MAX_PLAYERS) {
         return SELECT_RELATION_ENEMY;
     }
     alliances = level.alliances[viewer][owner];
-    if (!(alliances & (1 << ALLIANCE_PASSIVE))) {
+    if (!G_PlayerTreatsPlayerAsAlly(viewer, owner)) {
         return SELECT_RELATION_ENEMY;
     }
     if (alliances & (1 << ALLIANCE_SHARED_CONTROL)) {
@@ -166,12 +160,11 @@ BOOL G_UnitCanControl(LPGAMECLIENT client, LPCEDICT ent) {
     if (owner == client->ps.number) {
         return true;
     }
-    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE ||
-        owner >= MAX_PLAYERS || client->ps.number >= MAX_PLAYERS) {
+    if (owner >= MAX_PLAYERS || client->ps.number >= MAX_PLAYERS) {
         return false;
     }
     alliances = level.alliances[client->ps.number][owner];
-    return (alliances & (1 << ALLIANCE_PASSIVE)) != 0 &&
+    return G_PlayerTreatsPlayerAsAlly(client->ps.number, owner) &&
            (alliances & (1 << ALLIANCE_SHARED_CONTROL)) != 0;
 }
 

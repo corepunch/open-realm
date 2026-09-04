@@ -600,15 +600,15 @@ DWORD IsUnitAlly(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
-    LPPLAYER unitOwner = G_GetPlayerByNumber(whichUnit->s.player);
-    return jass_pushboolean(j, G_GetPlayerAlliance(unitOwner, whichPlayer, ALLIANCE_PASSIVE));
+    return jass_pushboolean(j,
+        G_PlayerTreatsPlayerAsAlly(PLAYER_NUM(whichPlayer), whichUnit->s.player));
 }
 DWORD IsUnitEnemy(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
-    LPPLAYER unitOwner = G_GetPlayerByNumber(whichUnit->s.player);
-    return jass_pushboolean(j, !G_GetPlayerAlliance(unitOwner, whichPlayer, ALLIANCE_PASSIVE));
+    return jass_pushboolean(j,
+        !G_PlayerTreatsPlayerAsAlly(PLAYER_NUM(whichPlayer), whichUnit->s.player));
 }
 DWORD IsUnitVisible(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

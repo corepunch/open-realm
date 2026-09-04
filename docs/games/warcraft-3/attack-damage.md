@@ -151,6 +151,12 @@ The current implementation intentionally does not invent the larger Warsmash com
 - generic distinction between attack type and damage type / numeric-armor bypass;
 - `MSPLASH`, `ARTILLERY`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior;
 - combat selection between Attack 1 and Attack 2;
+- weapon target-mask enforcement (`UnitWeapons.targs1` / `targs2`). The fields
+  are parsed into `UnitWeapon_t.targetsAllowed`, but `order_attack()` and
+  automatic acquisition do not yet reject targets from those masks. Do not
+  equate a hostile PASSIVE-alliance relationship with guaranteed attackability;
+  the target-mask layer still needs a dedicated implementation before adding
+  air/ground/structure/etc. selection logic;
 - separate Hero base-vs-bonus attributes for Warsmash-exact green primary-stat damage;
 - seeded combat RNG independent from unrelated `rand()` consumers;
 - non-Agility attack-speed buffs/debuffs.

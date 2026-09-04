@@ -238,16 +238,11 @@ BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target) {
     if (caster->s.player == owner) {
         return false;
     }
-    if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
-        return true;
-    }
-    if (owner == PLAYER_NEUTRAL_PASSIVE) {
+    if (owner < PLAYER_NEUTRAL_AGGRESSIVE && level.mapinfo &&
+        level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
         return false;
     }
-    if (level.mapinfo && level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
-        return false;
-    }
-    return (level.alliances[caster->s.player][owner] & (1 << ALLIANCE_PASSIVE)) == 0;
+    return !G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
 BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
@@ -260,10 +255,11 @@ BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
     if (caster->s.player == owner) {
         return true;
     }
-    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE) {
+    if (owner < PLAYER_NEUTRAL_AGGRESSIVE && level.mapinfo &&
+        level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
         return false;
     }
-    return (level.alliances[caster->s.player][owner] & (1 << ALLIANCE_PASSIVE)) != 0;
+    return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {

@@ -190,20 +190,11 @@ static BOOL unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
     if (owner == self->s.player) {
         return false;
     }
-    /* Warcraft reserves separate neutral-aggressive/passive player slots. Keep
-     * those semantics explicit instead of treating every kPlayerTypeNeutral
-     * slot identically: creeps are hostile Smart targets; passive widgets are
-     * neutral interactions and must never become follow targets by accident. */
-    if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
-        return true;
-    }
-    if (owner == PLAYER_NEUTRAL_PASSIVE) {
+    if (owner < PLAYER_NEUTRAL_AGGRESSIVE && level.mapinfo &&
+        level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
         return false;
     }
-    if (level.mapinfo && level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
-        return false;
-    }
-    return (level.alliances[self->s.player][owner] & (1 << ALLIANCE_PASSIVE)) == 0;
+    return !G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
 }
 
 static BOOL unit_smart_target_is_followable(LPEDICT self, LPEDICT target) {
@@ -216,10 +207,11 @@ static BOOL unit_smart_target_is_followable(LPEDICT self, LPEDICT target) {
     if (owner == self->s.player) {
         return true;
     }
-    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE) {
+    if (owner < PLAYER_NEUTRAL_AGGRESSIVE && level.mapinfo &&
+        level.mapinfo->players[owner].playerType == kPlayerTypeNone) {
         return false;
     }
-    return (level.alliances[self->s.player][owner] & (1 << ALLIANCE_PASSIVE)) != 0;
+    return G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
 }
 
 static BOOL unit_order_name_valid(LPCSTR order) {
@@ -1072,8 +1064,7 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
     DWORD const vcls = victim->class_id;
     if (victim->aiflags & AI_ILLUSION) return;
     DWORD receivers = 0;
-    if (victim->s.player < MAX_PLAYERS && killer->s.player < MAX_PLAYERS &&
-        (level.alliances[killer->s.player][victim->s.player] & (1 << ALLIANCE_PASSIVE))) {
+    if (G_PlayerTreatsPlayerAsAlly(killer->s.player, victim->s.player)) {
         return; /* forced attacks on passive allies do not award Hero XP */
     }
     if (G_UnitIsBuilding(vcls) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {

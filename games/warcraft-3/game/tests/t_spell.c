@@ -71,8 +71,22 @@ TEST(wc3_spell, relationship_uses_passive_alliance_not_other_flags) {
 	target->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
 	T_ASSERT(S_SpellIsEnemy(caster, target));
 	T_ASSERT(!S_SpellIsFriend(caster, target));
-	target->s.player = PLAYER_NEUTRAL_PASSIVE;
+	G_SetPlayerAlliance(&game.clients[0].ps,
+	                    &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps,
+	                    ALLIANCE_PASSIVE, true);
 	T_ASSERT(!S_SpellIsEnemy(caster, target));
+	T_ASSERT(S_SpellIsFriend(caster, target));
+
+	target->s.player = PLAYER_NEUTRAL_PASSIVE;
+	G_SetPlayerAlliance(&game.clients[0].ps,
+	                    &game.clients[PLAYER_NEUTRAL_PASSIVE].ps,
+	                    ALLIANCE_PASSIVE, true);
+	T_ASSERT(!S_SpellIsEnemy(caster, target));
+	T_ASSERT(S_SpellIsFriend(caster, target));
+	G_SetPlayerAlliance(&game.clients[0].ps,
+	                    &game.clients[PLAYER_NEUTRAL_PASSIVE].ps,
+	                    ALLIANCE_PASSIVE, false);
+	T_ASSERT(S_SpellIsEnemy(caster, target));
 	T_ASSERT(!S_SpellIsFriend(caster, target));
 }
 
