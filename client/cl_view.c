@@ -6,6 +6,9 @@
 #include "common/wow_view.h"
 #endif
 #include "tr_public.h"
+#if !defined(WOW) && !defined(SC2)
+#include "games/warcraft-3/common/ui_constants.h"
+#endif
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
@@ -16,6 +19,33 @@ static struct {
 
 static bool world_loaded = false;
 static bool begin_sent = false;
+
+#if !defined(WOW) && !defined(SC2)
+/* WC3 publishes DNC model indices once through configstrings and the live
+ * normalized phase through the already-replicated player stat used by the
+ * HUD clock. Keep the generic view contract in model handles + a ratio; the
+ * renderer remains unaware of player-stat/configstring ownership. */
+static LPCMODEL V_ConfigLightModel(DWORD configstring) {
+    LPCSTR value;
+    char *end = NULL;
+    unsigned long index;
+
+    if (configstring >= MAX_CONFIGSTRINGS) return NULL;
+    value = cl.configstrings[configstring];
+    if (!value || !*value) return NULL;
+    index = strtoul(value, &end, 10);
+    if (end == value || !end || *end || index == 0 || index >= MAX_MODELS) return NULL;
+    return cl.models[index];
+}
+
+static void V_UpdateEnvironmentLighting(viewDef_t *view) {
+    if (!view) return;
+    view->terrainLightModel = V_ConfigLightModel(CS_TERRAIN_LIGHT_MODEL);
+    view->entityLightModel = V_ConfigLightModel(CS_ENTITY_LIGHT_MODEL);
+    view->environmentPhase =
+        (FLOAT)cl.playerstate.stats[WC3_UI_PLAYERSTAT_TIME_PHASE] / (FLOAT)USHRT_MAX;
+}
+#endif
 
 VECTOR3 lightAngles = {-40,0,60};
 
@@ -467,6 +497,11 @@ void V_RenderView(void) {
         Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
         Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
         Matrix4_identity(&cl.viewDef.textureMatrix);
+#if !defined(WOW) && !defined(SC2)
+        cl.viewDef.terrainLightModel = NULL;
+        cl.viewDef.entityLightModel = NULL;
+        cl.viewDef.environmentPhase = 0.0f;
+#endif
 
         re.RenderFrame(&cl.viewDef);
         lastTime = cl.time;
@@ -506,6 +541,9 @@ void V_RenderView(void) {
         CL_AddEntities();
     }
 
+#if !defined(WOW) && !defined(SC2)
+    V_UpdateEnvironmentLighting(&cl.viewDef);
+#endif
     re.RenderFrame(&cl.viewDef);
     CL_DrawTEnts();
     

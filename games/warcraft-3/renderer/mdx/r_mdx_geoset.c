@@ -733,6 +733,7 @@ static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxM
     }
 }
 
+
 static int MDLX_CollectModelLights(mdxModel_t const *model,
                                    LPCMATRIX4 modelMatrix,
                                    DWORD frame,
@@ -742,60 +743,11 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
     int count = 0;
 
     FOR_EACH_LIST(mdxLight_t, light, model->lights) {
-        float visibility = 1.0f;
-        VECTOR3 color = light->Color;
-        VECTOR3 ambc = light->AmbColor;
-        float intensity = light->Intensity;
-        float ambIntensity = light->AmbIntensity;
-        float astart = light->AttenuationStart;
-        float aend = light->AttenuationEnd;
-
-        if (light->keytracks.Visibility)
-            MDLX_GetModelKeytrackValue(model, light->keytracks.Visibility, frame, &visibility);
-        if (visibility < EPSILON)
+        RMODELLIGHT evaluated;
+        if (!MDLX_EvaluateLight(model, light, modelMatrix, frame, true, &evaluated))
             continue;
-        if (light->keytracks.Color)
-            MDLX_GetModelKeytrackValue(model, light->keytracks.Color, frame, &color);
-        if (light->keytracks.Intensity)
-            MDLX_GetModelKeytrackValue(model, light->keytracks.Intensity, frame, &intensity);
-        if (light->keytracks.AmbColor)
-            MDLX_GetModelKeytrackValue(model, light->keytracks.AmbColor, frame, &ambc);
-        if (light->keytracks.AmbIntensity)
-            MDLX_GetModelKeytrackValue(model, light->keytracks.AmbIntensity, frame, &ambIntensity);
-        if (light->keytracks.AttenuationStart)
-            MDLX_GetModelKeytrackValue(model, light->keytracks.AttenuationStart, frame, &astart);
-        if (light->keytracks.AttenuationEnd)
-            MDLX_GetModelKeytrackValue(model, light->keytracks.AttenuationEnd, frame, &aend);
-
-        VECTOR3 pivot = { 0, 0, 0 };
-        if (light->node.node_id < (DWORD)model->num_pivots)
-            pivot = model->pivots[light->node.node_id];
-        VECTOR3 localPos = pivot;
-        VECTOR3 localDirTarget = { pivot.x, pivot.y, pivot.z - 1.0f };
-        if (light->node.node_id < MDX_MAX_NODES && model->nodes[light->node.node_id]) {
-            localPos = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &pivot);
-            localDirTarget = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &localDirTarget);
-        }
-
-        VECTOR3 worldPos = Matrix4_multiply_vector3(modelMatrix, &localPos);
-        VECTOR3 worldDirTarget = Matrix4_multiply_vector3(modelMatrix, &localDirTarget);
-        VECTOR3 worldDir = Vector3_sub(&worldDirTarget, &worldPos);
-        if (Vector3_lengthsq(&worldDir) < EPSILON)
-            worldDir = (VECTOR3){ 0, 0, -1 };
-        else
-            Vector3_normalize(&worldDir);
-
         if (count < maxLights)
-            lights[count] = (RMODELLIGHT){
-                .pos = worldPos,
-                .dir = Vector3_unm(&worldDir),
-                .color = color,
-                .ambient = ambc,
-                .atten_start = astart,
-                .intensity = intensity * visibility,
-                .ambient_intensity = ambIntensity * visibility,
-                .type = (RMODELLIGHTTYPE)light->type,
-            };
+            lights[count] = evaluated;
         count++;
     }
 
@@ -883,11 +835,25 @@ void MDX_RenderModel(renderEntity_t const *entity,
         last.fogEnd = tr.viewDef.fogEnd;
         last_valid = true;
     }
-    MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
     MODELLIGHTING lighting = { 0 };
-    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lighting.lights, BZ_MODEL_LIGHT_MAX);
-    FLOAT ambient = numLights ? ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.22f : 0.0f)
-                              : ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.58f : 0.35f);
+    RMODELLIGHT environmentLight;
+    BOOL const portraitLighting = (entity->flags & RF_PORTRAIT_LIGHTING) != 0;
+    BOOL const hasEnvironmentLight = !portraitLighting &&
+        MDLX_SampleFirstLight(tr.viewDef.entityLightModel, tr.viewDef.environmentPhase, &environmentLight);
+    int numLights = 0;
+
+    if (hasEnvironmentLight)
+        lighting.lights[numLights++] = environmentLight;
+
+    /* Sampling the DNC model uses the shared MDX node matrix scratch space.
+     * Rebind this entity immediately afterwards before evaluating its local
+     * lights or rendering geometry. */
+    MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
+    numLights += MDLX_CollectModelLights(model, transform, entity->frame,
+                                        &lighting.lights[numLights],
+                                        BZ_MODEL_LIGHT_MAX - numLights);
+    FLOAT ambient = numLights ? (portraitLighting ? 0.22f : 0.0f)
+                              : (portraitLighting ? 0.58f : 0.35f);
     FLOAT directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
     VECTOR3 lightDir = {
         -tr.viewDef.lightMatrix.v[2],

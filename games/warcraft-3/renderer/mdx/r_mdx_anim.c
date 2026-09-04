@@ -44,15 +44,35 @@ static DWORD R_KeyFrameBound(mdxKeyTrack_t const *track, DWORD time, BOOL upper)
 
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output) {
     DWORD interval[2] = { 0, 0 };
-    if (keytrack->globalSeqId != -1) {
+
+    if (!model || !keytrack || !output || !keytrack->keyframeCount)
+        return;
+    if (keytrack->globalSeqId != (DWORD)-1) {
+        mdxKeyFrame_t *first_authored;
+
+        if (keytrack->globalSeqId >= (DWORD)model->num_globalSequences || !model->globalSequences)
+            return;
         interval[0] = 0;
         interval[1] = model->globalSequences[keytrack->globalSeqId].value;
+
+        /* Warsmash treats a global sequence whose first authored key lies
+         * beyond the declared duration as a constant equal to that first key.
+         * Stock DNC models use this odd contract for their light-node rotation:
+         * a zero-duration global sequence points at a later quaternion key. */
+        first_authored = R_KeyFrameAt(keytrack, 0);
+        if (first_authored->time >= 0 && (DWORD)first_authored->time > interval[1]) {
+            memcpy(output, first_authored->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+            return;
+        }
+
         /* Global sequences follow the render clock instead of entity->frame,
            which loops within the selected sequence. This preserves their full
            range while keeping fixed-time renderer captures deterministic. */
-        DWORD gs_len = model->globalSequences[keytrack->globalSeqId].value + 1;
-        DWORD global_time = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
-        time = gs_len > 0 ? (global_time % gs_len) : 0;
+        {
+            DWORD gs_len = interval[1] + 1;
+            DWORD global_time = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
+            time = gs_len > 0 ? (global_time % gs_len) : 0;
+        }
     } else {
         mdxSequence_t const *seq = R_FindSequenceAtTime(model, time);
         if (!seq)
@@ -191,7 +211,7 @@ void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, FLOAT weight) {
     *pos = Vector3_add(pos, &val);
 }
 
-static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
+void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
     /* Only the nodes this model actually has need their global matrices
      * recomputed.  The old path memset the full 64KB node_matrices array and
      * scanned all MDX_MAX_NODES slots twice; models have tens of nodes, so the

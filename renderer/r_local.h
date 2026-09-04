@@ -161,6 +161,8 @@ typedef struct DEFAULTSTATE {
     MATRIX4 textureMatrix;
     MATRIX4 lightMatrix;
     MATRIX3 normalMatrix;
+    int lightCount;
+    MATRIX4 lights[BZ_MODEL_LIGHT_MAX];
     int texture;
     int shadowmap;
     int fogOfWar;

@@ -254,6 +254,8 @@ enum {
     CS_STATUSBAR = 5,        // display program string
     CS_WORLD = 7,
     CS_MINIMAP = 8,            // alert-ping model path
+    CS_TERRAIN_LIGHT_MODEL = 9, // decimal CS_MODELS index; optional world/terrain environment light model
+    CS_ENTITY_LIGHT_MODEL = 10, // decimal CS_MODELS index; optional entity environment light model
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,

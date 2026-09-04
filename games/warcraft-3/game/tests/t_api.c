@@ -57,6 +57,25 @@ static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
 static DWORD presentation_write_count;
 static DWORD presentation_unicast_count;
 static BOOL captured_pause;
+static DWORD dnc_model_index_calls;
+static DWORD dnc_configstring_calls;
+static DWORD dnc_configstring_index[2];
+static char dnc_configstring_value[2][16];
+
+static int capture_dnc_model_index(LPCSTR modelName) {
+    (void)modelName;
+    return 41 + (int)dnc_model_index_calls++;
+}
+
+static void capture_dnc_configstring(DWORD index, LPCSTR value) {
+    if (dnc_configstring_calls < 2) {
+        dnc_configstring_index[dnc_configstring_calls] = index;
+        snprintf(dnc_configstring_value[dnc_configstring_calls],
+                 sizeof(dnc_configstring_value[dnc_configstring_calls]),
+                 "%s", value ? value : "");
+    }
+    dnc_configstring_calls++;
+}
 
 static void capture_pause(BOOL paused) { captured_pause = paused; }
 
@@ -746,6 +765,33 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
         "endfunction\n"));
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 18.005f, 0.001f);
+}
+
+TEST(wc3_time, set_day_night_models_publishes_registered_dnc_models) {
+    int (*old_model_index)(LPCSTR) = gi.ModelIndex;
+    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+
+    dnc_model_index_calls = 0;
+    dnc_configstring_calls = 0;
+    memset(dnc_configstring_index, 0, sizeof(dnc_configstring_index));
+    memset(dnc_configstring_value, 0, sizeof(dnc_configstring_value));
+    gi.ModelIndex = capture_dnc_model_index;
+    gi.configstring = capture_dnc_configstring;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetDayNightModels(\"Environment\\DNC\\Terrain.mdl\", \"Environment\\DNC\\Unit.mdl\")\n"
+        "endfunction\n"));
+
+    T_EQ(dnc_model_index_calls, 2);
+    T_EQ(dnc_configstring_calls, 2);
+    T_EQ(dnc_configstring_index[0], CS_TERRAIN_LIGHT_MODEL);
+    T_STREQ(dnc_configstring_value[0], "41");
+    T_EQ(dnc_configstring_index[1], CS_ENTITY_LIGHT_MODEL);
+    T_STREQ(dnc_configstring_value[1], "42");
+
+    gi.ModelIndex = old_model_index;
+    gi.configstring = old_configstring;
 }
 
 TEST(wc3_time, dawn_and_dusk_use_misc_thresholds) {

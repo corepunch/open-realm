@@ -169,6 +169,9 @@ typedef struct {
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;
+    LPCMODEL terrainLightModel; /* optional environment light model sampled by the active game renderer */
+    LPCMODEL entityLightModel;  /* optional base light model for render entities */
+    FLOAT environmentPhase;     /* normalized 0..1 animation phase for the environment light models */
     DWORD player;
     DWORD rdflags;
     DWORD hover_entity;     /* entity under mouse cursor (0 = none) */
