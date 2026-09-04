@@ -6,8 +6,8 @@ Warcraft III gameplay owns one authoritative daily clock in `level.timeofday`. `
 clock from the active `Misc` data (`Dawn`, `Dusk`, `DayHours`, and `DayLength`); JASS, sight, regeneration, and presentation consume
 the same value rather than maintaining independent wall-clock timers.
 
-The generic millisecond `level.time` remains the server/game clock used by timers and other systems. It is not the Warcraft day
-phase.
+The generic millisecond `level.time` is the persisted server/game clock used by timers and other systems. `G_RunFrame()` advances
+it by `FRAMETIME`; it is not process uptime and is not the Warcraft day phase. Timer deadlines therefore remain valid across save/load.
 
 ## Simulation Data Flow
 

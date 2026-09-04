@@ -45,23 +45,7 @@ typedef enum {
 
 /* JASSHOST and JASSMODE moved to jass_api.h — included above */
 
-typedef struct gtriggeraction_s {
-    LPCJASSFUNC func;
-    struct gtriggeraction_s *next;
-} TRIGGERACTION;
-
-typedef struct gtriggercondition_s {
-    LPCJASSFUNC expr;
-    struct gtriggercondition_s *next;
-} TRIGGERCONDITION;
-
 typedef gameCache_t ggamecache_t;
-
-struct gtrigger_s {
-    struct gtriggeraction_s *actions;
-    struct gtriggercondition_s *conditions;
-    BOOL disabled;
-};
 
 typedef struct {
     PATHSTR fileName;

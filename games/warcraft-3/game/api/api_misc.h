@@ -310,9 +310,9 @@ DWORD GetStartLocationLoc(LPJASS j) {
 }
 
 DWORD CreateTimer(LPJASS j) {
-    API_ALLOC(GTIMER, timer);
-    if (!G_RegisterJassTimer(timer)) jass_rterror(j, "CreateTimer: timer registry is full");
-    return 1;
+    LPGTIMER timer = G_AllocJassTimer();
+    if (!timer) { jass_rterror(j, "CreateTimer: timer registry is full"); return 0; }
+    return jass_pushlighthandle(j, timer, "timer");
 }
 DWORD DestroyTimer(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
