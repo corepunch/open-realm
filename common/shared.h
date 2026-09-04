@@ -509,12 +509,13 @@ struct playerState_s {
     DWORD number;                   // client slot index
     QUATERNION viewquat;            // canonical 3D view orientation sent to the renderer
     VECTOR3 viewangles;             // euler pitch/yaw for WoW orbit camera math; only transmitted #ifdef WOW (can't round-trip euler from quat losslessly)
-    VECTOR2 origin;                 // 2D camera focus point; XY only because all games here are isometric/orbit, not first-person
+    VECTOR3 origin;                 // camera target: XY focus for isometric/orbit views, Z = optional height offset (0 = none)
 #ifdef WC3
     BOX2 camera_bounds;             // current per-player camera target bounds; initialized from W3I, mutable by SetCameraBounds
-    VECTOR3 camera_render;          // WC3 render camera: x=target Z offset, y=near clip, z=far clip
 #endif
     FLOAT distance;                 // camera distance from origin for orbit/isometric view
+    FLOAT znear;                    // optional near clip; 0 keeps the previous sample / client default
+    FLOAT zfar;                     // optional far clip; 0 keeps the previous sample / client default
     DWORD fov;                      // vertical FOV in degrees; transmitted as NFT_BYTE so BYTE would suffice
     DWORD rdflags;                  // refdef flags (underwater tint, etc.)
     DWORD uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline

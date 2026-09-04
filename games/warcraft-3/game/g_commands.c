@@ -989,7 +989,7 @@ CLIENTCOMMAND(DebugSpawn) {
     }
 
     class_id = *((DWORD const *)argv[1]);
-    location = client->ps.origin;
+    location = (VECTOR2){ client->ps.origin.x, client->ps.origin.y };
     if (argc >= 4 && G_DebugIsNumber(argv[2]) && G_DebugIsNumber(argv[3])) {
         location.x = atoi(argv[2]);
         location.y = atoi(argv[3]);

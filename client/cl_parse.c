@@ -273,7 +273,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
             last_timed_status = timed_status;
         }
     }
-    VECTOR2 server_origin = cl.playerstate.origin;
+    VECTOR2 server_origin = { cl.playerstate.origin.x, cl.playerstate.origin.y };
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME &&
         cls.key_dest != key_console && cls.key_dest != key_menu) {
         CL_SetGameplayInput();
@@ -284,19 +284,13 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin.x = server_origin.x;
     cl.viewDef.camerastate[0].origin.y = server_origin.y;
-#ifdef WC3
-    cl.viewDef.camerastate[0].origin.z = cl.playerstate.camera_render.x;
-#else
-    cl.viewDef.camerastate[0].origin.z = 0;
-#endif
+    cl.viewDef.camerastate[0].origin.z = cl.playerstate.origin.z;
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
-#ifdef WC3
-    if (cl.playerstate.camera_render.y > 0.0f) znear = cl.playerstate.camera_render.y;
-    if (cl.playerstate.camera_render.z > 0.0f) zfar = cl.playerstate.camera_render.z;
-#endif
+    if (cl.playerstate.znear > 0.0f) znear = cl.playerstate.znear;
+    if (cl.playerstate.zfar > 0.0f) zfar = cl.playerstate.zfar;
     cl.viewDef.camerastate[0].znear = znear;
     cl.viewDef.camerastate[0].zfar = zfar;
 #ifdef SC2

@@ -133,22 +133,20 @@ netField_t uiFrameFields[] = {
     { NULL }
 };
 
+/* Player-state deltas use a DWORD bit mask (32 fields). WC3 trades viewangles for
+ * camera_bounds; do not add a third extra field or texts[7] is silently dropped. */
 netField_t playerStateFields[] = {
     { NETF(PLAYER, viewquat), NFT_QUATERNION },
 #if defined(WOW) || defined(SC2)
     { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
 #endif
-    { NETF(PLAYER, origin), NFT_VECTOR2 },
+    { NETF(PLAYER, origin), NFT_VECTOR3_FLOAT },
 #ifdef WC3
     { NETF(PLAYER, camera_bounds), NFT_BOX2 },
-    { NETF(PLAYER, camera_render), NFT_VECTOR3_FLOAT },
 #endif
     { NETF(PLAYER, fov), NFT_BYTE },
-#ifdef SC2
-    { NETF(PLAYER, distance), NFT_PACKED_FLOAT },
-#else
-    { NETF(PLAYER, distance), NFT_ROUND },
-#endif
+    /* distance, znear, zfar are consecutive FLOATs; one VECTOR3 field keeps the 32-bit player mask. */
+    { NETF(PLAYER, distance), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, rdflags), NFT_LONG },
     { NETF(PLAYER, uiflags), NFT_LONG },
     { NETF(PLAYER, client_ui_state), NFT_LONG },

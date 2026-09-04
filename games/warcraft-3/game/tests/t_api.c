@@ -424,7 +424,7 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     G_RunClients();
     T_FEQ(gc->ps.origin.x, 100.0f, 0.001f);
     T_FEQ(gc->ps.origin.y, 150.0f, 0.001f);
-    T_FEQ(gc->ps.camera_render.x, 200.0f, 0.001f);
+    T_FEQ(gc->ps.origin.z, 200.0f, 0.001f);
     currentplayer = NULL;
 }
 
