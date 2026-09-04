@@ -21,6 +21,7 @@ type event            extends handle
 type triggeraction    extends handle
 type playerevent      extends handle
 type playerunitevent  extends handle
+type alliancetype     extends handle
 type racepreference  extends handle
 type mapcontrol      extends handle
 type gametype        extends handle
@@ -76,6 +77,7 @@ constant native GetCameraBoundMaxX takes nothing returns real
 constant native GetCameraBoundMaxY takes nothing returns real
 
 // Map and player configuration.
+native ConvertAllianceType   takes integer i returns alliancetype
 native ConvertRacePref       takes integer i returns racepreference
 native ConvertMapControl     takes integer i returns mapcontrol
 native ConvertGameType       takes integer i returns gametype
@@ -126,6 +128,7 @@ native SetResourceDensity    takes mapdensity whichDensity returns nothing
 native GetResourceDensity    takes nothing returns mapdensity
 native SetCreatureDensity    takes mapdensity whichDensity returns nothing
 native GetCreatureDensity    takes nothing returns mapdensity
+native SetPlayerAlliance     takes player sourcePlayer, player otherPlayer, alliancetype whichAllianceSetting, boolean value returns nothing
 native SetPlayerName         takes player whichPlayer, string name returns nothing
 native GetPlayerName         takes player whichPlayer returns string
 native SetPlayerRacePreference takes player whichPlayer, racepreference whichRacePreference returns nothing
@@ -273,6 +276,7 @@ globals
     constant playergameresult PLAYER_GAME_RESULT_DEFEAT  = ConvertPlayerGameResult(1)
     constant playergameresult PLAYER_GAME_RESULT_TIE     = ConvertPlayerGameResult(2)
     constant playergameresult PLAYER_GAME_RESULT_NEUTRAL = ConvertPlayerGameResult(3)
+    constant alliancetype ALLIANCE_PASSIVE = ConvertAllianceType(0)
     constant racepreference RACE_PREF_HUMAN = ConvertRacePref(1)
     constant racepreference RACE_PREF_ORC = ConvertRacePref(2)
     constant racepreference RACE_PREF_RANDOM = ConvertRacePref(32)
