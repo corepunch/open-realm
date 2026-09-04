@@ -72,7 +72,7 @@ static DWORD G_CsvToken(LPCSTR list, DWORD index, LPSTR out, DWORD out_size) {
 }
 
 BOOL G_BuildAllEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("wc3_build_all", "0")) != 0;
+    return atoi(gi.CvarString("wc3_build_all", "0")) != 0;
 }
 
 static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {

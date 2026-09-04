@@ -119,8 +119,6 @@ BOOL M_IsDead(LPCEDICT ent) {
 
 static int monster_harvest_path_debug_level(void) {
     LPCSTR value;
-    if (!gi.CvarString)
-        return 0;
     value = gi.CvarString("wc3_harvest_path_debug", "0");
     return value ? atoi(value) : 0;
 }

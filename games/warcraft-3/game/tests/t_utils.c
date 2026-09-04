@@ -38,7 +38,7 @@ void reset_entities(void) {
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
     FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
-    if (gi.ClearWorld) gi.ClearWorld();
+    gi.ClearWorld();
 }
 
 /* CM_SetupTestPathmap is in routing.c, only compiled for test builds. */
@@ -87,7 +87,7 @@ void setup_test_world(void) {
 
 	/* Rebuild the area-node tree so spatial queries don't chase dangling entity
 	 * links left over from previous tests. */
-	if (gi.ClearWorld) gi.ClearWorld();
+	gi.ClearWorld();
 
 }
 
@@ -133,7 +133,7 @@ static void reset_test_state(void) {
     gi.GetTime = test_get_time;
     gi.SetPaused = test_set_paused;
     CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {512, 384}));
-    if (gi.ClearWorld) gi.ClearWorld();
+    gi.ClearWorld();
 }
 
 static void ignore_jass_error(LPCSTR message) { (void)message; }

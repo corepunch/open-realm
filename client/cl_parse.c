@@ -16,14 +16,12 @@
 #include "ui_layout.h"
 
 #ifndef WOW
-/* Keep predicted camera targets inside the server-authored camera bounds. */
+/* Keep predicted camera targets inside the server-authored camera bounds. Empty bounds are a no-op. */
 VECTOR2 CL_ClampCameraPosition(VECTOR2 position) {
-#ifdef WC3
     if (cl.playerstate.camera_bounds.max.x > cl.playerstate.camera_bounds.min.x)
         position.x = MAX(cl.playerstate.camera_bounds.min.x, MIN(cl.playerstate.camera_bounds.max.x, position.x));
     if (cl.playerstate.camera_bounds.max.y > cl.playerstate.camera_bounds.min.y)
         position.y = MAX(cl.playerstate.camera_bounds.min.y, MIN(cl.playerstate.camera_bounds.max.y, position.y));
-#endif
     return position;
 }
 #endif
@@ -273,7 +271,6 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
             last_timed_status = timed_status;
         }
     }
-    VECTOR3 server_origin = cl.playerstate.server_origin;
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME &&
         cls.key_dest != key_console && cls.key_dest != key_menu) {
         CL_SetGameplayInput();
@@ -282,7 +279,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     zfar = cl.viewDef.camerastate[0].zfar > 0 ? cl.viewDef.camerastate[0].zfar : 5000;
 
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
-    cl.viewDef.camerastate[0].origin = server_origin;
+    cl.viewDef.camerastate[0].origin = cl.playerstate.origin;
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
@@ -296,11 +293,9 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
         cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
 
     if (cl.camera_prediction.active) {
-#ifdef WC3
         cl.camera_prediction.origin = CL_ClampCameraPosition(cl.camera_prediction.origin);
-#endif
-        if (server_origin.x == cl.camera_prediction.origin.x &&
-            server_origin.y == cl.camera_prediction.origin.y) {
+        if (cl.playerstate.origin.x == cl.camera_prediction.origin.x &&
+            cl.playerstate.origin.y == cl.camera_prediction.origin.y) {
             cl.camera_prediction.active = false;
         } else {
             cl.viewDef.camerastate[0].origin.x = cl.camera_prediction.origin.x;

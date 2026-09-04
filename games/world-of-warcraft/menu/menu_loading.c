@@ -13,8 +13,11 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
     static LPCSTR default_bg = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
     LPCSTR screen_path;
 
-    LPCSTR map_path = ps && ps->texts[PLAYERTEXT_MAP_PREVIEW] && *ps->texts[PLAYERTEXT_MAP_PREVIEW]
-        ? ps->texts[PLAYERTEXT_MAP_PREVIEW] : default_bg;
+    (void)ps;
+
+    LPCSTR info = menuimport.GetConfigString(WOW_CS_MAPINFO);
+    LPCSTR preview = Wow_InfoValueForKey(info, "preview", "");
+    LPCSTR map_path = *preview ? preview : default_bg;
 
     if (!strcmp(wow_ui.active_map, map_path)) {
         return;
@@ -46,7 +49,8 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     RECT full = MAKE(RECT, 0, 0, 1, 1);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
-    LPCSTR map_title = wow_player ? wow_player->texts[PLAYERTEXT_MAP_TITLE] : NULL;
+    LPCSTR info = menuimport.GetConfigString(WOW_CS_MAPINFO);
+    LPCSTR map_title = Wow_InfoValueForKey(info, "title", "");
 
     (void)map;
     (void)status;

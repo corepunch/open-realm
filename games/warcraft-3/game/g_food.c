@@ -8,7 +8,6 @@ static LPGAMECLIENT G_FoodClient(DWORD player) {
 BOOL G_FoodLimitsEnabled(void) {
     LPCSTR value;
 
-    if (!gi.CvarString) return true;
     value = gi.CvarString("wc3_food_limits", "1");
     return !value || atoi(value) != 0;
 }

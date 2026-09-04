@@ -9,6 +9,7 @@
 
 #include "client/menu.h"
 #include "common/wow_ui_shared.h"
+#include "../common/wow_config.h"
 
 #include <lauxlib.h>
 #include <lua.h>

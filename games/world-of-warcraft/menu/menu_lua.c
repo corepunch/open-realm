@@ -221,7 +221,7 @@ static int UIWow_LuaStat(lua_State *L) {
 
 static int UIWow_LuaText(lua_State *L) {
     DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    LPCSTR text = wow_player && index < MAX_STATS && wow_player->texts[index] ? wow_player->texts[index] : "";
+    LPCSTR text = wow_player && index < PLAYERTEXT_COUNT && wow_player->texts[index] ? wow_player->texts[index] : "";
     lua_pushstring(L, text);
     return 1;
 }
@@ -333,7 +333,8 @@ static int UIWow_LuaGetLoadingProgress(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingTitle(lua_State *L) {
-    lua_pushstring(L, wow_player && wow_player->texts[PLAYERTEXT_MAP_TITLE] ? wow_player->texts[PLAYERTEXT_MAP_TITLE] : "");
+    LPCSTR info = menuimport.GetConfigString(WOW_CS_MAPINFO);
+    lua_pushstring(L, Wow_InfoValueForKey(info, "title", ""));
     return 1;
 }
 

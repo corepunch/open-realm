@@ -195,7 +195,7 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
         if (cs_index >= MAX_CONFIGSTRINGS) { text[0] = '\0'; return text; }
         name = cl.configstrings[cs_index] + (ni & 0xF) * ENT_NAME_SLOT_SIZE;
         return name;
-    } else if (frame->stat >= MAX_STATS && frame->stat < MAX_STATS * 2) {
+    } else if (frame->stat >= MAX_STATS && frame->stat < MAX_STATS + PLAYERTEXT_COUNT) {
         if (cl.playerstate.texts[frame->stat - MAX_STATS]) {
             strlcpy(text, cl.playerstate.texts[frame->stat - MAX_STATS], sizeof(text));
         } else {

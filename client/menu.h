@@ -131,6 +131,7 @@ typedef struct {
     void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
+    LPCSTR (*GetConfigString)(DWORD index);
     void (*LAN_RefreshServers)(void);
     DWORD (*LAN_NumServers)(void);
     BOOL (*LAN_Server)(DWORD index, menuLanGame_t *out);

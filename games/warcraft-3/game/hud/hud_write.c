@@ -316,8 +316,6 @@ DWORD UI_LiveImage(DWORD image) {
         decorate = hud.image_decorated[image];
     }
     if (!key || !*key) return image;
-    if (!gi.ImageIndex) return image;
-
     /* Preserve symbolic keys in CS_IMAGES; the recipient resolves war3skins locally. */
     if (decorate || (!strchr(key, '\\') && !strchr(key, '/'))) {
         live = gi.ImageIndex(key);

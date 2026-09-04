@@ -610,7 +610,7 @@ CLIENTCOMMAND(Research) {
 }
 
 static BOOL G_CheatsEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("sv_cheats", "0")) != 0;
+    return atoi(gi.CvarString("sv_cheats", "0")) != 0;
 }
 
 static LPEDICT G_GiveItem(LPEDICT unit, DWORD item_code) {
@@ -989,7 +989,7 @@ CLIENTCOMMAND(DebugSpawn) {
     }
 
     class_id = *((DWORD const *)argv[1]);
-    location = (VECTOR2){ client->ps.server_origin.x, client->ps.server_origin.y };
+    location = (VECTOR2){ client->ps.origin.x, client->ps.origin.y };
     if (argc >= 4 && G_DebugIsNumber(argv[2]) && G_DebugIsNumber(argv[3])) {
         location.x = atoi(argv[2]);
         location.y = atoi(argv[3]);

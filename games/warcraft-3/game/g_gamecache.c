@@ -25,7 +25,7 @@ typedef union {
 } gameCacheFloatBits_t;
 
 static gameCacheStorageMode_t G_GameCacheStorageMode(void) {
-    LPCSTR mode = gi.CvarString ? gi.CvarString("wc3_gamecache_mode", "memory") : "memory";
+    LPCSTR mode = gi.CvarString("wc3_gamecache_mode", "memory");
 
     if (!strcmp(mode, "memory")) return GAMECACHE_STORAGE_MEMORY;
     if (!strcmp(mode, "disk")) return GAMECACHE_STORAGE_DISK;
@@ -123,10 +123,6 @@ static BOOL G_GameCachePath(LPCSTR campaign, LPSTR out, DWORD out_size) {
     safe[len] = '\0';
     if (snprintf(rel, sizeof(rel), "gamecache-%s%s", safe, GAMECACHE_FILE_SUFFIX) >= (int)sizeof(rel)) {
         fprintf(stderr, "Game cache: resolved cache name is too long for '%s'\n", campaign);
-        return false;
-    }
-    if (!gi.UserPath) {
-        fprintf(stderr, "Game cache: engine did not provide writable user-path resolver\n");
         return false;
     }
     gi.UserPath(rel, out, out_size);

@@ -4,7 +4,6 @@
 int G_AutocastDebugLevel(void) {
     LPCSTR value;
 
-    if (!gi.CvarString) return 0;
     value = gi.CvarString("wc3_autocast_debug", "0");
     return value ? atoi(value) : 0;
 }

@@ -359,7 +359,7 @@ void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     if (SCR_LayoutContextValue(frame->stat, &value) && value <= 0.0f) return;
     if (!frame->tex.index) return;  /* unresolved texture — skip to avoid drawing cl.pics[0] */
     LPCTEXTURE tex = cl.pics[frame->tex.index];
-    if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
+    if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < PLAYERTEXT_COUNT) {
         LPCSTR resource = cl.playerstate.texts[frame->stat - MAX_STATS];
         LPCTEXTURE dyn = SCR_LayoutGetDynamicTexture(resource);
         if (dyn) tex = dyn;

@@ -419,12 +419,6 @@ typedef enum {
 typedef enum {
     PLAYERTEXT_SPEAKER,
     PLAYERTEXT_DIALOGUE,
-    PLAYERTEXT_MAP_TITLE,
-    PLAYERTEXT_MAP_SUGGESTED_PLAYERS,
-    PLAYERTEXT_MAP_SIZE,
-    PLAYERTEXT_MAP_TILESET,
-    PLAYERTEXT_MAP_DESCRIPTION,
-    PLAYERTEXT_MAP_PREVIEW,
     PLAYERTEXT_COUNT,
 } PLAYERTEXT;
 
@@ -508,11 +502,9 @@ typedef struct {
 struct playerState_s {
     DWORD number;                   // client slot index
     QUATERNION viewquat;            // canonical 3D view orientation sent to the renderer
-    VECTOR3 viewangles;             // euler pitch/yaw for WoW orbit camera math; only transmitted #ifdef WOW (can't round-trip euler from quat losslessly)
-    VECTOR3 server_origin;          // server-authored camera look-at in world space (XY focus + composed Z)
-#ifdef WC3
-    BOX2 camera_bounds;             // current per-player camera target bounds; initialized from W3I, mutable by SetCameraBounds
-#endif
+    VECTOR3 viewangles;             // euler pitch/yaw for orbit camera math; cannot round-trip losslessly from viewquat
+    VECTOR3 origin;                 // server-authored camera look-at in world space (XY focus + composed Z)
+    BOX2 camera_bounds;             // per-player camera target bounds; unused games leave zeros
     FLOAT distance;                 // camera distance from origin for orbit/isometric view
     FLOAT znear;                    // optional near clip; 0 keeps the previous sample / client default
     FLOAT zfar;                     // optional far clip; 0 keeps the previous sample / client default
@@ -528,7 +520,7 @@ struct playerState_s {
     LONG  start_location;           // start location index for JASS GetStartLocationX/Y (-1 = none)
     FLOAT cinefade;                 // full-screen fade alpha [0,1]; collapsed from Q2's blend[4] since no game here uses tinted overlays
     USHORT stats[MAX_STATS];        // fast-update integer stats; USHORT (vs Q3's int) to halve wire size
-    LPCSTR texts[MAX_STATS];        // string stats parallel to stats[], for UI text fields
+    LPCSTR texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
 };
 
 /* One-shot events embedded in entityState_t.event.

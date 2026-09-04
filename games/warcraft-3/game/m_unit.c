@@ -510,7 +510,6 @@ BOOL unit_additem(LPEDICT edict, LPEDICT item) {
 static int unit_timed_status_debug_level(void) {
     LPCSTR value;
 
-    if (!gi.CvarString) return 0;
     value = gi.CvarString("wc3_timed_status_debug", "0");
     return value ? atoi(value) : 0;
 }

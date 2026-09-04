@@ -28,6 +28,10 @@ static char last_draw_text_value[128];
 static char last_draw_image_name[256];
 static DWORD draw_text_calls;
 
+static LPCSTR test_get_configstring(DWORD index) {
+    return index == WOW_CS_MAPINFO ? "\\title\\The Barrens\\preview\\normal.blp" : "";
+}
+
 static int test_fs_read_file(LPCSTR fileName, void **buf) {
     HANDLE file; DWORD size, read = 0;
     if (!buf) return -1; *buf = NULL;
@@ -119,6 +123,7 @@ static menuExport_t init_ui(void) {
         .MemAlloc      = test_mem_alloc,
         .MemFree       = test_mem_free,
         .ImageIndex    = test_image_index,
+        .GetConfigString = test_get_configstring,
 
 
         .GetRenderer   = test_get_renderer,
@@ -405,7 +410,6 @@ TEST(wow_hud_xml, loading_title_draws_from_runtime_without_project_framexml) {
     init_ui();
     UIWow_XMLClearFrames();
 
-    test_ps.texts[PLAYERTEXT_MAP_TITLE] = "The Barrens";
     UIWow_DrawLoadingScreenC(NULL, NULL, 0.0f);
     T_EQ(draw_text_calls, 1);
     T_STREQ(last_draw_text.text, "The Barrens");

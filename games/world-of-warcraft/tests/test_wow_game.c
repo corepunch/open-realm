@@ -1,4 +1,5 @@
 #include "test.h"
+#include "games/world-of-warcraft/common/wow_config.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -1194,8 +1195,8 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_EQ((int)local->health, 100);
     T_EQ((int)local->selected_action_slot, 255);
     assert_player_spawned(player);
-    T_FEQ(player->client->ps.server_origin.x, player->s.origin.x, 0.001f);
-    T_FEQ(player->client->ps.server_origin.y, player->s.origin.y, 0.001f);
+    T_FEQ(player->client->ps.origin.x, player->s.origin.x, 0.001f);
+    T_FEQ(player->client->ps.origin.y, player->s.origin.y, 0.001f);
     T_EQ((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
     T_STREQ(player->client->ps.name, "Thrall");
     T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
@@ -1209,8 +1210,13 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_EQ((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
     T_ASSERT(test_unicast_calls > 0);
     assert_player_ui_payload();
-    T_STREQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
-    T_STREQ(player->client->ps.texts[PLAYERTEXT_MAP_PREVIEW], "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");
+    {
+        LPCSTR info = test_get_configstring(WOW_CS_MAPINFO);
+        LPCSTR title = Wow_InfoValueForKey(info, "title", "");
+        LPCSTR preview = Wow_InfoValueForKey(info, "preview", "");
+        T_STREQ(title, "Elwynn Test");
+        T_STREQ(preview, "Interface/Glues/LoadingScreens/LoadScreenTest.blp");
+    }
     T_ASSERT(player->s.model > 0);
     T_ASSERT(player->s.model2 > 0);
     T_FEQ(player->s.angle, 0.0f, 0.001f);

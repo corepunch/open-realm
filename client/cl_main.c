@@ -652,6 +652,7 @@ void CL_Init(void) {
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
+        .GetConfigString = CL_GetConfigString,
         .LAN_RefreshServers = CL_LANRefreshServers,
         .LAN_NumServers = CL_LANNumServers,
         .LAN_Server = CL_LANServer,

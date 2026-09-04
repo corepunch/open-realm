@@ -10,8 +10,6 @@ static umove_t harvestgold_move_wait;
 
 static int goldmine_path_debug_level(void) {
     LPCSTR value;
-    if (!gi.CvarString)
-        return 0;
     value = gi.CvarString("wc3_harvest_path_debug", "0");
     return value ? atoi(value) : 0;
 }

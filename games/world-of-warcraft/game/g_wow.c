@@ -1,4 +1,5 @@
 #include "g_wow_local.h"
+#include "../common/wow_config.h"
 #include "common/stb_dbc.h"
 #include <math.h>
 #include <stdlib.h>
@@ -343,7 +344,7 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
         return;
     }
 
-    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Map.dbc", &size) : NULL;
+    data = gi.ReadFile("DBFilesClient\\Map.dbc", &size);
     if (!Stb_DbcValid(data, size, &h) || h.fields < 4 || h.record_size < sizeof(wowMapDbc_t)) {
         SAFE_DELETE(data, gi.MemFree);
         return;
@@ -497,7 +498,7 @@ static void Wow_LoadSpellVisualDbcs(void) {
             if (rec->id && path && *path) {
                 /* Convert .mdx/.mdl extensions to .m2 (WoWee pattern) */
                 size_t len = strlen(path);
-                char *buf = gi.MemAlloc ? gi.MemAlloc(len + 1) : NULL;
+                char *buf = gi.MemAlloc(len + 1);
                 if (buf) {
                     memcpy(buf, path, len + 1);
                     if (len > 4) {
@@ -755,7 +756,7 @@ static void Wow_LoadSpellDbc(void) {
     wow_spell_dbc_loaded = true;
     memset(wow_spell_visual_map, 0, sizeof(wow_spell_visual_map));
 
-    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Spell.dbc", &size) : NULL;
+    data = gi.ReadFile("DBFilesClient\\Spell.dbc", &size);
     if (!Stb_DbcValid(data, size, &h)) {
         SAFE_DELETE(data, gi.MemFree);
         return;
@@ -798,7 +799,7 @@ DWORD Wow_SpellMissileModel(DWORD spell_dbc_id) {
     if (!sv || !sv->missile_path) return 0;
 
     DWORD sz;
-    HANDLE buf = gi.ReadFile ? gi.ReadFile(sv->missile_path, &sz) : NULL;
+    HANDLE buf = gi.ReadFile(sv->missile_path, &sz);
     if (!buf) return 0;
     resolved_models[spell_dbc_id] = G_RegisterModel(sv->missile_path);
     gi.MemFree(buf);
@@ -823,7 +824,7 @@ DWORD Wow_SpellImpactModel(DWORD spell_dbc_id) {
     if (!sv || !sv->impact_path) return 0;
 
     DWORD sz;
-    HANDLE buf = gi.ReadFile ? gi.ReadFile(sv->impact_path, &sz) : NULL;
+    HANDLE buf = gi.ReadFile(sv->impact_path, &sz);
     if (!buf) return 0;
     resolved_impacts[spell_dbc_id] = gi.ModelIndex(sv->impact_path);
     gi.MemFree(buf);
@@ -848,7 +849,7 @@ DWORD Wow_FireboltModel(void) {
         };
         for (LPCSTR const *p = paths; *p; p++) {
             DWORD sz;
-            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            HANDLE buf = gi.ReadFile(*p, &sz);
             if (buf) {
                 model = G_RegisterModel(*p);
                 gi.MemFree(buf);
@@ -1090,7 +1091,7 @@ DWORD Wow_FrostboltModel(void) {
         };
         for (LPCSTR const *p = paths; *p; p++) {
             DWORD sz;
-            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            HANDLE buf = gi.ReadFile(*p, &sz);
             if (buf) {
                 model = G_RegisterModel(*p);
                 gi.MemFree(buf);
@@ -1118,7 +1119,7 @@ DWORD Wow_FireboltImpactModel(void) {
         };
         for (LPCSTR const *p = paths; *p; p++) {
             DWORD sz;
-            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            HANDLE buf = gi.ReadFile(*p, &sz);
             if (buf) {
                 model = gi.ModelIndex(*p);
                 gi.MemFree(buf);
@@ -1146,7 +1147,7 @@ DWORD Wow_FrostboltImpactModel(void) {
         };
         for (LPCSTR const *p = paths; *p; p++) {
             DWORD sz;
-            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            HANDLE buf = gi.ReadFile(*p, &sz);
             if (buf) {
                 model = gi.ModelIndex(*p);
                 gi.MemFree(buf);
@@ -1255,7 +1256,7 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     if (!ent || !ent->client) {
         return;
     }
-    ent->client->ps.server_origin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, 0 };
+    ent->client->ps.origin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, 0 };
     ent->client->ps.viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
     ent->client->ps.viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, wow_move.pitch, 0.0f, wow_move.yaw), ROTATE_ZYX);
     ent->client->ps.fov = 45.0f;
@@ -1413,44 +1414,6 @@ LPEDICT Wow_Spawn(void) {
    Returns pointer to a static buffer with the null-terminated value, or fallback
    if key not found.  Two rotating buffers so two calls don't stomp each other
    (same pattern as Q3 Info_ValueForKey in q_shared.c). */
-static LPCSTR Wow_InfoValueForKey(LPCSTR str, LPCSTR key, LPCSTR fallback) {
-    static char value[2][MAX_PATHLEN];
-    static int valueindex = 0;
-    char pkey[64];
-    LPCSTR s = str;
-    char *o;
-
-    if (!s || !key || !*key)
-        return fallback;
-
-    valueindex ^= 1;
-    if (*s == '\\')
-        s++;
-    while (1) {
-        o = pkey;
-        while (*s != '\\') {
-            if (!*s)
-                return fallback;
-            *o++ = *s++;
-        }
-        *o = 0;
-        s++;
-
-        o = value[valueindex];
-        while (*s != '\\' && *s)
-            *o++ = *s++;
-        *o = 0;
-
-        if (!strcasecmp(key, pkey))
-            return value[valueindex];
-
-        if (!*s)
-            break;
-        s++;
-    }
-    return fallback;
-}
-
 /* Read selected character data from the single userinfo-style cvar set by the
    UI.  Fallbacks to OrcMale Warrior when no character was selected. */
 static void Wow_ReadSelectedCharFromCvars(char *race, size_t race_sz, char *sex, size_t sex_sz, DWORD *class_out, DWORD *appearance_out) {
@@ -1592,21 +1555,19 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
         fprintf(stderr, "WoW: action bar initialized for class %u\n", (unsigned)class_id);
     }
 #ifdef WOW
-    ps->server_origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
+    ps->origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, wow_move.pitch, 0.0f, wow_move.yaw), ROTATE_ZYX);
     ps->fov = 45;
     ps->distance = wow_move.distance;
 #else
-    ps->server_origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
+    ps->origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, 0 };
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326.0f, 0.0f, 0.0f), ROTATE_ZYX);
     ps->fov = 54;
     ps->distance = 250.0f;
 #endif
     ps->client_ui_state = CLIENT_UI_LOADING;
     ps->name = wow_clients[0].name;
-    ps->texts[PLAYERTEXT_MAP_TITLE] = wow_loading_title;
-    ps->texts[PLAYERTEXT_MAP_PREVIEW] = wow_loading_texture;
     Wow_UpdatePlayerHud(ent);
 }
 
@@ -1635,7 +1596,7 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
      * The renderer logs a missing WDT and draws nothing for the world.
      * Use as: make run-wow-preview  then type "quest <id>" in-game. */
     if (!strcmp(mapFilename, "preview")) {
-        if (gi.ClearWorld) gi.ClearWorld();
+        gi.ClearWorld();
         gi.configstring(CS_PLAYERSKINS,
             "\\race\\Human\\sex\\Male\\class\\2\\appearance\\0");
         Wow_SelectLoadingScreen("preview");
@@ -1645,12 +1606,8 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
         return false;
     }
-    if (gi.ApplyLobbySettings) {
-        gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
-    }
-    if (gi.ClearWorld) {
-        gi.ClearWorld();
-    }
+    gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    gi.ClearWorld();
     return Wow_SpawnEntities();
 }
 
@@ -1669,7 +1626,7 @@ static void Wow_ThinkDynamicObject(LPEDICT ent) { Wow_RunDynamicObjectFrame(ent)
  * is not present.  Callers must provide a buffer of at least MAX_PATHLEN bytes. */
 static BOOL Wow_WdtPathForMapId(DWORD map_id, LPSTR out, DWORD out_size) {
     LPBYTE data; DWORD size = 0; stbDbc_t h; BOOL found = false;
-    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Map.dbc", &size) : NULL;
+    data = gi.ReadFile("DBFilesClient\\Map.dbc", &size);
     if (!Stb_DbcValid(data, size, &h) || h.fields < 2 || h.record_size < sizeof(wowMapDbc_t))
         { SAFE_DELETE(data, gi.MemFree); return false; }
     BYTE const *recs = Stb_DbcRecords(data), *strs = Stb_DbcStrings(data, &h);
@@ -1690,7 +1647,7 @@ static void Wow_LoadAreaTriggers(void) {
     LPBYTE data; DWORD size = 0, map_id; stbDbc_t h;
     wow_area_trig_count = 0;
     map_id = CM_WowGetMapId();
-    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\AreaTrigger.dbc", &size) : NULL;
+    data = gi.ReadFile("DBFilesClient\\AreaTrigger.dbc", &size);
     /* AreaTrigger.dbc: 10 uint32/float fields, no string block — record_size == 40. */
     if (!Stb_DbcValid(data, size, &h) || h.fields != 10 || h.record_size != sizeof(WOWAREATRIG))
         { SAFE_DELETE(data, gi.MemFree); return; }
@@ -1810,6 +1767,13 @@ static bool Wow_SpawnEntities(void) {
         }
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
+    {
+        char preview[MAX_PATHLEN];
+        snprintf(preview, sizeof(preview), "%s", wow_loading_texture);
+        for (char *p = preview; *p; p++) if (*p == '\\') *p = '/';
+        snprintf(buf, sizeof(buf), "\\title\\%s\\preview\\%s", wow_loading_title, preview);
+    }
+    gi.configstring(WOW_CS_MAPINFO, buf);
     /* Re-populate the playerinfo configstring from cvars after SV_Map's
        memset cleared all configstrings (same pattern as Q3: game module
        re-sets configstrings after the server wipes them on map load). */
@@ -2093,7 +2057,7 @@ static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
 }
 
 static BOOL Wow_CheatsEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("sv_cheats", "0")) != 0;
+    return atoi(gi.CvarString("sv_cheats", "0")) != 0;
 }
 
 static void Wow_CheatHelp(void) {
@@ -2498,8 +2462,8 @@ static void Wow_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (!ent || !ent->client || !position) {
         return;
     }
-    ent->client->ps.server_origin.x = position->x;
-    ent->client->ps.server_origin.y = position->y;
+    ent->client->ps.origin.x = position->x;
+    ent->client->ps.origin.y = position->y;
 }
 
 static void Wow_ClientBegin(LPEDICT ent) {

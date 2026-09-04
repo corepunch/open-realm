@@ -14,7 +14,6 @@
 static int timed_status_debug_level(void) {
     LPCSTR value;
 
-    if (!gi.CvarString) return 0;
     value = gi.CvarString("wc3_timed_status_debug", "0");
     return value ? atoi(value) : 0;
 }

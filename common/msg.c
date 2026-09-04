@@ -3,6 +3,8 @@
 #include "common.h"
 
 #define NETF(type, x) #x,((uint8_t *)&((type*)0)->x - (uint8_t *)NULL)
+#define MSG_FIELDBIT(field, fields) (1u << ((field) - (fields)))
+#define MSG_FIELD_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0]) - 1))
 
 typedef enum {
     NFT_BYTE,
@@ -133,19 +135,14 @@ netField_t uiFrameFields[] = {
     { NULL }
 };
 
-/* Player-state deltas use a DWORD bit mask (32 fields). WC3 trades viewangles for
- * camera_bounds; do not add a third extra field or texts[7] is silently dropped. */
+/* Player-state deltas use a 32-bit mask; map metadata moved to configstrings, leaving room for generic camera fields. */
 netField_t playerStateFields[] = {
     { NETF(PLAYER, viewquat), NFT_QUATERNION },
-#if defined(WOW) || defined(SC2)
     { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
-#endif
-    { NETF(PLAYER, server_origin), NFT_VECTOR3_FLOAT },
-#ifdef WC3
+    { NETF(PLAYER, origin), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, camera_bounds), NFT_BOX2 },
-#endif
     { NETF(PLAYER, fov), NFT_BYTE },
-    /* distance, znear, zfar are consecutive FLOATs; one VECTOR3 field keeps the 32-bit player mask. */
+    /* distance, znear, zfar are consecutive FLOATs packed as one VECTOR3 field. */
     { NETF(PLAYER, distance), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, rdflags), NFT_LONG },
     { NETF(PLAYER, uiflags), NFT_LONG },
@@ -169,14 +166,14 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, stats[22]), NFT_LONG },
     { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
     { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
-    { NETF(PLAYER, texts[2]), NFT_DUPTEXT },
-    { NETF(PLAYER, texts[3]), NFT_DUPTEXT },
-    { NETF(PLAYER, texts[4]), NFT_DUPTEXT },
-    { NETF(PLAYER, texts[5]), NFT_DUPTEXT },
-    { NETF(PLAYER, texts[6]), NFT_DUPTEXT },
-    { NETF(PLAYER, texts[7]), NFT_DUPTEXT },
+    /* Map metadata moved to the WoW map-info configstring; only cinematic text remains in player state. */
     { NULL }
 };
+
+_Static_assert(MSG_FIELD_COUNT(playerStateFields) <= 32, "player-state delta mask is 32 bits");
+_Static_assert(MSG_FIELD_COUNT(entityStateFields) <= 32, "entity-state delta mask is 32 bits");
+_Static_assert(MSG_FIELD_COUNT(uiFrameFields) <= 32, "ui-frame delta mask is 32 bits");
+
 void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
     if (buf->cursize + size > buf->maxsize) {
         fprintf(stderr,
@@ -308,10 +305,7 @@ LPCSTR MSG_ReadString2(LPSIZEBUF buf) {
     return buffer;
 }
 
-static DWORD MSG_GetBits(void const *from,
-                         void const *to,
-                         netField_t *fields,
-                         BOOL text_offsets)
+static DWORD MSG_GetBits(void const *from, void const *to, netField_t *fields, BOOL text_offsets)
 {
     DWORD bits = 0;
     for (netField_t *field = fields; field->name; field++) {
@@ -319,30 +313,30 @@ static DWORD MSG_GetBits(void const *from,
         int *toF = (int *)((uint8_t *)to + field->offset);
         switch (field->type) {
             case NFT_VECTOR2:
-                if (memcmp(fromF, toF, sizeof(VECTOR2))!=0) bits |= 1u << (field - fields);
+                if (memcmp(fromF, toF, sizeof(VECTOR2))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_BOX2:
-                if (memcmp(fromF, toF, sizeof(BOX2))!=0) bits |= 1u << (field - fields);
+                if (memcmp(fromF, toF, sizeof(BOX2))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_VECTOR3:
             case NFT_VECTOR3_FLOAT:
-                if (memcmp(fromF, toF, sizeof(VECTOR3))!=0) bits |= 1u << (field - fields);
+                if (memcmp(fromF, toF, sizeof(VECTOR3))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_QUATERNION:
-                if (memcmp(fromF, toF, sizeof(QUATERNION))!=0) bits |= 1u << (field - fields);
+                if (memcmp(fromF, toF, sizeof(QUATERNION))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_BYTE:
-                if (*(uint8_t *)fromF != *(uint8_t *)toF) bits |= 1u << (field - fields);
+                if (*(uint8_t *)fromF != *(uint8_t *)toF) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_SHORT:
-                if (*(uint16_t *)fromF != *(uint16_t *)toF) bits |= 1u << (field - fields);
+                if (*(uint16_t *)fromF != *(uint16_t *)toF) bits |= MSG_FIELDBIT(field, fields);
                 break;
             default:
                 if (*fromF != *toF) {
                     if (!text_offsets && (field->type == NFT_TEXT || field->type == NFT_DUPTEXT) && **((LPCSTR *)toF) == 0) {
                         continue;
                     }
-                    bits |= 1u << (field - fields);
+                    bits |= MSG_FIELDBIT(field, fields);
                 }
                 break;
         }
@@ -357,7 +351,7 @@ static void MSG_WriteFields(LPSIZEBUF msg,
                             BOOL text_offsets)
 {
     for (netField_t *field = fields; field->name; field++) {
-        if ((bits & (1u << (field - fields))) == 0)
+        if ((bits & MSG_FIELDBIT(field, fields)) == 0)
             continue;
         int *toF = (int *)((uint8_t *)to + field->offset);
         FLOAT *_float = (FLOAT *)toF;
@@ -390,7 +384,7 @@ static void MSG_ReadFields(LPSIZEBUF msg,
                            BOOL text_offsets)
 {
     for (netField_t *field = fields; field->name; field++) {
-        if ((bits & (1u << (field - fields))) == 0)
+        if ((bits & MSG_FIELDBIT(field, fields)) == 0)
             continue;
         int *toF = (int *)((uint8_t *)edict + field->offset);
         FLOAT *_float = (FLOAT *)toF;
@@ -438,7 +432,7 @@ void MSG_WriteDeltaEntity(LPSIZEBUF msg,
     DWORD bits = MSG_GetBits(from, to, entityStateFields, false);
     if (bits == 0 && !force)
         return;
-    MSG_WriteEntityBits(msg, bits, to->number);
+    MSG_WriteEntityBits(msg, (DWORD)bits, to->number);
     MSG_WriteFields(msg, to, entityStateFields, bits, false);
 }
 
@@ -459,7 +453,7 @@ void MSG_WriteDeltaUIFrame(LPSIZEBUF msg,
     DWORD bits = MSG_GetBits(from, to, uiFrameFields, false);
     if (bits == 0 && !force)
         return;
-    MSG_WriteEntityBits(msg, bits, to->number);
+    MSG_WriteEntityBits(msg, (DWORD)bits, to->number);
     MSG_WriteFields(msg, to, uiFrameFields, bits, false);
 }
 
@@ -476,7 +470,7 @@ void MSG_ReadDeltaUIFrame(LPSIZEBUF msg,
 void MSG_WriteDeltaUIWindowFrame(LPSIZEBUF msg, LPCUIFRAME from, LPCUIFRAME to, bool force) {
     DWORD bits = MSG_GetBits(from, to, uiFrameFields, true);
     if (!bits && !force) return;
-    MSG_WriteEntityBits(msg, bits, to->number);
+    MSG_WriteEntityBits(msg, (DWORD)bits, to->number);
     MSG_WriteFields(msg, to, uiFrameFields, bits, true);
 }
 

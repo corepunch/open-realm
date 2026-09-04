@@ -25,7 +25,7 @@ void UI_LoadHudAllies(void) {
 }
 
 static BOOL AlliesDebugEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("ui_window_debug", "0")) != 0;
+    return atoi(gi.CvarString("ui_window_debug", "0")) != 0;
 }
 
 static LPCSTR AlliesImageName(DWORD image) {

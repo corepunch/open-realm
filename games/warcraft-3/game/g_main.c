@@ -131,12 +131,8 @@ static bool G_LoadMap(LPCSTR mapFilename) {
      * animation metadata cache uses those indices too, so retaining it across
      * levels can make a new index resolve to the previous map's filename. */
     G_FreeModels();
-    if (gi.ApplyLobbySettings) {
-        gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
-    }
-    if (gi.ClearWorld) {
-        gi.ClearWorld();
-    }
+    gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    gi.ClearWorld();
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
      * panel once so write paths do not parse FDF on first use. */
     UI_ResetHud();
@@ -304,13 +300,11 @@ static void G_RunJassTests(LPCSTR script, LPCSTR entry) {
 }
 
 static void G_InitGame(void) {
-    if (gi.CvarString) {
-        LPCSTR jass_test = gi.CvarString("jass_test", "");
-        if (jass_test && *jass_test) {
-            LPCSTR jass_entry = gi.CvarString("jass_test_entry", "");
-            G_RunJassTests(jass_test, jass_entry);
-            /* G_RunJassTests always calls exit() */
-        }
+    LPCSTR jass_test = gi.CvarString("jass_test", "");
+    if (jass_test && *jass_test) {
+        LPCSTR jass_entry = gi.CvarString("jass_test_entry", "");
+        G_RunJassTests(jass_test, jass_entry);
+        /* G_RunJassTests always calls exit() */
     }
 
     fprintf(stderr, "Game initialization.\n");
@@ -379,9 +373,6 @@ FLOAT G_Cinefade(void) {
 BOOL G_SkipCutscene(void) {
     LPCSTR value;
 
-    if (!gi.CvarString) {
-        return false;
-    }
     value = gi.CvarString("skip_cutscene", "0");
     return value && *value && strcmp(value, "0");
 }
@@ -419,9 +410,9 @@ void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]) {
     client->ps.camera_bounds.min.y = MIN(MIN(bounds[1], bounds[3]), MIN(bounds[5], bounds[7]));
     client->ps.camera_bounds.max.y = MAX(MAX(bounds[1], bounds[3]), MAX(bounds[5], bounds[7]));
 
-    position = (VECTOR2){ client->ps.server_origin.x, client->ps.server_origin.y };
+    position = (VECTOR2){ client->ps.origin.x, client->ps.origin.y };
     position = G_ClampCameraPosition(client, &position);
-    client->ps.server_origin = G_MakeServerOrigin(position.x, position.y, client->camera.state.z_offset);
+    client->ps.origin = G_MakeServerOrigin(position.x, position.y, client->camera.state.z_offset);
     position = G_ClampCameraPosition(client, &client->camera.old_state.position);
     client->camera.old_state.position = position;
     position = G_ClampCameraPosition(client, &client->camera.state.position);
@@ -480,14 +471,14 @@ static void G_RunClients(void) {
             QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
             QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
-            client->ps.server_origin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
+            client->ps.origin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             client->ps.viewquat = Quaternion_slerp(&qa, &qb, k);
             client->ps.fov = LerpNumber(a->fov, b->fov, k);
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
             client->ps.znear = LerpNumber(a->near_z, b->near_z, k);
             client->ps.zfar = LerpNumber(a->far_z, b->far_z, k);
         } else {
-            client->ps.server_origin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
+            client->ps.origin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
             client->ps.viewquat = Quaternion_fromEuler(&client->camera.state.viewangles, ROTATE_ZYX);
             client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
@@ -575,7 +566,7 @@ BOOL G_IsSinglePlayer(void) {
 }
 
 BOOL G_GameResultDebugEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("wc3_game_result_debug", "0")) != 0;
+    return atoi(gi.CvarString("wc3_game_result_debug", "0")) != 0;
 }
 
 void G_GameResultDebug(LPCSTR format, ...) {
@@ -592,32 +583,29 @@ void G_GameResultDebug(LPCSTR format, ...) {
 void G_RequestEndGame(BOOL do_score_screen) {
     /* Score-screen transport is not implemented yet. Keep the argument at the
      * game/session boundary so EndGame(true) does not get baked into HUD code. */
-    G_GameResultDebug("request EndGame score_screen=%u menu_action=%u",
-        (unsigned)do_score_screen, (unsigned)(gi.MenuAction != NULL));
-    if (gi.MenuAction) gi.MenuAction("menu", "menu_main");
+    G_GameResultDebug("request EndGame score_screen=%u", (unsigned)do_score_screen);
+    gi.MenuAction("menu", "menu_main");
 }
 
 void G_RequestChangeLevel(LPCSTR map, BOOL do_score_screen) {
-    G_GameResultDebug("request ChangeLevel map=%s score_screen=%u menu_action=%u",
-        map ? map : "(null)", (unsigned)do_score_screen, (unsigned)(gi.MenuAction != NULL));
-    if (gi.MenuAction && map && *map) gi.MenuAction("map", map);
+    G_GameResultDebug("request ChangeLevel map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
+    if (map && *map) gi.MenuAction("map", map);
 }
 
 void G_RequestRestartGame(BOOL do_score_screen) {
-    LPCSTR map = gi.CvarString ? gi.CvarString("map", "") : "";
-    G_GameResultDebug("request RestartGame map=%s score_screen=%u menu_action=%u",
-        map ? map : "(null)", (unsigned)do_score_screen, (unsigned)(gi.MenuAction != NULL));
-    if (gi.MenuAction && map && *map) gi.MenuAction("map", map);
+    LPCSTR map = gi.CvarString("map", "");
+    G_GameResultDebug("request RestartGame map=%s score_screen=%u", map ? map : "(null)", (unsigned)do_score_screen);
+    if (map && *map) gi.MenuAction("map", map);
 }
 
 void G_RequestLoadGameMenu(void) {
-    G_GameResultDebug("request LoadGameMenu menu_action=%u", (unsigned)(gi.MenuAction != NULL));
-    if (gi.MenuAction) gi.MenuAction("menu", "menu_loadgame");
+    G_GameResultDebug("request LoadGameMenu");
+    gi.MenuAction("menu", "menu_loadgame");
 }
 
 void G_RequestCampaignSelect(void) {
-    G_GameResultDebug("request CampaignSelect menu_action=%u", (unsigned)(gi.MenuAction != NULL));
-    if (gi.MenuAction) gi.MenuAction("menu", "menu_single_player_campaign");
+    G_GameResultDebug("request CampaignSelect");
+    gi.MenuAction("menu", "menu_single_player_campaign");
 }
 
 /* One complete server-frame simulation step.
@@ -631,8 +619,7 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    if (gi.GetTime)
-        level.time = gi.GetTime();
+    level.time = gi.GetTime();
 
     G_StartScripts();
     G_UpdateTimeOfDay();
@@ -877,7 +864,7 @@ static void G_ClientBegin(LPEDICT edict) {
     G_SetClientConnected(edict, true);
     G_InitClientUIState(client);
     if (!client->mapplayer) {
-        client->ps.server_origin = (VECTOR3){ 0, 0, 0 };
+        client->ps.origin = (VECTOR3){ 0, 0, 0 };
     }
     fprintf(stderr,
             "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
@@ -887,8 +874,8 @@ static void G_ClientBegin(LPEDICT edict) {
             (unsigned)client->ps.race,
             (unsigned)client->ps.color,
             (long)client->ps.start_location,
-            client->ps.server_origin.x,
-            client->ps.server_origin.y,
+            client->ps.origin.x,
+            client->ps.origin.y,
             client->ps.name ? client->ps.name : "");
     level.started = true;
     G_StartScripts();
@@ -911,7 +898,7 @@ static void G_ClientBegin(LPEDICT edict) {
     G_FowSendFull(edict);
 
 #ifdef BZ_TESTS
-    if (gi.CvarString && atoi(gi.CvarString("wc3_quest_layout_test", "0"))) {
+    if (atoi(gi.CvarString("wc3_quest_layout_test", "0"))) {
         LPQUEST q = G_MakeQuest();
         LPQUESTITEM it;
         q->title = strdup("Establish Base");

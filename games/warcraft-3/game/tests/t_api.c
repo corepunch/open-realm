@@ -225,7 +225,7 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
     T_EQ(gc->ps.uiflags, 1u << LAYER_CINEMATIC);
     T_ASSERT(!gc->no_control);
-    T_FEQ(gc->ps.server_origin.x, 128, 0.001f); T_FEQ(gc->ps.server_origin.y, 256, 0.001f);
+    T_FEQ(gc->ps.origin.x, 128, 0.001f); T_FEQ(gc->ps.origin.y, 256, 0.001f);
     T_FEQ(gc->ps.distance, 1650, 0.001f); T_EQ(gc->ps.fov, 50);
     T_FEQ(gc->ps.viewquat.x, quat.x, 0.001f); T_FEQ(gc->ps.viewquat.w, quat.w, 0.001f);
 }
@@ -422,9 +422,9 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
 
     level.time = 1100;
     G_RunClients();
-    T_FEQ(gc->ps.server_origin.x, 100.0f, 0.001f);
-    T_FEQ(gc->ps.server_origin.y, 150.0f, 0.001f);
-    T_FEQ(gc->ps.server_origin.z, G_MakeServerOrigin(100.0f, 150.0f, 200.0f).z, 0.001f);
+    T_FEQ(gc->ps.origin.x, 100.0f, 0.001f);
+    T_FEQ(gc->ps.origin.y, 150.0f, 0.001f);
+    T_FEQ(gc->ps.origin.z, G_MakeServerOrigin(100.0f, 150.0f, 200.0f).z, 0.001f);
     currentplayer = NULL;
 }
 

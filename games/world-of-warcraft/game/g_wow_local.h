@@ -379,12 +379,12 @@ extern wowClient_t wow_clients[MAX_CLIENTS];
 /* Game adapts gi.* onto stb_dbc.h's shared cache I/O table (see common/stb_dbc.h). */
 static inline void *G_DbcRead(LPCSTR filename, DWORD *size) {
     DWORD s = 0;
-    void *data = gi.ReadFile ? gi.ReadFile(filename, &s) : NULL;
+    void *data = gi.ReadFile(filename, &s);
     if (size) *size = s;
     return data;
 }
 static inline void G_DbcFreeFile(void *p) { gi.MemFree(p); }
-static inline void *G_DbcAlloc(size_t n) { return gi.MemAlloc ? gi.MemAlloc((long)n) : NULL; }
+static inline void *G_DbcAlloc(size_t n) { return gi.MemAlloc((long)n); }
 static inline void G_DbcFreeMem(void *p) { gi.MemFree(p); }
 
 /* Shared game I/O table (defined in g_wow.c) for stb_dbc.h's cache. */

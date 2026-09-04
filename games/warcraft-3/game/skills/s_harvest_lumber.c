@@ -17,8 +17,6 @@ void harvest_gold_start(LPEDICT self, LPEDICT target);
 
 static int harvest_path_debug_level(void) {
     LPCSTR value;
-    if (!gi.CvarString)
-        return 0;
     value = gi.CvarString("wc3_harvest_path_debug", "0");
     return value ? atoi(value) : 0;
 }

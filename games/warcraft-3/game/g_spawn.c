@@ -331,13 +331,13 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (USHORT)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
     ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
     ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
-    ps->server_origin = G_MakeServerOrigin(player ? player->startingPosition.x : 0.0f, player ? player->startingPosition.y : 0.0f, 0.0f);
+    ps->origin = G_MakeServerOrigin(player ? player->startingPosition.x : 0.0f, player ? player->startingPosition.y : 0.0f, 0.0f);
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
     ps->fov = 50;
     ps->distance = 1650;
     ps->znear = 100.0f;
     ps->zfar = 5000.0f;
-    clent->client->camera.state.position = (VECTOR2){ ps->server_origin.x, ps->server_origin.y };
+    clent->client->camera.state.position = (VECTOR2){ ps->origin.x, ps->origin.y };
     clent->client->camera.state.viewangles = (VECTOR3){ 326, 0, 0 };
     clent->client->camera.state.fov = 50;
     clent->client->camera.state.target_distance = 1650;
@@ -369,7 +369,7 @@ void G_SpawnEntities(void) {
     LPCDOODAD entities = CM_GetDoodads();
     DWORD local_player = G_LocalMapPlayerNumber(mapinfo);
     LONG difficulty = 1;
-    LPCSTR map_path = gi.CvarString ? gi.CvarString("map", "") : "";
+    LPCSTR map_path = gi.CvarString("map", "");
 
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
@@ -377,7 +377,7 @@ void G_SpawnEntities(void) {
     G_ClearSaveRegistries();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
-    level.time = gi.GetTime ? gi.GetTime() : 0;
+    level.time = gi.GetTime();
 
     level.mapinfo = mapinfo;
     level.setup.teams = mapinfo ? mapinfo->num_teams : 0;

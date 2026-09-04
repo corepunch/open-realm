@@ -83,7 +83,7 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
     znear = znear > 0.0f ? znear : 0.1f;
     zfar = zfar > 0.0f ? zfar : 400.0f;
     (void)height_offset;
-    /* Look-at Z is server-authored in playerState.server_origin. */
+    /* Look-at Z is server-authored in playerState.origin. */
     eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
@@ -408,7 +408,7 @@ void CL_PrepRefresh(void) {
         camera.zfar = defaults.zfar;
         cl.viewDef.camerastate[0] = camera;
         cl.viewDef.camerastate[1] = camera;
-        cl.playerstate.server_origin = camera.origin;
+        cl.playerstate.origin = camera.origin;
         cl.playerstate.fov = camera.fov;
         cl.playerstate.distance = camera.distance;
         cl.playerstate.viewangles = camera.viewangles;
@@ -494,7 +494,7 @@ void V_RenderView(void) {
 #if !defined(WOW) && !defined(SC2)
         {
             float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
-            VECTOR2 listener_origin = { cl.playerstate.server_origin.x, cl.playerstate.server_origin.y };
+            VECTOR2 listener_origin = { cl.playerstate.origin.x, cl.playerstate.origin.y };
             VECTOR2 listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
             S_SetListener(&listener_origin, &listener_right);
         }

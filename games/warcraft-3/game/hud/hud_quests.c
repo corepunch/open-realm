@@ -22,7 +22,7 @@ void UI_LoadHudQuests(void) {
 
 
 static BOOL QuestDebugEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
+    return atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
 }
 
 static void QuestDebugQuoted(LPSTR out, DWORD out_size, LPCSTR text) {

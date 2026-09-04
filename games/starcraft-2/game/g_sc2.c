@@ -284,7 +284,7 @@ static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance
 
     CL_GameDefaultCamera(&defaults);
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
-        sc2_clients[i].ps.server_origin = (VECTOR3){
+        sc2_clients[i].ps.origin = (VECTOR3){
             origin->x, origin->y, SC2_MapCameraHeightAtPoint(origin->x, origin->y) + angles->z
         };
         sc2_clients[i].ps.viewangles = *angles;
@@ -343,7 +343,7 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
                                 float dist, float fov, float height_offset, float duration) {
     SC2_UpdateCamera();
     sc2_level.camera.old = (SC2CAMERA){
-        { sc2_clients[0].ps.server_origin.x, sc2_clients[0].ps.server_origin.y },
+        { sc2_clients[0].ps.origin.x, sc2_clients[0].ps.origin.y },
         sc2_clients[0].ps.viewangles,
         sc2_clients[0].ps.distance, sc2_clients[0].ps.fov };
     sc2_level.camera.state = (SC2CAMERA){ { target_x, target_y }, { pitch, yaw, height_offset }, dist, fov };
@@ -547,7 +547,7 @@ static void SC2_InitClients(void) {
         ent->client = &sc2_clients[i];
         ent->client->ps.number = i + 1;
         ent->client->ps.client_ui_state = CLIENT_UI_GAME;
-        ent->client->ps.server_origin = (VECTOR3){
+        ent->client->ps.origin = (VECTOR3){
             camera.target.x, camera.target.y,
             SC2_MapCameraHeightAtPoint(camera.target.x, camera.target.y) + camera.height_offset
         };
@@ -593,12 +593,8 @@ static bool SC2_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
         return false;
     }
-    if (gi.ApplyLobbySettings) {
-        gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
-    }
-    if (gi.ClearWorld) {
-        gi.ClearWorld();
-    }
+    gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    gi.ClearWorld();
     SC2_SpawnEntities();
     /* Register HUD configstrings after memset(&sv,...) in SV_Map wipes them. */
     SC2_HUD_EnsureLayout(NULL);
@@ -689,7 +685,7 @@ static void SC2_RunFrame(void) {
         if (trace_frame % 5 == 0) {
             VECTOR3 const cam = sc2_clients[0].ps.viewangles;
             fprintf(stderr, "SC2 cutscene trace: frame=%u camera=(%.2f,%.2f) pitch=%.2f yaw=%.2f dist=%.2f height=%.2f",
-                    (unsigned)trace_frame, sc2_clients[0].ps.server_origin.x, sc2_clients[0].ps.server_origin.y,
+                    (unsigned)trace_frame, sc2_clients[0].ps.origin.x, sc2_clients[0].ps.origin.y,
                     cam.x, cam.y, (double)sc2_clients[0].ps.distance, cam.z);
             if (dropship) {
                 DWORD number = SC2_EdictNumber(dropship);
@@ -800,7 +796,7 @@ static void SC2_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (!ent || !ent->client || !position) {
         return;
     }
-    ent->client->ps.server_origin = (VECTOR3){
+    ent->client->ps.origin = (VECTOR3){
         position->x, position->y,
         SC2_MapCameraHeightAtPoint(position->x, position->y) + ent->client->ps.viewangles.z
     };
