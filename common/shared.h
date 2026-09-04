@@ -509,7 +509,7 @@ struct playerState_s {
     DWORD number;                   // client slot index
     QUATERNION viewquat;            // canonical 3D view orientation sent to the renderer
     VECTOR3 viewangles;             // euler pitch/yaw for WoW orbit camera math; only transmitted #ifdef WOW (can't round-trip euler from quat losslessly)
-    VECTOR3 origin;                 // camera target: XY focus for isometric/orbit views, Z = optional height offset (0 = none)
+    VECTOR3 server_origin;          // server-authored camera look-at in world space (XY focus + composed Z)
 #ifdef WC3
     BOX2 camera_bounds;             // current per-player camera target bounds; initialized from W3I, mutable by SetCameraBounds
 #endif

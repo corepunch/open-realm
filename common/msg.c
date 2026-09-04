@@ -140,7 +140,7 @@ netField_t playerStateFields[] = {
 #if defined(WOW) || defined(SC2)
     { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
 #endif
-    { NETF(PLAYER, origin), NFT_VECTOR3_FLOAT },
+    { NETF(PLAYER, server_origin), NFT_VECTOR3_FLOAT },
 #ifdef WC3
     { NETF(PLAYER, camera_bounds), NFT_BOX2 },
 #endif

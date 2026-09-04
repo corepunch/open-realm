@@ -273,7 +273,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
             last_timed_status = timed_status;
         }
     }
-    VECTOR2 server_origin = { cl.playerstate.origin.x, cl.playerstate.origin.y };
+    VECTOR3 server_origin = cl.playerstate.server_origin;
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME &&
         cls.key_dest != key_console && cls.key_dest != key_menu) {
         CL_SetGameplayInput();
@@ -282,9 +282,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     zfar = cl.viewDef.camerastate[0].zfar > 0 ? cl.viewDef.camerastate[0].zfar : 5000;
 
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
-    cl.viewDef.camerastate[0].origin.x = server_origin.x;
-    cl.viewDef.camerastate[0].origin.y = server_origin.y;
-    cl.viewDef.camerastate[0].origin.z = cl.playerstate.origin.z;
+    cl.viewDef.camerastate[0].origin = server_origin;
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
@@ -293,28 +291,9 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     if (cl.playerstate.zfar > 0.0f) zfar = cl.playerstate.zfar;
     cl.viewDef.camerastate[0].znear = znear;
     cl.viewDef.camerastate[0].zfar = zfar;
-#ifdef SC2
-    {
-        gameCamera_t camera;
 
-        CL_GameDefaultCamera(&camera);
-        cl.viewDef.camerastate[0].origin.z = CM_GetHeightAtPoint(server_origin.x, server_origin.y) + cl.playerstate.viewangles.z;
-        /* Galaxy camera natives author these snapshot fields; replacing them here kept every cutscene on map defaults. */
-        cl.viewDef.camerastate[0].znear = camera.znear;
-        cl.viewDef.camerastate[0].zfar = camera.zfar;
-        znear = camera.znear;
-        zfar = camera.zfar;
-    }
-#endif
-
-    if (first_camera_sample) {
+    if (first_camera_sample)
         cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
-#ifdef SC2
-    } else {
-        cl.viewDef.camerastate[1].znear = znear;
-        cl.viewDef.camerastate[1].zfar = zfar;
-#endif
-    }
 
     if (cl.camera_prediction.active) {
 #ifdef WC3

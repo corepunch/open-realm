@@ -9,6 +9,9 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return CM_GetHeightAtPoint(x, y); }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return a + (b - a) * fraction; }
+FLOAT CM_GetCameraHeightOffset(void) {
+    return -TILE_SIZE; // orbit look-at sits one tile below sampled terrain
+}
 
 #ifdef BZ_TESTS
 static BOX2 test_world_bounds;
