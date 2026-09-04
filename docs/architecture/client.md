@@ -138,7 +138,7 @@ the binding generic rather than looking up game-specific entity types or rules.
 | File | Purpose |
 |------|---------|
 | `client/cl_main.c` | `CL_Frame`, `CL_Init`, `CL_ReadPackets` |
-| `client/cl_input.c` | Input sampling, `usercmd_t` construction |
+| `client/cl_input.c` | Input sampling, shared `+select` / `zoom` / `group` |
 | `client/cl_parse.c` | Server message handlers |
 | `client/cl_view.c` | Camera, `CL_PrepRefresh`, `V_AddEntity` |
 | `client/cl_tent.c` | Temporary client-side effects |
