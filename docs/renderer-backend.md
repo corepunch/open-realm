@@ -1,5 +1,10 @@
 # Renderer Frontend/Backend Split
 
+Tracking: [#89](https://github.com/corepunch/open-realm/issues/89) (implement),
+[#93](https://github.com/corepunch/open-realm/issues/93) (research). Packed shader
+contracts: [model-shader.md](architecture/model-shader.md). Platforms:
+[build-and-renderer-platforms.md](build-and-renderer-platforms.md).
+
 ## Problem
 
 GL state changes (`glEnable`, `glDisable`, `glBlendFunc`, `glDepthMask`, `glDepthFunc`, `glColorMask`, `glCullFace`, `glPolygonOffset`, `glBlendEquation`, etc.) are scattered across every draw function in the renderer. Every 2D draw, every terrain pass, every model render, and every fog-of-war composite sets its own GL state inline via `R_Call(gl...)` before each draw call.
@@ -128,113 +133,85 @@ OpenGL-on-Metal path may still present at the display's 120 Hz ceiling.
 The FPS overlay uses one batched system-font submission and displays
 `FPS ##  Drawcalls ##`; its draw count is captured before the overlay itself.
 
-## Reference: Doom 3 Frontend/Backend Split
+## Target API shape
 
-Doom 3 (id Tech 4) solves this with a clean two-phase architecture:
+Do **not** emulate OpenGL 1.x (`glEnable(GL_LIGHTING)`, fog modes, texture-env, uber-shader permutations).
+Call-site `glUniform*` is already gone (`shader_desc_t` + typed `state` + `R_ApplyShader`). The remaining work
+follows Sebastian Aaltonen's thin-pipeline / root-struct design, mapped onto the current OpenGL 3.1 / GLES3
+backend. Issues: [#89](https://github.com/corepunch/open-realm/issues/89),
+[#93](https://github.com/corepunch/open-realm/issues/93). Source:
+[SebAaltonen, 2026-09-03](https://x.com/SebAaltonen/status/2095562458467287266).
 
-1. **Frontend** (`R_*`): walks the scene, culls, sorts surfaces by material sort key, builds a linked-list command buffer. Never touches GL.
-2. **Backend** (`RB_*`): walks the command buffer, executes draw commands. Owns all GL state.
-3. **State caching**: a `uint64` bitmask packs blend/depth/stencil/color-mask state. `GL_State(bits)` XORs against cached state and only issues GL calls for changed bit groups.
-4. **Sorting**: surfaces are sorted by material, so consecutive opaque geometry shares identical state bits — the XOR is zero, no GL calls issued.
+| Steal | Meaning here |
+|-------|----------------|
+| Root struct + one push | One `alignas(16)` C struct shared with the shader: transforms, material, texture indices. Fill a stack/bump copy and upload once (UBO / persistent-mapped buffer today; push constants later). |
+| Thin pipeline objects | Graphics pipeline = shaders + color/depth formats + a small raster blob (blend, depth write/test, cull, write mask). One short create call. |
+| Blend/depth as small objects | Attached at pipeline create. On GL they can also change cheaply; the backend diffs them with a Doom 3-style bitmask. Not a giant opaque PSO. |
+| Texture/sampler heap | 32-bit indices in the root struct. No per-draw `glBindTexture` storm. GLES without bindless needs an explicit, logged strategy. |
+| 64-bit GPU pointers | Not required on GL/GLES. Do not block #89 on `vkCmdPushDataEXT` or buffer device address. |
 
-## Proposed Design
+Lighting, fog, and grass stay packed data in the root struct (`MODELLIGHTING`, `uGrassParams`, model fog flags).
+See [model-shader.md](architecture/model-shader.md). They are not public `lightingEnabled` / `fogMode` bits that pick shader permutations.
 
-### Phase 1: Backend State Cache (`r_backend.h` / `r_backend.c`)
+Typical draw shape: bind pipeline if changed, push root once, draw.
 
-Introduce a `backEndState_t` struct that owns all GL state. Never issue raw `glEnable`/`glDisable`/`glBlendFunc`/etc. directly — always go through state-change helpers that compare against cached state.
+## Backend state cache (Phase 1 of #89)
+
+Doom 3's `R_*` / `RB_*` split and `GL_State(uint64)` XOR remain the **GL implementation** of cheap blend/depth/cull
+packets. Frontend never issues `glEnable` / `glBlendFunc` / `glDepthMask`. Backend owns those calls.
 
 ```
 backEndState_t:
-    uint32  glStateBits;      // packed blend/depth/color-mask state
-    GLenum  faceCulling;      // cached cull face mode (GL_BACK / GL_FRONT / GL_NONE)
-    GLenum  depthFunc;        // cached depth function
+    uint32  glStateBits;      // packed blend/depth/color-mask
+    GLenum  faceCulling;
+    GLenum  depthFunc;
     DWORD   polygonOffsetScale, polygonOffsetBias;
-    DWORD   blendEquation;    // GL_FUNC_ADD / GL_MAX
+    DWORD   blendEquation;
     DWORD   activeTextureUnit;
-    DWORD   currentShader;
+    DWORD   currentPipeline;
     DWORD   currentVAO;
     DWORD   currentFBO;
     RECT    currentScissor;
 ```
 
-State-change helpers:
-
 ```c
-void RB_State(uint32 bits);       // packed blend+depth+mask, delta-checked
-void RB_Cull(GLenum mode);        // GL_BACK / GL_FRONT / GL_NONE
+void RB_State(uint32 bits);
+void RB_Cull(GLenum mode);
 void RB_PolygonOffset(float scale, float bias);
 void RB_BlendEquation(GLenum eq);
 void RB_Scissor(LPCRECT r);
-void RB_BindShader(DWORD progid);
 void RB_BindVAO(DWORD vao);
 void RB_BindFBO(DWORD fbo);
 void RB_SetViewport(LPCRECT r);
 ```
 
-Each helper compares against the cached value and only issues the GL call on delta.
+Each helper compares against the cached value and only issues the GL call on delta. Later phases in #89
+add thin pipeline objects, the root-struct push, and the texture heap. Surface sorting (by pipeline +
+blend/depth bits) waits until draws are no longer immediate.
 
-### Phase 2: Migrate existing draw functions
+## Key constraints
 
-Replace all direct GL state calls in these files with `RB_*` helpers:
+- `R_Call(gl...)` stays for diagnostics; `RB_*` uses it internally.
+- `refExport_t` is unchanged. Pipeline/root types live in the renderer (`r_backend.h` via `r_local.h`).
+- Callers never reference `progid` or uniform locations. `shader_desc_t` remains the GLSL grammar until
+  the root-struct push replaces per-field `glUniform*`.
+- One representation per shader concept: no zero-count modes or parallel fallback uniforms.
+- macOS GL 4.1, desktop GL 3.1, and GLES3 Mali-G31 each need an explicit transport. Missing extensions
+  are logged; do not silently demote to a bind loop and call it bindless.
 
-**Engine renderer (move to `r_backend.c`):**
-- `renderer/r_main.c` — `R_SetupGL`, `R_BeginFrame`, `R_EndFrame`, `R_SetupViewport`, `R_SetupScissor`, `R_RevertSettings`
-- `renderer/r_draw.c` — `R_DrawChar`, `R_DrawFill`, `R_DrawImageBatch`, `R_DrawWireRect`, `R_DrawBoundingBox`, `R_DrawMinimapCameraRect`, `R_SetBlending`
-- `renderer/r_fogofwar.c` — multi-pass FoW composite
-- `renderer/r_particles.c` — particle blend setup
-- `renderer/r_texture.c` — texture parameter setup
-
-**Game renderers (use RB_* from their r_game.c):**
-- `games/warcraft-3/renderer/w3m/r_war3map.c` — terrain depth/blend passes
-- `games/warcraft-3/renderer/w3m/r_terrain_layers.c` — layer blend
-- `games/wow/renderer/wow/r_wowmap.c` — WoW terrain
-- `games/wow/renderer/wow/r_wowmap_splat.c` — splat with polygon offset
-- `games/wow/renderer/wow/r_wowmap_grass.c` — grass blend/cull
-- `games/wow/renderer/m2/r_m2.c` — M2 model depth/blend
-- `games/sc2/renderer/sc2/r_sc2map.c` — SC2 terrain
-- `games/sc2/renderer/m3/r_m3_load.c` — M3 material blend matrix
-- `games/sc2/renderer/r_game.c` — SC2 game draw
-
-### Phase 3: Sort draw surfaces (optional, higher impact)
-
-After the state cache is in place and all GL calls go through `RB_*`, add surface sorting by material state:
-
-1. Assign each surface a sort key from its shader + blend mode + cull mode.
-2. In the backend pass, sort `drawSurfs[]` by this key before issuing draw calls.
-3. Consecutive surfaces with the same sort key produce zero `RB_State()` deltas.
-
-This is a separate step because the current renderer doesn't maintain a `drawSurf[]` array — entities and terrain are drawn immediately. The sort step can be deferred to a later phase once the state cache is proven.
-
-## Key Constraints
-
-- The `R_Call(gl...)` macro is kept for now — it wraps with error checking under `DIAG_OUTPUT`. `RB_*` helpers will use `R_Call` internally.
-- The `refExport_t` API boundary is unchanged — this is internal renderer cleanup.
-- Game-specific renderers access `RB_*` through `r_backend.h` (included via `r_local.h`).
-
-## Files To Create / Modify
+## Files for the state-cache step
 
 | File | Action |
 |------|--------|
-| `renderer/r_backend.h` | **New** — `backEndState_t` struct, `RB_*` function prototypes |
-| `renderer/r_backend.c` | **New** — `RB_*` implementations, `RB_ResetState()` for frame start |
-| `renderer/r_local.h` | Add `#include "r_backend.h"` |
-| `renderer/r_main.c` | Replace GL state calls in `R_SetupGL`, `R_BeginFrame`, `R_EndFrame`, `R_SetupViewport`, `R_SetupScissor`, `R_RevertSettings` |
-| `renderer/r_draw.c` | Replace GL state calls in all `R_Draw*` functions |
-| `renderer/r_fogofwar.c` | Replace GL state calls in `R_RenderFogOfWar` |
-| `renderer/r_particles.c` | Replace GL state calls in `R_DrawParticles` |
-| `renderer/r_ents.c` | Replace GL state calls in `R_DrawEntities`, `R_RenderModel` |
-| `games/warcraft-3/renderer/w3m/r_war3map.c` | Replace GL state calls |
-| `games/warcraft-3/renderer/w3m/r_terrain_layers.c` | Replace GL state calls |
-| `games/wow/renderer/wow/r_wowmap.c` | Replace GL state calls |
-| `games/wow/renderer/wow/r_wowmap_splat.c` | Replace GL state calls |
-| `games/wow/renderer/wow/r_wowmap_grass.c` | Replace GL state calls |
-| `games/wow/renderer/m2/r_m2.c` | Replace GL state calls |
-| `games/sc2/renderer/sc2/r_sc2map.c` | Replace GL state calls |
-| `games/sc2/renderer/m3/r_m3_load.c` | Replace GL state calls |
-| `games/sc2/renderer/r_game.c` | Replace GL state calls |
+| `renderer/r_backend.h` | **New** — `backEndState_t`, pipeline/root types, `RB_*` |
+| `renderer/r_backend.c` | **New** — cache, later pipeline bind + root push |
+| `renderer/r_local.h` | `#include "r_backend.h"` |
+| `renderer/r_main.c`, `r_draw.c`, `r_fogofwar.c`, `r_particles.c`, `r_ents.c` | `RB_*` instead of raw GL state |
+| WC3 / WoW / SC2 game renderers | Same; listed in #89 |
 
 ## Verification
 
-1. `make clean && make` — builds without warnings
-2. Visual regression: launch each game (WC3, SC2, WoW), load a map, verify rendering matches pre-change
-3. Grep for stray GL state calls: `rg 'gl(Enable|Disable|BlendFunc|DepthFunc|DepthMask|ColorMask|CullFace|PolygonOffset|BlendEquation)\b' renderer/ games/*/renderer/` — should only appear inside `r_backend.c`
+1. `make clean && make` — no warnings.
+2. Visual: WC3 ROC and TFT, SC2, WoW; load a map. `+screenshot N +com_frame_limit`.
+3. `rg 'gl(Enable|Disable|BlendFunc|DepthFunc|DepthMask|ColorMask|CullFace|PolygonOffset|BlendEquation)\b' renderer/ games/*/renderer/` — only inside `r_backend.c`.
+4. `r_stats 1` on a known scene so draw count does not regress silently.

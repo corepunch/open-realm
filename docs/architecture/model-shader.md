@@ -158,6 +158,11 @@ pattern and native math structs, not enums whose runtime contracts differ.
   and a fifth names the state field containing a counted array's active upload count.
 - One renderer API submission is **not** one GL call or a UBO. The GL backend walks the descriptor
   and submits active fields, preserving the existing supported dialects without std140 assumptions.
+  The long-term shape is Aaltonen's root struct + one push (UBO / persistent-mapped buffer on GL);
+  see [renderer-backend.md](../renderer-backend.md) and issues
+  [#89](https://github.com/corepunch/open-realm/issues/89) /
+  [#93](https://github.com/corepunch/open-realm/issues/93). Do not add a public fixed-function
+  `renderState_t` (`lightingEnabled`, `fogMode`) to pick shader permutations.
 - Samplers use descriptor declaration order, not linker location order. Shared models/default ground
   use diffuse=0, shadow=1, FOW=2. WoW terrain uses layers=0..3, alpha=4; camera grass explicitly
   assigns its height/control samplers to 5/6 to match existing bindings.
