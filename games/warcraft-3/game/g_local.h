@@ -1231,6 +1231,7 @@ struct level_locals {
     BOOL quest_paused;
     BOOL modal_paused;
     TIMEOFDAY timeofday;
+    BOX2 camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
     BOOL started;
     BOOL scriptsStarted;
     BOOL cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
@@ -1287,7 +1288,7 @@ FLOAT G_Cinefade(void);
 BOOL G_SkipCutscene(void);
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);
 VECTOR3 G_MakeServerOrigin(FLOAT x, FLOAT y, FLOAT z_offset);
-void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]);
+void G_SetCameraBounds(FLOAT const bounds[8]);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 void G_SetAllStockSlots(BOOL, LONG);

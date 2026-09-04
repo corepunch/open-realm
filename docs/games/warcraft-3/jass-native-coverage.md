@@ -87,7 +87,7 @@ reconstructs and may override map/player setup before `main()` starts. Setup
 callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
 
-Camera state is client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives `camera_bounds` initialized from W3I plus snapshot fields for target Z offset and near/far clipping planes. `SetCameraBounds` changes the per-player rectangle, while camera WithZ/setup natives change the authoritative client camera state and `G_RunClients()` publishes the interpolated render fields. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
+Camera state is client-visible runtime state rather than mutable map metadata: `level.camera_bounds` is initialized from W3I and `SetCameraBounds` replaces that one map-global rectangle. Snapshot fields carry target Z offset and near/far clipping planes. The client clamps predicted targets with `CM_GetWorldBounds()`. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
 
 ## Player Result / End-Game Lifecycle
 

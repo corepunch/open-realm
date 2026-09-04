@@ -15,6 +15,7 @@
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
+void test_client_stubs_set_world_bounds(BOX2 bounds);
 struct game_import gi;
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
@@ -28,7 +29,7 @@ LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
 FLOAT CM_GetHeightAtPoint(FLOAT x, FLOAT y) { (void)x; (void)y; return 0.0f; }
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
 VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
-BOX2 CM_GetWorldBounds(void) { return (BOX2){ .min = {0,0}, .max = {TILE_SIZE * 4.0f, TILE_SIZE * 3.0f} }; }
+/* CM_GetWorldBounds lives in test_client_stubs.c so net and server tests share one map box. */
 HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
     (void)mask;
     (void)findData;
@@ -139,6 +140,10 @@ static void reset_server_state(int max_players) {
     memset(test_edicts, 0, sizeof(test_edicts));
     test_game_shutdowns = 0;
     test_mapinfo = NULL;
+    test_client_stubs_set_world_bounds((BOX2){
+        .min = { 0, 0 },
+        .max = { TILE_SIZE * 4.0f, TILE_SIZE * 3.0f },
+    });
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     test_ge.max_clients = max_players;
     test_ge.max_edicts = MAX_CLIENT_ENTITIES;

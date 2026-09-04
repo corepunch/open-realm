@@ -353,7 +353,6 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
                 G_SetPlayerTechMaxAllowed(clent->client, tech->techID, 0);
             }
         }
-        G_SetClientCameraBounds(clent->client, mapinfo->cameraBounds.bounds);
     }
     clent->client->mapplayer = player;
     clent->client->jass.controller = G_MapControl(player);
@@ -409,6 +408,8 @@ void G_SpawnEntities(void) {
         g_edicts[p].client = client;
         G_InitMapPlayer(g_edicts+p, mapinfo, playernum);
     }
+    if (mapinfo)
+        G_SetCameraBounds(mapinfo->cameraBounds.bounds);
 
     globals.num_edicts = game.max_clients;
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */

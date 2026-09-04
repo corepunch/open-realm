@@ -352,7 +352,6 @@ TEST(wc3_api, camera_margin_is_default_camera_inset_from_playable_area) {
      * the W3I default camera bounds; it is not complement * TILE_SIZE. */
     int const raw_complements[4] = { 4, 8, 6, 10 };
     LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
-    LPGAMECLIENT gc = &game.clients[0];
 
     CM_SetupTestWorldBounds(&MAKE(BOX2,
         .min = { -4096.0f, -3072.0f },
@@ -383,10 +382,10 @@ TEST(wc3_api, camera_margin_is_default_camera_inset_from_playable_area) {
 
     /* The generated SetCameraBounds call reconstructs the W3I default camera
      * rectangle instead of applying the complement widths a second time. */
-    T_FEQ(gc->ps.camera_bounds.min.x, -3328.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.max.x, 2688.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.min.y, -1920.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.max.y, 1280.0f, 0.001f);
+    T_FEQ(level.camera_bounds.min.x, -3328.0f, 0.001f);
+    T_FEQ(level.camera_bounds.max.x, 2688.0f, 0.001f);
+    T_FEQ(level.camera_bounds.min.y, -1920.0f, 0.001f);
+    T_FEQ(level.camera_bounds.max.y, 1280.0f, 0.001f);
 }
 
 TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
@@ -398,13 +397,10 @@ TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
         "function main takes nothing returns nothing\n"
         "  call SetCameraBounds(-100.0, -50.0, -100.0, 50.0, 100.0, 50.0, 100.0, -50.0)\n"
         "endfunction\n"));
-    T_FEQ(gc->ps.camera_bounds.min.x, -100.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.min.y, -50.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.max.x, 100.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.max.y, 50.0f, 0.001f);
-    if (game.max_clients > 1) {
-        T_FEQ(game.clients[1].ps.camera_bounds.max.x, 100.0f, 0.001f);
-    }
+    T_FEQ(level.camera_bounds.min.x, -100.0f, 0.001f);
+    T_FEQ(level.camera_bounds.min.y, -50.0f, 0.001f);
+    T_FEQ(level.camera_bounds.max.x, 100.0f, 0.001f);
+    T_FEQ(level.camera_bounds.max.y, 50.0f, 0.001f);
 
     G_ClientSetCameraPosition(&g_edicts[0], &requested);
     T_FEQ(gc->camera.state.position.x, 100.0f, 0.001f);
@@ -536,27 +532,24 @@ TEST(wc3_api, camera_quick_position_sets_spacebar_target_without_moving_camera) 
     currentplayer = NULL;
 }
 
-TEST(wc3_api, camera_bounds_are_per_player_when_local_context_exists) {
+TEST(wc3_api, camera_bounds_are_map_global) {
     LPGAMECLIENT gc0 = &game.clients[0];
-    LPGAMECLIENT gc1 = game.max_clients > 1 ? &game.clients[1] : NULL;
 
     currentplayer = NULL;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call SetCameraBounds(-100.0, -100.0, -100.0, 100.0, 100.0, 100.0, 100.0, -100.0)\n"
         "endfunction\n"));
+    T_FEQ(level.camera_bounds.min.x, -100.0f, 0.001f);
+    T_FEQ(level.camera_bounds.max.y, 100.0f, 0.001f);
 
     currentplayer = &gc0->ps;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call SetCameraBounds(-25.0, -20.0, -25.0, 20.0, 25.0, 20.0, 25.0, -20.0)\n"
         "endfunction\n"));
-    T_FEQ(gc0->ps.camera_bounds.min.x, -25.0f, 0.001f);
-    T_FEQ(gc0->ps.camera_bounds.max.y, 20.0f, 0.001f);
-    if (gc1) {
-        T_FEQ(gc1->ps.camera_bounds.min.x, -100.0f, 0.001f);
-        T_FEQ(gc1->ps.camera_bounds.max.y, 100.0f, 0.001f);
-    }
+    T_FEQ(level.camera_bounds.min.x, -25.0f, 0.001f);
+    T_FEQ(level.camera_bounds.max.y, 20.0f, 0.001f);
     currentplayer = NULL;
 }
 
