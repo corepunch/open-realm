@@ -216,7 +216,7 @@ Open the in-game console with the backtick/tilde key and enter `save chapter-01`
 build/bin/openwarcraft3 -data "data/Warcraft III" +load chapter-01
 ```
 
-`FS_SavePath()` resolves saves to `~/.local/share/warcraft-3/saves/<name>.sav` on Unix, including macOS, and `%APPDATA%/warcraft-3/saves/<name>.sav` on Windows. This is a fixed `~/.local/share` path: `$XDG_DATA_HOME` is not read, and macOS does not use `~/Library/Application Support`. Config files use the same per-user game-data directory. If no writable per-user data directory is available, config and saves fall back to `share/warcraft-3/config/` and `share/warcraft-3/saves/`. The save filename may not contain `/` or `\`.
+`FS_SavePath()` resolves saves below the same per-user directory as config: `$XDG_DATA_HOME/warcraft-3/saves/<name>.sav` on Unix when `XDG_DATA_HOME` is set to an absolute path, otherwise `~/.local/share/warcraft-3/saves/<name>.sav`; Windows uses `%APPDATA%/warcraft-3/saves/<name>.sav`. macOS follows the Unix XDG/fallback rule rather than `~/Library/Application Support`. If no writable per-user data directory is available, config and saves fall back to `share/warcraft-3/config/` and `share/warcraft-3/saves/`. The save filename may not contain `/` or `\`.
 
 The Save Game and Load Game buttons exposed by the WC3 menu layout issue `save quick` and `load quick`. The shipped config binds `F6` to `save quick`; `F9` remains the quest log shortcut.
 

@@ -436,6 +436,142 @@ static void R_PrintDisplayModes(void) {
 
 static int r_swapinterval = -999;
 
+static BOOL R_VideoHidden(void) {
+    return R_CvarEnabled("vid_hidden", "0");
+}
+
+static BOOL R_VideoNative(void) {
+    return R_CvarEnabled("vid_native", "0") && !R_VideoHidden();
+}
+
+static BOOL R_VideoFullscreen(void) {
+    return R_CvarEnabled("vid_fullscreen", "0") && !R_VideoHidden();
+}
+
+static BOOL R_GetDesktopMode(SDL_DisplayMode *mode) {
+    if (!mode) {
+        return false;
+    }
+    memset(mode, 0, sizeof(*mode));
+    if (SDL_GetDesktopDisplayMode(0, mode) != 0 || mode->w <= 0 || mode->h <= 0) {
+        fprintf(stderr, "Video: could not query desktop mode: %s\n", SDL_GetError());
+        return false;
+    }
+    return true;
+}
+
+static void R_ResolveInitialWindowSize(DWORD *width, DWORD *height) {
+    SDL_DisplayMode desktop;
+
+    if (!width || !height || !R_VideoNative()) {
+        return;
+    }
+    if (!R_GetDesktopMode(&desktop)) {
+        fprintf(stderr,
+                "Video: native mode unavailable; using vid_mode fallback %ux%u\n",
+                (unsigned)*width,
+                (unsigned)*height);
+        return;
+    }
+    *width = (DWORD)desktop.w;
+    *height = (DWORD)desktop.h;
+    fprintf(stderr,
+            "Video: native desktop mode %ux%u@%d\n",
+            (unsigned)*width,
+            (unsigned)*height,
+            desktop.refresh_rate);
+}
+
+static BOOL R_SetExclusiveDisplayMode(DWORD width, DWORD height) {
+    SDL_DisplayMode target = { 0 };
+    SDL_DisplayMode closest;
+    int display_index;
+
+    if (!window) {
+        return false;
+    }
+    display_index = SDL_GetWindowDisplayIndex(window);
+    if (display_index < 0) {
+        fprintf(stderr, "Video: could not determine window display: %s\n", SDL_GetError());
+        return false;
+    }
+    target.w = (int)width;
+    target.h = (int)height;
+    memset(&closest, 0, sizeof(closest));
+    if (!SDL_GetClosestDisplayMode(display_index, &target, &closest) ||
+        closest.w != (int)width || closest.h != (int)height) {
+        fprintf(stderr,
+                "Video: no exact fullscreen mode for %ux%u; keeping windowed mode\n",
+                (unsigned)width,
+                (unsigned)height);
+        return false;
+    }
+    if (SDL_SetWindowDisplayMode(window, &closest) != 0) {
+        fprintf(stderr,
+                "Video: could not set fullscreen display mode %ux%u: %s\n",
+                (unsigned)width,
+                (unsigned)height,
+                SDL_GetError());
+        return false;
+    }
+    return true;
+}
+
+static void R_ApplyVideoMode(DWORD width, DWORD height) {
+    BOOL native = R_VideoNative();
+    BOOL fullscreen = R_VideoFullscreen();
+    Uint32 fullscreen_flag = 0;
+    int actual_width = 0;
+    int actual_height = 0;
+
+    if (!window || width == 0 || height == 0) {
+        return;
+    }
+
+    /* Return to windowed mode before changing size/display mode. This keeps
+     * runtime vid_apply transitions deterministic across SDL backends. */
+    if (SDL_SetWindowFullscreen(window, 0) != 0) {
+        fprintf(stderr, "Video: could not leave fullscreen mode: %s\n", SDL_GetError());
+    }
+    SDL_SetWindowDisplayMode(window, NULL);
+
+    if (native) {
+        SDL_DisplayMode desktop;
+        if (R_GetDesktopMode(&desktop)) {
+            width = (DWORD)desktop.w;
+            height = (DWORD)desktop.h;
+        }
+    }
+
+    SDL_SetWindowSize(window, (int)width, (int)height);
+    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+
+    if (fullscreen) {
+        if (native) {
+            fullscreen_flag = SDL_WINDOW_FULLSCREEN_DESKTOP;
+        } else if (R_SetExclusiveDisplayMode(width, height)) {
+            fullscreen_flag = SDL_WINDOW_FULLSCREEN;
+        }
+        if (fullscreen_flag && SDL_SetWindowFullscreen(window, fullscreen_flag) != 0) {
+            fprintf(stderr,
+                    "Video: fullscreen request failed for %ux%u: %s; keeping windowed mode\n",
+                    (unsigned)width,
+                    (unsigned)height,
+                    SDL_GetError());
+            fullscreen_flag = 0;
+            SDL_SetWindowDisplayMode(window, NULL);
+        }
+    }
+
+    SDL_GetWindowSize(window, &actual_width, &actual_height);
+    fprintf(stderr,
+            "Video mode applied: %s%s %dx%d\n",
+            native ? "native " : "",
+            fullscreen_flag ? "fullscreen" : "windowed",
+            actual_width,
+            actual_height);
+}
+
 /* Apply console changes without repeating the expensive Cocoa/Metal swap-interval call every frame. */
 static void R_UpdateSwapInterval(void) {
     int requested = atoi(ri.CvarString ? ri.CvarString("r_vsync", "0") : "0");
@@ -502,10 +638,11 @@ void R_InitRenderer(DWORD width, DWORD height) {
     fprintf(stderr, "SDL video driver is \"%s\".\n", SDL_GetCurrentVideoDriver());
     /* The full SDL mode list is diagnostic output, previously printed on every startup. */
     if (atoi(ri.CvarString("vid_modes", "0"))) R_PrintDisplayModes();
+    R_ResolveInitialWindowSize(&width, &height);
     fprintf(stderr, "Video initialized.\n\n");
     
     fprintf(stderr, "Refresher initialization.\n");
-    Uint32 win_vis = atoi(ri.CvarString("vid_hidden", "0")) ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
+    Uint32 win_vis = R_VideoHidden() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI);
     context = window ? SDL_GL_CreateContext(window) : NULL;
     if (!context && requested_msaa) {
@@ -522,7 +659,8 @@ void R_InitRenderer(DWORD width, DWORD height) {
     } else {
         fprintf(stderr, "ref_gl::R_Init() - could not make GL context current: %s\n", SDL_GetError());
     }
-    
+
+    R_ApplyVideoMode(width, height);
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
     fprintf(stderr, "Refresh: OpenWarcraft3 OpenGL Refresher\n");
     fprintf(stderr, "Client: OpenWarcraft3\n\n");
@@ -884,17 +1022,13 @@ void R_SetWindowSize(DWORD width, DWORD height) {
     if (!window || width == 0 || height == 0) {
         return;
     }
-    SDL_SetWindowFullscreen(window, 0);
-    SDL_SetWindowSize(window, (int)width, (int)height);
-    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    R_ApplyVideoMode(width, height);
     SDL_GL_GetDrawableSize(window,
                            (int *)&tr.drawableSize.width,
                            (int *)&tr.drawableSize.height);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     fprintf(stderr,
-            "Video mode applied: %ux%u (drawable %ux%u)\n",
-            (unsigned)width,
-            (unsigned)height,
+            "Drawable size after vid_apply: %ux%u\n",
             (unsigned)tr.drawableSize.width,
             (unsigned)tr.drawableSize.height);
 }

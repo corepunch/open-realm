@@ -14,7 +14,7 @@ typedef const struct VIDEOMODE *LPCVIDEOMODE;
 static VIDEOMODE const video_modes[] = {
     { 640, 480 }, { 800, 600 }, { 1024, 768 }, { 1152, 864 }, { 1280, 720 },
     { 1280, 960 }, { 1280, 1024 }, { 1366, 768 }, { 1600, 900 }, { 1600, 1200 },
-    { 1920, 1080 }, { 1920, 1200 }, { 2560, 1440 },
+    { 1920, 1080 }, { 1920, 1200 }, { 2560, 1440 }, { 1280, 800 },
 };
 
 static inline DWORD video_mode_count(void) { return sizeof(video_modes) / sizeof(*video_modes); }

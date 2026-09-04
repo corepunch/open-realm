@@ -449,6 +449,30 @@ TEST(video_modes, invalid_index_uses_safe_default) {
     T_EQ(video_mode_get(2)->width, (DWORD)1024); T_EQ(video_mode_get(2)->height, (DWORD)768);
 }
 
+TEST(video_modes, steam_deck_mode_is_appended_without_renumbering_existing_modes) {
+    DWORD steam_deck_mode = video_mode_count() - 1;
+
+    T_EQ(video_mode_count(), (DWORD)14);
+    T_EQ(video_mode_get(5)->width, (DWORD)1280);
+    T_EQ(video_mode_get(5)->height, (DWORD)960);
+    T_EQ(video_mode_get((int)steam_deck_mode)->width, (DWORD)1280);
+    T_EQ(video_mode_get((int)steam_deck_mode)->height, (DWORD)800);
+}
+
+TEST(video_modes, wc3_defaults_to_native_fullscreen_with_vid_mode_fallback) {
+    setup_command_tests();
+    Cvar_Set("vid_native", "0");
+    Cvar_Set("vid_fullscreen", "0");
+    Cvar_Set("vid_mode", "0");
+
+    Cvar_LoadConfig("games/warcraft-3/share/config.cfg");
+    Cbuf_Execute();
+
+    T_STREQ(Cvar_String("vid_native", NULL), "1");
+    T_STREQ(Cvar_String("vid_fullscreen", NULL), "1");
+    T_STREQ(Cvar_String("vid_mode", NULL), "2");
+}
+
 TEST(video_modes, wow_defaults_allow_explicit_override) {
     LPCSTR args[] = { "test_commands", "+set", "vid_mode", "0" };
 

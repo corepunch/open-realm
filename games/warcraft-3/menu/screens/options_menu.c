@@ -201,15 +201,22 @@ static void OptionsMenu_InitVideoMenus(void) {
                      (unsigned)video_modes[i].height);
             UI_MenuAddItem(options_menu.ResolutionPopupMenuMenu, text, (LONG)i);
         }
+        /* Keep fixed-mode rows aligned with their persisted vid_mode indices.
+         * Native is appended so adding it does not renumber existing configs. */
+        UI_MenuAddItem(options_menu.ResolutionPopupMenuMenu, "Native", (LONG)video_mode_count());
         selected = OptionsMenu_CvarSelection("vid_mode", BZ_VIDEO_MODE_DEFAULT, video_mode_count());
-        snprintf(current_resolution,
-                 sizeof(current_resolution),
-                 "%ux%u",
-                 (unsigned)video_modes[selected].width,
-                 (unsigned)video_modes[selected].height);
+        if (OptionsMenu_CvarInteger("vid_native", 0)) {
+            snprintf(current_resolution, sizeof(current_resolution), "Native");
+        } else {
+            snprintf(current_resolution,
+                     sizeof(current_resolution),
+                     "%ux%u",
+                     (unsigned)video_modes[selected].width,
+                     (unsigned)video_modes[selected].height);
+        }
         OptionsMenu_SetPopupTitle(options_menu.ResolutionMenu, current_resolution);
         UI_SetHidden(options_menu.ResolutionPopupMenuMenu, true);
-        OptionsMenu_SetPopupCvar(options_menu.ResolutionPopupMenuMenu, "vid_mode");
+        UI_SetOnClick(options_menu.ResolutionPopupMenuMenu, "menu_video_mode");
     }
 
     OptionsMenu_SetPopupItems(options_menu.ModelDetailMenu,

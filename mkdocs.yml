@@ -91,6 +91,9 @@ nav:
     - UI System: architecture/ui-system.md
     - Sound: architecture/sound.md
     - Fog of War Algorithms: architecture/fog-of-war-algorithms.md
+  - Build And Packaging:
+    - Build And Renderer Platforms: build-and-renderer-platforms.md
+    - Flatpak And Steam Deck: flatpak-steam-deck.md
   - Renderer Backend: renderer-backend.md
 
 markdown_extensions:

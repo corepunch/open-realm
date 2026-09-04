@@ -113,3 +113,37 @@ jobs:
             build/lib/
             build/share/
           if-no-files-found: error
+
+  build-flatpak:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+    needs:
+      - test
+      - build
+      - build-windows
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flatpak build tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder ostree
+
+      - name: Install Flatpak runtime and SDK
+        working-directory: dist-scripts/flathub
+        run: ./deps.sh
+
+      - name: Build Flatpak bundle
+        working-directory: dist-scripts/flathub
+        run: ./build.sh
+
+      - name: Upload Flatpak build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openrealm-flatpak-linux-x64
+          path: build/io.github.corepunch.OpenRealm.flatpak
+          if-no-files-found: error
+          retention-days: 7

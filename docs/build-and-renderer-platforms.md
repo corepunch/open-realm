@@ -43,6 +43,17 @@ make clean
 make BUILD=release MSAA=4 openwarcraft3
 ```
 
+## Flatpak Desktop Profile
+
+The Steam Deck/desktop Flatpak is documented separately in [Flatpak And Steam Deck Packaging](flatpak-steam-deck.md). It builds the existing Linux desktop-GL profile with:
+
+```bash
+make clean
+make BUILD=release GL_BACKEND=gl MSAA=0 openwarcraft3
+```
+
+The manifest installs the resulting `build/bin/openwarcraft3`, the six WC3 shared libraries from `build/lib/`, and the complete generated `build/share/` tree without changing their relative deployment contract. Retail Warcraft data remains outside the package and is selected through the XDG FileChooser portal.
+
 ## GLSL Version Selection
 
 The `GLSL` variable sets which GLSL version string the descriptor-based shader system emits.  It has no effect when `GL_BACKEND=gles3` — that path always generates `#version 300 es`.
@@ -186,11 +197,18 @@ MSAA is fixed at build time because the sample count is part of SDL context crea
 
 ## Video Modes
 
-`vid_mode` is a resolution-table index, not a window-style enum. The authoritative table is `common/video_modes.h` and is shared by client startup and the Warcraft III options menu. Mode 0 is 640x480 and is the safe default for the RG40XX display. Invalid indices resolve to mode 0 and the options menu applies changes through `vid_apply`.
+`vid_mode` is a resolution-table index, not a window-style enum. The authoritative table is `common/video_modes.h` and is shared by client startup and the Warcraft III options menu. Mode 0 is 640x480 and is the safe default for the RG40XX display. Invalid indices resolve to mode 0 and the options menu applies changes through `vid_apply`. The Steam Deck's 1280x800 mode is appended to the table rather than inserted among the 1280-wide modes so archived numeric `vid_mode` values keep their existing meaning.
 
-WC3 and WoW ship `seta vid_mode "2"` (1024x768) in `games/<game>/share/config.cfg`; user config, autoexec and
-command-line settings override it. Keep this per-game policy out of the shared mode table. WoW previously omitted
-the setting: targeted `CL_VideoMode` startup logs confirmed mode 0 / 640x480 versus WC3 mode 2 / 1024x768.
+Shared video policy is controlled separately from the fallback resolution index:
+
+- `vid_native 1` resolves the current SDL desktop resolution and uses it instead of `vid_mode`;
+- `vid_fullscreen 1` enables fullscreen; native + fullscreen uses `SDL_WINDOW_FULLSCREEN_DESKTOP`, avoiding a display-mode switch;
+- `vid_native 0` uses `vid_mode`; with fullscreen enabled the renderer requests an exact SDL fullscreen mode and falls back to a window if the requested display mode is unavailable;
+- `vid_hidden 1` suppresses native/fullscreen transitions so bounded hidden renderer tests retain their explicit logical size.
+
+The shared cvar defaults remain windowed/non-native so other games are unchanged. Warcraft III ships `vid_native 1`, `vid_fullscreen 1`, and `vid_mode 2`: a clean WC3 launch therefore fills the current desktop at native resolution (1280x800 on an undocked Steam Deck), while 1024x768 remains the safe fallback if native mode is disabled or desktop-mode discovery fails. WoW retains its existing `vid_mode 2` policy and SC2 retains its own setting. User config, autoexec, and command-line cvars can override these values.
+
+The WC3 Resolution popup appends a `Native` choice after all numbered modes. Choosing `Native` enables native fullscreen. Choosing a fixed resolution disables `vid_native` without renumbering the persisted `vid_mode` table; `vid_fullscreen` can still be controlled independently from the console/config.
 
 The SDL display-mode list is opt-in with `-vid_modes` (or `+set vid_modes 1`). `Cvar_ApplyCommandLine` maps the flag
 to a non-archived cvar, which `R_Init` reads through `ri.CvarString` before enumerating modes. Normal startup skips
@@ -208,12 +226,12 @@ build/bin/openwow -data data/world-of-warcraft -config '' -vid_modes +menu_chara
 `make test-commands` covers exact flag matching, disabled/enabled diagnostics, loading the actual WoW defaults,
 and an explicit resolution override. Runtime checks must cover logs with and without the flag in ROC/TFT, WoW and SC2.
 Verified on macOS: all eight 10-frame launches exited successfully; the list appeared only with `-vid_modes`.
-ROC/TFT and WoW reported 2048x1536 Retina drawables (1024x768 windows); SC2 retained its existing 640x480 default.
+Those historical verification results predate native-fullscreen WC3 defaults: WoW still uses its configured 1024x768 window unless overridden, while WC3 now defaults to the current desktop resolution/fullscreen. SC2 retains its own configured policy.
 
 Use this bounded diagnostic after changing video or renderer setup:
 
 ```bash
-build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_mode 0 +set r_stats 1 +com_frame_limit 100
+build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_native 0 +set vid_fullscreen 0 +set vid_mode 0 +set r_stats 1 +com_frame_limit 100
 ```
 
 Check `Drawable size`, `GL_RENDERER`, `GL_VERSION`, `MSAA`, `Bone palette`, and `[R_STATS]` in the log. SDL reports physical drawable pixels, so a 640x480 logical window is 1280x960 on a 2x Retina display; the RG40XX panel has no such high-DPI multiplier.

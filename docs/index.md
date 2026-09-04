@@ -18,6 +18,7 @@ contains build, installation, and project-overview information.
   catalog data, and HUD layout.
 - [Diagnostic Tools](diagnostic-tools.md): bounded renderer and asset-inspection workflows.
 - [Build And Renderer Platforms](build-and-renderer-platforms.md): release builds, MSAA, GLES3, video modes, and low-end diagnostics.
+- [Flatpak And Steam Deck Packaging](flatpak-steam-deck.md): x86_64 bundle layout, portal data selection, XDG state, and optional Steam shortcut integration.
 - [Documentation Guide](documentation-guide.md): documentation placement and completion rules.
 
 All durable documentation lives in this `docs/` tree. Shared workflows are stored at

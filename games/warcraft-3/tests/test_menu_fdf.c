@@ -10,6 +10,7 @@
 #include "../menu/menu_screen.h"
 #include "../common/minimap.h"
 #include "../../../common/mpq.h"
+#include "../../../common/video_modes.h"
 
 static const char *captured_image_path;
 static const char *captured_model_path;
@@ -31,6 +32,7 @@ static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
 static BOOL test_fs_expansion;
+static int test_vid_native = -1;
 static LPCSTR test_campaign_mission_visibility;
 static int test_campaign_played_mission = -1;
 static VECTOR2 test_mouse_pos;
@@ -271,6 +273,9 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
     if (name && !strcmp(name, "game_port")) {
         return "27910";
     }
+    if (name && !strcmp(name, "vid_native") && test_vid_native >= 0) {
+        return test_vid_native ? "1" : "0";
+    }
     if (name && !strcmp(name, "wc3_campaign_mission_visibility") && test_campaign_mission_visibility) {
         return test_campaign_mission_visibility;
     }
@@ -322,6 +327,7 @@ static void reset_ui_state(void) {
     fake_texture_id = 0;
     texture_releases = map_reads = 0;
     menu_player = NULL; test_map = "";
+    test_vid_native = -1;
     hover_texture = NULL;
     captured_hover_draws = 0;
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
@@ -1583,6 +1589,79 @@ TEST(menu_fdf, editbox_without_text_frame_click_focus_accepts_text_input) {
     M_TextInput("hello");
     T_STREQ(UI_EditValue(editbox), "hello");
     T_ASSERT(!M_EditKey(13));
+}
+
+TEST(menu_fdf, options_video_mode_command_selects_fixed_or_native_mode) {
+    menuImport_t saved = menuimport;
+    char command[64];
+
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+
+    captured_command[0] = '\0';
+    M_MenuCommand("menu_video_mode 5");
+    T_STREQ(captured_command, "seta vid_native 0\nseta vid_mode 5\n");
+
+    captured_command[0] = '\0';
+    snprintf(command, sizeof(command), "menu_video_mode %u", (unsigned)video_mode_count());
+    M_MenuCommand(command);
+    T_STREQ(captured_command, "seta vid_native 1\nseta vid_fullscreen 1\n");
+
+    snprintf(captured_command, sizeof(captured_command), "unchanged");
+    snprintf(command, sizeof(command), "menu_video_mode %u", (unsigned)video_mode_count() + 1);
+    M_MenuCommand(command);
+    T_STREQ(captured_command, "unchanged");
+
+    menuimport = saved;
+}
+
+TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
+    };
+    menuImport_t saved = menuimport;
+    LPFRAMEDEF popup;
+    LPFRAMEDEF title;
+    LPFRAMEDEF menu;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.Cvar_String = test_cvar_string;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    test_vid_native = 1;
+
+    T_ASSERT(optionsMenuScreen.load());
+    optionsMenuScreen.init();
+
+    /* Follow the native OptionsMenu ownership hierarchy so the fixture verifies the generated binding contract. */
+    popup = UI_FindChildFrame(UI_FindFrame("OptionsMenu"), "ResolutionMenu");
+    menu = popup ? UI_FindChildFrame(popup, "ResolutionPopupMenuMenu") : NULL;
+    if (!require_not_null(popup) || !require_not_null(menu)) {
+        test_vid_native = -1;
+        menuimport = saved;
+        return;
+    }
+    title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
+    if (title) {
+        LPFRAMEDEF text = UI_FindChildFrame(title, "StandardPopupMenuTitleTextTemplate");
+        if (text) title = text;
+    }
+
+    T_EQ(menu->Menu.ItemCount, video_mode_count() + 1);
+    T_STREQ(menu->Menu.Items[video_mode_count()].text, "Native");
+    if (require_not_null(title)) {
+        T_STREQ(title->Text, "Native");
+    }
+
+    test_vid_native = -1;
+    menuimport = saved;
 }
 
 TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {

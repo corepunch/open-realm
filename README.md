@@ -20,9 +20,20 @@ Join the <a href="https://discord.gg/5W66nrcaB">Discord server</a> to discuss de
 
 ## Download
 
-Pre-built binaries for Linux and macOS are available on the [Releases page](https://github.com/corepunch/open-realm/releases/latest).
+Pre-built binaries for Linux and macOS are available on the [Releases page](https://github.com/corepunch/open-realm/releases/latest). Tagged releases also include an x86_64 Flatpak bundle and a small installer zip intended for Steam Deck and Linux desktops. The Flatpak does not contain Warcraft III retail assets; on first launch it asks you to select a legally obtained Warcraft III folder containing `War3.mpq`.
 
-You can also download the latest build artifact from the [CI workflow runs](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) (click the most recent successful run and download `open-realm-linux-x64`).
+For a local bundle, install host `flatpak`, `flatpak-builder`, and `ostree`, then run:
+
+```bash
+cd dist-scripts/flathub
+./deps.sh
+./build.sh
+./install.sh
+```
+
+See [Flatpak And Steam Deck Packaging](docs/flatpak-steam-deck.md) for portal data selection, sandbox permissions, Steam shortcut integration, and verification.
+
+You can also download artifacts from the [CI workflow runs](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml). Successful runs publish the native Linux/Windows builds and, after those builds and the test job complete, an `openrealm-flatpak-linux-x64` artifact containing `io.github.corepunch.OpenRealm.flatpak`.
 
 <p align="center">
   <img src="docs/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />
@@ -173,14 +184,14 @@ The console accepts the same commands and cvars used by the command line. For ex
 
 ### Configuration and cvars
 
-OpenRealm uses Quake-style cvars and config files. Shipped game defaults live in `games/<game>/share/config.cfg` (installed to `build/share/<game>/`); generated user settings are written to `~/.local/share/<game>/config.cfg`; optional local overrides can be placed in `~/.local/share/<game>/autoexec.cfg`.
+OpenRealm uses Quake-style cvars and config files. Shipped game defaults live in `games/<game>/share/config.cfg` (installed to `build/share/<game>/`); generated user settings are written below `$XDG_DATA_HOME/<game>/` on Unix, falling back to `~/.local/share/<game>/` when `XDG_DATA_HOME` is unset or not absolute. Optional local overrides can be placed in the same directory as `autoexec.cfg`.
 
 Config load order:
 
 1. Built-in cvar defaults
 2. `build/share/<game>/config.cfg` (shipped game defaults, e.g. key bindings)
-3. `~/.local/share/<game>/config.cfg` (generated user config, written on shutdown or by `writeconfig`)
-4. `~/.local/share/<game>/autoexec.cfg` (optional local overrides)
+3. `$XDG_DATA_HOME/<game>/config.cfg` (or `~/.local/share/<game>/config.cfg`; generated user config, written on shutdown or by `writeconfig`)
+4. `$XDG_DATA_HOME/<game>/autoexec.cfg` (or the same fallback directory; optional local overrides)
 5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+vid_mode 2`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
 
 Common runtime cvars:

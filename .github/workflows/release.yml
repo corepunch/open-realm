@@ -104,3 +104,53 @@ jobs:
           gh release upload "${{ steps.get_tag.outputs.tag }}" \
             "${{ matrix.archive }}" \
             --clobber
+
+  flatpak:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flatpak build tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder ostree zip
+
+      - name: Install Flatpak runtime and SDK
+        working-directory: dist-scripts/flathub
+        run: ./deps.sh
+
+      - name: Build Flatpak bundle
+        working-directory: dist-scripts/flathub
+        run: ./build.sh
+
+      - name: Determine release tag
+        id: get_tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW_TAG="${{ github.event.inputs.tag }}"
+          else
+            RAW_TAG="${{ github.ref_name }}"
+          fi
+          SAFE_TAG="$(printf '%s' "$RAW_TAG" | sed 's#[^A-Za-z0-9._-]#-#g')"
+          echo "tag=$RAW_TAG" >> "$GITHUB_OUTPUT"
+          echo "safe_tag=$SAFE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble Flatpak installer package
+        run: |
+          zip -j "build/openrealm-flatpak-${{ steps.get_tag.outputs.safe_tag }}.zip" \
+            build/io.github.corepunch.OpenRealm.flatpak \
+            dist-scripts/flathub/install.sh \
+            dist-scripts/flathub/uninstall.sh
+
+      - name: Upload Flatpak release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.get_tag.outputs.tag }}" \
+            build/io.github.corepunch.OpenRealm.flatpak \
+            "build/openrealm-flatpak-${{ steps.get_tag.outputs.safe_tag }}.zip" \
+            --clobber

@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_ID="io.github.corepunch.OpenRealm"
+ENGINE="/app/bin/openwarcraft3"
+HELPER="/app/bin/openrealm-flatpak-helper"
+STEAM_HELPER="/app/bin/steam_shortcut.py"
+STEAM_GRID="/app/share/openrealm/steam-grid.png"
+STEAM_HERO="/app/share/openrealm/steam-hero.png"
+STEAM_ICON="/app/share/openrealm/${APP_ID}.png"
+
+: "${XDG_CONFIG_HOME:=${HOME}/.config}"
+STATE_DIR="${XDG_CONFIG_HOME}/openrealm"
+DATA_PATH_FILE="${STATE_DIR}/warcraft3-data-path"
+mkdir -p "${STATE_DIR}"
+
+skip_steam=0
+force_pick=0
+have_explicit_data=0
+have_explicit_edition=0
+engine_args=()
+
+while (($#)); do
+    case "$1" in
+        --skip-steam-install)
+            skip_steam=1
+            shift
+            ;;
+        --select-data)
+            force_pick=1
+            shift
+            ;;
+        -data)
+            have_explicit_data=1
+            engine_args+=("$1")
+            shift
+            if (($#)); then
+                engine_args+=("$1")
+                shift
+            fi
+            ;;
+        -tft|-roc)
+            have_explicit_edition=1
+            engine_args+=("$1")
+            shift
+            ;;
+        *)
+            engine_args+=("$1")
+            shift
+            ;;
+    esac
+done
+
+find_top_level_mpq() {
+    local dir="$1"
+    local name="$2"
+    find "$dir" -maxdepth 1 -type f -iname "$name" -print -quit 2>/dev/null || true
+}
+
+valid_wc3_dir() {
+    local dir="$1"
+    [[ -d "$dir" ]] && [[ -n "$(find_top_level_mpq "$dir" 'war3.mpq')" ]]
+}
+
+pick_wc3_dir() {
+    local picked=""
+    local prompt_rc=0
+
+    "$HELPER" prompt-data >/dev/null 2>&1 || prompt_rc=$?
+    if [[ "$prompt_rc" != "0" ]]; then
+        if [[ "$prompt_rc" != "1" ]]; then
+            echo "OpenRealm could not display the Warcraft III data explanation." >&2
+        fi
+        return 1
+    fi
+
+    while :; do
+        if ! picked="$("$HELPER" pick-data)"; then
+            return 1
+        fi
+        [[ -n "$picked" ]] || return 1
+        if valid_wc3_dir "$picked"; then
+            printf '%s\n' "$picked"
+            return 0
+        fi
+        "$HELPER" data-error >/dev/null 2>&1 || true
+    done
+}
+
+maybe_install_steam_shortcut() {
+    local steamid=""
+    local prompt_rc=0
+
+    [[ "$skip_steam" == "0" ]] || return 0
+    [[ -z "${SteamAppId:-}${SteamGameId:-}" ]] || return 0
+    [[ -f "$STEAM_HELPER" ]] || return 0
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "Steam shortcut integration unavailable: python3 is not present in the runtime." >&2
+        return 0
+    fi
+
+    steamid="$(python3 "$STEAM_HELPER" --print-detected-steamid 2>/dev/null || true)"
+    if [[ -z "$steamid" ]]; then
+        echo "Steam shortcut integration skipped: no Steam userdata directory is visible in the Flatpak sandbox." >&2
+        echo "Checked native Steam mapping: ${XDG_DATA_HOME:-${HOME}/.local/share}/Steam" >&2
+        echo "Flatpak Steam under ~/.var/app/com.valvesoftware.Steam is also supported." >&2
+        return 0
+    fi
+
+    if python3 "$STEAM_HELPER" --steamid "$steamid" --is-installed-flatpak "$APP_ID" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    "$HELPER" prompt-steam >/dev/null 2>&1 || prompt_rc=$?
+    if [[ "$prompt_rc" != "0" ]]; then
+        if [[ "$prompt_rc" != "1" ]]; then
+            echo "OpenRealm could not display the Steam shortcut prompt." >&2
+        fi
+        return 0
+    fi
+
+    if ! python3 "$STEAM_HELPER" \
+        --steamid "$steamid" \
+        --name "OpenRealm" \
+        --exe "/usr/bin/flatpak" \
+        --startdir "$HOME" \
+        --launch "run ${APP_ID} --skip-steam-install" \
+        --flatpak-app-id "$APP_ID" \
+        --grid "$STEAM_GRID" \
+        --portrait "$STEAM_GRID" \
+        --hero "$STEAM_HERO" \
+        --icon-file "$STEAM_ICON" \
+        --template "controller_neptune_gamepad+mouse.vdf" \
+        --force-template \
+        --sspy-parser-id 1 \
+        --tags "Installed,Ready TO Play" \
+        >/dev/null; then
+        echo "OpenRealm could not install the Steam shortcut; launch will continue normally." >&2
+    fi
+}
+
+if [[ ! -x "$ENGINE" ]]; then
+    echo "OpenRealm Flatpak is missing $ENGINE" >&2
+    exit 127
+fi
+
+if [[ "$have_explicit_data" == "0" ]]; then
+    wc3_dir=""
+    if [[ "$force_pick" == "0" && -f "$DATA_PATH_FILE" ]]; then
+        IFS= read -r wc3_dir < "$DATA_PATH_FILE" || true
+    fi
+
+    if [[ -z "$wc3_dir" ]] || ! valid_wc3_dir "$wc3_dir"; then
+        wc3_dir="$(pick_wc3_dir || true)"
+        if [[ -z "$wc3_dir" ]]; then
+            echo "No Warcraft III data folder selected; exiting." >&2
+            exit 0
+        fi
+        printf '%s\n' "$wc3_dir" > "$DATA_PATH_FILE"
+    fi
+
+    engine_args=(-data "$wc3_dir" "${engine_args[@]}")
+    if [[ "$have_explicit_edition" == "0" ]]; then
+        if [[ -n "$(find_top_level_mpq "$wc3_dir" 'war3x.mpq')" ]]; then
+            engine_args=(-tft "${engine_args[@]}")
+        else
+            engine_args=(-roc "${engine_args[@]}")
+        fi
+    fi
+fi
+
+maybe_install_steam_shortcut
+
+exec "$ENGINE" "${engine_args[@]}"

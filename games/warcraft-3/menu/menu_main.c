@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "menu_local.h"
+#include "common/video_modes.h"
 #include "menu_screen.h"
 #include "common/stb_slk.h"
 #include "generated/loading_screen.h"
@@ -657,6 +658,23 @@ void M_MenuCommand(LPCSTR command) {
     }
     if (!strcmp(command, "menu_options_apply")) {
         UI_MenuOptionsApply_f();
+        return;
+    }
+    if (sscanf(command, "menu_video_mode %u", &value) == 1) {
+        char video_command[96];
+
+        if (!menuimport.Cmd_ExecuteText) {
+            return;
+        }
+        if (value == video_mode_count()) {
+            menuimport.Cmd_ExecuteText("seta vid_native 1\nseta vid_fullscreen 1\n");
+        } else if (value < video_mode_count()) {
+            snprintf(video_command,
+                     sizeof(video_command),
+                     "seta vid_native 0\nseta vid_mode %u\n",
+                     (unsigned)value);
+            menuimport.Cmd_ExecuteText(video_command);
+        }
         return;
     }
     if (!strcmp(command, "menu_single_player_campaign")) {

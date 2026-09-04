@@ -118,8 +118,7 @@ provides `FS_UserPath`. This keeps writable-path ownership on the engine side an
 avoids unresolved engine symbols in `libgame`.
 
 This places writable campaign state under the normal per-game user directory
-(`~/.local/share/warcraft-3/` on Unix when available, otherwise the existing portable
-`share/warcraft-3/` fallback).
+(`$XDG_DATA_HOME/warcraft-3/` on Unix when set to an absolute path, otherwise `~/.local/share/warcraft-3/`, with the existing portable `share/warcraft-3/` fallback when no writable per-user directory is available).
 
 The sidecar uses an explicit little-endian, length-prefixed format with the
 `ORGCACHE` magic and version `1`. Writes go to a temporary file and are renamed
