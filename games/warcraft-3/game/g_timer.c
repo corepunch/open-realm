@@ -2,7 +2,7 @@
 #include "jass/jass.h"
 
 BOOL G_RegisterJassTimer(LPGTIMER timer) {
-    if (!timer || level.num_timers >= MAX_JASS_TIMERS) return false;
+    if (!timer || level.num_timers >= MAX_TIMERS) return false;
     level.timers[level.num_timers++] = timer;
     return true;
 }
