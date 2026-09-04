@@ -122,7 +122,7 @@ Death has a stronger immediate path in `unit_die`: it sets health to zero, clear
 
 ## Known Gaps
 
-Shift order queuing is documented separately in [Shift Order Queue](order-queue.md); the remaining Shift-click item below is selection toggling, not command queuing.
+Numbered group assignment, Shift+number append, recall, and double-tap camera focus are documented separately in [Control Groups](control-groups.md). Shift order queuing is documented in [Shift Order Queue](order-queue.md); the remaining Shift-click item below is selection toggling, not command queuing.
 
 The following are deliberately not inferred by the current implementation:
 
