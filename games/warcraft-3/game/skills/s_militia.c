@@ -358,7 +358,6 @@ BOOL S_MilitiaTargetOrder(LPEDICT worker, LPCSTR order, LPEDICT hall) {
         return false;
     }
     unit_setmove(worker, &militia_move_walk);
-    unit_setanimation(worker, "stand");
     return true;
 }
 
