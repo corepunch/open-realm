@@ -31,7 +31,7 @@ static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
 #undef AREA_HITS
 }
 
-static void blizzard_think(LPEDICT ent) {
+void blizzard_think(LPEDICT ent) {
     DWORD now = G_Time();
 
     if (ent->freetime && now < ent->freetime)

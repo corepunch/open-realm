@@ -6,7 +6,7 @@
 
 #define ID_FLAME_STRIKE MAKEFOURCC('A', 'N', 'f', 's')
 
-static void flame_strike_tick(LPEDICT ent) {
+void flame_strike_tick(LPEDICT ent) {
     LPEDICT caster = ent->owner;
     FLOAT radius = ent->collision;
     DWORD now = G_Time();

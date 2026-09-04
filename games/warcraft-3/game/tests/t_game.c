@@ -1607,6 +1607,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = second;
     first->inventory[2] = second;
     first->cargo.units[3] = second;
+    first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
     T_ASSERT(first->currentmove != NULL);
     umove_t const *const saved_move = first->currentmove;
@@ -1697,6 +1698,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
+    T_ASSERT(g_edicts[first - g_edicts].think == monster_think);
     /* currentmove is a process pointer; F_MMOVE relocates it so a loaded unit keeps behaving. */
     T_ASSERT(g_edicts[first - g_edicts].currentmove == saved_move);
     T_ASSERT(unit_issueimmediateorder(g_edicts + (first - g_edicts), "stop"));
@@ -1926,6 +1928,44 @@ TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
     T_ASSERT(dest.stand == tree_stand && dest.birth == tree_birth && dest.pain == tree_pain && dest.die == tree_die);
     T_ASSERT(dest.think == monster_think);
     T_ASSERT(!unknown.stand && !unknown.birth && !unknown.pain && !unknown.die && !unknown.think);
+}
+
+static void unknown_save_think(LPEDICT ent) { (void)ent; }
+
+TEST(wc3_save, round_trip_entity_c_callbacks) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-cfunctions.bin";
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 1.0f, 0.0f);
+    LPEDICT idle = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 2.0f, 0.0f);
+    LPEDICT effect = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 3.0f, 0.0f);
+    LPEDICT tree = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 4.0f, 0.0f);
+    unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
+    mine->stand = unit_stand; mine->think = blight_mine_think;
+    idle->stand = unit_stand; idle->think = NULL;
+    effect->think = G_EffectThink; effect->prethink = G_EffectValidateTarget;
+    tree->stand = tree_stand; tree->birth = tree_birth; tree->pain = tree_pain; tree->die = tree_die; tree->think = G_FreeEdict;
+    T_ASSERT(WriteGame(filename));
+    unit->think = mine->think = idle->think = effect->think = tree->think = monster_think;
+    unit->stand = mine->stand = idle->stand = tree->stand = NULL;
+    unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(unit->stand == unit_stand && unit->birth == unit_birth && unit->die == unit_die && unit->think == monster_think);
+    T_ASSERT(mine->think == blight_mine_think && mine->stand == unit_stand);
+    T_ASSERT(!idle->think && idle->stand == unit_stand);
+    T_ASSERT(effect->think == G_EffectThink && effect->prethink == G_EffectValidateTarget);
+    T_ASSERT(tree->stand == tree_stand && tree->birth == tree_birth && tree->pain == tree_pain && tree->die == tree_die);
+    T_ASSERT(tree->think == G_FreeEdict);
+    remove(filename);
+}
+
+TEST(wc3_save, rejects_unknown_c_callback) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-unknown-cfunction.bin";
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->think = unknown_save_think;
+    T_ASSERT(!WriteGame(filename));
+    remove(filename);
 }
 
 TEST(wc3_save, round_trip_game_state_event_condition) {

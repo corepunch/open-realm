@@ -13,8 +13,9 @@ typedef enum {
     F_TRIGGER,          // index on disk, pointer in memory
     F_TIMER,            // index on disk, pointer in memory
     F_EVENT,            // index on disk, pointer in memory
-    F_FUNCTION,
+    F_FUNCTION,            // JASS function name; timers/triggers
     F_FUNCTION_LIST,
+    F_CFUNCTION,           // C callback roster index; edict think/stand/die
     F_MMOVE,
     F_STRUCT,
     F_STRUCT_RING,
@@ -54,6 +55,7 @@ typedef struct {
 #define F_METADATA_F_EVENT(count, flags) count, flags
 #define F_METADATA_F_FUNCTION(...) 0, 0
 #define F_METADATA_F_FUNCTION_LIST(...) 0, 0
+#define F_METADATA_F_CFUNCTION(...) 0, 0
 #define F_METADATA_F_MMOVE(...) 0, 0
 #define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
 #define TF(TYPE, x, kind, ...) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
@@ -68,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 8; // mapped level fields include map-global camera_bounds
+static DWORD const save_version = 9; // edict C callbacks persist as F_CFUNCTION roster index+name hash
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
 
@@ -77,6 +79,42 @@ static DWORD const save_version = 8; // mapped level fields include map-global c
 static umove_t umove_reloc;
 
 _Static_assert(sizeof(umove_t *) == 8, "F_MMOVE packs a relocation offset and a validation hash into the pointer field");
+_Static_assert(sizeof(void (*)(LPEDICT)) == 8, "F_CFUNCTION packs a roster index and a name hash into the pointer field");
+
+typedef struct {
+    LPCSTR name;
+    void *func;
+} saveCFunction_t;
+
+#define SAVE_CFUNCTION(fn) { .name = #fn, .func = (void *)(fn) }
+
+/* Append-only: the 1-based index is part of the save format. Reordering rejects older saves.
+ * idle/move/run/attack have no production assignments; they still use F_CFUNCTION so a later
+ * assignment must be rostered here or WriteGame fails instead of writing an ASLR address. */
+static saveCFunction_t const save_cfunctions[] = {
+    SAVE_CFUNCTION(monster_think),
+    SAVE_CFUNCTION(blight_mine_think),
+    SAVE_CFUNCTION(G_FreeEdict),
+    SAVE_CFUNCTION(G_EffectThink),
+    SAVE_CFUNCTION(G_EffectValidateTarget),
+    SAVE_CFUNCTION(blizzard_think),
+    SAVE_CFUNCTION(flame_strike_tick),
+    SAVE_CFUNCTION(siphon_mana_think),
+    SAVE_CFUNCTION(unit_stand),
+    SAVE_CFUNCTION(unit_birth),
+    SAVE_CFUNCTION(unit_die),
+    SAVE_CFUNCTION(tree_stand),
+    SAVE_CFUNCTION(tree_birth),
+    SAVE_CFUNCTION(tree_pain),
+    SAVE_CFUNCTION(tree_die),
+};
+
+static int SaveCFunctionIndex(void *func) {
+    if (!func) return 0;
+    FOR_LOOP(i, sizeof(save_cfunctions) / sizeof(save_cfunctions[0]))
+        if (save_cfunctions[i].func == func) return (int)i + 1;
+    return -1;
+}
 
 typedef struct {
     DWORD magic, version, edict_size, num_edicts, max_clients;
@@ -340,16 +378,16 @@ field_t edict_fields[] = {
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, currentmove, F_MMOVE),
     F(edict_s, militia, F_STRUCT, 1, militia_fields),
-    F(edict_s, stand, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, birth, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, prethink, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, think, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, die, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, idle, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, move, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, run, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, attack, F_IGNORE, 0, FIELD_RUNTIME),
-    F(edict_s, pain, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, stand, F_CFUNCTION),
+    F(edict_s, birth, F_CFUNCTION),
+    F(edict_s, prethink, F_CFUNCTION),
+    F(edict_s, think, F_CFUNCTION),
+    F(edict_s, die, F_CFUNCTION),
+    F(edict_s, idle, F_CFUNCTION),
+    F(edict_s, move, F_CFUNCTION),
+    F(edict_s, run, F_CFUNCTION),
+    F(edict_s, attack, F_CFUNCTION),
+    F(edict_s, pain, F_CFUNCTION),
     F(edict_s, data, F_STRUCT, 1, edict_data_fields),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -690,6 +728,20 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
             *(DWORD *)((BYTE *)p + 4) = SaveHash(0, move->animation, strlen(move->animation) + 1);
             break;
         }
+        case F_CFUNCTION: {
+            void *func = *(void **)p;
+            int index = SaveCFunctionIndex(func);
+            memset(p, 0, size);
+            if (!func) break;
+            if (index < 1) {
+                fprintf(stderr, "WC3 SaveGame: field %s[%u] C callback %p is not in the save roster\n",
+                    field->name, i, func);
+                return false;
+            }
+            *(int *)p = index;
+            *(DWORD *)((BYTE *)p + 4) = SaveHash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1);
+            break;
+        }
         default: break;
         }
     }
@@ -736,6 +788,19 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
                 return false;
             }
             *(umove_t **)p = move;
+            break;
+        }
+        case F_CFUNCTION: {
+            DWORD hash = *(DWORD *)((BYTE *)p + 4);
+            int nfunctions = (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0]));
+            if (!index && !hash) { *(void **)p = NULL; break; }
+            if (index < 1 || index > nfunctions ||
+                SaveHash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1) != hash) {
+                fprintf(stderr, "WC3 LoadGame: field %s[%u] C callback index %d does not resolve in this build\n",
+                    field->name, i, index);
+                return false;
+            }
+            *(void **)p = save_cfunctions[index - 1].func;
             break;
         }
         default: break;
@@ -943,8 +1008,8 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (BYTE *)ent)) return false;
-    /* Raw callback addresses are invalid across processes; class data determines the persistent callback family. */
-    if (ent->class_id) { G_BindEntityData(ent); G_BindEntityRuntime(ent); }
+    /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
+    if (ent->class_id) G_BindEntityData(ent);
     return true;
 }
 

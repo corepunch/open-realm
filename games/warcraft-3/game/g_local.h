@@ -1552,6 +1552,8 @@ LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target, LPCST
 LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point, BOOL temporary);
 LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index, LPEDICT target, LPCSTR attach_point, BOOL temporary);
 void G_DestroyEffect(LPEDICT effect);
+void G_EffectThink(LPEDICT);
+void G_EffectValidateTarget(LPEDICT);
 
 // g_unit_ui.c (Phase 8)
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
@@ -1887,6 +1889,9 @@ BOOL harvest_lumber_return_to(LPEDICT, LPEDICT);
 BOOL harvest_gold_return_to(LPEDICT, LPEDICT);
 void cargo_drop_all(LPEDICT);
 void blight_mine_think(LPEDICT);
+void blizzard_think(LPEDICT);
+void flame_strike_tick(LPEDICT);
+void siphon_mana_think(LPEDICT);
 BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
 BOOL move_should_arrive(LPEDICT, FLOAT);
 BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);

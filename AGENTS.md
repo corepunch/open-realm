@@ -37,7 +37,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
 | WC3 campaign game cache, persisted Hero progression, `StoreUnit`/`RestoreUnit` | [docs/games/warcraft-3/campaign-game-cache.md](docs/games/warcraft-3/campaign-game-cache.md) |
-| WC3 game save/load format, entity pointer fixups, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
+| WC3 game save/load format, entity pointer fixups, `F_CFUNCTION` C callbacks, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 HUD texture/font indices vs names across `SV_Map` / save-load | [docs/games/warcraft-3/hud-media.md](docs/games/warcraft-3/hud-media.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |

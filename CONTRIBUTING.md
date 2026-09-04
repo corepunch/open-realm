@@ -41,7 +41,7 @@ Assertion failures always include `__FILE__` and `__LINE__`. Under GitHub Action
 
 ### Warcraft III Save/Load
 
-The WC3 serializer follows the Quake 2 `g_save.c` pattern but writes a versioned envelope and converts `F_EDICT` references to entity indexes. Keep `games/warcraft-3/game/g_save.c`'s `field_t fields[]` synchronized with every persistent pointer in `struct edict_s`; update the round-trip test whenever the edict contract changes. See [WC3 Save/Load](docs/games/warcraft-3/save-load.md).
+The WC3 serializer follows the Quake 2 `g_save.c` pattern but writes a versioned envelope and converts `F_EDICT` references to entity indexes. Keep `games/warcraft-3/game/g_save.c`'s `field_t fields[]` synchronized with every persistent pointer in `struct edict_s`. Edict C callbacks use `F_CFUNCTION` and must be listed in `save_cfunctions[]`; JASS `F_FUNCTION` stays name-string identity for timers/triggers. Update the round-trip test whenever the edict contract changes. See [WC3 Save/Load](docs/games/warcraft-3/save-load.md).
 
 Do not include `test_framework.h` — it has been removed. Do not write a `main()` for test files; link against `tests/test_runner.c` instead.
 
