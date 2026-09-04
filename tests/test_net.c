@@ -909,6 +909,16 @@ TEST(net, window_escape_closes_and_releases_server_modal_owner) {
     CL_WindowClear();
 }
 
+TEST(net, window_no_escape_consumes_escape_without_dismissal) {
+    test_client_stubs_init(); CL_WindowClear();
+    test_send_window(13, 103, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE | UI_WINDOW_NO_ESCAPE,
+                     0.05f, "Choose", UI_WINDOW_CLOSE_ACTION);
+    T_ASSERT(CL_WindowModalActive());
+    T_ASSERT(CL_WindowKeyEvent(K_ESCAPE));
+    T_ASSERT(CL_WindowModalActive());
+    CL_WindowClear();
+}
+
 TEST(net, stacked_modal_windows_unpause_only_after_last_close) {
     test_client_stubs_init(); CL_WindowClear();
     test_send_window(6, 96, UI_WINDOW_MODAL, 0.05f, "First", UI_WINDOW_CLOSE_NOTIFY_ACTION);

@@ -102,10 +102,13 @@ if the player is in `CLIENT_UI_CINEMATIC`, the fallback normally waits until cin
 Blizzard.j single-player result dialogs are the exception: `CustomVictoryBJ` / `CustomDefeatBJ` call `RemovePlayer`
 and then `PauseGame(true)`. A result event published from that late JASS action must be drained before the pause can
 stop future simulation frames, and the fallback may then display over cinematic UI because the paused scheduler cannot
-advance that UI state. When this override is used, only `LAYER_GAME_RESULT` is unhidden in `playerState_t.uiflags`;
-the rest of the cinematic HUD suppression remains intact. The fallback uses `GlobalStrings.fdf` `GAMEOVER_*` labels
-where available, distinguishes the safe single-player/multiplayer button subset, and only exposes actions the current
-engine can execute.
+advance that UI state. Result presentation now uses the same client-managed `svc_window` path as the other in-game
+menus, so it draws above the still-suppressed cinematic HUD without changing `playerState_t.uiflags`. The window is
+modal/unique, does not acquire a second client-owned pause, and cannot be dismissed with Escape; its buttons close the
+window while forwarding the existing result commands. `GameResultBackdrop` reuses the loaded Esc-menu backdrop art
+for a consistent race-skinned menu panel and extends one action row below the nominal dialog bounds so the authored
+Quit button remains inside that panel. The fallback still uses `GlobalStrings.fdf`
+`GAMEOVER_*` labels where available and only exposes actions the current engine can execute.
 
 `EndGame`, `ChangeLevel`, `RestartGame`, `DisplayLoadDialog`, and `ForceCampaignSelectScreen` now cross the existing
 `gi.MenuAction` session boundary. `EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested

@@ -30,10 +30,12 @@ WoW incoming messages use `FT_MESSAGE_QUEUE` on `LAYER_MESSAGE`. The server emit
 when selected, one additional record carrying the server-owned popup text. `cl_scrn.c` draws both the unread icon pool and the
 popup; clicks send `message_open <id>` or `message_close` back to the server, which updates the authoritative layer.
 
-`UI_WINDOW_MODAL`, `UI_WINDOW_NO_PAUSE`, and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost modal window consumes
-input outside its bounds. `NO_PAUSE` means that modal does not acquire the client-owned simulation pause. Unique means only one
-instance of that class may exist. Inventory and quest-detail windows can be unique without being modal; confirmation-style
-windows are normally modal pause owners, while the WC3 Allies dialog is modal plus `NO_PAUSE`.
+`UI_WINDOW_MODAL`, `UI_WINDOW_NO_PAUSE`, `UI_WINDOW_NO_ESCAPE`, and `UI_WINDOW_UNIQUE` are independent. Modal means the topmost
+modal window consumes input outside its bounds. `NO_PAUSE` means that modal does not acquire the client-owned simulation pause.
+`NO_ESCAPE` consumes Escape without dismissing the window, for mandatory result/decision flows that must close through an
+explicit action. Unique means only one instance of that class may exist. Inventory and quest-detail windows can be unique without
+being modal; confirmation-style windows are normally modal pause owners, while the WC3 Allies and game-result windows are modal
+plus `NO_PAUSE` for their respective gameplay/script-owned timing semantics.
 
 ## Wire Format
 
@@ -67,6 +69,7 @@ retained arena; it does not duplicate strings.
 - Mouse-down on non-command background starts a drag when `UI_WINDOW_MOVABLE` is set.
 - Drag capture continues through motion and mouse-up outside the window.
 - Keyboard hotkeys are searched only in the focused window, or the topmost modal window.
+- Escape closes the active window unless it has `UI_WINDOW_NO_ESCAPE`; a no-Escape modal consumes the key and stays open.
 - Clicking outside all non-modal windows clears focus.
 - A modal window blocks world hit testing, control groups, bindings, minimap actions, and manual camera movement.
 - Key-up still reaches gameplay `+command` releases so opening or focusing a window cannot leave an input held.

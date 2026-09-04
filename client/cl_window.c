@@ -493,6 +493,8 @@ BOOL CL_WindowKeyEvent(int key) {
     /* Quake II pops the active menu on Escape. Dismiss locally first, then
      * release only the server-side pause owner associated with this window. */
     if (key == K_ESCAPE) {
+        if (window->flags & UI_WINDOW_NO_ESCAPE)
+            return (window->flags & UI_WINDOW_MODAL) != 0;
         CL_WindowClose(window->id);
         return true;
     }

@@ -7,7 +7,7 @@ OpenRealm separates application/network progress from deterministic Warcraft III
 - `server/sv_main.c` owns the authoritative simulation pause gate. `SV_SetPaused(true)` stops `SV_RunGameFrame()`; it does **not** stop `SV_ReadPackets()` or client transport.
 - `SV_SetPaused` publishes the authoritative state through the shared `paused` cvar, matching Quake II's client/server pause contract without widening snapshot structs.
 - `games/warcraft-3/game/` owns Warcraft pause policy. `PauseGame` and single-client Quest-dialog ownership are combined before calling the generic `game_import.SetPaused` hook.
-- `client/cl_scrn.c` owns server-authored modal layout input. `LAYER_QUESTDIALOG` and `LAYER_GAME_RESULT` are modal layers: when either is visible, lower layout buttons and the 3D world do not receive pointer/hotkey interaction.
+- `client/cl_window.c` owns transient server-authored modal windows such as Quest, Menu, Allies, Log, and Game Result. A topmost modal consumes input outside itself before persistent HUD/world handlers run.
 - `client/cl_input_w3.c` owns WC3 camera/selection gestures. A modal cancels active pan, minimap drag, selection drag, hover, arrow scrolling, and edge scrolling.
 - `client/cl_view.c` keeps submitting the cached world while `paused`, but does not rebuild the scene and sets `viewDef.deltaTime` to zero. UI and transport remain live while world animation and model-owned effects stay frozen.
 
@@ -35,8 +35,12 @@ UI_WriteWindow -> client parses and opens svc_window
 ```
 
 A window may combine `UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE` when it must capture world/camera input without freezing the
-simulation. The Warcraft III Allies dialog uses that combination. Pause synchronization scans all windows for a remaining
-pause-owning modal rather than assuming the topmost modal owns pause.
+simulation. The Warcraft III Allies dialog and the result fallback use that combination; the latter preserves the existing
+script-owned `PauseGame(true)` result lifecycle rather than acquiring a second client pause. Pause synchronization scans all
+windows for a remaining pause-owning modal rather than assuming the topmost modal owns pause.
+
+`UI_WINDOW_NO_ESCAPE` is separate from modal/pause ownership. The result window uses it so Escape is consumed without closing
+the fallback; Continue/Load/Restart/Quit must run their explicit continuation commands before the window disappears.
 
 Do not acquire the modal pause owner in the command that writes the window. The local client shares the authoritative
 `paused` cvar and can observe it before reliable window delivery; modal-list synchronization makes the popup itself the pause
@@ -88,22 +92,22 @@ Quest pause is intentionally single-client-only. A local campaign Quest dialog m
 
 Each WC3 client tracks `quest_dialog_open`. Disconnect clears that ownership and recomputes pause state, preventing an abandoned modal from leaving the server paused.
 
-## Modal Layout Input
+## Modal Window Input
 
-`SCR_LayoutModalActive()` is true when a visible `LAYER_GAME_RESULT` or `LAYER_QUESTDIALOG` exists. These layers are server-authored `svc_layout` data, so they remain interactive even when normal gameplay input is rejected.
-
-A terminator-only `svc_layout` payload is a layer clear. `CL_ParseLayout()` leaves that layer slot `NULL` instead of retaining an empty allocation; modal ownership therefore ends in the same packet that hides the dialog.
+`CL_WindowModalActive()` is true when the client window list contains a modal window. `CL_WindowMouseEvent()` dispatches only
+to the topmost modal and returns consumed even for clicks outside its bounds; `CL_WindowKeyEvent()` likewise scopes hotkeys to
+that modal. Windows are retained from `svc_window` packets and removed locally by the client-owned close actions.
 
 While a modal is active:
 
-- `CL_GameplayInputReady()` is false for WC3 world input;
-- mouse clicks are dispatched only inside the active modal layout layer;
-- layout hotkeys are dispatched only inside the active modal layer;
-- `SCR_LayoutHitTest()` treats the whole screen as UI-owned, including transparent areas around the dialog;
+- mouse clicks are dispatched only to the active modal window;
+- window hotkeys are dispatched only inside the active modal window;
+- clicks in transparent space outside a modal are still consumed by the window manager;
 - selection, Smart orders, minimap recenter/drag, control groups, middle-button pan, arrow-key scrolling, and edge scrolling are suppressed;
 - any world drag already in progress is cancelled.
 
-This is separate from the client-side glue/menu modal system in `games/warcraft-3/menu/menu_render.c`. In-game Quest/Game Result frames arrive through `svc_layout`, so their modal ownership belongs in the generic layout client path.
+Persistent `svc_layout` layers remain a separate HUD path. New transient gameplay dialogs should use `svc_window` rather than
+adding another modal layout layer.
 
 ## Time Semantics
 
@@ -120,6 +124,7 @@ Global pause freezes anything that depends on server simulation advancement beca
 - **Do not use only frame hit-testing for a modal.** Transparent modal areas must still block world input, and camera edge/arrow scrolling has no pointer hit-test at all.
 - **Do not globally pause multiplayer because one Quest dialog opened.** Quest ownership is local presentation; only the single-client session policy maps it to a simulation pause.
 - **Do not equate modal input with simulation pause.** `UI_WINDOW_NO_PAUSE` exists for dialogs such as Allies that must block world input while time continues.
+- **Do not make mandatory result/decision windows Escape-dismissable.** Use `UI_WINDOW_NO_ESCAPE` when explicit button commands own the continuation.
 - **Do not conflate `PauseUnit` with global pause.** `PauseUnit` is WC3 entity state and intentionally has narrower gameplay semantics.
 - **Do not keep rebuilding or advancing the world refdef while paused.** Cached MDX entities still execute model render code, so submit them with zero `deltaTime` or particle emitters can saturate the main thread.
 
