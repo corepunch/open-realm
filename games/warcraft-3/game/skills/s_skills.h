@@ -15,7 +15,10 @@ extern ability_t a_stop;
 extern ability_t a_holdpos;
 extern ability_t a_patrol;
 extern ability_t a_rally;
+extern ability_t a_call_to_arms;
 extern ability_t a_militia;
+BOOL S_MilitiaEnsureHallAbility(LPEDICT hall);
+FLOAT S_MilitiaPairSearchRadius(DWORD ability);
 extern ability_t a_selectskill;
 extern ability_t a_devotionaura;
 extern ability_t a_holylight;
@@ -76,6 +79,7 @@ extern ability_t a_flame_strike;
 extern ability_t a_siphon_mana;
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
+DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);
 
 typedef enum {
 	RETURN_RESOURCE_GOLD = 1,
@@ -101,6 +105,7 @@ DWORD S_SpellLevel(LPEDICT caster, DWORD code);
 FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level);
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 FLOAT S_SpellData(DWORD code, DWORD level, DWORD index);
+DWORD S_SpellDataId(DWORD code, DWORD level, DWORD index);
 DWORD S_SpellUnitId(DWORD code, DWORD level);
 FLOAT S_SpellRange(DWORD code, DWORD level);
 FLOAT S_SpellDuration(DWORD code, DWORD level, BOOL hero);

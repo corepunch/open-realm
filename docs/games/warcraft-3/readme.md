@@ -98,6 +98,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 ### Implementation Notes
 
 - [Economy And Unit Presentation](economy-and-unit-presentation.md)
+- [Call to Arms And Militia](call-to-arms-and-militia.md)
 - [Unit Selection And Control](selection-and-control.md)
 - [Shift Order Queue](order-queue.md)
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)

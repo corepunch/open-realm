@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X14;Y9;D0
+B;X14;Y10;D0
 C;X1;Y1;K"alias"
 C;X2;K"code"
 C;X3;K"Data11"
@@ -52,4 +52,6 @@ C;X11;K"30"
 C;X12;K"30"
 C;X13;K"600"
 C;X14;K"Bdef"
+C;X1;Y10;K"Amic"
+C;X2;K"Amic"
 E

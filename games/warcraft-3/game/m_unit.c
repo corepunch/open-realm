@@ -335,6 +335,9 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         order_attack(self, target);
         return true;
     }
+    if (!strcmp(order, "militia") || !strcmp(order, "militiaoff")) {
+        return S_MilitiaTargetOrder(self, order, target);
+    }
     return false;
 }
 
@@ -374,7 +377,8 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         return G_SetRallyEntity(self, target);
     }
     if (S_GoldMineWorkerIsInside(self)) return false;
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "repair")) return false;
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+        strcmp(order, "repair") && strcmp(order, "militia") && strcmp(order, "militiaoff")) return false;
 
     if (queue && unit_has_active_order(self)) {
         return unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
@@ -539,6 +543,7 @@ void unit_updatestatuses(LPEDICT ent) {
     DWORD now = gi.GetTime();
     BOOL changed = false;
     BOOL kill = false;
+    BOOL militia_expired = false;
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
@@ -549,6 +554,9 @@ void unit_updatestatuses(LPEDICT ent) {
             if (unit_status_timedlife(status->code)) {
                 kill = true;
             }
+            if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
+                militia_expired = true;
+            }
             memset(status, 0, sizeof(*status));
             changed = true;
         }
@@ -556,6 +564,9 @@ void unit_updatestatuses(LPEDICT ent) {
     if (changed) {
         unit_refreshstatusflags(ent);
         G_InvalidateUnitInfoPanel(ent);
+    }
+    if (militia_expired && !M_IsDead(ent)) {
+        S_MilitiaExpire(ent);
     }
     if (kill && !M_IsDead(ent)) {
         ent->health.value = 0;

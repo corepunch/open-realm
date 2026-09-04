@@ -155,7 +155,7 @@ static LPCSTR G_UIArtPath(LPCSTR art) {
     return Theme_String(art, art);
 }
 
-BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
+static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, int toggle_state, gameCommandButton_t *button) {
     char command_code[256];
     char art_level[256];
     LPCSTR base_code;
@@ -194,7 +194,8 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
         base_code = code;
     }
     art_code = G_CommandArtCode(ent, code);
-    toggle_on = !research && ability && ability->is_toggle_on && ability->is_toggle_on(ent);
+    toggle_on = !research && (toggle_state >= 0 ? toggle_state != 0 :
+        ability && ability->is_toggle_on && ability->is_toggle_on(ent));
     art = FindConfigValue(art_code, toggle_on ? STR_UNART :
                          G_ResearchField(STR_ART, research && !upgrade_research));
     buttonpos = FindConfigValue(art_code, toggle_on ? STR_UNBUTTONPOS :
@@ -242,6 +243,10 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     return true;
 }
 
+BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
+    return G_BuildCommandButtonState(ent, code, research, level, -1, button);
+}
+
 static void G_AddCommandButton(LPEDICT ent,
                                gameCommandButton_t *buttons,
                                BYTE max_buttons,
@@ -262,7 +267,43 @@ static void G_AddCommandButton(LPEDICT ent,
 }
 
 static BOOL G_IsImplementedAbility(LPCSTR code) {
-    return FindAbilityForCommand(code) != NULL;
+    ability_t const *ability = FindAbilityForCommand(code);
+    return ability && ability->cmd;
+}
+
+static BOOL G_HasCommandRawcode(gameCommandButton_t const *buttons, BYTE count, DWORD code) {
+    FOR_LOOP(i, count) {
+        DWORD button_code = 0;
+        if (strlen(buttons[i].command) < 4) continue;
+        memcpy(&button_code, buttons[i].command, sizeof(button_code));
+        if (button_code == code) return true;
+    }
+    return false;
+}
+
+static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons,
+                                       BYTE *count, LPCSTR code) {
+    ability_t const *ability = FindAbilityForCommand(code);
+    BYTE idx;
+    DWORD rawcode;
+
+    if (!ability || !ability->cmd || strlen(code) != 4 || *count >= max_buttons) return;
+    memcpy(&rawcode, code, sizeof(rawcode));
+    if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
+    idx = *count;
+    G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
+    if (*count > idx) buttons[idx].cooldown = S_SpellCooldownFraction(ent, rawcode, 0);
+    if (!(ability->flags & ABILITY_SEPARATE_OFF) || *count >= max_buttons) return;
+    if (G_BuildCommandButtonState(ent, code, false, 0, 1, &buttons[*count])) {
+        size_t used;
+        if (buttons[*count].x == 255 || buttons[*count].y == 255) {
+            buttons[*count].x = *count % 4;
+            buttons[*count].y = *count / 4;
+        }
+        used = strlen(buttons[*count].command);
+        snprintf(buttons[*count].command + used, sizeof(buttons[*count].command) - used, ":off");
+        (*count)++;
+    }
 }
 
 static void G_DisableCommandButton(gameCommandButton_t *button, LPCSTR reason) {
@@ -352,13 +393,17 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     }
     if (a->abilList) {
         PARSE_LIST(a->abilList, abil, parse_segment) {
-            DWORD const code = G_AbilityCodeName(abil);
-            if (G_IsImplementedAbility(abil)) {
-                BYTE const idx = count;
-                G_AddCommandButton(ent, buttons, max_buttons, &count, abil, false, 0);
-                if (count > idx) buttons[idx].cooldown = S_SpellCooldownFraction(ent, code, 0);
-            }
+            if (G_IsImplementedAbility(abil) && G_ActorHasSkill(ent, abil))
+                G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, abil);
         }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->added_abilities)) {
+        char abil[5] = {0};
+        DWORD const code = ent->added_abilities[i];
+        if (!code) continue;
+        memcpy(abil, &code, 4);
+        if (G_IsImplementedAbility(abil) && G_ActorHasSkill(ent, abil))
+            G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, abil);
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;

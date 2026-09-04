@@ -9,19 +9,13 @@ Primary local files:
 - `games/warcraft-3/game/skills/*.c`
 
 The practical parity list maps Warcraft ability base codes to concrete ability
-type definitions. Unknown or unsupported codes should resolve to explicit local
-stubs only when their command cards need to appear.
+type definitions. Unknown or unsupported codes may resolve to explicit local
+stubs for recognition/passive coverage, but command-card discovery requires a
+real command handler so a stub cannot create a dead button.
 
 ## Current Model
 
-OpenWarcraft3 currently uses a small Quake-style `ability_t`:
-
-```c
-typedef struct ability_s {
-    void (*init)(LPCSTR, struct ability_s *);
-    void (*cmd)(LPEDICT);
-} ability_t;
-```
+OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook; optional hooks cover toggle presentation, spell metadata and synchronous item use. Command-card discovery now requires a real `cmd`, so registered passive/stub handlers do not create dead buttons. Runtime `UnitAddAbility` aliases are also included in command-card discovery.
 
 Abilities are discovered through the static `abilitylist[]` in
 `games/warcraft-3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the
@@ -49,7 +43,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `CmdCancel` | `s_cancel.c` | Implemented UI cancel. |
 | `CmdSelectSkill` | `s_selectskill.c` | Partial; candidate skill menu, next-rank Research UI, point/level gating, max-rank hiding, and authoritative learning are implemented. Skill-point and next-rank numeric overlays are implemented; multi-selection presentation remains. |
 | `Ahar` | `s_harvest_lumber.c` | Partial worker harvest implementation. |
-| `Amil` | `s_militia.c` | Registered stub. |
+| `Amic`, `Amil` | `s_militia.c` | Partial; paired Hall/worker Call to Arms and Back to Work orders, footprint approach, Data A/B in-place Peasant/Militia transform, carried-resource return, per-unit `Bmil` expiry, and explicit worker auto-harvest resume are implemented. CommandStrings-keyed errors, ability sound/effects, and morph-animation polish remain. See [Call to Arms and Militia](../call-to-arms-and-militia.md). |
 | `Arep` | `s_repair.c` | Partial; entity command, Smart Repair, Shift target order, ranged approach, completed-building DataA/DataB costs, paused Human power building, and nearest-valid Auto Repair are wired. Full target masks/naval and broader autocast policy coverage remain. |
 | `Agld` | `s_goldmine.c` | Basic gold mine harvest loop. |
 | `AHad` | `s_devotionaura.c` | Partial local-only aura effect; status application is stubbed. |

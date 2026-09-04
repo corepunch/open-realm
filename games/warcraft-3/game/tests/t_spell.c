@@ -159,6 +159,50 @@ TEST(wc3_spell, spell_code_to_string) {
 	T_STREQ(buf, "AHtb");
 }
 
+TEST(wc3_spell, generic_data_id_keeps_rawcode_view) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X4\n"
+		"C;Y1;X1;K\"alias\"\n"
+		"C;Y1;X2;K\"code\"\n"
+		"C;Y1;X3;K\"DataA1\"\n"
+		"C;Y1;X4;K\"DataB1\"\n"
+		"C;Y2;X1;K\"Amil\"\n"
+		"C;Y2;X2;K\"Amil\"\n"
+		"C;Y2;X3;K\"hpea\"\n"
+		"C;Y2;X4;K\"hmil\"\n"
+		"E\n";
+	slkTestData_t *rows = parse_slk_string(slk);
+	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+	T_EQ((int)S_SpellDataId(MAKEFOURCC('A','m','i','l'), 1, 1), (int)MAKEFOURCC('h','p','e','a'));
+	T_EQ((int)S_SpellDataId(MAKEFOURCC('A','m','i','l'), 1, 2), (int)MAKEFOURCC('h','m','i','l'));
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
+
+TEST(wc3_spell, militia_zero_pair_area_means_unbounded_search) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y3;X3\n"
+		"C;Y1;X1;K\"alias\"\n"
+		"C;Y1;X2;K\"code\"\n"
+		"C;Y1;X3;K\"Area1\"\n"
+		"C;Y2;X1;K\"Amil\"\n"
+		"C;Y2;X2;K\"Amil\"\n"
+		"C;Y2;X3;K\"0\"\n"
+		"C;Y3;X1;K\"Amic\"\n"
+		"C;Y3;X2;K\"Amic\"\n"
+		"C;Y3;X3;K\"600\"\n"
+		"E\n";
+	slkTestData_t *rows = parse_slk_string(slk);
+	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+
+	T_FEQ(S_MilitiaPairSearchRadius(MAKEFOURCC('A','m','i','l')), FLT_MAX, 1.0f);
+	T_FEQ(S_MilitiaPairSearchRadius(MAKEFOURCC('A','m','i','c')), 600.0f, 0.01f);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, spell_unit_id_from_slk) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X3\n"

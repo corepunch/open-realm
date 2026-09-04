@@ -12,7 +12,7 @@ static FLOAT angle_wrap(FLOAT a) {
 /* unit_changeangle is defined lower down — it needs the move-validity test and
  * the give-way helpers, which are declared below. */
 
-extern ability_t a_move, a_attack, a_patrol;
+extern ability_t a_move, a_attack, a_patrol, a_militia;
 
 /* A unit is actively executing a ground move order (right-click move). */
 BOOL unit_is_walking(LPCEDICT ent) {
@@ -573,6 +573,10 @@ void unit_setmove(LPEDICT self, umove_t *move) {
     if (self->currentmove && self->currentmove->ability != move->ability &&
         unit_is_active_repair_move(self)) {
         S_CancelRepair(self);
+    }
+    if (self->currentmove && self->currentmove->ability == &a_militia &&
+        move->ability != &a_militia) {
+        S_CancelMilitiaPairing(self);
     }
     self->currentmove = move;
     self->animation = G_GetAnimation(self->s.model, move->animation);

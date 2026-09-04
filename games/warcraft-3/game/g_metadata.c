@@ -426,6 +426,7 @@ static slkField_t const abil_schema[] = {
 
 #define AB_F(NAME, FIELD, LEVEL, TYPE) { NAME, offsetof(AbilityData_t, FIELD[LEVEL]), TYPE }
 #define AB_D(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, data[LEVEL][SLOT]), STB_SLK_FLOAT }
+#define AB_ID(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, dataId[LEVEL][SLOT]), STB_SLK_FOURCC }
 static slkField_t const ability_schema[] = {
     { "",            offsetof(AbilityData_t, id),          STB_SLK_FOURCC },
     { "code",        offsetof(AbilityData_t, code),        STB_SLK_FOURCC },
@@ -470,6 +471,17 @@ static slkField_t const ability_schema[] = {
     AB_D("DataE3", 2, 4), AB_D("DataF3", 2, 5), AB_D("DataG3", 2, 6), AB_D("DataH3", 2, 7), AB_D("DataI3", 2, 8),
     AB_D("DataA4", 3, 0), AB_D("DataB4", 3, 1), AB_D("DataC4", 3, 2), AB_D("DataD4", 3, 3),
     AB_D("DataE4", 3, 4), AB_D("DataF4", 3, 5), AB_D("DataG4", 3, 6), AB_D("DataH4", 3, 7), AB_D("DataI4", 3, 8),
+    /* Some Warcraft abilities store raw object IDs in the generic Data slots.
+     * Keep a parallel FOURCC view so gameplay can consume those fields without
+     * changing the existing numeric Data parser used by other abilities/tooltips. */
+    AB_ID("DataA1", 0, 0), AB_ID("DataB1", 0, 1), AB_ID("DataC1", 0, 2), AB_ID("DataD1", 0, 3),
+    AB_ID("DataE1", 0, 4), AB_ID("DataF1", 0, 5), AB_ID("DataG1", 0, 6), AB_ID("DataH1", 0, 7), AB_ID("DataI1", 0, 8),
+    AB_ID("DataA2", 1, 0), AB_ID("DataB2", 1, 1), AB_ID("DataC2", 1, 2), AB_ID("DataD2", 1, 3),
+    AB_ID("DataE2", 1, 4), AB_ID("DataF2", 1, 5), AB_ID("DataG2", 1, 6), AB_ID("DataH2", 1, 7), AB_ID("DataI2", 1, 8),
+    AB_ID("DataA3", 2, 0), AB_ID("DataB3", 2, 1), AB_ID("DataC3", 2, 2), AB_ID("DataD3", 2, 3),
+    AB_ID("DataE3", 2, 4), AB_ID("DataF3", 2, 5), AB_ID("DataG3", 2, 6), AB_ID("DataH3", 2, 7), AB_ID("DataI3", 2, 8),
+    AB_ID("DataA4", 3, 0), AB_ID("DataB4", 3, 1), AB_ID("DataC4", 3, 2), AB_ID("DataD4", 3, 3),
+    AB_ID("DataE4", 3, 4), AB_ID("DataF4", 3, 5), AB_ID("DataG4", 3, 6), AB_ID("DataH4", 3, 7), AB_ID("DataI4", 3, 8),
     AB_F("UnitID1", unitID, 0, STB_SLK_FOURCC), AB_F("UnitID2", unitID, 1, STB_SLK_FOURCC),
     AB_F("UnitID3", unitID, 2, STB_SLK_FOURCC), AB_F("UnitID4", unitID, 3, STB_SLK_FOURCC),
     AB_F("BuffID1", buffID, 0, STB_SLK_STR), AB_F("BuffID2", buffID, 1, STB_SLK_STR),
@@ -486,6 +498,7 @@ static slkField_t const ability_schema[] = {
     { "InBeta",       offsetof(AbilityData_t, InBeta),       STB_SLK_BOOL }, /* TFT */
     { NULL, 0, 0 }
 };
+#undef AB_ID
 #undef AB_D
 #undef AB_F
 

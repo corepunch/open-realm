@@ -136,6 +136,63 @@ TEST(wc3_movement, harvest_command_button_toggles_to_return_resources_ui) {
     T_STREQ(button.tooltip, "Gather");
 }
 
+TEST(wc3_movement, runtime_added_call_to_arms_exposes_on_and_off_buttons) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    gameCommandButton_t buttons[16];
+    BYTE count;
+    BOOL found_on = false, found_off = false;
+
+    T_ASSERT(G_ActorAddSkill(worker, MAKEFOURCC('A','m','i','c')));
+    count = G_GetCommandButtons(worker, buttons, (BYTE)(sizeof(buttons) / sizeof(buttons[0])));
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "Amic")) {
+            found_on = true;
+            T_STREQ(buttons[i].tooltip, "Call to Arms");
+            T_EQ(buttons[i].x, 1);
+            T_EQ(buttons[i].y, 1);
+        } else if (!strcmp(buttons[i].command, "Amic:off")) {
+            found_off = true;
+            T_STREQ(buttons[i].tooltip, "Back to Work");
+            T_EQ(buttons[i].x, 2);
+            T_EQ(buttons[i].y, 1);
+        }
+    }
+    T_ASSERT(found_on);
+    T_ASSERT(found_off);
+
+    T_ASSERT(G_ActorRemoveSkill(worker, MAKEFOURCC('A','m','i','c')));
+    count = G_GetCommandButtons(worker, buttons, (BYTE)(sizeof(buttons) / sizeof(buttons[0])));
+    FOR_LOOP(i, count) {
+        T_ASSERT(strcmp(buttons[i].command, "Amic") != 0);
+        T_ASSERT(strcmp(buttons[i].command, "Amic:off") != 0);
+    }
+}
+
+TEST(wc3_movement, missing_melee_amic_recovers_only_first_tier_one_hall) {
+    static UnitAbilities_t const townhall_abilities = {
+        .id = MAKEFOURCC('h','t','o','w'),
+        .abilList = "",
+    };
+    LPEDICT first = make_moving_unit(0.0f, 0.0f);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 512.0f, 0.0f);
+
+    first->class_id = first->s.class_id = MAKEFOURCC('h','t','o','w');
+    first->UnitAbilities = &townhall_abilities;
+    first->svflags |= SVF_MONSTER;
+    first->s.player = 0;
+    first->spawn_time = 100;
+
+    second->UnitAbilities = &townhall_abilities;
+    second->svflags |= SVF_MONSTER;
+    second->s.player = 0;
+    second->spawn_time = 200;
+
+    T_ASSERT(S_MilitiaEnsureHallAbility(first));
+    T_ASSERT(G_ActorHasSkill(first, "Amic"));
+    T_ASSERT(!S_MilitiaEnsureHallAbility(second));
+    T_ASSERT(!G_ActorHasSkill(second, "Amic"));
+}
+
 TEST(wc3_movement, carried_resource_toggle_invalidates_selected_command_card) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
