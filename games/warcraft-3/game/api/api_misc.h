@@ -1380,7 +1380,7 @@ DWORD SetCinematicScene(LPJASS j) {
     if (G_SkipCutscene()) return 0;
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
-        DWORD now = gi.GetTime();
+        DWORD now = G_Time();
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
         currentplayer->cinematic_portrait = 0;

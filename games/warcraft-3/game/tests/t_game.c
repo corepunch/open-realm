@@ -1706,6 +1706,32 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     remove(filename);
 }
 
+/* SV_Map restarts gi.GetTime() at zero before ReadGame runs, so a load must install a
+ * clock offset; otherwise every persisted deadline sits a whole save-length in the
+ * future and units plus JASS timers stall for exactly that long. */
+TEST(wc3_save, load_rebases_simulation_clock_onto_saved_time) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-clock.bin";
+    LPGTIMER timer;
+
+    T_ASSERT(level.map_path[0]);
+    level.time = 20800;
+    level.time_offset = 0;
+    T_ASSERT((timer = G_AllocJassTimer()) != NULL);
+    G_TimerStart(timer, 2000, false, NULL);
+    T_EQ(timer->end, 22800);
+    T_ASSERT(WriteGame(filename));
+
+    /* Emulate the post-SV_Map state: engine clock back near zero, live timer wiped. */
+    level.time = 100;
+    level.time_offset = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.time_offset, 20800u - gi.GetTime());
+    T_EQ(gi.GetTime() + level.time_offset, 20800u);
+    T_EQ(G_TimerRemaining(&level.timers[level.num_timers - 1]), 2000u);
+    level.time_offset = 0;
+    remove(filename);
+}
+
 extern field_t edict_fields[];
 
 /* Tests resolve descriptors by their source-level field name to guard the fixup schema itself. */

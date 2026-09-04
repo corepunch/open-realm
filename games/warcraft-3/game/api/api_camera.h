@@ -45,7 +45,7 @@ static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
     if (set_z) {
         gc->camera.state.z_offset = z_offset;
     }
-    gc->camera.start_time = gi.GetTime();
+    gc->camera.start_time = G_Time();
     gc->camera.end_time = gc->camera.start_time + duration * 1000;
 }
 
@@ -69,7 +69,7 @@ DWORD SetCameraTargetController(LPJASS j) {
             gc->camera.old_state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(whichUnit->s.angle);
             gc->camera.state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(whichUnit->s.angle);
         }
-        gc->camera.start_time = gi.GetTime();
+        gc->camera.start_time = G_Time();
         gc->camera.end_time = gc->camera.start_time;
     } else {
         gc->camera.target_offset = (VECTOR2){ 0, 0 };
@@ -137,7 +137,7 @@ DWORD ResetToGameCamera(LPJASS j) {
     gc->camera.state.z_offset = 0.0f;
     gc->camera.state.near_z = WC3_CAMERA_DEFAULT_NEAR_Z;
     gc->camera.state.far_z = WC3_CAMERA_DEFAULT_FAR_Z;
-    gc->camera.start_time = gi.GetTime();
+    gc->camera.start_time = G_Time();
     gc->camera.end_time = gc->camera.start_time + (duration * 1000);
     return 0;
 }
@@ -274,7 +274,7 @@ static void G_ApplyCameraSetup(LPCAMERASETUP setup, BOOL apply_position,
         gc->camera.state.z_offset = z_offset;
     }
     gc->camera.state.position = G_ClampCameraPosition(gc, &gc->camera.state.position);
-    gc->camera.start_time = gi.GetTime();
+    gc->camera.start_time = G_Time();
     gc->camera.end_time = gc->camera.start_time + duration_ms;
 }
 DWORD CameraSetupApply(LPJASS j) {

@@ -157,7 +157,7 @@ static void G_ActivateHeroShortcut(LPEDICT clent, LPEDICT hero) {
 
     number = (DWORD)(hero - globals.edicts);
     click = &hero_shortcut_clicks[client_index];
-    now = gi.GetTime();
+    now = G_Time();
     double_click = click->entity == number && (DWORD)(now - click->time) < WC3_HERO_BUTTON_DOUBLE_CLICK_MS;
     click->entity = number;
     click->time = now;

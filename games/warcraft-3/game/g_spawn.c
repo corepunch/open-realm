@@ -458,7 +458,7 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     }
     ent->class_id = class_id;
     ent->s.class_id = class_id;
-    ent->spawn_time = gi.GetTime();
+    ent->spawn_time = G_Time();
     ent->s.origin.x = location->x;
     ent->s.origin.y = location->y;
     ent->s.origin.z = CM_GetHeightAtPoint(location->x, location->y);
@@ -557,7 +557,7 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     ent->s.origin = MAKE(VECTOR3, x, y, z);
     ent->s.angle = facing;
     ent->s.scale = scale;
-    ent->spawn_time = gi.GetTime();
+    ent->spawn_time = G_Time();
     SP_CallSpawn(ent);
     G_RegisterGroundSurface(ent);
     gi.LinkEntity(ent);

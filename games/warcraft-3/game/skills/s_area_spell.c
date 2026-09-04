@@ -32,7 +32,7 @@ static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
 }
 
 static void blizzard_think(LPEDICT ent) {
-    DWORD now = gi.GetTime();
+    DWORD now = G_Time();
 
     if (ent->freetime && now < ent->freetime)
         return;
@@ -68,7 +68,7 @@ static void blizzard_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
     thinker->damage = damage ? damage : 1;
     thinker->resources = waves ? waves : 1;
     thinker->velocity = S_SpellData(spell->code, level, 6); /* DataF = Max Damage per Wave */
-    thinker->spawn_time = gi.GetTime() + (DWORD)(MAX(1.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
+    thinker->spawn_time = G_Time() + (DWORD)(MAX(1.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
     thinker->think = blizzard_think;
     blizzard_think(thinker); /* first wave immediately */
 }

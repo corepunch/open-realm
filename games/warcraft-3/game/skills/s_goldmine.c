@@ -489,7 +489,7 @@ static FLOAT blight_interval_duration;
 
 void blight_mine_think(LPEDICT ent) {
     monster_think(ent);
-    DWORD now = gi.GetTime();
+    DWORD now = G_Time();
     if (ent->freetime && now < ent->freetime)
         return;
     LPPLAYER player = G_GetPlayerByNumber(ent->s.player);

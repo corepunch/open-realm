@@ -361,10 +361,10 @@ FLOAT G_Cinefade(void) {
     if (!level.cinefilter.displayed) {
         return 0;
     }
-    if (!duration || gi.GetTime() > level.cinefilter.end.time) {
+    if (!duration || G_Time() > level.cinefilter.end.time) {
         return level.cinefilter.end.color.a / 255.0;
     } else {
-        FLOAT k = (gi.GetTime() - level.cinefilter.start.time) / (FLOAT)duration;
+        FLOAT k = (G_Time() - level.cinefilter.start.time) / (FLOAT)duration;
         return LerpNumber(level.cinefilter.start.color.a, level.cinefilter.end.color.a, k) / 255.0;
     }
 }
@@ -451,7 +451,7 @@ static void G_UpdateCameraTarget(LPGAMECLIENT client) {
         client->camera.old_state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(target->s.angle);
         client->camera.state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(target->s.angle);
     }
-    client->camera.start_time = gi.GetTime();
+    client->camera.start_time = G_Time();
     client->camera.end_time = client->camera.start_time;
 }
 
@@ -463,8 +463,8 @@ static void G_RunClients(void) {
         DWORD duration;
         G_UpdateCameraTarget(client);
         duration = client->camera.end_time - client->camera.start_time;
-        if (gi.GetTime() < client->camera.end_time && duration > 0) {
-            FLOAT k = (gi.GetTime() - client->camera.start_time) / (FLOAT)duration;
+        if (G_Time() < client->camera.end_time && duration > 0) {
+            FLOAT k = (G_Time() - client->camera.start_time) / (FLOAT)duration;
             LPCCAMERASETUP a = &client->camera.old_state;
             LPCCAMERASETUP b = &client->camera.state;
             QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
@@ -487,7 +487,7 @@ static void G_RunClients(void) {
         /* Transmission scene and voice lifetimes are independent. Blizzard.j
          * keeps the portrait scene alive past the voice, so Portrait Talk must
          * fall back to Portrait before the entire transmission disappears. */
-        if (client->cinematic_end_time && gi.GetTime() >= client->cinematic_end_time) {
+        if (client->cinematic_end_time && G_Time() >= client->cinematic_end_time) {
             G_SetPlayerText(client, PLAYERTEXT_SPEAKER, "");
             G_SetPlayerText(client, PLAYERTEXT_DIALOGUE, "");
             client->ps.cinematic_portrait = 0;
@@ -495,11 +495,11 @@ static void G_RunClients(void) {
             client->cinematic_end_time = 0;
             client->cinematic_voice_end_time = 0;
             client->presentation_dirty = true;
-        } else if (client->cinematic_voice_end_time && gi.GetTime() >= client->cinematic_voice_end_time) {
+        } else if (client->cinematic_voice_end_time && G_Time() >= client->cinematic_voice_end_time) {
             client->cinematic_voice_end_time = 0;
             client->presentation_dirty = true;
         }
-        if (client->message.end_time && gi.GetTime() >= client->message.end_time) {
+        if (client->message.end_time && G_Time() >= client->message.end_time) {
             memset(&client->message, 0, sizeof(client->message));
             client->presentation_dirty = true;
         }
@@ -618,7 +618,9 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    level.time = gi.GetTime();
+    /* One simulation clock: the engine clock plus the offset a loaded game installed,
+     * so persisted deadlines stay valid after SV_Map restarts gi.GetTime() at zero. */
+    level.time = gi.GetTime() + level.time_offset;
 
     G_StartScripts();
     G_UpdateTimeOfDay();

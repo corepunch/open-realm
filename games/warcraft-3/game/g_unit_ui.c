@@ -514,7 +514,7 @@ BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
 
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     BYTE count = 0;
-    DWORD cursor = gi.GetTime();
+    DWORD cursor = G_Time();
     BOOL food_blocked = false;
 
     if (!ent || !queue) {

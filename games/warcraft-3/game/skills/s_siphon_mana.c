@@ -9,7 +9,7 @@
 static void siphon_mana_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
     LPEDICT target = ent->goalentity;
-    DWORD now = gi.GetTime();
+    DWORD now = G_Time();
 
     if (!target || !target->inuse || M_IsDead(target)) {
         S_SpellCancelChannel(caster);
@@ -55,7 +55,7 @@ static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     thinker->velocity = mana_per_second;
     thinker->resources = ticks;
     thinker->think = siphon_mana_think;
-    thinker->freetime = gi.GetTime() + 1000;
+    thinker->freetime = G_Time() + 1000;
 }
 
 static spell_info_t spell_siphon_mana = {

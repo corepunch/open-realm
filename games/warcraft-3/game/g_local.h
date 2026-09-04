@@ -1227,6 +1227,10 @@ struct level_locals {
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
+    /* Offset from the engine clock to the simulation clock. SV_Map restarts gi.GetTime()
+     * at zero, so a loaded game re-bases here and every persisted level.time deadline
+     * (timer->end, spawn_time, freetime, status timestamps) stays valid. */
+    DWORD time_offset;
     BOOL script_paused;
     BOOL quest_paused;
     BOOL modal_paused;
@@ -1924,6 +1928,10 @@ extern struct game_export globals;
 extern struct game_import gi;
 extern struct level_locals level;
 extern struct edict_s *g_edicts;
+
+/* Simulation clock reader. Spell-rank parameters named `level` shadow the global in
+ * several skill functions, so clock reads go through this instead of `level.time`. */
+static inline DWORD G_Time(void) { return level.time; }
 
 extern unitMeta_t const UnitsMetaData[];
 

@@ -123,7 +123,7 @@ BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code) {
     if (!caster) {
         return false;
     }
-    now = gi.GetTime();
+    now = G_Time();
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = caster->abilstatus + i;
         if (status->level && status->code == code && status->timestamp > now) {
@@ -143,7 +143,7 @@ FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level) {
     if (!caster) {
         return 0.0f;
     }
-    now = gi.GetTime();
+    now = G_Time();
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = caster->abilstatus + i;
         if (status->level && status->code == code && status->timestamp > now) {
@@ -170,7 +170,7 @@ void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level) {
         return;
     }
 
-    now = gi.GetTime();
+    now = G_Time();
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = caster->abilstatus + i;
         if (status->level && status->code == code) {

@@ -524,7 +524,7 @@ static void unit_timed_status_log(LPCSTR stage, LPCEDICT ent, heroabilitystatus_
     {
         return;
     }
-    now = gi.GetTime();
+    now = G_Time();
     remaining = status->timestamp > now ? (LONG)(status->timestamp - now) : 0;
     memcpy(code, &status->code, 4);
     fprintf(stderr,
@@ -554,7 +554,7 @@ FLOAT unit_statusremainingfraction(heroabilitystatus_t const *status) {
     if (!status || !status->level || !status->timestamp || !status->duration_ms) {
         return 0.0f;
     }
-    now = gi.GetTime();
+    now = G_Time();
     if (now >= status->timestamp) {
         return 0.0f;
     }
@@ -566,7 +566,7 @@ heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT ent) {
     DWORD now;
 
     if (!ent) return NULL;
-    now = gi.GetTime();
+    now = G_Time();
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         if (!status->level || !status->timestamp || !status->duration_ms) continue;
@@ -611,7 +611,7 @@ static void unit_refreshstatusflags(LPEDICT ent) {
 }
 
 void unit_updatestatuses(LPEDICT ent) {
-    DWORD now = gi.GetTime();
+    DWORD now = G_Time();
     BOOL changed = false;
     BOOL kill = false;
     BOOL militia_expired = false;
@@ -660,7 +660,7 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
     }
 
     code = *((DWORD const *)skill);
-    now = gi.GetTime();
+    now = G_Time();
     duration_ms = duration > 0.0f ? (DWORD)(duration * 1000.0f) : 0;
     stacktype = S_SpellString(code, "BuffStackType", 0);
 
