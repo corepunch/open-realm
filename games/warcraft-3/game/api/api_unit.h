@@ -174,11 +174,12 @@ DWORD SetUnitColor(LPJASS j) {
 }
 DWORD SetUnitScale(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-//    FLOAT scaleX = jass_checknumber(j, 2);
-//    FLOAT scaleY = jass_checknumber(j, 3);
-    FLOAT scaleZ = jass_checknumber(j, 4);
+    FLOAT scaleX = jass_checknumber(j, 2);
+    (void)jass_checknumber(j, 3);
+    (void)jass_checknumber(j, 4);
     if (whichUnit) {
-        whichUnit->s.scale = scaleZ;
+        /* Warsmash applies WC3's XYZ API as uniform model scale from X. */
+        whichUnit->s.scale = scaleX;
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     }
     return 0;

@@ -33,6 +33,8 @@ type aidifficulty    extends handle
 type gamespeed       extends handle
 type playerstate     extends handle
 type playerslotstate extends handle
+type playercolor     extends handle
+type camerafield     extends handle
 type gamestate        extends handle
 type fgamestate       extends gamestate
 type limitop          extends handle
@@ -62,7 +64,9 @@ native EnableUserControl          takes boolean b returns nothing
 native PauseGame                  takes boolean flag returns nothing
 native ResetToGameCamera          takes real duration returns nothing
 native PanCameraTo                takes real x, real y returns nothing
+native PanCameraToTimedWithZ      takes real x, real y, real zOffsetDest, real duration returns nothing
 native SetCameraPosition          takes real x, real y returns nothing
+native SetCameraTargetController takes unit whichUnit, real xoffset, real yoffset, boolean inheritOrientation returns nothing
 native SetCameraQuickPosition     takes real x, real y returns nothing
 native SetCameraBounds            takes real x1, real y1, real x2, real y2, real x3, real y3, real x4, real y4 returns nothing
 native GetCameraMargin            takes integer whichMargin returns real
@@ -84,6 +88,8 @@ native ConvertAIDifficulty   takes integer i returns aidifficulty
 native ConvertGameSpeed      takes integer i returns gamespeed
 native ConvertPlayerState    takes integer i returns playerstate
 native ConvertPlayerSlotState takes integer i returns playerslotstate
+native ConvertPlayerColor    takes integer i returns playercolor
+native ConvertCameraField    takes integer i returns camerafield
 native ConvertFGameState     takes integer i returns fgamestate
 native ConvertLimitOp        takes integer i returns limitop
 native ConvertFogState       takes integer i returns fogstate
@@ -177,9 +183,15 @@ native CreateSound takes string fileName, boolean looping, boolean is3D, boolean
 native SetSoundDuration takes sound soundHandle, integer duration returns nothing
 native GetSoundDuration takes sound soundHandle returns integer
 native CreateCameraSetup takes nothing returns camerasetup
+native CameraSetupSetField takes camerasetup whichSetup, camerafield whichField, real value, real duration returns nothing
+native CameraSetupGetField takes camerasetup whichSetup, camerafield whichField returns real
 native CameraSetupSetDestPosition takes camerasetup whichSetup, real x, real y, real duration returns nothing
 native CameraSetupGetDestPositionX takes camerasetup whichSetup returns real
 native CameraSetupGetDestPositionY takes camerasetup whichSetup returns real
+native CameraSetupApply takes camerasetup whichSetup, boolean doPan, boolean panTimed returns nothing
+native CameraSetupApplyWithZ takes camerasetup whichSetup, real zDestOffset returns nothing
+native CameraSetupApplyForceDuration takes camerasetup whichSetup, boolean doPan, real forceDuration returns nothing
+native CameraSetupApplyForceDurationWithZ takes camerasetup whichSetup, real zDestOffset, real forceDuration returns nothing
 native InitGameCache takes string campaignFile returns gamecache
 native StoreInteger takes gamecache cache, string missionKey, string key, integer value returns nothing
 native GetStoredInteger takes gamecache cache, string missionKey, string key returns integer
@@ -194,6 +206,10 @@ native TriggerRegisterGameStateEvent takes trigger whichTrigger, gamestate which
 
 // Unit/death-event coverage used by player structure-count regression tests.
 native CreateUnit                takes player id, integer unitid, real x, real y, real face returns unit
+native SetUnitScale              takes unit whichUnit, real scaleX, real scaleY, real scaleZ returns nothing
+native SetCinematicScene         takes integer portraitUnitId, playercolor color, string speakerTitle, string text, real sceneDuration, real voiceoverDuration returns nothing
+native EndCinematicScene         takes nothing returns nothing
+native ForceCinematicSubtitles  takes boolean flag returns nothing
 native TriggerRegisterDeathEvent takes trigger whichTrigger, widget whichWidget returns event
 native SetWidgetLife             takes widget whichWidget, real newLife returns nothing
 
@@ -276,6 +292,11 @@ globals
     constant playerstate PLAYER_STATE_GAME_RESULT = ConvertPlayerState(0)
     constant playerstate PLAYER_STATE_RESOURCE_GOLD = ConvertPlayerState(1)
     constant playerslotstate PLAYER_SLOT_STATE_LEFT = ConvertPlayerSlotState(2)
+    constant playercolor PLAYER_COLOR_RED = ConvertPlayerColor(0)
+    constant playercolor PLAYER_COLOR_BLUE = ConvertPlayerColor(1)
+    constant camerafield CAMERA_FIELD_FARZ = ConvertCameraField(1)
+    constant camerafield CAMERA_FIELD_ZOFFSET = ConvertCameraField(6)
+    constant camerafield CAMERA_FIELD_NEARZ = ConvertCameraField(7)
     constant fgamestate GAME_STATE_TIME_OF_DAY = ConvertFGameState(2)
     constant limitop LESS_THAN = ConvertLimitOp(0)
     constant limitop LESS_THAN_OR_EQUAL = ConvertLimitOp(1)

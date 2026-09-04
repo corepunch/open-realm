@@ -426,6 +426,7 @@ void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func) {
     }
     client->camera.target_controller = NULL;
     client->camera.target_offset = (VECTOR2){ 0, 0 };
+    client->camera.target_inherit_orientation = false;
 }
 
 static void G_UpdateCameraTarget(LPGAMECLIENT client) {
@@ -444,6 +445,13 @@ static void G_UpdateCameraTarget(LPGAMECLIENT client) {
     position = G_ClampCameraPosition(client, &position);
     client->camera.old_state.position = position;
     client->camera.state.position = position;
+    if (client->camera.target_inherit_orientation) {
+        /* Warsmash uses the target unit's facing as the camera horizontal
+         * angle. WC3 unit state stores facing in radians while camera rotation
+         * is in degrees and encoded as 90 - rotation. */
+        client->camera.old_state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(target->s.angle);
+        client->camera.state.viewangles.z = 90.0f - (FLOAT)RAD2DEG(target->s.angle);
+    }
     client->camera.start_time = gi.GetTime();
     client->camera.end_time = client->camera.start_time;
 }
@@ -466,11 +474,17 @@ static void G_RunClients(void) {
             client->ps.viewquat = Quaternion_slerp(&qa, &qb, k);
             client->ps.fov = LerpNumber(a->fov, b->fov, k);
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
+            client->ps.camera_render.x = LerpNumber(a->z_offset, b->z_offset, k);
+            client->ps.camera_render.y = LerpNumber(a->near_z, b->near_z, k);
+            client->ps.camera_render.z = LerpNumber(a->far_z, b->far_z, k);
         } else {
             client->ps.origin = client->camera.state.position;
             client->ps.viewquat = Quaternion_fromEuler(&client->camera.state.viewangles, ROTATE_ZYX);
             client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
+            client->ps.camera_render.x = client->camera.state.z_offset;
+            client->ps.camera_render.y = client->camera.state.near_z;
+            client->ps.camera_render.z = client->camera.state.far_z;
         }
         /* Transmission scene and voice lifetimes are independent. Blizzard.j
          * keeps the portrait scene alive past the voice, so Portrait Talk must
@@ -479,6 +493,7 @@ static void G_RunClients(void) {
             G_SetPlayerText(client, PLAYERTEXT_SPEAKER, "");
             G_SetPlayerText(client, PLAYERTEXT_DIALOGUE, "");
             client->ps.cinematic_portrait = 0;
+            client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR] = 0;
             client->cinematic_end_time = 0;
             client->cinematic_voice_end_time = 0;
             client->presentation_dirty = true;

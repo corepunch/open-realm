@@ -1617,6 +1617,36 @@ TEST(net, playerstate_camera_bounds_roundtrip) {
     T_FEQ(out.camera_bounds.max.y, 3072.0f, 0.001f);
 }
 
+TEST(net, playerstate_camera_render_fields_roundtrip) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 };
+    PLAYER to = { 0 };
+    PLAYER out = { 0 };
+    DWORD bits;
+    int number;
+
+    to.number = 4;
+    to.camera_render.x = 275.0f;
+    to.camera_render.y = 75.0f;
+    to.camera_render.z = 6500.0f;
+    /* With WC3 camera_render present, texts[7] occupies player-state bit 31.
+     * Exercise the unsigned high bit so the 32-field wire schema remains valid. */
+    to.texts[7] = "camera-last-field";
+
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(number, 4);
+    T_FEQ(out.camera_render.x, 275.0f, 0.001f);
+    T_FEQ(out.camera_render.y, 75.0f, 0.001f);
+    T_FEQ(out.camera_render.z, 6500.0f, 0.001f);
+    T_STREQ(out.texts[7], "camera-last-field");
+    MemFree((void *)out.texts[7]);
+}
+
 TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

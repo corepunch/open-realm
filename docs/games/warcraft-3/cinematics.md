@@ -57,11 +57,7 @@ This is separate from the JASS-level ESC skip mechanism.
 - `skip_cutscene 1` — fast-forward all cinematic timing
 - `skip_cutscene 0` — restore normal timing
 
-### Log Output
-- `SetCinematicScene: player=N speaker=... time=T` — dialogue shown for player N
-- `EndCinematicScene: player=N time=T` — dialogue cleared for player N
-- `Game event matched: type=17 ... disabled=0/1` — `EVENT_PLAYER_END_CINEMATIC` dispatch
-- `Client cancel command: player=N ...` — ESC pressed by player N
+Camera and transmission natives should not grow permanent investigative tracing; use the focused JASS/network tests below or a bounded campaign run to inspect their state. The pre-existing `CLIENTCOMMAND(Cancel)` path still prints its ESC/end-cinematic event publication, but this cinematic parity work adds no runtime debug logging.
 
 ### Common Issues
 
@@ -165,7 +161,11 @@ Units move using the same system as normal gameplay: JASS scripts issue move ord
 
 ### Camera Control
 
-Camera follows units via `SetCameraTargetController`. The camera interpolation runs in `G_RunClients()` each frame, lerping position/quaternion/FOV between `camera.start_time` and `camera.end_time`. The `G_UpdateCameraTarget` function follows `target_controller` unit's position plus offset.
+Camera follows units via `SetCameraTargetController`. The camera interpolation runs in `G_RunClients()` each frame, lerping position/quaternion/FOV between `camera.start_time` and `camera.end_time`. The `G_UpdateCameraTarget` function follows `target_controller` unit's position plus offset. When `inheritOrientation` is true, the authoritative camera also follows the unit facing. WC3 entity state stores unit facing in radians, while camera rotation is authored in degrees, so the runtime first converts with `RAD2DEG` and then applies the same authored-camera convention (`viewangles.z = 90 - facingDegrees`). Clearing or replacing the target controller clears that inheritance state.
+
+`PanCameraToWithZ` and `PanCameraToTimedWithZ` author a camera-target Z offset in addition to X/Y. `G_RunClients()` interpolates that offset and the near/far clip planes alongside the other camera values, and the WC3 player snapshot transports all three to the client. `Matrix4_getCameraMatrix()` composes the received offset with the terrain-following target height rather than treating it as an absolute world Z. Camera setups support `CAMERA_FIELD_NEARZ`, `CAMERA_FIELD_FARZ`, and `CAMERA_FIELD_ZOFFSET`; the `...WithZ` apply variants override the setup Z offset with their explicit argument. `CameraSetupApply(..., doPan=false, ...)` and `CameraSetupApplyForceDuration(..., doPan=false, ...)` preserve the current target position while still applying camera fields, matching Warsmash's separation between setup fields and destination panning.
+
+The current untimed `PanCameraTo` and `CameraSetupApply(..., panTimed=true)` still snap their target because OpenRealm does not yet retain Warcraft's default camera forward/strafe rates. `SetCameraField`, `AdjustCameraField`, `StopCamera`, and `SetCameraOrientController` remain placeholders. Keep those limitations explicit rather than inventing rates or semantics in the cinematic path.
 
 `SetCameraQuickPosition` is not a camera movement native. It records Warcraft's spacebar/quick-position recall point for the local player. Assigning that point must leave `camera.state.position` unchanged; treating it like `SetCameraPosition` makes quest discovery and cinematic scripts unexpectedly jump the view when they only intend to set the later spacebar target.
 
@@ -188,11 +188,11 @@ The classic console is not itself rectangular: the retained info/status panel, p
 Regression coverage:
 
 ```sh
-make test-wc3-engine WC3_PATTERN='wc3_api.camera_bounds*'
+make test-wc3-engine WC3_PATTERN='wc3_api.camera*'
 make test
 ```
 
-The full test target covers the standalone `net.playerstate_camera_bounds_roundtrip` and `net.camera_prediction_reconciles_to_server_clamped_bound` cases. The implementation change must also retain the existing cinematic cleanup tests because camera bounds are transmitted in `PLAYER`. Camera JASS regression tests run against the deliberately minimal `games/warcraft-3/tests/resources-src/Scripts/common.j`; when a test uses a `common.j` constant or native, add its real declaration/value to that fixture. In particular, `GetCameraMargin` requires the integer `CAMERA_MARGIN_LEFT/RIGHT/TOP/BOTTOM` selectors (`0/1/2/3`). Leaving those globals undefined passes a non-integer value to the native and trips `jass_checkinteger()` before the assertion can run.
+The focused JASS cases cover camera bounds, timed WithZ interpolation, target-controller orientation inheritance, setup clip/Z fields, and `doPan` destination ownership. The full test target additionally covers `net.playerstate_camera_bounds_roundtrip`, `net.playerstate_camera_render_fields_roundtrip`, and `net.camera_prediction_reconciles_to_server_clamped_bound`. Retain the existing cinematic cleanup tests because all of this camera state is client-visible. Camera JASS regression tests run against the deliberately minimal `games/warcraft-3/tests/resources-src/Scripts/common.j`; when a test uses a `common.j` constant or native, add its real declaration/value to that fixture. In particular, `GetCameraMargin` requires the integer `CAMERA_MARGIN_LEFT/RIGHT/TOP/BOTTOM` selectors (`0/1/2/3`), while clip/Z tests require the real `CAMERA_FIELD_FARZ`, `CAMERA_FIELD_ZOFFSET`, and `CAMERA_FIELD_NEARZ` converted handles. Leaving those globals undefined passes the wrong JASS value type to the native before the assertion can run.
 
 Visual viewport-overlay verification must cover both archive modes because the HUD art can differ while the world boundary contract must not:
 
@@ -202,6 +202,10 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +map 'Maps\Campaign\Human
 ```
 
 During each bounded run, drag a world selection marquee downward through the command console and select a living unit near the lower world edge. Overhead health/mana bars must stop at `viewDef.scissor`. The marquee must stop earlier wherever retained bottom-console frames protrude above that rectangular boundary, including the status/info panel and command-card/build-button area; no console pixel may reveal the marquee.
+
+### Actor Presentation
+
+`SetUnitScale(unit, x, y, z)` follows Warsmash's current compatibility behavior: the WC3 XYZ API is rendered as a uniform scale using the **X component**. Y/Z are consumed for JASS signature compatibility but are not independent axes in the current entity renderer. Do not use the Z argument as the uniform scale; campaign scripts commonly pass equal values, which can hide that mistake until custom cinematic scaling uses distinct components.
 
 ### Cinefilter
 

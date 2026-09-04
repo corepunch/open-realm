@@ -336,11 +336,16 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
     ps->fov = 50;
     ps->distance = 1650;
+    ps->camera_render = (VECTOR3){ 0.0f, 100.0f, 5000.0f };
     clent->client->camera.state.position = ps->origin;
     clent->client->camera.state.viewangles = (VECTOR3){ 326, 0, 0 };
     clent->client->camera.state.fov = 50;
     clent->client->camera.state.target_distance = 1650;
+    clent->client->camera.state.z_offset = 0.0f;
+    clent->client->camera.state.near_z = 100.0f;
+    clent->client->camera.state.far_z = 5000.0f;
     clent->client->camera.old_state = clent->client->camera.state;
+    clent->client->camera.target_inherit_orientation = false;
     if (mapinfo) {
         FOR_LOOP(i, mapinfo->num_techAvailabilities) {
             mapTechAvailability_t const *tech = mapinfo->techAvailabilities + i;

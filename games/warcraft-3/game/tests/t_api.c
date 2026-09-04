@@ -401,6 +401,101 @@ TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(VECTOR2, 0.0f, 0.0f);
+    gc->camera.state.z_offset = 0.0f;
+    gc->camera.old_state = gc->camera.state;
+    level.time = 100;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PanCameraToTimedWithZ(200.0, 300.0, 400.0, 2.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.state.position.x, 200.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 300.0f, 0.001f);
+    T_FEQ(gc->camera.state.z_offset, 400.0f, 0.001f);
+    T_EQ(gc->camera.start_time, 100);
+    T_EQ(gc->camera.end_time, 2100);
+
+    level.time = 1100;
+    G_RunClients();
+    T_FEQ(gc->ps.origin.x, 100.0f, 0.001f);
+    T_FEQ(gc->ps.origin.y, 150.0f, 0.001f);
+    T_FEQ(gc->ps.camera_render.x, 200.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
+    LPGAMECLIENT gc = &game.clients[0];
+    LPEDICT target = NULL;
+
+    gc->ps.number = 0;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 100.0, 200.0, 135.0)\n"
+        "  call SetCameraTargetController(u, 10.0, -20.0, true)\n"
+        "endfunction\n"));
+    target = gc->camera.target_controller;
+    T_NOT_NULL(target);
+    T_FEQ(gc->camera.state.position.x, 110.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 180.0f, 0.001f);
+    T_FEQ(gc->camera.state.viewangles.z, -45.0f, 0.001f);
+    T_ASSERT(gc->camera.target_inherit_orientation);
+
+    target->s.origin2 = MAKE(VECTOR2, 300.0f, 400.0f);
+    target->s.angle = (FLOAT)DEG2RAD(45.0f);
+    G_RunClients();
+    T_FEQ(gc->camera.state.position.x, 310.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 380.0f, 0.001f);
+    T_FEQ(gc->camera.state.viewangles.z, 45.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, camera_setup_applies_clip_planes_z_and_dopan_contract) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(VECTOR2, 12.0f, 34.0f);
+    gc->camera.state.near_z = 100.0f;
+    gc->camera.state.far_z = 5000.0f;
+    gc->camera.state.z_offset = 0.0f;
+    gc->camera.old_state = gc->camera.state;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local camerasetup c = CreateCameraSetup()\n"
+        "  call CameraSetupSetDestPosition(c, 500.0, 600.0, 0.0)\n"
+        "  call CameraSetupSetField(c, CAMERA_FIELD_NEARZ, 55.0, 0.0)\n"
+        "  call CameraSetupSetField(c, CAMERA_FIELD_FARZ, 6500.0, 0.0)\n"
+        "  call CameraSetupSetField(c, CAMERA_FIELD_ZOFFSET, 125.0, 0.0)\n"
+        "  call CameraSetupApply(c, false, false)\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.state.position.x, 12.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 34.0f, 0.001f);
+    T_FEQ(gc->camera.state.near_z, 55.0f, 0.001f);
+    T_FEQ(gc->camera.state.far_z, 6500.0f, 0.001f);
+    T_FEQ(gc->camera.state.z_offset, 125.0f, 0.001f);
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local camerasetup c = CreateCameraSetup()\n"
+        "  call CameraSetupSetDestPosition(c, 700.0, 800.0, 0.0)\n"
+        "  call CameraSetupSetField(c, CAMERA_FIELD_NEARZ, 65.0, 0.0)\n"
+        "  call CameraSetupSetField(c, CAMERA_FIELD_FARZ, 7500.0, 0.0)\n"
+        "  call CameraSetupApplyWithZ(c, 275.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.state.position.x, 700.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 800.0f, 0.001f);
+    T_FEQ(gc->camera.state.near_z, 65.0f, 0.001f);
+    T_FEQ(gc->camera.state.far_z, 7500.0f, 0.001f);
+    T_FEQ(gc->camera.state.z_offset, 275.0f, 0.001f);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, camera_quick_position_sets_spacebar_target_without_moving_camera) {
     LPGAMECLIENT gc = &game.clients[0];
 
@@ -728,6 +823,24 @@ TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     T_STREQ(gc->message_log.entries[0], "Timed message");
 }
 
+TEST(wc3_api, set_unit_scale_uses_wc3_x_component_as_uniform_scale) {
+    LPEDICT scaled = NULL;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hpea', 32.0, 64.0, 0.0)\n"
+        "  call SetUnitScale(u, 1.5, 2.0, 3.0)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            scaled = g_edicts + i;
+            break;
+        }
+    }
+    T_NOT_NULL(scaled);
+    T_FEQ(scaled->s.scale, 1.5f, 0.001f);
+}
+
 TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
     LPGAMECLIENT gc = &game.clients[0];
     EDICT ent = { .client = gc };
@@ -780,7 +893,8 @@ TEST(wc3_api, transmission_keeps_gameplay_ui_and_separates_voice_lifetime) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  if GetLocalPlayer() == Player(0) then\n"
-        "    call SetCinematicScene(0, PLAYER_COLOR_RED, \"Captain\", \"Hold the line!\", 6.0, 4.0)\n"
+        "    call ForceCinematicSubtitles(false)\n"
+        "    call SetCinematicScene(0, PLAYER_COLOR_BLUE, \"Captain\", \"Hold the line!\", 6.0, 4.0)\n"
         "  endif\n"
         "endfunction\n"));
     T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
@@ -788,6 +902,7 @@ TEST(wc3_api, transmission_keeps_gameplay_ui_and_separates_voice_lifetime) {
     T_STREQ(gc->ps.texts[PLAYERTEXT_DIALOGUE], "Hold the line!");
     T_EQ(gc->cinematic_voice_end_time, 4100);
     T_EQ(gc->cinematic_end_time, 6100);
+    T_EQ(gc->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR], 1);
 
     level.time = 4100;
     G_RunClients();
@@ -798,6 +913,7 @@ TEST(wc3_api, transmission_keeps_gameplay_ui_and_separates_voice_lifetime) {
     level.time = 6100;
     G_RunClients();
     T_EQ(gc->cinematic_end_time, 0);
+    T_EQ(gc->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR], 0);
     T_STREQ(gc->ps.texts[PLAYERTEXT_SPEAKER], "");
     T_STREQ(gc->ps.texts[PLAYERTEXT_DIALOGUE], "");
 }

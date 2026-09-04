@@ -80,14 +80,14 @@ because a JASS type is named `playerstate`.
 | --- | --- | --- |
 | Map setup | `level` or a mutable map-setup snapshot | game type, map flags, placement, speed, difficulty, density, start-location priorities |
 | Player setup/runtime | `game.clients[]` and server-only WC3 client fields | controller, race preferences, tax rates, handicap, tech state |
-| Client-visible runtime | `PLAYER ps` | resources, food, team, race, color, camera target/bounds, UI state |
+| Client-visible runtime | `PLAYER ps` | resources, food, team, race, color, camera target/bounds/Z/clip planes, UI state |
 
 `war3map.w3i` remains authoritative initial data. The JASS `config()` function
 reconstructs and may override map/player setup before `main()` starts. Setup
 callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
 
-Camera bounds are an example of client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives a `BOX2 camera_bounds` initialized from W3I, `SetCameraBounds` changes that per-player copy, and the snapshot transports it so camera prediction uses the same limits as the server. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
+Camera state is client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives `camera_bounds` initialized from W3I plus snapshot fields for target Z offset and near/far clipping planes. `SetCameraBounds` changes the per-player rectangle, while camera WithZ/setup natives change the authoritative client camera state and `G_RunClients()` publishes the interpolated render fields. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
 
 ## Player Result / End-Game Lifecycle
 

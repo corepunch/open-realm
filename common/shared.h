@@ -462,6 +462,7 @@ typedef struct {
 } uiWindowDef_t;
 
 typedef enum {
+    UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR = 17, /* WC3 presentation-only team-color slot for talking portraits */
     UI_PLAYERSTAT_SELECTION_HEALTH = 18,
     UI_PLAYERSTAT_SELECTION_MAX_HEALTH,
     UI_PLAYERSTAT_SELECTION_MANA,
@@ -503,6 +504,7 @@ struct playerState_s {
     VECTOR2 origin;                 // 2D camera focus point; XY only because all games here are isometric/orbit, not first-person
 #ifdef WC3
     BOX2 camera_bounds;             // current per-player camera target bounds; initialized from W3I, mutable by SetCameraBounds
+    VECTOR3 camera_render;          // WC3 render camera: x=target Z offset, y=near clip, z=far clip
 #endif
     FLOAT distance;                 // camera distance from origin for orbit/isometric view
     DWORD fov;                      // vertical FOV in degrees; transmitted as NFT_BYTE so BYTE would suffice

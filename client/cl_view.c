@@ -177,7 +177,10 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     Matrix4_getSc2CameraMatrix(&origin, &angles, distance, angles.z, fov, aspect, znear, zfar, output);
     return;
 #else
-    origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128;
+    /* WC3 camera natives author a target-height offset independently from
+     * the terrain-following base target. The network camera sample carries
+     * only that offset in origin.z; compose it with terrain here. */
+    origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128 + origin.z;
 
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);

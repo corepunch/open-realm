@@ -834,6 +834,7 @@ JASSMODULE jass_funcs[] = {
     { "IsCineFilterDisplayed", IsCineFilterDisplayed },
     { "SetCinematicScene", SetCinematicScene },
     { "EndCinematicScene", EndCinematicScene },
+    { "ForceCinematicSubtitles", ForceCinematicSubtitles },
     { "GetCameraMargin", GetCameraMargin },
     { "GetCameraBoundMinX", GetCameraBoundMinX },
     { "GetCameraBoundMinY", GetCameraBoundMinY },
