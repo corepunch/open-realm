@@ -14,6 +14,7 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return CM_GetHeightAtPoint(x, y); }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return a + (b - a) * fraction; }
+FLOAT CM_GetCameraHeightOffset(void) { return 0; }
 
 #define CM_WOW_ADT_SIZE       533.333313f
 #define CM_WOW_ADT_UNIT_SIZE  (CM_WOW_ADT_SIZE / 16.0f / 8.0f)

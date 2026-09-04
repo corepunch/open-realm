@@ -1275,6 +1275,7 @@ LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);
 BOOL G_SkipCutscene(void);
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);
+VECTOR3 G_MakeServerOrigin(FLOAT x, FLOAT y, FLOAT z_offset);
 void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);

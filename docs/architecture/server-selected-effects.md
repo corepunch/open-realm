@@ -39,7 +39,7 @@ See also: [Building Damage Rendering](../games/warcraft-3/building-damage-render
 
 ## Anti-pattern #3: `#ifdef WC3` around generic camera samples (do not repeat)
 
-PR #287 added `playerState.camera_render` and `#ifdef WC3` copies in `CL_ParsePlayerInfo`. Target height offset, near clip, and far clip are ordinary camera sample fields, not Warcraft-only data. Hiding them behind a compile guard also overflowed the 32-bit player-state field mask (`texts[7]` silently dropped). They now live in generic `origin.z` / `znear` / `zfar`; games that do not author them leave zeros.
+PR #287 added `playerState.camera_render` and `#ifdef WC3` copies in `CL_ParsePlayerInfo`. Target height offset, near clip, and far clip are ordinary camera sample fields, not Warcraft-only data. Hiding them behind a compile guard also overflowed the 32-bit player-state field mask (`texts[7]` silently dropped). They now live in generic `server_origin` (world-space look-at) plus `znear`/`zfar` packed with `distance`. The server composes Z; the client copies the sample. Games that do not author clip leave zeros.
 
 ## Anti-pattern #2: `#ifdef` branch in a shared dispatcher (do not repeat)
 

@@ -386,6 +386,10 @@ BOOL G_SkipCutscene(void) {
     return value && *value && strcmp(value, "0");
 }
 
+VECTOR3 G_MakeServerOrigin(FLOAT x, FLOAT y, FLOAT z_offset) {
+    return (VECTOR3){ x, y, CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset() + z_offset };
+}
+
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position) {
     VECTOR2 clamped = position ? *position : (VECTOR2){ 0, 0 };
 
@@ -415,10 +419,9 @@ void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]) {
     client->ps.camera_bounds.min.y = MIN(MIN(bounds[1], bounds[3]), MIN(bounds[5], bounds[7]));
     client->ps.camera_bounds.max.y = MAX(MAX(bounds[1], bounds[3]), MAX(bounds[5], bounds[7]));
 
-    position = (VECTOR2){ client->ps.origin.x, client->ps.origin.y };
+    position = (VECTOR2){ client->ps.server_origin.x, client->ps.server_origin.y };
     position = G_ClampCameraPosition(client, &position);
-    client->ps.origin.x = position.x;
-    client->ps.origin.y = position.y;
+    client->ps.server_origin = G_MakeServerOrigin(position.x, position.y, client->camera.state.z_offset);
     position = G_ClampCameraPosition(client, &client->camera.old_state.position);
     client->camera.old_state.position = position;
     position = G_ClampCameraPosition(client, &client->camera.state.position);
@@ -477,18 +480,14 @@ static void G_RunClients(void) {
             QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
             QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
-            client->ps.origin = (VECTOR3){
-                p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k)
-            };
+            client->ps.server_origin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             client->ps.viewquat = Quaternion_slerp(&qa, &qb, k);
             client->ps.fov = LerpNumber(a->fov, b->fov, k);
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
             client->ps.znear = LerpNumber(a->near_z, b->near_z, k);
             client->ps.zfar = LerpNumber(a->far_z, b->far_z, k);
         } else {
-            client->ps.origin = (VECTOR3){
-                client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset
-            };
+            client->ps.server_origin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
             client->ps.viewquat = Quaternion_fromEuler(&client->camera.state.viewangles, ROTATE_ZYX);
             client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
@@ -878,7 +877,7 @@ static void G_ClientBegin(LPEDICT edict) {
     G_SetClientConnected(edict, true);
     G_InitClientUIState(client);
     if (!client->mapplayer) {
-        client->ps.origin = (VECTOR3){ 0, 0, 0 };
+        client->ps.server_origin = (VECTOR3){ 0, 0, 0 };
     }
     fprintf(stderr,
             "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
@@ -888,8 +887,8 @@ static void G_ClientBegin(LPEDICT edict) {
             (unsigned)client->ps.race,
             (unsigned)client->ps.color,
             (long)client->ps.start_location,
-            client->ps.origin.x,
-            client->ps.origin.y,
+            client->ps.server_origin.x,
+            client->ps.server_origin.y,
             client->ps.name ? client->ps.name : "");
     level.started = true;
     G_StartScripts();

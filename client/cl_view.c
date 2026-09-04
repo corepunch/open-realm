@@ -82,8 +82,8 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
     fov = fov > 0.0f ? fov : 27.8f;
     znear = znear > 0.0f ? znear : 0.1f;
     zfar = zfar > 0.0f ? zfar : 400.0f;
-    /* Spatial terrain filtering ignores narrow depressions without adding delayed camera motion. */
-    target.z = CL_GameCameraHeightAtPoint(target.x, target.y) + height_offset;
+    (void)height_offset;
+    /* Look-at Z is server-authored in playerState.server_origin. */
     eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
@@ -177,11 +177,6 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     Matrix4_getSc2CameraMatrix(&origin, &angles, distance, angles.z, fov, aspect, znear, zfar, output);
     return;
 #else
-    /* WC3 camera natives author a target-height offset independently from
-     * the terrain-following base target. The network camera sample carries
-     * only that offset in origin.z; compose it with terrain here. */
-    origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128 + origin.z;
-
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
 #endif
@@ -413,7 +408,7 @@ void CL_PrepRefresh(void) {
         camera.zfar = defaults.zfar;
         cl.viewDef.camerastate[0] = camera;
         cl.viewDef.camerastate[1] = camera;
-        cl.playerstate.origin = (VECTOR3){ camera.origin.x, camera.origin.y, camera.origin.z };
+        cl.playerstate.server_origin = camera.origin;
         cl.playerstate.fov = camera.fov;
         cl.playerstate.distance = camera.distance;
         cl.playerstate.viewangles = camera.viewangles;
@@ -499,7 +494,7 @@ void V_RenderView(void) {
 #if !defined(WOW) && !defined(SC2)
         {
             float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
-            VECTOR2 listener_origin = { cl.playerstate.origin.x, cl.playerstate.origin.y };
+            VECTOR2 listener_origin = { cl.playerstate.server_origin.x, cl.playerstate.server_origin.y };
             VECTOR2 listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
             S_SetListener(&listener_origin, &listener_right);
         }

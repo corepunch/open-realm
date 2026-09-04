@@ -331,15 +331,13 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (USHORT)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
     ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
     ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
-    ps->origin.x = player ? player->startingPosition.x : 0.0f;
-    ps->origin.y = player ? player->startingPosition.y : 0.0f;
-    ps->origin.z = 0.0f;
+    ps->server_origin = G_MakeServerOrigin(player ? player->startingPosition.x : 0.0f, player ? player->startingPosition.y : 0.0f, 0.0f);
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);
     ps->fov = 50;
     ps->distance = 1650;
     ps->znear = 100.0f;
     ps->zfar = 5000.0f;
-    clent->client->camera.state.position = (VECTOR2){ ps->origin.x, ps->origin.y };
+    clent->client->camera.state.position = (VECTOR2){ ps->server_origin.x, ps->server_origin.y };
     clent->client->camera.state.viewangles = (VECTOR3){ 326, 0, 0 };
     clent->client->camera.state.fov = 50;
     clent->client->camera.state.target_distance = 1650;
