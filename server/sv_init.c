@@ -1,4 +1,5 @@
 #include "server.h"
+
 #include "common/net_platform.h"
 
 static BOOL SV_EnsureServerPort(void) {
@@ -8,6 +9,16 @@ static BOOL SV_EnsureServerPort(void) {
         return false;
     }
     return true;
+}
+
+/* Publish server invariants that clients need before interpreting the game snapshot. */
+static void SV_SetMapConfigStrings(void) {
+    char maxclients[16], checksum[16];
+
+    snprintf(maxclients, sizeof(maxclients), "%d", ge->max_clients);
+    SV_SetConfigString(CS_MAXCLIENTS, maxclients, (DWORD)(strlen(maxclients) + 1));
+    snprintf(checksum, sizeof(checksum), "%u", (unsigned)CM_GetMapChecksum());
+    SV_SetConfigString(CS_MAPCHECKSUM, checksum, (DWORD)(strlen(checksum) + 1));
 }
 
 #ifndef TOOL_COMMON_NO_MPQ
@@ -240,11 +251,13 @@ void SV_Map(LPCSTR mapFilename) {
     sv.state = ss_loading;
     strlcpy(sv.configstrings[CS_WORLD], mapFilename, sizeof(sv.configstrings[CS_WORLD]));
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
+    SV_SetConfigString(CS_MAXCLIENTS, "", 1);
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
         sv.state = ss_dead;
         return;
     }
+    SV_SetMapConfigStrings();
     if (!had_lobby) {
         memset(&svs.lobby, 0, sizeof(svs.lobby));
     }
