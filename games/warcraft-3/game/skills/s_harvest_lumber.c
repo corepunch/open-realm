@@ -385,6 +385,10 @@ BOOL G_ActorSkillPermanent(LPEDICT ent, DWORD code) {
     return ent && skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code) >= 0;
 }
 
+void G_FreeActorSkills(LPEDICT ent) {
+    if (ent) memset(&ent->abilities, 0, sizeof(ent->abilities));
+}
+
 static void ai_walktree(LPEDICT ent) {
     FLOAT const distance = M_DistanceToGoal(ent);
 

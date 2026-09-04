@@ -242,7 +242,7 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     UI_SetHidden(hud.unit.RangeValue2, !has_attack2);
 
     if (is_hero) {
-        LPCSTR const prim = ent->UnitBalance->primaryAttribute;
+        LPCSTR const prim = ent->data.UnitBalance->primaryAttribute;
         struct { LPCSTR code; DWORD val; } attrs[3] = {
             { "STR", ent->hero.str }, { "AGI", ent->hero.agi }, { "INT", ent->hero.intel },
         };
@@ -431,7 +431,7 @@ static DWORD RawcodeFromListToken(LPCSTR text) {
 static DWORD UnitWeaponUpgrade(LPEDICT ent) {
     static LPCSTR const classes[] = { "melee", "ranged", "artillery" };
 
-    if (!ent || !ent->UnitBalance) return 0;
+    if (!ent || !ent->data.UnitBalance) return 0;
     FOR_LOOP(i, sizeof(classes) / sizeof(classes[0])) {
         DWORD const upgrade = G_GetUnitUpgradeForClass(ent, classes[i]);
         if (upgrade) return upgrade;
@@ -440,7 +440,7 @@ static DWORD UnitWeaponUpgrade(LPEDICT ent) {
 }
 
 static DWORD UnitArmorUpgrade(LPEDICT ent) {
-    if (!ent || !ent->UnitBalance) return 0;
+    if (!ent || !ent->data.UnitBalance) return 0;
     return G_GetUnitUpgradeForClass(ent, "armor");
 }
 
@@ -607,7 +607,7 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
         UI_WriteFrameWithChildren(hud.attack2_icon, &hud.attack2);
     }
 
-    SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop_2, "Armor", ent->UnitBalance->defenseType,
+    SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop_2, "Armor", ent->data.UnitBalance->defenseType,
                           armor_upgrade != 0);
     UI_SetText(hud.simple.InfoPanelIconValue_2, "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
     SetUpgradeLevel(hud.simple.InfoPanelIconLevel_2, armor_upgrade, ent);
@@ -626,7 +626,7 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
         UI_SetText(hud.simple.InfoPanelIconValue_5, "%u", (unsigned)ent->resources);
         UI_WriteFrame(&hud.gold);
         UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconGold, &hud.gold);
-    } else if (ent->UnitBalance->foodMade > 0) {
+    } else if (ent->data.UnitBalance->foodMade > 0) {
         LPCSTR const food_art = "InfoPanelIconFood";
         if (!food_art || !*food_art) {
             fprintf(stderr, "WriteSelectedUnitStatusFrames: missing war3skins InfoPanelIconFood\n");
@@ -635,13 +635,13 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
         }
         UI_SetText(hud.simple.InfoPanelIconLevel_4, "%s", "");
         UI_SetHidden(hud.simple.InfoPanelIconLevel_4, true);
-        UI_SetText(hud.simple.InfoPanelIconValue_4, "%ld", (long)ent->UnitBalance->foodMade);
+        UI_SetText(hud.simple.InfoPanelIconValue_4, "%ld", (long)ent->data.UnitBalance->foodMade);
         UI_WriteFrame(&hud.food);
         UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconFood, &hud.food);
     }
 
     if (is_hero) {
-        SetHeroPrimaryAttributeIcon(ent->UnitBalance->primaryAttribute);
+        SetHeroPrimaryAttributeIcon(ent->data.UnitBalance->primaryAttribute);
         UI_SetText(hud.simple.InfoPanelIconHeroStrengthValue, "%lu", (unsigned long)ent->hero.str);
         UI_SetText(hud.simple.InfoPanelIconHeroAgilityValue, "%lu", (unsigned long)ent->hero.agi);
         UI_SetText(hud.simple.InfoPanelIconHeroIntellectValue, "%lu", (unsigned long)ent->hero.intel);
@@ -770,8 +770,8 @@ DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key) {
 }
 
 void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
-    UnitBalance_t const *balance = ent->UnitBalance;
-    UnitWeapons_t const *weapons = ent->UnitWeapons;
+    UnitBalance_t const *balance = ent->data.UnitBalance;
+    UnitWeapons_t const *weapons = ent->data.UnitWeapons;
     LPCSTR name = G_UnitProfile(ent->class_id)->properNames;
     LPCSTR unit_name = G_UnitProfile(ent->class_id)->name;
     BOOL const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
@@ -838,7 +838,7 @@ void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
 }
 
 static BOOL UI_UsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
-    if (!viewer || !unit || !unit->UnitBalance || !unit->UnitBalance->isBuilding)
+    if (!viewer || !unit || !unit->data.UnitBalance || !unit->data.UnitBalance->isBuilding)
         return false;
     if (!G_UnitCanControl(viewer, unit))
         return false;

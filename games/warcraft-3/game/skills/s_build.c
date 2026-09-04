@@ -188,8 +188,8 @@ void build_build(LPEDICT ent) {
         building->construction.payer = client->ps.number;
         if (!G_BuildAllEnabled()) {
             building->construction.paid = true;
-            building->construction.gold = MAX(0, building->UnitBalance->goldCost);
-            building->construction.lumber = MAX(0, building->UnitBalance->lumberCost);
+            building->construction.gold = MAX(0, building->data.UnitBalance->goldCost);
+            building->construction.lumber = MAX(0, building->data.UnitBalance->lumberCost);
         }
         repair_build_primary(ent, building);
     } else {

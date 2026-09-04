@@ -1,5 +1,3 @@
-#include "game/g_local.h"
-
 #define ge (&globals)
 #ifndef EDICT_NUM
 #define EDICT_NUM(n) (globals.edicts + (n))
