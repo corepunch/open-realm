@@ -320,8 +320,8 @@ TEST(wc3_game, player_zero_food_ignores_free_edicts) {
     reset_entities();
     client->ps.number = 0;
     owned = G_Spawn(); enemy = G_Spawn();
-    owned->s.player = 0; owned->UnitBalance = &owned_balance;
-    enemy->s.player = 1; enemy->UnitBalance = &enemy_balance;
+    owned->s.player = 0; owned->data.UnitBalance = &owned_balance;
+    enemy->s.player = 1; enemy->data.UnitBalance = &enemy_balance;
 
     G_AccumulatePlayerFood(client);
 
@@ -981,23 +981,23 @@ TEST(wc3_game, is_dead_negative_hp_true) {
  * ========================================================================= */
 
 TEST(wc3_game, compress_stat_full_health_is_255) {
-    EDICTSTAT s = { 250.0f, 250.0f };
+    edictStat_s s = { 250.0f, 250.0f };
     T_EQ((int)compress_stat(&s), 255);
 }
 
 TEST(wc3_game, compress_stat_zero_health_is_0) {
-    EDICTSTAT s = { 0.0f, 250.0f };
+    edictStat_s s = { 0.0f, 250.0f };
     T_EQ((int)compress_stat(&s), 0);
 }
 
 TEST(wc3_game, compress_stat_half_health) {
-    EDICTSTAT s = { 125.0f, 250.0f };
+    edictStat_s s = { 125.0f, 250.0f };
     /* 255 * 125 / 250 = 127 (integer truncation). */
     T_EQ((int)compress_stat(&s), 127);
 }
 
 TEST(wc3_game, compress_stat_zero_max_is_0) {
-    EDICTSTAT s = { 0.0f, 0.0f };
+    edictStat_s s = { 0.0f, 0.0f };
     T_EQ((int)compress_stat(&s), 0);
 }
 
@@ -1706,14 +1706,21 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     remove(filename);
 }
 
-extern field_t fields[];
+extern field_t edict_fields[];
 
 /* Tests resolve descriptors by their source-level field name to guard the fixup schema itself. */
-static field_t const *find_save_field(LPCSTR name) {
-    for (field_t const *field = fields; field->name; field++)
-        if (!strcmp(field->name, name)) return field;
+static field_t const *find_save_field_in(field_t const *schema, LPCSTR name) {
+    LPCSTR dot = strchr(name, '.');
+    size_t len = dot ? (size_t)(dot - name) : strlen(name);
+    for (field_t const *field = schema; field->name; field++) {
+        if (strlen(field->name) != len || strncmp(field->name, name, len)) continue;
+        if (!dot) return field;
+        return field->type == F_STRUCT ? find_save_field_in((field_t const *)field->flags, dot + 1) : NULL;
+    }
     return NULL;
 }
+
+static field_t const *find_save_field(LPCSTR name) { return find_save_field_in(edict_fields, name); }
 
 /* Keep every g_save.c edict schema entry independently covered so adding or removing a fixup cannot hide in a broad save. */
 #define SAVE_INT_FIELD_TEST(name, field, saved) \
@@ -1825,15 +1832,46 @@ SAVE_PTR_FIELD_TEST(field_build_round_trip, "build", build, 0)
 
 BOOL run_test_jass(LPCSTR src);
 
+TEST(wc3_save, clears_nested_process_owned_fields) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->militia.partner = (LPEDICT)(uintptr_t)1;
+    unit->destructable.drop_sets = (droppableItemSet_t *)(uintptr_t)1;
+    ARRAY_COUNT(unit->destructable.drop_sets) = 7;
+    T_ASSERT(WriteGame(filename));
+    unit->militia.partner = NULL; unit->destructable.drop_sets = NULL;
+    ARRAY_COUNT(unit->destructable.drop_sets) = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(!unit->militia.partner && !unit->destructable.drop_sets);
+    T_EQ(ARRAY_COUNT(unit->destructable.drop_sets), 0);
+    remove(filename);
+}
+
+TEST(wc3_save, round_trip_actor_abilities) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-abilities.bin";
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->abilities.added[0] = MAKEFOURCC('A', '0', '0', '1'); ARRAY_COUNT(unit->abilities.added) = 1;
+    unit->abilities.removed[0] = MAKEFOURCC('A', '0', '0', '2'); ARRAY_COUNT(unit->abilities.removed) = 1;
+    unit->abilities.permanent[0] = MAKEFOURCC('A', '0', '0', '3'); ARRAY_COUNT(unit->abilities.permanent) = 1;
+    T_ASSERT(WriteGame(filename)); memset(&unit->abilities, 0, sizeof(unit->abilities)); T_ASSERT(ReadGame(filename));
+    T_EQ(ARRAY_COUNT(unit->abilities.added), 1); T_EQ(unit->abilities.added[0], MAKEFOURCC('A', '0', '0', '1'));
+    T_EQ(ARRAY_COUNT(unit->abilities.removed), 1); T_EQ(unit->abilities.removed[0], MAKEFOURCC('A', '0', '0', '2'));
+    T_EQ(ARRAY_COUNT(unit->abilities.permanent), 1); T_EQ(unit->abilities.permanent[0], MAKEFOURCC('A', '0', '0', '3'));
+    ARRAY_COUNT(unit->abilities.added) = MAX_ABILITIES + 1;
+    T_ASSERT(!WriteGame(filename)); remove(filename);
+}
+
 TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
     UnitBalance_t unit_row = { .id = MAKEFOURCC('h', 'p', 'e', 'a') };
     UnitBalance_t no_unit = { 0 };
     UnitUI_t unit_ui = { 0 };
     DestructableData_t dest_row = { .file = "Tree" };
     DestructableData_t no_dest = { 0 };
-    edict_t unit = { .UnitBalance = &unit_row, .UnitUI = &unit_ui, .DestructableData = &no_dest };
-    edict_t dest = { .UnitBalance = &no_unit, .UnitUI = &unit_ui, .DestructableData = &dest_row };
-    edict_t unknown = { .UnitBalance = &no_unit, .UnitUI = &unit_ui, .DestructableData = &no_dest };
+    edict_t unit = { .data.UnitBalance = &unit_row, .data.UnitUI = &unit_ui, .data.DestructableData = &no_dest };
+    edict_t dest = { .data.UnitBalance = &no_unit, .data.UnitUI = &unit_ui, .data.DestructableData = &dest_row };
+    edict_t unknown = { .data.UnitBalance = &no_unit, .data.UnitUI = &unit_ui, .data.DestructableData = &no_dest };
 
     G_BindEntityRuntime(&unit); G_BindEntityRuntime(&dest); G_BindEntityRuntime(&unknown);
     T_ASSERT(unit.stand == unit_stand && unit.birth == unit_birth && unit.die == unit_die && unit.think == monster_think);

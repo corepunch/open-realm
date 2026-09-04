@@ -12,10 +12,10 @@ void ui_selectskill(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     LPCSTR abils;
 
-    if (!ent || !G_UnitIsHero(ent) || !ent->UnitAbilities) {
+    if (!ent || !G_UnitIsHero(ent) || !ent->data.UnitAbilities) {
         return;
     }
-    abils = ent->UnitAbilities->heroAbilList;
+    abils = ent->data.UnitAbilities->heroAbilList;
     if (!abils) {
         return;
     }

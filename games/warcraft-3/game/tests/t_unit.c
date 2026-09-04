@@ -94,7 +94,7 @@ static LPEDICT unit_make_harvest_goldmine(FLOAT x, FLOAT y) {
     mine->s.origin2 = (VECTOR2){x, y};
     mine->s.origin.x = x;
     mine->s.origin.y = y;
-    mine->UnitAbilities = &abilities;
+    mine->data.UnitAbilities = &abilities;
     mine->resources = 12500;
     mine->health.value = mine->health.max_value = 1000.0f;
     return mine;
@@ -103,8 +103,8 @@ static LPEDICT unit_make_harvest_goldmine(FLOAT x, FLOAT y) {
 TEST(wc3_unit, shared_test_unit_starts_alive) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 
-    T_ASSERT(ent->UnitBalance->maxHealth > 0.0f);
-    T_FEQ(ent->health.max_value, ent->UnitBalance->maxHealth, 0.001f);
+    T_ASSERT(ent->data.UnitBalance->maxHealth > 0.0f);
+    T_FEQ(ent->health.max_value, ent->data.UnitBalance->maxHealth, 0.001f);
     T_FEQ(ent->health.value, ent->health.max_value, 0.001f);
     T_ASSERT(!M_IsDead(ent));
 }
@@ -522,8 +522,8 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     LPEDICT altar = make_unit(0, 0);
     LPEDICT hero = make_inventory_unit(0, 0);
     LPEDICT trainee = make_unit(0, 0);
-    LONG gold = MAX(0, trainee->UnitBalance->goldCost);
-    LONG lumber = MAX(0, trainee->UnitBalance->lumberCost);
+    LONG gold = MAX(0, trainee->data.UnitBalance->goldCost);
+    LONG lumber = MAX(0, trainee->data.UnitBalance->lumberCost);
 
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
     altar->build = hero;
@@ -622,8 +622,8 @@ TEST(wc3_unit, militia_target_order_reaches_militia_behavior) {
     setup_test_world();
     worker = make_unit(0, 0);
     hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 256, 0);
-    worker->UnitAbilities = &worker_abilities;
-    hall->UnitAbilities = &hall_abilities;
+    worker->data.UnitAbilities = &worker_abilities;
+    hall->data.UnitAbilities = &hall_abilities;
     worker->s.player = hall->s.player = 1;
     hall->pathtex = NULL;
 

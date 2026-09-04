@@ -12,7 +12,7 @@ static BOOL charm_validate(LPEDICT caster, spellTarget_t st) {
     DWORD max_level = (DWORD)S_SpellData(ID_CHARM, level, 1);
 
     if (!S_SpellIsEnemy(caster, target)) return false;
-    if (max_level && target->UnitBalance->level > max_level) return false;
+    if (max_level && target->data.UnitBalance->level > max_level) return false;
     return true;
 }
 

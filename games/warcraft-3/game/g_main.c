@@ -343,7 +343,6 @@ static void G_ShutdownGame(void) {
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_FowShutdown();
     G_FreeModels();
-    FOR_LOOP(i, globals.max_edicts) G_FreeActorSkills(g_edicts + i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -838,10 +837,10 @@ void G_SetClientConnected(LPEDICT player, BOOL connected) {
 /* Client slots and free edicts have zero-initialized player ownership but no
  * unit row.  Only live, metadata-bound units contribute authored food values. */
 void G_AccumulatePlayerFood(LPGAMECLIENT client) {
-    FILTER_EDICTS(ent, ent->inuse && ent->UnitBalance && client->ps.number == ent->s.player) {
+    FILTER_EDICTS(ent, ent->inuse && ent->data.UnitBalance && client->ps.number == ent->s.player) {
         if (ent->svflags & SVF_DEADMONSTER || ent->training) continue;
-        G_SetUnitFoodUsed(ent, ent->UnitBalance->foodUsed);
-        if (!ent->construction.active) G_SetUnitFoodMade(ent, ent->UnitBalance->foodMade);
+        G_SetUnitFoodUsed(ent, ent->data.UnitBalance->foodUsed);
+        if (!ent->construction.active) G_SetUnitFoodMade(ent, ent->data.UnitBalance->foodMade);
     }
     G_RecomputePlayerUpkeep(client);
 }

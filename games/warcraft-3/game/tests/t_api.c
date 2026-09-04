@@ -1680,7 +1680,7 @@ TEST(wc3_api, unit_ability_mutation_rejects_invalid_inputs) {
 TEST(wc3_api, unit_ability_mutation_restores_static_ability) {
     LPEDICT unit;
     static UnitAbilities_t const abilities = { .abilList = "Ahar" };
-    reset_entities(); unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0); unit->UnitAbilities = &abilities;
+    reset_entities(); unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0); unit->data.UnitAbilities = &abilities;
     T_ASSERT(G_ActorHasSkill(unit, "Ahar"));
     T_ASSERT(G_ActorRemoveSkill(unit, MAKEFOURCC('A','h','a','r')));
     T_ASSERT(!G_ActorHasSkill(unit, "Ahar"));
@@ -1712,6 +1712,27 @@ TEST(wc3_api, unit_ability_permanence_requires_present_ability) {
     T_ASSERT(!G_ActorSkillPermanent(unit, MAKEFOURCC('A','I','n','v')));
     T_ASSERT(G_ActorSetSkillPermanent(unit, MAKEFOURCC('A','I','n','v'), false));
     G_FreeEdict(unit); currentplayer = NULL;
+}
+
+TEST(wc3_api, unit_ability_mutation_rejects_full_lists) {
+    static UnitAbilities_t const abilities = { .abilList = "Ahar" };
+    DWORD invulnerable = MAKEFOURCC('A','I','n','v');
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    FOR_LOOP(i, MAX_ABILITIES) unit->abilities.added[i] = i + 1;
+    ARRAY_COUNT(unit->abilities.added) = MAX_ABILITIES;
+    T_ASSERT(!G_ActorAddSkill(unit, invulnerable)); T_EQ(ARRAY_COUNT(unit->abilities.added), MAX_ABILITIES);
+    memset(&unit->abilities, 0, sizeof(unit->abilities)); unit->data.UnitAbilities = &abilities;
+    FOR_LOOP(i, MAX_ABILITIES) unit->abilities.removed[i] = i + 1;
+    ARRAY_COUNT(unit->abilities.removed) = MAX_ABILITIES;
+    T_ASSERT(!G_ActorRemoveSkill(unit, MAKEFOURCC('A','h','a','r'))); T_ASSERT(G_ActorHasSkill(unit, "Ahar"));
+    memset(&unit->abilities, 0, sizeof(unit->abilities));
+    unit->abilities.added[0] = invulnerable; ARRAY_COUNT(unit->abilities.added) = 1;
+    FOR_LOOP(i, MAX_ABILITIES) unit->abilities.permanent[i] = i + 1;
+    ARRAY_COUNT(unit->abilities.permanent) = MAX_ABILITIES;
+    T_ASSERT(!G_ActorSetSkillPermanent(unit, invulnerable, true));
+    T_ASSERT(!G_ActorSkillPermanent(unit, invulnerable));
+    G_FreeEdict(unit);
 }
 
 TEST(wc3_api, ai_difficulty_defaults_to_normal) {

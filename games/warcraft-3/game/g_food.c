@@ -111,9 +111,9 @@ void G_SetUnitFoodMade(LPEDICT unit, LONG amount) {
 }
 
 void G_ActivateUnitFood(LPEDICT unit) {
-    if (!unit || !unit->UnitBalance || (unit->svflags & SVF_DEADMONSTER)) return;
-    G_SetUnitFoodUsed(unit, unit->UnitBalance->foodUsed);
-    G_SetUnitFoodMade(unit, unit->UnitBalance->foodMade);
+    if (!unit || !unit->data.UnitBalance || (unit->svflags & SVF_DEADMONSTER)) return;
+    G_SetUnitFoodUsed(unit, unit->data.UnitBalance->foodUsed);
+    G_SetUnitFoodMade(unit, unit->data.UnitBalance->foodMade);
 }
 
 void G_ClearUnitFood(LPEDICT unit) {
@@ -167,8 +167,8 @@ BOOL G_ReserveTrainingFood(LPEDICT unit) {
     LPGAMECLIENT client;
     LONG cost;
 
-    if (!unit || !unit->UnitBalance) return false;
-    cost = MAX(0, unit->UnitBalance->foodUsed);
+    if (!unit || !unit->data.UnitBalance) return false;
+    cost = MAX(0, unit->data.UnitBalance->foodUsed);
     if (unit->food.used == cost) return true;
     if (unit->food.used != 0) return false;
     if (cost == 0) return true;

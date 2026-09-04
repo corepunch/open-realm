@@ -551,15 +551,15 @@ TEST(wc3_combat, hero_recompute_preserves_attack_and_armor_modifiers) {
 
     G_RecomputeHeroStats(h);
     T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
-    T_EQ(h->attack1.damageBase, h->UnitWeapons->attack1.damageBase + 22 + 2);
-    T_FEQ(h->armor_value, h->UnitBalance->armor + 5.0f, 0.001f);
+    T_EQ(h->attack1.damageBase, h->data.UnitWeapons->attack1.damageBase + 22 + 2);
+    T_FEQ(h->armor_value, h->data.UnitBalance->armor + 5.0f, 0.001f);
 
     h->hero.str = 30;
     h->hero.agi = 23;
     G_RecomputeHeroStats(h);
     T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
-    T_EQ(h->attack1.damageBase, h->UnitWeapons->attack1.damageBase + 30 + 2);
-    T_FEQ(h->armor_value, h->UnitBalance->armor + 10 * 0.3f + 5.0f, 0.001f);
+    T_EQ(h->attack1.damageBase, h->data.UnitWeapons->attack1.damageBase + 30 + 2);
+    T_FEQ(h->armor_value, h->data.UnitBalance->armor + 10 * 0.3f + 5.0f, 0.001f);
 }
 
 TEST(wc3_combat, hero_stats_noop_for_non_hero) {
@@ -797,7 +797,7 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     DWORD const thunder = MAKEFOURCC('A','H','t','b');
     DWORD next = 0, required = 0;
 
-    h->UnitAbilities = &tree;
+    h->data.UnitAbilities = &tree;
     h->hero.level = 1;
     h->hero.skillpoints = 1;
     memset(h->heroabilities, 0, sizeof(h->heroabilities));
@@ -867,8 +867,8 @@ TEST(wc3_combat, hero_revive) {
     T_ASSERT((h->svflags & SVF_DEADMONSTER) == 0);       /* alive again */
     T_FEQ(h->s.origin2.x, 100.0f, 0.01f);
     T_FEQ(h->s.origin2.y, 200.0f, 0.01f);
-    T_EQ(h->food.used, h->UnitBalance->foodUsed);
-    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->UnitBalance->foodUsed);
+    T_EQ(h->food.used, h->data.UnitBalance->foodUsed);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->data.UnitBalance->foodUsed);
 }
 
 TEST(wc3_combat, hero_levelup_fires_event) {

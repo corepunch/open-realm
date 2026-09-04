@@ -3,11 +3,11 @@
 #include "../g_local.h"
 
 TEST(wc3_smoke, compress_stat_roundtrip) {
-    EDICTSTAT s = {500.0f, 750.0f};
+    edictStat_s s = {500.0f, 750.0f};
     BYTE c = compress_stat(&s);
     T_ASSERT(c > 0);
 
-    EDICTSTAT s2 = {1.0f, 100.0f};
+    edictStat_s s2 = {1.0f, 100.0f};
     BYTE c2 = compress_stat(&s2);
     T_ASSERT(c2 > 0);
     T_NE(c, c2);

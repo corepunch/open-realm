@@ -17,7 +17,7 @@ ifeq ($(WC3_FOW_PACKED_MASK),1)
 WC3_CFLAGS += -DWC3_FOW_PACKED_MASK
 endif
 WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION -DSTB_FDF_GLOBALS
-WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
+WC3_COMMON_SRCS := $(filter-out $(WC3_DIR)/common/routing.c,$(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort))
 MENU_HEADERS := $(shell find $(WC3_DIR)/menu -name '*.h' | sort) client/menu.h
 
 JASS_LIB     := $(LIB_DIR)/libjass$(LIB_EXT)

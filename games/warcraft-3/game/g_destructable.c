@@ -84,7 +84,7 @@ BOOL G_IsDestructable(LPCEDICT ent) {
     if (ent->svflags & SVF_MONSTER) {
         return false;
     }
-    return level.mapinfo && ent->DestructableData->file != NULL;
+    return level.mapinfo && ent->data.DestructableData->file != NULL;
 }
 
 BOOL G_DestructableIsAttackable(LPCEDICT ent) {

@@ -80,7 +80,7 @@ static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl"
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
 static void make_live_dropoff(LPEDICT building, UnitAbilities_t const *abilities) {
-    building->UnitAbilities = abilities;
+    building->data.UnitAbilities = abilities;
     building->health.value = building->health.max_value = 1000.0f;
 }
 
@@ -106,7 +106,7 @@ TEST(wc3_movement, harvest_command_button_toggles_to_return_resources_ui) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
     gameCommandButton_t button;
 
-    worker->UnitAbilities = &harvest_abilities;
+    worker->data.UnitAbilities = &harvest_abilities;
 
     T_ASSERT(G_BuildCommandButton(worker, "Ahar", false, 0, &button));
     T_STREQ(button.command, "Ahar");
@@ -177,12 +177,12 @@ TEST(wc3_movement, missing_melee_amic_recovers_only_first_tier_one_hall) {
     LPEDICT second = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 512.0f, 0.0f);
 
     first->class_id = first->s.class_id = MAKEFOURCC('h','t','o','w');
-    first->UnitAbilities = &townhall_abilities;
+    first->data.UnitAbilities = &townhall_abilities;
     first->svflags |= SVF_MONSTER;
     first->s.player = 0;
     first->spawn_time = 100;
 
-    second->UnitAbilities = &townhall_abilities;
+    second->data.UnitAbilities = &townhall_abilities;
     second->svflags |= SVF_MONSTER;
     second->s.player = 0;
     second->spawn_time = 200;
@@ -250,7 +250,7 @@ static slkTestData_t *install_goldmine_test_data(slkTestData_t **rows_out) {
 }
 
 static void setup_test_goldmine(LPEDICT mine, UnitAbilities_t const *abilities, DWORD resources) {
-    mine->UnitAbilities = abilities;
+    mine->data.UnitAbilities = abilities;
     mine->resources = resources;
     mine->health.value = mine->health.max_value = 1000.0f;
 }
@@ -1172,7 +1172,7 @@ TEST(wc3_movement, lumber_smart_click_resumes_partial_trip) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
     LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->UnitAbilities = &harvest_abilities;
+    worker->data.UnitAbilities = &harvest_abilities;
     worker->attack1.damagePoint = 0.01f;
     worker->harvested_lumber = 3;
     worker->s.renderfx |= RF_HAS_LUMBER;
@@ -1197,7 +1197,7 @@ TEST(wc3_movement, lumber_smart_click_gold_mine_switches_on_gold_pickup) {
     LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
 
-    worker->UnitAbilities = &harvest_abilities;
+    worker->data.UnitAbilities = &harvest_abilities;
     worker->harvested_lumber = 5;
     worker->s.renderfx |= RF_HAS_LUMBER;
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
@@ -1226,7 +1226,7 @@ TEST(wc3_movement, gold_smart_click_tree_switches_on_successful_chop) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
     LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->UnitAbilities = &harvest_abilities;
+    worker->data.UnitAbilities = &harvest_abilities;
     worker->attack1.damagePoint = 0.01f;
     worker->harvested_gold = 7;
     worker->s.renderfx |= RF_HAS_GOLD;
@@ -1258,7 +1258,7 @@ TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resum
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
 
-    worker->UnitAbilities = &harvest_abilities;
+    worker->data.UnitAbilities = &harvest_abilities;
     worker->harvested_gold = 7;
     worker->s.renderfx |= RF_HAS_GOLD;
     hall->s.player = worker->s.player;
@@ -1546,7 +1546,7 @@ TEST(wc3_movement, harvest_target_mode_right_click_cancel_prevents_stale_group_r
     miner2 = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 0.0f);
     idle = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 0.0f);
     tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
-    miner1->UnitAbilities = miner2->UnitAbilities = idle->UnitAbilities = &harvest_abilities;
+    miner1->data.UnitAbilities = miner2->data.UnitAbilities = idle->data.UnitAbilities = &harvest_abilities;
     G_SelectEntity(client, miner1);
     G_SelectEntity(client, miner2);
     client->menu.on_entity_selected = harvest_menu_selecttarget;
@@ -1595,7 +1595,7 @@ TEST(wc3_movement, harvest_target_mode_right_click_entity_cancels_without_order)
     gi.unicast = movement_noop_unicast;
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
-    worker->UnitAbilities = &harvest_abilities;
+    worker->data.UnitAbilities = &harvest_abilities;
     G_SelectEntity(client, worker);
     client->menu.on_entity_selected = harvest_menu_selecttarget;
     snprintf(tree_number, sizeof(tree_number), "%u", (unsigned)tree->s.number);
@@ -1765,7 +1765,7 @@ TEST(wc3_movement, lumber_smart_click_returns_to_clicked_dropoff) {
     LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 100.0f, 0.0f);
     LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 500.0f, 0.0f);
 
-    worker->UnitAbilities = &harvest_abilities;
+    worker->data.UnitAbilities = &harvest_abilities;
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
@@ -1975,7 +1975,7 @@ TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
     producer->movetype = MOVETYPE_NONE;
     producer->s.player = first->s.player = second->s.player = client->ps.number;
     first->stand = second->stand = unit_stand;
-    first->UnitBalance = second->UnitBalance = &balance;
+    first->data.UnitBalance = second->data.UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
     first->health.max_value = second->health.max_value = 100.0f;
     first->health.value = 100.0f;
@@ -2020,7 +2020,7 @@ TEST(wc3_movement, trained_unit_waits_when_no_exit_position_exists) {
     producer->movetype = MOVETYPE_NONE;
     producer->build = trained;
     UnitBalance_t balance = { .buildTime = 1 };
-    trained->UnitBalance = &balance;
+    trained->data.UnitBalance = &balance;
     trained->collision = 16.0f;
     trained->health.max_value = 100.0f;
     trained->health.value = 100.0f;
@@ -2375,7 +2375,7 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     FLOAT const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
-    bridge->DestructableData = &bridge_data;
+    bridge->data.DestructableData = &bridge_data;
     bridge->destructable.initialized = bridge->destructable.placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(VECTOR3, 0.0f, 0.0f, terrain + 64.0f);
