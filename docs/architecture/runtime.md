@@ -202,6 +202,10 @@ The renderer has one extra internal boundary: engine code in `renderer/` calls t
 
 The cvars `menu_module` and `g_module` currently document the configured module names and keep the config shape ready for fully dynamic library selection. There is no renderer-module cvar; `CL_Init` always binds `R_GetAPI`.
 
+### Game-Owned World Composition
+
+Entity-aware flow-field routing is composed by each game world wrapper from `games/warcraft-3/common/routing.c`. It is excluded from the shared game-common unity scans because it consumes `edict_t`, `ge`, and `EDICT_NUM`; the algorithm is shared by the current game wrappers, but its dependency boundary is game-owned. Startup code in `common/main.c` uses the neutral declarations in `common/server_api.h`, including `SV_IsActive`, instead of importing server state structs.
+
 ## See Also
 
 - [Client Architecture](client.md) — client main loop, input, and scene rendering

@@ -1,5 +1,5 @@
 #include "../client/client.h"
-#include "server/server.h"
+#include "server_api.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
@@ -419,7 +419,7 @@ int main(int argc, LPSTR argv[]) {
             // synchronous server map load, mirroring Quake's loading plaque flow.
             /* `+map` may already have run from the late command buffer. Do not
              * load it again after `+load`, or the restored state is lost. */
-            if (!svs.initialized || sv.state != ss_game) {
+            if (!SV_IsActive()) {
                 SV_Init();
                 CL_BeginLoadingMap(map);
                 SCR_UpdateScreen(0);
@@ -436,7 +436,7 @@ int main(int argc, LPSTR argv[]) {
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
-        if (svs.initialized && (sv.state == ss_lobby || sv.state == ss_game)) {
+        if (SV_IsActive()) {
             SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : msec);
         }
         if (!dedicated) {

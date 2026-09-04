@@ -14,9 +14,6 @@
 #include "client.h"
 #include "sound/s_local.h"
 #include "ui_layout.h"
-#ifdef SC2
-#include "games/starcraft-2/common/sc2_map.h"
-#endif
 
 #ifndef WOW
 /* Keep predicted camera targets inside the server-authored camera bounds. */
@@ -285,9 +282,9 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[0].zfar = zfar;
 #ifdef SC2
     {
-        sc2MapCamera_t camera;
+        gameCamera_t camera;
 
-        SC2_MapDefaultCamera(&camera);
+        CL_GameDefaultCamera(&camera);
         cl.viewDef.camerastate[0].origin.z = CM_GetHeightAtPoint(server_origin.x, server_origin.y) + cl.playerstate.viewangles.z;
         /* Galaxy camera natives author these snapshot fields; replacing them here kept every cutscene on map defaults. */
         cl.viewDef.camerastate[0].znear = camera.znear;

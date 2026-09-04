@@ -44,7 +44,6 @@ DWORD SFileReadStringLength(HANDLE file) {
     return stringLength;
 }
 
-#ifdef GAME_WORLD
 void SFileReadString(HANDLE file, LPSTR *lppString) {
     DWORD stringLength = SFileReadStringLength(file);
     *lppString = MemAlloc(stringLength);
@@ -249,10 +248,9 @@ static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
     return true;
 }
 
-static void CM_ReadInfo(HANDLE archive) {
+static void __attribute__((unused)) CM_ReadInfo(HANDLE archive) {
     CM_ReadInfoInto(archive, &world.info, false);
 }
-#endif
 
 static void MapInfo_Release(LPMAPINFO mapInfo) {
     mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
@@ -321,7 +319,6 @@ typedef struct {
     BOOL tft;
 } cmPlacementHeader_t;
 
-#ifdef GAME_WORLD
 static BOOL CM_ReadPlacementHeader(HANDLE file, LPCSTR filename, cmPlacementHeader_t *header) {
     DWORD magic;
 
@@ -455,7 +452,7 @@ static BOOL CM_ReadDroppedItemSets(HANDLE file, DWORD *num_sets, droppableItemSe
     return true;
 }
 
-static void CM_ReadDoodads(HANDLE archive) {
+static void __attribute__((unused)) CM_ReadDoodads(HANDLE archive) {
     HANDLE file;
     cmPlacementHeader_t header;
 
@@ -629,7 +626,7 @@ static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, cmPlacementHeader_t co
     return true;
 }
 
-static void CM_ReadUnitDoodads(HANDLE archive) {
+static void __attribute__((unused)) CM_ReadUnitDoodads(HANDLE archive) {
     HANDLE file;
     cmPlacementHeader_t header;
 
@@ -695,7 +692,7 @@ static BOOL CM_ReadWar3MapVertex(HANDLE file, LPWAR3MAPVERTEX vert) {
     return true;
 }
 
-static void CM_ReadHeightmap(HANDLE archive) {
+static void __attribute__((unused)) CM_ReadHeightmap(HANDLE archive) {
     world.map = MemAlloc(sizeof(WAR3MAP));
     HANDLE file;
     if (!SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file)) {
@@ -720,7 +717,6 @@ static void CM_ReadHeightmap(HANDLE archive) {
     }
     SFileCloseFile(file);
 }
-#endif
 
 void CM_ReadModification(HANDLE file, unitModification_t *mod) {
     SFileReadFile(file, &mod->modID, 4, NULL, NULL);

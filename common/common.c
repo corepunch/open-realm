@@ -1458,7 +1458,7 @@ static void Com_PrintMapMatchCallback(LPCSTR path, void *userData) {
 }
 
 #ifdef WOW
-#include "games/world-of-warcraft/common/stb_dbc.h"
+#include "stb_dbc.h"
 
 /* AzerothCore supplies numeric map IDs; the client Map.dbc owns their MPQ directory names. */
 static bool Com_WowMapPathForId(DWORD map_id, LPSTR out, DWORD out_size) {

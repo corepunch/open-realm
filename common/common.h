@@ -6,7 +6,7 @@
 #include "shared.h"
 #include "net.h"
 #include "mpq.h"
-#include "games/warcraft-3/common/mapinfo.h"
+#include "mapinfo.h"
 
 #define MAP_VERTEX_FILE_SIZE 7
 #define MAX_SHEET_LINE 1024
@@ -277,6 +277,15 @@ struct world_state {
     struct Doodad *doodads;
 };
 
+typedef struct {
+    VECTOR3 target;
+    FLOAT distance, pitch, yaw, fov, znear, zfar, height_offset;
+} gameCamera_t;
+
+BOOL CL_GameDefaultCamera(gameCamera_t *camera);
+FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y);
+FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);
+
 extern struct world_state world;
 
 /* Implemented by the selected game's common/world_*.c. */
@@ -332,48 +341,4 @@ void Cvar_ForEachVariable(cmdListFunc_t func, void *userData);
 int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print);
 void Cvar_Describe(LPCSTR name, LPCSTR description);
 
-#endif
-
-#if defined(GAME_WORLD) && !defined(COMMON_GAME_WORLD_IMPORTS)
-#define COMMON_GAME_WORLD_IMPORTS
-extern struct game_import gi;
-static inline HANDLE G_WorldReadFile(LPCSTR filename, LPDWORD size) {
-    return gi.ReadFile(filename, size);
-}
-static inline HANDLE G_WorldMemAlloc(long size) {
-    return gi.MemAlloc(size);
-}
-static inline void G_WorldMemFree(HANDLE mem) {
-    gi.MemFree(mem);
-}
-static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
-    unsigned char utf8_bom[] = { 0xEF, 0xBB, 0xBF };
-    unsigned char utf16le_bom[] = { 0xFF, 0xFE };
-    unsigned char utf16be_bom[] = { 0xFE, 0xFF };
-    size_t len;
-
-    if (!buffer) {
-        return INVALID_BOM;
-    }
-    len = strlen(buffer);
-    if (len >= 3 && memcmp(buffer, utf8_bom, 3) == 0) {
-        memmove(buffer, buffer + 3, len - 3 + 1);
-        return UTF8_BOM_FOUND;
-    }
-    if (len >= 2 && memcmp(buffer, utf16le_bom, 2) == 0) {
-        memmove(buffer, buffer + 2, len - 2 + 1);
-        return UTF16LE_BOM_FOUND;
-    }
-    if (len >= 2 && memcmp(buffer, utf16be_bom, 2) == 0) {
-        memmove(buffer, buffer + 2, len - 2 + 1);
-        return UTF16BE_BOM_FOUND;
-    }
-    return NO_BOM;
-}
-#define FS_ReadFile G_WorldReadFile
-#define FS_FreeFile G_WorldMemFree
-#define MemAlloc G_WorldMemAlloc
-#define MemFree G_WorldMemFree
-#define PF_TextRemoveBom G_WorldTextRemoveBom
-#define Com_Error(code, ...) gi.error(__VA_ARGS__)
 #endif

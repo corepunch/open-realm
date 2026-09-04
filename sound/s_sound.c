@@ -7,7 +7,7 @@
  * output is always S16, 44100 Hz, mono to match the SDL device spec.
  */
 #include "s_local.h"
-#include "games/world-of-warcraft/common/stb_dbc.h"
+#include "common/stb_dbc.h"
 
 sState_t s;
 

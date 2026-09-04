@@ -87,8 +87,8 @@ JASS_HEADERS := $(COMMON_HEADERS) $(CLIENT_HEADERS) $(shell find $(WC3_DIR)/game
 $(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(JASS_HEADERS) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
 $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
-$(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
 $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME
 GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
 
-$(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game-wc3-test,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game-wc3-test,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) -lz))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
