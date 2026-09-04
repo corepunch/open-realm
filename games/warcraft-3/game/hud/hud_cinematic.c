@@ -99,6 +99,7 @@ static void WriteGameplayTransmissionPortrait(LPEDICT ent) {
         frame.flags.type = FT_PORTRAIT;
         frame.color = COLOR32_WHITE;
         frame.tex.index = client->ps.cinematic_portrait;
+        frame.stat = client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR];
         frame.text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
         UI_SetFrameRect(&frame, 0.211f, 0.4865f, 0.0835f, 0.085f);
         UI_WriteProxyFrame(&frame, NULL, 0);
@@ -267,6 +268,7 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     if (has_portrait) {
         /* FT_PORTRAIT serialization reads Portrait.model; Texture.Image left the transmitted model at zero. */
         UI_SetPortraitFrameModel(hud.cinematic.CinematicPortrait, ps->cinematic_portrait);
+        hud.cinematic.CinematicPortrait->Stat = ps->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR];
         hud.cinematic.CinematicPortrait->Text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
     }
 

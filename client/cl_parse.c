@@ -273,11 +273,19 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
     cl.viewDef.camerastate[0].origin.x = server_origin.x;
     cl.viewDef.camerastate[0].origin.y = server_origin.y;
+#ifdef WC3
+    cl.viewDef.camerastate[0].origin.z = cl.playerstate.camera_render.x;
+#else
     cl.viewDef.camerastate[0].origin.z = 0;
+#endif
     cl.viewDef.camerastate[0].viewquat = cl.playerstate.viewquat;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
+#ifdef WC3
+    if (cl.playerstate.camera_render.y > 0.0f) znear = cl.playerstate.camera_render.y;
+    if (cl.playerstate.camera_render.z > 0.0f) zfar = cl.playerstate.camera_render.z;
+#endif
     cl.viewDef.camerastate[0].znear = znear;
     cl.viewDef.camerastate[0].zfar = zfar;
 #ifdef SC2
@@ -296,9 +304,11 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 
     if (first_camera_sample) {
         cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
+#ifdef SC2
     } else {
         cl.viewDef.camerastate[1].znear = znear;
         cl.viewDef.camerastate[1].zfar = zfar;
+#endif
     }
 
     if (cl.camera_prediction.active) {

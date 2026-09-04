@@ -11,6 +11,7 @@ disable user control. Full cinematic policy remains owned by `ShowInterface`,
 The server owns transmission/message state in `games/warcraft-3/game/client_s`:
 
 - `ps.cinematic_portrait` — model index used by the talking-head portrait.
+- `ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR]` — requested player-color index for the portrait render entity.
 - `PLAYERTEXT_SPEAKER` / `PLAYERTEXT_DIALOGUE` — resolved map strings.
 - `cinematic_voice_end_time` — end of `Portrait Talk`; the scene may remain.
 - `cinematic_end_time` — end of the complete transmission scene.
@@ -30,6 +31,7 @@ transmission path use empty strings to decide whether a scene exists.
 ```text
 resolve TRIGSTR speaker/text
   -> resolve portrait unit type to model
+  -> store supported player color for portrait replaceable textures
   -> store scene and voice expiry independently
   -> mark client presentation_dirty
   -> G_RunClients flushes UI_WriteDialoguePresentation for connected clients
@@ -49,6 +51,11 @@ CLIENT_UI_CINEMATIC
 A gameplay transmission does not set `CLIENT_UI_CINEMATIC`. When it expires,
 `G_RunClients` clears transmission state, restores the selected-unit portrait,
 and restores an ordinary timed message if that message is still alive.
+
+`ForceCinematicSubtitles` is registered and consumes its boolean argument, but
+current Warsmash effectively renders gameplay transmission subtitles regardless
+of that override. OpenRealm intentionally matches that behavior for now rather
+than inventing an unverified user-preference policy.
 
 ## Network Lifecycle
 
@@ -161,9 +168,7 @@ The following transmission limitations remain:
   visual parameters. See [alerts-and-minimap-pings.md](alerts-and-minimap-pings.md).
 - `UnitAddIndicator` / `AddIndicator` are still stubs. A speaking-unit marker
   needs per-client lifetime/color state and must not reveal a fogged unit.
-- `SetCinematicScene` player color is not yet applied to the portrait. The MDX
-  renderer currently has a fixed `MAX_TEAMS` texture table, while common.j
-  exposes more player colors; do not silently wrap unsupported colors.
+- `SetCinematicScene` now applies player colors supported by the renderer to both gameplay and full-cinematic portraits. The wire frame carries the color through `uiFrame_t.stat`, and `SCR_LayoutDrawPortrait` assigns it to the portrait render entity. The renderer still has 16 replaceable team-color textures; extended common.j colors are deliberately normalized to color slot 0 instead of wrapping through the renderer mask.
 - Ordinary on-screen text uses one active-message slot rather than Warcraft's
   full multi-message stack. Historical `DisplayText*` entries are retained
   separately by the Message Log.
@@ -181,7 +186,7 @@ Relevant in-engine tests are under `games/warcraft-3/game/tests/t_api.c`:
 - `wc3_api.transient_command_style_text_does_not_enter_message_log`
 - `wc3_api.message_log_is_bounded_and_evicts_oldest_entry`
 - `wc3_api.display_text_uses_automatic_duration`
-- `wc3_api.transmission_keeps_gameplay_ui_and_separates_voice_lifetime`
+- `wc3_api.transmission_keeps_gameplay_ui_and_separates_voice_lifetime` (also covers portrait player-color state and expiry cleanup)
 - `wc3_api.gameplay_transmission_preserves_underlying_timed_message_state`
 
 Run when validating changes:

@@ -358,6 +358,7 @@ struct gregion_s {
 struct gcamerasetup_s {
     FLOAT target_distance;
     FLOAT far_z;
+    FLOAT near_z;
 //    FLOAT angle_of_attack;
     FLOAT fov;      /* vertical field of view in degrees */
 //    FLOAT roll;
@@ -403,6 +404,7 @@ struct client_s {
         BOOL quick_position_set;
         LPEDICT target_controller;
         VECTOR2 target_offset;
+        BOOL target_inherit_orientation;
     } camera;
     /* Single-unit info-panel cache. HP/mana are retained here for save-layout
      * compatibility, but portrait HP/mana now use live player-state bindings. */

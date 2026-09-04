@@ -1568,7 +1568,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 45;
     game.clients[0].camera.state.fov = 61.0f;
     game.clients[0].camera.state.position = (VECTOR2){ 333.0f, 444.0f };
+    game.clients[0].camera.state.z_offset = 222.0f;
+    game.clients[0].camera.state.near_z = 75.0f;
+    game.clients[0].camera.state.far_z = 7000.0f;
     game.clients[0].camera.target_controller = second;
+    game.clients[0].camera.target_inherit_orientation = true;
     T_ASSERT(WriteGame(filename));
     PATHSTR saved_map;
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
@@ -1583,7 +1587,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
     game.clients[0].camera.state.fov = 0.0f;
     game.clients[0].camera.state.position = (VECTOR2){ 0.0f, 0.0f };
+    game.clients[0].camera.state.z_offset = 0.0f;
+    game.clients[0].camera.state.near_z = 0.0f;
+    game.clients[0].camera.state.far_z = 0.0f;
     game.clients[0].camera.target_controller = NULL;
+    game.clients[0].camera.target_inherit_orientation = false;
     game.clients[0].rally_indicator = NULL;
     quest.discovered = quest.required = quest.enabled = false;
     quest.completed = true;
@@ -1615,7 +1623,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(game.clients[0].camera.state.fov, 61.0f);
     T_EQ(game.clients[0].camera.state.position.x, 333.0f);
     T_EQ(game.clients[0].camera.state.position.y, 444.0f);
+    T_FEQ(game.clients[0].camera.state.z_offset, 222.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.state.near_z, 75.0f, 0.001f);
+    T_FEQ(game.clients[0].camera.state.far_z, 7000.0f, 0.001f);
     T_ASSERT(game.clients[0].camera.target_controller == &g_edicts[second - g_edicts]);
+    T_ASSERT(game.clients[0].camera.target_inherit_orientation);
     T_ASSERT(game.clients[0].rally_indicator == &g_edicts[indicator - g_edicts]);
     T_ASSERT(game.clients[0].ps.name == game.clients[0].jass.name);
     T_STREQ(game.clients[0].ps.name, "Jaina");

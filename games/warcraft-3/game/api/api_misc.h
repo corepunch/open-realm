@@ -1357,7 +1357,7 @@ DWORD IsTimerDialogDisplayed(LPJASS j) {
 }
 DWORD SetCinematicScene(LPJASS j) {
     LONG portraitUnitId = jass_checkinteger(j, 1);
-    //HANDLE color = jass_checkhandle(j, 2, "playercolor");
+    DWORD *color = jass_checkhandle(j, 2, "playercolor");
     LPCSTR speakerTitle = jass_checkstring(j, 3);
     LPCSTR text = jass_checkstring(j, 4);
     FLOAT sceneDuration = jass_checknumber(j, 5);
@@ -1369,6 +1369,11 @@ DWORD SetCinematicScene(LPJASS j) {
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
         currentplayer->cinematic_portrait = 0;
+        /* The renderer currently owns 16 replaceable team-color textures.
+         * Keep unsupported extended player colors deterministic instead of
+         * allowing the renderer's bit mask to wrap them onto another color. */
+        currentplayer->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR] =
+            color && *color < MAX_PLAYERS ? *color : 0;
         if (portraitUnitId) {
             LPCSTR model = G_UnitUI((DWORD)portraitUnitId)->modelFile;
             if (model && *model) {
@@ -1391,12 +1396,20 @@ DWORD EndCinematicScene(LPJASS j) {
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, "");
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, "");
         currentplayer->cinematic_portrait = 0;
+        currentplayer->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR] = 0;
         if (gc) {
             gc->cinematic_end_time = 0;
             gc->cinematic_voice_end_time = 0;
         }
         UI_InvalidateDialoguePresentation(PLAYER_ENT(currentplayer));
     }
+    return 0;
+}
+DWORD ForceCinematicSubtitles(LPJASS j) {
+    /* Current Warsmash always renders transmission subtitles even when this
+     * override is false. Consume the native so campaign scripts remain valid
+     * without pretending OpenRealm has a separate subtitle preference yet. */
+    (void)jass_checkboolean(j, 1);
     return 0;
 }
 DWORD NewSoundEnvironment(LPJASS j) {

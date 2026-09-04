@@ -141,6 +141,7 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, origin), NFT_VECTOR2 },
 #ifdef WC3
     { NETF(PLAYER, camera_bounds), NFT_BOX2 },
+    { NETF(PLAYER, camera_render), NFT_VECTOR3_FLOAT },
 #endif
     { NETF(PLAYER, fov), NFT_BYTE },
 #ifdef SC2
@@ -319,30 +320,30 @@ static DWORD MSG_GetBits(void const *from,
         int *toF = (int *)((uint8_t *)to + field->offset);
         switch (field->type) {
             case NFT_VECTOR2:
-                if (memcmp(fromF, toF, sizeof(VECTOR2))!=0) bits |= 1 << (field - fields);
+                if (memcmp(fromF, toF, sizeof(VECTOR2))!=0) bits |= 1u << (field - fields);
                 break;
             case NFT_BOX2:
-                if (memcmp(fromF, toF, sizeof(BOX2))!=0) bits |= 1 << (field - fields);
+                if (memcmp(fromF, toF, sizeof(BOX2))!=0) bits |= 1u << (field - fields);
                 break;
             case NFT_VECTOR3:
             case NFT_VECTOR3_FLOAT:
-                if (memcmp(fromF, toF, sizeof(VECTOR3))!=0) bits |= 1 << (field - fields);
+                if (memcmp(fromF, toF, sizeof(VECTOR3))!=0) bits |= 1u << (field - fields);
                 break;
             case NFT_QUATERNION:
-                if (memcmp(fromF, toF, sizeof(QUATERNION))!=0) bits |= 1 << (field - fields);
+                if (memcmp(fromF, toF, sizeof(QUATERNION))!=0) bits |= 1u << (field - fields);
                 break;
             case NFT_BYTE:
-                if (*(uint8_t *)fromF != *(uint8_t *)toF) bits |= 1 << (field - fields);
+                if (*(uint8_t *)fromF != *(uint8_t *)toF) bits |= 1u << (field - fields);
                 break;
             case NFT_SHORT:
-                if (*(uint16_t *)fromF != *(uint16_t *)toF) bits |= 1 << (field - fields);
+                if (*(uint16_t *)fromF != *(uint16_t *)toF) bits |= 1u << (field - fields);
                 break;
             default:
                 if (*fromF != *toF) {
                     if (!text_offsets && (field->type == NFT_TEXT || field->type == NFT_DUPTEXT) && **((LPCSTR *)toF) == 0) {
                         continue;
                     }
-                    bits |= 1 << (field - fields);
+                    bits |= 1u << (field - fields);
                 }
                 break;
         }
@@ -357,7 +358,7 @@ static void MSG_WriteFields(LPSIZEBUF msg,
                             BOOL text_offsets)
 {
     for (netField_t *field = fields; field->name; field++) {
-        if ((bits & (1 << (field - fields))) == 0)
+        if ((bits & (1u << (field - fields))) == 0)
             continue;
         int *toF = (int *)((uint8_t *)to + field->offset);
         FLOAT *_float = (FLOAT *)toF;
@@ -390,7 +391,7 @@ static void MSG_ReadFields(LPSIZEBUF msg,
                            BOOL text_offsets)
 {
     for (netField_t *field = fields; field->name; field++) {
-        if ((bits & (1 << (field - fields))) == 0)
+        if ((bits & (1u << (field - fields))) == 0)
             continue;
         int *toF = (int *)((uint8_t *)edict + field->offset);
         FLOAT *_float = (FLOAT *)toF;
