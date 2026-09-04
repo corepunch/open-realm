@@ -139,6 +139,8 @@ void SCR_EndLoadingPlaque(void) {
 
 void SCR_DrawScreenField(DWORD msec) {
     re.BeginFrame();
+    if (menu.UpdatePlayerState)
+        menu.UpdatePlayerState(&cl.playerstate);
 
     switch (cls.state) {
     default:

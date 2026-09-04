@@ -11,6 +11,7 @@
 #include "common/shared.h"
 #include "client/client.h"
 #include "client/menu.h"
+#include "client/model_matrix.h"
 
 /* Layout frame draw function pointer */
 typedef void (*layoutDrawFunc_t)(LPCUIFRAME frame, LPCRECT screen);

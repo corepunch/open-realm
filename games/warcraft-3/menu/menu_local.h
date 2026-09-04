@@ -22,6 +22,7 @@ typedef struct uiScreen_s uiScreen_t;  /* Defined in menu_screen.h */
 
 /* Global import callbacks (filled by M_GetAPI) */
 extern menuImport_t menuimport;
+extern LPCPLAYER menu_player;
 
 /* Internal function prototypes */
 
@@ -144,7 +145,6 @@ COLOR32 Theme_ListBoxIconTextColor(void);
 
 /* menu_render.c — Frame rendering */
 void UI_DrawFrame(LPCFRAMEDEF frame);
-void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL M_EditKey(int key);
 BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);

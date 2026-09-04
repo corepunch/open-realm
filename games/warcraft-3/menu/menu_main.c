@@ -12,6 +12,9 @@
 
 /* Global import table filled by M_GetAPI */
 menuImport_t menuimport;
+LPCPLAYER menu_player;
+
+void M_UpdatePlayerState(LPCPLAYER state) { menu_player = state; }
 
 /* Internal state */
 typedef struct {
@@ -340,50 +343,6 @@ static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
     return model[0] ? UI_LoadModel(model, false) : 0;
 }
 
-static void UI_UpdateLoadingMapInfo(void) {
-    MAPINFO info;
-    /* Compare the current destination, not the cached path itself, so subsequent maps reload their artwork. */
-    LPCSTR map_path = menuimport.Cvar_String("map", "");
-    DWORD background_model = 0;
-    DWORD background_sequence = 0;
-
-    if (!map_path || !*map_path || !strcmp(loading_state.map, map_path)) {
-        return;
-    }
-
-    memset(&info, 0, sizeof(info));
-    memset(&loading_state, 0, sizeof(loading_state));
-    snprintf(loading_state.map, sizeof(loading_state.map), "%s", map_path);
-
-    if (UI_ReadMapInfo(map_path, &info)) {
-        UI_ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
-        if (!loading_state.title[0]) {
-            UI_ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
-        }
-        UI_ResolveMapInfoString(&info,
-                                info.loadingScreenSubtitle,
-                                loading_state.subtitle,
-                                sizeof(loading_state.subtitle));
-        UI_ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
-        UI_SanitizeMapInfoText(loading_state.title);
-        UI_SanitizeMapInfoText(loading_state.subtitle);
-        UI_SanitizeMapInfoText(loading_state.text);
-        background_model = UI_CustomLoadingModel(&info);
-        if (!background_model && info.campaignBackgroundNumber != (DWORD)-1) {
-            background_model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &background_sequence);
-        }
-        UI_FreeMapInfo(&info);
-    }
-
-    if (!loading_state.title[0]) {
-        UI_DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
-    }
-
-    loading_state.background_model = background_model ? background_model : UI_DefaultLoadingModel();
-    loading_state.background_sequence = background_sequence;
-    loading_state.progress_model = UI_LoadModel("LoadingProgressBar", true);
-}
-
 static void UI_InitLoadingScreen(void) {
     LoadingScreen_Load(&loading_screen);
     if (loading_screen.LoadingCustomPanel) {
@@ -394,15 +353,33 @@ static void UI_InitLoadingScreen(void) {
     }
 }
 
-static void M_DrawLoadingScreen(void) {
-    UI_UpdateLoadingMapInfo();
-
-    if (!loading_screen.Loading) {
-        return;
+static void UI_UpdateLoadingMapInfo(void) {
+    MAPINFO info;
+    LPCSTR map_path = menuimport.Cvar_String("map", "");
+    DWORD model = 0, seq = 0;
+    if (!map_path || !*map_path || !strcmp(loading_state.map, map_path)) return;
+    memset(&info, 0, sizeof(info)); memset(&loading_state, 0, sizeof(loading_state));
+    snprintf(loading_state.map, sizeof(loading_state.map), "%s", map_path);
+    if (UI_ReadMapInfo(map_path, &info)) {
+        UI_ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
+        if (!loading_state.title[0]) UI_ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
+        UI_ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
+        UI_ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
+        UI_SanitizeMapInfoText(loading_state.title); UI_SanitizeMapInfoText(loading_state.subtitle); UI_SanitizeMapInfoText(loading_state.text);
+        model = UI_CustomLoadingModel(&info);
+        if (!model && info.campaignBackgroundNumber != (DWORD)-1) model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &seq);
+        UI_FreeMapInfo(&info);
     }
+    if (!loading_state.title[0]) UI_DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
+    loading_state.background_model = model ? model : UI_DefaultLoadingModel();
+    loading_state.background_sequence = seq;
+    loading_state.progress_model = UI_LoadModel("LoadingProgressBar", true);
+}
+
+static void M_DrawLoadingScreen(void) {
+    if (!loading_screen.Loading) return;
     if (loading_screen.LoadingBackground) {
-        snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u",
-                 (unsigned)loading_state.background_sequence);
+        snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u", (unsigned)loading_state.background_sequence);
         loading_screen.LoadingBackground->Text = loading_screen.LoadingBackground->TextStorage;
         loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
@@ -411,16 +388,9 @@ static void M_DrawLoadingScreen(void) {
         loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
         loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }
-    if (loading_screen.LoadingTitleText) {
-        UI_SetTextPointer(loading_screen.LoadingTitleText, loading_state.title);
-    }
-    if (loading_screen.LoadingSubtitleText) {
-        UI_SetTextPointer(loading_screen.LoadingSubtitleText, loading_state.subtitle);
-    }
-    if (loading_screen.LoadingText) {
-        UI_SetTextPointer(loading_screen.LoadingText, loading_state.text);
-    }
-
+    if (loading_screen.LoadingTitleText) UI_SetTextPointer(loading_screen.LoadingTitleText, loading_state.title);
+    if (loading_screen.LoadingSubtitleText) UI_SetTextPointer(loading_screen.LoadingSubtitleText, loading_state.subtitle);
+    if (loading_screen.LoadingText) UI_SetTextPointer(loading_screen.LoadingText, loading_state.text);
     UI_DrawFrame(loading_screen.Loading);
 }
 
@@ -510,17 +480,16 @@ void M_Refresh(DWORD time) {
 
     ui_state.time = time;
 
+    if (menu_player && menu_player->client_ui_state == CLIENT_UI_LOADING) {
+        UI_UpdateLoadingMapInfo();
+        M_DrawLoadingScreen();
+        return;
+    }
+
     /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->refresh) {
         screen->refresh((int)time);
-    }
-
-    /* Draw the loading screen whenever the server reports CLIENT_UI_LOADING. */
-    LPCPLAYER ps = menuimport.GetPlayerState();
-    if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
-        M_DrawLoadingScreen();
-        return;
     }
 
     if (screen && screen->draw)
@@ -837,6 +806,7 @@ menuExport_t M_GetAPI(menuImport_t import) {
     exp.TextInput = M_TextInput;
     exp.MouseEvent = M_MouseEvent;
     exp.UpdateUnitUI = M_UpdateUnitUI;
+    exp.UpdatePlayerState = M_UpdatePlayerState;
     exp.UpdateLobbySetup = M_UpdateLobbySetup;
     exp.ResolveImagePath = M_ResolveImagePath;
     

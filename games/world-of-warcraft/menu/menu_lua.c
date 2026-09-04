@@ -8,6 +8,13 @@
  */
 #include "menu_local.h"
 
+static void UIWow_LuaSetInteger(lua_State *L, LPCSTR name, lua_Integer value);
+
+static void UIWow_LuaSetInteger(lua_State *L, LPCSTR name, lua_Integer value) {
+    lua_pushinteger(L, value);
+    lua_setfield(L, -2, name);
+}
+
 #include <strings.h>
 
 #ifndef LUA_OK
@@ -78,21 +85,6 @@ static int UIWow_LuaDrawImageUV(lua_State *L) {
 
     if (wow_ui.renderer && texture) {
         wow_ui.renderer->DrawImage(texture, &screen, &uv, color);
-    }
-    lua_pushboolean(L, texture != NULL);
-    return 1;
-}
-
-static int UIWow_LuaDrawImageIndex(lua_State *L) {
-    DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    RECT screen = UIWow_LuaRect(L, 2);
-    RECT uv = MAKE(RECT, 0, 0, 1, 1);
-    COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
-    LPCTEXTURE texture = menuimport.GetTexture ? menuimport.GetTexture(index) : NULL;
-
-    UIWow_EnsureRenderer();
-    if (wow_ui.renderer && texture) {
-        wow_ui.renderer->DrawImage((LPTEXTURE)texture, &screen, &uv, color);
     }
     lua_pushboolean(L, texture != NULL);
     return 1;
@@ -223,57 +215,41 @@ static int UIWow_LuaDrawText(lua_State *L) {
 
 static int UIWow_LuaStat(lua_State *L) {
     DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-
-    lua_pushinteger(L, ps && index < MAX_STATS ? ps->stats[index] : 0);
+    lua_pushinteger(L, wow_player && index < MAX_STATS ? wow_player->stats[index] : 0);
     return 1;
 }
 
 static int UIWow_LuaText(lua_State *L) {
     DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-    LPCSTR text = ps && index < MAX_STATS && ps->texts[index] ? ps->texts[index] : "";
-
+    LPCSTR text = wow_player && index < MAX_STATS && wow_player->texts[index] ? wow_player->texts[index] : "";
     lua_pushstring(L, text);
     return 1;
 }
 
 static int UIWow_LuaPlayerName(lua_State *L) {
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-    LPCSTR name = ps && ps->name && *ps->name ? ps->name : "Player";
-
-    lua_pushstring(L, name);
+    lua_pushstring(L, wow_player && wow_player->name && *wow_player->name ? wow_player->name : "Player");
     return 1;
 }
 
-static void UIWow_LuaSetInteger(lua_State *L, LPCSTR name, lua_Integer value) {
-    lua_pushinteger(L, value);
-    lua_setfield(L, -2, name);
-}
-
 static void UIWow_LuaSetPlayerField(lua_State *L, LPCSTR name, int stat) {
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-
-    lua_pushinteger(L, ps ? ps->stats[stat] : 0);
+    lua_pushinteger(L, wow_player ? wow_player->stats[stat] : 0);
     lua_setfield(L, -2, name);
 }
 
 static int UIWow_LuaPlayer(lua_State *L) {
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-
     lua_newtable(L);
-    lua_pushstring(L, ps && ps->name && *ps->name ? ps->name : "Player");
+    lua_pushstring(L, wow_player && wow_player->name && *wow_player->name ? wow_player->name : "Player");
     lua_setfield(L, -2, "name");
-    lua_pushinteger(L, (ps && ps->client_ui_state == CLIENT_UI_GAME) ? 1 : 0);
+    lua_pushinteger(L, wow_player && wow_player->client_ui_state == CLIENT_UI_GAME ? 1 : 0);
     lua_setfield(L, -2, "client_ui_state");
-    UIWow_LuaSetPlayerField(L, "health",    WOW_STAT_HEALTH);
+    UIWow_LuaSetPlayerField(L, "health", WOW_STAT_HEALTH);
     UIWow_LuaSetPlayerField(L, "healthMax", WOW_STAT_HEALTH_MAX);
-    UIWow_LuaSetPlayerField(L, "power",     WOW_STAT_POWER);
-    UIWow_LuaSetPlayerField(L, "powerMax",  WOW_STAT_POWER_MAX);
-    UIWow_LuaSetPlayerField(L, "level",     WOW_STAT_LEVEL);
-    UIWow_LuaSetPlayerField(L, "xp",        WOW_STAT_XP);
-    UIWow_LuaSetPlayerField(L, "xpMax",     WOW_STAT_XP_MAX);
-    UIWow_LuaSetPlayerField(L, "copper",    WOW_STAT_COPPER);
+    UIWow_LuaSetPlayerField(L, "power", WOW_STAT_POWER);
+    UIWow_LuaSetPlayerField(L, "powerMax", WOW_STAT_POWER_MAX);
+    UIWow_LuaSetPlayerField(L, "level", WOW_STAT_LEVEL);
+    UIWow_LuaSetPlayerField(L, "xp", WOW_STAT_XP);
+    UIWow_LuaSetPlayerField(L, "xpMax", WOW_STAT_XP_MAX);
+    UIWow_LuaSetPlayerField(L, "copper", WOW_STAT_COPPER);
     UIWow_LuaSetPlayerField(L, "selectedActionSlot", WOW_STAT_SELECTED_ACTION);
     return 1;
 }
@@ -286,6 +262,8 @@ static void UIWow_LuaPushIcon(lua_State *L, uiWowIcon_t const *icon) {
     lua_setfield(L, -2, "count");
     lua_pushinteger(L, icon ? icon->slot : 0);
     lua_setfield(L, -2, "slot");
+    lua_pushstring(L, icon ? icon->art : "");
+    lua_setfield(L, -2, "art");
     lua_pushstring(L, icon && icon->name[0] ? icon->name : "");
     lua_setfield(L, -2, "name");
 }
@@ -355,13 +333,7 @@ static int UIWow_LuaGetLoadingProgress(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingTitle(lua_State *L) {
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-    LPCSTR title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
-
-    if (!title || !*title) {
-        title = "";
-    }
-    lua_pushstring(L, title ? title : "");
+    lua_pushstring(L, wow_player && wow_player->texts[PLAYERTEXT_MAP_TITLE] ? wow_player->texts[PLAYERTEXT_MAP_TITLE] : "");
     return 1;
 }
 
@@ -546,7 +518,6 @@ static luaL_Reg const wow_lua_funcs[] = {
     { "draw_loading_background", UIWow_LuaDrawLoadingBackground },
     { "draw_image",          UIWow_LuaDrawImage },
     { "draw_image_uv",       UIWow_LuaDrawImageUV },
-    { "draw_image_index",    UIWow_LuaDrawImageIndex },
     { "draw_image_additive", UIWow_LuaDrawImageAdditive },
     { "draw_color",          UIWow_LuaDrawColor },
     { "draw_backdrop",       UIWow_LuaDrawBackdrop },
@@ -555,10 +526,10 @@ static luaL_Reg const wow_lua_funcs[] = {
     { "get_loading_progress",UIWow_LuaGetLoadingProgress },
     { "get_loading_title",   UIWow_LuaGetLoadingTitle },
     { "get_loading_status",  UIWow_LuaGetLoadingStatus },
-    { "stat",             UIWow_LuaStat },
-    { "text",             UIWow_LuaText },
-    { "player_name",      UIWow_LuaPlayerName },
-    { "player",           UIWow_LuaPlayer },
+    { "stat",                UIWow_LuaStat },
+    { "text",                UIWow_LuaText },
+    { "player_name",         UIWow_LuaPlayerName },
+    { "player",              UIWow_LuaPlayer },
     { "inventory",        UIWow_LuaInventory },
     { "actions",          UIWow_LuaActions },
     { "time",             UIWow_LuaTime },
@@ -955,9 +926,7 @@ void UIWow_CallLuaDraw(void) {
 }
 
 void UIWow_CallLuaUpdate(DWORD msec) {
-    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
-
-    if (!wow_ui.lua || !ps || ps->client_ui_state != CLIENT_UI_GAME) {
+    if (!wow_ui.lua || !wow_player || wow_player->client_ui_state != CLIENT_UI_GAME) {
         if (!wow_ui.lua) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; update callback skipped\n");
         }

@@ -7,8 +7,8 @@ local function image(path, x, y, w, h) W.draw_image(path, px(x, y, w, h)) end
 local function image_uv(path, x, y, w, h, l, r, t, b)
     W.draw_image_uv(path, x / VW, y / VH, w / VW, h / VH, l, r, t, b)
 end
-local function icon(index, x, y, w, h)
-    if index and index > 0 then W.draw_image_index(index, px(x, y, w, h)) end
+local function icon(path, x, y, w, h)
+    if path and path ~= '' then image(path, x, y, w, h) end
 end
 local function bar(x, y, w, h, value, maxvalue, r, g, b)
     W.draw_color(x / VW, y / VH, w / VW, h / VH, 12, 10, 8, 220)
@@ -21,7 +21,7 @@ local function text(str, x, y, w, h, size, r, g, b, a, align)
 end
 local function action_button(action, x, y)
     image('Interface\\Buttons\\UI-Quickslot2.blp', x - 14, y - 13, 64, 64)
-    icon(action and action.image, x + 2, y + 2, 32, 32)
+    icon(action and action.art, x + 2, y + 2, 32, 32)
     if action and action.count and action.count > 1 then
         text(tostring(action.count), x + 2, y + 23, 32, 10, 10, 255, 255, 255, 255, 'right')
     end
@@ -47,8 +47,8 @@ function ow3_draw_hud()
 
     W.draw_image('Interface\\Test\\LuaPanel.blp', 0.100, 0.200, 0.300, 0.050)
     local first_inv = inv[1]
-    if first_inv and first_inv.image > 0 then
-        W.draw_image_index(first_inv.image, 0.140, 0.260, 0.040, 0.040)
+    if first_inv and first_inv.art and first_inv.art ~= '' then
+        W.draw_image(first_inv.art, 0.140, 0.260, 0.040, 0.040)
     end
     W.draw_color(0.200, 0.320, 0.120, 0.020, 10, 20, 30, 240)
     text(p.name .. ':' .. p.health .. ':' .. elapsed, 0.210, 0.350, 0.400, 0.030,

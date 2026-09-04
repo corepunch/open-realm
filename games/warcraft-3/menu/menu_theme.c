@@ -123,15 +123,9 @@ static LPCSTR UI_ThemeRaceCategory(DWORD race) {
 }
 
 static LPCSTR UI_ThemeEffectiveCategory(LPCSTR category) {
-    LPCPLAYER ps;
     LPCSTR player_category;
-
-    if (!category || !*category || strcmp(category, "Default")) {
-        return category;
-    }
-
-    ps = menuimport.GetPlayerState();
-    player_category = ps ? UI_ThemeRaceCategory(ps->race) : NULL;
+    if (!category || !*category || strcmp(category, "Default")) return category;
+    player_category = menu_player ? UI_ThemeRaceCategory(menu_player->race) : NULL;
     return player_category ? player_category : category;
 }
 
