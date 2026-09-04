@@ -125,7 +125,8 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 refImport_t ri;
 struct render_globals tr;
 static DWORD load_count, release_count, register_count;
-static BOOL fail_load, touch_during_registration;
+static BOOL fail_load, fail_scoped_load, touch_during_registration;
+static PATHSTR last_model_load;
 static DWORD spawn_count;
 static LPTEXTURE texture_load_result;
 static GLenum upload_format, upload_internal;
@@ -213,14 +214,18 @@ static void test_spawn(void *context) { (*(DWORD *)context)++; }
 LPTEXTURE R_LoadTexture(LPCSTR filename) { (void)filename; return texture_load_result; }
 
 LPMODEL R_LoadModel(LPCSTR filename) {
-    (void)filename; load_count++;
-    return fail_load ? NULL : test_alloc(sizeof(model_t));
+    load_count++;
+    snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
+    if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
+    return test_alloc(sizeof(model_t));
 }
 
 void R_ReleaseModel(LPMODEL model) { release_count++; test_free(model); }
 
 void R_RegisterMap(LPCSTR map) {
-    (void)map; register_count++;
+    if (map && (strstr(map, ".w3m") || strstr(map, ".w3x"))) R_SetMapAssetScope(map);
+    else R_SetMapAssetScope(NULL);
+    register_count++;
     if (touch_during_registration) R_LoadRegisteredModel("models/touched.mdx");
 }
 
@@ -228,7 +233,8 @@ static void reset_registry(void) {
     R_ShutdownModels();
     ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
     load_count = release_count = register_count = 0;
-    fail_load = touch_during_registration = false;
+    fail_load = fail_scoped_load = touch_during_registration = false;
+    last_model_load[0] = '\0';
 }
 
 static LPTEXTURE reset_texture_registry(void) {
@@ -312,6 +318,39 @@ TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
     T_EQ(vertices[0].color.b, 255); T_EQ(vertices[0].color.a, 255);
     T_EQ(indices[2], 0); T_EQ(indices[3], 0); T_EQ((int)first.indexofs, 0); T_EQ((int)second.indexofs, 6);
     ri.MemFree(first.matrixPalette); ri.MemFree(second.matrixPalette);
+}
+
+TEST(renderer_model, map_scope_precedes_base_model_and_clears_at_boundary) {
+    LPMODEL first, second;
+
+    reset_registry();
+    R_RegisterMapAssets("Maps\\Campaign\\Human02.w3m");
+    first = R_LoadRegisteredModel("Units\\Human\\Footman\\Footman.mdx");
+    second = R_LoadRegisteredModel("Units\\Human\\Footman\\Footman.mdx");
+    T_ASSERT(first == second);
+    T_EQ(load_count, 1);
+    T_STREQ(last_model_load, "Maps\\Campaign\\Human02.w3m\\Units\\Human\\Footman\\Footman.mdx");
+    R_ReleaseRegisteredModel(first);
+    R_ReleaseRegisteredModel(second);
+    R_RegisterMapAssets(NULL);
+    T_EQ(register_count, 1);
+    T_EQ(release_count, 1);
+
+    first = R_LoadRegisteredModel("Units\\Human\\Footman\\Footman.mdx");
+    T_STREQ(last_model_load, "Units\\Human\\Footman\\Footman.mdx");
+    R_ReleaseRegisteredModel(first);
+}
+
+TEST(renderer_model, map_scope_falls_back_when_import_is_absent) {
+    LPMODEL model;
+
+    reset_registry();
+    R_RegisterMapAssets("Maps\\Campaign\\Human03.w3m");
+    fail_scoped_load = true;
+    model = R_LoadRegisteredModel("Units\\Human\\Peasant\\Peasant.mdx");
+    T_EQ(load_count, 2);
+    T_STREQ(last_model_load, "Units\\Human\\Peasant\\Peasant.mdx");
+    R_ReleaseRegisteredModel(model);
 }
 
 TEST(renderer_model, filename_cache_hit_and_miss) {

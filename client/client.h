@@ -213,6 +213,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
 void SCR_UpdateScreen(DWORD msec);
 void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
+void SCR_ClearLayoutResources(void);
 
 // cl_screenshot.c
 extern BOOL cl_screenshot_pending;

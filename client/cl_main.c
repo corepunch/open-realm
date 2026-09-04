@@ -97,10 +97,30 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
     SAFE_DELETE(cl.minimap_model, re.ReleaseModel);
+    SAFE_DELETE(cl.moveConfirmation, re.ReleaseModel);
+    FOR_LOOP(model, MAX_MODELS) {
+        SAFE_DELETE(cl.models[model], re.ReleaseModel);
+        SAFE_DELETE(cl.portraits[model], re.ReleaseModel);
+    }
+    FOR_LOOP(image, MAX_IMAGES) {
+        if (cl.pics[image]) {
+            re.ReleaseTexture((LPTEXTURE)cl.pics[image]);
+            cl.pics[image] = NULL;
+        }
+    }
+    FOR_LOOP(image, MAX_DYNAMIC_IMAGES) {
+        SAFE_DELETE(cl.dynamicPics[image], re.ReleaseTexture);
+    }
+    SCR_ClearLayoutResources();
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         SCR_ClearLayoutLayer(layer);
     }
+
+    /* Release per-map model ownership before advancing the renderer's
+     * registration sequence, and clear any map-archive asset scope so
+     * menus cannot inherit the previous level's imported overrides. */
+    if (re.RegisterMap) re.RegisterMap(NULL);
 
     memset(&cl, 0, sizeof(struct client_state));
 

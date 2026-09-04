@@ -8,6 +8,9 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
 LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer);
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cliff);
 LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy);
+void R_ResetGroundTextures(void);
+void R_ResetCliffCache(void);
+void _W3M_ClearMap(void);
 
 VECTOR2 GetWar3MapPosition(LPCWAR3MAP war3Map, float x, float y);
 float GetTileDepth(float waterlevel, float height);

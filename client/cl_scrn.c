@@ -1127,6 +1127,14 @@ void SCR_ClearLayoutLayer(DWORD layer) {
     if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = NULL;
 }
 
+void SCR_ClearLayoutResources(void) {
+    FOR_LOOP(i, MAX_DYNAMIC_IMAGES) {
+        SAFE_DELETE(layout_dynamic_pics[i], re.ReleaseTexture);
+        layout_dynamic_pic_names[i][0] = '\0';
+    }
+    layout_dynamic_pic_cursor = 0;
+}
+
 static BOOL SCR_LayoutLayerVisible(DWORD layer) { return layer < MAX_LAYOUT_LAYERS && layout_layers[layer] && !((1u << layer) & cl.playerstate.uiflags); }
 
 /* Result screens outrank Quest when malformed/server-overlapping modal layers coexist. */

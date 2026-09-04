@@ -6,6 +6,10 @@ MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[IND
 
 LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 
+void R_ResetGroundTextures(void) {
+    memset(g_groundTextures, 0, sizeof(g_groundTextures));
+}
+
 #define GROUND_VERTEX_BUFFER_CAPACITY (SEGMENT_SIZE * SEGMENT_SIZE * 6)
 
 static VERTEX ground_vertex_buffer[GROUND_VERTEX_BUFFER_CAPACITY];

@@ -103,6 +103,7 @@ void R_Init(void) {
 }
 
 void R_Shutdown(void) {
+    _W3M_ClearMap();
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
     cursor_model = NULL; cursor_load_attempted = false;
     FS_SLKFreeIndex(&g_terrain_idx);
@@ -168,6 +169,8 @@ void R_DrawMinimap(LPCRECT screen) {
 }
 
 void R_RegisterMap(LPCSTR mapFileName) {
+    R_SetMapAssetScope(mapFileName);
+    memset(&model_texture_cache, 0, sizeof(model_texture_cache));
     _W3M_RegisterMap(mapFileName);
 }
 

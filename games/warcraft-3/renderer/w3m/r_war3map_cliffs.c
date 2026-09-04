@@ -76,7 +76,21 @@ struct tCliffTexture {
     struct tCliffTexture *next;
 };
 
-static struct tCliffTexture *g_cliff_textures = NULL; /* TODO: verify if still needed — R_LoadTexture doesn't cache by path, so this avoids redundant file reads for the same cliff texture across map segments */
+static struct tCliffTexture *g_cliff_textures = NULL; /* Per-map resolved cliff texture choices; renderer texture storage remains cache-owned. */
+
+void R_ResetCliffCache(void) {
+    while (g_cliffs) {
+        struct tCliff *next = g_cliffs->next;
+        if (g_cliffs->model) R_ReleaseModel((LPMODEL)g_cliffs->model);
+        ri.MemFree(g_cliffs);
+        g_cliffs = next;
+    }
+    while (g_cliff_textures) {
+        struct tCliffTexture *next = g_cliff_textures->next;
+        ri.MemFree(g_cliff_textures);
+        g_cliff_textures = next;
+    }
+}
 
 // HELPERS
 
@@ -142,9 +156,12 @@ static LPCMODEL R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool
             return it->model;
     }
     struct tCliff *cliff = ri.MemAlloc(sizeof(struct tCliff));
+    PATHSTR scoped;
     cliff->cliffid = cliffid;
     snprintf(zBuffer, sizeof(zBuffer), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
-    cliff->model = R_LoadModel(zBuffer);
+    cliff->model = NULL;
+    if (R_MapAssetCandidate(zBuffer, scoped, sizeof(scoped))) cliff->model = R_LoadModel(scoped);
+    if (!cliff->model) cliff->model = R_LoadModel(zBuffer);
     ADD_TO_LIST(cliff, g_cliffs);
     return cliff->model;
 }
