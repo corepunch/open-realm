@@ -467,15 +467,23 @@ typedef enum {
     UI_PLAYERSTAT_SELECTION_MAX_HEALTH,
     UI_PLAYERSTAT_SELECTION_MANA,
     UI_PLAYERSTAT_SELECTION_MAX_MANA,
+    UI_PLAYERSTAT_SELECTION_TIMED_STATUS, /* 0..USHRT_MAX; selected-unit timed-status remaining fraction */
 } UIPLAYERSTAT;
 
 typedef enum {
+    /* uiFrame_t.stat is NFT_BYTE on the wire. Keep generic special bindings
+     * inside the reserved high-byte range and below 251 so the established
+     * selection/context bindings retain their values. */
+    UI_STAT_SELECTION_TIMED_STATUS = 250, /* statusbar binding; reads normalized selected-unit timer player stat */
     UI_STAT_SELECTION_HEALTH_TEXT = 251,
     UI_STAT_SELECTION_MANA_TEXT,
     UI_STAT_CONTEXT_NAME,
     UI_STAT_CONTEXT_HEALTH,
     UI_STAT_CONTEXT_MANA,
 } UIFRAMESTAT;
+
+_Static_assert(UI_STAT_CONTEXT_MANA <= UINT8_MAX,
+               "uiFrame_t.stat bindings must fit the NFT_BYTE wire field");
 
 typedef enum {
     CLIENT_UI_GAME,

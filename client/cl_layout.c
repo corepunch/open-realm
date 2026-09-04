@@ -1,3 +1,5 @@
+#include <limits.h>
+
 #include "client.h"
 
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
@@ -142,9 +144,16 @@ LPCENTITYSTATE SCR_LayoutContextEntity(void) {
 }
 
 BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
-    LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+    LPCENTITYSTATE ent;
 
-    if (!ent || !value) return false;
+    if (!value) return false;
+    if (stat == UI_STAT_SELECTION_TIMED_STATUS) {
+        *value = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] / (FLOAT)USHRT_MAX;
+        return true;
+    }
+
+    ent = SCR_LayoutContextEntity();
+    if (!ent) return false;
     switch (stat) {
         case UI_STAT_CONTEXT_HEALTH:
             *value = ent->stats[ENT_HEALTH] / 255.0f;

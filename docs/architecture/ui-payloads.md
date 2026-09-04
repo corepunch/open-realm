@@ -173,8 +173,11 @@ Relevant regressions:
 ## Entity-Context Bindings
 
 `uiFrame_t.stat` remains an unsigned byte on the wire. Values below `MAX_STATS` bind player numeric stats, the existing
-`MAX_STATS` range binds player text slots, and the reserved high values `UI_STAT_CONTEXT_NAME`, `UI_STAT_CONTEXT_HEALTH`, and
-`UI_STAT_CONTEXT_MANA` bind a server-declared frame to the current layout context.
+`MAX_STATS` range binds player text slots, and reserved high-byte values bind generic live presentation contexts.
+`UI_STAT_SELECTION_TIMED_STATUS` uses value 250 for the selected-unit timer, while `UI_STAT_SELECTION_HEALTH_TEXT`,
+`UI_STAT_SELECTION_MANA_TEXT`, `UI_STAT_CONTEXT_NAME`, `UI_STAT_CONTEXT_HEALTH`, and `UI_STAT_CONTEXT_MANA` occupy 251..255.
+Keep new special bindings at or below 255; `common/shared.h` asserts the high end of this range so an enum append cannot silently
+truncate through the `NFT_BYTE` UI-frame codec.
 
 `LAYER_WORLD_HOVER` uses `cl.hover_entity` as that context only when the recipient's snapshot carries `EF_HOVER_HEALTH`, a live
 model, and nonzero health. The generic client resolves the pooled name from `entityState_t.name`/`CS_GENERAL`, reads compressed health

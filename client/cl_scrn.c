@@ -331,6 +331,19 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     RECT screen2 = *screen, uv2 = uv;
     FLOAT value = frame->value;
     SCR_LayoutContextValue(frame->stat, &value);
+    if (frame->stat == UI_STAT_SELECTION_TIMED_STATUS && Cvar_Integer("ui_layout_debug", 0) >= 3) {
+        static int last_bucket = -1;
+        int const bucket = (int)(MAX(0.0f, MIN(1.0f, value)) * 20.0f);
+        if (bucket != last_bucket || Cvar_Integer("ui_layout_debug", 0) >= 4) {
+            fprintf(stderr,
+                    "UI_TIMED_STATUS draw frame=%u layer=%u value=%.4f raw=%u rect=(%.4f,%.4f %.4fx%.4f) tex=%u border=%u\n",
+                    (unsigned)frame->number, (unsigned)layout_current_layer, value,
+                    (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS],
+                    screen->x, screen->y, screen->w, screen->h,
+                    (unsigned)frame->tex.index, (unsigned)frame->tex.index2);
+            last_bucket = bucket;
+        }
+    }
     screen2.w *= value;
     uv2.w    *= value;
     RECT const suv2 = Rect_div(&uv2, 0xff);

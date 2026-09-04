@@ -160,6 +160,7 @@ void G_SetUnitPlayer(LPEDICT unit, DWORD player) {
     unit->s.player = player;
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);
+    G_InvalidateUnitInfoPanel(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
 }
 

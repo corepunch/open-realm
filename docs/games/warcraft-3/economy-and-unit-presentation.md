@@ -345,8 +345,10 @@ Buff/status presentation is a separate runtime strip at the bottom of `SimpleInf
 label's right edge at `+0.001` and later icons chained at the same gap. Icon, tip, and ubertip metadata comes from Warcraft's
 `Units\AbilityBuffData.slk` (`Buffart`, `Bufftip`, `Buffubertip`) with standard profile TXT values allowed to override it. The shared
 `abilstatus[]` array also carries cooldown bookkeeping, so only entries that resolve as buff UI metadata are rendered in this strip;
-`BTLF` remains reserved for timed-life presentation. Adding, replacing, removing, or expiring a status invalidates the selected-unit
-info layer so the strip refreshes without polling every frame.
+`BTLF` and `Bmil` are reserved for the generic timed-status presentation rather than normal buff icons. Their authoritative
+remaining fraction is published through player-state snapshots to the retail `SimpleProgressIndicator`; see
+[Timed Status Presentation](timed-status-presentation.md). Adding, replacing, removing, or expiring a status invalidates the selected-unit
+info layer so labels/eligibility refresh without rebuilding the FDF layer for every timer tick.
 
 Upgrade-level text is the small `InfoPanelIconLevel` overlay attached to the bottom-right of a damage/armor icon. It is not a buff
 slot. Resolve the selected unit's `UnitBalance.upgrades` rawcodes through `UpgradeData.slk` and show the player's researched level only

@@ -186,7 +186,8 @@ void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level) {
     }
     slot->code = code;
     slot->level = level ? level : 1;
-    slot->timestamp = now + (DWORD)(cooldown * 1000.0f);
+    slot->duration_ms = (DWORD)(cooldown * 1000.0f);
+    slot->timestamp = now + slot->duration_ms;
 }
 
 BOOL S_SpellSpendMana(LPEDICT caster, DWORD code, DWORD level) {

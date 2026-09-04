@@ -262,6 +262,17 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     FLOAT znear;
     FLOAT zfar;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
+    if (Cvar_Integer("ui_layout_debug", 0) >= 2) {
+        static DWORD last_timed_status = ~0u;
+        DWORD const timed_status = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS];
+        if (timed_status != last_timed_status) {
+            fprintf(stderr,
+                    "UI_TIMED_STATUS playerinfo player=%u raw=%u fraction=%.4f bits=0x%08x\n",
+                    (unsigned)plnum, (unsigned)timed_status,
+                    timed_status / 65535.0f, (unsigned)bits);
+            last_timed_status = timed_status;
+        }
+    }
     VECTOR2 server_origin = cl.playerstate.origin;
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME &&
         cls.key_dest != key_console && cls.key_dest != key_menu) {
@@ -415,6 +426,29 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
     SCR_SetLayoutLayer(layer, cl.layout[layer]);
+    if (layer == LAYER_INFOPANEL && Cvar_Integer("ui_layout_debug", 0) >= 2) {
+        BOOL found = false;
+        SCR_Clear(cl.layout[layer]);
+        FOR_LOOP(i, SCR_NumFrames()) {
+            LPCUIFRAME frame = SCR_Frame(i);
+            if (!frame || frame->stat != UI_STAT_SELECTION_TIMED_STATUS) continue;
+            found = true;
+            fprintf(stderr,
+                    "UI_TIMED_STATUS layout frame=%u parent=%u type=%u stat=%u value=%.4f size=(%.4f,%.4f) tex=%u border=%u layer_hidden=%u\n",
+                    (unsigned)frame->number, (unsigned)frame->parent,
+                    (unsigned)frame->flags.type, (unsigned)frame->stat, frame->value,
+                    frame->size.width, frame->size.height,
+                    (unsigned)frame->tex.index, (unsigned)frame->tex.index2,
+                    (unsigned)((cl.playerstate.uiflags & (1u << layer)) != 0));
+        }
+        if (!found) {
+            fprintf(stderr,
+                    "UI_TIMED_STATUS layout missing stat=%u frames=%u layer_hidden=%u raw=%u\n",
+                    (unsigned)UI_STAT_SELECTION_TIMED_STATUS, (unsigned)SCR_NumFrames(),
+                    (unsigned)((cl.playerstate.uiflags & (1u << layer)) != 0),
+                    (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS]);
+        }
+    }
     if (Cvar_Integer("ui_layout_debug", 0)) {
         fprintf(stderr, "UI_LAYOUT_DEBUG stored layer=%u payload=%u uiflags=0x%08x hidden=%u\n",
             (unsigned)layer, (unsigned)payload_size, (unsigned)cl.playerstate.uiflags,

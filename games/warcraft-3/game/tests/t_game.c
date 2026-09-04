@@ -274,6 +274,25 @@ TEST(wc3_game, hud_status_icon_missing_candidates_cache_null) {
     gi.ReadFile = saved_read;
 }
 
+TEST(wc3_game, hud_timed_status_fraction_is_owner_only) {
+    LPGAMECLIENT viewer = game.clients;
+    LPEDICT ent = make_test_unit();
+    USHORT half;
+
+    viewer->ps.number = 0;
+    ent->s.player = 0;
+    level.time = 1000;
+    unit_addtimedstatus(ent, "Bmil", 1, 10.0f);
+    T_EQ(UI_TestSelectedTimedStatusStat(viewer, ent), USHRT_MAX);
+
+    level.time = 6000;
+    half = UI_TestSelectedTimedStatusStat(viewer, ent);
+    T_ASSERT(half >= (USHRT_MAX / 2) - 1 && half <= (USHRT_MAX / 2) + 1);
+
+    ent->s.player = 1;
+    T_EQ(UI_TestSelectedTimedStatusStat(viewer, ent), 0);
+}
+
 TEST(wc3_game, hud_second_attack_requires_enabled_slot_and_showui) {
     UnitWeapons_t weapons = { 0 };
 
@@ -356,6 +375,29 @@ TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     UI_SetPortraitFrameModel(&frame, 42);
     T_EQ(frame.Type, FT_PORTRAIT);
     T_EQ(frame.Portrait.model, 42);
+}
+
+TEST(wc3_game, selected_unit_portrait_invalidation_marks_selecting_client_dirty) {
+    LPGAMECLIENT selected_client = &game.clients[0];
+    LPGAMECLIENT other_client = &game.clients[1];
+    LPEDICT unit;
+
+    reset_entities();
+    setup_test_world();
+    selected_client->connected = true;
+    selected_client->ps.number = 0;
+    other_client->connected = true;
+    other_client->ps.number = 1;
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128.0f, 192.0f);
+    unit->s.player = 0;
+    G_SelectEntity(selected_client, unit);
+    selected_client->presentation_dirty = false;
+    other_client->presentation_dirty = false;
+
+    G_InvalidateUnitPortrait(unit);
+
+    T_ASSERT(selected_client->presentation_dirty);
+    T_ASSERT(!other_client->presentation_dirty);
 }
 
 TEST(wc3_game, hud_single_line_fdf_text_serializes_declared_font_height) {
@@ -1554,6 +1596,10 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = second;
     first->inventory[2] = second;
     first->cargo.units[3] = second;
+    first->abilstatus[0] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','m','i','l'), .level = 1,
+        .timestamp = 40000, .duration_ms = 45000
+    };
     level.framenum = 1234;
     level.time = 5678;
     level.timeofday = (TIMEOFDAY){ .elapsed = 240.0f, .pending = 18.0f, .pending_valid = true, .suspended = true };
@@ -1582,6 +1628,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = NULL;
     first->inventory[2] = NULL;
     first->cargo.units[3] = NULL;
+    memset(first->abilstatus, 0, sizeof(first->abilstatus));
     strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
@@ -1603,6 +1650,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);
     T_EQ(g_edicts[first - g_edicts].s.origin.x, 96.0f);
     T_EQ(g_edicts[first - g_edicts].s.origin.y, 128.0f);
+    T_EQ(g_edicts[first - g_edicts].abilstatus[0].code, MAKEFOURCC('B','m','i','l'));
+    T_EQ(g_edicts[first - g_edicts].abilstatus[0].timestamp, 40000);
+    T_EQ(g_edicts[first - g_edicts].abilstatus[0].duration_ms, 45000);
     T_EQ(level.framenum, 1234);
     T_EQ(level.time, 5678);
     T_FEQ(level.timeofday.elapsed, 240.0f, 0.001f);

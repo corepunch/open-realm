@@ -54,7 +54,8 @@ Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a requ
 ## Field Table
 
 `games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
-`edict_t` and `GAMECLIENT` records are still copied as one block; the adjacent `runtime_fields[]` and
+`edict_t` and `GAMECLIENT` records are still copied as one block. Embedded non-pointer state such as `abilstatus[]` (including each
+timed status's `timestamp` and `duration_ms`) therefore round-trips with that raw record and needs no `field_t` entry. The adjacent `runtime_fields[]` and
 `client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
 common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.
 

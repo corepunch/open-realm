@@ -375,7 +375,7 @@ struct client_s {
     PLAYER ps;
     BOOL connected; /* ClientBegin completed for this reserved player edict. */
     BOOL commands_dirty; /* authoritative command availability changed; rebuild after simulation */
-    BOOL presentation_dirty; /* dialogue/interface state changed; flush svc_layout after simulation */
+    BOOL presentation_dirty; /* dialogue/interface/selected-portrait state changed; flush svc_layout after simulation */
     struct {
         DWORD race_pref, controller;
         BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
@@ -759,6 +759,7 @@ typedef struct {
     DWORD code;
     DWORD level;
     DWORD timestamp;
+    DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
 } heroabilitystatus_t;
 
 struct edict_s {
@@ -1562,6 +1563,7 @@ BOOL G_CancelBuildPlacement(LPEDICT clent);
 void Get_Portrait_f(LPEDICT);
 void G_RefreshInventoryLayer(LPEDICT);
 void G_InvalidateUnitInfoPanel(LPEDICT);
+void G_InvalidateUnitPortrait(LPEDICT);
 void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
 void UI_WriteSelectedPortraitLayer(LPEDICT);
@@ -1629,6 +1631,7 @@ void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 #ifdef BZ_TESTS
 void UI_TestResetInfoPanelIconCache(void);
 LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade);
+USHORT UI_TestSelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected);
 #endif
 void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
 void UI_WriteStart(DWORD);
@@ -1748,6 +1751,9 @@ BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
 BOOL unit_additem(LPEDICT, LPEDICT);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 void unit_addtimedstatus(LPEDICT, LPCSTR, DWORD, FLOAT);
+BOOL unit_statusshowstimedbar(DWORD);
+FLOAT unit_statusremainingfraction(heroabilitystatus_t const *);
+heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT);
 void unit_learnability(LPEDICT, DWORD);
 DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode);
 BOOL G_HeroHasCandidateSkill(LPCEDICT ent, DWORD abilcode);

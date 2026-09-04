@@ -50,9 +50,20 @@ respectable state.
 
 Arming deposits carried Gold/Lumber, preserves proportional HP/mana and the
 same edict, then binds the alternate unit's authored data. A `Bmil` timed status
-owns natural expiry. Explicit `militiaoff` may resume the remembered Gold or
-Lumber job; natural expiry only restores Peasant form and does not force an
-economic order.
+owns natural expiry. `Bmil` also opts into the generic selected-unit countdown
+bar; see [Timed Status Presentation](timed-status-presentation.md). Explicit
+`militiaoff` may resume the remembered Gold or Lumber job; natural expiry only
+restores Peasant form and does not force an economic order.
+
+Because the transform deliberately preserves the edict/selection handle, a type
+change does not itself trigger the normal selection-change portrait rebuild.
+`militia_transform_type()` must invalidate both the info panel and the selected
+portrait. `G_InvalidateUnitPortrait()` marks every connected client currently
+selecting the unit as `presentation_dirty`; `G_RunClients()` then rewrites the
+portrait layer on the next server frame using the rebound `ent->s.model`. Do not
+write `svc_layout` directly from the transform. Without this explicit portrait
+invalidation, natural `Bmil` expiry can leave a selected Peasant displaying the
+old Militia portrait even though the world entity has already reverted.
 
 ## Target-Order Dispatch Contract
 

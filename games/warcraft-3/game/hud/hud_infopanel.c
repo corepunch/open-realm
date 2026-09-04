@@ -11,6 +11,43 @@
 
 #define INVENTORY_CHARGE_FONT_SIZE 10
 
+static int timed_status_debug_level(void) {
+    LPCSTR value;
+
+    if (!gi.CvarString) return 0;
+    value = gi.CvarString("wc3_timed_status_debug", "0");
+    return value ? atoi(value) : 0;
+}
+
+static void timed_status_debug_dump(LPEDICT ent, LPGAMECLIENT viewer, LPCSTR stage) {
+    int const debug = timed_status_debug_level();
+    DWORD const now = gi.GetTime();
+    char unit_code[5] = { 0 };
+
+    if (debug < 1 || !ent) return;
+    memcpy(unit_code, &ent->class_id, 4);
+    fprintf(stderr,
+            "WC3_TIMED_STATUS server stage=%s unit=%u type=%s owner=%u viewer=%d now=%u\n",
+            stage ? stage : "?", (unsigned)ent->s.number, unit_code,
+            (unsigned)ent->s.player, viewer ? (int)viewer->ps.number : -1,
+            (unsigned)now);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = ent->abilstatus + i;
+        char code[5] = { 0 };
+        LONG remaining;
+
+        if (!status->level) continue;
+        memcpy(code, &status->code, 4);
+        remaining = status->timestamp > now ? (LONG)(status->timestamp - now) : 0;
+        fprintf(stderr,
+                "WC3_TIMED_STATUS server status slot=%u code=%s level=%u timestamp=%u duration_ms=%u remaining_ms=%ld eligible=%u fraction=%.4f\n",
+                (unsigned)i, code, (unsigned)status->level,
+                (unsigned)status->timestamp, (unsigned)status->duration_ms,
+                (long)remaining, (unsigned)unit_statusshowstimedbar(status->code),
+                unit_statusremainingfraction(status));
+    }
+}
+
 static BOOL InfoPanelStringsResolved(void) {
     static LPCSTR const required[] = {
         "COLON_DAMAGE",
@@ -102,6 +139,11 @@ void UI_LoadHudInfoPanel(void) {
         UI_SetTexture(hud.simple.SimpleHeroLevelBar, "SimpleXpBarConsole", false);
         UI_SetTexture2(hud.simple.SimpleHeroLevelBar, "SimpleXpBarBorder", false);
         hud.simple.SimpleHeroLevelBar->Color = MAKE(COLOR32, 138, 0, 131, 255);
+        UI_SetSize(hud.simple.SimpleProgressIndicator, 0.180f, hud.simple.SimpleProgressIndicator->Height);
+        UI_SetTexture(hud.simple.SimpleProgressIndicator, "SimpleProgressBarConsole", false);
+        UI_SetTexture2(hud.simple.SimpleProgressIndicator, "SimpleProgressBarBorder", false);
+        hud.simple.SimpleProgressIndicator->Color = MAKE(COLOR32, 65, 130, 210, 255);
+        UI_SetHidden(hud.simple.SimpleProgressIndicator, true);
         UI_SetSize(hud.simple.SimpleBuildTimeIndicator, 0.10538f, 0.0103f);
         UI_SetTexture(hud.simple.SimpleBuildTimeIndicator,
                       "SimpleBuildTimeIndicator", false);
@@ -453,13 +495,25 @@ static LPCSTR StatusBuffField(DWORD code, LPCSTR field) {
     return NULL;
 }
 
+static LPCSTR TimedStatusLabel(heroabilitystatus_t const *status) {
+    DWORD buff_code;
+    LPCSTR tip;
+
+    if (!status || !unit_statusshowstimedbar(status->code)) return NULL;
+    buff_code = StatusBuffCode(status);
+    if (!buff_code) return NULL;
+    tip = StatusBuffField(buff_code, "Bufftip");
+    if (!tip || !*tip) return "";
+    return UI_GetString(tip);
+}
+
 static LPCSTR StatusBuffArt(DWORD code) {
     LPCSTR art;
 
-    /* Timed life has a dedicated WC3 countdown presentation rather than a
-     * normal buff icon.  Cooldown markers share abilstatus[] but have ability
-     * rawcodes and therefore do not resolve through AbilityBuffData. */
-    if (code == MAKEFOURCC('B', 'T', 'L', 'F')) return NULL;
+    /* Warsmash routes timed-life-bar buffs through SimpleProgressIndicator
+     * instead of the ordinary status icon strip. Cooldown markers share
+     * abilstatus[] but have ability rawcodes and do not resolve here. */
+    if (unit_statusshowstimedbar(code)) return NULL;
     art = StatusBuffField(code, "Buffart");
     if (!art || !*art) return NULL;
     return art;
@@ -497,7 +551,7 @@ static void WriteBuffStatusFrames(LPEDICT ent) {
         }
         art = StatusBuffArt(buff_code);
         if (!art) {
-            if (buff_code != MAKEFOURCC('B', 'T', 'L', 'F')) {
+            if (!unit_statusshowstimedbar(buff_code)) {
                 char rawcode[5] = { 0 };
                 memcpy(rawcode, &buff_code, 4);
                 fprintf(stderr, "WriteBuffStatusFrames: missing Buffart for status %s\n", rawcode);
@@ -613,8 +667,10 @@ static FLOAT HeroLevelProgress(LPEDICT ent) {
     return MIN(1.0f, (FLOAT)(ent->hero.xp - have) / (FLOAT)(need - have));
 }
 
-static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero) {
+static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero, LPGAMECLIENT viewer) {
     char class_text[128];
+    heroabilitystatus_t const *timed_status = NULL;
+    LPCSTR timed_label = NULL;
     LPCSTR unit_name;
     LPCSTR class_format;
     BOOL old_hero_hidden;
@@ -623,17 +679,62 @@ static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero
     UI_SetText(hud.simple.SimpleNameValue, "%s", display_name ? display_name : "");
     unit_name = G_UnitProfile(ent->class_id)->name;
     if (!unit_name || !*unit_name) unit_name = GetClassName(ent->class_id);
-    if (is_hero) {
-        class_format = UI_GetString("INFOPANEL_LEVEL_CLASS");
-        snprintf(class_text, sizeof(class_text), class_format,
-                 (unsigned)MAX(1u, ent->hero.level), unit_name);
-        UI_SetText(hud.simple.SimpleClassValue, "%s", class_text);
-        UI_SetHidden(hud.simple.SimpleClassValue, false);
-    } else {
-        UI_SetText(hud.simple.SimpleClassValue, "%s", "");
-        UI_SetHidden(hud.simple.SimpleClassValue, true);
+
+    /* Warsmash shows this timer only for a single unit owned by the local
+     * player. UI_SendInfoPanel already guarantees single-selection here; keep
+     * ownership explicit rather than leaking an enemy/allied timer. */
+    if (viewer && ent->s.player == viewer->ps.number) {
+        timed_status = unit_findtimedbarstatus(ent);
+        timed_label = TimedStatusLabel(timed_status);
     }
-    UI_SetHidden(hud.simple.SimpleProgressIndicator, true);
+
+    if (timed_status_debug_level() >= 1) {
+        char code[5] = { 0 };
+        timed_status_debug_dump(ent, viewer, "write_header");
+        if (timed_status) memcpy(code, &timed_status->code, 4);
+        fprintf(stderr,
+                "WC3_TIMED_STATUS server header unit=%u owned=%u selected_status=%s label=\"%s\" frame=%s type=%u hidden=%u parent=%s size=(%.4f,%.4f) texture=%u border=%u\n",
+                (unsigned)ent->s.number,
+                (unsigned)(viewer && ent->s.player == viewer->ps.number),
+                timed_status ? code : "<none>", timed_label ? timed_label : "<null>",
+                hud.simple.SimpleProgressIndicator->Name,
+                (unsigned)hud.simple.SimpleProgressIndicator->Type,
+                (unsigned)hud.simple.SimpleProgressIndicator->hidden,
+                hud.simple.SimpleProgressIndicator->Parent ? hud.simple.SimpleProgressIndicator->Parent->Name : "<none>",
+                hud.simple.SimpleProgressIndicator->Width,
+                hud.simple.SimpleProgressIndicator->Height,
+                (unsigned)hud.simple.SimpleProgressIndicator->Texture.Image,
+                (unsigned)hud.simple.SimpleProgressIndicator->Texture.Image2);
+    }
+
+    if (timed_status) {
+        UI_SetText(hud.simple.SimpleClassValue, "%s", timed_label ? timed_label : "");
+        UI_SetHidden(hud.simple.SimpleClassValue, false);
+        hud.simple.SimpleProgressIndicator->Stat = UI_STAT_SELECTION_TIMED_STATUS;
+        UI_SetHidden(hud.simple.SimpleProgressIndicator, false);
+    } else {
+        if (is_hero) {
+            class_format = UI_GetString("INFOPANEL_LEVEL_CLASS");
+            snprintf(class_text, sizeof(class_text), class_format,
+                     (unsigned)MAX(1u, ent->hero.level), unit_name);
+            UI_SetText(hud.simple.SimpleClassValue, "%s", class_text);
+            UI_SetHidden(hud.simple.SimpleClassValue, false);
+        } else {
+            UI_SetText(hud.simple.SimpleClassValue, "%s", "");
+            UI_SetHidden(hud.simple.SimpleClassValue, true);
+        }
+        hud.simple.SimpleProgressIndicator->Stat = 0;
+        UI_SetHidden(hud.simple.SimpleProgressIndicator, true);
+    }
+
+    if (timed_status_debug_level() >= 1) {
+        fprintf(stderr,
+                "WC3_TIMED_STATUS server frame_ready unit=%u status=%u hidden=%u stat=%u label_hidden=%u\n",
+                (unsigned)ent->s.number, (unsigned)(timed_status != NULL),
+                (unsigned)hud.simple.SimpleProgressIndicator->hidden,
+                (unsigned)hud.simple.SimpleProgressIndicator->Stat,
+                (unsigned)hud.simple.SimpleClassValue->hidden);
+    }
 
     old_hero_hidden = hud.simple.SimpleHeroLevelBar->hidden;
     UI_SetHidden(hud.simple.SimpleHeroLevelBar, true);
@@ -669,7 +770,7 @@ DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key) {
     return UI_GetWrittenFrameNumber(hud.simple.SimpleBuildTimeIndicator);
 }
 
-void UI_WriteSingleInfo(LPEDICT ent) {
+void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
     UnitBalance_t const *balance = ent->UnitBalance;
     UnitWeapons_t const *weapons = ent->UnitWeapons;
     LPCSTR name = G_UnitProfile(ent->class_id)->properNames;
@@ -694,7 +795,7 @@ void UI_WriteSingleInfo(LPEDICT ent) {
          * have no synthetic "Level N <type>" line; Heroes use the XP bar in
          * that slot instead of a duplicate level/class label. */
         HideLegacyUnitStats();
-        WriteSimpleUnitHeader(ent, is_hero ? name : unit_name, is_hero);
+        WriteSimpleUnitHeader(ent, is_hero ? name : unit_name, is_hero, viewer);
     } else {
         char buffer[128];
         UI_SetText(hud.unit.NameValue, "%s", name);
@@ -763,7 +864,7 @@ void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
         if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
             UI_WriteBuildQueue(selected[0]);
         } else {
-            UI_WriteSingleInfo(selected[0]);
+            UI_WriteSingleInfo(selected[0], ent->client);
         }
     } else if (count > 1) {
         UI_WriteMultiselect(selected, count);
@@ -1044,30 +1145,86 @@ void G_InvalidateUnitInfoPanel(LPEDICT unit) {
     }
 }
 
+/* The portrait layer is authored separately from the info panel and is not
+ * rebuilt by G_UpdateClientInfoPanels(). In-place type changes therefore have
+ * to dirty the selected-unit presentation explicitly so G_RunClients() emits
+ * the new model on the next server frame. Keep this deferred rather than
+ * writing svc_layout from inside gameplay state mutation. */
+void G_InvalidateUnitPortrait(LPEDICT unit) {
+    if (!unit) return;
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        if (client->connected && G_IsEntitySelected(client, unit))
+            client->presentation_dirty = true;
+    }
+}
+
 static USHORT SelectedPortraitStat(FLOAT value) {
     LONG whole = (LONG)MAX(0.0f, value); /* Warsmash FastNumberFormat truncates */
     return (USHORT)MIN(whole, USHRT_MAX);
 }
 
-static void UpdateSelectedPortraitStats(LPGAMECLIENT client, LPEDICT selected) {
+static USHORT SelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected) {
+    heroabilitystatus_t const *status;
+    FLOAT fraction;
+
+    if (!client || !selected || selected->s.player != client->ps.number) return 0;
+    status = unit_findtimedbarstatus(selected);
+    if (!status) return 0;
+    fraction = unit_statusremainingfraction(status);
+    return (USHORT)MIN((DWORD)(fraction * (FLOAT)USHRT_MAX + 0.5f), (DWORD)USHRT_MAX);
+}
+
+#ifdef BZ_TESTS
+USHORT UI_TestSelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected) {
+    return SelectedTimedStatusStat(client, selected);
+}
+#endif
+
+static void UpdateSelectedLiveStats(LPGAMECLIENT client, LPEDICT selected) {
+    USHORT old_timed;
+    USHORT new_timed;
+    int debug;
+
     if (!client) return;
+    old_timed = client->ps.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS];
+    debug = timed_status_debug_level();
     if (!selected) {
         client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH] = 0;
         client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH] = 0;
         client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA] = 0;
         client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA] = 0;
+        client->ps.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] = 0;
+        if (debug >= 2 && old_timed) {
+            fprintf(stderr,
+                    "WC3_TIMED_STATUS server publish player=%u unit=<none> old=%u new=0\n",
+                    (unsigned)client->ps.number, (unsigned)old_timed);
+        }
         return;
     }
     client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH] = SelectedPortraitStat(selected->health.value);
     client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH] = SelectedPortraitStat(selected->health.max_value);
     client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA] = SelectedPortraitStat(selected->mana.value);
     client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA] = SelectedPortraitStat(selected->mana.max_value);
+    new_timed = SelectedTimedStatusStat(client, selected);
+    client->ps.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] = new_timed;
+    if (debug >= 2 && old_timed != new_timed) {
+        DWORD const old_bucket = ((DWORD)old_timed * 10u) / USHRT_MAX;
+        DWORD const new_bucket = ((DWORD)new_timed * 10u) / USHRT_MAX;
+        if (debug >= 3 || old_timed == 0 || new_timed == 0 || old_bucket != new_bucket) {
+            fprintf(stderr,
+                    "WC3_TIMED_STATUS server publish player=%u unit=%u old=%u new=%u fraction=%.4f\n",
+                    (unsigned)client->ps.number, (unsigned)selected->s.number,
+                    (unsigned)old_timed, (unsigned)new_timed,
+                    new_timed / (FLOAT)USHRT_MAX);
+        }
+    }
 }
 
-/* Keep whole-number selected-unit HP/mana in playerState so portrait labels are live
- * snapshot bindings instead of static strings that require a whole layout
- * resend on every damage/regeneration tick. Re-send LAYER_INFOPANEL only when
- * its own cached presentation changes. */
+/* Keep selected-unit HP/mana and the normalized timed-status fraction in
+ * playerState so live bars/text update through ordinary snapshots instead of
+ * forcing a whole FDF layer resend every server frame. Re-send LAYER_INFOPANEL
+ * only when its static presentation (selection, timer eligibility/label, XP) changes. */
 void G_RefreshInfoPanel(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
     DWORD count;
@@ -1075,7 +1232,7 @@ void G_RefreshInfoPanel(LPEDICT ent) {
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
-    UpdateSelectedPortraitStats(ent->client, count == 1 ? selected[0] : NULL);
+    UpdateSelectedLiveStats(ent->client, count == 1 ? selected[0] : NULL);
     if (count != 1) {
         ent->client->infopanel.entity = 0;
         return;
@@ -1086,8 +1243,8 @@ void G_RefreshInfoPanel(LPEDICT ent) {
         ent->client->infopanel.entity = 0;
         return;
     }
-    /* HP/mana are live player-state bindings now, so changing them must not
-     * force a complete LAYER_INFOPANEL/FDF reserialization every frame. */
+    /* HP/mana/timed-status progress are live player-state bindings, so changing
+     * their values must not force LAYER_INFOPANEL/FDF reserialization every frame. */
     if (selected[0]->s.number == ent->client->infopanel.entity &&
         (LONG)selected[0]->hero.xp == ent->client->infopanel.xp) {
         return;
