@@ -21,7 +21,7 @@ The UI library parses Warcraft III FDF files client-side, owns the frame tree, a
 
 1. Bind the OpenGL renderer through `R_GetAPI`.
 2. Initialise the renderer.
-3. Initialise `UI_GetAPI`.
+3. Initialise `M_GetAPI`.
 4. Load theme and FDF assets.
 5. Execute `ui_start_command`, default `menu_main`.
 
@@ -54,7 +54,7 @@ The client caches returned unit data and renders it on subsequent UI frames.
 
 | File | Purpose |
 |------|---------|
-| `client/ui.h` | Shared UI module API declaration |
+| `client/menu.h` | Shared UI module API declaration |
 | `games/warcraft-3/menu/menu_main.c` | UI entry point, lifecycle, startup command, screen selection |
 | `games/warcraft-3/menu/menu_fdf.c` | FDF parsing and frame registry |
 | `games/warcraft-3/menu/menu_render.c` | Layout solving and frame rendering |
@@ -70,7 +70,7 @@ The client caches returned unit data and renders it on subsequent UI frames.
 
 | cvar | Purpose |
 |------|---------|
-| `ui_module` | UI module name |
+| `menu_module` | UI module name |
 | `g_module` | Game module name |
 | `ui_start_command` | Initial UI command |
 | `com_frame_limit` | Exit after N frames |

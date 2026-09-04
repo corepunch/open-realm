@@ -102,13 +102,13 @@ BOOL M_EditKey(int key) {
         return false;
     }
 
-    result = UI_TextInput_Key(&active_ti, key);
+    result = M_TextInput_Key(&active_ti, key);
     switch (result) {
-        case UI_TEXTINPUT_CONSUMED:
+        case MENU_TEXTINPUT_CONSUMED:
             return true;
-        case UI_TEXTINPUT_ENTER:
+        case MENU_TEXTINPUT_ENTER:
             return false;
-        case UI_TEXTINPUT_ESCAPE:
+        case MENU_TEXTINPUT_ESCAPE:
             UI_FocusEdit(NULL);
             return false;
         default:
@@ -122,14 +122,14 @@ void M_TextInput(LPCSTR text) {
     if (!active_edit || !text) {
         return;
     }
-    UI_TextInput_Filter(text, filtered, sizeof(filtered));
+    M_TextInput_Filter(text, filtered, sizeof(filtered));
     if (filtered[0]) {
-        UI_TextInput_Insert(&active_ti, filtered);
+        M_TextInput_Insert(&active_ti, filtered);
     }
 }
 
 static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = uiimport.GetRenderer();
+    LPRENDERER renderer = menuimport.GetRenderer();
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     RECT text_rect = *rect;
@@ -159,7 +159,7 @@ static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
         if (!font) {
             return;
         }
-        UI_DrawTextInputCursor(renderer,
+        M_DrawTextInputCursor(renderer,
                                &MAKE(drawText_t,
                                      .font = font,
                                      .text = text,

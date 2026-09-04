@@ -145,11 +145,11 @@ void SCR_DrawScreenField(DWORD msec) {
         Com_Error(ERR_FATAL, "SCR_DrawScreenField: bad cls.state");
         break;
     case ca_disconnected:
-        ui.Refresh(cl.time);
+        menu.Refresh(cl.time);
         break;
     case ca_connecting:
     case ca_connected:
-        ui.Refresh(cl.time);
+        menu.Refresh(cl.time);
         break;
     case ca_active:
         V_RenderView();
@@ -159,7 +159,7 @@ void SCR_DrawScreenField(DWORD msec) {
         /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
         * like Q3 — multiple input consumers can be active simultaneously. */
         if (cls.key_dest == key_menu) {
-            ui.Refresh(cl.time);
+            menu.Refresh(cl.time);
         }
         break;
     }
@@ -792,7 +792,7 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
         size2_t size = re.GetWindowSize();
         FLOAT aspect = viewport.w * size.width / (viewport.h * size.height);
         /* The layout camera replaces the old radius guess and Stand-name mode switch. */
-        UI_ModelMatrix(frame->buffer.data, aspect, &vd.viewProjectionMatrix);
+        M_ModelMatrix(frame->buffer.data, aspect, &vd.viewProjectionMatrix);
         Matrix4_identity(&vd.textureMatrix);
         Matrix4_identity(&vd.lightMatrix);
         vd.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_NOPARTICLES;
@@ -1109,7 +1109,7 @@ static int SCR_LayoutModalLayer(void) {
 
 BOOL SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
-BOOL SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
     LPCUIFRAME hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
@@ -1153,15 +1153,15 @@ BOOL SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             !hovered_frame->text || !*hovered_frame->text) {
             return false;
         }
-        if (event == UI_MOUSE_DOWN) return true;
-        if (event != UI_MOUSE_UP) return false;
+        if (event == MENU_MOUSE_DOWN) return true;
+        if (event != MENU_MOUSE_UP) return false;
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, "%s", hovered_frame->text);
         return true;
     }
 
     if (param != SDL_BUTTON_LEFT) return false;
-    if (event == UI_MOUSE_DOWN) {
+    if (event == MENU_MOUSE_DOWN) {
         char command[CMDARG_LEN * 2];
         layout_left_down = true;
         if (!hovered_frame || layout_held_command[0]) return false;
@@ -1172,7 +1172,7 @@ BOOL SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         SZ_Printf(&cls.netchan.message, "%s", layout_held_command);
         return false;
     }
-    if (event != UI_MOUSE_UP) return false;
+    if (event != MENU_MOUSE_UP) return false;
     layout_left_down = false;
     if (layout_held_command[0]) {
         char command[sizeof(layout_held_command)];
@@ -1368,17 +1368,17 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
     BYTE num_units = MSG_ReadByte(msg);
 
     if (num_units == 0 || num_units > 12) {
-        if (num_units == 0 && ui.UpdateUnitUI) {
-            ui.UpdateUnitUI(0, NULL);
+        if (num_units == 0 && menu.UpdateUnitUI) {
+            menu.UpdateUnitUI(0, NULL);
         }
         return;
     }
 
-    uiUnitData_t *units = (uiUnitData_t *)MemAlloc(sizeof(uiUnitData_t) * num_units);
-    memset(units, 0, sizeof(uiUnitData_t) * num_units);
+    menuUnitData_t *units = (menuUnitData_t *)MemAlloc(sizeof(menuUnitData_t) * num_units);
+    memset(units, 0, sizeof(menuUnitData_t) * num_units);
 
     for (BYTE i = 0; i < num_units; i++) {
-        uiUnitData_t *unit = &units[i];
+        menuUnitData_t *unit = &units[i];
         unit->entity_num = MSG_ReadShort(msg);
 
         unit->num_buttons = MSG_ReadByte(msg);
@@ -1386,7 +1386,7 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
             unit->num_buttons = MAX_COMMAND_BUTTONS;
         }
         for (BYTE j = 0; j < unit->num_buttons; j++) {
-            uiCommandButton_t *btn = &unit->buttons[j];
+            menuCommandButton_t *btn = &unit->buttons[j];
 
             strncpy(btn->art, MSG_ReadString2(msg), sizeof(btn->art) - 1);
             strncpy(btn->tooltip, MSG_ReadString2(msg), sizeof(btn->tooltip) - 1);
@@ -1400,7 +1400,7 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
             unit->num_inventory = MAX_INVENTORY_SLOTS;
         }
         for (BYTE j = 0; j < unit->num_inventory; j++) {
-            uiInventoryItem_t *item = &unit->inventory[j];
+            menuInventoryItem_t *item = &unit->inventory[j];
 
             strncpy(item->art, MSG_ReadString2(msg), sizeof(item->art) - 1);
             strncpy(item->tooltip, MSG_ReadString2(msg), sizeof(item->tooltip) - 1);
@@ -1413,7 +1413,7 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
             unit->num_queue = MAX_BUILD_QUEUE_ITEMS;
         }
         for (BYTE j = 0; j < unit->num_queue; j++) {
-            uiQueueItem_t *queue_item = &unit->queue[j];
+            menuQueueItem_t *queue_item = &unit->queue[j];
             LPCSTR art = MSG_ReadString2(msg);
 
             strncpy(queue_item->art, art, sizeof(queue_item->art) - 1);
@@ -1421,6 +1421,6 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
         }
     }
 
-    ui.UpdateUnitUI((DWORD)num_units, units);
+    menu.UpdateUnitUI((DWORD)num_units, units);
     MemFree(units);
 }

@@ -259,18 +259,18 @@ static BOOL SinglePlayer_LoadCampaignFile(LPCSTR file_name) {
     void *buffer = NULL;
     UINAME section = "";
     singlePlayerCampaign_t *campaign = NULL;
-    int size = uiimport.FS_ReadFile(file_name, &buffer);
+    int size = menuimport.FS_ReadFile(file_name, &buffer);
     if (size <= 0 || !buffer) {
         return false;
     }
-    LPSTR text = uiimport.MemAlloc(size + 1);
+    LPSTR text = menuimport.MemAlloc(size + 1);
     if (!text) {
-        uiimport.FS_FreeFile(buffer);
+        menuimport.FS_FreeFile(buffer);
         return false;
     }
     memcpy(text, buffer, (size_t)size);
     text[size] = '\0';
-    uiimport.FS_FreeFile(buffer);
+    menuimport.FS_FreeFile(buffer);
 
     char *cursor = text;
     while (*cursor) {
@@ -321,7 +321,7 @@ static BOOL SinglePlayer_LoadCampaignFile(LPCSTR file_name) {
         }
     }
 
-    uiimport.MemFree(text);
+    menuimport.MemFree(text);
     return campaign_count > 0;
 }
 
@@ -337,7 +337,7 @@ static void SinglePlayer_FinalizeCampaignOrder(void) {
 }
 
 static BOOL SinglePlayer_ExpansionEnabled(void) {
-    LPCSTR value = uiimport.Cvar_String("fs_expansion", "0");
+    LPCSTR value = menuimport.Cvar_String("fs_expansion", "0");
     return value && atoi(value) != 0;
 }
 
@@ -429,7 +429,7 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
-    LPRENDERER renderer = uiimport.GetRenderer();
+    LPRENDERER renderer = menuimport.GetRenderer();
     LPCMODEL model = UI_GetModel(campaign_background_model);
 
     if (renderer && renderer->RenderFrame && model) {
@@ -472,8 +472,8 @@ static void SinglePlayer_MissionPlayedCvar(singlePlayerCampaign_t const *campaig
 }
 
 static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
-    LPCSTR mode = uiimport.Cvar_String
-        ? uiimport.Cvar_String(SINGLE_PLAYER_MISSION_VISIBILITY_CVAR, "all")
+    LPCSTR mode = menuimport.Cvar_String
+        ? menuimport.Cvar_String(SINGLE_PLAYER_MISSION_VISIBILITY_CVAR, "all")
         : "all";
 
     if (!mode || strcasecmp(mode, "played")) {
@@ -482,18 +482,18 @@ static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWO
 
     char cvar_name[128];
     SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
-    LPCSTR played = uiimport.Cvar_String ? uiimport.Cvar_String(cvar_name, "0") : "0";
+    LPCSTR played = menuimport.Cvar_String ? menuimport.Cvar_String(cvar_name, "0") : "0";
     return played && atoi(played) != 0;
 }
 
 static void SinglePlayer_MarkMissionPlayed(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
     char cvar_name[128];
 
-    if (!campaign || !uiimport.Cvar_Set) {
+    if (!campaign || !menuimport.Cvar_Set) {
         return;
     }
     SinglePlayer_MissionPlayedCvar(campaign, mission_index, cvar_name, sizeof(cvar_name));
-    uiimport.Cvar_Set(cvar_name, "1");
+    menuimport.Cvar_Set(cvar_name, "1");
 }
 
 static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
@@ -509,7 +509,7 @@ static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, D
     }
     SinglePlayer_MarkMissionPlayed(campaign, mission_index);
     snprintf(command, sizeof(command), "map \"%s\"", map_path);
-    UI_MenuCommandLocal(command);
+    M_MenuCommand(command);
 }
 
 static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campaign) {
@@ -659,7 +659,7 @@ static void SinglePlayer_BindMainMenu(void) {
     UI_SetOnClick(single_player.ProfileButton, "");
     UI_SetOnClick(single_player.CancelButton, "menu_main");
     if (single_player.ProfileNameText) {
-        LPCSTR name = uiimport.Cvar_String ? uiimport.Cvar_String("name", "Player") : "Player";
+        LPCSTR name = menuimport.Cvar_String ? menuimport.Cvar_String("name", "Player") : "Player";
         UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
     }
 }
@@ -709,8 +709,8 @@ static void SinglePlayer_BindCampaignMenu(void) {
         UI_SetOnClick(DifficultyMenu, "menu_single_player_difficulty %u");
         UI_SetHidden(DifficultyMenu, true);
     }
-    difficulty_value = uiimport.Cvar_String
-        ? uiimport.Cvar_String("wc3_campaign_difficulty", "1") : "1";
+    difficulty_value = menuimport.Cvar_String
+        ? menuimport.Cvar_String("wc3_campaign_difficulty", "1") : "1";
     if (difficulty_value) {
         LONG value = atoi(difficulty_value);
         if (value >= 0 && value <= 2) {
@@ -721,7 +721,7 @@ static void SinglePlayer_BindCampaignMenu(void) {
 }
 
 static void SinglePlayerMenu_Init(void) {
-    uiimport.Printf("SinglePlayerMenu_Init\n");
+    menuimport.Printf("SinglePlayerMenu_Init\n");
     UI_PreloadGlueSceneModels();
     SinglePlayer_LoadCampaignData();
     campaign_list_frame = NULL;
@@ -772,7 +772,7 @@ static void SinglePlayerMenu_KeyEvent(int key, BOOL down) {
 
 void SinglePlayerMenu_ShowMain(void) {
     if (single_player.ProfileNameText) {
-        LPCSTR name = uiimport.Cvar_String ? uiimport.Cvar_String("name", "Player") : "Player";
+        LPCSTR name = menuimport.Cvar_String ? menuimport.Cvar_String("name", "Player") : "Player";
         UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
     }
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
@@ -789,7 +789,7 @@ void SinglePlayerMenu_BackCampaign(void) {
         SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
         return;
     }
-    UI_ShowSinglePlayerMenu();
+    M_ShowSinglePlayerMenu();
 }
 
 void SinglePlayerMenu_LaunchCampaign(LPCSTR name) {
@@ -829,9 +829,9 @@ void SinglePlayerMenu_SetDifficulty(DWORD difficulty) {
         return;
     }
     SinglePlayer_UpdateDifficultyTitle(difficulty);
-    if (uiimport.Cvar_Set) {
+    if (menuimport.Cvar_Set) {
         snprintf(value, sizeof(value), "%u", (unsigned)difficulty);
-        uiimport.Cvar_Set("wc3_campaign_difficulty", value);
+        menuimport.Cvar_Set("wc3_campaign_difficulty", value);
     }
 }
 

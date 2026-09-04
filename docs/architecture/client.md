@@ -8,7 +8,7 @@ The client is initialised by `CL_Init` in `cl_main.c`, which:
 
 1. Binds the OpenGL renderer through `R_GetAPI`.
 2. Initialises the renderer.
-3. Initialises the client-side UI library with `UI_GetAPI`.
+3. Initialises the client-side UI library with `M_GetAPI`.
 4. Registers client-side console commands.
 5. Installs menu or gameplay key bindings depending on startup mode.
 
@@ -27,7 +27,7 @@ The initial menu command comes from `ui_start_command`, defaulting to `menu_main
 ```c
 void CL_Frame(DWORD msec) {
     cl.time += msec;
-    ui.Refresh(msec);   // 1. update active client-side UI screen
+    menu.Refresh(msec);   // 1. update active client-side UI screen
     CL_Input();         // 2. sample keyboard / mouse
     CL_ReadPackets();   // 3. apply incoming server messages
     CL_SendCommand();   // 4. execute commands and forward to server

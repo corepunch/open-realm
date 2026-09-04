@@ -88,7 +88,7 @@ static int UIWow_LuaDrawImageIndex(lua_State *L) {
     RECT screen = UIWow_LuaRect(L, 2);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
     COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
-    LPCTEXTURE texture = uiimport.GetTexture ? uiimport.GetTexture(index) : NULL;
+    LPCTEXTURE texture = menuimport.GetTexture ? menuimport.GetTexture(index) : NULL;
 
     UIWow_EnsureRenderer();
     if (wow_ui.renderer && texture) {
@@ -223,7 +223,7 @@ static int UIWow_LuaDrawText(lua_State *L) {
 
 static int UIWow_LuaStat(lua_State *L) {
     DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
 
     lua_pushinteger(L, ps && index < MAX_STATS ? ps->stats[index] : 0);
     return 1;
@@ -231,7 +231,7 @@ static int UIWow_LuaStat(lua_State *L) {
 
 static int UIWow_LuaText(lua_State *L) {
     DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
     LPCSTR text = ps && index < MAX_STATS && ps->texts[index] ? ps->texts[index] : "";
 
     lua_pushstring(L, text);
@@ -239,7 +239,7 @@ static int UIWow_LuaText(lua_State *L) {
 }
 
 static int UIWow_LuaPlayerName(lua_State *L) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
     LPCSTR name = ps && ps->name && *ps->name ? ps->name : "Player";
 
     lua_pushstring(L, name);
@@ -252,14 +252,14 @@ static void UIWow_LuaSetInteger(lua_State *L, LPCSTR name, lua_Integer value) {
 }
 
 static void UIWow_LuaSetPlayerField(lua_State *L, LPCSTR name, int stat) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
 
     lua_pushinteger(L, ps ? ps->stats[stat] : 0);
     lua_setfield(L, -2, name);
 }
 
 static int UIWow_LuaPlayer(lua_State *L) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
 
     lua_newtable(L);
     lua_pushstring(L, ps && ps->name && *ps->name ? ps->name : "Player");
@@ -316,8 +316,8 @@ static int UIWow_LuaTime(lua_State *L) {
 static int UIWow_LuaCommand(lua_State *L) {
     LPCSTR text = luaL_checkstring(L, 1);
 
-    if (uiimport.ServerCommand && text && *text) {
-        uiimport.ServerCommand(text);
+    if (menuimport.ServerCommand && text && *text) {
+        menuimport.ServerCommand(text);
     }
     return 0;
 }
@@ -355,7 +355,7 @@ static int UIWow_LuaGetLoadingProgress(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingTitle(lua_State *L) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
     LPCSTR title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
     if (!title || !*title) {
@@ -392,8 +392,8 @@ static int UIWow_LuaLoadMap(lua_State *L) {
     }
     Wow_ResolveMapPath(map_name, resolved, sizeof(resolved));
     snprintf(cmd, sizeof(cmd), "map %s", resolved);
-    if (uiimport.Cmd_ExecuteText) {
-        uiimport.Cmd_ExecuteText(cmd);
+    if (menuimport.Cmd_ExecuteText) {
+        menuimport.Cmd_ExecuteText(cmd);
     }
     return 0;
 }
@@ -406,7 +406,7 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
         UIWow_LuaPCall(1);
     } else {
         lua_pop(wow_ui.lua, 1);
-        if (uiimport.Cmd_ExecuteText) uiimport.Cmd_ExecuteText("menu_character_select\n");
+        if (menuimport.Cmd_ExecuteText) menuimport.Cmd_ExecuteText("menu_character_select\n");
     }
     return 0;
 }
@@ -414,10 +414,10 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
 static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
 
 static int UIWow_LuaPlaySound(lua_State *L) {
-    if (lua_isnumber(L, 1) && uiimport.PlaySound) {
-        uiimport.PlaySound((DWORD)lua_tointeger(L, 1));
-    } else if (lua_isstring(L, 1) && uiimport.PlaySoundByName) {
-        uiimport.PlaySoundByName(lua_tostring(L, 1));
+    if (lua_isnumber(L, 1) && menuimport.PlaySound) {
+        menuimport.PlaySound((DWORD)lua_tointeger(L, 1));
+    } else if (lua_isstring(L, 1) && menuimport.PlaySoundByName) {
+        menuimport.PlaySoundByName(lua_tostring(L, 1));
     }
     return 0;
 }
@@ -496,8 +496,8 @@ static int UIWow_LuaEnterWorld(lua_State *L) {
     UIWow_EnterGameMode();
     UIWow_SetSelectedCharCvars();
     /* The server playercreateinfo table owns race/class -> map; Map.dbc then resolves its client directory. */
-    if (uiimport.Cmd_ExecuteText)
-        uiimport.Cmd_ExecuteText("map playercreate");
+    if (menuimport.Cmd_ExecuteText)
+        menuimport.Cmd_ExecuteText("map playercreate");
     return 0;
 }
 
@@ -814,16 +814,16 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     char *compat, *compat_varargs, *script;
     int size;
 
-    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
+    if (!menuimport.FS_ReadFile || !menuimport.FS_FreeFile || !path) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot load Lua files\n");
         return false;
     }
-    size = uiimport.FS_ReadFile(path, &buf);
+    size = menuimport.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) {
         if (noisy_missing) {
             UIWow_Printf("UIWow: could not load '%s'\n", path);
         }
-        SAFE_DELETE(buf, uiimport.FS_FreeFile);
+        SAFE_DELETE(buf, menuimport.FS_FreeFile);
         return false;
     }
     compat = UIWow_LuaCompatBuffer(buf, (size_t)size);
@@ -832,7 +832,7 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     UIWow_RunLuaBuffer(path, compat_varargs ? compat_varargs : script, compat_varargs ? strlen(compat_varargs) : (compat ? strlen(compat) : (size_t)size));
     SAFE_DELETE(compat, free);
     SAFE_DELETE(compat_varargs, free);
-    uiimport.FS_FreeFile(buf);
+    menuimport.FS_FreeFile(buf);
     return true;
 }
 
@@ -840,16 +840,16 @@ static BOOL UIWow_HasArchiveFile(LPCSTR path) {
     void *buf = NULL;
     int size;
 
-    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
+    if (!menuimport.FS_ReadFile || !menuimport.FS_FreeFile || !path) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot probe archive files\n");
         return false;
     }
-    size = uiimport.FS_ReadFile(path, &buf);
+    size = menuimport.FS_ReadFile(path, &buf);
     if (size > 0 && buf) {
-        uiimport.FS_FreeFile(buf);
+        menuimport.FS_FreeFile(buf);
         return true;
     }
-    SAFE_DELETE(buf, uiimport.FS_FreeFile);
+    SAFE_DELETE(buf, menuimport.FS_FreeFile);
     return false;
 }
 
@@ -955,7 +955,7 @@ void UIWow_CallLuaDraw(void) {
 }
 
 void UIWow_CallLuaUpdate(DWORD msec) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
 
     if (!wow_ui.lua || !ps || ps->client_ui_state != CLIENT_UI_GAME) {
         if (!wow_ui.lua) {

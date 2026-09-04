@@ -465,7 +465,7 @@ void Cvar_Init(void) {
     Cvar_GetD("cl_debug_entities","0",                 0,            "log client-side entity sync events");
     Cvar_GetD("sv_debug_entities","0",                 0,            "log server-side entity sync events");
     Cvar_GetD("r_debug_entities", "0",                 0,            "log renderer entity lifecycle events");
-    Cvar_GetD("ui_module",        "ui",                CVAR_ARCHIVE, "UI shared library name");
+    Cvar_GetD("menu_module",        "menu",                CVAR_ARCHIVE, "UI shared library name");
     Cvar_GetD("g_module",         "game",              CVAR_ARCHIVE, "game logic shared library name");
     Cvar_GetD("ui_game_setup_map","",                  0,            "map pre-selected in game setup UI");
 #ifdef WC3

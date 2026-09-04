@@ -16,14 +16,14 @@
 #include "common/ui_constants.h"
 
 #include "hud.h"
-#include "client/ui.h"
+#include "client/menu.h"
 #include <string.h>
 #include <stdlib.h>
 
-/* uiimport — host services for menu_layout.c when compiled into the game module.
- * gi.ReadFile signature (HANDLE, LPDWORD) differs from uiimport.FS_ReadFile
+/* menuimport — host services for menu_layout.c when compiled into the game module.
+ * gi.ReadFile signature (HANDLE, LPDWORD) differs from menuimport.FS_ReadFile
  * (int, void**), so we wrap it. */
-uiImport_t uiimport;
+menuImport_t menuimport;
 
 static int sc2_hud_read_file(LPCSTR filename, void **buf) {
     DWORD size = 0;
@@ -183,12 +183,12 @@ static int sc2_hud_model_index(LPCSTR resource) {
 }
 
 void SC2_HUD_InitLayoutHost(void) {
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.FS_ReadFile = sc2_hud_read_file;
-    uiimport.FS_FreeFile = sc2_hud_free_file;
-    uiimport.ImageIndex = sc2_hud_image_index;
-    uiimport.ModelIndex = sc2_hud_model_index;
-    uiimport.FontIndex = gi.FontIndex;
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.FS_ReadFile = sc2_hud_read_file;
+    menuimport.FS_FreeFile = sc2_hud_free_file;
+    menuimport.ImageIndex = sc2_hud_image_index;
+    menuimport.ModelIndex = sc2_hud_model_index;
+    menuimport.FontIndex = gi.FontIndex;
     gi.ReadFileAll("GameData/Assets.txt", sc2_hud_parse_assets_txt, NULL);
 }
 

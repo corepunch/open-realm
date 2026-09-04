@@ -10,8 +10,8 @@
 #include "common/stb_slk.h"
 #include "generated/loading_screen.h"
 
-/* Global import table filled by UI_GetAPI */
-uiImport_t uiimport;
+/* Global import table filled by M_GetAPI */
+menuImport_t menuimport;
 
 /* Internal state */
 typedef struct {
@@ -27,7 +27,7 @@ static BOOL ui_menu_commands_registered;
 static LoadingScreen_t loading_screen;
 
 /* Resolve symbolic server-authored WC3 image names using the local player's skin. */
-LPCSTR UI_ResolveImagePathLocal(LPCSTR key) {
+LPCSTR M_ResolveImagePath(LPCSTR key) {
     if (!key || !*key || strchr(key, '\\') || strchr(key, '/')) return key;
     return Theme_String(key, "Default");
 }
@@ -91,8 +91,8 @@ static void UI_SetScreen(uiScreen_t *screen) {
                 "UI_SetScreen: failed to load screen '%s', keeping '%s'\n",
                 screen->name,
                 previous_screen ? previous_screen->name : "(null)");
-        if (uiimport.Printf) {
-            uiimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
+        if (menuimport.Printf) {
+            menuimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
         }
         return;
     }
@@ -113,58 +113,58 @@ uiScreen_t *UI_GetCurrentScreen(void) {
     return ui_current_screen;
 }
 
-__attribute__((visibility("hidden"))) void UI_ShowMainMenu(void) {
+__attribute__((visibility("hidden"))) void M_ShowMainMenu(void) {
     UI_SetScreen(&mainMenuScreen);
     MainMenu_ShowMainPanel();
 }
 
-void UI_ShowSinglePlayerMenu(void) {
+void M_ShowSinglePlayerMenu(void) {
     UI_SetScreen(&singlePlayerMenuScreen);
     SinglePlayerMenu_ShowMain();
 }
 
-void UI_ShowOptionsMenu(void) {
+void M_ShowOptionsMenu(void) {
     UI_SetScreen(&optionsMenuScreen);
     OptionsMenu_ShowGameplay();
 }
 
-void UI_ShowCreditsMenu(void) {
+void M_ShowCreditsMenu(void) {
     UI_SetScreen(&creditsMenuScreen);
 }
 
-void UI_ShowLanCreateMenu(void) {
+void M_ShowLanCreateMenu(void) {
     LAN_ShowCreate();
     UI_SetScreen(&lanJoinScreen);
 }
 
-static void UI_ShowSinglePlayerSkirmishMenu(void) {
+static void M_ShowSinglePlayerSkirmishMenu(void) {
     LAN_ShowSinglePlayerCreate();
     UI_SetScreen(&lanJoinScreen);
 }
 
-void UI_ShowLanBrowserMenu(void) {
+void M_ShowLanBrowserMenu(void) {
     LAN_ShowBrowser();
     UI_SetScreen(&lanJoinScreen);
 }
 
-void UI_ShowGameSetupMenu(void) {
+void M_ShowGameSetupMenu(void) {
     UI_SetScreen(&gameSetupScreen);
 }
 
 static void UI_MenuMain_f(void) {
-    UI_ShowMainMenu();
+    M_ShowMainMenu();
 }
 
 static void UI_MenuGame_f(void) {
-    UI_ShowSinglePlayerMenu();
+    M_ShowSinglePlayerMenu();
 }
 
 static void UI_MenuMultiplayer_f(void) {
-    UI_ShowLanBrowserMenu();
+    M_ShowLanBrowserMenu();
 }
 
 static void UI_MenuOptions_f(void) {
-    UI_ShowOptionsMenu();
+    M_ShowOptionsMenu();
 }
 
 static void UI_MenuVideo_f(void) {
@@ -178,11 +178,11 @@ static void UI_MenuKeys_f(void) {
 }
 
 static void UI_MenuLoadGame_f(void) {
-    uiimport.Cmd_ExecuteText("load quick\n");
+    menuimport.Cmd_ExecuteText("load quick\n");
 }
 
 static void UI_MenuSaveGame_f(void) {
-    uiimport.Cmd_ExecuteText("save quick\n");
+    menuimport.Cmd_ExecuteText("save quick\n");
 }
 
 static void UI_MenuPlayerConfig_f(void) {
@@ -190,15 +190,15 @@ static void UI_MenuPlayerConfig_f(void) {
 
 static void UI_MenuStartServer_f(void) {
     LAN_ApplyPlayerName();
-    UI_ShowLanCreateMenu();
+    M_ShowLanCreateMenu();
 }
 
 static void UI_MenuJoinServer_f(void) {
-    UI_ShowLanBrowserMenu();
+    M_ShowLanBrowserMenu();
 }
 
 static void UI_MenuCredits_f(void) {
-    UI_ShowCreditsMenu();
+    M_ShowCreditsMenu();
 }
 
 static void UI_MenuQuit_f(void) {
@@ -237,7 +237,7 @@ static void UI_MenuSinglePlayerCampaign_f(void) {
 }
 
 static void UI_MenuSinglePlayerSkirmish_f(void) {
-    UI_ShowSinglePlayerSkirmishMenu();
+    M_ShowSinglePlayerSkirmishMenu();
 }
 
 static void UI_MenuLANRefresh_f(void) {
@@ -297,11 +297,11 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
 };
 
 static void UI_RegisterMenuCommands(void) {
-    if (ui_menu_commands_registered || !uiimport.Cmd_AddCommand) {
+    if (ui_menu_commands_registered || !menuimport.Cmd_AddCommand) {
         return;
     }
     for (uiMenuCommandDef_t const *cmd = ui_menu_command_defs; cmd->command; cmd++) {
-        uiimport.Cmd_AddCommand(cmd->command, cmd->function);
+        menuimport.Cmd_AddCommand(cmd->command, cmd->function);
     }
     ui_menu_commands_registered = true;
 }
@@ -343,7 +343,7 @@ static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
 static void UI_UpdateLoadingMapInfo(void) {
     MAPINFO info;
     /* Compare the current destination, not the cached path itself, so subsequent maps reload their artwork. */
-    LPCSTR map_path = uiimport.Cvar_String("map", "");
+    LPCSTR map_path = menuimport.Cvar_String("map", "");
     DWORD background_model = 0;
     DWORD background_sequence = 0;
 
@@ -394,7 +394,7 @@ static void UI_InitLoadingScreen(void) {
     }
 }
 
-static void UI_DrawLoadingScreenLocal(void) {
+static void M_DrawLoadingScreen(void) {
     UI_UpdateLoadingMapInfo();
 
     if (!loading_screen.Loading) {
@@ -451,7 +451,7 @@ void M_Init(void) {
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
     
-    uiimport.Printf("M_Init: loading FDF assets\n");
+    menuimport.Printf("M_Init: loading FDF assets\n");
 
     UI_LoadTheme("UI\\war3skins.txt");
     UI_ParseFDF("UI\\FrameDef\\GlobalStrings.fdf");
@@ -481,15 +481,15 @@ void M_Init(void) {
      * Map launches use the server-authored in-game HUD via svc_layout.  Leave
      * the client-side menu screen idle there so no glue screen covers the game.
      */
-    LPCSTR map = uiimport.Cvar_String
-        ? uiimport.Cvar_String("map", "")
+    LPCSTR map = menuimport.Cvar_String
+        ? menuimport.Cvar_String("map", "")
         : "";
     if (map && *map) {
         UI_ClearScreen();
         return;
     }
 
-    UI_MenuCommandLocal("menu_main");
+    M_MenuCommand("menu_main");
 }
 
 void M_Shutdown(void) {
@@ -517,9 +517,9 @@ void M_Refresh(DWORD time) {
     }
 
     /* Draw the loading screen whenever the server reports CLIENT_UI_LOADING. */
-    LPCPLAYER ps = uiimport.GetPlayerState();
+    LPCPLAYER ps = menuimport.GetPlayerState();
     if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
-        UI_DrawLoadingScreenLocal();
+        M_DrawLoadingScreen();
         return;
     }
 
@@ -547,7 +547,7 @@ void M_KeyEvent(int key, BOOL down, DWORD time) {
 
 /* Convert pixel coordinates to FDF/UI space for hit testing */
 static VECTOR2 UI_PixelToFdf(int px, int py) {
-    LPRENDERER renderer = uiimport.GetRenderer();
+    LPRENDERER renderer = menuimport.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
     FLOAT nx = 0;
     FLOAT ny = 0;
@@ -560,11 +560,11 @@ static VECTOR2 UI_PixelToFdf(int px, int py) {
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */
-BOOL M_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    BOOL const down = event == UI_MOUSE_DOWN;
-    BOOL const up = event == UI_MOUSE_UP;
+BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+    BOOL const down = event == MENU_MOUSE_DOWN;
+    BOOL const up = event == MENU_MOUSE_UP;
     BOOL const left = param == 1;
-    int const wheel_y = event == UI_MOUSE_SCROLL ? UI_MOUSE_PARAM_Y(param) : 0;
+    int const wheel_y = event == MENU_MOUSE_SCROLL ? MENU_MOUSE_PARAM_Y(param) : 0;
     /* In the initialized runtime, a current screen is the ownership token for
      * standalone FDF input. Gameplay clears the screen, but menu_render.c keeps
      * the previous layout cache; never hit-test those stale invisible frames.
@@ -594,7 +594,7 @@ BOOL M_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     }
 
     /* Global: slider drag tracking (motion when no frame hit) */
-    if (UI_SliderIsDragging() && event == UI_MOUSE_MOVE) {
+    if (UI_SliderIsDragging() && event == MENU_MOUSE_MOVE) {
         UI_SliderUpdateDrag(UI_SliderActiveFrame(), fdf.x, fdf.y);
     }
     if (up && left) {
@@ -622,13 +622,13 @@ BOOL M_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     return hit != NULL;
 }
 
-void UI_MenuCommandLocal(LPCSTR command) {
+void M_MenuCommand(LPCSTR command) {
     DWORD index;
     DWORD slot;
     DWORD value;
     char map_path[MAX_PATHLEN];
 
-    uiimport.Printf("UI_MenuCommandLocal: %s\n", command);
+    menuimport.Printf("M_MenuCommand: %s\n", command);
 
     if (!command || !*command) {
         return;
@@ -798,13 +798,13 @@ void UI_MenuCommandLocal(LPCSTR command) {
     if (UI_IsMapCommand(command)) {
         UI_ClearScreen();
     }
-    uiimport.Cmd_ExecuteText(command);
+    menuimport.Cmd_ExecuteText(command);
 }
 
 /* Stub callbacks for server data updates */
 /* Forward unit UI data to active screen (Phase 8) */
-void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
-    uiimport.Printf("UI_UpdateUnitUI: %d units\n", (int)num_units);
+void M_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
+    menuimport.Printf("UI_UpdateUnitUI: %d units\n", (int)num_units);
     
     /* Forward to current screen if it implements unit UI handling */
     uiScreen_t *screen = UI_GetCurrentScreen();
@@ -813,7 +813,7 @@ void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
     }
 }
 
-static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
+static void M_UpdateLobbySetup(lobbyState_t const *state) {
     /* No current standalone screen means loading/gameplay owns presentation;
      * late lobby packets must not resurrect the game-setup glue screen. */
     if (!UI_GetCurrentScreen()) {
@@ -824,10 +824,10 @@ static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
 }
 
 /* Export function table */
-uiExport_t UI_GetAPI(uiImport_t import) {
-    uiimport = import;
+menuExport_t M_GetAPI(menuImport_t import) {
+    menuimport = import;
     
-    uiExport_t exp;
+    menuExport_t exp;
     memset(&exp, 0, sizeof(exp));
     
     exp.Init = M_Init;
@@ -836,9 +836,9 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.KeyEvent = M_KeyEvent;
     exp.TextInput = M_TextInput;
     exp.MouseEvent = M_MouseEvent;
-    exp.UpdateUnitUI = UI_UpdateUnitUILocal;
-    exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
-    exp.ResolveImagePath = UI_ResolveImagePathLocal;
+    exp.UpdateUnitUI = M_UpdateUnitUI;
+    exp.UpdateLobbySetup = M_UpdateLobbySetup;
+    exp.ResolveImagePath = M_ResolveImagePath;
     
     return exp;
 }

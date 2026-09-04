@@ -5,7 +5,7 @@
 #endif
 #include "menu_local.h"
 #include "menu_dbc.h"
-#include "client/ui_text_input.h"
+#include "client/menu_text_input.h"
 
 #include <ctype.h>
 #include "common/tinyxml.h"
@@ -38,9 +38,9 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name);
 
 /* Host services for stb_wowxml.h — only compiled in the unity production build
  * where -DSTB_WOW_XML_IMPLEMENTATION is set globally. */
-int  UI_XmlFsReadFile(LPCSTR p, void **b) { return uiimport.FS_ReadFile ? uiimport.FS_ReadFile(p, b) : -1; }
-void UI_XmlFsFreeFile(void *b) { if (uiimport.FS_FreeFile) uiimport.FS_FreeFile(b); }
-void UI_XmlPrintf(LPCSTR fmt, ...) { va_list ap; if (!uiimport.Printf) return; va_start(ap, fmt); uiimport.Printf(fmt); va_end(ap); }
+int  UI_XmlFsReadFile(LPCSTR p, void **b) { return menuimport.FS_ReadFile ? menuimport.FS_ReadFile(p, b) : -1; }
+void UI_XmlFsFreeFile(void *b) { if (menuimport.FS_FreeFile) menuimport.FS_FreeFile(b); }
+void UI_XmlPrintf(LPCSTR fmt, ...) { va_list ap; if (!menuimport.Printf) return; va_start(ap, fmt); menuimport.Printf(fmt); va_end(ap); }
 void UI_XmlOnFramePublish(int idx)  { UIWow_XmlPublishFrame(idx); }
 void UI_XmlOnShow(int idx) {
     if (idx >= 0 && idx < wow_xml.count && UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_SHOW))
@@ -477,9 +477,9 @@ static void UIWow_XmlPublishFrame(int idx) {
 /* Read Glue TOC entries line-by-line, ignore comments, resolve relative paths, and process each entry. */
 static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
     void *buf = NULL; int size; char *text, *cur;
-    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile) { UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS API unavailable for TOC load\n"); return false; }
-    size = uiimport.FS_ReadFile(toc_path, &buf);
-    if (size <= 0 || !buf) { SAFE_DELETE(buf, uiimport.FS_FreeFile); UIWow_Printf("UIWow: missing TOC %s\n", toc_path); return false; }
+    if (!menuimport.FS_ReadFile || !menuimport.FS_FreeFile) { UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS API unavailable for TOC load\n"); return false; }
+    size = menuimport.FS_ReadFile(toc_path, &buf);
+    if (size <= 0 || !buf) { SAFE_DELETE(buf, menuimport.FS_FreeFile); UIWow_Printf("UIWow: missing TOC %s\n", toc_path); return false; }
     text = (char *)buf; cur = text;
     while (*cur) {
         char line[PATH_MAX], resolved[PATH_MAX];
@@ -503,7 +503,7 @@ static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
         while (*end == '\n' || *end == '\r') end++;
         cur = end;
     }
-    uiimport.FS_FreeFile(buf);
+    menuimport.FS_FreeFile(buf);
     return true;
 }
 
@@ -816,7 +816,7 @@ static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
 /* Report unresolved authored geometry once without fabricating a drawable or clickable rectangle. */
 static void UIWow_XMLWarnGeometry(uiWowXmlElem_t *e, LPCRECT r) {
     if ((r->w > 0.0f && r->h > 0.0f) || e->flags & EF_LOGGED_GEOMETRY) return;
-    uiimport.Printf("UIWow: unresolved FrameXML geometry frame=%s source=%s width=%g height=%g\n",
+    menuimport.Printf("UIWow: unresolved FrameXML geometry frame=%s source=%s width=%g height=%g\n",
         UIWow_ElemStr(e, ELEM_NAME) ? e->texts[ELEM_NAME] : "<unnamed>",
         UIWow_ElemStr(e, ELEM_SOURCE_FILE) ? e->texts[ELEM_SOURCE_FILE] : "<buffer>", r->w, r->h);
     e->flags |= EF_LOGGED_GEOMETRY;
@@ -982,7 +982,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 drawText_t dt = MAKE(drawText_t, .font = f, .text = display, .rect = tr, .color = MAKE(COLOR32, text_color.r, text_color.g, text_color.b, (BYTE)(text_color.a * e->alpha)), .textWidth = tr.w, .lineHeight = 1.33f, .flags = ((e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0) | (has_clip ? DRAW_CLIP : 0), .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign, .valign = e->valign, .clip = clip_rect);
                 wow_ui.renderer->DrawText(&dt);
                 if (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)
-                    UI_DrawTextInputCursor(wow_ui.renderer, &dt, display, wow_xml.text_input.cursor, text_color);
+                    M_DrawTextInputCursor(wow_ui.renderer, &dt, display, wow_xml.text_input.cursor, text_color);
             }
         }
 }
@@ -1060,10 +1060,10 @@ static int UIWow_XMLScrollBarParent(int idx) {
 }
 
 
-BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+BOOL UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse = UIWow_MouseFdf(x, y);
     FLOAT fdf_x = mouse.x, fdf_y = mouse.y;
-    int wheel_y = event == UI_MOUSE_SCROLL ? UI_MOUSE_PARAM_Y(param) : 0;
+    int wheel_y = event == MENU_MOUSE_SCROLL ? MENU_MOUSE_PARAM_Y(param) : 0;
     int hit;
 
     wow_xml.hovered_button = -1;
@@ -1073,7 +1073,7 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     }
 
     /* Mouse wheel: scroll the ScrollFrame under the cursor. */
-    if (event == UI_MOUSE_SCROLL && wheel_y) {
+    if (event == MENU_MOUSE_SCROLL && wheel_y) {
         int sf = UIWow_XMLHitScrollFrame(fdf_x, fdf_y);
         if (sf >= 0) {
             RECT vr = UIWow_XmlComputeRect(sf);
@@ -1091,7 +1091,7 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     /* Mouse motion: handle scrollbar thumb drag, then return.
      * Must not fall through to the mouse-up block — that clears pressed_button,
      * which would drop a button press if a motion event arrives between DOWN and UP. */
-    if (event == UI_MOUSE_MOVE) {
+    if (event == MENU_MOUSE_MOVE) {
         if (wow_xml.drag.scrollbar_idx >= 0) {
             int sf = wow_xml.drag.scrollbar_idx;
             RECT vr = UIWow_XmlComputeRect(sf);
@@ -1121,7 +1121,7 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         }
     }
 
-    if (event == UI_MOUSE_UP) {
+    if (event == MENU_MOUSE_UP) {
         int pressed = wow_xml.pressed_button;
         wow_xml.pressed_button = -1;
         /* End scrollbar drag. */
@@ -1143,7 +1143,7 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         }
         return hit >= 0 || pressed >= 0;
     }
-    if (event != UI_MOUSE_DOWN) {
+    if (event != MENU_MOUSE_DOWN) {
         return hit >= 0;
     }
     if (hit < 0) {
@@ -1214,17 +1214,17 @@ static void UIWow_XMLEditInsert(uiWowXmlElem_t *e, LPCSTR text) {
         wow_xml.text_input.text = buf;
         wow_xml.text_input.size = new_size;
     }
-    UI_TextInput_Insert(&wow_xml.text_input, text);
+    M_TextInput_Insert(&wow_xml.text_input, text);
     e->measured = MAKE(fsize_t, 0, 0);
 }
 
 static void UIWow_XMLEditBackspace(uiWowXmlElem_t *e) {
-    if (UI_TextInput_Backspace(&wow_xml.text_input))
+    if (M_TextInput_Backspace(&wow_xml.text_input))
         e->measured = MAKE(fsize_t, 0, 0);
 }
 
 static void UIWow_XMLEditDelete(uiWowXmlElem_t *e) {
-    if (UI_TextInput_Delete(&wow_xml.text_input))
+    if (M_TextInput_Delete(&wow_xml.text_input))
         e->measured = MAKE(fsize_t, 0, 0);
 }
 
@@ -1253,20 +1253,20 @@ BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time) {
     if (!down || wow_xml.focus < 0 || wow_xml.focus >= wow_xml.count) return false;
     e = &wow_xml.elems[wow_xml.focus];
     if (e->type != WOW_XML_EDITBOX) return false;
-    result = UI_TextInput_Key(&wow_xml.text_input, key);
+    result = M_TextInput_Key(&wow_xml.text_input, key);
     switch (result) {
-        case UI_TEXTINPUT_CONSUMED:
+        case MENU_TEXTINPUT_CONSUMED:
             e->measured = MAKE(fsize_t, 0, 0);
             return true;
-        case UI_TEXTINPUT_ENTER:
+        case MENU_TEXTINPUT_ENTER:
             if (UIWow_ElemStr(e, ELEM_ON_ENTER_PRESSED))
                 UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_ENTER_PRESSED], "OnEnterPressed");
             return true;
-        case UI_TEXTINPUT_ESCAPE:
+        case MENU_TEXTINPUT_ESCAPE:
             if (UIWow_ElemStr(e, ELEM_ON_ESCAPE_PRESSED))
                 UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_ESCAPE_PRESSED], "OnEscapePressed");
             return true;
-        case UI_TEXTINPUT_TAB:
+        case MENU_TEXTINPUT_TAB:
             if (UIWow_ElemStr(e, ELEM_ON_TAB_PRESSED))
                 UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_TAB_PRESSED], "OnTabPressed");
             return true;

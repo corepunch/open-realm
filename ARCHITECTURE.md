@@ -61,7 +61,7 @@ flowchart TB
 |---|---|---|---|
 | **Renderer (Top)** | [renderer/](renderer/) + [games/<game>/renderer/](games/) | Low-level drawing: world terrain, models (MDX/M2/M3), water, particles, 2D sprites, font glyphs. Agnostic of game rules. | [renderer/r_main.c](renderer/r_main.c), `refexport_t` (`re`), `R_BeginFrame`, `R_RenderFrame`, `R_EndFrame`, `R_DrawPic` |
 | **Client & UI Dispatch** | [client/](client/) | Owns window, input sampling, entity interpolation, screen dispatching, in-game layout rendering via `SCR_DrawLayout()`. | [client/cl_main.c](client/cl_main.c), [client/cl_scrn.c](client/cl_scrn.c), [client/cl_layout.c](client/cl_layout.c), [client/cl_input.c](client/cl_input.c) |
-| **Menu / Glue UI Library** | [games/<game>/ui/](games/) | Client-side menus, glue screens, character creation/selection, loading screens (Quake 3 style UI module). | `uiExport_t` (`ui`), `uiScreen_t`, `UI_GetAPI`, `UI_RefreshLocal()` |
+| **Menu / Glue UI Library** | [games/<game>/menu/](games/) | Client-side menus, glue screens, character creation/selection, loading screens (Quake 3 style UI module). | `menuExport_t` (`menu`), `uiScreen_t`, `M_GetAPI`, `M_Refresh()` |
 | **Transport / Common** | [common/](common/) | Network packet dispatch, loopback ring buffers, VFS / MPQ archives, cvars, command buffer, memory allocators. | [common/net.c](common/net.c), [common/mpq.c](common/mpq.c), [common/cmd.c](common/cmd.c), [common/cvar.c](common/cvar.c) |
 | **Server Core** | [server/](server/) | Authoritative server loop, client connection slots, snapshot delta-compression, spatial indexing, packet transmission. | [server/sv_main.c](server/sv_main.c), [server/sv_ents.c](server/sv_ents.c), [server/sv_game.c](server/sv_game.c) |
 | **Game Logic (Bottom)** | [games/<game>/game/](games/) | Authoritative simulation: units, combat, AI, spells, loot, quests, inventory, server-authored HUD definitions. | `game_export_t` (`ge`), `game_import_t` (`gi`), `G_RunFrame`, `Wow_RunFrame` |
@@ -84,7 +84,7 @@ A crucial architectural principle in OpenWarcraft is the distinction between **M
 | - Driven by uiScreen_t controllers        | - Sent via svc_layout wire packets        |
 | - Handles menus, login, char create,      | - Generic client drawer (cl_layout.c)     |
 |   options, LAN lobby, loading screen      | - Dynamically updated by server triggers  |
-| - Key function: ui.Refresh(msec)          | - Key function: SCR_DrawLayout()          |
+| - Key function: menu.Refresh(msec)          | - Key function: SCR_DrawLayout()          |
 +-------------------------------------------+-------------------------------------------+
 ```
 
@@ -250,7 +250,7 @@ For in-depth details on specific engine subsystems, consult the following dedica
   Game policies reside exclusively under `games/<game>/`.
   - An `#ifdef <GAME>` guard or hardcoded `strcmp(command, "<game>_...")` branch in a shared dispatcher
     (`CL_ParseGameCommand`, `SV_*`, `R_*`) is also a violation. Use the existing function-table extension
-    point instead; for example, `ui.GameCommand(command, payload.data, payload.cursize)` is unconditional.
+    point instead; for example, `menu.GameCommand(command, payload.data, payload.cursize)` is unconditional.
     If no hook exists, add a function-table entry rather than using `#ifdef` as a substitute.
 - **Network Contract Stability**: `entityState_t` and `playerState_t` are tight network contracts. Never add fields without careful justification; prefer existing fields, configstrings, or server-authored UI payloads.
 - **Data-Oriented & id-Tech Idioms**: Follow Quake 2 patterns (`g_*.c`, `cl_*.c`, `sv_*.c`, `r_*.c`). Favor flat, memory-mapped structs, single-pass schema tables, and thin interfaces over heavy OOP abstractions.

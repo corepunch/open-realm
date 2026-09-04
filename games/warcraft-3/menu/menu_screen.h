@@ -18,7 +18,7 @@ typedef struct uiScreen_s {
     void (*refresh)(int msec);
     void (*draw)(void);
     void (*key_event)(int key, BOOL down);
-    void (*update_unit_ui)(DWORD num_units, uiUnitData_t *units);  /* Phase 8: receive unit UI data */
+    void (*update_unit_ui)(DWORD num_units, menuUnitData_t *units);  /* Phase 8: receive unit UI data */
 } uiScreen_t;
 
 /* Screen implementations */
@@ -36,13 +36,13 @@ LPCSTR LAN_SelectedMapPath(void);
 LPCSTR LAN_SelectedMapName(void);
 DWORD LAN_SelectedGameSpeed(void);
 
-void UI_ShowMainMenu(void);
-void UI_ShowSinglePlayerMenu(void);
-void UI_ShowOptionsMenu(void);
-void UI_ShowCreditsMenu(void);
-void UI_ShowLanCreateMenu(void);
-void UI_ShowLanBrowserMenu(void);
-void UI_ShowGameSetupMenu(void);
+void M_ShowMainMenu(void);
+void M_ShowSinglePlayerMenu(void);
+void M_ShowOptionsMenu(void);
+void M_ShowCreditsMenu(void);
+void M_ShowLanCreateMenu(void);
+void M_ShowLanBrowserMenu(void);
+void M_ShowGameSetupMenu(void);
 
 void MainMenu_ShowMainPanel(void);
 void MainMenu_ShowRealmSelect(void);

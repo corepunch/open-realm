@@ -3,7 +3,7 @@
  *
  * Owns the global state definitions, shared asset helpers, per-frame
  * dispatch, input routing, glue-menu commands, unit icon sync, and the
- * UI_GetAPI entry point.  Rendering detail lives in menu_loading.c;
+ * M_GetAPI entry point.  Rendering detail lives in menu_loading.c;
  * Lua VM and bindings live in menu_lua.c.
  */
 #include "menu_local.h"
@@ -14,9 +14,9 @@
  * Global state (declared extern in menu_local.h)
  * ---------------------------------------------------------------------- */
 
-uiImport_t uiimport;
+menuImport_t menuimport;
 
-static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y);
+static BOOL UIWow_GameOverlayMouseEvent(menuMouseEvent_t event, int x, int y);
 uiWowState_t wow_ui;
 
 static BOOL uiWow_menu_commands_registered;
@@ -34,13 +34,13 @@ void UIWow_Printf(LPCSTR fmt, ...) {
     va_list args;
     char text[1024];
 
-    if (!uiimport.Printf) {
+    if (!menuimport.Printf) {
         return;
     }
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
-    uiimport.Printf("%s", text);
+    menuimport.Printf("%s", text);
 }
 
 void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...) {
@@ -51,18 +51,18 @@ void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...) {
         return;
     }
     wow_ui.warn_once_mask |= flag;
-    if (!uiimport.Printf) {
+    if (!menuimport.Printf) {
         return;
     }
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
-    uiimport.Printf("%s", text);
+    menuimport.Printf("%s", text);
 }
 
 void UIWow_EnsureRenderer(void) {
-    if (!wow_ui.renderer && uiimport.GetRenderer) {
-        wow_ui.renderer = uiimport.GetRenderer();
+    if (!wow_ui.renderer && menuimport.GetRenderer) {
+        wow_ui.renderer = menuimport.GetRenderer();
     }
     if (!wow_ui.renderer) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER, "UIWow: renderer is unavailable (GetRenderer returned NULL)\n");
@@ -80,10 +80,10 @@ static BOOL UIWow_TexturePathHasExt(LPCSTR name) {
 static BOOL UIWow_MainHasArchiveFile(LPCSTR path) {
     void *buf = NULL;
     int size;
-    if (!path || !*path || !uiimport.FS_ReadFile || !uiimport.FS_FreeFile) return false;
-    size = uiimport.FS_ReadFile(path, &buf);
-    if (size > 0 && buf) { uiimport.FS_FreeFile(buf); return true; }
-    SAFE_DELETE(buf, uiimport.FS_FreeFile);
+    if (!path || !*path || !menuimport.FS_ReadFile || !menuimport.FS_FreeFile) return false;
+    size = menuimport.FS_ReadFile(path, &buf);
+    if (size > 0 && buf) { menuimport.FS_FreeFile(buf); return true; }
+    SAFE_DELETE(buf, menuimport.FS_FreeFile);
     return false;
 }
 
@@ -236,7 +236,7 @@ static void UIWow_Refresh(DWORD time) {
     if (!wow_ui.game_mode)
         UIWow_CallLuaUpdate(time);
 
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = menuimport.GetPlayerState ? menuimport.GetPlayerState() : NULL;
 
     UIWow_EnsureRenderer();
 
@@ -364,19 +364,19 @@ static void UIWow_TextInput(LPCSTR text) {
     UIWow_LuaPCall(1);
 }
 
-static BOOL UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+static BOOL UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse_pos;
     if (wow_ui.game_mode)
         return UIWow_GameOverlayMouseEvent(event, x, y);
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return true;
     }
-    if (event == UI_MOUSE_MOVE) {
+    if (event == MENU_MOUSE_MOVE) {
         UIWow_LuaMouseMove(x, y);
         return false;
     }
-    if (!wow_ui.lua || event != UI_MOUSE_DOWN) {
-        if (!wow_ui.lua && event == UI_MOUSE_DOWN) {
+    if (!wow_ui.lua || event != MENU_MOUSE_DOWN) {
+        if (!wow_ui.lua && event == MENU_MOUSE_DOWN) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; mouse click ignored\n");
         }
         return false;
@@ -396,12 +396,12 @@ static BOOL UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) 
 }
 
 /* TutorialFrame remains a legacy client-owned game window until its layout is server-authored. */
-static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y) {
+static BOOL UIWow_GameOverlayMouseEvent(menuMouseEvent_t event, int x, int y) {
     VECTOR2 pos = UIWow_MouseFdf(x, y);
     DWORD unread = 0;
 
-    if (event == UI_MOUSE_UP) return UIWow_WindowMouseUp(pos.x, pos.y);
-    if (event != UI_MOUSE_DOWN) return false;
+    if (event == MENU_MOUSE_UP) return UIWow_WindowMouseUp(pos.x, pos.y);
+    if (event != MENU_MOUSE_DOWN) return false;
     if (UIWow_WindowMouseDown(pos.x, pos.y)) return true;
     FOR_LOOP(i, wow_ui.tutorial_alert_count) {
         FLOAT icon_x = 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f;
@@ -468,11 +468,11 @@ static uiWowMenuCommandDef_t const uiWow_menu_command_defs[] = {
 };
 
 static void UIWow_RegisterMenuCommands(void) {
-    if (uiWow_menu_commands_registered || !uiimport.Cmd_AddCommand) {
+    if (uiWow_menu_commands_registered || !menuimport.Cmd_AddCommand) {
         return;
     }
     for (uiWowMenuCommandDef_t const *cmd = uiWow_menu_command_defs; cmd->command; cmd++) {
-        uiimport.Cmd_AddCommand(cmd->command, cmd->function);
+        menuimport.Cmd_AddCommand(cmd->command, cmd->function);
     }
     uiWow_menu_commands_registered = true;
 }
@@ -482,10 +482,10 @@ static void UIWow_RegisterMenuCommands(void) {
  * ---------------------------------------------------------------------- */
 
 static DWORD UIWow_ImageIndex(LPCSTR art) {
-    if (!art || !*art || !uiimport.ImageIndex) {
+    if (!art || !*art || !menuimport.ImageIndex) {
         return 0;
     }
-    return (DWORD)uiimport.ImageIndex(art);
+    return (DWORD)menuimport.ImageIndex(art);
 }
 
 static DWORD UIWow_ParseCount(LPCSTR text) {
@@ -495,8 +495,8 @@ static DWORD UIWow_ParseCount(LPCSTR text) {
     return (DWORD)strtoul(text, NULL, 10);
 }
 
-static void UIWow_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
-    uiUnitData_t *unit;
+static void UIWow_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
+    menuUnitData_t *unit;
 
     memset(wow_ui.inventory, 0, sizeof(wow_ui.inventory));
     memset(wow_ui.actions,   0, sizeof(wow_ui.actions));
@@ -505,7 +505,7 @@ static void UIWow_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
     }
     unit = &units[0];
     FOR_LOOP(i, MIN(unit->num_buttons, WOW_UI_ACTION_SLOTS)) {
-        uiCommandButton_t const *button = &unit->buttons[i];
+        menuCommandButton_t const *button = &unit->buttons[i];
         uiWowIcon_t *icon = &wow_ui.actions[i];
 
         icon->image = UIWow_ImageIndex(button->art);
@@ -514,7 +514,7 @@ static void UIWow_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
         snprintf(icon->name, sizeof(icon->name), "%s", button->tooltip);
     }
     FOR_LOOP(i, MIN(unit->num_inventory, WOW_UI_INVENTORY_SLOTS)) {
-        uiInventoryItem_t const *item = &unit->inventory[i];
+        menuInventoryItem_t const *item = &unit->inventory[i];
         DWORD slot = item->slot < WOW_UI_INVENTORY_SLOTS ? item->slot : i;
         uiWowIcon_t *icon = &wow_ui.inventory[slot];
 
@@ -556,10 +556,10 @@ static void UIWow_GameCommand(LPCSTR command, void const *data, DWORD size) {
 
 static void UIWow_UpdateLobbySetup(lobbyState_t const *state) { (void)state; }
 
-uiExport_t UI_GetAPI(uiImport_t import) {
-    uiimport = import;
+menuExport_t M_GetAPI(menuImport_t import) {
+    menuimport = import;
 
-    return (uiExport_t) {
+    return (menuExport_t) {
         .Init             = UIWow_Init,
         .Shutdown         = UIWow_Shutdown,
         .Refresh          = UIWow_Refresh,

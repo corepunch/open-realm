@@ -42,7 +42,7 @@ static BOOL UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
     if (!dialog->modal) {
         dialog->modal = UI_Spawn(FT_DIALOG, NULL);
         if (!dialog->modal) {
-            uiimport.Printf("ERROR: failed to create %s\n", modal_name);
+            menuimport.Printf("ERROR: failed to create %s\n", modal_name);
             return false;
         }
         snprintf(dialog->modal->Name, sizeof(dialog->modal->Name), "%s", modal_name);
@@ -182,7 +182,7 @@ static BOOL UI_DialogWar3CreateTemplate(uiDialogWar3_t *dialog,
         return UI_DialogWar3CreateLegacy(dialog);
     }
     if (!UI_DialogWar3EnsureTemplate(template_name)) {
-        uiimport.Printf("ERROR: unsupported dialog template: %s\n", template_name);
+        menuimport.Printf("ERROR: unsupported dialog template: %s\n", template_name);
         return false;
     }
     dialog->frame = UI_DialogWar3CloneTemplate(template_name, dialog->modal);

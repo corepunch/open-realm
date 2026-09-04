@@ -292,22 +292,22 @@ static LPCPLAYER test_get_player_state(void) {
 }
 
 static void load_ui_files(LPCSTR const *file_names, size_t count) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
 
     UI_ClearTemplates();
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.FS_ReadFile = test_fs_read_file;
-    uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.GetPlayerState = test_get_player_state;
-    uiimport.ImageIndex = test_image_index;
-    uiimport.FontIndex = test_font_index;
-    uiimport.Printf = test_ui_printf;
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.FS_ReadFile = test_fs_read_file;
+    menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.GetPlayerState = test_get_player_state;
+    menuimport.ImageIndex = test_image_index;
+    menuimport.FontIndex = test_font_index;
+    menuimport.Printf = test_ui_printf;
     for (size_t i = 0; i < count; i++) {
         UI_ParseFDF(file_names[i]);
     }
-    uiimport = saved;
+    menuimport = saved;
 }
 
 static void reset_ui_state(void) {
@@ -332,13 +332,13 @@ static void reset_ui_state(void) {
     fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
     test_mouse_pos = MAKE(VECTOR2, 0, 0);
     UI_ClearEditFocus();
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.ImageIndex = fake_image_index;
-    uiimport.FontIndex = test_font_index;
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Printf = test_ui_printf;
-    uiimport.GetPlayerState = test_get_player_state;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.ImageIndex = fake_image_index;
+    menuimport.FontIndex = test_font_index;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetPlayerState = test_get_player_state;
     M_SetActive(true);
 }
 
@@ -1330,15 +1330,15 @@ TEST(menu_fdf, single_line_text_auto_height_uses_fdf_font_size) {
 }
 
 TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
     LPFRAMEDEF root;
     LPFRAMEDEF button;
 
     reset_ui_state();
-    uiimport.FS_ReadFile = test_missing_fs_read;
-    uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.Cvar_String = test_cvar_string;
-    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.FS_ReadFile = test_missing_fs_read;
+    menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.Cvar_String = test_cvar_string;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
 
     /* A startup map enters the initialized runtime with no standalone screen. */
     test_map = "Maps\\Campaign\\Human02.w3m";
@@ -1358,7 +1358,7 @@ TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
     if (!require_not_null(root) || !require_not_null(button)) {
         M_Shutdown();
         test_map = "";
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     UI_SetOnClick(button, "test_stale_menu_click");
@@ -1368,12 +1368,12 @@ TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
     UI_DrawFrame(root);
     T_ASSERT(UI_HitTest(0.15f, 0.15f) != NULL);
     captured_command[0] = '\0';
-    T_ASSERT(!M_MouseEvent(UI_MOUSE_UP, 188, 144, 1));
+    T_ASSERT(!M_MouseEvent(MENU_MOUSE_UP, 188, 144, 1));
     T_STREQ(captured_command, "");
 
     M_Shutdown();
     test_map = "";
-    uiimport = saved;
+    menuimport = saved;
 }
 
 TEST(menu_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
@@ -1412,13 +1412,13 @@ TEST(menu_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    M_MouseEvent(UI_MOUSE_UP, 130, 130, 1);
+    M_MouseEvent(MENU_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     T_ASSERT(checkbox->CheckBox.Checked);
     T_EQ(captured_draw_calls, 2);
 
-    M_MouseEvent(UI_MOUSE_UP, 130, 130, 1);
+    M_MouseEvent(MENU_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     T_ASSERT(!checkbox->CheckBox.Checked);
@@ -1431,7 +1431,7 @@ TEST(menu_fdf, control_map_list_receives_mouse_clicks) {
     uiMapListState_t state = {0};
 
     reset_ui_state();
-    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
     parse_fdf("control_map_list.fdf",
               "Frame \"FRAME\" \"Root\" {"
               " Width 0.8, Height 0.6,"
@@ -1457,7 +1457,7 @@ TEST(menu_fdf, control_map_list_receives_mouse_clicks) {
     /* Populate the layout cache, then click in the first 0.019-high row. */
     UI_DrawFrame(root);
     captured_command[0] = '\0';
-    M_MouseEvent(UI_MOUSE_UP, 188, 144, 1);
+    M_MouseEvent(MENU_MOUSE_UP, 188, 144, 1);
     T_STREQ(captured_command, "test_map_list_select 0");
 }
 
@@ -1492,7 +1492,7 @@ TEST(menu_fdf, popup_menu_hover_sets_flag_on_middle_row) {
     int px = (int)(mid_x / 0.8f * 1000.0f);
     int py = (int)(mid_y / 0.6f * 750.0f);
 
-    M_MouseEvent(UI_MOUSE_MOVE, px, py, 0);
+    M_MouseEvent(MENU_MOUSE_MOVE, px, py, 0);
 
     T_ASSERT(popup->ui_flags & UIFLAG_HOVERED);
 }
@@ -1527,7 +1527,7 @@ TEST(menu_fdf, button1_dropdown_backdrop_gets_hover_highlight) {
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
     UI_DrawFrame(root);
-    M_MouseEvent(UI_MOUSE_MOVE, 130, 130, 0);
+    M_MouseEvent(MENU_MOUSE_MOVE, 130, 130, 0);
     captured_hover_draws = 0;
     UI_DrawFrame(root);
 
@@ -1579,7 +1579,7 @@ TEST(menu_fdf, editbox_without_text_frame_click_focus_accepts_text_input) {
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
     UI_DrawFrame(root);
-    M_MouseEvent(UI_MOUSE_DOWN, 130, 130, 1);
+    M_MouseEvent(MENU_MOUSE_DOWN, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
 
@@ -1597,18 +1597,18 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     };
     LPFRAMEDEF root;
     LPFRAMEDEF editbox;
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.Printf = test_ui_printf;
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
-    uiimport.Cvar_String = test_cvar_string;
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.GetPlayerState = test_get_player_state;
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.Cvar_String = test_cvar_string;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.GetPlayerState = test_get_player_state;
     captured_command[0] = '\0';
 
     T_ASSERT(optionsMenuScreen.load());
@@ -1617,11 +1617,11 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     root = UI_FindFrame("OptionsMenu");
     editbox = UI_FindFrame("GamePortEditBox");
     if (!require_not_null(root)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(editbox)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
 
@@ -1630,7 +1630,7 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     test_mouse_pos.y = 130;
     /* Event hit testing consumes the layout cache built by the preceding draw. */
     UI_DrawFrame(root);
-    M_MouseEvent(UI_MOUSE_DOWN, 130, 130, 1);
+    M_MouseEvent(MENU_MOUSE_DOWN, 130, 130, 1);
     T_ASSERT(UI_EditHasFocus(editbox));
 
     optionsMenuScreen.key_event(13, true);
@@ -1641,7 +1641,7 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     OptionsMenu_Apply();
     T_STREQ(captured_command, "vid_apply\nwriteconfig\n");
 
-    uiimport = saved;
+    menuimport = saved;
 }
 
 TEST(menu_fdf, esc_menu_confirm_quit_panel_is_available) {
@@ -1691,8 +1691,8 @@ TEST(menu_fdf, dialog_war3_supports_configurable_button_modes) {
     };
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Printf = test_ui_printf;
 
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
@@ -1722,7 +1722,7 @@ static LPCSTR const authored_dialog_files[] = {
     "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
     /* DialogWar3.fdf must be pre-loaded: UI_DialogWar3EnsureTemplate("BattleNetDialogTemplate")
      * calls UI_EnsureFDF for it; without a prior load the deferred UI_EnsureFDF call hits a null
-     * FS_ReadFile (load_ui_files restores uiimport before UI_DialogWar3Init runs). */
+     * FS_ReadFile (load_ui_files restores menuimport before UI_DialogWar3Init runs). */
     "UI\\FrameDef\\Glue\\DialogWar3.fdf",
     "UI\\FrameDef\\Glue\\BattleNetTemplates.fdf",
     "UI\\FrameDef\\UI\\ScriptDialog.fdf",
@@ -1742,8 +1742,8 @@ TEST(menu_fdf, dialog_supports_battlenet_template) {
     };
 
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Printf = test_ui_printf;
 
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
@@ -1780,8 +1780,8 @@ TEST(menu_fdf, dialog_supports_standard_authored_template) {
     };
 
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Printf = test_ui_printf;
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
@@ -1804,8 +1804,8 @@ TEST(menu_fdf, dialog_preserves_script_text_and_authors_button) {
     };
 
     load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Printf = test_ui_printf;
     root = UI_Spawn(FT_FRAME, NULL);
     if (!require_not_null(root)) return;
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
@@ -1840,17 +1840,17 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     LPFRAMEDEF yes_backdrop;
     LPFRAMEDEF no_button;
     LPFRAMEDEF yes_button;
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.Printf = test_ui_printf;
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.GetPlayerState = test_get_player_state;
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.GetPlayerState = test_get_player_state;
     captured_command[0] = '\0';
 
     T_ASSERT(mainMenuScreen.load());
@@ -1859,20 +1859,20 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     global_exit_button = UI_FindFrame("ExitButton");
     exit_button = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "ExitButton");
     if (!require_not_null(exit_button)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     T_ASSERT(global_exit_button != exit_button);
     T_ASSERT(!exit_button->hidden);
     T_STREQ(exit_button->OnClick, "menu_quit");
     logo = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "WarCraftIIILogo");
-    if (!require_not_null(logo)) { uiimport = saved; return; }
+    if (!require_not_null(logo)) { menuimport = saved; return; }
     T_FEQ(logo->Points.x[FPP_MIN].offset, 0.13f, 0.001f);
     T_FEQ(logo->Points.y[FPP_MIN].offset, -0.08f, 0.001f);
 
     modal = UI_FindFrame("MainMenuQuitModal");
     if (!require_not_null(modal)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     T_EQ(modal->Type, FT_DIALOG);
@@ -1882,7 +1882,7 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
 
     dialog = UI_FindChildFrame(modal, "DialogWar3");
     if (!require_not_null(dialog)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     T_EQ(dialog->Type, FT_DIALOG);
@@ -1901,31 +1901,31 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     yes_button = UI_FindChildFrame(dialog, "DialogButtonYes");
 
     if (!require_not_null(message)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(icon)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(ok_backdrop)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(no_backdrop)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(yes_backdrop)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(no_button)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(yes_button)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
 
@@ -1944,7 +1944,7 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
     UI_MenuCommandLocal(yes_button->OnClick);
     T_STREQ(captured_command, "quit");
 
-    uiimport = saved;
+    menuimport = saved;
 }
 
 TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
@@ -1955,15 +1955,15 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     };
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.Printf = test_ui_printf;
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.GetPlayerState = test_get_player_state;
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.GetPlayerState = test_get_player_state;
 
     T_ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
@@ -1973,7 +1973,7 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     mainMenuScreen.draw();
     T_EQ(captured_stand_sprites, 0);
     T_EQ(captured_realm_panel_sprites, 2);
-    uiimport = saved;
+    menuimport = saved;
 }
 
 static void test_single_player_campaign_profile(BOOL tft) {
@@ -1984,7 +1984,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         "UI\\FrameDef\\Glue\\CampaignMenu.fdf",
         "UI\\FrameDef\\Glue\\MapListBox.fdf",
     };
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
     LPFRAMEDEF root;
     LPFRAMEDEF campaign_button;
     LPFRAMEDEF skirmish_button;
@@ -2005,21 +2005,21 @@ static void test_single_player_campaign_profile(BOOL tft) {
     test_campaign_played_mission = -1;
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.Printf = test_ui_printf;
-    uiimport.GetRenderer = test_get_renderer;
-    uiimport.Cmd_ExecuteText = test_cmd_execute_text;
-    uiimport.Cvar_String = test_cvar_string;
-    uiimport.Cvar_Set = test_cvar_set;
-    uiimport.FS_ReadFile = test_fs_read_file;
-    uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.GetPlayerState = test_get_player_state;
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.Cvar_String = test_cvar_string;
+    menuimport.Cvar_Set = test_cvar_set;
+    menuimport.FS_ReadFile = test_fs_read_file;
+    menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.GetPlayerState = test_get_player_state;
 
     if (!singlePlayerMenuScreen.load()) {
         T_ASSERT(false);
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     singlePlayerMenuScreen.init();
@@ -2031,22 +2031,22 @@ static void test_single_player_campaign_profile(BOOL tft) {
     back_button = UI_FindFrame("BackButton");
 
     if (!require_not_null(root)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(campaign_button)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(skirmish_button)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     if (!require_not_null(cancel_button)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
-    if (!require_not_null(back_button)) { uiimport = saved; return; }
+    if (!require_not_null(back_button)) { menuimport = saved; return; }
     T_ASSERT(!root->hidden);
     T_STREQ(campaign_button->OnClick, "menu_single_player_campaign");
     T_STREQ(skirmish_button->OnClick, "menu_single_player_skirmish");
@@ -2061,7 +2061,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         : NULL;
 
     if (!require_not_null(human_button) || !require_not_null(campaign_list_box)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     T_ASSERT(human_button->hidden);
@@ -2098,7 +2098,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         !require_not_null(mission_name) ||
         !require_not_null(mission_name_header) ||
         !require_not_null(mission_list_box)) {
-        uiimport = saved;
+        menuimport = saved;
         return;
     }
     T_ASSERT(campaign_select_frame->hidden);
@@ -2154,7 +2154,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     test_fs_expansion = false;
     test_campaign_mission_visibility = NULL;
     test_campaign_played_mission = -1;
-    uiimport = saved;
+    menuimport = saved;
 }
 
 TEST(menu_fdf, single_player_screen_loads_roc_campaigns) {
@@ -2188,7 +2188,7 @@ static int utf16le_fs_read(LPCSTR file_name, void **buf) {
 static void utf16le_fs_free(void *buf) { free(buf); }
 
 TEST(menu_fdf, utf16le_fdf_is_parsed_correctly) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
     LPFRAMEDEF frame;
 
     reset_ui_state();
@@ -2202,17 +2202,17 @@ TEST(menu_fdf, utf16le_fdf_is_parsed_correctly) {
         "    Height 0.50,\n"
         "}\n";
 
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.FS_ReadFile = utf16le_fs_read;
-    uiimport.FS_FreeFile = utf16le_fs_free;
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.ImageIndex = fake_image_index;
-    uiimport.FontIndex = test_font_index;
-    uiimport.Printf = test_ui_printf;
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.FS_ReadFile = utf16le_fs_read;
+    menuimport.FS_FreeFile = utf16le_fs_free;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.ImageIndex = fake_image_index;
+    menuimport.FontIndex = test_font_index;
+    menuimport.Printf = test_ui_printf;
 
     UI_ParseFDF("utf16le_test.fdf");
-    uiimport = saved;
+    menuimport = saved;
 
     frame = UI_FindFrame("UTF16Frame");
     if (!require_not_null(frame)) return;
@@ -2259,12 +2259,12 @@ static int test_versioned_theme_read(LPCSTR name, void **buf) {
 }
 
 TEST(menu_fdf, versioned_theme_keys_follow_expansion_edition) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
 
     reset_ui_state();
-    uiimport.FS_ReadFile = test_versioned_theme_read;
-    uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.Cvar_String = test_cvar_string;
+    menuimport.FS_ReadFile = test_versioned_theme_read;
+    menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.Cvar_String = test_cvar_string;
     UI_LoadTheme("UI\\war3skins.txt");
 
     test_fs_expansion = false;
@@ -2277,16 +2277,16 @@ TEST(menu_fdf, versioned_theme_keys_follow_expansion_edition) {
 
     test_fs_expansion = false;
     UI_ClearTheme();
-    uiimport = saved;
+    menuimport = saved;
 }
 
 TEST(menu_fdf, unversioned_theme_key_precedes_edition_variant) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
 
     reset_ui_state();
-    uiimport.FS_ReadFile = test_versioned_theme_read;
-    uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.Cvar_String = test_cvar_string;
+    menuimport.FS_ReadFile = test_versioned_theme_read;
+    menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.Cvar_String = test_cvar_string;
     UI_LoadTheme("UI\\war3skins.txt");
 
     test_fs_expansion = false;
@@ -2298,14 +2298,14 @@ TEST(menu_fdf, unversioned_theme_key_precedes_edition_variant) {
     T_STREQ(Theme_String("OnlyTft", "Default"), "OnlyTft");
 
     UI_ClearTheme();
-    uiimport = saved;
+    menuimport = saved;
 }
 
 TEST(menu_fdf, deferred_texture_cache_tracks_theme_changes) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
     PLAYER player = { .race = kPlayerRaceHuman };
     reset_ui_state();
-    uiimport.FS_ReadFile = test_theme_read; uiimport.FS_FreeFile = test_fs_free_file;
+    menuimport.FS_ReadFile = test_theme_read; menuimport.FS_FreeFile = test_fs_free_file;
     UI_LoadTheme("UI\\war3skins.txt");
     DWORD index = UI_LoadTexture("Background", true);
     T_EQ(UI_LoadTexture("Background", true), index);
@@ -2320,16 +2320,16 @@ TEST(menu_fdf, deferred_texture_cache_tracks_theme_changes) {
     T_STREQ(captured_image_path, "Default.blp");
     T_EQ(texture_releases, 1); T_EQ(fake_texture_id, 2);
     T_NOT_NULL(UI_GetTexture(index)); T_EQ(fake_texture_id, 2);
-    UI_ClearTheme(); uiimport = saved;
+    UI_ClearTheme(); menuimport = saved;
 }
 
 /* A menu launch starts without a startup map cvar; subsequent destinations must invalidate the metadata cache. */
 TEST(menu_fdf, loading_screen_uses_current_destination_and_caches_per_map) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
     PLAYER player = { .client_ui_state = CLIENT_UI_LOADING };
     reset_ui_state();
-    uiimport.FS_ReadFile = test_fs_read_file; uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.Cvar_String = test_cvar_string; uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.FS_ReadFile = test_fs_read_file; menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.Cvar_String = test_cvar_string; menuimport.Cmd_ExecuteText = test_cmd_execute_text;
     M_Init();
     test_player = &player;
     M_Refresh(0);
@@ -2349,7 +2349,7 @@ TEST(menu_fdf, loading_screen_uses_current_destination_and_caches_per_map) {
         M_Refresh(5); T_EQ(map_reads, 3);
     }
     test_player = NULL; test_map = "";
-    M_Shutdown(); uiimport = saved;
+    M_Shutdown(); menuimport = saved;
 }
 
 TEST(menu_fdf, loading_rows_support_roc_and_tft_schema) {
@@ -2372,16 +2372,16 @@ TEST(menu_fdf, loading_rows_support_roc_and_tft_schema) {
 }
 
 TEST(menu_fdf, exported_image_resolver_uses_local_player_skin) {
-    uiImport_t saved = uiimport;
+    menuImport_t saved = menuimport;
     PLAYER player = { .race = kPlayerRaceHuman };
 
     reset_ui_state();
-    uiimport.FS_ReadFile = test_theme_read; uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.GetPlayerState = test_get_player_state;
+    menuimport.FS_ReadFile = test_theme_read; menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.GetPlayerState = test_get_player_state;
     test_player = &player;
     UI_LoadTheme("UI\\war3skins.txt");
     T_STREQ(UI_ResolveImagePathLocal("Background"), "Human.blp");
     T_STREQ(UI_ResolveImagePathLocal("UI\\Textures\\fixed.blp"), "UI\\Textures\\fixed.blp");
     test_player = NULL;
-    UI_ClearTheme(); uiimport = saved;
+    UI_ClearTheme(); menuimport = saved;
 }

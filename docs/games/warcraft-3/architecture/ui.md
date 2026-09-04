@@ -1,6 +1,6 @@
 # UI System Architecture
 
-As of Phase 8 (May 2026), all UI logic in OpenWarcraft3 runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/menu/`; the shared client-facing UI API is declared in `client/ui.h`. The server is now game-agnostic and provides unit data through a query protocol when clients request it. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
+As of Phase 8 (May 2026), all UI logic in OpenWarcraft3 runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/menu/`; the shared client-facing UI API is declared in `client/menu.h`. The server is now game-agnostic and provides unit data through a query protocol when clients request it. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
 
 ## Migration from Server-Side UI (Phase 1-7)
 
@@ -30,7 +30,7 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 
 `UI_Init` (`games/warcraft-3/menu/menu_main.c`) is called once from `CL_Init` when the client starts:
 
-1. Loads UI library via `UI_GetAPI(uiImport_t)` function table.
+1. Loads UI library via `M_GetAPI(menuImport_t)` function table.
 2. Client provides import functions: memory allocation, file I/O, MPQ access.
 3. UI library loads Warcraft III `.fdf` files from MPQ via `UI_ParseFDF` (`games/warcraft-3/menu/menu_fdf.c`).
 4. UI executes `ui_start_command`, defaulting to `menu_main`.
@@ -84,12 +84,12 @@ for (j = 0; j < num_buttons; j++) {
 
 ```c
 // games/warcraft-3/menu/screens/console_ui.c - Store unit data
-static uiUnitData_t cached_units[MAX_CACHED_UNITS];
+static menuUnitData_t cached_units[MAX_CACHED_UNITS];
 static DWORD cached_unit_count = 0;
 
-void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
+void ConsoleUI_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
     cached_unit_count = num_units;
-    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+    memcpy(cached_units, units, sizeof(menuUnitData_t) * num_units);
     // Rendering uses cached_units[] to draw command card
 }
 ```
@@ -187,10 +187,10 @@ UI_SetTexture(&btn, "CommandButtonNormal", true);
 2. Update frame state in response to game events (e.g., unit selection, stat changes):
 
 ```c
-void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
+void ConsoleUI_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
     // Store unit data
     cached_unit_count = num_units;
-    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
+    memcpy(cached_units, units, sizeof(menuUnitData_t) * num_units);
     
     // Frame tree updates automatically on next render
 }
@@ -208,8 +208,8 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 | `games/warcraft-3/game/g_unit_ui.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
 | `games/warcraft-3/game/hud/hud.c` | FDF→uiframe serialization bridge, frames[] global registry |
 | `server/game.h` | `game_export` callbacks for unit data queries |
-| `client/ui.h` | Shared UI module API declaration |
-| `games/warcraft-3/menu/menu_main.c` | `UI_GetAPI`, library entry point, screen routing |
+| `client/menu.h` | Shared UI module API declaration |
+| `games/warcraft-3/menu/menu_main.c` | `M_GetAPI`, library entry point, screen routing |
 | `games/warcraft-3/menu/menu_fdf.c` | FDF parser and programmatic frame API |
 | `games/warcraft-3/menu/menu_render.c` | Frame rendering dispatch |
 | `games/warcraft-3/menu/screens/console_ui.c` | In-game HUD (resource bar, command card, inventory) |

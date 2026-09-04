@@ -145,8 +145,8 @@ void Key_Init(void) {
 
 void Key_Event(keyCode_t key, bool down, DWORD time) {
     /* Forward to UI library if in menu mode */
-    if (cls.key_dest == key_menu && ui.KeyEvent) {
-        ui.KeyEvent(key, down, time);
+    if (cls.key_dest == key_menu && menu.KeyEvent) {
+        menu.KeyEvent(key, down, time);
         return;
     }
 

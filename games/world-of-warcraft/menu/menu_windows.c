@@ -12,7 +12,7 @@
  *
  * Button OnClick scripts are raw server command strings (e.g.
  * "window_close WelcomeFrame").  UIWow_WindowMouseDown fires them directly
- * via uiimport.ServerCommand without going through the Lua VM.
+ * via menuimport.ServerCommand without going through the Lua VM.
  */
 
 #include "menu_local.h"
@@ -21,7 +21,7 @@
 #include <stdio.h>
 
 BOOL UIWow_TipsEnabled(void) {
-    LPCSTR value = uiimport.Cvar_String(BZ_WOW_CVAR_SHOW_TIPS, "1");
+    LPCSTR value = menuimport.Cvar_String(BZ_WOW_CVAR_SHOW_TIPS, "1");
     return value && atoi(value) != 0;
 }
 
@@ -160,7 +160,7 @@ void UIWow_DrawWindows(void) {
 BOOL UIWow_WindowMouseDown(float nx, float ny) {
     if (wow_ui.tutorial_open) {
         if (UIWow_TutorialContains("TutorialFrameCheckButton", nx, ny)) {
-            uiimport.Cvar_Set(BZ_WOW_CVAR_SHOW_TIPS, UIWow_TipsEnabled() ? "0" : "1");
+            menuimport.Cvar_Set(BZ_WOW_CVAR_SHOW_TIPS, UIWow_TipsEnabled() ? "0" : "1");
             UIWow_XMLSetButtonChecked("TutorialFrameCheckButton", UIWow_TipsEnabled());
             if (!UIWow_TipsEnabled()) wow_ui.tutorial_alert_count = 0;
             return true;
@@ -172,7 +172,7 @@ BOOL UIWow_WindowMouseDown(float nx, float ny) {
     }
     LPCSTR onclick = UIWow_XMLHitButton(nx, ny);
     if (!onclick) return false;
-    if (uiimport.ServerCommand) uiimport.ServerCommand(onclick);
+    if (menuimport.ServerCommand) menuimport.ServerCommand(onclick);
     return true;
 }
 

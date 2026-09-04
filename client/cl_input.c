@@ -117,7 +117,7 @@ void CL_Input(void) {
                 if (cls.key_dest == key_console) {
                     CON_TextInput(event.text.text);
                 } else if (cls.key_dest == key_menu) {
-                    ui.TextInput(event.text.text);
+                    menu.TextInput(event.text.text);
                 }
                 break;
             case SDL_KEYDOWN:
@@ -149,11 +149,11 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
-                if (cls.key_dest == key_menu && ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) {
+                if (cls.key_dest == key_menu && menu.MouseEvent(MENU_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) {
                     break;
                 }
-                if (CL_WindowMouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) break;
-                if (SCR_LayoutMouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) break;
+                if (CL_WindowMouseEvent(MENU_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) break;
+                if (SCR_LayoutMouseEvent(MENU_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) break;
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
@@ -172,11 +172,11 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = 0;
-                if (cls.key_dest == key_menu && ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button)) {
+                if (cls.key_dest == key_menu && menu.MouseEvent(MENU_MOUSE_UP, event.button.x, event.button.y, event.button.button)) {
                     break;
                 }
-                if (CL_WindowMouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button)) break;
-                if (SCR_LayoutMouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button)) break;
+                if (CL_WindowMouseEvent(MENU_MOUSE_UP, event.button.x, event.button.y, event.button.button)) break;
+                if (SCR_LayoutMouseEvent(MENU_MOUSE_UP, event.button.x, event.button.y, event.button.button)) break;
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_UP;
@@ -195,9 +195,9 @@ void CL_Input(void) {
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
                 if (cls.key_dest == key_menu)
-                    ui.MouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
-                if (CL_WindowMouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0)) break;
-                SCR_LayoutMouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                    menu.MouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                if (CL_WindowMouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0)) break;
+                SCR_LayoutMouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
                 if (cls.key_dest == key_menu) {
                     break;
                 }
@@ -208,9 +208,9 @@ void CL_Input(void) {
                     int x, y;
                     SDL_GetMouseState(&x, &y);
                     if (cls.key_dest == key_menu)
-                        ui.MouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
-                    if (CL_WindowMouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y))) break;
-                    SCR_LayoutMouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                        menu.MouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                    if (CL_WindowMouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y))) break;
+                    SCR_LayoutMouseEvent(MENU_MOUSE_SCROLL, x, y, MENU_MOUSE_PARAM(event.wheel.x, event.wheel.y));
                 }
                 if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel)) {
                     break;

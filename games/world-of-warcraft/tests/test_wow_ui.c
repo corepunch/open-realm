@@ -6,7 +6,7 @@
 #include <string.h>
 #include <strings.h>
 
-#include "client/ui.h"
+#include "client/menu.h"
 #include "common/mpq.h"
 #include "common/wow_ui_shared.h"
 #include "menu/menu_local.h"
@@ -300,35 +300,35 @@ static void reset_test_state(void) {
     test_ps.stats[WOW_STAT_SELECTED_ACTION] = 255;
 }
 
-static uiExport_t init_ui(void) {
-    uiExport_t ui;
+static menuExport_t init_ui(void) {
+    menuExport_t menu;
 
-    ui = UI_GetAPI((uiImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .Cvar_String = test_cvar_string, .Cvar_Set = test_cvar_set, .GetPlayerState = test_get_player_state, .GetTexture = test_get_texture, .GetRenderer = test_get_renderer, .Printf = test_printf, });
-    T_NOT_NULL(ui.Init);
-    T_NOT_NULL(ui.Refresh);
-    T_NOT_NULL(ui.Shutdown);
-    ui.Init();
-    return ui;
+    menu = M_GetAPI((menuImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .Cvar_String = test_cvar_string, .Cvar_Set = test_cvar_set, .GetPlayerState = test_get_player_state, .GetTexture = test_get_texture, .GetRenderer = test_get_renderer, .Printf = test_printf, });
+    T_NOT_NULL(menu.Init);
+    T_NOT_NULL(menu.Refresh);
+    T_NOT_NULL(menu.Shutdown);
+    menu.Init();
+    return menu;
 }
 
 extern BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
 
 TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
-    uiExport_t ui;
-    uiUnitData_t unit;
+    menuExport_t menu;
+    menuUnitData_t unit;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
 
-    ui = init_ui();
+    menu = init_ui();
     memset(&unit, 0, sizeof(unit));
     unit.num_inventory = 1;
     snprintf(unit.inventory[0].art, sizeof(unit.inventory[0].art), "%s", "Interface\\Test\\Inventory.blp");
     snprintf(unit.inventory[0].tooltip, sizeof(unit.inventory[0].tooltip), "%s", "Inventory");
     snprintf(unit.inventory[0].ubertip, sizeof(unit.inventory[0].ubertip), "%s", "1");
     unit.inventory[0].slot = 0;
-    ui.UpdateUnitUI(1, &unit);
-    ui.Refresh(33);
+    menu.UpdateUnitUI(1, &unit);
+    menu.Refresh(33);
 
     T_EQ((int)forbidden_texture_loads, 0);
     T_EQ((int)missing_textures, 0);
@@ -344,7 +344,7 @@ TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
     T_STREQ(last_draw_text, "LuaTester:77:33");
     T_STREQ(last_server_command, "wow_lua_test 9 33");
 
-    ui.Shutdown();
+    menu.Shutdown();
     FOR_LOOP(i, MAX_IMAGES) {
         if (test_textures[i]) {
             test_release_texture((LPTEXTURE)test_textures[i]);
@@ -356,30 +356,30 @@ TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
 }
 
 TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
-    uiExport_t ui;
+    menuExport_t menu;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-    ui = init_ui();
+    menu = init_ui();
     T_ASSERT(UIWow_RunLuaString("enter_world_test", "EnterWorld()"));
     T_STREQ(last_cmd_execute_text, "map playercreate");
-    ui.Shutdown();
+    menu.Shutdown();
     SFileCloseArchive(test_archive);
     test_archive = NULL;
 }
 
 TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
-    uiExport_t ui;
+    menuExport_t menu;
     BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };
     RECT check, alert1, alert2, frame; int check_idx, frame_idx;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-    ui = init_ui(); UIWow_EnterGameMode();
-    ui.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
-    ui.GameCommand("wow_tutorial", movement, sizeof(movement));
-    ui.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
-    ui.ShowWindow("TutorialFrame", 1);
+    menu = init_ui(); UIWow_EnterGameMode();
+    menu.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
+    menu.GameCommand("wow_tutorial", movement, sizeof(movement));
+    menu.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
+    menu.ShowWindow("TutorialFrame", 1);
     T_ASSERT(wow_ui.tutorial_open);
     T_EQ((int)wow_ui.tutorial_alert_count, 2);
     T_STREQ(wow_ui.tutorial_title, "Welcome to World of Warcraft!");
@@ -399,7 +399,7 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     alert1 = MAKE(RECT, 0.5f-17.0f/1024.0f, 671.0f/768.0f, 34.0f/1024.0f, 42.0f/768.0f);
     alert2 = alert1; alert2.x += 36.0f/1024.0f;
     T_FEQ(alert2.x - alert1.x, 36.0f / 1024.0f, 0.001f); T_FEQ(alert2.y, alert1.y, 0.001f);
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, (int)((alert1.x + alert1.w * 0.5f) * 1024.0f), (int)((alert1.y + alert1.h * 0.5f) * 768.0f), 1));
+    T_ASSERT(menu.MouseEvent(MENU_MOUSE_DOWN, (int)((alert1.x + alert1.w * 0.5f) * 1024.0f), (int)((alert1.y + alert1.h * 0.5f) * 768.0f), 1));
     T_ASSERT(wow_ui.tutorial_open);
     T_EQ((int)wow_ui.tutorial_id, 1);
     T_EQ((int)wow_ui.tutorial_alert_count, 1);
@@ -411,55 +411,55 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     T_ASSERT(UIWow_WindowMouseDown(check.x + check.w * 0.5f, check.y + check.h * 0.5f));
     T_STREQ(test_show_tips, "0");
     T_EQ((int)wow_ui.tutorial_alert_count, 0);
-    ui.ShowWindow("TutorialFrame", 0); ui.ShowWindow("TutorialFrame", 1);
+    menu.ShowWindow("TutorialFrame", 0); menu.ShowWindow("TutorialFrame", 1);
     T_ASSERT(!wow_ui.tutorial_open);
-    ui.GameCommand("wow_tutorial", movement, sizeof(movement));
+    menu.GameCommand("wow_tutorial", movement, sizeof(movement));
     T_EQ((int)wow_ui.tutorial_alert_count, 0);
-    ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
+    menu.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
 }
 
 TEST(wow_ui, tutorial_okay_closes_on_mouse_up_not_down) {
-    uiExport_t ui;
+    menuExport_t menu;
     RECT okay; int cx, cy;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-    ui = init_ui(); UIWow_EnterGameMode();
-    ui.ShowWindow("TutorialFrame", 1);
+    menu = init_ui(); UIWow_EnterGameMode();
+    menu.ShowWindow("TutorialFrame", 1);
     T_ASSERT(wow_ui.tutorial_open);
     UIWow_TutorialOkayRect(&okay);
     cx = (int)((okay.x + okay.w * 0.5f) * 1024.0f);
     cy = (int)((okay.y + okay.h * 0.5f) * 768.0f);
 
     /* Mouse down over the Okay button only arms the pushed visual; it must not close. */
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, cx, cy, 1));
+    T_ASSERT(menu.MouseEvent(MENU_MOUSE_DOWN, cx, cy, 1));
     T_ASSERT(wow_ui.tutorial_okay_pressed);
     T_ASSERT(wow_ui.tutorial_open);
 
     /* Releasing over the button closes the panel and clears the pressed state. */
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_UP, cx, cy, 1));
+    T_ASSERT(menu.MouseEvent(MENU_MOUSE_UP, cx, cy, 1));
     T_ASSERT(!wow_ui.tutorial_okay_pressed);
     T_ASSERT(!wow_ui.tutorial_open);
 
     /* Pressing and releasing off the button cancels without closing. */
-    ui.ShowWindow("TutorialFrame", 1);
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, cx, cy, 1));
+    menu.ShowWindow("TutorialFrame", 1);
+    T_ASSERT(menu.MouseEvent(MENU_MOUSE_DOWN, cx, cy, 1));
     T_ASSERT(wow_ui.tutorial_okay_pressed);
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_UP, 100, 100, 1));
+    T_ASSERT(menu.MouseEvent(MENU_MOUSE_UP, 100, 100, 1));
     T_ASSERT(!wow_ui.tutorial_okay_pressed);
     T_ASSERT(wow_ui.tutorial_open);
 
-    ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
+    menu.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
 }
 
 TEST(wow_ui, frame_setpoint_lua_moves_runtime_anchor) {
-    uiExport_t ui; int idx; FLOAT x, y, w, h;
+    menuExport_t menu; int idx; FLOAT x, y, w, h;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-    ui = init_ui(); UIWow_EnterGameMode(); ui.ShowWindow("TutorialFrame", 1);
+    menu = init_ui(); UIWow_EnterGameMode(); menu.ShowWindow("TutorialFrame", 1);
     T_ASSERT(UIWow_RunLuaString("test SetPoint", "TutorialFrame:SetPoint('BOTTOM', 'UIParent', 'CENTER', 0, -80)"));
     idx = UIWow_XmlFindByNamePub("TutorialFrame"); UIWow_XmlComputeRectPub(idx, &x, &y, &w, &h);
     T_FEQ(y + h, 0.5f + 80.0f / 768.0f, 0.001f);
-    ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
+    menu.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
 }

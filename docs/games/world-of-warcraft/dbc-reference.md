@@ -88,7 +88,7 @@ Some tables are exceptions to the "32-bit fields" rule:
 It has two layers: a **stateless parser** (`Stb_Dbc*` — header validation, little-endian reads, string/field access, ID
 lookup, no I/O and no allocation) and a **stateful cache** (`Stb_DbcCache*` — lazy load + decode + FNV-1a index). The
 cache takes a `stbDbcIO_t` function table so the header stays free of direct FS/allocator dependencies; each module
-adapts its own handle (`ri` / `gi` / `uiimport`). Callers that need a one-shot read hand a resident buffer to `Stb_Dbc*`
+adapts its own handle (`ri` / `gi` / `menuimport`). Callers that need a one-shot read hand a resident buffer to `Stb_Dbc*`
 directly; callers that need a decoded struct array go through `Stb_DbcCache*`. None parses DB2:
 
 - **Renderer** — `renderer/m2/r_dbc.c` holds only structs + column→field schemas + thin typed finders; the cache
@@ -99,7 +99,7 @@ directly; callers that need a decoded struct array go through `Stb_DbcCache*`. N
   `game/g_gameobject.c` maps `GameObjectDisplayInfo`. One shared `g_dbc_io` (`gi.*`) is exported from `g_wow_local.h`.
 - **Common world** — `common/world_wow.c` reads `Map.dbc` and `WorldSafeLocs.dbc` for spawn/map resolution.
 - **UI** — `ui/menu_dbc.c` decodes `ChrRaces`, `ChrClasses`, `FactionTemplate`, `FactionGroup` through the cache
-  (`ui_dbc_io` over `uiimport.*`); `CharBaseInfo` stays a 2-byte-record special case.
+  (`ui_dbc_io` over `menuimport.*`); `CharBaseInfo` stays a 2-byte-record special case.
 - **Sound** — `sound/s_sound.c` loads `SoundEntries.dbc` for kit name/path lookup.
 - **Engine common** — `common/common.c` resolves numeric map IDs through `Map.dbc` (`Com_WowMapPathForId`, WOW-only).
 

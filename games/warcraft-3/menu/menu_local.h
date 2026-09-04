@@ -3,7 +3,7 @@
  *
  * This file contains the internal data structures, function prototypes, and
  * constants used within the UI library. External code should only include
- * ui.h, never this file.
+ * menu.h, never this file.
  *
  * Frame template structures (FRAMEDEF) are defined in stb_fdf.h which is
  * shared with the game module. This header adds UI-specific extensions.
@@ -14,14 +14,14 @@
 #include <stdio.h>
 
 #include "common/stb_fdf.h"
-#include "client/ui.h"
+#include "client/menu.h"
 #include "games/warcraft-3/common/mapinfo.h"
 
 /* Forward declarations */
 typedef struct uiScreen_s uiScreen_t;  /* Defined in menu_screen.h */
 
-/* Global import callbacks (filled by UI_GetAPI) */
-extern uiImport_t uiimport;
+/* Global import callbacks (filled by M_GetAPI) */
+extern menuImport_t menuimport;
 
 /* Internal function prototypes */
 
@@ -60,8 +60,8 @@ void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
-LPCSTR UI_ResolveImagePathLocal(LPCSTR key);
-void UI_MenuCommandLocal(LPCSTR command);
+LPCSTR M_ResolveImagePath(LPCSTR key);
+void M_MenuCommand(LPCSTR command);
 LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y);
 void UI_TogglePopup(LPCFRAMEDEF frame);
 void UI_SliderBeginDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y);
@@ -92,7 +92,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
 #define BZ_FDF_REPORT_MISSING(NAME) \
     do { \
         fprintf(stderr, "ERROR: missing FDF binding: %s\n", (NAME)); \
-        if (uiimport.Printf) uiimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); \
+        if (menuimport.Printf) menuimport.Printf("ERROR: missing FDF binding: %s\n", (NAME)); \
     } while (0)
 #endif
 
@@ -147,7 +147,7 @@ void UI_DrawFrame(LPCFRAMEDEF frame);
 void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL M_EditKey(int key);
-BOOL M_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
+BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
 void M_TextInput(LPCSTR text);
 BOOL UI_EditHasFocus(LPCFRAMEDEF frame);
 LPCSTR UI_EditValue(LPCFRAMEDEF frame);

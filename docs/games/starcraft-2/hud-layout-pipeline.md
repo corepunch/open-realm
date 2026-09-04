@@ -78,7 +78,7 @@ while (*resource == '@') resource++;   /* strip leading @ */
 
 ## Layout parser in the game module
 
-`menu_layout.c` normally lives in `ui/` and links against `libmenu-sc2`. The game module can't link `libmenu-sc2` directly. Instead, `hud.c` `#include`s `menu_layout.c` directly (one extra translation unit in the unity build). A `uiImport_t uiimport` stub in `hud.c` bridges `gi.ReadFile`/`gi.MemFree` to the parser's file I/O. Renderer callbacks (`GetRenderer`, `GetTexture`) are left NULL — the parsing path never calls them.
+`menu_layout.c` normally lives in `ui/` and links against `libmenu-sc2`. The game module can't link `libmenu-sc2` directly. Instead, `hud.c` `#include`s `menu_layout.c` directly (one extra translation unit in the unity build). A `menuImport_t menuimport` stub in `hud.c` bridges `gi.ReadFile`/`gi.MemFree` to the parser's file I/O. Renderer callbacks (`GetRenderer`, `GetTexture`) are left NULL — the parsing path never calls them.
 
 ```c
 /* hud.c — file I/O shim for menu_layout.c */
@@ -87,10 +87,10 @@ static int sc2_hud_read_file(LPCSTR filename, void **buf) {
     *buf = gi.ReadFile(filename, &size);
     return *buf ? (int)size : -1;
 }
-uiImport_t uiimport;
+menuImport_t menuimport;
 void SC2_HUD_InitLayoutHost(void) {
-    uiimport.FS_ReadFile = sc2_hud_read_file;
-    uiimport.FS_FreeFile = (void (*)(void *))gi.MemFree;
+    menuimport.FS_ReadFile = sc2_hud_read_file;
+    menuimport.FS_FreeFile = (void (*)(void *))gi.MemFree;
 }
 ```
 
@@ -277,7 +277,7 @@ selects an enum. Template inheritance tracks eight presence bits, preserving exp
 `SC2_HUD_BuildFrameForWrite` sends this `UIMODEL` through the existing `uiFrame_t.buffer` blob. Neither
 `entityState_t` nor `playerState_t` changes. Incomplete model cameras are reported by `SC2_HUD`.
 
-`SCR_LayoutDrawPortrait` uses `UI_ModelMatrix` for these payloads; ordinary unit portraits retain their
+`SCR_LayoutDrawPortrait` uses `M_ModelMatrix` for these payloads; ordinary unit portraits retain their
 bounds-derived camera. The layout camera uses normalized viewport Position: X anchors the left/center/right
 edge, Y anchors the bottom, and Z is model depth. Native SC2 console assets use X=-1/0/+1, Y=-1, scale=1,
 eye=(0,-5,0), target=(0,0,0), FOV=90, near=1, far=1000. The three chrome models use the final frame of

@@ -37,15 +37,15 @@ static void QuitConfirm_UpdateVisibility(void) {
 }
 
 static void QuitConfirm_Init(void) {
-    uiimport.Printf("QuitConfirm_Init\n");
+    menuimport.Printf("QuitConfirm_Init\n");
     UI_PreloadGlueSceneModels();
 
     if (!quit_confirm.EscMenuMainPanel) {
-        uiimport.Printf("ERROR: EscMenuMainPanel not found\n");
+        menuimport.Printf("ERROR: EscMenuMainPanel not found\n");
         return;
     }
     if (!quit_confirm.ConfirmQuitPanel) {
-        uiimport.Printf("ERROR: ConfirmQuitPanel not found\n");
+        menuimport.Printf("ERROR: ConfirmQuitPanel not found\n");
         return;
     }
 
@@ -81,7 +81,7 @@ static void QuitConfirm_Draw(void) {
 
 static void QuitConfirm_KeyEvent(int key, BOOL down) {
     if (down && key == 27) {
-        UI_ShowMainMenu();
+        M_ShowMainMenu();
     }
 }
 

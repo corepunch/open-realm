@@ -26,7 +26,7 @@
 
 #include "common/shared.h"
 #include "shared/types/rect.h"
-#include "client/ui_text_input.h"
+#include "client/menu_text_input.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -163,7 +163,7 @@ struct wowXmlRuntime_s {
     uiWowXmlElem_t elems[WOW_XML_MAX_ELEMS];
     int count, focus, pressed_button, hovered_button;
     BOOL lua_ready;
-    uiTextInput_t text_input;
+    menuTextInput_t text_input;
     struct { FLOAT scroll_y, scroll_range; int scrollbar_child; } scroll[WOW_XML_MAX_ELEMS];
     struct { int scrollbar_idx; FLOAT start_mouse_y, start_value; } drag;
 };

@@ -170,7 +170,7 @@ static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
 }
 
 static BOOL GameSetup_IsHost(void) {
-    LPCSTR connect = uiimport.Cvar_String("connect", "");
+    LPCSTR connect = menuimport.Cvar_String("connect", "");
 
     return !connect || !connect[0];
 }
@@ -512,7 +512,7 @@ static void GameSetup_PublishSlot(DWORD slot) {
     }
     command[0] = '\0';
     GameSetup_AppendLobbySlot(command, sizeof(command), &used, slot);
-    uiimport.Cmd_ExecuteText(command);
+    menuimport.Cmd_ExecuteText(command);
 }
 
 static void GameSetup_PublishLobby(void) {
@@ -532,7 +532,7 @@ static void GameSetup_PublishLobby(void) {
     FOR_LOOP(i, slot_count) {
         GameSetup_AppendLobbySlot(command, sizeof(command), &used, i);
     }
-    uiimport.Cmd_ExecuteText(command);
+    menuimport.Cmd_ExecuteText(command);
 }
 
 static void GameSetup_SubmitChat(void) {
@@ -553,9 +553,9 @@ static void GameSetup_SubmitChat(void) {
     GameSetup_AppendQuotedValue(command, sizeof(command), &used, text);
     GameSetup_AppendText(command, sizeof(command), &used, "\n");
     if (GameSetup_IsHost()) {
-        uiimport.Cmd_ExecuteText(command);
-    } else if (uiimport.ServerCommand) {
-        uiimport.ServerCommand(command);
+        menuimport.Cmd_ExecuteText(command);
+    } else if (menuimport.ServerCommand) {
+        menuimport.ServerCommand(command);
     }
     UI_SetEditValue(setup.frames.ChatEditBox, "");
     UI_ClearEditFocus();
@@ -597,7 +597,7 @@ static void GameSetup_SlotName(LPCMAPPLAYER player, BOOL first_human, LPSTR out,
         return;
     }
     if (player->playerType == kPlayerTypeHuman && first_human) {
-        name = uiimport.Cvar_String("name", "Player");
+        name = menuimport.Cvar_String("name", "Player");
         snprintf(out, out_size, "%s", name && name[0] ? name : "Player");
         return;
     }
@@ -747,7 +747,7 @@ static void GameSetup_BindMapInfoPane(LPFRAMEDEF container) {
     }
 
     if (!setup.map_info_template.MapInfoPane) {
-        uiimport.Printf("GameSetup_BindMapInfoPane: MapInfoPane missing\n");
+        menuimport.Printf("GameSetup_BindMapInfoPane: MapInfoPane missing\n");
         return;
     }
 
@@ -846,8 +846,8 @@ static void GameSetup_LoadSelectedMap(void) {
         snprintf(setup.map_name, sizeof(setup.map_name), "%s", selected_name);
     }
 
-    if (!setup.map_path[0] && uiimport.Cvar_String) {
-        debug_path = uiimport.Cvar_String("ui_game_setup_map", "");
+    if (!setup.map_path[0] && menuimport.Cvar_String) {
+        debug_path = menuimport.Cvar_String("ui_game_setup_map", "");
         if (debug_path && debug_path[0]) {
             snprintf(setup.map_path, sizeof(setup.map_path), "%s", debug_path);
             snprintf(setup.map_name, sizeof(setup.map_name), "%s", GameSetup_BaseName(debug_path));
@@ -883,7 +883,7 @@ static void GameSetup_BuildFrames(void) {
     setup.ready = false;
     setup.root = setup.frames.GameChatroom;
     if (!setup.root) {
-        uiimport.Printf("GameSetup_BuildFrames: GameChatroom missing\n");
+        menuimport.Printf("GameSetup_BuildFrames: GameChatroom missing\n");
         return;
     }
     UI_SetAllPoints(setup.root);
@@ -903,7 +903,7 @@ static void GameSetup_BuildFrames(void) {
 }
 
 static void GameSetup_Init(void) {
-    uiimport.Printf("GameSetup_Init\n");
+    menuimport.Printf("GameSetup_Init\n");
     UI_PreloadGlueSceneModels();
     if (!setup.root) {
         GameSetup_BuildFrames();
@@ -963,7 +963,7 @@ BOOL GameSetup_StartGame(void) {
         GameSetup_AppendLobbySlot(command, sizeof(command), &used, i);
     }
     GameSetup_AppendMapCommand(command, sizeof(command), &used, setup.map_path);
-    uiimport.Cmd_ExecuteText(command);
+    menuimport.Cmd_ExecuteText(command);
     return true;
 }
 

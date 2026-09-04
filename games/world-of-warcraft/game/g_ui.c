@@ -3,7 +3,7 @@
  *
  * Reproduces the classic WoW 1.12 HUD layout (action bar, targeting frame,
  * minimap, copper) using the actual WoW assets and pixel positions from the
- * virtual 1024×768 canvas, exactly matching what ui.dll rendered before
+ * virtual 1024×768 canvas, exactly matching what menu.dll rendered before
  * in-game UI was moved server-side.
  */
 
@@ -697,7 +697,7 @@ static void UI_WriteBackpackWindow(LPEDICT ent) {
     }
 }
 
-/* Send the legacy ui.dll-owned named XML window toggle. */
+/* Send the legacy menu.dll-owned named XML window toggle. */
 static void UI_WriteWindowMsg(LPCSTR window_id, int show) {
     gi.Write(PF_BYTE, &(LONG){svc_ui_window});
     gi.Write(PF_STRING, window_id);

@@ -6,22 +6,22 @@ OpenWarcraft3 uses a client-side UI library with a clear split between **menu/gl
 
 The UI library communicates with the client through two vtables:
 
-**`uiImport_t`** (`client/ui.h`) — services the client provides to the UI library:
+**`menuImport_t`** (`client/menu.h`) — services the client provides to the UI library:
 `.FS_ReadFile`, `.MemAlloc`, `.Cmd_ExecuteText`, `.GetPlayerState`, renderer/sound access, and font/texture indexing.
 
-**`uiExport_t`** — functions the UI library exposes to the client:
+**`menuExport_t`** — functions the UI library exposes to the client:
 `.Init`, `.Shutdown`, `.Refresh`, `.KeyEvent`, `.TextInput`, `.MouseEvent`, `.UpdateUnitUI`, `.UpdateLobbySetup`, plus the optional `.GameCommand` hook. Generic gameplay systems such as minimap input and transient markers stay in `client/`, not in the menu UI module.
 
 The client creates both at startup in `CL_Init`:
 
 ```c
 re = CL_GetRendererAPI(...);
-ui = UI_GetAPI((uiImport_t) {
+ui = M_GetAPI((menuImport_t) {
     .FS_ReadFile = CL_UI_ReadFile,
     .Cmd_ExecuteText = Cbuf_AddText,
     .GetPlayerState = CL_UIGetPlayerState,
 });
-ui.Init();  // loads FDF files, initializes screens
+menu.Init();  // loads FDF files, initializes screens
 ```
 
 ## Screen Dispatch: Menus vs HUD
@@ -32,14 +32,14 @@ ui.Init();  // loads FDF files, initializes screens
 void SCR_DrawScreenField(DWORD msec) {
     re.BeginFrame();
     switch (cls.state) {
-    case ca_disconnected:     ui.Refresh(cl.time); break;   // menu/glue UI
-    case ca_connecting:      ui.Refresh(cl.time); break;   // menu/glue UI
-    case ca_connected:       ui.Refresh(cl.time); break;   // menu/glue UI
+    case ca_disconnected:     menu.Refresh(cl.time); break;   // menu/glue UI
+    case ca_connecting:      menu.Refresh(cl.time); break;   // menu/glue UI
+    case ca_connected:       menu.Refresh(cl.time); break;   // menu/glue UI
     case ca_active:
         V_RenderView();          // 3D world
         SCR_DrawLayout();        // server-authored in-game HUD
         if (cls.key_dest == key_menu)
-            ui.Refresh(cl.time); // ESC menu overlay
+            menu.Refresh(cl.time); // ESC menu overlay
         break;
     }
     CON_DrawConsole();
@@ -47,9 +47,9 @@ void SCR_DrawScreenField(DWORD msec) {
 }
 ```
 
-**Key rule**: `ui.Refresh()` draws menu/glue screens. When in `ca_active` (gameplay), `SCR_DrawLayout()` draws the in-game HUD via a completely separate path. The UI library's screens only appear when the console key (`key_menu`) is toggled (ESC menu overlay).
+**Key rule**: `menu.Refresh()` draws menu/glue screens. When in `ca_active` (gameplay), `SCR_DrawLayout()` draws the in-game HUD via a completely separate path. The UI library's screens only appear when the console key (`key_menu`) is toggled (ESC menu overlay).
 
-Inside `ui.Refresh()` → `UI_RefreshLocal()`, presentation ownership has two independent signals:
+Inside `menu.Refresh()` → `UI_RefreshLocal()`, presentation ownership has two independent signals:
 
 1. **Loading** (`playerState_t.client_ui_state == CLIENT_UI_LOADING`): Draws the loading screen first. This remains authoritative even if `menu_ingame` has already been queued through the command buffer.
 2. **Standalone menu/glue screen** (`UI_GetCurrentScreen() != NULL`): Calls the current `uiScreen_t->draw()` — main menu, single player, options, LAN lobby, etc.
@@ -70,7 +70,7 @@ typedef struct uiScreen_s {
     void (*refresh)(int msec);                               // per-frame update
     void (*draw)(void);                                      // render frames
     void (*key_event)(int key, BOOL down);                   // keyboard input
-    void (*update_unit_ui)(DWORD num_units, uiUnitData_t *); // HUD data (game mode only)
+    void (*update_unit_ui)(DWORD num_units, menuUnitData_t *); // HUD data (game mode only)
 } uiScreen_t;
 ```
 
@@ -129,7 +129,7 @@ struct uiFrameDef_s {
     struct { ... } Slider;    // Layout, MinValue, MaxValue, StepSize
     // ... more sub-structs
     DWORD ui_flags;           // UIFLAG_PRESSED, UIFLAG_HOVERED, UIFLAG_VISIBLE
-    void (*event_handler)(LPFRAMEDEF, uiMouseEvent_t, FLOAT, FLOAT, int32_t);
+    void (*event_handler)(LPFRAMEDEF, menuMouseEvent_t, FLOAT, FLOAT, int32_t);
     void (*draw)(LPCFRAMEDEF, LPCRECT);
 };
 ```
@@ -254,7 +254,7 @@ Mouse state is owned by the client (`mouseEvent_t` in `client/cl_input.c`). The 
 
 ```c
 // During SDL_PollEvent in CL_Input:
-ui.MouseEvent(x, y, button, down);
+menu.MouseEvent(x, y, button, down);
 ```
 
 `UI_MouseEventLocal()`:
@@ -315,7 +315,7 @@ Frames with authoritative width and height already converted independently
 
 | File | Role |
 |------|------|
-| `client/ui.h` | UI module boundary: `uiImport_t` / `uiExport_t` |
+| `client/menu.h` | UI module boundary: `menuImport_t` / `menuExport_t` |
 | `client/cl_scrn.c` | `SCR_DrawScreenField` — dispatch between menus and in-game HUD |
 | `client/cl_scrn.c` | `SCR_DrawLayout` — server-authored layout rendering |
 | `client/cl_input.c` | Mouse state, input sampling |

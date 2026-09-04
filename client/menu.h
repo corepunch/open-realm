@@ -1,21 +1,21 @@
 /*
- * ui.h — UI library public interface.
+ * menu.h — menu library public interface.
  *
- * Defines the import/export function tables for the UI library following
+ * Defines the import/export function tables for the menu library following
  * the same pattern as the renderer (client/tr_public.h) and game DLL
  * (server/game.h).
  *
- * The client fills uiImport_t with callbacks for file I/O, memory allocation,
- * and command execution, then calls UI_GetAPI() to receive the uiExport_t
+ * The client fills menuImport_t with callbacks for file I/O, memory allocation,
+ * and command execution, then calls M_GetAPI() to receive the menuExport_t
  * function table.
  *
- * The UI library loads FDF files, builds frame hierarchies, manages menu
+ * The menu library loads FDF files, builds frame hierarchies, manages menu
  * navigation, and handles input events. It owns its string table (loaded from
  * war3skins.txt) for localization. Commands are executed via Cmd_ExecuteText;
  * the engine's command dispatcher handles routing (local vs server).
  */
-#ifndef ui_h
-#define ui_h
+#ifndef menu_h
+#define menu_h
 
 #include "client/tr_public.h"
 
@@ -25,20 +25,20 @@
 #define MAX_BUILD_QUEUE_ITEMS 7
 #define MAX_LAYOUT_LAYERS 16
 
-#ifndef UI_MOUSE_EVENT_DEFINED
-#define UI_MOUSE_EVENT_DEFINED
+#ifndef MENU_MOUSE_EVENT_DEFINED
+#define MENU_MOUSE_EVENT_DEFINED
 typedef enum {
-    UI_MOUSE_MOVE,
-    UI_MOUSE_DOWN,
-    UI_MOUSE_UP,
-    UI_MOUSE_SCROLL,
-} uiMouseEvent_t;
+    MENU_MOUSE_MOVE,
+    MENU_MOUSE_DOWN,
+    MENU_MOUSE_UP,
+    MENU_MOUSE_SCROLL,
+} menuMouseEvent_t;
 #endif
 
 /* Pack/unpack signed 16-bit dx/dy into the generic int32_t param (WinAPI MAKELPARAM style). */
-#define UI_MOUSE_PARAM(dx, dy)  ((int32_t)(((uint16_t)(int16_t)(dx)) | ((uint32_t)((uint16_t)(int16_t)(dy)) << 16)))
-#define UI_MOUSE_PARAM_X(p)     ((int16_t)(((uint32_t)(p)) & 0xFFFF))
-#define UI_MOUSE_PARAM_Y(p)     ((int16_t)((((uint32_t)(p)) >> 16) & 0xFFFF))
+#define MENU_MOUSE_PARAM(dx, dy)  ((int32_t)(((uint16_t)(int16_t)(dx)) | ((uint32_t)((uint16_t)(int16_t)(dy)) << 16)))
+#define MENU_MOUSE_PARAM_X(p)     ((int16_t)(((uint32_t)(p)) & 0xFFFF))
+#define MENU_MOUSE_PARAM_Y(p)     ((int16_t)((((uint32_t)(p)) >> 16) & 0xFFFF))
 
 typedef struct {
     char art[256];        /* Button icon path */
@@ -50,19 +50,19 @@ typedef struct {
     BYTE y;               /* Warcraft command grid row */
     BYTE research;        /* Uses research command */
     BYTE active;          /* Current selected entity is using this ability */
-} uiCommandButton_t;
+} menuCommandButton_t;
 
 typedef struct {
     char art[256];        /* Item icon path */
     char tooltip[256];    /* Tooltip text */
     char ubertip[512];    /* Extended tooltip */
     BYTE slot;            /* Inventory slot index (0-5) */
-} uiInventoryItem_t;
+} menuInventoryItem_t;
 
 typedef struct {
     char art[256];        /* Queue item icon path */
     WORD entity;          /* Entity number of building unit */
-} uiQueueItem_t;
+} menuQueueItem_t;
 
 typedef struct {
     char address[64];
@@ -72,7 +72,7 @@ typedef struct {
     DWORD maxPlayers;
     DWORD speed;
     DWORD slots;
-} uiLanGame_t;
+} menuLanGame_t;
 
 typedef struct {
     WORD entity_num;                              /* Entity number */
@@ -99,14 +99,14 @@ typedef struct {
     SHORT hero_agility;
     SHORT hero_intelligence;
     BYTE num_buttons;                             /* Number of command buttons */
-    uiCommandButton_t buttons[MAX_COMMAND_BUTTONS];
+    menuCommandButton_t buttons[MAX_COMMAND_BUTTONS];
     BYTE num_inventory;                           /* Number of inventory items */
-    uiInventoryItem_t inventory[MAX_INVENTORY_SLOTS];
+    menuInventoryItem_t inventory[MAX_INVENTORY_SLOTS];
     BYTE num_queue;                               /* Number of build queue items */
-    uiQueueItem_t queue[MAX_BUILD_QUEUE_ITEMS];
-} uiUnitData_t;
+    menuQueueItem_t queue[MAX_BUILD_QUEUE_ITEMS];
+} menuUnitData_t;
 
-/* Callbacks provided by the client to the UI library.
+/* Callbacks provided by the client to the menu library.
  * The UI imports file I/O, memory allocation, and command forwarding. */
 typedef struct {
     /* File system operations (archive-agnostic, Quake 3 pattern) */
@@ -133,7 +133,7 @@ typedef struct {
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
     void (*LAN_RefreshServers)(void);
     DWORD (*LAN_NumServers)(void);
-    BOOL (*LAN_Server)(DWORD index, uiLanGame_t *out);
+    BOOL (*LAN_Server)(DWORD index, menuLanGame_t *out);
     void (*LAN_ConnectServer)(DWORD index);
    
     /* Game state access (for in-game HUD) */
@@ -155,10 +155,10 @@ typedef struct {
     /* Sound */
     void (*PlaySound)(DWORD kit_id);
     void (*PlaySoundByName)(LPCSTR name);
-} uiImport_t;
+} menuImport_t;
 
 /* Model positions are normalized viewport anchors; widening preserves authored vertical scale. */
-static inline void UI_ModelMatrix(LPCUIMODEL model, FLOAT aspect, LPMATRIX4 out) {
+static inline void M_ModelMatrix(LPCUIMODEL model, FLOAT aspect, LPMATRIX4 out) {
     MATRIX4 proj, view, local;
     VECTOR3 dir = Vector3_sub(&model->target, &model->eye);
     FLOAT model_aspect = (model->aspect > 0.0f) ? model->aspect : 1.0f;
@@ -177,9 +177,9 @@ static inline void UI_ModelMatrix(LPCUIMODEL model, FLOAT aspect, LPMATRIX4 out)
     *out = local;
 }
 
-typedef void (*uiGameCommand_t)(LPCSTR command, void const *data, DWORD size);
+typedef void (*menuGameCommand_t)(LPCSTR command, void const *data, DWORD size);
 
-/* Function table exported by the UI library to the client. */
+/* Function table exported by the menu library to the client. */
 typedef struct {
     /* Initialization and shutdown */
     void (*Init)(void);
@@ -191,22 +191,22 @@ typedef struct {
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
     void (*TextInput)(LPCSTR text);
-    BOOL (*MouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
+    BOOL (*MouseEvent)(menuMouseEvent_t event, int x, int y, int32_t param);
     
     /* Unit UI data updates (Phase 8: HUD migration) */
-    void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
+    void (*UpdateUnitUI)(DWORD num_units, menuUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
-    uiGameCommand_t GameCommand;
+    menuGameCommand_t GameCommand;
 
     /* Resolve a Warcraft-specific symbolic image key for the local player. */
     LPCSTR (*ResolveImagePath)(LPCSTR key);
 
-    /* Legacy named XML windows — show/hide a ui.dll-owned window by ID. */
+    /* Legacy named XML windows — show/hide a menu.dll-owned window by ID. */
     void (*ShowWindow)(const char *window_id, int show);
-} uiExport_t;
+} menuExport_t;
 
 /* Entry point called by the client to get the UI function table.
- * The client must fill the uiImport_t struct before calling this. */
-uiExport_t UI_GetAPI(uiImport_t uiimport);
+ * The client must fill the menuImport_t struct before calling this. */
+menuExport_t M_GetAPI(menuImport_t menuimport);
 
 #endif
