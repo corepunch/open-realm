@@ -170,6 +170,7 @@ typedef struct {
     MATRIX4 textureMatrix;
     LPCMODEL terrainLightModel; /* optional sampling source; game renderer evaluates into terrainLight */
     LPCMODEL entityLightModel;  /* optional sampling source; game renderer evaluates into entityLight */
+    LPCMODEL skyModel;          /* optional camera-relative unlit world model */
     FLOAT environmentPhase;     /* normalized 0..1 clock used to sample environment light models */
     ENVIRONLIGHT terrainLight;  /* evaluated world/terrain light; valid=0 keeps the renderer fallback */
     ENVIRONLIGHT entityLight;   /* evaluated entity light; valid=0 reuses terrainLight or the fallback */

@@ -84,6 +84,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Release/debug builds, MSAA, GL/GLES backends, GLSL version (`GLSL=120/140/150`), shader dialect tokens, bone palette, video modes | [docs/build-and-renderer-platforms.md](docs/build-and-renderer-platforms.md) |
 | Shared model shader lighting and packed grass uniform contracts | [docs/architecture/model-shader.md](docs/architecture/model-shader.md) |
 | Renderer backend: thin pipelines, root struct, GL state cache, MSAA/alpha-key, `r_stats` | [docs/renderer-backend.md](docs/renderer-backend.md) |
+| Quake II `CS_SKY` contract and verified WC3/SC2/WoW skybox data gaps | [docs/architecture/skybox-and-cs-sky.md](docs/architecture/skybox-and-cs-sky.md) |
 
 ## Coding Style
 
