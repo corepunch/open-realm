@@ -3,7 +3,7 @@
 #include <ctype.h>
 
 #include "common/common.h"
-#include "games/warcraft-3/common/stb_slk.h"
+#include "common/stb_slk.h"
 
 #define MAX_INI_LINE 1024
 #define MAX_SHEET_COLUMNS 256

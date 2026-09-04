@@ -15,7 +15,7 @@
 
 #include "common/stb_fdf.h"
 #include "client/menu.h"
-#include "games/warcraft-3/common/mapinfo.h"
+#include "common/mapinfo.h"
 
 /* Forward declarations */
 typedef struct uiScreen_s uiScreen_t;  /* Defined in menu_screen.h */

@@ -1,8 +1,5 @@
 #include "cl_input_local.h"
 #include "ui_layout.h"
-#ifdef SC2
-#include "games/starcraft-2/common/sc2_map.h"
-#endif
 
 #ifndef WOW
 static struct {
@@ -232,9 +229,9 @@ void CL_InputModeInit(void) {
 
 void CL_InputModeSetGameplay(void) {
 #ifdef SC2
-    sc2MapCamera_t camera;
+    gameCamera_t camera;
 
-    SC2_MapDefaultCamera(&camera);
+    CL_GameDefaultCamera(&camera);
     cl.viewDef.camerastate[0].zfar = camera.zfar;
     cl.viewDef.camerastate[0].znear = camera.znear;
     cl.viewDef.camerastate[1].zfar = camera.zfar;

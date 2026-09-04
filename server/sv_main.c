@@ -16,6 +16,10 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
+BOOL SV_IsActive(void) {
+    return svs.initialized && (sv.state == ss_lobby || sv.state == ss_game);
+}
+
 /* Store one server-owned configstring and force reliable client resynchronization. */
 void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
     if (index >= MAX_CONFIGSTRINGS) {

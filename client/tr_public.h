@@ -81,7 +81,7 @@ typedef struct drawBackdrop_s {
 typedef drawText_t const *LPCDRAWTEXT;
 typedef drawImage_t const *LPCDRAWIMAGE;
 typedef drawBackdrop_t const *LPCDRAWBACKDROP;
-#include "games/warcraft-3/common/stb_slk.h"
+#include "common/stb_slk.h"
 
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic

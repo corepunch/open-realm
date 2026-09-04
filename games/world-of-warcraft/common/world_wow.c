@@ -1,9 +1,19 @@
 #include "common/common.h"
-#include "stb_dbc.h"
+#include "common/stb_dbc.h"
 #include "wow_chunks.h"
 #include <float.h>
 #include <limits.h>
 #include <math.h>
+
+BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
+    if (!camera) return false;
+    *camera = (gameCamera_t){ .distance = 1650.0f, .pitch = 304.0f, .yaw = 90.0f, .fov = 70.0f,
+        .znear = 10.0f, .zfar = 5000.0f };
+    return true;
+}
+
+FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return CM_GetHeightAtPoint(x, y); }
+FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return a + (b - a) * fraction; }
 
 #define CM_WOW_ADT_SIZE       533.333313f
 #define CM_WOW_ADT_UNIT_SIZE  (CM_WOW_ADT_SIZE / 16.0f / 8.0f)

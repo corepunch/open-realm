@@ -6,9 +6,6 @@
 #include "common/wow_view.h"
 #endif
 #include "tr_public.h"
-#ifdef SC2
-#include "games/starcraft-2/common/sc2_map.h"
-#endif
 
 static struct {
     renderEntity_t entities[MAX_CLIENT_ENTITIES];
@@ -86,7 +83,7 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
     znear = znear > 0.0f ? znear : 0.1f;
     zfar = zfar > 0.0f ? zfar : 400.0f;
     /* Spatial terrain filtering ignores narrow depressions without adding delayed camera motion. */
-    target.z = SC2_MapCameraHeightAtPoint(target.x, target.y) + height_offset;
+    target.z = CL_GameCameraHeightAtPoint(target.x, target.y) + height_offset;
     eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
@@ -172,7 +169,7 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
 #ifdef SC2
     VECTOR3 angles = {
         LerpNumber(a->viewangles.x, b->viewangles.x, cl.viewDef.lerpfrac),
-        SC2_LerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
+        CL_GameLerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
         LerpNumber(a->viewangles.z, b->viewangles.z, cl.viewDef.lerpfrac),
     };
     (void)proj;
@@ -401,16 +398,16 @@ void CL_PrepRefresh(void) {
 
 #ifdef SC2
     if (world_loaded && cls.state != ca_active) {
-        sc2MapCamera_t map_camera;
         viewCamera_t camera = { 0 };
+        gameCamera_t defaults;
 
-        SC2_MapDefaultCamera(&map_camera);
-        camera.origin = map_camera.target;
-        camera.viewangles = (VECTOR3){ map_camera.pitch, map_camera.yaw, 0.0f };
-        camera.fov = map_camera.fov;
-        camera.distance = map_camera.distance;
-        camera.znear = map_camera.znear;
-        camera.zfar = map_camera.zfar;
+        CL_GameDefaultCamera(&defaults);
+        camera.origin = defaults.target;
+        camera.viewangles = (VECTOR3){ defaults.pitch, defaults.yaw, 0.0f };
+        camera.fov = defaults.fov;
+        camera.distance = defaults.distance;
+        camera.znear = defaults.znear;
+        camera.zfar = defaults.zfar;
         cl.viewDef.camerastate[0] = camera;
         cl.viewDef.camerastate[1] = camera;
         cl.playerstate.origin = (VECTOR2){ camera.origin.x, camera.origin.y };

@@ -1,7 +1,7 @@
 #include "common.h"
 #include "common/ui_constants.h"
 #ifdef WOW
-#include "games/world-of-warcraft/common/wow_ui_shared.h"
+#include "common/wow_ui_shared.h"
 #endif
 
 #include <ctype.h>

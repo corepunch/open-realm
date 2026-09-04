@@ -2,6 +2,18 @@
 
 DWORD SC2_MapObjectClassId(sc2MapObject_t const *object);
 
+BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
+    sc2MapCamera_t source;
+    if (!camera || !SC2_MapDefaultCamera(&source)) return false;
+    *camera = (gameCamera_t){ .target = source.target, .distance = source.distance,
+        .pitch = source.pitch, .yaw = source.yaw, .fov = source.fov,
+        .znear = source.znear, .zfar = source.zfar, .height_offset = source.height_offset };
+    return true;
+}
+
+FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return SC2_MapCameraHeightAtPoint(x, y); }
+FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return SC2_LerpDegrees(a, b, fraction); }
+
 bool CM_LoadMapFormat(LPCSTR mapFilename) {
     memset(&world, 0, sizeof(world));
     SC2_MapSetHost(&(sc2MapHost_t){

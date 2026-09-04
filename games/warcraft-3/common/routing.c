@@ -1,15 +1,6 @@
-#ifdef GAME_WORLD
-#if defined(WOW) || defined(SC2)
-#include "server/server.h"
-#else
-#include "game/g_local.h"
-#endif
 #define ge (&globals)
 #ifndef EDICT_NUM
 #define EDICT_NUM(n) (globals.edicts + (n))
-#endif
-#else
-#include "server/server.h"
 #endif
 
 #include <float.h>
