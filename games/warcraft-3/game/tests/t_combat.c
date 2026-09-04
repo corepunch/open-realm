@@ -237,7 +237,10 @@ TEST(wc3_combat, attack_button_accepts_allied_unit) {
     clent->s.player = 0;
     attacker->s.player = 0;
     friendly->s.player = 1;
-    level.alliances[0][1] = 1;
+    /* Allied targeting requires active map slots; the old test set only a raw alliance bit for an inactive owner. */
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
     attacker->selected = 1 << clent->client->ps.number;
     friendly->svflags |= SVF_MONSTER;
     friendly->health.value = 100.0f;
