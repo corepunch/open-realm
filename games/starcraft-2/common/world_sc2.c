@@ -5,8 +5,9 @@ DWORD SC2_MapObjectClassId(sc2MapObject_t const *object);
 BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     sc2MapCamera_t source;
     if (!camera || !SC2_MapDefaultCamera(&source)) return false;
+    VECTOR3 const euler = SC2_EulerFromCamera(source.pitch, source.yaw);
     *camera = (gameCamera_t){ .target = source.target, .distance = source.distance,
-        .pitch = source.pitch, .yaw = source.yaw, .fov = source.fov,
+        .pitch = euler.x, .yaw = euler.z, .fov = source.fov,
         .znear = source.znear, .zfar = source.zfar, .height_offset = source.height_offset };
     return true;
 }

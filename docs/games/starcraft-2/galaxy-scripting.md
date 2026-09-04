@@ -96,6 +96,7 @@ TRaynor01 run confirmed start/mid/end eye clearances of 17.27, 22.87, and 28.19 
 
 Remaining native coverage gaps:
 
+- `CampaignMode` is a no-op stub; TRaynor01 `gt_Initialization_Func` calls it and an unimplemented native aborts the intro before `CameraApplyInfo`.
 - `CinematicMode` only updates game-local state; it does not hide the gameplay layout or select `CLIENT_UI_CINEMATIC`;
 - `CinematicFade` applies its final alpha immediately and ignores both interpolation and `waitUntilDone`, so the script reaches its
 	one-second wait two seconds earlier than native SC2;
@@ -112,7 +113,7 @@ build/bin/opensc2 -data data/StarCraft2 +set r_vsync 1 +vid_hidden 1 \
 	+map TRaynor01 +screenshot 90 +com_frame_limit 105
 ```
 
-The intro script applies camera `1660` (`StartGame01`, target `30.183,28.759`, pitch `34.9`, yaw `193.9`, distance `30.2`) before
+Map/Galaxy camera pitch is degrees down from horizontal. `SC2_ViewAngles` converts it to orbit Euler (`pitch - 90`) before the snapshot; camera `1660`'s 34.9 becomes `-55.1`, not a near-nadir 34.9. The intro script applies camera `1660` (`StartGame01`, target `30.183,28.759`, pitch `34.9`, yaw `193.9`, distance `30.2`) before
 spawning the dropship at point `379`, then moves toward camera `976` after the fade and a one-second wait. The route points `379`,
 `1037`, and `1038` all cluster around camera `1660`, confirming that the map lookup selects the intended opening area. Tests with
 the horizontal camera direction rotated by `90`, `180`, and `270` degrees all produced other incorrect map quadrants; do not mask

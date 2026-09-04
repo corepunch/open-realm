@@ -283,6 +283,13 @@ typedef struct {
     FLOAT distance, pitch, yaw, fov, znear, zfar, height_offset;
 } gameCamera_t;
 
+/* Games must author fov/znear/zfar together; the client copies all three like distance. */
+static inline void player_set_lens(LPPLAYER ps, gameCamera_t const *cam) {
+    ps->fov = (DWORD)cam->fov;
+    ps->znear = cam->znear;
+    ps->zfar = cam->zfar;
+}
+
 BOOL CL_GameDefaultCamera(gameCamera_t *camera);
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y);
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);

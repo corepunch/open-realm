@@ -386,11 +386,9 @@ void CL_PrepRefresh(void) {
         cl.viewDef.camerastate[0] = camera;
         cl.viewDef.camerastate[1] = camera;
         cl.playerstate.vieworigin = camera.origin;
-        cl.playerstate.fov = camera.fov;
         cl.playerstate.distance = camera.distance;
-        cl.playerstate.znear = camera.znear;
-        cl.playerstate.zfar = camera.zfar;
         cl.playerstate.viewangles = camera.viewangles;
+        player_set_lens(&cl.playerstate, &defaults);
     }
 #endif
 

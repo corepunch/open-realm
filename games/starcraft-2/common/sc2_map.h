@@ -10,6 +10,15 @@ static inline FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) {
     return a + delta * k;
 }
 
+/* Map/Galaxy pitch is degrees down from horizontal (old lookAt). Orbit identity looks down -Z, so
+ * playerState.viewangles.x is pitch-90. Gameplay 56 becomes -34, matching WC3's 326 Euler tilt. */
+static inline VECTOR3 SC2_EulerFromCamera(FLOAT pitch, FLOAT yaw) {
+    return (VECTOR3){ pitch - 90.0f, 0.0f, yaw };
+}
+static inline VECTOR3 SC2_CameraFromEuler(LPCVECTOR3 euler, FLOAT height) {
+    return (VECTOR3){ euler->x + 90.0f, euler->z, height };
+}
+
 #define SC2_MAX_MAP_OBJECTS 4096 // objects; accommodates object-heavy campaign maps such as TRaynor01
 #define SC2_CELL_SIZE          1.0f
 #define SC2_BROAD_HEIGHT_RADIUS  8.0f // world units; half-width of the air/camera terrain filter footprint

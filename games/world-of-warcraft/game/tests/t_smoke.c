@@ -27,6 +27,14 @@ TEST(wow_smoke, clamp) {
     T_FEQ(Wow_Clamp(42.0f, 0.0f, 10.0f), 10.0f, 0.001f);
 }
 
+TEST(wow_smoke, default_camera_authors_lens) {
+    gameCamera_t cam;
+    T_ASSERT(CL_GameDefaultCamera(&cam));
+    T_EQ((DWORD)cam.fov, (DWORD)WOW_CAMERA_FOV);
+    T_FEQ(cam.znear, WOW_WORLD_NEAR_CLIP, 0.001f);
+    T_FEQ(cam.zfar, WOW_WORLD_FAR_CLIP, 0.001f);
+}
+
 TEST(wow_smoke, read32_little_endian) {
     BYTE bytes[4] = { 0x78, 0x56, 0x34, 0x12 };
     T_EQ(Stb_DbcRead32(bytes), 0x12345678u);

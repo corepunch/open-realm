@@ -1133,6 +1133,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "CameraRestore",                       sc2_CameraRestore },
     { "CameraSave",                          sc2_CameraSave },
     { "CameraShakeStart",                    sc2_CameraShakeStart },
+    { "CampaignMode",                        galaxy_stub }, /* void CampaignMode(playergroup, bool); TRaynor01 Init calls it */
     { "CatalogEntryClass",                   sc2_CatalogEntryClass },
     { "CatalogEntryCount",                   sc2_CatalogEntryCount },
     { "CatalogEntryGet",                     sc2_CatalogEntryGet },

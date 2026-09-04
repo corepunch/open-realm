@@ -216,6 +216,14 @@ static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, 
     T_EQ(channel, CHAN_OWNER | CHAN_RELIABLE);
 }
 
+TEST(wc3_api, default_camera_authors_lens) {
+    gameCamera_t cam;
+    T_ASSERT(CL_GameDefaultCamera(&cam));
+    T_FEQ(cam.fov, WC3_CAMERA_DEFAULT_FOV, 0.001f);
+    T_FEQ(cam.znear, WC3_CAMERA_DEFAULT_NEAR_Z, 0.001f);
+    T_FEQ(cam.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);
+}
+
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     LPGAMECLIENT gc = &game.clients[0];

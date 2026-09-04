@@ -123,12 +123,16 @@ DWORD ResetToGameCamera(LPJASS j) {
     }
     G_ClearCameraTarget(gc, "ResetToGameCamera");
     gc->camera.old_state = gc->camera.state;
-    gc->camera.state.viewangles = (VECTOR3){ WC3_CAMERA_DEFAULT_PITCH, 0, WC3_CAMERA_DEFAULT_YAW };
-    gc->camera.state.fov = WC3_CAMERA_DEFAULT_FOV;
-    gc->camera.state.target_distance = WC3_CAMERA_DEFAULT_DISTANCE;
-    gc->camera.state.z_offset = 0.0f;
-    gc->camera.state.near_z = WC3_CAMERA_DEFAULT_NEAR_Z;
-    gc->camera.state.far_z = WC3_CAMERA_DEFAULT_FAR_Z;
+    {
+        gameCamera_t cam;
+        CL_GameDefaultCamera(&cam);
+        gc->camera.state.viewangles = (VECTOR3){ cam.pitch, 0, cam.yaw };
+        gc->camera.state.fov = cam.fov;
+        gc->camera.state.target_distance = cam.distance;
+        gc->camera.state.z_offset = 0.0f;
+        gc->camera.state.near_z = cam.znear;
+        gc->camera.state.far_z = cam.zfar;
+    }
     gc->camera.start_time = G_Time();
     gc->camera.end_time = gc->camera.start_time + (duration * 1000);
     return 0;
@@ -179,11 +183,15 @@ DWORD AdjustCameraField(LPJASS j) {
 }
 DWORD CreateCameraSetup(LPJASS j) {
     API_ALLOC(CAMERASETUP, camerasetup);
-    camerasetup->viewangles = (VECTOR3){ WC3_CAMERA_DEFAULT_PITCH, 0, WC3_CAMERA_DEFAULT_YAW };
-    camerasetup->fov = WC3_CAMERA_DEFAULT_FOV;
-    camerasetup->target_distance = WC3_CAMERA_DEFAULT_DISTANCE;
-    camerasetup->near_z = WC3_CAMERA_DEFAULT_NEAR_Z;
-    camerasetup->far_z = WC3_CAMERA_DEFAULT_FAR_Z;
+    {
+        gameCamera_t cam;
+        CL_GameDefaultCamera(&cam);
+        camerasetup->viewangles = (VECTOR3){ cam.pitch, 0, cam.yaw };
+        camerasetup->fov = cam.fov;
+        camerasetup->target_distance = cam.distance;
+        camerasetup->near_z = cam.znear;
+        camerasetup->far_z = cam.zfar;
+    }
     return 1;
 }
 DWORD CameraSetupSetField(LPJASS j) {

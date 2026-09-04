@@ -281,30 +281,25 @@ static void SC2_SolveCollisions(void) {
  * ------------------------------------------------------------------------- */
 /* playerState.viewangles is ROTATE_ZYX {pitch, roll, yaw}; SC2CAMERA.angles is {pitch, yaw, height}. */
 static VECTOR3 SC2_ViewAngles(LPCVECTOR3 camera_angles) {
-    return (VECTOR3){ camera_angles->x, 0.0f, camera_angles->y };
+    return SC2_EulerFromCamera(camera_angles->x, camera_angles->y);
 }
 
 static VECTOR3 SC2_CameraAnglesFromPlayer(LPCPLAYER ps) {
-    return (VECTOR3){
-        ps->viewangles.x,
-        ps->viewangles.z,
-        ps->vieworigin.z - SC2_MapCameraHeightAtPoint(ps->vieworigin.x, ps->vieworigin.y)
-    };
+    return SC2_CameraFromEuler(&ps->viewangles, ps->vieworigin.z - SC2_MapCameraHeightAtPoint(ps->vieworigin.x, ps->vieworigin.y));
 }
 
 static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance, FLOAT fov) {
     gameCamera_t defaults;
 
     CL_GameDefaultCamera(&defaults);
+    defaults.fov = fov;
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
         sc2_clients[i].ps.vieworigin = (VECTOR3){
             origin->x, origin->y, SC2_MapCameraHeightAtPoint(origin->x, origin->y) + angles->z
         };
         sc2_clients[i].ps.viewangles = SC2_ViewAngles(angles);
-        sc2_clients[i].ps.fov = (DWORD)fov;
         sc2_clients[i].ps.distance = distance;
-        sc2_clients[i].ps.znear = defaults.znear;
-        sc2_clients[i].ps.zfar = defaults.zfar;
+        player_set_lens(&sc2_clients[i].ps, &defaults);
     }
 }
 
@@ -549,9 +544,9 @@ static void SC2_InitGalaxyHost(void) {
 }
 
 static void SC2_InitClients(void) {
-    sc2MapCamera_t camera;
+    gameCamera_t camera;
 
-    SC2_MapDefaultCamera(&camera);
+    CL_GameDefaultCamera(&camera);
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
         LPEDICT ent = &sc2_edicts[i];
         ent->inuse = true;
@@ -563,15 +558,13 @@ static void SC2_InitClients(void) {
             camera.target.x, camera.target.y,
             SC2_MapCameraHeightAtPoint(camera.target.x, camera.target.y) + camera.height_offset
         };
-        ent->client->ps.fov = (DWORD)camera.fov;
         ent->client->ps.distance = camera.distance;
-        ent->client->ps.znear = camera.znear;
-        ent->client->ps.zfar = camera.zfar;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
         ent->client->ps.viewangles = (VECTOR3){ camera.pitch, 0.0f, camera.yaw };
+        player_set_lens(&ent->client->ps, &camera);
     }
     sc2_level.camera.old = sc2_level.camera.state = (SC2CAMERA){ { camera.target.x, camera.target.y },
-        { camera.pitch, camera.yaw, camera.height_offset }, camera.distance, camera.fov };
+        SC2_CameraFromEuler(&sc2_clients[0].ps.viewangles, camera.height_offset), camera.distance, camera.fov };
     sc2_level.camera.start_time = sc2_level.camera.end_time = gi.GetTime();
     sc2_level.camera.log_stage = 2;
 }

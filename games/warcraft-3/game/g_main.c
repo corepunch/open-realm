@@ -475,17 +475,19 @@ static void G_RunClients(void) {
             client->ps.vieworigin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             /* JASS interpolates camera fields independently; the client slerps the snapshot Eulers. */
             client->ps.viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, k);
-            client->ps.fov = LerpNumber(a->fov, b->fov, k);
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
-            client->ps.znear = LerpNumber(a->near_z, b->near_z, k);
-            client->ps.zfar = LerpNumber(a->far_z, b->far_z, k);
+            player_set_lens(&client->ps, &(gameCamera_t){
+                .fov = LerpNumber(a->fov, b->fov, k),
+                .znear = LerpNumber(a->near_z, b->near_z, k),
+                .zfar = LerpNumber(a->far_z, b->far_z, k) });
         } else {
             client->ps.vieworigin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
             client->ps.viewangles = client->camera.state.viewangles;
-            client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
-            client->ps.znear = client->camera.state.near_z;
-            client->ps.zfar = client->camera.state.far_z;
+            player_set_lens(&client->ps, &(gameCamera_t){
+                .fov = client->camera.state.fov,
+                .znear = client->camera.state.near_z,
+                .zfar = client->camera.state.far_z });
         }
         /* Transmission scene and voice lifetimes are independent. Blizzard.j
          * keeps the portrait scene alive past the voice, so Portrait Talk must

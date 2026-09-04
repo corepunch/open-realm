@@ -4,6 +4,7 @@
 #include "common/tinyxml.h"
 #include <stddef.h>
 #include <stdlib.h>
+#include <strings.h>
 
 #define SC2_MAX_CATALOG_MODELS       8192
 #define SC2_MAX_CATALOG_ACTORS       8192
@@ -2736,25 +2737,27 @@ BOOL SC2_MapDefaultCamera(sc2MapCamera_t *camera) {
     value.znear = 0.0998f;
     value.zfar = 400.0f;
 
-    FOR_LOOP(i, sc2_map.num_objects) {
-        sc2MapObject_t const *object = &sc2_map.objects[i];
-
-        if (object->type != SC2_OBJECT_CAMERA) {
-            continue;
+    {
+        sc2MapObject_t const *chosen = NULL;
+        FOR_LOOP(i, sc2_map.num_objects) {
+            sc2MapObject_t const *object = &sc2_map.objects[i];
+            if (object->type != SC2_OBJECT_CAMERA) continue;
+            /* TRaynor01's first camera is a close cinematic (pitch 8.6, dist 4.95). Use StartGame*. */
+            if (strncasecmp(object->name, "StartGame", 9)) continue;
+            chosen = object;
+            break;
         }
-        if (object->camera.target.x != 0.0f ||
-            object->camera.target.y != 0.0f ||
-            object->camera.target.z != 0.0f) {
-            value.target = object->camera.target;
+        if (chosen) {
+            if (chosen->camera.target.x != 0.0f || chosen->camera.target.y != 0.0f || chosen->camera.target.z != 0.0f)
+                value.target = chosen->camera.target;
+            if (chosen->camera.distance > 0.0f) value.distance = chosen->camera.distance;
+            if (chosen->camera.pitch != 0.0f) value.pitch = chosen->camera.pitch;
+            if (chosen->camera.yaw != 0.0f) value.yaw = chosen->camera.yaw;
+            if (chosen->camera.fov > 0.0f) value.fov = chosen->camera.fov;
+            if (chosen->camera.znear > 0.0f) value.znear = chosen->camera.znear;
+            if (chosen->camera.zfar > 0.0f) value.zfar = chosen->camera.zfar;
+            if (chosen->camera.height_offset != 0.0f) value.height_offset = chosen->camera.height_offset;
         }
-        if (object->camera.distance > 0.0f) value.distance = object->camera.distance;
-        if (object->camera.pitch != 0.0f) value.pitch = object->camera.pitch;
-        if (object->camera.yaw != 0.0f) value.yaw = object->camera.yaw;
-        if (object->camera.fov > 0.0f) value.fov = object->camera.fov;
-        if (object->camera.znear > 0.0f) value.znear = object->camera.znear;
-        if (object->camera.zfar > 0.0f) value.zfar = object->camera.zfar;
-        if (object->camera.height_offset != 0.0f) value.height_offset = object->camera.height_offset;
-        break;
     }
 
     *camera = value;

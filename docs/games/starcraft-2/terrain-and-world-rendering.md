@@ -9,9 +9,14 @@ the same sign.
 
 A bounded TerranTest run confirmed that the archive value reaches `SC2_MapCurrent()` unchanged and that diffuse receives
 `(-0.724693,0.124265,0.677775)`. If the light appears horizontally reversed relative to SC2, investigate the view basis first.
-`SC2_MapDefaultCamera` currently passes SC2's authored yaw (Mar Sara uses `179.9584`) directly to the Quake-style
-`Quaternion_fromEuler(..., ROTATE_ZYX)` path; no code proves that SC2 and the engine define yaw zero, handedness, and positive rotation
-identically. Flipping the light's X component would make lighting and shadow projection disagree and would hide the camera-axis issue.
+Map/Galaxy pitch is degrees down from horizontal (the old `Matrix4_getSc2CameraMatrix` lookAt). Generic orbit identity looks
+down `-Z`, so `CL_GameDefaultCamera` and `SC2_ViewAngles` store `pitch - 90` on `playerState.viewangles.x`. Gameplay 56 becomes
+`-34` (same tilt as WC3 Euler 326). Do not send raw map pitch 56/34.9 as Euler X — that aims nearly straight down.
+`SC2_MapDefaultCamera` keeps hardcoded gameplay defaults (pitch 56, distance 34.07) unless a `StartGame*` camera exists.
+TRaynor01's first camera object is a close cinematic (pitch 8.6, dist 4.95); using it as the default aims along the ground.
+Yaw still uses the authored StartGame value (Mar Sara `179.9584`);
+do not add a yaw offset to hide an axis mismatch. Flipping the light's X component would make lighting and shadow projection disagree
+and would hide a remaining camera-axis issue.
 
 Diagnostic workflow:
 

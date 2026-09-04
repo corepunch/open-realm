@@ -472,6 +472,20 @@ static void assert_tiny_map_known_file_catalog_fallback(sc2Map_t *map) {
 
 TEST(sc2_map, campaign_object_capacity) { T_EQ(SC2_MAX_MAP_OBJECTS, 4096); }
 
+TEST(sc2_map, camera_pitch_converts_to_orbit_euler) {
+    VECTOR3 euler = SC2_EulerFromCamera(56.0f, 180.0f);
+    VECTOR3 native;
+    T_FEQ(euler.x, -34.0f, 0.001f);
+    T_FEQ(euler.y, 0.0f, 0.001f);
+    T_FEQ(euler.z, 180.0f, 0.001f);
+    native = SC2_CameraFromEuler(&euler, 2.5f);
+    T_FEQ(native.x, 56.0f, 0.001f);
+    T_FEQ(native.y, 180.0f, 0.001f);
+    T_FEQ(native.z, 2.5f, 0.001f);
+    euler = SC2_EulerFromCamera(34.9f, 193.9f);
+    T_FEQ(euler.x, -55.1f, 0.001f);
+}
+
 TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     sc2Map_t *map;
     sc2MapObject_t unit;
@@ -508,6 +522,16 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_FEQ(map->objects[0].camera.fov, 27.7998f, 0.001f);
     T_FEQ(map->objects[0].camera.znear, 0.0998f, 0.001f);
     T_FEQ(map->objects[0].camera.zfar, 400.0f, 0.001f);
+    {
+        sc2MapCamera_t cam;
+        T_ASSERT(SC2_MapDefaultCamera(&cam));
+        T_ASSERT(cam.fov > 0.0f);
+        T_ASSERT(cam.znear > 0.0f);
+        T_ASSERT(cam.zfar > 0.0f);
+        T_FEQ(cam.fov, map->objects[0].camera.fov, 0.001f);
+        T_FEQ(cam.znear, map->objects[0].camera.znear, 0.001f);
+        T_FEQ(cam.zfar, map->objects[0].camera.zfar, 0.001f);
+    }
 
     T_STREQ(map->objects[1].name, "Marine");
     T_EQ(map->objects[1].id, 1);

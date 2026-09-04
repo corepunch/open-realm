@@ -334,18 +334,20 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
     ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
     ps->vieworigin = G_MakeServerOrigin(player ? player->startingPosition.x : 0.0f, player ? player->startingPosition.y : 0.0f, 0.0f);
-    ps->viewangles = (VECTOR3){ WC3_CAMERA_DEFAULT_PITCH, 0, WC3_CAMERA_DEFAULT_YAW };
-    ps->fov = WC3_CAMERA_DEFAULT_FOV;
-    ps->distance = WC3_CAMERA_DEFAULT_DISTANCE;
-    ps->znear = WC3_CAMERA_DEFAULT_NEAR_Z;
-    ps->zfar = WC3_CAMERA_DEFAULT_FAR_Z;
-    clent->client->camera.state.position = (VECTOR2){ ps->vieworigin.x, ps->vieworigin.y };
-    clent->client->camera.state.viewangles = (VECTOR3){ WC3_CAMERA_DEFAULT_PITCH, 0, WC3_CAMERA_DEFAULT_YAW };
-    clent->client->camera.state.fov = WC3_CAMERA_DEFAULT_FOV;
-    clent->client->camera.state.target_distance = WC3_CAMERA_DEFAULT_DISTANCE;
-    clent->client->camera.state.z_offset = 0.0f;
-    clent->client->camera.state.near_z = WC3_CAMERA_DEFAULT_NEAR_Z;
-    clent->client->camera.state.far_z = WC3_CAMERA_DEFAULT_FAR_Z;
+    {
+        gameCamera_t cam;
+        CL_GameDefaultCamera(&cam);
+        ps->viewangles = (VECTOR3){ cam.pitch, 0, cam.yaw };
+        ps->distance = cam.distance;
+        player_set_lens(ps, &cam);
+        clent->client->camera.state.position = (VECTOR2){ ps->vieworigin.x, ps->vieworigin.y };
+        clent->client->camera.state.viewangles = ps->viewangles;
+        clent->client->camera.state.fov = cam.fov;
+        clent->client->camera.state.target_distance = cam.distance;
+        clent->client->camera.state.z_offset = 0.0f;
+        clent->client->camera.state.near_z = cam.znear;
+        clent->client->camera.state.far_z = cam.zfar;
+    }
     clent->client->camera.old_state = clent->client->camera.state;
     clent->client->camera.target_inherit_orientation = false;
     if (mapinfo) {
