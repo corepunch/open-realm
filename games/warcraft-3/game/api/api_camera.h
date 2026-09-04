@@ -371,22 +371,22 @@ DWORD GetCameraField(LPJASS j) {
 }
 DWORD GetCameraTargetPositionX(LPJASS j) {
     API_PLAYERSTATE(playerstate);
-    return jass_pushnumber(j, playerstate ? playerstate->origin.x : 0);
+    return jass_pushnumber(j, playerstate ? playerstate->vieworigin.x : 0);
 }
 DWORD GetCameraTargetPositionY(LPJASS j) {
     API_PLAYERSTATE(playerstate);
-    return jass_pushnumber(j, playerstate ? playerstate->origin.y : 0);
+    return jass_pushnumber(j, playerstate ? playerstate->vieworigin.y : 0);
 }
 DWORD GetCameraTargetPositionZ(LPJASS j) {
     API_PLAYERSTATE(playerstate);
-    return jass_pushnumber(j, playerstate ? playerstate->origin.z : 0);
+    return jass_pushnumber(j, playerstate ? playerstate->vieworigin.z : 0);
 }
 
 DWORD GetCameraTargetPositionLoc(LPJASS j) {
     API_ALLOC(VECTOR2, location);
     API_PLAYERSTATE(playerstate);
     if (playerstate) {
-        *location = (VECTOR2){ playerstate->origin.x, playerstate->origin.y };
+        *location = (VECTOR2){ playerstate->vieworigin.x, playerstate->vieworigin.y };
     }
     return 1;
 }

@@ -33,7 +33,7 @@ void Wow_TeleportPlayer(LPEDICT ent, DWORD idx) {
     ent->s.origin = (VECTOR3){ sp->x, sp->y, z };
     ent->s.origin2 = (VECTOR2){ sp->x, sp->y };
     ent->s.angle = sp->facing;
-    ent->client->ps.origin = (VECTOR3){ sp->x, sp->y, 0 };
+    ent->client->ps.vieworigin = (VECTOR3){ sp->x, sp->y, 0 };
     fprintf(stderr, "WoW: respawned at map=%u (%.1f %.1f %.1f)\n", sp->map, sp->x, sp->y, sp->z);
 }
 
@@ -46,6 +46,6 @@ void Wow_TeleportPlayerToPos(LPEDICT ent, FLOAT x, FLOAT y, FLOAT z, FLOAT orien
     ent->s.origin = (VECTOR3){ x, y, z };
     ent->s.origin2 = (VECTOR2){ x, y };
     ent->s.angle = orientation;
-    ent->client->ps.origin = (VECTOR3){ x, y, 0 };
+    ent->client->ps.vieworigin = (VECTOR3){ x, y, 0 };
     fprintf(stderr, "WoW: teleported to (%.1f %.1f %.1f)\n", x, y, z);
 }

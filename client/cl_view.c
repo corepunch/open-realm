@@ -376,7 +376,7 @@ void CL_PrepRefresh(void) {
         camera.zfar = defaults.zfar;
         cl.viewDef.camerastate[0] = camera;
         cl.viewDef.camerastate[1] = camera;
-        cl.playerstate.origin = camera.origin;
+        cl.playerstate.vieworigin = camera.origin;
         cl.playerstate.fov = camera.fov;
         cl.playerstate.distance = camera.distance;
         cl.playerstate.viewangles = camera.viewangles;
@@ -462,7 +462,7 @@ void V_RenderView(void) {
 #if !defined(WOW) && !defined(SC2)
         {
             float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
-            VECTOR2 listener_origin = { cl.playerstate.origin.x, cl.playerstate.origin.y };
+            VECTOR2 listener_origin = { cl.playerstate.vieworigin.x, cl.playerstate.vieworigin.y };
             VECTOR2 listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
             S_SetListener(&listener_origin, &listener_right);
         }

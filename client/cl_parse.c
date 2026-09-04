@@ -279,7 +279,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     zfar = cl.viewDef.camerastate[0].zfar > 0 ? cl.viewDef.camerastate[0].zfar : 5000;
 
     cl.viewDef.camerastate[1] = cl.viewDef.camerastate[0];
-    cl.viewDef.camerastate[0].origin = cl.playerstate.origin;
+    cl.viewDef.camerastate[0].origin = cl.playerstate.vieworigin;
     cl.viewDef.camerastate[0].viewangles = cl.playerstate.viewangles;
     cl.viewDef.camerastate[0].distance = cl.playerstate.distance;
     cl.viewDef.camerastate[0].fov = cl.playerstate.fov;
@@ -293,8 +293,8 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 
     if (cl.camera_prediction.active) {
         cl.camera_prediction.origin = CL_ClampCameraPosition(cl.camera_prediction.origin);
-        if (cl.playerstate.origin.x == cl.camera_prediction.origin.x &&
-            cl.playerstate.origin.y == cl.camera_prediction.origin.y) {
+        if (cl.playerstate.vieworigin.x == cl.camera_prediction.origin.x &&
+            cl.playerstate.vieworigin.y == cl.camera_prediction.origin.y) {
             cl.camera_prediction.active = false;
         } else {
             cl.viewDef.camerastate[0].origin.x = cl.camera_prediction.origin.x;

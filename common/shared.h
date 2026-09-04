@@ -520,8 +520,8 @@ _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR
 struct playerState_s {
     DWORD number;                   // client slot index
     VECTOR3 viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
-    VECTOR3 origin;                 // server-authored camera look-at in world space (XY focus + composed Z)
-    FLOAT distance;                 // camera distance from origin for orbit/isometric view
+    VECTOR3 vieworigin;             // server-authored camera look-at in world space (XY focus + composed Z)
+    FLOAT distance;                 // camera distance from vieworigin for orbit/isometric view
     FLOAT znear;                    // optional near clip; 0 keeps the previous sample / client default
     FLOAT zfar;                     // optional far clip; 0 keeps the previous sample / client default
     DWORD fov;                      // vertical FOV in degrees; transmitted as NFT_BYTE so BYTE would suffice

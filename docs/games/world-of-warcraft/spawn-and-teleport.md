@@ -179,7 +179,7 @@ Server handler in `Wow_ClientCommand`:
 2. Calls `Wow_SelectSpawnPoint` for the loaded map
 3. Currently falls back to Orc Warrior if selection fails; this is known legacy
    debt and must not be copied into map loading or new commands
-4. Teleports the player entity (`ent->s.origin`, `ent->client->ps.origin`)
+4. Teleports the player entity (`ent->s.origin`, `ent->client->ps.vieworigin`)
 5. Uses terrain height from `Wow_TerrainHeight` for Z coordinate
 
 ### `screenshot` (server → client)

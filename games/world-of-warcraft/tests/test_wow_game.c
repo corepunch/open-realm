@@ -1195,8 +1195,8 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_EQ((int)local->health, 100);
     T_EQ((int)local->selected_action_slot, 255);
     assert_player_spawned(player);
-    T_FEQ(player->client->ps.origin.x, player->s.origin.x, 0.001f);
-    T_FEQ(player->client->ps.origin.y, player->s.origin.y, 0.001f);
+    T_FEQ(player->client->ps.vieworigin.x, player->s.origin.x, 0.001f);
+    T_FEQ(player->client->ps.vieworigin.y, player->s.origin.y, 0.001f);
     T_EQ((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
     T_STREQ(player->client->ps.name, "Thrall");
     T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
