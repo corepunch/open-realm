@@ -42,7 +42,7 @@ void G_RunTimers(void) {
         if (timer->handler)
             jass_startcoroutine(level.vm, &MAKE(JASSCONTEXT, .func = timer->handler, .timer = timer));
         jass_settimercontext(timer);
-        FOR_EACH_LIST(EVENT, event, level.events.handlers)
+        FOR_EACH_EVENT(event)
             if (event->type == EVENT_GAME_TIMER_EXPIRED && event->timer == timer)
                 jass_calltrigger(level.vm, event->trigger, NULL, NULL);
         jass_settimercontext(NULL);

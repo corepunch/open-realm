@@ -264,7 +264,7 @@ TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
         }
     }
     T_NOT_NULL(entering);
-    FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
+    FOR_EACH_EVENT(evt) {
         if (evt->type == EVENT_GAME_ENTER_REGION) {
             handler = evt;
             break;

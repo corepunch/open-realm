@@ -84,7 +84,7 @@ static void G_PublishTimeOfDayPhase(void) {
 }
 
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
-    FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
+    FOR_EACH_EVENT(evt) {
         if (evt->type != EVENT_GAME_STATE_LIMIT || evt->state != WC3_GAME_STATE_TIME_OF_DAY)
             continue;
         if (!G_TimeLimitMatches(evt->limitop, before, evt->limitval) &&
@@ -899,12 +899,9 @@ static void G_ClientBegin(LPEDICT edict) {
             "farms, and keep the footmen ready for the next attack. The enemy will not wait "
             "for the camp to be complete, so reinforce the walls and patrol the forest edge. "
             "When the base is secure, report back to the command tent for further orders.");
-        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct a Barracks");
-        ADD_TO_LIST(it, q->items);
-        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Construct 2 Farms");
-        ADD_TO_LIST(it, q->items);
-        it = gi.MemAlloc(sizeof(QUESTITEM)); it->description = strdup("Train 6 Footmen");
-        ADD_TO_LIST(it, q->items);
+        it = &q->items[q->num_items++]; memset(it, 0, sizeof(*it)); it->inuse = true; it->description = strdup("Construct a Barracks");
+        it = &q->items[q->num_items++]; memset(it, 0, sizeof(*it)); it->inuse = true; it->description = strdup("Construct 2 Farms");
+        it = &q->items[q->num_items++]; memset(it, 0, sizeof(*it)); it->inuse = true; it->description = strdup("Train 6 Footmen");
         q->discovered = true;
         q->required = true;
         UI_ShowQuests(edict);

@@ -14,7 +14,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
             subject ? (unsigned)subject->s.player : 0u);
     }
 
-    FOR_EACH_LIST(EVENT, e, level.events.handlers) {
+    FOR_EACH_EVENT(e) {
         switch (e->type) {
             case EVENT_GAME_VICTORY:
                 break;
@@ -94,7 +94,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
 }
 
 static void G_TouchTriggers(LPEDICT ent) {
-    FOR_EACH_LIST(EVENT, evt, level.events.handlers) {
+    FOR_EACH_EVENT(evt) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION:
                 if (G_RegionContains(&evt->region, &ent->s.origin2) &&

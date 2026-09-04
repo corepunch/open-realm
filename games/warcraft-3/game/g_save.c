@@ -310,7 +310,7 @@ void G_ClearSaveRegistries(void) {
 static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWORD events) {
     if (groups < level.num_groups || timers < level.num_timers || triggers < level.num_triggers ||
         events < EventCount() || groups > MAX_JASS_GROUPS || timers > MAX_JASS_TIMERS ||
-        triggers > MAX_JASS_TRIGGERS || events > MAX_JASS_EVENTS)
+        triggers > MAX_JASS_TRIGGERS || events > MAX_EVENTS)
         return false;
     while (level.num_groups < groups) {
         DWORD i = level.num_groups;
@@ -365,31 +365,26 @@ BOOL G_RegisterJassTrigger(LPTRIGGER trigger) {
 
 static DWORD QuestCount(void) {
     DWORD count = 0;
-    FOR_EACH_LIST(QUEST const, quest, level.quests) count++;
+    FOR_EACH_QUEST(quest) count++;
     return count;
 }
 
 static DWORD EventCount(void) {
     DWORD count = 0;
-    FOR_EACH_LIST(EVENT const, event, level.events.handlers) count++;
+    FOR_EACH_EVENT(event) count++;
     return count;
 }
 
 static BOOL EventId(LPEVENT value, DWORD *id) {
-    DWORD index = 0;
     if (!value) { *id = UINT32_MAX; return true; }
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-        if (event == value) { *id = index; return true; }
-        index++;
+    if (value >= level.events.handlers && value < level.events.handlers + MAX_EVENTS) {
+        *id = (DWORD)(value - level.events.handlers); return value->inuse;
     }
     return false;
 }
 
 static LPEVENT EventById(DWORD id) {
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-        if (!id--) return event;
-    }
-    return NULL;
+    return id < MAX_EVENTS && level.events.handlers[id].inuse ? &level.events.handlers[id] : NULL;
 }
 
 static BOOL TriggerIndex(LPTRIGGER value, DWORD *id) {
@@ -407,7 +402,7 @@ static BOOL TimerIndex(LPGTIMER value, DWORD *id) {
 static BOOL WriteEvents(FILE *f) {
     DWORD handlers = EventCount(), queued = level.events.write - level.events.read;
     if (!SaveBytes(f, &handlers, sizeof(handlers))) return false;
-    FOR_EACH_LIST(EVENT, event, level.events.handlers) if (!WriteMappedFields(f, save_event_fields, (BYTE *)event)) return false;
+    FOR_EACH_EVENT(event) if (!WriteMappedFields(f, save_event_fields, (BYTE *)event)) return false;
     if (queued > MAX_EVENT_QUEUE || !SaveBytes(f, &queued, sizeof(queued))) return false;
     FOR_LOOP(i, queued) {
         GAMEEVENT const *event = &level.events.queue[(level.events.read + i) % MAX_EVENT_QUEUE];
@@ -418,9 +413,8 @@ static BOOL WriteEvents(FILE *f) {
 
 static BOOL ReadEvents(FILE *f) {
     DWORD handlers, queued;
-    LPEVENT event;
     if (!LoadBytes(f, &handlers, sizeof(handlers)) || handlers != EventCount()) return false;
-    for (event = level.events.handlers; event; event = event->next)
+    FOR_EACH_EVENT(event)
         if (!ReadMappedFields(f, save_event_fields, (BYTE *)event)) return false;
     if (!LoadBytes(f, &queued, sizeof(queued)) || queued > MAX_EVENT_QUEUE) return false;
     level.events.read = 0; level.events.write = queued;
@@ -570,15 +564,12 @@ static BOOL JassHandleDomain(LPCSTR type, jassHandleDomain_t *domain) {
 static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
     DWORD index = 0;
     if (domain == JASS_HANDLE_QUEST) {
-        FOR_EACH_LIST(QUEST, quest, level.quests) if (index++ == id) return quest;
+        if (id < MAX_QUESTS && level.quests[id].inuse) return &level.quests[id];
     } else if (domain == JASS_HANDLE_QUESTITEM) {
-        FOR_EACH_LIST(QUEST, quest, level.quests)
-            FOR_EACH_LIST(QUESTITEM, item, quest->items) if (index++ == id) return item;
+        FOR_EACH_QUEST(quest)
+            FOR_EACH_QUESTITEM(quest, item) if (index++ == id) return item;
     } else if (domain == JASS_HANDLE_EVENT) {
-        FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-            if (index++ != id) continue;
-            return event;
-        }
+        return EventById(id);
     } else if (domain == JASS_HANDLE_TRIGGER && id < level.num_triggers) return level.triggers[id];
     else if (domain == JASS_HANDLE_TIMER && id < level.num_timers) return level.timers[id];
     return NULL;
@@ -616,20 +607,18 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         return false;
     }
     if (domain == JASS_HANDLE_QUEST) {
-        FOR_EACH_LIST(QUEST, quest, level.quests) { if (quest == value) { *id = index; return true; } index++; }
+        if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
+            *id = (DWORD)((LPQUEST)value - level.quests); return true;
+        }
         return false;
     }
     if (domain == JASS_HANDLE_QUESTITEM) {
-        FOR_EACH_LIST(QUEST, quest, level.quests)
-            FOR_EACH_LIST(QUESTITEM, item, quest->items) { if (item == value) { *id = index; return true; } index++; }
+        FOR_EACH_QUEST(quest)
+            FOR_EACH_QUESTITEM(quest, item) { if (item == value) { *id = index; return true; } index++; }
         return false;
     }
     if (domain == JASS_HANDLE_EVENT) {
-        FOR_EACH_LIST(EVENT, event, level.events.handlers) {
-            if (event == value) { *id = index; return true; }
-            index++;
-        }
-        return false;
+        return EventId(value, id);
     }
     FOR_LOOP(i, level.num_triggers) if (level.triggers[i] == value) { *id = i; return true; }
     return false;
@@ -670,15 +659,15 @@ static BOOL ReadString(FILE *f, LPSTR *text) {
 static BOOL WriteQuests(FILE *f) {
     DWORD count = 0;
 
-    FOR_EACH_LIST(QUEST const, quest, level.quests) count++;
+    FOR_EACH_QUEST(quest) count++;
     if (!SaveBytes(f, &count, sizeof(count))) return false;
-    FOR_EACH_LIST(QUEST const, quest, level.quests) {
+    FOR_EACH_QUEST(quest) {
         DWORD items = 0;
-        FOR_EACH_LIST(QUESTITEM const, item, quest->items) items++;
+        FOR_EACH_QUESTITEM(quest, item) items++;
         if (!WriteString(f, quest->title) || !WriteString(f, quest->description) || !WriteString(f, quest->iconPath) ||
             !WriteMappedFields(f, quest_fields, (BYTE *)quest) ||
             !SaveBytes(f, &items, sizeof(items))) return false;
-        FOR_EACH_LIST(QUESTITEM const, item, quest->items)
+        FOR_EACH_QUESTITEM(quest, item)
             if (!WriteString(f, item->description) || !WriteMappedFields(f, questitem_fields, (BYTE *)item)) return false;
     }
     return true;
@@ -687,15 +676,15 @@ static BOOL WriteQuests(FILE *f) {
 static BOOL ReadQuests(FILE *f) {
     DWORD count = 0, live = 0;
 
-    FOR_EACH_LIST(QUEST const, quest, level.quests) live++;
+    FOR_EACH_QUEST(quest) live++;
     if (!LoadBytes(f, &count, sizeof(count))) return false;
     if (count != live) {
         fprintf(stderr, "WC3 LoadGame: quest count does not match live JASS handles (%u saved, %u live)\n", count, live);
         return false;
     }
-    FOR_EACH_LIST(QUEST, quest, level.quests) {
+    FOR_EACH_QUEST(quest) {
         DWORD items = 0, live_items = 0;
-        FOR_EACH_LIST(QUESTITEM const, item, quest->items) live_items++;
+        FOR_EACH_QUESTITEM(quest, item) live_items++;
         if (!ReadString(f, &quest->title) || !ReadString(f, &quest->description) || !ReadString(f, &quest->iconPath) ||
             !ReadMappedFields(f, quest_fields, (BYTE *)quest) ||
             !LoadBytes(f, &items, sizeof(items))) return false;
@@ -704,7 +693,7 @@ static BOOL ReadQuests(FILE *f) {
                 items, live_items);
             return false;
         }
-        FOR_EACH_LIST(QUESTITEM, item, quest->items)
+        FOR_EACH_QUESTITEM(quest, item)
             if (!ReadString(f, &item->description) || !ReadMappedFields(f, questitem_fields, (BYTE *)item)) return false;
     }
     return true;

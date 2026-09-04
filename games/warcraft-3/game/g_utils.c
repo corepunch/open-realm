@@ -50,10 +50,12 @@ void G_FreeEdict(LPEDICT ent) {
 }
 
 LPEVENT G_MakeEvent(EVENTTYPE type) {
-    LPEVENT evt = gi.MemAlloc(sizeof(EVENT));
-    evt->type = type;
-    ADD_TO_LIST(evt, level.events.handlers);
-    return evt;
+    FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse) {
+        LPEVENT evt = &level.events.handlers[i];
+        memset(evt, 0, sizeof(*evt)); evt->inuse = true; evt->type = type; return evt;
+    }
+    fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
+    return NULL;
 }
 
 BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point) {
@@ -66,28 +68,33 @@ BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point) {
 }
 
 LPQUEST G_MakeQuest(void) {
-    LPQUEST quest = gi.MemAlloc(sizeof(QUEST));
+    FOR_LOOP(i, MAX_QUESTS) if (!level.quests[i].inuse) {
+    LPQUEST quest = &level.quests[i];
+    memset(quest, 0, sizeof(*quest));
     /* CreateQuestBJ does not call QuestSetEnabled; Warcraft quests are usable
      * immediately unless a map explicitly disables them. */
-    quest->enabled = true;
-    PUSH_BACK(QUEST, quest, level.quests);
+    quest->inuse = true; quest->enabled = true;
     return quest;
+    }
+    fprintf(stderr, "WC3: quest slot limit %u reached\n", MAX_QUESTS);
+    return NULL;
 }
 
 static void DeleteQuestItem(LPQUESTITEM questitem) {
     free(questitem->description);
+    memset(questitem, 0, sizeof(*questitem));
 }
 
 static void DeleteQuest(LPQUEST quest) {
-    DELETE_LIST(QUESTITEM, quest->items, DeleteQuestItem);
+    FOR_LOOP(i, MAX_QUESTITEMS) if (quest->items[i].inuse) DeleteQuestItem(&quest->items[i]);
     free(quest->description);
     free(quest->title);
     free(quest->iconPath);
-    gi.MemFree(quest);
+    memset(quest, 0, sizeof(*quest));
 }
 
 void G_RemoveQuest(LPQUEST quest) {
-    REMOVE_FROM_LIST(QUEST, quest, level.quests, DeleteQuest);
+    if (quest && quest->inuse) DeleteQuest(quest);
 }
 
 void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL value) {

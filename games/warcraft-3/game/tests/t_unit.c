@@ -443,7 +443,7 @@ TEST(wc3_unit, die_publishes_death_event) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);
     memset(level.events.queue, 0, sizeof(level.events.queue));
-    level.events.handlers = NULL;
+    memset(level.events.handlers, 0, sizeof(level.events.handlers));
 
     unit_die(ent, NULL);
     BOOL found = false;

@@ -72,9 +72,13 @@ DWORD IsQuestEnabled(LPJASS j) {
 }
 DWORD QuestCreateItem(LPJASS j) {
     LPQUEST whichQuest = jass_checkhandle(j, 1, "quest");
-    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
-    ADD_TO_LIST(item, whichQuest->items);
-    return jass_pushlighthandle(j, item, "questitem");
+    FOR_LOOP(i, MAX_QUESTITEMS) if (!whichQuest->items[i].inuse) {
+        LPQUESTITEM item = &whichQuest->items[i];
+        memset(item, 0, sizeof(*item)); item->inuse = true; whichQuest->num_items++;
+        return jass_pushlighthandle(j, item, "questitem");
+    }
+    fprintf(stderr, "WC3: quest item slot limit %u reached\n", MAX_QUESTITEMS);
+    return jass_pushnullhandle(j, "questitem");
 }
 DWORD QuestItemSetDescription(LPJASS j) {
     LPQUESTITEM whichQuestItem = jass_checkhandle(j, 1, "questitem");

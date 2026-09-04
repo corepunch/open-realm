@@ -902,7 +902,7 @@ CLIENTCOMMAND(Quest) {
 
     if (argc < 2 || !argv[1] || !*argv[1]) return;
     index = atoi(argv[1]);
-    FOR_EACH_LIST(QUEST, q, level.quests) {
+    FOR_EACH_QUEST(q) {
         if (index == 0) {
             UI_ShowQuest(clent, q);
             break;
