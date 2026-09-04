@@ -1,5 +1,7 @@
 #include "cl_input_local.h"
 
+#include <stdlib.h>
+
 #ifdef WOW
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
@@ -215,6 +217,18 @@ static void IN_MoveRightUp(void) {
     wow_input.move_right = false;
 }
 
+/* `zoom <delta>` — bound to MWHEELUP/MWHEELDOWN in config. Negative delta zooms out. */
+static void CL_WowZoom_f(void) {
+    FLOAT steps, speed, min_dist, max_dist;
+
+    CL_WowInitInputState();
+    steps = Cmd_Argc() > 1 ? (FLOAT)atof(Cmd_Argv(1)) : 1.0f;
+    speed = Cvar_Value("wow_zoom_speed", 1.0f);
+    min_dist = Cvar_Value("wow_camera_min_distance", 3.0f);
+    max_dist = Cvar_Value("wow_camera_max_distance", 35.0f);
+    wow_input.distance = CL_WowClamp(wow_input.distance - steps * speed, min_dist, max_dist);
+}
+
 void CL_InputModeInit(void) {
     Cmd_AddCommand("+wowleft", IN_WowLeftDown);
     Cmd_AddCommand("-wowleft", IN_WowLeftUp);
@@ -232,6 +246,7 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("-moveleft", IN_MoveLeftUp);
     Cmd_AddCommand("+moveright", IN_MoveRightDown);
     Cmd_AddCommand("-moveright", IN_MoveRightUp);
+    Cmd_AddCommand("zoom", CL_WowZoom_f);
 }
 
 void CL_InputModeSetGameplay(void) {
@@ -295,18 +310,8 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
 }
 
 BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel) {
-    if (!wheel) {
-        return false;
-    }
-    {
-        FLOAT zoom_speed = Cvar_Value("wow_zoom_speed", 1.0f);
-        FLOAT min_dist = Cvar_Value("wow_camera_min_distance", 3.0f);
-        FLOAT max_dist = Cvar_Value("wow_camera_max_distance", 35.0f);
-
-        wow_input.distance = CL_WowClamp(wow_input.distance - wheel->y * zoom_speed,
-                                         min_dist, max_dist);
-    }
-    return true;
+    (void)wheel;
+    return false;
 }
 
 void CL_InputModeFrame(void) {

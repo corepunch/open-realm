@@ -36,6 +36,14 @@ TEST(keys, parse_plain_and_named_keys) {
     T_ASSERT(Key_ParseName("left", &key, &mods));
     T_EQ(key, (keyCode_t)K_LEFTARROW);
     T_EQ(mods, 0u);
+
+    T_ASSERT(Key_ParseName("MWHEELUP", &key, &mods));
+    T_EQ(key, (keyCode_t)K_MWHEELUP);
+    T_EQ(mods, 0u);
+
+    T_ASSERT(Key_ParseName("MWHEELDOWN", &key, &mods));
+    T_EQ(key, (keyCode_t)K_MWHEELDOWN);
+    T_EQ(mods, 0u);
 }
 
 TEST(keys, parse_modifier_combos) {

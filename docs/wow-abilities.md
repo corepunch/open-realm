@@ -12,7 +12,7 @@ Action commands use zero-based slots; keyboard labels are one-based. To cast the
    spending mana. Escape sends `stopattack`, which cancels an active cast and clears combat targeting.
 4. At completion the server spends mana, launches the missile, and starts the release animation.
 
-`6` is bound as `cmd wow_action 5` for Frostbolt. Tab is `cmd wow_cycle_target`. Middle mouse shares `+look` with right mouse. The Mage action-bar payload exposes these icons; the current command handler does
+`6` is bound as `cmd wow_action 5` for Frostbolt. Tab is `cmd wow_cycle_target`. Camera look is `bind MOUSE2 "+look"` (MOUSE3 too); wheel zoom is `bind MWHEELUP "zoom 1"` / `bind MWHEELDOWN "zoom -1"`. The Mage action-bar payload exposes these icons; the current command handler does
 not yet validate the character's spellbook/class, so class authorization remains required work.
 
 ## Implemented Prototype Spells
