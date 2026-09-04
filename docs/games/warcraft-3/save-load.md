@@ -121,39 +121,32 @@ The checksum and header preflight protect normal partial/corrupt-file and wrong-
 `level.time`); it must not call `gi.GetTime()` directly, because spell-rank parameters named `level`
 shadow the global in several skill functions and would silently pick up the wrong symbol.
 
-`SV_Map` restarts the engine clock at zero before `ReadGame` runs, so the engine clock alone cannot
-carry a loaded game's deadlines. `G_RunFrame` therefore computes:
+The server owns the simulation clock, following Quake II's `sv.framenum`/`sv.time` model. `SV_Map`
+resets the per-level server state, so `ReadGame` restores the saved frame and time through the generic
+`gi.SetGameTime(framenum, time)` import before the next server frame. `G_RunFrame` then reads the
+authoritative server clock:
 
 ```c
-level.time = gi.GetTime() + level.time_offset;
+level.time = gi.GetTime();
 ```
-
-`level.time_offset` is process-relative and is deliberately **not** persisted. `ReadGame` installs it
-right after the level fields are read:
-
-```c
-level.time_offset = level.time - gi.GetTime();
-```
-
-`memset(&level, 0, sizeof(level))` in `G_LoadMap` resets it to zero for a normal map start.
 
 Every persisted absolute deadline lives in this clock: `edict_s.spawn_time`, `edict_s.freetime`,
 `edict_s.heatmap2_time`, `heroabilitystatus_t.timestamp`, client `camera.start_time` /
-`message.end_time` / `cinematic_end_time`, and `level.cinefilter`. Without the offset, a save taken
-at `level.time = 20800` reloads into a clock that starts at `100`: every deadline sits ~20.7 s in the
-future and units stall waiting for cooldowns that already elapsed. Symptom seen in the field:
+`message.end_time` / `cinematic_end_time`, and `level.cinefilter`. A save taken at `level.time = 20800`
+must restore the server clock to `20800`; otherwise every deadline would sit ~20.7 s in the future and
+units would stall waiting for cooldowns that already elapsed. Symptom seen in the field:
 everything stands frozen while one script-controlled unit walks off to a stale waypoint goal.
 
 Do not "fix" this by re-basing individual subsystems at load (the older per-timer
-`started = gi.GetTime(); timeout = remaining` rebase). One clock offset covers every deadline; a
-per-subsystem rebase silently misses the edict and client-presentation deadlines.
+`started = gi.GetTime(); timeout = remaining` rebase). Restoring the server tick covers every
+deadline; a per-subsystem rebase silently misses the edict and client-presentation deadlines.
 
 JASS timers deliberately hold **no** clock-absolute state. `gtimer_s` stores `duration` plus a
 `remaining` countdown that `G_RunTimers` decrements by `FRAMETIME` each frame, so a timer reloads
 with exactly the time it had left and needs no rebase at all. Prefer this shape for any new
-persisted deadline; the clock offset exists for the fields that already store timestamps.
+persisted deadline.
 
-Regression test: `wc3_save.load_rebases_simulation_clock_onto_saved_time` in
+Regression test: `wc3_save.load_restores_server_clock_onto_saved_time` in
 `games/warcraft-3/game/tests/t_game.c`.
 
 ## Console Usage

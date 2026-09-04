@@ -61,6 +61,7 @@ struct game_import {
      * Useful for merging layered data files (e.g. GameData/Assets.txt). */
     void (*ReadFileAll)(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud);
     DWORD (*GetTime)(void);
+    void (*SetGameTime)(DWORD framenum, DWORD time);
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
     void (*SetPaused)(BOOL paused);

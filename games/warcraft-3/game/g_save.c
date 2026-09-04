@@ -1002,11 +1002,8 @@ BOOL ReadGame(LPCSTR filename) {
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
-    /* SV_Map restarted the engine clock, so re-base the simulation clock onto the saved
-     * level.time: every persisted deadline (spawn_time, freetime, heatmap2_time, status
-     * timestamps) is expressed in that clock and would otherwise sit a whole save-length
-     * in the future, stalling units. */
-    level.time_offset = level.time - gi.GetTime();
+    /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
+    gi.SetGameTime(level.framenum, level.time);
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
         fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;
     }

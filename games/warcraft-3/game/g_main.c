@@ -618,9 +618,7 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    /* One simulation clock: the engine clock plus the offset a loaded game installed,
-     * so persisted deadlines stay valid after SV_Map restarts gi.GetTime() at zero. */
-    level.time = gi.GetTime() + level.time_offset;
+    level.time = gi.GetTime();
 
     G_StartScripts();
     G_UpdateTimeOfDay();

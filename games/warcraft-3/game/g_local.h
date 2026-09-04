@@ -1227,10 +1227,6 @@ struct level_locals {
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
-    /* Offset from the engine clock to the simulation clock. SV_Map restarts gi.GetTime()
-     * at zero, so a loaded game re-bases here and every persisted level.time deadline
-     * (spawn_time, freetime, heatmap2_time, status timestamps) stays valid. */
-    DWORD time_offset;
     BOOL script_paused;
     BOOL quest_paused;
     BOOL modal_paused;
