@@ -49,7 +49,7 @@ evaluates those inputs into `viewDef.terrainLight` / `entityLight`. See
 
 ## Anti-pattern #3: `#ifdef WC3` around generic camera samples (do not repeat)
 
-PR #287 added `playerState.camera_render` and `#ifdef WC3` copies in `CL_ParsePlayerInfo`. Target height offset, near clip, and far clip are ordinary camera sample fields, not Warcraft-only data. Hiding them behind a compile guard also consumed the final 32-bit player-state field. They now live in generic `origin` (world-space look-at) plus `znear`/`zfar` packed with `distance`. `viewangles` and `camera_bounds` travel on the same snapshot, while unused WoW map metadata moved to one WoW map-info configstring. The player-state delta mask remains 32 bits. The server composes Z; the client copies the sample.
+PR #287 added `playerState.camera_render` and `#ifdef WC3` copies in `CL_ParsePlayerInfo`. Target height offset, near clip, and far clip are ordinary camera sample fields, not Warcraft-only data. Hiding them behind a compile guard also consumed the final 32-bit player-state field. They now live in generic `origin` (world-space look-at) plus `znear`/`zfar` packed with `distance`. `viewangles` travel on the same snapshot; camera target bounds do not — the client clamps with `CM_GetWorldBounds()`. Unused WoW map metadata moved to one WoW map-info configstring. The player-state delta mask remains 32 bits. The server composes Z; the client copies the sample.
 
 ## Anti-pattern #2: `#ifdef` branch in a shared dispatcher (do not repeat)
 

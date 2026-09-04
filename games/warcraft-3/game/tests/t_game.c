@@ -1624,6 +1624,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     strlcpy(game.clients[0].jass.name, "Jaina", sizeof(game.clients[0].jass.name));
     game.clients[0].ps.name = game.clients[0].jass.name;
     game.clients[0].ping = 77;
+    game.clients[0].ps.cinematic_portrait = 41;
+    game.clients[0].ps.team = 3;
+    game.clients[0].ps.color = 7;
+    game.clients[0].ps.race = kPlayerRaceNightElf;
+    level.camera_bounds = (BOX2){ .min = { -100.0f, -50.0f }, .max = { 100.0f, 50.0f } };
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 123;
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 45;
     game.clients[0].camera.state.fov = 61.0f;
@@ -1644,6 +1649,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->cargo.units[3] = NULL;
     memset(first->abilstatus, 0, sizeof(first->abilstatus));
     strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
+    game.clients[0].ps.cinematic_portrait = 0;
+    game.clients[0].ps.team = 0;
+    game.clients[0].ps.color = 0;
+    game.clients[0].ps.race = kPlayerRaceNone;
+    level.camera_bounds = (BOX2){ 0 };
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
     game.clients[0].camera.state.fov = 0.0f;
@@ -1676,6 +1686,12 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(game.clients[0].jass.race_pref, 2);
     T_EQ(game.clients[0].jass.controller, 1);
     T_EQ(game.clients[0].ping, 77);
+    T_EQ(game.clients[0].ps.cinematic_portrait, 41);
+    T_EQ(game.clients[0].ps.team, 3);
+    T_EQ(game.clients[0].ps.color, 7);
+    T_EQ(game.clients[0].ps.race, kPlayerRaceNightElf);
+    T_FEQ(level.camera_bounds.min.x, -100.0f, 0.001f);
+    T_FEQ(level.camera_bounds.max.y, 50.0f, 0.001f);
     T_ASSERT(g_edicts[first - g_edicts].owner == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].movement.follow_target == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);

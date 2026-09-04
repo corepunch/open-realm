@@ -108,13 +108,7 @@ DWORD SetCameraBounds(LPJASS j) {
     FOR_LOOP(i, 8) {
         bounds[i] = jass_checknumber(j, i + 1);
     }
-    if (currentplayer) {
-        G_SetClientCameraBounds(PLAYER_CLIENT(currentplayer), bounds);
-    } else {
-        FOR_LOOP(i, game.max_clients) {
-            G_SetClientCameraBounds(game.clients + i, bounds);
-        }
-    }
+    G_SetCameraBounds(bounds);
     return 0;
 }
 DWORD StopCamera(LPJASS j) {
@@ -360,20 +354,16 @@ DWORD GetCameraMargin(LPJASS j) {
     return 1;
 }
 DWORD GetCameraBoundMinX(LPJASS j) {
-    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
-    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.min.x : 0);
+    return jass_pushnumber(j, level.camera_bounds.min.x);
 }
 DWORD GetCameraBoundMinY(LPJASS j) {
-    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
-    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.min.y : 0);
+    return jass_pushnumber(j, level.camera_bounds.min.y);
 }
 DWORD GetCameraBoundMaxX(LPJASS j) {
-    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
-    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.max.x : 0);
+    return jass_pushnumber(j, level.camera_bounds.max.x);
 }
 DWORD GetCameraBoundMaxY(LPJASS j) {
-    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
-    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.max.y : 0);
+    return jass_pushnumber(j, level.camera_bounds.max.y);
 }
 DWORD GetCameraField(LPJASS j) {
     //HANDLE whichField = jass_checkhandle(j, 1, "camerafield");

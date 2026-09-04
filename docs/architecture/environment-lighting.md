@@ -61,9 +61,10 @@ existing `stats[16]` `NFT_LONG`. It must not reuse slot 17 (`UI_PLAYERSTAT_CINEM
 
 ## PlayerState
 
-Evaluated `ENVIRONLIGHT` is **not** on `playerState_t` yet. The 32-bit player-state field mask is
-full (`common/msg.c`); a new netField silently drops `texts[7]`. Lighting is also world-global,
-and WC3/WoW evaluation sources live in the renderer (MDX tracks, camera-dependent DBC).
+Evaluated `ENVIRONLIGHT` is **not** on `playerState_t` yet. The 32-bit player-state field mask has
+spare bits (`MSG_FIELD_COUNT(playerStateFields)` in `common/msg.c`); a new netField still needs an
+explicit table entry. Lighting is world-global, and WC3/WoW evaluation sources live in the renderer
+(MDX tracks, camera-dependent DBC). `cinematic_portrait`/`team`/`color`/`race` pack as one `NFT_LONG`.
 
 The interpolated quantity today is the phase stat at snapshot rate (10 Hz). The game renderer
 samples authored tracks at that phase every render frame. Camera-style `lightstate[0/1]` lerp of

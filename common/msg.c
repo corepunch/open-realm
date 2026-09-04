@@ -140,17 +140,14 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, viewquat), NFT_QUATERNION },
     { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, origin), NFT_VECTOR3_FLOAT },
-    { NETF(PLAYER, camera_bounds), NFT_BOX2 },
     { NETF(PLAYER, fov), NFT_BYTE },
     /* distance, znear, zfar are consecutive FLOATs packed as one VECTOR3 field. */
     { NETF(PLAYER, distance), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, rdflags), NFT_LONG },
     { NETF(PLAYER, uiflags), NFT_LONG },
     { NETF(PLAYER, client_ui_state), NFT_LONG },
+    /* cinematic_portrait, team, color, race are consecutive BYTEs; one LONG keeps the 32-bit mask. */
     { NETF(PLAYER, cinematic_portrait), NFT_LONG },
-    { NETF(PLAYER, team), NFT_BYTE },
-    { NETF(PLAYER, color), NFT_BYTE },
-    { NETF(PLAYER, race), NFT_BYTE },
     { NETF(PLAYER, name), NFT_DUPTEXT },
     { NETF(PLAYER, start_location), NFT_LONG },
     { NETF(PLAYER, cinefade), NFT_FLOAT },

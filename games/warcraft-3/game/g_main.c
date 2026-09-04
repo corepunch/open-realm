@@ -382,33 +382,21 @@ VECTOR3 G_MakeServerOrigin(FLOAT x, FLOAT y, FLOAT z_offset) {
 
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position) {
     VECTOR2 clamped = position ? *position : (VECTOR2){ 0, 0 };
+    BOX2 bounds = level.camera_bounds;
 
-    if (!client || !position) {
-        return clamped;
-    }
-    if (client->ps.camera_bounds.max.x > client->ps.camera_bounds.min.x) {
-        clamped.x = MAX(client->ps.camera_bounds.min.x,
-                        MIN(client->ps.camera_bounds.max.x, clamped.x));
-    }
-    if (client->ps.camera_bounds.max.y > client->ps.camera_bounds.min.y) {
-        clamped.y = MAX(client->ps.camera_bounds.min.y,
-                        MIN(client->ps.camera_bounds.max.y, clamped.y));
-    }
+    (void)client;
+    if (!position) return clamped;
+    if (bounds.max.x > bounds.min.x)
+        clamped.x = MAX(bounds.min.x, MIN(bounds.max.x, clamped.x));
+    if (bounds.max.y > bounds.min.y)
+        clamped.y = MAX(bounds.min.y, MIN(bounds.max.y, clamped.y));
     return clamped;
 }
 
-void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]) {
+static void G_ReclampClientCamera(LPGAMECLIENT client) {
     VECTOR2 position;
 
-    if (!client || !bounds) {
-        return;
-    }
-
-    client->ps.camera_bounds.min.x = MIN(MIN(bounds[0], bounds[2]), MIN(bounds[4], bounds[6]));
-    client->ps.camera_bounds.max.x = MAX(MAX(bounds[0], bounds[2]), MAX(bounds[4], bounds[6]));
-    client->ps.camera_bounds.min.y = MIN(MIN(bounds[1], bounds[3]), MIN(bounds[5], bounds[7]));
-    client->ps.camera_bounds.max.y = MAX(MAX(bounds[1], bounds[3]), MAX(bounds[5], bounds[7]));
-
+    if (!client) return;
     position = (VECTOR2){ client->ps.origin.x, client->ps.origin.y };
     position = G_ClampCameraPosition(client, &position);
     client->ps.origin = G_MakeServerOrigin(position.x, position.y, client->camera.state.z_offset);
@@ -416,6 +404,21 @@ void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]) {
     client->camera.old_state.position = position;
     position = G_ClampCameraPosition(client, &client->camera.state.position);
     client->camera.state.position = position;
+}
+
+void G_SetCameraBounds(FLOAT const bounds[8]) {
+    if (!bounds) return;
+    level.camera_bounds = MAKE(BOX2,
+        .min = {
+            MIN(MIN(bounds[0], bounds[2]), MIN(bounds[4], bounds[6])),
+            MIN(MIN(bounds[1], bounds[3]), MIN(bounds[5], bounds[7])),
+        },
+        .max = {
+            MAX(MAX(bounds[0], bounds[2]), MAX(bounds[4], bounds[6])),
+            MAX(MAX(bounds[1], bounds[3]), MAX(bounds[5], bounds[7])),
+        });
+    FOR_LOOP(i, game.max_clients)
+        G_ReclampClientCamera(game.clients + i);
 }
 
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func) {

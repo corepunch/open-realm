@@ -6,8 +6,8 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 3, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
-- level frame/time, authoritative Warcraft time-of-day state, and started/script-started flags;
+- `W3SV` magic, format version 4, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
@@ -22,6 +22,8 @@ Quest objects and items are restored in place so the running JASS VM's light han
 The version 3 layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) from version 1, and adds the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the active array prefix: quests write `num_items` nested item records and groups write `num_units` `F_EDICT` entries. Counts above their fixed capacities reject the save or load, and unused slots never enter the save format.
 
 The version 3 layout expands the fixed-size `GAMECLIENT` cinematic camera state with target Z offset, near/far clipping planes, and target-controller orientation inheritance. Version 2 saves are rejected because the raw client record layout changed; this prevents older saves from being misread with shifted fields.
+
+The version 4 layout packs `PLAYER.cinematic_portrait`, `team`, `color`, and `race` as consecutive `BYTE`s (one `NFT_LONG` on the wire), drops `PLAYER.camera_bounds` (the rectangle lives on `level`), and writes `level.camera_bounds` with the other level clocks. Version 3 saves are rejected because both the raw `GAMECLIENT` record and the level stream changed.
 
 Groups, timers, triggers, and event handlers may grow after `main()`. The header accepts a save that has *at least* as many of those objects as the freshly initialized map, then `RestoreRegistrySlots()` allocates the extras. A live count higher than the save still rejects. Quests remain an exact match because they are restored in place.
 

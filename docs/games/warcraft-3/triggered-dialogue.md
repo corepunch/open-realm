@@ -10,7 +10,7 @@ disable user control. Full cinematic policy remains owned by `ShowInterface`,
 
 The server owns transmission/message state in `games/warcraft-3/game/client_s`:
 
-- `ps.cinematic_portrait` — model index used by the talking-head portrait.
+- `ps.cinematic_portrait` — model index used by the talking-head portrait (`BYTE`, packed with team/color/race).
 - `ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR]` — requested player-color index for the portrait render entity.
 - `PLAYERTEXT_SPEAKER` / `PLAYERTEXT_DIALOGUE` — resolved map strings.
 - `cinematic_voice_end_time` — end of `Portrait Talk`; the scene may remain.
