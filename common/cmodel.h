@@ -65,6 +65,7 @@ FLOAT CM_PathCellWorldSize(void);
 DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
 void CM_ProcessPathJobs(DWORD work_budget);
 BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
+BOOL CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 /* Distance from a world point to the target entity's authored no-walk
  * pathing footprint. Returns FLT_MAX when the target has no usable footprint. */
 FLOAT CM_DistanceToPathingFootprint(struct edict_s const *target, LPCVECTOR2 point);

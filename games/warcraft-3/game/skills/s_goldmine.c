@@ -25,29 +25,22 @@ static BOOL gold_route_pending(LPCEDICT worker) {
            worker->movement.flow_generation == 0;
 }
 
-/* Gold interactions target blocked buildings.  Route first toward a legal
- * collision-sized cell beside the authored footprint instead of aiming every
- * worker at the building centre.  The extra path-cell diagonal is routing
- * slack only: the behavior still owns the exact mine/deposit range check. */
-static BOOL gold_find_direct_footprint_approach(LPEDICT worker, LPEDICT target,
-                                                 FLOAT step, LPVECTOR2 out) {
-    FLOAT cell, route_band;
+/* Warsmash-style return movement still needs a concrete static endpoint for a
+ * blocked drop-off building.  Pick the innermost collision-safe pathing-cell
+ * ring around the authored footprint, then choose the point on that ring
+ * closest to this worker.  Unlike centre-rooted flow routing, this preserves
+ * the worker's approach side (mine on the left -> left edge of the Town Hall). */
+static BOOL gold_find_nearest_footprint_approach(LPEDICT worker, LPEDICT target,
+                                                  LPVECTOR2 out) {
+    FLOAT const route_band = worker ?
+        worker->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
     if (!worker || !target || !target->pathtex || !out)
         return false;
-
-    /* Re-select the nearest direct edge point from the worker's current
-     * position every think.  Local collision can push packed harvesters around
-     * one another; freezing this point for the whole resource leg makes them
-     * keep returning to a lane that another worker now occupies.  The common
-     * helper keeps this adaptive selection cheap. */
-    cell = CM_PathCellWorldSize();
-    route_band = worker->collision + step + cell * 1.41421356237f;
-    if (!CM_FindApproachPointToFootprintForRadius(
-            target, &worker->s.origin2, route_band, worker->collision, out))
-        return false;
-    return CM_LineIsWalkableForRadius(&worker->s.origin2, out, worker->collision);
+    return CM_FindInnerApproachPointToFootprintForRadius(
+        target, &worker->s.origin2, route_band, worker->collision, out);
 }
+
 
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
@@ -205,74 +198,15 @@ static void ai_walkmine(LPEDICT ent) {
         }
         harvestgold_minegold(ent);
     } else {
-        /* A packed group can stop a fraction outside the one-step footprint
-         * threshold even though the front worker has reached the mine's usable
-         * approach boundary.  Human02 reproduced this with all three miners
-         * stationary at 36.9-40.6 units from the footprint while the ordinary
-         * threshold was 35.0 and the mine had an empty slot.  Use Move's
-         * established near-goal settle detector so only a worker that has
-         * actually stopped making progress at the interaction edge is handed
-         * to the mine queue; a blocked route farther away remains a route. */
-        if (footprint_dist < FLT_MAX &&
-            move_is_settled_near_goal(ent, footprint_dist, step)) {
-            if (debug >= 1) {
-                fprintf(stderr,
-                        "WC3_GOLD_PATH enter_range worker=%d mine=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=settled peons=%u capacity=%u resources=%u\n",
-                        ent->s.number, mine->s.number, dist, contact, step,
-                        footprint_dist, mine->peonsinside, S_GoldMineCapacity(mine),
-                        mine->resources);
-            }
-            harvestgold_minegold(ent);
-            return;
-        }
-        {
-            VECTOR2 approach;
-            BOOL const footprint_approach =
-                gold_find_direct_footprint_approach(ent, mine, step, &approach);
-
-            /* A direct legal footprint lane avoids funnelling every miner at
-             * the blocked centre.  Once the staging point is within one move
-             * step, resume the ordinary interaction steering so the exact
-             * footprint/range hand-off above remains authoritative. */
-            if (footprint_approach &&
-                Vector2_distance(&ent->s.origin2, &approach) > step)
-                unit_changeangle_towards_point_worker(ent, &approach);
-            else
-                unit_changeangle_worker(ent);
-        }
-        /* A cache miss is resumable.  Until it produces a flow generation,
-         * preserve the Harvest order but do not walk along a stale facing. */
+        /* Warsmash's CBehaviorHarvest disables live-unit collision when its
+         * target is a unit. Gold Mines are units, so retain authored/static
+         * pathing while allowing miners to share the same approach space. */
+        unit_changeangle_interaction_ignore_units(ent);
         if (gold_route_pending(ent))
             return;
-        /* A point route to a blocked mine centre can end at an adjusted legal
-         * cell before the scalar footprint threshold is crossed.  The route
-         * endpoint means pathfinding has completed its job; mine capacity and
-         * waiting are behavior-owned, so hand the worker to that queue here. */
-        if (ent->movement.flow_goal_reached) {
-            if (debug >= 1) {
-                fprintf(stderr,
-                        "WC3_GOLD_PATH enter_range worker=%d mine=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=route_goal peons=%u capacity=%u resources=%u\n",
-                        ent->s.number, mine->s.number, dist, contact, step,
-                        footprint_dist, mine->peonsinside, S_GoldMineCapacity(mine),
-                        mine->resources);
-            }
-            harvestgold_minegold(ent);
-            return;
-        }
-        /* Gold can have several workers approaching/waiting simultaneously;
-         * sample verbose movement twice a second so diagnostics do not become
-         * the dominant cost on stderr-heavy handheld launches. */
-        if (debug >= 2 && (level.time % 500) < FRAMETIME) {
-            fprintf(stderr,
-                    "WC3_GOLD_PATH approach worker=%d mine=%d worker_pos=(%.1f,%.1f) mine_pos=(%.1f,%.1f) distance=%.1f contact=%.1f step=%.1f footprint=%.1f flow=%u direct=%d peons=%u capacity=%u resources=%u\n",
-                    ent->s.number, mine->s.number,
-                    ent->s.origin2.x, ent->s.origin2.y,
-                    mine->s.origin2.x, mine->s.origin2.y,
-                    dist, contact, step, footprint_dist,
-                    ent->movement.flow_generation, ent->movement.flow_direct,
-                    mine->peonsinside, S_GoldMineCapacity(mine), mine->resources);
-        }
-        unit_moveindirection(ent);
+        /* The collision-sized route ends outside the mine footprint. The
+         * behavior-owned range check above remains authoritative for entry. */
+        unit_moveindirection_ignore_units(ent);
     }
 }
 
@@ -349,55 +283,28 @@ static void ai_goldmine_walkback(LPEDICT ent) {
                     ent->harvested_gold);
         goldmine_finish_deposit(ent, dropoff, debug);
     } else {
-        if (footprint_dist < FLT_MAX &&
-            move_is_settled_near_goal(ent, footprint_dist, step)) {
-            if (debug >= 1)
-                fprintf(stderr,
-                        "WC3_GOLD_RETURN deposit_range worker=%d dropoff=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=settled gold=%u\n",
-                        ent->s.number, dropoff->s.number, dist, contact, step,
-                        footprint_dist, ent->harvested_gold);
-            goldmine_finish_deposit(ent, dropoff, debug);
-            return;
-        }
-        /* Keep verbose return tracing useful without emitting one line per
-         * worker per simulation tick. */
-        if (debug >= 2 && (level.time % 500) < FRAMETIME)
-            fprintf(stderr,
-                    "WC3_GOLD_RETURN approach worker=%d dropoff=%d worker_pos=(%.1f,%.1f) dropoff_pos=(%.1f,%.1f) distance=%.1f contact=%.1f step=%.1f footprint=%.1f gold=%u\n",
-                    ent->s.number, dropoff->s.number,
-                    ent->s.origin2.x, ent->s.origin2.y,
-                    dropoff->s.origin2.x, dropoff->s.origin2.y,
-                    dist, contact, step, footprint_dist, ent->harvested_gold);
-        {
-            VECTOR2 approach;
-            BOOL const footprint_approach =
-                gold_find_direct_footprint_approach(ent, dropoff, step, &approach);
+        VECTOR2 approach;
 
-            /* Town Halls are blocked shapes.  Steering at their centre makes
-             * several returning workers queue in one narrow lane and can hold
-             * a Peasant far outside deposit range until the front worker moves.
-             * Prefer a collision-sized footprint-edge lane; fall back to the
-             * existing shared route when no direct edge lane exists. */
-            if (footprint_approach &&
-                Vector2_distance(&ent->s.origin2, &approach) > step)
-                unit_changeangle_towards_point_worker(ent, &approach);
-            else
-                unit_changeangle_worker(ent);
+        /* Return Resources targets the building interaction boundary, not an
+         * arbitrary legal cell around its blocked centre. Pick the innermost
+         * collision-safe ring and then the worker's current side. */
+        if (gold_find_nearest_footprint_approach(ent, dropoff, &approach)) {
+            if (unit_snap_to_point_ignore_units(ent, &approach)) {
+                goldmine_finish_deposit(ent, dropoff, debug);
+                return;
+            }
+            if (unit_changeangle_towards_point_ignore_units(ent, &approach)) {
+                unit_moveindirection_ignore_units(ent);
+                return;
+            }
         }
-        /* Return routing uses the same resumable flow lifecycle as mine
-         * approach.  Hold the current position until that field is ready. */
+
+        /* Longer detours retain the shared collision-sized fallback while
+         * live units remain non-blocking on resource-return legs. */
+        unit_changeangle_interaction_ignore_units(ent);
         if (gold_route_pending(ent))
             return;
-        if (ent->movement.flow_goal_reached) {
-            if (debug >= 1)
-                fprintf(stderr,
-                        "WC3_GOLD_RETURN deposit_range worker=%d dropoff=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=route_goal gold=%u\n",
-                        ent->s.number, dropoff->s.number, dist, contact, step,
-                        footprint_dist, ent->harvested_gold);
-            goldmine_finish_deposit(ent, dropoff, debug);
-            return;
-        }
-        unit_moveindirection(ent);
+        unit_moveindirection_ignore_units(ent);
     }
 }
 

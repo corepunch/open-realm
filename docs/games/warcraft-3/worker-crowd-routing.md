@@ -2,21 +2,17 @@
 
 ## Contract
 
-Gold and lumber workers use the ordinary static router and the ordinary swept-circle move validator.  Their only special rule is the **local dynamic avoidance policy** used after routing has chosen the direction for the current tick.
+Harvest movement uses the Warsmash-style collision split directly:
 
-The resource-worker policy is deliberately small:
+- Gold Mine approach keeps terrain, tree, and building pathing but ignores live-unit collision.
+- Gold/lumber return keeps terrain, tree, and building pathing but ignores live-unit collision.
+- Tree approach uses ordinary generic movement and live-unit collision.
+- Resource-building routes use the worker collision radius for static pathing. A newly constructed Farm therefore invalidates/rebuilds the static route and the bounded mover-owned A* accelerator can detour around it without reintroducing worker-vs-worker blocking.
+- Return Resources targets the innermost collision-safe ring around the Town Hall/Lumber Mill footprint, choosing the worker's current side. Reaching that exact rasterized endpoint is a valid deposit handoff when the path grid leaves it just outside the continuous footprint+step threshold.
 
-1. Aim at the direct interaction route: the closest legal authored-footprint edge for Gold Mines and resource drop-offs, or the closest legal chop point for a tree.
-2. Try the exact direct step every think.
-3. If another moving unit blocks that step and its goal is broadly in the same direction, treat it as a queue.  Hold the direct line for four blocked decisions instead of overtaking it.
-4. Opposing/crossing traffic may pass immediately.  A same-stream worker that remains pinned after four blocked decisions gets the same escape.
-5. Search deterministic right-hand deflections first at 15, 30, 45, 60, 75, and 90 degrees.  Search the opposite side only if the right side has no legal step.
-6. Normal passing stays within five mover collision radii of the local direct corridor.  After eight blocked decisions the emergency bound expands to six radii.
-7. The next think tries the direct route again.  No passing lane or building-edge point is cached.
+`games/warcraft-3/game/g_ai.c` owns the static-only steering/movement policy through `MOVE_AVOID_STATIC_ONLY`, `unit_changeangle_interaction_ignore_units`, and the near-side point helper. `skills/s_goldmine.c` owns Mine/Gold-return behavior; `skills/s_harvest_lumber.c` owns tree and lumber-return behavior. Target choice, Mine capacity, resource accounting, and replacement-tree selection remain outside the router.
 
-`games/warcraft-3/game/g_ai.c` owns this policy through `MOVE_AVOID_RESOURCE_WORKER`.  Gold uses it from `s_goldmine.c`; lumber uses it for both tree approach and resource return from `s_harvest_lumber.c`.  Generic Move, Patrol, Attack, Build, Repair, and combat steering retain `MOVE_AVOID_GENERIC`.
-
-The local corridor is reset when the direct route succeeds or when a static flow-field turn changes the desired heading by more than 30 degrees.  That keeps the lateral bound local to the current route segment rather than incorrectly constraining a legitimate corner around static geometry.
+The queue/pass-right implementation described below is historical investigation context. Its helper/tests remain useful for understanding the earlier Human02 crowding work, but Harvest/Return no longer select `MOVE_AVOID_RESOURCE_WORKER`.
 
 ## Why Queue Instead Of Alternating Lanes
 
@@ -98,7 +94,12 @@ Focused C regressions cover the policy primitives:
 
 - `wc3_collision.resource_worker_queues_then_passes_right` checks four same-stream hold decisions followed by a bounded right-side escape;
 - `wc3_collision.resource_worker_passes_opposing_traffic_immediately` checks counterflow does not enter the queue delay;
-- `wc3_movement.lumber_same_tree_workers_queue_on_direct_approach` checks two workers keep the same direct tree approach and the rear worker queues instead of receiving a pre-assigned angular lane;
-- existing gold footprint tests continue to check adaptive edge selection, mine entry, return, and deposit boundaries.
+- `wc3_movement.lumber_same_tree_workers_preserve_direct_order` checks two workers keep the same direct tree target/order without being assigned artificial angular lanes;
+- `wc3_movement.worker_resource_gold_approach_ignores_live_units` checks resource movement can cross another Peasant's collision circle on a Mine leg;
+- `wc3_movement.worker_resource_tree_approach_keeps_live_unit_collision` checks tree harvesting retains ordinary unit collision for a destructable/tree target;
+- `wc3_movement.worker_resource_lumber_return_ignores_live_units` checks Return Resources uses the no-live-unit-collision policy;
+- `wc3_movement.worker_resource_static_detour_uses_worker_radius` puts a Farm-sized static block across the mine lane and checks the bounded detour is built with the Peasant collision radius;
+- `wc3_pathfinding.invalidation_does_not_recycle_heatmap_generation` checks a static/cache rebuild cannot alias a stale route generation to a new field;
+- existing gold footprint tests continue to check mine entry, return, and deposit boundaries.
 
 The simulation is evidence for choosing the local policy; the C tests remain the executable engine contract.  Human02 gameplay is the end-to-end validation because static pathing, authored footprints, flow-field fallback, mine occupancy, return/deposit state, and renderer timing are intentionally outside the Python model.

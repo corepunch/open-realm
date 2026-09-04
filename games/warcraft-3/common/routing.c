@@ -54,7 +54,7 @@ struct {
     pathNode_t *pathnodes; /* generation-stamped scratch nodes for bounded point routes */
     DWORD *pathheap;       /* binary min-heap of pathmap indexes */
     DWORD *obstacle_prefix; /* summed-area table for static nowalk cells */
-    BYTE *approach_mask;    /* reusable footprint-approach candidate mask */
+    BYTE *approach_mask;    /* reusable footprint-approach proximity/candidate mask */
 } pathmap = { 0 };
 
 #define HEATMAP_CACHE_SLOTS 4
@@ -128,7 +128,11 @@ static void heatmap_cache_invalidate(void) {
         heatmap_cache[i].generation = 0;
         /* Keep price buffers allocated to avoid malloc churn on map reload. */
     }
-    heatmap_next_generation = 1;
+    /* Generation handles can remain cached on route entities after a static
+     * rebuild.  Never recycle them just because the cache was invalidated: a
+     * newly committed field reusing the same small generation could make a
+     * stale route activate an unrelated post-build field.  Keep the counter
+     * monotonic across invalidations; zero remains the only invalid handle. */
     heatmap_lru_clock       = 0;
     active_heatmap          = NULL;
     memset(heatmap_lru, 0, sizeof(heatmap_lru));
@@ -950,9 +954,9 @@ FLOAT CM_DistanceToPathingFootprint(struct edict_s const *target, LPCVECTOR2 poi
     return best;
 }
 
-BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
-                                                LPCVECTOR2 from, FLOAT range,
-                                                FLOAT radius, LPVECTOR2 out) {
+static BOOL find_approach_point_to_footprint_for_radius(
+        struct edict_s const *target, LPCVECTOR2 from, FLOAT range,
+        FLOAT radius, BOOL prefer_inner_edge, LPVECTOR2 out) {
     pathTex_t const *pt;
     point2_t center;
     FLOAT cell_x, cell_y;
@@ -960,6 +964,7 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
     FLOAT const range_sq = range * range;
     FLOAT best_direct_dist2 = FLT_MAX;
     FLOAT best_any_dist2 = FLT_MAX;
+    BYTE best_inner_rank = UCHAR_MAX;
     VECTOR2 best_direct = { 0, 0 };
     VECTOR2 best_any = { 0, 0 };
     int radius_cells, padding_cells, reach_x, reach_y;
@@ -992,8 +997,12 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
     /* The previous implementation called CM_DistanceToPathingFootprint for
      * every candidate cell.  That helper scans every authored footprint pixel,
      * turning one small edge search into candidate_count * footprint_area work
-     * every time a worker adjusted its lane.  Build an exact reusable mask of
-     * cells that lie within range of any blocked footprint pixel instead. */
+     * every time a worker adjusted its lane.  Build one reusable mask of cells
+     * that lie within range of any blocked footprint pixel instead.  The byte
+     * value also stores a small monotonic proximity rank, allowing interaction
+     * callers to request the innermost legal ring without rescanning the whole
+     * authored footprint for every candidate.  Existing callers only test the
+     * mask for non-zero and retain their nearest-from-worker behavior. */
     for (int y = min_y; y <= max_y; y++)
         memset(&pathmap.approach_mask[min_x + y * pathmap.width], 0,
                (size_t)(max_x - min_x + 1));
@@ -1025,9 +1034,17 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
                     int const dx_cells = abs(x - px);
                     FLOAT const dxw = dx_cells > 0
                         ? ((FLOAT)dx_cells - 0.5f) * cell_x : 0.0f;
+                    FLOAT const dist2 = dxw * dxw + dy2;
 
-                    if (dxw * dxw + dy2 <= range_sq + 0.001f)
-                        pathmap.approach_mask[x + y * pathmap.width] = 1;
+                    if (dist2 <= range_sq + 0.001f) {
+                        BYTE const rank = (BYTE)MIN(
+                            255,
+                            1 + (int)(dist2 * 16.0f /
+                                      MAX(1.0f, cell_size * cell_size)));
+                        BYTE *slot = &pathmap.approach_mask[x + y * pathmap.width];
+                        if (!*slot || rank < *slot)
+                            *slot = rank;
+                    }
                 }
             }
         }
@@ -1042,8 +1059,9 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
         for (int x = min_x; x <= max_x; x++) {
             VECTOR2 candidate;
             FLOAT dxw, dyw, dist2;
+            BYTE const inner_rank = pathmap.approach_mask[x + y * pathmap.width];
 
-            if (!pathmap.approach_mask[x + y * pathmap.width] ||
+            if (!inner_rank ||
                 !is_pathable_node_original_for_radius_cells(x, y, radius_cells))
                 continue;
             candidate = CM_GetDenormalizedMapPosition((x + 0.5f) / pathmap.width,
@@ -1051,6 +1069,25 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
             dxw = candidate.x - from->x;
             dyw = candidate.y - from->y;
             dist2 = dxw * dxw + dyw * dyw;
+
+            /* Return-resource routing needs a different ordering from normal
+             * footprint staging.  First minimize distance to the authored
+             * footprint, then use worker distance only to choose the near side
+             * among equally close cells.  Otherwise a worker approaching from
+             * the left selects the OUTERMOST legal cell on the left simply
+             * because it is closer to the worker, and can stop outside the
+             * behavior's interaction boundary. */
+            if (prefer_inner_edge) {
+                if (!found_any || inner_rank < best_inner_rank ||
+                    (inner_rank == best_inner_rank && dist2 < best_any_dist2)) {
+                    best_inner_rank = inner_rank;
+                    best_any_dist2 = dist2;
+                    best_any = candidate;
+                    found_any = true;
+                }
+                continue;
+            }
+
             if (!found_any || dist2 < best_any_dist2) {
                 best_any_dist2 = dist2;
                 best_any = candidate;
@@ -1068,7 +1105,7 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
         }
     }
 
-    if (found_direct) {
+    if (!prefer_inner_edge && found_direct) {
         *out = best_direct;
         return true;
     }
@@ -1077,6 +1114,20 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
         return true;
     }
     return false;
+}
+
+BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
+                                                LPCVECTOR2 from, FLOAT range,
+                                                FLOAT radius, LPVECTOR2 out) {
+    return find_approach_point_to_footprint_for_radius(
+        target, from, range, radius, false, out);
+}
+
+BOOL CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target,
+                                                     LPCVECTOR2 from, FLOAT range,
+                                                     FLOAT radius, LPVECTOR2 out) {
+    return find_approach_point_to_footprint_for_radius(
+        target, from, range, radius, true, out);
 }
 
 static VECTOR2 compute_flow_at(int const *prices_field, DWORD x, DWORD y, int radius_cells) {
