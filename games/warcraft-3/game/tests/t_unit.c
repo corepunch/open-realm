@@ -631,6 +631,7 @@ TEST(wc3_unit, militia_target_order_reaches_militia_behavior) {
     T_ASSERT(worker->militia.partner == hall);
     T_NOT_NULL(worker->currentmove);
     T_ASSERT(worker->currentmove->ability == &a_militia);
+    T_STREQ(worker->currentmove->animation, "walk");
 }
 
 TEST(wc3_unit, stale_queued_entity_target_is_skipped_for_next_order) {

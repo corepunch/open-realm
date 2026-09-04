@@ -16,7 +16,9 @@ The worker-side target orders are:
 
 `G_IssueUnitTargetOrder()` must explicitly admit both strings and
 `unit_issuetargetorder_now()` must route them to `S_MilitiaTargetOrder()`. These
-are not generic `move`/`smart` orders.
+are not generic `move`/`smart` orders. While approaching the Hall, the Militia
+pairing move uses the normal `walk` animation; do not override that movement
+state with `stand` while continuing to translate the worker.
 
 ## Data Flow
 
