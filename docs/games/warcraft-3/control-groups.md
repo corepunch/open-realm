@@ -6,7 +6,7 @@ Warcraft III control groups allow players to assign a selection of units to a nu
 
 ## Key Bindings
 
-Shipped in `games/warcraft-3/share/config.cfg` (and the StarCraft II config, which shares `cl_input_w3.c`). Do **not** add number-key handling to `CL_HandleGameKey`; that hook is a leftover per-game interceptor and new gameplay hotkeys belong in `bind` lines.
+Shipped in `games/warcraft-3/share/config.cfg` (and the StarCraft II config, which shares `cl_input_w3.c`). Do **not** add number-key handling in `CL_Input`; new gameplay hotkeys belong in `bind` lines.
 
 | Key | Bind | Action |
 |-----|------|--------|
@@ -129,8 +129,8 @@ The network parser has rejection coverage in `tests/test_net.c`; in-engine selec
 
 ## References
 
-- `games/warcraft-3/share/config.cfg` — default `group` / `SHIFT+N` / `CTRL+N` binds
-- `client/cl_input_w3.c` — `group` command and stored groups
+- `games/warcraft-3/share/config.cfg` — `group` / `SHIFT+N` / `CTRL+N` binds and arrow-key `+cam*` pan
+- `client/cl_input_w3.c` — `group` command, stored groups, and `+camleft`/`+camright`/`+camnorth`/`+camsouth`
 - `client/cl_control_groups.c` — pure append/deduplication helper
 - `client/keys.c` / `client/keys_name.h` — modifier bind table and lookup
 - `client/cl_input.c` — SDL events to `Key_Event`

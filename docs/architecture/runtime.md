@@ -106,7 +106,7 @@ On key-down, `Key_Event` looks up the exact modifier combo, then drops Alt, then
 
 `+command` key-up reuses the modifiers captured on key-down, so releasing Alt before the mouse button still ends `ALT+MOUSE1 "+pan"`.
 
-SDL key-repeat is ignored while `key_dest == key_game`. New gameplay hotkeys belong in config `bind` lines, not in `CL_HandleGameKey`.
+SDL key-repeat is ignored while `key_dest == key_game`. Named keys include `TAB`, `ESCAPE`, `F1`–`F12`, `UPARROW`/`DOWNARROW`/`LEFTARROW`/`RIGHTARROW` (aliases `UP`/`DOWN`/`LEFT`/`RIGHT`), and `MOUSE1`–`MOUSE3`. New gameplay hotkeys belong in config `bind` lines.
 
 ## Command-Line Arguments
 

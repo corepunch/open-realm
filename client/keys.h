@@ -19,6 +19,7 @@ enum {
     K_F1  = 128, K_F2  = 129, K_F3  = 130, K_F4  = 131,
     K_F5  = 132, K_F6  = 133, K_F7  = 134, K_F8  = 135,
     K_F9  = 136, K_F10 = 137, K_F11 = 138, K_F12 = 139,
+    K_UPARROW = 140, K_DOWNARROW = 141, K_LEFTARROW = 142, K_RIGHTARROW = 143,
 
     K_MOUSE1 = 200,
     K_MOUSE2 = 201,

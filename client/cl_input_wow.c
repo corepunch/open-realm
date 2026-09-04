@@ -349,34 +349,5 @@ void CL_InputModeFrame(void) {
 }
 
 
-/* Number keys 1-0 trigger action bar slots. Key 1 = slot 0 (Attack),
- * 2 = slot 1 (Charge), ..., 0 = slot 9 (Backpack). The action bar data
- * arrives from the server at begin/update via svc_unit_ui. */
 void CL_InputModeResetMap(void) {}
-
-BOOL CL_HandleGameKey(int sym, Uint16 mod, BOOL repeat) {
-    DWORD slot;
-    (void)mod;
-    (void)repeat;
-
-    if (!CL_GameplayInputReady())
-        return false;
-
-    if (sym == SDLK_TAB) {
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, "wow_cycle_target");
-        return true;
-    }
-
-    if (sym >= SDLK_1 && sym <= SDLK_9)
-        slot = (DWORD)(sym - SDLK_1); /* 1→0, 2→1, ... 9→8 */
-    else if (sym == SDLK_0)
-        slot = 9;
-    else
-        return false;
-
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, "wow_action %u", (unsigned)slot);
-    return true;
-}
 #endif

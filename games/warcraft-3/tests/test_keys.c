@@ -24,6 +24,18 @@ TEST(keys, parse_plain_and_named_keys) {
     T_ASSERT(Key_ParseName("MOUSE1", &key, &mods));
     T_EQ(key, (keyCode_t)K_MOUSE1);
     T_EQ(mods, 0u);
+
+    T_ASSERT(Key_ParseName("TAB", &key, &mods));
+    T_EQ(key, (keyCode_t)K_TAB);
+    T_EQ(mods, 0u);
+
+    T_ASSERT(Key_ParseName("LEFTARROW", &key, &mods));
+    T_EQ(key, (keyCode_t)K_LEFTARROW);
+    T_EQ(mods, 0u);
+
+    T_ASSERT(Key_ParseName("left", &key, &mods));
+    T_EQ(key, (keyCode_t)K_LEFTARROW);
+    T_EQ(mods, 0u);
 }
 
 TEST(keys, parse_modifier_combos) {
