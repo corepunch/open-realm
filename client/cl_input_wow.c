@@ -132,27 +132,19 @@ static void CL_WowRmbUp(void) {
     }
 }
 
-static void IN_WowLeftDown(void) {
+BOOL CL_InputModeSelectDown(void) {
     wow_input.left_mouse = true;
     wow_input.lmb_down = true;
     wow_input.lmb_down_pos = mouse.origin;
+    return true;
 }
 
-static void IN_WowLeftUp(void) {
+BOOL CL_InputModeSelectUp(void) {
     CL_WowLmbUp();
+    return true;
 }
 
-static void IN_WowSelectDown(void) {
-    wow_input.left_mouse = true;
-    wow_input.lmb_down = true;
-    wow_input.lmb_down_pos = mouse.origin;
-}
-
-static void IN_WowSelectUp(void) {
-    CL_WowLmbUp();
-}
-
-/* +attack/-attack: Left-click attack. Bound via `bind MOUSE1 "+attack"` in config. */
+/* +attack/-attack: click-to-attack; bind in config if needed. */
 static void IN_AttackDown(void) {
     wow_input.left_mouse = true;
     wow_input.lmb_down = true;
@@ -230,10 +222,6 @@ static void CL_WowZoom_f(void) {
 }
 
 void CL_InputModeInit(void) {
-    Cmd_AddCommand("+wowleft", IN_WowLeftDown);
-    Cmd_AddCommand("-wowleft", IN_WowLeftUp);
-    Cmd_AddCommand("+wowselect", IN_WowSelectDown);
-    Cmd_AddCommand("-wowselect", IN_WowSelectUp);
     Cmd_AddCommand("+attack", IN_AttackDown);
     Cmd_AddCommand("-attack", IN_AttackUp);
     Cmd_AddCommand("+look", IN_LookDown);
