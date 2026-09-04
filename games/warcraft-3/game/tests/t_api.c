@@ -204,8 +204,6 @@ static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, 
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     LPGAMECLIENT gc = &game.clients[0];
     LPCSTR cancel[] = { "cancel" };
-    QUATERNION quat = Quaternion_fromEuler(&(VECTOR3){326, 0, 0}, ROTATE_ZYX);
-
     game.clients[1].ps.number = 0;
     gc->ps.number = 1;
     gc->camera.state.viewangles = (VECTOR3){300, 0, 120};
@@ -246,7 +244,7 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_ASSERT(!gc->no_control);
     T_FEQ(gc->ps.origin.x, 128, 0.001f); T_FEQ(gc->ps.origin.y, 256, 0.001f);
     T_FEQ(gc->ps.distance, 1650, 0.001f); T_EQ(gc->ps.fov, 50);
-    T_FEQ(gc->ps.viewquat.x, quat.x, 0.001f); T_FEQ(gc->ps.viewquat.w, quat.w, 0.001f);
+    T_FEQ(gc->ps.viewangles.x, 326.0f, 0.001f); T_FEQ(gc->ps.viewangles.z, 0.0f, 0.001f);
 }
 
 TEST(wc3_api, entering_unit_native_returns_region_event_subject) {

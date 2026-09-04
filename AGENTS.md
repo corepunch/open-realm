@@ -9,6 +9,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Topic | File |
 |-------|------|
 | Architecture, engine boundaries, struct/API discipline, network contracts | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Client camera samples, Euler snapshot, quat slerp | [docs/architecture/client.md](docs/architecture/client.md) |
 | Server-selected presentation effects and generic effect contracts | [docs/architecture/server-selected-effects.md](docs/architecture/server-selected-effects.md) |
 | Environment lighting samples, day-phase stat, per-game fill hook | [docs/architecture/environment-lighting.md](docs/architecture/environment-lighting.md) |
 | Native game coordinate systems and axis migration | [AXIS.md](AXIS.md) |

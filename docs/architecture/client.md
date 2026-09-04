@@ -88,6 +88,14 @@ Calls into the renderer API:
 4. Console overlay draws debug text.
 5. `R_EndFrame` — present the frame.
 
+## Camera samples
+
+`playerState.viewangles` is the only view orientation on the wire: Euler degrees in `ROTATE_ZYX` order `{pitch, roll, yaw}`. Do not send a parallel quaternion — Euler→quat is lossless, quat→Euler is not.
+
+`CL_ParsePlayerInfo` copies `viewangles` onto `viewDef.camerastate[]`. `Matrix4_getCameraMatrix` converts both snapshots with `Quaternion_fromEuler`, slerps, and builds the orbit view with `Matrix4_fromViewQuat`. Games that previously packed a non-Euler value into a component (SC2 camera height on `z`) must put a real Euler on the snapshot; height belongs in `origin.z`.
+
+WoW still replaces look-at Z from the local player entity (`WOW_CAMERA_EYE_HEIGHT`); that is not an orientation sample.
+
 ## Entity Interpolation
 
 The client keeps two snapshots per entity: `prev` and `current`. `CL_PrepRefresh` blends between them using a fraction derived from `cl.time` and the server frame interval, producing smooth motion even when the client render rate exceeds the server tick rate.
@@ -138,3 +146,8 @@ the binding generic rather than looking up game-specific entity types or rules.
 | `client/cl_console.c` | In-game console |
 | `client/keys.c` | Key event dispatch and binding table |
 | `common/net.c` | Loopback transport shared by client and server |
+
+## See Also
+
+- [Server-selected effects](server-selected-effects.md) — generic camera samples on the 32-bit player-state mask
+- [WC3 cinematics](../games/warcraft-3/cinematics.md) — server Euler lerp, client quat slerp

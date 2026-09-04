@@ -1610,25 +1610,24 @@ TEST(net, cinematic_cleanup_restores_camera_and_ui_samples) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     PLAYER from = {0}, to = { .number = 1, .client_ui_state = CLIENT_UI_CINEMATIC, .fov = 35, .distance = 900 };
-    QUATERNION quat = Quaternion_fromEuler(&(VECTOR3){326, 0, 0}, ROTATE_ZYX);
 
     test_client_stubs_init();
-    to.viewquat = Quaternion_fromEuler(&(VECTOR3){300, 0, 120}, ROTATE_ZYX);
+    to.viewangles = (VECTOR3){300, 0, 120};
     to.uiflags = ~(1u << LAYER_CINEMATIC);
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
     T_EQ(cl.playerstate.client_ui_state, CLIENT_UI_CINEMATIC);
     from = to;
     to.client_ui_state = CLIENT_UI_GAME; to.uiflags = 1u << LAYER_CINEMATIC;
-    to.viewquat = quat; to.origin = (VECTOR3){128, 256, 0}; to.fov = 50; to.distance = 1650;
+    to.viewangles = (VECTOR3){326, 0, 0}; to.origin = (VECTOR3){128, 256, 0}; to.fov = 50; to.distance = 1650;
     SZ_Clear(&sb); sb.readcount = 0;
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
     T_EQ(cl.playerstate.client_ui_state, CLIENT_UI_GAME); T_EQ(cl.playerstate.uiflags, to.uiflags);
     T_FEQ(cl.viewDef.camerastate[0].origin.x, 128, 0.001f);
     T_FEQ(cl.viewDef.camerastate[0].origin.y, 256, 0.001f);
-    T_FEQ(cl.viewDef.camerastate[0].viewquat.x, quat.x, 0.001f);
-    T_FEQ(cl.viewDef.camerastate[0].viewquat.w, quat.w, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].viewangles.x, 326, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].viewangles.z, 0, 0.001f);
     T_FEQ(cl.viewDef.camerastate[0].distance, 1650, 0.001f);
     T_EQ(cl.viewDef.camerastate[0].fov, 50);
 }
