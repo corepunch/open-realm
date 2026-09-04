@@ -87,6 +87,35 @@ R_GetModelCameraMatrix(mdxModel_t const *model, DWORD frame, float aspect, LPMAT
     return true;
 }
 
+static BOOL R_UIAnimationRatio(LPCSTR anim, LPFLOAT ratio) {
+    LPCSTR marker;
+    char *end = NULL;
+    FLOAT value;
+
+    if (!anim || !ratio) return false;
+    marker = strrchr(anim, '@');
+    if (!marker || !marker[1]) return false;
+    value = strtof(marker + 1, &end);
+    if (end == marker + 1 || !end || *end || !isfinite(value)) return false;
+    *ratio = MAX(0.0f, MIN(value, 1.0f));
+    return true;
+}
+
+static DWORD R_UISequenceFrame(mdxSequence_t const *seq, LPCSTR anim, DWORD anim_time) {
+    DWORD seq_len, offset;
+    FLOAT ratio;
+
+    if (!seq) return 0;
+    seq_len = seq->interval[1] - seq->interval[0];
+    if (seq_len == 0) seq_len = 1;
+    if (!R_UIAnimationRatio(anim, &ratio))
+        return seq->interval[0] + (anim_time % seq_len);
+
+    offset = (DWORD)floorf(ratio * (FLOAT)seq_len);
+    if (offset >= seq_len) offset = seq_len - 1;
+    return seq->interval[0] + offset;
+}
+
 static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR anim) {
     mdxSequence_t const *seq = NULL;
     LPCSTR sequence = anim;
@@ -157,19 +186,13 @@ bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *e
     if (!seq) {
         return false;
     }
-    DWORD seq_len = seq->interval[1] - seq->interval[0];
-    if (seq_len == 0) {
-        seq_len = 1;
-    }
-    /* Use the viewDef time when available.  UI callers (glue scene, portraits)
-     * zero-initialise their viewDef and call SetEntityAnimFrame *before*
-     * RenderFrame, so tr.viewDef.time is still 0.  Fall back to the wall clock
-     * to keep menu/model animation advancing. */
+    /* Use the viewDef time when available. UI callers (glue scene, portraits)
+     * zero-initialise their viewDef and call SetEntityAnimFrame before
+     * RenderFrame, so tr.viewDef.time is still 0. Fall back to the wall clock
+     * unless the animation string supplies an explicit @ratio. */
     DWORD anim_time = tr.viewDef.time;
-    if (anim_time == 0) {
-        anim_time = SDL_GetTicks();
-    }
-    entity->frame = seq->interval[0] + (anim_time % seq_len);
+    if (anim_time == 0) anim_time = SDL_GetTicks();
+    entity->frame = R_UISequenceFrame(seq, anim, anim_time);
     entity->oldframe = entity->frame;
     return true;
 }
@@ -195,9 +218,7 @@ void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR3
     entity.scale = 1;
     entity.model = model;
     entity.tint = tint.a ? tint : COLOR32_WHITE;
-    DWORD seq_len = seq->interval[1] - seq->interval[0];
-    if (seq_len == 0) seq_len = 1;
-    entity.frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+    entity.frame = R_UISequenceFrame(seq, anim, tr.viewDef.time);
     entity.oldframe = entity.frame;
     viewdef.scissor = (RECT) { 0, 0, 1, 1 };
     viewdef.num_entities = 1;

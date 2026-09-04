@@ -802,7 +802,21 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     LPCMODEL model = cl.models[frame->tex.index];
-    LPCSTR anim    = (frame->text && *frame->text) ? frame->text : "Stand";
+    LPCSTR anim = (frame->text && *frame->text) ? frame->text : "Stand";
+    char phased_anim[96];
+
+    /* A server-authored numeric stat on a SPRITE is a normalized animation
+     * phase. This keeps the frame tree static while snapshot state drives the
+     * model locally each render frame. The game chooses the stat and model. */
+    if (frame->stat > 0 && frame->stat < MAX_STATS) {
+        LPCSTR marker = strchr(anim, '@');
+        size_t base_len = marker ? (size_t)(marker - anim) : strlen(anim);
+        FLOAT phase = (FLOAT)cl.playerstate.stats[frame->stat] / (FLOAT)UINT16_MAX;
+
+        if (base_len > sizeof(phased_anim) - 16) base_len = sizeof(phased_anim) - 16;
+        snprintf(phased_anim, sizeof(phased_anim), "%.*s@%.6f", (int)base_len, anim, phase);
+        anim = phased_anim;
+    }
     re.DrawSprite(model, anim, screen->x, screen->y);
 }
 
