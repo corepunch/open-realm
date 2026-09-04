@@ -395,7 +395,7 @@ DWORD GetCameraTargetPositionLoc(LPJASS j) {
     API_ALLOC(VECTOR2, location);
     API_PLAYERSTATE(playerstate);
     if (playerstate) {
-        *location = playerstate->origin;
+        *location = (VECTOR2){ playerstate->origin.x, playerstate->origin.y };
     }
     return 1;
 }

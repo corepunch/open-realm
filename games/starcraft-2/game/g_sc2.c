@@ -281,7 +281,8 @@ static void SC2_SolveCollisions(void) {
  * ------------------------------------------------------------------------- */
 static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance, FLOAT fov) {
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
-        sc2_clients[i].ps.origin = *origin;
+        sc2_clients[i].ps.origin.x = origin->x;
+        sc2_clients[i].ps.origin.y = origin->y;
         sc2_clients[i].ps.viewangles = *angles;
         sc2_clients[i].ps.fov = (DWORD)fov;
         sc2_clients[i].ps.distance = distance;
@@ -335,8 +336,10 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
                                 float yaw, float pitch,
                                 float dist, float fov, float height_offset, float duration) {
     SC2_UpdateCamera();
-    sc2_level.camera.old = (SC2CAMERA){ sc2_clients[0].ps.origin, sc2_clients[0].ps.viewangles,
-                                       sc2_clients[0].ps.distance, sc2_clients[0].ps.fov };
+    sc2_level.camera.old = (SC2CAMERA){
+        { sc2_clients[0].ps.origin.x, sc2_clients[0].ps.origin.y },
+        sc2_clients[0].ps.viewangles,
+        sc2_clients[0].ps.distance, sc2_clients[0].ps.fov };
     sc2_level.camera.state = (SC2CAMERA){ { target_x, target_y }, { pitch, yaw, height_offset }, dist, fov };
     sc2_level.camera.start_time = gi.GetTime();
     sc2_level.camera.end_time = sc2_level.camera.start_time + (DWORD)(MAX(0.0f, duration) * 1000.0f);
@@ -538,7 +541,7 @@ static void SC2_InitClients(void) {
         ent->client = &sc2_clients[i];
         ent->client->ps.number = i + 1;
         ent->client->ps.client_ui_state = CLIENT_UI_GAME;
-        ent->client->ps.origin = (VECTOR2){ camera.target.x, camera.target.y };
+        ent->client->ps.origin = (VECTOR3){ camera.target.x, camera.target.y, 0 };
         ent->client->ps.fov = (DWORD)camera.fov;
         ent->client->ps.distance = camera.distance;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
@@ -786,7 +789,8 @@ static void SC2_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (!ent || !ent->client || !position) {
         return;
     }
-    ent->client->ps.origin = *position;
+    ent->client->ps.origin.x = position->x;
+    ent->client->ps.origin.y = position->y;
 }
 
 static BOOL SC2_CanSeeEntity(DWORD player, LPCEDICT ent) {

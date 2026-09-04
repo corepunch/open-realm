@@ -37,6 +37,10 @@ the new `games/warcraft-3/game/skills/s_onfire.c`.
 
 See also: [Building Damage Rendering](../games/warcraft-3/building-damage-rendering.md) and [WC3 Ability, Buff, And Item Presentation Effects](../games/warcraft-3/ability-and-item-effects.md).
 
+## Anti-pattern #3: `#ifdef WC3` around generic camera samples (do not repeat)
+
+PR #287 added `playerState.camera_render` and `#ifdef WC3` copies in `CL_ParsePlayerInfo`. Target height offset, near clip, and far clip are ordinary camera sample fields, not Warcraft-only data. Hiding them behind a compile guard also overflowed the 32-bit player-state field mask (`texts[7]` silently dropped). They now live in generic `origin.z` / `znear` / `zfar`; games that do not author them leave zeros.
+
 ## Anti-pattern #2: `#ifdef` branch in a shared dispatcher (do not repeat)
 
 PR #242 initially added `#ifdef WC3 ... strcmp(command, "wc3_selection") ... #endif` directly inside the

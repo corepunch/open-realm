@@ -1538,7 +1538,7 @@ TEST(net, playerinfo_game_state_preserves_open_menu_input) {
     cls.key_dest = key_menu;
     cls.netchan.remote_address.type = NA_IP;
     to.number = 1;
-    to.origin = (VECTOR2){ 128.0f, 256.0f };
+    to.origin = (VECTOR3){ 128.0f, 256.0f, 0 };
     to.fov = 50;
     to.distance = 1650;
     to.client_ui_state = CLIENT_UI_GAME;
@@ -1609,7 +1609,7 @@ TEST(net, cinematic_cleanup_restores_camera_and_ui_samples) {
     T_EQ(cl.playerstate.client_ui_state, CLIENT_UI_CINEMATIC);
     from = to;
     to.client_ui_state = CLIENT_UI_GAME; to.uiflags = 1u << LAYER_CINEMATIC;
-    to.viewquat = quat; to.origin = (VECTOR2){128, 256}; to.fov = 50; to.distance = 1650;
+    to.viewquat = quat; to.origin = (VECTOR3){128, 256, 0}; to.fov = 50; to.distance = 1650;
     SZ_Clear(&sb); sb.readcount = 0;
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
@@ -1647,6 +1647,7 @@ TEST(net, playerstate_camera_bounds_roundtrip) {
     T_FEQ(out.camera_bounds.max.x, 4096.0f, 0.001f);
     T_FEQ(out.camera_bounds.max.y, 3072.0f, 0.001f);
 }
+#endif
 
 TEST(net, playerstate_camera_render_fields_roundtrip) {
     BYTE buf[256];
@@ -1658,11 +1659,10 @@ TEST(net, playerstate_camera_render_fields_roundtrip) {
     int number;
 
     to.number = 4;
-    to.camera_render.x = 275.0f;
-    to.camera_render.y = 75.0f;
-    to.camera_render.z = 6500.0f;
-    /* With WC3 camera_render present, texts[7] occupies player-state bit 31.
-     * Exercise the unsigned high bit so the 32-field wire schema remains valid. */
+    to.origin.z = 275.0f;
+    to.znear = 75.0f;
+    to.zfar = 6500.0f;
+    /* texts[7] occupies player-state bit 31. Keep the 32-field DWORD mask valid. */
     to.texts[7] = "camera-last-field";
 
     MSG_WriteDeltaPlayerState(&sb, &from, &to);
@@ -1671,13 +1671,14 @@ TEST(net, playerstate_camera_render_fields_roundtrip) {
     MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
 
     T_EQ(number, 4);
-    T_FEQ(out.camera_render.x, 275.0f, 0.001f);
-    T_FEQ(out.camera_render.y, 75.0f, 0.001f);
-    T_FEQ(out.camera_render.z, 6500.0f, 0.001f);
+    T_FEQ(out.origin.z, 275.0f, 0.001f);
+    T_FEQ(out.znear, 75.0f, 0.001f);
+    T_FEQ(out.zfar, 6500.0f, 0.001f);
     T_STREQ(out.texts[7], "camera-last-field");
     MemFree((void *)out.texts[7]);
 }
 
+#ifdef WC3
 TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -1686,7 +1687,7 @@ TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
 
     test_client_stubs_init();
     to.number = 1;
-    to.origin = (VECTOR2){ 100.0f, -50.0f };
+    to.origin = (VECTOR3){ 100.0f, -50.0f, 0 };
     to.camera_bounds.min = (VECTOR2){ -100.0f, -50.0f };
     to.camera_bounds.max = (VECTOR2){ 100.0f, 50.0f };
     to.fov = 50;
