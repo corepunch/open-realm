@@ -33,6 +33,18 @@ static LPCSTR UI_GlueTopRightPanelPath(void) {
     return Theme_String("GlueSpriteLayerTopRight", "UI\\Glues\\SpriteLayers\\TopRightPanel.mdx");
 }
 
+/* The stock sprite layers are authored as a 4:3 pair: the left layer remains
+ * at the scene origin and the right layer's origin must follow the extra
+ * widescreen canvas width. */
+static FLOAT UI_GlueRightPanelOffset(LPRENDERER renderer) {
+    size2_t win = renderer->GetWindowSize();
+    FLOAT aspect;
+
+    if (win.height <= 0) return 0.0f;
+    aspect = (FLOAT)win.width / (FLOAT)win.height;
+    return aspect > UI_MIN_ASPECT ? UI_BASE_HEIGHT * aspect - UI_BASE_WIDTH : 0.0f;
+}
+
 void UI_ResetGlueSceneModels(void) {
     memset(&menu_glue_scene, 0, sizeof(menu_glue_scene));
 }
@@ -57,10 +69,12 @@ void UI_PreloadGlueSceneModels(void) {
 
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
     LPRENDERER renderer = menuimport.GetRenderer();
+    FLOAT right_offset;
 
     if (!renderer) {
         return;
     }
+    right_offset = UI_GlueRightPanelOffset(renderer);
 
     UI_PreloadGlueSceneModels();
 
@@ -85,7 +99,7 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
             renderer->DrawSprite(menu_glue_scene.top_left_panel, left_panel_anim, 0.0f, UI_BASE_HEIGHT);
         }
         if (menu_glue_scene.top_right_panel) {
-            renderer->DrawSprite(menu_glue_scene.top_right_panel, right_panel_anim, 0.0f, UI_BASE_HEIGHT);
+            renderer->DrawSprite(menu_glue_scene.top_right_panel, right_panel_anim, right_offset, UI_BASE_HEIGHT);
         }
     }
 }

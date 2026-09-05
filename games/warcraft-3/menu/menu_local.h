@@ -64,6 +64,7 @@ void UI_ClearTheme(void);
 LPCSTR M_ResolveImagePath(LPCSTR key);
 void M_MenuCommand(LPCSTR command);
 LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y);
+RECT UI_GetSceneRect(void);
 void UI_TogglePopup(LPCFRAMEDEF frame);
 void UI_SliderBeginDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y);
 void UI_SliderUpdateDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y);
