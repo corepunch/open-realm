@@ -832,11 +832,11 @@ static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestDa
         "C;Y1;X3;K\"modelScale\"\n"
         "C;Y1;X4;K\"scale\"\n"
         "C;Y2;X1;K\"hpea\"\n"
-        "C;Y2;X2;K\"units\\creeps\\Medivh\\Medivh\"\n"
+        "C;Y2;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
         "C;Y2;X3;K1\n"
         "C;Y2;X4;K1\n"
         "C;Y3;X1;K\"hfoo\"\n"
-        "C;Y3;X2;K\"units\\creeps\\Medivh\\Medivh\"\n"
+        "C;Y3;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
         "C;Y3;X3;K1\n"
         "C;Y3;X4;K1\n"
         "E\n";

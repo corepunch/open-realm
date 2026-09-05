@@ -35,6 +35,15 @@ BOOL  M_IsDead(LPCEDICT ent);
 DWORD FindEnumValue(LPCSTR value, LPCSTR values[]);
 void  unit_runwait(LPEDICT self, void (*callback)(LPEDICT));
 
+TEST(wc3_game, target_type_missing_returns_none) {
+    T_EQ(G_GetTargetType(NULL), TARG_NONE);
+    T_EQ(G_GetTargetType(""), TARG_NONE);
+}
+
+TEST(wc3_game, target_type_known_value_is_preserved) {
+    T_EQ(G_GetTargetType("ground"), TARG_GROUND);
+}
+
 /* =========================================================================
  * Helpers
  * ========================================================================= */
