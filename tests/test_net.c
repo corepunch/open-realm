@@ -61,6 +61,9 @@ static DWORD test_model_loads, test_model_releases, test_tex_loads, test_tex_rel
 static VECTOR3 test_overhead_point;
 static RECT test_status_rect;
 static DWORD test_status_draws;
+static RECT test_fade_rect;
+static COLOR32 test_fade_color;
+static DWORD test_fade_draws;
 static PATHSTR test_model_load_paths[4];
 static char test_sprite_anim[96];
 static DWORD test_sprite_draws;
@@ -98,6 +101,9 @@ static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) 
 }
 static void capture_status_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)texture; (void)uv; (void)color; test_status_rect = *screen; test_status_draws++;
+}
+static void capture_fade_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+    (void)texture; (void)uv; test_fade_rect = *screen; test_fade_color = color; test_fade_draws++;
 }
 static LPTEXTURE capture_load_texture(LPCSTR name) {
     (void)name; test_tex_loads++; return (LPTEXTURE)(uintptr_t)test_tex_loads;
@@ -1060,6 +1066,23 @@ static VECTOR2 text_length_mock_size(LPCDRAWTEXT text) {
         return MAKE(VECTOR2, 0.006f, 0.012f);
     }
     return MAKE(VECTOR2, 0.018f, 0.012f);
+}
+
+TEST(net, cinematic_fade_covers_widescreen_canvas) {
+    test_client_stubs_init();
+    test_client_stubs_set_window_size(1280, 720);
+    test_fade_draws = 0;
+    cl.playerstate.cinefade = 1.0f;
+    re.DrawImage = capture_fade_image;
+
+    SCR_DrawLayout();
+
+    T_EQ(test_fade_draws, 1);
+    T_FEQ(test_fade_rect.x, 0.0f, 0.0001f);
+    T_FEQ(test_fade_rect.y, 0.0f, 0.0001f);
+    T_FEQ(test_fade_rect.w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
+    T_FEQ(test_fade_rect.h, UI_BASE_HEIGHT, 0.0001f);
+    T_EQ(test_fade_color.a, 255);
 }
 
 TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {

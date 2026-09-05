@@ -1139,8 +1139,9 @@ void SCR_DrawLayout(void) {
 
     if (cl.playerstate.cinefade > 0) {
         COLOR32 color = COLOR32_BLACK;
+        RECT const screen = MAKE(RECT, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
         color.a = 255 * cl.playerstate.cinefade;
-        re.DrawImage(cl.pics[0], &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
+        re.DrawImage(cl.pics[0], &screen, &MAKE(RECT,0,0,1,1), color);
     }
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
