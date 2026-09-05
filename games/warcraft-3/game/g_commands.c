@@ -55,6 +55,37 @@ LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
     return NULL;
 }
 
+
+void G_SyncClientSelection(LPGAMECLIENT client) {
+    LPEDICT clent;
+    DWORD selected[WC3_SELECTION_LIMIT];
+    DWORD count = 0;
+
+    if (!client) return;
+    FOR_SELECTED_UNITS(client, ent) {
+        if (count >= WC3_SELECTION_LIMIT) break;
+        selected[count++] = ent->s.number;
+    }
+
+    if (!client->connected) {
+        G_InvalidateCommands(client);
+        return;
+    }
+    clent = G_GetPlayerEntityByNumber(client->ps.number);
+    if (!clent || clent->client != client) {
+        G_InvalidateCommands(client);
+        return;
+    }
+
+    gi.Write(PF_BYTE, &(LONG){svc_set_selection});
+    gi.Write(PF_BYTE, &(LONG){count});
+    FOR_LOOP(i, count) gi.Write(PF_LONG, &(LONG){selected[i]});
+    gi.unicast(clent);
+
+    Get_Portrait_f(clent);
+    Get_Commands_f(clent);
+}
+
 BOOL G_FocusSelectedUnit(LPGAMECLIENT client, LPEDICT ent) {
     DWORD *focus = G_SelectionFocusSlot(client);
 
@@ -171,7 +202,6 @@ BOOL G_UnitCanControl(LPGAMECLIENT client, LPCEDICT ent) {
 void G_UpdateClientSelections(void) {
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients + i;
-        LPEDICT clent;
         BOOL changed = false;
         DWORD bit = 1 << client->ps.number;
 
@@ -187,13 +217,7 @@ void G_UpdateClientSelections(void) {
         if (!changed) {
             continue;
         }
-        clent = G_GetPlayerEntityByNumber(client->ps.number);
-        if (client->connected && clent && clent->client == client) {
-            Get_Portrait_f(clent);
-            Get_Commands_f(clent);
-        } else {
-            G_InvalidateCommands(client);
-        }
+        G_SyncClientSelection(client);
     }
 }
 
@@ -332,14 +356,11 @@ CLIENTCOMMAND(Select) {
                  * Passive critter response rules remain a separate gap. */
                 G_PlayUISoundForPlayer(clent, "InterfaceClick");
             }
-            /* Selection is authoritative game state; HUD serialization is not
-             * valid until ClientBegin has completed for this player slot. */
-            if (client->connected) {
-                Get_Portrait_f(clent);
-                Get_Commands_f(clent);
-            } else {
-                G_InvalidateCommands(client);
-            }
+            /* Selection is authoritative game state. Mirror the accepted,
+             * server-filtered membership back to the client cache as well as
+             * rebuilding the HUD so the client cannot retain current-selection entries
+             * that the server rejected. */
+            G_SyncClientSelection(client);
         }
     }
 }
@@ -375,9 +396,10 @@ CLIENTCOMMAND(Focus) {
     }
     if (!G_FocusSelectedUnit(client, target)) return;
 
-    /* Selection membership is unchanged. Only focused-unit presentation and
-     * focused-unit commands need to be rebuilt. */
-    G_RefreshInventoryLayer(clent);
+    /* Selection membership is unchanged. Rebuild the full focused-selection
+     * presentation so the multiselect subgroup highlight, inventory, portrait
+     * and command card all move together. */
+    Get_Portrait_f(clent);
     Get_Commands_f(clent);
 }
 

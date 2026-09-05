@@ -55,12 +55,22 @@ focus without changing any selection bits. Focus is transient UI/input state and
 is reset when map-player state is initialized rather than being added to the save
 format.
 
-`FT_MULTISELECT` is one packed frame, but each payload item already carries its
-entity number. `client/cl_scrn.c` therefore hit-tests the authored icon grid using
-the frame rectangle plus `uiMultiselect_t.offset`, sends `focus <entity>` on a
-left-button release over an icon, and treats every icon as gameplay UI so a click
-does not leak through to world selection. The server validates that the entity is
-still selected before accepting the focus change.
+`FT_MULTISELECT` is one packed frame, but each payload item carries its entity
+number and a focused-subgroup flag. `client/cl_scrn.c` hit-tests the authored icon
+grid using the frame rectangle plus `uiMultiselect_t.offset`, consumes both mouse
+edges over an icon, and sends `focus <entity>` on release. The server validates
+that the entity is still selected before accepting the focus change. It then
+rebuilds the full focused-selection presentation (info panel, inventory, portrait,
+and command card), so focus cannot change only the command card while leaving the
+status panel stale.
+
+The focused subgroup follows Warsmash's `RenderUnit.groupsWith()` rule: selected
+units with the same unit type (`class_id` in OpenRealm) are marked focused together.
+The client draws the active skin's `SelectedSubgroupHighlight` behind those icons.
+Selection membership remains unchanged; the concrete clicked unit is still the
+focused unit used by focused-unit commands, inventory, and the persistent unit
+portrait. The portrait remains visible for multiselections and follows focus; its
+live HP/mana bindings follow the same focused entity.
 
 When an entity-target command is active, the same multiselect-icon click is routed
 to `menu.on_entity_selected` instead of changing focus. This preserves the
@@ -73,11 +83,11 @@ order-response selection. The complete selection remains authoritative for
 multi-unit Smart/Move/Attack-style orders. Inventory presentation follows the
 same focused-unit rule; see [Inventory And World Items](inventory-and-items.md).
 
-OpenRealm still does not reproduce Warsmash's type-wide
-`SelectedSubgroupHighlight`, focused/unfocused icon scaling, keyboard subgroup
-cycling, or the Warsmash behavior where clicking the already-focused exact icon
-collapses the group to that one unit. Those are presentation/navigation gaps, not
-reasons to merge inventory state across the group.
+OpenRealm still does not reproduce Warsmash's focused/unfocused icon scaling,
+keyboard subgroup cycling, or the Warsmash behavior where clicking the
+already-focused exact icon collapses the group to that one unit. Those are
+presentation/navigation gaps, not reasons to merge inventory state across the
+group.
 
 ## Relationship Presentation
 
@@ -138,14 +148,14 @@ Selection acknowledgement voices are queued only for controllable selections. Or
 
 ## Selection Lifetime
 
-`G_UpdateClientSelections` runs immediately after `G_FowUpdate` each server frame. It scans the raw per-player selection bits (not `G_IsEntitySelected`, which intentionally hides already-invalid entities), removes any entry that no longer passes `G_UnitCanBeSelected`, then refreshes portrait/info/inventory and command presentation for connected clients.
+`G_UpdateClientSelections` runs immediately after `G_FowUpdate` each server frame. It scans the raw per-player selection bits (not `G_IsEntitySelected`, which intentionally hides already-invalid entities), removes any entry that no longer passes `G_UnitCanBeSelected`, then calls `G_SyncClientSelection()`. That helper mirrors the authoritative surviving entity list with `svc_set_selection` and refreshes portrait/info/inventory plus command presentation. The same helper is used after normal `select` filtering, server-driven Hero/idle-worker shortcuts, and immediate death removal, so the client-side current-selection cache cannot retain entities the server discarded.
 
 Consequences:
 
 - an enemy that leaves active vision stops being selected;
 - a hidden or newly unselectable unit has its stale selection bit removed.
 
-Death has a stronger immediate path in `unit_die`: it sets health to zero, clears all selection bits, sets `EF_NOT_SELECTABLE`, releases any held animation frame, and starts the death animation. The order entry points reject dead units as well, so a corpse cannot be picked or receive a new movement/order that would replace its death animation. `G_ReviveHero` clears `EF_NOT_SELECTABLE` when the persistent Hero edict is revived.
+Death has a stronger immediate path in `unit_die`: it snapshots which players had the unit selected, sets health to zero, clears all selection bits, sets `EF_NOT_SELECTABLE`, releases any held animation frame, and starts the death animation. After death/event bookkeeping it synchronizes every connected affected client. This is necessary because clearing the raw bit before `G_UpdateClientSelections()` means the later revalidation pass cannot discover which client lost membership. The info-panel cache also retains the last non-single selection count so a multiselect that shrinks but remains a multiselect is reserialized instead of leaving the corpse icon behind. The order entry points reject dead units as well, so a corpse cannot be picked or receive a new movement/order that would replace its death animation. `G_ReviveHero` clears `EF_NOT_SELECTABLE` when the persistent Hero edict is revived.
 
 ## Known Gaps
 

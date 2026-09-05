@@ -920,9 +920,12 @@ typedef struct {
     DWORD endtime;
 } uiBuildQueueItem_t;
 
+#define UI_MULTISELECT_ITEM_FOCUSED (1u << 0)
+
 typedef struct {
     USHORT image;
     USHORT entity;
+    USHORT flags;
 } uiMultiselectItem_t;
 
 typedef struct {
@@ -947,6 +950,7 @@ typedef struct {
 typedef struct {
     RESOURCE hp_bar;
     RESOURCE mana_bar;
+    RESOURCE focus_highlight;
     VECTOR2 offset;
     USHORT numcolumns;
     USHORT numitems;

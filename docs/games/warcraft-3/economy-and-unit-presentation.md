@@ -296,17 +296,25 @@ The selected-unit portrait is one of those runtime-owned frames. Current Warsmas
 `SmashUI/UnitPortrait.fdf`; that file is useful as a parity reference but is not retail MPQ data and must not be loaded by OpenRealm.
 The runtime portrait therefore mirrors its final WC3-space contract directly: the model is `(0.211, 0.4865, 0.0835, 0.085)`, while
 centered `current / max` health and mana strings occupy the strip below it. The strings retain Warsmash's `TextLength 20` contract.
+The portrait remains authored in the same centered `0.8 x 0.6` safe area as `ConsoleUI`. Do not give the portrait layer an
+independent `UIFLAG_EXTEND_WIDESCREEN_X` root. OpenRealm draws `LAYER_PORTRAIT` before `LAYER_CONSOLE`; the later console art contains
+the visible portrait cut-out. Moving only the model to the physical widescreen edge leaves the console in the centered safe area, so
+the valid portrait render is covered by opaque console art and appears completely missing. Gameplay transmissions must use the same
+safe-area coordinates as the normal selected-unit portrait so both remain aligned with the console opening.
+
 Health uses the Warcraft red -> yellow -> green life-ratio gradient and mana is white; units with no mana keep the mana frame but render
-an empty value. These are live snapshot bindings, not static text baked into `LAYER_PORTRAIT`: the server writes the sole-selected
+an empty value. These are live snapshot bindings, not static text baked into `LAYER_PORTRAIT`: the server writes the focused selected
 unit's exact current/max HP and mana to the reserved generic `playerState.stats[18..21]` UI slots each frame, and the client resolves
-`UI_STAT_SELECTION_HEALTH_TEXT` / `UI_STAT_SELECTION_MANA_TEXT` when drawing the already-authored portrait frames. The health colour
-is likewise derived from those current snapshot values. This deliberately avoids retransmitting the complete portrait layout for every
-damage, heal, regeneration, or mana tick and remains independent of the `LAYER_INFOPANEL` presentation cache (important while a
-selected building is showing its build/training queue). A normal gameplay transmission can still replace the portrait layer; once the
-selected-unit portrait is authored again, the same live bindings immediately display the current values.
+`UI_STAT_SELECTION_HEALTH_TEXT` / `UI_STAT_SELECTION_MANA_TEXT` when drawing the already-authored portrait frames. A multiselection
+therefore keeps the focused unit's portrait visible instead of clearing `LAYER_PORTRAIT`, and clicking another subgroup changes the
+portrait and its live stats without altering selection membership. The health colour is likewise derived from those current snapshot
+values. This deliberately avoids retransmitting the complete portrait layout for every damage, heal, regeneration, or mana tick and
+remains independent of the `LAYER_INFOPANEL` presentation cache (important while a selected building is showing its build/training
+queue). A normal gameplay transmission can still replace the portrait layer; once the selected-unit portrait is authored again, the
+same live bindings immediately display the current values.
 
 Holding the selected-unit portrait is also a camera control. The server-authored portrait uses a Quake-style
-`+portraitcamera <entity>` layout command: press recenters on the currently sole-selected unit and installs that unit as the existing
+`+portraitcamera <entity>` layout command: press recenters on the currently focused selected unit and installs that unit as the existing
 camera target controller; release sends the captured `-portraitcamera` command and clears the controller even if the pointer left the
 portrait. `G_RunClients()` then follows the target's current position each simulation frame for the duration of the hold. This reuses
 the same target-controller state as `SetCameraTargetController` rather than adding a second follow-camera implementation.

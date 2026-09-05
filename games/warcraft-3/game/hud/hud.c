@@ -588,10 +588,12 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             if (buf.cursize + size > buf.maxsize) { buf.overflowed = true; break; }
             data->hp_bar = frame->Multiselect.HpBar;
             data->mana_bar = frame->Multiselect.ManaBar;
+            data->focus_highlight = 0;
             data->offset = MAKE(VECTOR2, 0.031f, 0.050f);
             data->numcolumns = 6;
             data->numitems = frame->Multiselect.NumItems;
             memcpy(data->items, frame->Multiselect.Items, sizeof(uiMultiselectItem_t) * data->numitems);
+            FOR_LOOP(i, data->numitems) data->items[i].flags = 0;
             buf.cursize += size;
             break;
         }
