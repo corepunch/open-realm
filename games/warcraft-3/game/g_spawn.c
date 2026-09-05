@@ -475,6 +475,14 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     ent->s.player = player;
     gi.LinkEntity(ent);
     SP_CallSpawn(ent);
+    /* Dynamic unit creation must establish Hero progression independently of
+     * presentation data.  SP_SpawnUnit already initializes normal Heroes, but
+     * custom/minimal data may omit UnitUI/model rows while still defining Hero
+     * attributes in UnitBalance.  The helper is idempotent, so applying it here
+     * also keeps CreateUnit/training at Level 1 with one initial skill point. */
+    if (G_UnitIsHero(ent)) {
+        G_HeroInitializeProgression(ent);
+    }
     if (ent->birth) {
         ent->birth(ent);
     }

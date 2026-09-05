@@ -1841,6 +1841,7 @@ void G_HeroInitializeProgression(LPEDICT ent);
 DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode);
 heroSkillState_t G_HeroSkillState(LPEDICT ent, DWORD abilcode, DWORD *next_level, DWORD *required_level);
 BOOL G_HeroLearnSkill(LPEDICT ent, DWORD abilcode);
+BOOL G_HeroModifySkillPoints(LPEDICT ent, LONG delta);
 
 void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign);
 BOOL G_GameCacheSave(gameCache_t *cache);
