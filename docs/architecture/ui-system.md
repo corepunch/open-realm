@@ -310,6 +310,13 @@ glyphs and inferred square scrollbar sprites exactly 25% too short vertically.
 Frames with authoritative width and height already converted independently
 (for example WoW `PW(16)` and `PH(16)`) must not apply the factor a second time.
 
+On widescreen WC3 keeps gameplay HUD geometry in its authored 4:3 scene and
+centers that scene inside the wider renderer canvas. The client applies this
+root to every server-authored HUD layer and to client-managed HUD windows, so
+the game module does not need a per-monitor/window-size import. The
+`LAYER_WORLD_HOVER` overlay is the exception: it replaces the HUD root with
+the full scene because its frames are projected from world coordinates.
+
 ## Key Files
 
 | File | Role |
