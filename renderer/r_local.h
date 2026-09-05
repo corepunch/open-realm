@@ -455,9 +455,9 @@ void R_ReleaseRenderTexture(LPRENDERTARGET rt);
 void R_InitFogOfWar(DWORD width, DWORD height);
 void R_ShutdownFogOfWar(void);
 void R_RenderFogOfWar(void);
+void R_UpdateFogOfWarData(void);
 DWORD R_GetFogOfWarTexture(void);
 DWORD R_GetMinimapFogOfWarTexture(void);
-void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data);
 
 // r_particles.c
 void R_InitParticles(void);

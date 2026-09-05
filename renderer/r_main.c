@@ -1068,8 +1068,9 @@ refExport_t R_GetAPI(refImport_t imp) {
         .LoadTexture = R_LoadTexture,
         .LoadModel = R_LoadRegisteredModel,
         .LoadFont = R_LoadFont,
-        .SetFogOfWarData = R_SetFogOfWarData,
-        .GameCommand = R_GameCommand,
+#ifdef WC3
+        .WeatherCommand = R_WeatherCommand,
+#endif
         .ReleaseTexture = R_ReleaseTexture,
         .ReleaseModel = R_ReleaseRegisteredModel,
         .RenderFrame = R_RenderFrame,

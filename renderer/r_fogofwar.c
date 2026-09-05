@@ -80,6 +80,8 @@ static struct {
     LPBUFFER casters;
     LPTEXTURE sight;
     LPTEXTURE network;
+    BYTE const *network_data;
+    DWORD network_generation;
     DWORD last_update_time;
 } fow_resources = { 0 };
 
@@ -249,6 +251,7 @@ static void R_BlitTexture(GLuint texid, float alpha) {
 }
 
 void R_RenderFogOfWar(void) {
+    R_UpdateFogOfWarData();
     if (!R_CvarEnabled("r_fogofwar", "1")) return;
     if (fow_resources.network) {
         return;
@@ -442,14 +445,22 @@ DWORD R_GetMinimapFogOfWarTexture(void) {
     return tr.texture[TEX_WHITE]->texid;
 }
 
-void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
+void R_UpdateFogOfWarData(void) {
+    DWORD width = tr.viewDef.fow_width, height = tr.viewDef.fow_height;
+    BYTE const *data = tr.viewDef.fow_data;
     BOOL allocate;
 
     if (!width || !height || !data) {
         R_ReleaseTexture(fow_resources.network);
         fow_resources.network = NULL;
+        fow_resources.network_data = NULL;
+        fow_resources.network_generation = 0;
         return;
     }
+
+    /* Client parsing may receive many row chunks; pointer+generation keeps one GPU upload per assembled update. */
+    if (fow_resources.network && fow_resources.network_data == data &&
+        fow_resources.network_generation == tr.viewDef.fow_generation) return;
 
     allocate = !fow_resources.network ||
                fow_resources.network->width != width ||
@@ -474,4 +485,6 @@ void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
+    fow_resources.network_data = data;
+    fow_resources.network_generation = tr.viewDef.fow_generation;
 }

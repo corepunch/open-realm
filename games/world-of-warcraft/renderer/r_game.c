@@ -109,12 +109,6 @@ void R_DrawMinimap(LPCRECT screen) {
     Wow_DrawMinimap(screen);
 }
 
-void R_GameCommand(LPCSTR command, void const *data, DWORD size) {
-    (void)command;
-    (void)data;
-    (void)size;
-}
-
 void R_RegisterMap(LPCSTR mapFileName) {
     Wow_RegisterMap(mapFileName);
 }

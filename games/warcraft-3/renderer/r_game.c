@@ -178,10 +178,6 @@ void R_RegisterMap(LPCSTR mapFileName) {
     _W3M_RegisterMap(mapFileName);
 }
 
-void R_GameCommand(LPCSTR command, void const *data, DWORD size) {
-    R_WeatherCommand(command, data, size);
-}
-
 void R_SetupEnvironmentLighting(void) {
     RMODELLIGHT light;
     tr.viewDef.terrainLight = (ENVIRONLIGHT){0};

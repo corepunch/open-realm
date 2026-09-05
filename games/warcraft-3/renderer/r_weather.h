@@ -6,7 +6,7 @@
 void R_WeatherInit(void);
 void R_WeatherShutdown(void);
 void R_WeatherRegisterMap(void);
-void R_WeatherCommand(LPCSTR command, void const *data, DWORD size);
+void R_WeatherCommand(void const *data, DWORD size);
 void R_WeatherEmit(void);
 
 #endif

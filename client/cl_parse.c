@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #include "client.h"
+#include "common/weather.h"
 #include "sound/s_local.h"
 #include "ui_layout.h"
 
@@ -474,6 +475,7 @@ static BOOL CL_EnsureFogOfWarSize(DWORD width, DWORD height) {
     memset(cl.fow.visible, 0, cells);
     memset(cl.fow.explored, 0, cells);
     memset(cl.fow.texture, 0, cells);
+    cl.fow.generation++;
     return true;
 }
 
@@ -605,6 +607,7 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
     CL_UnpackFogRLE(payload, payload_bytes, flags, first_row, row_count);
     msg->readcount += payload_bytes;
     CL_UpdateFogTextureRows(first_row, row_count);
+    cl.fow.generation++;
     return true;
 }
 
@@ -732,6 +735,15 @@ static void CL_ParseSetSelection(LPSIZEBUF msg) {
     if (menu.UpdateUnitUI) menu.UpdateUnitUI(0, NULL);
 }
 
+typedef void (*cl_game_command_fn_t)(LPSIZEBUF msg);
+typedef struct { LPCSTR name; cl_game_command_fn_t fn; } cl_game_command_t;
+
+static cl_game_command_t const cl_game_commands[] = {
+    { "lobby_setup", CL_ParseLobbySetup },
+    { "lobby_chat", CL_ParseLobbyChat },
+    { "select", CL_ParseSetSelection },
+};
+
 static void CL_ParseGameCommand(LPSIZEBUF msg) {
     char command[MAX_PATHLEN] = { 0 };
     sizeBuf_t payload;
@@ -757,13 +769,8 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
     if (re.GameCommand) {
         re.GameCommand(command, payload.data, payload.cursize);
     }
-    if (!strcmp(command, "lobby_setup")) {
-        CL_ParseLobbySetup(&payload);
-    } else if (!strcmp(command, "lobby_chat")) {
-        CL_ParseLobbyChat(&payload);
-    } else if (!strcmp(command, "select")) {
-        CL_ParseSetSelection(&payload);
-    }
+    FOR_LOOP(i, sizeof(cl_game_commands) / sizeof(*cl_game_commands))
+        if (!strcmp(command, cl_game_commands[i].name)) { cl_game_commands[i].fn(&payload); break; }
 
     msg->readcount = payload_start + (DWORD)payload_size;
 }
@@ -875,7 +882,6 @@ static void CL_ParseUIWindow(LPSIZEBUF msg) {
  * stops processing and prints an error to stderr. */
 void CL_ParseServerMessage(LPSIZEBUF msg) {
     BYTE pack_id = 0;
-    BOOL fow_dirty = false;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {
             case svc_bad:
@@ -917,7 +923,16 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 CL_ParseGameCommand(msg);
                 break;
             case svc_fogofwar:
-                fow_dirty |= CL_ParseFogOfWar(msg);
+                CL_ParseFogOfWar(msg);
+                break;
+            case svc_weather:
+                if (msg->readcount + sizeof(wc3WeatherCommand_t) > msg->cursize) {
+                    fprintf(stderr, "CL_ParseServerMessage: truncated weather payload\n");
+                    msg->readcount = msg->cursize;
+                    goto done;
+                }
+                if (re.WeatherCommand) re.WeatherCommand(msg->data + msg->readcount, sizeof(wc3WeatherCommand_t));
+                msg->readcount += sizeof(wc3WeatherCommand_t);
                 break;
             case svc_temp_entity:
                 CL_ParseTEnt(msg);
@@ -942,6 +957,5 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
         }
     }
 done:
-    /* FOW chunks are one logical update; publishing each chunk caused repeated full GPU texture definitions. */
-    if (fow_dirty) re.SetFogOfWarData(cl.fow.width, cl.fow.height, cl.fow.texture);
+    return;
 }

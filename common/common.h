@@ -78,7 +78,8 @@ enum svc_ops {
     svc_unit_ui,                 // [byte num_units] for each unit: [short entity] [byte num_buttons] [buttons] [byte num_inventory] [inventory] [byte num_queue] [queue]
     svc_window,                  // [byte open] [long id] [long class, long flags, frames, long text size, text]
     svc_ui_window,               // [string window_id] [byte show] legacy menu-module-owned named XML window toggle
-    svc_disconnect               // server is closing or dropped this client
+    svc_disconnect,               // server is closing or dropped this client
+    svc_weather                   // [long type] [long handle] [long effect_id] [box2 bounds] [long enabled]
 };
 
 // client to server

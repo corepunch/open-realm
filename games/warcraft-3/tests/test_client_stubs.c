@@ -63,9 +63,6 @@ static bool mock_DrawCursor(float x, float y, COLOR32 tint) {
     test_cursor_tint = tint;
     return true;
 }
-static void mock_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
-    (void)width; (void)height; (void)data; test_fow_upload_calls++;
-}
 
 void V_RenderView(void) {}
 void CON_DrawConsole(void) {}
@@ -136,7 +133,6 @@ void test_client_stubs_init(void) {
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
     re.DrawFill = mock_DrawFill;
     re.DrawCursor = mock_DrawCursor;
-    re.SetFogOfWarData = mock_SetFogOfWarData;
 }
 
 void test_client_stubs_set_window_size(DWORD width, DWORD height) {

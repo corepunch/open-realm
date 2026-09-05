@@ -175,11 +175,10 @@ void R_WeatherRegisterMap(void) {
     weather_rng = 0x7f4a7c15u;
 }
 
-void R_WeatherCommand(LPCSTR command, void const *data, DWORD size) {
+void R_WeatherCommand(void const *data, DWORD size) {
     wc3WeatherCommand_t payload;
     renderWeatherEffect_t *effect;
 
-    if (!command || strcmp(command, WC3_WEATHER_GAME_COMMAND)) return;
     if (!data || size != sizeof(payload)) return;
     memcpy(&payload, data, sizeof(payload));
     if (payload.type == WC3_WEATHER_CMD_CLEAR) {

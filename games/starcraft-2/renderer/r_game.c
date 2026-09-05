@@ -207,12 +207,6 @@ void R_DrawMinimap(LPCRECT screen) {
     R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 }
 
-void R_GameCommand(LPCSTR command, void const *data, DWORD size) {
-    (void)command;
-    (void)data;
-    (void)size;
-}
-
 void R_RegisterMap(LPCSTR mapFileName) {
     R_SC2RegisterMap(mapFileName);
 }

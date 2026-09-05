@@ -91,6 +91,7 @@ struct client_state {
         BYTE *visible;
         BYTE *explored;
         BYTE *texture;
+        DWORD generation;
     } fow;
     LPENTITYSTATE cursorEntity;
     struct {

@@ -177,6 +177,8 @@ typedef struct {
     DWORD player;
     DWORD rdflags;
     DWORD hover_entity;     /* entity under mouse cursor (0 = none) */
+    DWORD fow_width, fow_height, fow_generation;
+    BYTE const *fow_data;
     FRUSTUM3 frustum;
     /* Linear scene fog (matches the original's fixed-function glFog* setup:
      * GL_FOG_MODE=LINEAR, GL_FOG_START/END, GL_FOG_COLOR).  Used by the glue
@@ -199,7 +201,7 @@ typedef struct {
     void (*Shutdown)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
-    void (*SetFogOfWarData)(DWORD width, DWORD height, BYTE const *data);
+    void (*WeatherCommand)(void const *data, DWORD size);
     void (*GameCommand)(LPCSTR command, void const *data, DWORD size);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);
     LPMODEL (*LoadModel)(LPCSTR filename);

@@ -28,7 +28,7 @@ void R_SetupTextureMatrix(void);
 void R_DrawMinimap(LPCRECT screen);
 
 void R_RegisterMap(LPCSTR mapFileName);
-void R_GameCommand(LPCSTR command, void const *data, DWORD size);
+void R_WeatherCommand(void const *data, DWORD size);
 void R_SetupEnvironmentLighting(void);
 void R_DrawWorld(void);
 void R_DrawTerrainShadows(void);

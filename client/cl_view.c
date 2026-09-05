@@ -428,6 +428,10 @@ void CL_PrepRefresh(void) {
 void V_RenderView(void) {
     static DWORD lastTime = 0;
     BOOL rebuild;
+    cl.viewDef.fow_width = cl.fow.width;
+    cl.viewDef.fow_height = cl.fow.height;
+    cl.viewDef.fow_data = cl.fow.texture;
+    cl.viewDef.fow_generation = cl.fow.generation;
     if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
 
