@@ -381,6 +381,7 @@ void G_SpawnEntities(void) {
     G_ClearSaveRegistries();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
+    G_ResetStartingResourceCheat();
     level.time = gi.GetTime();
 
     level.mapinfo = mapinfo;

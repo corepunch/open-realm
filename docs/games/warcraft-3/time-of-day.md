@@ -51,6 +51,41 @@ is hard-coded in gameplay.
 Daytime is the half-open interval `Dawn <= time < Dusk`. Exact Dawn is day; exact Dusk is night. Existing FOW sight-radius and
 night-regeneration consumers call `G_IsNight()` and therefore follow the same thresholds.
 
+## Developer Time-Of-Day Cheats
+
+The `day` and `night` console commands are `sv_cheats`-gated shortcuts that queue an explicit write through the same
+`G_SetTimeOfDay()` path used by JASS:
+
+```sh
+set sv_cheats 1
+day
+night
+```
+
+They target the middle of the map-authored day and night intervals rather than hard-coding clock values. With stock
+`Dawn=6`, `Dusk=18`, and `DayHours=24`, `day` selects 12:00 and `night` selects 00:00. Custom `Misc` data therefore keeps
+the cheats inside its own authored phases. The queued write is consumed by `G_UpdateTimeOfDay()`, so ordinary time-of-day
+game-state events, HUD phase, sight/regeneration rules, and DNC lighting see the same authoritative transition.
+
+`wc3_cheat_timeofday_scale` multiplies only ordinary day/night clock progression. It is a developer CVar (no `sv_cheats`
+gate) and defaults to `1`; for example:
+
+```sh
+set wc3_cheat_timeofday_scale 20
+# or at launch:
++set wc3_cheat_timeofday_scale 20
+```
+
+runs the authored day/night cycle at 20x speed. A stock 480-second cycle therefore completes in about 24 real seconds. Set it back
+to `1` for normal timing. Zero, negative, non-numeric, and non-finite values fall back to `1` so an accidental cheat value cannot
+freeze or corrupt the clock.
+
+The multiplier does **not** change `FRAMETIME`, simulation speed, movement, AI, JASS timers, trigger sleeps, cinematics, or camera
+timing. Explicit `SetFloatGameState(GAME_STATE_TIME_OF_DAY, ...)` writes remain exact, and `SuspendTimeOfDay(true)` still suspends
+ordinary progression regardless of the cheat scale. Because every gameplay/presentation consumer reads the authoritative
+`level.timeofday`, accelerated dawn/dusk changes propagate to sight, regeneration, game-state events, the HUD clock, and DNC phase
+consumers together.
+
 ## HUD Time Indicator
 
 The in-game clock is server-authored through `svc_layout`; `ui.dll` does not construct it.
@@ -163,6 +198,11 @@ environment-light inputs.
 `MDLX_SampleFirstLight()` and the shared MDX light evaluator live in `r_mdx_light.c`. The normal renderer unity build discovers that
 file automatically, while the standalone `test-renderer-model` and `test-renderer-shadows` targets list it explicitly alongside the
 animation/interpolation units. Keep this dependency explicit: these tests intentionally avoid linking the full geoset/render path.
+For runtime cheat verification, enable `sv_cheats`, run `day` and `night`, and confirm the HUD clock, DNC lighting, sight,
+regeneration, and time-of-day event consumers all follow the new phase. Then set `wc3_cheat_timeofday_scale 20`, watch the HUD
+clock cross Dawn/Dusk rapidly, restore `wc3_cheat_timeofday_scale 1`, and confirm normal cadence resumes without changing
+unit/AI/timer speed.
+
 The generic client tests cover preservation of the player-stat pair containing the environment-phase slot and conversion of a bound sprite
 stat into an `@ratio` animation selector. Runtime verification should additionally confirm that the race-specific clock model tracks
 JASS time changes immediately, terrain and units transition continuously through dusk/night/dawn, `SuspendTimeOfDay(true)` freezes

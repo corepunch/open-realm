@@ -44,6 +44,147 @@ static LPPLAYER game_player(int idx) {
     return &game.clients[idx].ps;
 }
 
+static LPCSTR starting_resources_cheat_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_cheat_starting_resources") ? "1" : fallback;
+}
+
+static LPCSTR give_resources_cheat_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "sv_cheats") ? "1" : fallback;
+}
+
+TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT clent = &g_edicts[0];
+    LPCSTR give_gold[] = { "give", "gold", "5000" };
+    LPCSTR give_lumber[] = { "give", "lumber", "5000" };
+    LPCSTR give_res[] = { "give", "res", "5000" };
+
+    setup_test_world();
+    client->connected = true;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 200;
+    gi.CvarString = give_resources_cheat_cvar;
+
+    G_ClientCommand(clent, 3, give_gold);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 5100);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 200);
+
+    G_ClientCommand(clent, 3, give_lumber);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 5100);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5200);
+
+    G_ClientCommand(clent, 3, give_res);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10100);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 10200);
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 65000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 64000;
+    G_ClientCommand(clent, 3, give_res);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], USHRT_MAX);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], USHRT_MAX);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_game, day_and_night_cheats_use_authored_phase_midpoints) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPEDICT clent = &g_edicts[0];
+    LPCSTR day[] = { "day" };
+    LPCSTR night[] = { "night" };
+
+    setup_test_world();
+    gi.CvarString = give_resources_cheat_cvar;
+    game.constants.gameDayHours = 24.0f;
+    game.constants.gameDayLength = 480.0f;
+    game.constants.dawnTimeGameHours = 6.0f;
+    game.constants.duskTimeGameHours = 18.0f;
+    level.timeofday.elapsed = 0.0f;
+    level.timeofday.pending_valid = false;
+
+    G_ClientCommand(clent, 1, day);
+    T_ASSERT(level.timeofday.pending_valid);
+    T_FEQ(level.timeofday.pending, 12.0f, 0.001f);
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+
+    G_ClientCommand(clent, 1, night);
+    T_ASSERT(level.timeofday.pending_valid);
+    T_FEQ(level.timeofday.pending, 0.0f, 0.001f);
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 0.0f, 0.001f);
+
+    /* Custom Dawn/Dusk values should choose the middle of each authored
+     * phase rather than forcing stock Warcraft clock values. */
+    game.constants.dawnTimeGameHours = 8.0f;
+    game.constants.duskTimeGameHours = 20.0f;
+    G_ClientCommand(clent, 1, day);
+    T_FEQ(level.timeofday.pending, 14.0f, 0.001f);
+    G_ClientCommand(clent, 1, night);
+    T_FEQ(level.timeofday.pending, 2.0f, 0.001f);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_game, starting_resource_cheat_waits_for_playable_human_state) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPMAPINFO mapinfo;
+
+    setup_test_world();
+    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo->players[0].used = true;
+    mapinfo->players[0].playerType = kPlayerTypeHuman;
+    mapinfo->players[1].used = true;
+    mapinfo->players[1].playerType = kPlayerTypeComputer;
+    mapinfo->players[2].used = true;
+    mapinfo->players[2].playerType = kPlayerTypeHuman;
+    game.clients[0].mapplayer = mapinfo->players + 0;
+    game.clients[1].mapplayer = mapinfo->players + 1;
+    game.clients[2].mapplayer = mapinfo->players + 2;
+    game.clients[0].connected = true;
+    game.clients[1].connected = true;
+    game.clients[2].connected = true;
+
+    /* Campaign initialization may leave the human at zero resources until its
+     * intro/end-cinematic trigger authors the real gameplay starting values. */
+    game.clients[0].no_control = true;
+    game.clients[0].ps.client_ui_state = CLIENT_UI_CINEMATIC;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    game.clients[1].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 750;
+    game.clients[1].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 200;
+    game.clients[2].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 65000;
+    game.clients[2].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 64000;
+
+    gi.CvarString = starting_resources_cheat_cvar;
+    G_ResetStartingResourceCheat();
+    G_ApplyStartingResourceCheat();
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+    T_EQ(game.clients[1].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 750);
+    T_EQ(game.clients[1].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 200);
+    T_EQ(game.clients[2].ps.stats[PLAYERSTATE_RESOURCE_GOLD], USHRT_MAX);
+    T_EQ(game.clients[2].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], USHRT_MAX);
+
+    /* Human02-style late starting-resource assignment after the intro. */
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 300;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 50;
+    game.clients[0].no_control = false;
+    game.clients[0].ps.client_ui_state = CLIENT_UI_GAME;
+    G_ApplyStartingResourceCheat();
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 5300);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5050);
+
+    /* The playable-state poll must never turn into a recurring resource grant. */
+    G_ApplyStartingResourceCheat();
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 5300);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5050);
+
+    G_DisableStartingResourceCheatForLoadedGame();
+    gi.CvarString = old_cvar;
+}
+
 static LPEDICT make_test_unit(void) {
     reset_entities();
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));

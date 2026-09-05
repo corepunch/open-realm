@@ -193,9 +193,12 @@ changes glue presentation and Cancel destinations; the final local-server launch
 
 ### Victory / defeat handoff
 
-`RemovePlayer` owns authoritative per-player result state, not campaign navigation. It records
-`PLAYER_STATE_GAME_RESULT`, moves the runtime slot to `PLAYER_SLOT_STATE_LEFT`, and publishes the appropriate player
-result event. Because map result handlers may start an ending cinematic, the temporary native `GameResultDialog`
+`RemovePlayer` owns authoritative per-player result state, not campaign navigation. Its C implementation delegates the
+transition to `G_RemovePlayerWithResult(player_num, game_result)`, which records `PLAYER_STATE_GAME_RESULT`, moves the
+runtime slot to `PLAYER_SLOT_STATE_LEFT`, stops that player's AI, and publishes the appropriate player result event.
+The `sv_cheats`-gated `win` and `lose` client commands deliberately call this same helper rather than switching UI or
+maps directly, so map-authored victory/defeat triggers and campaign continuation remain authoritative. Because map
+result handlers may start an ending cinematic, the temporary native `GameResultDialog`
 fallback is queued rather than written inline. `UI_FlushPendingGameResults()` normally writes it only after queued
 JASS result work and outside `CLIENT_UI_CINEMATIC`.
 

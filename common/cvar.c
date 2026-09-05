@@ -478,6 +478,10 @@ void Cvar_Init(void) {
 #ifdef WC3
     Cvar_GetD("wc3_campaign_mission_visibility", "all", CVAR_ARCHIVE,
               "campaign mission list visibility: all or played");
+    Cvar_GetD("wc3_cheat_starting_resources", "0", 0,
+              "cheat: add 5000 gold and 5000 lumber to each human player's map-authored starting resources");
+    Cvar_GetD("wc3_cheat_timeofday_scale", "1", 0,
+              "cheat: multiplier for Warcraft III day/night clock progression only");
 #endif
     Cvar_GetD("game_port",        PORT_SERVER_STRING,  CVAR_ARCHIVE, "UDP port the game server listens on");
     Cvar_GetD("name",             "Player",            CVAR_ARCHIVE, "player display name shown in lobbies");
