@@ -807,6 +807,129 @@ TEST(wc3_unit, issueimmediateorder_holdposition_uses_hold_state) {
     T_STREQ(ent->currentmove->animation, "stand");
 }
 
+static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestData_t **old_ability,
+                                         slkTestData_t **ui_rows, slkTestData_t **old_ui,
+                                         slkTestData_t **profile_rows, slkTestData_t **old_profile) {
+    static LPCSTR const ability_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"alias\"\n"
+        "C;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Amrf\"\n"
+        "C;Y2;X2;K\"Amrf\"\n"
+        "C;Y2;X3;K\"hpea\"\n"
+        "C;Y2;X4;K\"hfoo\"\n"
+        "C;Y3;X1;K\"Arav\"\n"
+        "C;Y3;X2;K\"Arav\"\n"
+        "C;Y3;X3;K\"edot\"\n"
+        "C;Y3;X4;K\"edtm\"\n"
+        "E\n";
+    static LPCSTR const ui_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitUIID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"modelScale\"\n"
+        "C;Y1;X4;K\"scale\"\n"
+        "C;Y2;X1;K\"hpea\"\n"
+        "C;Y2;X2;K\"units\\creeps\\Medivh\\Medivh\"\n"
+        "C;Y2;X3;K1\n"
+        "C;Y2;X4;K1\n"
+        "C;Y3;X1;K\"hfoo\"\n"
+        "C;Y3;X2;K\"units\\creeps\\Medivh\\Medivh\"\n"
+        "C;Y3;X3;K1\n"
+        "C;Y3;X4;K1\n"
+        "E\n";
+    static LPCSTR const profile_slk =
+        "ID;PWXL;N;EBB;Y3;X2\n"
+        "C;Y1;X1;K\"unitID\"\n"
+        "C;Y1;X2;K\"animProps\"\n"
+        "C;Y2;X1;K\"hpea\"\n"
+        "C;Y2;X2;K\"\"\n"
+        "C;Y3;X1;K\"hfoo\"\n"
+        "C;Y3;X2;K\"alternateex\"\n"
+        "E\n";
+
+    *ability_rows = parse_slk_string(ability_slk);
+    *ui_rows = parse_slk_string(ui_slk);
+    *profile_rows = parse_slk_string(profile_slk);
+    T_NOT_NULL(*ability_rows); T_NOT_NULL(*ui_rows); T_NOT_NULL(*profile_rows);
+    *old_ability = G_SetSLKRows("AbilityData", *ability_rows);
+    *old_ui = G_SetSLKRows("UnitUI", *ui_rows);
+    *old_profile = G_SetProfileRows(*profile_rows);
+    T_NOT_NULL(*old_ability); T_NOT_NULL(*old_ui); T_NOT_NULL(*old_profile);
+}
+
+static void restore_raven_form_test_data(slkTestData_t *ability_rows, slkTestData_t *old_ability,
+                                         slkTestData_t *ui_rows, slkTestData_t *old_ui,
+                                         slkTestData_t *profile_rows, slkTestData_t *old_profile) {
+    G_SetProfileRows(old_profile);
+    G_SetSLKRows("UnitUI", old_ui);
+    G_SetSLKRows("AbilityData", old_ability);
+    free_slk_rows(profile_rows);
+    free_slk_rows(ui_rows);
+    free_slk_rows(ability_rows);
+}
+
+TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    LPEDICT ent;
+
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    T_ASSERT(G_ActorAddSkill(ent, MAKEFOURCC('A','m','r','f')));
+
+    T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
+    T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
+    T_STREQ(ent->animation_props, "alternateex");
+    T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
+    T_STREQ(ent->animation_props, "");
+
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+TEST(wc3_unit, unravenform_accepts_preplaced_alternate_form) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    LPEDICT ent;
+
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    G_ResetUnitAnimationProperties(ent);
+    T_STREQ(ent->animation_props, "alternateex");
+
+    T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
+    T_STREQ(ent->animation_props, "");
+
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+TEST(wc3_unit, unravenform_snaps_new_animation_frame_while_unit_is_paused) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    LPEDICT ent;
+
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    SP_SpawnUnit(ent);
+    unit_stand(ent);
+    T_NOT_NULL(ent->animation);
+    ent->paused = true;
+    ent->s.frame = 0x7fffffffu;
+
+    T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
+    T_STREQ(ent->animation_props, "");
+    T_NOT_NULL(ent->animation);
+    T_ASSERT(G_AnimationHasPrimary(ent->animation, "stand"));
+    T_EQ(ent->s.frame, ent->animation->interval[0]);
+
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
 TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {
     reset_test_entities();
     LPEDICT worker = make_unit(0, 0);

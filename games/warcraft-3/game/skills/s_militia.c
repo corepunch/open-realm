@@ -165,46 +165,7 @@ static void militia_remove_buff(LPEDICT unit) {
 }
 
 static BOOL militia_transform_type(LPEDICT unit, DWORD type) {
-    LPGAMECLIENT client;
-    FLOAT health_ratio, mana_ratio, temporary_armor;
-    FLOAT temporary_attack1, temporary_attack2;
-    DWORD old_flags;
-
-    if (!unit || !type || !G_UnitUI(type)->modelFile || G_UnitIsBuilding(type)) return false;
-    health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
-    mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
-    temporary_armor = unit->temporary_armor_bonus;
-    temporary_attack1 = unit->attack1.temporaryDamageBonus;
-    temporary_attack2 = unit->attack2.temporaryDamageBonus;
-    old_flags = unit->s.flags;
-
-    G_ClearUnitFood(unit);
-    if (old_flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-    unit->class_id = unit->s.class_id = type;
-    G_BindEntityData(unit);
-    unit->s.flags &= ~(EF_BUILDING | EF_FOW_BLOCKER | EF_FOW_REVEALER);
-    unit->aiflags &= ~(AI_FLYING | AI_IMMOBILE);
-    unit->s.shadow = 0;
-    memset(&unit->attack1, 0, sizeof(unit->attack1));
-    memset(&unit->attack2, 0, sizeof(unit->attack2));
-    unit->permanent_armor_bonus = 0.0f;
-    unit->temporary_armor_bonus = 0.0f;
-    SP_SpawnUnit(unit);
-    unit->health.value = MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio));
-    unit->mana.value = MIN(unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
-    unit->temporary_armor_bonus = temporary_armor;
-    unit->armor_value += temporary_armor;
-    unit->attack1.temporaryDamageBonus = temporary_attack1;
-    unit->attack2.temporaryDamageBonus = temporary_attack2;
-    G_ActivateUnitFood(unit);
-    unit->animation = NULL;
-    gi.LinkEntity(unit);
-    client = G_GetPlayerClientByNumber(unit->s.player);
-    if (client && client->ps.number == unit->s.player) G_InvalidateCommands(client);
-    G_InvalidateUnitInfoPanel(unit);
-    G_InvalidateUnitPortrait(unit);
-    G_InvalidateUnitShortcutsForUnit(unit);
-    return true;
+    return G_TransformUnitType(unit, type);
 }
 
 static void militia_clear_pairing(LPEDICT unit) {
