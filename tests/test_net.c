@@ -1531,6 +1531,48 @@ TEST(client_layout, sprite_numeric_stat_drives_normalized_animation_phase) {
     T_FEQ(ratio, 32768.0f / (FLOAT)UINT16_MAX, 0.00001f);
 }
 
+TEST(client_layout, sprite_sequence_can_be_selected_by_second_stat) {
+    uiFrame_t frame = {
+        .flags = { .type = FT_SPRITE },
+        .tex = { .index = 1 },
+        .stat = UI_PLAYERSTAT_ENV_PHASE,
+        .text = "#0",
+        .value = (FLOAT)UI_PLAYERSTAT_ENV_VARIANT,
+    };
+    RECT screen = MAKE(RECT, 0.0f, 0.6f, 0.0f, 0.0f);
+    FLOAT ratio = -1.0f;
+
+    frame.flagsvalue |= UIFLAG_SPRITE_STAT_SEQUENCE;
+    test_client_stubs_init();
+    cl.models[1] = (LPMODEL)(uintptr_t)1;
+    cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] = 32768;
+    cl.playerstate.stats[UI_PLAYERSTAT_ENV_VARIANT] = 1;
+    test_sprite_anim[0] = '\0'; test_sprite_draws = 0; re.DrawSprite = capture_sprite;
+
+    SCR_LayoutDrawSprite(&frame, &screen);
+    T_EQ(test_sprite_draws, 1);
+    T_EQ(sscanf(test_sprite_anim, "#1@%f", &ratio), 1);
+    T_FEQ(ratio, 32768.0f / (FLOAT)UINT16_MAX, 0.00001f);
+}
+
+TEST(net, environment_variant_stat_roundtrips) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 }, to = { 0 }, out = { 0 };
+    DWORD bits;
+    int number;
+
+    to.number = 3;
+    to.stats[UI_PLAYERSTAT_ENV_VARIANT] = 1;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(number, 3);
+    T_EQ(out.stats[UI_PLAYERSTAT_ENV_VARIANT], 1);
+}
+
 TEST(net, playerstat_pair_after_gameplay_states_roundtrips) {
     DWORD const stat = PLAYERSTATE_LUMBER_GATHERED + 1;
     BYTE buf[256];

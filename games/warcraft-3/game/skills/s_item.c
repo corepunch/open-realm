@@ -10,7 +10,8 @@
 #define ID_ITEM_XP_GAIN        MAKEFOURCC('A', 'I', 'e', 'm')
 #define ID_ITEM_LEVEL_GAIN     MAKEFOURCC('A', 'I', 'l', 'm')
 #define ID_ITEM_FIGURINE       MAKEFOURCC('A', 'I', 'f', 's')
-#define ID_ITEM_DEFENSE_AOE     MAKEFOURCC('A', 'I', 'd', 'a')
+#define ID_ITEM_DEFENSE_AOE    MAKEFOURCC('A', 'I', 'd', 'a')
+#define ID_ITEM_CHANGE_TIME    MAKEFOURCC('A', 'I', 'c', 't')
 
 /* ---- Active items (consume on use) -------------------------------------- */
 
@@ -159,6 +160,24 @@ static BOOL item_defense_aoe_command(LPEDICT clent) {
     return affected != 0;
 }
 
+/* Warsmash itemSimple.json: AIct (itemchangetimeofday) reads DataA/DataB as
+ * hour/minute and Dur as the false-time lifetime.  The false clock is a
+ * simulation override, not a renderer-only tint, so all day/night consumers
+ * see the same temporary time. */
+static BOOL item_change_time_command(LPEDICT clent) {
+    LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
+    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_CHANGE_TIME);
+    LONG hour = (LONG)S_SpellData(code, 1, 1);
+    LONG minute = (LONG)S_SpellData(code, 1, 2);
+    FLOAT duration = S_SpellDuration(code, 1, false);
+
+    if (!caster) {
+        return false;
+    }
+    G_SetFalseTimeOfDay(hour, minute, duration);
+    return true;
+}
+
 /* ---- Ability definitions ------------------------------------------------ */
 
 ability_t a_item_heal = {
@@ -214,4 +233,8 @@ ability_t a_item_level_gain = {
 
 ability_t a_item_defense_aoe = {
     .item_use = item_defense_aoe_command,
+};
+
+ability_t a_item_change_time = {
+    .item_use = item_change_time_command,
 };

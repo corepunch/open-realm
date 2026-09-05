@@ -1115,7 +1115,7 @@ TEST(wc3_combat, registered_reference_ability_codes) {
         "AUcs", "AInv", "Arep", "Aren", "Arst", "Avul", "Apit",
         "Aneu", "Aall", "Acoi", "AIhe", "AIma", "AIat", "AIab",
         "AIim", "AIsm", "AIam", "AIxm", "AIde", "AIml", "AImm",
-        "AIfs", "AImi", "AIem", "AIlm", "Acar", "Aloa", "Adro",
+        "AIfs", "AImi", "AIem", "AIlm", "AIda", "AIct", "Acar", "Aloa", "Adro",
         "Adri", "Aroo"
     };
 

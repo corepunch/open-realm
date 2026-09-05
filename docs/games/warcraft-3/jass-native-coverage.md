@@ -221,9 +221,13 @@ once on a false-to-true transition; integer game-state limit events are not impl
 `TimeOfDayIndicator` now binds to the replicated normalized day phase and the WC3 MDX renderer scrubs its selected sequence with an
 explicit `@ratio`. `SetDayNightModels` now registers the map-authored terrain/unit DNC models, republishes their model indices to
 the client, and the WC3 renderer samples sequence 0 at the same normalized phase to use each model's first light as the corresponding
-base world light. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain placeholders because the inspected Warsmash source does not
-provide a behavior to mirror. See [time-of-day.md](time-of-day.md) for ownership, `Misc` fields, gameplay consumers, HUD
-synchronization, DNC rendering, and the remaining visual-lighting gaps.
+base world light. `AIct` (`itemchangetimeofday`) now follows Warsmash's false-time behavior: authored DataA/DataB/Dur install a
+temporary effective clock, the canonical cycle freezes underneath it, and the HUD selects the clock model's alternate sequence while
+the override is initialized. The Warsmash-extension host native `SetFalseTimeOfDay` is also registered, but is intentionally absent
+from the bundled retail `common.j`; extension scripts must declare it themselves. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain
+placeholders because the inspected Warsmash source does not provide a behavior to mirror. See [time-of-day.md](time-of-day.md) for
+ownership, false-time lifecycle, `Misc` fields, gameplay consumers, HUD synchronization, DNC rendering, and the remaining
+visual-lighting gaps.
 
 ## Trigger Context Contract
 

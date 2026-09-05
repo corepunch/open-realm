@@ -797,6 +797,76 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
     T_FEQ(G_GetTimeOfDay(), 18.005f, 0.001f);
 }
 
+TEST(wc3_time, false_time_overrides_and_freezes_canonical_clock) {
+    FLOAT const tick_seconds = (FLOAT)FRAMETIME / 1000.0f;
+    FLOAT const clock_step = tick_seconds / game.constants.gameDayLength * game.constants.gameDayHours;
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+    T_ASSERT(!G_IsFalseTimeOfDay());
+
+    G_SetFalseTimeOfDay(0, 0, tick_seconds * 3.0f);
+    /* Warsmash initializes the false clock on its first simulation tick. */
+    T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+    T_ASSERT(!G_IsFalseTimeOfDay());
+
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 0.0f, 0.001f);
+    T_ASSERT(G_IsFalseTimeOfDay());
+    T_ASSERT(G_IsNight());
+    T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_ENV_VARIANT], 1);
+
+    /* Explicit SetTimeOfDay retargets the false clock, not the frozen
+     * canonical clock, while the override exists. */
+    G_SetTimeOfDay(18.5f);
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 18.5f, 0.001f);
+    T_ASSERT(G_IsFalseTimeOfDay());
+
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
+    T_ASSERT(!G_IsFalseTimeOfDay());
+    T_ASSERT(!G_IsNight());
+    T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_ENV_VARIANT], 0);
+
+    G_UpdateTimeOfDay();
+    T_FEQ(G_GetTimeOfDay(), 12.0f + clock_step, 0.001f);
+}
+
+TEST(wc3_time, warsmash_false_time_native_can_be_declared_by_extension_script) {
+    T_ASSERT(run_test_jass(
+        "native SetFalseTimeOfDay takes integer hour, integer minute, real duration returns nothing\n"
+        "function main takes nothing returns nothing\n"
+        "  call SetFalseTimeOfDay(21, 15, 2.0)\n"
+        "endfunction\n"));
+    T_ASSERT(level.timeofday.false_time.active);
+    T_ASSERT(!level.timeofday.false_time.initialized);
+    T_EQ(level.timeofday.false_time.hour, 21);
+    T_EQ(level.timeofday.false_time.minute, 15);
+}
+
+TEST(wc3_time, false_time_transition_drives_game_state_events) {
+    FLOAT const step = (FLOAT)FRAMETIME / 1000.0f;
+    DWORD writes;
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterGameStateEvent(t, GAME_STATE_TIME_OF_DAY, GREATER_THAN_OR_EQUAL, 18.0)\n"
+        "endfunction\n"));
+    writes = level.events.write;
+
+    G_SetFalseTimeOfDay(21, 0, step * 3.0f);
+    /* Creation is deliberately uninitialized, so the event enters its
+     * condition when the first simulation tick exposes the false clock. */
+    T_EQ(level.events.write, writes);
+    G_UpdateTimeOfDay();
+    T_EQ(level.events.write, writes + 1);
+}
+
 TEST(wc3_time, set_day_night_models_publishes_registered_dnc_models) {
     int (*old_model_index)(LPCSTR) = gi.ModelIndex;
     void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;

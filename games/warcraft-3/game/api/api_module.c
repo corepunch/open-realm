@@ -718,6 +718,7 @@ JASSMODULE jass_funcs[] = {
     { "EnableUserControl", EnableUserControl },
     { "EnableUserUI", EnableUserUI },
     { "SuspendTimeOfDay", SuspendTimeOfDay },
+    { "SetFalseTimeOfDay", SetFalseTimeOfDay },
     { "SetTimeOfDayScale", SetTimeOfDayScale },
     { "GetTimeOfDayScale", GetTimeOfDayScale },
     { "ShowInterface", ShowInterface },

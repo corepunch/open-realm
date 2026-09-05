@@ -37,6 +37,7 @@ struct edict_s *g_edicts;
 extern JASSMODULE jass_funcs[];
 
 static void G_StartScripts(void);
+static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after);
 
 static BOOL G_TimeLimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     switch (op) {
@@ -50,13 +51,21 @@ static BOOL G_TimeLimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     }
 }
 
-FLOAT G_GetTimeOfDay(void) {
+static FLOAT G_GetCanonicalTimeOfDay(void) {
     FLOAT const day_hours = game.constants.gameDayHours;
     FLOAT const day_length = game.constants.gameDayLength;
 
     if (day_hours <= 0.0f || day_length <= 0.0f)
         return 0.0f;
     return (level.timeofday.elapsed / day_length) * day_hours;
+}
+
+FLOAT G_GetTimeOfDay(void) {
+    FALSE_TIMEOFDAY const *false_time = &level.timeofday.false_time;
+
+    if (false_time->active && false_time->initialized)
+        return (FLOAT)false_time->hour + (FLOAT)false_time->minute / 60.0f;
+    return G_GetCanonicalTimeOfDay();
 }
 
 void G_SetTimeOfDay(FLOAT value) {
@@ -66,6 +75,38 @@ void G_SetTimeOfDay(FLOAT value) {
 
 void G_SuspendTimeOfDay(BOOL suspended) {
     level.timeofday.suspended = suspended;
+}
+
+static void G_SetFalseTimeOfDayValue(FLOAT value) {
+    FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+    LONG const hour = (LONG)value;
+
+    false_time->hour = hour;
+    false_time->minute = (LONG)((value - (FLOAT)hour) * 60.0f);
+}
+
+void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration) {
+    FLOAT const before = G_GetTimeOfDay();
+    FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+    FLOAT const step = (FLOAT)FRAMETIME / 1000.0f;
+
+    *false_time = (FALSE_TIMEOFDAY){
+        .hour = hour,
+        .minute = minute,
+        .ticks_remaining = step > 0.0f ? (LONG)(duration / step) : 0,
+        .active = true,
+        .initialized = false,
+    };
+
+    /* Warsmash exposes an existing false clock as the "before" value, then
+     * replaces it with an uninitialized false clock.  The new clock becomes
+     * effective on the next simulation tick, just like its Java state object. */
+    G_CheckTimeOfDayEvents(before, G_GetTimeOfDay());
+}
+
+BOOL G_IsFalseTimeOfDay(void) {
+    FALSE_TIMEOFDAY const *false_time = &level.timeofday.false_time;
+    return false_time->active && false_time->initialized;
 }
 
 /* Publish one normalized cycle value through an already-replicated player stat.
@@ -79,8 +120,10 @@ static void G_PublishTimeOfDayPhase(void) {
     if (!isfinite(phase)) phase = 0.0f;
     phase = MAX(0.0f, MIN(phase, 1.0f));
     packed = (USHORT)lroundf(phase * (FLOAT)USHRT_MAX);
-    FOR_LOOP(i, game.max_clients)
+    FOR_LOOP(i, game.max_clients) {
         game.clients[i].ps.stats[UI_PLAYERSTAT_ENV_PHASE] = packed;
+        game.clients[i].ps.stats[UI_PLAYERSTAT_ENV_VARIANT] = G_IsFalseTimeOfDay() ? 1 : 0;
+    }
 }
 
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
@@ -109,14 +152,27 @@ void G_UpdateTimeOfDay(void) {
     }
 
     before = G_GetTimeOfDay();
-    if (level.timeofday.pending_valid) {
-        level.timeofday.elapsed =
-            (level.timeofday.pending / day_hours) * day_length;
-        level.timeofday.pending_valid = false;
-    } else if (!level.timeofday.suspended) {
-        level.timeofday.elapsed = fmodf(
-            level.timeofday.elapsed + (FLOAT)FRAMETIME / 1000.0f,
-            day_length);
+    if (level.timeofday.false_time.active) {
+        FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+
+        if (level.timeofday.pending_valid) {
+            G_SetFalseTimeOfDayValue(level.timeofday.pending);
+            level.timeofday.pending_valid = false;
+        }
+        false_time->initialized = true;
+        false_time->ticks_remaining--;
+        if (false_time->ticks_remaining <= 0)
+            memset(false_time, 0, sizeof(*false_time));
+    } else {
+        if (level.timeofday.pending_valid) {
+            level.timeofday.elapsed =
+                (level.timeofday.pending / day_hours) * day_length;
+            level.timeofday.pending_valid = false;
+        } else if (!level.timeofday.suspended) {
+            level.timeofday.elapsed = fmodf(
+                level.timeofday.elapsed + (FLOAT)FRAMETIME / 1000.0f,
+                day_length);
+        }
     }
     after = G_GetTimeOfDay();
     G_CheckTimeOfDayEvents(before, after);

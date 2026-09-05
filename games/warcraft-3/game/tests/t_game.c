@@ -1617,7 +1617,19 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     };
     level.framenum = 1234;
     level.time = 5678;
-    level.timeofday = (TIMEOFDAY){ .elapsed = 240.0f, .pending = 18.0f, .pending_valid = true, .suspended = true };
+    level.timeofday = (TIMEOFDAY){
+        .elapsed = 240.0f,
+        .pending = 18.0f,
+        .pending_valid = true,
+        .suspended = true,
+        .false_time = {
+            .hour = 23,
+            .minute = 45,
+            .ticks_remaining = 321,
+            .active = true,
+            .initialized = true,
+        },
+    };
     level.started = true;
     level.scriptsStarted = true;
     game.clients[0].jass.race_pref = 2;
@@ -1683,6 +1695,10 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.timeofday.elapsed, 240.0f, 0.001f);
     T_FEQ(level.timeofday.pending, 18.0f, 0.001f);
     T_ASSERT(level.timeofday.pending_valid && level.timeofday.suspended);
+    T_EQ(level.timeofday.false_time.hour, 23);
+    T_EQ(level.timeofday.false_time.minute, 45);
+    T_EQ(level.timeofday.false_time.ticks_remaining, 321);
+    T_ASSERT(level.timeofday.false_time.active && level.timeofday.false_time.initialized);
     T_ASSERT(level.started && level.scriptsStarted);
     T_EQ(game.clients[0].jass.race_pref, 2);
     T_EQ(game.clients[0].jass.controller, 1);
