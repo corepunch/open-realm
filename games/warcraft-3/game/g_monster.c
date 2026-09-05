@@ -543,6 +543,10 @@ void SP_SpawnUnit(LPEDICT self) {
     self->health.max_value = b->maxHealth;
     self->invulnerable = G_ActorHasSkill(self, "Avul");
     self->unitinfo.MoveSpeed = b->speed;
+    /* Warcraft object data owns model altitude.  Keep the mutable current
+     * height separate from terrain support so SetUnitFlyHeight can change it
+     * without losing the unit type's authored moveHeight/default. */
+    self->unitinfo.FlyHeight = d->moveHeight;
     self->runtime.sight_radius.day = b->sightRadius;
     self->runtime.sight_radius.night = b->nightSightRadius;
     /* Unit-table values are immutable after spawn; cache them before the per-frame AI/FOW paths consume them. */
@@ -645,6 +649,9 @@ void SP_SpawnUnit(LPEDICT self) {
             self->collision = get_unit_collision(self->pathtex);
         }
     }
+    /* Establish the authored altitude immediately; MOVETYPE_STEP will refresh
+     * the same support-surface calculation each simulation frame. */
+    M_CheckGround(self);
     G_RegisterUnitSounds(self);
 }
 
@@ -665,19 +672,45 @@ void G_UnregisterGroundSurface(LPEDICT ent) {
 
 void G_ClearGroundSurfaces(void) { level.ground_surfaces = NULL; }
 
-/* A live walkable destructable replaces the lower terrain inside its authored pathing footprint. */
+static LPCSTR M_UnitMoveTypeName(LPCEDICT self) {
+    return self && self->data.UnitData ? self->data.UnitData->moveTypeName : NULL;
+}
+
+static BOOL M_UnitUsesWaterSurface(LPCEDICT self, LPCSTR movetp) {
+    if (!movetp) return false;
+    if (!strcmp(movetp, "fly") || !strcmp(movetp, "hover") || !strcmp(movetp, "float"))
+        return true;
+    if (!strcmp(movetp, "amph")) {
+        return CM_TerrainPointIsSwimmable(&self->s.origin2) &&
+               !CM_TerrainPointIsWalkable(&self->s.origin2);
+    }
+    return false;
+}
+
+/* Resolve the visual/support surface, then apply the unit's mutable fly height.
+ * FOOT/HORSE stay terrain-based; FLY/HOVER/FLOAT and swimming AMPH units use
+ * max(terrain, water).  Walkable destructables can raise every movement type
+ * except FLOAT, matching Warsmash's "boats can't go on bridges" rule. */
 void M_CheckGround(LPEDICT self) {
+    LPCSTR const movetp = M_UnitMoveTypeName(self);
+    BOOL const floating = movetp && !strcmp(movetp, "float");
     FLOAT height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
     FLOAT const cell = CM_PathCellWorldSize();
-    for (LPEDICT surface = level.ground_surfaces; surface; surface = surface->ground_next) {
-        pathTex_t const *pathtex = surface->pathtex;
-        if (!surface->inuse || surface->destructable.dead ||
-            !surface->destructable.placement_solid || !pathtex) continue;
-        if (fabsf(self->s.origin.x - surface->s.origin.x) > pathtex->width * cell * 0.5f ||
-            fabsf(self->s.origin.y - surface->s.origin.y) > pathtex->height * cell * 0.5f) continue;
-        height = MAX(height, surface->s.origin.z);
+
+    if (M_UnitUsesWaterSurface(self, movetp))
+        height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
+
+    if (!floating) {
+        for (LPEDICT surface = level.ground_surfaces; surface; surface = surface->ground_next) {
+            pathTex_t const *pathtex = surface->pathtex;
+            if (!surface->inuse || surface->destructable.dead ||
+                !surface->destructable.placement_solid || !pathtex) continue;
+            if (fabsf(self->s.origin.x - surface->s.origin.x) > pathtex->width * cell * 0.5f ||
+                fabsf(self->s.origin.y - surface->s.origin.y) > pathtex->height * cell * 0.5f) continue;
+            height = MAX(height, surface->s.origin.z);
+        }
     }
-    self->s.origin.z = height;
+    self->s.origin.z = height + self->unitinfo.FlyHeight;
 }
 
 BOOL M_CheckAttack(LPEDICT self) {

@@ -49,7 +49,11 @@ void SV_Physics_Step(LPEDICT ent) {
  * projectile hits, deals damage via T_Damage(), and is freed. */
 void SV_Physics_Toss(LPEDICT ent) {
     FLOAT distance = ent->velocity * FRAMETIME;
-    VECTOR3 dir = Vector3_sub(&ent->goalentity->s.origin, &ent->s.origin);
+    VECTOR3 target = ent->goalentity->s.origin;
+    /* s.origin already contains support surface + current FlyHeight.  ImpactZ
+     * is the model-local target point on top of that airborne/ground origin. */
+    target.z += G_UnitImpactZ(ent->goalentity->class_id);
+    VECTOR3 dir = Vector3_sub(&target, &ent->s.origin);
     if (Vector3_len(&dir) < distance) {
         if (ent->currentmove && ent->currentmove->endfunc) {
             ent->currentmove->endfunc(ent);

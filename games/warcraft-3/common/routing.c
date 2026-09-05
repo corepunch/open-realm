@@ -717,6 +717,31 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags) {
     return true;
 }
 
+/* Movement-mode classification must use the immutable terrain WPM rather than
+ * baked/static obstacles: amphibious units swim only where the authored terrain
+ * is swimmable and not walkable, matching Warsmash's terrain-pathing check. */
+static pathMapCell_t const *terrain_cell_at(LPCVECTOR2 location) {
+    VECTOR2 n;
+    int x, y;
+
+    if (!location || !pathmap.terrain || !pathmap.width || !pathmap.height) return NULL;
+    n = CM_GetNormalizedMapPosition(location->x, location->y);
+    x = (int)floorf(n.x * pathmap.width);
+    y = (int)floorf(n.y * pathmap.height);
+    if (x < 0 || y < 0 || !is_valid_point((DWORD)x, (DWORD)y)) return NULL;
+    return &pathmap.terrain[x + y * pathmap.width];
+}
+
+BOOL CM_TerrainPointIsWalkable(LPCVECTOR2 location) {
+    pathMapCell_t const *cell = terrain_cell_at(location);
+    return cell ? !cell->nowalk : true;
+}
+
+BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location) {
+    pathMapCell_t const *cell = terrain_cell_at(location);
+    return cell ? !cell->nowater : false;
+}
+
 BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius) {
     if (!a || !b)
         return false;

@@ -96,6 +96,7 @@ as gameplay instead of returning to `sheetRow_t`. Add fields to the owning row a
 | `UNIT_TURN_RATE` | `umvr` | radians/sec turn rate |
 | `UNIT_COLLISION` | `ucol` | collision radius for unit-vs-unit separation (e.g. Peasant=16). TFT stores it in `UnitBalance.slk`; ROC stores it in `UnitData.slk`. Buildings use pathing texture footprint instead (their collisionSize is ~0) |
 | `UNIT_MOVE_TYPE_NAME` | `umvt` | **string** enum: `"foot"/"fly"/"hover"/"float"/"amph"/"horse"` — use `_NAME` variant |
+| `UNIT_MOVE_HEIGHT` | `umvh` | authored default fly/model-origin height above the selected support surface; copied to mutable `unitinfo.FlyHeight` at spawn |
 | `UNIT_SIGHT_RADIUS` | `usid` | daytime sight range |
 | `UNIT_SIGHT_RADIUS_NIGHT` | `usin` | nighttime sight range |
 
@@ -174,6 +175,7 @@ This is the Warsmash/WC3 exponential negative-armor curve. Minimum final physica
 Attack-type/defense-type rows are also loaded from the active `DamageBonus*` Misc fields rather than being fixed in `s_attack.c`; if `DamageBonusSpells` is absent, the active Magic row is used as Warsmash's fallback. Basic missile attacks roll at launch and apply type/armor mitigation at impact.
 
 See [Attack Damage](games/warcraft-3/attack-damage.md) for the runtime modifier and timing contract.
+See [Unit Altitude And Support Surfaces](games/warcraft-3/unit-altitude.md) for `moveHeight`, water/bridge support Z, fly-height natives, and projectile impact-height placement.
 
 ### Defense Type Is a String
 `defType` in `UnitBalance.slk` is a string column (`"large"`, `"medium"`, etc.), not an integer. `atoi` returns 0 for every unit. Use `FindEnumValue` against the `defense_type[]` enum table. Base armor is `udef`; load `udfc` (realdef) at spawn.

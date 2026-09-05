@@ -269,6 +269,9 @@ FLOAT CM_PathCellWorldSize(void);
 BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy);
+FLOAT CM_GetWaterHeightAtPoint(FLOAT sx, FLOAT sy);
+BOOL CM_TerrainPointIsWalkable(LPCVECTOR2 location);
+BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location);
 FLOAT CM_GetCameraHeightOffset(void);
 BOX2 CM_GetWorldBounds(void);
 

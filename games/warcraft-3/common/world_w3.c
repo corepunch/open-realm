@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "common/ui_constants.h"
+#include <float.h>
 
 BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     if (!camera) return false;
@@ -40,6 +41,11 @@ static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
 static FLOAT CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
 	if (!vert) return 0;
 	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
+}
+
+static FLOAT CM_GetWar3MapVertexWaterHeight(LPCWAR3MAPVERTEX vert) {
+    if (!vert) return -FLT_MAX;
+    return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
 }
 
 void CM_ReadPathMap(HANDLE archive);
@@ -138,6 +144,21 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
     FLOAT b = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy));
     FLOAT c = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy + 1));
     FLOAT d = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
+    FLOAT ab = LerpNumber(a, b, x - fx);
+    FLOAT cd = LerpNumber(c, d, x - fx);
+    return LerpNumber(ab, cd, y - fy);
+}
+
+FLOAT CM_GetWaterHeightAtPoint(FLOAT sx, FLOAT sy) {
+    if (!world.map || !world.map->vertices) return -FLT_MAX;
+    FLOAT x = (sx - world.map->center.x) / TILE_SIZE;
+    FLOAT y = (sy - world.map->center.y) / TILE_SIZE;
+    FLOAT fx = floorf(x);
+    FLOAT fy = floorf(y);
+    FLOAT a = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy));
+    FLOAT b = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy));
+    FLOAT c = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy + 1));
+    FLOAT d = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
     FLOAT ab = LerpNumber(a, b, x - fx);
     FLOAT cd = LerpNumber(c, d, x - fx);
     return LerpNumber(ab, cd, y - fy);

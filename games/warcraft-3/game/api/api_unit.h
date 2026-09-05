@@ -33,7 +33,24 @@ UNIT_TYPED_ACCESS(PositionLoc, s.origin2, location);
 UNIT_ACCESS(X, s.origin.x);
 UNIT_ACCESS(Y, s.origin.y);
 UNITINFO_ACCESS(MoveSpeed);
-UNITINFO_ACCESS(FlyHeight);
+
+DWORD SetUnitFlyHeight(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    FLOAT const newHeight = jass_checknumber(j, 2);
+    (void)jass_checknumber(j, 3); /* Warsmash currently ignores rate too. */
+    if (whichUnit) {
+        whichUnit->unitinfo.FlyHeight = newHeight;
+        M_CheckGround(whichUnit);
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+        gi.LinkEntity(whichUnit);
+    }
+    return 0;
+}
+
+DWORD GetUnitFlyHeight(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.FlyHeight : 0);
+}
 UNITINFO_ACCESS(TurnSpeed);
 UNITINFO_ACCESS(PropWindow);
 UNITINFO_ACCESS(AcquireRange);
@@ -153,7 +170,8 @@ DWORD GetUnitDefaultPropWindow(LPJASS j) {
 }
 DWORD GetUnitDefaultFlyHeight(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.FlyHeight : 0);
+    return jass_pushnumber(j, whichUnit && whichUnit->data.UnitData
+        ? whichUnit->data.UnitData->moveHeight : 0);
 }
 DWORD SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

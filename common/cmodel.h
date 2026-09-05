@@ -46,6 +46,7 @@ bool CM_LoadMap(LPCSTR mapFilename);
 DWORD CM_GetMapChecksum(void);
 BOOL CM_IsMapLoaded(LPCSTR mapFilename);
 float CM_GetHeightAtPoint(float sx, float sy);
+float CM_GetWaterHeightAtPoint(float sx, float sy);
 LPDOODAD CM_GetDoodads(void);
 //LPCMAPPLAYER CM_GetPlayer(DWORD index);
 DWORD CM_GetLocalPlayerNumber(void);
@@ -58,6 +59,8 @@ BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);
+BOOL CM_TerrainPointIsWalkable(LPCVECTOR2 location);
+BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location);
 BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out);
 BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);

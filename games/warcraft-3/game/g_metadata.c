@@ -1302,6 +1302,14 @@ FLOAT G_UnitAttack1LaunchZ(DWORD id) {
     return d ? d->launchOffsetZ : 0.f;
 }
 
+/* Target impact height moved from UnitData (ROC) to UnitWeapons (TFT). */
+FLOAT G_UnitImpactZ(DWORD id) {
+    UnitWeapons_t const *w = G_UnitWeapons(id);
+    if (w && w->impactHeight != 0.f) return w->impactHeight;
+    UnitData_t const *d = G_UnitData(id);
+    return d ? d->impactHeight : 0.f;
+}
+
 /* Is-building moved from UnitUI (ROC) to UnitBalance (TFT). */
 BOOL G_UnitIsBuilding(DWORD id) {
     UnitBalance_t const *b = G_UnitBalance(id);

@@ -2388,6 +2388,54 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     T_FEQ(unit->s.origin.z, CM_GetHeightAtPoint(unit->s.origin.x, unit->s.origin.y), 0.01f);
 }
 
+static void set_uniform_test_water_height(FLOAT height) {
+    LPWAR3MAPVERTEX vertices = (LPWAR3MAPVERTEX)world.map->vertices;
+    WORD const encoded = (WORD)(0x2000 + (height + WATER_HEIGHT_COR) * 4.0f);
+    DWORD const count = world.map->width * world.map->height;
+    FOR_LOOP(i, count) vertices[i].waterlevel = encoded;
+}
+
+TEST(wc3_movement, fly_height_is_added_to_support_surface) {
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    FLOAT const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);
+
+    unit->unitinfo.FlyHeight = 300.0f;
+    M_CheckGround(unit);
+
+    T_FEQ(unit->s.origin.z, terrain + 300.0f, 0.01f);
+}
+
+TEST(wc3_movement, flyer_uses_water_surface_before_fly_height) {
+    static UnitData_t const fly_data = { .moveTypeName = "fly" };
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+
+    unit->data.UnitData = &fly_data;
+    unit->unitinfo.FlyHeight = 300.0f;
+    set_uniform_test_water_height(64.0f);
+    M_CheckGround(unit);
+
+    T_FEQ(unit->s.origin.z, 364.0f, 0.01f);
+}
+
+TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
+    static UnitData_t const float_data = { .moveTypeName = "float" };
+    static DestructableData_t const bridge_data = { .walkable = true };
+    struct { WORD width, height; COLOR32 map[4]; } bridge_path = { .width = 2, .height = 2 };
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    LPEDICT bridge = G_Spawn();
+
+    unit->data.UnitData = &float_data;
+    set_uniform_test_water_height(32.0f);
+    bridge->data.DestructableData = &bridge_data;
+    bridge->destructable.initialized = bridge->destructable.placement_solid = true;
+    bridge->pathtex = (pathTex_t *)&bridge_path;
+    bridge->s.origin = MAKE(VECTOR3, 0.0f, 0.0f, 96.0f);
+    G_RegisterGroundSurface(bridge);
+    M_CheckGround(unit);
+
+    T_FEQ(unit->s.origin.z, 32.0f, 0.01f);
+}
+
 /* WPM water stays unwalkable; only the explicitly passable bridge lane may connect its banks. */
 TEST(wc3_movement, water_is_blocked_except_at_authored_bridge_lane) {
     BYTE pathmap[15] = { 0 };

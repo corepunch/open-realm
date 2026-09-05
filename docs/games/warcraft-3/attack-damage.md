@@ -174,3 +174,7 @@ Relevant source/tests:
 - `games/warcraft-3/game/tests/t_building.c`
 
 The combat tests cover representative type multipliers, Divine, data-driven constants, positive/negative armor, Hero modifier preservation, and the attack-speed cap. Research tests cover `ratx` level-delta semantics.
+
+## See Also
+
+- [Unit Altitude And Support Surfaces](unit-altitude.md) — projectile target Z adds the target model-origin altitude and authored `impactZ`.
