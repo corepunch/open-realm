@@ -11,7 +11,27 @@
 #define IDLE_WORKER_Y         0.4145f
 #define IDLE_WORKER_SIZE      0.0340f
 
-static void UI_WriteShortcutNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD number) {
+static DWORD UI_WriteShortcutRoot(void) {
+    uiFrame_t frame;
+    DWORD number = ui_next_frame_number;
+
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_SIMPLEFRAME;
+    frame.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X;
+    UI_SetFrameRect(&frame, 0.0f, 0.0f, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+    UI_WriteProxyFrame(&frame, NULL, 0);
+    return number;
+}
+
+static void UI_SetShortcutRect(LPUIFRAME frame, DWORD parent,
+                               FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
+    frame->parent = parent;
+    UI_SetFrameRect(frame, x, y, w, h);
+    frame->points.x[FPP_MIN].relativeTo = UI_PARENT;
+    frame->points.y[FPP_MIN].relativeTo = UI_PARENT;
+}
+
+static void UI_WriteShortcutNumber(DWORD parent, FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD number) {
     uiFrame_t frame;
     uiLabel_t label;
     char text[16];
@@ -26,11 +46,11 @@ static void UI_WriteShortcutNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD num
     label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
     label.textalignx = FONT_JUSTIFYRIGHT;
     label.textaligny = FONT_JUSTIFYBOTTOM;
-    UI_SetFrameRect(&frame, x + 0.001f, y + 0.001f, w - 0.002f, h - 0.002f);
+    UI_SetShortcutRect(&frame, parent, x + 0.001f, y + 0.001f, w - 0.002f, h - 0.002f);
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void UI_WriteUnitShortcutButton(FLOAT x, FLOAT y, FLOAT size, LPCEDICT unit,
+static void UI_WriteUnitShortcutButton(DWORD parent, FLOAT x, FLOAT y, FLOAT size, LPCEDICT unit,
                                        LPCSTR command, LPCSTR tooltip) {
     uiFrame_t frame;
     LPCSTR art;
@@ -42,7 +62,7 @@ static void UI_WriteUnitShortcutButton(FLOAT x, FLOAT y, FLOAT size, LPCEDICT un
     frame.tex.index = gi.ImageIndex(art);
     frame.onclick = command;
     frame.tooltip = tooltip;
-    UI_SetFrameRect(&frame, x, y, size, size);
+    UI_SetShortcutRect(&frame, parent, x, y, size, size);
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
@@ -52,6 +72,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
     LPEDICT wrap_idle = NULL;
     DWORD hero_slot = 0;
     DWORD idle_count = 0;
+    DWORD shortcut_root;
     char command[64];
     char tooltip[128];
 
@@ -59,6 +80,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
     UI_SetCurrentClient(client);
     UI_WriteStart(LAYER_UNIT_SHORTCUTS);
+    shortcut_root = UI_WriteShortcutRoot();
 
     /* One entity pass per dirty rebuild: emit Hero buttons while also counting
      * workers and choosing the next cycle target. */
@@ -72,7 +94,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
             snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
             snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
-            UI_WriteUnitShortcutButton(HERO_SHORTCUT_X,
+            UI_WriteUnitShortcutButton(shortcut_root, HERO_SHORTCUT_X,
                                        HERO_SHORTCUT_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
                                        HERO_SHORTCUT_SIZE, unit, command, tooltip);
             hero_slot++;
@@ -88,9 +110,9 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
     if (idle_count && next_idle) {
         DWORD number = (DWORD)(next_idle - globals.edicts);
         snprintf(command, sizeof(command), "idleworker %u", (unsigned)number);
-        UI_WriteUnitShortcutButton(IDLE_WORKER_X, IDLE_WORKER_Y, IDLE_WORKER_SIZE,
+        UI_WriteUnitShortcutButton(shortcut_root, IDLE_WORKER_X, IDLE_WORKER_Y, IDLE_WORKER_SIZE,
                                    next_idle, command, "Select Idle Worker");
-        UI_WriteShortcutNumber(IDLE_WORKER_X, IDLE_WORKER_Y,
+        UI_WriteShortcutNumber(shortcut_root, IDLE_WORKER_X, IDLE_WORKER_Y,
                                IDLE_WORKER_SIZE, IDLE_WORKER_SIZE, idle_count);
     }
 

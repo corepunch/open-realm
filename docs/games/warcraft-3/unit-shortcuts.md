@@ -114,10 +114,12 @@ No `entityState_t` or `playerState_t` network fields are added.
 `games/warcraft-3/game/hud/hud_shortcuts.c` owns the layout constants.
 
 - Hero buttons start at the top-left edge of the rendered world immediately below the upper menu and stack vertically.
-- The idle-worker button is immediately above the minimap.
+- The idle-worker button keeps its authored vertical position immediately above the minimap on 4:3, but on widescreen its horizontal offset is measured from the physical left edge rather than from the centered 4:3 HUD safe area.
 - The idle-worker count is a bottom-right text overlay on the worker icon.
 
-Both use `FT_COMMANDBUTTON`, so they share the existing server-authored click/tooltip path rather than adding client-specific gameplay widgets.
+The shortcut layer emits an invisible `FT_SIMPLEFRAME` root with `UIFLAG_EXTEND_WIDESCREEN_X`. Hero buttons, the idle-worker button, and its count are parented to that root using the same authored offsets and sizes as before. On 4:3 the root is still `0.8 x 0.6`, so placement is unchanged; on a wider display only the root expands to the full UI canvas, putting the shortcut controls against the physical left edge while the normal ConsoleUI remains centered in its 4:3 safe area.
+
+Both buttons use `FT_COMMANDBUTTON`, so they share the existing server-authored click/tooltip path rather than adding client-specific gameplay widgets.
 
 ## Lifecycle And Visibility
 
