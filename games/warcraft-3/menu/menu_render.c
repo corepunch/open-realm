@@ -168,6 +168,13 @@ RECT UI_GetSceneRect(void) {
     return scene_rect;
 }
 
+RECT UI_GetCenteredSceneRect(void) {
+    RECT scene = UI_GetSceneRect();
+    if (scene.w > UI_BASE_WIDTH)
+        scene.x = (scene.w - UI_BASE_WIDTH) * 0.5f, scene.w = UI_BASE_WIDTH;
+    return scene;
+}
+
 static VECTOR2 UI_GetXBounds(LPCRECT rect) {
     return (VECTOR2) { rect->x, rect->x + rect->w };
 }
@@ -843,6 +850,7 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
  * game configstring index, not a UI-cache model. Mirrors UI_LayoutDrawPortrait. */
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = menuimport.GetRenderer();
+    FLOAT x = rect->x;
 
     if (frame->Texture.Image) {
         UI_DrawTexture(frame, rect);
@@ -863,7 +871,12 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
     }
     
     LPCSTR anim = (frame->Text && *frame->Text) ? frame->Text : "Stand";
-    renderer->DrawSprite(model, anim, rect->x, rect->y);
+    /* #! sprite sequences contain authored screen coordinates.  A fullscreen
+     * 4:3 sprite keeps that geometry; center it inside the expanded canvas
+     * instead of pretending that enlarging its FDF frame scales the MDX. */
+    if (anim && anim[0] == '#' && anim[1] == '!' && rect->w > UI_BASE_WIDTH)
+        x += (rect->w - UI_BASE_WIDTH) * 0.5f;
+    renderer->DrawSprite(model, anim, x, rect->y);
 }
 
 static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
@@ -1258,7 +1271,7 @@ void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
     }
 }
 
-void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
+void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, DWORD num_roots, LPCRECT scene) {
     LPCFRAMEDEF draw_order[MAX_UI_CLASSES];
     DWORD total;
     DWORD count;
@@ -1274,7 +1287,8 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     memset(runtimes, 0, sizeof(runtimes));
     
     /* Initialize scene rect */
-    scene_rect = UI_GetSceneRect();
+    scene_rect = scene ? *scene : UI_GetSceneRect();
+    scene_rect_valid = TRUE;
     total = 0;
     FOR_LOOP(i, num_roots) {
         DWORD emitted;
@@ -1310,6 +1324,14 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     }
 }
 
+void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
+    UI_DrawFramesInScene(roots, num_roots, NULL);
+}
+
 void UI_DrawFrame(LPCFRAMEDEF frame) {
-    UI_DrawFrames(&frame, 1);
+    UI_DrawFrameInScene(frame, NULL);
+}
+
+void UI_DrawFrameInScene(LPCFRAMEDEF frame, LPCRECT scene) {
+    UI_DrawFramesInScene(&frame, 1, scene);
 }

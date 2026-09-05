@@ -378,6 +378,8 @@ static void UI_UpdateLoadingMapInfo(void) {
 }
 
 static void M_DrawLoadingScreen(void) {
+    RECT scene;
+
     if (!loading_screen.Loading) return;
     if (loading_screen.LoadingBackground) {
         snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u", (unsigned)loading_state.background_sequence);
@@ -392,7 +394,8 @@ static void M_DrawLoadingScreen(void) {
     if (loading_screen.LoadingTitleText) UI_SetTextPointer(loading_screen.LoadingTitleText, loading_state.title);
     if (loading_screen.LoadingSubtitleText) UI_SetTextPointer(loading_screen.LoadingSubtitleText, loading_state.subtitle);
     if (loading_screen.LoadingText) UI_SetTextPointer(loading_screen.LoadingText, loading_state.text);
-    UI_DrawFrame(loading_screen.Loading);
+    scene = UI_GetCenteredSceneRect();
+    UI_DrawFrameInScene(loading_screen.Loading, &scene);
 }
 
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
