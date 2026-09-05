@@ -273,6 +273,16 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_FEQ(gc->ps.viewangles.x, 326.0f, 0.001f); T_FEQ(gc->ps.viewangles.z, 0.0f, 0.001f);
 }
 
+TEST(wc3_api, fly_height_native_keeps_authored_default_separate) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call SetUnitFlyHeight(u, 123.0, 0.0)\n"
+        "  call BJassAssert(R2I(GetUnitFlyHeight(u)) == 123, \"current fly height was not updated\")\n"
+        "  call BJassAssert(R2I(GetUnitDefaultFlyHeight(u)) != 123, \"default fly height became mutable\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
     LPEDICT entering = NULL;
     LPEVENT handler = NULL;

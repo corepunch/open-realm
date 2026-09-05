@@ -471,6 +471,7 @@ FLOAT G_UnitCastPoint(DWORD id); /* TFT UnitWeapons.castpt → ROC UnitData.cast
 FLOAT G_UnitAttack1LaunchX(DWORD id); /* TFT UnitWeapons.launchX → ROC UnitData.launchX */
 FLOAT G_UnitAttack1LaunchY(DWORD id); /* TFT UnitWeapons.launchY → ROC UnitData.launchY */
 FLOAT G_UnitAttack1LaunchZ(DWORD id); /* TFT UnitWeapons.launchZ → ROC UnitData.launchZ */
+FLOAT G_UnitImpactZ(DWORD id); /* TFT UnitWeapons.impactZ → ROC UnitData.impactZ */
 BOOL G_UnitIsBuilding(DWORD id); /* TFT UnitBalance.isbldg → ROC UnitUI.isbldg */
 
 #endif /* g_unitrow_h */
