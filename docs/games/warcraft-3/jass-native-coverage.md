@@ -121,6 +121,12 @@ map, `RestartGame` reloads the current `map` cvar, `DisplayLoadDialog` enters th
 `ForceCampaignSelectScreen` returns to campaign selection. The `doScoreScreen` parameter is consumed but score-screen
 presentation is not implemented yet.
 
+`PlayCinematic` now queues `Movies\<name>.mpq` through `gi.QueueMovie`. When the script subsequently requests a map/menu
+session action, the client pauses the outgoing simulation, plays the pre-rendered movie through the optional FFmpeg
+backend, then resumes that deferred action after EOF or Escape. Builds without `FFMPEG=1` leave the native harmless and
+continue the session transition. `SetOpCinematicAvailable` and `SetEdCinematicAvailable` are still incomplete; campaign
+movie unlock persistence and camera-button rows remain follow-up work. See [pre-rendered-movies.md](pre-rendered-movies.md).
+
 `GetDefaultDifficulty` / `SetDefaultDifficulty` now own a per-level default distinct from mutable
 `GetGameDifficulty()` state. Campaign map startup seeds both values from `wc3_campaign_difficulty`; scripts may then
 change current and default difficulty independently.

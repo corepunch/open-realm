@@ -55,6 +55,8 @@ struct game_import {
     void (*UnlinkEntity)(LPEDICT ent);
     DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
     void (*MenuAction)(LPCSTR action, LPCSTR arg);
+    /* Queue a client-side movie to interpose the next deferred session action. */
+    void (*QueueMovie)(LPCSTR path);
     void (*ClearWorld)(void);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     /* Calls callback for every archive copy of filename, lowest priority first.
