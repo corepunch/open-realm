@@ -206,7 +206,7 @@ Shared video policy is controlled separately from the fallback resolution index:
 - `vid_native 0` uses `vid_mode`; with fullscreen enabled the renderer requests an exact SDL fullscreen mode and falls back to a window if the requested display mode is unavailable;
 - `vid_hidden 1` suppresses native/fullscreen transitions so bounded hidden renderer tests retain their explicit logical size.
 
-The shared cvar defaults remain windowed/non-native so other games are unchanged. Warcraft III ships `vid_native 1`, `vid_fullscreen 1`, and `vid_mode 2`: a clean WC3 launch therefore fills the current desktop at native resolution (1280x800 on an undocked Steam Deck), while 1024x768 remains the safe fallback if native mode is disabled or desktop-mode discovery fails. WoW retains its existing `vid_mode 2` policy and SC2 retains its own setting. User config, autoexec, and command-line cvars can override these values.
+The shared cvar defaults remain windowed/non-native so other games are unchanged. Warcraft III ships `vid_native 1`, `vid_fullscreen 1`, and `vid_mode 4`: a clean WC3 launch therefore fills the current desktop at native resolution (1280x800 on an undocked Steam Deck), while 1280x720 remains the widescreen fallback if native mode is disabled or desktop-mode discovery fails. WoW retains its existing `vid_mode 2` policy and SC2 retains its own setting. User config, autoexec, and command-line cvars can override these values.
 
 The WC3 Resolution popup appends a `Native` choice after all numbered modes. Choosing `Native` enables native fullscreen. Choosing a fixed resolution disables `vid_native` without renumbering the persisted `vid_mode` table; `vid_fullscreen` can still be controlled independently from the console/config.
 
