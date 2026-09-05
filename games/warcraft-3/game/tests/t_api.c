@@ -8,8 +8,8 @@
  *
  * Covered:
  *   Player  — color, start_location, name, team, alliance
- *   Hero    — str/agi/int attributes, XP accumulation, suspend_xp,
- *             overflow-safe AddHeroXP
+ *   Hero    — str/agi/int attributes, XP accumulation, skill points,
+ *             suspend_xp, overflow-safe AddHeroXP
  *   Unit    — invulnerable, paused, no_pathing, unit_color flags
  *   Group   — FirstOfGroup, IsUnitInGroup
  *   Misc    — SubString semantics, GetRandomInt / GetRandomReal range
@@ -198,6 +198,10 @@ TEST(wc3_api, client_ui_init_preserves_authored_state_and_rejects_invalid_state)
     gc->ps.client_ui_state = CLIENT_UI_CINEMATIC + 1;
     G_InitClientUIState(gc);
     T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
+}
+
+static LPCSTR gamecache_disabled_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_gamecache_mode") ? "disabled" : fallback;
 }
 
 static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
@@ -1846,6 +1850,51 @@ TEST(wc3_api, hero_xp_add) {
     T_EQ((int)ent->hero.xp, 150);
 }
 
+TEST(wc3_api, hero_xp_map_main_uses_normal_progression) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  call AddHeroXP(h, 500, false)\n"
+        "  call BJassAssert(GetHeroXP(h) == 500, \"startup AddHeroXP did not persist XP\")\n"
+        "  call BJassAssert(GetHeroLevel(h) == 3, \"startup AddHeroXP did not level Hero\")\n"
+        "  call SetHeroXP(h, 100, false)\n"
+        "  call BJassAssert(GetHeroXP(h) == 500, \"SetHeroXP lowered XP\")\n"
+        "  call BJassAssert(GetHeroLevel(h) == 3, \"SetHeroXP lowered Hero level\")\n"
+        "endfunction\n"
+    ));
+}
+
+TEST(wc3_api, hero_skill_points_jass_modify_and_query) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 128.0, 0.0, 0.0)\n"
+        "  call BJassAssert(GetHeroSkillPoints(h) == 1, \"new Hero did not start with one skill point\")\n"
+        "  call BJassAssert(UnitModifySkillPoints(h, 2), \"positive skill point delta failed\")\n"
+        "  call BJassAssert(GetHeroSkillPoints(h) == 3, \"positive skill point delta was not applied\")\n"
+        "  call BJassAssert(UnitModifySkillPoints(h, -1), \"negative skill point delta failed\")\n"
+        "  call BJassAssert(GetHeroSkillPoints(h) == 2, \"negative skill point delta was not applied\")\n"
+        "  call BJassAssert(UnitModifySkillPoints(h, -99), \"large negative skill point delta failed\")\n"
+        "  call BJassAssert(GetHeroSkillPoints(h) == 0, \"skill points did not clamp at zero\")\n"
+        "  call BJassAssert(not UnitModifySkillPoints(h, -1), \"empty skill point pool accepted another negative delta\")\n"
+        "  call BJassAssert(GetHeroSkillPoints(u) == 0, \"non-Hero reported skill points\")\n"
+        "  call BJassAssert(not UnitModifySkillPoints(u, 1), \"non-Hero accepted skill points\")\n"
+        "endfunction\n"
+    ));
+}
+
+TEST(wc3_api, hero_skill_points_map_main_can_award_points) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  call UnitModifySkillPoints(h, 2)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 1, \"skill point award changed Hero level\")\n"
+        "  call BJassAssert(GetHeroXP(h) == 0, \"skill point award changed Hero XP\")\n"
+        "  call BJassAssert(GetHeroSkillPoints(h) == 3, \"map-start skill point award did not persist\")\n"
+        "endfunction\n"
+    ));
+}
+
 TEST(wc3_api, hero_xp_overflow_clamps) {
     LPEDICT ent = make_unit_hero();
     ent->hero.xp = (DWORD)INT32_MAX - 5;
@@ -2441,6 +2490,23 @@ TEST(wc3_api, gamecache_scalar_values_round_trip_and_flush_by_type) {
         "  call BJassAssert(not HaveStoredInteger(c, \"mission\", \"value\"), \"integer flush failed\")\n"
         "  call BJassAssert(HaveStoredString(c, \"mission\", \"text\"), \"typed flush removed another value\")\n"
         "endfunction\n"));
+}
+
+TEST(wc3_api, gamecache_disabled_keeps_handle_local_and_does_not_commit) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+
+    gi.CvarString = gamecache_disabled_cvar;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local gamecache source = InitGameCache(\"openrealm-test-disabled.w3v\")\n"
+        "  local gamecache fresh\n"
+        "  call StoreInteger(source, \"Human01\", \"Stage\", 2)\n"
+        "  call BJassAssert(GetStoredInteger(source, \"Human01\", \"Stage\") == 2, \"disabled mode broke local handle state\")\n"
+        "  call BJassAssert(SaveGameCache(source), \"disabled SaveGameCache should remain script-compatible\")\n"
+        "  set fresh = InitGameCache(\"openrealm-test-disabled.w3v\")\n"
+        "  call BJassAssert(not HaveStoredInteger(fresh, \"Human01\", \"Stage\"), \"disabled mode committed cache state\")\n"
+        "endfunction\n"));
+    gi.CvarString = old_cvar;
 }
 
 TEST(wc3_api, gamecache_save_commits_to_process_memory) {

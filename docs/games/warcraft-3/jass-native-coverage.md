@@ -131,11 +131,13 @@ pausing. The existing `PauseGame` / modal path should be reused for that work ra
 
 ## Campaign Game Cache
 
-Campaign carry-over uses a `gameCache_t` JASS handle plus a committed
-process-level snapshot. `Store*` mutates the handle and `SaveGameCache` commits
-it. `wc3_gamecache_mode` defaults to `memory`, which carries saved state between
-maps in the same process without disk I/O; `disk` additionally loads/writes the
-OpenRealm sidecar for cross-process persistence. Scalar typed values support
+Campaign cache natives use a `gameCache_t` JASS handle plus committed storage.
+`Store*` always mutates only the handle; persistence happens at the explicit
+`SaveGameCache` call. `wc3_gamecache_mode` defaults to `disk`, which commits to
+both process memory and the OpenRealm sidecar for cross-process campaign
+carry-over. `memory` keeps committed state process-local, while `disabled` makes
+new cache handles start empty and makes `SaveGameCache` a successful non-persisting
+operation for cache-miss testing. Scalar typed values support
 store/get/have/flush, while `StoreUnit` snapshots the unit rawcode, Hero
 progression (including unspent skill points and learned ranks), health/mana,
 unit colour, and inventory IDs/charges. `RestoreUnit` creates a fresh unit for
@@ -327,8 +329,13 @@ so trigger publication and snapshots remain consistent.
 
 Hero skill progression is documented separately in
 [Hero Ability Progression](hero-abilities.md). `SelectHeroSkill` routes through
-the same candidate/point/level/max-rank validation as the in-game skill menu,
-`SetHeroLevel` routes through the XP level transition, and
+the same candidate/point/level/max-rank validation as the in-game skill menu.
+`GetHeroSkillPoints` reads the unspent Hero point pool and
+`UnitModifySkillPoints` applies a signed delta without changing XP/level; the
+shared mutation clamps subtraction at zero and refreshes the owner's command
+state. `SetHeroXP`, `AddHeroXP`, and `SetHeroLevel` share the raise-only Hero XP
+transition; every crossed level publishes both `EVENT_PLAYER_HERO_LEVEL` and
+`EVENT_UNIT_HERO_LEVEL`, and `GetLevelingUnit()` resolves to that Hero.
 `GetUnitAbilityLevel` reads the runtime learned rank. Generic runtime ability
 addition/removal/level mutation remains separate work because OpenRealm does
 not yet own a general per-unit dynamic ability collection.

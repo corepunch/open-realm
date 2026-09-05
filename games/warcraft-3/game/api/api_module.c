@@ -472,6 +472,8 @@ JASSMODULE jass_funcs[] = {
     { "SetHeroInt", SetHeroInt },
     { "GetHeroXP", GetHeroXP },
     { "SetHeroXP", SetHeroXP },
+    { "GetHeroSkillPoints", GetHeroSkillPoints },
+    { "UnitModifySkillPoints", UnitModifySkillPoints },
     { "AddHeroXP", AddHeroXP },
     { "SetHeroLevel", SetHeroLevel },
     { "SetHeroLevelBJ", SetHeroLevel },
