@@ -133,6 +133,11 @@ existing packed `NFT_LONG` stat pairs. `UI_STAT_SELECTION_HEALTH_TEXT` and `UI_S
 format those values at draw time. Game modules may populate these reserved slots for a sole-selected entity; client layout code must keep
 the binding generic rather than looking up game-specific entity types or rules.
 
+`playerState.stats[23]` is the generic environment-presentation variant (`UI_PLAYERSTAT_ENV_VARIANT`). `FT_SPRITE` may opt into
+`UIFLAG_SPRITE_STAT_SEQUENCE`; in that mode `frame.value` names the secondary `stats[]` slot whose value replaces an explicit `#N`
+sequence selector before the ordinary `frame.stat` normalized `@ratio` phase is appended. This keeps variant selection generic and
+snapshot-driven: the client does not need to know why a game chose sequence 0 versus sequence 1.
+
 ## Key Files
 
 | File | Purpose |

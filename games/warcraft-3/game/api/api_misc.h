@@ -1224,6 +1224,13 @@ DWORD SuspendTimeOfDay(LPJASS j) {
     G_SuspendTimeOfDay(jass_checkboolean(j, 1));
     return 0;
 }
+DWORD SetFalseTimeOfDay(LPJASS j) {
+    LONG hour = jass_checkinteger(j, 1);
+    LONG minute = jass_checkinteger(j, 2);
+    FLOAT duration = jass_checknumber(j, 3);
+    G_SetFalseTimeOfDay(hour, minute, duration);
+    return 0;
+}
 DWORD SetTimeOfDayScale(LPJASS j) {
     //FLOAT r = jass_checknumber(j, 1);
     return 0;

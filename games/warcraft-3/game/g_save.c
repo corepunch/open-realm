@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 10; // weather handles/state join the persisted WC3 native registries
+static DWORD const save_version = 10; // weather and false-time state join the persisted WC3 level stream
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
 
@@ -240,6 +240,11 @@ static field_t const level_fields[] = {
     F(level_locals, timeofday.pending, F_FLOAT),
     F(level_locals, timeofday.pending_valid, F_INT),
     F(level_locals, timeofday.suspended, F_INT),
+    F(level_locals, timeofday.false_time.hour, F_INT),
+    F(level_locals, timeofday.false_time.minute, F_INT),
+    F(level_locals, timeofday.false_time.ticks_remaining, F_INT),
+    F(level_locals, timeofday.false_time.active, F_INT),
+    F(level_locals, timeofday.false_time.initialized, F_INT),
     F(level_locals, camera_bounds, F_VECTOR),
     F(level_locals, started, F_INT),
     F(level_locals, scriptsStarted, F_INT),

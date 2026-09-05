@@ -1222,10 +1222,19 @@ typedef struct {
 } bot_t;
 
 typedef struct {
+    LONG hour;
+    LONG minute;
+    LONG ticks_remaining;
+    BOOL active;
+    BOOL initialized;
+} FALSE_TIMEOFDAY;
+
+typedef struct {
     FLOAT elapsed;
     FLOAT pending;
     BOOL pending_valid;
     BOOL suspended;
+    FALSE_TIMEOFDAY false_time;
 } TIMEOFDAY;
 
 struct level_locals {
@@ -1394,6 +1403,8 @@ DWORD G_FowWorldToCellY(FLOAT y);
 FLOAT G_GetTimeOfDay(void);
 void G_SetTimeOfDay(FLOAT value);
 void G_SuspendTimeOfDay(BOOL suspended);
+void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration);
+BOOL G_IsFalseTimeOfDay(void);
 void G_UpdateTimeOfDay(void);
 BOOL G_IsNight(void);
 

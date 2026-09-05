@@ -131,6 +131,32 @@ TEST(wc3_items, spawn_initializes_scroll_charges_from_item_data) {
     T_EQ(G_ItemCharges(item), 1);
 }
 
+TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
+    ability_t const *ability;
+    LPEDICT player;
+    LPEDICT hero;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->s.player = 0;
+    hero->health.value = hero->health.max_value = 100.0f;
+    player->client->ps.number = 0;
+    G_SelectEntity(player->client, hero);
+    player->client->menu.ability_code = MAKEFOURCC('A','I','c','t');
+
+    ability = FindAbilityForCommand("AIct");
+    T_NOT_NULL(ability);
+    T_NOT_NULL(ability->item_use);
+    T_ASSERT(ability->item_use(player));
+    T_ASSERT(level.timeofday.false_time.active);
+    T_ASSERT(!level.timeofday.false_time.initialized);
+    T_EQ(level.timeofday.false_time.hour, 18);
+    T_EQ(level.timeofday.false_time.minute, 30);
+    T_EQ(level.timeofday.false_time.ticks_remaining,
+         (LONG)(30.0f / ((FLOAT)FRAMETIME / 1000.0f)));
+}
+
 TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
     LPEDICT standard = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     LPEDICT small = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);

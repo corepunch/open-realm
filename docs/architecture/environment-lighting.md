@@ -51,6 +51,7 @@ that is the same shared-dispatcher mistake as camera `#ifdef WC3` (see
 |---|---|---|
 | Authored source (DNC MDX, Light.dbc, map rig) | `games/<game>/` | configstrings, DBC, map data |
 | Normalized day phase | server game module | `UI_PLAYERSTAT_ENV_PHASE` (`stats[16]`) |
+| Environment presentation variant | server game module | `UI_PLAYERSTAT_ENV_VARIANT` (`stats[23]`) |
 | Evaluated sample | game renderer hook | `viewDef` `ENVIRONLIGHT` |
 
 Do not unify the authored sources into one common config struct. They are incommensurable.
@@ -58,6 +59,9 @@ The shared object is the evaluated sample.
 
 `UI_PLAYERSTAT_ENV_PHASE` occupies `stats[16]`, packed with cinematic portrait color in the
 existing `stats[16]` `NFT_LONG`. It must not reuse slot 17 (`UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR`).
+`UI_PLAYERSTAT_ENV_VARIANT` occupies `stats[23]`, transported by the already-declared `stats[22]`
+`NFT_LONG`. It is presentation metadata, not a second lighting clock; WC3 uses it to choose the alternate
+time-indicator sequence while the same normalized phase continues to drive DNC evaluation.
 
 ## PlayerState
 
@@ -91,6 +95,8 @@ after the view copy. Each game fills `tr.viewDef.terrainLight` / `entityLight`:
 - Do not evaluate WoW lights on the server: classic `Light.dbc` is camera-position dependent.
 - Midnight wrap: do not lerp phase 0.99→0.01 without wrap handling; that flashes midday.
 - HUD clock sprites bind to `UI_PLAYERSTAT_ENV_PHASE`. That slot is a clock, not a light.
+- A HUD clock may also bind its explicit `#N` sequence through `UIFLAG_SPRITE_STAT_SEQUENCE` and
+  `UI_PLAYERSTAT_ENV_VARIANT`; do not derive lighting phase from the variant.
 
 ## Verification
 

@@ -156,10 +156,12 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, stats[6]), NFT_LONG },
     { NETF(PLAYER, stats[8]), NFT_LONG },
     { NETF(PLAYER, stats[16]), NFT_LONG },
-    /* stats[18..23] are reserved for generic live-selection HUD bindings. */
+    /* stats[18..22] are generic live-selection HUD bindings; stats[23] is a
+     * generic environment-presentation variant paired with the final slot. */
     { NETF(PLAYER, stats[18]), NFT_LONG },
     { NETF(PLAYER, stats[20]), NFT_LONG },
     { NETF(PLAYER, stats[22]), NFT_LONG },
+    { NETF(PLAYER, stats[23]), NFT_LONG },
     { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
     { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
     /* Map metadata moved to the WoW map-info configstring; only cinematic text remains in player state. */
