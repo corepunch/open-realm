@@ -1166,6 +1166,7 @@ BOOL ReadGame(LPCSTR filename) {
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
     fclose(f);
+    G_DisableStartingResourceCheatForLoadedGame();
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;
 }
