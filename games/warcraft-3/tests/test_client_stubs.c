@@ -24,6 +24,7 @@ COLOR32 test_cursor_tint;
 char test_forwarded_command[128];
 char test_menu_action[32];
 char test_menu_action_arg[128];
+char test_console_message[MAX_CONSOLE_MESSAGE_LEN];
 static PATHSTR test_existing_file;
 static BOX2 test_world_bounds;
 static size2_t test_window_size;
@@ -66,6 +67,13 @@ static bool mock_DrawCursor(float x, float y, COLOR32 tint) {
 
 void V_RenderView(void) {}
 void CON_DrawConsole(void) {}
+void CON_printf(LPCSTR fmt, ...) {
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(test_console_message, sizeof(test_console_message), fmt, args);
+    va_end(args);
+}
 BOOL CL_GameplayInputReady(void) { return false; }
 
 int Cvar_Integer(LPCSTR name, int fallback) {
@@ -129,6 +137,7 @@ void test_client_stubs_init(void) {
     test_forwarded_command[0] = '\0';
     test_menu_action[0] = '\0';
     test_menu_action_arg[0] = '\0';
+    test_console_message[0] = '\0';
     test_existing_file[0] = '\0';
     test_world_bounds = (BOX2){ 0 };
     test_window_size = MAKE(size2_t, 1024, 768);

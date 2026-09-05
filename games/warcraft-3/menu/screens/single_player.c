@@ -497,7 +497,7 @@ static void SinglePlayer_MarkMissionPlayed(singlePlayerCampaign_t const *campaig
 }
 
 static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, DWORD mission_index) {
-    char command[256];
+    char command[MAX_PATHLEN + 7];
     LPCSTR map_path;
 
     if (!campaign || mission_index >= campaign->num_missions) {
@@ -532,7 +532,8 @@ static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campa
         if (mission->header[0] && mission->name[0]) {
             snprintf(item->name, sizeof(item->name), "%.52s: %.73s", mission->header, mission->name);
         } else {
-            snprintf(item->name, sizeof(item->name), "%s", mission->name[0] ? mission->name : mission->map_path);
+            snprintf(item->name, sizeof(item->name), "%.*s", (int)sizeof(item->name) - 1,
+                     mission->name[0] ? mission->name : mission->map_path);
         }
         snprintf(item->path, sizeof(item->path), "%s", mission->map_path);
         item->flags = i;

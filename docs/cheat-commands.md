@@ -55,6 +55,47 @@ lose
 
 Both require `sv_cheats 1`. They intentionally use the same authoritative player-removal/result transition as JASS `RemovePlayer`: `win` records `PLAYER_GAME_RESULT_VICTORY` and publishes `EVENT_PLAYER_VICTORY`, while `lose` records `PLAYER_GAME_RESULT_DEFEAT` and publishes `EVENT_PLAYER_DEFEAT`. Existing map result triggers, ending cinematics, pause-aware result-event draining, and the normal campaign/result dialog continuation therefore remain in control; the cheats do not directly switch maps or force a UI screen. Repeating either command after the player has already been removed is a no-op, matching `RemovePlayer` idempotence.
 
+Campaign quest/script debugging uses several related command families, all gated by `sv_cheats 1`. Their diagnostic/result lines are written both to stderr and to the issuing player's in-game console, so `quest list`, `trigger list`, `objective list`, and `cinematic list` are usable without watching the launch terminal:
+
+```
+quest list
+quest complete <index>
+quest complete all
+
+trigger list [case-sensitive-function-filter]
+trigger fire <index>
+trigger fire <index> selected
+
+objective list [case-sensitive-function-filter]
+objective complete <trigger-index>
+objective complete <trigger-index> selected
+
+jass <zero-argument-function-name>
+
+cinematic list [case-sensitive-function-filter]
+cinematic play <trigger-index>
+cinematic play <trigger-index> selected
+cinematic stop
+```
+
+`quest list` prints the allocated quests in the same 0-based in-use order used by the existing `quest <index>` journal command. `quest complete` marks the chosen quest and every allocated objective item completed; `all` applies that state change to every allocated quest. This is intentionally a **quest-state/UI cheat only**: it does not execute map-authored completion actions, does not fire a synthetic quest-completed event, and does not alter `failed`, `discovered`, `enabled`, or `required`. Campaign scripts usually advance because their own gameplay trigger runs, not because `QuestSetCompleted` changed a journal flag.
+
+`trigger list` prints the stable `level.triggers[]` index, enabled/disabled state, and registered condition/action function names. The optional filter matches those JASS function names. `trigger fire` deliberately behaves like direct `TriggerExecute`: it executes the trigger's registered actions as coroutines without evaluating its conditions and even when the trigger is disabled. This makes it suitable for invoking campaign completion/action triggers that normal progression has not armed yet. Without `selected`, event-response unit/player context is empty. With `selected`, the current primary selected unit is supplied as the trigger unit, which also derives `GetTriggerPlayer()` from that unit's owner. Event fields that require a distinct source unit (for example `GetKillingUnit`) remain unset.
+
+`objective` is a convenience layer for the common campaign case where the map has a completion/victory trigger that performs the real progression work. `objective list` scans trigger **action** names for likely completion triggers. It accepts ordinary `Victory_*` actions and quest/objective names containing completion words such as `Complete`, `Finish`, or `Done`, while rejecting obvious `Cheat`, `Defeat`, cinematic, skip, intro/outro, and time-stop helpers. For the Prologue map observed during development this keeps `Trig_Victory_Found_Medivh_Actions` while rejecting `Trig_Victory_Cheat_Actions`, `Trig_Defeat_Thrall_Dies_Actions`, and `Trig_End_Cinematic_Actions`. `objective complete <trigger-index> [selected]` executes the chosen trigger through the same direct TriggerExecute-style path as `trigger fire`; the index is the stable trigger index printed by the list, not a separate objective ordinal. This remains heuristic discovery, so `trigger list [filter]` is the fallback for unusually named progression triggers.
+
+`jass` starts a named map JASS function as a coroutine, so normal trigger sleeps/waits can yield and resume. It is intended for generated zero-argument functions such as `Trig_*_Actions`; calling functions that require arguments is unsupported. Unlike `trigger fire ... selected`, this command does not manufacture event-response context.
+
+`cinematic` is a higher-level wrapper for in-map scripted cutscenes. `cinematic list` now classifies only trigger **action** names with strong cutscene markers (`cinematic`, `cutscene`, `intro`, `outro`, `ending`, `interlude`) and rejects obvious helper names containing `skip`, `time_stop`/`timestop`, or `cheat`. Generic `victory` and `defeat` markers are intentionally not cinematic evidence: they commonly describe ordinary progression/result triggers. This avoids the observed false positives `Trig_Intro_Cinematic_Skip_Actions`, `Trig_Intro_Time_Stop_Actions`, `Trig_Victory_Cheat_Actions`, `Trig_Defeat_Cheat_Actions`, `Trig_Victory_Found_Medivh_Actions`, and `Trig_Defeat_Thrall_Dies_Actions`, while retaining `Trig_Intro_Cinematic_Actions` and `Trig_End_Cinematic_Actions`. The optional filter further restricts the surviving candidates by JASS function name. Discovery is intentionally heuristic: a map may name a cinematic trigger without any of those words, so a failed candidate search must fall back to `trigger list [filter]` rather than assuming the map contains no cutscene.
+
+`cinematic play <trigger-index> [selected]` uses the same direct TriggerExecute-style path as `trigger fire`: it runs the map-authored trigger actions even if the trigger is disabled and without evaluating its conditions. The index does not have to be one reported by `cinematic list`, which makes `trigger list` a reliable manual fallback. The optional `selected` context has the same GetTriggerUnit/GetTriggerPlayer behavior and limitations as `trigger fire selected`.
+
+`cinematic stop` intentionally does **not** force camera/UI/control state back to gameplay. It publishes the normal `EVENT_PLAYER_END_CINEMATIC` event for the issuing player and other human map players, matching the existing Escape/cancel route. The map's authored skip trigger therefore owns its skip flag, camera reset, unit cleanup, user-control restoration, and termination of the main cinematic coroutine. If a map does not register an end-cinematic handler, the command cannot safely invent that cleanup.
+
+These commands play **in-map JASS cinematics**, not prerendered `PlayCinematic` movie files. Movie decoding/playback remains a separate subsystem.
+
+For campaign skipping, prefer `objective list` followed by `objective complete <trigger-index>` when it finds the relevant authored completion trigger; otherwise use `trigger list <part-of-name>` followed by `trigger fire <index>`. Both execute the map's authored actions so dialogue, spawning, trigger enable/disable changes, quest updates, and later mission state can advance together. For cutscenes, `cinematic list`/`cinematic play` provide the same execution path with narrower cutscene discovery and an authored `cinematic stop` escape route. `quest complete` remains useful when testing only the journal/UI state.
+
 Time-of-day phase cheats set the authoritative Warcraft clock directly and require `sv_cheats 1`:
 
 ```

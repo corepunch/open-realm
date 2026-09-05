@@ -106,6 +106,25 @@ the client therefore draws their authored disabled state and cannot dispatch
 those commands until the modal dialog closes. Their original commands are
 restored afterward.
 
+## Developer quest/script cheats
+
+`docs/cheat-commands.md` documents the `sv_cheats`-gated quest and JASS trigger
+debugging commands. Keep the semantic split explicit:
+
+```text
+quest complete <index|all>
+    -> mutates QUEST/QUESTITEM completed flags only
+
+trigger fire <index> [selected]
+    -> executes the map trigger's registered actions directly
+```
+
+Changing `QUEST.completed` is not a campaign-progression event. Maps normally
+call `QuestSetCompleted` as one action inside a larger trigger that can also
+play dialogue, enable later triggers, spawn/remove units, and update other
+mission state. Use direct trigger firing when testing/skipping that authored
+progression; use quest completion when testing journal presentation.
+
 ## Message Log Data Flow
 
 `DisplayTextToPlayer`, `DisplayTimedTextToPlayer`, and

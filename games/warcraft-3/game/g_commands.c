@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "g_local.h"
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
@@ -874,30 +876,37 @@ CLIENTCOMMAND(DropItem) {
     G_DropItem(unit, (DWORD)slot);
 }
 
+static void G_PublishEndCinematicForHumans(LPEDICT clent, BOOL debug_log) {
+    if (!clent) return;
+    if (debug_log) {
+        fprintf(stderr,
+                "Client cancel command: player=%u edict=%u time=%u\n",
+                clent->client ? (unsigned)clent->client->ps.number : 999u,
+                (unsigned)clent->s.number,
+                (unsigned)G_Time());
+    }
+    G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
+    if (!level.mapinfo) return;
+
+    FOR_LOOP(i, game.max_clients) {
+        LPEDICT ent = G_GetPlayerEntityByNumber(i);
+        if (!ent || ent == clent || level.mapinfo->players[i].playerType != kPlayerTypeHuman)
+            continue;
+        if (debug_log) {
+            fprintf(stderr,
+                    "Client cancel command: also publishing for human player=%u edict=%u\n",
+                    (unsigned)i,
+                    (unsigned)ent->s.number);
+        }
+        G_PublishEvent(ent, EVENT_PLAYER_END_CINEMATIC);
+    }
+}
+
 CLIENTCOMMAND(Cancel) {
     if (G_CancelBuildPlacement(clent)) {
         return;
     }
-    fprintf(stderr,
-            "Client cancel command: player=%u edict=%u time=%u\n",
-            clent && clent->client ? (unsigned)clent->client->ps.number : 999u,
-            clent ? (unsigned)clent->s.number : 999u,
-            (unsigned)G_Time());
-    G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
-    if (level.mapinfo) {
-        FOR_LOOP(i, game.max_clients) {
-            LPEDICT ent = G_GetPlayerEntityByNumber(i);
-            if (ent && ent != clent &&
-                level.mapinfo->players[i].playerType == kPlayerTypeHuman)
-            {
-                fprintf(stderr,
-                        "Client cancel command: also publishing for human player=%u edict=%u\n",
-                        (unsigned)i,
-                        (unsigned)ent->s.number);
-                G_PublishEvent(ent, EVENT_PLAYER_END_CINEMATIC);
-            }
-        }
-    }
+    G_PublishEndCinematicForHumans(clent, true);
 }
 
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
@@ -1000,19 +1009,448 @@ CLIENTCOMMAND(AlliesCancel) {
     UI_AlliesCancel(clent);
 }
 
+static void G_CheatPrintf(LPEDICT clent, LPCSTR fmt, ...) {
+    char text[1024];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+
+    fprintf(stderr, "%s\n", text);
+    /* In-engine tests and reserved player slots can issue commands before the
+     * client transport is connected. Console feedback is presentation-only,
+     * so defer the packet instead of writing into an uninitialized multicast
+     * buffer; stderr still records the command result. */
+    if (clent && clent->client && clent->client->connected && gi.Write && gi.unicast) {
+        LONG opcode = svc_console_print;
+        gi.Write(PF_BYTE, &opcode);
+        gi.Write(PF_STRING, text);
+        gi.unicast(clent);
+    }
+}
+
+static LPQUEST G_QuestByOrdinal(DWORD ordinal) {
+    FOR_EACH_QUEST(q) {
+        if (ordinal == 0) return q;
+        ordinal--;
+    }
+    return NULL;
+}
+
+static void G_CheatCompleteQuest(LPQUEST quest) {
+    if (!quest) return;
+    FOR_EACH_QUESTITEM(quest, item) item->completed = true;
+    quest->completed = true;
+}
+
+static void G_CheatListQuests(LPEDICT clent) {
+    DWORD ordinal = 0;
+
+    FOR_EACH_QUEST(q) {
+        G_CheatPrintf(clent,
+                "WC3: quest %u slot=%u completed=%u failed=%u discovered=%u enabled=%u required=%u title=%s",
+                (unsigned)ordinal++,
+                (unsigned)(q - level.quests),
+                (unsigned)q->completed,
+                (unsigned)q->failed,
+                (unsigned)q->discovered,
+                (unsigned)q->enabled,
+                (unsigned)q->required,
+                q->title && *q->title ? q->title : "(untitled)");
+    }
+    if (!ordinal) G_CheatPrintf(clent, "WC3: no quests are currently allocated");
+}
+
+static void G_CheatCompleteQuestCommand(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
+    DWORD index;
+    DWORD count = 0;
+
+    if (argc < 3) {
+        G_CheatPrintf(clent, "WC3: usage: quest complete <index|all>");
+        return;
+    }
+    if (!strcasecmp(argv[2], "all")) {
+        FOR_EACH_QUEST(q) {
+            G_CheatCompleteQuest(q);
+            count++;
+        }
+        G_CheatPrintf(clent, "WC3: completed %u quest%s and their objectives",
+                (unsigned)count, count == 1 ? "" : "s");
+        return;
+    }
+    if (!G_DebugIsNumber(argv[2]) || argv[2][0] == '-') {
+        G_CheatPrintf(clent, "WC3: quest index must be a non-negative integer or 'all'");
+        return;
+    }
+    index = (DWORD)strtoul(argv[2], NULL, 10);
+    LPQUEST quest = G_QuestByOrdinal(index);
+    if (!quest) {
+        G_CheatPrintf(clent, "WC3: quest %u does not exist", (unsigned)index);
+        return;
+    }
+    G_CheatCompleteQuest(quest);
+    G_CheatPrintf(clent, "WC3: completed quest %u and its objectives", (unsigned)index);
+}
+
 CLIENTCOMMAND(Quest) {
     DWORD index;
 
     if (argc < 2 || !argv[1] || !*argv[1]) return;
-    index = atoi(argv[1]);
-    FOR_EACH_QUEST(q) {
-        if (index == 0) {
-            UI_ShowQuest(clent, q);
-            break;
-        } else {
-            index--;
+    if (!strcasecmp(argv[1], "list")) {
+        if (!G_CheatsEnabled()) {
+            G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+            return;
+        }
+        G_CheatListQuests(clent);
+        return;
+    }
+    if (!strcasecmp(argv[1], "complete")) {
+        if (!G_CheatsEnabled()) {
+            G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+            return;
+        }
+        G_CheatCompleteQuestCommand(clent, argc, argv);
+        return;
+    }
+    if (!G_DebugIsNumber(argv[1]) || argv[1][0] == '-') return;
+    index = (DWORD)strtoul(argv[1], NULL, 10);
+    LPQUEST quest = G_QuestByOrdinal(index);
+    if (quest) UI_ShowQuest(clent, quest);
+}
+
+static BOOL G_TriggerFunctionMatches(LPCSTR filter, struct jass_function const *func) {
+    LPCSTR name = jass_functionname(func);
+    return !filter || !*filter || (name && strstr(name, filter));
+}
+
+static BOOL G_TriggerMatches(LPCSTR filter, LPTRIGGER trigger) {
+    if (!filter || !*filter) return true;
+    FOR_EACH_LIST(TRIGGERCONDITION, condition, trigger->conditions) {
+        if (G_TriggerFunctionMatches(filter, condition->expr)) return true;
+    }
+    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+        if (G_TriggerFunctionMatches(filter, action->func)) return true;
+    }
+    return false;
+}
+
+static void G_CheatPrintTriggerFunctions(LPEDICT clent, LPTRIGGER trigger) {
+    FOR_EACH_LIST(TRIGGERCONDITION, condition, trigger->conditions) {
+        LPCSTR name = jass_functionname(condition->expr);
+        G_CheatPrintf(clent, "    condition: %s", name ? name : "(anonymous)");
+    }
+    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+        LPCSTR name = jass_functionname(action->func);
+        G_CheatPrintf(clent, "    action:    %s", name ? name : "(anonymous)");
+    }
+}
+
+static void G_CheatListTriggers(LPEDICT clent, LPCSTR filter) {
+    DWORD shown = 0;
+
+    if (!level.vm) {
+        G_CheatPrintf(clent, "WC3: no active JASS VM");
+        return;
+    }
+    FOR_LOOP(i, level.num_triggers) {
+        LPTRIGGER trigger = &level.triggers[i];
+        if (!G_TriggerMatches(filter, trigger)) continue;
+        G_CheatPrintf(clent, "WC3: trigger %u %s",
+                (unsigned)i, trigger->disabled ? "disabled" : "enabled");
+        G_CheatPrintTriggerFunctions(clent, trigger);
+        shown++;
+    }
+    if (!shown) {
+        G_CheatPrintf(clent, "WC3: no triggers%s%s%s",
+                filter && *filter ? " matching '" : " are allocated",
+                filter && *filter ? filter : "",
+                filter && *filter ? "'" : "");
+    }
+}
+
+static BOOL G_CheatFireTrigger(LPEDICT clent, DWORD index, BOOL use_selected, LPCSTR label) {
+    LPEDICT unit = NULL;
+
+    if (!level.vm) {
+        G_CheatPrintf(clent, "WC3: no active JASS VM");
+        return false;
+    }
+    if (index >= level.num_triggers) {
+        G_CheatPrintf(clent, "WC3: trigger %u does not exist", (unsigned)index);
+        return false;
+    }
+    if (use_selected) {
+        unit = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
+        if (!unit) {
+            G_CheatPrintf(clent, "WC3: %s %u selected requires a selected unit",
+                    label ? label : "trigger fire", (unsigned)index);
+            return false;
         }
     }
+
+    G_CheatPrintf(clent, "WC3: %s trigger %u directly%s",
+            label ? label : "firing",
+            (unsigned)index,
+            unit ? " with selected-unit event context" : "");
+    /* This is deliberately TriggerExecute-style debug behavior: execute the
+     * authored actions even if the trigger is disabled and without evaluating
+     * its conditions. Campaign/cinematic debug commands need to reach authored
+     * actions that may not yet be armed by normal map progression. */
+    jass_executetrigger(level.vm, &level.triggers[index], unit);
+    return true;
+}
+
+CLIENTCOMMAND(Trigger) {
+    DWORD index;
+    BOOL use_selected = false;
+
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (argc < 2) {
+        G_CheatPrintf(clent, "WC3: usage: trigger list [filter] | trigger fire <index> [selected]");
+        return;
+    }
+    if (!strcasecmp(argv[1], "list")) {
+        G_CheatListTriggers(clent, argc >= 3 ? argv[2] : NULL);
+        return;
+    }
+    if (strcasecmp(argv[1], "fire")) {
+        G_CheatPrintf(clent, "WC3: usage: trigger list [filter] | trigger fire <index> [selected]");
+        return;
+    }
+    if (argc < 3 || !G_DebugIsNumber(argv[2]) || argv[2][0] == '-') {
+        G_CheatPrintf(clent, "WC3: trigger fire requires a non-negative trigger index");
+        return;
+    }
+    if (argc >= 4) {
+        if (strcasecmp(argv[3], "selected")) {
+            G_CheatPrintf(clent, "WC3: optional trigger context must be 'selected'");
+            return;
+        }
+        use_selected = true;
+    }
+    index = (DWORD)strtoul(argv[2], NULL, 10);
+    G_CheatFireTrigger(clent, index, use_selected, "firing");
+}
+
+static BOOL G_StringContainsNoCase(LPCSTR text, LPCSTR needle) {
+    size_t needle_len;
+
+    if (!text || !needle || !*needle) return false;
+    needle_len = strlen(needle);
+    while (*text) {
+        if (!strncasecmp(text, needle, needle_len)) return true;
+        text++;
+    }
+    return false;
+}
+
+static BOOL G_FunctionNameContainsAny(LPCSTR name, LPCSTR const words[], DWORD count) {
+    if (!name) return false;
+    FOR_LOOP(i, count) {
+        if (G_StringContainsNoCase(name, words[i])) return true;
+    }
+    return false;
+}
+
+static BOOL G_CinematicFunctionName(LPCSTR name) {
+    static LPCSTR const markers[] = {
+        "cinematic", "cutscene", "intro", "outro", "ending", "interlude"
+    };
+    static LPCSTR const helpers[] = {
+        "skip", "time_stop", "timestop", "cheat"
+    };
+
+    if (!name || G_FunctionNameContainsAny(name, helpers, sizeof(helpers) / sizeof(helpers[0]))) {
+        return false;
+    }
+    return G_FunctionNameContainsAny(name, markers, sizeof(markers) / sizeof(markers[0]));
+}
+
+static BOOL G_TriggerLooksCinematic(LPTRIGGER trigger) {
+    /* Classify by action names. Generated condition/helper names frequently
+     * inherit words such as Intro without actually starting a cutscene. */
+    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+        if (G_CinematicFunctionName(jass_functionname(action->func))) return true;
+    }
+    return false;
+}
+
+static void G_CheatListCinematics(LPEDICT clent, LPCSTR filter) {
+    DWORD shown = 0;
+
+    if (!level.vm) {
+        G_CheatPrintf(clent, "WC3: no active JASS VM");
+        return;
+    }
+    FOR_LOOP(i, level.num_triggers) {
+        LPTRIGGER trigger = &level.triggers[i];
+        if (!G_TriggerLooksCinematic(trigger)) continue;
+        if (filter && *filter && !G_TriggerMatches(filter, trigger)) continue;
+        G_CheatPrintf(clent, "WC3: cinematic candidate trigger %u %s",
+                (unsigned)i, trigger->disabled ? "disabled" : "enabled");
+        G_CheatPrintTriggerFunctions(clent, trigger);
+        shown++;
+    }
+    if (!shown) {
+        G_CheatPrintf(clent,
+                "WC3: no cinematic trigger candidates%s%s%s; use 'trigger list [filter]' to inspect all map triggers",
+                filter && *filter ? " matching '" : "",
+                filter && *filter ? filter : "",
+                filter && *filter ? "'" : "");
+    }
+}
+
+static BOOL G_ObjectiveFunctionName(LPCSTR name) {
+    static LPCSTR const rejects[] = {
+        "cheat", "defeat", "skip", "cinematic", "cutscene", "intro",
+        "outro", "ending", "interlude", "time_stop", "timestop"
+    };
+    BOOL questish;
+    BOOL completion;
+
+    if (!name || G_FunctionNameContainsAny(name, rejects, sizeof(rejects) / sizeof(rejects[0]))) {
+        return false;
+    }
+    if (G_StringContainsNoCase(name, "victory")) return true;
+
+    questish = G_StringContainsNoCase(name, "quest") || G_StringContainsNoCase(name, "objective");
+    completion = G_StringContainsNoCase(name, "complete") ||
+                 G_StringContainsNoCase(name, "finish") ||
+                 G_StringContainsNoCase(name, "done");
+    return questish && completion;
+}
+
+static BOOL G_TriggerLooksObjective(LPTRIGGER trigger) {
+    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+        if (G_ObjectiveFunctionName(jass_functionname(action->func))) return true;
+    }
+    return false;
+}
+
+static void G_CheatListObjectives(LPEDICT clent, LPCSTR filter) {
+    DWORD shown = 0;
+
+    if (!level.vm) {
+        G_CheatPrintf(clent, "WC3: no active JASS VM");
+        return;
+    }
+    FOR_LOOP(i, level.num_triggers) {
+        LPTRIGGER trigger = &level.triggers[i];
+        if (!G_TriggerLooksObjective(trigger)) continue;
+        if (filter && *filter && !G_TriggerMatches(filter, trigger)) continue;
+        G_CheatPrintf(clent, "WC3: objective completion candidate trigger %u %s",
+                (unsigned)i, trigger->disabled ? "disabled" : "enabled");
+        G_CheatPrintTriggerFunctions(clent, trigger);
+        shown++;
+    }
+    if (!shown) {
+        G_CheatPrintf(clent,
+                "WC3: no objective completion trigger candidates%s%s%s; use 'trigger list [filter]' to inspect all map triggers",
+                filter && *filter ? " matching '" : "",
+                filter && *filter ? filter : "",
+                filter && *filter ? "'" : "");
+    }
+}
+
+CLIENTCOMMAND(Objective) {
+    DWORD index;
+    BOOL use_selected = false;
+
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (argc < 2) {
+        G_CheatPrintf(clent, "WC3: usage: objective list [filter] | objective complete <trigger-index> [selected]");
+        return;
+    }
+    if (!strcasecmp(argv[1], "list")) {
+        G_CheatListObjectives(clent, argc >= 3 ? argv[2] : NULL);
+        return;
+    }
+    if (strcasecmp(argv[1], "complete")) {
+        G_CheatPrintf(clent, "WC3: usage: objective list [filter] | objective complete <trigger-index> [selected]");
+        return;
+    }
+    if (argc < 3 || !G_DebugIsNumber(argv[2]) || argv[2][0] == '-') {
+        G_CheatPrintf(clent, "WC3: objective complete requires a non-negative trigger index");
+        return;
+    }
+    if (argc >= 4) {
+        if (strcasecmp(argv[3], "selected")) {
+            G_CheatPrintf(clent, "WC3: optional objective context must be 'selected'");
+            return;
+        }
+        use_selected = true;
+    }
+    index = (DWORD)strtoul(argv[2], NULL, 10);
+    G_CheatFireTrigger(clent, index, use_selected, "completing objective via");
+}
+
+CLIENTCOMMAND(Cinematic) {
+    DWORD index;
+    BOOL use_selected = false;
+
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (argc < 2) {
+        G_CheatPrintf(clent,
+                "WC3: usage: cinematic list [filter] | cinematic play <trigger-index> [selected] | cinematic stop");
+        return;
+    }
+    if (!strcasecmp(argv[1], "list")) {
+        G_CheatListCinematics(clent, argc >= 3 ? argv[2] : NULL);
+        return;
+    }
+    if (!strcasecmp(argv[1], "stop")) {
+        /* Match Escape instead of forcing presentation state back to gameplay.
+         * The map-authored EVENT_PLAYER_END_CINEMATIC handler owns skip flags,
+         * camera/unit cleanup, control restoration, and coroutine termination. */
+        G_PublishEndCinematicForHumans(clent, false);
+        G_CheatPrintf(clent, "WC3: published end-cinematic event for human players");
+        return;
+    }
+    if (strcasecmp(argv[1], "play")) {
+        G_CheatPrintf(clent,
+                "WC3: usage: cinematic list [filter] | cinematic play <trigger-index> [selected] | cinematic stop");
+        return;
+    }
+    if (argc < 3 || !G_DebugIsNumber(argv[2]) || argv[2][0] == '-') {
+        G_CheatPrintf(clent, "WC3: cinematic play requires a non-negative trigger index");
+        return;
+    }
+    if (argc >= 4) {
+        if (strcasecmp(argv[3], "selected")) {
+            G_CheatPrintf(clent, "WC3: optional cinematic context must be 'selected'");
+            return;
+        }
+        use_selected = true;
+    }
+    index = (DWORD)strtoul(argv[2], NULL, 10);
+    G_CheatFireTrigger(clent, index, use_selected, "playing cinematic candidate");
+}
+
+CLIENTCOMMAND(Jass) {
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (!level.vm) {
+        G_CheatPrintf(clent, "WC3: no active JASS VM");
+        return;
+    }
+    if (argc != 2 || !argv[1] || !*argv[1]) {
+        G_CheatPrintf(clent, "WC3: usage: jass <zero-argument-function-name>");
+        return;
+    }
+    G_CheatPrintf(clent, "WC3: starting JASS function %s as a coroutine", argv[1]);
+    jass_callbyname(level.vm, argv[1], true);
 }
 
 static BOOL G_DebugIsNumber(LPCSTR text) {
@@ -1147,6 +1585,10 @@ clientCommand_t clientCommands[] = {
     { "canceltrain", CMD_CancelTrain },
     { "quests", CMD_Quests },
     { "quest", CMD_Quest },
+    { "trigger", CMD_Trigger },
+    { "objective", CMD_Objective },
+    { "cinematic", CMD_Cinematic },
+    { "jass", CMD_Jass },
     { "log", CMD_Log },
     { "hidegameresult", CMD_HideGameResult },
     { "gameresult_restart", CMD_GameResultRestart },

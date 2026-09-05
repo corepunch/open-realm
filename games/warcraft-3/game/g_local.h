@@ -71,6 +71,7 @@ FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 #define FOR_CONTROLLABLE_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT) && G_UnitCanControl(CLIENT, ENT))
 
+struct jass_function;
 KNOWN_AS(jass_s, JASS);
 KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 KNOWN_AS(gregion_s, REGION);
@@ -1972,6 +1973,8 @@ void jass_close(LPJASS);
 BOOL jass_dofile(LPJASS, LPCSTR);
 BOOL jass_dofilenative(LPJASS, LPCSTR);
 void jass_callbyname(LPJASS, LPCSTR, BOOL);
+LPCSTR jass_functionname(struct jass_function const *);
+void jass_executetrigger(LPJASS, LPTRIGGER, LPEDICT);
 BOOL jass_dobuffer(LPJASS, LPSTR);
 void jass_runevents(LPJASS);
 
