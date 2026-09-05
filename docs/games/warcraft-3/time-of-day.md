@@ -145,10 +145,13 @@ accumulated light factor to `[0, 1]`, matching Warsmash before texture modulatio
 
 Two MDX animation details are easy to miss and materially affect the stock DNC appearance:
 
-- Warsmash reverses the red/blue components of **animated** light `KLAC` (Color) and `KLBC` (AmbColor) vectors before they are
-  consumed. Static `MdlxLight.color` / `ambientColor` fields are not put through that animation-track conversion. OpenRealm mirrors
-  this at light evaluation time, after interpolation; component-wise interpolation makes that equivalent to flipping every authored
-  key and tangent before interpolation. Without it, the Lordaeron night track presents as warm brown/orange instead of cool blue.
+- Warcraft animated MDX color tracks use BGR component order while static color fields are usually already RGB. GeosetAnimation
+  colors are the important exception used by the HUD clock: Warsmash swizzles both the static GeosetAnimation base color and
+  animated `KGAC` keys from BGR to RGB. OpenRealm mirrors that through `MDLX_GetGeosetAnimationStaticColor()` and
+  `MDLX_GetAnimatedColorTrackValue()`. DNC light `KLAC`/`KLBC` tracks and geoset-animation `KGAC` tracks therefore share the same
+  visible color convention, and the time-of-day indicator's authored cool-blue night glow no longer presents as warm red/orange.
+  This is a semantic float-component conversion performed before shader upload; it is deliberately separate from `PIXEL_BGRA`
+  texture byte handling, so desktop GL native BGRA support and GLES CPU BGRA-to-RGBA fallback produce the same model color.
 - For a global-sequence key track whose first authored key lies beyond the declared global-sequence duration, Warsmash treats that
   first value as a constant. This includes the zero-duration-global-sequence pattern used by DNC-style node rotations. Returning the
   default transform instead leaves a directional light pointing along the unrotated model axis. `MDLX_GetModelKeytrackValue()`

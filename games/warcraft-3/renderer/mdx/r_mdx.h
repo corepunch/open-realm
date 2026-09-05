@@ -406,6 +406,8 @@ extern MATRIX4 node_matrices[MDX_MAX_NODES];
 
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time);
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output);
+void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, LPVECTOR3 output);
+void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, LPVECTOR3 output);
 void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0);
 BOOL MDLX_EvaluateLight(mdxModel_t const *model, mdxLight_t const *light,
                         LPCMATRIX4 model_matrix, DWORD frame, BOOL use_visibility,
