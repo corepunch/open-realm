@@ -47,6 +47,8 @@ extern DWORD test_fow_upload_calls;
 extern DWORD test_cursor_draw_calls;
 extern COLOR32 test_cursor_tint;
 extern char test_forwarded_command[128];
+extern char test_menu_action[32];
+extern char test_menu_action_arg[128];
 
 static RECT test_scroll_rects[3], test_scroll_uvs[3];
 static LPCTEXTURE test_scroll_tex[3];
@@ -870,6 +872,17 @@ TEST(net, window_click_raises_and_moves_keyboard_focus) {
     test_textarea_draws = 0; CL_WindowDraw();
     T_EQ(test_textarea_draws, 2);
     T_STREQ(test_textarea_draw.text, "First");
+    CL_WindowClear();
+}
+
+TEST(net, window_disconnect_action_defers_world_to_main_menu) {
+    test_client_stubs_init(); CL_WindowClear(); re.GetTextSize = text_length_mock_size;
+    test_send_window(14, 104, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Quit", UI_WINDOW_DISCONNECT_ACTION);
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    T_STREQ(test_menu_action, "menu");
+    T_STREQ(test_menu_action_arg, "menu_main");
     CL_WindowClear();
 }
 

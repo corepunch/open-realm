@@ -22,6 +22,8 @@ DWORD test_fow_upload_calls;
 DWORD test_cursor_draw_calls;
 COLOR32 test_cursor_tint;
 char test_forwarded_command[128];
+char test_menu_action[32];
+char test_menu_action_arg[128];
 static PATHSTR test_existing_file;
 static BOX2 test_world_bounds;
 static size2_t test_window_size;
@@ -104,6 +106,10 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
 void Cbuf_AddText(LPCSTR text) { (void)text; }
+void MenuAction(LPCSTR action, LPCSTR arg) {
+    snprintf(test_menu_action, sizeof(test_menu_action), "%s", action ? action : "");
+    snprintf(test_menu_action_arg, sizeof(test_menu_action_arg), "%s", arg ? arg : "");
+}
 void Cmd_ForwardToServer(LPCSTR text) {
     snprintf(test_forwarded_command, sizeof(test_forwarded_command), "%s", text ? text : "");
 }
@@ -121,6 +127,8 @@ void test_client_stubs_init(void) {
     test_cursor_draw_calls = 0;
     test_cursor_tint = COLOR32_WHITE;
     test_forwarded_command[0] = '\0';
+    test_menu_action[0] = '\0';
+    test_menu_action_arg[0] = '\0';
     test_existing_file[0] = '\0';
     test_world_bounds = (BOX2){ 0 };
     test_window_size = MAKE(size2_t, 1024, 768);
