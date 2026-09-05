@@ -13,6 +13,20 @@ WC3_SHEET_DIR := $(WC3_DIR)/sheet
 WC3_TEST_DIR := $(WC3_DIR)/tests
 
 WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common -DWC3 -DUSE_FOGOFWAR -DBZ_GAME=\"warcraft-3\"
+
+# Optional pre-rendered movie support. Keep the dependency surface to the five
+# FFmpeg libraries required for container demux, decode, pixel conversion and
+# audio resampling; the default build has no FFmpeg dependency.
+FFMPEG ?= 0
+WC3_FFMPEG_LIBS :=
+ifeq ($(FFMPEG),1)
+FFMPEG_PKGS := libavformat libavcodec libavutil libswscale libswresample
+ifeq ($(shell pkg-config --exists $(FFMPEG_PKGS) && echo yes),)
+$(error FFMPEG=1 requires pkg-config packages: $(FFMPEG_PKGS))
+endif
+WC3_CFLAGS += -DBZ_FFMPEG $(shell pkg-config --cflags $(FFMPEG_PKGS))
+WC3_FFMPEG_LIBS := $(shell pkg-config --libs $(FFMPEG_PKGS))
+endif
 ifeq ($(WC3_FOW_PACKED_MASK),1)
 WC3_CFLAGS += -DWC3_FOW_PACKED_MASK
 endif
@@ -89,7 +103,7 @@ $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
-$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) -lz))
+$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz))
 
 # ---------------------------------------------------------------------------
 # In-engine tests (see CONTRIBUTING.md)
@@ -106,7 +120,7 @@ GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game-wc3-test,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) -lz))
+$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 

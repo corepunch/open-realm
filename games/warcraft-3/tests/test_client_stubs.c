@@ -107,6 +107,9 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
     snprintf(test_menu_action, sizeof(test_menu_action), "%s", action ? action : "");
     snprintf(test_menu_action_arg, sizeof(test_menu_action_arg), "%s", arg ? arg : "");
 }
+void CL_QueueMovie(LPCSTR path) { (void)path; }
+BOOL CL_MovieActive(void) { return false; }
+void CL_MovieDraw(void) {}
 void Cmd_ForwardToServer(LPCSTR text) {
     snprintf(test_forwarded_command, sizeof(test_forwarded_command), "%s", text ? text : "");
 }

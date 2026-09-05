@@ -852,6 +852,21 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
     return NULL;
 }
 
+bool FS_ResolveLoosePath(LPCSTR fileName, LPSTR out, DWORD out_size) {
+    if (out && out_size) out[0] = '\0';
+    if (!fileName || !*fileName || !out || !out_size) return false;
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        char path[MAX_PATHLEN * 2];
+
+        if (!gameDirs[i][0]) continue;
+        FS_MakeDiskPath(gameDirs[i], fileName, path, sizeof(path));
+        if (!FS_FileOnDiskExists(path)) continue;
+        snprintf(out, out_size, "%s", path);
+        return true;
+    }
+    return false;
+}
+
 bool FS_FileExists(LPCSTR fileName) {
     HANDLE file = FS_OpenFile(fileName);
     if (file) {

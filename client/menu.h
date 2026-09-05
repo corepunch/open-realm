@@ -147,6 +147,9 @@ typedef struct {
     /* Sound */
     void (*PlaySound)(DWORD kit_id);
     void (*PlaySoundByName)(LPCSTR name);
+
+    /* Full-screen pre-rendered movie playback. Returns false when unsupported or unavailable. */
+    BOOL (*PlayMovie)(LPCSTR path);
 } menuImport_t;
 
 /* Function table exported by the menu library to the client. */

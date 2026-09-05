@@ -4,6 +4,8 @@
 
 Cutscenes in Warcraft III are driven entirely by the map's JASS script (`war3map.j`). The engine provides JASS native bindings; the script orchestrates timing, camera, dialogue, and unit movement.
 
+Pre-rendered campaign movies are a separate client media path driven by `PlayCinematic`; see [Pre-rendered Movies](pre-rendered-movies.md). They do not use the in-engine cinematic HUD/camera pipeline described below.
+
 ### Flow
 
 1. **Enter cinematic mode:** JASS calls `CinematicModeBJ(true, player)` → `ShowInterface(false)` → sets `client_ui_state = CLIENT_UI_CINEMATIC`.
