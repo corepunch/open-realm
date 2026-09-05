@@ -1062,6 +1062,10 @@ struct game_locals {
         FLOAT gameDayLength;
         FLOAT buildingAngle;
         FLOAT rootAngle;
+        /* Unit-target Move/Smart follows use WC3 Misc distances, not attack
+         * acquisition range. war3mapMisc.txt may override either value. */
+        FLOAT followRange;
+        FLOAT structureFollowRange;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         FLOAT defenseArmor;
@@ -1950,6 +1954,7 @@ BOOL move_is_terminal_hold(LPCEDICT);
 void move_reset_progress(LPEDICT);
 LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
 FLOAT G_AcquisitionRange(LPCEDICT);
+FLOAT G_FollowStopRange(LPCEDICT follower, LPCEDICT target);
 BOOL G_ShouldAcquireThisFrame(LPCEDICT);
 
 // p_jass.c

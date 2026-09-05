@@ -119,8 +119,12 @@ fallback and item lifecycle.
 For a live allied unit target that is not consumed by a higher-priority Smart
 interaction such as Repair, Smart uses a persistent unit-target Move/follow
 order rather than copying the target's current coordinates. `movement.follow_target`
-remains the authoritative default movement goal: the follower stops within its
-data-defined acquisition range, may auto-acquire nearby enemies, and resumes
+remains the authoritative default movement goal. Follow stopping distance comes
+from `Misc.FollowRange` for units and `Misc.StructureFollowRange` for targets
+carrying `EF_BUILDING`, with the two collision radii as a hard lower bound. These
+values are loaded through the normal `Units\MiscData.txt` / `war3mapMisc.txt`
+chain and are deliberately independent of the follower's attack `AcquireRange`.
+The follower may still auto-acquire nearby enemies using `AcquireRange`, and resumes
 following after that combat ends. Point Move, Attack-Move, Patrol, Stop, and
 Hold Position replace this persistent follow goal. Explicit target Attack is a
 combat detour and may return to the retained follow goal afterward, matching the

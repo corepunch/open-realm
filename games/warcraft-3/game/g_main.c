@@ -286,6 +286,10 @@ static void InitConstants(void) {
     InitMiscValue("DayLength", &game.constants.gameDayLength);
     InitMiscValue("BuildingAngle", &game.constants.buildingAngle);
     InitMiscValue("RootAngle", &game.constants.rootAngle);
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 follow distances. These are
+     * distinct from AcquireRange; map Misc overrides remain authoritative. */
+    InitMiscValueDefault("FollowRange", &game.constants.followRange, 300.0f);
+    InitMiscValueDefault("StructureFollowRange", &game.constants.structureFollowRange, 100.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
