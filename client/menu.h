@@ -132,6 +132,7 @@ typedef struct {
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
     LPCSTR (*GetConfigString)(DWORD index);
+    FLOAT (*LoadingProgress)(void); /* normalized client-owned loading progress [0,1] */
     void (*LAN_RefreshServers)(void);
     DWORD (*LAN_NumServers)(void);
     BOOL (*LAN_Server)(DWORD index, menuLanGame_t *out);

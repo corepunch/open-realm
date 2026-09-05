@@ -67,6 +67,13 @@ void CL_RestartRefresh(void) {
     cl.refresh_prepped = false;
 }
 
+static void CL_LoadingStage(FLOAT progress) {
+    /* CL_PrepRefresh may still be entered after the first active frame.
+     * Progress is loading-screen presentation state, so ignore later passes. */
+    if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
+    CL_SetLoadingProgress(progress);
+}
+
 static void CL_SendBegin(void) {
     fprintf(stderr,
             "CL_SendBegin: sending begin world=\"%s\" state=%d player=%u team=%u race=%u color=%u\n",
@@ -360,6 +367,8 @@ void CL_PrepRefresh(void) {
         return;
     }
 
+    CL_LoadingStage(0.10f);
+
     if (!world_loaded) {
         if (!CM_IsMapLoaded(cl.configstrings[CS_WORLD])) {
             CM_LoadMap(cl.configstrings[CS_WORLD]);
@@ -367,6 +376,7 @@ void CL_PrepRefresh(void) {
         re.RegisterMap(cl.configstrings[CS_WORLD]);
         world_loaded = true;
     }
+    CL_LoadingStage(0.40f);
 
     BOOL register_sounds = !cl.refresh_prepped;
     if (register_sounds) S_BeginRegistration();
@@ -397,32 +407,38 @@ void CL_PrepRefresh(void) {
             continue;
         CL_RegisterConfigString(CS_MODELS + i);
     }
+    CL_LoadingStage(0.60f);
 
     for (DWORD i = 1; i < MAX_IMAGES; i++) {
         if (!*cl.configstrings[CS_IMAGES + i])
             continue;
         CL_RegisterConfigString(CS_IMAGES + i);
     }
+    CL_LoadingStage(0.75f);
 
     if (register_sounds)
         for (DWORD i = 1; i < MAX_SOUNDS; i++)
             if (*cl.configstrings[CS_SOUNDS + i]) S_RegisterSound(cl.configstrings[CS_SOUNDS + i]);
+    CL_LoadingStage(0.87f);
 
     for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
         if (!*cl.configstrings[CS_FONTS + i])
             continue;
         CL_RegisterConfigString(CS_FONTS + i);
     }
+    CL_LoadingStage(0.94f);
 
     if (world_loaded && !begin_sent) {
         CL_SendBegin();
         begin_sent = true;
     }
+    CL_LoadingStage(0.98f);
 
     if (world_loaded && !cl.refresh_prepped) {
         S_EndRegistration();
         cl.refresh_prepped = true;
     }
+    if (cl.refresh_prepped) CL_LoadingStage(1.0f);
 }
 
 void V_RenderView(void) {

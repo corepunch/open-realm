@@ -66,6 +66,7 @@ struct frame {
 
 struct client_state {
     BOOL refresh_prepped;
+    FLOAT loading_progress;   /* client-owned normalized loading progress [0,1] */
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
     LPMODEL minimap_model;
@@ -136,6 +137,8 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
+FLOAT CL_GetLoadingProgress(void);
+void CL_SetLoadingProgress(FLOAT progress);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
 
@@ -219,6 +222,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          uiLabel_t const *label);
 void SCR_UpdateScreen(DWORD msec);
 void SCR_BeginLoadingPlaque(void);
+void SCR_UpdateLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 void SCR_ClearLayoutResources(void);
 

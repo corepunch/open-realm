@@ -17,6 +17,7 @@
 #include "ui_layout.h"
 #include "sound/s_local.h"
 #include "common/net_platform.h"
+#include "common/server_api.h"
 #ifdef BZ_TESTS
 #include "shared/test.h"
 #endif
@@ -450,6 +451,18 @@ static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
     Cvar_Set(name, value);
 }
 
+FLOAT CL_GetLoadingProgress(void) {
+    return cl.loading_progress;
+}
+
+void CL_SetLoadingProgress(FLOAT progress) {
+    if (progress < 0.0f) progress = 0.0f;
+    if (progress > 1.0f) progress = 1.0f;
+    if (progress <= cl.loading_progress) return;
+    cl.loading_progress = progress;
+    SCR_UpdateLoadingPlaque();
+}
+
 void CL_BeginLoadingMap(LPCSTR mapName) {
     /* Per-map input conveniences must never retain entity numbers into the
      * next world, where those numbers may refer to unrelated entities. */
@@ -460,6 +473,7 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     /* Same-map load keeps CS_WORLD unchanged; forget the previous world's begin
      * so PrepRefresh sends it again and CL_ParseFrame can end the plaque. */
     CL_RestartRefresh();
+    cl.loading_progress = 0.0f;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_connected;
     CL_MenuCommand("menu_ingame");
@@ -609,6 +623,7 @@ static void CL_ProcessPendingMenuAction(void) {
         CL_SetGameplayBindings();
         CL_BeginLoadingMap(pending.arg);
         SV_Map(pending.arg);
+        if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
         break;
     case CL_MENU_ACTION_MENU:
         /* Returning from a world is a session boundary, not an in-place menu
@@ -628,6 +643,23 @@ static void CL_ProcessPendingMenuAction(void) {
 }
 
 #ifdef BZ_TESTS
+TEST(client_loading, progress_is_clamped_and_monotonic) {
+    FLOAT saved = cl.loading_progress;
+    DWORD saved_disable_screen = cls.disable_screen;
+
+    cls.disable_screen = 0;
+    cl.loading_progress = 0.0f;
+    CL_SetLoadingProgress(0.25f);
+    T_FEQ(cl.loading_progress, 0.25f, 0.0001f);
+    CL_SetLoadingProgress(0.10f);
+    T_FEQ(cl.loading_progress, 0.25f, 0.0001f);
+    CL_SetLoadingProgress(2.0f);
+    T_FEQ(cl.loading_progress, 1.0f, 0.0001f);
+
+    cl.loading_progress = saved;
+    cls.disable_screen = saved_disable_screen;
+}
+
 TEST(client_session, menu_action_map_is_deferred_until_client_frame) {
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
 
@@ -744,6 +776,7 @@ void CL_Init(void) {
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
         .GetConfigString = CL_GetConfigString,
+        .LoadingProgress = CL_GetLoadingProgress,
         .LAN_RefreshServers = CL_LANRefreshServers,
         .LAN_NumServers = CL_LANNumServers,
         .LAN_Server = CL_LANServer,

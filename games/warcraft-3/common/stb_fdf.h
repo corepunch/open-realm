@@ -342,7 +342,16 @@ struct uiFrameDef_s {
 #ifndef STB_FDF_GLOBALS
 extern FRAMEDEF frames[MAX_UI_CLASSES];
 #else
+/*
+ * libgame and libmenu each instantiate stb_fdf.  Keep the backing frame
+ * registry module-local just like the implementation functions below.
+ * Without hidden visibility, ELF symbol interposition can make both shared
+ * libraries resolve `frames` to the same BSS object; then UI_ResetHud() in
+ * libgame clears the live glue/loading frames owned by libmenu during SV_Map.
+ */
+#pragma GCC visibility push(hidden)
 FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
+#pragma GCC visibility pop
 #endif
 
 /* -------------------------------------------------------------------------- */

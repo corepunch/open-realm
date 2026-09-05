@@ -413,6 +413,7 @@ int main(int argc, LPSTR argv[]) {
         if (load_map_from_save) {
             CL_BeginLoadingMap(map);
             SV_Map(map);
+            if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
         }
         Cbuf_AddLateCommands();
         Cbuf_Execute();
@@ -430,6 +431,7 @@ int main(int argc, LPSTR argv[]) {
                 CL_BeginLoadingMap(map);
                 SCR_UpdateScreen(0);
                 SV_Map(map);
+                if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
             }
         }
         // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)

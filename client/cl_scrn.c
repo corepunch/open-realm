@@ -112,6 +112,13 @@ static void SCR_DrawCursor(void) {
     int const x = (int)mouse.origin.x, y = (int)mouse.origin.y;
     BOOL drawn = false;
 
+    /* Loading plaques are non-interactive. Hide both the authored cursor and
+     * the native SDL cursor until normal menu/game presentation resumes. */
+    if (cl.playerstate.client_ui_state == CLIENT_UI_LOADING) {
+        SCR_UpdateSystemCursor(true);
+        return;
+    }
+
     if (Cvar_Integer("r_cursor", 0) == 1) {
         VECTOR2 const pos = SCR_ScreenToUI(x, y);
         drawn = re.DrawCursor(pos.x, pos.y, SCR_CursorTint());
@@ -177,6 +184,14 @@ void SCR_DrawScreenField(DWORD msec) {
     }
 #endif
     re.EndFrame();
+}
+
+void SCR_UpdateLoadingPlaque(void) {
+    if (!scr_initialized) return;
+    if (!cls.disable_screen) return;
+    if (Cvar_Integer("r_norefresh", 0)) return;
+    if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
+    SCR_DrawScreenField(0);
 }
 
 void SCR_UpdateScreen(DWORD msec) {
