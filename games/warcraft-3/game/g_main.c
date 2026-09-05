@@ -38,24 +38,49 @@ extern JASSMODULE jass_funcs[];
 
 static void G_StartScripts(void);
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after);
+#define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
+
 static BOOL starting_resource_cheat_armed;
+static DWORD starting_resource_cheat_applied_mask;
+static DWORD starting_resource_cheat_deferred_mask;
 
 void G_ResetStartingResourceCheat(void) {
     LPCSTR value = gi.CvarString ? gi.CvarString("wc3_cheat_starting_resources", "0") : "0";
+
     starting_resource_cheat_armed = value && atoi(value) != 0;
+    starting_resource_cheat_applied_mask = 0;
+    starting_resource_cheat_deferred_mask = 0;
 }
 
-void G_DisableStartingResourceCheatForLoadedGame(void) { starting_resource_cheat_armed = false; }
+void G_DisableStartingResourceCheatForLoadedGame(void) {
+    starting_resource_cheat_armed = false;
+    starting_resource_cheat_applied_mask = ~0u;
+    starting_resource_cheat_deferred_mask = 0;
+}
 
 void G_ApplyStartingResourceCheat(void) {
     if (!starting_resource_cheat_armed) return;
+
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients + i;
-        if (!client->connected || !client->mapplayer || !client->mapplayer->used || client->mapplayer->playerType != kPlayerTypeHuman || client->no_control || client->ps.client_ui_state == CLIENT_UI_CINEMATIC) continue;
-        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = MIN((LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + 5000, USHRT_MAX);
-        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = MIN((LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + 5000, USHRT_MAX);
-        starting_resource_cheat_armed = false;
-        return;
+        DWORD const bit = 1u << i;
+        LONG gold, lumber;
+        USHORT old_gold, old_lumber;
+
+        if (starting_resource_cheat_applied_mask & bit) continue;
+        if (!client->mapplayer || !client->mapplayer->used || client->mapplayer->playerType != kPlayerTypeHuman) {
+            starting_resource_cheat_applied_mask |= bit;
+            continue;
+        }
+        if (!client->connected || client->no_control || client->ps.client_ui_state == CLIENT_UI_CINEMATIC) continue;
+
+        old_gold = client->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+        old_lumber = client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+        gold = (LONG)old_gold + WC3_CHEAT_STARTING_RESOURCE_BONUS;
+        lumber = (LONG)old_lumber + WC3_CHEAT_STARTING_RESOURCE_BONUS;
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
+        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+        starting_resource_cheat_applied_mask |= bit;
     }
 }
 
