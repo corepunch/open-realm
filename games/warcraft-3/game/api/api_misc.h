@@ -1404,7 +1404,7 @@ DWORD SetCinematicScene(LPJASS j) {
             LPCSTR model = G_UnitUI((DWORD)portraitUnitId)->modelFile;
             if (model && *model) {
                 PATHSTR mf;
-                snprintf(mf, sizeof(mf), "%s.mdx", model);
+                G_NormalizeModelFilename(model, mf, sizeof(mf));
                 currentplayer->cinematic_portrait = G_RegisterModel(mf);
             }
         }

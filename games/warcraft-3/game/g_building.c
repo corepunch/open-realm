@@ -699,8 +699,8 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
      * on whatever animation happened to be left on the entity by a previous
      * state transition. */
     anim = building->animation;
-    if (!anim || strcasecmp(anim->name, "birth"))
-        anim = G_GetAnimation(building->s.model, "birth");
+    if (!G_AnimationHasPrimary(anim, "birth"))
+        anim = G_GetUnitAnimation(building, "birth");
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 

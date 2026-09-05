@@ -191,7 +191,7 @@ Target eligibility remains intentionally conservative: the target must be a live
 
 Construction and owned-building Repair now share the behavior described above. The following clean-room-spec items remain incomplete:
 
-- `war3map.w3u` modifications are not yet fully merged into the normalized typed unit rows, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
+- `war3map.w3u` now merges registered `UnitUI` fields (including custom models), but other typed rows are not yet fully merged, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
 - research/upgrade production now has a shared queue, per-level costs/times,
   requirements, cancellation/refunds, and Blacksmith `ratd`/`rarm` effects; W3I
   upgrade-availability records are still parsed but are not yet applied to that

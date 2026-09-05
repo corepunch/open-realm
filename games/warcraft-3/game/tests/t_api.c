@@ -24,6 +24,7 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 BOOL run_test_jass(LPCSTR src);
 extern LPPLAYER currentplayer;
@@ -448,6 +449,32 @@ TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
     T_FEQ(gc->camera.state.position.x, -100.0f, 0.001f);
     T_FEQ(gc->camera.state.position.y, 50.0f, 0.001f);
     currentplayer = NULL;
+}
+
+
+TEST(wc3_api, camera_angle_interpolation_uses_shortest_periodic_arc) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.target_controller = NULL;
+    gc->camera.target_inherit_orientation = false;
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.old_state.viewangles = (VECTOR3){ -394.0f, 0.0f, 350.0f };
+    gc->camera.state = gc->camera.old_state;
+    gc->camera.state.viewangles = (VECTOR3){ 326.0f, 0.0f, 10.0f };
+    gc->camera.start_time = 100;
+    gc->camera.end_time = 1100;
+    level.time = 600;
+
+    G_RunClients();
+
+    /* -394 and 326 are the same orientation modulo 360, so pitch must not
+     * travel two full turns.  Yaw 350 -> 10 crosses the wrap by +20 degrees. */
+    T_FEQ(gc->ps.viewangles.x, -394.0f, 0.001f);
+    T_FEQ(gc->ps.viewangles.y, 0.0f, 0.001f);
+    T_FEQ(gc->ps.viewangles.z, 360.0f, 0.001f);
+    T_FEQ(CL_GameLerpDegrees(10.0f, 350.0f, 0.5f), 0.0f, 0.001f);
+    T_FEQ(CL_GameLerpDegrees(326.0f, -394.0f, 0.5f), 326.0f, 0.001f);
 }
 
 TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
@@ -1002,6 +1029,96 @@ TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     T_STREQ(gc->message_log.entries[0], "Timed message");
 }
 
+static LPEDICT find_test_unit(DWORD class_id) {
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == class_id) {
+            return g_edicts + i;
+        }
+    }
+    return NULL;
+}
+
+static void setup_set_unit_position_pathmap(void) {
+    enum { CELLS = 16 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+
+    /* Requested point (256,256) lies in cell (8,8). Buildings and other
+     * authored blockers are baked into this same no-walk map in production. */
+    pathmap[8 * CELLS + 8] = 2;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+}
+
+TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
+    LPEDICT moved;
+
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitPosition(mover, 256.0, 256.0)\n"
+        "endfunction\n"));
+
+    moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(moved);
+    /* Warsmash checks (256,256), then the first 64-unit spiral point below it. */
+    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+}
+
+TEST(wc3_api, unit_unstuck_search_skips_live_unit_collision) {
+    VECTOR2 const requested = {256.0f, 256.0f};
+    VECTOR2 out;
+    LPEDICT blocker;
+    LPEDICT mover;
+
+    setup_set_unit_position_pathmap();
+    blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 192.0f);
+    mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    blocker->s.model = mover->s.model = 1;
+    blocker->collision = mover->collision = 16.0f;
+
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    /* Requested point is static-blocked; the next spiral point is occupied. */
+    T_FEQ(out.x, 320.0f, 0.001f);
+    T_FEQ(out.y, 192.0f, 0.001f);
+}
+
+TEST(wc3_api, set_unit_position_loc_uses_same_unstuck_search) {
+    LPEDICT moved;
+
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  local location target = Location(256.0, 256.0)\n"
+        "  call SetUnitPositionLoc(mover, target)\n"
+        "endfunction\n"));
+
+    moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(moved);
+    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+}
+
+TEST(wc3_api, set_unit_x_y_remain_raw_coordinates_on_blocked_pathing) {
+    LPEDICT moved;
+
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitX(mover, 256.0)\n"
+        "  call SetUnitY(mover, 256.0)\n"
+        "endfunction\n"));
+
+    moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(moved);
+    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 256.0f, 0.001f);
+}
+
 TEST(wc3_api, set_unit_scale_uses_wc3_x_component_as_uniform_scale) {
     LPEDICT scaled = NULL;
 
@@ -1207,6 +1324,25 @@ static LPEDICT make_unit_hero(void) {
     reset_entities();
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     return ent;
+}
+
+TEST(wc3_api, model_effects_are_rendered_but_not_world_selectable) {
+    VECTOR2 point = { 64.0f, 64.0f };
+    LPEDICT target;
+    LPEDICT point_effect;
+    LPEDICT target_effect;
+
+    setup_test_world();
+    point_effect = G_SpawnModelEffect("TestUI\\Models\\anim_pulse.mdx", &point, NULL, NULL, false);
+    T_NOT_NULL(point_effect);
+    T_ASSERT(point_effect->s.model != 0);
+    T_ASSERT(point_effect->s.flags & EF_NOT_SELECTABLE);
+
+    target = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128.0f, 128.0f);
+    target_effect = G_SpawnModelEffect("TestUI\\Models\\anim_pulse.mdx", NULL, target, "overhead", false);
+    T_NOT_NULL(target_effect);
+    T_ASSERT(target_effect->s.model != 0);
+    T_ASSERT(target_effect->s.flags & EF_NOT_SELECTABLE);
 }
 
 TEST(wc3_api, effect_natives_return_independent_handles) {

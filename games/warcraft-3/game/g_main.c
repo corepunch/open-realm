@@ -181,6 +181,7 @@ void G_UpdateTimeOfDay(void) {
 
 static bool G_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
+        G_SetMapUnitOverrides(NULL);
         return false;
     }
     /* CS_MODELS is rebuilt from index 1 for every SV_Map.  The server-side
@@ -189,6 +190,7 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     G_FreeModels();
     gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     gi.ClearWorld();
+    G_SetMapUnitOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
      * panel once so write paths do not parse FDF on first use. */
     UI_ResetHud();
@@ -284,6 +286,10 @@ static void InitConstants(void) {
     InitMiscValue("DayLength", &game.constants.gameDayLength);
     InitMiscValue("BuildingAngle", &game.constants.buildingAngle);
     InitMiscValue("RootAngle", &game.constants.rootAngle);
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 follow distances. These are
+     * distinct from AcquireRange; map Misc overrides remain authoritative. */
+    InitMiscValueDefault("FollowRange", &game.constants.followRange, 300.0f);
+    InitMiscValueDefault("StructureFollowRange", &game.constants.structureFollowRange, 100.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
@@ -529,8 +535,13 @@ static void G_RunClients(void) {
             LPCCAMERASETUP b = &client->camera.state;
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
             client->ps.vieworigin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
-            /* JASS interpolates camera fields independently; the client slerps the snapshot Eulers. */
-            client->ps.viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, k);
+            /* JASS interpolates camera fields independently. Angle fields use
+             * the game's periodic-degree rule; WC3 takes the shortest arc. */
+            client->ps.viewangles = (VECTOR3){
+                CL_GameLerpDegrees(a->viewangles.x, b->viewangles.x, k),
+                CL_GameLerpDegrees(a->viewangles.y, b->viewangles.y, k),
+                CL_GameLerpDegrees(a->viewangles.z, b->viewangles.z, k),
+            };
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
             player_set_lens(&client->ps, &(gameCamera_t){
                 .fov = LerpNumber(a->fov, b->fov, k),

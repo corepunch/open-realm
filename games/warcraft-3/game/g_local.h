@@ -782,6 +782,9 @@ typedef struct {
     DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
 } heroabilitystatus_t;
 
+#define WC3_ANIMATION_REQUEST_SIZE 80
+#define WC3_ANIMATION_PROPERTIES_SIZE 128
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -963,6 +966,11 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
+    /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
+     * AddUnitAnimationProperties mutations. The request is retained separately
+     * so a property change can reselect the same logical animation family. */
+    char animation_request[WC3_ANIMATION_REQUEST_SIZE];
+    char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
     umove_t *currentmove;
     unitRace_t race;
@@ -1054,6 +1062,10 @@ struct game_locals {
         FLOAT gameDayLength;
         FLOAT buildingAngle;
         FLOAT rootAngle;
+        /* Unit-target Move/Smart follows use WC3 Misc distances, not attack
+         * acquisition range. war3mapMisc.txt may override either value. */
+        FLOAT followRange;
+        FLOAT structureFollowRange;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         FLOAT defenseArmor;
@@ -1417,6 +1429,7 @@ void G_BindEntityData(LPEDICT);
 void G_BindEntityRuntime(LPEDICT);
 void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
+BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out);
 BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
@@ -1458,8 +1471,16 @@ void monster_start(LPEDICT);
 void monster_think(LPEDICT);
 
 // g_model.c
+void         G_NormalizeModelFilename(LPCSTR authored, LPSTR out, size_t out_size);
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
+LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties);
+LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCSTR properties);
+BOOL         G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary);
+LPCANIMATION G_GetUnitAnimation(LPEDICT unit, LPCSTR animname);
+void         G_SetUnitAnimation(LPEDICT unit, LPCSTR animname);
+void         G_ResetUnitAnimationProperties(LPEDICT unit);
+void         G_AddUnitAnimationProperties(LPEDICT unit, LPCSTR properties, BOOL add);
 void         G_FreeModels(void);
 
 // g_ai.c
@@ -1760,6 +1781,7 @@ FLOAT UnitMetaReal(LPEDICT, DWORD);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
+void G_SetMapUnitOverrides(LPCMAPINFO);
 #ifdef BZ_TESTS
 typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
 slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
@@ -1932,6 +1954,7 @@ BOOL move_is_terminal_hold(LPCEDICT);
 void move_reset_progress(LPEDICT);
 LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
 FLOAT G_AcquisitionRange(LPCEDICT);
+FLOAT G_FollowStopRange(LPCEDICT follower, LPCEDICT target);
 BOOL G_ShouldAcquireThisFrame(LPCEDICT);
 
 // p_jass.c

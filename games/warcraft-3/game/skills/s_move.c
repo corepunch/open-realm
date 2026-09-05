@@ -299,6 +299,18 @@ static BOOL follow_can_auto_attack(LPCEDICT self) {
     return !level.mapinfo || level.mapinfo->players[self->s.player].playerType != kPlayerTypeNeutral;
 }
 
+FLOAT G_FollowStopRange(LPCEDICT follower, LPCEDICT target) {
+    FLOAT configured;
+    FLOAT collision_range;
+
+    if (!follower || !target) return 0.0f;
+    configured = (target->s.flags & EF_BUILDING)
+        ? game.constants.structureFollowRange
+        : game.constants.followRange;
+    collision_range = follower->collision + target->collision;
+    return MAX(configured, collision_range);
+}
+
 static void ai_follow_walk(LPEDICT ent) {
     LPEDICT target = ent->movement.follow_target;
     FLOAT distance;
@@ -322,8 +334,8 @@ static void ai_follow_walk(LPEDICT ent) {
     }
 
     distance = M_DistanceToGoal(ent);
-    follow_range = MAX(G_AcquisitionRange(ent), ent->collision + target->collision);
-    standing = ent->animation && !strcmp(ent->animation->name, "stand");
+    follow_range = G_FollowStopRange(ent, target);
+    standing = G_AnimationHasPrimary(ent->animation, "stand");
     if (distance <= follow_range) {
         if (!standing) {
             move_reset_progress(ent);

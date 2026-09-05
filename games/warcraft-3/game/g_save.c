@@ -1037,7 +1037,13 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (BYTE *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
-    if (ent->class_id) G_BindEntityData(ent);
+    if (ent->class_id) {
+        G_BindEntityData(ent);
+        /* animation is a process-owned model pointer and is deliberately not serialized.
+         * Re-resolve it from the persisted logical request plus per-unit animation tags. */
+        if (ent->animation_request[0])
+            ent->animation = G_GetUnitAnimation(ent, ent->animation_request);
+    }
     return true;
 }
 

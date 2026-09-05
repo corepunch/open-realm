@@ -265,6 +265,276 @@ TEST(wc3_slk, global_array_backs_spawned_unit) {
     T_ASSERT(ent.data.UnitAbilities == G_UnitAbil(ent.class_id));
 }
 
+TEST(wc3_slk, unit_model_filename_preserves_authored_extension) {
+    PATHSTR path;
+
+    G_NormalizeModelFilename("Units\\Campaign\\Hero\\Hero.mdl", path, sizeof(path));
+    T_STREQ(path, "Units\\Campaign\\Hero\\Hero.mdl");
+    G_NormalizeModelFilename("war3mapImported/CustomHero.mdx", path, sizeof(path));
+    T_STREQ(path, "war3mapImported/CustomHero.mdx");
+}
+
+TEST(wc3_slk, unit_model_filename_adds_mdx_to_base_slk_stem) {
+    PATHSTR path;
+
+    G_NormalizeModelFilename("Units\\Human\\Footman\\Footman", path, sizeof(path));
+    T_STREQ(path, "Units\\Human\\Footman\\Footman.mdx");
+}
+
+TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
+    static const char slk_ui[] =
+        "C;Y1;X1;K\"unitUIID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"modelScale\"\n"
+        "C;Y2;X1;K\"hfoo\"\n"
+        "C;Y2;X2;K\"Units\\Human\\Footman\\Footman\"\n"
+        "C;Y2;X3;K\"1.0\"\n"
+        "E\n";
+    DWORD const base_id = MAKEFOURCC('h','f','o','o');
+    DWORD const custom_id = MAKEFOURCC('x','f','o','o');
+    LPCMAPINFO saved_mapinfo;
+    slkTestData_t *rows = parse_slk_string(slk_ui);
+    slkTestData_t *saved_ui;
+    slkTestData_t *replaced_ui;
+    UnitUI_t const *base;
+    FLOAT scale = 1.75f;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string, .data = (HANDLE)"Units\\Campaign\\CorrectHero\\CorrectHero" },
+        { .modID = MAKEFOURCC('u','s','c','a'), .type = mod_real, .data = &scale },
+    };
+    unitData_t custom = {
+        .originalUnitID = base_id, .newUnitID = custom_id,
+        .numbeOfModifications = 2, .modifications = mods
+    };
+    MAPINFO mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &custom };
+
+    setup_test_world();
+    T_NOT_NULL(rows);
+    saved_ui = G_SetSLKRows("UnitUI", rows);
+    T_NOT_NULL(saved_ui);
+    saved_mapinfo = level.mapinfo;
+    base = G_UnitUI(base_id);
+    T_STREQ(base->modelFile, "Units\\Human\\Footman\\Footman");
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_EQ(G_UnitUI(custom_id)->id, custom_id);
+    T_STREQ(G_UnitUI(custom_id)->modelFile, "Units\\Campaign\\CorrectHero\\CorrectHero");
+    T_FEQ(G_UnitUI(custom_id)->modelScale, 1.75f, 0.001f);
+    T_STREQ(G_UnitUI(base_id)->modelFile, base->modelFile);
+    {
+        edict_t unit = { .class_id = custom_id };
+        G_BindEntityData(&unit);
+        T_ASSERT(unit.data.UnitUI == G_UnitUI(custom_id));
+        T_STREQ(unit.data.UnitUI->modelFile, "Units\\Campaign\\CorrectHero\\CorrectHero");
+    }
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    replaced_ui = G_SetSLKRows("UnitUI", saved_ui);
+    free_slk_rows(replaced_ui);
+    free_slk_rows(saved_ui);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, map_original_unit_ui_override_is_custom_inheritance_source) {
+    DWORD const base_id = MAKEFOURCC('h','f','o','o');
+    DWORD const custom_id = MAKEFOURCC('x','f','o','o');
+    LPCMAPINFO saved_mapinfo;
+    unitModification_t model = {
+        .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string,
+        .data = (HANDLE)"Units\\Campaign\\OriginalOverride\\OriginalOverride"
+    };
+    unitData_t original = {
+        .originalUnitID = base_id, .numbeOfModifications = 1, .modifications = &model
+    };
+    unitData_t custom = { .originalUnitID = base_id, .newUnitID = custom_id };
+    MAPINFO mapinfo = {
+        .num_originalUnits = 1, .originalUnits = &original,
+        .num_userCreatedUnits = 1, .userCreatedUnits = &custom
+    };
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_STREQ(G_UnitUI(base_id)->modelFile, "Units\\Campaign\\OriginalOverride\\OriginalOverride");
+    T_STREQ(G_UnitUI(custom_id)->modelFile, "Units\\Campaign\\OriginalOverride\\OriginalOverride");
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+}
+
+TEST(wc3_slk, map_custom_unit_ui_rows_are_stable_per_unit) {
+    DWORD const base_id = MAKEFOURCC('h','f','o','o');
+    DWORD const first_id = MAKEFOURCC('x','f','o','1');
+    DWORD const second_id = MAKEFOURCC('x','f','o','2');
+    LPCMAPINFO saved_mapinfo;
+    unitModification_t models[] = {
+        { .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string, .data = (HANDLE)"Units\\Campaign\\First\\First" },
+        { .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string, .data = (HANDLE)"Units\\Campaign\\Second\\Second" },
+    };
+    unitData_t custom[] = {
+        { .originalUnitID = base_id, .newUnitID = first_id, .numbeOfModifications = 1, .modifications = &models[0] },
+        { .originalUnitID = base_id, .newUnitID = second_id, .numbeOfModifications = 1, .modifications = &models[1] },
+    };
+    MAPINFO mapinfo = { .num_userCreatedUnits = 2, .userCreatedUnits = custom };
+    UnitUI_t const *first;
+    UnitUI_t const *second;
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+    first = G_UnitUI(first_id);
+    second = G_UnitUI(second_id);
+
+    T_ASSERT(first != second);
+    T_STREQ(first->modelFile, "Units\\Campaign\\First\\First");
+    T_STREQ(second->modelFile, "Units\\Campaign\\Second\\Second");
+    T_STREQ(first->modelFile, "Units\\Campaign\\First\\First");
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+}
+
+
+TEST(wc3_slk, required_animation_names_select_matching_alternate_sequence) {
+    animation_t animations[] = {
+        { .name = "Stand" },
+        { .name = "Stand Alternate" },
+        { .name = "Walk" },
+        { .name = "Walk Alternate" },
+    };
+    LPCANIMATION selected;
+
+    selected = G_SelectAnimationForProperties(animations, 4, "stand", "alternate");
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Stand Alternate");
+
+    selected = G_SelectAnimationForProperties(animations, 4, "walk", "alternate");
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Walk Alternate");
+
+    selected = G_SelectAnimationForProperties(animations, 4, "stand", "");
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Stand");
+}
+
+TEST(wc3_slk, required_animation_names_alternateex_falls_back_to_alternate_sequences) {
+    animation_t animations[] = {
+        { .name = "Stand" },
+        { .name = "Stand Alternate" },
+        { .name = "Walk" },
+        { .name = "Walk Alternate" },
+    };
+    LPCANIMATION selected;
+
+    selected = G_SelectAnimationForProperties(animations, 4, "stand", "alternateex");
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Stand Alternate");
+
+    selected = G_SelectAnimationForProperties(animations, 4, "walk", "alternateex");
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Walk Alternate");
+}
+
+TEST(wc3_slk, required_animation_names_alternateex_prefers_real_alternateex_sequence) {
+    animation_t animations[] = {
+        { .name = "Stand" },
+        { .name = "Stand Alternate" },
+        { .name = "Stand AlternateEx" },
+    };
+    LPCANIMATION selected = G_SelectAnimationForProperties(animations, 3, "stand", "alternateex");
+
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Stand AlternateEx");
+}
+
+TEST(wc3_slk, required_animation_names_combine_order_tags_with_unit_tags) {
+    animation_t animations[] = {
+        { .name = "Stand Ready" },
+        { .name = "Stand Alternate" },
+        { .name = "Stand Ready Alternate" },
+    };
+    LPCANIMATION selected = G_SelectAnimationForProperties(animations, 3, "stand ready", "alternate");
+
+    T_NOT_NULL(selected);
+    if (selected) T_STREQ(selected->name, "Stand Ready Alternate");
+}
+
+TEST(wc3_slk, unit_animation_properties_add_and_remove_persistent_tags) {
+    UnitProfile_t profile = { .animProps = "alternate" };
+    edict_t unit = { .class_id = MAKEFOURCC('n','m','d','m'), .data.UnitProfile = &profile };
+
+    G_ResetUnitAnimationProperties(&unit);
+    T_STREQ(unit.animation_props, "alternate");
+
+    G_AddUnitAnimationProperties(&unit, "work", true);
+    T_STREQ(unit.animation_props, "alternate,work");
+    G_AddUnitAnimationProperties(&unit, "alternate", false);
+    T_STREQ(unit.animation_props, "work");
+}
+
+TEST(wc3_slk, map_original_required_animation_names_feed_custom_inheritance) {
+    DWORD const base_id = MAKEFOURCC('h','f','o','o');
+    DWORD const custom_id = MAKEFOURCC('x','f','o','b');
+    LPCMAPINFO saved_mapinfo;
+    unitModification_t anim_props = {
+        .modID = MAKEFOURCC('u','a','n','i'), .type = mod_string, .data = (HANDLE)"alternate"
+    };
+    unitData_t original = {
+        .originalUnitID = base_id, .numbeOfModifications = 1, .modifications = &anim_props
+    };
+    unitData_t custom = { .originalUnitID = base_id, .newUnitID = custom_id };
+    MAPINFO mapinfo = {
+        .num_originalUnits = 1, .originalUnits = &original,
+        .num_userCreatedUnits = 1, .userCreatedUnits = &custom
+    };
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_STREQ(G_UnitProfile(base_id)->animProps, "alternate");
+    T_STREQ(G_UnitProfile(custom_id)->animProps, "alternate");
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+}
+
+TEST(wc3_slk, map_custom_unit_profile_overrides_required_animation_names) {
+    DWORD const base_id = MAKEFOURCC('h','f','o','o');
+    DWORD const custom_id = MAKEFOURCC('x','f','o','a');
+    LPCMAPINFO saved_mapinfo;
+    unitModification_t anim_props = {
+        .modID = MAKEFOURCC('u','a','n','i'), .type = mod_string, .data = (HANDLE)"alternate"
+    };
+    unitData_t custom = {
+        .originalUnitID = base_id, .newUnitID = custom_id,
+        .numbeOfModifications = 1, .modifications = &anim_props
+    };
+    MAPINFO mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &custom };
+    edict_t unit = { .class_id = custom_id };
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_EQ(G_UnitProfile(custom_id)->id, custom_id);
+    T_STREQ(G_UnitProfile(custom_id)->animProps, "alternate");
+    G_BindEntityData(&unit);
+    T_STREQ(UnitMetaString(&unit, MAKEFOURCC('u','a','n','i')), "alternate");
+    G_ResetUnitAnimationProperties(&unit);
+    T_STREQ(unit.animation_props, "alternate");
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+}
+
 TEST(wc3_slk, weapon_columns_decode_into_attack_records) {
     LPCSTR slk =
         "ID;PWXL;N;E\n"
