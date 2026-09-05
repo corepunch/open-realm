@@ -1235,7 +1235,7 @@ static void test_update_unit_ui(DWORD num_units, menuUnitData_t *units) {
     }
 }
 
-TEST(net, game_command_selection_accepts_authoritative_multi_selection) {
+TEST(net, set_selection_accepts_authoritative_multi_selection) {
     BYTE buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
 
@@ -1245,9 +1245,8 @@ TEST(net, game_command_selection_accepts_authoritative_multi_selection) {
     cl.selection.num_selected = 1;
     cl.selection.entity_nums[0] = 99;
 
-    MSG_WriteByte(&sb, svc_gamecmd);
-    MSG_WriteString(&sb, "select");
-    MSG_WriteShort(&sb, 3 * sizeof(DWORD));
+    MSG_WriteByte(&sb, svc_set_selection);
+    MSG_WriteByte(&sb, 3);
     MSG_WriteLong(&sb, 4);
     MSG_WriteLong(&sb, 7);
     MSG_WriteLong(&sb, 11);
@@ -1261,7 +1260,7 @@ TEST(net, game_command_selection_accepts_authoritative_multi_selection) {
     T_EQ(test_unit_ui_calls, 1);
 }
 
-TEST(net, game_command_empty_selection_clears_client_cache) {
+TEST(net, set_selection_empty_clears_client_cache) {
     BYTE buf[64];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
 
@@ -1272,9 +1271,8 @@ TEST(net, game_command_empty_selection_clears_client_cache) {
     cl.selection.entity_nums[0] = 4;
     cl.selection.entity_nums[1] = 7;
 
-    MSG_WriteByte(&sb, svc_gamecmd);
-    MSG_WriteString(&sb, "select");
-    MSG_WriteShort(&sb, 0);
+    MSG_WriteByte(&sb, svc_set_selection);
+    MSG_WriteByte(&sb, 0);
     sb.readcount = 0;
     CL_ParseServerMessage(&sb);
 
@@ -2460,11 +2458,10 @@ TEST(net, set_selection_rejects_undersized_payload) {
     DWORD saved_ent = cl.selection.entity_nums[0];
 
     test_client_stubs_init();
-    /* Payload smaller than sizeof(DWORD) should be rejected. */
+    /* Count says one entity, but the entity word is absent. */
     sb = make_msg_buf(buf, sizeof(buf));
-    MSG_WriteByte(&sb, svc_gamecmd);
-    MSG_WriteShort(&sb, 1); /* payload size */
-    MSG_WriteByte(&sb, 'x'); /* 1 byte of payload */
+    MSG_WriteByte(&sb, svc_set_selection);
+    MSG_WriteByte(&sb, 1);
     sb.readcount = 0;
     CL_ParseServerMessage(&sb);
     T_EQ(cl.selection.num_selected, saved_num);
@@ -2479,8 +2476,8 @@ TEST(net, set_selection_rejects_zero_entity) {
     test_client_stubs_init();
     /* Entity number 0 should be rejected. */
     sb = make_msg_buf(buf, sizeof(buf));
-    MSG_WriteByte(&sb, svc_gamecmd);
-    MSG_WriteShort(&sb, 4);
+    MSG_WriteByte(&sb, svc_set_selection);
+    MSG_WriteByte(&sb, 1);
     MSG_WriteLong(&sb, 0); /* entity 0 */
     sb.readcount = 0;
     CL_ParseServerMessage(&sb);
@@ -2495,8 +2492,8 @@ TEST(net, set_selection_rejects_entity_exceeding_max) {
     test_client_stubs_init();
     /* Entity number >= MAX_CLIENT_ENTITIES should be rejected. */
     sb = make_msg_buf(buf, sizeof(buf));
-    MSG_WriteByte(&sb, svc_gamecmd);
-    MSG_WriteShort(&sb, 4);
+    MSG_WriteByte(&sb, svc_set_selection);
+    MSG_WriteByte(&sb, 1);
     MSG_WriteLong(&sb, MAX_CLIENT_ENTITIES);
     sb.readcount = 0;
     CL_ParseServerMessage(&sb);

@@ -831,10 +831,7 @@ TEST(server_net, lobby_setup_message_round_trips_slot_table) {
     msg.cursize = cl->netchan.message.cursize;
     msg.readcount = 0;
 
-    T_EQ(MSG_ReadByte(&msg), svc_gamecmd);
-    MSG_ReadString(&msg, text);
-    T_STREQ(text, "lobby_setup");
-    T_ASSERT(MSG_ReadShort(&msg) > 0);
+    T_EQ(MSG_ReadByte(&msg), svc_lobby_setup);
     MSG_ReadString(&msg, text);
     T_STREQ(text, "Maps\\Melee\\Test.w3m");
     MSG_ReadString(&msg, text);
@@ -911,10 +908,7 @@ TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
 
     FOR_LOOP(i, svs.num_clients) {
         T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
-        T_EQ(MSG_ReadByte(&msg), svc_gamecmd);
-        MSG_ReadString(&msg, text);
-        T_STREQ(text, "lobby_chat");
-        T_ASSERT(MSG_ReadShort(&msg) > 0);
+        T_EQ(MSG_ReadByte(&msg), svc_lobby_chat);
         T_EQ(MSG_ReadByte(&msg), i == 0 ? 1 : 0);
         MSG_ReadString(&msg, text);
         T_STREQ(text, "Host: hello team");

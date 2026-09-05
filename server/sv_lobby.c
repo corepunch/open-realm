@@ -190,7 +190,7 @@ static void SV_LobbySendChat(LPCLIENT client, DWORD clientnum, DWORD sender_clie
     SZ_Init(&payload, payload_buf, sizeof(payload_buf));
     MSG_WriteByte(&payload, clientnum == sender_client ? 1 : 0);
     MSG_WriteString(&payload, text);
-    SV_WriteGameCommand(&client->netchan.message, "lobby_chat", &payload);
+    SV_WritePayload(&client->netchan.message, svc_lobby_chat, &payload);
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
@@ -321,7 +321,7 @@ void SV_LobbyWriteSetup(LPCLIENT cl) {
         MSG_WriteByte(&payload, (int)slot->color);
         MSG_WriteString(&payload, slot->name);
     }
-    SV_WriteGameCommand(&cl->netchan.message, "lobby_setup", &payload);
+    SV_WritePayload(&cl->netchan.message, svc_lobby_setup, &payload);
 }
 
 void SV_LobbyBroadcastSetup(void) {

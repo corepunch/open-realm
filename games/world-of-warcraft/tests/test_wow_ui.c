@@ -372,15 +372,14 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
 
 TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     menuExport_t menu;
-    BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };
     RECT check, alert1, alert2, frame; int check_idx, frame_idx;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
     menu = init_ui(); UIWow_EnterGameMode();
-    menu.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
-    menu.GameCommand("wow_tutorial", movement, sizeof(movement));
-    menu.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
+    menu.ShowTutorial(1);
+    menu.ShowTutorial(2);
+    menu.ShowTutorial(1);
     menu.ShowWindow("TutorialFrame", 1);
     T_ASSERT(wow_ui.tutorial_open);
     T_EQ((int)wow_ui.tutorial_alert_count, 2);
@@ -415,7 +414,7 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     T_EQ((int)wow_ui.tutorial_alert_count, 0);
     menu.ShowWindow("TutorialFrame", 0); menu.ShowWindow("TutorialFrame", 1);
     T_ASSERT(!wow_ui.tutorial_open);
-    menu.GameCommand("wow_tutorial", movement, sizeof(movement));
+    menu.ShowTutorial(2);
     T_EQ((int)wow_ui.tutorial_alert_count, 0);
     menu.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
 }

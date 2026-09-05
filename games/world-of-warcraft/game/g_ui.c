@@ -706,9 +706,11 @@ static void UI_WriteWindowMsg(LPCSTR window_id, int show) {
 
 /* Show the classic "Welcome to World of Warcraft" message box for ent. */
 void UI_WriteWelcomeWindow(LPEDICT ent) {
-    /* TutorialFrame.lua receives contextual tutorial IDs through TUTORIAL_TRIGGER; mirror that semantic event. */
-    gi.GameCommand(ent, "wow_tutorial", (BYTE[]){1, 1}, 2);
-    gi.GameCommand(ent, "wow_tutorial", (BYTE[]){1, 2}, 2);
+    /* TutorialFrame.lua receives contextual tutorial IDs through TUTORIAL_TRIGGER; use a typed message. */
+    gi.Write(PF_BYTE, &(LONG){svc_tutorial});
+    gi.Write(PF_BYTE, &(LONG){1});
+    gi.Write(PF_BYTE, &(LONG){svc_tutorial});
+    gi.Write(PF_BYTE, &(LONG){2});
     UI_WriteWindowMsg("TutorialFrame", 1);
     gi.unicast(ent);
 }

@@ -517,29 +517,8 @@ static void UIWow_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
     }
 }
 
-/* Route reliable server payloads to the WoW UI data model; gameplay handlers
- * must validate and mutate state on the server instead of in this callback. */
-static void UIWow_GameCommand(LPCSTR command, void const *data, DWORD size) {
-    BYTE const *payload = data;
-
-    if (!command || !*command) {
-        fprintf(stderr, "UIWow: received game command with no command name\n");
-        return;
-    }
-    if (!data && size) {
-        fprintf(stderr, "UIWow: received game command '%s' with NULL payload\n", command);
-        return;
-    }
-    if (!strcmp(command, "wow_tutorial")) {
-        if (size != 2 || payload[0] != 1 || !payload[1]) {
-            UIWow_Printf("UIWow: invalid wow_tutorial payload (%u bytes)\n", (unsigned)size);
-            return;
-        }
-        UIWow_QueueTip(payload[1]);
-        return;
-    }
-    if (!strncasecmp(command, "wow_", 4))
-        UIWow_Printf("UIWow: unsupported game command '%s' (%u bytes)\n", command, (unsigned)size);
+static void UIWow_ShowTutorial(DWORD id) {
+    if (!id || !UIWow_QueueTip(id)) UIWow_Printf("UIWow: invalid tutorial id %u\n", (unsigned)id);
 }
 
 /* -------------------------------------------------------------------------
@@ -561,7 +540,7 @@ menuExport_t M_GetAPI(menuImport_t import) {
         .UpdateUnitUI     = UIWow_UpdateUnitUI,
         .UpdatePlayerState = UIWow_UpdatePlayerState,
         .UpdateLobbySetup = UIWow_UpdateLobbySetup,
-        .GameCommand      = UIWow_GameCommand,
+        .ShowTutorial     = UIWow_ShowTutorial,
         .ShowWindow       = UIWow_ShowWindow,
     };
 }

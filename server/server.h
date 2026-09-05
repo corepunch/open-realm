@@ -141,8 +141,7 @@ int SV_FontIndex(LPCSTR name, DWORD fontSize);
 //void SV_LoadModels(void); // model animation data is loaded lazily by game modules now
 
 // sv_game.c
-void SV_WriteGameCommand(LPSIZEBUF msg, LPCSTR command, sizeBuf_t const *payload);
-void SV_GameCommand(edict_t *ent, LPCSTR command, void const *data, DWORD size);
+void SV_WritePayload(LPSIZEBUF msg, BYTE opcode, sizeBuf_t const *payload);
 void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
 void SV_InitGameProgs(void);
 

@@ -161,6 +161,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - Do not add blank lines between short, related statements.
 - Do not split a declaration and its first assignment onto separate lines.
 - Do not add null-pointer or function-pointer guards before calling cross-module API functions (`ui.*`, `re.*`, `s.*`, etc.). These are guaranteed to be set at init time.
+- Treat every cross-module API entry point as mandatory. Call `ui.*`, `re.*`, `s.*`, and game/server import callbacks directly; never add `if (api.Func)` guards that mask an incomplete API table or hide an initialization bug. Do not introduce generic named-command callbacks such as `GameCommand`; use a dedicated numbered `svc_*` message and typed handler for each protocol event.
 
 ## WC3 UI Tooling — fdfbindgen
 

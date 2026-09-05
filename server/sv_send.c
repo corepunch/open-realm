@@ -1,19 +1,8 @@
 #include "server.h"
 
-void SV_WriteGameCommand(LPSIZEBUF msg, LPCSTR command, sizeBuf_t const *payload) {
-    if (!msg || !command || !payload) {
-        return;
-    }
-    if (payload->cursize > 0x7fff) {
-        fprintf(stderr,
-                "SV_WriteGameCommand: payload too large for %s: %u bytes\n",
-                command,
-                (unsigned)payload->cursize);
-        return;
-    }
-    MSG_WriteByte(msg, svc_gamecmd);
-    MSG_WriteString(msg, command);
-    MSG_WriteShort(msg, (int)payload->cursize);
+void SV_WritePayload(LPSIZEBUF msg, BYTE opcode, sizeBuf_t const *payload) {
+    if (!msg || !payload) return;
+    MSG_WriteByte(msg, opcode);
     SZ_Write(msg, payload->data, payload->cursize);
 }
 

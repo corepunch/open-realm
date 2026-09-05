@@ -10,6 +10,7 @@ static void M_TextInput(LPCSTR text) { (void)text; }
 static BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) { (void)event; (void)x; (void)y; (void)param; return false; }
 static void M_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) { (void)num_units; (void)units; }
 static void M_UpdateLobbySetup(lobbyState_t const *state) { (void)state; }
+static void M_ShowTutorial(DWORD id) { (void)id; }
 static LPCSTR M_ResolveImagePath(LPCSTR key) { return key; }
 
 menuExport_t M_GetAPI(menuImport_t import) {
@@ -23,6 +24,7 @@ menuExport_t M_GetAPI(menuImport_t import) {
         .MouseEvent       = M_MouseEvent,
         .UpdateUnitUI     = M_UpdateUnitUI,
         .UpdateLobbySetup = M_UpdateLobbySetup,
+        .ShowTutorial    = M_ShowTutorial,
         .ResolveImagePath  = M_ResolveImagePath,
     };
 }

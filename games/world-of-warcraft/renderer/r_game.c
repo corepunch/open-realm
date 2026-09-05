@@ -109,6 +109,8 @@ void R_DrawMinimap(LPCRECT screen) {
     Wow_DrawMinimap(screen);
 }
 
+void R_WeatherCommand(void const *data, DWORD size) { (void)data; (void)size; }
+
 void R_RegisterMap(LPCSTR mapFileName) {
     Wow_RegisterMap(mapFileName);
 }

@@ -71,7 +71,7 @@ enum svc_ops {
 //    svc_deltapacketentities,    // [...]
     svc_frame,
     svc_mirror,
-    svc_gamecmd,                // [string command] [short payload_size] [payload]
+    svc_lobby_setup,            // [string map] [string name] [byte speed] [byte slots] [byte local_slot] [long revision] [slots]
     svc_fogofwar,
     
 // Unit UI data (Phase 8: HUD migration)
@@ -79,7 +79,10 @@ enum svc_ops {
     svc_window,                  // [byte open] [long id] [long class, long flags, frames, long text size, text]
     svc_ui_window,               // [string window_id] [byte show] legacy menu-module-owned named XML window toggle
     svc_disconnect,               // server is closing or dropped this client
-    svc_weather                   // [long type] [long handle] [long effect_id] [box2 bounds] [long enabled]
+    svc_weather,                 // [long type] [long handle] [long effect_id] [box2 bounds] [long enabled]
+    svc_lobby_chat,              // [byte own] [string text]
+    svc_set_selection,           // [byte count] [count * long entity]
+    svc_tutorial                 // [byte tutorial_id]
 };
 
 // client to server

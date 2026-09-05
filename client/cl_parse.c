@@ -686,7 +686,7 @@ static void CL_ParseLobbySetup(LPSIZEBUF msg) {
                 (unsigned)slot->color,
                 slot->name);
     }
-    if (!state.map_path[0] || !menu.UpdateLobbySetup) {
+    if (!state.map_path[0]) {
         return;
     }
     menu.UpdateLobbySetup(&state);
@@ -708,20 +708,20 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
 }
 
 /* Apply an authoritative server selection to the client cache and refresh the active unit UI.
- * The payload is a packed array of entity numbers. A zero-byte payload clears
- * selection; malformed or oversized payloads are rejected without changing it. */
+ * The payload is a count-prefixed array of entity numbers; malformed or oversized payloads are rejected. */
 static void CL_ParseSetSelection(LPSIZEBUF msg) {
-    DWORD count, selected = 0;
+    DWORD count = MSG_ReadByte(msg), selected = 0;
 
-    if (!msg || (msg->cursize % sizeof(DWORD)) != 0) {
+    if (msg->readcount + count * sizeof(DWORD) > msg->cursize) {
         fprintf(stderr, "CL: invalid set_selection payload (%u bytes)\n",
-                msg ? (unsigned)msg->cursize : 0u);
+                (unsigned)(msg->cursize - msg->readcount));
+        msg->readcount = msg->cursize;
         return;
     }
-    count = msg->cursize / sizeof(DWORD);
     if (count > MAX_SELECTED_ENTITIES) {
         fprintf(stderr, "CL: oversized set_selection payload (%u entities)\n",
                 (unsigned)count);
+        msg->readcount = msg->cursize;
         return;
     }
 
@@ -733,46 +733,6 @@ static void CL_ParseSetSelection(LPSIZEBUF msg) {
     }
     cl.selection.num_selected = selected;
     if (menu.UpdateUnitUI) menu.UpdateUnitUI(0, NULL);
-}
-
-typedef void (*cl_game_command_fn_t)(LPSIZEBUF msg);
-typedef struct { LPCSTR name; cl_game_command_fn_t fn; } cl_game_command_t;
-
-static cl_game_command_t const cl_game_commands[] = {
-    { "lobby_setup", CL_ParseLobbySetup },
-    { "lobby_chat", CL_ParseLobbyChat },
-    { "select", CL_ParseSetSelection },
-};
-
-static void CL_ParseGameCommand(LPSIZEBUF msg) {
-    char command[MAX_PATHLEN] = { 0 };
-    sizeBuf_t payload;
-    int payload_size;
-    DWORD payload_start;
-
-    MSG_ReadStringN(msg, command, sizeof(command));
-    payload_size = MSG_ReadShort(msg);
-    if (payload_size < 0 || msg->readcount + (DWORD)payload_size > msg->cursize) {
-        msg->readcount = msg->cursize;
-        return;
-    }
-
-    payload_start = msg->readcount;
-    payload.data = msg->data + payload_start;
-    payload.maxsize = (DWORD)payload_size;
-    payload.cursize = (DWORD)payload_size;
-    payload.readcount = 0;
-
-    if (menu.GameCommand) {
-        menu.GameCommand(command, payload.data, payload.cursize);
-    }
-    if (re.GameCommand) {
-        re.GameCommand(command, payload.data, payload.cursize);
-    }
-    FOR_LOOP(i, sizeof(cl_game_commands) / sizeof(*cl_game_commands))
-        if (!strcmp(command, cl_game_commands[i].name)) { cl_game_commands[i].fn(&payload); break; }
-
-    msg->readcount = payload_start + (DWORD)payload_size;
 }
 
 /* Read the Quake 2 sound packet contract and resolve entity-relative origins
@@ -919,8 +879,17 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_mirror:
                 CL_MirrorMessage(msg);
                 break;
-            case svc_gamecmd:
-                CL_ParseGameCommand(msg);
+            case svc_lobby_setup:
+                CL_ParseLobbySetup(msg);
+                break;
+            case svc_lobby_chat:
+                CL_ParseLobbyChat(msg);
+                break;
+            case svc_set_selection:
+                CL_ParseSetSelection(msg);
+                break;
+            case svc_tutorial:
+                menu.ShowTutorial(MSG_ReadByte(msg));
                 break;
             case svc_fogofwar:
                 CL_ParseFogOfWar(msg);
@@ -931,7 +900,7 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                     msg->readcount = msg->cursize;
                     goto done;
                 }
-                if (re.WeatherCommand) re.WeatherCommand(msg->data + msg->readcount, sizeof(wc3WeatherCommand_t));
+                re.WeatherCommand(msg->data + msg->readcount, sizeof(wc3WeatherCommand_t));
                 msg->readcount += sizeof(wc3WeatherCommand_t);
                 break;
             case svc_temp_entity:

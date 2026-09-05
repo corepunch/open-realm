@@ -29,9 +29,6 @@ static BYTE test_last_unicast_buf[MAX_MSGLEN];
 static DWORD test_multicast_size;
 static DWORD test_last_unicast_size;
 static DWORD test_unicast_calls;
-static char test_last_game_command[64];
-static BYTE test_last_game_payload[MAX_MSGLEN];
-static DWORD test_last_game_payload_size;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
 
@@ -421,13 +418,6 @@ static void test_unicast(LPEDICT ent) {
     test_multicast_size = 0;
 }
 
-static void test_game_command(LPEDICT ent, LPCSTR command, void const *data, DWORD size) {
-    (void)ent;
-    snprintf(test_last_game_command, sizeof(test_last_game_command), "%s", command ? command : "");
-    test_last_game_payload_size = MIN(size, (DWORD)sizeof(test_last_game_payload));
-    if (test_last_game_payload_size) memcpy(test_last_game_payload, data, test_last_game_payload_size);
-}
-
 static struct game_import test_import(void) {
     struct game_import import;
 
@@ -445,7 +435,6 @@ static struct game_import test_import(void) {
     import.CvarString = test_cvar_string;
     import.Write = test_write;
     import.unicast = test_unicast;
-    import.GameCommand = test_game_command;
     import.error = test_error;
     return import;
 }
@@ -498,9 +487,6 @@ static void reset_test_state(void) {
     memset(test_last_unicast_buf, 0, sizeof(test_last_unicast_buf));
     test_last_unicast_size = 0;
     test_unicast_calls = 0;
-    test_last_game_command[0] = '\0';
-    memset(test_last_game_payload, 0, sizeof(test_last_game_payload));
-    test_last_game_payload_size = 0;
     memset(test_last_error, 0, sizeof(test_last_error));
     memset(test_configstrings, 0, sizeof(test_configstrings));
     test_playerinfo[0] = '\0';

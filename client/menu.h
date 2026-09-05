@@ -148,8 +148,6 @@ typedef struct {
     void (*PlaySoundByName)(LPCSTR name);
 } menuImport_t;
 
-typedef void (*menuGameCommand_t)(LPCSTR command, void const *data, DWORD size);
-
 /* Function table exported by the menu library to the client. */
 typedef struct {
     /* Initialization and shutdown */
@@ -168,7 +166,7 @@ typedef struct {
     void (*UpdateUnitUI)(DWORD num_units, menuUnitData_t *units);
     void (*UpdatePlayerState)(LPCPLAYER state);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
-    menuGameCommand_t GameCommand;
+    void (*ShowTutorial)(DWORD id);
 
     /* Resolve a Warcraft-specific symbolic image key for the local player. */
     LPCSTR (*ResolveImagePath)(LPCSTR key);
