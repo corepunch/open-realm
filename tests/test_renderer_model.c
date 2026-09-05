@@ -326,6 +326,38 @@ TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
     T_FEQ(sampled.ambient_intensity, 0.25f, 0.001f);
 }
 
+TEST(renderer_model, geoset_animation_static_colors_convert_bgr_to_rgb) {
+    mdxGeosetAnim_t geosetAnim = { .staticColor = { 0.85f, 0.40f, 0.10f } };
+    VECTOR3 rgb = { 0, 0, 0 };
+
+    MDLX_GetGeosetAnimationStaticColor(&geosetAnim, &rgb);
+    T_FEQ(rgb.x, geosetAnim.staticColor.z, 0.001f);
+    T_FEQ(rgb.y, geosetAnim.staticColor.y, 0.001f);
+    T_FEQ(rgb.z, geosetAnim.staticColor.x, 0.001f);
+}
+
+TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
+    BYTE storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
+    VECTOR3 authored_bgr = { 0.85f, 0.40f, 0.10f };
+    VECTOR3 rgb = { 0, 0, 0 };
+    mdxSequence_t seq = { .interval = { 0, 1000 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+
+    track->keyframeCount = 1;
+    track->datatype = TDATA_FLOAT3;
+    track->linetype = TRACK_NO_INTERP;
+    track->globalSeqId = (DWORD)-1;
+    key->time = 0;
+    memcpy(key->data, &authored_bgr, sizeof(authored_bgr));
+
+    MDLX_GetAnimatedColorTrackValue(&model, track, 500, &rgb);
+    T_FEQ(rgb.x, authored_bgr.z, 0.001f);
+    T_FEQ(rgb.y, authored_bgr.y, 0.001f);
+    T_FEQ(rgb.z, authored_bgr.x, 0.001f);
+}
+
 TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
     BYTE color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
     BYTE ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
