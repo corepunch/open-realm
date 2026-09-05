@@ -38,6 +38,26 @@ extern JASSMODULE jass_funcs[];
 
 static void G_StartScripts(void);
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after);
+static BOOL starting_resource_cheat_armed;
+
+void G_ResetStartingResourceCheat(void) {
+    LPCSTR value = gi.CvarString ? gi.CvarString("wc3_cheat_starting_resources", "0") : "0";
+    starting_resource_cheat_armed = value && atoi(value) != 0;
+}
+
+void G_DisableStartingResourceCheatForLoadedGame(void) { starting_resource_cheat_armed = false; }
+
+void G_ApplyStartingResourceCheat(void) {
+    if (!starting_resource_cheat_armed) return;
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        if (!client->connected || !client->mapplayer || !client->mapplayer->used || client->mapplayer->playerType != kPlayerTypeHuman || client->no_control || client->ps.client_ui_state == CLIENT_UI_CINEMATIC) continue;
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = MIN((LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + 5000, USHRT_MAX);
+        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = MIN((LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + 5000, USHRT_MAX);
+        starting_resource_cheat_armed = false;
+        return;
+    }
+}
 
 static BOOL G_TimeLimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     switch (op) {
