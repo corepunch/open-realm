@@ -2472,7 +2472,7 @@ TEST(menu_fdf, unused_template_texture_stays_unloaded) {
 }
 
 static int test_theme_read(LPCSTR name, void **buf) {
-    LPCSTR text = "[Default]\nBackground=Default.blp\n[Human]\nBackground=Human.blp\n";
+    LPCSTR text = "[Default]\nBackground=Default.blp\n[Human]\nBackground=Human.blp\nConsoleTexture05=Custom05.blp\n";
     (void)name; *buf = strdup(text); return (int)strlen(text);
 }
 
@@ -2617,6 +2617,8 @@ TEST(menu_fdf, exported_image_resolver_uses_local_player_skin) {
     menu_player = &player;
     UI_LoadTheme("UI\\war3skins.txt");
     T_STREQ(M_ResolveImagePath("Background"), "Human.blp");
+    T_STREQ(M_ResolveImagePath("ConsoleTexture05"), "Custom05.blp");
+    T_STREQ(M_ResolveImagePath("ConsoleTexture06"), "Custom06.blp");
     T_STREQ(M_ResolveImagePath("UI\\Textures\\fixed.blp"), "UI\\Textures\\fixed.blp");
     menu_player = NULL;
     UI_ClearTheme(); menuimport = saved;

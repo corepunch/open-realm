@@ -203,6 +203,12 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +map 'Maps\Campaign\Human
 
 During each bounded run, drag a world selection marquee downward through the command console and select a living unit near the lower world edge. Overhead health/mana bars must stop at `viewDef.scissor`. The marquee must stop earlier wherever retained bottom-console frames protrude above that rectangular boundary, including the status/info panel and command-card/build-button area; no console pixel may reveal the marquee.
 
+### Widescreen cinematic chrome
+
+The ordinary gameplay HUD remains authored inside the centered `0.8 x 0.6` 4:3 safe area. Cinematic letterbox **chrome** is different: `CinematicTopBorder` and `CinematicBottomBorder` must cover the complete widened UI canvas while the portrait, speaker text, and dialogue retain their original safe-area coordinates. The server marks only those two backdrops with `UIFLAG_EXTEND_WIDESCREEN_X`; `SCR_LayoutRect()` then replaces the marked frame's horizontal rect with `x=0` and `w=SCR_UICanvasWidth()` after normal FDF anchor resolution. At 4:3 this is still exactly `0.8`, so the behavior is a no-op.
+
+A 2880x1620 trace demonstrated the failure mode: canvas width was `1.06667`, HUD root was `x=0.13333,w=0.8`, and both cinematic borders resolved to `x=0.13333,w=0.8` with valid `human-options-menu-background.blp` and `human-cinematic-border.blp` textures. Therefore missing left/right cinematic fill is a geometry-policy issue, not missing art. Do not widen `CinematicPanel` itself: doing so would move safe-area portrait/dialogue anchors.
+
 ### Actor Presentation
 
 `SetUnitScale(unit, x, y, z)` follows Warsmash's current compatibility behavior: the WC3 XYZ API is rendered as a uniform scale using the **X component**. Y/Z are consumed for JASS signature compatibility but are not independent axes in the current entity renderer. Do not use the Z argument as the uniform scale; campaign scripts commonly pass equal values, which can hide that mistake until custom cinematic scaling uses distinct components.

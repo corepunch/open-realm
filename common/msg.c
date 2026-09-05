@@ -83,8 +83,8 @@ netField_t entityStateFields[] = {
  * transmission are included.  Conceptually each frame carries:
  *
  *   parent        — parent frame index (UI_PARENT = 255 for layer root)
- *   flagsvalue    — frame type (FT_TEXT, FT_BACKDROP, FT_COMMANDBUTTON, …)
- *                   packed with alpha mode
+ *   flagsvalue    — frame type (FT_TEXT, FT_BACKDROP, FT_COMMANDBUTTON, …),
+ *                   alpha mode, and generic retained-layout behavior flags
  *   x / y         — position on each axis; internally stored as three
  *                   4-byte uiFramePoint_t slots per axis (FPP_MIN/MID/MAX
  *                   = left/center/right for x, top/middle/bottom for y).

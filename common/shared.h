@@ -826,6 +826,7 @@ typedef enum {
 #define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; derives a composite frame's size from rendered content; used by FT_NAMETAG
 #define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
+#define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
 
 typedef enum {
     BACKDROP_TOP_LEFT_CORNER,
