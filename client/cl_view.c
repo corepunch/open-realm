@@ -444,6 +444,8 @@ void CL_PrepRefresh(void) {
 void V_RenderView(void) {
     static DWORD lastTime = 0;
     BOOL rebuild;
+    cl.viewDef.weather_effects = cl.weather_effects;
+    cl.viewDef.num_weather_effects = cl.num_weather_effects;
     cl.viewDef.fow_width = cl.fow.width;
     cl.viewDef.fow_height = cl.fow.height;
     cl.viewDef.fow_data = cl.fow.texture;

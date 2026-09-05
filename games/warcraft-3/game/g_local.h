@@ -6,6 +6,7 @@
 #include <limits.h>
 
 #include "common/common.h"
+#include "common/weather.h"
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
 #include "server/game.h"
@@ -646,7 +647,6 @@ typedef struct {
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
-#define MAX_WEATHER_EFFECTS 256 // handles; fixed map weather registry keeps JASS pointers stable
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
@@ -1450,7 +1450,7 @@ LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, DWORD effect_id, BOOL enabled);
 void G_WeatherEnable(LPGWEATHER effect, BOOL enabled);
 void G_WeatherRemove(LPGWEATHER effect);
 void G_WeatherInitMap(void);
-void G_WeatherSyncClient(LPEDICT ent);
+DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size);
 LPTRIGGER G_AllocJassTrigger(void);
 LPGTIMER G_AllocJassTimer(void);
 void G_ClearSaveRegistries(void);

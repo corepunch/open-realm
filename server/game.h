@@ -132,6 +132,7 @@ struct game_export {
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
     void (*CustomizeEntity)(DWORD player, LPCEDICT ent, LPENTITYSTATE state);
+    DWORD (*WriteClientDatagram)(LPEDICT ent, LPBYTE data, DWORD size);
     DWORD (*PlayerCreateMap)(void);
     bool (*LoadMap)(LPCSTR mapFilename);
     BOOL (*SaveGame)(LPCSTR filename);

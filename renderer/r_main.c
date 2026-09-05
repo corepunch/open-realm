@@ -1068,7 +1068,6 @@ refExport_t R_GetAPI(refImport_t imp) {
         .LoadTexture = R_LoadTexture,
         .LoadModel = R_LoadRegisteredModel,
         .LoadFont = R_LoadFont,
-        .WeatherCommand = R_WeatherCommand,
         .ReleaseTexture = R_ReleaseTexture,
         .ReleaseModel = R_ReleaseRegisteredModel,
         .RenderFrame = R_RenderFrame,

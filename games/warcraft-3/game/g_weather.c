@@ -6,34 +6,6 @@ static BOOL G_WeatherValid(LPCGWEATHER effect) {
            effect < level.weather_effects + MAX_WEATHER_EFFECTS && effect->inuse;
 }
 
-static void G_WeatherSend(LPEDICT ent, LPCGWEATHER effect, wc3WeatherCommandType_t type) {
-    wc3WeatherCommand_t command;
-
-    if (!ent || !ent->client || !ent->client->connected) return;
-    memset(&command, 0, sizeof(command));
-    command.type = type;
-    if (effect) {
-        command.handle = effect->handle_id;
-        command.effect_id = effect->effect_id;
-        command.bounds = effect->bounds;
-        command.enabled = effect->enabled;
-    }
-    gi.Write(PF_BYTE, &(LONG){ svc_weather });
-    gi.Write(PF_DATA, &(pfWriteData_t){ &command, sizeof(command) });
-    gi.unicast(ent);
-}
-
-static void G_WeatherBroadcast(LPCGWEATHER effect, wc3WeatherCommandType_t type) {
-    FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
-        LPEDICT ent;
-
-        if (!client->connected) continue;
-        ent = G_GetPlayerEntityByNumber(client->ps.number);
-        if (ent) G_WeatherSend(ent, effect, type);
-    }
-}
-
 LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, DWORD effect_id, BOOL enabled) {
     LPGWEATHER effect = NULL;
 
@@ -52,7 +24,6 @@ LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, DWORD effect_id, BOOL enabled) {
     effect->bounds = *bounds;
     if (++level.next_weather_id == 0) level.next_weather_id = 1;
     effect->handle_id = level.next_weather_id;
-    G_WeatherBroadcast(effect, WC3_WEATHER_CMD_ADD);
     return effect;
 }
 
@@ -61,12 +32,10 @@ void G_WeatherEnable(LPGWEATHER effect, BOOL enabled) {
     enabled = !!enabled;
     if (effect->enabled == enabled) return;
     effect->enabled = enabled;
-    G_WeatherBroadcast(effect, WC3_WEATHER_CMD_ENABLE);
 }
 
 void G_WeatherRemove(LPGWEATHER effect) {
     if (!G_WeatherValid(effect)) return;
-    G_WeatherBroadcast(effect, WC3_WEATHER_CMD_REMOVE);
     memset(effect, 0, sizeof(*effect));
 }
 
@@ -84,15 +53,28 @@ void G_WeatherInitMap(void) {
     }
 }
 
-void G_WeatherSyncClient(LPEDICT ent) {
-    wc3WeatherCommand_t clear = { .type = WC3_WEATHER_CMD_CLEAR };
+/* Serialize the authoritative weather set into the per-frame game datagram so
+ * reconnects and dropped packets converge without renderer commands. */
+DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
+    DWORD count = 0;
+    BYTE *out = data;
+    USHORT wire_count;
 
-    if (!ent || !ent->client || !ent->client->connected) return;
-    gi.Write(PF_BYTE, &(LONG){ svc_weather });
-    gi.Write(PF_DATA, &(pfWriteData_t){ &clear, sizeof(clear) });
-    gi.unicast(ent);
+    (void)ent;
+    if (!data || size < sizeof(wire_count)) return 0;
+    FOR_LOOP(i, MAX_WEATHER_EFFECTS) if (level.weather_effects[i].inuse) count++;
+    wire_count = (USHORT)count;
+    memcpy(out, &wire_count, sizeof(wire_count));
+    out += sizeof(wire_count);
     FOR_LOOP(i, MAX_WEATHER_EFFECTS) {
         LPCGWEATHER effect = level.weather_effects + i;
-        if (effect->inuse) G_WeatherSend(ent, effect, WC3_WEATHER_CMD_ADD);
+        wc3WeatherEffect_t state;
+        if (!effect->inuse) continue;
+        state = (wc3WeatherEffect_t){ .handle = effect->handle_id, .effect_id = effect->effect_id,
+            .bounds = effect->bounds, .enabled = effect->enabled };
+        if ((DWORD)(out - data) + sizeof(state) > size) return 0;
+        memcpy(out, &state, sizeof(state));
+        out += sizeof(state);
     }
+    return (DWORD)(out - data);
 }

@@ -11,6 +11,7 @@
  */
 
 #include "../common/common.h"
+#include "../common/weather.h"
 
 KNOWN_AS(modelInfo_s, MODELINFO);
 
@@ -165,6 +166,8 @@ typedef struct {
     renderEntity_t *entities;
     DWORD num_decals;
     renderDecal_t *decals;
+    DWORD num_weather_effects;
+    wc3WeatherEffect_t const *weather_effects;
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;
@@ -201,7 +204,6 @@ typedef struct {
     void (*Shutdown)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
-    void (*WeatherCommand)(void const *data, DWORD size);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);
     LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
