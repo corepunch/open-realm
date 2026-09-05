@@ -26,22 +26,12 @@ BOOL MDLX_EvaluateLight(mdxModel_t const *model,
         MDLX_GetModelKeytrackValue(model, light->keytracks.Visibility, frame, &visibility);
     if (useVisibility && visibility < EPSILON)
         return false;
-    if (light->keytracks.Color) {
-        FLOAT red;
-        MDLX_GetModelKeytrackValue(model, light->keytracks.Color, frame, &color);
-        /* Warcraft's animated light KLAC vectors are stored BGR in MDX.
-         * Warsmash flips only animated light color tracks before evaluation;
-         * static MdlxLight.color values remain in their parser-facing order. */
-        red = color.x; color.x = color.z; color.z = red;
-    }
+    if (light->keytracks.Color)
+        MDLX_GetAnimatedColorTrackValue(model, light->keytracks.Color, frame, &color);
     if (light->keytracks.Intensity)
         MDLX_GetModelKeytrackValue(model, light->keytracks.Intensity, frame, &intensity);
-    if (light->keytracks.AmbColor) {
-        FLOAT red;
-        MDLX_GetModelKeytrackValue(model, light->keytracks.AmbColor, frame, &ambc);
-        /* KLBC has the same animated BGR convention as KLAC. */
-        red = ambc.x; ambc.x = ambc.z; ambc.z = red;
-    }
+    if (light->keytracks.AmbColor)
+        MDLX_GetAnimatedColorTrackValue(model, light->keytracks.AmbColor, frame, &ambc);
     if (light->keytracks.AmbIntensity)
         MDLX_GetModelKeytrackValue(model, light->keytracks.AmbIntensity, frame, &ambIntensity);
     if (light->keytracks.AttenuationStart)
