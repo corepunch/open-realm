@@ -44,13 +44,13 @@ Important cvars:
 
 Loading follows the Quake-style client state split:
 
-1. `CL_BeginLoadingMap()` sets `cls.state = ca_loading` and seeds the loading text/progress.
-2. `SCR_DrawScreenField()` draws the loading plaque only while `cls.state == ca_loading`.
-3. `CL_PrepRefresh()` loads configstring-backed assets and registers the map.
-4. Only after all required assets are ready does `CL_PrepRefresh()` send `begin` and promote the client to `ca_active`.
-5. Snapshot parsing may update `playerstate`, but it must not flip `cls.state` by itself.
+1. `CL_BeginLoadingMap()` resets `cl.loading_progress`, sets `playerState_t.client_ui_state = CLIENT_UI_LOADING`, keeps the connection in `ca_connected`, and raises the frozen loading plaque.
+2. The WC3 menu draws the loading screen before standalone-screen dispatch and reads progress through `menuImport_t.LoadingProgress`.
+3. A successful local `SV_Map()` completion advances the local plaque to its first milestone; remote clients skip that listen-server-only milestone. `CL_PrepRefresh()` then loads/registers the world, models, images, sounds, and fonts and advances progress at those real phase boundaries; `SCR_UpdateLoadingPlaque()` explicitly repaints the frozen plaque after each increase.
+4. Once registration is complete, `CL_PrepRefresh()` queues `begin`, closes sound registration, sets `cl.refresh_prepped`, and advances the bar to 1.0.
+5. The first usable server frame then promotes `cls.state` to `ca_active`, changes `client_ui_state` to `CLIENT_UI_GAME`, and calls `SCR_EndLoadingPlaque()`.
 
-That separation matters because `ca_active` means "gameplay can render now", not "we already received a player snapshot." If the loading plaque disappears before the world is ready, the client should keep `ca_loading` until the precache gate completes.
+That separation matters because `ca_active` means "gameplay can render now", not merely "we received some server state." Progress is client-local presentation state and must not be added to `playerState_t` or the snapshot protocol.
 
 ## Main Menu Glue Edition Selection
 
@@ -193,9 +193,12 @@ changes glue presentation and Cancel destinations; the final local-server launch
 
 ### Victory / defeat handoff
 
-`RemovePlayer` owns authoritative per-player result state, not campaign navigation. It records
-`PLAYER_STATE_GAME_RESULT`, moves the runtime slot to `PLAYER_SLOT_STATE_LEFT`, and publishes the appropriate player
-result event. Because map result handlers may start an ending cinematic, the temporary native `GameResultDialog`
+`RemovePlayer` owns authoritative per-player result state, not campaign navigation. Its C implementation delegates the
+transition to `G_RemovePlayerWithResult(player_num, game_result)`, which records `PLAYER_STATE_GAME_RESULT`, moves the
+runtime slot to `PLAYER_SLOT_STATE_LEFT`, stops that player's AI, and publishes the appropriate player result event.
+The `sv_cheats`-gated `win` and `lose` client commands deliberately call this same helper rather than switching UI or
+maps directly, so map-authored victory/defeat triggers and campaign continuation remain authoritative. Because map
+result handlers may start an ending cinematic, the temporary native `GameResultDialog`
 fallback is queued rather than written inline. `UI_FlushPendingGameResults()` normally writes it only after queued
 JASS result work and outside `CLIENT_UI_CINEMATIC`.
 
@@ -267,11 +270,12 @@ The following Warsmash/retail-style lifecycle work is intentionally not approxim
 - profile creation/deletion/persistence is not implemented;
 - map `config()` is not yet run as a distinct pre-lobby configuration phase; doing so correctly requires separating
   authored map configuration from later lobby overrides;
-- map/server loading remains synchronous, and the WC3 loading progress sprite does not yet represent incremental
-  loader work.
+- map/server loading remains synchronous. The WC3 loading bar now represents coarse client registration phases, but
+  `SV_Map()` / game-module map loading still has no owned incremental progress source and may hold the bar near its
+  initial position during a long load.
 
 Do not paper over these with fixed timers, hard-coded campaign assets, a second custom-game implementation, or fake
-loading percentages. They require the corresponding lifecycle/data ownership to exist first.
+sub-percentages inside synchronous server work. They require the corresponding lifecycle/data ownership to exist first.
 
 ## Draw Flow
 

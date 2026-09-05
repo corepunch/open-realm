@@ -646,7 +646,7 @@ void unit_changeangle_interaction_ignore_units(LPEDICT self) {
 }
 
 void unit_setanimation(LPEDICT self, LPCSTR anim) {
-    self->animation = G_GetAnimation(self->s.model, anim);
+    G_SetUnitAnimation(self, anim);
 }
 
 static BOOL unit_is_active_repair_move(LPEDICT self) {
@@ -682,15 +682,15 @@ void unit_setmove(LPEDICT self, umove_t *move) {
         self->build_project = 0;
     }
     self->currentmove = move;
-    self->animation = G_GetAnimation(self->s.model, move->animation);
+    G_SetUnitAnimation(self, move->animation);
     if (self->animation) {
         // skip
     } else if (strstr(move->animation, "run")) {
-        self->animation = G_GetAnimation(self->s.model, "walk");
+        G_SetUnitAnimation(self, "walk");
     } else if (strstr(move->animation, "stand ")) {
-        self->animation = G_GetAnimation(self->s.model, "stand");
+        G_SetUnitAnimation(self, "stand");
     } else if (strstr(move->animation, "attack ")) {
-        self->animation = G_GetAnimation(self->s.model, "attack");
+        G_SetUnitAnimation(self, "attack");
     }
     if (was_idle != G_UnitIsIdleWorker(self)) {
         G_InvalidateUnitShortcutsForUnit(self);

@@ -87,6 +87,7 @@ static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->tex.index2 = UI_LiveImage(src->Texture.Image2);
     dest->flags.type = src->Type;
     dest->flags.alphaMode = src->AlphaMode;
+    dest->flagsvalue |= src->ui_flags & UIFLAG_EXTEND_WIDESCREEN_X;
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;
     dest->text = src->Text;

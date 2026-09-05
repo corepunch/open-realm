@@ -378,6 +378,36 @@ TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
     T_ASSERT(follower->currentmove && follower->currentmove->ability == &a_move);
 }
 
+TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
+    FLOAT const old_follow = game.constants.followRange;
+    FLOAT const old_structure = game.constants.structureFollowRange;
+    LPEDICT follower;
+    LPEDICT target;
+
+    reset_test_entities();
+    follower = make_unit(0, 0);
+    target = make_unit(512, 0);
+    follower->runtime.acquisition_range = 600.0f;
+    follower->collision = 32.0f;
+    target->collision = 0.0f;
+    game.constants.followRange = 300.0f;
+    game.constants.structureFollowRange = 100.0f;
+
+    T_FEQ(G_AcquisitionRange(follower), 600.0f, 0.001f);
+    T_FEQ(G_FollowStopRange(follower, target), 300.0f, 0.001f);
+
+    target->s.flags |= EF_BUILDING;
+    T_FEQ(G_FollowStopRange(follower, target), 100.0f, 0.001f);
+
+    /* Collision remains a hard lower bound so large widgets never overlap
+     * merely because Misc requests a smaller follow distance. */
+    target->collision = 96.0f;
+    T_FEQ(G_FollowStopRange(follower, target), 128.0f, 0.001f);
+
+    game.constants.followRange = old_follow;
+    game.constants.structureFollowRange = old_structure;
+}
+
 TEST(wc3_unit, queued_smart_on_passive_ally_revalidates_to_follow) {
     reset_test_entities();
     setup_test_world();

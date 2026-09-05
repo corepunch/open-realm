@@ -16,7 +16,14 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 }
 
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return CM_GetHeightAtPoint(x, y); }
-FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return a + (b - a) * fraction; }
+FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) {
+    FLOAT delta = fmodf(b - a, 360.0f);
+    if (delta > 180.0f)
+        delta -= 360.0f;
+    else if (delta < -180.0f)
+        delta += 360.0f;
+    return a + delta * fraction;
+}
 FLOAT CM_GetCameraHeightOffset(void) {
     return -TILE_SIZE; // orbit look-at sits one tile below sampled terrain
 }

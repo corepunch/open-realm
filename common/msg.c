@@ -83,8 +83,8 @@ netField_t entityStateFields[] = {
  * transmission are included.  Conceptually each frame carries:
  *
  *   parent        — parent frame index (UI_PARENT = 255 for layer root)
- *   flagsvalue    — frame type (FT_TEXT, FT_BACKDROP, FT_COMMANDBUTTON, …)
- *                   packed with alpha mode
+ *   flagsvalue    — frame type (FT_TEXT, FT_BACKDROP, FT_COMMANDBUTTON, …),
+ *                   alpha mode, and generic retained-layout behavior flags
  *   x / y         — position on each axis; internally stored as three
  *                   4-byte uiFramePoint_t slots per axis (FPP_MIN/MID/MAX
  *                   = left/center/right for x, top/middle/bottom for y).
@@ -156,10 +156,12 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, stats[6]), NFT_LONG },
     { NETF(PLAYER, stats[8]), NFT_LONG },
     { NETF(PLAYER, stats[16]), NFT_LONG },
-    /* stats[18..23] are reserved for generic live-selection HUD bindings. */
+    /* stats[18..22] are generic live-selection HUD bindings; stats[23] is a
+     * generic environment-presentation variant paired with the final slot. */
     { NETF(PLAYER, stats[18]), NFT_LONG },
     { NETF(PLAYER, stats[20]), NFT_LONG },
     { NETF(PLAYER, stats[22]), NFT_LONG },
+    { NETF(PLAYER, stats[23]), NFT_LONG },
     { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
     { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
     /* Map metadata moved to the WoW map-info configstring; only cinematic text remains in player state. */

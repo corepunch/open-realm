@@ -2,6 +2,76 @@
 
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source);
 
+/* One authoritative terminal-result transition shared by JASS RemovePlayer
+ * and developer cheats.  Keep campaign/result presentation downstream of the
+ * normal EVENT_PLAYER_VICTORY / EVENT_PLAYER_DEFEAT pipeline. */
+BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result) {
+    LPGAMECLIENT client;
+    LPEDICT pent;
+
+    if (player_num >= game.max_clients || game_result > 3) {
+        G_GameResultDebug("RemovePlayer ignored reason=invalid_args player=%u result=%u",
+            (unsigned)player_num, (unsigned)game_result);
+        return false;
+    }
+
+    client = G_GetPlayerClientByNumber(player_num);
+    G_GameResultDebug("RemovePlayer resolved player=%u client_index=%ld connected=%u removed=%u ui=%u",
+        (unsigned)player_num,
+        client ? (long)(client - game.clients) : -1L,
+        client ? (unsigned)client->connected : 0u,
+        client ? (unsigned)client->jass.removed : 0u,
+        client ? (unsigned)client->ps.client_ui_state : 0u);
+
+    if (!client) {
+        G_GameResultDebug("RemovePlayer ignored player=%u reason=no_client", (unsigned)player_num);
+        return false;
+    }
+    if (client->jass.removed) {
+        G_GameResultDebug("RemovePlayer ignored player=%u reason=already_removed stored_result=%u",
+            (unsigned)player_num, (unsigned)client->ps.stats[PLAYERSTATE_GAME_RESULT]);
+        return false;
+    }
+
+    client->ps.stats[PLAYERSTATE_GAME_RESULT] = (USHORT)game_result;
+    client->jass.removed = true;
+    client->jass.pending_game_result = 0;
+    client->jass.pending_game_result_event = level.events.read;
+    G_BotRequestStop(player_num);
+
+    pent = G_GetPlayerEntityByNumber(player_num);
+    G_GameResultDebug("RemovePlayer state player=%u result=%u pent=%p ent=%ld inuse=%u owner=%u",
+        (unsigned)player_num, (unsigned)game_result, (void *)pent,
+        pent ? (long)pent->s.number : -1L,
+        pent ? (unsigned)pent->inuse : 0u,
+        pent ? (unsigned)pent->s.player : 0u);
+    if (!pent) {
+        G_GameResultDebug("RemovePlayer player=%u result=%u has no player edict; no result event/UI queued",
+            (unsigned)player_num, (unsigned)game_result);
+        return true;
+    }
+
+    if (game_result == 0) {
+        G_PublishEvent(pent, EVENT_PLAYER_VICTORY);
+        client->jass.pending_game_result = 1;
+        client->jass.pending_game_result_event = level.events.write;
+        G_GameResultDebug("RemovePlayer queued VICTORY player=%u wait_event=%u events=%u/%u",
+            (unsigned)player_num, (unsigned)client->jass.pending_game_result_event,
+            (unsigned)level.events.read, (unsigned)level.events.write);
+    } else if (game_result == 1) {
+        G_PublishEvent(pent, EVENT_PLAYER_DEFEAT);
+        client->jass.pending_game_result = 2;
+        client->jass.pending_game_result_event = level.events.write;
+        G_GameResultDebug("RemovePlayer queued DEFEAT player=%u wait_event=%u events=%u/%u",
+            (unsigned)player_num, (unsigned)client->jass.pending_game_result_event,
+            (unsigned)level.events.read, (unsigned)level.events.write);
+    } else {
+        G_GameResultDebug("RemovePlayer player=%u result=%u records removal only; no victory/defeat UI",
+            (unsigned)player_num, (unsigned)game_result);
+    }
+    return true;
+}
+
 static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
     BOOL result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;

@@ -29,9 +29,27 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
-UNIT_TYPED_ACCESS(PositionLoc, s.origin2, location);
 UNIT_ACCESS(X, s.origin.x);
 UNIT_ACCESS(Y, s.origin.y);
+
+DWORD SetUnitPositionLoc(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
+    VECTOR2 position;
+
+    if (whichUnit && whichLocation) {
+        G_FindUnitUnstuckPosition(whichUnit, whichLocation, &position);
+        whichUnit->s.origin.x = position.x;
+        whichUnit->s.origin.y = position.y;
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+        gi.LinkEntity(whichUnit);
+    }
+    return 0;
+}
+DWORD GetUnitPositionLoc(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return whichUnit ? jass_pushlighthandle(j, &whichUnit->s.origin2, "location") : jass_pushnullhandle(j, "location");
+}
 UNITINFO_ACCESS(MoveSpeed);
 
 DWORD SetUnitFlyHeight(LPJASS j) {
@@ -146,11 +164,13 @@ DWORD GetUnitState(LPJASS j) {
 }
 DWORD SetUnitPosition(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
+    VECTOR2 requested = MAKE(VECTOR2, jass_checknumber(j, 2), jass_checknumber(j, 3));
+    VECTOR2 position;
+
     if (whichUnit) {
-        whichUnit->s.origin.x = x;
-        whichUnit->s.origin.y = y;
+        G_FindUnitUnstuckPosition(whichUnit, &requested, &position);
+        whichUnit->s.origin.x = position.x;
+        whichUnit->s.origin.y = position.y;
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         gi.LinkEntity(whichUnit);
     }
@@ -228,7 +248,7 @@ DWORD QueueUnitAnimation(LPJASS j) {
 DWORD SetUnitAnimation(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCSTR whichAnimation = jass_checkstring(j, 2);
-    if (whichUnit) whichUnit->animation = G_GetAnimation(whichUnit->s.model, whichAnimation);
+    if (whichUnit) G_SetUnitAnimation(whichUnit, whichAnimation);
     return 0;
 }
 DWORD SetUnitAnimationByIndex(LPJASS j) {
@@ -243,9 +263,10 @@ DWORD SetUnitAnimationWithRarity(LPJASS j) {
     return 0;
 }
 DWORD AddUnitAnimationProperties(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR animProperties = jass_checkstring(j, 2);
-    //BOOL add = jass_checkboolean(j, 3);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCSTR animProperties = jass_checkstring(j, 2);
+    BOOL add = jass_checkboolean(j, 3);
+    if (whichUnit) G_AddUnitAnimationProperties(whichUnit, animProperties, add);
     return 0;
 }
 
@@ -316,6 +337,18 @@ DWORD SetHeroXP(LPJASS j) {
     }
     return 0;
 }
+DWORD GetHeroSkillPoints(LPJASS j) {
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    LONG const points = whichHero && whichHero->data.UnitBalance && G_UnitIsHero(whichHero)
+        ? (LONG)whichHero->hero.skillpoints : 0;
+    return jass_pushinteger(j, points);
+}
+DWORD UnitModifySkillPoints(LPJASS j) {
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    LONG const delta = jass_checkinteger(j, 2);
+    BOOL const result = G_HeroModifySkillPoints(whichHero, delta);
+    return jass_pushboolean(j, result);
+}
 DWORD AddHeroXP(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     LONG xpToAdd = jass_checkinteger(j, 2);
@@ -336,7 +369,7 @@ DWORD SetHeroLevel(LPJASS j) {
     if (whichHero && level > (LONG)whichHero->hero.level) {
         /* WC3 SetHeroLevel raises the level by granting enough XP to reach it
          * (level only increases). Route through the XP transition so skill
-         * points and one EVENT_PLAYER_HERO_LEVEL event per crossed level stay
+         * points and both Hero-level event families per crossed level stay
          * identical to ordinary XP gains. */
         DWORD const target = MIN((DWORD)level, G_MaxHeroLevel());
         DWORD const need = G_HeroXPForLevel(target);

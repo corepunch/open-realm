@@ -66,6 +66,7 @@ struct frame {
 
 struct client_state {
     BOOL refresh_prepped;
+    FLOAT loading_progress;   /* client-owned normalized loading progress [0,1] */
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
     LPMODEL minimap_model;
@@ -78,6 +79,8 @@ struct client_state {
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
+    wc3WeatherEffect_t weather_effects[MAX_WEATHER_EFFECTS];
+    DWORD num_weather_effects;
     struct frame frame;
     VECTOR2 startingPosition;
     PLAYER playerstate;
@@ -136,6 +139,8 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
+FLOAT CL_GetLoadingProgress(void);
+void CL_SetLoadingProgress(FLOAT progress);
 
 /* Optional full-screen movie playback (client/cl_movie.c). */
 void CL_MovieInit(void);
@@ -230,6 +235,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          uiLabel_t const *label);
 void SCR_UpdateScreen(DWORD msec);
 void SCR_BeginLoadingPlaque(void);
+void SCR_UpdateLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 void SCR_ClearLayoutResources(void);
 

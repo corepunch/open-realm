@@ -334,6 +334,10 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         .w = rect[0].y,
         .h = rect[1].y,
     };
+    if (frame->flagsvalue & UIFLAG_EXTEND_WIDESCREEN_X) {
+        runtimes[frame->number].rect.x = 0.0f;
+        runtimes[frame->number].rect.w = SCR_UICanvasWidth();
+    }
     return &runtimes[frame->number].rect;
 }
 

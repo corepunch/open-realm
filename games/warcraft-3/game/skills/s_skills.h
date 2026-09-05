@@ -77,6 +77,7 @@ extern ability_t a_item_permanent_life_gain;
 extern ability_t a_item_experience_gain;
 extern ability_t a_item_level_gain;
 extern ability_t a_item_defense_aoe;
+extern ability_t a_item_change_time;
 extern ability_t a_flame_strike;
 extern ability_t a_siphon_mana;
 

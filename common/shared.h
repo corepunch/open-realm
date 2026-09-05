@@ -467,6 +467,7 @@ typedef enum {
     UI_PLAYERSTAT_SELECTION_MANA,
     UI_PLAYERSTAT_SELECTION_MAX_MANA,
     UI_PLAYERSTAT_SELECTION_TIMED_STATUS, /* 0..USHRT_MAX; selected-unit timed-status remaining fraction */
+    UI_PLAYERSTAT_ENV_VARIANT, /* presentation variant for environment-bound UI; 0 is normal */
 } UIPLAYERSTAT;
 
 typedef enum {
@@ -516,6 +517,8 @@ typedef const struct ENVIRONLIGHT *LPCENVIRONLIGHT;
 
 _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR,
                "env phase and cinematic portrait color must occupy distinct stats[] slots");
+_Static_assert(UI_PLAYERSTAT_ENV_VARIANT < MAX_STATS,
+               "environment presentation stats must fit playerState.stats[]");
 
 struct playerState_s {
     DWORD number;                   // client slot index
@@ -822,6 +825,8 @@ typedef enum {
 
 #define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; derives a composite frame's size from rendered content; used by FT_NAMETAG
 #define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
+#define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
+#define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
 
 typedef enum {
     BACKDROP_TOP_LEFT_CORNER,

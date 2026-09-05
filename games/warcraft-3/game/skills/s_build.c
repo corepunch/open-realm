@@ -93,7 +93,7 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     LPCSTR model_filename = ui->modelFile;
     if (!model_filename)
         return;
-    snprintf(buffer, sizeof(buffer), "%s.mdx", model_filename);
+    G_NormalizeModelFilename(model_filename, buffer, sizeof(buffer));
     memset(ent, 0, sizeof(entityState_t));
     ent->class_id = unit_id;
     ent->model = G_RegisterModel(buffer);
@@ -107,7 +107,7 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
             gi.MemFree(pathtex);
         }
     }
-    LPCANIMATION animation = G_GetAnimation(ent->model, anim);
+    LPCANIMATION animation = G_GetAnimationForProperties(ent->model, anim, G_UnitProfile(unit_id)->animProps);
     if (animation) {
         ent->frame = animation->interval[0];
     }

@@ -39,6 +39,35 @@ items, upgrades, and JASS natives modify those values after spawn. Cohesive tran
 named edict sections (`item`, `destructable`, `cargo`, `movement`, `channel`, and `sound`). The server-visible prefix
 through `areabounds` must remain aligned with `server.h`.
 
+### Map-local `war3map.w3u` presentation overrides
+
+`CM_LoadMap` parses original-unit edits and user-created units from `war3map.w3u` into `MAPINFO.originalUnits` and
+`MAPINFO.userCreatedUnits`. Before map entities spawn, `G_SetMapUnitOverrides` builds stable per-map `UnitProfile_t`
+and `UnitUI_t` rows. Original-unit edits are applied first; a custom unit then inherits the already-overridden base
+rows and applies its own registered Profile/UI modifications. `G_UnitProfile(id)` and `G_UnitUI(id)` check these
+exact-ID rows before falling back to the base-SLK/custom-ID remap.
+
+This is required because spawned edicts retain immutable typed-row pointers; never implement map overrides with one
+mutable scratch row. The override values point into map-owned `war3map.w3u` modification storage, so the caches are
+cleared/rebuilt at map load and cleared again during unit-data shutdown.
+
+The current merge covers fields already mapped to `UnitProfile_t` or `UnitUI_t` in `UnitsMetaData`. This includes
+`uani` (`animProps`, Required Animation Names), `umdl` (model), `usca` (model scale), profile/name fields, tint/team-
+colour fields, selection/shadow fields, and `usnd`. Balance/Data/Weapons/Abilities object-data merge remains separate
+work and still uses base typed rows through `ResolveUnitID`.
+
+`uani` is especially important because a different visible form does not necessarily mean a different model file.
+`UnitProfile.animProps` supplies persistent secondary MDX animation tags such as `alternate`; `G_SetUnitAnimation()`
+combines them with the requested animation family and selects a matching tagged sequence. Per-unit JASS changes from
+`AddUnitAnimationProperties` mutate the edict's active tags and reselect its logical animation. See
+[Required Animation Names](games/warcraft-3/unit-animation-properties.md).
+
+The earlier model bug was caused by resolving a custom rawcode to `originalUnitID` *before* `G_UnitUI` lookup. That
+made a map-authored `umdl` invisible to spawn code. `umdl` values may carry an authored model extension; unit spawning,
+build placement previews, and cinematic portraits therefore use `G_NormalizeModelFilename`, which preserves an
+existing extension and adds `.mdx` only to extensionless base-SLK stems. Do not blindly append `.mdx` to a map
+override.
+
 FourCC/JASS reads use `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` / `UnitStringField`. Unit metadata binds
 each FourCC to its DDX field descriptor and typed-row index during `InitUnitData`, so these accessors read the same arrays
 as gameplay instead of returning to `sheetRow_t`. Add fields to the owning row and DDX schema in `g_metadata.c`.
@@ -192,10 +221,11 @@ Stats are precomputed at base attributes; deltas are applied live on attribute c
 
 ### XP and Leveling
 - Max level: `Misc/MaxHeroLevel` from `MiscGame.txt` (default 10).
-- XP to reach level L: `50 * L * (L+1) - 100` (L1=0, L2=200, L3=500, L10=5400).
+- XP to reach level L is accumulated from `Misc/NeedHeroXP`; when the table runs out, `NeedHeroXPFormulaA/B/C` extend the per-level requirements. Stock data yields L1=0, L2=200, L3=500, L4=900, L10=5400. If no Misc data is available, the fallback is the stock per-level sequence `200,300,400,...` rather than formula-extension of a synthetic single entry.
 - Attributes at level L: `base + trunc((L-1) * perLevelGain)` — **truncated** toward zero (bare float→int cast, no rounding), matching the WC3 binary.
 - XP is the source of truth; level only ever increases. `SetHeroLevel` works by granting enough XP to reach the target level.
-- Level-up fires `EVENT_PLAYER_HERO_LEVEL` once per level gained.
+- Level-up fires both `EVENT_PLAYER_HERO_LEVEL` and `EVENT_UNIT_HERO_LEVEL` once per level gained. `GetLevelingUnit()` resolves to the Hero for either event family.
+- Unspent Hero skill points are independent mutable runtime state. Level-up adds one point per crossed level; `UnitModifySkillPoints` can add/remove points directly without changing XP/level, while `GetHeroSkillPoints` reports the current pool.
 
 ### XP on Kill (from MiscGame.txt)
 Key constants (WC3 1.29 defaults):
@@ -204,8 +234,9 @@ Key constants (WC3 1.29 defaults):
 - `GrantHeroXP` list = 100,120,160,220,300 (for hero kills)
 - `HeroFactorXP` list = 80,70,60,50,0 (% when hero outlevels victim by N levels)
 - `BuildingKillsGiveExp` = 0
+- `GlobalExperience` = 1; used only as a fallback when no eligible Hero is inside `HeroExpRange`
 
-Read live from `game.config.misc` so map overrides stay 1:1.
+Read live from `game.config.misc` so map overrides stay 1:1. `MaxLevelHeroesDrainExp` and `SummonedKillFactor` remain unconsumed by the current kill-XP implementation.
 
 ### Hero Revival
 Dead heroes do **not** decay — they persist as revivable bodies (altar mechanic). `unit_decay_think` is a no-op for heroes. Revive restores HP/mana by configurable life/mana factors.
@@ -239,7 +270,7 @@ The single-unit info panel remains a server-baked `svc_layout` snapshot, but the
 - `EVENT_UNIT_DEATH` — widget-specific death triggers (`TriggerRegisterDeathEvent`/`UnitEvent`).
 - `EVENT_PLAYER_UNIT_DEATH` — owner's player-unit-death triggers (`TriggerRegisterPlayerUnitEvent`); both must be published on `unit_die`.
 - `EVENT_PLAYER_UNIT_*` handlers registered with a **player** as subject fire for any of that player's units (match by owner, not unit identity); the triggering unit is passed as trigger context.
-- `EVENT_PLAYER_HERO_LEVEL` fires once per level gained (loop from oldLevel+1 to newLevel).
+- Hero progression publishes both `EVENT_PLAYER_HERO_LEVEL` and `EVENT_UNIT_HERO_LEVEL` once per level gained (loop from oldLevel+1 to newLevel); `GetLevelingUnit()` resolves to that Hero.
 
 ## Misc Data Constants (MiscGame.txt)
 
@@ -248,6 +279,8 @@ Read via `FS_FindSheetCell(game.config.misc, "Misc", key)`. Never hardcode defau
 | Key | Default | Meaning |
 |---|---|---|
 | `MaxHeroLevel` | 10 | hero level cap |
+| `NeedHeroXP` | 200 | per-level XP requirement table; extended by `NeedHeroXPFormulaA/B/C` |
+| `GlobalExperience` | 1 | globally distribute kill XP only when no eligible Hero is in range |
 | `HeroExpRange` | 1200 | XP-share radius |
 | `GrantNormalXP` | 25 | base XP for killing a creep |
 | `GrantNormalXPFormulaB` | ROC 0 / TFT 5 | XP per victim level |

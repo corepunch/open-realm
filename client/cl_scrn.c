@@ -112,6 +112,13 @@ static void SCR_DrawCursor(void) {
     int const x = (int)mouse.origin.x, y = (int)mouse.origin.y;
     BOOL drawn = false;
 
+    /* Loading plaques are non-interactive. Hide both the authored cursor and
+     * the native SDL cursor until normal menu/game presentation resumes. */
+    if (cl.playerstate.client_ui_state == CLIENT_UI_LOADING) {
+        SCR_UpdateSystemCursor(true);
+        return;
+    }
+
     if (Cvar_Integer("r_cursor", 0) == 1) {
         VECTOR2 const pos = SCR_ScreenToUI(x, y);
         drawn = re.DrawCursor(pos.x, pos.y, SCR_CursorTint());
@@ -186,6 +193,14 @@ void SCR_DrawScreenField(DWORD msec) {
     }
 #endif
     re.EndFrame();
+}
+
+void SCR_UpdateLoadingPlaque(void) {
+    if (!scr_initialized) return;
+    if (!cls.disable_screen) return;
+    if (Cvar_Integer("r_norefresh", 0)) return;
+    if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
+    SCR_DrawScreenField(0);
 }
 
 void SCR_UpdateScreen(DWORD msec) {
@@ -838,7 +853,27 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     LPCMODEL model = cl.models[frame->tex.index];
     LPCSTR anim = (frame->text && *frame->text) ? frame->text : "Stand";
+    char sequence_anim[96];
     char phased_anim[96];
+
+    /* Some server-authored sprites need one replicated stat for their
+     * normalized animation phase and another for the authored sequence.  The
+     * latter is opt-in because frame.value has unrelated meanings for other
+     * frame types.  Only explicit #N selectors are rewritten. */
+    if ((frame->flagsvalue & UIFLAG_SPRITE_STAT_SEQUENCE) &&
+        frame->value > 0.0f && frame->value < (FLOAT)MAX_STATS && anim[0] == '#')
+    {
+        DWORD const sequence_stat = (DWORD)frame->value;
+        LPCSTR marker = strchr(anim, '@');
+        if (marker) {
+            snprintf(sequence_anim, sizeof(sequence_anim), "#%u%s",
+                     (unsigned)cl.playerstate.stats[sequence_stat], marker);
+        } else {
+            snprintf(sequence_anim, sizeof(sequence_anim), "#%u",
+                     (unsigned)cl.playerstate.stats[sequence_stat]);
+        }
+        anim = sequence_anim;
+    }
 
     /* A server-authored numeric stat on a SPRITE is a normalized animation
      * phase. This keeps the frame tree static while snapshot state drives the

@@ -6,6 +6,7 @@
 #include <limits.h>
 
 #include "common/common.h"
+#include "common/weather.h"
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
 #include "server/game.h"
@@ -646,7 +647,6 @@ typedef struct {
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
-#define MAX_WEATHER_EFFECTS 256 // handles; fixed map weather registry keeps JASS pointers stable
 typedef struct {
     LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
@@ -781,6 +781,9 @@ typedef struct {
     DWORD timestamp;
     DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
 } heroabilitystatus_t;
+
+#define WC3_ANIMATION_REQUEST_SIZE 80
+#define WC3_ANIMATION_PROPERTIES_SIZE 128
 
 struct edict_s {
     entityState_t s;
@@ -963,6 +966,11 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
+    /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
+     * AddUnitAnimationProperties mutations. The request is retained separately
+     * so a property change can reselect the same logical animation family. */
+    char animation_request[WC3_ANIMATION_REQUEST_SIZE];
+    char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
     umove_t *currentmove;
     unitRace_t race;
@@ -1054,6 +1062,10 @@ struct game_locals {
         FLOAT gameDayLength;
         FLOAT buildingAngle;
         FLOAT rootAngle;
+        /* Unit-target Move/Smart follows use WC3 Misc distances, not attack
+         * acquisition range. war3mapMisc.txt may override either value. */
+        FLOAT followRange;
+        FLOAT structureFollowRange;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         FLOAT defenseArmor;
@@ -1222,10 +1234,19 @@ typedef struct {
 } bot_t;
 
 typedef struct {
+    LONG hour;
+    LONG minute;
+    LONG ticks_remaining;
+    BOOL active;
+    BOOL initialized;
+} FALSE_TIMEOFDAY;
+
+typedef struct {
     FLOAT elapsed;
     FLOAT pending;
     BOOL pending_valid;
     BOOL suspended;
+    FALSE_TIMEOFDAY false_time;
 } TIMEOFDAY;
 
 struct level_locals {
@@ -1310,6 +1331,10 @@ void G_InitJassHost(void);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 void G_SetClientConnected(LPEDICT player, BOOL connected);
+void G_ResetStartingResourceCheat(void);
+void G_DisableStartingResourceCheatForLoadedGame(void);
+void G_ApplyStartingResourceCheat(void);
+BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result);
 BOOL G_GameResultDebugEnabled(void);
 void G_GameResultDebug(LPCSTR format, ...);
 BOOL G_IsSinglePlayer(void);
@@ -1394,6 +1419,8 @@ DWORD G_FowWorldToCellY(FLOAT y);
 FLOAT G_GetTimeOfDay(void);
 void G_SetTimeOfDay(FLOAT value);
 void G_SuspendTimeOfDay(BOOL suspended);
+void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration);
+BOOL G_IsFalseTimeOfDay(void);
 void G_UpdateTimeOfDay(void);
 BOOL G_IsNight(void);
 
@@ -1406,6 +1433,7 @@ void G_BindEntityData(LPEDICT);
 void G_BindEntityRuntime(LPEDICT);
 void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
+BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out);
 BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
@@ -1426,7 +1454,7 @@ LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, DWORD effect_id, BOOL enabled);
 void G_WeatherEnable(LPGWEATHER effect, BOOL enabled);
 void G_WeatherRemove(LPGWEATHER effect);
 void G_WeatherInitMap(void);
-void G_WeatherSyncClient(LPEDICT ent);
+DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size);
 LPTRIGGER G_AllocJassTrigger(void);
 LPGTIMER G_AllocJassTimer(void);
 void G_ClearSaveRegistries(void);
@@ -1447,8 +1475,16 @@ void monster_start(LPEDICT);
 void monster_think(LPEDICT);
 
 // g_model.c
+void         G_NormalizeModelFilename(LPCSTR authored, LPSTR out, size_t out_size);
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
+LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties);
+LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCSTR properties);
+BOOL         G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary);
+LPCANIMATION G_GetUnitAnimation(LPEDICT unit, LPCSTR animname);
+void         G_SetUnitAnimation(LPEDICT unit, LPCSTR animname);
+void         G_ResetUnitAnimationProperties(LPEDICT unit);
+void         G_AddUnitAnimationProperties(LPEDICT unit, LPCSTR properties, BOOL add);
 void         G_FreeModels(void);
 
 // g_ai.c
@@ -1749,6 +1785,7 @@ FLOAT UnitMetaReal(LPEDICT, DWORD);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
+void G_SetMapUnitOverrides(LPCMAPINFO);
 #ifdef BZ_TESTS
 typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
 slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
@@ -1841,6 +1878,7 @@ void G_HeroInitializeProgression(LPEDICT ent);
 DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode);
 heroSkillState_t G_HeroSkillState(LPEDICT ent, DWORD abilcode, DWORD *next_level, DWORD *required_level);
 BOOL G_HeroLearnSkill(LPEDICT ent, DWORD abilcode);
+BOOL G_HeroModifySkillPoints(LPEDICT ent, LONG delta);
 
 void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign);
 BOOL G_GameCacheSave(gameCache_t *cache);
@@ -1921,6 +1959,7 @@ BOOL move_is_terminal_hold(LPCEDICT);
 void move_reset_progress(LPEDICT);
 LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
 FLOAT G_AcquisitionRange(LPCEDICT);
+FLOAT G_FollowStopRange(LPCEDICT follower, LPCEDICT target);
 BOOL G_ShouldAcquireThisFrame(LPCEDICT);
 
 // p_jass.c

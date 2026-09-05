@@ -8,6 +8,7 @@
 #define MAX_GAMECACHE_MEMORY_CACHES 8
 
 typedef enum {
+    GAMECACHE_STORAGE_DISABLED,
     GAMECACHE_STORAGE_MEMORY,
     GAMECACHE_STORAGE_DISK,
 } gameCacheStorageMode_t;
@@ -25,14 +26,15 @@ typedef union {
 } gameCacheFloatBits_t;
 
 static gameCacheStorageMode_t G_GameCacheStorageMode(void) {
-    LPCSTR mode = gi.CvarString("wc3_gamecache_mode", "memory");
+    LPCSTR mode = gi.CvarString("wc3_gamecache_mode", "disk");
 
+    if (!strcmp(mode, "disabled")) return GAMECACHE_STORAGE_DISABLED;
     if (!strcmp(mode, "memory")) return GAMECACHE_STORAGE_MEMORY;
     if (!strcmp(mode, "disk")) return GAMECACHE_STORAGE_DISK;
     fprintf(stderr,
-            "Game cache: invalid wc3_gamecache_mode '%s' (expected memory or disk); using memory\n",
+            "Game cache: invalid wc3_gamecache_mode '%s' (expected disabled, memory, or disk); using disk\n",
             mode);
-    return GAMECACHE_STORAGE_MEMORY;
+    return GAMECACHE_STORAGE_DISK;
 }
 
 static gameCacheMemorySlot_t *G_GameCacheMemoryFind(LPCSTR campaign) {
@@ -411,6 +413,8 @@ static BOOL G_GameCacheLoadDisk(gameCache_t *cache) {
 }
 
 void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign) {
+    gameCacheStorageMode_t mode;
+
     if (!cache) return;
     memset(cache, 0, sizeof(*cache));
     if (!campaign || !*campaign) {
@@ -423,8 +427,10 @@ void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign) {
         return;
     }
     strlcpy(cache->campaign, campaign, sizeof(cache->campaign));
+    mode = G_GameCacheStorageMode();
+    if (mode == GAMECACHE_STORAGE_DISABLED) return;
     if (G_GameCacheMemoryLoad(cache)) return;
-    if (G_GameCacheStorageMode() == GAMECACHE_STORAGE_DISK && G_GameCacheLoadDisk(cache)) {
+    if (mode == GAMECACHE_STORAGE_DISK && G_GameCacheLoadDisk(cache)) {
         G_GameCacheMemorySave(cache);
     }
 }
@@ -494,7 +500,14 @@ static BOOL G_GameCacheSaveDisk(gameCache_t *cache) {
 }
 
 BOOL G_GameCacheSave(gameCache_t *cache) {
-    if (G_GameCacheStorageMode() == GAMECACHE_STORAGE_MEMORY) {
+    gameCacheStorageMode_t const mode = G_GameCacheStorageMode();
+
+    if (mode == GAMECACHE_STORAGE_DISABLED) {
+        if (!cache || !cache->campaign[0]) return false;
+        cache->dirty = false;
+        return true;
+    }
+    if (mode == GAMECACHE_STORAGE_MEMORY) {
         if (!G_GameCacheMemorySave(cache)) return false;
         cache->dirty = false;
         return true;

@@ -28,8 +28,63 @@ MiscGame data
 Warsmash ordering used by `SetFloatGameState(GAME_STATE_TIME_OF_DAY, ...)`. `G_SuspendTimeOfDay(true)` stops ordinary progression,
 but does not prevent a queued explicit set from applying.
 
+### Temporary / false time
+
+Warsmash has a second clock state for `AIct` (`itemchangetimeofday`, used by Moonstone-style items). OpenRealm mirrors the inspected
+Warsmash contract in `TIMEOFDAY.false_time`:
+
+- `G_SetFalseTimeOfDay(hour, minute, duration)` creates an uninitialized override whose lifetime is stored in simulation ticks;
+- the first `G_UpdateTimeOfDay()` initializes it, after which `G_GetTimeOfDay()` returns `hour + minute / 60`;
+- while `false_time.active`, the canonical `elapsed` clock does not advance, regardless of the ordinary suspend flag;
+- a queued `G_SetTimeOfDay()` retargets the active false clock instead of changing canonical `elapsed`;
+- expiry removes the override and exposes the unchanged canonical clock again;
+- time-of-day limit events compare the effective value before/after initialization, retargeting, replacement, and expiry just like
+  ordinary clock changes.
+
+The false-clock fields are part of save format v10, so saving during an active override preserves both the authored temporary time and
+its remaining simulation-tick lifetime.
+
+`games/warcraft-3/game/skills/s_item.c` registers `AIct` and reads its authored `DataA1`, `DataB1`, and `Dur1` values as hour,
+minute, and false-time duration. This follows Warsmash's `core/assets/abilityBehaviors/itemSimple.json`; no item-specific clock value
+is hard-coded in gameplay.
+
 Daytime is the half-open interval `Dawn <= time < Dusk`. Exact Dawn is day; exact Dusk is night. Existing FOW sight-radius and
 night-regeneration consumers call `G_IsNight()` and therefore follow the same thresholds.
+
+## Developer Time-Of-Day Cheats
+
+The `day` and `night` console commands are `sv_cheats`-gated shortcuts that queue an explicit write through the same
+`G_SetTimeOfDay()` path used by JASS:
+
+```sh
+set sv_cheats 1
+day
+night
+```
+
+They target the middle of the map-authored day and night intervals rather than hard-coding clock values. With stock
+`Dawn=6`, `Dusk=18`, and `DayHours=24`, `day` selects 12:00 and `night` selects 00:00. Custom `Misc` data therefore keeps
+the cheats inside its own authored phases. The queued write is consumed by `G_UpdateTimeOfDay()`, so ordinary time-of-day
+game-state events, HUD phase, sight/regeneration rules, and DNC lighting see the same authoritative transition.
+
+`wc3_cheat_timeofday_scale` multiplies only ordinary day/night clock progression. It is a developer CVar (no `sv_cheats`
+gate) and defaults to `1`; for example:
+
+```sh
+set wc3_cheat_timeofday_scale 20
+# or at launch:
++set wc3_cheat_timeofday_scale 20
+```
+
+runs the authored day/night cycle at 20x speed. A stock 480-second cycle therefore completes in about 24 real seconds. Set it back
+to `1` for normal timing. Zero, negative, non-numeric, and non-finite values fall back to `1` so an accidental cheat value cannot
+freeze or corrupt the clock.
+
+The multiplier does **not** change `FRAMETIME`, simulation speed, movement, AI, JASS timers, trigger sleeps, cinematics, or camera
+timing. Explicit `SetFloatGameState(GAME_STATE_TIME_OF_DAY, ...)` writes remain exact, and `SuspendTimeOfDay(true)` still suspends
+ordinary progression regardless of the cheat scale. Because every gameplay/presentation consumer reads the authoritative
+`level.timeofday`, accelerated dawn/dusk changes propagate to sight, regeneration, game-state events, the HUD clock, and DNC phase
+consumers together.
 
 ## HUD Time Indicator
 
@@ -40,9 +95,16 @@ The in-game clock is server-authored through `svc_layout`; `ui.dll` does not con
 network struct is widened. `common/msg.c` already transports the `stats[16..17]` pair together. Slot 17 remains
 `UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR`; the two must not share a USHORT.
 
+`UI_PLAYERSTAT_ENV_VARIANT` (`stats[23]`) is `0` for the canonical clock and `1` while an initialized false clock is active. It is
+transported by the existing `stats[22..23]` pair. The time-of-day `FT_SPRITE` sets `UIFLAG_SPRITE_STAT_SEQUENCE` and stores that
+secondary stat index in `frame.value`, allowing the generic layout client to rewrite its explicit `#0` selector to `#1` while
+retaining `UI_PLAYERSTAT_ENV_PHASE` as the `@ratio` binding. This reproduces Warsmash's normal sequence 0 / false-time sequence 1
+clock presentation without resending the HUD layer.
+
 `UI_WriteConsoleBackdrop()` appends one `FT_SPRITE` under `ConsoleUI` when the recipient's `war3skins.txt` resolves the
-`TimeOfDayIndicator` model key. The sprite selects MDX sequence `#0` and binds its `stat` to the normalized day-phase slot. The layout
-is therefore sent once while ordinary snapshot deltas update the phase.
+`TimeOfDayIndicator` model key. The sprite starts on MDX sequence `#0`, binds its `stat` to the normalized day-phase slot, and binds
+its sequence selector to the environment-variant slot. The layout is therefore sent once while ordinary snapshot deltas update both
+the phase and false-time presentation state.
 
 The generic layout client interprets a numeric stat binding on `FT_SPRITE` as a normalized animation phase and emits an animation
 selector such as `#0@0.500000`. The WC3 MDX renderer consumes the `@ratio` suffix and scrubs the selected sequence directly instead
@@ -108,11 +170,16 @@ Implemented against the authoritative clock:
 - `GetFloatGameState(GAME_STATE_TIME_OF_DAY)`
 - `SuspendTimeOfDay`
 - `TriggerRegisterGameStateEvent` for the time-of-day float state, firing on false-to-true condition entry
+- Warsmash-style false-time state used by `AIct` (`itemchangetimeofday`)
 
 Still intentionally unresolved:
 
-- `SetTimeOfDayScale` / `GetTimeOfDayScale` (no matching behavior was found in the inspected Warsmash snapshot)
-- temporary/false time-of-day presentation (for example Moonstone-style alternate clock sequence)
+- `SetTimeOfDayScale` / `GetTimeOfDayScale`: a fresh inspection of `WarsmashModEngine-main` found no implementation or registered
+  native to mirror, so OpenRealm keeps these placeholders rather than inventing a scale contract.
+
+Warsmash also registers a non-retail `SetFalseTimeOfDay` helper inside its ability-builder JASS environment. OpenRealm registers the
+same host native so an extension script that explicitly declares it can call the simulation operation, but deliberately does not add
+that non-retail declaration to the bundled Warcraft `common.j` API.
 
 ## Verification
 
@@ -122,15 +189,25 @@ The focused simulation tests are:
 build/bin/openwarcraft3 +dedicated 1 +test 'wc3_time.*'
 ```
 
-The `wc3_time` coverage includes `SetDayNightModels` model registration/configstring publication. Generic renderer coverage verifies
-that sequence-0 DNC light sampling follows a normalized phase and that the default world shader exposes the environment-light inputs.
+The `wc3_time` coverage includes false-time initialization/expiry, canonical-clock freezing, `SetTimeOfDay` retargeting, HUD variant
+publication, and `SetDayNightModels` model registration/configstring publication. `wc3_items` verifies that `AIct` reads the fixture
+ability's `DataA1`, `DataB1`, and `Dur1`. Generic client coverage verifies that a sprite can combine a secondary stat-selected `#N`
+sequence with its normalized `@ratio` phase and that the environment-variant stat survives player-state deltas. Generic renderer
+coverage verifies that sequence-0 DNC light sampling follows a normalized phase and that the default world shader exposes the
+environment-light inputs.
 `MDLX_SampleFirstLight()` and the shared MDX light evaluator live in `r_mdx_light.c`. The normal renderer unity build discovers that
 file automatically, while the standalone `test-renderer-model` and `test-renderer-shadows` targets list it explicitly alongside the
 animation/interpolation units. Keep this dependency explicit: these tests intentionally avoid linking the full geoset/render path.
+For runtime cheat verification, enable `sv_cheats`, run `day` and `night`, and confirm the HUD clock, DNC lighting, sight,
+regeneration, and time-of-day event consumers all follow the new phase. Then set `wc3_cheat_timeofday_scale 20`, watch the HUD
+clock cross Dawn/Dusk rapidly, restore `wc3_cheat_timeofday_scale 1`, and confirm normal cadence resumes without changing
+unit/AI/timer speed.
+
 The generic client tests cover preservation of the player-stat pair containing the environment-phase slot and conversion of a bound sprite
 stat into an `@ratio` animation selector. Runtime verification should additionally confirm that the race-specific clock model tracks
 JASS time changes immediately, terrain and units transition continuously through dusk/night/dawn, `SuspendTimeOfDay(true)` freezes
-both clock and lighting, and maps without DNC models retain the legacy fixed lighting.
+both clock and lighting, an `AIct`/Moonstone-style item switches the clock model to its authored false-time sequence then returns to
+the frozen canonical phase on expiry, and maps without DNC models retain the legacy fixed lighting.
 
 ## See Also
 

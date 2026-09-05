@@ -194,7 +194,7 @@ void M_MoveFrame(LPEDICT self) {
         }
     }
     DWORD next_frame = self->s.frame + FRAMETIME;
-    if (!strcmp(anim->name, "birth")) {
+    if (G_AnimationHasPrimary(anim, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
         DWORD build_time = G_UnitBalance(self->class_id)->buildTime * 1000;
         if (build_time > 0) {
@@ -508,8 +508,9 @@ void SP_SpawnUnit(LPEDICT self) {
     G_InitStockSlots(self);
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
-    snprintf(model_filename, sizeof(model_filename), "%s.mdx", ui->modelFile);
+    G_NormalizeModelFilename(ui->modelFile, model_filename, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
+    G_ResetUnitAnimationProperties(self);
     self->s.splat = M_LoadUberSplat(uber_splat);
     if (self->runtime.flags & UNIT_BALANCE_BUILDING) {
         M_SetBuildingShadow(self);

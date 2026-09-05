@@ -782,6 +782,37 @@ void G_HeroInitializeProgression(LPEDICT ent) {
     }
 }
 
+BOOL G_HeroModifySkillPoints(LPEDICT ent, LONG delta) {
+    DWORD old_points;
+    DWORD new_points;
+    LPGAMECLIENT owner;
+
+    if (!ent || !ent->data.UnitBalance || !G_UnitIsHero(ent)) {
+        return false;
+    }
+
+    old_points = ent->hero.skillpoints;
+    if (delta < 0) {
+        unsigned long long const remove = (unsigned long long)(-(long long)delta);
+        if (!old_points) {
+            return false;
+        }
+        new_points = remove >= old_points ? 0 : old_points - (DWORD)remove;
+    } else if (delta > 0) {
+        unsigned long long const sum = (unsigned long long)old_points + (unsigned long long)(DWORD)delta;
+        new_points = sum > (unsigned long long)INT32_MAX ? (DWORD)INT32_MAX : (DWORD)sum;
+    } else {
+        new_points = old_points;
+    }
+
+    ent->hero.skillpoints = new_points;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (new_points != old_points && owner && owner->ps.number == ent->s.player) {
+        G_InvalidateCommands(owner);
+    }
+    return true;
+}
+
 DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode) {
     DWORD const hero_level = G_HeroSkillLevel(ent, abilcode);
     if (hero_level) {
@@ -872,7 +903,9 @@ BOOL G_HeroLearnSkill(LPEDICT ent, DWORD abilcode) {
     if (G_HeroSkillLevel(ent, abilcode) != old_level + 1) {
         return false;
     }
-    ent->hero.skillpoints--;
+    if (!G_HeroModifySkillPoints(ent, -1)) {
+        return false;
+    }
     return true;
 }
 
@@ -940,10 +973,11 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     }
 }
 
-/* ---- Hero experience / leveling (verified against WC3 1.29 binary) ----------
+/* ---- Hero experience / leveling (verified against WC3/Warsmash data flow) ---
  * - Max level: Misc/MaxHeroLevel gameplay constant (default 10).
- * - XP to REACH level L: the "NeedHeroXP" table; the default WC3 values are
- *   100*(L*(L+1)/2 - 1) = 50*L*(L+1) - 100 (L1=0, L2=200, L3=500, L10=5400).
+ * - XP to REACH level L: sum the per-level Misc/NeedHeroXP table, extending it
+ *   with NeedHeroXPFormulaA/B/C when the authored list is exhausted. Stock data
+ *   yields L1=0, L2=200, L3=500, L4=900, L10=5400.
  * - Attributes are derived live from level, not stored per level-up: each
  *   primary attribute = base + trunc((level-1) * perLevelGain).  The product is
  *   TRUNCATED toward zero (the binary's attribute getter converts the float via
@@ -956,11 +990,75 @@ DWORD G_MaxHeroLevel(void) {
     return m > 0 ? m : 10;
 }
 
-DWORD G_HeroXPForLevel(DWORD level) {
-    if (level <= 1) {
-        return 0;
+/* Warcraft stores NeedHeroXP as the XP required for each next level, not as
+ * cumulative XP.  When the authored list runs out, MiscGame extends it with
+ * f(i) = A*f(i-1) + B*i + C, where i is the zero-based table index used by
+ * Warsmash's CGameplayConstants parser. */
+static DWORD G_HeroXPRequirement(DWORD index) {
+    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", "NeedHeroXP");
+    DWORD current = 0;
+    DWORD count = 0;
+
+    /* When Misc data is unavailable, use the stock per-level sequence directly:
+     * 200, 300, 400, ... .  Do not feed a synthetic single 200 entry through
+     * the extension recurrence; doing that with A=1/B=100 produces
+     * 200,300,500,... and breaks the canonical cumulative thresholds. */
+    if (!value || !*value) {
+        unsigned long long const stock = (unsigned long long)200 + (unsigned long long)100 * index;
+        return stock > (unsigned long long)UINT32_MAX ? UINT32_MAX : (DWORD)stock;
     }
-    return 50 * level * (level + 1) - 100;
+
+    while (*value) {
+        char *end = NULL;
+        double parsed;
+        while (*value == ' ' || *value == '\t') value++;
+        parsed = strtod(value, &end);
+        if (!end || end == value) break;
+        if (parsed < 0.0) parsed = 0.0;
+        if (parsed > (double)UINT32_MAX) parsed = (double)UINT32_MAX;
+        current = (DWORD)parsed;
+        if (count++ == index) return current;
+        value = end;
+        while (*value == ' ' || *value == '\t') value++;
+        if (*value == ',') value++;
+        else if (*value) break;
+    }
+    if (!count) {
+        unsigned long long const stock = (unsigned long long)200 + (unsigned long long)100 * index;
+        return stock > (unsigned long long)UINT32_MAX ? UINT32_MAX : (DWORD)stock;
+    }
+    if (index < count) return current;
+
+    {
+        LPCSTR aText = Stb_IniCacheFind(&game.config.misc, "Misc", "NeedHeroXPFormulaA");
+        LPCSTR bText = Stb_IniCacheFind(&game.config.misc, "Misc", "NeedHeroXPFormulaB");
+        LPCSTR cText = Stb_IniCacheFind(&game.config.misc, "Misc", "NeedHeroXPFormulaC");
+        double const a = (aText && *aText) ? atof(aText) :
+            1.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula A. */
+        double const b = (bText && *bText) ? atof(bText) :
+            100.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula B. */
+        double const c = (cText && *cText) ? atof(cText) :
+            0.0; /* BZ_HARDCODED_DATA_FALLBACK: stock NeedHeroXP formula C. */
+        for (DWORD i = count; i <= index; i++) {
+            double next = a * (double)current + b * (double)i + c;
+            if (next < 0.0) next = 0.0;
+            if (next > (double)UINT32_MAX) next = (double)UINT32_MAX;
+            current = (DWORD)next;
+        }
+    }
+    return current;
+}
+
+DWORD G_HeroXPForLevel(DWORD level) {
+    DWORD total = 0;
+    if (level <= 1) return 0;
+
+    for (DWORD i = 0; i < level - 1; i++) {
+        DWORD const need = G_HeroXPRequirement(i);
+        if (UINT32_MAX - total < need) return UINT32_MAX;
+        total += need;
+    }
+    return total;
 }
 
 DWORD G_HeroLevelForXP(DWORD xp) {
@@ -995,16 +1093,25 @@ void G_HeroApplyLevel(LPEDICT ent, DWORD level) {
 /* Update a hero's accumulated XP, leveling it up if a threshold was crossed. */
 void G_HeroSetXP(LPEDICT ent, DWORD xp) {
     DWORD const oldLevel = ent->hero.level;
+    DWORD newLevel;
+
+    /* Retail/Warsmash SetHeroXP is raise-only: a lower requested XP value does
+     * not reduce either XP or level.  Keeping that rule in the shared mutation
+     * path also prevents internally inconsistent high-level/low-XP states. */
+    if (xp <= ent->hero.xp) {
+        return;
+    }
     ent->hero.xp = xp;
-    DWORD const newLevel = G_HeroLevelForXP(xp);
+    newLevel = G_HeroLevelForXP(xp);
     if (newLevel > oldLevel) {
-        /* WC3 fires the hero level-up event once per level gained; campaign
-         * triggers (TriggerRegisterPlayerUnitEvent, EVENT_PLAYER_HERO_LEVEL)
-         * react to it and GetLevelingUnit() resolves to this hero. */
+        /* WC3 exposes both player-unit and unit-specific Hero level events.
+         * Queue both once for every crossed level; GetLevelingUnit resolves to
+         * the same hero through the ordinary event context. */
         for (DWORD lv = oldLevel + 1; lv <= newLevel; lv++) {
             G_HeroApplyLevel(ent, lv);
-            ent->hero.skillpoints++;
+            G_HeroModifySkillPoints(ent, 1);
             G_PublishEvent(ent, EVENT_PLAYER_HERO_LEVEL);
+            G_PublishEvent(ent, EVENT_UNIT_HERO_LEVEL);
         }
     }
 }
@@ -1046,7 +1153,7 @@ static BOOL G_HeroReceivesKillXP(LPCEDICT hero, LPCEDICT victim, LPCEDICT killer
     if (!hero->inuse || !(hero->svflags & SVF_MONSTER) || !hero->data.UnitBalance ||
         hero->health.value <= 0 || hero->hero.suspend_xp || (hero->aiflags & AI_ILLUSION) ||
         !G_UnitIsHero(hero) ||
-        Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range) {
+        (range >= 0.0f && Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range)) {
         return false;
     }
     if (hero->s.player == killer->s.player) {
@@ -1088,13 +1195,24 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
             receivers++;
         }
     }
-    if (!receivers) {
-        return;
+
+    /* Warsmash/Warcraft's GlobalExperience policy is a fallback: use global
+     * eligible heroes only when no receiver is inside HeroExpRange. */
+    BOOL const global = !receivers &&
+        G_MiscNum("GlobalExperience",
+            1.0f /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 default. */) != 0.0f;
+    if (global) {
+        FOR_LOOP(i, globals.num_edicts) {
+            if (G_HeroReceivesKillXP(&globals.edicts[i], victim, killer, -1.0f)) {
+                receivers++;
+            }
+        }
     }
+    if (!receivers) return;
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT h = &globals.edicts[i];
-        if (!G_HeroReceivesKillXP(h, victim, killer, range)) {
+        if (!G_HeroReceivesKillXP(h, victim, killer, global ? -1.0f : range)) {
             continue;
         }
         /* Diminishing returns: hero N levels above the victim earns

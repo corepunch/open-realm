@@ -203,7 +203,8 @@ Common runtime cvars:
 | `connect` | `""` | Remote server address |
 | `menu_module` | `"ui"` | UI module name for the Quake-style module boundary |
 | `g_module` | `"game"` | Game module name for the server game boundary |
-| `com_frame_limit` | `"0"` | Exit after N frames |
+| `com_frame_limit` | `"0"` | Exit after N main-loop iterations (diagnostic; not an FPS cap) |
+| `com_maxfps` | `"64"` in OpenWarcraft3, `"0"` otherwise | Maximum client FPS; `0` is unlimited |
 | `vid_modes` | `"0"` | Log SDL display modes at renderer startup; enabled by `-vid_modes`, not archived |
 | `r_cursor` | `"0"` | Native SDL platform cursor; set to `1` for Warcraft III's authored animated cursor |
 

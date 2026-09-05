@@ -186,6 +186,8 @@ All cvars registered in `Cvar_Init()`:
 | `menu_module` | `"ui"` | CVAR_ARCHIVE | UI module name (placeholder for dynamic loading) |
 | `g_module` | `"game"` | CVAR_ARCHIVE | Game module name (placeholder for dynamic loading) |
 | `ui_game_setup_map` | `""` | 0 | Pre-selected map for game setup screen |
+| `wc3_cheat_starting_resources` | `"0"` | 0 | WC3 map-start cheat: add 5000 gold and lumber once a human slot reaches playable gameplay state |
+| `wc3_cheat_timeofday_scale` | `"1"` | 0 | WC3 cheat: multiply only ordinary day/night clock progression |
 | `game_port` | `"27910"` | CVAR_ARCHIVE | UDP port |
 | `name` | `"Player"` | CVAR_ARCHIVE | Player name |
 | `sv_hostname` | `"OpenWarcraft3"` | CVAR_ARCHIVE | Server hostname |

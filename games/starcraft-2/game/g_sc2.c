@@ -16,6 +16,13 @@ sc2Level_t sc2_level;
 struct game_import gi;
 struct game_export globals;
 
+static DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
+    (void)ent;
+    if (size < sizeof(USHORT)) return 0;
+    memset(data, 0, sizeof(USHORT));
+    return sizeof(USHORT);
+}
+
 static edict_t sc2_edicts[SC2_MAX_EDICTS];
 static struct client_s sc2_clients[SC2_MAX_CLIENTS];
 static edict_t sc2_waypoints[SC2_MAX_EDICTS];
@@ -834,6 +841,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientSetCameraPosition = SC2_ClientSetCameraPosition;
     globals.CanSeeEntity          = SC2_CanSeeEntity;
     globals.CustomizeEntity       = SC2_CustomizeEntity;
+    globals.WriteClientDatagram    = G_WriteClientDatagram;
     globals.GetThemeValue         = SC2_GetThemeValue;
     globals.LoadMap               = SC2_LoadMap;
     globals.GetWorldBounds        = CM_GetWorldBounds;

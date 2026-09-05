@@ -97,6 +97,7 @@ static abilityitem_t abilitylist[] = {
     { "AIem", &a_item_experience_gain },
     { "AIlm", &a_item_level_gain },
     { "AIda", &a_item_defense_aoe },
+    { "AIct", &a_item_change_time },
     { "Acar", &a_cargo_hold },
     { "Aloa", &a_load },
     { "Adro", &a_drop },

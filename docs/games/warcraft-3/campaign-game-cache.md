@@ -11,30 +11,32 @@ campaign file
       -> entry key + value type
 ```
 
-The campaign cache is persistent across map loads, not level-local state.
-`InitGameCache()` therefore creates a JASS handle and loads the last cache state
-committed by `SaveGameCache()`. `Store*()` mutates only that handle until the
-explicit save boundary is crossed.
+Retail Warcraft III campaign caches persist state only when map script crosses
+the explicit `SaveGameCache()` boundary. OpenRealm follows the same lifecycle:
+`Store*()` mutates only the current JASS handle, while `SaveGameCache()` commits
+that handle according to `wc3_gamecache_mode`.
 
-OpenRealm controls where the committed cache lives with:
+OpenRealm supports three modes:
 
 ```text
-wc3_gamecache_mode memory   (default)
-wc3_gamecache_mode disk
+wc3_gamecache_mode disk       (default)
+wc3_gamecache_mode memory
+wc3_gamecache_mode disabled
 ```
 
-`memory` keeps committed game caches in process memory only. It survives map
-transitions in the same OpenRealm process but performs no game-cache disk read
-or write, so restarting OpenRealm starts with an empty cache. `disk` uses the
-same process-memory snapshot and additionally reads/writes the OpenRealm sidecar
-so campaign state survives a process restart.
+`disk` is the retail-like default: an explicit `SaveGameCache()` commits the
+cache to the process snapshot and the OpenRealm sidecar so later maps and later
+processes can restore it. `memory` keeps the same explicit save boundary but
+commits only to process memory. `disabled` gives every `InitGameCache()` call a
+fresh empty handle; handle-local `Store*()`/`GetStored*()` still work and
+`SaveGameCache()` returns success, but commits nowhere.
 
 This distinction matters for the Reign of Chaos Human campaign. Human02 first
 tries to restore the carried-over Arthas. If that data is absent, its map script
 uses a fallback level-2 Arthas and spends the fallback Hero skill points. Before
 game-cache support, OpenRealm's `RestoreUnit()` always returned null, so the map
-could only take that fallback path. A normal campaign run must instead preserve
-the Human01 Hero state and let Human02 restore it.
+could only take that fallback path. With the default disk mode, a normal Human01
+completion that executes `SaveGameCache()` preserves the Hero state for Human02.
 
 Directly launching Human02 without first producing the campaign cache is still a
 cache miss by design; the map's own fallback remains authoritative in that case.
@@ -79,22 +81,36 @@ projectile state, or trigger-local references. Those require separate saved-game
 
 ## Storage Modes and Persistence Format
 
-The default `memory` mode never opens the sidecar path. `SaveGameCache()` copies
-the current handle into the process-level campaign snapshot, and a later
-`InitGameCache()` with the same campaign file copies that committed snapshot
-into the new JASS handle. Unsaved `Store*()` changes are not visible to a new
-handle.
+The default `disk` mode loads the last committed sidecar when `InitGameCache()`
+opens a campaign cache and writes a new committed sidecar only when map script
+calls `SaveGameCache()`. Ordinary Hero XP changes, skill learning, `StoreUnit()`,
+and other `Store*()` calls do **not** write to disk by themselves. Unsaved handle
+mutations remain private until the explicit save call, matching the retail
+campaign-script lifecycle.
 
 Set:
 
 ```text
-+set wc3_gamecache_mode disk
++set wc3_gamecache_mode memory
 ```
 
-to make `SaveGameCache()` persist committed state to disk and allow
-`InitGameCache()` to seed the process snapshot from a previous run. An invalid
-mode is reported and treated as `memory`; it is not silently interpreted as a
-disk mode.
+to retain the same explicit `SaveGameCache()` boundary while keeping committed
+state only in process memory. This survives map transitions in one OpenRealm
+process but not a restart.
+
+Set:
+
+```text
++set wc3_gamecache_mode disabled
+```
+
+to force every `InitGameCache()` to start empty. Stores remain usable inside the
+current handle and `SaveGameCache()` remains script-compatible, but no committed
+memory snapshot or disk sidecar is produced. This is useful when testing a
+campaign map's authored cache-miss fallback directly.
+
+Unknown mode values are reported and treated as `disk`, so a typo does not
+silently disable campaign persistence.
 
 OpenRealm does **not** write a fake retail `.w3v` file. Retail game-cache binary
 compatibility has not been established.
@@ -153,14 +169,17 @@ semantics remain separate work.
 `games/warcraft-3/game/tests/t_api.c` contains coverage for:
 
 - typed scalar store/get/have/flush behavior;
+- disabled mode keeping stores local to one handle while `SaveGameCache()`
+  remains script-compatible and commits nowhere;
 - `SaveGameCache()` committing a process-memory snapshot while unsaved handle
   mutations remain private;
 - restoring a level-2 Paladin with Holy Light rank 1 and exactly one remaining
   Hero skill point.
 
-For Human campaign verification in the default mode, play Human01 and transition
-to Human02 without restarting OpenRealm. For persistence across separate
-processes, launch with `+set wc3_gamecache_mode disk`, save Human01 using the
-same writable OpenRealm profile, then load Human02 with the same setting.
-Starting Human02 directly without a committed Human01 cache intentionally
-exercises the map's fallback path, not campaign carry-over.
+For a retail-like campaign run, use the default `disk` mode: complete Human01 so
+its script reaches `SaveGameCache()`, then load Human02. The carried state may be
+restored in the same process or after restarting OpenRealm. Use
+`+set wc3_gamecache_mode memory` when persistence should stop at process exit, or
+`+set wc3_gamecache_mode disabled` when intentionally testing Human02's
+cache-miss fallback. Starting Human02 without a previously committed Human01
+cache is a legitimate miss in every mode.

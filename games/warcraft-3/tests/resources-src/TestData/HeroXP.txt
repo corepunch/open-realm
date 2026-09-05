@@ -1,0 +1,6 @@
+[Misc]
+NeedHeroXP=100,250
+NeedHeroXPFormulaA=1
+NeedHeroXPFormulaB=50
+NeedHeroXPFormulaC=0
+GlobalExperience=0

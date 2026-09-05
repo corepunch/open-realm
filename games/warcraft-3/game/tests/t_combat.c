@@ -578,15 +578,47 @@ TEST(wc3_combat, hero_stats_noop_for_non_hero) {
     T_FEQ(u->health.value,     300.0f, 0.01f);
 }
 
-/* Hero XP / leveling (verified vs WC3 1.29).  XP-to-reach-L = 50*L*(L+1)-100;
- * attributes = base + trunc((L-1)*perLevel).  Hpal test hero: STR/INT/AGI per
- * level 2.7 / 1.8 / 1.5. */
+/* Hero XP / leveling.  NeedHeroXP stores per-level requirements; when Misc
+ * data is unavailable the stock fallback is 200,300,400,..., yielding the
+ * familiar cumulative thresholds below.  Hpal: STR/INT/AGI per level
+ * 2.7/1.8/1.5. */
 TEST(wc3_combat, hero_xp_for_level_table) {
-    T_EQ((int)G_HeroXPForLevel(1), 0);
-    T_EQ((int)G_HeroXPForLevel(2), 200);
-    T_EQ((int)G_HeroXPForLevel(3), 500);
-    T_EQ((int)G_HeroXPForLevel(4), 900);
-    T_EQ((int)G_HeroXPForLevel(10), 5400);
+    void *old_misc = game.config.misc.source;
+    DWORD xp1, xp2, xp3, xp4, xp10;
+    game.config.misc.source = NULL; /* exercise the documented stock fallback */
+
+    xp1 = G_HeroXPForLevel(1);
+    xp2 = G_HeroXPForLevel(2);
+    xp3 = G_HeroXPForLevel(3);
+    xp4 = G_HeroXPForLevel(4);
+    xp10 = G_HeroXPForLevel(10);
+    game.config.misc.source = old_misc;
+
+    T_EQ((int)xp1, 0);
+    T_EQ((int)xp2, 200);
+    T_EQ((int)xp3, 500);
+    T_EQ((int)xp4, 900);
+    T_EQ((int)xp10, 5400);
+}
+
+TEST(wc3_combat, hero_xp_for_level_uses_misc_table_and_formula) {
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+    DWORD xp2, xp3, xp4, xp5;
+
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXP.txt"));
+    game.config.misc.source = custom.source;
+    xp2 = G_HeroXPForLevel(2);
+    xp3 = G_HeroXPForLevel(3);
+    xp4 = G_HeroXPForLevel(4);
+    xp5 = G_HeroXPForLevel(5);
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+
+    T_EQ((int)xp2, 100);  /* first authored requirement */
+    T_EQ((int)xp3, 350);  /* + second authored requirement (250) */
+    T_EQ((int)xp4, 700);  /* + f(2) = 1*250 + 50*2 = 350 */
+    T_EQ((int)xp5, 1200); /* + f(3) = 1*350 + 50*3 = 500 */
 }
 
 TEST(wc3_combat, hero_level_for_xp) {
@@ -631,7 +663,7 @@ TEST(wc3_combat, hero_setxp_levels_up) {
 }
 
 /* XP-on-kill (G_GrantKillXP). Mounted ROC/TFT data supplies the victim level;
- * a victim outside HeroExpRange awards nothing. */
+ * GlobalExperience falls back to eligible allied heroes when none is in range. */
 TEST(wc3_combat, grant_kill_xp_awards_base) {
     LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
@@ -643,15 +675,39 @@ TEST(wc3_combat, grant_kill_xp_awards_base) {
     T_ASSERT(killer->hero.xp == 25 || killer->hero.xp == 30); /* ROC / TFT MiscData formulas */
 }
 
-TEST(wc3_combat, grant_kill_xp_out_of_range) {
+TEST(wc3_combat, grant_kill_xp_global_fallback_reaches_out_of_range_hero) {
     LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
-    killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
     LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
+    void *old_misc = game.config.misc.source;
+    DWORD awarded;
+    killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
     victim->s.player = 1;
+    game.config.misc.source = NULL; /* stock GlobalExperience fallback is enabled */
 
     G_GrantKillXP(victim, killer);
+    awarded = killer->hero.xp;
+    game.config.misc.source = old_misc;
 
-    T_EQ((int)killer->hero.xp, 0); /* > HeroExpRange (1200) away */
+    T_EQ((int)awarded, 25); /* no nearby receiver: award globally */
+}
+
+TEST(wc3_combat, grant_kill_xp_respects_disabled_global_experience) {
+    LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+    DWORD awarded;
+
+    killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
+    victim->s.player = 1;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXP.txt"));
+    game.config.misc.source = custom.source; /* GlobalExperience=0 */
+    G_GrantKillXP(victim, killer);
+    awarded = killer->hero.xp;
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+
+    T_EQ((int)awarded, 0);
 }
 
 TEST(wc3_combat, grant_kill_xp_splits_between_nearby_owned_heroes) {
@@ -874,19 +930,36 @@ TEST(wc3_combat, hero_revive) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->data.UnitBalance->foodUsed);
 }
 
-TEST(wc3_combat, hero_levelup_fires_event) {
+TEST(wc3_combat, hero_levelup_fires_player_and_unit_events) {
     LPEDICT h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.level       = 1;
     h->health.max_value = 650.0f; h->health.value = 650.0f;
     level.events.write  = 0;
     level.events.read   = 0;
 
-    G_HeroSetXP(h, 500);  /* level 1 -> 3: two level-ups -> two events */
+    G_HeroSetXP(h, 500);  /* level 1 -> 3: two transitions, two event families each */
 
-    T_EQ((int)level.events.write, 2);
+    T_EQ((int)level.events.write, 4);
     T_EQ((int)level.events.queue[0].type, EVENT_PLAYER_HERO_LEVEL);
     T_ASSERT(level.events.queue[0].edict == h);
-    T_EQ((int)level.events.queue[1].type, EVENT_PLAYER_HERO_LEVEL);
+    T_EQ((int)level.events.queue[1].type, EVENT_UNIT_HERO_LEVEL);
+    T_ASSERT(level.events.queue[1].edict == h);
+    T_EQ((int)level.events.queue[2].type, EVENT_PLAYER_HERO_LEVEL);
+    T_EQ((int)level.events.queue[3].type, EVENT_UNIT_HERO_LEVEL);
+}
+
+TEST(wc3_combat, hero_setxp_does_not_lower_xp_or_level) {
+    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    h->hero.level = 1;
+    h->hero.skillpoints = 1;
+    G_HeroSetXP(h, 500);
+    T_EQ((int)h->hero.level, 3);
+    T_EQ((int)h->hero.xp, 500);
+
+    G_HeroSetXP(h, 100);
+
+    T_EQ((int)h->hero.level, 3);
+    T_EQ((int)h->hero.xp, 500);
 }
 
 /* Attack timing: the post-swing recovery is cooldown - damagePoint, so the full
@@ -1115,7 +1188,7 @@ TEST(wc3_combat, registered_reference_ability_codes) {
         "AUcs", "AInv", "Arep", "Aren", "Arst", "Avul", "Apit",
         "Aneu", "Aall", "Acoi", "AIhe", "AIma", "AIat", "AIab",
         "AIim", "AIsm", "AIam", "AIxm", "AIde", "AIml", "AImm",
-        "AIfs", "AImi", "AIem", "AIlm", "Acar", "Aloa", "Adro",
+        "AIfs", "AImi", "AIem", "AIlm", "AIda", "AIct", "Acar", "Aloa", "Adro",
         "Adri", "Aroo"
     };
 

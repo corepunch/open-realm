@@ -23,7 +23,7 @@ G_LoadMap
 
 Do not parse ConsoleUI.fdf on every resource-bar write. Isolated scene files stay; they share one accumulator.
 
-Glue UI (`games/warcraft-3/menu/`) is a separate `stb_fdf` instance with its own `ui_textures[]`. It is not this contract.
+Glue UI (`games/warcraft-3/menu/`) is a separate `stb_fdf` instance with its own `frames[]` and `ui_textures[]`. It is not this contract.  Keep the `frames[]` definition hidden per shared library: on ELF/Linux an exported duplicate symbol can be interposed between `libgame` and `libmenu`, causing this server-side `UI_ClearTemplates()` to erase the client's glue/loading frame registry during `SV_Map`.
 
 ## Client
 
@@ -47,3 +47,9 @@ Repeat with `-tft`. Engine coverage: `make test-wc3-engine WC3_PATTERN='wc3_game
 - Leaving `hud` bindings live across `G_LoadMap` while `frames[]` was cleared.
 - Treating `GetConfigstring(CS_IMAGES + old_index)` as the name of a cached frame after the slot has been reused.
 - Preserving `CS_IMAGES` across `SV_Map` as a workaround. The table is per-level.
+
+## Widescreen Console Extension Tiles
+
+`ConsoleUI.fdf` uses symbolic `ConsoleTexture05` and `ConsoleTexture06` for the left/right widescreen console extensions. The client resolves symbolic `CS_IMAGES` names through the local player's `war3skins.txt` race category. Some classic/pre-widescreen skin tables contain the extension art in the archives but omit one or both symbolic fields. In that case `Theme_String()` returns the key itself and the renderer otherwise searches for a literal file named `ConsoleTexture06`, producing the 16x16 placeholder.
+
+When one console extension key remains unresolved, `M_ResolveImagePath()` derives its path from the resolved sibling (`...05[.blp]` ↔ `...06[.blp]`). This keeps the active race/custom skin authoritative instead of hard-coding a race path. Runtime confirmation on a 2880x1620 Human campaign showed the left extension resolving to `HumanUITile05` while the missing right extension was laid out correctly but retained literal `ConsoleTexture06`; this is a media-resolution failure, not an anchor failure.

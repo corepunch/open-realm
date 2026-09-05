@@ -37,6 +37,52 @@ struct edict_s *g_edicts;
 extern JASSMODULE jass_funcs[];
 
 static void G_StartScripts(void);
+static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after);
+#define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
+
+static BOOL starting_resource_cheat_armed;
+static DWORD starting_resource_cheat_applied_mask;
+static DWORD starting_resource_cheat_deferred_mask;
+
+void G_ResetStartingResourceCheat(void) {
+    LPCSTR value = gi.CvarString ? gi.CvarString("wc3_cheat_starting_resources", "0") : "0";
+
+    starting_resource_cheat_armed = value && atoi(value) != 0;
+    starting_resource_cheat_applied_mask = 0;
+    starting_resource_cheat_deferred_mask = 0;
+}
+
+void G_DisableStartingResourceCheatForLoadedGame(void) {
+    starting_resource_cheat_armed = false;
+    starting_resource_cheat_applied_mask = ~0u;
+    starting_resource_cheat_deferred_mask = 0;
+}
+
+void G_ApplyStartingResourceCheat(void) {
+    if (!starting_resource_cheat_armed) return;
+
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        DWORD const bit = 1u << i;
+        LONG gold, lumber;
+        USHORT old_gold, old_lumber;
+
+        if (starting_resource_cheat_applied_mask & bit) continue;
+        if (!client->mapplayer || !client->mapplayer->used || client->mapplayer->playerType != kPlayerTypeHuman) {
+            starting_resource_cheat_applied_mask |= bit;
+            continue;
+        }
+        if (!client->connected || client->no_control || client->ps.client_ui_state == CLIENT_UI_CINEMATIC) continue;
+
+        old_gold = client->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+        old_lumber = client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+        gold = (LONG)old_gold + WC3_CHEAT_STARTING_RESOURCE_BONUS;
+        lumber = (LONG)old_lumber + WC3_CHEAT_STARTING_RESOURCE_BONUS;
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
+        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+        starting_resource_cheat_applied_mask |= bit;
+    }
+}
 
 static BOOL G_TimeLimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     switch (op) {
@@ -50,13 +96,21 @@ static BOOL G_TimeLimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     }
 }
 
-FLOAT G_GetTimeOfDay(void) {
+static FLOAT G_GetCanonicalTimeOfDay(void) {
     FLOAT const day_hours = game.constants.gameDayHours;
     FLOAT const day_length = game.constants.gameDayLength;
 
     if (day_hours <= 0.0f || day_length <= 0.0f)
         return 0.0f;
     return (level.timeofday.elapsed / day_length) * day_hours;
+}
+
+FLOAT G_GetTimeOfDay(void) {
+    FALSE_TIMEOFDAY const *false_time = &level.timeofday.false_time;
+
+    if (false_time->active && false_time->initialized)
+        return (FLOAT)false_time->hour + (FLOAT)false_time->minute / 60.0f;
+    return G_GetCanonicalTimeOfDay();
 }
 
 void G_SetTimeOfDay(FLOAT value) {
@@ -66,6 +120,38 @@ void G_SetTimeOfDay(FLOAT value) {
 
 void G_SuspendTimeOfDay(BOOL suspended) {
     level.timeofday.suspended = suspended;
+}
+
+static void G_SetFalseTimeOfDayValue(FLOAT value) {
+    FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+    LONG const hour = (LONG)value;
+
+    false_time->hour = hour;
+    false_time->minute = (LONG)((value - (FLOAT)hour) * 60.0f);
+}
+
+void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration) {
+    FLOAT const before = G_GetTimeOfDay();
+    FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+    FLOAT const step = (FLOAT)FRAMETIME / 1000.0f;
+
+    *false_time = (FALSE_TIMEOFDAY){
+        .hour = hour,
+        .minute = minute,
+        .ticks_remaining = step > 0.0f ? (LONG)(duration / step) : 0,
+        .active = true,
+        .initialized = false,
+    };
+
+    /* Warsmash exposes an existing false clock as the "before" value, then
+     * replaces it with an uninitialized false clock.  The new clock becomes
+     * effective on the next simulation tick, just like its Java state object. */
+    G_CheckTimeOfDayEvents(before, G_GetTimeOfDay());
+}
+
+BOOL G_IsFalseTimeOfDay(void) {
+    FALSE_TIMEOFDAY const *false_time = &level.timeofday.false_time;
+    return false_time->active && false_time->initialized;
 }
 
 /* Publish one normalized cycle value through an already-replicated player stat.
@@ -79,8 +165,10 @@ static void G_PublishTimeOfDayPhase(void) {
     if (!isfinite(phase)) phase = 0.0f;
     phase = MAX(0.0f, MIN(phase, 1.0f));
     packed = (USHORT)lroundf(phase * (FLOAT)USHRT_MAX);
-    FOR_LOOP(i, game.max_clients)
+    FOR_LOOP(i, game.max_clients) {
         game.clients[i].ps.stats[UI_PLAYERSTAT_ENV_PHASE] = packed;
+        game.clients[i].ps.stats[UI_PLAYERSTAT_ENV_VARIANT] = G_IsFalseTimeOfDay() ? 1 : 0;
+    }
 }
 
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
@@ -109,14 +197,27 @@ void G_UpdateTimeOfDay(void) {
     }
 
     before = G_GetTimeOfDay();
-    if (level.timeofday.pending_valid) {
-        level.timeofday.elapsed =
-            (level.timeofday.pending / day_hours) * day_length;
-        level.timeofday.pending_valid = false;
-    } else if (!level.timeofday.suspended) {
-        level.timeofday.elapsed = fmodf(
-            level.timeofday.elapsed + (FLOAT)FRAMETIME / 1000.0f,
-            day_length);
+    if (level.timeofday.false_time.active) {
+        FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+
+        if (level.timeofday.pending_valid) {
+            G_SetFalseTimeOfDayValue(level.timeofday.pending);
+            level.timeofday.pending_valid = false;
+        }
+        false_time->initialized = true;
+        false_time->ticks_remaining--;
+        if (false_time->ticks_remaining <= 0)
+            memset(false_time, 0, sizeof(*false_time));
+    } else {
+        if (level.timeofday.pending_valid) {
+            level.timeofday.elapsed =
+                (level.timeofday.pending / day_hours) * day_length;
+            level.timeofday.pending_valid = false;
+        } else if (!level.timeofday.suspended) {
+            level.timeofday.elapsed = fmodf(
+                level.timeofday.elapsed + (FLOAT)FRAMETIME / 1000.0f,
+                day_length);
+        }
     }
     after = G_GetTimeOfDay();
     G_CheckTimeOfDayEvents(before, after);
@@ -125,6 +226,7 @@ void G_UpdateTimeOfDay(void) {
 
 static bool G_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
+        G_SetMapUnitOverrides(NULL);
         return false;
     }
     /* CS_MODELS is rebuilt from index 1 for every SV_Map.  The server-side
@@ -133,6 +235,7 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     G_FreeModels();
     gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     gi.ClearWorld();
+    G_SetMapUnitOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
      * panel once so write paths do not parse FDF on first use. */
     UI_ResetHud();
@@ -228,6 +331,10 @@ static void InitConstants(void) {
     InitMiscValue("DayLength", &game.constants.gameDayLength);
     InitMiscValue("BuildingAngle", &game.constants.buildingAngle);
     InitMiscValue("RootAngle", &game.constants.rootAngle);
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 follow distances. These are
+     * distinct from AcquireRange; map Misc overrides remain authoritative. */
+    InitMiscValueDefault("FollowRange", &game.constants.followRange, 300.0f);
+    InitMiscValueDefault("StructureFollowRange", &game.constants.structureFollowRange, 100.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
@@ -473,8 +580,13 @@ static void G_RunClients(void) {
             LPCCAMERASETUP b = &client->camera.state;
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
             client->ps.vieworigin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
-            /* JASS interpolates camera fields independently; the client slerps the snapshot Eulers. */
-            client->ps.viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, k);
+            /* JASS interpolates camera fields independently. Angle fields use
+             * the game's periodic-degree rule; WC3 takes the shortest arc. */
+            client->ps.viewangles = (VECTOR3){
+                CL_GameLerpDegrees(a->viewangles.x, b->viewangles.x, k),
+                CL_GameLerpDegrees(a->viewangles.y, b->viewangles.y, k),
+                CL_GameLerpDegrees(a->viewangles.z, b->viewangles.z, k),
+            };
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
             player_set_lens(&client->ps, &(gameCamera_t){
                 .fov = LerpNumber(a->fov, b->fov, k),
@@ -890,7 +1002,6 @@ static void G_ClientBegin(LPEDICT edict) {
             client->ps.name ? client->ps.name : "");
     level.started = true;
     G_StartScripts();
-    G_WeatherSyncClient(edict);
 
     UI_ShowGameInterface(edict);
     UI_WriteHoverLayout(edict);
@@ -1005,6 +1116,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
     globals.CustomizeEntity = G_CustomizeEntity;
+    globals.WriteClientDatagram = G_WriteClientDatagram;
     globals.GetThemeValue = G_GetThemeValue;
     globals.LoadMap = G_LoadMap;
     globals.SaveGame = WriteGame;

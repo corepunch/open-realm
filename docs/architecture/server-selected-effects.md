@@ -65,9 +65,9 @@ When a shared dispatcher needs a new game behavior, first locate its function-ta
 exists, implement the command in the selected game's module. If it does not exist, add a narrow table entry;
 do not substitute a per-game preprocessor guard or a hardcoded command branch in the shared dispatcher.
 
-## Opaque game commands to a selected renderer
+## Game-owned presentation datagrams
 
-Presentation state that is neither an entity snapshot nor generic client state may use the reliable `svc_gamecmd` channel. `CL_ParseGameCommand()` forwards every bounded opaque payload through `refExport_t.GameCommand`; each selected game renderer decides whether it owns the command. Shared client code must not branch on a game-specific command string. Warcraft III weather is the reference: `games/warcraft-3/game/g_weather.c` sends `wc3_weather`, while `games/warcraft-3/renderer/r_weather.c` consumes it. WoW/SC2 renderer hooks remain no-ops. See [WC3 Weather](../games/warcraft-3/weather.md).
+Presentation state that is neither an entity snapshot nor generic client state may use a game-owned per-frame datagram. Warcraft III weather is carried in that datagram, cached by the client, and exposed through `viewDef`; `games/warcraft-3/renderer/r_weather.c` consumes the view state. See [WC3 Weather](../games/warcraft-3/weather.md).
 
 ## Selection-scoped world indicators
 

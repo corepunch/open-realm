@@ -30,10 +30,48 @@ static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
 static LoadingScreen_t loading_screen;
 
+/* Some classic/pre-widescreen skin tables expose only one of the paired
+ * ConsoleTexture05/06 fields even though both extension tiles are installed.
+ * When one symbolic key is absent, derive it from the resolved sibling path so
+ * the active race/custom skin remains authoritative. */
+static LPCSTR M_ConsoleExtensionSibling(LPCSTR key) {
+    static PATHSTR path;
+    LPCSTR sibling_key, sibling;
+    char from_digit, to_digit;
+    char *dot, *end;
+
+    if (!key) return NULL;
+    if (!strcmp(key, "ConsoleTexture05")) {
+        sibling_key = "ConsoleTexture06";
+        from_digit = '6';
+        to_digit = '5';
+    } else if (!strcmp(key, "ConsoleTexture06")) {
+        sibling_key = "ConsoleTexture05";
+        from_digit = '5';
+        to_digit = '6';
+    } else {
+        return NULL;
+    }
+
+    sibling = Theme_String(sibling_key, "Default");
+    if (!sibling || !*sibling || !strcmp(sibling, sibling_key)) return NULL;
+    snprintf(path, sizeof(path), "%s", sibling);
+    dot = strrchr(path, '.');
+    end = dot ? dot : path + strlen(path);
+    if (end - path < 2 || end[-2] != '0' || end[-1] != from_digit) return NULL;
+    end[-1] = to_digit;
+    return path;
+}
+
 /* Resolve symbolic server-authored WC3 image names using the local player's skin. */
 LPCSTR M_ResolveImagePath(LPCSTR key) {
+    LPCSTR resolved, fallback;
+
     if (!key || !*key || strchr(key, '\\') || strchr(key, '/')) return key;
-    return Theme_String(key, "Default");
+    resolved = Theme_String(key, "Default");
+    if (resolved && strcmp(resolved, key)) return resolved;
+    fallback = M_ConsoleExtensionSibling(key);
+    return fallback ? fallback : resolved;
 }
 
 static void UI_ClearScreen(void);
@@ -387,7 +425,10 @@ static void M_DrawLoadingScreen(void) {
         loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
     if (loading_screen.LoadingBar) {
-        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", 1.0f);
+        FLOAT progress = menuimport.LoadingProgress ? menuimport.LoadingProgress() : 1.0f;
+        if (progress < 0.0f) progress = 0.0f;
+        if (progress > 1.0f) progress = 1.0f;
+        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", progress);
         loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
         loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }

@@ -143,6 +143,22 @@ A third defect made a reached flow goal unstable: `compute_flow_at()` blended re
 
 Do not reintroduce a distance-only timeout around Harvest to hide these routing failures. Fix and expose the routing state first, then let Harvest decide whether to retarget.
 
+## JASS repositioning: `SetUnitPosition` vs raw X/Y
+
+`SetUnitPosition` and `SetUnitPositionLoc` are pathing-aware repositioning natives. Warsmash implements both through
+`CUnit.setPointAndCheckUnstuck()`: it tests the requested point, then checks a deterministic 64-world-unit square spiral for up to
+300 candidates against unit collision and movement pathing. If no candidate is legal, the requested point remains the fallback.
+
+OpenRealm mirrors that contract in `G_FindUnitUnstuckPosition()` (`g_spawn.c`). The requested point is checked against
+`CM_PointIsPathableForRadius()` and live same-layer collision circles before the spiral advances. Authored building/destructable
+pathing is already baked into the static pathmap, so a script that requests a point inside a structure is displaced to the first
+legal nearby candidate instead of being left occluded inside the structure. `SetUnitX` and `SetUnitY` intentionally remain raw
+coordinate setters; do not route them through the unstuck search.
+
+This distinction matters for campaign scripts. The Prologue01 Thrall investigation showed `Othr` alive and renderer-visible at the
+scripted destination while a no-depth/white diagnostic exposed his geometry through a nearby structure. The old native assigned X/Y
+directly, unlike Warsmash, so blocked scripted destinations could leave a unit inside authored building pathing.
+
 ## Diagnostics
 
 Runtime Harvest logging is off by default:
@@ -188,11 +204,13 @@ Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movem
 - gold-mine entry through an authored blocking mine footprint;
 - gold return/deposit at an authored Town Hall footprint corner;
 - lumber return to a Town Hall through an authored blocking building footprint;
-- a distant temporarily blocked plain move keeps its order alive while near-goal jitter still settles.
+- a distant temporarily blocked plain move keeps its order alive while near-goal jitter still settles;
+- `SetUnitPosition` / `SetUnitPositionLoc` use the Warsmash-style blocked-point unstuck spiral while `SetUnitX/Y` remain raw.
 
 Run when validating locally:
 
 ```sh
+make test-wc3-engine WC3_PATTERN='wc3_api.set_unit_position*'
 make test-wc3-engine WC3_PATTERN='wc3_pathfinding.*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.plain_move_*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.blocked_move_*'

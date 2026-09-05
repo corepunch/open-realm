@@ -615,21 +615,63 @@ static LPEDICT G_GiveItem(LPEDICT unit, DWORD item_code) {
     return item;
 }
 
+static BOOL G_ParseGiveResourceAmount(LPCSTR text, DWORD *amount) {
+    unsigned long value;
+
+    if (!amount || !G_DebugIsNumber(text) || text[0] == '-') return false;
+    value = strtoul(text, NULL, 10);
+    *amount = (DWORD)MIN(value, (unsigned long)USHRT_MAX);
+    return true;
+}
+
+static void G_AddGiveResource(LPGAMECLIENT client, DWORD state, DWORD amount) {
+    DWORD value;
+
+    if (!client || state >= MAX_STATS) return;
+    value = client->ps.stats[state];
+    client->ps.stats[state] = (USHORT)MIN(value + amount, (DWORD)USHRT_MAX);
+}
+
+static BOOL G_GivePlayerResources(LPGAMECLIENT client, LPCSTR target, LPCSTR value) {
+    DWORD amount;
+    BOOL const give_gold = !strcasecmp(target, "gold") || !strcasecmp(target, "res");
+    BOOL const give_lumber = !strcasecmp(target, "lumber") || !strcasecmp(target, "res");
+
+    if (!give_gold && !give_lumber) return false;
+    if (!G_ParseGiveResourceAmount(value, &amount)) {
+        fprintf(stderr, "WC3: resource amount must be a non-negative integer\n");
+        return true;
+    }
+    if (give_gold) G_AddGiveResource(client, PLAYERSTATE_RESOURCE_GOLD, amount);
+    if (give_lumber) G_AddGiveResource(client, PLAYERSTATE_RESOURCE_LUMBER, amount);
+    G_InvalidateCommands(client);
+    return true;
+}
+
 CLIENTCOMMAND(Give) {
     LPGAMECLIENT client = clent->client;
-    LPEDICT unit = G_GetMainSelectedUnit(client);
+    LPEDICT unit;
     DWORD code;
 
     if (!G_CheatsEnabled()) {
         fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
         return;
     }
-    if (!unit || argc < 2) {
-        fprintf(stderr, "WC3: cheats: give item <rawcode> [count] | ability <rawcode> | xp <amount>\n");
+    if (argc < 2) {
+        fprintf(stderr,
+            "WC3: cheats: give gold <amount> | lumber <amount> | res <amount> | "
+            "item <rawcode> [count] | ability <rawcode> | xp <amount>\n");
         return;
     }
     if (argc < 3) {
         fprintf(stderr, "WC3: give requires a target and value\n");
+        return;
+    }
+    if (G_GivePlayerResources(client, argv[1], argv[2])) return;
+
+    unit = G_GetMainSelectedUnit(client);
+    if (!unit) {
+        fprintf(stderr, "WC3: give %s requires a selected unit\n", argv[1]);
         return;
     }
     if (strcasecmp(argv[1], "xp") && strlen(argv[2]) < 4) {
@@ -674,6 +716,63 @@ CLIENTCOMMAND(Kill) {
         return;
     }
     clent->health.value = 0;
+}
+
+static void G_CheatGameResult(LPEDICT clent, DWORD game_result) {
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    if (!clent || !clent->client) return;
+    G_RemovePlayerWithResult(clent->client->ps.number, game_result);
+}
+
+CLIENTCOMMAND(Win) {
+    (void)argc; (void)argv;
+    G_CheatGameResult(clent, 0);
+}
+
+CLIENTCOMMAND(Lose) {
+    (void)argc; (void)argv;
+    G_CheatGameResult(clent, 1);
+}
+
+static FLOAT G_CheatTimeOfDayTarget(BOOL daytime) {
+    FLOAT const day_hours = game.constants.gameDayHours;
+    FLOAT const dawn = game.constants.dawnTimeGameHours;
+    FLOAT const dusk = game.constants.duskTimeGameHours;
+    FLOAT target;
+
+    /* Normal Warcraft data is Dawn=6, Dusk=18, DayHours=24, yielding
+     * 12:00 for day and 00:00 for night.  Use authored thresholds so custom
+     * map Misc data still lands well inside the requested phase. */
+    if (day_hours <= 0.0f || dawn < 0.0f || dusk <= dawn || dusk > day_hours)
+        return daytime ? day_hours * 0.5f : 0.0f;
+
+    if (daytime)
+        return dawn + (dusk - dawn) * 0.5f;
+
+    target = dusk + ((day_hours - dusk) + dawn) * 0.5f;
+    if (target >= day_hours) target -= day_hours;
+    return target;
+}
+
+static void G_CheatSetTimeOfDay(BOOL daytime) {
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    G_SetTimeOfDay(G_CheatTimeOfDayTarget(daytime));
+}
+
+CLIENTCOMMAND(Day) {
+    (void)clent; (void)argc; (void)argv;
+    G_CheatSetTimeOfDay(true);
+}
+
+CLIENTCOMMAND(Night) {
+    (void)clent; (void)argc; (void)argv;
+    G_CheatSetTimeOfDay(false);
 }
 
 CLIENTCOMMAND(Inventory) {
@@ -1024,6 +1123,10 @@ clientCommand_t clientCommands[] = {
     { "give", CMD_Give },
     { "god", CMD_God },
     { "kill", CMD_Kill },
+    { "win", CMD_Win },
+    { "lose", CMD_Lose },
+    { "day", CMD_Day },
+    { "night", CMD_Night },
     { "button", CMD_Button },
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },

@@ -381,6 +381,7 @@ void G_SpawnEntities(void) {
     G_ClearSaveRegistries();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
+    G_ResetStartingResourceCheat();
     level.time = gi.GetTime();
 
     level.mapinfo = mapinfo;
@@ -475,6 +476,14 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     ent->s.player = player;
     gi.LinkEntity(ent);
     SP_CallSpawn(ent);
+    /* Dynamic unit creation must establish Hero progression independently of
+     * presentation data.  SP_SpawnUnit already initializes normal Heroes, but
+     * custom/minimal data may omit UnitUI/model rows while still defining Hero
+     * attributes in UnitBalance.  The helper is idempotent, so applying it here
+     * also keeps CreateUnit/training at Level 1 with one initial skill point. */
+    if (G_UnitIsHero(ent)) {
+        G_HeroInitializeProgression(ent);
+    }
     if (ent->birth) {
         ent->birth(ent);
     }
@@ -609,6 +618,9 @@ BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FL
 }
 
 static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
+    if (!unit || !point) {
+        return false;
+    }
     if (!CM_PointIsPathableForRadius(point, unit->collision)) {
         return false;
     }
@@ -626,6 +638,68 @@ static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
         }
     }
     return true;
+}
+
+static BOOL G_CanRepositionUnitAt(LPEDICT unit, LPCVECTOR2 point) {
+    if (!unit || !point) {
+        return false;
+    }
+    if (!CM_PointIsPathableForRadius(point, unit->collision)) {
+        return false;
+    }
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT other = &globals.edicts[i];
+        VECTOR2 delta;
+
+        if (other == unit || IS_HOLLOW(other) || other->collision <= 0.0f) {
+            continue;
+        }
+        if (!!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) {
+            continue;
+        }
+        delta = Vector2_sub(&other->s.origin2, point);
+        if (Vector2_len(&delta) < unit->collision + other->collision) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* Warcraft III SetUnitPosition is not the raw X/Y setter. Warsmash models the
+ * native through CUnit.setPointAndCheckUnstuck(): test the requested point,
+ * then walk a deterministic 64-world-unit square spiral for at most 300
+ * candidates. Keep the requested point as the fallback when no candidate is
+ * legal, matching Warsmash's outputX/outputY initialization. */
+BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out) {
+    int check_x = 0, check_y = 0;
+
+    if (!unit || !requested || !out) {
+        return false;
+    }
+    *out = *requested;
+    for (int i = 0; i < 300; i++) {
+        VECTOR2 const candidate = {
+            requested->x + check_x * 64.0f,
+            requested->y + check_y * 64.0f,
+        };
+        int const phase = ((int)floor(sqrt((double)(4 * i + 1)))) % 4;
+
+        if (G_CanRepositionUnitAt(unit, &candidate)) {
+            *out = candidate;
+            return true;
+        }
+
+        /* Equivalent to Warsmash's cardinal cos/sin update, without relying
+         * on floating-point truncation around PI/2 and 3*PI/2. */
+        switch (phase) {
+        case 0: check_x--; break;
+        case 1: check_y--; break;
+        case 2: check_x++; break;
+        default: check_y++; break;
+        }
+    }
+    return false;
 }
 
 typedef struct {

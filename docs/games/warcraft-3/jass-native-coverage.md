@@ -46,7 +46,10 @@ the original placeholder baseline" is a different target: 180 of the original
 360 placeholders, yielding 656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
 to the registry or a placeholder begins consuming authoritative state.
 
-Coverage is not conformance. Several callbacks consume state but still violate
+Coverage is not conformance. `SetUnitAnimation` now resolves the unit type's Required Animation Names and
+`AddUnitAnimationProperties` mutates the same per-unit tag set before reselecting the logical animation; see
+[Required Animation Names](unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued
+animation semantics remain separate gaps. Several callbacks consume state but still violate
 their JASS contract and therefore need a `partial` status in any future generated
 ledger. The effect module now has functional independent handles for
 `AddSpecialEffect*`, `AddSpellEffect*`, and `DestroyEffect`. The three weather
@@ -134,11 +137,13 @@ pausing. The existing `PauseGame` / modal path should be reused for that work ra
 
 ## Campaign Game Cache
 
-Campaign carry-over uses a `gameCache_t` JASS handle plus a committed
-process-level snapshot. `Store*` mutates the handle and `SaveGameCache` commits
-it. `wc3_gamecache_mode` defaults to `memory`, which carries saved state between
-maps in the same process without disk I/O; `disk` additionally loads/writes the
-OpenRealm sidecar for cross-process persistence. Scalar typed values support
+Campaign cache natives use a `gameCache_t` JASS handle plus committed storage.
+`Store*` always mutates only the handle; persistence happens at the explicit
+`SaveGameCache` call. `wc3_gamecache_mode` defaults to `disk`, which commits to
+both process memory and the OpenRealm sidecar for cross-process campaign
+carry-over. `memory` keeps committed state process-local, while `disabled` makes
+new cache handles start empty and makes `SaveGameCache` a successful non-persisting
+operation for cache-miss testing. Scalar typed values support
 store/get/have/flush, while `StoreUnit` snapshots the unit rawcode, Hero
 progression (including unspent skill points and learned ranks), health/mana,
 unit colour, and inventory IDs/charges. `RestoreUnit` creates a fresh unit for
@@ -227,9 +232,13 @@ once on a false-to-true transition; integer game-state limit events are not impl
 `TimeOfDayIndicator` now binds to the replicated normalized day phase and the WC3 MDX renderer scrubs its selected sequence with an
 explicit `@ratio`. `SetDayNightModels` now registers the map-authored terrain/unit DNC models, republishes their model indices to
 the client, and the WC3 renderer samples sequence 0 at the same normalized phase to use each model's first light as the corresponding
-base world light. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain placeholders because the inspected Warsmash source does not
-provide a behavior to mirror. See [time-of-day.md](time-of-day.md) for ownership, `Misc` fields, gameplay consumers, HUD
-synchronization, DNC rendering, and the remaining visual-lighting gaps.
+base world light. `AIct` (`itemchangetimeofday`) now follows Warsmash's false-time behavior: authored DataA/DataB/Dur install a
+temporary effective clock, the canonical cycle freezes underneath it, and the HUD selects the clock model's alternate sequence while
+the override is initialized. The Warsmash-extension host native `SetFalseTimeOfDay` is also registered, but is intentionally absent
+from the bundled retail `common.j`; extension scripts must declare it themselves. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain
+placeholders because the inspected Warsmash source does not provide a behavior to mirror. See [time-of-day.md](time-of-day.md) for
+ownership, false-time lifecycle, `Misc` fields, gameplay consumers, HUD synchronization, DNC rendering, and the remaining
+visual-lighting gaps.
 
 ## Trigger Context Contract
 
@@ -326,8 +335,13 @@ so trigger publication and snapshots remain consistent.
 
 Hero skill progression is documented separately in
 [Hero Ability Progression](hero-abilities.md). `SelectHeroSkill` routes through
-the same candidate/point/level/max-rank validation as the in-game skill menu,
-`SetHeroLevel` routes through the XP level transition, and
+the same candidate/point/level/max-rank validation as the in-game skill menu.
+`GetHeroSkillPoints` reads the unspent Hero point pool and
+`UnitModifySkillPoints` applies a signed delta without changing XP/level; the
+shared mutation clamps subtraction at zero and refreshes the owner's command
+state. `SetHeroXP`, `AddHeroXP`, and `SetHeroLevel` share the raise-only Hero XP
+transition; every crossed level publishes both `EVENT_PLAYER_HERO_LEVEL` and
+`EVENT_UNIT_HERO_LEVEL`, and `GetLevelingUnit()` resolves to that Hero.
 `GetUnitAbilityLevel` reads the runtime learned rank. Generic runtime ability
 addition/removal/level mutation remains separate work because OpenRealm does
 not yet own a general per-unit dynamic ability collection.

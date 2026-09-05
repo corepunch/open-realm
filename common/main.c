@@ -67,6 +67,38 @@
 
 extern LPTEXTURE Texture;
 
+static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, BOOL dedicated) {
+    int maxfps;
+    Uint64 target_ticks;
+
+    if (dedicated || !frequency) return;
+
+    maxfps = Cvar_Integer("com_maxfps", 0);
+    if (maxfps <= 0) return;
+
+    target_ticks = frequency / (Uint64)maxfps;
+    if (!target_ticks) return;
+
+    for (;;) {
+        Uint64 now = SDL_GetPerformanceCounter();
+        Uint64 elapsed = now - frame_start;
+        Uint64 remaining;
+        Uint32 delay_ms;
+
+        if (elapsed >= target_ticks) return;
+
+        remaining = target_ticks - elapsed;
+        delay_ms = (Uint32)((remaining * 1000ULL) / frequency);
+
+        /* Leave the final millisecond to scheduler yields so coarse sleeps do
+         * not systematically push every frame far beyond the requested cap. */
+        if (delay_ms > 1)
+            SDL_Delay(delay_ms - 1);
+        else
+            SDL_Delay(0);
+    }
+}
+
 #ifdef _WIN32
 static BOOL Sys_FileExists(LPCSTR filename) {
     FILE *file = fopen(filename, "rb");
@@ -413,6 +445,7 @@ int main(int argc, LPSTR argv[]) {
         if (load_map_from_save) {
             CL_BeginLoadingMap(map);
             SV_Map(map);
+            if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
         }
         Cbuf_AddLateCommands();
         Cbuf_Execute();
@@ -430,6 +463,7 @@ int main(int argc, LPSTR argv[]) {
                 CL_BeginLoadingMap(map);
                 SCR_UpdateScreen(0);
                 SV_Map(map);
+                if (SV_IsActive()) CL_SetLoadingProgress(0.05f);
             }
         }
         // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)
@@ -439,7 +473,9 @@ int main(int argc, LPSTR argv[]) {
 
     DWORD startTime = SDL_GetTicks();
     DWORD frameCount = 0;
+    Uint64 performanceFrequency = SDL_GetPerformanceFrequency();
     while (true) {
+        Uint64 frameStart = SDL_GetPerformanceCounter();
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
         if (SV_IsActive()) {
@@ -462,6 +498,7 @@ int main(int argc, LPSTR argv[]) {
             frameCount >= (DWORD)Cvar_Integer("com_frame_limit", 0)) {
             Com_Quit();
         }
+        Com_LimitFrameRate(frameStart, performanceFrequency, dedicated);
     }
 
     return 0;

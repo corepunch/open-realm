@@ -118,8 +118,8 @@ generic `Button` command path rather than by a registered ability code.
 | `AImm` | Item Mana Bonus | TODO | Needs max-mana modifier system. |
 | `AIfs` | Figurine Summon | TODO | Needs item summon behavior. |
 | `AImi` | Permanent Life Gain | Partial | Selected-unit max-health/current-health gain plus synchronous charge/consume rules exist. Shared item cooldown groups remain. |
-| `AIem` | Experience Gain | TODO | Needs hero XP/level flow. |
-| `AIlm` | Level Gain | TODO | Needs hero level-up flow. |
+| `AIem` | Experience Gain | Implemented | Grants Data A XP through the shared Hero progression path and plays the target effect. |
+| `AIlm` | Level Gain | Implemented | Converts Data A level gain to the target XP threshold and uses the shared Hero progression path. |
 | `Acar` | Cargo Hold | TODO | Needs cargo slots and load/unload state. |
 | `Aloa` | Load | TODO | Depends on cargo targeting and transport state. |
 | `Adro` | Drop | TODO | Depends on cargo targeting and transport state. |

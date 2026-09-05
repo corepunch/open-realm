@@ -59,6 +59,10 @@ static void victory_noop_unicast(LPEDICT ent) {
     (void)ent;
 }
 
+static LPCSTR result_cheats_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "sv_cheats") ? "1" : fallback;
+}
+
 /* =========================================================================
  * Shared JASS/list lexer regressions
  * ========================================================================= */
@@ -420,6 +424,48 @@ TEST(wc3_jass_map, victory_publishes_event) {
     T_ASSERT(ok);
     T_ASSERT( event_in_queue(EVENT_PLAYER_VICTORY));
     T_ASSERT(!event_in_queue(EVENT_PLAYER_DEFEAT));
+}
+
+TEST(wc3_jass_map, win_cheat_uses_remove_player_result_pipeline) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    LPCSTR command[] = { "win" };
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "endfunction\n"
+    ));
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+
+    G_ClientCommand(&g_edicts[0], 1, command);
+
+    T_ASSERT(game.clients[0].jass.removed);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_GAME_RESULT], 0);
+    T_ASSERT(event_in_queue(EVENT_PLAYER_VICTORY));
+    T_ASSERT(!event_in_queue(EVENT_PLAYER_DEFEAT));
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_jass_map, lose_cheat_uses_remove_player_result_pipeline) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    LPCSTR command[] = { "lose" };
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "endfunction\n"
+    ));
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+
+    G_ClientCommand(&g_edicts[0], 1, command);
+
+    T_ASSERT(game.clients[0].jass.removed);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_GAME_RESULT], 1);
+    T_ASSERT(event_in_queue(EVENT_PLAYER_DEFEAT));
+    T_ASSERT(!event_in_queue(EVENT_PLAYER_VICTORY));
+
+    gi.CvarString = old_cvar;
 }
 
 TEST(wc3_jass_map, paused_victory_drains_result_event_and_releases_fallback) {

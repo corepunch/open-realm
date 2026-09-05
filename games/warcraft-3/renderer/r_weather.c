@@ -51,6 +51,7 @@ typedef struct {
     w3WeatherArt_t const *art;
     LPCTEXTURE texture;
     FLOAT emission_accum;
+    DWORD seen;
 } renderWeatherEffect_t;
 
 static slkField_t const weather_schema[] = {
@@ -108,6 +109,7 @@ static DWORD weather_count;
 static slkIndex_t weather_index;
 static renderWeatherEffect_t weather_effects[MAX_RENDER_WEATHER_EFFECTS];
 static uint32_t weather_rng = 0x7f4a7c15u;
+static DWORD weather_sync;
 
 static FLOAT R_WeatherRandom01(void) {
     weather_rng ^= weather_rng << 13;
@@ -155,10 +157,12 @@ static DWORD R_WeatherLoadSlk(LPCSTR filename, void **dest) {
 
 void R_WeatherInit(void) {
     memset(weather_effects, 0, sizeof(weather_effects));
+    weather_sync = 0;
 }
 
 void R_WeatherShutdown(void) {
     memset(weather_effects, 0, sizeof(weather_effects));
+    weather_sync = 0;
     FS_SLKFreeIndex(&weather_index);
     FS_SLKFreeRows(weather_schema, weather_rows, weather_count, sizeof(w3WeatherArt_t));
     weather_rows = NULL;
@@ -173,37 +177,34 @@ void R_WeatherRegisterMap(void) {
     FS_SLKBuildIndex(&weather_index, weather_rows, weather_count, sizeof(w3WeatherArt_t));
     memset(weather_effects, 0, sizeof(weather_effects));
     weather_rng = 0x7f4a7c15u;
+    weather_sync = 0;
 }
 
-void R_WeatherCommand(void const *data, DWORD size) {
-    wc3WeatherCommand_t payload;
-    renderWeatherEffect_t *effect;
+/* Reconcile renderer-owned particle accumulators with the latest client view. */
+static void R_WeatherSync(void) {
+    DWORD sync = ++weather_sync;
 
-    if (!data || size != sizeof(payload)) return;
-    memcpy(&payload, data, sizeof(payload));
-    if (payload.type == WC3_WEATHER_CMD_CLEAR) {
-        memset(weather_effects, 0, sizeof(weather_effects));
-        return;
-    }
-    effect = R_WeatherFind(payload.handle);
-    if (payload.type == WC3_WEATHER_CMD_ADD) {
-        if (!effect) FOR_LOOP(i, MAX_RENDER_WEATHER_EFFECTS) if (!weather_effects[i].inuse) {
-            effect = weather_effects + i;
+    FOR_LOOP(i, tr.viewDef.num_weather_effects) {
+        wc3WeatherEffect_t const *state = tr.viewDef.weather_effects + i;
+        renderWeatherEffect_t *effect = R_WeatherFind(state->handle);
+        if (!effect) FOR_LOOP(j, MAX_RENDER_WEATHER_EFFECTS) if (!weather_effects[j].inuse) {
+            effect = weather_effects + j;
+            memset(effect, 0, sizeof(*effect));
+            effect->inuse = true;
             break;
         }
-        if (!effect) return;
-        memset(effect, 0, sizeof(*effect));
-        effect->inuse = true;
-        effect->enabled = !!payload.enabled;
-        effect->handle = payload.handle;
-        effect->effect_id = payload.effect_id;
-        effect->bounds = payload.bounds;
-        R_WeatherResolve(effect);
-    } else if (payload.type == WC3_WEATHER_CMD_ENABLE) {
-        if (effect) effect->enabled = !!payload.enabled;
-    } else if (payload.type == WC3_WEATHER_CMD_REMOVE) {
-        if (effect) memset(effect, 0, sizeof(*effect));
+        if (!effect) continue;
+        effect->seen = sync;
+        if (effect->effect_id != state->effect_id) {
+            effect->effect_id = state->effect_id;
+            R_WeatherResolve(effect);
+        }
+        effect->enabled = !!state->enabled;
+        effect->handle = state->handle;
+        effect->bounds = state->bounds;
     }
+    FOR_LOOP(i, MAX_RENDER_WEATHER_EFFECTS)
+        if (weather_effects[i].inuse && weather_effects[i].seen != sync) memset(weather_effects + i, 0, sizeof(*weather_effects));
 }
 
 static BOX2 R_WeatherEmissionBounds(void) {
@@ -279,6 +280,7 @@ void R_WeatherEmit(void) {
     DWORD delta_ms;
 
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) return;
+    R_WeatherSync();
     delta_ms = tr.viewDef.deltaTime;
     if (!delta_ms) return;
     visible = R_WeatherEmissionBounds();
