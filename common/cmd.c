@@ -143,6 +143,15 @@ void Cbuf_AddEarlyCommands(bool clear) {
             i += 2;
             continue;
         }
+        /* Single-token startup flags have the same early semantics with a
+         * '+' prefix as their '-' form. Consume recognized compatibility flags
+         * before module initialization instead of queuing them as late commands. */
+        if (arg[0] == '+' && Cvar_ApplyBooleanCommandLineFlag(arg + 1)) {
+            if (clear) {
+                COM_ClearArgv(i);
+            }
+            continue;
+        }
         if (arg[0] == '+' && Cvar_String(arg + 1, NULL) != NULL) {
             LPCSTR value = "1";
             int cmd_index = i;

@@ -83,7 +83,9 @@ and manual camera movement; transport remains live so submenu and close commands
 
 `UI_WINDOW_CLOSE_ACTION`, `UI_WINDOW_CLOSE_NOTIFY_ACTION`, `UI_WINDOW_DISCONNECT_ACTION`, and `UI_WINDOW_QUIT_ACTION` are interpreted
 locally by `client/cl_window.c` rather than forwarded as game commands. The server authors which button exposes those tokens, but leave
-and application-exit only happen after explicit local activation.
+and application-exit only happen after explicit local activation. `disconnect_game` queues the generic deferred `MenuAction("menu",
+"menu_main")` session boundary; it must not call `CL_Disconnect()` and immediately show the menu while the campaign server/game module
+is still alive, because game teardown owns FDF/template state that the front-end must rebuild afterward.
 
 Use ordinary `onclick` strings for server-owned state transitions such as `menu_endgame` and `menu_confirm_exit`.
 
@@ -103,8 +105,9 @@ Do not validate this from the front-end menu: `svc_window` requires an active ga
 3. Save/Load/Options/Help/Tips render disabled and do nothing.
 4. Pause and Return close the window and release the modal pause owner.
 5. End Game opens EndGamePanel; Restart is disabled and pause remains owned continuously.
-6. Previous returns to MainPanel without closing/reopening the modal lifecycle.
-7. Quit leaves the map and returns to the Warcraft front-end.
-8. Exit opens ConfirmQuitPanel; Cancel returns to EndGamePanel.
-9. Confirm exits the application.
-10. Leaving the menu open beyond the client timeout interval does not disconnect or advance paused simulation.
+6. Quit Game leaves the world through the deferred session boundary and returns to a freshly rebuilt main menu with valid FDF bindings.
+7. Previous returns to MainPanel without closing/reopening the modal lifecycle.
+8. Quit leaves the map and returns to the Warcraft front-end.
+9. Exit opens ConfirmQuitPanel; Cancel returns to EndGamePanel.
+10. Confirm exits the application.
+11. Leaving the menu open beyond the client timeout interval does not disconnect or advance paused simulation.

@@ -467,8 +467,9 @@ void M_Init(void) {
 }
 
 void M_Shutdown(void) {
-    UI_ResetGlueSceneModels();
     UI_SetScreen(NULL);
+    UI_ReleaseGlueSceneModels();
+    UI_ReleaseAssets();
     UI_ClearTemplates();
     memset(&ui_state, 0, sizeof(ui_state));
 }
@@ -650,6 +651,10 @@ void M_MenuCommand(LPCSTR command) {
     }
     if (!strcmp(command, "menu_realm_select")) {
         UI_MenuRealmSelect_f();
+        return;
+    }
+    if (!strcmp(command, "menu_edition")) {
+        MainMenu_BeginEditionSwitch();
         return;
     }
     if (!strcmp(command, "menu_options_gameplay")) {

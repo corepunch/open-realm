@@ -350,7 +350,7 @@ static void SinglePlayer_LoadCampaignData(void) {
     campaign_count = 0;
     campaign_order_count = 0;
 
-    campaign_file = expansion ? Theme_String("CampaignFile", "Default") : NULL;
+    campaign_file = Theme_String("CampaignFile", "Default");
     if (campaign_file && strcmp(campaign_file, "CampaignFile") &&
         SinglePlayer_LoadCampaignFile(campaign_file)) {
         SinglePlayer_FinalizeCampaignOrder();

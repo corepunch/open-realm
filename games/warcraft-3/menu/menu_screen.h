@@ -48,6 +48,7 @@ void MainMenu_ShowMainPanel(void);
 void MainMenu_ShowRealmSelect(void);
 void MainMenu_ShowQuitConfirm(void);
 void MainMenu_ShowDisconnected(void);
+void MainMenu_BeginEditionSwitch(void);
 
 void OptionsMenu_ShowGameplay(void);
 void OptionsMenu_ShowVideo(void);

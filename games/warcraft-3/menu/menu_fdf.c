@@ -28,6 +28,16 @@ static BOOL ui_texture_decorated[UI_MAX_TEXTURES] = { 0 };
 static LPCMODEL ui_models[UI_MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[UI_MAX_MODELS] = { 0 };
 
+void UI_ReleaseAssets(void) {
+    LPRENDERER renderer = menuimport.GetRenderer();
+
+    FOR_LOOP(i, UI_MAX_TEXTURES)
+        if (ui_textures[i]) renderer->ReleaseTexture((LPTEXTURE)ui_textures[i]);
+    FOR_LOOP(i, UI_MAX_MODELS)
+        if (ui_models[i]) renderer->ReleaseModel((LPMODEL)ui_models[i]);
+    UI_ClearTextures();
+}
+
 BZ_HOST_HIDDEN void UI_ClearTextures(void) {
     memset(ui_textures, 0, sizeof(ui_textures));
     memset(ui_texture_names, 0, sizeof(ui_texture_names));

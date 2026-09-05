@@ -105,9 +105,12 @@ the UI target does not list this common header directly as a prerequisite.
 ## Asset lifetime
 
 `UI_PreloadGlueSceneModels` loads main-menu and panel models even on the direct-map startup path.
-`UI_ResetGlueSceneModels` only zeroes its cache; it does not release the acquired references.
-At renderer shutdown, registry logging still showed references for `MainMenu3d`, the top-left/right panels,
-the campaign `LordaeronBackground`, loading bar, logo, and other glue assets.
+`UI_ResetGlueSceneModels` remains a zero-only initializer, but menu shutdown now calls `UI_ReleaseGlueSceneModels` first so the
+background/top-left/top-right renderer references are dropped before the cache is cleared. `UI_ReleaseAssets` likewise releases
+menu-owned loaded models/textures before `UI_ClearTemplates` forgets their indices. This is required by the in-process RoC/TFT
+edition restart; otherwise every toggle would retain another set of glue/model references. The same explicit shutdown/re-init is
+used when a gameplay `MenuAction("menu", ...)` returns from a campaign world, after the server is shut down and map scope is cleared,
+so the next menu never depends on renderer/FDF references carried across the world registration boundary.
 
 `renderer/r_model.c:R_FreeUnusedModels` only collects unreferenced models from an older registration sequence.
 `renderer/r_texture.c:R_ReleaseTexture` deliberately preserves every cached texture;
