@@ -798,14 +798,15 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
 }
 
 TEST(wc3_time, false_time_overrides_and_freezes_canonical_clock) {
-    FLOAT const step = (FLOAT)FRAMETIME / 1000.0f;
+    FLOAT const tick_seconds = (FLOAT)FRAMETIME / 1000.0f;
+    FLOAT const clock_step = tick_seconds / game.constants.gameDayLength * game.constants.gameDayHours;
 
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
     T_ASSERT(!G_IsFalseTimeOfDay());
 
-    G_SetFalseTimeOfDay(0, 0, step * 3.0f);
+    G_SetFalseTimeOfDay(0, 0, tick_seconds * 3.0f);
     /* Warsmash initializes the false clock on its first simulation tick. */
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
     T_ASSERT(!G_IsFalseTimeOfDay());
@@ -830,7 +831,7 @@ TEST(wc3_time, false_time_overrides_and_freezes_canonical_clock) {
     T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_ENV_VARIANT], 0);
 
     G_UpdateTimeOfDay();
-    T_FEQ(G_GetTimeOfDay(), 12.0f + step, 0.001f);
+    T_FEQ(G_GetTimeOfDay(), 12.0f + clock_step, 0.001f);
 }
 
 TEST(wc3_time, warsmash_false_time_native_can_be_declared_by_extension_script) {
