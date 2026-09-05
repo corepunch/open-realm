@@ -141,6 +141,17 @@ void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
 FLOAT CL_GetLoadingProgress(void);
 void CL_SetLoadingProgress(FLOAT progress);
+
+/* Optional full-screen movie playback (client/cl_movie.c). */
+void CL_MovieInit(void);
+void CL_Movie_f(void);
+void CL_QueueMovie(LPCSTR path);
+BOOL CL_PlayMovie(LPCSTR path);
+BOOL CL_MovieActive(void);
+void CL_MovieUpdate(void);
+void CL_MovieDraw(void);
+BOOL CL_MovieKeyEvent(keyCode_t key, bool down);
+void CL_MovieShutdown(void);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
 

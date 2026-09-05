@@ -109,6 +109,10 @@ void Key_Event(keyCode_t key, DWORD mods, bool down, DWORD time) {
     LPCSTR kb;
     char cmd[1024];
 
+    /* Full-screen movies own keyboard input. Escape skips; every other key is
+     * consumed so it cannot activate the hidden menu/game underneath. */
+    if (CL_MovieKeyEvent(key, down)) return;
+
     /* Forward to UI library if in menu mode */
     if (cls.key_dest == key_menu && menu.KeyEvent) {
         menu.KeyEvent(key, down, time);

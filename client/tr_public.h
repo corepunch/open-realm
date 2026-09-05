@@ -205,9 +205,13 @@ typedef struct {
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);
+    /* Dynamic RGBA texture path for decoded video and other client-owned pixels. */
+    LPTEXTURE (*CreateTextureRGBA)(DWORD width, DWORD height, void const *pixels);
+    BOOL (*UpdateTextureRGBA)(LPTEXTURE texture, DWORD width, DWORD height, void const *pixels);
     LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);
+    RECT (*GetUISceneRect)(void);
     DWORD (*GetDrawCalls)(void);
     void (*SetWindowSize)(DWORD width, DWORD height);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);

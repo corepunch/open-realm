@@ -371,6 +371,21 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
     Sint16 *out    = (Sint16 *)stream;
     int     frames = len / (int)(2 * sizeof(Sint16));  /* stereo frames */
 
+    if (s.raw.active && s.raw.data) {
+        DWORD take = MIN((DWORD)frames, s.raw.count);
+        for (DWORD i = 0; i < take; i++) {
+            DWORD frame = s.raw.read_pos;
+            int l = (int)out[i * 2] + s.raw.data[frame * 2];
+            int r = (int)out[i * 2 + 1] + s.raw.data[frame * 2 + 1];
+            if (l > 32767) l = 32767; else if (l < -32768) l = -32768;
+            if (r > 32767) r = 32767; else if (r < -32768) r = -32768;
+            out[i * 2] = (Sint16)l;
+            out[i * 2 + 1] = (Sint16)r;
+            s.raw.read_pos = (s.raw.read_pos + 1) % s.raw.capacity;
+        }
+        s.raw.count -= take;
+    }
+
     for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
         if (!s.channels[ch].active || !s.channels[ch].sc) continue;
         S_SpatializeChannel(ch);
@@ -435,6 +450,7 @@ void S_Shutdown(void) {
     for (DWORD i = 1; i < s.kit_count; i++)
         if (s.kits[i].id == i) free(s.kits[i].cache);
     FS_FreeFile(s.dbc_data);
+    free(s.raw.data);
     memset(&s, 0, sizeof(s));
 }
 
@@ -524,6 +540,52 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
 }
 
 /* Update the listener position and right vector — call once per rendered frame. */
+void S_RawStart(void) {
+    if (!s.initialized) return;
+    SDL_LockAudioDevice(s.device);
+    if (!s.raw.data) {
+        s.raw.capacity = 44100 * 2; /* two seconds keeps demux jitter away from the callback */
+        s.raw.data = calloc((size_t)s.raw.capacity * 2, sizeof(short));
+    }
+    s.raw.read_pos = s.raw.write_pos = s.raw.count = 0;
+    s.raw.active = s.raw.data != NULL;
+    SDL_UnlockAudioDevice(s.device);
+}
+
+DWORD S_RawSamples(SHORT const *samples, DWORD frames) {
+    DWORD written = 0;
+
+    if (!s.initialized || !samples || !frames || !s.raw.active || !s.raw.data) return 0;
+    SDL_LockAudioDevice(s.device);
+    while (written < frames && s.raw.count < s.raw.capacity) {
+        DWORD dst = s.raw.write_pos;
+        s.raw.data[dst * 2] = samples[written * 2];
+        s.raw.data[dst * 2 + 1] = samples[written * 2 + 1];
+        s.raw.write_pos = (s.raw.write_pos + 1) % s.raw.capacity;
+        s.raw.count++;
+        written++;
+    }
+    SDL_UnlockAudioDevice(s.device);
+    return written;
+}
+
+DWORD S_RawBufferedFrames(void) {
+    DWORD count = 0;
+    if (!s.initialized || !s.raw.active) return 0;
+    SDL_LockAudioDevice(s.device);
+    count = s.raw.count;
+    SDL_UnlockAudioDevice(s.device);
+    return count;
+}
+
+void S_RawStop(void) {
+    if (!s.initialized) return;
+    SDL_LockAudioDevice(s.device);
+    s.raw.active = false;
+    s.raw.read_pos = s.raw.write_pos = s.raw.count = 0;
+    SDL_UnlockAudioDevice(s.device);
+}
+
 void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right) {
     s.listener.origin = *origin;
     s.listener.right  = *right;

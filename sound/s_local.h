@@ -87,6 +87,17 @@ typedef struct {
         BOOL        active;
     } channels[S_MAX_CHANNELS];
 
+
+    /* Client-owned streaming PCM (cinematics): stereo S16 at the mixer rate. */
+    struct {
+        short *data;
+        DWORD capacity; /* stereo frames */
+        DWORD read_pos;
+        DWORD write_pos;
+        DWORD count;
+        BOOL active;
+    } raw;
+
     SDL_AudioDeviceID device;
     BOOL              initialized;
     BYTE             *dbc_data;
@@ -104,5 +115,9 @@ void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin);
 void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation,
                        FLOAT timeofs);
 void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right);
+void S_RawStart(void);
+DWORD S_RawSamples(SHORT const *samples, DWORD frames);
+DWORD S_RawBufferedFrames(void);
+void S_RawStop(void);
 
 #endif
