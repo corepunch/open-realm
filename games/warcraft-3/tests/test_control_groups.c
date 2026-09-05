@@ -1,5 +1,8 @@
 #include "test.h"
 #include "cl_control_groups.h"
+#include "../../client/ui_layout.h"
+
+void test_client_stubs_set_window_size(DWORD width, DWORD height);
 
 TEST(client_groups, append_preserves_existing_order_and_deduplicates) {
     DWORD group[6] = { 10, 20 };
@@ -33,4 +36,25 @@ TEST(client_groups, append_keeps_existing_members_when_capacity_is_reached) {
     T_EQ(group[1], 2);
     T_EQ(group[2], 3);
     T_EQ(group[3], 4);
+}
+
+TEST(client_layout, wc3_hud_root_centers_on_widescreen) {
+    RECT root;
+
+    test_client_stubs_set_window_size(1280, 720);
+    root = SCR_LayoutSceneRect();
+    T_ASSERT(fabsf(root.x - 0.133333f) < 0.0001f);
+    T_ASSERT(fabsf(root.y) < 0.0001f);
+    T_ASSERT(fabsf(root.w - UI_BASE_WIDTH) < 0.0001f);
+    T_ASSERT(fabsf(root.h - UI_BASE_HEIGHT) < 0.0001f);
+}
+
+TEST(client_layout, wc3_hud_root_fills_authored_scene_at_four_three) {
+    RECT root;
+
+    test_client_stubs_set_window_size(1024, 768);
+    root = SCR_LayoutSceneRect();
+    T_ASSERT(fabsf(root.x) < 0.0001f);
+    T_ASSERT(fabsf(root.w - UI_BASE_WIDTH) < 0.0001f);
+    T_ASSERT(fabsf(root.h - UI_BASE_HEIGHT) < 0.0001f);
 }

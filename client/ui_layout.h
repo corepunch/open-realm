@@ -20,6 +20,7 @@ typedef void (*layoutDrawFunc_t)(LPCUIFRAME frame, LPCRECT screen);
 void SCR_SetLayoutLayer(DWORD layer, HANDLE data);
 void SCR_ClearLayoutLayer(DWORD layer);
 void SCR_SetLayoutRoot(LPCRECT root);
+RECT SCR_LayoutSceneRect(void);
 FLOAT SCR_UICanvasWidth(void);
 VECTOR2 SCR_ScreenToUI(int x, int y);
 BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame);

@@ -218,7 +218,10 @@ static void CL_WindowSyncPause(void) {
 }
 
 static RECT CL_WindowRoot(clientWindow_t const *window) {
-    return MAKE(RECT, window->offset.x, window->offset.y, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
+    RECT root = SCR_LayoutSceneRect();
+    root.x += window->offset.x;
+    root.y += window->offset.y;
+    return root;
 }
 
 static void CL_WindowRememberScroll(clientWindow_t *window, DWORD frame_number, FLOAT value) {

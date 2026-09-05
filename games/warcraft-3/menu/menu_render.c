@@ -151,6 +151,17 @@ static RECT UI_GetSceneRect(void) {
         return scene_rect;
     }
     scene_rect = (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
+    LPRENDERER renderer = menuimport.GetRenderer();
+    if (renderer && renderer->GetWindowSize) {
+        size2_t win = renderer->GetWindowSize();
+        if (win.height > 0) {
+            FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
+            if (aspect > UI_MIN_ASPECT) {
+                FLOAT width = UI_BASE_HEIGHT * aspect;
+                scene_rect.x = (width - UI_BASE_WIDTH) * 0.5f;
+            }
+        }
+    }
     scene_rect_valid = TRUE;
     return scene_rect;
 }

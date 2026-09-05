@@ -8,25 +8,23 @@ BOOL scr_initialized;
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
 
-/* Returns the UI canvas width for the current window aspect.  For SC2
- * widescreen the canvas expands horizontally while the height stays fixed
- * (matches cl_layout.c::SCR_GetUISceneRect and r_draw.c::R_UISceneRect). */
+/* Returns the UI canvas width for the current window aspect.  The canvas
+ * expands horizontally while the height stays fixed (matches
+ * cl_layout.c::SCR_GetUISceneRect and r_draw.c::R_UISceneRect). */
 FLOAT SCR_UICanvasWidth(void) {
-#ifdef SC2
     size2_t win = re.GetWindowSize();
     if (win.height > 0) {
         FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
         if (aspect > UI_MIN_ASPECT)
             return UI_BASE_HEIGHT * aspect;
     }
-#endif
     return UI_BASE_WIDTH;
 }
 
 /*
  * SDL mouse positions are window pixels, while UI/layout coordinates use the
  * engine's virtual canvas.  Cursor drawing and FDF hit-testing must share this
- * mapping, including SC2's widened canvas on widescreen displays.
+ * mapping, including each game's authored widescreen scene.
  */
 VECTOR2 SCR_ScreenToUI(int x, int y) {
     size2_t window = re.GetWindowSize();

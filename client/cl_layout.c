@@ -13,20 +13,22 @@ struct {
     bool calculated;
 } runtimes[MAX_LAYOUT_OBJECTS];
 
-/* UI canvas: UI_BASE_HEIGHT rows are always 1200 virtual units tall.
- * For SC2, the canvas width scales with the actual window aspect ratio so
- * that panels anchored to Right=Max / Left=Min reach the real screen edges
- * on widescreen displays.  For 1280x720 (16:9): width = 1200*(16/9) ≈ 2133.
- * Other games keep the fixed 1600x1200 canvas. */
-static RECT SCR_GetUISceneRect(void) {
-#ifdef SC2
+/* Return the authored HUD root. WC3 keeps its 4:3 HUD centered while the
+ * renderer's wider scene exposes extra world space; world-hover overrides this
+ * root with the complete scene because it is positioned in world coordinates. */
+RECT SCR_LayoutSceneRect(void) {
     size2_t win = re.GetWindowSize();
     if (win.height > 0) {
         FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
-        if (aspect > UI_MIN_ASPECT)
-            return MAKE(RECT, 0, 0, UI_BASE_HEIGHT * aspect, UI_BASE_HEIGHT);
-    }
+        if (aspect > UI_MIN_ASPECT) {
+            FLOAT width = UI_BASE_HEIGHT * aspect;
+#ifdef WC3
+            return MAKE(RECT, (width - UI_BASE_WIDTH) * 0.5f, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+#else
+            return MAKE(RECT, 0, 0, width, UI_BASE_HEIGHT);
 #endif
+        }
+    }
     return MAKE(RECT, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
 }
 
@@ -394,7 +396,7 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     memset(runtimes, 0, sizeof(runtimes));
     memset(frames, 0, sizeof(frames));
     num_frames = 0;
-    RECT scene = SCR_GetUISceneRect();
+    RECT scene = SCR_LayoutSceneRect();
     frames[0].size.width = scene.w;
     frames[0].size.height = scene.h;
     frames[0].flags.type = FT_SCREEN;
