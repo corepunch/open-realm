@@ -60,6 +60,8 @@ LPCSTR targs[] = {
 };
 
 TARGTYPE G_GetTargetType(LPCSTR str) {
+    /* Missing target metadata means no target flags; strlen(NULL) previously crashed sparse unit transforms. */
+    if (!str || !*str) return TARG_NONE;
     DWORD const len = (DWORD)strlen(str);
     if (len < 3) return TARG_NONE;
     char buf[64] = { 0 };
