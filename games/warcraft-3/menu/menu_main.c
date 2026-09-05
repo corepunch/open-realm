@@ -519,6 +519,7 @@ void M_KeyEvent(int key, BOOL down, DWORD time) {
 static VECTOR2 UI_PixelToFdf(int px, int py) {
     LPRENDERER renderer = menuimport.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
+    RECT scene = UI_GetSceneRect();
     FLOAT nx = 0;
     FLOAT ny = 0;
 
@@ -526,7 +527,7 @@ static VECTOR2 UI_PixelToFdf(int px, int py) {
         nx = (FLOAT)px / (FLOAT)window.width;
         ny = (FLOAT)py / (FLOAT)window.height;
     }
-    return MAKE(VECTOR2, nx * UI_BASE_WIDTH, ny * UI_BASE_HEIGHT);
+    return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */

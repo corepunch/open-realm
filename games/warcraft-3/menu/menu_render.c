@@ -146,20 +146,22 @@ LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
  * LAYOUT SOLVING
  * ======================================================================== */
 
-static RECT UI_GetSceneRect(void) {
+RECT UI_GetSceneRect(void) {
     if (scene_rect_valid) {
         return scene_rect;
     }
+    /* Glue screens use the complete renderer canvas.  Their FDF explicitly
+     * anchors the left and right chrome to MainMenuFrame edges; keeping a
+     * centred 4:3 root here makes right-anchored buttons stop short of the
+     * sprite-layer edge while hit testing still follows that shorter rect. */
     scene_rect = (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
     LPRENDERER renderer = menuimport.GetRenderer();
     if (renderer && renderer->GetWindowSize) {
         size2_t win = renderer->GetWindowSize();
         if (win.height > 0) {
             FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
-            if (aspect > UI_MIN_ASPECT) {
-                FLOAT width = UI_BASE_HEIGHT * aspect;
-                scene_rect.x = (width - UI_BASE_WIDTH) * 0.5f;
-            }
+            if (aspect > UI_MIN_ASPECT)
+                scene_rect.w = UI_BASE_HEIGHT * aspect;
         }
     }
     scene_rect_valid = TRUE;

@@ -24,6 +24,9 @@ static DWORD captured_dim_draw_index;
 static DWORD captured_text_draws;
 static DWORD captured_stand_sprites;
 static DWORD captured_realm_panel_sprites;
+static DWORD captured_sprite_calls;
+static FLOAT captured_sprite_x[2];
+static size2_t test_window_size = { 1000, 750 };
 static uintptr_t fake_texture_id;
 static LPTEXTURE hover_texture;
 static DWORD captured_hover_draws;
@@ -203,8 +206,9 @@ static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
 
 static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)model;
-    (void)x;
     (void)y;
+    if (captured_sprite_calls < 2) captured_sprite_x[captured_sprite_calls] = x;
+    captured_sprite_calls++;
     if (anim && !strcmp(anim, "Stand"))
         captured_stand_sprites++;
     if (anim && !strcmp(anim, "RealmSelection Stand"))
@@ -217,7 +221,7 @@ static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
 }
 
 static size2_t test_get_window_size(void) {
-    return MAKE(size2_t, 1000, 750);
+    return test_window_size;
 }
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
@@ -324,6 +328,8 @@ static void reset_ui_state(void) {
     captured_text_draws = 0;
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
+    captured_sprite_calls = 0;
+    memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
     fake_texture_id = 0;
     texture_releases = map_reads = 0;
     menu_player = NULL; test_map = "";
@@ -2045,9 +2051,41 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     MainMenu_ShowRealmSelect();
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
+    captured_sprite_calls = 0;
     mainMenuScreen.draw();
     T_EQ(captured_stand_sprites, 0);
     T_EQ(captured_realm_panel_sprites, 2);
+    menuimport = saved;
+}
+
+TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
+    menuImport_t saved = menuimport;
+
+    reset_ui_state();
+    load_ui_files((LPCSTR[]){
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+    }, 3);
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    test_window_size = MAKE(size2_t, 1280, 720);
+    UI_ResetGlueSceneModels();
+    captured_stand_sprites = 0;
+    captured_realm_panel_sprites = 0;
+    memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
+
+    UI_DrawGlueSceneLayers("MainMenu Stand", "MainMenu Stand");
+    T_EQ(captured_sprite_calls, 2);
+    T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
+    T_FEQ(captured_sprite_x[1], 0.266666f, 0.0001f);
+    UI_DrawFrames((LPCFRAMEDEF[]){ UI_FindFrame("MainMenuFrame") }, 1);
+    T_FEQ(UI_GetSceneRect().x, 0.0f, 0.0001f);
+    T_FEQ(UI_GetSceneRect().w, 1.066666f, 0.0001f);
+    test_window_size = MAKE(size2_t, 1000, 750);
     menuimport = saved;
 }
 
