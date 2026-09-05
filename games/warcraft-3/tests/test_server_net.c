@@ -133,6 +133,13 @@ static void test_game_shutdown(void) {
     test_game_shutdowns++;
 }
 
+static DWORD test_write_client_datagram(LPEDICT ent, LPBYTE data, DWORD size) {
+    (void)ent;
+    if (size < sizeof(USHORT)) return 0;
+    memset(data, 0, sizeof(USHORT));
+    return sizeof(USHORT);
+}
+
 static void reset_server_state(int max_players) {
     memset(&sv, 0, sizeof(sv));
     memset(&svs, 0, sizeof(svs));
@@ -157,6 +164,7 @@ static void reset_server_state(int max_players) {
     test_ge.GetWorldBounds = CM_GetWorldBounds;
     test_ge.Shutdown = test_game_shutdown;
     test_ge.CustomizeEntity = test_customize_entity;
+    test_ge.WriteClientDatagram = test_write_client_datagram;
     ge = &test_ge;
     reset_test_gi();
 }

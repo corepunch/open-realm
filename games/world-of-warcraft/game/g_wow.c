@@ -15,6 +15,13 @@
 
 struct game_import gi;
 struct game_export globals;
+
+static DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
+    (void)ent;
+    if (size < sizeof(USHORT)) return 0;
+    memset(data, 0, sizeof(USHORT));
+    return sizeof(USHORT);
+}
 edict_t wow_edicts[WOW_MAX_EDICTS];
 wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 wowClient_t wow_clients[MAX_CLIENTS];
@@ -2486,6 +2493,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;
     globals.CustomizeEntity = Wow_CustomizeEntity;
+    globals.WriteClientDatagram = G_WriteClientDatagram;
     globals.PlayerCreateMap = Wow_SelectedPlayerCreateMap;
     globals.LoadMap = Wow_LoadMap;
     globals.GetWorldBounds = CM_GetWorldBounds;

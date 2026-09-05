@@ -79,6 +79,8 @@ struct client_state {
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
+    wc3WeatherEffect_t weather_effects[MAX_WEATHER_EFFECTS];
+    DWORD num_weather_effects;
     struct frame frame;
     VECTOR2 startingPosition;
     PLAYER playerstate;

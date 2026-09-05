@@ -12,7 +12,6 @@
 #include <stdlib.h>
 
 #include "client.h"
-#include "common/weather.h"
 #include "sound/s_local.h"
 #include "ui_layout.h"
 
@@ -231,9 +230,8 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     }
 }
 
-/* Handle the svc_frame header: record the server frame number and time, then
- * snapshot the current entity states into their "prev" fields so the renderer
- * can interpolate between the previous and current positions. */
+/* Handle the svc_frame header and its game-owned datagram, then snapshot entity
+ * states into "prev" so the renderer can interpolate the current scene. */
 void CL_ParseFrame(LPSIZEBUF msg) {
     cl.frame.serverframe = MSG_ReadLong(msg);
     cl.frame.servertime = MSG_ReadLong(msg);
@@ -251,6 +249,16 @@ void CL_ParseFrame(LPSIZEBUF msg) {
         centity_t *ce = &cl.ents[cl.active_entities[i]];
         ce->prev = ce->current;
     }
+    DWORD count = MSG_ReadShort(msg);
+    if (count > MAX_WEATHER_EFFECTS || msg->readcount + count * sizeof(wc3WeatherEffect_t) > msg->cursize) {
+        fprintf(stderr, "CL_ParseFrame: invalid weather snapshot count=%u\n", (unsigned)count);
+        msg->readcount = msg->cursize;
+        return;
+    }
+    cl.viewDef.weather_effects = cl.weather_effects;
+    cl.viewDef.num_weather_effects = count;
+    cl.num_weather_effects = count;
+    FOR_LOOP(i, count) MSG_Read(msg, &cl.weather_effects[i], sizeof(wc3WeatherEffect_t));
 }
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
@@ -890,15 +898,6 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_fogofwar:
                 CL_ParseFogOfWar(msg);
-                break;
-            case svc_weather:
-                if (msg->readcount + sizeof(wc3WeatherCommand_t) > msg->cursize) {
-                    fprintf(stderr, "CL_ParseServerMessage: truncated weather payload\n");
-                    msg->readcount = msg->cursize;
-                    goto done;
-                }
-                re.WeatherCommand(msg->data + msg->readcount, sizeof(wc3WeatherCommand_t));
-                msg->readcount += sizeof(wc3WeatherCommand_t);
                 break;
             case svc_temp_entity:
                 CL_ParseTEnt(msg);

@@ -1165,13 +1165,6 @@ BOOL ReadGame(LPCSTR filename) {
             ent->owner->client->rally_indicator = ent;
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
-    FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
-        LPEDICT ent;
-        if (!client->connected) continue;
-        ent = G_GetPlayerEntityByNumber(client->ps.number);
-        if (ent) G_WeatherSyncClient(ent);
-    }
     fclose(f);
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;

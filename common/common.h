@@ -22,6 +22,7 @@
 #define FOW_CELLS_PER_TILE_SIDE 2
 #define FOW_CELL_SIZE (TILE_SIZE / FOW_CELLS_PER_TILE_SIDE)
 #define FOW_CHUNK_TARGET_BYTES 8192
+#define MAX_GAME_DATAGRAM_SIZE 8192 // bytes; bounds game-owned per-frame payloads appended after entity state
 
 enum {
     FOW_MSG_FULL = 1 << 0,
@@ -79,7 +80,6 @@ enum svc_ops {
     svc_window,                  // [byte open] [long id] [long class, long flags, frames, long text size, text]
     svc_ui_window,               // [string window_id] [byte show] legacy menu-module-owned named XML window toggle
     svc_disconnect,               // server is closing or dropped this client
-    svc_weather,                 // [long type] [long handle] [long effect_id] [box2 bounds] [long enabled]
     svc_lobby_chat,              // [byte own] [string text]
     svc_set_selection,           // [byte count] [count * long entity]
 };

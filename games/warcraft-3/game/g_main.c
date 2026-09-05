@@ -957,7 +957,6 @@ static void G_ClientBegin(LPEDICT edict) {
             client->ps.name ? client->ps.name : "");
     level.started = true;
     G_StartScripts();
-    G_WeatherSyncClient(edict);
 
     UI_ShowGameInterface(edict);
     UI_WriteHoverLayout(edict);
@@ -1072,6 +1071,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
     globals.CustomizeEntity = G_CustomizeEntity;
+    globals.WriteClientDatagram = G_WriteClientDatagram;
     globals.GetThemeValue = G_GetThemeValue;
     globals.LoadMap = G_LoadMap;
     globals.SaveGame = WriteGame;

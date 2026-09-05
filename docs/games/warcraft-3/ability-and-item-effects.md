@@ -92,7 +92,7 @@ These migrations are deliberately presentation-only. They do not change damage/h
 
 `AddSpecialEffect*` takes an explicit model path and does not consult ability data. `AddSpellEffect*` takes an ability rawcode/string plus a converted effect type and resolves the corresponding ability presentation field. A returned JASS `effect` handle points at the independent effect edict, not at the target unit. Destroying the effect therefore cannot overwrite or clear the target unit's `model2` state.
 
-Weather effects now use a separate map-lifetime handle/renderer path rather than effect edicts: W3I/W3R/JASS weather is keyed by `TerrainArt\Weather.slk`, synchronized through a renderer game command, and emitted through the shared particle pool. See [Weather](weather.md) for the implemented fields and deliberate compatibility gaps. JASS `effect` extends `agent`, not `widget`; effect edicts therefore carry `EF_NOT_SELECTABLE` so destination markers render without intercepting world picking. `LIGHTNING` remains unsupported by the model-effect resolver because Warcraft lightning requires a dedicated endpoint/colour/movement lifecycle rather than an MDX model path.
+Weather effects now use a separate map-lifetime handle/renderer path rather than effect edicts: W3I/W3R/JASS weather is keyed by `TerrainArt\Weather.slk`, carried in the per-frame game datagram, and emitted through the shared particle pool. See [Weather](weather.md) for the implemented fields and deliberate compatibility gaps. `LIGHTNING` remains unsupported by the model-effect resolver because Warcraft lightning requires a dedicated endpoint/colour/movement lifecycle rather than an MDX model path.
 
 ## Item Use And Charges
 

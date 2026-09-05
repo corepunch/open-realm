@@ -301,6 +301,15 @@ void SV_WriteFrameToClient(LPCLIENT client) {
     MSG_WriteLong(&client->netchan.message, sv.framenum);
     MSG_WriteLong(&client->netchan.message, sv.time);
     MSG_WriteLong(&client->netchan.message, client->lastframe);
+    {
+        BYTE data[MAX_GAME_DATAGRAM_SIZE];
+        DWORD size = ge->WriteClientDatagram(client->edict, data, sizeof(data));
+        if (size > sizeof(data)) {
+            fprintf(stderr, "SV_WriteFrameToClient: game datagram too large (%u)\n", (unsigned)size);
+            size = 0;
+        }
+        SZ_Write(&client->netchan.message, data, size);
+    }
 
     SV_WritePlayerstateToClient(oldframe, frame, &client->netchan.message);
     SV_EmitPacketEntities(oldframe, frame, &client->netchan.message);

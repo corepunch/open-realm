@@ -124,9 +124,10 @@ Texture rows/columns reuse the existing lifetime atlas path.
 
 `level.weather_effects[]` owns stable weather handles for the map lifetime.
 JASS gets light handles to those slots; renderer objects are not JASS objects.
-Every add/enable/remove sends a compact game command to connected clients.
-`G_WeatherSyncClient()` first clears client weather state and then replays all
-live effects so late/reconnected clients receive the authoritative set.
+Each `svc_frame` carries the complete registered weather set in its game-owned
+datagram. The client caches that set in `client_state` and passes it through
+`viewDef`; the renderer reconciles its particle runtime while rendering, so
+packet loss and reconnects converge without a renderer command API.
 
 Map-authored W3I/W3R weather starts enabled.  JASS-created weather starts
 disabled until `EnableWeatherEffect(..., true)`.
