@@ -788,6 +788,16 @@ void SCR_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
     FOR_LOOP(i, ms->numitems) {
         RECT uv = { 0, 0, 1, 1 };
         uiMultiselectItem_t const *item = &ms->items[i];
+        if ((item->flags & UI_MULTISELECT_ITEM_FOCUSED) && ms->focus_highlight) {
+            RECT highlight = {
+                screen.x - screen.w * 0.185f,
+                screen.y - screen.h * 0.10f,
+                screen.w * 1.37f,
+                screen.h * 1.75f
+            };
+            re.DrawImage(cl.pics[ms->focus_highlight], &highlight, &uv,
+                         MAKE(COLOR32, 255, 255, 0, 255));
+        }
         re.DrawImage(cl.pics[item->image], &screen, &uv, frame->color);
         LPCENTITYSTATE ent = &cl.ents[item->entity].current;
         if (ent) {
@@ -822,6 +832,7 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     LPCMODEL port  = cl.portraits[frame->tex.index];
     LPCMODEL model = cl.models[frame->tex.index];
     LPCMODEL draw  = port ? port : model;
+
     if (!draw) return;
 
     LPCSTR anim = (frame->text && *frame->text) ? frame->text : "Portrait";
@@ -1257,6 +1268,10 @@ BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     if (event == MENU_MOUSE_DOWN) {
         char command[CMDARG_LEN * 2];
         layout_left_down = true;
+        /* Multiselect icons are server-authored gameplay controls. They do not
+         * have an onclick string, so consume the press here and resolve the
+         * concrete entity on release below. */
+        if (hovered_frame && hovered_frame->flags.type == FT_MULTISELECT) return true;
         if (!hovered_frame || layout_held_command[0]) return false;
         SCR_LayoutFormatOnClickCommand(hovered_frame->onclick, command, sizeof(command));
         if (command[0] != '+') return false;
@@ -1292,7 +1307,7 @@ BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
                 if (entity) {
                     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                     SZ_Printf(&cls.netchan.message, "focus %u", (unsigned)entity);
-                    return false;
+                    return true;
                 }
                 continue;
             }

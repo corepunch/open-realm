@@ -811,7 +811,10 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
                                   is_hero);
 }
 
-void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
+void UI_WriteMultiselect(LPEDICT *ents, DWORD count, LPGAMECLIENT viewer) {
+    LPEDICT focused = viewer ? G_GetMainSelectedUnit(viewer) : NULL;
+    LPCSTR highlight = Theme_String("SelectedSubgroupHighlight", NULL);
+
     if (count > 12) count = 12;
     DWORD size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * count;
     LPBYTE buffer = gi.MemAlloc(size);
@@ -821,12 +824,17 @@ void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
     memset(buffer, 0, size);
     multi->hp_bar = gi.ImageIndex("SimpleHpBarConsole");
     multi->mana_bar = gi.ImageIndex("SimpleManaBarConsole");
+    multi->focus_highlight = highlight && *highlight ? gi.ImageIndex(highlight) : 0;
     multi->offset = MAKE(VECTOR2, 0.031f, 0.050f);
     multi->numcolumns = 6;
     multi->numitems = count;
     FOR_LOOP(i, count) {
         multi->items[i].entity = ents[i]->s.number;
         multi->items[i].image = gi.ImageIndex(FindConfigValue(GetClassName(ents[i]->class_id), STR_ART));
+        /* Warsmash highlights the whole selected subgroup: units group by
+         * unit type, even though clicking one icon chooses a concrete focus. */
+        if (focused && ents[i]->class_id == focused->class_id)
+            multi->items[i].flags |= UI_MULTISELECT_ITEM_FOCUSED;
     }
 
     memset(&frame, 0, sizeof(frame));
@@ -854,6 +862,13 @@ void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
         ent->client->infopanel.xp = (LONG)selected[0]->hero.xp;
     } else {
         ent->client->infopanel.entity = 0;
+        /* HP/mana no longer drive the live portrait bars. Reuse hp as the
+         * non-single selection-count cache so async removals (death/fog/hide)
+         * can invalidate a still-multiselect info panel without changing the
+         * serialized GAMECLIENT layout. -1 distinguishes the build queue. */
+        ent->client->infopanel.hp = count == 1 ? -1 : (LONG)count;
+        ent->client->infopanel.mana = 0;
+        ent->client->infopanel.xp = 0;
     }
 }
 
@@ -866,7 +881,7 @@ void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
             UI_WriteSingleInfo(selected[0], ent->client);
         }
     } else if (count > 1) {
-        UI_WriteMultiselect(selected, count);
+        UI_WriteMultiselect(selected, count, ent->client);
     }
     UI_WriteEnd(ent);
     UI_SeedInfoPanelCache(ent, selected, count);
@@ -994,15 +1009,18 @@ static void WritePortraitStats(LPEDICT ent) {
 
 void UI_WriteSelectedPortraitLayer(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
+    LPEDICT focused;
     DWORD count;
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
+    focused = count ? G_GetMainSelectedUnit(ent->client) : NULL;
+    if (!focused && count) focused = selected[0];
 
     UI_WriteStart(LAYER_PORTRAIT);
-    if (count == 1) {
-        WritePortraitFrame(selected[0]);
-        WritePortraitStats(selected[0]);
+    if (focused) {
+        WritePortraitFrame(focused);
+        WritePortraitStats(focused);
     }
     UI_WriteEnd(ent);
 }
@@ -1231,9 +1249,13 @@ void G_RefreshInfoPanel(LPEDICT ent) {
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
-    UpdateSelectedLiveStats(ent->client, count == 1 ? selected[0] : NULL);
+    UpdateSelectedLiveStats(ent->client, count ? G_GetMainSelectedUnit(ent->client) : NULL);
     if (count != 1) {
-        ent->client->infopanel.entity = 0;
+        if (ent->client->infopanel.entity == 0 &&
+            ent->client->infopanel.hp == (LONG)count) {
+            return;
+        }
+        UI_SendInfoPanel(ent, selected, count);
         return;
     }
 

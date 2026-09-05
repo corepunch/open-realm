@@ -387,8 +387,10 @@ struct client_s {
         VECTOR2 target_offset;
         BOOL target_inherit_orientation;
     } camera;
-    /* Single-unit info-panel cache. HP/mana are retained here for save-layout
-     * compatibility, but portrait HP/mana now use live player-state bindings. */
+    /* Info-panel cache. For single units entity/xp track static presentation;
+     * HP/mana are retained for save-layout compatibility because live portrait
+     * values now use player-state bindings. With entity==0, hp caches the
+     * non-single selection count (-1 denotes the building queue panel). */
     struct {
         DWORD entity;
         LONG hp;
@@ -1833,6 +1835,7 @@ BOOL G_UnitCanControl(LPGAMECLIENT, LPCEDICT);
 selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent);
 LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
 void G_UpdateClientSelections(void);
+void G_SyncClientSelection(LPGAMECLIENT);
 void G_QueueSelectionSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);

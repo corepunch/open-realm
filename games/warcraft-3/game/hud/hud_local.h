@@ -130,7 +130,7 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
 /* Info panel (hud_infopanel.c) */
 void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer);
 DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key);
-void UI_WriteMultiselect(LPEDICT *ents, DWORD count);
+void UI_WriteMultiselect(LPEDICT *ents, DWORD count, LPGAMECLIENT viewer);
 void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count);
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count);
 void UI_WriteSelectedPortraitLayer(LPEDICT ent);

@@ -61,6 +61,92 @@ static LPCSTR give_resources_cheat_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "sv_cheats") ? "1" : fallback;
 }
 
+static DWORD multiselect_capture_count;
+static USHORT multiselect_capture_flags[MAX_SELECTED_ENTITIES];
+static DWORD selection_sync_count;
+static DWORD selection_sync_entities[MAX_SELECTED_ENTITIES];
+static DWORD selection_sync_entity_index;
+static int selection_sync_stage;
+static DWORD portrait_capture_root;
+static DWORD portrait_capture_model;
+static DWORD portrait_capture_parent;
+static DWORD portrait_capture_count;
+static DWORD portrait_capture_text_count;
+static BOOL portrait_capture_root_widescreen;
+static BOOL portrait_capture_child_relative;
+static BOOL portrait_capture_text_relative;
+
+static void portrait_test_write(pfWriteType_t type, void const *data) {
+    LPCUIFRAME frame;
+
+    if (type != PF_UIFRAME || !data) return;
+    frame = data;
+    if (frame->flags.type == FT_SIMPLEFRAME &&
+        (frame->flagsvalue & UIFLAG_EXTEND_WIDESCREEN_X)) {
+        portrait_capture_root = frame->number;
+        portrait_capture_root_widescreen = true;
+    } else if (frame->flags.type == FT_PORTRAIT) {
+        portrait_capture_count++;
+        portrait_capture_model = frame->tex.index;
+        portrait_capture_parent = frame->parent;
+        portrait_capture_child_relative =
+            frame->parent == 0 &&
+            frame->points.x[FPP_MIN].relativeTo == 0 &&
+            frame->points.y[FPP_MIN].relativeTo == 0;
+    } else if (frame->flags.type == FT_STRING &&
+               (frame->stat == UI_STAT_SELECTION_HEALTH_TEXT ||
+                frame->stat == UI_STAT_SELECTION_MANA_TEXT)) {
+        portrait_capture_text_count++;
+        portrait_capture_text_relative |=
+            frame->parent == 0 &&
+            frame->points.x[FPP_MID].relativeTo == 0 &&
+            frame->points.y[FPP_MAX].relativeTo == 0;
+    }
+}
+
+static int portrait_test_font(LPCSTR name, DWORD size) {
+    (void)name;
+    (void)size;
+    return 1;
+}
+
+static void selection_test_write(pfWriteType_t type, void const *data) {
+    if (type == PF_UIFRAME && data) {
+        LPCUIFRAME frame = data;
+        if (frame->flags.type == FT_MULTISELECT && frame->buffer.data &&
+            frame->buffer.size >= sizeof(uiMultiselect_t)) {
+            uiMultiselect_t const *multi = frame->buffer.data;
+            DWORD const available = (frame->buffer.size - sizeof(uiMultiselect_t)) / sizeof(uiMultiselectItem_t);
+            multiselect_capture_count = MIN((DWORD)multi->numitems, available);
+            FOR_LOOP(i, multiselect_capture_count)
+                multiselect_capture_flags[i] = multi->items[i].flags;
+        }
+        return;
+    }
+    if (type == PF_BYTE && data) {
+        LONG const value = *(LONG const *)data;
+        if (selection_sync_stage == 0 && value == svc_set_selection) {
+            selection_sync_stage = 1;
+            selection_sync_count = 0;
+            selection_sync_entity_index = 0;
+            memset(selection_sync_entities, 0, sizeof(selection_sync_entities));
+            return;
+        }
+        if (selection_sync_stage == 1) {
+            selection_sync_count = (DWORD)value;
+            selection_sync_stage = selection_sync_count ? 2 : 3;
+            return;
+        }
+    }
+    if (type == PF_LONG && data && selection_sync_stage == 2 &&
+        selection_sync_entity_index < selection_sync_count) {
+        selection_sync_entities[selection_sync_entity_index++] = (DWORD)*(LONG const *)data;
+        if (selection_sync_entity_index >= selection_sync_count) selection_sync_stage = 3;
+    }
+}
+
+static void selection_test_unicast(LPEDICT ent) { (void)ent; }
+
 TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPGAMECLIENT client = &game.clients[0];
@@ -478,6 +564,245 @@ TEST(wc3_game, player_zero_food_ignores_free_edicts) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 6);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
 }
+TEST(wc3_game, authoritative_selection_sync_mirrors_surviving_server_membership) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT first, second;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    client->connected = true;
+    first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    second = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 32, 0);
+    first->svflags |= SVF_MONSTER;
+    second->svflags |= SVF_MONSTER;
+    first->s.player = second->s.player = 0;
+    G_SelectEntity(client, first);
+    G_SelectEntity(client, second);
+
+    selection_sync_stage = 0;
+    selection_sync_count = 0;
+    selection_sync_entity_index = 0;
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    G_SyncClientSelection(client);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(selection_sync_count, 2);
+    T_EQ(selection_sync_entity_index, 2);
+    T_EQ(selection_sync_entities[0], first->s.number);
+    T_EQ(selection_sync_entities[1], second->s.number);
+
+    G_DeselectEntity(client, first);
+    selection_sync_stage = 0;
+    selection_sync_count = 0;
+    selection_sync_entity_index = 0;
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    G_SyncClientSelection(client);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(selection_sync_count, 1);
+    T_EQ(selection_sync_entity_index, 1);
+    T_EQ(selection_sync_entities[0], second->s.number);
+}
+
+TEST(wc3_game, multiselect_payload_marks_the_focused_unit_type_subgroup) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT selected[3];
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    selected[0] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    selected[1] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    selected[2] = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64, 0);
+    FOR_LOOP(i, 3) {
+        selected[i]->svflags |= SVF_MONSTER;
+        selected[i]->s.player = 0;
+        G_SelectEntity(client, selected[i]);
+    }
+
+    multiselect_capture_count = 0;
+    memset(multiselect_capture_flags, 0, sizeof(multiselect_capture_flags));
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    UI_SendInfoPanel(player, selected, 3);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(multiselect_capture_count, 3);
+    T_ASSERT(multiselect_capture_flags[0] & UI_MULTISELECT_ITEM_FOCUSED);
+    T_ASSERT(multiselect_capture_flags[1] & UI_MULTISELECT_ITEM_FOCUSED);
+    T_ASSERT(!(multiselect_capture_flags[2] & UI_MULTISELECT_ITEM_FOCUSED));
+
+    T_ASSERT(G_FocusSelectedUnit(client, selected[2]));
+    multiselect_capture_count = 0;
+    memset(multiselect_capture_flags, 0, sizeof(multiselect_capture_flags));
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    UI_SendInfoPanel(player, selected, 3);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(multiselect_capture_count, 3);
+    T_ASSERT(!(multiselect_capture_flags[0] & UI_MULTISELECT_ITEM_FOCUSED));
+    T_ASSERT(!(multiselect_capture_flags[1] & UI_MULTISELECT_ITEM_FOCUSED));
+    T_ASSERT(multiselect_capture_flags[2] & UI_MULTISELECT_ITEM_FOCUSED);
+}
+
+TEST(wc3_game, multiselect_info_panel_refreshes_when_membership_shrinks) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT units[3];
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    FOR_LOOP(i, 3) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (FLOAT)(i * 32), 0);
+        units[i]->svflags |= SVF_MONSTER;
+        units[i]->s.player = 0;
+        G_SelectEntity(client, units[i]);
+    }
+
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    UI_SendInfoPanel(player, units, 3);
+    T_EQ(client->infopanel.entity, 0);
+    T_EQ(client->infopanel.hp, 3);
+
+    G_DeselectEntity(client, units[1]);
+    multiselect_capture_count = 0;
+    G_RefreshInfoPanel(player);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(multiselect_capture_count, 2);
+    T_EQ(client->infopanel.entity, 0);
+    T_EQ(client->infopanel.hp, 2);
+}
+
+TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT first, second;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    second = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 32, 0);
+    first->svflags |= SVF_MONSTER;
+    second->svflags |= SVF_MONSTER;
+    first->s.player = second->s.player = 0;
+    first->s.model = 11;
+    second->s.model = 22;
+    G_SelectEntity(client, first);
+    G_SelectEntity(client, second);
+    T_ASSERT(G_FocusSelectedUnit(client, second));
+
+    portrait_capture_root = 0;
+    portrait_capture_model = 0;
+    portrait_capture_parent = 0;
+    portrait_capture_count = 0;
+    portrait_capture_text_count = 0;
+    portrait_capture_root_widescreen = false;
+    portrait_capture_child_relative = false;
+    portrait_capture_text_relative = false;
+    gi.Write = portrait_test_write;
+    gi.unicast = selection_test_unicast;
+    gi.FontIndex = portrait_test_font;
+    UI_WriteSelectedPortraitLayer(player);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+
+    T_ASSERT(!portrait_capture_root_widescreen);
+    T_EQ(portrait_capture_root, 0);
+    T_EQ(portrait_capture_count, 1);
+    T_EQ(portrait_capture_model, 22);
+    T_EQ(portrait_capture_parent, 0);
+    T_ASSERT(portrait_capture_child_relative);
+    T_EQ(portrait_capture_text_count, 2);
+    T_ASSERT(portrait_capture_text_relative);
+
+    G_DeselectEntity(client, first);
+    G_DeselectEntity(client, second);
+    portrait_capture_root = 0;
+    portrait_capture_count = 0;
+    portrait_capture_root_widescreen = false;
+    gi.Write = portrait_test_write;
+    gi.unicast = selection_test_unicast;
+    gi.FontIndex = portrait_test_font;
+    UI_WriteSelectedPortraitLayer(player);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+
+    T_ASSERT(!portrait_capture_root_widescreen);
+    T_EQ(portrait_capture_root, 0);
+    T_EQ(portrait_capture_count, 0);
+}
+
+TEST(wc3_game, multiselect_portrait_live_stats_follow_focus) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT first, second;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    client->connected = true;
+    first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    second = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 32, 0);
+    first->s.player = second->s.player = 0;
+    first->health.value = 111.0f;
+    first->health.max_value = 222.0f;
+    first->mana.value = 12.0f;
+    first->mana.max_value = 34.0f;
+    second->health.value = 333.0f;
+    second->health.max_value = 444.0f;
+    second->mana.value = 55.0f;
+    second->mana.max_value = 66.0f;
+    G_SelectEntity(client, first);
+    G_SelectEntity(client, second);
+    client->infopanel.entity = 0;
+    client->infopanel.hp = 2;
+
+    T_ASSERT(G_FocusSelectedUnit(client, second));
+    G_RefreshInfoPanel(player);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH], 333);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH], 444);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 55);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA], 66);
+
+    T_ASSERT(G_FocusSelectedUnit(client, first));
+    G_RefreshInfoPanel(player);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_HEALTH], 111);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH], 222);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 12);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA], 34);
+}
+
 TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT player;

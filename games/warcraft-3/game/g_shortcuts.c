@@ -106,18 +106,6 @@ static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, DWORD slot) {
     return NULL;
 }
 
-static void G_SendShortcutSelection(LPEDICT clent, LPEDICT target) {
-    DWORD number;
-
-    if (!clent || !clent->client || !target || !target->inuse ||
-        !clent->client->connected) return;
-    number = (DWORD)(target - globals.edicts);
-    gi.Write(PF_BYTE, &(LONG){svc_set_selection});
-    gi.Write(PF_BYTE, &(LONG){1});
-    gi.Write(PF_LONG, &(LONG){number});
-    gi.unicast(clent);
-}
-
 static BOOL G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {
     LPGAMECLIENT client;
     DWORD bit;
@@ -133,11 +121,7 @@ static BOOL G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {
     }
     G_SelectEntity(client, target);
     G_QueueSelectionSound(target);
-    G_SendShortcutSelection(clent, target);
-    if (client->connected) {
-        Get_Portrait_f(clent);
-        Get_Commands_f(clent);
-    }
+    G_SyncClientSelection(client);
     return true;
 }
 

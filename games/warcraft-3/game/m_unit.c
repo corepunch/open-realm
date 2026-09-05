@@ -117,6 +117,7 @@ void unit_stand(LPEDICT self) {
 
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
+    DWORD const selected_mask = self ? self->selected : 0;
 
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
@@ -170,8 +171,22 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     if (attacker && attacker != self && attacker->s.player != self->s.player) {
         G_GrantKillXP(self, attacker);
     }
+    /* Corpses stop being selection members immediately. Mirror that server
+     * mutation to each connected client that had this unit selected; otherwise
+     * the packed multiselect layer and local current-selection cache can retain
+     * a dead icon until another explicit selection occurs. */
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        if (client->connected && client->ps.number < MAX_PLAYERS &&
+            (selected_mask & (1u << client->ps.number)))
+            G_SyncClientSelection(client);
+    }
+
     owner = G_GetPlayerClientByNumber(self->s.player);
-    if (owner && owner->ps.number == self->s.player) G_InvalidateCommands(owner);
+    if (owner && owner->ps.number == self->s.player &&
+        (!owner->connected || owner->ps.number >= MAX_PLAYERS ||
+         !(selected_mask & (1u << owner->ps.number))))
+        G_InvalidateCommands(owner);
 }
 
 void unit_birth(LPEDICT self) {
