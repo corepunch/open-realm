@@ -30,6 +30,7 @@
 #include "../client/client.h"
 
 void test_client_stubs_init(void);
+void test_client_stubs_set_window_size(DWORD width, DWORD height);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void test_client_stubs_set_world_bounds(BOX2 bounds);
 void test_client_stubs_set_existing_file(LPCSTR path);
@@ -1016,6 +1017,25 @@ TEST(net, ui_frame_delta_preserves_text_length) {
     T_EQ(out.textLength, 19);
 }
 
+TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
+    BYTE buf[128];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t from = {0}, to = { .number = 8 }, out = {0};
+    DWORD bits = 0;
+    int number;
+
+    to.flags.type = FT_BACKDROP;
+    to.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X;
+    MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaUIFrame(&sb, &out, number, bits);
+
+    T_EQ(number, 8);
+    T_EQ(out.flags.type, FT_BACKDROP);
+    T_ASSERT(out.flagsvalue & UIFLAG_EXTEND_WIDESCREEN_X);
+}
+
 TEST(net, ui_frame_delta_preserves_timed_status_binding) {
     BYTE buf[128];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -1040,6 +1060,43 @@ static VECTOR2 text_length_mock_size(LPCDRAWTEXT text) {
         return MAKE(VECTOR2, 0.006f, 0.012f);
     }
     return MAKE(VECTOR2, 0.018f, 0.012f);
+}
+
+TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = {0};
+    LPCRECT rect;
+
+    frame.number = 1;
+    frame.flags.type = FT_BACKDROP;
+    frame.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X;
+    frame.size.width = UI_BASE_WIDTH;
+    frame.size.height = 0.140f;
+    frame.points.x[FPP_MAX].used = 1;
+    frame.points.x[FPP_MAX].targetPos = FPP_MAX;
+    frame.points.x[FPP_MAX].relativeTo = 0;
+    frame.points.y[FPP_MAX].used = 1;
+    frame.points.y[FPP_MAX].targetPos = FPP_MAX;
+    frame.points.y[FPP_MAX].relativeTo = 0;
+
+    test_client_stubs_init();
+    test_client_stubs_set_window_size(1280, 720);
+    MSG_WriteByte(&sb, LAYER_CINEMATIC);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+
+    CL_ParseLayout(&sb);
+    SCR_Clear(cl.layout[LAYER_CINEMATIC]);
+    rect = SCR_LayoutRect(SCR_Frame(1));
+    T_NOT_NULL(rect);
+    T_FEQ(rect->x, 0.0f, 0.0001f);
+    T_FEQ(rect->w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
+    T_FEQ(rect->y, UI_BASE_HEIGHT - 0.140f, 0.0001f);
+    T_FEQ(rect->h, 0.140f, 0.0001f);
 }
 
 TEST(net, layout_text_length_uses_space_advance_for_implicit_width) {

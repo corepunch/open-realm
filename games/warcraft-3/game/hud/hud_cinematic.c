@@ -17,6 +17,13 @@
 void UI_LoadHudCinematic(void) {
     if (hud.cinematic.CinematicPanel) return;
     CinematicPanel_Load(&hud.cinematic);
+    /* Cinematic letterbox chrome is presentation, not 4:3 gameplay HUD content.
+     * Keep portrait/text authored in the centered safe area, but let the top
+     * and bottom backdrops reach the physical widescreen edges. */
+    if (hud.cinematic.CinematicBottomBorder)
+        hud.cinematic.CinematicBottomBorder->ui_flags |= UIFLAG_EXTEND_WIDESCREEN_X;
+    if (hud.cinematic.CinematicTopBorder)
+        hud.cinematic.CinematicTopBorder->ui_flags |= UIFLAG_EXTEND_WIDESCREEN_X;
 }
 
 /* Construct the message overlay frame tree inline; no FDF needed. */
