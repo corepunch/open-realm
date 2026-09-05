@@ -560,7 +560,7 @@ TEST(wc3_game, authoritative_selection_sync_mirrors_surviving_server_membership)
     void (*old_unicast)(LPEDICT) = gi.unicast;
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT player = &g_edicts[0];
-    LPEDICT first, second;
+    LPEDICT first, second, third;
 
     reset_entities();
     setup_test_world();
@@ -568,12 +568,13 @@ TEST(wc3_game, authoritative_selection_sync_mirrors_surviving_server_membership)
     client->ps.number = 0;
     client->connected = true;
     first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    second = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 32, 0);
-    first->svflags |= SVF_MONSTER;
-    second->svflags |= SVF_MONSTER;
-    first->s.player = second->s.player = 0;
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    third = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    first->svflags |= SVF_MONSTER; second->svflags |= SVF_MONSTER; third->svflags |= SVF_MONSTER;
+    first->s.player = second->s.player = third->s.player = 0;
     G_SelectEntity(client, first);
     G_SelectEntity(client, second);
+    G_SelectEntity(client, third);
 
     selection_sync_stage = 0;
     selection_sync_count = 0;
@@ -584,10 +585,11 @@ TEST(wc3_game, authoritative_selection_sync_mirrors_surviving_server_membership)
     gi.Write = old_write;
     gi.unicast = old_unicast;
 
-    T_EQ(selection_sync_count, 2);
-    T_EQ(selection_sync_entity_index, 2);
+    T_EQ(selection_sync_count, 3);
+    T_EQ(selection_sync_entity_index, 3);
     T_EQ(selection_sync_entities[0], first->s.number);
     T_EQ(selection_sync_entities[1], second->s.number);
+    T_EQ(selection_sync_entities[2], third->s.number);
 
     G_DeselectEntity(client, first);
     selection_sync_stage = 0;
@@ -599,9 +601,11 @@ TEST(wc3_game, authoritative_selection_sync_mirrors_surviving_server_membership)
     gi.Write = old_write;
     gi.unicast = old_unicast;
 
-    T_EQ(selection_sync_count, 1);
-    T_EQ(selection_sync_entity_index, 1);
+    /* Keep two survivors because this packet test owns no single-unit HUD bindings. */
+    T_EQ(selection_sync_count, 2);
+    T_EQ(selection_sync_entity_index, 2);
     T_EQ(selection_sync_entities[0], second->s.number);
+    T_EQ(selection_sync_entities[1], third->s.number);
 }
 
 TEST(wc3_game, multiselect_payload_marks_the_focused_unit_type_subgroup) {
@@ -693,7 +697,7 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
     int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT player = &g_edicts[0];
-    LPEDICT first, second;
+    LPEDICT first, second, third;
 
     reset_entities();
     setup_test_world();
