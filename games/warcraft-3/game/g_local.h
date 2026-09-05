@@ -1425,6 +1425,7 @@ void G_BindEntityData(LPEDICT);
 void G_BindEntityRuntime(LPEDICT);
 void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
+BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out);
 BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);

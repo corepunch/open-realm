@@ -24,6 +24,7 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 BOOL run_test_jass(LPCSTR src);
 extern LPPLAYER currentplayer;
@@ -1000,6 +1001,96 @@ TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     T_STREQ(gc->message.text, "");
     T_EQ(gc->message_log.count, 1);
     T_STREQ(gc->message_log.entries[0], "Timed message");
+}
+
+static LPEDICT find_test_unit(DWORD class_id) {
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == class_id) {
+            return g_edicts + i;
+        }
+    }
+    return NULL;
+}
+
+static void setup_set_unit_position_pathmap(void) {
+    enum { CELLS = 16 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+
+    /* Requested point (256,256) lies in cell (8,8). Buildings and other
+     * authored blockers are baked into this same no-walk map in production. */
+    pathmap[8 * CELLS + 8] = 2;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+}
+
+TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
+    LPEDICT moved;
+
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitPosition(mover, 256.0, 256.0)\n"
+        "endfunction\n"));
+
+    moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(moved);
+    /* Warsmash checks (256,256), then the first 64-unit spiral point below it. */
+    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+}
+
+TEST(wc3_api, unit_unstuck_search_skips_live_unit_collision) {
+    VECTOR2 const requested = {256.0f, 256.0f};
+    VECTOR2 out;
+    LPEDICT blocker;
+    LPEDICT mover;
+
+    setup_set_unit_position_pathmap();
+    blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 192.0f);
+    mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    blocker->s.model = mover->s.model = 1;
+    blocker->collision = mover->collision = 16.0f;
+
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    /* Requested point is static-blocked; the next spiral point is occupied. */
+    T_FEQ(out.x, 320.0f, 0.001f);
+    T_FEQ(out.y, 192.0f, 0.001f);
+}
+
+TEST(wc3_api, set_unit_position_loc_uses_same_unstuck_search) {
+    LPEDICT moved;
+
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  local location target = Location(256.0, 256.0)\n"
+        "  call SetUnitPositionLoc(mover, target)\n"
+        "endfunction\n"));
+
+    moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(moved);
+    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+}
+
+TEST(wc3_api, set_unit_x_y_remain_raw_coordinates_on_blocked_pathing) {
+    LPEDICT moved;
+
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit mover = CreateUnit(Player(0), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitX(mover, 256.0)\n"
+        "  call SetUnitY(mover, 256.0)\n"
+        "endfunction\n"));
+
+    moved = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(moved);
+    T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
+    T_FEQ(moved->s.origin.y, 256.0f, 0.001f);
 }
 
 TEST(wc3_api, set_unit_scale_uses_wc3_x_component_as_uniform_scale) {

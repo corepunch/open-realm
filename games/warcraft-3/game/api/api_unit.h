@@ -29,9 +29,27 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
-UNIT_TYPED_ACCESS(PositionLoc, s.origin2, location);
 UNIT_ACCESS(X, s.origin.x);
 UNIT_ACCESS(Y, s.origin.y);
+
+DWORD SetUnitPositionLoc(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
+    VECTOR2 position;
+
+    if (whichUnit && whichLocation) {
+        G_FindUnitUnstuckPosition(whichUnit, whichLocation, &position);
+        whichUnit->s.origin.x = position.x;
+        whichUnit->s.origin.y = position.y;
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+        gi.LinkEntity(whichUnit);
+    }
+    return 0;
+}
+DWORD GetUnitPositionLoc(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return whichUnit ? jass_pushlighthandle(j, &whichUnit->s.origin2, "location") : jass_pushnullhandle(j, "location");
+}
 UNITINFO_ACCESS(MoveSpeed);
 
 DWORD SetUnitFlyHeight(LPJASS j) {
@@ -146,11 +164,13 @@ DWORD GetUnitState(LPJASS j) {
 }
 DWORD SetUnitPosition(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
+    VECTOR2 requested = MAKE(VECTOR2, jass_checknumber(j, 2), jass_checknumber(j, 3));
+    VECTOR2 position;
+
     if (whichUnit) {
-        whichUnit->s.origin.x = x;
-        whichUnit->s.origin.y = y;
+        G_FindUnitUnstuckPosition(whichUnit, &requested, &position);
+        whichUnit->s.origin.x = position.x;
+        whichUnit->s.origin.y = position.y;
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         gi.LinkEntity(whichUnit);
     }
