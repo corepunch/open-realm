@@ -65,6 +65,10 @@ When a shared dispatcher needs a new game behavior, first locate its function-ta
 exists, implement the command in the selected game's module. If it does not exist, add a narrow table entry;
 do not substitute a per-game preprocessor guard or a hardcoded command branch in the shared dispatcher.
 
+## Opaque game commands to a selected renderer
+
+Presentation state that is neither an entity snapshot nor generic client state may use the reliable `svc_gamecmd` channel. `CL_ParseGameCommand()` forwards every bounded opaque payload through `refExport_t.GameCommand`; each selected game renderer decides whether it owns the command. Shared client code must not branch on a game-specific command string. Warcraft III weather is the reference: `games/warcraft-3/game/g_weather.c` sends `wc3_weather`, while `games/warcraft-3/renderer/r_weather.c` consumes it. WoW/SC2 renderer hooks remain no-ops. See [WC3 Weather](../games/warcraft-3/weather.md).
+
 ## Selection-scoped world indicators
 
 Persistent local markers such as Warcraft III's Rally destination are ordinary game-owned edicts. The game resolves and registers the model, sets `SVF_OWNER_ONLY`, and stores the recipient in `entityState_t.player`; `SV_BuildClientFrame` excludes the edict from every other client's snapshot. Point markers use an authoritative world origin, while widget markers use the normal linked-edict movement path to follow their target.

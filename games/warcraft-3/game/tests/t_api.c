@@ -2380,6 +2380,76 @@ TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
     T_EQ(created->stock.item_slots, 3); T_EQ(created->stock.unit_slots, 4);
 }
 
+TEST(wc3_api, weather_effect_native_preserves_bounds_id_and_enable_state) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  weathereffect w = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local rect r = Rect(-256.0, -128.0, 512.0, 384.0)\n"
+        "  set w = AddWeatherEffect(r, 'RAhr')\n"
+        "  call EnableWeatherEffect(w, true)\n"
+        "endfunction\n"));
+
+    T_ASSERT(level.weather_effects[0].inuse);
+    T_ASSERT(level.weather_effects[0].enabled);
+    T_EQ(level.weather_effects[0].effect_id, MAKEFOURCC('R','A','h','r'));
+    T_FEQ(level.weather_effects[0].bounds.min.x, -256.0f, 0.001f);
+    T_FEQ(level.weather_effects[0].bounds.min.y, -128.0f, 0.001f);
+    T_FEQ(level.weather_effects[0].bounds.max.x, 512.0f, 0.001f);
+    T_FEQ(level.weather_effects[0].bounds.max.y, 384.0f, 0.001f);
+}
+
+TEST(wc3_api, weather_effect_native_remove_releases_runtime_slot) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local rect r = Rect(0.0, 0.0, 128.0, 128.0)\n"
+        "  local weathereffect w = AddWeatherEffect(r, 'RAlr')\n"
+        "  call EnableWeatherEffect(w, true)\n"
+        "  call RemoveWeatherEffect(w)\n"
+        "endfunction\n"));
+
+    T_ASSERT(!level.weather_effects[0].inuse);
+}
+
+TEST(wc3_api, authored_global_and_region_weather_start_enabled) {
+    MAPINFO info = {0};
+    mapWeatherRegion_t region = {
+        .bounds = { .min = {-64.0f, -32.0f}, .max = {96.0f, 160.0f} },
+        .weatherID = MAKEFOURCC('R','L','l','r'),
+    };
+
+    info.weatherID = MAKEFOURCC('R','A','h','r');
+    info.num_weatherRegions = 1;
+    info.weatherRegions = &region;
+    level.mapinfo = &info;
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {-512.0f, -384.0f}, .max = {512.0f, 384.0f}));
+
+    G_WeatherInitMap();
+
+    T_ASSERT(level.weather_effects[0].inuse);
+    T_ASSERT(level.weather_effects[0].enabled);
+    T_EQ(level.weather_effects[0].effect_id, info.weatherID);
+    T_FEQ(level.weather_effects[0].bounds.min.x, -512.0f, 0.001f);
+    T_FEQ(level.weather_effects[0].bounds.max.y, 384.0f, 0.001f);
+    T_ASSERT(level.weather_effects[1].inuse);
+    T_ASSERT(level.weather_effects[1].enabled);
+    T_EQ(level.weather_effects[1].effect_id, region.weatherID);
+    T_FEQ(level.weather_effects[1].bounds.min.x, -64.0f, 0.001f);
+    T_FEQ(level.weather_effects[1].bounds.max.y, 160.0f, 0.001f);
+}
+
+TEST(wc3_api, weather_effect_handle_round_trips_through_save_codec) {
+    BOX2 bounds = { .min = {-32.0f, -16.0f}, .max = {64.0f, 96.0f} };
+    LPGWEATHER effect = G_WeatherAdd(&bounds, MAKEFOURCC('R','A','l','r'), false);
+    DWORD id = UINT32_MAX;
+
+    T_NOT_NULL(effect);
+    T_ASSERT(G_SaveJassHandle("weathereffect", effect, &id));
+    T_EQ(id, 0);
+    T_EQ(G_LoadJassHandle("weathereffect", id), effect);
+}
+
 /* =========================================================================
  * Test suite entry point
  * ========================================================================= */

@@ -754,6 +754,9 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
     if (menu.GameCommand) {
         menu.GameCommand(command, payload.data, payload.cursize);
     }
+    if (re.GameCommand) {
+        re.GameCommand(command, payload.data, payload.cursize);
+    }
     if (!strcmp(command, "lobby_setup")) {
         CL_ParseLobbySetup(&payload);
     } else if (!strcmp(command, "lobby_chat")) {

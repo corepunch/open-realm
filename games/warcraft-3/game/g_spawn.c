@@ -416,6 +416,7 @@ void G_SpawnEntities(void) {
     }
     if (mapinfo)
         G_SetCameraBounds(mapinfo->cameraBounds.bounds);
+    G_WeatherInitMap();
 
     globals.num_edicts = game.max_clients;
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */

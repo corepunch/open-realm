@@ -92,7 +92,7 @@ These migrations are deliberately presentation-only. They do not change damage/h
 
 `AddSpecialEffect*` takes an explicit model path and does not consult ability data. `AddSpellEffect*` takes an ability rawcode/string plus a converted effect type and resolves the corresponding ability presentation field. A returned JASS `effect` handle points at the independent effect edict, not at the target unit. Destroying the effect therefore cannot overwrite or clear the target unit's `model2` state.
 
-The three weather-effect natives remain placeholders. `LIGHTNING` also remains unsupported by the model-effect resolver because Warcraft lightning requires a dedicated endpoint/colour/movement lifecycle rather than an MDX model path.
+Weather effects now use a separate map-lifetime handle/renderer path rather than effect edicts: W3I/W3R/JASS weather is keyed by `TerrainArt\Weather.slk`, synchronized through a renderer game command, and emitted through the shared particle pool. See [Weather](weather.md) for the implemented fields and deliberate compatibility gaps. `LIGHTNING` remains unsupported by the model-effect resolver because Warcraft lightning requires a dedicated endpoint/colour/movement lifecycle rather than an MDX model path.
 
 ## Item Use And Charges
 

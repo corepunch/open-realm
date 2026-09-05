@@ -6,14 +6,14 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 9, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 10, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot and a raw `edict_t` block for used slots;
-- group membership, trigger enabled state, timer state, unread gameplay events, and a semantic JASS VM snapshot;
+- group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
@@ -31,6 +31,8 @@ The current format is process-independent for entity relationships: `F_EDICT` fi
 
 Groups, triggers, timers, and events use deterministic creation ordinals. Group membership is stored as entity indexes. Each trigger stores its disabled flag plus action/condition function names so a trigger created after `main()` still has its callbacks after load. Timers preserve their handler name, duration, remaining time, periodic/paused/running flags, and resume relative to the load time. Timer callbacks and timer-expire trigger actions enter the normal coroutine queue and retain `GetExpiredTimer()` context.
 
+Weather effects use the same stable-slot rule. `level.weather_effects[MAX_WEATHER_EFFECTS]`, `next_weather_id`, each slot's rawcode, rectangle, enabled flag, and renderer handle ID are serialized as level state. A non-null JASS `weathereffect` snapshots as its fixed slot index, so globals keep pointer identity across load. `ReadGame()` restores the registry before the JASS snapshot and replays it to connected clients; reconnecting clients also receive the same full weather sync from `G_ClientBegin()`. See [Weather](weather.md).
+
 Event handler registrations store type, subject entity index, trigger index, timer index, region, range, game-state ID, `limitop`, and limit value. The extra condition fields preserve `TriggerRegisterGameStateEvent` time-of-day registrations across save/load. The unread portion of the bounded gameplay event ring preserves event type, subject/source entity indexes, and the target registration ordinal. Consumed queue entries are not saved. Loads reject queue overflow and unresolved entity or registration IDs.
 
 ## JASS Snapshot
@@ -44,7 +46,7 @@ The embedded snapshot starts with `JSVM`, snapshot format version 2, a program-i
 - `boolexpr`, `conditionfunc`, and `filterfunc` handles by semantic JASS function name;
 - sleeping coroutine frames as function/block token ordinals, locals, operand stack values, wake delay, and event context.
 
-The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, and timers. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
+The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, timers, and weather effects. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
 
 Handle encoding dispatches value handles, VM-owned payloads, and function handles before consulting the game host. A failed host lookup means null only for host-owned native domains, such as a removed unit; applying that rule to VM-owned handles would silently replace valid sounds, camera setups, rects, locations, forces, and game caches with null.
 
@@ -109,7 +111,7 @@ Q2 `ReadLevel` states the contract we hit: SpawnEntities has already run the sam
 
 Do not replace JASS VM `HANDLE` / `LPCJASSFUNC` / `LPEDICT` fields with integers. Q2 keeps `edict_t *` and `think` pointers in memory and remaps them in `WriteField1` / `ReadField`. The VM should do the same.
 
-- Host-owned natives (`unit`, `widget`, `item`, `player`, `quest`, `trigger`, `group`, `timer`, `event`) already snapshot as stable ordinals through `G_SaveJassHandle` / `G_LoadJassHandle`.
+- Host-owned natives (`unit`, `widget`, `item`, `player`, `quest`, `trigger`, `group`, `timer`, `event`, `weathereffect`) snapshot as stable ordinals through `G_SaveJassHandle` / `G_LoadJassHandle`.
 - VM-owned payloads (sounds, rects, locations, forces, game caches) snapshot identity plus bytes.
 - `code` / trigger actions snapshot as function names, the analog of Q2 `F_FUNCTION` without a relocated code segment.
 
@@ -117,7 +119,7 @@ Integer handle tables inside the interpreter would duplicate that field table, b
 
 HUD FDF trees cache `CS_IMAGES` / `CS_FONTS` slots. Those tables die with `memset(&sv)` in `SV_Map`. `G_LoadMap` memsets the single `hud` accumulator and clears the FDF pool; serialize then re-`ImageIndex`es from names. See [HUD Media Lifetime](hud-media.md).
 
-The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Edict C callbacks persist through `F_CFUNCTION` (see [C Callbacks](#c-callbacks-f_cfunction)); the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior-f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v8 or earlier saves. Version 9 packs C-callback roster indexes into the edict blob that version 8 zeroed and rebound from class data.
+The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Edict C callbacks persist through `F_CFUNCTION` (see [C Callbacks](#c-callbacks-f_cfunction)); the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior-f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v9 or earlier saves. Version 9 packs C-callback roster indexes into the edict blob that version 8 zeroed and rebound from class data. Version 10 adds the fixed weather-effect registry, weather handle IDs, and the `weathereffect` JASS handle codec; after load the authoritative weather set is replayed to connected clients.
 
 The checksum and header preflight protect normal partial/corrupt-file and wrong-map failures before mutation. Record-level semantic validation later in the stream is not fully transactional; do not treat save files as untrusted input until native records are decoded into temporary state before commit.
 
@@ -188,7 +190,7 @@ from that index after the hash matches. NULL stays 0/0. An unrostered pointer fa
 `C callback %p is not in the save roster`; a bad index or hash fails the load instead of installing
 a wild pointer.
 
-The roster is append-only because the index is in the file. Production assignments as of version 9:
+The roster is append-only because the index is in the file. Production assignments retained by version 10:
 `monster_think`, `blight_mine_think`, `G_FreeEdict`, `G_EffectThink`, `G_EffectValidateTarget`,
 `blizzard_think`, `flame_strike_tick`, `siphon_mana_think`, `unit_stand`/`unit_birth`/`unit_die`,
 and `tree_stand`/`tree_birth`/`tree_pain`/`tree_die`. `idle`/`move`/`run`/`attack` have no

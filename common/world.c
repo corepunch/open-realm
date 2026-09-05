@@ -297,6 +297,7 @@ static void MapInfo_Release(LPMAPINFO mapInfo) {
     SAFE_DELETE(mapInfo->techAvailabilities, MemFree);
     SAFE_DELETE(mapInfo->randomUnits, MemFree);
     SAFE_DELETE(mapInfo->randomItems, MemFree);
+    SAFE_DELETE(mapInfo->weatherRegions, MemFree);
     while (string) {
         mapTrigStr_t *next = string->next;
         MemFree(string);

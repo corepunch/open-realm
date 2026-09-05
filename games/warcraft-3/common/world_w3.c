@@ -57,6 +57,83 @@ void CM_ReadUnits(HANDLE archive);
 void CM_ReadStrings(HANDLE archive);
 void CM_ReadMapScript(HANDLE archive);
 
+/* war3map.w3r v5 stores editor regions.  Weather is one field on each region;
+ * keep only the bounds + weather rawcode in collision-model state because the
+ * remaining name/sound/color metadata belongs to other presentation systems. */
+static BOOL CM_W3SkipCString(HANDLE file) {
+    BYTE ch = 0;
+    do {
+        if (!SFileReadFile(file, &ch, sizeof(ch), NULL, NULL)) return false;
+    } while (ch != 0);
+    return true;
+}
+
+static BOOL CM_W3ReadWeatherRegions(HANDLE archive) {
+    HANDLE file;
+    DWORD version = 0, count = 0, stored = 0;
+    mapWeatherRegion_t *regions = NULL;
+
+    if (!archive || !SFileOpenFileEx(archive, "war3map.w3r", SFILE_OPEN_FROM_MPQ, &file)) return true;
+    if (!SFileReadFile(file, &version, sizeof(version), NULL, NULL) ||
+        !SFileReadFile(file, &count, sizeof(count), NULL, NULL)) {
+        SFileCloseFile(file);
+        return false;
+    }
+    if (version != 5) {
+        SFileCloseFile(file);
+        return false;
+    }
+    /* The smallest v5 record is 30 bytes (two empty C strings); reject corrupt
+     * counts before allocating from map-controlled input. */
+    {
+        DWORD pos = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
+        DWORD size = SFileGetFileSize(file, NULL);
+        DWORD remaining = pos < size ? size - pos : 0;
+        if (count > remaining / 30u) {
+            SFileCloseFile(file);
+            return false;
+        }
+    }
+    if (count) {
+        regions = MemAlloc(sizeof(*regions) * count);
+        if (!regions) {
+            SFileCloseFile(file);
+            return false;
+        }
+        memset(regions, 0, sizeof(*regions) * count);
+    }
+    FOR_LOOP(i, count) {
+        BOX2 bounds;
+        DWORD region_id, weather_id;
+        BYTE color[4];
+
+        if (!SFileReadFile(file, &bounds.min.x, sizeof(FLOAT), NULL, NULL) ||
+            !SFileReadFile(file, &bounds.min.y, sizeof(FLOAT), NULL, NULL) ||
+            !SFileReadFile(file, &bounds.max.x, sizeof(FLOAT), NULL, NULL) ||
+            !SFileReadFile(file, &bounds.max.y, sizeof(FLOAT), NULL, NULL) ||
+            !CM_W3SkipCString(file) ||
+            !SFileReadFile(file, &region_id, sizeof(region_id), NULL, NULL) ||
+            !SFileReadFile(file, &weather_id, sizeof(weather_id), NULL, NULL) ||
+            !CM_W3SkipCString(file) ||
+            !SFileReadFile(file, color, sizeof(color), NULL, NULL)) {
+            MemFree(regions);
+            SFileCloseFile(file);
+            return false;
+        }
+        (void)region_id;
+        if (!weather_id) continue;
+        regions[stored++] = (mapWeatherRegion_t){ .bounds = bounds, .weatherID = weather_id };
+    }
+    SFileCloseFile(file);
+    if (!stored) {
+        MemFree(regions);
+        regions = NULL;
+    }
+    world.info.weatherRegions = regions;
+    world.info.num_weatherRegions = stored;
+    return true;
+}
+
 static void CM_W3FreeUnitOverrides(DWORD count, unitData_t **units_ptr) {
     unitData_t *units = units_ptr ? *units_ptr : NULL;
 
@@ -126,6 +203,7 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
     CM_ReadUnitDoodads(mapArchive);
     CM_ReadHeightmap(mapArchive);
     CM_ReadInfo(mapArchive);
+    CM_W3ReadWeatherRegions(mapArchive);
     CM_ReadUnits(mapArchive);
     CM_ReadStrings(mapArchive);
     CM_ReadMapScript(mapArchive);

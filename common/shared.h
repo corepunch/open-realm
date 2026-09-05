@@ -1158,6 +1158,7 @@ typedef struct particle_s {
     VECTOR3 org;
     VECTOR3 vel;
     VECTOR3 accel;
+    VECTOR3 tail;       /* optional world-space trail vector; zero keeps billboard behavior */
     COLOR32 color[3];
     BYTE size[3];
     BYTE midtime;
