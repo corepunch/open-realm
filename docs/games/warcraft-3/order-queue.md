@@ -146,7 +146,7 @@ OpenRealm does not yet have Warsmash's per-ability `onCancelFromQueue()` reserva
 
 The queue is inline numeric data inside `edict_t`; it contains no process pointers, so it persists with the existing raw-edict save record without adding an `F_EDICT` field. Entity targets remain number + `spawn_time` and are re-resolved only at execution.
 
-Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 3: version 2 added player result-presentation state, and version 3 expands the fixed-size `GAMECLIENT` cinematic-camera state. The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue` and `order_queued` because targeting callbacks/menu modes are rebuilt rather than persisted.
+Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 10; its evolution and compatibility policy are tracked in [Save/Load](save-load.md). The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue` and `order_queued` because targeting callbacks/menu modes are rebuilt rather than persisted.
 
 The existing save/load limitation still applies: arbitrary active `umove_t` behavior identity is not semantically restored. Pending queue records are persisted, but exact mid-order resume requires the separate active-behavior save work described in [Save/Load](save-load.md).
 

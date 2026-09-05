@@ -176,6 +176,11 @@ typedef enum {
     mod_attackBits,
 } unitModificationType_t;
 
+typedef struct {
+    BOX2 bounds;
+    DWORD weatherID;
+} mapWeatherRegion_t;
+
 typedef struct unitModification_t {
     DWORD modID;
     unitModificationType_t type;
@@ -239,6 +244,7 @@ struct mapInfo_s {
     DWORD num_randomItems;
     DWORD num_originalUnits;
     DWORD num_userCreatedUnits;
+    DWORD num_weatherRegions;
     mapPlayer_t players[MAX_PLAYERS];
     mapTeam_t *teams;
     mapUpgradeAvailability_t *upgradeAvailabilities;
@@ -248,6 +254,7 @@ struct mapInfo_s {
     mapTrigStr_t *strings;
     unitData_t *originalUnits;
     unitData_t *userCreatedUnits;
+    mapWeatherRegion_t *weatherRegions;
     LPSTR mapscript;
 };
 

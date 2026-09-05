@@ -1,15 +1,19 @@
 DWORD AddWeatherEffect(LPJASS j) {
-    //HANDLE where = jass_checkhandle(j, 1, "rect");
-    //LONG effectID = jass_checkinteger(j, 2);
-    return jass_pushnullhandle(j, "weathereffect");
+    LPCBOX2 where = jass_checkhandle(j, 1, "rect");
+    DWORD effectID = (DWORD)jass_checkinteger(j, 2);
+    LPGWEATHER effect = G_WeatherAdd(where, effectID, false);
+    return effect ? jass_pushlighthandle(j, effect, "weathereffect")
+                  : jass_pushnullhandle(j, "weathereffect");
 }
 DWORD RemoveWeatherEffect(LPJASS j) {
-    //HANDLE whichEffect = jass_checkhandle(j, 1, "weathereffect");
+    LPGWEATHER whichEffect = jass_checkhandle(j, 1, "weathereffect");
+    G_WeatherRemove(whichEffect);
     return 0;
 }
 DWORD EnableWeatherEffect(LPJASS j) {
-    //HANDLE whichEffect = jass_checkhandle(j, 1, "weathereffect");
-    //BOOL enable = jass_checkboolean(j, 2);
+    LPGWEATHER whichEffect = jass_checkhandle(j, 1, "weathereffect");
+    BOOL enable = jass_checkboolean(j, 2);
+    G_WeatherEnable(whichEffect, enable);
     return 0;
 }
 

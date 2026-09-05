@@ -41,6 +41,7 @@ The first row (`Y=1`) contains column headers. Subsequent rows hold data records
 | `Units\UpgradeData.slk` | Research costs and effects |
 | `Doodads\Doodads.slk` | Doodad model paths and properties |
 | `Units\DestructableData.slk` | Destructible HP, death animation |
+| `TerrainArt\Weather.slk` | Weather particle texture, motion, lifetime, colour/alpha/scale, ambient-sound key |
 
 ## INI / Profile Files
 
@@ -96,6 +97,8 @@ Every typed row contains its source FOURCC and every ROC/TFT column. Native colu
 Spawned entities bind immutable pointers to their rows once in `SP_CallSpawn`, so gameplay uses `unit->balance->agilityPerLevel`, `unit->ui->modelFile`, or `unit->weapons->attack2.damageBase`. The mutable values derived at spawn remain in `unit->runtime`; this is separate from the immutable `UnitBalance_t`. Code that only has a FOURCC uses `G_UnitBalance(id)` and the other indexed lookup functions. Typed passthrough `UNIT_*`, `ITEM_*`, and `DESTRUCTABLE_*` macros are not part of this path; only Profile/INI fields remain macro-backed.
 
 `UnitsMetaData` is a compile-time FOURCC dispatch table. Descriptor IDs are readable four-character string literals compared at runtime as fixed-width `DWORD` keys. Each descriptor also contains the `offsetof(edict_t, cachedRow)`, the `offsetof(TypedRow_t, member)`, and its `bzFieldType_t`. `UnitMetaString`, `UnitMetaInteger`, `UnitMetaBoolean`, and `UnitMetaReal` find that descriptor, read the immutable row pointer already cached on the edict, and address the typed member directly. Startup does not bind SLK or column-name strings, and these accessors do not consult the global typed-row indexes.
+
+`TerrainArt\Weather.slk` is a presentation exception to the gameplay `slk_stores[]` list. `games/warcraft-3/renderer/r_weather.c` owns its typed schema and loads it after `R_SetMapAssetScope()`, first trying the map-scoped file and then the base-game file. This keeps custom map weather overrides in the renderer asset scope and avoids exposing weather rows as unit/gameplay metadata. See [Weather](../weather.md).
 
 `BZ_FIELD_CSTR` values are duplicated while decoding, so typed rows do not borrow parser-arena strings. `FS_SLKFreeRows` walks the same DDX schema, frees each unique string offset, and frees the row array. This unique-offset rule is required for release aliases such as ItemData `class`/`itemClass` and DestructableData `Name`/`name`.
 

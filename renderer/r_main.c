@@ -935,6 +935,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .LoadModel = R_LoadRegisteredModel,
         .LoadFont = R_LoadFont,
         .SetFogOfWarData = R_SetFogOfWarData,
+        .GameCommand = R_GameCommand,
         .ReleaseTexture = R_ReleaseTexture,
         .ReleaseModel = R_ReleaseRegisteredModel,
         .RenderFrame = R_RenderFrame,

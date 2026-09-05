@@ -2188,6 +2188,44 @@ TEST(wc3_save, round_trip_jass_globals) {
     remove(filename);
 }
 
+TEST(wc3_save, round_trip_weather_effect_state_and_handle) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-weather-save-test.bin";
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  weathereffect savedWeather = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local rect r = Rect(-128.0, -64.0, 256.0, 320.0)\n"
+        "  set savedWeather = AddWeatherEffect(r, 'RAhr')\n"
+        "  call EnableWeatherEffect(savedWeather, true)\n"
+        "endfunction\n"
+        "function disableSavedWeather takes nothing returns nothing\n"
+        "  call EnableWeatherEffect(savedWeather, false)\n"
+        "endfunction\n"));
+    T_ASSERT(level.weather_effects[0].inuse && level.weather_effects[0].enabled);
+    DWORD saved_handle = level.weather_effects[0].handle_id;
+    T_ASSERT(WriteGame(filename));
+
+    level.weather_effects[0].enabled = false;
+    level.weather_effects[0].effect_id = 0;
+    memset(&level.weather_effects[0].bounds, 0, sizeof(level.weather_effects[0].bounds));
+    level.next_weather_id = 0;
+
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(level.weather_effects[0].inuse && level.weather_effects[0].enabled);
+    T_EQ(level.weather_effects[0].handle_id, saved_handle);
+    T_EQ(level.weather_effects[0].effect_id, MAKEFOURCC('R','A','h','r'));
+    T_FEQ(level.weather_effects[0].bounds.min.x, -128.0f, 0.001f);
+    T_FEQ(level.weather_effects[0].bounds.max.y, 320.0f, 0.001f);
+    T_EQ(level.next_weather_id, saved_handle);
+
+    jass_callbyname(level.vm, "disableSavedWeather", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!level.weather_effects[0].enabled);
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_jass_timers) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-jass-timer-save-test.bin";
     T_ASSERT(run_test_jass(

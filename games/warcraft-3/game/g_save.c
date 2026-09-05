@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 9; // edict C callbacks persist as F_CFUNCTION roster index+name hash
+static DWORD const save_version = 10; // weather handles/state join the persisted WC3 native registries
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
 
@@ -133,6 +133,7 @@ typedef enum {
     JASS_HANDLE_TRIGGER,
     JASS_HANDLE_GROUP,
     JASS_HANDLE_TIMER,
+    JASS_HANDLE_WEATHER,
 } jassHandleDomain_t;
 
 static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
@@ -148,6 +149,17 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "trigger", JASS_HANDLE_TRIGGER },
     { "group", JASS_HANDLE_GROUP },
     { "timer", JASS_HANDLE_TIMER },
+    { "weathereffect", JASS_HANDLE_WEATHER },
+};
+
+
+static field_t const weather_fields[] = {
+    TF(gweather_t, inuse, F_INT),
+    TF(gweather_t, enabled, F_INT),
+    TF(gweather_t, handle_id, F_INT),
+    TF(gweather_t, effect_id, F_INT),
+    TF(gweather_t, bounds, F_VECTOR),
+    { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const save_event_fields[] = {
@@ -234,6 +246,8 @@ static field_t const level_fields[] = {
     F(level_locals, waypoints.base, F_INT),
     F(level_locals, waypoints.cursor, F_INT),
     F(level_locals, waypoints.count, F_INT),
+    F(level_locals, next_weather_id, F_INT),
+    F(level_locals, weather_effects, F_STRUCT, MAX_WEATHER_EFFECTS, weather_fields),
     F(level_locals, quests, F_STRUCT, MAX_QUESTS, quest_fields),
     FC(level_locals, groups, F_STRUCT, MAX_GROUPS, group_fields, num_groups),
     FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
@@ -605,6 +619,8 @@ static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
             FOR_EACH_QUESTITEM(quest, item) if (index++ == id) return item;
     } else if (domain == JASS_HANDLE_EVENT) {
         return EventById(id);
+    } else if (domain == JASS_HANDLE_WEATHER) {
+        if (id < MAX_WEATHER_EFFECTS && level.weather_effects[id].inuse) return &level.weather_effects[id];
     } else if (domain == JASS_HANDLE_TRIGGER && id < level.num_triggers) return &level.triggers[id];
     else if (domain == JASS_HANDLE_TIMER && id < level.num_timers) return &level.timers[id];
     return NULL;
@@ -639,6 +655,13 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
     }
     if (domain == JASS_HANDLE_TIMER) {
         return TimerIndex(value, id);
+    }
+    if (domain == JASS_HANDLE_WEATHER) {
+        LPGWEATHER effect = value;
+        if (effect < level.weather_effects || effect >= level.weather_effects + MAX_WEATHER_EFFECTS || !effect->inuse)
+            return false;
+        *id = (DWORD)(effect - level.weather_effects);
+        return true;
     }
     if (domain == JASS_HANDLE_QUEST) {
         if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
@@ -1131,6 +1154,13 @@ BOOL ReadGame(LPCSTR filename) {
             ent->owner->client->rally_indicator = ent;
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        LPEDICT ent;
+        if (!client->connected) continue;
+        ent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (ent) G_WeatherSyncClient(ent);
+    }
     fclose(f);
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;

@@ -1,6 +1,7 @@
 #include "renderer/r_game.h"
 #include "mdx/r_mdx.h"
 #include "w3m/r_war3map.h"
+#include "r_weather.h"
 #include "common/stb_slk.h"
 #include "games/warcraft-3/common/minimap.h"
 
@@ -99,6 +100,7 @@ void R_LoadAssets(void) {
 
 void R_Init(void) {
     cursor_model = NULL; cursor_load_attempted = false;
+    R_WeatherInit();
     MDLX_Init();
 }
 
@@ -112,6 +114,7 @@ void R_Shutdown(void) {
     FS_SLKFreeIndex(&g_cliff_idx);
     FS_SLKFreeRows(cliff_schema, g_cliff_rows, g_cliff_count, sizeof(w3CliffType_t));
     g_cliff_rows = NULL; g_cliff_count = 0;
+    R_WeatherShutdown();
     MDLX_Shutdown();
 }
 
@@ -171,7 +174,12 @@ void R_DrawMinimap(LPCRECT screen) {
 void R_RegisterMap(LPCSTR mapFileName) {
     R_SetMapAssetScope(mapFileName);
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
+    R_WeatherRegisterMap();
     _W3M_RegisterMap(mapFileName);
+}
+
+void R_GameCommand(LPCSTR command, void const *data, DWORD size) {
+    R_WeatherCommand(command, data, size);
 }
 
 void R_SetupEnvironmentLighting(void) {
@@ -194,6 +202,7 @@ void R_DrawTerrainShadows(void) {
 
 void R_DrawAlphaSurfaces(void) {
     _W3M_DrawAlphaSurfaces();
+    R_WeatherEmit();
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {

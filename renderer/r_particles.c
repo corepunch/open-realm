@@ -8,6 +8,7 @@ typedef struct particle_vertex {
     VECTOR3 position;
     COLOR32 color;
     float size;
+    VECTOR3 tail;
     BYTE uv[2];
     BYTE axis[2];
 } particleVertex_t;
@@ -16,6 +17,7 @@ typedef struct PARTICLESTATE {
     MATRIX4 viewProjection;
     MATRIX4 textureMatrix;
     MATRIX4 model;
+    VECTOR3 eye;
     int texture;
     int fogOfWar;
     bool alphaKey;
@@ -60,6 +62,7 @@ cparticle_t *R_SpawnParticle(void) {
     p->next = active_particles;
     active_particles = p;
     p->blend_mode = BLEND_MODE_ADD;
+    p->tail = (VECTOR3){0};
     p->size_value_scale = p->size_time_scale = 1.0f;
     return p;
 }
@@ -71,6 +74,7 @@ static const shader_desc_t sd_particle = {
         UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(textureMatrix,  UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(eye,            UT_FLOAT_VEC3, PRECISION_HIGH),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(alphaKey,       UT_BOOL,       PRECISION_LOW),
@@ -81,6 +85,7 @@ static const shader_desc_t sd_particle = {
         ATTRIB(color,    attrib_color,        UT_COLOR),
         ATTRIB(texcoord, attrib_texcoord,     UT_FLOAT_VEC2),
         ATTRIB(size,     attrib_particleSize, UT_FLOAT),
+        ATTRIB(tail,     attrib_particleTail, UT_FLOAT_VEC3),
         ATTRIB(axis,     attrib_particleAxis, UT_FLOAT_VEC2),
     },
     .Shared = {
@@ -91,10 +96,20 @@ static const shader_desc_t sd_particle = {
     .VertexBody =
         "vec4 vert() {\n"
         "  mat4 m = u_viewProjection;\n"
-        "  vec3 left = normalize(vec3(m[0][0], m[1][0], m[2][0])) * a_size;\n"
+        "  vec3 cameraLeft = normalize(vec3(m[0][0], m[1][0], m[2][0]));\n"
+        "  vec3 left = cameraLeft * a_size;\n"
         "  vec3 up = normalize(vec3(m[0][1], m[1][1], m[2][1])) * a_size;\n"
-        "  mat3 bb_mat = mat3(left, up, a_position);\n"
-        "  vec3 pos = bb_mat * vec3(a_axis - vec2(0.5), 1.0);\n"
+        "  vec3 pos;\n"
+        "  if (dot(a_tail, a_tail) > 0.0001) {\n"
+        "    vec3 point = a_position - a_tail * (1.0 - a_axis.y);\n"
+        "    vec3 side = cross(normalize(a_tail), u_eye - point);\n"
+        "    float sideLength = length(side);\n"
+        "    if (sideLength < 0.0001) side = cameraLeft; else side /= sideLength;\n"
+        "    pos = point + side * ((a_axis.x - 0.5) * a_size);\n"
+        "  } else {\n"
+        "    mat3 bb_mat = mat3(left, up, a_position);\n"
+        "    pos = bb_mat * vec3(a_axis - vec2(0.5), 1.0);\n"
+        "  }\n"
         "  v_color = a_color;\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_texcoord2 = (u_textureMatrix * vec4(pos, 1.0)).xy;\n"
@@ -123,6 +138,7 @@ static const shader_desc_t sd_particle = {
 particleVertex_t *
 R_AddParticle(particleVertex_t *buffer,
               LPCVECTOR3 point,
+              LPCVECTOR3 tail,
               COLOR32 uvr,
               COLOR32 color,
               float size)
@@ -130,12 +146,12 @@ R_AddParticle(particleVertex_t *buffer,
     BYTE a = 0x00, b = 0xff;
     LPBYTE uv = (LPBYTE)&uvr;
     particleVertex_t const data[NUM_PARTICLE_VERTICES] = {
-        { .position = *point, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
-        { .position = *point, .uv = {uv[2],uv[1]}, .axis = {b,a}, .color = color, .size = size },
-        { .position = *point, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .uv = {uv[0],uv[3]}, .axis = {a,b}, .color = color, .size = size },
-        { .position = *point, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[1]}, .axis = {b,a}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[3]}, .axis = {a,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
     };
     memcpy(buffer, data, sizeof(data));
     return buffer + NUM_PARTICLE_VERTICES;
@@ -200,6 +216,7 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
 
     particles_resources.shader.state.model = *matrix;
     particles_resources.shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    particles_resources.shader.state.eye = tr.viewDef.camerastate[0].eye;
     particles_resources.shader.state.textureMatrix = tr.viewDef.textureMatrix;
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, (texture?texture:particles_resources.texture)->texid);
@@ -292,7 +309,7 @@ void R_DrawParticles(void) {
         COLOR32 col = FX_BlendColor(p);
         float size = p->size_value_scale * FX_BlendFloat(p->size, p->time * p->size_time_scale,
                                                          BYTE2FLOAT(p->midtime));
-        pv = R_AddParticle(pv, &org, FX_GetFrame(p), col, size);
+        pv = R_AddParticle(pv, &org, &p->tail, FX_GetFrame(p), col, size);
         texture = p->texture;
         blend_mode = p->blend_mode;
     }
@@ -311,7 +328,7 @@ void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, CO
 
     if (!texture) texture = particles_resources.texture;
     Matrix4_identity(&matrix);
-    pv = R_AddParticle(pv, origin, uv, color, size);
+    pv = R_AddParticle(pv, origin, NULL, uv, color, size);
     R_FlushParticles(texture, &matrix, pv, BLEND_MODE_BLEND);
     R_SetAlphaKeyState(false);
 }
@@ -328,12 +345,14 @@ static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
     R_Call(glEnableVertexAttribArray, attrib_color);
     R_Call(glEnableVertexAttribArray, attrib_texcoord);
     R_Call(glEnableVertexAttribArray, attrib_particleSize);
+    R_Call(glEnableVertexAttribArray, attrib_particleTail);
     R_Call(glEnableVertexAttribArray, attrib_particleAxis);
     
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, position));
     R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, color));
     R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
     R_Call(glVertexAttribPointer, attrib_particleSize, 1, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, size));
+    R_Call(glVertexAttribPointer, attrib_particleTail, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, tail));
     R_Call(glVertexAttribPointer, attrib_particleAxis, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, axis));
     return buf;
 }
