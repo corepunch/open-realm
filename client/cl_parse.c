@@ -888,9 +888,6 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_set_selection:
                 CL_ParseSetSelection(msg);
                 break;
-            case svc_tutorial:
-                menu.ShowTutorial(MSG_ReadByte(msg));
-                break;
             case svc_fogofwar:
                 CL_ParseFogOfWar(msg);
                 break;

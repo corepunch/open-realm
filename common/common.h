@@ -82,7 +82,6 @@ enum svc_ops {
     svc_weather,                 // [long type] [long handle] [long effect_id] [box2 bounds] [long enabled]
     svc_lobby_chat,              // [byte own] [string text]
     svc_set_selection,           // [byte count] [count * long entity]
-    svc_tutorial                 // [byte tutorial_id]
 };
 
 // client to server

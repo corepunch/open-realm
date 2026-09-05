@@ -20,6 +20,9 @@
 #define WOW_BUTTON_TEXT_COLOR MAKE(COLOR32, 255, 209, 0, 255) // RGBA; GameFontNormal 1.0/0.82/0; quest buttons
 
 static DWORD ui_next_frame_number;
+static BYTE ui_window_text[MAX_MSGLEN];
+static DWORD ui_window_text_size;
+static BOOL ui_window_writing;
 
 /* svc_layout wire contract: every message carries exactly ONE layer —
  * `svc_layout` byte, layer byte, frames, terminator (LONG 0 + SHORT 0).  The
@@ -42,6 +45,38 @@ static void UI_WriteEnd(void) {
     gi.Write(PF_LONG, &(LONG){0});   /* bits=0 */
     gi.Write(PF_SHORT, &(LONG){0});  /* number=0 — MSG_ReadEntityBits consumes LONG+SHORT */
     ui_layout_layer = 0xFF;
+}
+
+/* Add one server-authored window string to the retained packet arena. */
+static DWORD UI_WindowTextOffset(LPCSTR text) {
+    DWORD size, offset;
+    if (!text || !*text) return 0;
+    size = (DWORD)strlen(text) + 1;
+    if (size > sizeof(ui_window_text) - ui_window_text_size) {
+        fprintf(stderr, "WoW UI: tutorial window text arena overflow\n");
+        return 0;
+    }
+    offset = ui_window_text_size;
+    memcpy(ui_window_text + offset, text, size);
+    ui_window_text_size += size;
+    return offset;
+}
+
+/* Open the generic server-authored window stream; all following proxy strings use arena offsets. */
+static void UI_WriteWindowStart(uiWindowDef_t const *def) {
+    ui_window_writing = true;
+    ui_window_text[0] = '\0'; ui_window_text_size = 1;
+    gi.Write(PF_BYTE, &(LONG){svc_window}); gi.Write(PF_BYTE, &(LONG){UI_WINDOW_OPEN});
+    gi.Write(PF_LONG, &def->id); gi.Write(PF_LONG, &def->class_id); gi.Write(PF_LONG, &def->flags);
+    ui_next_frame_number = 1;
+}
+
+/* Finish and unicast one complete server-authored window packet. */
+static void UI_WriteWindowEnd(LPEDICT ent) {
+    pfWriteData_t text = { .data = ui_window_text, .size = ui_window_text_size };
+    ui_window_writing = false;
+    gi.Write(PF_LONG, &(LONG){0}); gi.Write(PF_SHORT, &(LONG){0});
+    gi.Write(PF_LONG, &ui_window_text_size); gi.Write(PF_DATA, &text); gi.unicast(ent);
 }
 
 static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color);
@@ -76,7 +111,12 @@ static void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
     }
     frame->buffer.data = data;
     frame->buffer.size = data_size;
-    gi.Write(PF_UIFRAME, frame);
+    if (ui_window_writing) {
+        frame->text = (LPCSTR)(uintptr_t)UI_WindowTextOffset(frame->text);
+        frame->tooltip = (LPCSTR)(uintptr_t)UI_WindowTextOffset(frame->tooltip);
+        frame->onclick = (LPCSTR)(uintptr_t)UI_WindowTextOffset(frame->onclick);
+    }
+    gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, frame);
 }
 
 static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color, uiFontJustificationH_t align) {
@@ -704,15 +744,23 @@ static void UI_WriteWindowMsg(LPCSTR window_id, int show) {
     gi.Write(PF_BYTE, &(LONG){show});
 }
 
-/* Show the classic "Welcome to World of Warcraft" message box for ent. */
+/* Show the classic welcome tutorial as a server-owned transient window. */
 void UI_WriteWelcomeWindow(LPEDICT ent) {
-    /* TutorialFrame.lua receives contextual tutorial IDs through TUTORIAL_TRIGGER; use a typed message. */
-    gi.Write(PF_BYTE, &(LONG){svc_tutorial});
-    gi.Write(PF_BYTE, &(LONG){1});
-    gi.Write(PF_BYTE, &(LONG){svc_tutorial});
-    gi.Write(PF_BYTE, &(LONG){2});
-    UI_WriteWindowMsg("TutorialFrame", 1);
-    gi.unicast(ent);
+    uiFrame_t frame = {0};
+    uiBackdrop_t backdrop = {0};
+
+    UI_WriteWindowStart(&(uiWindowDef_t){ .id = 1, .class_id = 1,
+        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE | UI_WINDOW_NO_PAUSE });
+    frame.flags.type = FT_BACKDROP; frame.color = COLOR32_WHITE;
+    backdrop.Background = gi.ImageIndex("Interface\\DialogFrame\\UI-DialogBox-Background.blp");
+    backdrop.EdgeFile = gi.ImageIndex("Interface\\DialogFrame\\UI-DialogBox-Border.blp");
+    UI_SetFrameRect(&frame, PX(256), PY(192), PW(512), PH(384)); UI_WriteProxyFrame(&frame, &backdrop, sizeof(backdrop));
+    UI_WriteTextFrame(PX(288), PY(224), PW(448), PH(32), "Welcome to World of Warcraft!", COLOR32_WHITE, FONT_JUSTIFYCENTER);
+    UI_WriteTextArea(PX(288), PY(272), PW(448), PH(210),
+                     "Welcome, adventurer. Explore Azeroth, complete quests, and discover your destiny.",
+                     COLOR32_WHITE);
+    UI_WriteSimpleButton(PX(472), PY(512), PW(80), PH(28), "Okay", UI_WINDOW_CLOSE_ACTION);
+    UI_WriteWindowEnd(ent);
 }
 
 /* Hide a named window by ID. */

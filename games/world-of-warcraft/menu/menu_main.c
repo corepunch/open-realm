@@ -24,10 +24,6 @@ uiWowState_t wow_ui;
 
 static BOOL uiWow_menu_commands_registered;
 
-#define WOW_TIP_ALERT_Y 671.0f // UI pixels; TutorialFrame.lua reanchors the first alert 55px above the bottom edge
-#define WOW_TIP_ALERT_W 34.0f // UI pixels; native TutorialFrameAlert visible crop width
-#define WOW_TIP_ALERT_H 42.0f // UI pixels; native TutorialFrameAlert visible crop height
-#define WOW_TIP_ALERT_STEP 36.0f // UI pixels; TutorialFrame_NewTutorial horizontal sibling offset
 
 /* -------------------------------------------------------------------------
  * Shared helpers used by menu_lua.c and menu_loading.c
@@ -385,22 +381,12 @@ static BOOL UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param
     return true;
 }
 
-/* TutorialFrame remains a legacy client-owned game window until its layout is server-authored. */
 static BOOL UIWow_GameOverlayMouseEvent(menuMouseEvent_t event, int x, int y) {
     VECTOR2 pos = UIWow_MouseFdf(x, y);
-    DWORD unread = 0;
 
     if (event == MENU_MOUSE_UP) return UIWow_WindowMouseUp(pos.x, pos.y);
     if (event != MENU_MOUSE_DOWN) return false;
     if (UIWow_WindowMouseDown(pos.x, pos.y)) return true;
-    FOR_LOOP(i, wow_ui.tutorial_alert_count) {
-        FLOAT icon_x = 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f;
-        if (pos.x < icon_x || pos.x > icon_x+WOW_TIP_ALERT_W/1024.0f || pos.y < WOW_TIP_ALERT_Y/768.0f || pos.y > (WOW_TIP_ALERT_Y+WOW_TIP_ALERT_H)/768.0f) continue;
-        UIWow_ShowTip(wow_ui.tutorial_alerts[i]);
-        memmove(&wow_ui.tutorial_alerts[i], &wow_ui.tutorial_alerts[i+1], (wow_ui.tutorial_alert_count-i-1)*sizeof(wow_ui.tutorial_alerts[0]));
-        wow_ui.tutorial_alert_count--;
-        return true;
-    }
     return false;
 }
 
@@ -517,10 +503,6 @@ static void UIWow_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
     }
 }
 
-static void UIWow_ShowTutorial(DWORD id) {
-    if (!id || !UIWow_QueueTip(id)) UIWow_Printf("UIWow: invalid tutorial id %u\n", (unsigned)id);
-}
-
 /* -------------------------------------------------------------------------
  * Entry point
  * ---------------------------------------------------------------------- */
@@ -540,7 +522,6 @@ menuExport_t M_GetAPI(menuImport_t import) {
         .UpdateUnitUI     = UIWow_UpdateUnitUI,
         .UpdatePlayerState = UIWow_UpdatePlayerState,
         .UpdateLobbySetup = UIWow_UpdateLobbySetup,
-        .ShowTutorial     = UIWow_ShowTutorial,
         .ShowWindow       = UIWow_ShowWindow,
     };
 }

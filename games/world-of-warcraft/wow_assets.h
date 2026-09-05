@@ -6,6 +6,5 @@
 
 #define WOW_QUEST_AVAILABLE_MODEL "Interface\\Buttons\\TalkToMe.m2"
 #define WOW_QUEST_ACTIVE_ICON     "Interface\\GossipFrame\\ActiveQuestIcon.blp"
-#define WOW_TIP_LAYOUT            "Interface\\FrameXML\\TutorialFrame.xml"
 
 #endif

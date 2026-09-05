@@ -819,8 +819,6 @@ static void M_UpdateLobbySetup(lobbyState_t const *state) {
     GameSetup_UpdateLobbySetup(state);
 }
 
-static void M_ShowTutorial(DWORD id) { (void)id; }
-
 /* Export function table */
 menuExport_t M_GetAPI(menuImport_t import) {
     menuimport = import;
@@ -837,7 +835,6 @@ menuExport_t M_GetAPI(menuImport_t import) {
     exp.UpdateUnitUI = M_UpdateUnitUI;
     exp.UpdatePlayerState = M_UpdatePlayerState;
     exp.UpdateLobbySetup = M_UpdateLobbySetup;
-    exp.ShowTutorial = M_ShowTutorial;
     exp.ResolveImagePath = M_ResolveImagePath;
     
     return exp;
