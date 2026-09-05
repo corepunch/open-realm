@@ -1310,7 +1310,16 @@ DWORD EnableWorldFogBoundary(LPJASS j) {
     return 0;
 }
 DWORD PlayCinematic(LPJASS j) {
-    //LPCSTR movieName = jass_checkstring(j, 1);
+    LPCSTR movieName = jass_checkstring(j, 1);
+    PATHSTR path;
+
+    if (!movieName || !*movieName) return 0;
+    /* Retail campaign scripts pass logical names such as HumanOp/HumanEd.
+     * Classic stores the pre-rendered AVI payloads under Movies\*.mpq. */
+    snprintf(path, sizeof(path), "Movies\\%.*s.mpq",
+             (int)(sizeof(path) - sizeof("Movies\\.mpq")),
+             movieName);
+    gi.QueueMovie(path);
     return 0;
 }
 DWORD ForceUIKey(LPJASS j) {

@@ -248,6 +248,22 @@ LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
     return texture;
 }
 
+LPTEXTURE R_CreateTextureRGBA(DWORD width, DWORD height, void const *pixels) {
+    LPTEXTURE texture;
+    if (!width || !height) return NULL;
+    texture = R_AllocateTexture(width, height);
+    if (!texture) return NULL;
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, width, height, 0, PIXEL_RGBA });
+    return texture;
+}
+
+BOOL R_UpdateTextureRGBA(LPTEXTURE texture, DWORD width, DWORD height, void const *pixels) {
+    if (!texture || !pixels || width != texture->width || height != texture->height) return false;
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    return true;
+}
+
 void R_ReleaseTexture(LPTEXTURE texture) {
     rImageCacheEntry_t *entry;
 

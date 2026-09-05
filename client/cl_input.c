@@ -60,10 +60,33 @@ BOOL CL_GameplayInputReady(void) {
 
 void CL_Input(void) {
     SDL_Event event;
+    BOOL movie_input = CL_MovieActive();
 
     mouse.event = UI_EVENT_NONE;
     mouse.wheel = 0;
     while(SDL_PollEvent(&event)) {
+        if (movie_input) {
+            switch (event.type) {
+                case SDL_KEYDOWN:
+                    Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym),
+                              CL_BindMods(event.key.keysym.mod), true, event.key.timestamp);
+                    break;
+                case SDL_KEYUP:
+                    Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym),
+                              CL_BindMods(event.key.keysym.mod), false, event.key.timestamp);
+                    break;
+                case SDL_MOUSEMOTION:
+                    mouse.origin.x = event.motion.x;
+                    mouse.origin.y = event.motion.y;
+                    break;
+                case SDL_WINDOWEVENT:
+                    if (event.window.event == SDL_WINDOWEVENT_CLOSE) return Com_Quit();
+                    break;
+                default:
+                    break;
+            }
+            continue;
+        }
         switch(event.type) {
             case SDL_MOUSEBUTTONDOWN:
                 {

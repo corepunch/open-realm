@@ -17,6 +17,7 @@
  *              QuestItemSet+IsQuestItem+, multiple quests in one script
  *   Win      — RemovePlayer(DEFEAT) and RemovePlayer(VICTORY) each publish
  *              exactly the right EVENT_PLAYER_* into level.events
+ *   Movies   — PlayCinematic maps logical names to classic Movies\*.mpq assets
  *   Sanity   — BJassAssert true passes, BJassAssert false is caught
  */
 
@@ -38,6 +39,11 @@ static BOOL event_in_queue(EVENTTYPE type) {
 
 static char victory_menu_action[32];
 static char victory_menu_arg[256];
+static char cinematic_movie_path[MAX_PATHLEN];
+
+static void capture_cinematic_movie(LPCSTR path) {
+    strlcpy(cinematic_movie_path, path ? path : "", sizeof(cinematic_movie_path));
+}
 
 static void capture_victory_menu_action(LPCSTR action, LPCSTR arg) {
     strlcpy(victory_menu_action, action ? action : "", sizeof(victory_menu_action));
@@ -498,6 +504,20 @@ TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     gi.MenuAction = old_menu_action;
     gi.Write = old_write;
     gi.unicast = old_unicast;
+}
+
+TEST(wc3_jass_map, play_cinematic_queues_classic_movie_asset_path) {
+    void (*old_queue_movie)(LPCSTR) = gi.QueueMovie;
+
+    cinematic_movie_path[0] = '\0';
+    gi.QueueMovie = capture_cinematic_movie;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PlayCinematic(\"HumanEd\")\n"
+        "endfunction\n"
+    ));
+    T_STREQ(cinematic_movie_path, "Movies\\HumanEd.mpq");
+    gi.QueueMovie = old_queue_movie;
 }
 
 TEST(wc3_jass_map, neutral_remove_records_result_without_victory_or_defeat_event) {

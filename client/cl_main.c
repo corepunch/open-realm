@@ -17,6 +17,7 @@
 #include "ui_layout.h"
 #include "sound/s_local.h"
 #include "common/net_platform.h"
+#include "common/server_api.h"
 #ifdef BZ_TESTS
 #include "shared/test.h"
 #endif
@@ -47,6 +48,8 @@ typedef struct {
 } clPendingMenuAction_t;
 
 static clPendingMenuAction_t cl_pending_menu_action;
+static clPendingMenuAction_t cl_movie_deferred_action;
+static PATHSTR cl_pending_movie;
 
 static BOOL CL_IsDeferredCommand(LPCSTR text) {
     return text && (!strncmp(text, "give ", 5) || !strcmp(text, "give") ||
@@ -594,9 +597,25 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
     cl_pending_menu_action = pending;
 }
 
+void CL_QueueMovie(LPCSTR path) {
+    if (!path || !*path) return;
+    if (cl_pending_movie[0]) {
+        fprintf(stderr, "CL_QueueMovie: replacing pending movie %s with %s\n", cl_pending_movie, path);
+    }
+    snprintf(cl_pending_movie, sizeof(cl_pending_movie), "%s", path);
+}
+
 static void CL_ProcessPendingMenuAction(void) {
     clPendingMenuAction_t pending;
 
+    if (CL_MovieActive()) return;
+
+    if (cl_movie_deferred_action.type != CL_MENU_ACTION_NONE) {
+        pending = cl_movie_deferred_action;
+        memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
+        if (SV_IsActive()) SV_SetPaused(false);
+        goto execute;
+    }
     if (cl_pending_menu_action.type == CL_MENU_ACTION_NONE) return;
 
     /* Clear first: the transition may initialize a new game module which can
@@ -604,6 +623,22 @@ static void CL_ProcessPendingMenuAction(void) {
     pending = cl_pending_menu_action;
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
 
+    /* PlayCinematic is a session-boundary interposer: preserve the requested
+     * map/menu transition, freeze the outgoing simulation, then execute the
+     * transition only after the movie ends or is skipped. */
+    if (cl_pending_movie[0]) {
+        PATHSTR movie;
+        snprintf(movie, sizeof(movie), "%s", cl_pending_movie);
+        cl_pending_movie[0] = '\0';
+        cl_movie_deferred_action = pending;
+        if (SV_IsActive()) SV_SetPaused(true);
+        if (CL_PlayMovie(movie)) return;
+        if (SV_IsActive()) SV_SetPaused(false);
+        pending = cl_movie_deferred_action;
+        memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
+    }
+
+execute:
     switch (pending.type) {
     case CL_MENU_ACTION_MAP:
         CL_SetGameplayBindings();
@@ -726,6 +761,7 @@ void CL_Init(void) {
     re.Init(mode.width, mode.height);
     
     S_Init();
+    CL_MovieInit();
 
     /* Initialize UI library */
     menu = M_GetAPI((menuImport_t) {
@@ -752,6 +788,7 @@ void CL_Init(void) {
         .Printf = CON_printf,
         .PlaySound = S_PlaySound,
         .PlaySoundByName = S_PlaySoundByName,
+        .PlayMovie = CL_PlayMovie,
     });
     
     menu.Init();
@@ -933,6 +970,7 @@ void CL_Shutdown(void) {
     FOR_LOOP(imageIndex, MAX_DYNAMIC_IMAGES) {
         SAFE_DELETE(cl.dynamicPics[imageIndex], re.ReleaseTexture);
     }
+    CL_MovieShutdown();
     V_Shutdown();
     re.Shutdown();
     S_Shutdown();
@@ -953,6 +991,7 @@ void CL_Frame(DWORD msec) {
 
     CL_ProcessPendingMenuAction();
     CL_Input();
+    CL_MovieUpdate();
     CL_ReadPackets();
     CL_CheckTimeout();
     CL_SendCommand();

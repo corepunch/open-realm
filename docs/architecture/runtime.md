@@ -141,6 +141,8 @@ Early commands (`+set`, `+<cvar>`) are processed during `Com_Init()`, before mod
 
 Game-module `gi.MenuAction` requests are also deferred. The callback only copies a validated map/menu/quit request; the next `CL_Frame` consumes it after `SV_Frame` has returned. This prevents a `ChangeLevel` native from entering `SV_Map` while the old game's VM or gameplay callback is still on the stack. Do not make `MenuAction("map", ...)` synchronously replace the world.
 
+A game may also queue client presentation with `game_import.QueueMovie`. A queued movie does not execute immediately; if a deferred session action follows, the client preserves that action, pauses the outgoing simulation, plays the movie, and resumes the action after EOF/skip. This keeps media decoding out of game modules and keeps world teardown outside the active game/VM stack. See [Warcraft III pre-rendered movies](../games/warcraft-3/pre-rendered-movies.md).
+
 A deferred `MenuAction("menu", target)` is a full world→menu session boundary. The client disconnects without queuing an intermediate menu command, shuts down the local server/game module, clears the `map` cvar and renderer map scope, rebuilds the menu library state, then enters `target` (the rebuilt main menu is already active when `target` is `menu_main`). This is required after campaign missions because renderer/FDF/menu state may have crossed a map registration boundary while the level was active.
 
 In code, always use the bare command name: `"map ..."`, not `"+map ..."`.

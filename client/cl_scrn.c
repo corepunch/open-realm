@@ -137,6 +137,15 @@ void SCR_EndLoadingPlaque(void) {
 
 void SCR_DrawScreenField(DWORD msec) {
     re.BeginFrame();
+    if (CL_MovieActive()) {
+        SCR_UpdateSystemCursor(true);
+        CL_MovieDraw();
+#ifndef BZ_TESTS
+        if (CL_ScreenshotReady()) re.Screenshot();
+#endif
+        re.EndFrame();
+        return;
+    }
     if (menu.UpdatePlayerState)
         menu.UpdatePlayerState(&cl.playerstate);
 

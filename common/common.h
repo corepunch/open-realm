@@ -191,6 +191,7 @@ void FS_CloseFile(HANDLE file);
 HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);
+bool FS_ResolveLoosePath(LPCSTR fileName, LPSTR out, DWORD out_size);
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
 void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud);
 
@@ -225,6 +226,11 @@ void S_Shutdown(void);
 void S_PlaySound(DWORD kit_id);
 void S_PlaySoundByName(LPCSTR name);
 void S_StopAllSounds(void);
+/* Streaming PCM used by full-screen cinematics; stereo S16 at 44.1 kHz. */
+void S_RawStart(void);
+DWORD S_RawSamples(SHORT const *samples, DWORD frames);
+DWORD S_RawBufferedFrames(void);
+void S_RawStop(void);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);
 void CL_Connect(LPCSTR host, unsigned short port);

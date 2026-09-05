@@ -9,5 +9,6 @@ void SV_InitGameProgs(void);
 void SV_Map(LPCSTR mapFilename);
 BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size);
 BOOL SV_IsActive(void);
+void SV_SetPaused(BOOL paused);
 
 #endif

@@ -43,6 +43,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
 | WC3 triggered dialogue, gameplay/cinematic presentation split, message and transmission lifetimes | [docs/games/warcraft-3/triggered-dialogue.md](docs/games/warcraft-3/triggered-dialogue.md) |
+| WC3 pre-rendered movies, optional FFmpeg backend, `PlayCinematic` lifecycle, campaign camera rows | [docs/games/warcraft-3/pre-rendered-movies.md](docs/games/warcraft-3/pre-rendered-movies.md) |
 | WC3 W3I/W3R/JASS weather lifecycle, Weather.slk particle rendering, rain tails | [docs/games/warcraft-3/weather.md](docs/games/warcraft-3/weather.md) |
 | WC3 alerts, minimap pings, eight-entry Spacebar recent-alert history, quick-position fallback | [docs/games/warcraft-3/alerts-and-minimap-pings.md](docs/games/warcraft-3/alerts-and-minimap-pings.md) |
 | WC3 Quest journal, single-player Message Log, upper-button wiring, retained message history | [docs/games/warcraft-3/quest-and-message-log-ui.md](docs/games/warcraft-3/quest-and-message-log-ui.md) |
