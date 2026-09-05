@@ -484,7 +484,12 @@ void Cvar_Init(void) {
     Cvar_GetD("sv_hostname",      "OpenWarcraft3",     CVAR_ARCHIVE, "server name shown in lobby browser");
     Cvar_GetD("sv_cheats",        "0",                 0,            "enable cheat commands on this server");
     Cvar_GetD("dedicated",        "0",                 0,            "dedicated server mode (no client)");
-    Cvar_GetD("com_frame_limit",  "0",                 0,            "cap frame rate in fps; 0=unlimited");
+    Cvar_GetD("com_frame_limit",  "0",                 0,            "exit after N main-loop iterations; 0=disabled");
+#ifdef WC3
+    Cvar_GetD("com_maxfps",       "64",                CVAR_ARCHIVE, "maximum client frame rate; 0=unlimited");
+#else
+    Cvar_GetD("com_maxfps",       "0",                 CVAR_ARCHIVE, "maximum client frame rate; 0=unlimited");
+#endif
     Cvar_GetD("com_fast_forward", "0",                 0,            "run one fixed server tick per main-loop frame");
     Cvar_GetD("scr_showfps",      "1",                 CVAR_ARCHIVE, "show FPS counter on screen");
     Cvar_GetD("skip_cutscene",    "0",                 0,            "skip intro cutscene on startup");
