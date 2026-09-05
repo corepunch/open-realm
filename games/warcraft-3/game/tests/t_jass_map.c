@@ -14,7 +14,9 @@
  *
  * Covered:
  *   Quests   — CreateQuest, QuestSet+IsQuest+ round-trips, QuestCreateItem,
- *              QuestItemSet+IsQuestItem+, multiple quests in one script
+ *              QuestItemSet+IsQuestItem+, quest completion cheats
+ *   Trigger  — direct trigger/JASS/cinematic/objective developer cheats, selected event context
+ *              and in-game console feedback transport
  *   Win      — RemovePlayer(DEFEAT) and RemovePlayer(VICTORY) each publish
  *              exactly the right EVENT_PLAYER_* into level.events
  *   Sanity   — BJassAssert true passes, BJassAssert false is caught
@@ -55,6 +57,30 @@ static void victory_noop_unicast(LPEDICT ent) {
 
 static LPCSTR result_cheats_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "sv_cheats") ? "1" : fallback;
+}
+
+static char cheat_console_text[8192];
+static LONG cheat_console_opcode;
+static DWORD cheat_console_unicasts;
+
+static void cheat_console_capture_write(pfWriteType_t type, void const *value) {
+    if (type == PF_BYTE) {
+        cheat_console_opcode = *(LONG const *)value;
+    } else if (type == PF_STRING && value) {
+        if (cheat_console_text[0]) strlcat(cheat_console_text, "\n", sizeof(cheat_console_text));
+        strlcat(cheat_console_text, (LPCSTR)value, sizeof(cheat_console_text));
+    }
+}
+
+static void cheat_console_capture_unicast(LPEDICT ent) {
+    (void)ent;
+    cheat_console_unicasts++;
+}
+
+static void cheat_console_capture_reset(void) {
+    cheat_console_text[0] = '\0';
+    cheat_console_opcode = -1;
+    cheat_console_unicasts = 0;
 }
 
 /* =========================================================================
@@ -388,6 +414,366 @@ TEST(wc3_jass_map, quest_multiple_items_independent) {
         "  call BJassAssert(not IsQuestItemCompleted(b),  \"item b should be incomplete\")\n"
         "endfunction\n"
     ));
+}
+
+TEST(wc3_jass_map, quest_complete_cheat_marks_quest_and_objectives) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    LPCSTR command[] = { "quest", "complete", "0" };
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local quest q = CreateQuest()\n"
+        "  local questitem a = QuestCreateItem(q)\n"
+        "  local questitem b = QuestCreateItem(q)\n"
+        "endfunction\n"
+    ));
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+
+    G_ClientCommand(&g_edicts[0], 3, command);
+
+    T_ASSERT(level.quests[0].completed);
+    T_ASSERT(level.quests[0].items[0].completed);
+    T_ASSERT(level.quests[0].items[1].completed);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_jass_map, quest_complete_all_cheat_marks_every_allocated_quest) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    LPCSTR command[] = { "quest", "complete", "all" };
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local quest q1 = CreateQuest()\n"
+        "  local quest q2 = CreateQuest()\n"
+        "  local questitem item = QuestCreateItem(q2)\n"
+        "endfunction\n"
+    ));
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+
+    G_ClientCommand(&g_edicts[0], 3, command);
+
+    T_ASSERT(level.quests[0].completed);
+    T_ASSERT(level.quests[1].completed);
+    T_ASSERT(level.quests[1].items[0].completed);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_jass_map, cheat_console_feedback_skips_disconnected_client_transport) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    void (*old_write)(pfWriteType_t, void const *);
+    void (*old_unicast)(LPEDICT);
+    LPCSTR command[] = { "quest", "complete", "all" };
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local quest q = CreateQuest()\n"
+        "endfunction\n"
+    ));
+    old_cvar = gi.CvarString;
+    old_write = gi.Write;
+    old_unicast = gi.unicast;
+    gi.CvarString = result_cheats_cvar;
+    gi.Write = cheat_console_capture_write;
+    gi.unicast = cheat_console_capture_unicast;
+    game.clients[0].connected = false;
+    cheat_console_capture_reset();
+
+    G_ClientCommand(&g_edicts[0], 3, command);
+
+    T_ASSERT(level.quests[0].completed);
+    T_EQ(cheat_console_unicasts, 0);
+    T_EQ(cheat_console_opcode, -1);
+    T_ASSERT(!cheat_console_text[0]);
+
+    gi.CvarString = old_cvar;
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_jass_map, trigger_fire_cheat_bypasses_disabled_conditions_and_can_supply_selected_context) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    char index_text[16];
+    LPCSTR command[] = { "trigger", "fire", index_text, "selected" };
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  quest debugQuest = null\n"
+        "endglobals\n"
+        "function Never takes nothing returns boolean\n"
+        "  return false\n"
+        "endfunction\n"
+        "function DebugComplete takes nothing returns nothing\n"
+        "  if GetTriggerUnit() != null and GetTriggerPlayer() == Player(0) then\n"
+        "    call QuestSetCompleted(debugQuest, true)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set debugQuest = CreateQuest()\n"
+        "  call TriggerAddCondition(t, Condition(function Never))\n"
+        "  call TriggerAddAction(t, function DebugComplete)\n"
+        "  call DisableTrigger(t)\n"
+        "endfunction\n"
+    ));
+    T_ASSERT(level.num_triggers > 0);
+    snprintf(index_text, sizeof(index_text), "%u", (unsigned)(level.num_triggers - 1));
+
+    g_edicts[0].inuse = true;
+    g_edicts[0].health.value = 1.0f;
+    g_edicts[0].s.player = 0;
+    g_edicts[0].selected = 1u << game.clients[0].ps.number;
+
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+    G_ClientCommand(&g_edicts[0], 4, command);
+    jass_runevents(level.vm);
+
+    T_ASSERT(level.quests[0].completed);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_jass_map, cinematic_list_rejects_helpers_and_victory_defeat_triggers) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    void (*old_write)(pfWriteType_t, void const *);
+    void (*old_unicast)(LPEDICT);
+    LPCSTR command[] = { "cinematic", "list" };
+
+    T_ASSERT(run_test_jass(
+        "function Intro_Cinematic_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function Intro_Cinematic_Skip_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function Intro_Time_Stop_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function End_Cinematic_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function Victory_Cheat_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function Victory_Found_Medivh_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function Defeat_Thrall_Dies_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger a = CreateTrigger()\n"
+        "  local trigger b = CreateTrigger()\n"
+        "  local trigger c = CreateTrigger()\n"
+        "  local trigger d = CreateTrigger()\n"
+        "  local trigger e = CreateTrigger()\n"
+        "  local trigger f = CreateTrigger()\n"
+        "  local trigger g = CreateTrigger()\n"
+        "  call TriggerAddAction(a, function Intro_Cinematic_Actions)\n"
+        "  call TriggerAddAction(b, function Intro_Cinematic_Skip_Actions)\n"
+        "  call TriggerAddAction(c, function Intro_Time_Stop_Actions)\n"
+        "  call TriggerAddAction(d, function End_Cinematic_Actions)\n"
+        "  call TriggerAddAction(e, function Victory_Cheat_Actions)\n"
+        "  call TriggerAddAction(f, function Victory_Found_Medivh_Actions)\n"
+        "  call TriggerAddAction(g, function Defeat_Thrall_Dies_Actions)\n"
+        "endfunction\n"
+    ));
+
+    old_cvar = gi.CvarString;
+    old_write = gi.Write;
+    old_unicast = gi.unicast;
+    gi.CvarString = result_cheats_cvar;
+    gi.Write = cheat_console_capture_write;
+    gi.unicast = cheat_console_capture_unicast;
+    game.clients[0].connected = true;
+    cheat_console_capture_reset();
+
+    G_ClientCommand(&g_edicts[0], 2, command);
+
+    T_ASSERT(strstr(cheat_console_text, "Intro_Cinematic_Actions") != NULL);
+    T_ASSERT(strstr(cheat_console_text, "End_Cinematic_Actions") != NULL);
+    T_ASSERT(strstr(cheat_console_text, "Intro_Cinematic_Skip_Actions") == NULL);
+    T_ASSERT(strstr(cheat_console_text, "Intro_Time_Stop_Actions") == NULL);
+    T_ASSERT(strstr(cheat_console_text, "Victory_Cheat_Actions") == NULL);
+    T_ASSERT(strstr(cheat_console_text, "Victory_Found_Medivh_Actions") == NULL);
+    T_ASSERT(strstr(cheat_console_text, "Defeat_Thrall_Dies_Actions") == NULL);
+    T_EQ(cheat_console_opcode, svc_console_print);
+    T_ASSERT(cheat_console_unicasts > 0);
+
+    game.clients[0].connected = false;
+    gi.CvarString = old_cvar;
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_jass_map, objective_list_finds_real_victory_progression_not_cheat_or_defeat) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    void (*old_write)(pfWriteType_t, void const *);
+    void (*old_unicast)(LPEDICT);
+    LPCSTR command[] = { "objective", "list" };
+
+    T_ASSERT(run_test_jass(
+        "function Victory_Cheat_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function Victory_Found_Medivh_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function Defeat_Thrall_Dies_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function End_Cinematic_Actions takes nothing returns nothing\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger a = CreateTrigger()\n"
+        "  local trigger b = CreateTrigger()\n"
+        "  local trigger c = CreateTrigger()\n"
+        "  local trigger d = CreateTrigger()\n"
+        "  call TriggerAddAction(a, function Victory_Cheat_Actions)\n"
+        "  call TriggerAddAction(b, function Victory_Found_Medivh_Actions)\n"
+        "  call TriggerAddAction(c, function Defeat_Thrall_Dies_Actions)\n"
+        "  call TriggerAddAction(d, function End_Cinematic_Actions)\n"
+        "endfunction\n"
+    ));
+
+    old_cvar = gi.CvarString;
+    old_write = gi.Write;
+    old_unicast = gi.unicast;
+    gi.CvarString = result_cheats_cvar;
+    gi.Write = cheat_console_capture_write;
+    gi.unicast = cheat_console_capture_unicast;
+    game.clients[0].connected = true;
+    cheat_console_capture_reset();
+
+    G_ClientCommand(&g_edicts[0], 2, command);
+
+    T_ASSERT(strstr(cheat_console_text, "Victory_Found_Medivh_Actions") != NULL);
+    T_ASSERT(strstr(cheat_console_text, "Victory_Cheat_Actions") == NULL);
+    T_ASSERT(strstr(cheat_console_text, "Defeat_Thrall_Dies_Actions") == NULL);
+    T_ASSERT(strstr(cheat_console_text, "End_Cinematic_Actions") == NULL);
+    T_EQ(cheat_console_opcode, svc_console_print);
+    T_ASSERT(cheat_console_unicasts > 0);
+
+    game.clients[0].connected = false;
+    gi.CvarString = old_cvar;
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_jass_map, objective_complete_executes_completion_trigger) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    char index_text[16];
+    LPCSTR command[] = { "objective", "complete", index_text };
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  quest debugQuest = null\n"
+        "endglobals\n"
+        "function Victory_Found_Medivh_Actions takes nothing returns nothing\n"
+        "  call QuestSetCompleted(debugQuest, true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set debugQuest = CreateQuest()\n"
+        "  call TriggerAddAction(t, function Victory_Found_Medivh_Actions)\n"
+        "endfunction\n"
+    ));
+    T_ASSERT(level.num_triggers > 0);
+    snprintf(index_text, sizeof(index_text), "%u", (unsigned)(level.num_triggers - 1));
+
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+    G_ClientCommand(&g_edicts[0], 3, command);
+    jass_runevents(level.vm);
+
+    T_ASSERT(level.quests[0].completed);
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_jass_map, cinematic_play_cheat_executes_authored_trigger_actions) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    char index_text[16];
+    LPCSTR command[] = { "cinematic", "play", index_text };
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  quest debugQuest = null\n"
+        "endglobals\n"
+        "function CinematicNever takes nothing returns boolean\n"
+        "  return false\n"
+        "endfunction\n"
+        "function Intro_Cinematic_Actions takes nothing returns nothing\n"
+        "  call QuestSetCompleted(debugQuest, true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set debugQuest = CreateQuest()\n"
+        "  call TriggerAddCondition(t, Condition(function CinematicNever))\n"
+        "  call TriggerAddAction(t, function Intro_Cinematic_Actions)\n"
+        "  call DisableTrigger(t)\n"
+        "endfunction\n"
+    ));
+    T_ASSERT(level.num_triggers > 0);
+    snprintf(index_text, sizeof(index_text), "%u", (unsigned)(level.num_triggers - 1));
+
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+    G_ClientCommand(&g_edicts[0], 3, command);
+    jass_runevents(level.vm);
+
+    T_ASSERT(level.quests[0].completed);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_jass_map, cinematic_stop_cheat_uses_end_cinematic_event_handler) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    LPCSTR command[] = { "cinematic", "stop" };
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  quest debugQuest = null\n"
+        "endglobals\n"
+        "function End_Cinematic_Actions takes nothing returns nothing\n"
+        "  call QuestSetCompleted(debugQuest, true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set debugQuest = CreateQuest()\n"
+        "  call TriggerRegisterPlayerEvent(t, Player(0), EVENT_PLAYER_END_CINEMATIC)\n"
+        "  call TriggerAddAction(t, function End_Cinematic_Actions)\n"
+        "endfunction\n"
+    ));
+
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+    G_ClientCommand(&g_edicts[0], 2, command);
+    G_RunEvents();
+    jass_runevents(level.vm);
+
+    T_ASSERT(level.quests[0].completed);
+
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_jass_map, jass_cheat_starts_named_zero_argument_function) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    LPCSTR command[] = { "jass", "DebugComplete" };
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  quest debugQuest = null\n"
+        "endglobals\n"
+        "function DebugComplete takes nothing returns nothing\n"
+        "  call QuestSetCompleted(debugQuest, true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set debugQuest = CreateQuest()\n"
+        "endfunction\n"
+    ));
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+
+    G_ClientCommand(&g_edicts[0], 2, command);
+    jass_runevents(level.vm);
+
+    T_ASSERT(level.quests[0].completed);
+
+    gi.CvarString = old_cvar;
 }
 
 /* =========================================================================

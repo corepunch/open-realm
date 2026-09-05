@@ -50,6 +50,7 @@ extern COLOR32 test_cursor_tint;
 extern char test_forwarded_command[128];
 extern char test_menu_action[32];
 extern char test_menu_action_arg[128];
+extern char test_console_message[MAX_CONSOLE_MESSAGE_LEN];
 
 static RECT test_scroll_rects[3], test_scroll_uvs[3];
 static LPCTEXTURE test_scroll_tex[3];
@@ -2548,6 +2549,22 @@ TEST(net, active_entity_list_frame_copy_and_map_reset) {
     /* Loading a new map drops the list so fresh baselines repopulate it. */
     CL_BeginLoadingMap("Maps\\Test.w3m");
     T_EQ(cl.num_active, 0);
+}
+
+TEST(net, console_print_message_is_consumed) {
+    BYTE buf[128];
+    sizeBuf_t sb;
+
+    test_client_stubs_init();
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, svc_console_print);
+    MSG_WriteString(&sb, "WC3: objective completion candidate trigger 40 enabled");
+    sb.readcount = 0;
+
+    CL_ParseServerMessage(&sb);
+
+    T_EQ(sb.readcount, sb.cursize);
+    T_STREQ(test_console_message, "WC3: objective completion candidate trigger 40 enabled");
 }
 
 TEST(net, set_selection_rejects_undersized_payload) {

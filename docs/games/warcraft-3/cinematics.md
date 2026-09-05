@@ -1,5 +1,44 @@
 # WC3 Cinematic / Cutscene System
 
+## Developer cinematic cheats
+
+In-map Warcraft III cutscenes are ordinary map JASS triggers. With `sv_cheats 1`,
+OpenRealm exposes a thin debugging layer over the same trigger/event machinery:
+
+```text
+cinematic list [filter]
+cinematic play <trigger-index> [selected]
+cinematic stop
+```
+
+`cinematic list` is discovery only. It reports registered triggers whose **action**
+function names contain strong cinematic markers (`cinematic`, `cutscene`, `intro`,
+`outro`, `ending`, or `interlude`). It rejects obvious `skip`, `time_stop`/`timestop`,
+and `cheat` helpers. Generic `victory` and `defeat` names are intentionally not
+cinematic evidence because maps commonly use them for ordinary mission progression.
+The map does not carry a canonical cinematic-trigger table, so this heuristic may
+still miss unusually named cutscenes; use `trigger list [filter]` to inspect every
+registered trigger when that happens.
+
+`cinematic play` deliberately shares `trigger fire` semantics: run the chosen
+trigger's authored actions directly, even if the trigger is disabled and without
+evaluating conditions. This preserves the real camera natives, transmissions,
+unit orders, waits, cinefilters, quest/result changes, and any later map logic.
+`selected` supplies the current selected unit as event subject when the authored
+actions require `GetTriggerUnit()` / unit-derived `GetTriggerPlayer()` context.
+Other event-specific response fields are not synthesized.
+
+`cinematic stop` follows the existing Escape lifecycle instead of directly
+changing `client_ui_state`, camera state, or user control. It publishes
+`EVENT_PLAYER_END_CINEMATIC` for human players so the map's registered
+`TriggerRegisterPlayerEventEndCinematic` actions perform their own skip flag and
+cleanup. This is important because forcibly hiding the cinematic panel would not
+stop the running JASS coroutine or undo map-authored unit/camera state.
+
+These commands cover scripted cutscenes inside the loaded map. The JASS
+`PlayCinematic(movieName)` path for prerendered movie files is separate and still
+depends on movie playback support.
+
 ## Architecture
 
 Cutscenes in Warcraft III are driven entirely by the map's JASS script (`war3map.j`). The engine provides JASS native bindings; the script orchestrates timing, camera, dialogue, and unit movement.

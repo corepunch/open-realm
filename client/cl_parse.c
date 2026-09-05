@@ -700,6 +700,13 @@ static void CL_ParseLobbySetup(LPSIZEBUF msg) {
     menu.UpdateLobbySetup(&state);
 }
 
+static void CL_ParseConsolePrint(LPSIZEBUF msg) {
+    char text[MAX_CONSOLE_MESSAGE_LEN] = { 0 };
+
+    MSG_ReadStringN(msg, text, sizeof(text));
+    if (text[0]) CON_printf("%s", text);
+}
+
 static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     char text[512] = { 0 };
     char command[sizeof(text) + 32];
@@ -895,6 +902,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_set_selection:
                 CL_ParseSetSelection(msg);
+                break;
+            case svc_console_print:
+                CL_ParseConsolePrint(msg);
                 break;
             case svc_fogofwar:
                 CL_ParseFogOfWar(msg);

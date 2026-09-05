@@ -82,6 +82,7 @@ enum svc_ops {
     svc_disconnect,               // server is closing or dropped this client
     svc_lobby_chat,              // [byte own] [string text]
     svc_set_selection,           // [byte count] [count * long entity]
+    svc_console_print,           // [string text] server/game command feedback for the local console
 };
 
 // client to server
