@@ -36,6 +36,8 @@ This means a visible foreign unit may be inspected without giving the viewer own
 
 `client/cl_input.c` sends entity numbers through `select`. `CMD_Select` revalidates every candidate server-side; client picking is not authority.
 
+Presentation-only JASS `effect` handles are deliberately outside this widget-selection contract. `G_SpawnModelEffect()` marks their edicts `EF_NOT_SELECTABLE`, which becomes `RF_NOT_SELECTABLE` client-side.  Their MDX still renders, but `R_TraceEntity()` and rectangle selection ignore it so clicks pass through to real widgets or terrain.  This matches the JASS type hierarchy (`effect extends agent`, not `widget`) and prevents tutorial waypoint/special-effect art from intercepting right-click movement.
+
 For rectangle selection, a controllable non-building unit has the existing WC3-style mobile-unit preference. If one is present, buildings and non-controllable foreign entries are dropped from that selection. If no controllable mobile unit is present, all selectable entries may be selected, including enemy and neutral units. The authoritative server selection is capped at 12 entries even though the generic client-side cache remains sized by `MAX_SELECTED_ENTITIES`.
 
 Persistent Hero and idle-worker HUD shortcuts reuse this authority boundary but have a separate retained HUD/cycling lifecycle; see [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md). Shortcut-driven server selections are mirrored back into the client selection cache with the existing `GameCommand` transport.

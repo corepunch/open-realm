@@ -1209,6 +1209,25 @@ static LPEDICT make_unit_hero(void) {
     return ent;
 }
 
+TEST(wc3_api, model_effects_are_rendered_but_not_world_selectable) {
+    VECTOR2 point = { 64.0f, 64.0f };
+    LPEDICT target;
+    LPEDICT point_effect;
+    LPEDICT target_effect;
+
+    setup_test_world();
+    point_effect = G_SpawnModelEffect("TestUI\\Models\\anim_pulse.mdx", &point, NULL, NULL, false);
+    T_NOT_NULL(point_effect);
+    T_ASSERT(point_effect->s.model != 0);
+    T_ASSERT(point_effect->s.flags & EF_NOT_SELECTABLE);
+
+    target = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128.0f, 128.0f);
+    target_effect = G_SpawnModelEffect("TestUI\\Models\\anim_pulse.mdx", NULL, target, "overhead", false);
+    T_NOT_NULL(target_effect);
+    T_ASSERT(target_effect->s.model != 0);
+    T_ASSERT(target_effect->s.flags & EF_NOT_SELECTABLE);
+}
+
 TEST(wc3_api, effect_natives_return_independent_handles) {
     setup_test_world();
     T_ASSERT(run_test_jass(

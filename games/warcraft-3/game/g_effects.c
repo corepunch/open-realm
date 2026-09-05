@@ -171,6 +171,12 @@ LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target,
 
     if (!model || !*model || (!point && !target)) return NULL;
     effect = G_Spawn();
+    /* JASS effect extends agent, not widget.  Special/spell effect art is
+     * presentation only and must never win world selection or right-click
+     * picking over the terrain/real widget beneath it.  The client maps this
+     * snapshot bit to RF_NOT_SELECTABLE, so the model still renders normally
+     * while TraceEntity/rectangle selection pass through it. */
+    effect->s.flags |= EF_NOT_SELECTABLE;
     effect->s.model = G_RegisterModel(model);
     if (!effect->s.model) {
         G_FreeEdict(effect);
