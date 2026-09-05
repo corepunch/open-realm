@@ -8,6 +8,7 @@ For measured menu/loading resource residency and reclamation priorities, see [WC
 `SCR_BeginLoadingPlaque` freezes a frame. This covers console launches, menu selections, game menu actions,
 and incoming `CS_WORLD`. The client owns loading state; only `CL_PrepRefresh` promotes it to `ca_active`.
 The WC3 UI reads the current destination and caches metadata per path, not per UI lifetime.
+Loading plaques are non-interactive: `SCR_DrawCursor` suppresses both the game-authored cursor and the native SDL cursor while `CLIENT_UI_LOADING` is active, then the existing cursor-state handoff restores the configured cursor automatically when loading ends.
 
 `UI_UpdateLoadingMapInfo` reads the nested map MPQ's `war3map.w3i` and `war3map.wts` through
 `UI_ReadMapInfo`. Custom loading models take precedence; otherwise the campaign background number indexes
@@ -28,6 +29,12 @@ under TFT archives. Fixed ROC indices interpreted HumanX01's sequence `6` as a f
 consumes the optional numeric category and validates the sequence/model fields; malformed rows log their key.
 
 Preserve the loading-state draw check before standalone-screen dispatch: `menu_ingame` is queued asynchronously, so loading must remain authoritative even after the glue screen is released.
+
+### FDF registry isolation
+
+`libmenu` and `libgame` intentionally have separate `stb_fdf` frame registries.  The parser implementation functions are hidden per shared library, and the `frames[]` backing store must be hidden as well.  On ELF/Linux, exporting `frames` allows normal symbol interposition to alias the two registries even though each library defines its own copy.  `G_LoadMap -> UI_ResetHud -> UI_ClearTemplates` then clears/reuses the menu's live `Loading`/`LoadingBar` slots during `SV_Map`; cached non-NULL loading-frame pointers survive but no longer describe the loading sprites, so later progress updates reach `M_DrawLoadingScreen` without reaching the MDX renderer.
+
+A characteristic failure is that the initial loading sprite renders before `SV_Map`, while later progress values change without reaching the MDX sprite renderer. Verify registry isolation before changing progress math or swap/present code.
 
 ## Level-transition asset ownership
 
@@ -69,6 +76,33 @@ implement JASS `Preload`/`Preloader`, or expose staged byte/task loading progres
 registered `UnitProfile`/`UnitUI` subset (including Required Animation Names and custom model paths), but the remaining
 Balance/Data/Weapons/Abilities tables and true per-map `war3mapMisc.txt`/skin overlays remain separate data-layer work;
 do not infer those capabilities from the renderer's map-import lookup.
+## Loading progress contract
+
+Loading progress is client-owned and intentionally coarse. `CL_BeginLoadingMap` resets `cl.loading_progress` to
+zero. `CL_PrepRefresh` advances it monotonically at existing registration boundaries and
+`SCR_UpdateLoadingPlaque` explicitly repaints the otherwise frozen Quake-style loading plaque after each advance.
+The menu module reads the normalized value through `menuImport_t.LoadingProgress`; WC3 maps it directly onto the
+`LoadingProgressBar` MDX sequence using `#0@ratio`. No player-state/network field is involved.
+
+Current phase values are:
+
+| Progress | Completed boundary |
+| ---: | --- |
+| 0.05 | local listen-server `SV_Map()` returned successfully (local games only) |
+| 0.10 | `CS_WORLD` is available and client refresh preparation has started |
+| 0.40 | collision/world map and renderer map registration are ready |
+| 0.60 | model configstrings are registered |
+| 0.75 | image configstrings are registered |
+| 0.87 | sound configstrings are registered |
+| 0.94 | font configstrings are registered |
+| 0.98 | client `begin` has been queued |
+| 1.00 | sound registration is closed and `cl.refresh_prepped` is true |
+
+These are **phase milestones, not byte percentages or time estimates**. In particular, local `SV_Map()` /
+`ge->LoadMap()` remains synchronous and publishes only its completed boundary, not progress from inside its
+server/game loading work, so the bar can remain at its initial position during a long map load. Do not manufacture sub-percentages for that work;
+add progress only when an owned lifecycle can report a real boundary. The plaque stays visible at 100% until the
+first usable server frame promotes the client to `ca_active` and `SCR_EndLoadingPlaque` runs.
 
 ## Asset names are data
 

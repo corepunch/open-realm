@@ -230,7 +230,7 @@ typedef enum {
 } CLIENTUISTATE;
 ```
 
-Set by the server. The client reads it to decide what to draw — game HUD, loading progress, or cinematic overlay.
+Ownership is phase-dependent: normal gameplay/cinematic values arrive from authoritative player state, while `CL_BeginLoadingMap()` locally forces `CLIENT_UI_LOADING` during a session transition and the first usable frame restores `CLIENT_UI_GAME`. The client reads the value to decide what to draw — game HUD, loading presentation, or cinematic overlay.
 
 ### Frame Rendering
 
@@ -277,9 +277,12 @@ The loading screen is owned by the UI library and drawn when `playerState_t.clie
 1. Loads `Loading.fdf` frames
 2. Reads map info from `.w3m`/`.w3x` (title, subtitle, custom loading screen model)
 3. Binds frames: `LoadingBackground` (3D portrait), `LoadingBar` (progress), `LoadingTitleText`, `LoadingSubtitleText`, `LoadingText`
-4. Updates progress from `cl.connectionProgress` each frame
+4. Reads normalized client-owned progress through `menuImport_t.LoadingProgress` and drives the WC3 progress MDX as `#0@ratio`
 
-The loading screen stays visible until the server sets `client_ui_state = CLIENT_UI_GAME` and the client reaches `ca_active`.
+`CL_PrepRefresh()` advances that value at real registration phase boundaries. The Quake-style plaque remains frozen for ordinary
+frame submission, but `SCR_UpdateLoadingPlaque()` explicitly repaints after a progress change. The value is local client state, not
+a player-state/network field. The loading screen stays visible until the first usable server frame sets
+`client_ui_state = CLIENT_UI_GAME`, promotes the client to `ca_active`, and ends the plaque.
 
 ## WC3 vs SC2 vs WoW UI
 

@@ -425,7 +425,10 @@ static void M_DrawLoadingScreen(void) {
         loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
     if (loading_screen.LoadingBar) {
-        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", 1.0f);
+        FLOAT progress = menuimport.LoadingProgress ? menuimport.LoadingProgress() : 1.0f;
+        if (progress < 0.0f) progress = 0.0f;
+        if (progress > 1.0f) progress = 1.0f;
+        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", progress);
         loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
         loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }
