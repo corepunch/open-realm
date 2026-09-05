@@ -86,11 +86,13 @@ Most authored window `onclick` strings are sent back to the game server. Four ex
 
 - `UI_WINDOW_CLOSE_ACTION` (`close_window`) closes the owning window;
 - `UI_WINDOW_CLOSE_NOTIFY_ACTION` (`close_window_notify`) closes it and therefore participates in modal-list pause synchronization;
-- `UI_WINDOW_DISCONNECT_ACTION` (`disconnect_game`) leaves the current game and returns to the front-end;
+- `UI_WINDOW_DISCONNECT_ACTION` (`disconnect_game`) defers a full world-to-front-end transition: disconnect the client, shut down the local server/game module, clear map-scoped renderer state, rebuild menu/FDF state, then show the front-end;
 - `UI_WINDOW_QUIT_ACTION` (`quit_application`) queues normal application shutdown.
 
 Disconnect and quit are intended for explicit local activation in server-authored menus. They are never executed merely because a
-window packet is received. Submenu/navigation actions remain ordinary server commands.
+window packet is received. `disconnect_game` must use the deferred session-boundary action rather than calling `CL_Disconnect()`
+directly: gameplay teardown can clear the FDF/template pool, so showing `menu_main` before server/game shutdown leaves the front-end
+with missing bindings. Submenu/navigation actions remain ordinary server commands.
 
 ## Legacy UI Windows
 

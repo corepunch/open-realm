@@ -25,6 +25,10 @@ static uiDialogWar3_t quit_dialog;
 
 /* State */
 static BOOL show_realm_select = false;
+static LPFRAMEDEF edition_button;
+static BOOL edition_switch_pending;
+static BOOL edition_switch_requested;
+static BOOL edition_switch_target_expansion;
 
 static BOOL MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
@@ -83,6 +87,11 @@ static void MainMenu_InitFrames(void) {
     UI_SetOnClick(main_menu.OptionsButton, "menu_options");
     UI_SetOnClick(main_menu.CreditsButton, "menu_credits");
     UI_SetOnClick(main_menu.ExitButton, "menu_quit");
+    /* EditionButton exists in Blizzard's native MainMenu FDF but is optional
+     * for reduced/test FDFs, so bind it without making generated-load success
+     * depend on the frame being present. */
+    edition_button = UI_FindChildFrame(main_menu.MainMenuFrame, "EditionButton");
+    if (edition_button) UI_SetOnClick(edition_button, "menu_edition");
     MainMenu_InitQuitDialog();
 
     /* Realm select buttons */
@@ -94,23 +103,52 @@ static void MainMenu_InitFrames(void) {
 
 static void MainMenu_Init(void) {
     menuimport.Printf("MainMenu_Init\n");
+    edition_button = NULL;
+    edition_switch_pending = false;
+    edition_switch_requested = false;
     UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
     MainMenu_ShowMainPanel();
 }
 
 static void MainMenu_Shutdown(void) {
-    /* Nothing to clean up */
+    edition_button = NULL;
+    edition_switch_pending = false;
+    edition_switch_requested = false;
+}
+
+static void MainMenu_ApplyEdition(BOOL expansion) {
+    HANDLE data = NULL;
+    int size;
+
+    menuimport.Cvar_Set("fs_expansion", expansion ? "1" : "0");
+    if (!expansion) return;
+
+    size = menuimport.FS_ReadFile("UI\\CampaignStrings_exp.txt", &data);
+    if (data) menuimport.FS_FreeFile(data);
+    if (size > 0) return;
+
+    menuimport.Cvar_Set("fs_expansion", "0");
+    menuimport.Printf("The Frozen Throne data is unavailable.\n");
 }
 
 static void MainMenu_Refresh(int msec) {
     (void)msec;
-    /* Update animations, etc. */
 }
 
 static void MainMenu_Draw(void) {
     LPCFRAMEDEF roots[2];
     DWORD num_roots = 0;
+
+    if (edition_switch_pending) {
+        UI_DrawGlueScene("MainMenu Death");
+        if (!edition_switch_requested) {
+            edition_switch_requested = true;
+            MainMenu_ApplyEdition(edition_switch_target_expansion);
+            menuimport.Cmd_ExecuteText("menu_restart\n");
+        }
+        return;
+    }
 
     UI_DrawGlueScene(show_realm_select ? "RealmSelection Stand" : "MainMenu Stand");
 
@@ -129,6 +167,19 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
     /* Handle key presses */
     (void)key;
     (void)down;
+}
+
+void MainMenu_BeginEditionSwitch(void) {
+    LPCSTR expansion;
+
+    if (edition_switch_pending || !main_menu.MainMenuFrame) return;
+    expansion = menuimport.Cvar_String("fs_expansion", "0");
+    edition_switch_target_expansion = !(expansion && atoi(expansion) != 0);
+    edition_switch_pending = true;
+    edition_switch_requested = false;
+    show_realm_select = false;
+    UI_DialogWar3Hide(&quit_dialog);
+    UI_SetHidden(main_menu.MainMenuFrame, true);
 }
 
 void MainMenu_ShowMainPanel(void) {

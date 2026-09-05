@@ -44,6 +44,7 @@ static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model)
 
 /* menu_glue_scene.c */
 void UI_ResetGlueSceneModels(void);
+void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 void UI_DrawGlueScene(LPCSTR panel_anim);
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim);
@@ -53,6 +54,7 @@ BOOL UI_EnsureFDF(LPCSTR filename);
 void UI_ParseFDF(LPCSTR filename);
 void UI_ParseFDF_Buffer(LPCSTR filename, LPSTR buffer);
 void UI_ClearTemplates(void);
+void UI_ReleaseAssets(void);
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
 void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
 void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);

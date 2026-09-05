@@ -49,6 +49,15 @@ void UI_ResetGlueSceneModels(void) {
     memset(&menu_glue_scene, 0, sizeof(menu_glue_scene));
 }
 
+void UI_ReleaseGlueSceneModels(void) {
+    LPRENDERER renderer = menuimport.GetRenderer();
+
+    if (menu_glue_scene.background) renderer->ReleaseModel((LPMODEL)menu_glue_scene.background);
+    if (menu_glue_scene.top_left_panel) renderer->ReleaseModel((LPMODEL)menu_glue_scene.top_left_panel);
+    if (menu_glue_scene.top_right_panel) renderer->ReleaseModel((LPMODEL)menu_glue_scene.top_right_panel);
+    UI_ResetGlueSceneModels();
+}
+
 void UI_PreloadGlueSceneModels(void) {
     LPRENDERER renderer;
 

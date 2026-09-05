@@ -620,15 +620,6 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
         FS_HasExtension(name, ".mpq")
 #endif
         ) {
-#ifndef SC2
-        LPCSTR base = FS_BaseName(path);
-
-        if (!Cvar_Integer("fs_expansion", 0) &&
-            base && !strncasecmp(base, "War3x", 5)) {
-            fprintf(stderr, "Skipping expansion archive '%s' (set fs_expansion 1 or use -tft to mount it).\n", path);
-            return;
-        }
-#endif
         snprintf(scan->paths[scan->count++], sizeof(PATHSTR), "%s", path);
     }
 }
@@ -675,13 +666,24 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
     return true;
 }
 
+/* Optional expansion archive families remain mounted so front ends can switch
+ * editions without closing archives underneath live renderer/UI resources. */
 /* War3Local from patched installs can carry TFT race AI; ROC must use the matching scripts from War3.mpq. */
 BOOL FS_ArchiveFileVisible(LPCSTR archive, LPCSTR filename) {
     LPCSTR base;
+    LPCSTR expansion_prefix;
 
-    if (Cvar_Integer("fs_expansion", 0) || !archive || !filename)
+    if (!archive || !filename)
         return true;
     base = FS_BaseName(archive);
+    if (!Cvar_Integer("fs_expansion", 0)) {
+        expansion_prefix = Cvar_String("fs_expansion_archive_prefix", "");
+        if (expansion_prefix && *expansion_prefix &&
+            !strncasecmp(base, expansion_prefix, strlen(expansion_prefix)))
+            return false;
+    } else {
+        return true;
+    }
     return strcasecmp(base, "War3Local.mpq") || strncasecmp(filename, "Scripts\\", 8) ||
            !FS_HasExtension(filename, ".ai");
 }
@@ -1091,8 +1093,10 @@ static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
         return true;
     }
     while (find && find->archiveIndex < MAX_ARCHIVES) {
-        if (find->current && SFileFindNextFile(find->current, findData)) {
-            return true;
+        while (find->current && SFileFindNextFile(find->current, findData)) {
+            if (FS_ArchiveFileVisible(archiveNames[find->archiveIndex], findData->cFileName)) {
+                return true;
+            }
         }
         if (find->current) {
             SFileFindClose(find->current);
@@ -1104,7 +1108,8 @@ static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
         }
         if (find->archiveIndex < MAX_ARCHIVES) {
             find->current = SFileFindFirstFile(archives[find->archiveIndex], find->mask, findData, NULL);
-            if (find->current) {
+            if (find->current &&
+                FS_ArchiveFileVisible(archiveNames[find->archiveIndex], findData->cFileName)) {
                 return true;
             }
         }
@@ -1142,7 +1147,8 @@ HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
     }
     if (find->archiveIndex < MAX_ARCHIVES) {
         find->current = SFileFindFirstFile(archives[find->archiveIndex], find->mask, findData, NULL);
-        if (find->current) {
+        if (find->current &&
+            FS_ArchiveFileVisible(archiveNames[find->archiveIndex], findData->cFileName)) {
             return find;
         }
     }

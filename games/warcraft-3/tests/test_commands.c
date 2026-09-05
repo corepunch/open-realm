@@ -201,7 +201,7 @@ TEST(commands, data_command_line_sets_data_cvar) {
     T_STREQ(Cvar_String("data", NULL), "tests/data dir");
 }
 
-TEST(commands, tft_command_line_enables_expansion_archives) {
+TEST(commands, tft_command_line_exposes_expansion_archives) {
     LPCSTR argv[] = { "test_commands", "-tft" };
 
     setup_command_tests();
@@ -211,7 +211,7 @@ TEST(commands, tft_command_line_enables_expansion_archives) {
     T_STREQ(Cvar_String("fs_expansion", NULL), "1");
 }
 
-TEST(commands, roc_command_line_disables_expansion_archives) {
+TEST(commands, roc_command_line_hides_expansion_archives) {
     LPCSTR argv[] = { "test_commands", "-roc" };
 
     setup_command_tests();
@@ -221,18 +221,59 @@ TEST(commands, roc_command_line_disables_expansion_archives) {
     T_STREQ(Cvar_String("fs_expansion", NULL), "0");
 }
 
+TEST(commands, plus_tft_compatibility_flag_selects_expansion_early) {
+    LPCSTR argv[] = { "test_commands", "+tft" };
+
+    setup_command_tests();
+    reset_map_handoff();
+    Cvar_Set("fs_expansion", "0");
+    COM_InitArgv(2, argv);
+    Cbuf_AddEarlyCommands(true);
+
+    T_STREQ(Cvar_String("fs_expansion", NULL), "1");
+    T_STREQ(COM_Argv(1), "");
+
+    Cbuf_AddLateCommands();
+    Cbuf_Execute();
+    T_STREQ(last_forwarded, "");
+}
+
+TEST(commands, plus_roc_compatibility_flag_selects_base_game_early) {
+    LPCSTR argv[] = { "test_commands", "+roc" };
+
+    setup_command_tests();
+    reset_map_handoff();
+    Cvar_Set("fs_expansion", "1");
+    COM_InitArgv(2, argv);
+    Cbuf_AddEarlyCommands(true);
+
+    T_STREQ(Cvar_String("fs_expansion", NULL), "0");
+    T_STREQ(COM_Argv(1), "");
+
+    Cbuf_AddLateCommands();
+    Cbuf_Execute();
+    T_STREQ(last_forwarded, "");
+}
+
 TEST(commands, roc_uses_base_ai_scripts_without_dropping_localized_data) {
     setup_command_tests();
     Cvar_Set("fs_expansion", "0");
+    Cvar_Set("fs_expansion_archive_prefix", "");
+    T_ASSERT(FS_ArchiveFileVisible("data/War3x.mpq", "UI\\CampaignStrings_exp.txt"));
+    Cvar_Set("fs_expansion_archive_prefix", "War3x");
 
     T_ASSERT(!FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\human.ai"));
     T_ASSERT(!FS_ArchiveFileVisible("data/war3local.MPQ", "Scripts\\campaign.ai"));
     T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\HumanMelee.pld"));
     T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "UI\\WorldEditStrings.txt"));
     T_ASSERT(FS_ArchiveFileVisible("data/War3.mpq", "Scripts\\human.ai"));
+    T_ASSERT(!FS_ArchiveFileVisible("data/War3x.mpq", "UI\\CampaignStrings_exp.txt"));
+    T_ASSERT(!FS_ArchiveFileVisible("data/War3xLocal.mpq", "UI\\war3skins.txt"));
 
     Cvar_Set("fs_expansion", "1");
     T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\human.ai"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3x.mpq", "UI\\CampaignStrings_exp.txt"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3xLocal.mpq", "UI\\war3skins.txt"));
 }
 
 TEST(commands, dash_cvars_are_not_command_line_cvars) {

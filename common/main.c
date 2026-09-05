@@ -48,7 +48,8 @@
 "  openwarcraft3 -data <folder> -connect <host>  (remote client, default port " \
                                                     PORT_SERVER_STRING ")\n" \
 "  openwarcraft3 -data <folder> -connect <host:port>\n" \
-"  openwarcraft3 -data <folder> -tft             (mount expansion MPQs)\n" \
+"  openwarcraft3 -data <folder> -tft             (select TFT / expose expansion MPQs)\n" \
+"  openwarcraft3 -data <folder> +tft             (compatibility form; same startup selection)\n" \
 "\n" \
 "Examples:\n" \
 "  openwarcraft3 -data /home/user/Warcraft3 +map Maps\\\\Campaign\\\\Human02.w3m\n" \
@@ -58,7 +59,7 @@
 "\n" \
 "Notes:\n" \
 "  - The data folder should contain Warcraft III MPQs and optionally Maps/.\n" \
-"  - Expansion MPQs are skipped by default; use -tft or +fs_expansion 1 to mount them.\n" \
+"  - Expansion MPQs stay hidden in RoC mode; use -tft, +tft, or +fs_expansion 1 to expose them.\n" \
 "  - The data folder may also be saved as data in the generated per-build config.\n" \
 "  - The map path uses the internal MPQ path format; use +map to launch one.\n" \
 "  - Remote clients still need the game data for asset loading.\n" \

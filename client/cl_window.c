@@ -354,9 +354,11 @@ static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
         if (*command) Cmd_ForwardToServer(command);
         CL_WindowClose(window->id);
     } else if (!strcmp(frame->onclick, UI_WINDOW_DISCONNECT_ACTION)) {
-        /* Server-authored menus may offer a leave action, but the local client
-         * owns session teardown and only performs it after explicit input. */
-        CL_Disconnect("Left game.", false);
+        /* A gameplay leave is a full world-to-front-end boundary.  Defer it
+         * until input dispatch returns so the client can disconnect, stop the
+         * local server/game module, clear map-scoped renderer state, and then
+         * rebuild the menu/FDF state in that order. */
+        MenuAction("menu", "menu_main");
     } else if (!strcmp(frame->onclick, UI_WINDOW_QUIT_ACTION)) {
         /* Defer normal application shutdown until input dispatch returns. */
         Cbuf_AddText("quit\n");

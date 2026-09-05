@@ -388,12 +388,27 @@ static bool Cvar_ApplyDashArg(int argc, LPCSTR *argv, int *index, LPCSTR name) {
     return false;
 }
 
-static bool Cvar_ApplyDashFlag(LPCSTR arg, LPCSTR name, LPCSTR cvar, LPCSTR value) {
-    if (!arg || arg[0] != '-' || strcmp(arg + 1, name)) {
+bool Cvar_ApplyBooleanCommandLineFlag(LPCSTR name) {
+    if (!name || !*name) {
         return false;
     }
-    Cvar_Set(cvar, value);
-    return true;
+    if (!strcmp(name, "vid_modes")) {
+        Cvar_Set("vid_modes", "1");
+        return true;
+    }
+    if (!strcmp(name, "com_fast_forward")) {
+        Cvar_Set("com_fast_forward", "1");
+        return true;
+    }
+    if (!strcmp(name, "tft")) {
+        Cvar_Set("fs_expansion", "1");
+        return true;
+    }
+    if (!strcmp(name, "roc")) {
+        Cvar_Set("fs_expansion", "0");
+        return true;
+    }
+    return false;
 }
 
 void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv) {
@@ -422,16 +437,7 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
         if (Cvar_ApplyDashArg(argc, argv, &i, "data")) {
             continue;
         }
-        if (Cvar_ApplyDashFlag(arg, "vid_modes", "vid_modes", "1")) {
-            continue;
-        }
-        if (Cvar_ApplyDashFlag(arg, "com_fast_forward", "com_fast_forward", "1")) {
-            continue;
-        }
-        if (Cvar_ApplyDashFlag(arg, "tft", "fs_expansion", "1")) {
-            continue;
-        }
-        if (Cvar_ApplyDashFlag(arg, "roc", "fs_expansion", "0")) {
+        if (arg[0] == '-' && Cvar_ApplyBooleanCommandLineFlag(arg + 1)) {
             continue;
         }
     }
@@ -455,7 +461,8 @@ void Cvar_Init(void) {
     Cvar_GetD("fs_basepath", FS_BasePath(), 0, "read-only engine/share data directory");
     Cvar_GetD("fs_homepath", FS_HomePath(), 0, "writable per-user directory (empty if unavailable)");
     Cvar_GetD("data",             "",                  CVAR_ARCHIVE, "override game data directory path");
-    Cvar_GetD("fs_expansion",     "0",                 0,            "0=RoC data/skin, 1=TFT data/skin (include expansion archives)");
+    Cvar_GetD("fs_expansion",     "0",                 0,            "0=RoC data/skin, 1=TFT data/skin (expose expansion archives)");
+    Cvar_GetD("fs_expansion_archive_prefix", "",             0,            "optional archive basename prefix hidden while fs_expansion is 0");
 #ifdef SC2_DEFAULT_MAP
     Cvar_GetD("map",              SC2_DEFAULT_MAP,     0,            "map file to load at startup");
 #else

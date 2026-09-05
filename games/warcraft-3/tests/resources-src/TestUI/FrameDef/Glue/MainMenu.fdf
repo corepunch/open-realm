@@ -9,6 +9,9 @@ Frame "FRAME" "MainMenuFrame" {
     Frame "SPRITE" "WarCraftIIILogo" {
     }
 
+    Frame "BUTTON" "EditionButton" {
+    }
+
     Frame "FRAME" "RealmSelect" {
         Frame "TEXT" "RealmSelectText" {
         }

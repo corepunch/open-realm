@@ -27,6 +27,7 @@ static DWORD captured_realm_panel_sprites;
 static DWORD captured_sprite_calls;
 static FLOAT captured_sprite_x[2];
 static size2_t test_window_size = { 1000, 750 };
+static DWORD captured_death_sprites;
 static uintptr_t fake_texture_id;
 static LPTEXTURE hover_texture;
 static DWORD captured_hover_draws;
@@ -213,6 +214,8 @@ static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
         captured_stand_sprites++;
     if (anim && !strcmp(anim, "RealmSelection Stand"))
         captured_realm_panel_sprites++;
+    if (anim && !strcmp(anim, "MainMenu Death"))
+        captured_death_sprites++;
 }
 
 static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
@@ -225,12 +228,14 @@ static size2_t test_get_window_size(void) {
 }
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
+static void test_release_model(LPMODEL model) { (void)model; }
 
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
         .ReleaseTexture = test_release_texture,
         .LoadModel = test_load_model,
+        .ReleaseModel = test_release_model,
         .LoadFont = test_load_font,
         .GetWindowSize = test_get_window_size,
         .DrawImageEx = test_draw_image_ex,
@@ -293,6 +298,7 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
 static void test_cvar_set(LPCSTR name, LPCSTR value) {
     snprintf(captured_cvar_name, sizeof(captured_cvar_name), "%s", name ? name : "");
     snprintf(captured_cvar_value, sizeof(captured_cvar_value), "%s", value ? value : "");
+    if (name && !strcmp(name, "fs_expansion")) test_fs_expansion = value && atoi(value) != 0;
 }
 
 
@@ -330,6 +336,7 @@ static void reset_ui_state(void) {
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
+    captured_death_sprites = 0;
     fake_texture_id = 0;
     texture_releases = map_reads = 0;
     menu_player = NULL; test_map = "";
@@ -2052,6 +2059,7 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
     captured_sprite_calls = 0;
+    captured_death_sprites = 0;
     mainMenuScreen.draw();
     T_EQ(captured_stand_sprites, 0);
     T_EQ(captured_realm_panel_sprites, 2);
@@ -2090,6 +2098,113 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     T_FEQ(centered.x, 0.133333f, 0.0001f);
     T_FEQ(centered.w, 0.8f, 0.0001f);
     test_window_size = MAKE(size2_t, 1000, 750);
+
+    menuimport = saved;
+}
+
+TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+    };
+    menuImport_t saved = menuimport;
+    LPFRAMEDEF root;
+    LPFRAMEDEF edition;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.FS_ReadFile = test_fs_read_file;
+    menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.Cvar_String = test_cvar_string;
+    menuimport.Cvar_Set = test_cvar_set;
+    test_fs_expansion = false;
+    hide_expansion_campaign_file = false;
+    captured_command[0] = '\0';
+    captured_cvar_name[0] = '\0';
+    captured_cvar_value[0] = '\0';
+    captured_death_sprites = 0;
+
+    T_ASSERT(mainMenuScreen.load());
+    mainMenuScreen.init();
+    root = UI_FindFrame("MainMenuFrame");
+    edition = root ? UI_FindChildFrame(root, "EditionButton") : NULL;
+    if (!require_not_null(root) || !require_not_null(edition)) {
+        menuimport = saved;
+        return;
+    }
+    T_STREQ(edition->OnClick, "menu_edition");
+
+    M_MenuCommand(edition->OnClick);
+    T_ASSERT(root->hidden);
+    T_STREQ(captured_command, "");
+    mainMenuScreen.draw();
+    T_EQ(captured_death_sprites, 2);
+    T_ASSERT(test_fs_expansion);
+    T_STREQ(captured_cvar_name, "fs_expansion");
+    T_STREQ(captured_cvar_value, "1");
+    T_STREQ(captured_command, "menu_restart\n");
+
+    captured_command[0] = '\0';
+    M_MenuCommand("menu_edition");
+    mainMenuScreen.draw();
+    T_EQ(captured_death_sprites, 4);
+    T_STREQ(captured_command, "");
+    mainMenuScreen.shutdown();
+    menuimport = saved;
+}
+
+TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
+        "UI\\FrameDef\\Glue\\MainMenu.fdf",
+    };
+    menuImport_t saved = menuimport;
+    LPFRAMEDEF root;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    memset(&menuimport, 0, sizeof(menuimport));
+    menuimport.Printf = test_ui_printf;
+    menuimport.GetRenderer = test_get_renderer;
+    menuimport.MemAlloc = test_ui_mem_alloc;
+    menuimport.MemFree = test_ui_mem_free;
+    menuimport.FS_ReadFile = test_fs_read_file;
+    menuimport.FS_FreeFile = test_fs_free_file;
+    menuimport.Cmd_ExecuteText = test_cmd_execute_text;
+    menuimport.Cvar_String = test_cvar_string;
+    menuimport.Cvar_Set = test_cvar_set;
+    test_fs_expansion = false;
+    hide_expansion_campaign_file = true;
+    captured_command[0] = '\0';
+    captured_printf[0] = '\0';
+
+    T_ASSERT(mainMenuScreen.load());
+    mainMenuScreen.init();
+    root = UI_FindFrame("MainMenuFrame");
+    if (!require_not_null(root)) {
+        hide_expansion_campaign_file = false;
+        menuimport = saved;
+        return;
+    }
+
+    M_MenuCommand("menu_edition");
+    mainMenuScreen.draw();
+    T_ASSERT(!test_fs_expansion);
+    T_STREQ(captured_command, "menu_restart\n");
+    T_ASSERT(strstr(captured_printf, "The Frozen Throne data is unavailable.") != NULL);
+
+    hide_expansion_campaign_file = false;
+    mainMenuScreen.shutdown();
     menuimport = saved;
 }
 
@@ -2368,6 +2483,8 @@ static int test_versioned_theme_read(LPCSTR name, void **buf) {
         "GlueSpriteLayerBackground_V1=TftBackground.mdl\n"
         "GlueSpriteLayerTopLeft_V0=RocTopLeft.mdl\n"
         "GlueSpriteLayerTopLeft_V1=TftTopLeft.mdl\n"
+        "CampaignFile_V0=UI\\CampaignStrings.txt\n"
+        "CampaignFile_V1=UI\\CampaignStrings_exp.txt\n"
         "MainMenuLogo=SharedLogo.mdl\n"
         "MainMenuLogo_V0=RocLogo.mdl\n"
         "MainMenuLogo_V1=TftLogo.mdl\n"
@@ -2387,10 +2504,12 @@ TEST(menu_fdf, versioned_theme_keys_follow_expansion_edition) {
     test_fs_expansion = false;
     T_STREQ(Theme_String("GlueSpriteLayerBackground", "Default"), "RocBackground.mdl");
     T_STREQ(Theme_String("GlueSpriteLayerTopLeft", "Default"), "RocTopLeft.mdl");
+    T_STREQ(Theme_String("CampaignFile", "Default"), "UI\\CampaignStrings.txt");
 
     test_fs_expansion = true;
     T_STREQ(Theme_String("GlueSpriteLayerBackground", "Default"), "TftBackground.mdl");
     T_STREQ(Theme_String("GlueSpriteLayerTopLeft", "Default"), "TftTopLeft.mdl");
+    T_STREQ(Theme_String("CampaignFile", "Default"), "UI\\CampaignStrings_exp.txt");
 
     test_fs_expansion = false;
     UI_ClearTheme();

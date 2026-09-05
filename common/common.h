@@ -344,6 +344,7 @@ bool Cvar_LoadConfig(LPCSTR filename);
 void Cvar_WriteConfig(LPCSTR filename);
 void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv);
 void Cvar_ApplyCommandLine(int argc, LPCSTR *argv);
+bool Cvar_ApplyBooleanCommandLineFlag(LPCSTR name);
 bool Cvar_Command(void);
 void Cvar_ForEachVariable(cmdListFunc_t func, void *userData);
 int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print);

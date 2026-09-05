@@ -392,8 +392,10 @@ Theme_String("GlueSpriteLayerBackground", "Default")
   -> unresolved key if no matching field exists
 ```
 
-This matters for menu glue because `fs_expansion` controls both which expansion archives are mounted and which versioned skin
-fields are selected. Do not infer the edition by preferring `_V1` merely because that field exists in the loaded table.
+This matters for menu glue because `fs_expansion` controls both expansion-archive visibility and which versioned skin fields are
+selected. OpenRealm mounts installed `War3x*` archives during data-directory discovery, but `FS_ArchiveFileVisible` hides every file
+from those archives while `fs_expansion=0`; switching to TFT exposes the already-mounted higher-priority expansion data. Do not
+infer the edition by preferring `_V1` merely because that field exists in the loaded table.
 
 ### Main Menu Glue Layer Examples
 

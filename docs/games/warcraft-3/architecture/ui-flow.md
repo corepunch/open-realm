@@ -58,6 +58,7 @@ The Warcraft III main-menu scene is skin-driven rather than selected by hard-cod
 
 ```text
 fs_expansion
+  -> archive visibility (`War3x*` hidden for RoC, exposed for TFT)
   -> UI\war3skins.txt
   -> Theme_String("GlueSpriteLayerBackground", "Default")
   -> GlueSpriteLayerBackground_V0 (RoC) or _V1 (TFT) when no unversioned field exists
@@ -67,14 +68,55 @@ fs_expansion
 
 `games/warcraft-3/menu/menu_theme.c` treats `fs_expansion=0` as skin version 0 and any non-zero value as version 1. An explicit
 unversioned skin field remains authoritative; otherwise only the matching `_V0`/`_V1` field is considered. The same decorated
-lookup is used by `GlueSpriteLayerTopLeft`, `GlueSpriteLayerTopRight`, `MainMenuLogo`, and other FDF/model/texture keys, so one
-edition selector keeps the glue presentation consistent.
+lookup is used by `GlueSpriteLayerTopLeft`, `GlueSpriteLayerTopRight`, `MainMenuLogo`, `CampaignFile`, and other FDF/model/texture
+keys, so one edition selector keeps the glue presentation and campaign data consistent.
+
+Installed expansion archives are mounted during `FS_AddDataDirectory` even when the process starts in RoC mode.
+`games/warcraft-3/share/config.cfg` sets the generic `fs_expansion_archive_prefix` to `War3x`;
+`common/common.c:FS_ArchiveFileVisible` hides that configured archive family while `fs_expansion=0`, while retaining the existing
+RoC `War3Local.mpq` AI-script filter. TFT mode exposes those already-mounted archives. This avoids closing/remounting MPQs under
+renderer/UI resources and makes the edition cvar safe to change at the disconnected main menu.
+
+The native `EditionButton` is optional and is discovered under the parsed `MainMenuFrame`; OpenRealm does not recreate its layout.
+Its click command is `menu_edition`. The main-menu controller suppresses repeated clicks, hides the current frame tree, draws one
+`MainMenu Death` glue frame, switches the edition cvar, validates expansion campaign data when entering TFT, and queues the generic
+`menu_restart` console command. `Cmd_ExecuteText` appends that command after the current frame's command execution point, so it runs
+on the next client frame after the current UI event/draw call stack has returned. The client then:
+
+```text
+menu EditionButton
+  -> MainMenu Death
+  -> set fs_expansion + validate TFT data
+  -> queue menu_restart
+  -> next client frame: menu.Shutdown()
+       -> release glue models
+       -> release menu-owned model/texture references
+       -> clear parsed FDF/theme state
+  -> renderer RegisterMap(NULL) registration boundary
+  -> menu.Init()
+       -> reload war3skins/FDF from the selected archive view
+       -> rebuild MainMenu and campaign-facing state
+```
+
+If TFT data is unavailable, the WC3 menu restores RoC (`fs_expansion=0`) before queuing the same restart, so the rebuilt menu remains
+in the available edition. The generic engine `menu_restart` command only runs while `cls.state == ca_disconnected`; gameplay/map
+state is never rebuilt inline. `+tft` and `+roc` are consumed during early command-line processing, before `CL_Init()`/`M_Init()`,
+so their first rendered menu already uses the selected skin/archive view rather than changing edition as a late console command.
+
+Returning from a campaign world uses the same rebuild primitive at the session boundary. A game-side `MenuAction("menu", target)`
+is consumed on the next client frame, disconnects the client without queuing a stale `menu_main`, shuts down the local server/game
+module, clears the old map cvar/renderer asset scope, rebuilds the menu, and then enters `target`. This keeps menu FDF/model state
+valid after map registration and makes Quit Campaign / EndGame / campaign-select returns work after an in-process edition switch.
+
+`games/warcraft-3/menu/screens/single_player.c` resolves `CampaignFile` for both editions before falling back to the stock
+`UI\CampaignStrings.txt` / `UI\CampaignStrings_exp.txt` names, so a post-switch Single Player entry reparses the campaign list from
+the same edition selected by the main menu.
 
 `games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
-therefore not a static BLP backdrop. Current lifecycle gaps remain deliberate: OpenRealm starts glue layers directly in their
-`Stand` sequences, does not parse `MenuZFog`, and has no safe in-menu RoC/TFT Edition-button restart flow. Because RoC mode omits
-TFT MPQs at the filesystem layer, an Edition button must not be implemented as a UI-only cvar toggle without a corresponding data
-source/UI restart lifecycle.
+therefore not a static BLP backdrop. Remaining glue parity gaps include `MenuZFog`, edition-sensitive `GlueScreenLoop` ambience, and
+a dedicated post-restart `MainMenu Birth` phase; the current switch rebuilds directly into the normal main-menu `Stand` state.
+The renderer texture cache also deliberately retains released textures, so same-path archive overrides are not globally invalidated by
+this menu restart; edition-decorated paths reload correctly, while broader texture-cache ownership remains separate lifetime work.
 
 ## Menu Navigation Flow
 

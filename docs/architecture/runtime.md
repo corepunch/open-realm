@@ -117,8 +117,8 @@ SDL key-repeat is ignored while `key_dest == key_game`. Named keys include `TAB`
 | `-connect <host[:port]>` | Sets `connect` cvar (remote server address) |
 | `-config <path>` | Sets `config` cvar (generated config path) |
 | `-vid_modes` | Sets session cvar `vid_modes` to `"1"`; logs SDL display modes during renderer startup |
-| `-tft` | Sets `fs_expansion` to `"1"` (TFT skin/data edition; mount TFT MPQs) |
-| `-roc` | Sets `fs_expansion` to `"0"` (RoC skin/data edition; no expansion MPQs) |
+| `-tft` | Sets `fs_expansion` to `"1"` (TFT skin/data edition; expose mounted TFT MPQs) |
+| `-roc` | Sets `fs_expansion` to `"0"` (RoC skin/data edition; hide `War3x*` archives from lookup) |
 
 ### `+` (plus) Prefix — queue commands
 
@@ -128,6 +128,7 @@ The `+` prefix is for **command-line only**. It tells `Cbuf_AddEarlyCommands` / 
 |------|----------|
 | `+set <name> <value>` | `Cvar_Set(name, value)` immediately |
 | `+<cvar> [<value>]` | If `<cvar>` exists, sets it to `<value>` (or `"1"` if no value) |
+| `+tft` / `+roc` | Compatibility startup flags; consumed early like `-tft` / `-roc` so the first menu uses the requested edition |
 | `+<command> [<args>...]` | Queued via `Cbuf_AddText` — executed after module init |
 
 ## Cursor Ownership
@@ -139,6 +140,8 @@ SDL owns the native platform cursor on macOS, Linux, Windows, and other supporte
 Early commands (`+set`, `+<cvar>`) are processed during `Com_Init()`, before module registration. Late commands (`+map`, `+menu_main`, etc.) are processed after `CL_Init()` when all command handlers are registered.
 
 Game-module `gi.MenuAction` requests are also deferred. The callback only copies a validated map/menu/quit request; the next `CL_Frame` consumes it after `SV_Frame` has returned. This prevents a `ChangeLevel` native from entering `SV_Map` while the old game's VM or gameplay callback is still on the stack. Do not make `MenuAction("map", ...)` synchronously replace the world.
+
+A deferred `MenuAction("menu", target)` is a full world→menu session boundary. The client disconnects without queuing an intermediate menu command, shuts down the local server/game module, clears the `map` cvar and renderer map scope, rebuilds the menu library state, then enters `target` (the rebuilt main menu is already active when `target` is `menu_main`). This is required after campaign missions because renderer/FDF/menu state may have crossed a map registration boundary while the level was active.
 
 In code, always use the bare command name: `"map ..."`, not `"+map ..."`.
 
@@ -154,7 +157,7 @@ openwarcraft3 -data "Warcraft III" -connect 192.168.1.10:27910
 # Client menu only
 openwarcraft3 -data "Warcraft III"
 
-# Mount expansion MPQs
+# Expose expansion MPQs / select TFT (`+tft` is also accepted for compatibility)
 openwarcraft3 -data "Warcraft III" -tft +map "Maps\FrozenThrone\Campaign\NightElfX01.w3m"
 
 # One-frame UI diagnostic
@@ -171,7 +174,8 @@ All cvars registered in `Cvar_Init()`:
 | `fs_basepath` | resolved share dir | 0 | Read-only engine/share data directory |
 | `fs_homepath` | `$XDG_DATA_HOME/<game>/` or `~/.local/share/<game>/` (empty if unavailable) | 0 | Writable per-user directory |
 | `data` | `""` | CVAR_ARCHIVE | Game asset directory (contains MPQs) |
-| `fs_expansion` | `"0"` | 0 | Select RoC (`0`) vs TFT (`1`) data/skin version; TFT mounts expansion archives |
+| `fs_expansion` | `"0"` | 0 | Select base (`0`) vs expansion (`1`) data/skin version |
+| `fs_expansion_archive_prefix` | `""` | 0 | Optional archive basename prefix hidden while `fs_expansion=0`; WC3 sets this in its shipped config |
 | `map` | `""` | 0 | Internal MPQ map path for listen-server mode |
 | `connect` | `""` | 0 | Remote server address |
 | `cl_debug_entities` | `"0"` | 0 | Client entity debug logging |

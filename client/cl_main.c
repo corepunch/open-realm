@@ -121,7 +121,7 @@ void CL_ClearState(void) {
     /* Release per-map model ownership before advancing the renderer's
      * registration sequence, and clear any map-archive asset scope so
      * menus cannot inherit the previous level's imported overrides. */
-    if (re.RegisterMap) re.RegisterMap(NULL);
+    re.RegisterMap(NULL);
 
     memset(&cl, 0, sizeof(struct client_state));
     CL_ControlGroupsReset();
@@ -145,7 +145,7 @@ static void CL_MenuCommand(LPCSTR command) {
     Cbuf_AddText("\n");
 }
 
-void CL_Disconnect(LPCSTR reason, BOOL notify) {
+static void CL_DisconnectInternal(LPCSTR reason, BOOL notify, BOOL queue_menu) {
     if (cls.state == ca_disconnected) {
         return;
     }
@@ -164,11 +164,18 @@ void CL_Disconnect(LPCSTR reason, BOOL notify) {
     cl_last_packet_time = 0;
     CL_SetMenuBindings();
 
+    if (!queue_menu) {
+        return;
+    }
     if (notify) {
         CL_MenuCommand("menu_disconnected");
     } else {
         CL_MenuCommand("menu_main");
     }
+}
+
+void CL_Disconnect(LPCSTR reason, BOOL notify) {
+    CL_DisconnectInternal(reason, notify, true);
 }
 
 /* UI library FS_ReadFile wrapper — tries engine filesystem first,
@@ -537,6 +544,23 @@ static void CL_VideoApply_f(void) {
     }
 }
 
+static void CL_RebuildMenu(LPCSTR target) {
+    Cvar_Set("map", "");
+    menu.Shutdown();
+    re.RegisterMap(NULL);
+    menu.Init();
+    if (target && *target && strcmp(target, "menu_main")) {
+        CL_MenuCommand(target);
+    }
+}
+
+static void CL_MenuRestart_f(void) {
+    if (cls.state != ca_disconnected) {
+        return;
+    }
+    CL_RebuildMenu("menu_main");
+}
+
 static void CL_Quit_f(void) {
     CL_Shutdown();
     Com_Quit();
@@ -587,8 +611,13 @@ static void CL_ProcessPendingMenuAction(void) {
         SV_Map(pending.arg);
         break;
     case CL_MENU_ACTION_MENU:
-        CL_Disconnect("Game ended.", false);
-        if (pending.arg[0] && strcmp(pending.arg, "menu_main")) CL_MenuCommand(pending.arg);
+        /* Returning from a world is a session boundary, not an in-place menu
+         * navigation.  Shut the client/server world down first, then rebuild
+         * the menu after clearing the map asset scope so FDF/model state is
+         * valid again even after a runtime menu restart. */
+        CL_DisconnectInternal("Game ended.", false, false);
+        SV_Shutdown();
+        CL_RebuildMenu(pending.arg[0] ? pending.arg : "menu_main");
         break;
     case CL_MENU_ACTION_QUIT:
         CL_Quit_f();
@@ -611,6 +640,65 @@ TEST(client_session, menu_action_map_is_deferred_until_client_frame) {
      * specifically that MenuAction itself cannot enter SV_Map re-entrantly. */
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
 }
+
+TEST(client_session, menu_action_menu_is_deferred_until_client_frame) {
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+
+    MenuAction("menu", "menu_main");
+
+    T_EQ(cl_pending_menu_action.type, CL_MENU_ACTION_MENU);
+    T_STREQ(cl_pending_menu_action.arg, "menu_main");
+
+    /* Client-owned leave buttons use this path so they cannot rebuild FDF/menu
+     * state while the gameplay window input callback is still on the stack. */
+    memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+}
+
+static DWORD cl_test_menu_shutdown_count;
+static DWORD cl_test_menu_init_count;
+static DWORD cl_test_register_map_count;
+static BOOL cl_test_register_map_was_null;
+
+static void CL_TestMenuShutdown(void) {
+    cl_test_menu_shutdown_count++;
+}
+
+static void CL_TestMenuInit(void) {
+    cl_test_menu_init_count++;
+}
+
+static void CL_TestRegisterMap(LPCSTR map) {
+    cl_test_register_map_count++;
+    cl_test_register_map_was_null = map == NULL;
+}
+
+TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
+    void (*old_shutdown)(void) = menu.Shutdown;
+    void (*old_init)(void) = menu.Init;
+    void (*old_register_map)(LPCSTR) = re.RegisterMap;
+
+    cl_test_menu_shutdown_count = 0;
+    cl_test_menu_init_count = 0;
+    cl_test_register_map_count = 0;
+    cl_test_register_map_was_null = false;
+    menu.Shutdown = CL_TestMenuShutdown;
+    menu.Init = CL_TestMenuInit;
+    re.RegisterMap = CL_TestRegisterMap;
+    Cvar_Set("map", "maps/test.map");
+
+    CL_RebuildMenu("menu_main");
+
+    T_STREQ(Cvar_String("map", NULL), "");
+    T_EQ(cl_test_menu_shutdown_count, 1);
+    T_EQ(cl_test_register_map_count, 1);
+    T_ASSERT(cl_test_register_map_was_null);
+    T_EQ(cl_test_menu_init_count, 1);
+
+    menu.Shutdown = old_shutdown;
+    menu.Init = old_init;
+    re.RegisterMap = old_register_map;
+}
+
 #endif
 
 void CL_Init(void) {
@@ -674,6 +762,7 @@ void CL_Init(void) {
 
     Cmd_AddCommand("quit", CL_Quit_f);
     Cmd_AddCommand("screenshot", CL_Screenshot_f);
+    Cmd_AddCommand("menu_restart", CL_MenuRestart_f);
 
     CON_Init();
     CL_InitInput();
