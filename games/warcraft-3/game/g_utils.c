@@ -19,6 +19,7 @@ void G_FreeEdict(LPEDICT ent) {
     /* Removed units cannot remain in JASS groups: save files require every group member to resolve to a live edict. */
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = &level.groups[i];
+        if (!group->inuse) continue;
         for (DWORD k = 0; k < group->num_units;) {
             if (group->units[k] != ent) { k++; continue; }
             for (DWORD n = k + 1; n < group->num_units; n++) group->units[n - 1] = group->units[n];
@@ -48,10 +49,31 @@ LPEVENT G_MakeEvent(EVENTTYPE type) {
     return NULL;
 }
 
+BOOL G_JassGroupValid(ggroup_t const *group) {
+    return group && group >= level.groups && group < level.groups + level.num_groups && group->inuse;
+}
+
 ggroup_t *G_AllocJassGroup(void) {
+    ggroup_t *group;
+
+    FOR_LOOP(i, level.num_groups) {
+        group = &level.groups[i];
+        if (!group->inuse) {
+            memset(group, 0, sizeof(*group));
+            group->inuse = true;
+            return group;
+        }
+    }
     if (level.num_groups >= MAX_GROUPS) return NULL;
-    ggroup_t *group = &level.groups[level.num_groups++];
-    memset(group, 0, sizeof(*group)); return group;
+    group = &level.groups[level.num_groups++];
+    memset(group, 0, sizeof(*group));
+    group->inuse = true;
+    return group;
+}
+
+void G_FreeJassGroup(ggroup_t *group) {
+    if (!G_JassGroupValid(group)) return;
+    memset(group, 0, sizeof(*group));
 }
 
 LPTRIGGER G_AllocJassTrigger(void) {

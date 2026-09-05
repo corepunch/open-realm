@@ -438,6 +438,201 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
                                  self ? self->s.player : 0, 0.0f);
 }
 
+/* Rebind an existing edict to another WC3 unit type while retaining its
+ * authoritative identity and runtime ownership.  Transformation abilities
+ * use this instead of CreateUnit/RemoveUnit so JASS handles, selection, and
+ * trigger references keep pointing at the same unit. */
+BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
+    LPGAMECLIENT client;
+    FLOAT health_ratio, mana_ratio, temporary_armor;
+    FLOAT temporary_attack1, temporary_attack2;
+    DWORD old_flags;
+
+    if (!unit || !type || !G_UnitUI(type)->modelFile || G_UnitIsBuilding(type)) return false;
+    health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
+    mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
+    temporary_armor = unit->temporary_armor_bonus;
+    temporary_attack1 = unit->attack1.temporaryDamageBonus;
+    temporary_attack2 = unit->attack2.temporaryDamageBonus;
+    old_flags = unit->s.flags;
+
+    G_ClearUnitFood(unit);
+    if (old_flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    unit->class_id = unit->s.class_id = type;
+    G_BindEntityData(unit);
+    unit->s.flags &= ~(EF_BUILDING | EF_FOW_BLOCKER | EF_FOW_REVEALER);
+    unit->aiflags &= ~(AI_FLYING | AI_IMMOBILE);
+    unit->s.shadow = 0;
+    memset(&unit->attack1, 0, sizeof(unit->attack1));
+    memset(&unit->attack2, 0, sizeof(unit->attack2));
+    unit->permanent_armor_bonus = 0.0f;
+    unit->temporary_armor_bonus = 0.0f;
+    SP_SpawnUnit(unit);
+    unit->health.value = MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio));
+    unit->mana.value = MIN(unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
+    unit->temporary_armor_bonus = temporary_armor;
+    unit->armor_value += temporary_armor;
+    unit->attack1.temporaryDamageBonus = temporary_attack1;
+    unit->attack2.temporaryDamageBonus = temporary_attack2;
+    G_ActivateUnitFood(unit);
+    unit->animation = NULL;
+    gi.LinkEntity(unit);
+    client = G_GetPlayerClientByNumber(unit->s.player);
+    if (client && client->ps.number == unit->s.player) G_InvalidateCommands(client);
+    G_InvalidateUnitInfoPanel(unit);
+    G_InvalidateUnitPortrait(unit);
+    G_InvalidateUnitShortcutsForUnit(unit);
+    return true;
+}
+
+typedef struct {
+    DWORD ability_id;
+    LPCSTR ability_name;
+    AbilityData_t const *ability;
+    DWORD base_type;
+    DWORD raven_type;
+} ravenFormData_t;
+
+static BOOL unit_raven_form_data(LPEDICT unit, ravenFormData_t *out) {
+    static struct { DWORD id; LPCSTR name; } const candidates[] = {
+        { MAKEFOURCC('A','m','r','f'), "Amrf" }, /* Medivh Crow Form */
+        { MAKEFOURCC('A','r','a','v'), "Arav" }, /* Druid Storm Crow Form */
+    };
+    ravenFormData_t owned = {0};
+
+    if (!unit || !out) return false;
+    FOR_LOOP(i, sizeof(candidates) / sizeof(candidates[0])) {
+        AbilityData_t const *ability = G_AbilityData(candidates[i].id);
+        DWORD const base_type = ability->dataId[0][0];
+        DWORD const raven_type = ability->unitID[0];
+        ravenFormData_t current;
+
+        if (!ability->id || !base_type || !raven_type) continue;
+        current = (ravenFormData_t){
+            .ability_id = candidates[i].id,
+            .ability_name = candidates[i].name,
+            .ability = ability,
+            .base_type = base_type,
+            .raven_type = raven_type,
+        };
+        /* Endpoint identity is authoritative for preplaced campaign forms,
+         * which may not expose the transform ability through the runtime skill
+         * list before the map issues unravenform. */
+        if (unit->class_id == base_type || unit->class_id == raven_type) {
+            *out = current;
+            return true;
+        }
+        if (!owned.ability && G_ActorHasSkill(unit, candidates[i].name))
+            owned = current;
+    }
+    if (owned.ability) {
+        *out = owned;
+        return true;
+    }
+    return false;
+}
+
+static BOOL unit_raven_form_order(LPEDICT unit, BOOL raven_form) {
+    ravenFormData_t form = {0};
+    DWORD target_type;
+    LPCSTR order_name = raven_form ? "ravenform" : "unravenform";
+
+    if (!unit_raven_form_data(unit, &form)) {
+        fprintf(stderr,
+                "WC3_RAVEN phase=reject order=%s reason=no-matching-transform-ability class=%.4s\n",
+                order_name, unit ? (LPCSTR)&unit->class_id : "----");
+        return false;
+    }
+    target_type = raven_form ? form.raven_type : form.base_type;
+
+    /* Temporary one-shot diagnostics.  These only fire for ravenform and
+     * unravenform, so the campaign cinematic reproducer stays concise. */
+    fprintf(stderr,
+            "WC3_RAVEN phase=resolve order=%s ent=%u class=%.4s sclass=%.4s model=%u "
+            "ability=%.4s code=%.4s dataA=%.4s unitID=%.4s target=%.4s "
+            "hasAbility=%u props=\"%s\" request=\"%s\" anim=\"%s\" frame=%u "
+            "model_file=\"%s\"\n",
+            order_name,
+            (unsigned)unit->s.number,
+            (LPCSTR)&unit->class_id,
+            (LPCSTR)&unit->s.class_id,
+            (unsigned)unit->s.model,
+            (LPCSTR)&form.ability_id,
+            (LPCSTR)&form.ability->code,
+            (LPCSTR)&form.base_type,
+            (LPCSTR)&form.raven_type,
+            (LPCSTR)&target_type,
+            (unsigned)G_ActorHasSkill(unit, form.ability_name),
+            unit->animation_props,
+            unit->animation_request,
+            unit->animation ? unit->animation->name : "<none>",
+            (unsigned)unit->s.frame,
+            unit->data.UnitUI && unit->data.UnitUI->modelFile
+                ? unit->data.UnitUI->modelFile : "");
+
+    if (unit->class_id == target_type) {
+        fprintf(stderr,
+                "WC3_RAVEN phase=noop order=%s reason=already-target class=%.4s\n",
+                order_name, (LPCSTR)&unit->class_id);
+        return true;
+    }
+    if (raven_form ? unit->class_id != form.base_type : unit->class_id != form.raven_type) {
+        fprintf(stderr,
+                "WC3_RAVEN phase=reject order=%s reason=wrong-source-endpoint class=%.4s\n",
+                order_name, (LPCSTR)&unit->class_id);
+        return false;
+    }
+
+    G_ClearUnitOrderQueue(unit);
+    if (!G_TransformUnitType(unit, target_type)) {
+        fprintf(stderr,
+                "WC3_RAVEN phase=reject order=%s reason=transform-failed target=%.4s\n",
+                order_name, (LPCSTR)&target_type);
+        return false;
+    }
+    fprintf(stderr,
+            "WC3_RAVEN phase=transformed order=%s ent=%u class=%.4s sclass=%.4s model=%u "
+            "props=\"%s\" request=\"%s\" anim=\"%s\" frame=%u model_file=\"%s\"\n",
+            order_name,
+            (unsigned)unit->s.number,
+            (LPCSTR)&unit->class_id,
+            (LPCSTR)&unit->s.class_id,
+            (unsigned)unit->s.model,
+            unit->animation_props,
+            unit->animation_request,
+            unit->animation ? unit->animation->name : "<none>",
+            (unsigned)unit->s.frame,
+            unit->data.UnitUI && unit->data.UnitUI->modelFile
+                ? unit->data.UnitUI->modelFile : "");
+
+    unit->goalentity = NULL;
+    unit->secondarygoal = NULL;
+    move_reset_progress(unit);
+    unit_stand(unit);
+    /* Cinematics can keep transformed units paused.  Paused units skip
+     * M_MoveFrame(), so snap directly to the destination form's sequence. */
+    if (unit->animation) unit->s.frame = unit->animation->interval[0];
+
+    fprintf(stderr,
+            "WC3_RAVEN phase=final order=%s ent=%u class=%.4s sclass=%.4s model=%u "
+            "props=\"%s\" request=\"%s\" anim=\"%s\" interval=%u..%u frame=%u "
+            "model_file=\"%s\"\n",
+            order_name,
+            (unsigned)unit->s.number,
+            (LPCSTR)&unit->class_id,
+            (LPCSTR)&unit->s.class_id,
+            (unsigned)unit->s.model,
+            unit->animation_props,
+            unit->animation_request,
+            unit->animation ? unit->animation->name : "<none>",
+            unit->animation ? (unsigned)unit->animation->interval[0] : 0u,
+            unit->animation ? (unsigned)unit->animation->interval[1] : 0u,
+            (unsigned)unit->s.frame,
+            unit->data.UnitUI && unit->data.UnitUI->modelFile
+                ? unit->data.UnitUI->modelFile : "");
+    return true;
+}
+
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
 //    printf("%.4s %s\n", &self->class_id, order);
     if (!self || !order) {
@@ -455,6 +650,10 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         return S_HoldPosition(self);
     if (!strcmp(order, "mirrorimage"))
         return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'O', 'm', 'i'));
+    if (!strcmp(order, "ravenform"))
+        return unit_raven_form_order(self, true);
+    if (!strcmp(order, "unravenform"))
+        return unit_raven_form_order(self, false);
     if (!strcmp(order, "repairon"))
         return S_SetRepairAutocast(self, true);
     if (!strcmp(order, "repairoff"))

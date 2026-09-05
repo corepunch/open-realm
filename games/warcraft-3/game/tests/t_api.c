@@ -2034,10 +2034,61 @@ TEST(wc3_api, group_first_of_group) {
 TEST(wc3_api, group_add_is_set_semantics) {
     reset_entities();
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    ggroup_t group = {0};
-    T_ASSERT(group_add_entity(&group, unit));
-    T_ASSERT(!group_add_entity(&group, unit));
-    T_EQ(group.num_units, 1);
+    ggroup_t *group = G_AllocJassGroup();
+    T_NOT_NULL(group);
+    T_ASSERT(group_add_entity(group, unit));
+    T_ASSERT(!group_add_entity(group, unit));
+    T_EQ(group->num_units, 1);
+    G_FreeJassGroup(group);
+}
+
+TEST(wc3_api, destroyed_group_slots_are_reused) {
+    DWORD const saved_num_groups = level.num_groups;
+    ggroup_t *first = NULL;
+
+    for (DWORD i = 0; i < MAX_GROUPS + 32; i++) {
+        ggroup_t *group = G_AllocJassGroup();
+        T_NOT_NULL(group);
+        if (!group) break;
+        if (!first) first = group;
+        else T_ASSERT(group == first);
+        T_ASSERT(group->inuse);
+        G_FreeJassGroup(group);
+        T_ASSERT(!group->inuse);
+    }
+    T_EQ(level.num_groups, saved_num_groups + 1);
+}
+
+TEST(wc3_api, destroyed_group_handle_is_not_saveable_or_loadable) {
+    DWORD id = UINT32_MAX;
+    ggroup_t *group = G_AllocJassGroup();
+
+    T_NOT_NULL(group);
+    T_ASSERT(G_SaveJassHandle("group", group, &id));
+    T_EQ(id, 0);
+    T_ASSERT(G_LoadJassHandle("group", id) == group);
+
+    G_FreeJassGroup(group);
+    T_ASSERT(!G_SaveJassHandle("group", group, &id));
+    T_NULL(G_LoadJassHandle("group", 0));
+}
+
+TEST(wc3_api, repeated_create_destroy_group_does_not_exhaust_registry) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function recycleGroup takes nothing returns nothing\n"
+        "local group g = CreateGroup()\n"
+        "call DestroyGroup(g)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call recycleGroup()\n"
+        "call recycleGroup()\n"
+        "call recycleGroup()\n"
+        "endfunction"));
+    T_EQ(level.num_groups, 1);
+    T_ASSERT(!level.groups[0].inuse);
+    currentplayer = NULL;
 }
 
 TEST(wc3_api, destroy_group_clears_members) {

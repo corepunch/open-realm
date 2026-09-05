@@ -648,6 +648,7 @@ typedef struct {
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
 typedef struct {
+    BOOL inuse;
     LPEDICT units[MAX_GROUP_SIZE];
     DWORD num_units;
 } ggroup_t;
@@ -1450,6 +1451,8 @@ BOOL ReadGame(LPCSTR filename);
 BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
 HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
 ggroup_t *G_AllocJassGroup(void);
+BOOL G_JassGroupValid(ggroup_t const *group);
+void G_FreeJassGroup(ggroup_t *group);
 LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, DWORD effect_id, BOOL enabled);
 void G_WeatherEnable(LPGWEATHER effect, BOOL enabled);
 void G_WeatherRemove(LPGWEATHER effect);
@@ -1856,6 +1859,7 @@ BOOL G_PlayerTreatsPlayerAsAlly(DWORD, DWORD);
 BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
 BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
 BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
+BOOL G_TransformUnitType(LPEDICT, DWORD);
 BOOL G_IssueUnitPointOrder(LPEDICT, LPCSTR, LPCVECTOR2, BOOL, DWORD, FLOAT);
 BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
 BOOL G_UnitStartNextQueuedOrder(LPEDICT);

@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 10; // weather and false-time state join the persisted WC3 level stream
+static DWORD const save_version = 11; // reusable JASS group slot lifecycle joins the persisted WC3 level stream
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
 
@@ -185,6 +185,7 @@ static field_t const save_game_event_fields[] = {
 };
 
 static field_t const group_fields[] = {
+    TF(ggroup_t, inuse, F_INT),
     TFC(ggroup_t, units, F_EDICT, MAX_GROUP_SIZE, num_units),
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -655,7 +656,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         return false;
     }
     if (domain == JASS_HANDLE_GROUP) {
-        if ((ggroup_t *)value < level.groups || (ggroup_t *)value >= level.groups + level.num_groups) return false;
+        if (!G_JassGroupValid(value)) return false;
         *id = (DWORD)((ggroup_t *)value - level.groups); return true;
     }
     if (domain == JASS_HANDLE_TIMER) {
@@ -690,7 +691,7 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     if (!JassHandleDomain(type, &domain)) return NULL;
     if (domain == JASS_HANDLE_ENTITY) return id < globals.num_edicts && g_edicts[id].inuse ? g_edicts + id : NULL;
     if (domain == JASS_HANDLE_PLAYER) return id < (DWORD)game.max_clients ? &game.clients[id].ps : NULL;
-    if (domain == JASS_HANDLE_GROUP) return id < level.num_groups ? &level.groups[id] : NULL;
+    if (domain == JASS_HANDLE_GROUP) return id < level.num_groups && level.groups[id].inuse ? &level.groups[id] : NULL;
     if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? &level.timers[id] : NULL;
     return JassListHandle(domain, id);
 }
