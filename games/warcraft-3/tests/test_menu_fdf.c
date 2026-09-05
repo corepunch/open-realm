@@ -2060,6 +2060,7 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
 
 TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     menuImport_t saved = menuimport;
+    RECT centered;
 
     reset_ui_state();
     load_ui_files((LPCSTR[]){
@@ -2085,6 +2086,9 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     UI_DrawFrames((LPCFRAMEDEF[]){ UI_FindFrame("MainMenuFrame") }, 1);
     T_FEQ(UI_GetSceneRect().x, 0.0f, 0.0001f);
     T_FEQ(UI_GetSceneRect().w, 1.066666f, 0.0001f);
+    centered = UI_GetCenteredSceneRect();
+    T_FEQ(centered.x, 0.133333f, 0.0001f);
+    T_FEQ(centered.w, 0.8f, 0.0001f);
     test_window_size = MAKE(size2_t, 1000, 750);
     menuimport = saved;
 }
