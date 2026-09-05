@@ -1609,6 +1609,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->cargo.units[3] = second;
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
+    strlcpy(first->animation_props, "alternate,work", sizeof(first->animation_props));
+    strlcpy(first->animation_request, "stand ready", sizeof(first->animation_request));
     T_ASSERT(first->currentmove != NULL);
     umove_t const *const saved_move = first->currentmove;
     first->abilstatus[0] = (heroabilitystatus_t){
@@ -1660,6 +1662,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.follow_target = NULL;
     first->inventory[2] = NULL;
     first->cargo.units[3] = NULL;
+    first->animation_props[0] = '\0';
+    first->animation_request[0] = '\0';
     memset(first->abilstatus, 0, sizeof(first->abilstatus));
     strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
     game.clients[0].ps.cinematic_portrait = 0;
@@ -1713,6 +1717,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].movement.follow_target == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo.units[3] == &g_edicts[second - g_edicts]);
+    T_STREQ(g_edicts[first - g_edicts].animation_props, "alternate,work");
+    T_STREQ(g_edicts[first - g_edicts].animation_request, "stand ready");
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
     T_ASSERT(g_edicts[first - g_edicts].think == monster_think);
     /* currentmove is a process pointer; F_MMOVE relocates it so a loaded unit keeps behaving. */

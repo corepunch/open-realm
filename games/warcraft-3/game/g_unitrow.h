@@ -422,9 +422,10 @@ typedef struct {
 /* =========================================================================
  * Global arrays and accessor declarations — defined in g_metadata.c.
  *
- * All helpers take a unit/destructable/item FOURCC and return a pointer
- * into the decoded row array, or a zero row when the ID is unknown.
- * G_UnitCollision handles the ROC (UnitData) / TFT (UnitBalance) split.
+ * All helpers take a unit/destructable/item FOURCC and return an immutable
+ * typed row, or a zero row when the ID is unknown. G_UnitUI may return a
+ * stable per-map war3map.w3u overlay row; the global arrays remain the base
+ * decoded data. G_UnitCollision handles the ROC (UnitData) / TFT split.
  * =========================================================================*/
 extern UnitBalance_t *g_UnitBalance; extern DWORD g_UnitBalanceCount;
 extern UnitProfile_t *g_UnitProfile; extern DWORD g_UnitProfileCount;

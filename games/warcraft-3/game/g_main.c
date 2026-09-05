@@ -181,6 +181,7 @@ void G_UpdateTimeOfDay(void) {
 
 static bool G_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
+        G_SetMapUnitOverrides(NULL);
         return false;
     }
     /* CS_MODELS is rebuilt from index 1 for every SV_Map.  The server-side
@@ -189,6 +190,7 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     G_FreeModels();
     gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     gi.ClearWorld();
+    G_SetMapUnitOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
      * panel once so write paths do not parse FDF on first use. */
     UI_ResetHud();

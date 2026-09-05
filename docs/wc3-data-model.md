@@ -39,6 +39,35 @@ items, upgrades, and JASS natives modify those values after spawn. Cohesive tran
 named edict sections (`item`, `destructable`, `cargo`, `movement`, `channel`, and `sound`). The server-visible prefix
 through `areabounds` must remain aligned with `server.h`.
 
+### Map-local `war3map.w3u` presentation overrides
+
+`CM_LoadMap` parses original-unit edits and user-created units from `war3map.w3u` into `MAPINFO.originalUnits` and
+`MAPINFO.userCreatedUnits`. Before map entities spawn, `G_SetMapUnitOverrides` builds stable per-map `UnitProfile_t`
+and `UnitUI_t` rows. Original-unit edits are applied first; a custom unit then inherits the already-overridden base
+rows and applies its own registered Profile/UI modifications. `G_UnitProfile(id)` and `G_UnitUI(id)` check these
+exact-ID rows before falling back to the base-SLK/custom-ID remap.
+
+This is required because spawned edicts retain immutable typed-row pointers; never implement map overrides with one
+mutable scratch row. The override values point into map-owned `war3map.w3u` modification storage, so the caches are
+cleared/rebuilt at map load and cleared again during unit-data shutdown.
+
+The current merge covers fields already mapped to `UnitProfile_t` or `UnitUI_t` in `UnitsMetaData`. This includes
+`uani` (`animProps`, Required Animation Names), `umdl` (model), `usca` (model scale), profile/name fields, tint/team-
+colour fields, selection/shadow fields, and `usnd`. Balance/Data/Weapons/Abilities object-data merge remains separate
+work and still uses base typed rows through `ResolveUnitID`.
+
+`uani` is especially important because a different visible form does not necessarily mean a different model file.
+`UnitProfile.animProps` supplies persistent secondary MDX animation tags such as `alternate`; `G_SetUnitAnimation()`
+combines them with the requested animation family and selects a matching tagged sequence. Per-unit JASS changes from
+`AddUnitAnimationProperties` mutate the edict's active tags and reselect its logical animation. See
+[Required Animation Names](games/warcraft-3/unit-animation-properties.md).
+
+The earlier model bug was caused by resolving a custom rawcode to `originalUnitID` *before* `G_UnitUI` lookup. That
+made a map-authored `umdl` invisible to spawn code. `umdl` values may carry an authored model extension; unit spawning,
+build placement previews, and cinematic portraits therefore use `G_NormalizeModelFilename`, which preserves an
+existing extension and adds `.mdx` only to extensionless base-SLK stems. Do not blindly append `.mdx` to a map
+override.
+
 FourCC/JASS reads use `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` / `UnitStringField`. Unit metadata binds
 each FourCC to its DDX field descriptor and typed-row index during `InitUnitData`, so these accessors read the same arrays
 as gameplay instead of returning to `sheetRow_t`. Add fields to the owning row and DDX schema in `g_metadata.c`.

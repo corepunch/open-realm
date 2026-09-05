@@ -788,6 +788,21 @@ ItemData_t *g_ItemData; DWORD g_ItemDataCount; static slkIndex_t item_idx;
 DestructableData_t *g_DestructableData; DWORD g_DestructableDataCount; static slkIndex_t dest_idx;
 
 typedef struct {
+    DWORD id;
+    UnitProfile_t row;
+} mapUnitProfileOverride_t;
+
+typedef struct {
+    DWORD id;
+    UnitUI_t row;
+} mapUnitUIOverride_t;
+
+static mapUnitProfileOverride_t *map_unit_profile_overrides;
+static DWORD map_unit_profile_override_count;
+static mapUnitUIOverride_t *map_unit_ui_overrides;
+static DWORD map_unit_ui_override_count;
+
+typedef struct {
     LPCSTR name, path;
     slkField_t const *schema;
     size_t row_size;
@@ -1133,9 +1148,157 @@ unitMeta_t const UnitsMetaData[] = {
 #undef M
 
 /* =========================================================================
+ * Map-local unit presentation overrides.
+ *
+ * war3map.w3u records are owned by CM/mapInfo for the lifetime of a map. A
+ * spawned edict keeps immutable typed-row pointers, so overrides must live in
+ * stable per-map rows rather than a shared scratch object. UnitProfile owns
+ * Required Animation Names (uani/animProps); UnitUI owns the model and related
+ * render fields. Other typed tables still resolve custom IDs to their base row.
+ * =========================================================================*/
+static UnitProfile_t const *FindMapUnitProfileOverride(DWORD id) {
+    FOR_LOOP(i, map_unit_profile_override_count) {
+        if (map_unit_profile_overrides[i].id == id)
+            return &map_unit_profile_overrides[i].row;
+    }
+    return NULL;
+}
+
+static UnitUI_t const *FindMapUnitUIOverride(DWORD id) {
+    FOR_LOOP(i, map_unit_ui_override_count) {
+        if (map_unit_ui_overrides[i].id == id)
+            return &map_unit_ui_overrides[i].row;
+    }
+    return NULL;
+}
+
+static BOOL UnitModificationString(unitModification_t const *mod) {
+    switch (mod->type) {
+    case mod_string:
+    case mod_unitList:
+    case mod_itemList:
+    case mod_regenType:
+    case mod_attackType:
+    case mod_weaponType:
+    case mod_targetType:
+    case mod_moveType:
+    case mod_defenseType:
+    case mod_pathingTexture:
+    case mod_upgradeList:
+    case mod_stringList:
+    case mod_abilityList:
+    case mod_heroAbilityList:
+    case mod_missileArt:
+    case mod_attributeType:
+    case mod_attackBits:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void ApplyMapUnitTypedField(void *row, size_t row_offset, unitModification_t const *mod) {
+    unitMeta_t const *metadata = G_FindMetaData(UnitsMetaData, mod->modID);
+    BYTE *dest;
+
+    if (!metadata || metadata->row_offset != row_offset || !mod->data)
+        return;
+
+    dest = (BYTE *)row + metadata->field_offset;
+    switch (metadata->type) {
+    case BZ_FIELD_CSTR:
+        if (UnitModificationString(mod))
+            *(LPCSTR *)dest = (LPCSTR)mod->data;
+        break;
+    case BZ_FIELD_FLOAT:
+        if (mod->type == mod_real || mod->type == mod_unreal)
+            *(FLOAT *)dest = *(FLOAT const *)mod->data;
+        break;
+    case BZ_FIELD_BOOL:
+        if (mod->type == mod_int)
+            *(BOOL *)dest = *(DWORD const *)mod->data != 0;
+        else if (mod->type == mod_bool || mod->type == mod_char)
+            *(BOOL *)dest = *(BYTE const *)mod->data != 0;
+        break;
+    case BZ_FIELD_U32:
+        if (mod->type == mod_int)
+            *(DWORD *)dest = *(DWORD const *)mod->data;
+        else if (mod->type == mod_bool || mod->type == mod_char)
+            *(DWORD *)dest = *(BYTE const *)mod->data;
+        break;
+    default:
+        break;
+    }
+}
+
+static void AddMapUnitProfileOverride(unitData_t const *unit, DWORD target_id, DWORD base_id) {
+    UnitProfile_t const *base = FindMapUnitProfileOverride(base_id);
+    mapUnitProfileOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&profile_idx, base_id);
+    override = map_unit_profile_overrides + map_unit_profile_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, unit->numbeOfModifications)
+        ApplyMapUnitTypedField(&override->row, offsetof(edict_t, data.UnitProfile), unit->modifications + i);
+}
+
+static void AddMapUnitUIOverride(unitData_t const *unit, DWORD target_id, DWORD base_id) {
+    UnitUI_t const *base = FindMapUnitUIOverride(base_id);
+    mapUnitUIOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&ui_idx, base_id);
+    override = map_unit_ui_overrides + map_unit_ui_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, unit->numbeOfModifications)
+        ApplyMapUnitTypedField(&override->row, offsetof(edict_t, data.UnitUI), unit->modifications + i);
+}
+
+void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
+    DWORD capacity;
+
+    free(map_unit_profile_overrides);
+    map_unit_profile_overrides = NULL;
+    map_unit_profile_override_count = 0;
+    free(map_unit_ui_overrides);
+    map_unit_ui_overrides = NULL;
+    map_unit_ui_override_count = 0;
+    if (!mapinfo) return;
+
+    capacity = mapinfo->num_originalUnits + mapinfo->num_userCreatedUnits;
+    if (!capacity) return;
+    map_unit_profile_overrides = calloc(capacity, sizeof(*map_unit_profile_overrides));
+    map_unit_ui_overrides = calloc(capacity, sizeof(*map_unit_ui_overrides));
+    if (!map_unit_profile_overrides || !map_unit_ui_overrides) {
+        free(map_unit_profile_overrides); map_unit_profile_overrides = NULL;
+        free(map_unit_ui_overrides); map_unit_ui_overrides = NULL;
+        return;
+    }
+
+    /* Original-object edits become the inheritance source for custom objects. */
+    FOR_LOOP(i, mapinfo->num_originalUnits) {
+        unitData_t const *unit = mapinfo->originalUnits + i;
+        AddMapUnitProfileOverride(unit, unit->originalUnitID, unit->originalUnitID);
+        AddMapUnitUIOverride(unit, unit->originalUnitID, unit->originalUnitID);
+    }
+    FOR_LOOP(i, mapinfo->num_userCreatedUnits) {
+        unitData_t const *unit = mapinfo->userCreatedUnits + i;
+        AddMapUnitProfileOverride(unit, unit->newUnitID, unit->originalUnitID);
+        AddMapUnitUIOverride(unit, unit->newUnitID, unit->originalUnitID);
+    }
+}
+
+/* =========================================================================
  * Public lookup functions.
- * Map-created units remap their ID to the base unit ID before any typed-row
- * lookup, including FourCC metadata access.
+ * Map-created units remap their ID to the base unit ID for typed tables that
+ * do not yet have a per-map merge. UnitProfile and UnitUI check stable map rows first.
  * =========================================================================*/
 static DWORD ResolveUnitID(DWORD id) {
     if (!level.mapinfo) return id;
@@ -1192,9 +1355,23 @@ FLOAT UnitMetaReal(LPEDICT unit, DWORD field_id) {
 
 UnitBalance_t const *G_UnitBalance(DWORD id) { static UnitBalance_t zero; UnitBalance_t *row = FS_SLKLookup(&balance_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UpgradeData_t const *G_UpgradeData(DWORD id) { static UpgradeData_t zero; UpgradeData_t *row = FS_SLKLookup(&upgrade_idx, id); return row ? row : &zero; }
-UnitProfile_t const *G_UnitProfile(DWORD id) { static UnitProfile_t zero; UnitProfile_t *row = FS_SLKLookup(&profile_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UnitProfile_t const *G_UnitProfile(DWORD id) {
+    static UnitProfile_t zero;
+    UnitProfile_t const *override = FindMapUnitProfileOverride(id);
+    UnitProfile_t *row;
+    if (override) return override;
+    row = FS_SLKLookup(&profile_idx, ResolveUnitID(id));
+    return row ? row : &zero;
+}
 UnitData_t const *G_UnitData(DWORD id) { static UnitData_t zero; UnitData_t *row = FS_SLKLookup(&data_idx, ResolveUnitID(id)); return row ? row : &zero; }
-UnitUI_t const *G_UnitUI(DWORD id) { static UnitUI_t zero; UnitUI_t *row = FS_SLKLookup(&ui_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UnitUI_t const *G_UnitUI(DWORD id) {
+    static UnitUI_t zero;
+    UnitUI_t const *override = FindMapUnitUIOverride(id);
+    UnitUI_t *row;
+    if (override) return override;
+    row = FS_SLKLookup(&ui_idx, ResolveUnitID(id));
+    return row ? row : &zero;
+}
 UnitWeapons_t const *G_UnitWeapons(DWORD id) { static UnitWeapons_t zero; UnitWeapons_t *row = FS_SLKLookup(&weapons_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitAbilities_t const *G_UnitAbil(DWORD id) { static UnitAbilities_t zero; UnitAbilities_t *row = FS_SLKLookup(&abil_idx, ResolveUnitID(id)); return row ? row : &zero; }
 AbilityData_t const *G_AbilityData(DWORD id) { static AbilityData_t zero; AbilityData_t *row = FS_SLKLookup(&ability_idx, id); return row ? row : &zero; }
@@ -1350,6 +1527,7 @@ void InitUnitData(void) {
 }
 
 void ShutdownUnitData(void) {
+    G_SetMapUnitOverrides(NULL);
     FS_SLKFreeIndex(&profile_idx);
     FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
     g_UnitProfile = NULL; g_UnitProfileCount = 0;

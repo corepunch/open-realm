@@ -228,7 +228,7 @@ DWORD QueueUnitAnimation(LPJASS j) {
 DWORD SetUnitAnimation(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCSTR whichAnimation = jass_checkstring(j, 2);
-    if (whichUnit) whichUnit->animation = G_GetAnimation(whichUnit->s.model, whichAnimation);
+    if (whichUnit) G_SetUnitAnimation(whichUnit, whichAnimation);
     return 0;
 }
 DWORD SetUnitAnimationByIndex(LPJASS j) {
@@ -243,9 +243,10 @@ DWORD SetUnitAnimationWithRarity(LPJASS j) {
     return 0;
 }
 DWORD AddUnitAnimationProperties(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR animProperties = jass_checkstring(j, 2);
-    //BOOL add = jass_checkboolean(j, 3);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCSTR animProperties = jass_checkstring(j, 2);
+    BOOL add = jass_checkboolean(j, 3);
+    if (whichUnit) G_AddUnitAnimationProperties(whichUnit, animProperties, add);
     return 0;
 }
 

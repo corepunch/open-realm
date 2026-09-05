@@ -65,9 +65,10 @@ model that falls back to the base path, including scope clearing at a registrati
 
 This is intentionally narrower than a full Warsmash-style data-source stack. The current transition still does
 **not** rebuild all WC3 SLK/TXT data per map, merge all `war3map.w3a/.w3t/.w3b/.w3d/.w3q` object modifications,
-implement JASS `Preload`/`Preloader`, or expose staged byte/task loading progress. `war3map.w3u` field application
-and true per-map `war3mapMisc.txt`/skin overlays remain separate data-layer work; do not infer those capabilities
-from the renderer's map-import lookup.
+implement JASS `Preload`/`Preloader`, or expose staged byte/task loading progress. `war3map.w3u` now applies the
+registered `UnitProfile`/`UnitUI` subset (including Required Animation Names and custom model paths), but the remaining
+Balance/Data/Weapons/Abilities tables and true per-map `war3mapMisc.txt`/skin overlays remain separate data-layer work;
+do not infer those capabilities from the renderer's map-import lookup.
 
 ## Asset names are data
 

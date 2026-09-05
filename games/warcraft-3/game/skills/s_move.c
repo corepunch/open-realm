@@ -323,7 +323,7 @@ static void ai_follow_walk(LPEDICT ent) {
 
     distance = M_DistanceToGoal(ent);
     follow_range = MAX(G_AcquisitionRange(ent), ent->collision + target->collision);
-    standing = ent->animation && !strcmp(ent->animation->name, "stand");
+    standing = G_AnimationHasPrimary(ent->animation, "stand");
     if (distance <= follow_range) {
         if (!standing) {
             move_reset_progress(ent);

@@ -782,6 +782,9 @@ typedef struct {
     DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
 } heroabilitystatus_t;
 
+#define WC3_ANIMATION_REQUEST_SIZE 80
+#define WC3_ANIMATION_PROPERTIES_SIZE 128
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -963,6 +966,11 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
+    /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
+     * AddUnitAnimationProperties mutations. The request is retained separately
+     * so a property change can reselect the same logical animation family. */
+    char animation_request[WC3_ANIMATION_REQUEST_SIZE];
+    char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
     umove_t *currentmove;
     unitRace_t race;
@@ -1458,8 +1466,16 @@ void monster_start(LPEDICT);
 void monster_think(LPEDICT);
 
 // g_model.c
+void         G_NormalizeModelFilename(LPCSTR authored, LPSTR out, size_t out_size);
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
+LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties);
+LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCSTR properties);
+BOOL         G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary);
+LPCANIMATION G_GetUnitAnimation(LPEDICT unit, LPCSTR animname);
+void         G_SetUnitAnimation(LPEDICT unit, LPCSTR animname);
+void         G_ResetUnitAnimationProperties(LPEDICT unit);
+void         G_AddUnitAnimationProperties(LPEDICT unit, LPCSTR properties, BOOL add);
 void         G_FreeModels(void);
 
 // g_ai.c
@@ -1760,6 +1776,7 @@ FLOAT UnitMetaReal(LPEDICT, DWORD);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
+void G_SetMapUnitOverrides(LPCMAPINFO);
 #ifdef BZ_TESTS
 typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
 slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);

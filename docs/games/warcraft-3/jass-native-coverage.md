@@ -46,7 +46,10 @@ the original placeholder baseline" is a different target: 180 of the original
 360 placeholders, yielding 656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
 to the registry or a placeholder begins consuming authoritative state.
 
-Coverage is not conformance. Several callbacks consume state but still violate
+Coverage is not conformance. `SetUnitAnimation` now resolves the unit type's Required Animation Names and
+`AddUnitAnimationProperties` mutates the same per-unit tag set before reselecting the logical animation; see
+[Required Animation Names](unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued
+animation semantics remain separate gaps. Several callbacks consume state but still violate
 their JASS contract and therefore need a `partial` status in any future generated
 ledger. The effect module now has functional independent handles for
 `AddSpecialEffect*`, `AddSpellEffect*`, and `DestroyEffect`. The three weather
