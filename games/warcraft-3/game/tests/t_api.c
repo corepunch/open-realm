@@ -451,6 +451,32 @@ TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
     currentplayer = NULL;
 }
 
+
+TEST(wc3_api, camera_angle_interpolation_uses_shortest_periodic_arc) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.target_controller = NULL;
+    gc->camera.target_inherit_orientation = false;
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.old_state.viewangles = (VECTOR3){ -394.0f, 0.0f, 350.0f };
+    gc->camera.state = gc->camera.old_state;
+    gc->camera.state.viewangles = (VECTOR3){ 326.0f, 0.0f, 10.0f };
+    gc->camera.start_time = 100;
+    gc->camera.end_time = 1100;
+    level.time = 600;
+
+    G_RunClients();
+
+    /* -394 and 326 are the same orientation modulo 360, so pitch must not
+     * travel two full turns.  Yaw 350 -> 10 crosses the wrap by +20 degrees. */
+    T_FEQ(gc->ps.viewangles.x, -394.0f, 0.001f);
+    T_FEQ(gc->ps.viewangles.y, 0.0f, 0.001f);
+    T_FEQ(gc->ps.viewangles.z, 360.0f, 0.001f);
+    T_FEQ(CL_GameLerpDegrees(10.0f, 350.0f, 0.5f), 0.0f, 0.001f);
+    T_FEQ(CL_GameLerpDegrees(326.0f, -394.0f, 0.5f), 326.0f, 0.001f);
+}
+
 TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     LPGAMECLIENT gc = &game.clients[0];
 

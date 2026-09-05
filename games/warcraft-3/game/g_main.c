@@ -531,8 +531,13 @@ static void G_RunClients(void) {
             LPCCAMERASETUP b = &client->camera.state;
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
             client->ps.vieworigin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
-            /* JASS interpolates camera fields independently; the client slerps the snapshot Eulers. */
-            client->ps.viewangles = Vector3_lerp(&a->viewangles, &b->viewangles, k);
+            /* JASS interpolates camera fields independently. Angle fields use
+             * the game's periodic-degree rule; WC3 takes the shortest arc. */
+            client->ps.viewangles = (VECTOR3){
+                CL_GameLerpDegrees(a->viewangles.x, b->viewangles.x, k),
+                CL_GameLerpDegrees(a->viewangles.y, b->viewangles.y, k),
+                CL_GameLerpDegrees(a->viewangles.z, b->viewangles.z, k),
+            };
             client->ps.distance = LerpNumber(a->target_distance, b->target_distance, k);
             player_set_lens(&client->ps, &(gameCamera_t){
                 .fov = LerpNumber(a->fov, b->fov, k),
