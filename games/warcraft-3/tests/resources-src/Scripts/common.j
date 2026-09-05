@@ -12,6 +12,7 @@ type destructable     extends widget
 type item             extends widget
 type effect           extends agent
 type effecttype       extends handle
+type weathereffect    extends handle
 type player           extends agent
 type quest            extends handle
 type questitem        extends handle
@@ -97,6 +98,9 @@ native ConvertUnitType       takes integer i returns unittype
 native ConvertEffectType     takes integer i returns effecttype
 
 // Effect natives used by the independent-handle lifecycle regression.
+native AddWeatherEffect      takes rect where, integer effectID returns weathereffect
+native RemoveWeatherEffect   takes weathereffect whichEffect returns nothing
+native EnableWeatherEffect   takes weathereffect whichEffect, boolean enable returns nothing
 native AddSpecialEffect      takes string modelName, real x, real y returns effect
 native AddSpellEffectById    takes integer abilityId, effecttype t, real x, real y returns effect
 native DestroyEffect         takes effect whichEffect returns nothing
