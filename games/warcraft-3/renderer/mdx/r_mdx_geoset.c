@@ -396,16 +396,17 @@ static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
         MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->alphas, frame, &color.w);
     }
     if (geoset->geosetAnim->flags & 0x2) {
-        color.x = geoset->geosetAnim->staticColor.x;
-        color.y = geoset->geosetAnim->staticColor.y;
-        color.z = geoset->geosetAnim->staticColor.z;
-        if (geoset->geosetAnim->colors) {
-            VECTOR3 animated = geoset->geosetAnim->staticColor;
-            MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->colors, frame, &animated);
-            color.x = animated.x;
-            color.y = animated.y;
-            color.z = animated.z;
-        }
+        VECTOR3 geosetColor = { 1.0f, 1.0f, 1.0f };
+
+        /* Warsmash swizzles both the static GeosetAnimation base color and
+         * animated KGAC values. Keep this at the semantic VECTOR3 layer rather
+         * than the platform-specific texture BGRA upload path. */
+        MDLX_GetGeosetAnimationStaticColor(geoset->geosetAnim, &geosetColor);
+        if (geoset->geosetAnim->colors)
+            MDLX_GetAnimatedColorTrackValue(model, geoset->geosetAnim->colors, frame, &geosetColor);
+        color.x = geosetColor.x;
+        color.y = geosetColor.y;
+        color.z = geosetColor.z;
     }
     color.x = MIN(MAX(color.x, 0.0f), 1.0f);
     color.y = MIN(MAX(color.y, 0.0f), 1.0f);

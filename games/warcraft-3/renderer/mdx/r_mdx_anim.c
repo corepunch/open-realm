@@ -105,6 +105,36 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         R_GetKeyframeValue(R_KeyFrameAt(keytrack, right_index - 1), right, keytrack, time, output);
 }
 
+/* Warcraft animated MDX color tracks use BGR component semantics in the file.
+ * Convert the float vector to renderer RGB after interpolation. This is not a
+ * texture byte-order conversion, so it is identical on GL, GLES, and hosts with
+ * or without native BGRA texture-upload support. */
+void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model,
+                                     mdxKeyTrack_t const *keytrack,
+                                     DWORD time,
+                                     LPVECTOR3 output)
+{
+    FLOAT red;
+
+    if (!model || !keytrack || !output) return;
+    MDLX_GetModelKeytrackValue(model, keytrack, time, output);
+    red = output->x;
+    output->x = output->z;
+    output->z = red;
+}
+
+/* GeosetAnimation is the static-color exception to the usual MDX RGB fields:
+ * Warsmash swizzles its base vector just like KGAC. This semantic conversion is
+ * independent of host endianness and GL/BGRA upload capabilities. */
+void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim,
+                                        LPVECTOR3 output)
+{
+    if (!geosetAnim || !output) return;
+    output->x = geosetAnim->staticColor.z;
+    output->y = geosetAnim->staticColor.y;
+    output->z = geosetAnim->staticColor.x;
+}
+
 static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, DWORD frame1, DWORD frame0, LPMATRIX4 matrix) {
     VECTOR3 vTranslation = { 0, 0, 0 };
     QUATERNION vRotation = { 0, 0, 0, 1 };
