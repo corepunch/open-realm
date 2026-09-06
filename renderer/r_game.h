@@ -2,6 +2,7 @@
 #define r_game_h
 
 #include "r_local.h"
+#include "r_backend.h"
 
 typedef struct {
 	DWORD id;
