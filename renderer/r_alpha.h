@@ -8,4 +8,6 @@
 /* SAMPLE_BUFFERS is authoritative; GL_SAMPLES alone may retain an irrelevant implementation value. */
 static inline int R_MsaaActiveSamples(int buffers, int samples) { return buffers > 0 && samples > 1 ? samples : 0; }
 
+#include "r_backend.h"
+
 #endif
