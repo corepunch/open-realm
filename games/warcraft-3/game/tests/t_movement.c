@@ -2052,6 +2052,54 @@ TEST(wc3_movement, lumber_return_prefers_nearer_lumber_mill) {
     T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
 }
 
+/* Return Resources is unavailable while a structure is under construction.
+ * An unfinished War Mill must not become a lumber drop-off merely because its
+ * Arlm ability is already present in unit data. */
+TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('o','g','r','e'), 500.0f, 0.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('o','w','a','r'), 100.0f, 0.0f);
+    hall->s.player = mill->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    make_live_dropoff(mill, &return_lumber_abilities);
+    mill->construction.active = true;
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+
+    T_ASSERT(!S_CanReturnResourceAt(worker, mill, RETURN_RESOURCE_LUMBER));
+    harvest_walkback(worker);
+
+    T_ASSERT(worker->goalentity == hall);
+    T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
+
+    mill->construction.active = false;
+    T_ASSERT(S_CanReturnResourceAt(worker, mill, RETURN_RESOURCE_LUMBER));
+}
+
+/* The same construction gate applies to gold.  A Town Hall whose Argl data is
+ * already loaded must not receive carried gold until construction completes. */
+TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT complete_hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    LPEDICT unfinished_hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 100.0f, 0.0f);
+    complete_hall->s.player = unfinished_hall->s.player = worker->s.player;
+    make_live_dropoff(complete_hall, &return_gold_lumber_abilities);
+    make_live_dropoff(unfinished_hall, &return_gold_lumber_abilities);
+    unfinished_hall->construction.active = true;
+    S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 10);
+
+    T_ASSERT(!S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
+    T_ASSERT(S_FindNearestResourceDropoff(worker, RETURN_RESOURCE_GOLD) == complete_hall);
+    T_ASSERT(harvest_gold_return_to(worker, S_FindNearestResourceDropoff(worker, RETURN_RESOURCE_GOLD)));
+    T_ASSERT(worker->goalentity == complete_hall);
+    T_EQ(worker->harvested_gold, 10);
+    T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
+
+    unfinished_hall->construction.active = false;
+    T_ASSERT(S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
+    T_ASSERT(S_FindNearestResourceDropoff(worker, RETURN_RESOURCE_GOLD) == unfinished_hall);
+}
+
 /* If the chosen Lumber Mill dies during the trip, retain the carried lumber
  * and redirect to the nearest remaining compatible return building. */
 TEST(wc3_movement, lumber_return_retargets_after_lumber_mill_dies) {

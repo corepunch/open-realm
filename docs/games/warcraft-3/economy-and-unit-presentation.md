@@ -62,10 +62,12 @@ For custom abilities whose `AbilityData.slk:code` resolves to the `Artn` Return 
 gold/lumber acceptance flags. This preserves the same capability model for custom drop-off units instead of adding Town Hall or
 Lumber Mill rawcode checks to worker logic.
 
-`S_FindNearestResourceDropoff` scans live, in-use entities owned by the worker's player and chooses the compatible candidate with
-the smallest `Vector2_distance` from the worker. This is geometric distance; it does not pathfind to every candidate and compare
-route lengths. A Human Lumber Mill therefore competes with a Town Hall for lumber return and wins when it is geometrically closer,
-while a Lumber Mill remains ineligible for gold.
+`S_FindNearestResourceDropoff` scans live, in-use, completed entities owned by the worker's player and chooses the compatible
+candidate with the smallest `Vector2_distance` from the worker. `construction.active` structures are not valid return points even if
+their unit data already exposes `Artn`/`Argd`/`Arlm`/`Argl`. This applies equally to lumber-only drop-offs such as War Mills and to
+gold/lumber drop-offs such as Town Halls: workers must ignore them until construction finishes. This is geometric distance; it does
+not pathfind to every candidate and compare route lengths. A completed Human Lumber Mill therefore competes with a completed Town
+Hall for lumber return and wins when it is geometrically closer, while a Lumber Mill remains ineligible for gold.
 
 Return completion is footprint-aware for buildings that expose an authored pathing texture. The worker deposits when its collision radius plus one simulation step reaches the building's no-walk footprint; the older worker+building collision+step test remains the fallback when no path texture is available. This prevents a Peasant carrying gold from stopping at a Town Hall corner while still outside the scalar centre-circle threshold. The return move revalidates its target before each movement/deposit tick. If the selected drop-off dies, is removed, changes owner, or no longer exposes a compatible Return Resources ability, the worker retargets the nearest remaining compatible drop-off. If none exists, the worker stands while preserving the carried resource and carry visual.
 
@@ -520,7 +522,7 @@ make test-wc3-engine WC3_PATTERN='wc3_game.overhead_*'
 The movement suite covers large-footprint mine entry, mine entry through an authored blocking pathing footprint, the complete gold
 deposit/resume cycle, stock capacity 1 under six assigned workers, independent custom mine capacities/durations, non-orderable inside
 miners, finite-gold depletion and partial final trips,
-trained-unit exit placement against static footprints, nearest compatible lumber drop-off selection, explicit Smart-click drop-off return, lumber return through an authored
+trained-unit exit placement against static footprints, nearest compatible lumber drop-off selection, unfinished War Mill/Town Hall drop-off rejection for lumber and gold, explicit Smart-click drop-off return, lumber return through an authored
 blocking Town Hall footprint, rejection of lumber-only drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, dead-previous-tree same-forest retargeting, the no-live-tree stop path, capacity clamping, invulnerable-tree rejection, carried-resource gold/lumber visual switching and zero-carry visual clearing,
 non-lethal chops, and both sides of the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.

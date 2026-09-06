@@ -57,7 +57,10 @@ static DWORD return_resources_mask(LPCSTR ability) {
 BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource) {
     LPCSTR abilities;
 
-    if (!unit || !building || !building->inuse || building->s.player != unit->s.player || M_IsDead(building))
+    /* Unit data exposes Return Resources before construction completes, but
+     * Warcraft keeps that capability unavailable until the structure is finished. */
+    if (!unit || !building || !building->inuse || building->s.player != unit->s.player ||
+        M_IsDead(building) || building->construction.active)
         return false;
     if (!building->data.UnitAbilities || !(abilities = building->data.UnitAbilities->abilList))
         return false;
