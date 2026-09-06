@@ -100,6 +100,8 @@ WoW still replaces look-at Z from the local player entity (`WOW_CAMERA_EYE_HEIGH
 
 The client keeps two snapshots per entity: `prev` and `current`. `CL_PrepRefresh` blends between them using a fraction derived from `cl.time` and the server frame interval, producing smooth motion even when the client render rate exceeds the server tick rate.
 
+`V_RenderView` keeps a presentation-only scene clock across frames so paused views can submit cached entities with `deltaTime = 0`. Map/session server time can restart from zero while the process and renderer remain alive, so `V_AdvanceSceneTime` treats `now < last` as a new render epoch: it resets `view.time` to `now` and emits zero delta for that frame. The non-active preview path applies the same non-wrapping elapsed-time rule. Never subtract a retained `DWORD` scene timestamp from a newly reset map clock without this epoch check; unsigned wrap otherwise looks like roughly `2^32` milliseconds and can burst particles/animations/effects for one frame. The regression is covered by `net.scene_time_rewind_starts_a_new_render_epoch`.
+
 ## Console and HUD
 
 `cl_console.c` maintains an in-game console that can be toggled with the tilde key. `cl_scrn.c` coordinates frame presentation and the UI draw pass.

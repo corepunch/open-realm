@@ -229,6 +229,7 @@ void SV_Frame(DWORD msec) {
         return;
     }
 
+    sv.next_frame_msec = SV_ClampSimulationDeadline(svs.realtime, sv.next_frame_msec);
     SV_RunGameFrame();
     sv.next_frame_msec += FRAMETIME;
     SV_SendClientMessages();

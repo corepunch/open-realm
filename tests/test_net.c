@@ -271,6 +271,14 @@ TEST(net, paused_scene_time_reuses_cached_world_without_effect_delta) {
     T_EQ(view.time, 1100); T_EQ(view.deltaTime, 100); T_EQ(last, 1200);
 }
 
+TEST(net, scene_time_rewind_starts_a_new_render_epoch) {
+    viewDef_t view = { .time = 22316, .deltaTime = 16 };
+    DWORD last = 22316;
+
+    T_ASSERT(V_AdvanceSceneTime(&view, 400, &last, false));
+    T_EQ(view.time, 400); T_EQ(view.deltaTime, 0); T_EQ(last, 400);
+}
+
 
 /* Authored cursors use the same recipient-relative hover relationship as the
  * world ring: enemies tint red, neutral/passive targets yellow, and friendly
