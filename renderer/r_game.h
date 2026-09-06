@@ -55,6 +55,7 @@ BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPV
 
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
+bool R_GetModelAnimationDuration(LPCMODEL model, LPCSTR anim, LPDWORD duration);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 bool R_DrawCursor(float x, float y, COLOR32 tint);
 w3TerrainArt_t const *R_TerrainArt(DWORD id);

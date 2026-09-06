@@ -233,6 +233,9 @@ typedef struct {
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
     bool (*DrawCursor)(float x, float y, COLOR32 tint);
     bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
+    /* Authored named-sequence duration in milliseconds. Returns false when
+     * the active model format does not expose named animation timing. */
+    bool (*GetModelAnimationDuration)(LPCMODEL model, LPCSTR anim, LPDWORD duration);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);

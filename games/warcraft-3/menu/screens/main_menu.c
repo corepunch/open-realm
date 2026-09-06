@@ -29,6 +29,7 @@ static LPFRAMEDEF edition_button;
 static BOOL edition_switch_pending;
 static BOOL edition_switch_requested;
 static BOOL edition_switch_target_expansion;
+static BOOL single_player_transition_pending;
 
 static BOOL MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
@@ -106,6 +107,7 @@ static void MainMenu_Init(void) {
     edition_button = NULL;
     edition_switch_pending = false;
     edition_switch_requested = false;
+    single_player_transition_pending = false;
     UI_PreloadGlueSceneModels();
     MainMenu_InitFrames();
     MainMenu_ShowMainPanel();
@@ -115,6 +117,7 @@ static void MainMenu_Shutdown(void) {
     edition_button = NULL;
     edition_switch_pending = false;
     edition_switch_requested = false;
+    single_player_transition_pending = false;
 }
 
 static void MainMenu_ApplyEdition(BOOL expansion) {
@@ -142,10 +145,19 @@ static void MainMenu_Draw(void) {
 
     if (edition_switch_pending) {
         UI_DrawGlueScene("MainMenu Death");
-        if (!edition_switch_requested) {
+        if (UI_GlueSceneAnimationComplete() && !edition_switch_requested) {
             edition_switch_requested = true;
             MainMenu_ApplyEdition(edition_switch_target_expansion);
             menuimport.Cmd_ExecuteText("menu_restart\n");
+        }
+        return;
+    }
+
+    if (single_player_transition_pending) {
+        UI_DrawGlueScene("MainMenu Death");
+        if (UI_GlueSceneAnimationComplete()) {
+            single_player_transition_pending = false;
+            M_ShowSinglePlayerMenu();
         }
         return;
     }
@@ -169,6 +181,14 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
+void MainMenu_BeginSinglePlayer(void) {
+    if (single_player_transition_pending || edition_switch_pending || !main_menu.MainMenuFrame) return;
+    single_player_transition_pending = true;
+    show_realm_select = false;
+    UI_DialogWar3Hide(&quit_dialog);
+    UI_SetHidden(main_menu.MainMenuFrame, true);
+}
+
 void MainMenu_BeginEditionSwitch(void) {
     LPCSTR expansion;
 
@@ -185,6 +205,9 @@ void MainMenu_BeginEditionSwitch(void) {
 void MainMenu_ShowMainPanel(void) {
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
+    if (main_menu.MainMenuFrame) {
+        UI_SetHidden(main_menu.MainMenuFrame, false);
+    }
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
     }

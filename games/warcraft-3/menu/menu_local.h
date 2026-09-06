@@ -31,6 +31,7 @@ void M_Init(void);
 void M_SetActive(BOOL active);
 void M_Shutdown(void);
 void M_Refresh(DWORD time);
+DWORD M_Time(void);
 
 /* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
 static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
@@ -46,6 +47,8 @@ static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model)
 void UI_ResetGlueSceneModels(void);
 void UI_ReleaseGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
+void UI_RestartGlueSceneAnimations(void);
+BOOL UI_GlueSceneAnimationComplete(void);
 void UI_DrawGlueScene(LPCSTR panel_anim);
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim);
 

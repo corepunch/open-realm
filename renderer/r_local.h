@@ -343,6 +343,7 @@ void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
+bool R_GetModelAnimationDuration(LPCMODEL model, LPCSTR anim, LPDWORD duration);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
 void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);

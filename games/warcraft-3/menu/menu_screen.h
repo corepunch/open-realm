@@ -49,6 +49,7 @@ void MainMenu_ShowRealmSelect(void);
 void MainMenu_ShowQuitConfirm(void);
 void MainMenu_ShowDisconnected(void);
 void MainMenu_BeginEditionSwitch(void);
+void MainMenu_BeginSinglePlayer(void);
 
 void OptionsMenu_ShowGameplay(void);
 void OptionsMenu_ShowVideo(void);
@@ -63,6 +64,8 @@ void SinglePlayerMenu_LaunchCampaign(LPCSTR name);
 void SinglePlayerMenu_LaunchCampaignIndex(DWORD index);
 void SinglePlayerMenu_LaunchMissionIndex(DWORD index);
 void SinglePlayerMenu_SetDifficulty(DWORD difficulty);
+BOOL SinglePlayerMenu_BeginMainMenu(void);
+BOOL SinglePlayerMenu_BeginCampaign(void);
 
 void LAN_ShowCreate(void);
 void LAN_ShowSinglePlayerCreate(void);

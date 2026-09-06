@@ -194,10 +194,18 @@ void M_ShowGameSetupMenu(void) {
 }
 
 static void UI_MenuMain_f(void) {
+    if (UI_GetCurrentScreen() == &singlePlayerMenuScreen &&
+        SinglePlayerMenu_BeginMainMenu()) {
+        return;
+    }
     M_ShowMainMenu();
 }
 
 static void UI_MenuGame_f(void) {
+    if (UI_GetCurrentScreen() == &mainMenuScreen) {
+        MainMenu_BeginSinglePlayer();
+        return;
+    }
     M_ShowSinglePlayerMenu();
 }
 
@@ -275,6 +283,9 @@ static void UI_MenuOptionsApply_f(void) {
 
 static void UI_MenuSinglePlayerCampaign_f(void) {
     UI_SetScreen(&singlePlayerMenuScreen);
+    if (SinglePlayerMenu_BeginCampaign()) {
+        return;
+    }
     SinglePlayerMenu_ShowCampaign();
 }
 
@@ -517,6 +528,10 @@ void M_Shutdown(void) {
 
 void M_SetActive(BOOL active) {
     ui_state.active = active;
+}
+
+DWORD M_Time(void) {
+    return ui_state.time;
 }
 
 void M_Refresh(DWORD time) {
