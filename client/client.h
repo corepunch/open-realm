@@ -189,7 +189,19 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output);
 /* Paused views retain the last scene and render time. Zero delta is required
  * because model renderers emit effects while submitting cached entities. */
 static inline BOOL V_AdvanceSceneTime(viewDef_t *view, DWORD now, LPDWORD last, BOOL paused) {
-    DWORD elapsed = *last ? now - *last : 0;
+    DWORD elapsed;
+
+    /* Map/session time restarts from zero. A persistent renderer clock must
+     * treat that as a new epoch instead of unsigned-wrap advancing effects by
+     * roughly 2^32 milliseconds in one frame. */
+    if (*last && now < *last) {
+        *last = now;
+        view->time = now;
+        view->deltaTime = 0;
+        return !paused;
+    }
+
+    elapsed = *last ? now - *last : 0;
     *last = now;
     if (paused) { view->deltaTime = 0; return false; }
     view->time = view->time ? view->time + elapsed : now;

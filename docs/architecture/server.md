@@ -25,6 +25,8 @@ void SV_Frame(DWORD msec) {
     }
     if (svs.realtime < sv.next_frame_msec)
         return;          // not yet time for a new game frame
+    sv.next_frame_msec = SV_ClampSimulationDeadline(
+        svs.realtime, sv.next_frame_msec);
     SV_RunGameFrame();   // 1. advance simulation
     sv.next_frame_msec += FRAMETIME;
     SV_SendClientMessages(); // 2. send snapshots to clients
@@ -32,6 +34,12 @@ void SV_Frame(DWORD msec) {
 ```
 
 This fixed-step approach decouples the simulation rate from the render rate and makes replay and deterministic simulation practical. `SV_SetPaused()` gates only simulation advancement; transport stays active, and resuming rebases `sv.next_frame_msec` so paused wall-clock time is not simulated as catch-up work. Warcraft III pause policy is documented in [Pause And Modal UI](../games/warcraft-3/pause-and-modal-ui.md).
+
+`SV_Frame` executes at most one simulation step per outer-loop call. Before that step it applies `SV_ClampSimulationDeadline`: normal sub-tick lateness is preserved, but if the simulation deadline is more than one `FRAMETIME` behind wall time the deadline is rebased to the current `svs.realtime`. This follows Quake II's server policy of never allowing a multi-tick wall-clock stall to become a long burst of catch-up simulation. It is especially important for the local-client architecture because synchronous map loading and renderer/resource registration can block the outer loop for seconds. That wall time is loading latency, not simulation work, and must not later be replayed as consecutive 100 ms game ticks at render-loop speed.
+
+A September 2026 WC3 campaign trace confirmed the failure mode directly: multi-second map-load stalls left the server several seconds overdue; at a ~15–16 ms render-loop cadence, each subsequent outer iteration advanced the fixed simulation by 100 ms until the backlog drained, making JASS/camera time run roughly six times faster than wall time. The deadline clamp removes that debt while preserving ordinary scheduler jitter. The regression is covered by `server_net.scheduler_clamps_multi_tick_wall_clock_backlog`. See [WC3 Cinematics](../games/warcraft-3/cinematics.md) for the campaign symptom.
+
+Reference behavior: id Software Quake II `server/sv_main.c`, `SV_RunGameFrame`, clamps server realtime when the simulation falls behind so the engine does not replay an arbitrarily large backlog after a stall.
 
 ### 1. SV_ReadPackets
 

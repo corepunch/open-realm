@@ -100,6 +100,13 @@ TEST(server_net, pause_publishes_client_render_state) {
     T_ASSERT(!sv.paused); T_EQ(Cvar_Integer("paused", 1), 0);
 }
 
+TEST(server_net, scheduler_clamps_multi_tick_wall_clock_backlog) {
+    T_EQ(SV_ClampSimulationDeadline(3602, 0), 3602);
+    T_EQ(SV_ClampSimulationDeadline(220, 100), 220);
+    T_EQ(SV_ClampSimulationDeadline(200, 100), 100);
+    T_EQ(SV_ClampSimulationDeadline(180, 100), 100);
+}
+
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) { (void)msg; (void)client; }
 void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) { (void)client; (void)msg; }
 

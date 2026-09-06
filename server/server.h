@@ -102,6 +102,18 @@ extern struct server {
     BYTE multicast_buf[MAX_MSGLEN];
 } sv;
 
+/* Match Quake II's "never get more than one tic behind" scheduler policy.
+ * A long blocking client/map-loading hitch is wall-clock time, not simulation
+ * work that should later be replayed at render-loop speed. Preserve normal
+ * sub-tick lateness, but rebase a deadline that is more than one fixed step
+ * overdue before running the next game frame. */
+static inline DWORD SV_ClampSimulationDeadline(DWORD realtime, DWORD deadline) {
+    if (realtime >= deadline && realtime - deadline > FRAMETIME) {
+        return realtime;
+    }
+    return deadline;
+}
+
 extern struct game_export *ge;
 
 // sv_init.c

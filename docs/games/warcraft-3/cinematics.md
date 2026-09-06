@@ -63,6 +63,13 @@ Camera and transmission natives should not grow permanent investigative tracing;
 
 ### Common Issues
 
+**Opening cinematic runs too fast after a mission/map load:**
+The authored JASS waits and camera durations can be correct while the whole opening still fast-forwards if the generic server scheduler carries wall-clock loading time forward as simulation debt. `SV_Frame` advances at most one 100 ms game step per outer-loop call; without a backlog clamp, a multi-second synchronous map/resource load can leave `sv.next_frame_msec` seconds behind `svs.realtime`. At a high render rate the following outer-loop iterations then each advance 100 ms of JASS/camera time only ~15–16 ms apart until the debt drains. This was confirmed on Prologue01 on both an initial load and a same-process restart; `skip_cutscene` remained disabled and `TriggerSleepAction` retained the authored durations.
+
+The fix belongs in the generic server scheduler, not the WC3 cinematic natives: `SV_ClampSimulationDeadline` rebases deadlines that are more than one fixed tick overdue before `SV_RunGameFrame`, discarding loading latency while preserving ordinary sub-tick lateness. See [Server Architecture](../../architecture/server.md) and `server_net.scheduler_clamps_multi_tick_wall_clock_backlog`.
+
+A same-process restart also resets map/server time while the client renderer survives. `V_AdvanceSceneTime` therefore treats a backwards scene timestamp as a new render epoch and forces `deltaTime = 0` for that frame; otherwise unsigned `DWORD` subtraction can produce a near-`2^32` ms effect delta. This is a separate one-frame restart hazard, covered by `net.scene_time_rewind_starts_a_new_render_epoch` and documented in [Client Architecture](../../architecture/client.md).
+
 **Mismatched player numbers in SetCinematicScene/EndCinematicScene:**
 `currentplayer` is the `GetLocalPlayer()` presentation selector, not the owner
 of the unit that fired an event. Event ownership belongs in

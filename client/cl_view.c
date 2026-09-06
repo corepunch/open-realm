@@ -452,11 +452,12 @@ void V_RenderView(void) {
     cl.viewDef.fow_generation = cl.fow.generation;
     if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
+        DWORD const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;
 
         cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.time = cl.time;
-        cl.viewDef.deltaTime = cl.time - lastTime;
+        cl.viewDef.deltaTime = elapsed;
         cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG;
     cl.viewDef.player = cl.playerstate.number;
     cl.viewDef.hover_entity = cl.hover_entity;
