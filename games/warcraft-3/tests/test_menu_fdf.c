@@ -15,6 +15,7 @@
 static const char *captured_image_path;
 static const char *captured_model_path;
 static char captured_command[128];
+static char captured_movie_path[MAX_PATHLEN];
 static char captured_cvar_name[64];
 static char captured_cvar_value[64];
 static char captured_printf[512];
@@ -273,6 +274,11 @@ static void test_ui_printf(LPCSTR fmt, ...) {
 
 static void test_cmd_execute_text(LPCSTR text) {
     snprintf(captured_command, sizeof(captured_command), "%s", text ? text : "");
+}
+
+static BOOL test_play_movie(LPCSTR path) {
+    snprintf(captured_movie_path, sizeof(captured_movie_path), "%s", path ? path : "");
+    return true;
 }
 
 static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
@@ -2252,6 +2258,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     menuimport.FS_FreeFile = test_fs_free_file;
     menuimport.MemAlloc = test_ui_mem_alloc;
     menuimport.MemFree = test_ui_mem_free;
+    menuimport.PlayMovie = test_play_movie;
 
 
     if (!singlePlayerMenuScreen.load()) {
@@ -2345,11 +2352,39 @@ static void test_single_player_campaign_profile(BOOL tft) {
             tft ? "Curse of the Blood Elves" : "The Scourge of Lordaeron");
     T_STREQ(mission_name_header->Text,
             tft ? "Alliance Campaign" : "Human Campaign");
+#ifdef BZ_FFMPEG
+    T_EQ((int)mission_list_box->MapListControl.State->count, 6);
+    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
+            tft
+                ? "Cinematic: Introduction: Alliance Introduction"
+                : "Cinematic: Introduction: Human Introduction");
+    T_STREQ(mission_list_box->MapListControl.State->items[0].path,
+            tft ? "Movies\\HumanXIntro.mpq" : "Movies\\HumanIntro.mpq");
+    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
+            tft
+                ? "Cinematic: Cinematic: Alliance Opening"
+                : "Cinematic: Cinematic: Human Opening");
+    T_STREQ(mission_list_box->MapListControl.State->items[2].name,
+            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
+    T_STREQ(mission_list_box->MapListControl.State->items[3].name,
+            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+    T_STREQ(mission_list_box->MapListControl.State->items[5].name,
+            tft
+                ? "Cinematic: Cinematic: Alliance Ending"
+                : "Cinematic: Cinematic: Human Ending");
+    captured_movie_path[0] = '\0';
+    captured_command[0] = '\0';
+    SinglePlayerMenu_LaunchMissionIndex(0);
+    T_STREQ(captured_movie_path,
+            tft ? "Movies\\HumanXIntro.mpq" : "Movies\\HumanIntro.mpq");
+    T_STREQ(captured_command, "");
+#else
     T_EQ((int)mission_list_box->MapListControl.State->count, 3);
     T_STREQ(mission_list_box->MapListControl.State->items[0].name,
             tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
     T_STREQ(mission_list_box->MapListControl.State->items[1].name,
             tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+#endif
     T_STREQ(mission_list_box->MapListControl.SelectCommand,
             "menu_single_player_mission_select %u");
     T_NOT_NULL(mission_list_box->event_handler);
@@ -2371,15 +2406,38 @@ static void test_single_player_campaign_profile(BOOL tft) {
     test_campaign_mission_visibility = "played";
     test_campaign_played_mission = 1;
     SinglePlayerMenu_LaunchCampaignIndex(tft ? 1 : 0);
+#ifdef BZ_FFMPEG
+    T_EQ((int)mission_list_box->MapListControl.State->count, 4);
+    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
+            tft
+                ? "Cinematic: Introduction: Alliance Introduction"
+                : "Cinematic: Introduction: Human Introduction");
+    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
+            tft
+                ? "Cinematic: Cinematic: Alliance Opening"
+                : "Cinematic: Cinematic: Human Opening");
+    T_EQ((int)mission_list_box->MapListControl.State->items[2].flags, 1);
+    T_STREQ(mission_list_box->MapListControl.State->items[2].name,
+            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+    T_STREQ(mission_list_box->MapListControl.State->items[3].name,
+            tft
+                ? "Cinematic: Cinematic: Alliance Ending"
+                : "Cinematic: Cinematic: Human Ending");
+#else
     T_EQ((int)mission_list_box->MapListControl.State->count, 1);
     T_EQ((int)mission_list_box->MapListControl.State->items[0].flags, 1);
     T_STREQ(mission_list_box->MapListControl.State->items[0].name,
             tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+#endif
 
     captured_command[0] = '\0';
     captured_cvar_name[0] = '\0';
     captured_cvar_value[0] = '\0';
+#ifdef BZ_FFMPEG
+    SinglePlayerMenu_LaunchMissionIndex(2);
+#else
     SinglePlayerMenu_LaunchMissionIndex(0);
+#endif
     T_STREQ(captured_cvar_name, "wc3_campaign_played_human_1");
     T_STREQ(captured_cvar_value, "1");
     T_STREQ(captured_command,

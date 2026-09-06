@@ -95,22 +95,36 @@ and stores them separately from the numbered `Mission0`, `Mission1`, ... list. C
 but its current mission-list construction iterates only `getMissions()`, so the reference code does not itself provide a
 finished movie-selection implementation.
 
-OpenRealm's `games/warcraft-3/menu/screens/single_player.c` currently parses `Mission*`/`File*` entries only. A retail-style
-campaign movie list should therefore be implemented in that screen rather than as an unrelated top-level movie browser:
+OpenRealm's `games/warcraft-3/menu/screens/single_player.c` now parses those three records into separate campaign cinematic
+slots. As a first integration step, builds compiled with `FFMPEG=1` add each authored cinematic to the existing mission
+`MapListBox`. The temporary rows follow the campaign structure rather than the declaration order in the data: `IntroCinematic`
+and `OpenCinematic` precede the numbered missions, while `EndCinematic` follows the final mission. The temporary diagnostic
+presentation is deliberately plain text:
 
-1. Extend `singlePlayerCampaign_t` with intro/open/end cinematic records and parse the three fields with the same quoted
-   triple parser already used for modern `MissionN` entries.
-2. Add cinematic rows to the mission-selection list using the Warcraft camera-button FDF art (`CampaignListBox` /
-   `StandardCampaignCameraButton*`) instead of presenting them as ordinary map rows.
-3. Bind those rows to the existing typed `menuImport.PlayMovie(path)` callback. The menu must not construct a console
-   command to cross the client boundary.
-4. Gate Open/End rows with the state written by `SetOpCinematicAvailable` / `SetEdCinematicAvailable`; those natives are
+```text
+Cinematic: <header>: <display name>
+```
+
+The menu normalizes logical movie names such as `HumanEd` to `Movies\HumanEd.mpq` and invokes the existing typed
+`menuImport.PlayMovie(path)` callback when that row is selected. If a cinematic filename already contains a directory it
+is preserved; a bare filename with an extension is placed under `Movies\`.
+
+These rows are compiled out of the mission list when `BZ_FFMPEG` is absent, so a normal build made without `FFMPEG=1`
+continues to show the unchanged mission list. Parsing the metadata is still harmless in that build and keeps campaign data
+handling independent from the decoder capability.
+
+This first-pass list intentionally does **not** claim retail availability semantics: all three authored cinematic records
+are shown when FFmpeg is enabled, regardless of mission-play filtering. That is useful for validating data parsing and
+playback before progression persistence exists. The retail-compatible follow-up remains:
+
+1. Replace the temporary `Cinematic:` rows with the Warcraft camera-button FDF art (`CampaignListBox` /
+   `StandardCampaignCameraButton*`).
+2. Gate Open/End rows with the state written by `SetOpCinematicAvailable` / `SetEdCinematicAvailable`; those natives are
    still stubs, so unlock persistence must be implemented before claiming retail-compatible availability.
-5. Keep mission-play visibility (`wc3_campaign_mission_visibility`) separate from cinematic availability. A played map
+3. Determine whether Intro availability is always data-authored/default-open or has its own progression rule in the
+   original client before hiding it behind a guessed state bit.
+4. Keep mission-play visibility (`wc3_campaign_mission_visibility`) separate from cinematic availability. A played map
    and an unlocked cinematic are different progression facts.
-
-The current patch intentionally adds the typed menu playback callback but does not invent unlock persistence or show all
-cinematics unconditionally. That keeps the decoder usable now while leaving campaign selection semantics data-driven.
 
 ## Known Pitfalls
 

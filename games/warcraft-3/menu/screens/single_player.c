@@ -15,6 +15,8 @@
 #define SINGLE_PLAYER_MAX_MISSIONS 128
 #define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14
 #define SINGLE_PLAYER_MISSION_VISIBILITY_CVAR "wc3_campaign_mission_visibility"
+#define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u
+#define SINGLE_PLAYER_LIST_INDEX_MASK 0x7fffffffu
 
 typedef enum {
     SINGLE_PLAYER_VIEW_MAIN,
@@ -28,6 +30,19 @@ typedef struct {
     PATHSTR map_path;
 } singlePlayerMission_t;
 
+typedef enum {
+    SINGLE_PLAYER_CINEMATIC_INTRO,
+    SINGLE_PLAYER_CINEMATIC_OPEN,
+    SINGLE_PLAYER_CINEMATIC_END,
+    SINGLE_PLAYER_CINEMATIC_COUNT,
+} singlePlayerCinematicKind_t;
+
+typedef struct {
+    UINAME header;
+    UINAME name;
+    PATHSTR movie_path;
+} singlePlayerCinematic_t;
+
 typedef struct {
     playerRace_t race;
     UINAME key;
@@ -36,6 +51,7 @@ typedef struct {
     UINAME background;
     singlePlayerMission_t missions[SINGLE_PLAYER_MAX_MISSIONS];
     DWORD num_missions;
+    singlePlayerCinematic_t cinematics[SINGLE_PLAYER_CINEMATIC_COUNT];
 } singlePlayerCampaign_t;
 
 static SinglePlayerMenu_t single_player;
@@ -222,6 +238,24 @@ static void SinglePlayer_ParseFileValue(singlePlayerCampaign_t *campaign, DWORD 
     SinglePlayer_SetMissionCount(campaign, index);
 }
 
+static void SinglePlayer_ParseCinematicValue(singlePlayerCinematic_t *cinematic, char *value) {
+    char *cursor = value;
+    UINAME header;
+    UINAME name;
+    PATHSTR movie;
+
+    if (!cinematic ||
+        !SinglePlayer_ReadQuoted(&cursor, header, sizeof(header)) ||
+        !SinglePlayer_ReadQuoted(&cursor, name, sizeof(name)) ||
+        !SinglePlayer_ReadQuoted(&cursor, movie, sizeof(movie))) {
+        return;
+    }
+
+    snprintf(cinematic->header, sizeof(cinematic->header), "%s", header);
+    snprintf(cinematic->name, sizeof(cinematic->name), "%s", name);
+    snprintf(cinematic->movie_path, sizeof(cinematic->movie_path), "%s", movie);
+}
+
 static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, char *key, char *value) {
     UINAME field;
 
@@ -245,6 +279,12 @@ static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, cha
         }
     } else if (!strcasecmp(key, "Cursor")) {
         campaign->race = (playerRace_t)atoi(value);
+    } else if (!strcasecmp(key, "IntroCinematic")) {
+        SinglePlayer_ParseCinematicValue(&campaign->cinematics[SINGLE_PLAYER_CINEMATIC_INTRO], value);
+    } else if (!strcasecmp(key, "OpenCinematic")) {
+        SinglePlayer_ParseCinematicValue(&campaign->cinematics[SINGLE_PLAYER_CINEMATIC_OPEN], value);
+    } else if (!strcasecmp(key, "EndCinematic")) {
+        SinglePlayer_ParseCinematicValue(&campaign->cinematics[SINGLE_PLAYER_CINEMATIC_END], value);
     } else {
         DWORD index;
         if (SinglePlayer_ParseIndexedKey(key, "Mission", &index)) {
@@ -512,11 +552,67 @@ static void SinglePlayer_LaunchMission(singlePlayerCampaign_t const *campaign, D
     M_MenuCommand(command);
 }
 
+#ifdef BZ_FFMPEG
+static void SinglePlayer_MovieAssetPath(LPCSTR movie, LPSTR out, DWORD out_size) {
+    if (!out || !out_size) {
+        return;
+    }
+    out[0] = '\0';
+    if (!movie || !movie[0]) {
+        return;
+    }
+
+    if (strchr(movie, '\\') || strchr(movie, '/')) {
+        snprintf(out, out_size, "%s", movie);
+    } else if (strchr(movie, '.')) {
+        snprintf(out, out_size, "Movies\\%s", movie);
+    } else {
+        snprintf(out, out_size, "Movies\\%s.mpq", movie);
+    }
+}
+
+static void SinglePlayer_AddCinematicItem(singlePlayerCampaign_t const *campaign,
+                                           singlePlayerCinematicKind_t kind) {
+    singlePlayerCinematic_t const *cinematic;
+    uiMapListItem_t *item;
+
+    if (!campaign || kind >= SINGLE_PLAYER_CINEMATIC_COUNT ||
+        mission_list.count >= UI_MAX_MAP_LIST_ITEMS) {
+        return;
+    }
+    cinematic = &campaign->cinematics[kind];
+    if (!cinematic->movie_path[0]) {
+        return;
+    }
+
+    item = &mission_list.items[mission_list.count++];
+    if (cinematic->header[0] && cinematic->name[0]) {
+        snprintf(item->name, sizeof(item->name),
+                 "Cinematic: %.43s: %.66s", cinematic->header, cinematic->name);
+    } else {
+        LPCSTR label = cinematic->name[0] ? cinematic->name : cinematic->header;
+        snprintf(item->name, sizeof(item->name), "Cinematic: %.115s",
+                 label[0] ? label : cinematic->movie_path);
+    }
+    SinglePlayer_MovieAssetPath(cinematic->movie_path, item->path, sizeof(item->path));
+    item->flags = SINGLE_PLAYER_LIST_FLAG_CINEMATIC | (DWORD)kind;
+}
+#endif
+
 static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campaign) {
     memset(&mission_list, 0, sizeof(mission_list));
     if (!campaign) {
         return;
     }
+
+#ifdef BZ_FFMPEG
+    /* Campaign cinematics surround the playable mission sequence. Intro is
+     * the campaign-wide introductory movie, Open is the campaign opening, and
+     * End belongs after the final mission. Keep the temporary text rows in
+     * that structural order until the retail camera-button presentation lands. */
+    SinglePlayer_AddCinematicItem(campaign, SINGLE_PLAYER_CINEMATIC_INTRO);
+    SinglePlayer_AddCinematicItem(campaign, SINGLE_PLAYER_CINEMATIC_OPEN);
+#endif
 
     FOR_LOOP(i, campaign->num_missions) {
         singlePlayerMission_t const *mission = &campaign->missions[i];
@@ -537,6 +633,10 @@ static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campa
         snprintf(item->path, sizeof(item->path), "%s", mission->map_path);
         item->flags = i;
     }
+
+#ifdef BZ_FFMPEG
+    SinglePlayer_AddCinematicItem(campaign, SINGLE_PLAYER_CINEMATIC_END);
+#endif
 }
 
 static void SinglePlayer_PopulateMissionSelect(singlePlayerCampaign_t const *campaign) {
@@ -812,13 +912,21 @@ void SinglePlayerMenu_LaunchCampaignIndex(DWORD index) {
 
 void SinglePlayerMenu_LaunchMissionIndex(DWORD index) {
     singlePlayerCampaign_t const *campaign = SinglePlayer_SelectedCampaign();
+    DWORD item_flags;
     DWORD mission_index;
 
     if (!campaign || index >= mission_list.count) {
         return;
     }
     mission_list.selected = index;
-    mission_index = mission_list.items[index].flags;
+    item_flags = mission_list.items[index].flags;
+#ifdef BZ_FFMPEG
+    if (item_flags & SINGLE_PLAYER_LIST_FLAG_CINEMATIC) {
+        menuimport.PlayMovie(mission_list.items[index].path);
+        return;
+    }
+#endif
+    mission_index = item_flags & SINGLE_PLAYER_LIST_INDEX_MASK;
     SinglePlayer_LaunchMission(campaign, mission_index);
 }
 
