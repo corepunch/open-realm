@@ -14,9 +14,10 @@ WC3_TEST_DIR := $(WC3_DIR)/tests
 
 WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common -DWC3 -DUSE_FOGOFWAR -DBZ_GAME=\"warcraft-3\"
 
-# Optional pre-rendered movie support. Keep the dependency surface to the five
-# FFmpeg libraries required for container demux, decode, pixel conversion and
-# audio resampling; the default build has no FFmpeg dependency.
+# Optional long-form media support (pre-rendered movies and background music).
+# Keep the dependency surface to the five FFmpeg libraries required for container
+# demux, decode, pixel conversion and audio resampling; the default build has no
+# FFmpeg dependency.
 FFMPEG ?= 0
 WC3_FFMPEG_LIBS :=
 ifeq ($(FFMPEG),1)
@@ -239,6 +240,8 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		grep -q "ConsoleInventoryCoverTexture" && echo "  cat skin UI OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat UI/SoundInfo/UISounds.slk | \
 		grep -q "InterfaceError" && echo "  cat UI sound SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat UI/SoundInfo/Music.slk | \
+		grep -q "TestMusic" && echo "  cat music SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat unit SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Scripts/common.j | \
 		grep -q "playergameresult" && echo "  cat common.j OK"

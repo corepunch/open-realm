@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 11, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 12, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -26,8 +26,11 @@ The version 3 layout expands the fixed-size `GAMECLIENT` cinematic camera state 
 The version 4 layout packs `PLAYER.cinematic_portrait`, `team`, `color`, and `race` as consecutive `BYTE`s (one `NFT_LONG` on the wire), drops `PLAYER.camera_bounds` (the rectangle lives on `level`), and writes `level.camera_bounds` with the other level clocks. Version 3 saves are rejected because both the raw `GAMECLIENT` record and the level stream changed.
 
 Version 10 extends the authoritative `level.timeofday` record with the Warsmash-style temporary/false clock (`hour`, `minute`,
-remaining simulation ticks, active, initialized). Version 9 saves are rejected because the level stream changed; loading a v10 save
-therefore cannot silently resume the canonical day/night cycle while a saved Moonstone-style override should still be active.
+remaining simulation ticks, active, initialized), so a loaded save cannot silently resume the canonical day/night cycle while a saved
+Moonstone-style override should still be active. Version 11 adds per-slot JASS group lifecycle state so destroyed group slots can be
+safely recycled and restored. Version 12 expands the raw `GAMECLIENT` snapshot with semantic Warcraft music state (map/default
+selection, current source, start/seek position, pause state, and music/thematic volumes), so v11 and earlier saves are rejected rather
+than being interpreted with the wrong client-structure layout.
 
 Groups use reusable fixed slots: `level.num_groups` is the high-water mark, while each serialized `ggroup_t.inuse` flag records whether that slot is live. `DestroyGroup` releases a slot for later `CreateGroup` reuse; `GroupClear` only clears membership. Live JASS group handles still serialize as stable slot indexes. See [JASS Groups](jass-groups.md).
 
@@ -126,7 +129,7 @@ Integer handle tables inside the interpreter would duplicate that field table, b
 
 HUD FDF trees cache `CS_IMAGES` / `CS_FONTS` slots. Those tables die with `memset(&sv)` in `SV_Map`. `G_LoadMap` memsets the single `hud` accumulator and clears the FDF pool; serialize then re-`ImageIndex`es from names. See [HUD Media Lifetime](hud-media.md).
 
-The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Edict C callbacks persist through `F_CFUNCTION` (see [C Callbacks](#c-callbacks-f_cfunction)); the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior-f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v10 or earlier saves. Version 9 packs C-callback roster indexes into the edict blob that version 8 zeroed and rebound from class data. Version 10 adds the fixed weather-effect registry, weather handle IDs, the `weathereffect` JASS handle codec, and false-time state to the level stream; after load the authoritative weather set is replayed to connected clients. Version 11 adds per-slot JASS group lifecycle state so destroyed group slots can be safely recycled and restored.
+The format does not yet snapshot fog grids, bot runtime, alliances, stock state, or cinematic filter. Client message storage is part of `GAMECLIENT`, but transient presentation lifetimes are not reconstructed. Edict C callbacks persist through `F_CFUNCTION` (see [C Callbacks](#c-callbacks-f_cfunction)); the active `umove_t` is restored by `F_MMOVE` relocation (see [Active Behavior](#active-behavior-f_mmove)). Menu callbacks are code pointers and are reset on load; restoring an active targeting/build submenu requires a semantic menu-state enum rather than raw function addresses. There is no backwards-compatible reader for v11 or earlier saves. Version 9 packs C-callback roster indexes into the edict blob that version 8 zeroed and rebound from class data. Version 10 adds the fixed weather-effect registry, weather handle IDs, the `weathereffect` JASS handle codec, and false-time state to the level stream; after load the authoritative weather set is replayed to connected clients. Version 11 adds per-slot JASS group lifecycle state so destroyed group slots can be safely recycled and restored. Version 12 expands `GAMECLIENT` with semantic music state; the client decoder itself is not serialized, so music resumes from the last JASS-defined start/seek position rather than an exact continuously advancing decoder head.
 
 The checksum and header preflight protect normal partial/corrupt-file and wrong-map failures before mutation. Record-level semantic validation later in the stream is not fully transactional; do not treat save files as untrusted input until native records are decoded into temporary state before commit.
 

@@ -59,6 +59,7 @@ enum svc_ops {
 //    svc_disconnect,
 //    svc_reconnect,
     svc_sound,                    // [byte flags] [short sound] [optional volume/attenuation/offset/entity/position]
+    svc_music,                    // [byte musicCommand_t] [command-specific reliable presentation payload]
     svc_minimap_ping,             // [vec2 position] [float seconds] [rgba] [byte flags]
 //    svc_print,                    // [byte] id [string] null terminated string
 //    svc_stufftext,                // [string] stuffed into client's console buffer, should be \n terminated
@@ -226,11 +227,6 @@ void S_Shutdown(void);
 void S_PlaySound(DWORD kit_id);
 void S_PlaySoundByName(LPCSTR name);
 void S_StopAllSounds(void);
-/* Streaming PCM used by full-screen cinematics; stereo S16 at 44.1 kHz. */
-void S_RawStart(void);
-DWORD S_RawSamples(SHORT const *samples, DWORD frames);
-DWORD S_RawBufferedFrames(void);
-void S_RawStop(void);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);
 void CL_Connect(LPCSTR host, unsigned short port);

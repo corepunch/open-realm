@@ -350,6 +350,31 @@ struct gcamerasetup_s {
 
 #define WC3_MESSAGE_LOG_MAX_ENTRIES 128 // entries; bounded per-client message history for the Message Log dialog
 #define WC3_MESSAGE_LOG_ENTRY_SIZE 1024 // bytes; maximum stored Message Log entry length
+#define WC3_MUSIC_NAME_MAX 2048 // bytes; resolved later per recipient through war3skins/Music.SLK
+
+typedef enum {
+    WC3_MUSIC_SOURCE_NONE = 0,
+    WC3_MUSIC_SOURCE_MAP,
+    WC3_MUSIC_SOURCE_EXPLICIT,
+    WC3_MUSIC_SOURCE_THEMATIC,
+} wc3MusicSource_t;
+
+typedef struct {
+    char map_name[WC3_MUSIC_NAME_MAX];
+    BOOL map_random;
+    LONG map_index;
+
+    char current_name[WC3_MUSIC_NAME_MAX];
+    wc3MusicSource_t current_source;
+    BOOL current_random;
+    LONG current_index;
+    LONG current_position_ms;
+    LONG current_fade_ms;
+    BOOL paused;
+
+    LONG volume;
+    LONG thematic_volume;
+} wc3MusicState_t;
 
 struct client_s {
     PLAYER ps;
@@ -421,6 +446,7 @@ struct client_s {
         DWORD first;
         DWORD count;
     } message_log;
+    wc3MusicState_t music; /* client-local Warcraft music semantics; synced on ClientBegin */
     DWORD cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
     DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
@@ -1806,6 +1832,22 @@ typedef struct {
 } jassSoundPlayback_t;
 
 void G_JassSoundRuntimeReset(void);
+
+/* Client-owned background music presentation.  The game resolves Warcraft
+ * skin/Music.SLK data per recipient and emits reliable svc_music commands. */
+void G_MusicResetState(void);
+void G_MusicSyncClient(LPGAMECLIENT client);
+void G_MusicSetMap(LPCSTR music_name, BOOL random, LONG index);
+void G_MusicClearMap(void);
+void G_MusicPlay(LPCSTR music_name, LONG start_ms, LONG fade_ms);
+void G_MusicStop(BOOL fade_out);
+void G_MusicResume(void);
+void G_MusicPlayThematic(LPCSTR music_name, LONG start_ms);
+void G_MusicEndThematic(void);
+void G_MusicSetVolume(LONG volume);
+void G_MusicSetPosition(LONG millisecs);
+void G_MusicSetThematicVolume(LONG volume);
+void G_MusicSetThematicPosition(LONG millisecs);
 void G_JassSoundRuntimeInit(HANDLE sound);
 void G_JassSoundSetVolume(HANDLE sound, FLOAT volume);
 void G_JassSoundSetPosition(HANDLE sound, LPCVECTOR3 position);

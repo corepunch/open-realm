@@ -331,6 +331,13 @@ typedef struct {
     BOOL InBeta;
 } UnitAckSounds_t;
 
+/* UI\SoundInfo\Music.slk only needs the row key and authored file list for
+ * playlist expansion.  Keep this separate from one-shot sound metadata. */
+typedef struct {
+    LPCSTR name;
+    LPCSTR FileNames;
+} MusicData_t;
+
 /* =========================================================================
  * ItemData.slk
  * =========================================================================*/
@@ -441,6 +448,7 @@ extern UberSplatData_t *g_UberSplatData; extern DWORD g_UberSplatDataCount;
 extern UnitAckSounds_t *g_UnitAckSounds; extern DWORD g_UnitAckSoundsCount;
 extern UnitAckSounds_t *g_UnitCombatSounds; extern DWORD g_UnitCombatSoundsCount;
 extern UnitAckSounds_t *g_UISounds; extern DWORD g_UISoundsCount;
+extern MusicData_t *g_MusicData; extern DWORD g_MusicDataCount;
 extern ItemData_t *g_ItemData; extern DWORD g_ItemDataCount;
 extern DestructableData_t *g_DestructableData; extern DWORD g_DestructableDataCount;
 
@@ -462,6 +470,7 @@ UberSplatData_t const *G_UberSplat(DWORD id);
 UnitAckSounds_t const *G_UnitAckSound(LPCSTR name);
 UnitAckSounds_t const *G_UnitCombatSound(LPCSTR name);
 UnitAckSounds_t const *G_UISound(LPCSTR name);
+MusicData_t const *G_MusicData(LPCSTR name);
 ItemData_t    const *G_ItemData(DWORD id);
 ItemData_t    const *G_ItemDataRows(DWORD *count);
 DestructableData_t const *G_DestructableData(DWORD id);

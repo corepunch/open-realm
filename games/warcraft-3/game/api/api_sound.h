@@ -157,34 +157,63 @@ DWORD KillSoundWhenDone(LPJASS j) {
     return 0;
 }
 DWORD SetMusicVolume(LPJASS j) {
-    //LONG volume = jass_checkinteger(j, 1);
+    G_MusicSetVolume(jass_checkinteger(j, 1));
+    return 0;
+}
+DWORD SetMusicPlayPosition(LPJASS j) {
+    G_MusicSetPosition(jass_checkinteger(j, 1));
+    return 0;
+}
+DWORD SetThematicMusicVolume(LPJASS j) {
+    G_MusicSetThematicVolume(jass_checkinteger(j, 1));
+    return 0;
+}
+DWORD SetThematicMusicPlayPosition(LPJASS j) {
+    G_MusicSetThematicPosition(jass_checkinteger(j, 1));
     return 0;
 }
 DWORD PlayMusic(LPJASS j) {
-    //LPCSTR musicName = jass_checkstring(j, 1);
+    G_MusicPlay(jass_checkstring(j, 1), 0, 0);
+    return 0;
+}
+DWORD PlayMusicEx(LPJASS j) {
+    LPCSTR musicName = jass_checkstring(j, 1);
+    LONG frommsecs = jass_checkinteger(j, 2);
+    LONG fadeinmsecs = jass_checkinteger(j, 3);
+    G_MusicPlay(musicName, MAX(0, frommsecs), MAX(0, fadeinmsecs));
     return 0;
 }
 DWORD SetMapMusic(LPJASS j) {
-    //LPCSTR musicName = jass_checkstring(j, 1);
-    //BOOL random = jass_checkboolean(j, 2);
-    //LONG index = jass_checkinteger(j, 3);
+    LPCSTR musicName = jass_checkstring(j, 1);
+    BOOL random = jass_checkboolean(j, 2);
+    LONG index = jass_checkinteger(j, 3);
+    G_MusicSetMap(musicName, random, index);
     return 0;
 }
 DWORD ClearMapMusic(LPJASS j) {
+    G_MusicClearMap();
     return 0;
 }
 DWORD PlayThematicMusic(LPJASS j) {
-    //LPCSTR musicFileName = jass_checkstring(j, 1);
+    G_MusicPlayThematic(jass_checkstring(j, 1), 0);
+    return 0;
+}
+DWORD PlayThematicMusicEx(LPJASS j) {
+    LPCSTR musicFileName = jass_checkstring(j, 1);
+    LONG frommsecs = jass_checkinteger(j, 2);
+    G_MusicPlayThematic(musicFileName, MAX(0, frommsecs));
     return 0;
 }
 DWORD EndThematicMusic(LPJASS j) {
+    G_MusicEndThematic();
     return 0;
 }
 DWORD StopMusic(LPJASS j) {
-    //BOOL fadeOut = jass_checkboolean(j, 1);
+    G_MusicStop(jass_checkboolean(j, 1));
     return 0;
 }
 DWORD ResumeMusic(LPJASS j) {
+    G_MusicResume();
     return 0;
 }
 DWORD SetSoundDuration(LPJASS j) {

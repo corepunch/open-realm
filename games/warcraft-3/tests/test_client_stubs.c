@@ -110,6 +110,17 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
 void CL_QueueMovie(LPCSTR path) { (void)path; }
 BOOL CL_MovieActive(void) { return false; }
 void CL_MovieDraw(void) {}
+void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index) { (void)playlist; (void)random; (void)index; }
+void CL_MusicClearMap(void) {}
+void CL_MusicPlay(LPCSTR playlist, LONG start_ms, LONG fade_ms) { (void)playlist; (void)start_ms; (void)fade_ms; }
+void CL_MusicStop(BOOL fade_out) { (void)fade_out; }
+void CL_MusicResume(void) {}
+void CL_MusicPlayThematic(LPCSTR playlist, LONG start_ms) { (void)playlist; (void)start_ms; }
+void CL_MusicEndThematic(void) {}
+void CL_MusicSetVolume(LONG volume) { (void)volume; }
+void CL_MusicSetPosition(LONG millisecs) { (void)millisecs; }
+void CL_MusicSetThematicVolume(LONG volume) { (void)volume; }
+void CL_MusicSetThematicPosition(LONG millisecs) { (void)millisecs; }
 void Cmd_ForwardToServer(LPCSTR text) {
     snprintf(test_forwarded_command, sizeof(test_forwarded_command), "%s", text ? text : "");
 }

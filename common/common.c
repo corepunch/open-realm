@@ -67,6 +67,7 @@ const LPCSTR WarcraftSheets[] = {
     "UI\\SoundInfo\\AmbienceSounds.slk",
     "UI\\SoundInfo\\UISounds.slk",
     "UI\\SoundInfo\\UnitAckSounds.slk",
+    "UI\\SoundInfo\\Music.slk",
 
     NULL
 };

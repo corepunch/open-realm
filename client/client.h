@@ -142,6 +142,25 @@ void CL_BeginLoadingMap(LPCSTR mapName);
 FLOAT CL_GetLoadingProgress(void);
 void CL_SetLoadingProgress(FLOAT progress);
 
+/* Long-form client music presentation (client/cl_music.c). */
+void CL_MusicInit(void);
+void CL_MusicReset(void);
+void CL_MusicShutdown(void);
+void CL_MusicUpdate(void);
+void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index);
+void CL_MusicClearMap(void);
+void CL_MusicPlay(LPCSTR playlist, LONG start_ms, LONG fade_ms);
+void CL_MusicStop(BOOL fade_out);
+void CL_MusicResume(void);
+void CL_MusicPlayThematic(LPCSTR playlist, LONG start_ms);
+void CL_MusicEndThematic(void);
+void CL_MusicSetVolume(LONG volume);
+void CL_MusicSetPosition(LONG millisecs);
+void CL_MusicSetThematicVolume(LONG volume);
+void CL_MusicSetThematicPosition(LONG millisecs);
+void CL_MusicSuspend(void);
+void CL_MusicResumeFromSuspend(void);
+
 /* Optional full-screen movie playback (client/cl_movie.c). */
 void CL_MovieInit(void);
 void CL_Movie_f(void);

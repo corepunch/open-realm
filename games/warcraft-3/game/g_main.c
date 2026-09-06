@@ -235,6 +235,7 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     G_FreeModels();
     gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     gi.ClearWorld();
+    G_MusicResetState();
     G_SetMapUnitOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
      * panel once so write paths do not parse FDF on first use. */
@@ -986,6 +987,7 @@ static void G_ClientBegin(LPEDICT edict) {
 
     G_SetClientConnected(edict, true);
     G_InitClientUIState(client);
+    G_MusicSyncClient(client);
     if (!client->mapplayer) {
         client->ps.vieworigin = (VECTOR3){ 0, 0, 0 };
     }

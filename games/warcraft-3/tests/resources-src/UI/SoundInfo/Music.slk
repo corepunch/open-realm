@@ -1,0 +1,7 @@
+ID;PWXL;N;E
+B;X2;Y2;D0
+C;Y1;X1;K"MusicName"
+C;Y1;X2;K"FileNames"
+C;Y2;X1;K"TestMusic"
+C;Y2;X2;K"TestUI\Sounds\MusicA.mp3,TestUI\Sounds\MusicB.mp3"
+E

@@ -357,14 +357,27 @@ static LPCSTR Theme_PlayerRaceCategory(DWORD race) {
     }
 }
 
-/* Resolve a local player's race skin first, then the shared Default section. */
+static DWORD Theme_GameVersion(void) {
+    LPCSTR expansion = gi.CvarString ? gi.CvarString("fs_expansion", "0") : "0";
+    return expansion && atoi(expansion) != 0 ? 1 : 0;
+}
+
+/* Resolve a local player's race skin first, then the shared Default section.
+ * Warcraft skin data also carries versioned aliases (for example Music_V1),
+ * so fall back to the mounted game edition when the unversioned key is absent. */
 LPCSTR Theme_PlayerString(LPGAMECLIENT client, LPCSTR key, LPCSTR def) {
     LPCSTR category, value;
+    char versioned[128];
 
     if (!key || strstr(key, "\\") || !game.config.theme.source) return def;
     category = Theme_PlayerRaceCategory(client ? client->ps.race : kPlayerRaceNone);
     value = Stb_IniCacheFind(&game.config.theme, category, key);
     if (!value && strcmp(category, "Default")) value = Stb_IniCacheFind(&game.config.theme, "Default", key);
+    if (value) return value;
+
+    snprintf(versioned, sizeof(versioned), "%s_V%u", key, (unsigned)Theme_GameVersion());
+    value = Stb_IniCacheFind(&game.config.theme, category, versioned);
+    if (!value && strcmp(category, "Default")) value = Stb_IniCacheFind(&game.config.theme, "Default", versioned);
     return value ? value : def;
 }
 

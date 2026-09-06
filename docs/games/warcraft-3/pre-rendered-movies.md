@@ -33,8 +33,7 @@ libswresample
 ```
 
 `client/cl_movie.c` owns demux/decode, A/V scheduling, Escape-to-skip, archive extraction, and full-screen presentation.
-The renderer only exposes generic dynamic RGBA texture create/update operations. The sound mixer exposes a generic
-44.1-kHz stereo S16 raw stream, following the same ownership split as Quake-style cinematic audio.
+The renderer only exposes generic dynamic RGBA texture create/update operations. The sound mixer exposes a generic 44.1-kHz stereo S16 stream slot, following the same ownership split as Quake-style cinematic audio. Movie and music streams are independent; see [music.md](music.md).
 
 The decoder first asks `FS_ResolveLoosePath()` for a real disk path. This lets libavformat stream a normal loose
 `Movies\\*.mpq` file without loading the whole movie into memory. If the movie is found only inside an archive,
@@ -66,14 +65,14 @@ PlayCinematic("HumanEd")
         -> libavformat
         -> libavcodec
         -> swscale -> RGBA -> renderer dynamic texture
-        -> swresample -> stereo S16/44100 -> S_RawSamples
+        -> swresample -> stereo S16/44100 -> S_StreamSamples(S_STREAM_MOVIE)
     -> EOF or Escape
     -> resume preserved MenuAction
 ```
 
 Movie rendering uses the renderer's actual UI scene rectangle and letterboxes/pillarboxes to preserve the source aspect
 ratio. While active, movie input consumes keyboard/mouse interaction so hidden gameplay/menu controls cannot be
-activated. Escape terminates playback. The system cursor is hidden while the movie is drawn.
+activated. Escape terminates playback. The system cursor is hidden while the movie is drawn. If background music is active, movie startup suspends it before the movie PCM stream starts; EOF/Escape restores the prior music pause state. The separate `S_STREAM_MOVIE` and `S_STREAM_MUSIC` buffers prevent either decoder from resetting the other.
 
 ## Campaign Selection Metadata
 

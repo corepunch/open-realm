@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 11; // reusable JASS group slot lifecycle joins the persisted WC3 level stream
+static DWORD const save_version = 12; // per-client music semantics expand the persisted GAMECLIENT snapshot
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
 
@@ -1167,6 +1167,10 @@ BOOL ReadGame(LPCSTR filename) {
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
     fclose(f);
+    /* Client-side decoders are presentation state, not part of the save file.
+     * Re-emit the restored semantic music state for clients that remained
+     * connected across the load. */
+    FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) G_MusicSyncClient(game.clients + i);
     G_DisableStartingResourceCheatForLoadedGame();
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;
