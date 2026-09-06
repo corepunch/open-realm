@@ -231,6 +231,12 @@ static size2_t test_get_window_size(void) {
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
 static void test_release_model(LPMODEL model) { (void)model; }
+static bool test_get_model_animation_duration(LPCMODEL model, LPCSTR anim, LPDWORD duration) {
+    (void)model;
+    (void)anim;
+    (void)duration;
+    return false;
+}
 
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
@@ -244,6 +250,7 @@ static LPRENDERER test_get_renderer(void) {
         .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
+        .GetModelAnimationDuration = test_get_model_animation_duration,
         .GetTextSize = test_get_text_size,
     };
     return &renderer;

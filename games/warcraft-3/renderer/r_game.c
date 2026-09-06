@@ -482,6 +482,20 @@ bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return MDLX_SetEntityAnimationFrame(model, anim, entity);
 }
 
+bool R_GetModelAnimationDuration(LPCMODEL model, LPCSTR anim, LPDWORD duration) {
+    mdxSequence_t const *seq;
+
+    if (!model || model->modeltype != ID_MDLX || !model->mdx || !anim || !*anim || !duration) {
+        return false;
+    }
+    seq = MDLX_FindSequenceByName(model->mdx, anim);
+    if (!seq || seq->interval[1] < seq->interval[0]) {
+        return false;
+    }
+    *duration = seq->interval[1] - seq->interval[0];
+    return true;
+}
+
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     MDLX_DrawSprite(model, anim, x, y);
 }

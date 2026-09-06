@@ -64,6 +64,14 @@ static LPFRAMEDEF campaign_list_frame;
 static uiMapListState_t mission_list;
 static LPFRAMEDEF mission_list_frame;
 static DWORD campaign_background_model = 0;
+static PATHSTR campaign_background_path;
+static DWORD campaign_background_intro_start;
+static DWORD campaign_background_intro_duration;
+static BOOL campaign_background_intro_started;
+static BOOL campaign_background_intro_complete;
+static DWORD single_player_time;
+static BOOL return_main_pending;
+static BOOL campaign_transition_pending;
 static DWORD selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 
@@ -459,13 +467,60 @@ static void SinglePlayer_SetView(singlePlayerView_t view) {
                            view != SINGLE_PLAYER_VIEW_MISSION_SELECT);
 }
 
-static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campaign) {
-    if (single_player.CampaignBackdrop_2 && campaign && campaign->background[0]) {
-        campaign_background_model = UI_LoadModel(campaign->background, true);
-        single_player.CampaignBackdrop_2->Portrait.model = campaign_background_model;
-        fprintf(stderr, "[UI] Campaign backdrop: skin=\"%s\" model_idx=%u\n",
-                campaign->background, (unsigned)campaign_background_model);
+static void SinglePlayer_ResetCampaignBackdropIntro(void) {
+    campaign_background_intro_start = 0;
+    campaign_background_intro_duration = 0;
+    campaign_background_intro_started = false;
+    campaign_background_intro_complete = false;
+}
+
+static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campaign, BOOL restart_intro) {
+    BOOL changed;
+
+    if (!single_player.CampaignBackdrop_2 || !campaign || !campaign->background[0]) {
+        return;
     }
+
+    changed = strcmp(campaign_background_path, campaign->background) != 0;
+    campaign_background_model = UI_LoadModel(campaign->background, true);
+    single_player.CampaignBackdrop_2->Portrait.model = campaign_background_model;
+    if (changed) {
+        snprintf(campaign_background_path, sizeof(campaign_background_path), "%s", campaign->background);
+    }
+    if (changed || restart_intro) {
+        SinglePlayer_ResetCampaignBackdropIntro();
+    }
+    fprintf(stderr, "[UI] Campaign backdrop: skin=\"%s\" model_idx=%u\n",
+            campaign->background, (unsigned)campaign_background_model);
+}
+
+static LPCSTR SinglePlayer_CampaignBackdropAnimation(LPRENDERER renderer,
+                                                     LPCMODEL model,
+                                                     LPSTR scrubbed,
+                                                     DWORD scrubbed_size) {
+    DWORD elapsed;
+    FLOAT ratio;
+
+    if (!campaign_background_intro_started) {
+        campaign_background_intro_started = true;
+        campaign_background_intro_start = single_player_time;
+        campaign_background_intro_complete =
+            !renderer->GetModelAnimationDuration(model, "Birth", &campaign_background_intro_duration) ||
+            campaign_background_intro_duration == 0;
+    }
+    if (campaign_background_intro_complete) {
+        return "Stand";
+    }
+
+    elapsed = single_player_time - campaign_background_intro_start;
+    if (elapsed >= campaign_background_intro_duration) {
+        campaign_background_intro_complete = true;
+        return "Stand";
+    }
+
+    ratio = (FLOAT)elapsed / (FLOAT)campaign_background_intro_duration;
+    snprintf(scrubbed, scrubbed_size, "Birth@%.4f", ratio);
+    return scrubbed;
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
@@ -474,10 +529,12 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
 
     if (renderer && renderer->RenderFrame && model) {
         renderEntity_t entity = {0};
+        char scrubbed[64];
+        LPCSTR anim = SinglePlayer_CampaignBackdropAnimation(renderer, model, scrubbed, sizeof(scrubbed));
         entity.model = model;
         entity.scale = 1.0f;
         entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
-        renderer->SetEntityAnimFrame(model, "Stand", &entity);
+        renderer->SetEntityAnimFrame(model, anim, &entity);
 
         viewDef_t viewdef = {0};
         viewdef.viewport = (RECT){0, 0, 1, 1};
@@ -658,7 +715,7 @@ static void SinglePlayer_SelectCampaign(singlePlayerCampaign_t const *campaign) 
         return;
     }
     selected_campaign_index = (DWORD)(campaign - campaigns);
-    SinglePlayer_SetCampaignBackdrop(campaign);
+    SinglePlayer_SetCampaignBackdrop(campaign, false);
     SinglePlayer_PopulateMissionSelect(campaign);
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MISSION_SELECT);
 }
@@ -829,6 +886,11 @@ static void SinglePlayerMenu_Init(void) {
     mission_list_frame = NULL;
     memset(&campaign_list, 0, sizeof(campaign_list));
     memset(&mission_list, 0, sizeof(mission_list));
+    memset(campaign_background_path, 0, sizeof(campaign_background_path));
+    single_player_time = 0;
+    return_main_pending = false;
+    campaign_transition_pending = false;
+    SinglePlayer_ResetCampaignBackdropIntro();
 
     if (single_player.WarCraftIIILogo) {
         single_player.WarCraftIIILogo->Portrait.model = UI_LoadModel("CampaignLogo", true);
@@ -838,19 +900,38 @@ static void SinglePlayerMenu_Init(void) {
     SinglePlayer_BindCampaignMenu();
     SinglePlayer_CreateCampaignList();
     SinglePlayer_CreateMissionList();
-    SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
+    SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign(), false);
     selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
 
 static void SinglePlayerMenu_Shutdown(void) {
+    return_main_pending = false;
+    campaign_transition_pending = false;
 }
 
 static void SinglePlayerMenu_Refresh(int msec) {
-    (void)msec;
+    single_player_time = (DWORD)msec;
 }
 
 static void SinglePlayerMenu_Draw(void) {
+    if (return_main_pending) {
+        UI_DrawGlueScene("SinglePlayer Death");
+        if (UI_GlueSceneAnimationComplete()) {
+            return_main_pending = false;
+            M_ShowMainMenu();
+        }
+        return;
+    }
+
+    if (campaign_transition_pending) {
+        UI_DrawGlueScene("SinglePlayer Death");
+        if (UI_GlueSceneAnimationComplete()) {
+            campaign_transition_pending = false;
+            SinglePlayerMenu_ShowCampaign();
+        }
+        return;
+    }
     if (current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ||
         current_view == SINGLE_PLAYER_VIEW_MISSION_SELECT) {
         SinglePlayer_DrawCampaignBackdrop();
@@ -872,17 +953,44 @@ static void SinglePlayerMenu_KeyEvent(int key, BOOL down) {
 }
 
 void SinglePlayerMenu_ShowMain(void) {
+    BOOL const returning_from_campaign = current_view != SINGLE_PLAYER_VIEW_MAIN;
+
     if (single_player.ProfileNameText) {
         LPCSTR name = menuimport.Cvar_String ? menuimport.Cvar_String("name", "Player") : "Player";
         UI_SetText(single_player.ProfileNameText, "%s", name && name[0] ? name : "Player");
+    }
+    return_main_pending = false;
+    campaign_transition_pending = false;
+    if (returning_from_campaign) {
+        UI_RestartGlueSceneAnimations();
     }
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
 
 void SinglePlayerMenu_ShowCampaign(void) {
-    SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
+    return_main_pending = false;
+    campaign_transition_pending = false;
+    SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign(), true);
     selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
+}
+
+BOOL SinglePlayerMenu_BeginMainMenu(void) {
+    if (current_view != SINGLE_PLAYER_VIEW_MAIN || return_main_pending || campaign_transition_pending) {
+        return false;
+    }
+    return_main_pending = true;
+    SinglePlayer_SetHidden(single_player.SinglePlayerMenu, true);
+    return true;
+}
+
+BOOL SinglePlayerMenu_BeginCampaign(void) {
+    if (current_view != SINGLE_PLAYER_VIEW_MAIN || campaign_transition_pending || return_main_pending) {
+        return false;
+    }
+    campaign_transition_pending = true;
+    SinglePlayer_SetHidden(single_player.SinglePlayerMenu, true);
+    return true;
 }
 
 void SinglePlayerMenu_BackCampaign(void) {

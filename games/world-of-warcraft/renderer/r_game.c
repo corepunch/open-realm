@@ -513,6 +513,13 @@ bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     return false;
 }
 
+bool R_GetModelAnimationDuration(LPCMODEL model, LPCSTR anim, LPDWORD duration) {
+    (void)model;
+    (void)anim;
+    (void)duration;
+    return false;
+}
+
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     BOX3 const *bounds;
     MATRIX4 transform;

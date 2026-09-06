@@ -442,6 +442,13 @@ bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return false;
 }
 
+bool R_GetModelAnimationDuration(LPCMODEL model, LPCSTR anim, LPDWORD duration) {
+    (void)model;
+    (void)anim;
+    (void)duration;
+    return false;
+}
+
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)model;
     (void)anim;

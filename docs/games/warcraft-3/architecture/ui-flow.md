@@ -78,10 +78,11 @@ RoC `War3Local.mpq` AI-script filter. TFT mode exposes those already-mounted arc
 renderer/UI resources and makes the edition cvar safe to change at the disconnected main menu.
 
 The native `EditionButton` is optional and is discovered under the parsed `MainMenuFrame`; OpenRealm does not recreate its layout.
-Its click command is `menu_edition`. The main-menu controller suppresses repeated clicks, hides the current frame tree, draws one
-`MainMenu Death` glue frame, switches the edition cvar, validates expansion campaign data when entering TFT, and queues the generic
-`menu_restart` console command. `Cmd_ExecuteText` appends that command after the current frame's command execution point, so it runs
-on the next client frame after the current UI event/draw call stack has returned. The client then:
+Its click command is `menu_edition`. The main-menu controller suppresses repeated clicks, hides the current frame tree, plays the
+authored `MainMenu Death` glue sequence to completion, then switches the edition cvar, validates expansion campaign data when
+entering TFT, and queues the generic `menu_restart` console command. `Cmd_ExecuteText` appends that command after the current
+frame's command execution point, so it runs on the next client frame after the current UI event/draw call stack has returned. The
+client then:
 
 ```text
 menu EditionButton
@@ -113,8 +114,26 @@ valid after map registration and makes Quit Campaign / EndGame / campaign-select
 the same edition selected by the main menu.
 
 `games/warcraft-3/menu/menu_glue_scene.c` renders the selected background as a model with `RDF_USE_ENTITY_CAMERA`; the main menu is
-therefore not a static BLP backdrop. Remaining glue parity gaps include `MenuZFog`, edition-sensitive `GlueScreenLoop` ambience, and
-a dedicated post-restart `MainMenu Birth` phase; the current switch rebuilds directly into the normal main-menu `Stand` state.
+therefore not a static BLP backdrop. Glue animation timing is model-authored rather than hard-coded. The generic renderer export
+`GetModelAnimationDuration` exposes a named sequence's interval length when the model format supports it. WC3 menu code combines
+that with the renderer's existing `Sequence@ratio` selector so one-shot glue animations have a menu-local start time instead of using
+the renderer's global looping clock.
+
+The shared background starts with non-looping `Birth` and hands off to `Stand`. A stable sprite-layer request such as
+`MainMenu Stand`, `SinglePlayer Stand`, or an `... Stand Alternate` variant first tries the matching `Birth` sequence, preserves any
+suffix, and then hands off to the requested `Stand`. Explicit `Birth`/`Death` requests are one-shots and hold their final authored
+pose until the controller requests another state. Main Menu -> Single Player and Single Player -> Main Menu now wait for the outgoing
+`Death` before changing screens, letting the incoming screen begin through its authored `Birth`. The edition switch uses the same
+completion gate before `menu_restart`. If a renderer/model does not expose the requested sequence duration, the code deliberately
+falls back to the previous direct requested sequence instead of inventing a timer.
+
+Campaign background models have the same local lifecycle: entering campaign selection or changing to a different campaign backdrop
+starts that model's `Birth` from frame zero and then switches to `Stand`. Entering campaign selection also waits for
+`SinglePlayer Death`. Returning from the campaign view restarts the normal glue `Birth` lifecycle. The retail/Warsmash
+`SlidingDoors Birth -> background swap -> SlidingDoors Death` campaign wipe is still separate work; OpenRealm currently keeps
+`SlidingDoors` hidden because its campaign-view ownership does not yet implement that intermediate transition state. Remaining glue
+parity gaps also include `MenuZFog` and edition-sensitive `GlueScreenLoop` ambience.
+
 The renderer texture cache also deliberately retains released textures, so same-path archive overrides are not globally invalidated by
 this menu restart; edition-decorated paths reload correctly, while broader texture-cache ownership remains separate lifetime work.
 
@@ -264,8 +283,9 @@ continuing network reads and client traffic.
 
 The following Warsmash/retail-style lifecycle work is intentionally not approximated in the current UI code:
 
-- menu changes are still immediate `UI_SetScreen` operations rather than Birth/Stand/Death sequence-completion
-  transitions;
+- Main Menu <-> Single Player and Single Player -> Campaign use authored Birth/Stand/Death completion now, but other glue-screen
+  routes (Options, LAN, Credits, and related returns) still change screens immediately;
+- the campaign `SlidingDoors Birth -> backdrop swap -> SlidingDoors Death` wipe is not wired;
 - campaign ambient sound and campaign-specific cursor switching are not wired;
 - profile creation/deletion/persistence is not implemented;
 - map `config()` is not yet run as a distinct pre-lobby configuration phase; doing so correctly requires separating
