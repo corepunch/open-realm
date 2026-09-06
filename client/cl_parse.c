@@ -845,6 +845,61 @@ malformed_window:
     msg->readcount = msg->cursize;
 }
 
+static void CL_ParseMusic(LPSIZEBUF msg) {
+    musicCommand_t command = (musicCommand_t)MSG_ReadByte(msg);
+    char playlist[2048];
+
+    switch (command) {
+        case MUSIC_CMD_SET_MAP: {
+            BOOL random = MSG_ReadByte(msg) != 0;
+            LONG index = MSG_ReadLong(msg);
+            MSG_ReadStringN(msg, playlist, sizeof(playlist));
+            CL_MusicSetMap(playlist, random, index);
+            break;
+        }
+        case MUSIC_CMD_CLEAR_MAP:
+            CL_MusicClearMap();
+            break;
+        case MUSIC_CMD_PLAY: {
+            LONG start_ms = MSG_ReadLong(msg);
+            LONG fade_ms = MSG_ReadLong(msg);
+            MSG_ReadStringN(msg, playlist, sizeof(playlist));
+            CL_MusicPlay(playlist, start_ms, fade_ms);
+            break;
+        }
+        case MUSIC_CMD_STOP:
+            CL_MusicStop(MSG_ReadByte(msg) != 0);
+            break;
+        case MUSIC_CMD_RESUME:
+            CL_MusicResume();
+            break;
+        case MUSIC_CMD_PLAY_THEMATIC: {
+            LONG start_ms = MSG_ReadLong(msg);
+            MSG_ReadStringN(msg, playlist, sizeof(playlist));
+            CL_MusicPlayThematic(playlist, start_ms);
+            break;
+        }
+        case MUSIC_CMD_END_THEMATIC:
+            CL_MusicEndThematic();
+            break;
+        case MUSIC_CMD_SET_VOLUME:
+            CL_MusicSetVolume(MSG_ReadLong(msg));
+            break;
+        case MUSIC_CMD_SET_POSITION:
+            CL_MusicSetPosition(MSG_ReadLong(msg));
+            break;
+        case MUSIC_CMD_SET_THEMATIC_VOLUME:
+            CL_MusicSetThematicVolume(MSG_ReadLong(msg));
+            break;
+        case MUSIC_CMD_SET_THEMATIC_POSITION:
+            CL_MusicSetThematicPosition(MSG_ReadLong(msg));
+            break;
+        default:
+            msg->readcount = msg->cursize;
+            break;
+    }
+}
+
 static void CL_ParseUIWindow(LPSIZEBUF msg) {
     char window_id[64];
     MSG_ReadStringN(msg, window_id, sizeof(window_id));
@@ -887,6 +942,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_sound:
                 CL_ParseSound(msg);
+                break;
+            case svc_music:
+                CL_ParseMusic(msg);
                 break;
             case svc_minimap_ping:
                 CL_ParseMinimapPing(msg);

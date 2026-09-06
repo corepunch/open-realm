@@ -371,19 +371,21 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
     Sint16 *out    = (Sint16 *)stream;
     int     frames = len / (int)(2 * sizeof(Sint16));  /* stereo frames */
 
-    if (s.raw.active && s.raw.data) {
-        DWORD take = MIN((DWORD)frames, s.raw.count);
+    FOR_LOOP(stream_id, S_STREAM_COUNT) {
+        sStreamState_t *stream_state = &s.streams[stream_id];
+        if (!stream_state->active || stream_state->paused || !stream_state->data) continue;
+        DWORD take = MIN((DWORD)frames, stream_state->count);
         for (DWORD i = 0; i < take; i++) {
-            DWORD frame = s.raw.read_pos;
-            int l = (int)out[i * 2] + s.raw.data[frame * 2];
-            int r = (int)out[i * 2 + 1] + s.raw.data[frame * 2 + 1];
+            DWORD frame = stream_state->read_pos;
+            int l = (int)out[i * 2] + (int)(stream_state->data[frame * 2] * stream_state->volume);
+            int r = (int)out[i * 2 + 1] + (int)(stream_state->data[frame * 2 + 1] * stream_state->volume);
             if (l > 32767) l = 32767; else if (l < -32768) l = -32768;
             if (r > 32767) r = 32767; else if (r < -32768) r = -32768;
             out[i * 2] = (Sint16)l;
             out[i * 2 + 1] = (Sint16)r;
-            s.raw.read_pos = (s.raw.read_pos + 1) % s.raw.capacity;
+            stream_state->read_pos = (stream_state->read_pos + 1) % stream_state->capacity;
         }
-        s.raw.count -= take;
+        stream_state->count -= take;
     }
 
     for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
@@ -450,7 +452,7 @@ void S_Shutdown(void) {
     for (DWORD i = 1; i < s.kit_count; i++)
         if (s.kits[i].id == i) free(s.kits[i].cache);
     FS_FreeFile(s.dbc_data);
-    free(s.raw.data);
+    FOR_LOOP(stream_id, S_STREAM_COUNT) free(s.streams[stream_id].data);
     memset(&s, 0, sizeof(s));
 }
 
@@ -539,50 +541,72 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
                  channel, attenuation, timeofs);
 }
 
-/* Update the listener position and right vector — call once per rendered frame. */
-void S_RawStart(void) {
-    if (!s.initialized) return;
+/* Client-owned long-form PCM streams (movie/music), stereo S16 at 44.1 kHz. */
+static BOOL S_ValidStream(sStreamId_t stream) {
+    return (DWORD)stream < (DWORD)S_STREAM_COUNT;
+}
+
+void S_StreamStart(sStreamId_t stream) {
+    if (!s.initialized || !S_ValidStream(stream)) return;
     SDL_LockAudioDevice(s.device);
-    if (!s.raw.data) {
-        s.raw.capacity = 44100 * 2; /* two seconds keeps demux jitter away from the callback */
-        s.raw.data = calloc((size_t)s.raw.capacity * 2, sizeof(short));
+    if (!s.streams[stream].data) {
+        s.streams[stream].capacity = 44100 * 2; /* two seconds keeps decoder jitter away from the callback */
+        s.streams[stream].data = calloc((size_t)s.streams[stream].capacity * 2, sizeof(short));
     }
-    s.raw.read_pos = s.raw.write_pos = s.raw.count = 0;
-    s.raw.active = s.raw.data != NULL;
+    s.streams[stream].read_pos = s.streams[stream].write_pos = s.streams[stream].count = 0;
+    s.streams[stream].volume = 1.0f;
+    s.streams[stream].paused = false;
+    s.streams[stream].active = s.streams[stream].data != NULL;
     SDL_UnlockAudioDevice(s.device);
 }
 
-DWORD S_RawSamples(SHORT const *samples, DWORD frames) {
+DWORD S_StreamSamples(sStreamId_t stream, SHORT const *samples, DWORD frames) {
     DWORD written = 0;
 
-    if (!s.initialized || !samples || !frames || !s.raw.active || !s.raw.data) return 0;
+    if (!s.initialized || !S_ValidStream(stream) || !samples || !frames ||
+        !s.streams[stream].active || !s.streams[stream].data) return 0;
     SDL_LockAudioDevice(s.device);
-    while (written < frames && s.raw.count < s.raw.capacity) {
-        DWORD dst = s.raw.write_pos;
-        s.raw.data[dst * 2] = samples[written * 2];
-        s.raw.data[dst * 2 + 1] = samples[written * 2 + 1];
-        s.raw.write_pos = (s.raw.write_pos + 1) % s.raw.capacity;
-        s.raw.count++;
+    while (written < frames && s.streams[stream].count < s.streams[stream].capacity) {
+        DWORD dst = s.streams[stream].write_pos;
+        s.streams[stream].data[dst * 2] = samples[written * 2];
+        s.streams[stream].data[dst * 2 + 1] = samples[written * 2 + 1];
+        s.streams[stream].write_pos = (s.streams[stream].write_pos + 1) % s.streams[stream].capacity;
+        s.streams[stream].count++;
         written++;
     }
     SDL_UnlockAudioDevice(s.device);
     return written;
 }
 
-DWORD S_RawBufferedFrames(void) {
+DWORD S_StreamBufferedFrames(sStreamId_t stream) {
     DWORD count = 0;
-    if (!s.initialized || !s.raw.active) return 0;
+    if (!s.initialized || !S_ValidStream(stream) || !s.streams[stream].active) return 0;
     SDL_LockAudioDevice(s.device);
-    count = s.raw.count;
+    count = s.streams[stream].count;
     SDL_UnlockAudioDevice(s.device);
     return count;
 }
 
-void S_RawStop(void) {
-    if (!s.initialized) return;
+void S_StreamSetVolume(sStreamId_t stream, FLOAT volume) {
+    if (!s.initialized || !S_ValidStream(stream)) return;
     SDL_LockAudioDevice(s.device);
-    s.raw.active = false;
-    s.raw.read_pos = s.raw.write_pos = s.raw.count = 0;
+    s.streams[stream].volume = MAX(0.0f, MIN(volume, 1.0f));
+    SDL_UnlockAudioDevice(s.device);
+}
+
+void S_StreamSetPaused(sStreamId_t stream, BOOL paused) {
+    if (!s.initialized || !S_ValidStream(stream)) return;
+    SDL_LockAudioDevice(s.device);
+    s.streams[stream].paused = paused;
+    SDL_UnlockAudioDevice(s.device);
+}
+
+void S_StreamStop(sStreamId_t stream) {
+    if (!s.initialized || !S_ValidStream(stream)) return;
+    SDL_LockAudioDevice(s.device);
+    s.streams[stream].active = false;
+    s.streams[stream].paused = false;
+    s.streams[stream].read_pos = s.streams[stream].write_pos = s.streams[stream].count = 0;
     SDL_UnlockAudioDevice(s.device);
 }
 

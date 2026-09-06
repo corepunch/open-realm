@@ -93,6 +93,7 @@ void CL_ClientCommand(LPCSTR cmd) {
 }
 
 void CL_ClearState(void) {
+    CL_MusicReset();
     CL_ClearTEnts ();
     CL_WindowClear();
     CL_ClearMinimap();
@@ -792,6 +793,7 @@ void CL_Init(void) {
     re.Init(mode.width, mode.height);
     
     S_Init();
+    CL_MusicInit();
     CL_MovieInit();
 
     /* Initialize UI library */
@@ -1003,6 +1005,7 @@ void CL_Shutdown(void) {
         SAFE_DELETE(cl.dynamicPics[imageIndex], re.ReleaseTexture);
     }
     CL_MovieShutdown();
+    CL_MusicShutdown();
     V_Shutdown();
     re.Shutdown();
     S_Shutdown();
@@ -1025,6 +1028,7 @@ void CL_Frame(DWORD msec) {
     CL_Input();
     CL_MovieUpdate();
     CL_ReadPackets();
+    CL_MusicUpdate();
     CL_CheckTimeout();
     CL_SendCommand();
     if (cls.state == ca_connected && !cl.refresh_prepped) {

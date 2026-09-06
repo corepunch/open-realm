@@ -356,6 +356,23 @@ typedef enum {
 #define SND_ENT         0x08 // short; entity number plus channel; identifies an entity source
 #define SND_OFFSET      0x10 // byte; start delay in milliseconds; used by svc_sound
 
+/* Reliable client music-control commands carried by svc_music.  The payload is
+ * presentation-only state; game modules choose the command and the client owns
+ * playlist lifetime, decoding, seeking and mixing. */
+typedef enum {
+    MUSIC_CMD_SET_MAP = 1,
+    MUSIC_CMD_CLEAR_MAP,
+    MUSIC_CMD_PLAY,
+    MUSIC_CMD_STOP,
+    MUSIC_CMD_RESUME,
+    MUSIC_CMD_PLAY_THEMATIC,
+    MUSIC_CMD_END_THEMATIC,
+    MUSIC_CMD_SET_VOLUME,
+    MUSIC_CMD_SET_POSITION,
+    MUSIC_CMD_SET_THEMATIC_VOLUME,
+    MUSIC_CMD_SET_THEMATIC_POSITION
+} musicCommand_t;
+
 /* Transient minimap attention-marker flags. */
 #define MINIMAP_PING_REMEMBER      0x01 // bit; add position to recent-alert history; used by svc_minimap_ping
 #define MINIMAP_PING_EXTRA_EFFECTS 0x02 // bit; draw an additional pulse; used by PingMinimapEx

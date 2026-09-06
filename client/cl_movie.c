@@ -33,6 +33,7 @@ typedef struct {
 typedef struct {
     BOOL active;
     BOOL extracted;
+    BOOL music_suspended;
     PATHSTR source_path;
     PATHSTR disk_path;
     LPTEXTURE texture;
@@ -76,7 +77,8 @@ static void CL_MovieReleaseFrames(void) {
 }
 
 static void CL_MovieClose(void) {
-    S_RawStop();
+    S_StreamStop(S_STREAM_MOVIE);
+    if (cl_movie.music_suspended) CL_MusicResumeFromSuspend();
     SAFE_DELETE(cl_movie.texture, re.ReleaseTexture);
     CL_MovieReleaseFrames();
     sws_freeContext(cl_movie.sws);
@@ -251,7 +253,7 @@ static BOOL CL_MovieQueueAudioFrame(AVFrame const *frame) {
                             (uint8_t const **)frame->extended_data,
                             frame->nb_samples);
     if (converted < 0) return false;
-    S_RawSamples((SHORT const *)cl_movie.audio_buffer, (DWORD)converted);
+    S_StreamSamples(S_STREAM_MOVIE, (SHORT const *)cl_movie.audio_buffer, (DWORD)converted);
     return true;
 }
 
@@ -265,7 +267,7 @@ static BOOL CL_MovieDrainAudio(void) {
         if (result < 0) return false;
         if (!CL_MovieQueueAudioFrame(cl_movie.audio_frame)) return false;
         av_frame_unref(cl_movie.audio_frame);
-        if (S_RawBufferedFrames() >= CL_MOVIE_AUDIO_TARGET_FRAMES) return true;
+        if (S_StreamBufferedFrames(S_STREAM_MOVIE) >= CL_MOVIE_AUDIO_TARGET_FRAMES) return true;
     }
 }
 
@@ -288,7 +290,7 @@ static BOOL CL_MoviePump(void) {
     while (!cl_movie.demux_eof && guard++ < 128) {
         int result;
         BOOL video_ready = cl_movie.frame_count >= CL_MOVIE_VIDEO_QUEUE;
-        BOOL audio_ready = !cl_movie.audio_codec || S_RawBufferedFrames() >= CL_MOVIE_AUDIO_TARGET_FRAMES;
+        BOOL audio_ready = !cl_movie.audio_codec || S_StreamBufferedFrames(S_STREAM_MOVIE) >= CL_MOVIE_AUDIO_TARGET_FRAMES;
 
         if (video_ready || (cl_movie.frame_count > 0 && audio_ready)) break;
         result = av_read_frame(cl_movie.format, cl_movie.packet);
@@ -393,8 +395,10 @@ BOOL CL_PlayMovie(LPCSTR path) {
         return false;
     }
     cl_movie.frame_duration_ms = CL_MovieFrameDuration();
+    CL_MusicSuspend();
+    cl_movie.music_suspended = true;
     S_StopAllSounds();
-    S_RawStart();
+    S_StreamStart(S_STREAM_MOVIE);
     cl_movie.start_ticks = SDL_GetTicks();
     cl_movie.active = true;
     if (!CL_MoviePump() || cl_movie.frame_count == 0) {
@@ -421,7 +425,7 @@ void CL_MovieUpdate(void) {
         return;
     }
     CL_MoviePresentFrames();
-    if (cl_movie.demux_eof && cl_movie.frame_count == 0 && S_RawBufferedFrames() == 0) {
+    if (cl_movie.demux_eof && cl_movie.frame_count == 0 && S_StreamBufferedFrames(S_STREAM_MOVIE) == 0) {
         CL_MovieClose();
     }
 #endif

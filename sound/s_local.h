@@ -17,6 +17,23 @@
 #define S_MAX_CHANNELS      8
 #define S_HASH_BUCKETS      256
 
+typedef enum {
+    S_STREAM_MOVIE = 0,
+    S_STREAM_MUSIC,
+    S_STREAM_COUNT
+} sStreamId_t;
+
+typedef struct {
+    short *data;
+    DWORD capacity; /* stereo frames */
+    DWORD read_pos;
+    DWORD write_pos;
+    DWORD count;
+    FLOAT volume;
+    BOOL active;
+    BOOL paused;
+} sStreamState_t;
+
 /* Decoded PCM cache entry — always S16, 44100 Hz, mono (mirrors Q2 sfxcache_t).
  * Allocated as: malloc(sizeof(sfxcache_t) + length * sizeof(short)) */
 typedef struct {
@@ -88,15 +105,10 @@ typedef struct {
     } channels[S_MAX_CHANNELS];
 
 
-    /* Client-owned streaming PCM (cinematics): stereo S16 at the mixer rate. */
-    struct {
-        short *data;
-        DWORD capacity; /* stereo frames */
-        DWORD read_pos;
-        DWORD write_pos;
-        DWORD count;
-        BOOL active;
-    } raw;
+    /* Client-owned long-form PCM streams: stereo S16 at the mixer rate.
+     * Keep movie and music lifetime independent so one presentation source
+     * cannot reset the other's decoder buffer. */
+    sStreamState_t streams[S_STREAM_COUNT];
 
     SDL_AudioDeviceID device;
     BOOL              initialized;
@@ -115,9 +127,11 @@ void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin);
 void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation,
                        FLOAT timeofs);
 void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right);
-void S_RawStart(void);
-DWORD S_RawSamples(SHORT const *samples, DWORD frames);
-DWORD S_RawBufferedFrames(void);
-void S_RawStop(void);
+void S_StreamStart(sStreamId_t stream);
+DWORD S_StreamSamples(sStreamId_t stream, SHORT const *samples, DWORD frames);
+DWORD S_StreamBufferedFrames(sStreamId_t stream);
+void S_StreamSetVolume(sStreamId_t stream, FLOAT volume);
+void S_StreamSetPaused(sStreamId_t stream, BOOL paused);
+void S_StreamStop(sStreamId_t stream);
 
 #endif

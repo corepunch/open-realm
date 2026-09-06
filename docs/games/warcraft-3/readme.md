@@ -33,6 +33,7 @@ The current build can start from the menu, launch campaign or map content, rende
 - UI is client-side and FDF-driven, but not every in-game panel or Battle.net-era screen is implemented.
 - Asset compatibility is strongest around original Warcraft III data, with ongoing work for later 1.29-era data and edge cases.
 - Multiplayer transport and lobby flows exist, but this is not yet a finished multiplayer product.
+- Warcraft map/background music has JASS playlist/state handling and optional `FFMPEG=1` decoding; menu glue music, map skin overrides, and exact remaining retail timing semantics are still incomplete.
 
 ## Not There Yet
 
@@ -116,6 +117,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Time Of Day](time-of-day.md)
 - [Hero Revival](hero-revival.md)
 - [Sounds](sounds.md)
+- [Music Playback](music.md)
 - [HUD Media Lifetime](hud-media.md)
 - [Campaign Loading And Asset Resolution](loading-and-assets.md)
 - [Quest And Message Log UI](quest-and-message-log-ui.md)

@@ -1,9 +1,17 @@
 # Sound Architecture
 
-See also: [Warcraft III — Unit Sound System](../games/warcraft-3/sounds.md).
+See also: [Warcraft III — Unit Sound System](../games/warcraft-3/sounds.md) and
+[Warcraft III — Music Playback](../games/warcraft-3/music.md).
 
 Based on Quake 2's sound system. Sound is a client-side subsystem with server-mediated triggering via configstrings and
 dedicated `svc_sound` packets.
+
+
+## Long-Form PCM Streams
+
+Movies and background music use client-owned stereo S16 / 44.1-kHz ring buffers rather than one-shot `sfx_t` channels. `sound/s_local.h` defines generic `S_STREAM_MOVIE` and `S_STREAM_MUSIC` slots; each has independent active, pause, volume, and buffer state. The SDL callback mixes both streams before ordinary SFX.
+
+WC3 music is transported separately with reliable `svc_music`: game-specific code resolves `war3skins.txt` and `Music.slk`, while `client/cl_music.c` owns playlist and optional FFmpeg decoding. Movies use `S_STREAM_MOVIE` and temporarily suspend `S_STREAM_MUSIC` without resetting its decoder/buffer. Keep new long-form sources generic at the `client/`/`sound/` boundary; game-specific aliases and metadata stay under `games/<game>/`.
 
 ## Entity Sound Events (One-Shot)
 
