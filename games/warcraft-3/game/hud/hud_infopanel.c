@@ -888,12 +888,7 @@ void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
 }
 
 static DWORD SelectedUnits(LPGAMECLIENT client, LPEDICT *out, DWORD max_out) {
-    DWORD count = 0;
-    FOR_SELECTED_UNITS(client, ent) {
-        if (count < max_out) out[count] = ent;
-        count++;
-    }
-    return MIN(count, max_out);
+    return G_GetOrderedSelectedUnits(client, out, max_out);
 }
 
 void Get_Commands_f(LPEDICT ent) {

@@ -48,12 +48,43 @@ Targeted ability callbacks (`menu.on_entity_selected`) are a separate path: a le
 
 Selection membership and focused-unit presentation are separate state. The server
 retains one focused entity from the current selection; `G_GetMainSelectedUnit()`
-returns that entity while it remains selected, then falls back to the first live
-selected entity if the focus becomes invalid. `G_SelectEntity()` establishes the
-first unit as focus for a new selection, while `G_FocusSelectedUnit()` changes
-focus without changing any selection bits. Focus is transient UI/input state and
-is reset when map-player state is initialized rather than being added to the save
-format.
+returns that entity while it remains selected, then falls back to the first unit
+in canonical Warcraft selection order if the focus becomes invalid.
+`G_SelectEntity()` still establishes an initial focus while membership is being
+built, while the completed `select` command replaces that provisional choice with
+the first canonically ordered unit. `G_FocusSelectedUnit()` changes focus without
+changing any selection bits. Focus is transient UI/input state and is reset when
+map-player state is initialized rather than being added to the save format.
+
+### Multi-selection ordering
+
+`G_GetOrderedSelectedUnits()` is the shared authoritative ordering path used by
+the status panel and default-focus fallback. It reproduces the comparator in
+Warsmash `MeleeUI.selectWidgets()`:
+
+1. `UnitData.slk` `prio` / `UnitData_t.priority`, descending;
+2. `UnitBalance.slk` `level` / `UnitBalance_t.level`, descending;
+3. unit type rawcode, descending in canonical Warcraft `War3ID` byte order.
+
+The third comparison needs an explicit conversion. OpenRealm's `MAKEFOURCC`
+stores the first character in the low byte (`'hfoo'` is little-endian in the
+native integer), while Warsmash `War3ID` stores the first character in the high
+byte before comparing its integer value. Comparing `edict.class_id` directly is
+therefore not equivalent; `G_SelectionRawcodeValue()` converts to canonical
+Warcraft byte order first.
+
+The sort is stable for equal comparator keys. OpenRealm's authoritative selection
+membership is currently only an entity bit per player, so it does not retain the
+original click/rectangle insertion order. Equal unit types therefore preserve the
+server's deterministic edict scan order rather than Warsmash's original input-list
+order. Reproducing that final within-type detail would require retaining selection
+insertion order as additional transient state.
+
+The completed `select` command uses the first sorted unit for both default focus
+and the initial selection acknowledgement sound, matching Warsmash's flow where
+`selectUnits()` chooses `selectedUnits.get(0)` after sorting. Clicking a later
+multiselect portrait may still explicitly focus that unit without reordering the
+panel.
 
 `FT_MULTISELECT` is one packed frame, but each payload item carries its entity
 number and a focused-subgroup flag. `client/cl_scrn.c` hit-tests the authored icon
@@ -166,7 +197,7 @@ The following are deliberately not inferred by the current implementation:
 - invisibility/detection-aware selectability (`IsUnitDetected`/`IsUnitInvisible` coverage is incomplete);
 - Shift-click toggle semantics (Shift-drag addition exists separately);
 - Ctrl-click and double-click same-type expansion;
-- WC3 priority/level/rawcode sorting of the 12 selected entries;
+- exact Warsmash within-identical-type insertion ordering (selection membership currently retains only per-player bits, so stable ties use edict scan order);
 - neutral-shop patron interaction (`Aneu`/`Apit` remains unfinished);
 - data-driven `SelectionCircle` relationship colours;
 - Neutral Passive critter-specific selection response rules;
@@ -183,7 +214,7 @@ Do not bypass these gaps by weakening `G_UnitCanControl` or by restoring owner c
 
 ## Verification
 
-In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, and Hero revival restoring selectability. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
+In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, Hero revival restoring selectability, and Warsmash priority/level/canonical-rawcode multiselect ordering. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
 
 Useful targeted commands after building the test binary:
 
@@ -193,3 +224,4 @@ make test-wc3-engine WC3_PATTERN='wc3_unit.*'
 ```
 
 Runtime verification should also cover an enemy walking from visible terrain into fog, Neutral Passive/Hostile circle colours, and attempting Smart/command-card orders while a foreign unit is selected.
+For multiselect ordering, drag-select a deliberately mixed group (for example a Hero plus several different unit types) and confirm the status-panel icons remain grouped/sorted by priority, level, then rawcode regardless of entity spawn order; the first sorted unit should own the initial command card and selection response.

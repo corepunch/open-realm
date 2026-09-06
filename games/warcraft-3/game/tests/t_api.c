@@ -1580,6 +1580,69 @@ TEST(wc3_api, multiselect_focus_tracks_one_selected_unit_and_falls_back_when_rem
     T_ASSERT(!G_FocusSelectedUnit(client, second));
 }
 
+TEST(wc3_api, multiselect_order_matches_warsmash_priority_level_and_rawcode) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT low_priority = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    LPEDICT rawcode_foo_first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    LPEDICT rawcode_foo_second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    LPEDICT rawcode_knight = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 96, 0);
+    LPEDICT higher_level = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 128, 0);
+    LPEDICT higher_priority = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 160, 0);
+    UnitData_t low_data = { .priority = 1 };
+    UnitData_t middle_data = { .priority = 5 };
+    UnitData_t high_data = { .priority = 6 };
+    UnitBalance_t low_balance = { .level = 99 };
+    UnitBalance_t middle_balance = { .level = 2 };
+    UnitBalance_t higher_level_balance = { .level = 3 };
+    UnitBalance_t high_balance = { .level = 0 };
+    LPEDICT ordered[6] = { 0 };
+
+    client->ps.number = 0;
+    G_ResetSelectionFocus(client);
+
+    low_priority->data.UnitData = &low_data;
+    low_priority->data.UnitBalance = &low_balance;
+    rawcode_foo_first->data.UnitData = &middle_data;
+    rawcode_foo_first->data.UnitBalance = &middle_balance;
+    rawcode_foo_second->data.UnitData = &middle_data;
+    rawcode_foo_second->data.UnitBalance = &middle_balance;
+    rawcode_knight->data.UnitData = &middle_data;
+    rawcode_knight->data.UnitBalance = &middle_balance;
+    higher_level->data.UnitData = &middle_data;
+    higher_level->data.UnitBalance = &higher_level_balance;
+    higher_priority->data.UnitData = &high_data;
+    higher_priority->data.UnitBalance = &high_balance;
+
+    LPEDICT units[] = {
+        low_priority,
+        rawcode_foo_first,
+        rawcode_foo_second,
+        rawcode_knight,
+        higher_level,
+        higher_priority,
+    };
+    FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
+        units[i]->s.player = 0;
+        units[i]->svflags |= SVF_MONSTER;
+        G_SelectEntity(client, units[i]);
+    }
+
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, sizeof(ordered) / sizeof(ordered[0])), 6);
+    T_ASSERT(ordered[0] == higher_priority);
+    T_ASSERT(ordered[1] == higher_level);
+    /* OpenRealm stores FourCC bytes little-endian.  Canonical Warcraft rawcode
+     * ordering still places "hkni" ahead of "hfoo" for the final tie-break. */
+    T_ASSERT(ordered[2] == rawcode_knight);
+    T_ASSERT(ordered[3] == rawcode_foo_first);
+    T_ASSERT(ordered[4] == rawcode_foo_second);
+    T_ASSERT(ordered[5] == low_priority);
+
+    /* When no explicit subgroup focus remains, the same sorted first unit must
+     * own the portrait/command-card fallback rather than edict scan order. */
+    G_ResetSelectionFocus(client);
+    T_ASSERT(G_GetMainSelectedUnit(client) == higher_priority);
+}
+
 TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);

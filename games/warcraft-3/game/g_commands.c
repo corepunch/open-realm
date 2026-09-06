@@ -20,6 +20,90 @@ static DWORD *G_SelectionFocusSlot(LPGAMECLIENT client) {
     return &selection_focus[index];
 }
 
+static LONG G_SelectionPriority(LPCEDICT ent) {
+    UnitData_t const *data;
+
+    if (!ent) return 0;
+    data = ent->data.UnitData ? ent->data.UnitData : G_UnitData(ent->class_id);
+    return data ? data->priority : 0;
+}
+
+static LONG G_SelectionLevel(LPCEDICT ent) {
+    UnitBalance_t const *balance;
+
+    if (!ent) return 0;
+    balance = ent->data.UnitBalance ? ent->data.UnitBalance : G_UnitBalance(ent->class_id);
+    return balance ? balance->level : 0;
+}
+
+/* OpenRealm's MAKEFOURCC stores the first character in the low byte, while
+ * Warsmash's War3ID value stores it in the high byte.  Selection ordering uses
+ * Warsmash's numeric War3ID tie-break, so compare a canonical byte-swapped
+ * value rather than the native class_id integer. */
+static DWORD G_SelectionRawcodeValue(DWORD class_id) {
+    return ((class_id & 0x000000ffu) << 24) |
+           ((class_id & 0x0000ff00u) << 8) |
+           ((class_id & 0x00ff0000u) >> 8) |
+           ((class_id & 0xff000000u) >> 24);
+}
+
+/* Return < 0 when lhs belongs before rhs in the Warcraft multiselect panel.
+ * Warsmash sorts unit type priority, level, then War3ID descending.  Equal
+ * unit types compare equal so the stable insertion sort below preserves the
+ * authoritative selection scan order for otherwise-identical entries. */
+static LONG G_CompareSelectionOrder(LPCEDICT lhs, LPCEDICT rhs) {
+    LONG left_value;
+    LONG right_value;
+    DWORD left_rawcode;
+    DWORD right_rawcode;
+
+    left_value = G_SelectionPriority(lhs);
+    right_value = G_SelectionPriority(rhs);
+    if (left_value != right_value) return left_value > right_value ? -1 : 1;
+
+    left_value = G_SelectionLevel(lhs);
+    right_value = G_SelectionLevel(rhs);
+    if (left_value != right_value) return left_value > right_value ? -1 : 1;
+
+    left_rawcode = G_SelectionRawcodeValue(lhs ? lhs->class_id : 0);
+    right_rawcode = G_SelectionRawcodeValue(rhs ? rhs->class_id : 0);
+    if (left_rawcode != right_rawcode) return left_rawcode > right_rawcode ? -1 : 1;
+    return 0;
+}
+
+DWORD G_GetOrderedSelectedUnits(LPGAMECLIENT client, LPEDICT *out, DWORD max_out) {
+    DWORD seen = 0;
+
+    if (!client || !out || !max_out) return 0;
+
+    FOR_SELECTED_UNITS(client, ent) {
+        DWORD insert;
+
+        if (seen < max_out) {
+            insert = seen;
+            out[insert] = ent;
+        } else if (G_CompareSelectionOrder(ent, out[max_out - 1]) < 0) {
+            /* Keep the best max_out entries even if malformed/scripted state
+             * ever exceeds the normal 12-unit authoritative selection cap. */
+            insert = max_out - 1;
+            out[insert] = ent;
+        } else {
+            seen++;
+            continue;
+        }
+
+        while (insert > 0 && G_CompareSelectionOrder(out[insert], out[insert - 1]) < 0) {
+            LPEDICT swap = out[insert - 1];
+            out[insert - 1] = out[insert];
+            out[insert] = swap;
+            insert--;
+        }
+        seen++;
+    }
+
+    return MIN(seen, max_out);
+}
+
 static BOOL G_TargetModeActive(LPGAMECLIENT client) {
     return client && (client->menu.on_entity_selected || client->menu.on_location_selected);
 }
@@ -44,14 +128,15 @@ static BOOL G_ParseEntityNumber(LPCSTR text, DWORD *number) {
 
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
     DWORD *focus = G_SelectionFocusSlot(client);
+    LPEDICT ordered[1];
 
     if (focus && *focus > 0 && *focus < globals.num_edicts) {
         LPEDICT ent = &globals.edicts[*focus];
         if (G_IsEntitySelected(client, ent)) return ent;
     }
-    FOR_SELECTED_UNITS(client, ent) {
-        if (focus) *focus = ent->s.number;
-        return ent;
+    if (G_GetOrderedSelectedUnits(client, ordered, sizeof(ordered) / sizeof(ordered[0]))) {
+        if (focus) *focus = ordered[0]->s.number;
+        return ordered[0];
     }
     if (focus) *focus = 0;
     return NULL;
@@ -350,6 +435,17 @@ CLIENTCOMMAND(Select) {
             }
         }
         if (cleared) {
+            LPEDICT ordered[1];
+
+            /* Warsmash chooses the first unit after its priority/level/rawcode
+             * sort as the primary selection.  Use the same unit for default
+             * focus and the initial selection acknowledgement. */
+            if (G_GetOrderedSelectedUnits(client, ordered, sizeof(ordered) / sizeof(ordered[0]))) {
+                G_FocusSelectedUnit(client, ordered[0]);
+                voice = ordered[0];
+            } else {
+                voice = NULL;
+            }
             if (G_UnitCanControl(client, voice)) {
                 G_QueueSelectionSound(voice);
             } else if (voice && voice->s.player != PLAYER_NEUTRAL_PASSIVE) {
