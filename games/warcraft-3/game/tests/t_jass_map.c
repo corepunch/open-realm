@@ -381,6 +381,14 @@ TEST(wc3_jass_map, quest_completed_roundtrip) {
     ));
 }
 
+TEST(wc3_jass_map, quest_completed_null_handle_is_ignored) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call QuestSetCompleted(null, true)\n"
+        "endfunction\n"
+    ));
+}
+
 TEST(wc3_jass_map, quest_failed_roundtrip) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

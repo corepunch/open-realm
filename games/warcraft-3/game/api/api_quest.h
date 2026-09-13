@@ -32,6 +32,10 @@ DWORD QuestSetRequired(LPJASS j) {
 }
 DWORD QuestSetCompleted(LPJASS j) {
     LPQUEST whichQuest = jass_checkhandle(j, 1, "quest");
+    if (!whichQuest) {
+        fprintf(stderr, "WC3: QuestSetCompleted ignored null quest handle\n");
+        return 0;
+    }
     whichQuest->completed = jass_checkboolean(j, 2);
     return 0;
 }
