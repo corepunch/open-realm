@@ -484,6 +484,7 @@ field_t edict_fields[] = {
     F(edict_s, temporary_health_bonus, F_FLOAT),
     F(edict_s, mana_regen_bonus, F_FLOAT),
     F(edict_s, animation_speed, F_FLOAT),
+    F(edict_s, animation_override, F_INT),
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, currentmove, F_MMOVE),
     F(edict_s, militia, F_STRUCT, 1, militia_fields),

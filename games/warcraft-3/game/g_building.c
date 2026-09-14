@@ -367,10 +367,9 @@ static BOOL G_RelativeBuildingUpgradeCosts(void) {
     return !value || !*value || atoi(value) == 0;
 }
 
-void G_GetBuildingUpgradeCosts(LPCEDICT building, DWORD unit_id,
-                               LONG *gold, LONG *lumber, LONG *food) {
-    UnitBalance_t const *from = building ? building->data.UnitBalance : NULL;
-    UnitBalance_t const *to = G_UnitBalance(unit_id);
+void G_GetBuildingUpgradeCosts(buildingUpgradeCostParams_t const *params) {
+    UnitBalance_t const *from = params && params->building ? params->building->data.UnitBalance : NULL;
+    UnitBalance_t const *to = params ? G_UnitBalance(params->unit_id) : NULL;
     LONG relative_gold = to ? MAX(0, to->goldCost) : 0;
     LONG relative_lumber = to ? MAX(0, to->lumberCost) : 0;
     LONG food_delta = to ? MAX(0, to->foodUsed) : 0;
@@ -382,9 +381,9 @@ void G_GetBuildingUpgradeCosts(LPCEDICT building, DWORD unit_id,
         }
         food_delta -= MAX(0, from->foodUsed);
     }
-    if (gold) *gold = MAX(0, relative_gold);
-    if (lumber) *lumber = MAX(0, relative_lumber);
-    if (food) *food = MAX(0, food_delta);
+    if (params && params->gold) *params->gold = MAX(0, relative_gold);
+    if (params && params->lumber) *params->lumber = MAX(0, relative_lumber);
+    if (params && params->food) *params->food = MAX(0, food_delta);
 }
 
 static LONG G_RequirementAmount(LPCSTR amounts, DWORD index) {
@@ -664,16 +663,21 @@ buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT produ
     return BUILD_COMMAND_AVAILABLE;
 }
 
-buildCommandState_t G_GetBuildingUpgradeCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id,
-                                                     LPSTR reason, DWORD reason_size) {
+buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParams_t const *params) {
     LONG maximum;
     LONG gold, lumber, food;
     UnitBalance_t const *target;
+    LPGAMECLIENT client = params ? params->client : NULL;
+    LPEDICT producer = params ? params->producer : NULL;
+    DWORD unit_id = params ? params->unit_id : 0;
+    LPSTR reason = params ? params->reason : NULL;
+    DWORD reason_size = params ? params->reason_size : 0;
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_ProducerCanUpgrade(producer, unit_id)) return BUILD_COMMAND_ABSENT;
     target = G_UnitBalance(unit_id);
-    if (!target || target->id != unit_id || !G_UnitUI(unit_id)->modelFile) return BUILD_COMMAND_ABSENT;
+    if (!target || target->id != unit_id || !G_UnitUI(unit_id) || !G_UnitUI(unit_id)->modelFile)
+        return BUILD_COMMAND_ABSENT;
     if (G_BuildingUpgradeActive(producer) || producer->construction.active || producer->training || producer->build) {
         return BUILD_COMMAND_DISABLED;
     }
@@ -689,7 +693,8 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(LPGAMECLIENT client, LPEDIC
         }
     }
 
-    G_GetBuildingUpgradeCosts(producer, unit_id, &gold, &lumber, &food);
+    G_GetBuildingUpgradeCosts(&(buildingUpgradeCostParams_t){
+        .building = producer, .unit_id = unit_id, .gold = &gold, .lumber = &lumber, .food = &food });
     if (gold > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
         return BUILD_COMMAND_UNAFFORDABLE;
@@ -772,14 +777,16 @@ BOOL G_StartBuildingUpgrade(LPEDICT building, DWORD unit_id) {
     client = G_GetPlayerClientByNumber(building->s.player);
     if (!client || client->ps.number != building->s.player) return false;
     clent = G_GetPlayerEntityByNumber(building->s.player);
-    state = G_GetBuildingUpgradeCommandState(client, building, unit_id, reason, sizeof(reason));
+    state = G_GetBuildingUpgradeCommandState(&(buildingUpgradeCommandParams_t){
+        .client = client, .producer = building, .unit_id = unit_id, .reason = reason, .reason_size = sizeof(reason) });
     if (state != BUILD_COMMAND_AVAILABLE) {
         if (clent && client->connected && reason[0]) G_ShowCommandErrorText(clent, reason);
         return false;
     }
 
     target = G_UnitBalance(unit_id);
-    G_GetBuildingUpgradeCosts(building, unit_id, &gold, &lumber, &food);
+    G_GetBuildingUpgradeCosts(&(buildingUpgradeCostParams_t){
+        .building = building, .unit_id = unit_id, .gold = &gold, .lumber = &lumber, .food = &food });
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
 

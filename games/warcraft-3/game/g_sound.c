@@ -13,6 +13,22 @@ typedef struct jassSoundRuntime_s {
 
 static jassSoundRuntime_t *jass_sound_runtime;
 
+typedef struct {
+    LPCSTR text;
+    LPCSTR key;
+} commandErrorText_t;
+
+static commandErrorText_t const command_error_texts[] = {
+    { "Not enough food", "Nofood" },
+    { "Not enough gold", "Nogold" },
+    { "Not enough lumber", "Nolumber" },
+    { "Not enough mana", "Nomana" },
+    { "Spell is not ready yet", "Cooldown" },
+    { "Unable to build there", "Cantplace" },
+    { "Unable to build so close to the gold mine", "Tooclosetomine" },
+    { "Inventory is full", "Inventoryfull" },
+};
+
 static jassSoundRuntime_t *G_FindJassSoundRuntime(HANDLE handle, BOOL create) {
     jassSoundRuntime_t *state;
 
@@ -147,16 +163,16 @@ void G_PlayUISoundForPlayer(LPEDICT clent, LPCSTR alias) {
 }
 
 static LPCSTR G_CommandErrorKeyForText(LPCSTR text) {
+    size_t len;
+
     if (!text) return NULL;
-    if (!strcmp(text, "Not enough food") || !strcmp(text, "Not enough food.")) return "Nofood";
-    if (!strcmp(text, "Not enough gold") || !strcmp(text, "Not enough gold.")) return "Nogold";
-    if (!strcmp(text, "Not enough lumber") || !strcmp(text, "Not enough lumber.")) return "Nolumber";
-    if (!strcmp(text, "Not enough mana") || !strcmp(text, "Not enough mana.")) return "Nomana";
-    if (!strcmp(text, "Spell is not ready yet") || !strcmp(text, "Spell is not ready yet.")) return "Cooldown";
-    if (!strcmp(text, "Unable to build there") || !strcmp(text, "Unable to build there.")) return "Cantplace";
-    if (!strcmp(text, "Unable to build so close to the gold mine") ||
-        !strcmp(text, "Unable to build so close to the gold mine.")) return "Tooclosetomine";
-    if (!strcmp(text, "Inventory is full") || !strcmp(text, "Inventory is full.")) return "Inventoryfull";
+    len = strlen(text);
+    FOR_LOOP(i, sizeof(command_error_texts) / sizeof(command_error_texts[0])) {
+        size_t base_len = strlen(command_error_texts[i].text);
+        if (!strncmp(text, command_error_texts[i].text, base_len) &&
+            (len == base_len || (len == base_len + 1 && text[base_len] == '.')))
+            return command_error_texts[i].key;
+    }
     return NULL;
 }
 

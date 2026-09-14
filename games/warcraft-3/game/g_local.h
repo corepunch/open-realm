@@ -91,6 +91,20 @@ typedef enum {
     BUILD_COMMAND_AVAILABLE,
 } buildCommandState_t;
 
+typedef struct {
+    LPCEDICT building;
+    DWORD unit_id;
+    LONG *gold, *lumber, *food;
+} buildingUpgradeCostParams_t;
+
+typedef struct {
+    LPGAMECLIENT client;
+    LPEDICT producer;
+    DWORD unit_id;
+    LPSTR reason;
+    DWORD reason_size;
+} buildingUpgradeCommandParams_t;
+
 typedef enum {
     PLACE_OK,
     PLACE_INVALID_BUILDING,
@@ -1902,11 +1916,11 @@ BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id);
 BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id);
 BOOL G_ProducerCanUpgrade(LPEDICT producer, DWORD unit_id);
 BOOL G_BuildingUpgradeActive(LPCEDICT building);
-void G_GetBuildingUpgradeCosts(LPCEDICT building, DWORD unit_id, LONG *gold, LONG *lumber, LONG *food);
+void G_GetBuildingUpgradeCosts(buildingUpgradeCostParams_t const *params);
 buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id, LPSTR reason, DWORD reason_size);
 buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);
 buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD upgrade_id, LONG *next_level, LPSTR reason, DWORD reason_size);
-buildCommandState_t G_GetBuildingUpgradeCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);
+buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParams_t const *params);
 LONG G_UpgradeGoldCost(DWORD upgrade_id, LONG level_value);
 LONG G_UpgradeLumberCost(DWORD upgrade_id, LONG level_value);
 FLOAT G_UpgradeResearchTime(DWORD upgrade_id, LONG level_value);

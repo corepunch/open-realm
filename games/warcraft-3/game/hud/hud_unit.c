@@ -460,12 +460,16 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
             DWORD unit_id = 0;
             buildCommandState_t state;
+            buildingUpgradeCommandParams_t params;
             char reason[128];
             BYTE idx;
 
             if (strlen(upgrade_to) != 4 || !client || client->ps.number != ent->s.player) continue;
             memcpy(&unit_id, upgrade_to, sizeof(unit_id));
-            state = G_GetBuildingUpgradeCommandState(client, ent, unit_id, reason, sizeof(reason));
+            params = (buildingUpgradeCommandParams_t){
+                .client = client, .producer = ent, .unit_id = unit_id,
+                .reason = reason, .reason_size = sizeof(reason) };
+            state = G_GetBuildingUpgradeCommandState(&params);
             if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
             idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade_to, false, 0);

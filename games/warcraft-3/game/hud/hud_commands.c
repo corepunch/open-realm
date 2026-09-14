@@ -28,7 +28,8 @@ static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT
 
     if (building_upgrade && producer && class_id) {
         LONG gold = 0, lumber = 0, food = 0;
-        G_GetBuildingUpgradeCosts(producer, class_id, &gold, &lumber, &food);
+        G_GetBuildingUpgradeCosts(&(buildingUpgradeCostParams_t){
+            .building = producer, .unit_id = class_id, .gold = &gold, .lumber = &lumber, .food = &food });
         gold_cost = (DWORD)MAX(0, gold);
         lumber_cost = (DWORD)MAX(0, lumber);
         food_cost = (DWORD)MAX(0, food);

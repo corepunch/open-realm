@@ -311,6 +311,7 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
     LPEDICT building;
     LONG gold = 0, lumber = 0, food = 0;
     char reason[128];
+    buildingUpgradeCommandParams_t params;
 
     setup_test_world();
     rows = building_install_morph_data();
@@ -325,12 +326,14 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
     memset(client->tech, 0, sizeof(client->tech));
     level.events.read = level.events.write = 0;
 
-    G_GetBuildingUpgradeCosts(building, target_id, &gold, &lumber, &food);
+    G_GetBuildingUpgradeCosts(&(buildingUpgradeCostParams_t){
+        .building = building, .unit_id = target_id, .gold = &gold, .lumber = &lumber, .food = &food });
     T_EQ(gold, 220);
     T_EQ(lumber, 160);
     T_EQ(food, 1);
-    T_EQ(G_GetBuildingUpgradeCommandState(client, building, target_id, reason, sizeof(reason)),
-         BUILD_COMMAND_AVAILABLE);
+    params = (buildingUpgradeCommandParams_t){
+        .client = client, .producer = building, .unit_id = target_id, .reason = reason, .reason_size = sizeof(reason) };
+    T_EQ(G_GetBuildingUpgradeCommandState(&params), BUILD_COMMAND_AVAILABLE);
 
     T_ASSERT(!UI_TestUsesBuildingQueuePanel(client, building));
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
