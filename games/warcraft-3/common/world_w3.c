@@ -236,14 +236,23 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
         return false;
     }
     CM_ReadPathMap(mapArchive);
+    CM_LoadingFrame();
     CM_ReadDoodads(mapArchive);
+    CM_LoadingFrame();
     CM_ReadUnitDoodads(mapArchive);
+    CM_LoadingFrame();
     CM_ReadHeightmap(mapArchive);
+    CM_LoadingFrame();
     CM_ReadInfo(mapArchive);
+    CM_LoadingFrame();
     CM_W3ReadWeatherRegions(mapArchive);
+    CM_LoadingFrame();
     CM_ReadUnits(mapArchive);
+    CM_LoadingFrame();
     CM_ReadStrings(mapArchive);
+    CM_LoadingFrame();
     CM_ReadMapScript(mapArchive);
+    CM_LoadingFrame();
     SFileCloseArchive(mapArchive);
     MemFree(mapData);
     return true;

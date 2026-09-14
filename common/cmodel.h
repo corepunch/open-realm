@@ -43,6 +43,11 @@ struct war3map {
 };
 
 bool CM_LoadMap(LPCSTR mapFilename);
+/* Optional synchronous-load yield used by format parsers at coarse phase
+ * boundaries. The callback is owned by the caller and never retained across
+ * a completed map load. */
+void CM_SetLoadingFrameCallback(void (*callback)(void));
+void CM_LoadingFrame(void);
 DWORD CM_GetMapChecksum(void);
 BOOL CM_IsMapLoaded(LPCSTR mapFilename);
 float CM_GetHeightAtPoint(float sx, float sy);

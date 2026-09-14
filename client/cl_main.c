@@ -935,9 +935,12 @@ void CL_ReadPackets(void) {
     }
 }
 
-/* A synchronous listen-server load may pump presentation packets, but never commands or game frames. */
+/* A synchronous listen-server load may pump presentation packets and native
+ * window events, but never commands or game frames.  SDL_PumpEvents services
+ * the platform window manager without consuming queued gameplay input. */
 void CL_LoadingFrame(void) {
     if (!scr_initialized || Cvar_Integer("dedicated", 0)) return;
+    SDL_PumpEvents();
     CL_ReadPackets();
 }
 

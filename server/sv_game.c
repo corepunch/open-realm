@@ -202,6 +202,7 @@ void SV_InitGameProgs(void) {
     import.MenuAction = MenuAction;
     import.QueueMovie = CL_QueueMovie;
     import.ClearWorld = SV_ClearWorld;
+    import.LoadingFrame = CL_LoadingFrame;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
     import.GetConfigstring = PF_GetConfigstring;

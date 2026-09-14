@@ -55,9 +55,13 @@ The batch includes inherited Loading.fdf template media declarations, but exclud
 WC3's background/bar are models, so moving only images earlier is insufficient.
 
 For a listen server, `SV_Map` establishes the connection and sends this loading batch before `ge->LoadMap`, then
-calls `CL_LoadingFrame`. This limited packet pump invokes no command buffer, client tick, server tick, or gameplay
-callback. `cl.precache_ready` prevents the early layout/`CS_WORLD` from starting bulk registration until the full
-configstring/baseline handshake reaches `precache`. Dedicated servers skip the presentation pump.
+calls `CL_LoadingFrame`. This limited loading pump invokes no command buffer, client tick, server tick, or gameplay
+callback. It also calls `SDL_PumpEvents` so Linux/Wayland/X11 window-manager events continue to be serviced while
+the synchronous map load owns the main thread, without consuming queued gameplay input. WC3 passes this same pump
+through `game_import.LoadingFrame`; the common W3 map parser yields between major archive sections and `G_LoadMap`
+yields between world/HUD/entity/script phases; large entity-spawn loops also yield periodically. Dedicated servers
+remain no-ops. `cl.precache_ready` prevents the early layout/`CS_WORLD` from starting bulk registration until the full
+configstring/baseline handshake reaches `precache`.
 
 `CS_ASSET_SCOPE` and `re.SetAssetScope` establish map-import resolution before renderer world registration.
 This matters for custom loading MDX models whose companion textures live inside the destination archive.

@@ -58,6 +58,9 @@ struct game_import {
     /* Queue a client-side movie to interpose the next deferred session action. */
     void (*QueueMovie)(LPCSTR path);
     void (*ClearWorld)(void);
+    /* Keep the native window responsive during synchronous map loading without
+     * advancing commands, client simulation, or server simulation. */
+    void (*LoadingFrame)(void);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
     /* Calls callback for every archive copy of filename, lowest priority first.
      * Useful for merging layered data files (e.g. GameData/Assets.txt). */

@@ -238,10 +238,16 @@ void G_UpdateTimeOfDay(void) {
 }
 
 static bool G_LoadMap(LPCSTR mapFilename) {
-    if (!CM_LoadMap(mapFilename)) {
+    bool loaded;
+
+    CM_SetLoadingFrameCallback(gi.LoadingFrame);
+    loaded = CM_LoadMap(mapFilename);
+    CM_SetLoadingFrameCallback(NULL);
+    if (!loaded) {
         G_SetMapUnitOverrides(NULL);
         return false;
     }
+    if (gi.LoadingFrame) gi.LoadingFrame();
     /* CS_MODELS is rebuilt from index 1 for every SV_Map.  The server-side
      * animation metadata cache uses those indices too, so retaining it across
      * levels can make a new index resolve to the previous map's filename. */
@@ -252,15 +258,19 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     gi.configstring(CS_ORDER_MARKER, marker ? marker : "");
     gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
     gi.ClearWorld();
+    if (gi.LoadingFrame) gi.LoadingFrame();
     G_MusicResetState();
     G_SetMapUnitOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
      * panel once so write paths do not parse FDF on first use. */
     UI_ResetHud();
     UI_LoadHud();
+    if (gi.LoadingFrame) gi.LoadingFrame();
     G_SpawnEntities();
+    if (gi.LoadingFrame) gi.LoadingFrame();
     strlcpy(level.map_path, mapFilename, sizeof(level.map_path));
     G_StartScripts();
+    if (gi.LoadingFrame) gi.LoadingFrame();
     level.started = true;
     return true;
 }

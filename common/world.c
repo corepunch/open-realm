@@ -948,6 +948,16 @@ void CM_ReadMapScript(HANDLE archive) {
 //    SFileExtractFile(archive, "war3map.j", "/Users/igor/Desktop/Human02.j", 0);
 }
 
+static void (*cm_loading_frame_callback)(void);
+
+void CM_SetLoadingFrameCallback(void (*callback)(void)) {
+    cm_loading_frame_callback = callback;
+}
+
+void CM_LoadingFrame(void) {
+    if (cm_loading_frame_callback) cm_loading_frame_callback();
+}
+
 bool CM_LoadMap(LPCSTR mapFilename) {
     HANDLE data;
     DWORD size = 0;
