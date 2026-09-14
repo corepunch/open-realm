@@ -181,7 +181,7 @@ Regression coverage:
 - `mdx_ui.sprite_clock_and_particle_scenes_are_isolated`: sprite timing, independent instances, world/UI particle
   separation, and safe pool resets/release without a GPU.
 
-`make test` passes, including ROC and TFT engine runs (25,332 assertions in 1,176 tests per edition at verification).
+`make test` passes, including ROC and TFT engine runs (25,439 assertions in 1,190 tests per edition at verification).
 A hidden-window capture on `(2)OgreMound.w3m` confirms the authored white/gold sparkle over the Quests button border;
 local capture: `screenshots/shot0176.jpg`. This checks composition/placement, not a frame-for-frame comparison with retail.
 

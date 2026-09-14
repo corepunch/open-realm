@@ -114,5 +114,3 @@ void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t 
         MDLX_RenderHeadEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
     }
 }
-
-
