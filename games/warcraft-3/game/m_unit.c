@@ -166,6 +166,10 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     self->s.flags |= EF_NOT_SELECTABLE;
     self->aiflags &= ~AI_HOLD_FRAME;
     unit_setmove(self, &unit_move_death);
+    /* Warsmash advances the render Death animation after KillUnit even when
+     * the simulation unit is paused by a cinematic. Keep the explicit frame
+     * override active until the death move reaches its decay transition. */
+    self->animation_override = true;
     if (self->animation) self->s.frame = self->animation->interval[0];
     if (self->sound.death) {
         self->sound.world_pending = self->sound.death;

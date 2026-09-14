@@ -296,6 +296,23 @@ TEST(wc3_unit, die_sets_death_animation) {
     T_STREQ(ent->currentmove->animation, "death");
 }
 
+TEST(wc3_unit, paused_death_animation_advances_after_kill) {
+    animation_t death = { .name = "Death", .interval = { 0, 300 } };
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    ent->animation = &death;
+    ent->s.frame = 50;
+    ent->paused = true;
+
+    unit_die(ent, NULL);
+    T_ASSERT(ent->animation_override);
+    T_ASSERT(ent->currentmove && !strcmp(ent->currentmove->animation, "death"));
+    ent->animation = &death;
+    ent->s.frame = 50;
+    monster_think(ent);
+    T_EQ((int)ent->s.frame, 150);
+}
+
 TEST(wc3_unit, die_emits_registered_death_sound) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);
