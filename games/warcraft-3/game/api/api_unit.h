@@ -284,6 +284,7 @@ DWORD SetUnitAnimationWithRarity(LPJASS j) {
         if (animation) {
             whichUnit->animation = animation;
             whichUnit->s.frame = animation->interval[0];
+            whichUnit->animation_override = true;
         }
     }
     return 0;

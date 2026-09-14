@@ -595,6 +595,21 @@ TEST(wc3_combat, mmoveframe_uses_animation_time_scale) {
     T_EQ((int)ent->s.frame, 100);
 }
 
+TEST(wc3_combat, paused_unit_advances_scripted_animation_only) {
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    attach_stub_anim(ent);
+    ent->currentmove = &_stub_move;
+    ent->paused = true;
+    ent->s.frame = 50;
+
+    monster_think(ent);
+
+    T_EQ((int)ent->s.frame, 50);
+    ent->animation_override = true;
+    monster_think(ent);
+    T_EQ((int)ent->s.frame, 150);
+}
+
 TEST(wc3_combat, mmoveframe_at_end_calls_endfunc_and_wraps) {
     /* Start at frame 250 → next = 350 >= 300 (end) → endfunc, wrap to 0. */
     LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);

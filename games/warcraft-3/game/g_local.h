@@ -1154,6 +1154,7 @@ struct edict_s {
     LPEDICT build;
     LPCANIMATION animation;
     FLOAT animation_speed; /* JASS SetUnitTimeScale multiplier for the simulation animation clock */
+    BOOL animation_override; /* JASS presentation animation may advance while gameplay is paused */
     /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
      * AddUnitAnimationProperties mutations. The request is retained separately
      * so a property change can reselect the same logical animation family. */

@@ -19,6 +19,7 @@ static BOOL unit_is_active_repair_move(LPEDICT self) {
 void unit_setmove(LPEDICT self, umove_t *move) {
     BOOL was_idle = G_UnitIsIdleWorker(self);
 
+    self->animation_override = false;
 
     /* buildwork.ability is staged before Repair switches from the worker's
      * existing stand/move behavior. Only an OLD Repair move means this

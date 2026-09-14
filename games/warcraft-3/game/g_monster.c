@@ -146,8 +146,10 @@ void monster_think(LPEDICT self) {
     S_RunAbilityUpdates(self);
     if (!self->currentmove)
         return;
-    if (self->paused || self->stunned)
+    if (self->paused || self->stunned) {
+        if (self->paused && self->animation_override) M_MoveFrame(self);
         return;
+    }
     M_MoveFrame(self);
     if (self->currentmove->think) {
         self->currentmove->think(self);
