@@ -116,6 +116,8 @@ requirement against the player's unlocked technology count; the command-card vis
 sets `omitIconEntirely`. These are separate rules: missing a Keep does not hide an Arcane Sanctum.
 
 The authoritative unit fields are `Builds` (`ubui`), `Requires` (`ureq`), and `Requiresamount` (`urqa`).
+
+Requirement counting follows `UnitProfile.Upgrade` (`uupt`) transitively for completed structures. An upgraded structure therefore continues to satisfy prerequisites on its predecessor: a Keep satisfies a Town Hall requirement, while a Castle satisfies both Keep and Town Hall requirements. This is requirement equivalence only; exact unit-type counts and techtree maximums remain keyed to the actual current rawcode.
 They come from the race `*UnitFunc.txt` profiles and unit-object overrides; prerequisite rawcodes can denote
 unit/building counts or researched upgrade levels. A missing amount means one. `Requirescount` / `Requires1`
 and subsequent tiers are separate tier requirements, not a general hide-locked-buildings option.

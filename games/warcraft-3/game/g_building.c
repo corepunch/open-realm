@@ -416,14 +416,50 @@ static BOOL G_UnitTypeIsHero(DWORD type_id) {
     return balance && (balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0);
 }
 
+static BOOL G_UnitTypeSatisfiesRequirement_r(DWORD type_id, DWORD requirement_id,
+                                               DWORD *visited, DWORD visited_count) {
+    UnitProfile_t const *profile;
+    char token[64];
+
+    if (!type_id || !requirement_id) return false;
+    if (type_id == requirement_id) return true;
+    if (visited_count >= 32) return false;
+    for (DWORD i = 0; i < visited_count; i++) {
+        if (visited[i] == requirement_id) return false;
+    }
+    visited[visited_count++] = requirement_id;
+
+    profile = G_UnitProfile(requirement_id);
+    if (!profile || !profile->upgrade || !*profile->upgrade) return false;
+    for (DWORD i = 0; G_CsvToken(profile->upgrade, i, token, sizeof(token)); i++) {
+        DWORD upgrade_id;
+
+        if (strlen(token) != 4) continue;
+        memcpy(&upgrade_id, token, sizeof(upgrade_id));
+        if (G_UnitTypeSatisfiesRequirement_r(type_id, upgrade_id, visited, visited_count)) return true;
+    }
+    return false;
+}
+
+/* Warcraft prerequisite checks treat an in-place upgraded structure as also
+ * satisfying requirements on its predecessor. For example, a Keep satisfies
+ * a Town Hall requirement, and a Castle satisfies both Keep and Town Hall.
+ * Follow UnitProfile.Upgrade (uupt) transitively rather than teaching each
+ * production command about race-specific town-hall tiers. */
+static BOOL G_UnitTypeSatisfiesRequirement(DWORD type_id, DWORD requirement_id) {
+    DWORD visited[32];
+    return G_UnitTypeSatisfiesRequirement_r(type_id, requirement_id, visited, 0);
+}
+
 static LONG G_PlayerRequirementCount(LPGAMECLIENT client, DWORD techid) {
     LONG count = G_GetPlayerTechResearchedLevel(client, techid);
     DWORD player;
 
     if (!client || !techid) return 0;
     player = client->ps.number;
-    FILTER_EDICTS(ent, ent->inuse && ent->class_id == techid && ent->s.player == player &&
-                         !(ent->svflags & SVF_DEADMONSTER) && !ent->construction.active && !ent->training) {
+    FILTER_EDICTS(ent, ent->inuse && ent->s.player == player &&
+                         !(ent->svflags & SVF_DEADMONSTER) && !ent->construction.active && !ent->training &&
+                         G_UnitTypeSatisfiesRequirement(ent->class_id, techid)) {
         count++;
     }
     return count;

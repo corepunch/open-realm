@@ -874,6 +874,51 @@ TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
 }
 
+TEST(wc3_building, upgraded_buildings_satisfy_predecessor_requirements) {
+    static const char profile_slk[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"Upgrade\"\n"
+        "C;Y1;X3;K\"Requires\"\n"
+        "C;Y2;X1;K\"htow\"\n"
+        "C;Y2;X2;K\"hkee\"\n"
+        "C;Y3;X1;K\"hkee\"\n"
+        "C;Y3;X2;K\"hcas\"\n"
+        "C;Y4;X1;K\"hcas\"\n"
+        "C;Y5;X1;K\"hbla\"\n"
+        "C;Y5;X3;K\"htow\"\n"
+        "E\n";
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT worker, keep, castle;
+    UnitProfile_t worker_profile = { .builds = "hbla" };
+    slkTestData_t *profile_rows = parse_slk_string(profile_slk);
+    slkTestData_t *old_profile = G_SetProfileRows(profile_rows);
+    DWORD const blacksmith = MAKEFOURCC('h','b','l','a');
+    char reason[128];
+
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    worker->data.UnitProfile = &worker_profile;
+    worker->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_EQ(G_GetBuildCommandState(client, worker, blacksmith, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
+    T_STREQ(reason, "Requires htow");
+
+    keep = alloc_test_unit(MAKEFOURCC('h','k','e','e'), 0, 0);
+    keep->s.player = client->ps.number;
+    T_EQ(G_GetBuildCommandState(client, worker, blacksmith, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    keep->inuse = false;
+    castle = alloc_test_unit(MAKEFOURCC('h','c','a','s'), 0, 0);
+    castle->s.player = client->ps.number;
+    T_EQ(G_GetBuildCommandState(client, worker, blacksmith, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    castle->inuse = false;
+    G_SetProfileRows(old_profile);
+    free_slk_rows(profile_rows);
+}
+
 TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
