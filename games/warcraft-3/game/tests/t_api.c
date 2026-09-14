@@ -1549,6 +1549,34 @@ TEST(wc3_api, command_error_key_resolves_commandstrings_and_race_variant) {
     T_STREQ(gc->message.text, "Summon more Ziggurats to continue unit production.");
 }
 
+TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
+    LPEDICT unit;
+
+    G_ResetDeferredFrees();
+    reset_entities();
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    G_DeferFreeEdict(unit);
+    T_ASSERT(unit->inuse);
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    G_RunDeferredFrees();
+    T_ASSERT(!unit->inuse);
+}
+
+TEST(wc3_api, createunit_does_not_reuse_deferred_dead_unit) {
+    LPEDICT dead, replacement;
+
+    G_ResetDeferredFrees();
+    reset_entities();
+    dead = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    unit_die(dead, NULL);
+    G_DeferFreeEdict(dead);
+    replacement = unit_createorfind(0, MAKEFOURCC('h','p','e','a'), &(VECTOR2){0, 0}, 0);
+    T_ASSERT(replacement && replacement != dead);
+    T_ASSERT(replacement->inuse);
+    G_RunDeferredFrees();
+    G_FreeEdict(replacement);
+}
+
 TEST(wc3_api, message_log_is_bounded_and_evicts_oldest_entry) {
     LPGAMECLIENT gc = &game.clients[0];
     EDICT ent = { .client = gc };
@@ -3361,6 +3389,17 @@ TEST(wc3_api, killunit_runs_normal_unit_death_transition) {
     T_ASSERT(victim->s.flags & EF_NOT_SELECTABLE);
     T_NOT_NULL(victim->currentmove);
     T_STREQ(victim->currentmove->animation, "death");
+}
+
+TEST(wc3_api, killunit_ignores_removed_unit_handle) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call RemoveUnit(u)\n"
+        "  call KillUnit(u)\n"
+        "  call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 1);
 }
 
 TEST(wc3_api, player_unit_counts_support_campaign_peon_goals) {

@@ -1153,6 +1153,7 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
+    FLOAT animation_speed; /* JASS SetUnitTimeScale multiplier for the simulation animation clock */
     /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
      * AddUnitAnimationProperties mutations. The request is retained separately
      * so a property change can reselect the same logical animation family. */
@@ -2171,6 +2172,9 @@ void T_Damage(LPEDICT, LPEDICT, int);
 
 // g_utils.c
 void G_FreeEdict(LPEDICT);
+void G_DeferFreeEdict(LPEDICT);
+void G_RunDeferredFrees(void);
+void G_ResetDeferredFrees(void);
 LPEVENT G_MakeEvent(EVENTTYPE);
 LPQUEST G_MakeQuest(void);
 BOOL G_RegionContains(LPCREGION, LPCVECTOR2);

@@ -251,6 +251,7 @@ static void G_InitEdict(LPEDICT e) {
     e->inuse = true;
     e->item.inventory_slot = -1;
     e->s.scale = 1;
+    e->animation_speed = 1.0f;
     e->s.number = (int)(e - g_edicts);
 }
 

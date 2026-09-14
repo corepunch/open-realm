@@ -87,7 +87,7 @@ BOOL M_IsDead(LPCEDICT ent) {
     return ent->health.value <= 0;
 }
 
-/* Advance the unit's animation frame by FRAMETIME milliseconds.
+/* Advance the unit's animation frame by its scaled simulation timestep.
  * If the new frame would exceed the animation's end interval, the current
  * umove_t endfunc is called (e.g. to loop the walk cycle or transition to
  * the cooldown phase after an attack). */
@@ -104,6 +104,7 @@ void M_MoveFrame(LPEDICT self) {
         return;
     umove_t const *move = self->currentmove;
     LPCANIMATION anim = self->animation;
+    FLOAT frame_step = MAX(0.0f, FRAMETIME * self->animation_speed);
     if (!anim) {
         unit_setmove(self, self->currentmove);
         anim = self->animation;
@@ -111,12 +112,12 @@ void M_MoveFrame(LPEDICT self) {
             return;
         }
     }
-    DWORD next_frame = self->s.frame + FRAMETIME;
+    DWORD next_frame = self->s.frame + (DWORD)frame_step;
     if (G_AnimationHasPrimary(anim, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
         DWORD build_time = G_UnitBalance(self->class_id)->buildTime * 1000;
         if (build_time > 0) {
-            next_frame = self->s.frame + FRAMETIME * anim_len / build_time;
+            next_frame = self->s.frame + (DWORD)(frame_step * anim_len / build_time);
         }
     }
     if (self->s.frame < anim->interval[0] ||

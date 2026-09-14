@@ -583,6 +583,18 @@ TEST(wc3_combat, mmoveframe_normal_advance) {
     T_EQ(_endfunc_called, 0);
 }
 
+TEST(wc3_combat, mmoveframe_uses_animation_time_scale) {
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    attach_stub_anim(ent);
+    ent->currentmove = &_stub_move;
+    ent->animation_speed = 0.5f;
+    ent->s.frame = 50;
+
+    M_MoveFrame(ent);
+
+    T_EQ((int)ent->s.frame, 100);
+}
+
 TEST(wc3_combat, mmoveframe_at_end_calls_endfunc_and_wraps) {
     /* Start at frame 250 → next = 350 >= 300 (end) → endfunc, wrap to 0. */
     LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);

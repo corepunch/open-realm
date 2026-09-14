@@ -827,7 +827,7 @@ unit_createorfind(DWORD player,
 {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (ent->class_id == unitid &&
+        if (ent->inuse && !M_IsDead(ent) && ent->class_id == unitid &&
             Vector2_distance(location, &ent->s.origin2) < 10)
         {
             G_SetUnitPlayer(ent, player);

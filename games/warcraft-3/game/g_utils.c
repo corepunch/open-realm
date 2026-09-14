@@ -1,5 +1,22 @@
 #include "g_local.h"
 
+typedef struct {
+    LPEDICT ent;
+    DWORD spawn_time;
+} deferred_free_t;
+
+static deferred_free_t deferred_frees[MAX_ENTITIES];
+static DWORD deferred_free_count;
+
+/* Drop a queued removal when another lifecycle path frees the same edict first. */
+static void G_CancelDeferredFree(LPEDICT ent) {
+    FOR_LOOP(i, deferred_free_count) {
+        if (deferred_frees[i].ent != ent) continue;
+        deferred_frees[i] = deferred_frees[--deferred_free_count];
+        i--;
+    }
+}
+
 void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
     DWORD cursor;
 
@@ -16,6 +33,7 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
 
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
+    G_CancelDeferredFree(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     /* Direct JASS RemoveUnit must release transient construction/upgrade state
      * before the edict is cleared. Forced removal does not grant a player
@@ -50,6 +68,31 @@ void G_FreeEdict(LPEDICT ent) {
     memset(ent, 0, sizeof(*ent));
     ent->freetime = level.time;
 }
+
+/* Match Warsmash RemoveUnit: hide now, then retire the handle after this simulation tick. */
+void G_DeferFreeEdict(LPEDICT ent) {
+    if (!ent || !ent->inuse) return;
+    FOR_LOOP(i, deferred_free_count)
+        if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return;
+    if (deferred_free_count >= MAX_ENTITIES) {
+        fprintf(stderr, "WC3: deferred unit removal queue exhausted\n");
+        return;
+    }
+    ent->s.renderfx |= RF_HIDDEN;
+    if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+    deferred_frees[deferred_free_count++] = (deferred_free_t){ .ent = ent, .spawn_time = ent->spawn_time };
+}
+
+/* Complete queued JASS removals after entity iteration and before the next snapshot. */
+void G_RunDeferredFrees(void) {
+    while (deferred_free_count) {
+        deferred_free_t pending = deferred_frees[--deferred_free_count];
+        if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
+    }
+}
+
+void G_ResetDeferredFrees(void) { deferred_free_count = 0; }
 
 LPEVENT G_MakeEvent(EVENTTYPE type) {
     FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse) {

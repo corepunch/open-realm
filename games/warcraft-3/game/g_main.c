@@ -247,6 +247,7 @@ static bool G_LoadMap(LPCSTR mapFilename) {
      * animation metadata cache uses those indices too, so retaining it across
      * levels can make a new index resolve to the previous map's filename. */
     G_FreeModels();
+    G_ResetDeferredFrees();
     /* Resolve presentation from the active skin before publishing the client media contract. */
     LPCSTR marker = Stb_IniCacheFind(&game.config.theme, "Default", "TargetPointConfirm");
     if (!marker || !*marker) fprintf(stderr, "G_LoadMap: missing skin field TargetPointConfirm\n");

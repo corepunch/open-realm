@@ -106,7 +106,9 @@ DWORD SetUnitFacingTimed(LPJASS j) {
 DWORD KillUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     /* KillUnit is a death transition, not a raw life write; unit_die owns the death animation, events, and cleanup. */
-    if (whichUnit && !(whichUnit->svflags & SVF_DEADMONSTER)) unit_die(whichUnit, NULL);
+    if (whichUnit && whichUnit->inuse && !(whichUnit->svflags & SVF_DEADMONSTER)) {
+        unit_die(whichUnit, NULL);
+    }
     return 0;
 }
 DWORD RemoveUnit(LPJASS j) {
@@ -114,7 +116,7 @@ DWORD RemoveUnit(LPJASS j) {
     if (whichUnit) {
         LPGAMECLIENT owner = G_GetPlayerClientByNumber(whichUnit->s.player);
         if (owner && owner->ps.number == whichUnit->s.player) G_InvalidateCommands(owner);
-        G_FreeEdict(whichUnit);
+        G_DeferFreeEdict(whichUnit);
     }
     return 0;
 }
@@ -229,8 +231,10 @@ DWORD SetUnitScale(LPJASS j) {
     return 0;
 }
 DWORD SetUnitTimeScale(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //FLOAT timeScale = jass_checknumber(j, 2);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    FLOAT timeScale = jass_checknumber(j, 2);
+
+    if (whichUnit) whichUnit->animation_speed = MAX(0.0f, timeScale);
     return 0;
 }
 DWORD SetUnitBlendTime(LPJASS j) {
@@ -269,9 +273,19 @@ DWORD SetUnitAnimationByIndex(LPJASS j) {
     return 0;
 }
 DWORD SetUnitAnimationWithRarity(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR whichAnimation = jass_checkstring(j, 2);
-    //HANDLE rarity = jass_checkhandle(j, 3, "raritycontrol");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPCSTR whichAnimation = jass_checkstring(j, 2);
+    DWORD *rarity = jass_checkhandle(j, 3, "raritycontrol");
+    LPCANIMATION animation;
+
+    if (whichUnit && whichAnimation) {
+        animation = G_GetAnimationVariant(whichUnit->s.model, whichAnimation, rarity && *rarity == 1);
+        G_SetUnitAnimation(whichUnit, whichAnimation);
+        if (animation) {
+            whichUnit->animation = animation;
+            whichUnit->s.frame = animation->interval[0];
+        }
+    }
     return 0;
 }
 DWORD AddUnitAnimationProperties(LPJASS j) {
