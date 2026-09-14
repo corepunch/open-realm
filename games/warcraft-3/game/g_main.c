@@ -874,6 +874,7 @@ static void G_RunFrame(void) {
     G_RunClients();
 
     G_RunEntities();
+    G_RunDeferredFrees();
 
     /* Flow-field cache misses are resumable so arbitrary reachable move orders
      * never depend on a lifetime quota of synchronous whole-map floods.  Keep
