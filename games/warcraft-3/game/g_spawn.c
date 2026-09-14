@@ -984,6 +984,11 @@ static BOOL SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
         ctx->producer->s.origin2.y + (FLOAT)grid_y * ctx->spacing,
     };
 
+    /* MOVETYPE_NONE buildings are omitted from the dynamic collision scan;
+     * their authored pathing footprint still owns the space the new unit
+     * must clear before it becomes visible. */
+    if (CM_DistanceToPathingFootprint(ctx->producer, &candidate) < ctx->unit->collision)
+        return false;
     if (!SP_CanPlaceUnitAt(ctx->unit, &candidate)) {
         return false;
     }

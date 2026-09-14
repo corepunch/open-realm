@@ -2307,6 +2307,9 @@ TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
 TEST(wc3_movement, trained_unit_exit_skips_blocked_producer_footprint) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
+    enum { FOOT_W = 16, FOOT_H = 16 };
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOT_W * FOOT_H * sizeof(COLOR32);
+    pathTex_t *pathtex;
     LPEDICT producer = make_moving_unit(0.0f, 0.0f);
     LPEDICT trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     VECTOR2 exit;
@@ -2329,9 +2332,20 @@ TEST(wc3_movement, trained_unit_exit_skips_blocked_producer_footprint) {
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
+    pathtex = gi.MemAlloc(pathtex_size);
+    T_NOT_NULL(pathtex);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = FOOT_W;
+    pathtex->height = FOOT_H;
+    FOR_LOOP(i, FOOT_W * FOOT_H) pathtex->map[i].b = 0xff;
+    producer->pathtex = pathtex;
+
     T_ASSERT(SP_FindUnitExitPosition(producer, trained, &exit, &angle));
     T_ASSERT(CM_PointIsPathableForRadius(&exit, trained->collision));
     T_ASSERT(Vector2_distance(&producer->s.origin2, &exit) > 256.0f);
+
+    producer->pathtex = NULL;
+    gi.MemFree(pathtex);
 }
 
 /* Dynamic unit circles are also part of legal exit placement. The first
