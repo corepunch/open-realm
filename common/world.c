@@ -948,17 +948,7 @@ void CM_ReadMapScript(HANDLE archive) {
 //    SFileExtractFile(archive, "war3map.j", "/Users/igor/Desktop/Human02.j", 0);
 }
 
-static void (*cm_loading_frame_callback)(void);
-
-void CM_SetLoadingFrameCallback(void (*callback)(void)) {
-    cm_loading_frame_callback = callback;
-}
-
-void CM_LoadingFrame(void) {
-    if (cm_loading_frame_callback) cm_loading_frame_callback();
-}
-
-bool CM_LoadMap(LPCSTR mapFilename) {
+bool CM_LoadMap(LPCSTR mapFilename, cmLoadYield_t yield) {
     HANDLE data;
     DWORD size = 0;
     bool loaded;
@@ -973,7 +963,8 @@ bool CM_LoadMap(LPCSTR mapFilename) {
         fprintf(stderr, "CM_LoadMap: unable to read map bytes for checksum %s\n", mapFilename ? mapFilename : "");
         if (data) FS_FreeFile(data);
     }
-    loaded = CM_LoadMapFormat(mapFilename);
+    yield();
+    loaded = CM_LoadMapFormat(mapFilename, yield);
     if (!loaded) {
         cm_loaded_map[0] = '\0';
         cm_map_checksum = 0;

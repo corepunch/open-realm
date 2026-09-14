@@ -310,7 +310,7 @@ FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);
 extern struct world_state world;
 
 /* Implemented by the selected game's common/world_*.c. */
-bool     CM_LoadMapFormat(LPCSTR mapFilename);
+bool     CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield);
 VECTOR2  CM_GetNormalizedMapPosition(FLOAT x, FLOAT y);
 VECTOR2  CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y);
 

@@ -670,7 +670,7 @@ void G_SpawnEntities(void) {
 
     DWORD spawn_count = 0;
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
-        if (gi.LoadingFrame && (spawn_count++ & 127u) == 0) gi.LoadingFrame();
+        if ((spawn_count++ & 127u) == 0) gi.LoadingFrame();
 //        if (doodad->doodID == MAKEFOURCC('h', 'C', '0', '2')) {
 //            int a=0;
 //            printf("%.4s", )
@@ -699,13 +699,13 @@ void G_SpawnEntities(void) {
     SP_worldspawn(NULL);
     
     jass_dofile(level.vm, "Scripts\\common.j");
-    if (gi.LoadingFrame) gi.LoadingFrame();
+    gi.LoadingFrame();
     jass_dofile(level.vm, "Scripts\\Blizzard.j");
-    if (gi.LoadingFrame) gi.LoadingFrame();
+    gi.LoadingFrame();
 //    jass_dofilenative(level.vm, "/Users/igor/Desktop/war3map.j");
     G_DumpPrologue02BurrowHandoffSource(level.mapinfo->mapscript);
     jass_dobuffer(level.vm, level.mapinfo->mapscript);
-    if (gi.LoadingFrame) gi.LoadingFrame();
+    gi.LoadingFrame();
 
     UI_Init();
     CM_BakeStaticObstacles();

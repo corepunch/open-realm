@@ -524,7 +524,7 @@ void CL_PrepRefresh(void) {
 
     if (!world_loaded) {
         if (!CM_IsMapLoaded(cl.configstrings[CS_WORLD])) {
-            CM_LoadMap(cl.configstrings[CS_WORLD]);
+            CM_LoadMap(cl.configstrings[CS_WORLD], CL_LoadingFrame);
         }
         re.RegisterMap(cl.configstrings[CS_WORLD]);
         world_loaded = true;

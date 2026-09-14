@@ -19,13 +19,19 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void test_client_stubs_set_world_bounds(BOX2 bounds);
 struct game_import gi;
 static DWORD map_defer_count;
+static DWORD cm_loading_frame_calls;
+static BOOL cm_loading;
 void Cbuf_CopyToDefer(void) { T_EQ(sv.state, ss_game); map_defer_count++; }
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
-void CL_LoadingFrame(void) {}
+void CL_LoadingFrame(void) { if (cm_loading) cm_loading_frame_calls++; }
 void SV_ClearWorld(void) {}
-bool CM_LoadMap(LPCSTR mapFilename) { (void)mapFilename; return true; }
+bool CM_LoadMap(LPCSTR mapFilename, cmLoadYield_t yield) {
+    (void)mapFilename;
+    cm_loading = true; yield(); cm_loading = false;
+    return true;
+}
 DWORD CM_GetMapChecksum(void) { return 0x1234; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 static LPMAPINFO test_mapinfo;
@@ -140,7 +146,7 @@ static bool test_prepare_map(LPCSTR filename) {
 static bool test_load_map(LPCSTR mapFilename) {
     T_ASSERT(sv.loading.cursize);
     SV_ModelIndex("World.mdx");
-    if (!CM_LoadMap(mapFilename)) {
+    if (!CM_LoadMap(mapFilename, CL_LoadingFrame)) {
         return false;
     }
     SV_ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
@@ -976,8 +982,10 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     netadr_t from;
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
     DWORD before = map_defer_count;
+    DWORD loading_before = cm_loading_frame_calls;
     SV_Map("Test.w3m");
     T_EQ(map_defer_count, before + 1);
+    T_EQ(cm_loading_frame_calls, loading_before + 1);
     drain_client_packets();
     /* A connection after world loading must still receive only the original loading dependencies. */
     SV_SendLoadingScreen(&svs.clients[0]);

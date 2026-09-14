@@ -647,7 +647,7 @@ static void SC2_Shutdown(void) {
 static void SC2_SpawnEntities(void);
 
 static bool SC2_LoadMap(LPCSTR mapFilename) {
-    if (!CM_LoadMap(mapFilename)) {
+    if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         return false;
     }
     gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());

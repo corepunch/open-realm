@@ -163,6 +163,7 @@ static HANDLE test_read_file(LPCSTR filename, LPDWORD size) {
 static HANDLE test_mem_alloc(long n) { return calloc(1, (size_t)n); }
 static void test_mem_free(HANDLE m) { free(m); }
 static void test_clear_world(void) {}
+static void test_loading_frame(void) {}
 static void test_apply_lobby_settings(LPMAPINFO info) { (void)info; }
 static int test_model_index(LPCSTR name) {
     FOR_LOOP(i, test_num_models)
@@ -204,6 +205,7 @@ static struct game_import test_import(void) {
     import.ReadFile = test_read_file;
     /* Map-load tests provide required server callbacks; the old fixture crashed at a null call. */
     import.ClearWorld = test_clear_world;
+    import.LoadingFrame = test_loading_frame;
     import.ApplyLobbySettings = test_apply_lobby_settings;
     import.configstring = test_configstring;
     import.GetConfigstring = test_get_configstring;

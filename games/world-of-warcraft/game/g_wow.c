@@ -1599,7 +1599,7 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
         Wow_InitPlayer(&wow_edicts[0], (VECTOR2){0, 0}, -1);
         return true;
     }
-    if (!CM_LoadMap(mapFilename)) {
+    if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         return false;
     }
     gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());

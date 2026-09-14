@@ -1042,7 +1042,7 @@ static void CM_WowChooseSpawn(LPCSTR mapFilename) {
 
 /* ---- public API ---- */
 
-bool CM_LoadMapFormat(LPCSTR mapFilename) {
+bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
     memset(&world, 0, sizeof(world));
     if (mapFilename) {
         size_t len = strlen(mapFilename);
@@ -1050,6 +1050,7 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
         memcpy(world.info.mapName, mapFilename, len + 1);
     }
     CM_WowChooseSpawn(mapFilename);
+    yield();
     return true;
 }
 

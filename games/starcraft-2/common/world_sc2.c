@@ -15,7 +15,7 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 BOOL CL_GameCameraUsesWorldUp(void) { return false; }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return SC2_LerpDegrees(a, b, fraction); }
 
-bool CM_LoadMapFormat(LPCSTR mapFilename) {
+bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
     memset(&world, 0, sizeof(world));
     SC2_MapSetHost(&(sc2MapHost_t){
         .read_file = FS_ReadFile,
@@ -26,6 +26,7 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
     });
     if (!SC2_MapLoad(mapFilename))
         return false;
+    yield();
 
     sc2Map_t const *map = SC2_MapCurrent();
     DWORD width = map->MapInfo.width;

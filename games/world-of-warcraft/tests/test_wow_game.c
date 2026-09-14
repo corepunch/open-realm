@@ -320,6 +320,7 @@ static int test_font_index(LPCSTR font_name, DWORD font_size) {
 static void test_clear_world(void) {
     test_clear_world_calls++;
 }
+static void test_loading_frame(void) {}
 
 static void test_apply_lobby_settings(LPMAPINFO info) {
     test_apply_lobby_calls++;
@@ -439,6 +440,7 @@ static struct game_import test_import(void) {
     import.FontIndex = test_font_index;
     import.ReadFile = test_read_file;
     import.ClearWorld = test_clear_world;
+    import.LoadingFrame = test_loading_frame;
     import.ApplyLobbySettings = test_apply_lobby_settings;
     import.configstring = test_configstring;
     import.GetConfigstring = test_get_configstring;

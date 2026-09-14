@@ -3,6 +3,30 @@
 #include "common/ui_constants.h"
 #include <float.h>
 
+typedef void (*cmW3Read_t)(HANDLE archive);
+
+void CM_ReadPathMap(HANDLE archive);
+static void CM_ReadDoodads(HANDLE archive);
+static void CM_ReadUnitDoodads(HANDLE archive);
+static void CM_ReadHeightmap(HANDLE archive);
+static void CM_ReadInfo(HANDLE archive);
+static void CM_ReadWeather(HANDLE archive);
+void CM_ReadUnits(HANDLE archive);
+void CM_ReadStrings(HANDLE archive);
+void CM_ReadMapScript(HANDLE archive);
+
+static cmW3Read_t const cm_w3_readers[] = {
+    CM_ReadPathMap,
+    CM_ReadDoodads,
+    CM_ReadUnitDoodads,
+    CM_ReadHeightmap,
+    CM_ReadInfo,
+    CM_ReadWeather,
+    CM_ReadUnits,
+    CM_ReadStrings,
+    CM_ReadMapScript,
+};
+
 #ifdef BZ_CLIENT_WORLD
 /* The engine needs terrain pathing for placement previews, without game-owned routing jobs or imports. */
 static struct {
@@ -85,15 +109,6 @@ static FLOAT CM_GetWar3MapVertexWaterHeight(LPCWAR3MAPVERTEX vert) {
     return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
 }
 
-void CM_ReadPathMap(HANDLE archive);
-static void CM_ReadDoodads(HANDLE archive);
-static void CM_ReadUnitDoodads(HANDLE archive);
-static void CM_ReadHeightmap(HANDLE archive);
-static void CM_ReadInfo(HANDLE archive);
-void CM_ReadUnits(HANDLE archive);
-void CM_ReadStrings(HANDLE archive);
-void CM_ReadMapScript(HANDLE archive);
-
 /* war3map.w3r v5 stores editor regions.  Weather is one field on each region;
  * keep only the bounds + weather rawcode in collision-model state because the
  * remaining name/sound/color metadata belongs to other presentation systems. */
@@ -171,6 +186,8 @@ static BOOL CM_W3ReadWeatherRegions(HANDLE archive) {
     return true;
 }
 
+static void CM_ReadWeather(HANDLE archive) { CM_W3ReadWeatherRegions(archive); }
+
 static void CM_W3FreeUnitOverrides(DWORD count, unitData_t **units_ptr) {
     unitData_t *units = units_ptr ? *units_ptr : NULL;
 
@@ -219,7 +236,7 @@ static void CM_W3ClearMapData(void) {
     memset(&world, 0, sizeof(world));
 }
 
-bool CM_LoadMapFormat(LPCSTR mapFilename) {
+bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
     HANDLE mapArchive;
     HANDLE mapData;
     DWORD mapSize = 0;
@@ -235,24 +252,10 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
         Com_Error(ERR_DROP, "CM_LoadMap: failed to open map archive %s\n", mapFilename);
         return false;
     }
-    CM_ReadPathMap(mapArchive);
-    CM_LoadingFrame();
-    CM_ReadDoodads(mapArchive);
-    CM_LoadingFrame();
-    CM_ReadUnitDoodads(mapArchive);
-    CM_LoadingFrame();
-    CM_ReadHeightmap(mapArchive);
-    CM_LoadingFrame();
-    CM_ReadInfo(mapArchive);
-    CM_LoadingFrame();
-    CM_W3ReadWeatherRegions(mapArchive);
-    CM_LoadingFrame();
-    CM_ReadUnits(mapArchive);
-    CM_LoadingFrame();
-    CM_ReadStrings(mapArchive);
-    CM_LoadingFrame();
-    CM_ReadMapScript(mapArchive);
-    CM_LoadingFrame();
+    FOR_LOOP(i, sizeof(cm_w3_readers) / sizeof(*cm_w3_readers)) {
+        cm_w3_readers[i](mapArchive);
+        yield();
+    }
     SFileCloseArchive(mapArchive);
     MemFree(mapData);
     return true;

@@ -65,21 +65,6 @@ static LPCSTR give_resources_cheat_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "sv_cheats") ? "1" : fallback;
 }
 
-static DWORD loading_frame_calls;
-
-/* Count synchronous-load yields so callback registration and clearing stay testable without SDL. */
-static void test_loading_frame(void) { loading_frame_calls++; }
-
-TEST(wc3_game, loading_frame_callback_can_be_registered_and_cleared) {
-    loading_frame_calls = 0;
-    CM_SetLoadingFrameCallback(test_loading_frame);
-    CM_LoadingFrame();
-    T_EQ(loading_frame_calls, 1);
-    CM_SetLoadingFrameCallback(NULL);
-    CM_LoadingFrame();
-    T_EQ(loading_frame_calls, 1);
-}
-
 static DWORD multiselect_capture_count;
 static USHORT multiselect_capture_flags[MAX_SELECTED_ENTITIES];
 static DWORD selection_sync_count;

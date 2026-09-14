@@ -29,6 +29,7 @@ struct client_static cls;
 struct client_state cl;
 
 #define CL_TIMEOUT_MSEC 10000
+#define CL_LOADING_PUMP_MSEC 16 // milliseconds; one 60 Hz platform pump; bounds checkpoint overhead during loading
 
 static DWORD cl_last_packet_time = 0;
 static DWORD cl_realtime = 0;
@@ -939,8 +940,15 @@ void CL_ReadPackets(void) {
  * window events, but never commands or game frames.  SDL_PumpEvents services
  * the platform window manager without consuming queued gameplay input. */
 void CL_LoadingFrame(void) {
+    static DWORD last_pump;
+    DWORD now;
+
     if (!scr_initialized || Cvar_Integer("dedicated", 0)) return;
-    SDL_PumpEvents();
+    now = SDL_GetTicks();
+    if (!last_pump || now - last_pump >= CL_LOADING_PUMP_MSEC) {
+        SDL_PumpEvents();
+        last_pump = now;
+    }
     CL_ReadPackets();
 }
 
