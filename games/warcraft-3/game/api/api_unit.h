@@ -1,5 +1,8 @@
 extern LPPLAYER currentplayer;
 
+static DWORD const order_ugol = MAKEFOURCC('u','g','o','l');
+static DWORD const unit_ngol = MAKEFOURCC('n','g','o','l');
+
 #define UNIT_TYPED_ACCESS(NAME, FIELD, TYPE) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
@@ -902,12 +905,9 @@ DWORD IssuePointOrderByIdLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
-    BOOL accepted;
 
-    if (G_UnitIsBuilding(order)) {
-        accepted = G_IssueBuildOrder(whichUnit, order, whichLocation);
-        return jass_pushboolean(j, accepted);
-    }
+    if (G_UnitIsBuilding(order))
+        return jass_pushboolean(j, G_IssueBuildOrder(whichUnit, order, whichLocation));
     return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), whichLocation));
 }
 DWORD IssueTargetOrder(LPJASS j) {
@@ -927,8 +927,7 @@ DWORD IssueTargetOrderById(LPJASS j) {
      * native after finding the neutral ngol. Translate that retail-specific
      * target order into the shared build path so the Acolyte walks to the mine
      * and construction performs the normal overlay binding on arrival. */
-    if (order == MAKEFOURCC('u','g','o','l') && targetWidget &&
-        targetWidget->class_id == MAKEFOURCC('n','g','o','l'))
+    if (order == order_ugol && targetWidget && targetWidget->class_id == unit_ngol)
         accepted = G_IssueBuildOrder(whichUnit, order, &targetWidget->s.origin2);
     else
         accepted = unit_issuetargetorder(whichUnit, order_name, targetWidget);
