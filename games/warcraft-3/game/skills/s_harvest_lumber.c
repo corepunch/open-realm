@@ -144,6 +144,17 @@ static DWORD return_resources_mask(LPCSTR ability) {
     return mask;
 }
 
+BOOL S_UnitTypeReturnsGold(DWORD unit_id) {
+    UnitAbilities_t const *abilities = G_UnitAbil(unit_id);
+
+    if (!abilities || !abilities->abilList) return false;
+    PARSE_LIST(abilities->abilList, abil, parse_segment) {
+        if (return_resources_mask(abil) & RETURN_RESOURCE_GOLD)
+            return true;
+    }
+    return false;
+}
+
 BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource) {
     LPCSTR abilities;
 

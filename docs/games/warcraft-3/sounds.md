@@ -152,6 +152,7 @@ keys:
 | `Not enough mana` | `Nomana` |
 | `Spell is not ready yet.` | `Cooldown` |
 | `Unable to build there.` | `Cantplace` |
+| `Unable to build so close to the gold mine.` | `Tooclosetomine` |
 | `Inventory is full.` | `Inventoryfull` |
 
 `G_ShowCommandErrorText` keeps the existing text presentation and adds the

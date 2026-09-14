@@ -352,6 +352,25 @@ static BOOL CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t c
     return dx * dx + dy * dy < state->collision * state->collision;
 }
 
+static BOOL CL_BuildCursorTooCloseToGoldMine(LPCVECTOR3 origin) {
+    FLOAT const min_dist_sq = WC3_GOLD_MINE_BUILD_MIN_DISTANCE * WC3_GOLD_MINE_BUILD_MIN_DISTANCE;
+
+    if (!origin || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN_GOLD)) return false;
+    FOR_LOOP(i, cl.num_active) {
+        DWORD const number = cl.active_entities[i];
+        entityState_t const *state;
+        FLOAT dx, dy;
+
+        if (!number || number >= MAX_CLIENT_ENTITIES) continue;
+        state = &cl.ents[number].current;
+        if (!(state->flags & EF_RESOURCE_GOLD_MINE) || (state->flags & EF_NOT_SELECTABLE)) continue;
+        dx = state->origin.x - origin->x;
+        dy = state->origin.y - origin->y;
+        if (dx * dx + dy * dy < min_dist_sq) return true;
+    }
+    return false;
+}
+
 static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
     DWORD const width = cl.cursorEntity->pathing_width;
     DWORD const height = cl.cursorEntity->pathing_height;
@@ -364,6 +383,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
     FLOAT const half_height = height * cell_size * 0.5f;
     DWORD const first_rect = view_state.num_splat_rects;
     DWORD const remaining = MAX_RENDER_SPLAT_RECTS - first_rect;
+    BOOL const mine_blocked = CL_BuildCursorTooCloseToGoldMine(origin);
 
     /* Zero preview flags deliberately suppress build-on-target structures until
      * the client receives enough parent-target data to colour them truthfully. */
@@ -390,12 +410,14 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
             blocked = !CM_GetPathingFlagsAt(&sample, &pathing) ||
                       (pathing & prevented) != 0 ||
                       (pathing & required) != required;
-            rect.color = blocked
+            rect.color = blocked || mine_blocked
                 ? (COLOR32){ 255, 0, 0, 166 }
                 : (COLOR32){ 0, 255, 0, 166 };
             view_state.splat_rects[view_state.num_splat_rects++] = rect;
         }
     }
+
+    if (mine_blocked) return;
 
     /* Mark only the cells touched by each live collision circle. This mirrors
      * the server's circle-vs-footprint rule without doing entities*cells work

@@ -97,6 +97,7 @@ typedef enum {
     PLACE_TERRAIN_BLOCKED,
     PLACE_UNIT_BLOCKED,
     PLACE_REQUIRED_PATHING_MISSING,
+    PLACE_TOO_CLOSE_TO_GOLD_MINE,
     PLACE_OUT_OF_BOUNDS,
     PLACE_REQUIRED_PARENT_MISSING,
 } buildPlacementResult_t;
@@ -2274,6 +2275,8 @@ BOOL G_ActorSkillPermanent(LPEDICT, DWORD);
 void G_FreeActorSkills(LPEDICT);
 BOOL S_GoldMineIsMine(LPCEDICT);
 BOOL S_GoldMineIsOverlay(LPCEDICT);
+BOOL S_UnitTypeIsGoldMine(DWORD);
+BOOL S_UnitTypeReturnsGold(DWORD);
 DWORD S_GoldMineMaximumGold(LPCEDICT);
 FLOAT S_GoldMineMiningDuration(LPCEDICT);
 DWORD S_GoldMineCapacity(LPCEDICT);

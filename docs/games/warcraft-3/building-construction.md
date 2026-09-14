@@ -176,6 +176,7 @@ The placement cursor carries its authored pathing-texture width/height in dedica
 - `UNBUILDABLE` and `UNWALKABLE` static pathing;
 - normalized `preventPlace` (`unwalkable`, `unbuildable`, `blighted`);
 - normalized `requirePlace` for the same supported flags;
+- the WC3 Gold Mine exclusion rule: a building whose unit abilities accept returned gold (`Argd`, `Argl`, or `Artn` data with gold enabled) must be at least 512 world units centre-to-centre from every live `Agld`-class Gold Mine;
 - static building/destructable footprints already baked into `pathmap.original`;
 - live unit-circle occupancy, excluding the builder;
 - exact build-on-target presence when `isBuildOn` requires a `canBuildOn` structure.
@@ -184,7 +185,7 @@ The common collision-model contract exposes `CM_GetPathingFlagsAt()` so the gene
 
 A declared pathing texture that fails to load is a placement failure. Do not silently degrade such a structure to a one-cell footprint; `M_LoadPathTex()` already reports the missing asset.
 
-Placement is checked once when the player confirms the ghost and again when the worker reaches the site. Resources are charged only after the arrival-time validation passes. Construction spawns at the stored snapped waypoint, not at the worker's current position. Placement rejection uses the plain UI message `Unable to build there.`; requirement/resource failures remain separate command-state messages. `G_LevelString()` resolves only exact `TRIGSTR_<id>` tokens. Previously it parsed arbitrary UI text as trigger-string ID 0, so Human02's WTS entry 0 (the map name) replaced ordinary errors with `Human02`.
+Placement is checked once when the player confirms the ghost and again when the worker reaches the site. Resources are charged only after the arrival-time validation passes. Construction spawns at the stored snapped waypoint, not at the worker's current position. Generic placement rejection uses the plain UI message `Unable to build there.`; the Gold Mine exclusion result uses `Unable to build so close to the gold mine.` and resolves its UI sound through the Warcraft `Tooclosetomine` skin key. Requirement/resource failures remain separate command-state messages. `G_LevelString()` resolves only exact `TRIGSTR_<id>` tokens. Previously it parsed arbitrary UI text as trigger-string ID 0, so Human02's WTS entry 0 (the map name) replaced ordinary errors with `Human02`.
 
 Once the initial placement is accepted, `G_IssueBuildOrder()` also publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` and `EVENT_UNIT_ISSUED_POINT_ORDER`. The builder is `GetOrderedUnit()`, `GetIssuedOrderId()` is the building rawcode, and `GetOrderPointX/Y/Loc()` expose the accepted snapped build point. This happens at order acceptance, before the worker travels; arrival-time revalidation and construct-start/finish are later, separate events. Prologue02 relies on this exact point-order handoff to advance from Burrow placement into the lumber tutorial. See [Issued Target and Point Order Events](issued-target-order-events.md).
 
@@ -219,7 +220,9 @@ A successful left-click copies the pending project to the worker order before cl
 
 While a normal footprint-based structure is selected for placement, the client draws a terrain-conforming grid under the ghost model. Every texel position in the authored pathing-map dimensions is represented by one solid splat rectangle, matching Warsmash's preview presentation: green when the local pathing sample satisfies the same prevented/required masks used by `G_EvaluateBuildPlacement()`, and red when the cell is out of bounds, violates those masks, or overlaps a live entity collision circle. The builder is excluded by the ignored-entity field packed into `entityState_t.pathing_preview`, matching the authoritative `G_LiveUnitBlocksBuild()` exclusion. Dead/non-selectable snapshot entities are not preview blockers.
 
-The cursor packs its preview-only metadata into one aligned `DWORD` to stay comfortably inside the 32-bit entity-delta field mask: bits 0..15 are the ignored entity number, bits 16..23 are prevented pathing flags, and bits 24..31 are required pathing flags. `EntityPathingPreviewPack()` and the matching accessors are the only code that should depend on that wire layout.
+Gold-return town-hall previews add one whole-footprint rule on top of those per-cell tests. Unit ability data marks the cursor with `EF_RESOURCE_RETURN_GOLD`, while live `Agld`-class mine snapshots carry `EF_RESOURCE_GOLD_MINE`. If the snapped cursor centre is less than `WC3_GOLD_MINE_BUILD_MIN_DISTANCE` (512 world units) from a visible live mine snapshot, every placement-grid cell is drawn red. The server repeats the same centre-distance rule from authoritative entity data, so cursor presentation cannot make an otherwise forbidden placement legal; a mine unavailable to the client's current snapshot can therefore still be rejected authoritatively when clicked.
+
+The cursor packs its per-cell preview metadata into one aligned `DWORD`: bits 0..15 are the ignored entity number, bits 16..23 are prevented pathing flags, and bits 24..31 are required pathing flags. `EntityPathingPreviewPack()` and the matching accessors are the only code that should depend on that wire layout. Resource-placement classification reuses spare `entityState_t.flags` bits rather than widening the cursor payload; the same flags survive ordinary entity deltas and have explicit round-trip coverage.
 
 The snapshot `entityState_t.collision` field is the gameplay collision radius used for this preview. Do not substitute `entityState_t.radius`: WC3 uses `radius` for the selection/UI circle and `edict.collision` for unit occupancy. `SP_SpawnUnit()` publishes the authored/runtime collision value into `s.collision` after building pathing has finalized its derived collision radius.
 
@@ -403,6 +406,7 @@ Runtime checks should cover at least:
 36. Start Night Elf Ancient construction and verify the Wisp leaves Food Used while inside, is consumed on completion, and is restored with Food Used on cancellation/destruction.
 37. Attempt standard or Human Repair on autonomous Orc/Undead/Night Elf construction and verify it is rejected rather than adding a second construction clock.
 38. Save/load while a race-owned construction worker is attached and verify the `construction.worker` edict reference and lifecycle flags round-trip.
+39. Place a gold-return Town Hall-class ghost 511 world units from a live Gold Mine and verify the whole preview footprint is red and clicking reports `Unable to build so close to the gold mine.`; move the snapped centre to exactly 512 units and verify the mine-distance rule no longer rejects it.
 
 ## See Also
 

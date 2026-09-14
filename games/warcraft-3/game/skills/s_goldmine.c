@@ -186,6 +186,17 @@ static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     return NULL;
 }
 
+BOOL S_UnitTypeIsGoldMine(DWORD unit_id) {
+    UnitAbilities_t const *unit_abilities = G_UnitAbil(unit_id);
+
+    if (!unit_abilities || !unit_abilities->abilList) return false;
+    PARSE_LIST(unit_abilities->abilList, abil, parse_segment) {
+        if (G_AbilityCodeName(abil) == MAKEFOURCC('A', 'g', 'l', 'd'))
+            return true;
+    }
+    return false;
+}
+
 BOOL S_GoldMineIsMine(LPCEDICT mine) {
     return goldmine_ability_data(mine) != NULL;
 }

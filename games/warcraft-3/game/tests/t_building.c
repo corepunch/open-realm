@@ -887,22 +887,22 @@ TEST(wc3_building, upgraded_buildings_satisfy_predecessor_requirements) {
         "C;Y3;X1;K\"hkee\"\n"
         "C;Y3;X2;K\"hcas\"\n"
         "C;Y4;X1;K\"hcas\"\n"
-        "C;Y5;X1;K\"hbla\"\n"
+        "C;Y5;X1;K\"hbar\"\n"
         "C;Y5;X3;K\"htow\"\n"
         "E\n";
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT worker, keep, castle;
-    UnitProfile_t worker_profile = { .builds = "hbla" };
+    UnitProfile_t worker_profile = { .builds = "hbar" };
     slkTestData_t *profile_rows = parse_slk_string(profile_slk);
     slkTestData_t *old_profile = G_SetProfileRows(profile_rows);
-    DWORD const blacksmith = MAKEFOURCC('h','b','l','a');
+    DWORD const blacksmith = MAKEFOURCC('h','b','a','r');
     char reason[128];
 
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     worker->data.UnitProfile = &worker_profile;
     worker->s.player = client->ps.number;
-    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100000;
-    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 60000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 60000;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
     T_EQ(G_GetBuildCommandState(client, worker, blacksmith, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
@@ -1343,6 +1343,32 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
 
     requested = (VECTOR2){ 100000.0f, 100000.0f };
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OUT_OF_BOUNDS);
+}
+
+TEST(wc3_building, gold_return_building_respects_gold_mine_exclusion_radius) {
+    LPEDICT builder;
+    LPEDICT mine;
+    UnitAbilities_t mine_abilities = { .abilList = "Abgm" };
+    VECTOR2 requested = { 0.0f, 0.0f };
+    VECTOR2 snapped;
+    DWORD const gold_return_building = MAKEFOURCC('h','T','S','T');
+    DWORD const ordinary_building = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('n','T','S','T'),
+                           WC3_GOLD_MINE_BUILD_MIN_DISTANCE - 1.0f, 0.0f);
+    mine->data.UnitAbilities = &mine_abilities;
+
+    T_ASSERT(S_UnitTypeReturnsGold(gold_return_building));
+    T_ASSERT(S_GoldMineIsMine(mine));
+    T_EQ(G_EvaluateBuildPlacement(builder, gold_return_building, &requested, &snapped),
+         PLACE_TOO_CLOSE_TO_GOLD_MINE);
+    T_EQ(G_EvaluateBuildPlacement(builder, ordinary_building, &requested, &snapped), PLACE_OK);
+
+    mine->s.origin2.x = WC3_GOLD_MINE_BUILD_MIN_DISTANCE;
+    mine->s.origin.x = mine->s.origin2.x;
+    T_EQ(G_EvaluateBuildPlacement(builder, gold_return_building, &requested, &snapped), PLACE_OK);
 }
 
 TEST(wc3_building, placement_flags_treat_slk_sentinel_as_empty) {

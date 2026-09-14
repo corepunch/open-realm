@@ -2375,6 +2375,29 @@ TEST(net, entity_delta_preserves_not_selectable_flag) {
     T_ASSERT(out.flags & EF_NOT_SELECTABLE);
 }
 
+TEST(net, entity_delta_preserves_wc3_resource_placement_flags) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 };
+    entityState_t to = {
+        .number = 9,
+        .model = 1,
+        .flags = EF_RESOURCE_GOLD_MINE | EF_RESOURCE_RETURN_GOLD,
+    };
+    entityState_t out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_RESOURCE_GOLD_MINE);
+    T_ASSERT(out.flags & EF_RESOURCE_RETURN_GOLD);
+}
+
 /* Hover-health eligibility occupies the first bit above the legacy byte-sized
  * entity flags, so guard both the widened field and delta serialization. */
 TEST(net, entity_delta_preserves_hover_health_flag) {

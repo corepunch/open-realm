@@ -10,7 +10,11 @@ static void G_BuildError(LPEDICT clent, LPCSTR text) {
     G_ShowCommandErrorText(clent, text);
 }
 
-static void G_BuildPlacementError(LPEDICT clent) {
+static void G_BuildPlacementError(LPEDICT clent, buildPlacementResult_t placement) {
+    if (placement == PLACE_TOO_CLOSE_TO_GOLD_MINE) {
+        G_BuildError(clent, "Unable to build so close to the gold mine.");
+        return;
+    }
     G_BuildError(clent, "Unable to build there.");
 }
 
@@ -135,6 +139,8 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     ent->model = G_RegisterModel(buffer);
     ent->scale = ui->modelScale;
     ent->angle = -M_PI / 2;
+    if (S_UnitTypeIsGoldMine(unit_id)) ent->flags |= EF_RESOURCE_GOLD_MINE;
+    if (S_UnitTypeReturnsGold(unit_id)) ent->flags |= EF_RESOURCE_RETURN_GOLD;
     {
         UnitData_t const *data = G_UnitData(unit_id);
         pathTex_t *pathtex = M_LoadPathTex(data->pathingTexture);
@@ -182,7 +188,7 @@ void build_build(LPEDICT ent) {
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s placement=%d\n",
             (long)(ent - g_edicts), (LPCSTR)&ent->build_project, placement);
 #endif
-        G_BuildPlacementError(G_GetPlayerEntityByNumber(ent->s.player));
+        G_BuildPlacementError(G_GetPlayerEntityByNumber(ent->s.player), placement);
         ent->build_project = 0;
         ent->stand(ent);
         return;
@@ -343,7 +349,7 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
                 (long)(clent - globals.edicts), (long)(builder - globals.edicts), (LPCSTR)&clent->build_project,
                 placement, location->x, location->y);
 #endif
-        G_BuildPlacementError(clent);
+        G_BuildPlacementError(clent, placement);
         return false;
     }
 

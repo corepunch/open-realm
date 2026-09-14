@@ -977,6 +977,16 @@ static BOOL G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 foo
     return false;
 }
 
+static BOOL G_BuildTooCloseToGoldMine(DWORD building_id, LPCVECTOR2 point) {
+    if (!point || !S_UnitTypeReturnsGold(building_id)) return false;
+
+    FILTER_EDICTS(mine, mine->inuse && !M_IsDead(mine) && S_GoldMineIsMine(mine)) {
+        if (Vector2_distance(point, &mine->s.origin2) < WC3_GOLD_MINE_BUILD_MIN_DISTANCE)
+            return true;
+    }
+    return false;
+}
+
 /* Move friendly mobile units clear of a newly baked footprint while retaining their active orders. */
 BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     LPEDICT *units;
@@ -1055,6 +1065,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
      * only for cursor placement and must not offset the mine overlay. */
     if (build_on) point = build_on->s.origin2;
     if (snapped) *snapped = point;
+    if (G_BuildTooCloseToGoldMine(building_id, &point)) return PLACE_TOO_CLOSE_TO_GOLD_MINE;
     pathtex = M_LoadPathTex(data->pathingTexture);
     if (data->pathingTexture && strlen(data->pathingTexture) > 1 && !pathtex) {
  #ifdef WC3_DEBUG_MINING

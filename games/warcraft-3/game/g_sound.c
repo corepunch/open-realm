@@ -154,6 +154,8 @@ static LPCSTR G_CommandErrorKeyForText(LPCSTR text) {
     if (!strcmp(text, "Not enough mana") || !strcmp(text, "Not enough mana.")) return "Nomana";
     if (!strcmp(text, "Spell is not ready yet") || !strcmp(text, "Spell is not ready yet.")) return "Cooldown";
     if (!strcmp(text, "Unable to build there") || !strcmp(text, "Unable to build there.")) return "Cantplace";
+    if (!strcmp(text, "Unable to build so close to the gold mine") ||
+        !strcmp(text, "Unable to build so close to the gold mine.")) return "Tooclosetomine";
     if (!strcmp(text, "Inventory is full") || !strcmp(text, "Inventory is full.")) return "Inventoryfull";
     return NULL;
 }
