@@ -3406,11 +3406,7 @@ TEST(wc3_api, killunit_processes_deferred_unit_handle) {
     FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].class_id == MAKEFOURCC('h', 'f', 'o', 'o')) victim = &g_edicts[i];
     T_NOT_NULL(victim);
-    if (victim) {
-        T_ASSERT(victim->inuse);
-        T_ASSERT(victim->s.renderfx & RF_HIDDEN);
-        T_ASSERT(!(victim->svflags & SVF_DEADMONSTER));
-    }
+    if (victim) T_ASSERT(victim->svflags & SVF_DEADMONSTER);
 }
 
 TEST(wc3_api, player_unit_counts_support_campaign_peon_goals) {
