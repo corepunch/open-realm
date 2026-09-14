@@ -740,7 +740,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
                 (void *)g_edicts, (void *)(g_edicts + globals.num_edicts));
             return false;
         }
-        if (!ent->inuse || G_IsDeferredFree(ent)) {
+        if (!ent->inuse) {
             fprintf(stderr, "WC3 SaveGame: %s handle %p is unused edict %ld\n", type, value, (long)(ent - g_edicts));
             return false;
         }

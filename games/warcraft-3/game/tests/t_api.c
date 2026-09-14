@@ -3391,7 +3391,7 @@ TEST(wc3_api, killunit_runs_normal_unit_death_transition) {
     T_STREQ(victim->currentmove->animation, "death");
 }
 
-TEST(wc3_api, killunit_ignores_removed_unit_handle) {
+TEST(wc3_api, killunit_processes_deferred_unit_handle) {
     LPEDICT victim;
 
     T_ASSERT(run_test_jass(
@@ -3406,7 +3406,7 @@ TEST(wc3_api, killunit_ignores_removed_unit_handle) {
     FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].class_id == MAKEFOURCC('h', 'f', 'o', 'o')) victim = &g_edicts[i];
     T_NOT_NULL(victim);
-    if (victim) T_ASSERT(!(victim->svflags & SVF_DEADMONSTER));
+    if (victim) T_ASSERT(victim->svflags & SVF_DEADMONSTER);
 }
 
 TEST(wc3_api, player_unit_counts_support_campaign_peon_goals) {

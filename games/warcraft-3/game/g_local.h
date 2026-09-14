@@ -2188,7 +2188,6 @@ void T_Damage(LPEDICT, LPEDICT, int);
 // g_utils.c
 void G_FreeEdict(LPEDICT);
 void G_DeferFreeEdict(LPEDICT);
-BOOL G_IsDeferredFree(LPCEDICT);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 LPEVENT G_MakeEvent(EVENTTYPE);
