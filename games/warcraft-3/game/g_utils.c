@@ -17,6 +17,27 @@ static void G_CancelDeferredFree(LPEDICT ent) {
     }
 }
 
+/* Identify hidden-but-live edicts whose JASS handles must already behave as null. */
+BOOL G_IsDeferredFree(LPCEDICT ent) {
+    if (!ent) return false;
+    FOR_LOOP(i, deferred_free_count)
+        if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return true;
+    return false;
+}
+
+/* Remove an entity from every live JASS group before its handle becomes stale. */
+static void G_RemoveEntityFromJassGroups(LPEDICT ent) {
+    FOR_LOOP(i, level.num_groups) {
+        ggroup_t *group = level.groups[i];
+        if (!group->inuse) continue;
+        for (DWORD k = 0; k < group->num_units;) {
+            if (group->units[k] != ent) { k++; continue; }
+            for (DWORD n = k + 1; n < group->num_units; n++) group->units[n - 1] = group->units[n];
+            group->num_units--;
+        }
+    }
+}
+
 void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
     DWORD cursor;
 
@@ -81,6 +102,7 @@ void G_DeferFreeEdict(LPEDICT ent) {
     ent->s.renderfx |= RF_HIDDEN;
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+    G_RemoveEntityFromJassGroups(ent);
     deferred_frees[deferred_free_count++] = (deferred_free_t){ .ent = ent, .spawn_time = ent->spawn_time };
 }
 
