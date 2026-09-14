@@ -58,6 +58,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Allies/F11 dialog, directional alliances, shared vision/control, draft/Accept semantics | [docs/games/warcraft-3/allies-menu.md](docs/games/warcraft-3/allies-menu.md) |
 | WC3 Hero skill tree, skill points, rank requirements, learning UI, JASS progression | [docs/games/warcraft-3/hero-abilities.md](docs/games/warcraft-3/hero-abilities.md) |
 | WC3 gathering, immobile units, construction HUD, overhead bars | [docs/games/warcraft-3/economy-and-unit-presentation.md](docs/games/warcraft-3/economy-and-unit-presentation.md) |
+| WC3 neutral item shops, patrons, item stock/restock, purchase and pawn flow | [docs/games/warcraft-3/neutral-shops.md](docs/games/warcraft-3/neutral-shops.md) |
 | WC3 Orc Burrow cargo, Load/Stand Down, occupant state, Burrow attack gating/scaling | [docs/games/warcraft-3/orc-burrows.md](docs/games/warcraft-3/orc-burrows.md) |
 | WC3 gold/lumber gain transactions and world-space `+N` presentation | [docs/games/warcraft-3/resource-gain-text.md](docs/games/warcraft-3/resource-gain-text.md) |
 | WC3 Human Call to Arms, Peasant/Militia pairing, timed in-place transform, Back to Work | [docs/games/warcraft-3/call-to-arms-and-militia.md](docs/games/warcraft-3/call-to-arms-and-militia.md) |

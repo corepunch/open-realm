@@ -29,6 +29,7 @@
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
+#define MAX_SHOP_STOCK 24 /* runtime entries; comfortably above Blizzard.j's default 11 item slots */
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
@@ -929,6 +930,20 @@ typedef struct {
     DWORD end_time;
 } abilityCooldownWindow_t;
 
+typedef struct edictShopStockItem_s {
+    DWORD id;
+    LONG current;
+    DWORD delay_start;
+    DWORD delay_end;
+} edictShopStockItem_t;
+
+typedef struct edictStock_s {
+    DWORD item_slots, unit_slots;
+    BOOL items_initialized;
+    DWORD item_count;
+    edictShopStockItem_t items[MAX_SHOP_STOCK];
+} edictStock_t;
+
 #define WC3_ANIMATION_REQUEST_SIZE 80
 #define WC3_ANIMATION_PROPERTIES_SIZE 128
 
@@ -1102,9 +1117,7 @@ struct edict_s {
         DWORD count;
     } cargo;
     LPEDICT ground_next;
-    struct {
-        DWORD item_slots, unit_slots;
-    } stock;
+    edictStock_t stock;
     FLOAT velocity;
     doodadHero_t hero;
     DWORD hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
@@ -2394,6 +2407,15 @@ BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position);
 void G_RemoveItem(LPEDICT item);
 void G_UseItem(LPEDICT unit, DWORD slot);
 DWORD G_ItemTypeFromClass(LPCSTR cls);
+
+// g_stock.c / neutral shops
+BOOL G_IsItemShop(LPCEDICT shop);
+BOOL G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop);
+FLOAT G_ShopActivationRadius(LPCEDICT shop);
+LPEDICT G_FindShopPatron(LPGAMECLIENT client, LPEDICT shop);
+BYTE G_GetShopItemButtons(LPGAMECLIENT client, LPEDICT shop, gameCommandButton_t *buttons, BYTE max_buttons);
+BOOL G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, DWORD item_id);
+BOOL G_ShopPawnItem(LPEDICT clent, LPEDICT shop, LPEDICT carrier, LPEDICT item);
 
 // g_destructable.c
 void G_SetDestructableScriptBinding(BOOL enabled);

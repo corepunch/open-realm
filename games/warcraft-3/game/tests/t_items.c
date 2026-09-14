@@ -123,6 +123,23 @@ static LPEDICT make_item_test_world_item(DWORD class_id, FLOAT x, FLOAT y) {
     return item;
 }
 
+static LPEDICT make_item_test_shop(FLOAT x, FLOAT y) {
+    static UnitProfile_t profile;
+    static UnitAbilities_t abilities = { .abilList = "Apit", .heroAbilList = "" };
+    LPEDICT shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, y);
+
+    memset(&profile, 0, sizeof(profile));
+    profile.sellItems = "spro";
+    shop->data.UnitProfile = &profile;
+    shop->data.UnitAbilities = &abilities;
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    shop->collision = 32.0f;
+    shop->spawn_time = G_Time();
+    shop->stock.item_slots = 11;
+    gi.LinkEntity(shop);
+    return shop;
+}
+
 TEST(wc3_items, spawn_initializes_world_state) {
     LPEDICT item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 64);
 
@@ -566,6 +583,121 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     count = G_GetInventory(unit, items, MAX_INVENTORY);
     T_EQ(count, 1);
     T_EQ(items[0].charges, 0);
+}
+
+TEST(wc3_items, neutral_shop_purchases_authored_item_into_nearby_hero_inventory) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT hero;
+    LPEDICT shop;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    hero = make_item_test_inventory_unit(100, 0);
+    hero->s.player = 0;
+    shop = make_item_test_shop(0, 0);
+
+    T_ASSERT(G_FindShopPatron(client, shop) == hero);
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+    T_NOT_NULL(hero->inventory[0]);
+    T_EQ(hero->inventory[0]->class_id, MAKEFOURCC('s','p','r','o'));
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 350);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 75);
+}
+
+TEST(wc3_items, enemy_item_shop_does_not_gain_neutral_shop_access) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT hero;
+    LPEDICT shop;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    hero = make_item_test_inventory_unit(100, 0);
+    hero->s.player = 0;
+    shop = make_item_test_shop(0, 0);
+    shop->s.player = 1;
+
+    T_ASSERT(!G_CanUseItemShop(client, shop));
+    T_NULL(G_FindShopPatron(client, shop));
+}
+
+TEST(wc3_items, neutral_shop_rejects_purchase_without_nearby_inventory_unit) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT hero;
+    LPEDICT shop;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    hero = make_item_test_inventory_unit(900, 0);
+    hero->s.player = 0;
+    shop = make_item_test_shop(0, 0);
+
+    T_NULL(G_FindShopPatron(client, shop));
+    T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 100);
+    T_NULL(hero->inventory[0]);
+}
+
+TEST(wc3_items, neutral_shop_stock_is_shared_and_replenishes_from_item_data) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT hero;
+    LPEDICT shop;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    hero = make_item_test_inventory_unit(100, 0);
+    hero->s.player = 0;
+    shop = make_item_test_shop(0, 0);
+
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+    T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+    level.time += 60000;
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+}
+
+TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT hero;
+    LPEDICT shop;
+    LPEDICT item;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    hero = make_item_test_inventory_unit(100, 0);
+    hero->s.player = 0;
+    shop = make_item_test_shop(0, 0);
+
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+    item = hero->inventory[0];
+    T_NOT_NULL(item);
+    T_ASSERT(G_ShopPawnItem(player, shop, hero, item));
+    T_NULL(hero->inventory[0]);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 425);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 88);
 }
 
 TEST(wc3_items, carried_charge_change_refreshes_inventory_and_same_value_is_noop) {

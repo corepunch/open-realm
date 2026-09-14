@@ -230,7 +230,7 @@ The following are deliberately not inferred by the current implementation:
 - Shift-click toggle semantics (Shift-drag addition exists separately);
 - Ctrl-click and double-click same-type expansion;
 - exact Warsmash within-identical-type insertion ordering (selection membership currently retains only per-player bits, so stable ties use edict scan order);
-- neutral-shop patron interaction (`Aneu`/`Apit` remains unfinished);
+- exact neutral-shop `Aneu` patron-selection button/indicator and persistent per-player patron state; the current deterministic nearby-patron purchase flow is documented in [Neutral Item Shops](neutral-shops.md);
 - data-driven `SelectionCircle` relationship colours;
 - Neutral Passive critter-specific selection response rules;
 - exact retail behavior for `ALLIANCE_SHARED_ADVANCED_CONTROL`;

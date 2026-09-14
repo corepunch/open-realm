@@ -238,6 +238,10 @@ relinks the same item entity, and runs the requested point through the shared
 WC3 deterministic unstuck search before placing it. Right-click or the normal
 Cancel command leaves the target mode without dropping the item.
 
+When a usable neutral item shop is selected, its inventory layer intentionally presents the resolved nearby patron's inventory.
+The same patron resolution is used by inventory use/drag/drop commands so the visible slots continue to address their authoritative
+carrier. Shop purchase, stock, and pawn rules are documented separately in [Neutral Item Shops](neutral-shops.md).
+
 This slice intentionally does not yet implement Warsmash's held-item cursor
 art, inventory-slot swapping, allied-unit give-item targeting, or `AInv`'s
 `CanDropItems` (`inv5`) rejection/error path. Those need dedicated presentation,

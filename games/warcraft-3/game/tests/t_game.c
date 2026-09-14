@@ -2955,6 +2955,63 @@ SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
 SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel.code, MAKEFOURCC('A', 'H', 'd', 'r'))
 SAVE_INT_FIELD_TEST(field_channel_serial_round_trip, channel.serial, 7)
+
+TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
+    DWORD const formats[] = { 24, 25 };
+
+    FOR_LOOP(i, sizeof(formats) / sizeof(formats[0])) {
+        char filename[96];
+        LPEDICT shop;
+        field_t const *stock_desc;
+        field_t const *items_desc;
+
+        setup_test_world();
+        reset_entities();
+        ((LPMAPINFO)level.mapinfo)->fileFormat = formats[i];
+        snprintf(filename, sizeof(filename), "/tmp/openwarcraft3-wc3-shop-stock-%u.bin",
+                 (unsigned)formats[i]);
+        shop = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+        level.stock.item_slots = 11;
+        level.stock.unit_slots = 9;
+        shop->stock.item_slots = 11;
+        shop->stock.unit_slots = 9;
+        shop->stock.items_initialized = true;
+        shop->stock.item_count = 1;
+        shop->stock.items[0] = (edictShopStockItem_t){
+            .id = MAKEFOURCC('s','p','r','o'),
+            .current = 1,
+            .delay_start = 5000,
+            .delay_end = 65000,
+        };
+
+        stock_desc = find_save_field("stock");
+        items_desc = find_save_field("stock.items");
+        T_NOT_NULL(stock_desc);
+        T_NOT_NULL(items_desc);
+        if (stock_desc) T_EQ(stock_desc->type, F_STRUCT);
+        if (items_desc) {
+            T_EQ(items_desc->type, F_STRUCT);
+            T_EQ(items_desc->array_size, MAX_SHOP_STOCK);
+        }
+
+        T_ASSERT(WriteGame(filename));
+        level.stock.item_slots = 0;
+        level.stock.unit_slots = 0;
+        memset(&shop->stock, 0, sizeof(shop->stock));
+        T_ASSERT(ReadGame(filename));
+        T_EQ(level.stock.item_slots, 11);
+        T_EQ(level.stock.unit_slots, 9);
+        T_EQ(shop->stock.item_slots, 11);
+        T_EQ(shop->stock.unit_slots, 9);
+        T_ASSERT(shop->stock.items_initialized);
+        T_EQ(shop->stock.item_count, 1);
+        T_EQ(shop->stock.items[0].id, MAKEFOURCC('s','p','r','o'));
+        T_EQ(shop->stock.items[0].current, 1);
+        T_EQ(shop->stock.items[0].delay_start, 5000);
+        T_EQ(shop->stock.items[0].delay_end, 65000);
+        remove(filename);
+    }
+}
 SAVE_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel.owner_spawn_time, 200)
 SAVE_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel.target_spawn_time, 300)
 SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar.level, 2)

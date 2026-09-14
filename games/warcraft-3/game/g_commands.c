@@ -756,8 +756,22 @@ CLIENTCOMMAND(Button) {
 
     if (argc < 2) return;
     producer = G_GetMainSelectedUnit(client);
-    if (!G_UnitCanControl(client, producer)) return;
     classname = argv[1];
+    /* A neutral shop remains neutral selection state; buying from it must not
+     * weaken G_UnitCanControl() for ordinary enemy/neutral units.  Item shop
+     * buttons are raw item IDs, validated again by the authoritative shop
+     * purchase path before resources or stock change. */
+    if (G_CanUseItemShop(client, producer)) {
+        DWORD item_id = 0;
+        if (strlen(classname) != 4) return;
+        memcpy(&item_id, classname, sizeof(item_id));
+        if (G_ShopPurchaseItem(clent, producer, item_id)) {
+            Get_Portrait_f(clent);
+        }
+        Get_Commands_f(clent);
+        return;
+    }
+    if (!G_UnitCanControl(client, producer)) return;
     if (!strncmp(classname, "revive:", 7)) {
         char *end = NULL;
         unsigned long const number = strtoul(classname + 7, &end, 10);
@@ -1284,6 +1298,15 @@ CLIENTCOMMAND(Night) {
     G_CheatSetTimeOfDay(clent, false);
 }
 
+static LPEDICT G_GetInventoryInteractionUnit(LPGAMECLIENT client) {
+    LPEDICT selected;
+
+    if (!client) return NULL;
+    selected = G_GetMainSelectedUnit(client);
+    if (G_CanUseItemShop(client, selected)) return G_FindShopPatron(client, selected);
+    return selected;
+}
+
 CLIENTCOMMAND(Inventory) {
     LPGAMECLIENT client = clent->client;
     LPEDICT ent;
@@ -1296,7 +1319,7 @@ CLIENTCOMMAND(Inventory) {
         return;
     }
 
-    ent = G_GetMainSelectedUnit(client);
+    ent = G_GetInventoryInteractionUnit(client);
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, ent) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(ent)) {
         return;
@@ -1384,8 +1407,16 @@ CLIENTCOMMAND(CancelTrain) {
 }
 /* Keep an unsupported entity drop in target mode until the player cancels it. */
 static BOOL G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
-    (void)clent;
-    (void)target;
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    LPEDICT item = client ? client->menu.dragged_item : NULL;
+    LPEDICT carrier = G_IsItem(item) ? item->item.carrier : NULL;
+
+    if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
+        G_ShopPawnItem(clent, target, carrier, item)) {
+        G_RefreshResourceBar(clent);
+        Get_Portrait_f(clent);
+        return true;
+    }
     /* Warsmash uses an entity-target drop for allied item handoff. OpenRealm
      * does not yet have that transfer behavior, but keep the drag target mode
      * authoritative instead of letting a unit click fall through to selection. */
@@ -1399,8 +1430,8 @@ static BOOL G_ItemDragSelectLocation(LPEDICT clent, LPCVECTOR2 location) {
     LPEDICT item;
 
     if (!client || !location) return false;
-    unit = G_GetMainSelectedUnit(client);
     item = client->menu.dragged_item;
+    unit = G_IsItem(item) ? item->item.carrier : NULL;
     if (!G_UnitCanControl(client, unit) || !G_IsItem(item) || item->item.carrier != unit)
         return false;
     if (!G_OrderDropItemAt(unit, item, location)) return false;
@@ -1415,7 +1446,7 @@ CLIENTCOMMAND(ItemDrag) {
     LONG slot;
 
     if (!clent || !(client = clent->client) || argc < 2) return;
-    unit = G_GetMainSelectedUnit(client);
+    unit = G_GetInventoryInteractionUnit(client);
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(client, unit) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) return;
     item = unit->inventory[slot];
@@ -1439,7 +1470,7 @@ CLIENTCOMMAND(DropItem) {
     if (!clent || !clent->client || argc < 2) {
         return;
     }
-    unit = G_GetMainSelectedUnit(clent->client);
+    unit = G_GetInventoryInteractionUnit(clent->client);
     slot = atoi(argv[1]);
     if (!G_UnitCanControl(clent->client, unit) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) {
         return;

@@ -980,7 +980,8 @@ void Get_Commands_f(LPEDICT ent) {
     G_UpdateRallyIndicator(ent->client);
     ent->client->commands_dirty = false;
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
-    if (!selected || !G_UnitCanControl(ent->client, selected)) {
+    if (!selected || (!G_UnitCanControl(ent->client, selected) &&
+                      !G_CanUseItemShop(ent->client, selected))) {
         UI_ClearLayer(ent, LAYER_COMMANDBAR);
         return;
     }
@@ -992,7 +993,9 @@ void Get_Commands_f(LPEDICT ent) {
     previous_ui_client = ui_current_client;
     UI_SetCurrentClient(ent->client);
     UI_WriteStart(LAYER_COMMANDBAR);
-    count = G_GetCommandButtons(selected, buttons, 12);
+    count = G_CanUseItemShop(ent->client, selected)
+        ? G_GetShopItemButtons(ent->client, selected, buttons, 12)
+        : G_GetCommandButtons(selected, buttons, 12);
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);
     }
@@ -1203,6 +1206,12 @@ static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, DWORD count) {
     LPEDICT focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
 
     (void)selected;
+    /* Neutral shops borrow the selected patron's inventory presentation while
+     * the building itself remains the world selection, matching Warcraft's
+     * shop flow without granting command authority over the neutral unit. */
+    if (focused && G_CanUseItemShop(ent->client, focused)) {
+        focused = G_FindShopPatron(ent->client, focused);
+    }
     UI_WriteStart(LAYER_INVENTORY);
     if (focused) WriteInventory(ent, focused);
     UI_WriteEnd(ent);

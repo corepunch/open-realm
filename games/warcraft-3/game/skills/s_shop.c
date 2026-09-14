@@ -1,12 +1,10 @@
 #include "s_skills.h"
 
-/* Shop system — minimal implementation.
- * WarSmash: CAbilityNeutralBuilding auto-selects heroes, CAbilitySellItems
- * handles purchase. For now, these are marker abilities that can be extended
- * when the inventory/shop UI is wired up. */
+/* Neutral item-shop purchase/patron/stock state is owned by g_stock.c because
+ * the merchandise itself comes from UnitProfile Sellitems rather than Apit's
+ * ability row.  Keep Apit as the stock no-icon command identity; the selected
+ * neutral shop command card dispatches item rawcodes through G_ShopPurchaseItem. */
 
-/* TODO: Shop Purchase Item (Apit) must read the sold-item list, charge the
- * player, and create the item through the authoritative lifecycle. */
 BZ_COMMAND_PROC(AbilityPurchaseItem) {
     UI_AddCancelButton(clent);
 }

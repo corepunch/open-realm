@@ -171,9 +171,9 @@ generic `Button` command path rather than by a registered ability code.
 | `Aren` | Repair | Partial | Shares completed-building Repair command/range/cost behavior, Shift target order, and nearest-valid Auto Repair; rejects construction. Full target masks/destructibles/naval remain. |
 | `Arst` | Repair | Partial | Shares completed-building Repair command/range/cost behavior, Shift target order, and nearest-valid Auto Repair; rejects construction. Full target masks/destructibles/naval remain. |
 | `Avul` | Invulnerable | Partial | Units with `Avul` spawn with damage immunity; damage guard is tested. Needs targetability/UI status polish. |
-| `Apit` | Shop Purchase Item | TODO | Needs shop inventory and purchase flow. |
-| `Aneu` | Neutral Building | TODO | Needs neutral interaction and command card behavior. |
-| `Aall` | Shop Sharing | TODO | Depends on shop/neutral building systems. |
+| `Apit` | Shop Purchase Item | Partial | `Sellitems` item buttons, authoritative item purchase, local-player resource charging, inventory handoff, shared item stock/restock, and pawnable sell-back are wired through the neutral-shop subsystem. The Apit ability procedure itself remains a marker; power-up acquisition and JASS stock mutation remain. |
+| `Aneu` | Neutral Building | Partial | Neutral item shops expose a command card without granting control, use Aneu/Aall DataA as activation radius, deterministically choose a nearby owned Hero/inventory unit as patron, and present that patron's inventory. Explicit neutralinteract selection button/indicator and persistent per-player patron state remain. |
+| `Aall` | Shop Sharing | TODO | Allied/shared neutral-building policy is not implemented; current patron resolution is intentionally local-player-owned only. |
 | `Acoi` | Couple Instant | TODO | Test/special ability; low priority unless map data requires it. |
 | `AIhe` | Item Heal | Partial | Inventory dispatch, selected-unit heal, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |
 | `AIma` | Item Mana Regain | Partial | Inventory dispatch, selected-unit mana restore, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |

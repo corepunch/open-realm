@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 21; // format version; persists channel cast and entity identities in the edict layout
+static DWORD const save_version = 22; // format version; persists neutral-shop stock/capacity state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -249,6 +249,8 @@ static fieldRing_t const game_event_ring = {
 static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
+    F(level_locals, stock.item_slots, F_INT),
+    F(level_locals, stock.unit_slots, F_INT),
     F(level_locals, timeofday.elapsed, F_FLOAT),
     F(level_locals, timeofday.pending, F_FLOAT),
     F(level_locals, timeofday.pending_valid, F_INT),
@@ -437,6 +439,22 @@ static field_t const channel_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const shop_stock_item_fields[] = {
+    F(edictShopStockItem_s, id, F_INT),
+    F(edictShopStockItem_s, current, F_INT),
+    F(edictShopStockItem_s, delay_start, F_INT),
+    F(edictShopStockItem_s, delay_end, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const stock_fields[] = {
+    F(edictStock_s, item_slots, F_INT),
+    F(edictStock_s, unit_slots, F_INT),
+    F(edictStock_s, items_initialized, F_INT),
+    FC(edictStock_s, items, F_STRUCT, MAX_SHOP_STOCK, shop_stock_item_fields, item_count),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
     F(edict_s, class_id, F_INT),
@@ -464,6 +482,7 @@ field_t edict_fields[] = {
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, cargo, F_STRUCT, 1, cargo_fields),
     F(edict_s, item, F_STRUCT, 1, item_fields),
+    F(edict_s, stock, F_STRUCT, 1, stock_fields),
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),

@@ -21,10 +21,20 @@ static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT
                                    LPCEDICT producer, BOOL building_upgrade, LPSTR out, DWORD out_size) {
     DWORD class_id = UI_ClassIdFromCode(code);
     UnitBalance_t const *balance = class_id ? G_UnitBalance(class_id) : NULL;
+    ItemData_t const *item = class_id ? G_ItemData(class_id) : NULL;
     UpgradeData_t const *upgrade = class_id ? G_UpgradeData(class_id) : NULL;
     DWORD gold_cost = balance ? (DWORD)MAX(0, balance->goldCost) : 0;
     DWORD lumber_cost = balance ? (DWORD)MAX(0, balance->lumberCost) : 0;
     DWORD food_cost = balance ? (DWORD)MAX(0, balance->foodUsed) : 0;
+
+    /* Item command buttons use ItemData.slk costs rather than UnitBalance.
+     * This is primarily consumed by neutral shops but also keeps generic item
+     * command presentation data-driven for custom maps. */
+    if (item && item->id == class_id) {
+        gold_cost = (DWORD)MAX(0, item->goldcost);
+        lumber_cost = (DWORD)MAX(0, item->lumbercost);
+        food_cost = 0;
+    }
 
     if (building_upgrade && producer && class_id) {
         LONG gold = 0, lumber = 0, food = 0;
