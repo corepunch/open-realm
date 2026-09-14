@@ -147,6 +147,13 @@ and animation own the particle paths. It has no click handler and uses `UIFLAG_S
 artwork and highlights. Other sprites retain the existing background ordering. The UI flags wire field now uses
 `NFT_LONG`; protocol version 6 prevents mixing the previous 16-bit flag payload with the new one.
 
+`UI_WriteCommandButtonFrame` appends the same kind of passive foreground sprite for `alternate_active`, resolving
+`CommandButtonAutocast` through the recipient's skin. The sprite references the command frame's assigned number and
+anchors its origin to that button's bottom-left. Each enabled button gets its own sprite. The existing ability-owned
+autocast state feeds `G_BuildCommandButton`; a subsequent layout omits the sprite when that state is off. Disabled
+commands retain the indicator while autocast remains enabled. The existing command-button shader glow still accompanies
+the particles; adding the sprite does not replace the active-command highlight behavior.
+
 `drawSprite_t` carries a stable UI owner and scope identity. MDX sprite instances retain independent emitter accumulators
 and particle lists, sharing authored tracks/textures. `particleScene_t` borrows the shared particle pool while isolating
 active lists: UI draws cannot advance or redraw world particles. Generation checks make pool resets invalidate retained
@@ -161,10 +168,10 @@ following the emitter. Both primitives use the authored lifespan and color/size 
 `R_EncodeParticleSize` preserves fractional model-space sizes in the shared byte curve with a value multiplier;
 previous direct assignment made the UI models' sizes zero. M2 reuses the same conversion.
 
-This change does not connect autocast command-card sprites or claim complete PRE2 format coverage (for example,
-all model-space/XY-quad policies and authored atlas interval variants). The quest effect uses the existing supported
-tracks plus the corrected head/tail and size contracts. No procedural quest perimeter or quest-specific renderer export
-is added, and no commit from the reviewed branch was cherry-picked.
+This change does not claim complete PRE2 format coverage (for example,
+all model-space/XY-quad policies and authored atlas interval variants). The quest and autocast effects use the existing
+supported tracks plus the corrected head/tail and size contracts. No procedural quest perimeter or quest-specific renderer
+export is added, and no commit from the reviewed branch was cherry-picked.
 
 ### Verification
 
@@ -174,6 +181,10 @@ Regression coverage:
   acknowledgement, timeout, and connected-but-not-inuse player slots.
 - `wc3_game.hud_quest_indicator_uses_skin_anchor_and_timeout`: skin lookup, model namespace, passive parent-relative
   overlay payload, and expiration.
+- `wc3_game.hud_autocast_indicator_uses_skin_model_and_overlay`: autocast skin lookup, model namespace, overlay flag,
+  exact parent/bottom-left anchors, separate owners for multiple buttons, disabled-but-enabled autocast, and on/off/on
+  layout refreshes. Frame numbering is explicitly initialized so this test also runs independently.
+- `wc3_game.hud_autocast_indicator_suppressed_when_off`: no sprite emitted when `alternate_active` is off.
 - `net.sprite_overlay_survives_layout_delta` and `client_layout.sprite_overlay_draws_after_button_artwork`:
   actual packet codec and background/artwork/foreground draw ordering.
 - `renderer_model.mdx_ui_particles_preserve_pivot_sizes_and_both_quads`: stock-shaped PRE2 data through the production
@@ -181,7 +192,10 @@ Regression coverage:
 - `mdx_ui.sprite_clock_and_particle_scenes_are_isolated`: sprite timing, independent instances, world/UI particle
   separation, and safe pool resets/release without a GPU.
 
-`make test` passes, including ROC and TFT engine runs (25,439 assertions in 1,190 tests per edition at verification).
+`make test` passes with the autocast extension, including ROC and TFT engine runs
+(25,461 assertions in 1,192 tests per edition). The focused `wc3_game.hud_autocast*` run passes 22 assertions
+in two tests per edition. The full suite requires local UDP socket access for its network tests.
+The autocast extension has headless payload coverage; its rendered placement has not yet been captured.
 A hidden-window capture on `(2)OgreMound.w3m` confirms the authored white/gold sparkle over the Quests button border;
 local capture: `screenshots/shot0176.jpg`. This checks composition/placement, not a frame-for-frame comparison with retail.
 

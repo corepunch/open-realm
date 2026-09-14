@@ -1683,6 +1683,92 @@ TEST(wc3_game, hud_quest_indicator_uses_skin_anchor_and_timeout) {
     UI_ResetFrameWriteList();
 }
 
+static uiFrame_t autocast_sprite;
+static DWORD autocast_sprite_count, autocast_parent;
+static PATHSTR autocast_model;
+static int autocast_test_model(LPCSTR name) { snprintf(autocast_model, sizeof(autocast_model), "%s", name); return 88; }
+static int autocast_test_image(LPCSTR name) { (void)name; return 1; }
+static void autocast_test_write(pfWriteType_t type, void const *value) {
+    LPCUIFRAME frame = value;
+    if (type != PF_UIFRAME || !frame) return;
+    if (frame->flags.type == FT_COMMANDBUTTON) autocast_parent = frame->number;
+    if (frame->flags.type == FT_SPRITE) { autocast_sprite = *frame; autocast_sprite_count++; }
+}
+
+/* Serialize the autocast skin model as a foreground sprite when alternate_active is set. */
+TEST(wc3_game, hud_autocast_indicator_uses_skin_model_and_overlay) {
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.ModelIndex) old_model = gi.ModelIndex;
+    __typeof__(gi.ImageIndex) old_image = gi.ImageIndex;
+    DWORD oldnum = ui_next_frame_number;
+    gameCommandButton_t button = { .command = "AHea", .art = "test", .alternate = "autocast AHea", .alternate_active = 1 };
+
+    ui_next_frame_number = 1;
+
+    gi.Write = autocast_test_write; gi.ModelIndex = autocast_test_model; gi.ImageIndex = autocast_test_image;
+    autocast_sprite_count = 0;
+    UI_ResetFrameWriteList();
+    UI_WriteCommandButtonFrame(&button);
+
+    T_EQ(autocast_sprite_count, 1);
+    T_STREQ(autocast_model, "UI\\Feedback\\Autocast\\UI-ModalButtonOn.mdl");
+    T_EQ(autocast_sprite.tex.index, 88); T_STREQ(autocast_sprite.text, "Stand");
+    T_ASSERT(autocast_sprite.flagsvalue & UIFLAG_SPRITE_OVERLAY);
+    T_NULL(autocast_sprite.onclick);
+    T_EQ(autocast_sprite.parent, autocast_parent);
+    T_EQ(autocast_sprite.points.x[FPP_MIN].relativeTo, UI_PARENT);
+    T_EQ(autocast_sprite.points.x[FPP_MIN].targetPos, FPP_MIN);
+    T_EQ(autocast_sprite.points.x[FPP_MIN].offset, 0);
+    T_ASSERT(autocast_sprite.points.x[FPP_MIN].used);
+    T_EQ(autocast_sprite.points.y[FPP_MIN].relativeTo, UI_PARENT);
+    T_EQ(autocast_sprite.points.y[FPP_MIN].targetPos, FPP_MAX);
+    T_EQ(autocast_sprite.points.y[FPP_MIN].offset, 0);
+    T_ASSERT(autocast_sprite.points.y[FPP_MIN].used);
+
+    /* A second card slot owns its own sprite, including while the command is disabled. */
+    DWORD first = autocast_sprite.parent;
+    button.x = 2; button.y = 1; button.disabled = 1;
+    UI_WriteCommandButtonFrame(&button);
+    T_EQ(autocast_sprite_count, 2);
+    T_EQ(autocast_sprite.parent, autocast_parent);
+    T_NE(autocast_sprite.parent, first);
+
+    /* Each refreshed layout derives presence from current state; off drops the overlay. */
+    ui_next_frame_number = 1; autocast_sprite_count = 0; button.alternate_active = 0;
+    UI_WriteCommandButtonFrame(&button);
+    T_EQ(autocast_sprite_count, 0);
+    ui_next_frame_number = 1; button.alternate_active = 1;
+    UI_WriteCommandButtonFrame(&button);
+    T_EQ(autocast_sprite_count, 1);
+    T_EQ(autocast_sprite.parent, autocast_parent);
+
+    ui_next_frame_number = oldnum;
+    gi.Write = old_write; gi.ModelIndex = old_model; gi.ImageIndex = old_image;
+    UI_ResetFrameWriteList();
+}
+
+/* No autocast sprite when alternate_active is off. */
+TEST(wc3_game, hud_autocast_indicator_suppressed_when_off) {
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.ModelIndex) old_model = gi.ModelIndex;
+    __typeof__(gi.ImageIndex) old_image = gi.ImageIndex;
+    DWORD oldnum = ui_next_frame_number;
+    gameCommandButton_t button = { .command = "AHea", .art = "test" };
+
+    ui_next_frame_number = 1;
+
+    gi.Write = autocast_test_write; gi.ModelIndex = autocast_test_model; gi.ImageIndex = autocast_test_image;
+    autocast_sprite_count = 0;
+    UI_ResetFrameWriteList();
+    UI_WriteCommandButtonFrame(&button);
+
+    T_EQ(autocast_sprite_count, 0);
+
+    ui_next_frame_number = oldnum;
+    gi.Write = old_write; gi.ModelIndex = old_model; gi.ImageIndex = old_image;
+    UI_ResetFrameWriteList();
+}
+
 TEST(wc3_game, hud_quest_visibility_requires_enabled_and_discovered) {
     QUEST quest = { 0 };
 

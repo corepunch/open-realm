@@ -40,6 +40,7 @@ static void building_capture_write(pfWriteType_t type, void const *value) {
     if (!value) return;
     if (type == PF_UIFRAME) {
         uiFrame_t const *frame = value;
+        if (frame->flags.type == FT_SPRITE) return; /* autocast overlay; do not overwrite command capture */
         if (frame->flags.type == FT_STRING && frame->text && frame->buffer.size == sizeof(uiLabel_t)) {
             building_command_number_frame = *frame;
             building_command_number_label = *(uiLabel_t const *)frame->buffer.data;

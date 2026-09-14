@@ -101,6 +101,27 @@ static void UI_WriteCommandButtonNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWOR
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
+/* Autocast sparkle has no FDF frame; anchor the authored model to the command button. */
+static void UI_WriteAutocastIndicator(gameCommandButton_t const *button, DWORD parent) {
+    LPCSTR model;
+    uiFrame_t frame = { .flags.type = FT_SPRITE, .color = COLOR32_WHITE, .text = "Stand" };
+    if (!button->alternate_active || !parent) return;
+    model = Theme_PlayerString(ui_current_client, "CommandButtonAutocast", NULL);
+    if (!model || !*model) {
+        fprintf(stderr, "WC3: missing CommandButtonAutocast skin model\n");
+        return;
+    }
+    frame.tex.index = gi.ModelIndex(model);
+    if (!frame.tex.index) {
+        fprintf(stderr, "WC3: unable to register autocast indicator %s\n", model);
+        return;
+    }
+    frame.flagsvalue |= UIFLAG_SPRITE_OVERLAY;
+    UI_SetFramePoint(&frame.points.x[FPP_MIN], FPP_MIN, UI_PARENT, 0, false);
+    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MAX, UI_PARENT, 0, true);
+    UI_WriteProxyFrameToParent(&frame, NULL, 0, parent);
+}
+
 /* Disabled icons use the skin's authored DIS artwork, not a tint of the enabled icon. */
 static DWORD UI_CommandButtonImage(gameCommandButton_t const *button) {
     LPCSTR prefix, base;
@@ -150,6 +171,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.text = button->disabled || !button->alternate[0] ? NULL : button->alternate;
     UI_SetFrameRect(&frame, x, y, 0.039f, 0.039f);
     UI_WriteProxyFrame(&frame, &state, sizeof(state));
+    UI_WriteAutocastIndicator(button, frame.number);
     UI_WriteCommandButtonNumber(x, y, 0.039f, 0.039f, button->number);
 }
 
