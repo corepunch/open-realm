@@ -489,11 +489,8 @@ bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return false;
 }
 
-void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
-    (void)model;
-    (void)anim;
-    (void)x;
-    (void)y;
+void R_DrawSprite(drawSprite_t const *sprite) {
+    (void)sprite;
 }
 
 /* TODO: SC2 authored cursor assets are not wired to the renderer yet;

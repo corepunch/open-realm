@@ -1,0 +1,2 @@
+[QuestIndicatorTimeout]
+QuestIndicatorTimeout=10

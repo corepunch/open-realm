@@ -100,7 +100,7 @@ static void CL_DrawMinimapPings(void) {
         if ((LONG)(cl.time - ping->end_time) >= 0) { ping->active = false; continue; }
         if (!re.WorldToMinimap(&ping->position, &screen)) continue;
         if (cl.minimap_model) {
-            re.DrawSprite(cl.minimap_model, "Stand", screen.x, screen.y);
+            re.DrawSprite(&MAKE(drawSprite_t, .model = cl.minimap_model, .anim = "Stand", .x = screen.x, .y = screen.y, .id = &cl.minimap_model));
             continue;
         }
         pulse = 3.0f + (FLOAT)((cl.time - ping->start_time) % 500) / 250.0f;

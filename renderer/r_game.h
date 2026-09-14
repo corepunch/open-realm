@@ -59,7 +59,7 @@ BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPV
 
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
-void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
+void R_DrawSprite(drawSprite_t const *sprite);
 bool R_DrawCursor(float x, float y, COLOR32 tint);
 w3TerrainArt_t const *R_TerrainArt(DWORD id);
 w3CliffType_t const *R_CliffType(DWORD id);

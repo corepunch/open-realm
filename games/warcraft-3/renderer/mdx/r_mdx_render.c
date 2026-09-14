@@ -213,7 +213,59 @@ bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *e
     return true;
 }
 
-void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint) {
+/* State copies own only their runtime list and accumulator, never shared model keytracks. */
+static void MDLX_FreeSprite(mdxSprite_t *state) {
+    R_ClearParticleScene(&state->particles);
+    while (state->emitters) {
+        mdxParticleEmitter_t *emitter = state->emitters;
+        state->emitters = emitter->next; ri.MemFree(emitter);
+    }
+    ri.MemFree(state);
+}
+
+/* Runtime particle state belongs to the UI instance, even when models and keytracks are shared. */
+static mdxSprite_t *MDLX_SpriteState(mdxModel_t *model, drawSprite_t const *sprite) {
+    void const *id = sprite->id ? sprite->id : model;
+    mdxSprite_t *state = NULL, **link = &model->sprites;
+    while (*link) {
+        mdxSprite_t *item = *link;
+        if (item->id == id && item->scope == sprite->scope) state = item;
+        else if (item->time + tr.viewDef.deltaTime < tr.viewDef.time) {
+            *link = item->next; MDLX_FreeSprite(item); continue;
+        }
+        link = &item->next;
+    }
+    if (!state) {
+        mdxParticleEmitter_t **link;
+        state = ri.MemAlloc(sizeof(*state));
+        *state = (mdxSprite_t){ .id = id, .scope = sprite->scope, .next = model->sprites };
+        model->sprites = state; link = &state->emitters;
+        FOR_EACH_LIST(mdxParticleEmitter_t, src, model->emitters) {
+            *link = ri.MemAlloc(sizeof(**link)); **link = *src;
+            (*link)->accumulator = 0; (*link)->next = NULL; link = &(*link)->next;
+        }
+    }
+    if (state->time + tr.viewDef.deltaTime < tr.viewDef.time) {
+        R_ClearParticleScene(&state->particles);
+        FOR_EACH_LIST(mdxParticleEmitter_t, emitter, state->emitters) emitter->accumulator = 0;
+    }
+    state->time = tr.viewDef.time;
+    return state;
+}
+
+/* Particle lists must be returned before the model and its shared emitter tracks disappear. */
+void MDLX_ReleaseSprites(mdxModel_t *model) {
+    while (model->sprites) {
+        mdxSprite_t *state = model->sprites;
+        model->sprites = state->next;
+        MDLX_FreeSprite(state);
+    }
+}
+
+void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, COLOR32 tint) {
+    LPCMODEL model = sprite->model;
+    LPCSTR anim = sprite->anim;
+    FLOAT x = sprite->x, y = sprite->y;
     renderEntity_t entity;
     viewDef_t viewdef;
     viewDef_t saved_viewdef;
@@ -222,7 +274,7 @@ void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR3
     if (!model || !model->mdx) {
         return;
     }
-    mdxModel_t const *mdx = model->mdx;
+    mdxModel_t *mdx = model->mdx;
     mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
 
     if (!model || !model->mdx || !seq) {
@@ -252,13 +304,28 @@ void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR3
     Matrix4_scale(&viewdef.viewProjectionMatrix, &(VECTOR3){1, 1, 0});
 
     saved_viewdef = tr.viewDef;
+    viewdef.time = saved_viewdef.time;
+    viewdef.deltaTime = saved_viewdef.deltaTime;
+    viewdef.camerastate[0].eye = (VECTOR3){0, 0, 100};
+    particleScene_t empty = {0};
+    mdxSprite_t *state = mdx->emitters ? MDLX_SpriteState(mdx, sprite) : NULL;
+    particleScene_t *scene = state ? &state->particles : &empty;
+    mdxParticleEmitter_t *emitters = mdx->emitters;
+    cparticle_t *previous = R_BeginParticleScene(scene);
+    if (state) mdx->emitters = state->emitters;
     tr.viewDef = viewdef;
 
 #ifdef USE_SHADOWMAPS
     R_RenderShadowMap();
 #endif
     R_RenderView();
+    mdx->emitters = emitters;
+    R_EndParticleScene(scene, previous);
     tr.viewDef = saved_viewdef;
+}
+
+void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint) {
+    MDLX_DrawSpriteInstance(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = x, .y = y, .id = model), tint);
 }
 
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {

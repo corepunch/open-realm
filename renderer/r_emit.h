@@ -5,6 +5,14 @@
 #include <math.h>
 #include <stdlib.h>
 
+/* Preserve sub-unit authored sizes in the shared compact particle curve. */
+static inline void R_EncodeParticleSize(cparticle_t *particle, FLOAT const values[3]) {
+    FLOAT peak = MAX(values[0], MAX(values[1], values[2]));
+    particle->size_value_scale = peak > 0 ? peak / 255.0f : 1.0f;
+    FOR_LOOP(i, 3) particle->size[i] = peak > 0 ? (BYTE)MIN(255, MAX(0, values[i] / peak * 255.0f + 0.5f)) : 0;
+    particle->size_time_scale = 1.0f / MAX(particle->lifespan, 0.001f);
+}
+
 static VECTOR3 FX_GenerateRandomDirection(float latitude) {
 	float theta = (float)(((double)rand() / (double)RAND_MAX) * 2.0 * M_PI);
 	float phi = (float)(((double)rand() / (double)RAND_MAX) * latitude);

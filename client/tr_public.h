@@ -227,6 +227,13 @@ struct modelInfo_s {
 };
 
 typedef struct {
+    LPCMODEL model;
+    LPCSTR anim;
+    FLOAT x, y;
+    void const *id, *scope; /* Stable UI owner and layout identities; separate instances sharing one model. */
+} drawSprite_t;
+
+typedef struct {
     void (*Init)(DWORD width, DWORD height);
     void (*Shutdown)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
@@ -259,7 +266,7 @@ typedef struct {
     void (*DrawBackdrop)(LPCDRAWBACKDROP drawBackdrop);
     void (*DrawMinimap)(LPCRECT screen, LPCSTR map);
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
-    void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
+    void (*DrawSprite)(drawSprite_t const *sprite);
     bool (*DrawCursor)(float x, float y, COLOR32 tint);
     bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
     void (*DrawText)(LPCDRAWTEXT drawText);

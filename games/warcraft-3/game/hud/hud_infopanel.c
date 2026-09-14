@@ -1375,7 +1375,9 @@ void G_RefreshResourceBar(LPEDICT ent) {
     gold_rate   = (LONG)ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE];
     lumber_rate = (LONG)ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE];
 
-    if (gold        == ent->client->resourcebar.gold        &&
+    if (ent->client->quest_until <= level.time) ent->client->quest_until = 0;
+    if (ent->client->quest_until == ent->client->resourcebar.quest_until &&
+        gold        == ent->client->resourcebar.gold        &&
         lumber      == ent->client->resourcebar.lumber      &&
         food_u      == ent->client->resourcebar.food_used   &&
         food_c      == ent->client->resourcebar.food_cap    &&
@@ -1388,6 +1390,7 @@ void G_RefreshResourceBar(LPEDICT ent) {
     UI_WriteMinimapFrame();
     UI_WriteEnd(ent);
 
+    ent->client->resourcebar.quest_until = ent->client->quest_until;
     ent->client->resourcebar.gold        = gold;
     ent->client->resourcebar.lumber      = lumber;
     ent->client->resourcebar.food_used   = food_u;
@@ -1396,11 +1399,10 @@ void G_RefreshResourceBar(LPEDICT ent) {
     ent->client->resourcebar.lumber_rate = lumber_rate;
 }
 
-/* Once per server frame, keep every player's resource bar in sync. */
+/* Reserved player edicts are connected clients, not inuse world units. */
 void G_UpdateClientResourceBars(void) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts + i;
-        if (ent->inuse && ent->client)
-            G_RefreshResourceBar(ent);
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = &game.clients[i];
+        if (client->connected) G_RefreshResourceBar(G_GetPlayerEntityByNumber(client->ps.number));
     }
 }

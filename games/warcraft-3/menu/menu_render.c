@@ -889,7 +889,7 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
      * instead of pretending that enlarging its FDF frame scales the MDX. */
     if (anim && anim[0] == '#' && anim[1] == '!' && rect->w > UI_BASE_WIDTH)
         x += (rect->w - UI_BASE_WIDTH) * 0.5f;
-    renderer->DrawSprite(model, anim, x, rect->y);
+    renderer->DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = x, .y = rect->y, .id = frame));
 }
 
 static void UI_DrawFrameOne(LPCFRAMEDEF frame) {

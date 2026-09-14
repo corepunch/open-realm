@@ -9,6 +9,17 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
+static cparticle_t emitted[16];
+static DWORD emit_count;
+cparticle_t *R_SpawnParticle(void) {
+    T_ASSERT(emit_count < 16);
+    emitted[emit_count] = (cparticle_t){ .size_value_scale = 1, .size_time_scale = 1 };
+    return &emitted[emit_count++];
+}
+LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model, DWORD team, DWORD tex, DWORD repl, LPCTEXTURE over) {
+    (void)model; (void)team; (void)tex; (void)repl; (void)over; return NULL;
+}
+
 static char shader_src[16384];
 static RECT backdrop_uv;
 static BOOL backdrop_repeat;
@@ -418,6 +429,28 @@ TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
     T_FEQ(sampled.ambient.x, authored_bgr.z, 0.001f);
     T_FEQ(sampled.ambient.y, authored_bgr.y, 0.001f);
     T_FEQ(sampled.ambient.z, authored_bgr.x, 0.001f);
+}
+
+/* Retail UI PRE2 has fractional sizes, distinct pivots, and Both (2) head/tail emission. */
+TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
+    mdxParticleEmitter_t emitter = { .node.node_id = 0, .LifeSpan = 1, .EmissionRate = 50,
+        .Speed = 0.02f, .FrameFlags = 2, .TailLength = 0.3f, .Time = 0.5f,
+        .Alpha = {255, 255, 0}, .ParticleScaling = {0.01f, 0.004f, 0.002f},
+        .SegmentColor = {1,1,1, 1,1,0, 0,0,0}, .Rows = 1, .Columns = 1, .FilterMode = 1 };
+    VECTOR3 pivot = {0.005f, 0.02f, 0.018f};
+    mdxModel_t model = { .emitters = &emitter, .pivots = &pivot, .num_pivots = 1 };
+    renderEntity_t entity = { .frame = 833, .oldframe = 833 };
+    MATRIX4 matrix;
+    viewDef_t saved = tr.viewDef;
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    tr.viewDef.deltaTime = 20; emit_count = 0;
+    MDLX_RenderParticleEmitters(&entity, &model, &matrix);
+    T_EQ(emit_count, 2);
+    T_FEQ(emitted[0].org.x, pivot.x, 0.00001f);
+    T_FEQ(emitted[0].org.y, pivot.y, 0.00001f);
+    T_FEQ(emitted[0].size[0] * emitted[0].size_value_scale, 0.01f, 0.0001f);
+    T_FEQ(emitted[1].tail.z, 0.006f, 0.00001f);
+    tr.viewDef = saved;
 }
 
 TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {

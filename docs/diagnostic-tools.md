@@ -114,6 +114,8 @@ When investigating animation crop/truncation bugs, the relevant source files are
 
 ## UI Diagnostics
 
+- [Retail WC3 button particles](games/warcraft-3/ui-button-particles.md): autocast/quest skin keys, MDX emitter definitions, demo DLL sprite call sites, and PRE2 count limitations.
+
 - Use `mdxtool --info` first when a UI model itself may be missing or malformed.
 - For startup-menu diagnostics, invoke a concrete menu command directly with `+`. Do not add router-style paths, a generic `ui` console command, or startup cvars for menu routing. Register concrete commands such as `menu_credits` or `menu_options`. Examples:
 	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main +com_frame_limit 1`

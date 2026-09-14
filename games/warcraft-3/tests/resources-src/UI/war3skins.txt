@@ -1,4 +1,5 @@
 [Default]
+QuestChangedParticles=UI\Feedback\QuestButton\UI-QuestButtonOn.mdl
 CommandButtonDisabledArtPath=ReplaceableTextures\CommandButtonsDisabled\
 LoadingProgressBar=UI\Glues\Loading\LoadBar\LoadBar.mdl
 LoadingMeleeBackground=UI\Glues\Loading\Multiplayer\Load-Multiplayer-Random.mdl

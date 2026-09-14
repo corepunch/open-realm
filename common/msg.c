@@ -111,7 +111,7 @@ netField_t entityStateFields[] = {
  */
 netField_t uiFrameFields[] = {
     { NETF(uiFrame_t, parent), NFT_SHORT },
-    { NETF(uiFrame_t, flagsvalue), NFT_SHORT },
+    { NETF(uiFrame_t, flagsvalue), NFT_LONG },
     { NETF(uiFrame_t, points.x[FPP_MIN]), NFT_LONG },
     { NETF(uiFrame_t, points.x[FPP_MID]), NFT_LONG },
     { NETF(uiFrame_t, points.x[FPP_MAX]), NFT_LONG },

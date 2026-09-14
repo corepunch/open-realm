@@ -3,7 +3,6 @@
 
 #include "renderer/r_local.h"
 #include "renderer/r_shader.h"
-#include "renderer/r_trail.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 #define MDX_TEXTURE_PATH_LENGTH 260
@@ -38,8 +37,9 @@ typedef enum {
 } mdxGeoFlags_t;
 
 enum {
-    MODEL_EMITTER_HEAD = 1,
-    MODEL_EMITTER_TAIL = 2
+    BZ_MDX_PARTICLE_HEAD,
+    BZ_MDX_PARTICLE_TAIL,
+    BZ_MDX_PARTICLE_BOTH
 };
 
 enum { BZ_MDX_VERTEX_BUFFER, BZ_MDX_INDEX_BUFFER, BZ_MDX_BUFFER_COUNT };
@@ -300,7 +300,7 @@ typedef struct mdxParticleEmitter_s {
     DWORD FilterMode;
     DWORD Rows;
     DWORD Columns;
-    DWORD FrameFlags; // float???
+    DWORD FrameFlags; /* PRE2 enum: 0 head, 1 tail, 2 both. */
     float TailLength;
     float Time;
     float SegmentColor[9];
@@ -330,8 +330,6 @@ typedef struct mdxParticleEmitter_s {
 
     /* Frame-persistent state — zeroed at load time, survives across frames */
     float accumulator;          /* emission rate accumulator for R_EmitParticles */
-    int emitter_type;           /* MODEL_EMITTER_HEAD (1) or MODEL_EMITTER_TAIL (2), set at load */
-    trailEmitter_t trail;       /* ring buffer for MODEL_EMITTER_TAIL */
 } mdxParticleEmitter_t;
 
 typedef struct mdxGeoset_s {
@@ -369,6 +367,14 @@ typedef struct mdxGeoset_s {
     struct mdxGeoset_s *next;
 } mdxGeoset_t;
 
+typedef struct mdxSprite_s {
+    void const *id, *scope;
+    DWORD time;
+    mdxParticleEmitter_t *emitters;
+    particleScene_t particles;
+    struct mdxSprite_s *next;
+} mdxSprite_t;
+
 typedef struct mdxModel_s {
     DWORD buffers[BZ_MDX_BUFFER_COUNT];
     DWORD version;
@@ -387,6 +393,7 @@ typedef struct mdxModel_s {
     mdxCamera_t *cameras;
     mdxGlobalSequence_t *globalSequences;
     mdxParticleEmitter_t *emitters;
+    mdxSprite_t *sprites;
     mdxAttachment_t *attachments;
     mdxLight_t *lights;
     mdxNode_t *nodes[MDX_MAX_NODES];
@@ -431,7 +438,12 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
 bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection);
 bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light);
 bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
+void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, COLOR32 tint);
+void MDLX_ReleaseSprites(mdxModel_t *model);
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint);
+
+LPCTEXTURE MDLX_GetTexture(mdxModel_t const *, DWORD, DWORD, DWORD, LPCTEXTURE);
+void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, LPCMATRIX4);
 
 #endif

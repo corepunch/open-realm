@@ -1,3 +1,4 @@
+#include "renderer/r_emit.h"
 #ifndef WOW_R_M2_UTILS_H
 #define WOW_R_M2_UTILS_H
 
@@ -74,14 +75,10 @@ static DWORD m2_composite_cache_slot(m2CompositeCacheParams_t *params) {
     return victim;
 }
 
-/* M2 uses fractional, lifetime-normalized scales; encode them without changing the legacy MDX byte/seconds contract. */
+/* M2 and MDX share compact, lifetime-normalized fractional size curves. */
 static void m2_particle_encode_curve(LPCM2PARTICLECURVE curve, cparticle_t *particle) {
-    FLOAT max_value = MAX(curve->value[0], MAX(curve->value[1], curve->value[2]));
-    particle->size_value_scale = max_value > 0.0f ? max_value / 255.0f : 1.0f;
-    FOR_LOOP(i, 3)
-        particle->size[i] = max_value > 0.0f
-            ? (BYTE)MIN(255, MAX(0, (int)(curve->value[i] / max_value * 255.0f + 0.5f))) : 0;
-    particle->size_time_scale = 1.0f / MAX(curve->lifespan, 0.001f);
+    particle->lifespan = curve->lifespan;
+    R_EncodeParticleSize(particle, curve->value);
     particle->midtime = (BYTE)MIN(254, MAX(1, (int)(curve->midpoint * 255.0f + 0.5f)));
 }
 

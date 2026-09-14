@@ -230,3 +230,11 @@ Server-authored WC3 windows serialize stock FDF controls after the FDF tree has 
 `games/warcraft-3/game/hud/hud.c` recognizes the stable stock child-role names used by `EscMenuButtonTemplate` and `EscMenuCheckBoxTemplate` and preserves their `war3skins.txt` keys in the image configstrings. The WC3 client UI resolves those keys for the local player when the configstring is loaded. Normal/pushed/disabled button backdrops, button hover highlight, checkbox normal/pushed/disabled backdrops, and checked/disabled-check highlights all use this path. Custom control child names keep their authored image indexes unchanged.
 
 Do **not** globally defer every decorated FDF texture. That experiment fixed the Alliance root backdrop but also caused unrelated decorated backdrops to arrive with empty image paths, while the embedded control parts still carried the placeholder art. Keep per-player late resolution limited to the stock control roles whose authored skin keys are known.
+
+
+## Foreground model sprites
+
+`UIFLAG_SPRITE_OVERLAY` places an `FT_SPRITE` after the layout's artwork and button highlights; unflagged sprites
+retain their background pass. `uiFrame_t.flagsvalue` uses `NFT_LONG` as of protocol 6 so this and future high bits survive
+both normal layout and window payloads. The sender owns model selection and attachment; the shared client does not
+inspect game command strings to decide whether to draw effects. See [WC3 button particles](../games/warcraft-3/ui-button-particles.md).

@@ -7,13 +7,7 @@
 #include <string.h>
 
 #define MDLX_STACK_DRAW_ORDER 64
-#define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
-float NAME = EMITTER->NAME; \
-if (EMITTER->keytracks.NAME) { \
-    MDLX_GetModelKeytrackValue(MODEL, EMITTER->keytracks.NAME, frame, &NAME); \
-}
-
-static LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
+LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
                                  DWORD teamID,
                                  DWORD textureID,
                                  DWORD replaceableID,
@@ -27,126 +21,6 @@ static LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
                 return overrideTexture;
             }
             return R_FindTextureByID(modeltex->texid);
-    }
-}
-
-static COLOR32 MDLX_GetEmitterColor(mdxParticleEmitter_t const *emitter, DWORD seg) {
-    return (COLOR32) {
-        emitter->SegmentColor[seg*3+0] * 0xff,
-        emitter->SegmentColor[seg*3+1] * 0xff,
-        emitter->SegmentColor[seg*3+2] * 0xff,
-        emitter->Alpha[seg],
-    };
-}
-
-/* Context for the R_EmitParticles spawn callback — carries the evaluated tracks
-   and emitter metadata needed to fill a cparticle_t on each spawn. */
-typedef struct {
-    mdxModel_t const *model; mdxParticleEmitter_t const *emitter;
-    LPCMATRIX4 matrix; DWORD team_id;
-    float speed, varia, lat, grav, life, length, width;
-} mdx_pctx_t;
-
-static void mdx_spawn_particle(void *raw) {
-    mdx_pctx_t *ctx = (mdx_pctx_t *)raw;
-    cparticle_t *p = R_SpawnParticle(); if (!p) return;
-    float r = (float)rand() / (float)RAND_MAX;
-    VECTOR3 origin = {
-        (r - 0.5f) * ctx->length,
-        ((float)rand() / (float)RAND_MAX - 0.5f) * ctx->width,
-        0.0f,
-    };
-    VECTOR3 pivot = { 0, 0, 0 };
-    if (ctx->emitter->node.node_id < (DWORD)ctx->model->num_pivots)
-        pivot = ctx->model->pivots[ctx->emitter->node.node_id];
-    VECTOR3 pivoted = Vector3_add(&origin, &pivot);
-    VECTOR3 dir = FX_GenerateRandomDirection(ctx->lat * (float)M_PI / 180.0f);
-    p->org = Matrix4_multiply_vector3(ctx->matrix, &pivoted);
-    p->vel = Vector3_scale(&dir, ctx->speed + (r - 0.5f) * ctx->varia);
-    p->accel = (VECTOR3){ 0, 0, -ctx->grav };
-    p->lifespan = ctx->life; p->time = 0;
-    p->midtime = ctx->emitter->Time * 0xff;
-    p->texture = MDLX_GetTexture(ctx->model, ctx->team_id, ctx->emitter->TextureID, ctx->emitter->ReplaceableId, NULL);
-    p->blend_mode = MDLX_ParticleBlendMode(ctx->emitter->FilterMode);
-    p->columns = ctx->emitter->Columns; p->rows = ctx->emitter->Rows;
-    p->color[0] = MDLX_GetEmitterColor(ctx->emitter, 0);
-    p->color[1] = MDLX_GetEmitterColor(ctx->emitter, 1);
-    p->color[2] = MDLX_GetEmitterColor(ctx->emitter, 2);
-    p->size[0] = ctx->emitter->ParticleScaling[0];
-    p->size[1] = ctx->emitter->ParticleScaling[1];
-    p->size[2] = ctx->emitter->ParticleScaling[2];
-}
-
-/* Frame-relative accumulator emission via R_EmitParticles — replaces the old
-   whole-second time-anchored loop.  Uses emitter->accumulator to track fractional
-   emission across frames (same pattern as WoW's M2_DrawParticles). */
-static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
-                                   mdxParticleEmitter_t *emitter,
-                                   LPCMATRIX4 modelMatrix,
-                                   float frame,
-                                   DWORD teamID)
-{
-    GET_PARTICLE_ANIM_PARAM(model, emitter, EmissionRate);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Speed);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Variation);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Latitude);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Gravity);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Width);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Length);
-    if (EmissionRate <= 0.0f) return;
-    if (emitter->node.node_id >= MDX_MAX_NODES) return;
-    MATRIX4 matrix;
-    Matrix4_multiply(modelMatrix, &node_matrices[emitter->node.node_id], &matrix);
-    mdx_pctx_t ctx = { model, emitter, &matrix, teamID,
-        Speed, Variation, Latitude, Gravity, emitter->LifeSpan, Length, Width };
-    R_EmitParticles(EmissionRate, &emitter->accumulator, tr.viewDef.deltaTime, mdx_spawn_particle, &ctx);
-}
-
-/* MODEL_EMITTER_TAIL — emits a trail of billboard edges that follow the emitter
-   node.  The trail ring buffer is advanced each frame via R_UpdateTrail; each
-   active edge spawns one cparticle_t with age-based alpha fade.
-   Uses the common engine trail helper (renderer/r_trail.h), the same ring-buffer
-   pattern that drives WoW's M2_DrawRibbons. */
-static void MDLX_RenderTailEmitter(mdxModel_t const *model,
-                                   mdxParticleEmitter_t *emitter,
-                                   LPCMATRIX4 modelMatrix,
-                                   float frame,
-                                   DWORD teamID)
-{
-    GET_PARTICLE_ANIM_PARAM(model, emitter, EmissionRate);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Speed);
-    GET_PARTICLE_ANIM_PARAM(model, emitter, Gravity);
-    if (EmissionRate <= 0.0f || emitter->TailLength <= 0.0f) {
-        emitter->trail.count = 0; emitter->trail.acc = 0.0f; return;
-    }
-    if (emitter->node.node_id >= MDX_MAX_NODES) return;
-    MATRIX4 matrix;
-    Matrix4_multiply(modelMatrix, &node_matrices[emitter->node.node_id], &matrix);
-    VECTOR3 spine = Matrix4_multiply_vector3(&matrix, &(VECTOR3){ 0, 0, 0 });
-    FLOAT dt = (FLOAT)tr.viewDef.deltaTime / 1000.0f;
-    COLOR32 c0 = MDLX_GetEmitterColor(emitter, 0);
-    VECTOR3 col = { c0.r / 255.0f, c0.g / 255.0f, c0.b / 255.0f };
-    R_UpdateTrail(&emitter->trail, spine, col, c0.a / 255.0f,
-                  emitter->TailLength, EmissionRate, dt);
-    LPCTEXTURE tex = MDLX_GetTexture(model, teamID, emitter->TextureID, emitter->ReplaceableId, NULL);
-    for (int e = 0; e < emitter->trail.count; e++) {
-        int idx = (emitter->trail.head - emitter->trail.count + e + MAX_TRAIL_EDGES) % MAX_TRAIL_EDGES;
-        trailEdge_t *re = &emitter->trail.edges[idx];
-        cparticle_t *fx = R_SpawnParticle(); if (!fx) break;
-        re->world_pos.z -= Gravity * dt * dt * 0.5f;
-        fx->texture = tex; fx->org = re->world_pos;
-        fx->blend_mode = MDLX_ParticleBlendMode(emitter->FilterMode);
-        fx->vel = (VECTOR3){ 0, 0, 0 };
-        fx->accel = (VECTOR3){ 0, 0, -Gravity };
-        FLOAT fade = 1.0f - MIN(1.0f, re->age / emitter->TailLength);
-        COLOR32 fc = c0; fc.a = (BYTE)((FLOAT)fc.a * fade + 0.5f);
-        fx->color[0] = fx->color[1] = fx->color[2] = fc;
-        fx->size[0] = emitter->ParticleScaling[0];
-        fx->size[1] = emitter->ParticleScaling[1];
-        fx->size[2] = emitter->ParticleScaling[2];
-        fx->midtime = 0x80;
-        fx->columns = emitter->Columns; fx->rows = emitter->Rows;
-        fx->time = 0.0f; fx->lifespan = MAX(0.05f, emitter->TailLength - re->age);
     }
 }
 
@@ -776,41 +650,6 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
         ri.MemFree(drawOrder);
     }
 }
-
-static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
-    /*
-     * Dead destructable remains are marked RF_NOT_SELECTABLE.  While their
-     * death sequence is advancing oldframe != frame, so the destruction
-     * emitters remain active.  tree_decay1() holds the final frame once the
-     * death sequence finishes; after the next snapshot oldframe == frame.
-     *
-     * Do not keep evaluating/emitting particles indefinitely from that held
-     * final death frame. Existing particles remain in the particle system and
-     * expire normally.
-     */
-    if ((entity->flags & RF_NOT_SELECTABLE) &&
-        entity->oldframe == entity->frame) {
-        return;
-    }
-    float const frame = LerpNumber(entity->oldframe, entity->frame, tr.viewDef.lerpfrac);
-
-    FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
-        float visibility = 1.0f, rate = emitter->EmissionRate;
-
-        if (emitter->keytracks.Visibility) {
-            MDLX_GetModelKeytrackValue(model, emitter->keytracks.Visibility, entity->frame, &visibility);
-            if (visibility < EPSILON)
-                continue;
-        }
-        if (emitter->keytracks.EmissionRate)
-            MDLX_GetModelKeytrackValue(model, emitter->keytracks.EmissionRate, frame, &rate);
-        if (emitter->emitter_type == MODEL_EMITTER_TAIL)
-            MDLX_RenderTailEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
-        else
-            MDLX_RenderHeadEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
-    }
-}
-
 
 static int MDLX_CollectModelLights(mdxModel_t const *model,
                                    LPCMATRIX4 modelMatrix,

@@ -309,6 +309,7 @@ void UI_ShowQuests(LPEDICT ent) {
     LPCQUEST quest = NULL;
 
     if (!ent || !ent->client) return;
+    ent->client->quest_until = 0;
     FOR_EACH_QUEST(q) {
         if (q->required && QuestIsVisible(q)) { quest = q; break; }
     }

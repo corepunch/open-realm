@@ -707,8 +707,8 @@ bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return MDLX_SetEntityAnimationFrame(model, anim, entity);
 }
 
-void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
-    MDLX_DrawSprite(model, anim, x, y);
+void R_DrawSprite(drawSprite_t const *sprite) {
+    MDLX_DrawSpriteInstance(sprite, COLOR32_WHITE);
 }
 
 /* Warcraft III can replace the platform cursor with its authored animated MDX cursor. */

@@ -14,7 +14,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 5 // version; entity origins and selection radii retain world-unit float precision
+#define BZ_PROTOCOL_VERSION 6 // version; UI flags retain all 32 bits, including sprite overlay ordering
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;

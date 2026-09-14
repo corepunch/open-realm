@@ -434,6 +434,7 @@ struct client_s {
     BOOL cheat_instant_kill; /* developer cheat: owner damage lethally hits units/buildings/destructables */
     DWORD modal_flags;
     BOOL quest_dialog_open;
+    DWORD quest_until; /* FlashQuestDialogButton deadline in simulation milliseconds. */
     menu_t menu;
     struct clientCamera_s {
         CAMERASETUP state;
@@ -466,6 +467,7 @@ struct client_s {
         LONG food_cap;
         LONG gold_rate;
         LONG lumber_rate;
+        DWORD quest_until;
     } resourcebar;
     /* Persistent Hero/idle-worker HUD is rebuilt only after gameplay marks it
      * dirty. last_idle_worker is the cycling cursor, not a per-frame cache. */

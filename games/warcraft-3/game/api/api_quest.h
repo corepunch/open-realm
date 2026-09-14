@@ -107,11 +107,20 @@ DWORD DefeatConditionSetDescription(LPJASS j) {
     //LPCSTR description = jass_checkstring(j, 2);
     return 0;
 }
+/* Blizzard.j requests this per recipient; MiscData owns the notification timeout. */
 DWORD FlashQuestDialogButton(LPJASS j) {
-    /* TODO: the server-authored frame wire does not currently serialize the
-     * stock button pulse/highlight state.  Do not fake the effect with quest
-     * state or an unrelated HUD flag. */
+    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "QuestIndicatorTimeout", "QuestIndicatorTimeout");
+    FLOAT seconds;
     (void)j;
+    if (!value || sscanf(value, "%f", &seconds) != 1 || !isfinite(seconds) || seconds <= 0) {
+        fprintf(stderr, "WC3: missing or invalid QuestIndicatorTimeout\n");
+        return 0;
+    }
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = &game.clients[i];
+        if (!currentplayer || client == PLAYER_CLIENT(currentplayer))
+            client->quest_until = level.time + (DWORD)(seconds * 1000.0f);
+    }
     return 0;
 }
 DWORD ForceQuestDialogUpdate(LPJASS j) {

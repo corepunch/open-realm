@@ -43,14 +43,40 @@ static struct {
 cparticle_t *active_particles, *free_particles;
 cparticle_t particles[MAX_PARTICLES];
 int cl_numparticles = MAX_PARTICLES;
+static DWORD particle_generation;
 
 void R_ClearParticles(void) {
+    particle_generation++;
     free_particles = &particles[0];
     active_particles = NULL;
     FOR_LOOP(i, cl_numparticles) {
         particles[i].next = &particles[i+1];
     }
     particles[cl_numparticles-1].next = NULL;
+}
+
+/* Reuse the particle pool while keeping independent views out of each other's draw/update lists. */
+cparticle_t *R_BeginParticleScene(particleScene_t *scene) {
+    cparticle_t *previous = active_particles;
+    active_particles = scene->generation == particle_generation ? scene->active : NULL;
+    scene->generation = particle_generation;
+    return previous;
+}
+
+void R_EndParticleScene(particleScene_t *scene, cparticle_t *previous) {
+    scene->active = active_particles;
+    active_particles = previous;
+}
+
+/* Pool resets invalidate retained scene pointers without walking already recycled particles. */
+void R_ClearParticleScene(particleScene_t *scene) {
+    if (scene->generation == particle_generation) {
+        while (scene->active) {
+            cparticle_t *p = scene->active;
+            scene->active = p->next; p->next = free_particles; free_particles = p;
+        }
+    }
+    *scene = (particleScene_t){0};
 }
 
 cparticle_t *R_SpawnParticle(void) {
@@ -100,7 +126,7 @@ static const shader_desc_t sd_particle = {
         "  vec3 left = cameraLeft * a_size;\n"
         "  vec3 up = normalize(vec3(m[0][1], m[1][1], m[2][1])) * a_size;\n"
         "  vec3 pos;\n"
-        "  if (dot(a_tail, a_tail) > 0.0001) {\n"
+        "  if (dot(a_tail, a_tail) > 0.0) {\n"
         "    vec3 point = a_position - a_tail * (1.0 - a_axis.y);\n"
         "    vec3 side = cross(normalize(a_tail), u_eye - point);\n"
         "    float sideLength = length(side);\n"
@@ -218,6 +244,10 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
     particles_resources.shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     particles_resources.shader.state.eye = tr.viewDef.camerastate[0].eye;
     particles_resources.shader.state.textureMatrix = tr.viewDef.textureMatrix;
+#ifdef USE_FOGOFWAR
+    R_Call(glActiveTexture, GL_TEXTURE2);
+    R_Call(glBindTexture, GL_TEXTURE_2D, (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : R_GetFogOfWarTexture());
+#endif
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, (texture?texture:particles_resources.texture)->texid);
     particles_resources.shader.state.alphaKey = blend_mode == BLEND_MODE_ALPHAKEY;

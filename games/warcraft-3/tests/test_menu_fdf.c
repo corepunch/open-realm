@@ -238,9 +238,9 @@ static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
     }
 }
 
-static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
-    (void)model;
-    (void)y;
+static void test_draw_sprite(drawSprite_t const *sprite) {
+    LPCSTR anim = sprite->anim;
+    FLOAT x = sprite->x;
     if (captured_sprite_calls < 2) {
         captured_sprite_x[captured_sprite_calls] = x;
         snprintf(captured_sprite_anim[captured_sprite_calls], sizeof(captured_sprite_anim[0]), "%s", anim ? anim : "");

@@ -333,3 +333,12 @@ carry `uiGlueTextButton_t` state. The client renderer rejects a short or missing
 button payload rather than dereferencing it. This preserves Blizzard's
 normal/pushed/disabled artwork and prevents malformed control frames from
 crashing the client.
+
+
+## Quest-button notification
+
+`FlashQuestDialogButton` now requests the skin's `QuestChangedParticles` MDX overlay for the recipient, for the
+`UI\MiscData.txt` timeout (stock: 10 seconds). Repeating it renews the deadline; opening Quests acknowledges it.
+Quest mutations do not implicitly flash: the stock `QuestMessageBJ` call path owns that request.
+See [retail UI button particles](ui-button-particles.md) for the native/DLL evidence, sprite lifecycle, protocol change,
+regressions, and bounded visual verification.

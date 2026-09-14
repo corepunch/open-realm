@@ -604,11 +604,8 @@ bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return M2_SetEntitySequenceFrame(model->m2, anim, entity);
 }
 
-void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
-    (void)model;
-    (void)anim;
-    (void)x;
-    (void)y;
+void R_DrawSprite(drawSprite_t const *sprite) {
+    (void)sprite;
 }
 
 /* WoW context cursors are native SDL cursors owned by cl_input.c. */

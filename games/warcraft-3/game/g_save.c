@@ -508,6 +508,7 @@ static field_t const client_fields[] = {
      * an Esc-menu save can reload a client as paused without a live window. */
     F(client_s, modal_flags, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, quest_dialog_open, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, quest_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, menu, F_STRUCT, 1, client_menu_fields),
     F(client_s, camera, F_STRUCT, 1, client_camera_fields),
     F(client_s, rally_indicator, F_IGNORE, 0, FIELD_RUNTIME),

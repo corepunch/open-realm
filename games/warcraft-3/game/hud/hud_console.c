@@ -316,6 +316,28 @@ static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
     UI_WriteProxyFrameToParent(&listener, NULL, 0, parent);
 }
 
+/* Native attention art has no FDF frame; anchor its authored model to the real button. */
+static void UI_WriteQuestIndicator(LPGAMECLIENT client) {
+    DWORD parent = UI_GetWrittenFrameNumber(hud.upper.UpperButtonBarQuestsButton);
+    LPCSTR model;
+    uiFrame_t frame = { .flags.type = FT_SPRITE, .color = COLOR32_WHITE, .text = "Stand" };
+    if (!client || client->quest_until <= level.time || !parent) return;
+    model = Theme_PlayerString(client, "QuestChangedParticles", NULL);
+    if (!model || !*model) {
+        fprintf(stderr, "WC3: missing QuestChangedParticles skin model\n");
+        return;
+    }
+    frame.tex.index = gi.ModelIndex(model);
+    if (!frame.tex.index) {
+        fprintf(stderr, "WC3: unable to register quest indicator %s\n", model);
+        return;
+    }
+    frame.flagsvalue |= UIFLAG_SPRITE_OVERLAY;
+    UI_SetFramePoint(&frame.points.x[FPP_MIN], FPP_MIN, UI_PARENT, 0, false);
+    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MAX, UI_PARENT, 0, true);
+    UI_WriteProxyFrameToParent(&frame, NULL, 0, parent);
+}
+
 void UI_WriteMinimapFrame(void) {
     uiFrame_t frame;
     memset(&frame, 0, sizeof(frame));
@@ -378,6 +400,7 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
 
     UI_WriteFrameWithChildren(hud.console.ConsoleUI, NULL);
     UI_WriteTimeOfDayIndicator(client);
+    UI_WriteQuestIndicator(client);
     /* Resource-bar fields are present even with no unit selected, so the
      * console layer must carry its own standard tooltip presentation frame. */
     UI_WriteTooltipFrame();

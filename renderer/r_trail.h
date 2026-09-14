@@ -1,7 +1,7 @@
 #ifndef r_trail_h
 #define r_trail_h
 
-/* Ring-buffer trail emitter — shared by WoW ribbons and WC3 MODEL_EMITTER_TAIL.
+/* Ring-buffer trail emitter used by WoW ribbons.
    The caller manages a per-emitter trailEmitter_t, advances it each frame with
    R_UpdateTrail, then spawns one cparticle_t per active edge for billboard
    rendering through the engine particle pool. */

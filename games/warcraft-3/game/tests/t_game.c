@@ -1647,6 +1647,42 @@ TEST(wc3_game, hud_authored_row_stride_uses_template_height) {
 }
 
 
+static uiFrame_t quest_sprite;
+static DWORD quest_sprite_count;
+static PATHSTR quest_model;
+static int quest_test_model(LPCSTR name) { snprintf(quest_model, sizeof(quest_model), "%s", name); return 77; }
+static void quest_test_write(pfWriteType_t type, void const *value) {
+    LPCUIFRAME frame = value;
+    if (type == PF_UIFRAME && frame->flags.type == FT_SPRITE) { quest_sprite = *frame; quest_sprite_count++; }
+}
+
+/* Serialize the stock skin model as a passive foreground sprite, relative to the authored quest button. */
+TEST(wc3_game, hud_quest_indicator_uses_skin_anchor_and_timeout) {
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.ModelIndex) old_model = gi.ModelIndex;
+    LPFRAMEDEF old_button = hud.upper.UpperButtonBarQuestsButton;
+    DWORD oldtime = level.time;
+    LPGAMECLIENT client = &game.clients[0];
+    FRAMEDEF button = { .Type = FT_FRAME };
+    gi.Write = quest_test_write; gi.ModelIndex = quest_test_model;
+    hud.upper.UpperButtonBarQuestsButton = &button;
+    UI_ResetFrameWriteList(); UI_WriteFrame(&button);
+    level.time = 100; client->quest_until = 200; quest_sprite_count = 0;
+    UI_WriteQuestIndicator(client);
+    T_EQ(quest_sprite_count, 1);
+    T_STREQ(quest_model, "UI\\Feedback\\QuestButton\\UI-QuestButtonOn.mdl");
+    T_EQ(quest_sprite.tex.index, 77); T_STREQ(quest_sprite.text, "Stand");
+    T_ASSERT(quest_sprite.flagsvalue & UIFLAG_SPRITE_OVERLAY);
+    T_EQ(quest_sprite.parent, UI_GetWrittenFrameNumber(&button));
+    T_EQ(quest_sprite.points.y[FPP_MIN].targetPos, FPP_MAX);
+    T_NULL(quest_sprite.onclick);
+    level.time = 200;
+    UI_WriteQuestIndicator(client); T_EQ(quest_sprite_count, 1);
+    client->quest_until = 0; level.time = oldtime;
+    gi.Write = old_write; gi.ModelIndex = old_model; hud.upper.UpperButtonBarQuestsButton = old_button;
+    UI_ResetFrameWriteList();
+}
+
 TEST(wc3_game, hud_quest_visibility_requires_enabled_and_discovered) {
     QUEST quest = { 0 };
 

@@ -945,7 +945,7 @@ void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
         snprintf(phased_anim, sizeof(phased_anim), "%.*s@%.6f", (int)base_len, anim, phase);
         anim = phased_anim;
     }
-    re.DrawSprite(model, anim, screen->x, screen->y);
+    re.DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = screen->x, .y = screen->y, .id = frame, .scope = layout_current_window ? layout_current : (void *)(uintptr_t)(layout_current_layer + 1)));
 }
 
 /* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
@@ -1325,7 +1325,7 @@ void SCR_LayoutDrawOverlay(HANDLE layout) {
     layout_current = layout;
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME f = SCR_Frame(i);
-        if (f && f->flags.type == FT_SPRITE) SCR_LayoutDrawFrame(f);
+        if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME f = SCR_Frame(i);
@@ -1335,6 +1335,10 @@ void SCR_LayoutDrawOverlay(HANDLE layout) {
         LPCUIFRAME f = SCR_Frame(i);
         if (f && (f->flags.type == FT_GLUETEXTBUTTON || f->flags.type == FT_GLUEBUTTON))
             SCR_LayoutDrawGlueTextButtonHighlight(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME f = SCR_Frame(i);
+        if (f && f->flags.type == FT_SPRITE && (f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
 }
 

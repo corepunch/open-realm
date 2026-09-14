@@ -44,6 +44,7 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawOverlay(HANDLE layout);
 void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 BOOL SCR_LayoutModalActive(void);
@@ -123,8 +124,8 @@ static LPTEXTURE capture_load_texture(LPCSTR name) {
     (void)name; test_tex_loads++; return (LPTEXTURE)(uintptr_t)test_tex_loads;
 }
 static void capture_release_texture(LPTEXTURE texture) { (void)texture; test_tex_releases++; }
-static void capture_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
-    (void)model; (void)x; (void)y;
+static void capture_sprite(drawSprite_t const *sprite) {
+    LPCSTR anim = sprite->anim;
     test_sprite_draws++;
     snprintf(test_sprite_anim, sizeof(test_sprite_anim), "%s", anim ? anim : "");
 }
@@ -3198,6 +3199,51 @@ TEST(net, keepalive_preserves_loading_state_and_continues_packet) {
 }
 
 /* Preserve the high preview flag across the actual wire codec and client draw dispatch. */
+static int sprite_order[3], sprite_order_count;
+static void capture_sprite_order(drawSprite_t const *sprite) {
+    if (sprite_order_count < 3) sprite_order[sprite_order_count++] = atoi(sprite->anim + 1);
+}
+static void capture_image_order(LPCTEXTURE tex, LPCRECT rect, LPCRECT uv, COLOR32 color) {
+    (void)tex; (void)rect; (void)uv; (void)color;
+    if (sprite_order_count < 3) sprite_order[sprite_order_count++] = 2;
+}
+
+/* Foreground sprites must be drawn after artwork regardless of frame serialization order. */
+TEST(client_layout, sprite_overlay_draws_after_button_artwork) {
+    BYTE data[1024];
+    sizeBuf_t msg = make_msg_buf(data, sizeof(data));
+    uiFrame_t empty = {0}, frames[3] = {
+        { .number = 1, .flags.type = FT_SPRITE, .text = "#1" },
+        { .number = 2, .flags.type = FT_LOADING_BAR },
+        { .number = 3, .flags.type = FT_SPRITE, .text = "#3" },
+    };
+    test_client_stubs_init();
+    __typeof__(re.DrawSprite) old_sprite = re.DrawSprite;
+    __typeof__(re.DrawImage) old_image = re.DrawImage;
+    frames[0].flagsvalue |= UIFLAG_SPRITE_OVERLAY;
+    MSG_WriteByte(&msg, LAYER_CONSOLE);
+    FOR_LOOP(i, 3) { MSG_WriteDeltaUIFrame(&msg, &empty, &frames[i], true); MSG_WriteByte(&msg, 0); }
+    MSG_WriteLong(&msg, 0); MSG_WriteShort(&msg, 0); msg.readcount = 0;
+    CL_ParseLayout(&msg);
+    re.DrawSprite = capture_sprite_order; re.DrawImage = capture_image_order; sprite_order_count = 0;
+    SCR_Clear(cl.layout[LAYER_CONSOLE]);
+    SCR_LayoutDrawOverlay(cl.layout[LAYER_CONSOLE]);
+    T_EQ(sprite_order_count, 3); T_EQ(sprite_order[0], 3); T_EQ(sprite_order[1], 2); T_EQ(sprite_order[2], 1);
+    re.DrawSprite = old_sprite; re.DrawImage = old_image;
+}
+
+TEST(net, sprite_overlay_survives_layout_delta) {
+    BYTE data[256];
+    sizeBuf_t msg = make_msg_buf(data, sizeof(data));
+    UIFRAME empty = {0}, input = { .number = 1, .flags.type = FT_SPRITE }, output = {0};
+    DWORD bits;
+    input.flagsvalue |= UIFLAG_SPRITE_OVERLAY;
+    MSG_WriteDeltaUIFrame(&msg, &empty, &input, true);
+    DWORD num = MSG_ReadEntityBits(&msg, &bits);
+    MSG_ReadDeltaUIFrame(&msg, &output, num, bits);
+    T_EQ(output.flagsvalue, input.flagsvalue);
+}
+
 TEST(net, loading_minimap_dispatches_static_map_after_delta_decode) {
     BYTE data[256];
     sizeBuf_t msg = make_msg_buf(data, sizeof(data));

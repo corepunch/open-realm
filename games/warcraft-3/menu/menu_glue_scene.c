@@ -300,7 +300,7 @@ void UI_DrawGlueScene(void) {
     }
 
     if (scene.top_left_panel && scene.layers[UI_GLUE_LEFT].current.panel)
-        renderer->DrawSprite(scene.top_left_panel, UI_GlueLayerAnimation(&scene.layers[UI_GLUE_LEFT], left_anim), 0.0f, UI_BASE_HEIGHT);
+        renderer->DrawSprite(&MAKE(drawSprite_t, .model = scene.top_left_panel, .anim = UI_GlueLayerAnimation(&scene.layers[UI_GLUE_LEFT], left_anim), .y = UI_BASE_HEIGHT, .id = &scene.layers[UI_GLUE_LEFT]));
     if (scene.top_right_panel && scene.layers[UI_GLUE_RIGHT].current.panel)
-        renderer->DrawSprite(scene.top_right_panel, UI_GlueLayerAnimation(&scene.layers[UI_GLUE_RIGHT], right_anim), right_offset, UI_BASE_HEIGHT);
+        renderer->DrawSprite(&MAKE(drawSprite_t, .model = scene.top_right_panel, .anim = UI_GlueLayerAnimation(&scene.layers[UI_GLUE_RIGHT], right_anim), .x = right_offset, .y = UI_BASE_HEIGHT, .id = &scene.layers[UI_GLUE_RIGHT]));
 }

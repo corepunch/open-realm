@@ -353,7 +353,7 @@ void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line, LPVECTOR3 intersection);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
-void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
+void R_DrawSprite(drawSprite_t const *sprite);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
 void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
@@ -476,6 +476,14 @@ DWORD R_GetFogOfWarTexture(void);
 DWORD R_GetMinimapFogOfWarTexture(void);
 
 // r_particles.c
+typedef struct {
+    cparticle_t *active;
+    DWORD generation;
+} particleScene_t;
+
+cparticle_t *R_BeginParticleScene(particleScene_t *scene);
+void R_EndParticleScene(particleScene_t *scene, cparticle_t *previous);
+void R_ClearParticleScene(particleScene_t *scene);
 void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);
