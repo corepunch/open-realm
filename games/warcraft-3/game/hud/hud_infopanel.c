@@ -923,8 +923,14 @@ static BOOL UI_UsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
         return false;
     if (!G_UnitCanControl(viewer, unit))
         return false;
-    return unit->construction.active || unit->build != NULL;
+    return unit->construction.active || G_BuildingUpgradeActive(unit) || unit->build != NULL;
 }
+
+#ifdef BZ_TESTS
+BOOL UI_TestUsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
+    return UI_UsesBuildingQueuePanel(viewer, unit);
+}
+#endif
 
 void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
     if (!ent->client) return;

@@ -144,6 +144,9 @@ void UI_WriteMultiselect(LPEDICT *ents, DWORD count, LPGAMECLIENT viewer);
 void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count);
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count);
 void UI_WriteSelectedPortraitLayer(LPEDICT ent);
+#ifdef BZ_TESTS
+BOOL UI_TestUsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit);
+#endif
 
 /* Quests (hud_quests.c) */
 DWORD UI_QuestIndex(LPCQUEST quest);

@@ -332,8 +332,10 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
     T_EQ(G_GetBuildingUpgradeCommandState(client, building, target_id, reason, sizeof(reason)),
          BUILD_COMMAND_AVAILABLE);
 
+    T_ASSERT(!UI_TestUsesBuildingQueuePanel(client, building));
     T_ASSERT(G_StartBuildingUpgrade(building, target_id));
     T_ASSERT(G_BuildingUpgradeActive(building));
+    T_ASSERT(UI_TestUsesBuildingQueuePanel(client, building));
     T_EQ(building->class_id, source_id);
     T_EQ(building->research.upgrade, target_id);
     T_FEQ(building->research.duration, 140.0f, 0.001f);
@@ -348,6 +350,7 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
 
     T_ASSERT(G_CancelBuildingUpgrade(building));
     T_ASSERT(!G_BuildingUpgradeActive(building));
+    T_ASSERT(!UI_TestUsesBuildingQueuePanel(client, building));
     T_EQ(building->class_id, source_id);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 500);
