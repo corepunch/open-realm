@@ -101,6 +101,10 @@ static BOOL filter_sight(LPCEDICT ent) {
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;
+    /* Warsmash excludes invulnerable units from automatic attack acquisition;
+     * explicit orders still perform their own target validation. */
+    if (ent->invulnerable)
+        return false;
     if (S_UnitAbilityEvent((LPEDICT)ent, A_NO_ACQUIRE))
         return false;
     if (ent->runtime.flags & UNIT_BALANCE_BUILDING)

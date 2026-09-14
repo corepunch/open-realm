@@ -283,6 +283,21 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
     G_UpdateTimeOfDay();
 }
 
+TEST(wc3_combat, automatic_acquisition_ignores_invulnerable_units) {
+    LPEDICT target, attacker;
+
+    setup_test_world();
+    target = make_combat_unit(MAKEFOURCC('u','a','c','o'), 420.0f, 0.0f, 0.0f);
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 250.0f, 50.0f, 0.0f);
+    target->s.player = 6; attacker->s.player = 1;
+    target->invulnerable = true;
+    gi.LinkEntity(target); gi.LinkEntity(attacker);
+
+    T_NULL(G_FindNearestEnemy(attacker, 128.0f));
+    target->invulnerable = false;
+    T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == target);
+}
+
 TEST(wc3_combat, tdamage_lethal_calls_die) {
     LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
