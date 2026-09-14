@@ -2382,7 +2382,7 @@ TEST(net, entity_delta_preserves_wc3_resource_placement_flags) {
     entityState_t to = {
         .number = 9,
         .model = 1,
-        .flags = EF_RESOURCE_GOLD_MINE | EF_RESOURCE_RETURN_GOLD,
+        .flags = EF_RESOURCE_GOLD_SOURCE | EF_RESOURCE_GOLD_RETURN,
     };
     entityState_t out = { 0 };
     DWORD bits = 0;
@@ -2394,8 +2394,8 @@ TEST(net, entity_delta_preserves_wc3_resource_placement_flags) {
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
 
     T_EQ(number, 9);
-    T_ASSERT(out.flags & EF_RESOURCE_GOLD_MINE);
-    T_ASSERT(out.flags & EF_RESOURCE_RETURN_GOLD);
+    T_ASSERT(out.flags & EF_RESOURCE_GOLD_SOURCE);
+    T_ASSERT(out.flags & EF_RESOURCE_GOLD_RETURN);
 }
 
 /* Hover-health eligibility occupies the first bit above the legacy byte-sized

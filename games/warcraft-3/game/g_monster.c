@@ -443,8 +443,8 @@ void SP_SpawnUnit(LPEDICT self) {
     G_InitStockSlots(self);
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
-    if (S_UnitTypeIsGoldMine(self->class_id)) self->s.flags |= EF_RESOURCE_GOLD_MINE;
-    if (S_UnitTypeReturnsGold(self->class_id)) self->s.flags |= EF_RESOURCE_RETURN_GOLD;
+    if (S_UnitTypeIsGoldMine(self->class_id)) self->s.flags |= EF_RESOURCE_GOLD_SOURCE;
+    if (S_UnitTypeReturnsGold(self->class_id)) self->s.flags |= EF_RESOURCE_GOLD_RETURN;
     if (!d->moveTypeName || strcmp(d->moveTypeName, "float")) self->s.flags |= EF_GROUND_CONFORM;
     G_NormalizeModelFilename(ui->modelFile, model_filename, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);

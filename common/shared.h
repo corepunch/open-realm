@@ -222,11 +222,11 @@ enum {
     FLAG(EF_BUILDING, 10),      /* WC3 structure presentation metadata */
     FLAG(EF_GROUND_CONFORM, 11), /* presentation: conform entity Z to authored model ground surfaces */
     FLAG(EF_GROUND_SURFACE, 12), /* presentation: entity model provides an authored support surface */
-    FLAG(EF_RESOURCE_GOLD_MINE, 13), /* WC3: unit data carries a Gold Mine (Agld-class) ability */
-    FLAG(EF_RESOURCE_RETURN_GOLD, 14), /* WC3: unit data accepts returned gold (Argd/Argl/Artn) */
+    FLAG(EF_RESOURCE_GOLD_SOURCE, 13), /* resource source presentation metadata */
+    FLAG(EF_RESOURCE_GOLD_RETURN, 14), /* gold-return destination presentation metadata */
 };
 
-#define WC3_GOLD_MINE_BUILD_MIN_DISTANCE 512.0f /* world units, centre-to-centre */
+#define RESOURCE_GOLD_SOURCE_MIN_DISTANCE 512.0f /* world units; minimum source-to-destination build distance */
 
 enum {
     EFX_MODEL = 1 << 0,

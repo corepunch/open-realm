@@ -352,10 +352,10 @@ static BOOL CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t c
     return dx * dx + dy * dy < state->collision * state->collision;
 }
 
-static BOOL CL_BuildCursorTooCloseToGoldMine(LPCVECTOR3 origin) {
-    FLOAT const min_dist_sq = WC3_GOLD_MINE_BUILD_MIN_DISTANCE * WC3_GOLD_MINE_BUILD_MIN_DISTANCE;
+static BOOL CL_BuildCursorTooCloseToGoldSource(LPCVECTOR3 origin) {
+    FLOAT const min_dist_sq = RESOURCE_GOLD_SOURCE_MIN_DISTANCE * RESOURCE_GOLD_SOURCE_MIN_DISTANCE;
 
-    if (!origin || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN_GOLD)) return false;
+    if (!origin || !(cl.cursorEntity->flags & EF_RESOURCE_GOLD_RETURN)) return false;
     FOR_LOOP(i, cl.num_active) {
         DWORD const number = cl.active_entities[i];
         entityState_t const *state;
@@ -363,7 +363,7 @@ static BOOL CL_BuildCursorTooCloseToGoldMine(LPCVECTOR3 origin) {
 
         if (!number || number >= MAX_CLIENT_ENTITIES) continue;
         state = &cl.ents[number].current;
-        if (!(state->flags & EF_RESOURCE_GOLD_MINE) || (state->flags & EF_NOT_SELECTABLE)) continue;
+        if (!(state->flags & EF_RESOURCE_GOLD_SOURCE) || (state->flags & EF_NOT_SELECTABLE)) continue;
         dx = state->origin.x - origin->x;
         dy = state->origin.y - origin->y;
         if (dx * dx + dy * dy < min_dist_sq) return true;
@@ -383,7 +383,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
     FLOAT const half_height = height * cell_size * 0.5f;
     DWORD const first_rect = view_state.num_splat_rects;
     DWORD const remaining = MAX_RENDER_SPLAT_RECTS - first_rect;
-    BOOL const mine_blocked = CL_BuildCursorTooCloseToGoldMine(origin);
+    BOOL const mine_blocked = CL_BuildCursorTooCloseToGoldSource(origin);
 
     /* Zero preview flags deliberately suppress build-on-target structures until
      * the client receives enough parent-target data to colour them truthfully. */
