@@ -307,6 +307,24 @@ TEST(wc3_unit, die_emits_registered_death_sound) {
     T_EQ(ent->sound.world_pending, 23);
 }
 
+TEST(wc3_unit, die_is_one_shot_after_dead_monster_flag) {
+    reset_test_entities();
+    LPEDICT ent = make_unit(0, 0);
+    ent->sound.death = 23;
+
+    unit_die(ent, NULL);
+    T_ASSERT(ent->svflags & SVF_DEADMONSTER);
+
+    /* A second lethal resolution must not replay death-side effects such as
+     * sounds/events/loot-trigger publication. */
+    ent->sound.world_pending = 0;
+    ent->sound.world_pending_event = 0;
+    unit_die(ent, NULL);
+
+    T_EQ(ent->sound.world_pending, 0);
+    T_EQ(ent->sound.world_pending_event, 0);
+}
+
 TEST(wc3_unit, die_raises_dead_monster_flag) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);

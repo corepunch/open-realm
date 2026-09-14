@@ -187,7 +187,7 @@ int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     BOOL instant_kill;
 
-    if (!target || target->invulnerable) {
+    if (!target || target->invulnerable || M_IsDead(target)) {
         return;
     }
     /* Instant-kill follows the same combat path for units and attackable destructables; the old

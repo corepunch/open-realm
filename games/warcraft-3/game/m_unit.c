@@ -127,7 +127,10 @@ void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.ma
 
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
-    DWORD const selected_mask = self ? self->selected : 0;
+    DWORD selected_mask;
+
+    if (!self || (self->svflags & SVF_DEADMONSTER)) return;
+    selected_mask = self->selected;
 
     S_AvatarExpire(self);
     /* A dead polymorphed unit must not later restore as a living unit when its

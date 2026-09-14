@@ -21,6 +21,8 @@ unit object data
 
 Melee resolves the target-facing stages at the damage point. Missile attacks roll at launch but defer `G_AttackDamage()` until projectile impact, so armor/defense changes while the missile is in flight affect the hit. Spell missiles provide their own `currentmove/endfunc` and do not enter this physical-attack mitigation branch.
 
+`T_Damage()` ignores targets whose life is already zero, and `unit_die()` is a one-shot transition once `SVF_DEADMONSTER` is set. This matters for simultaneous or near-simultaneous missile impacts: only the first lethal hit may publish WC3 death events, so map-authored death/loot triggers cannot run twice for the same corpse.
+
 ## Runtime Attack Fields
 
 `edict_t.attack1` and `attack2` are mutable copies of `UnitWeapons.slk` data. Both are initialized at spawn even though combat order selection still uses Attack 1.

@@ -148,6 +148,18 @@ TEST(wc3_combat, tdamage_reduces_health) {
     T_EQ(_die_call_count, 0);
 }
 
+TEST(wc3_combat, tdamage_does_not_repeat_death_for_already_dead_unit) {
+    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
+    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    _die_call_count  = 0;
+
+    T_Damage(target, attacker, 100);
+    T_Damage(target, attacker, 100);
+
+    T_FEQ(target->health.value, 0.0f, 0.01f);
+    T_EQ(_die_call_count, 1);
+}
+
 TEST(wc3_combat, tdamage_refreshes_owned_hero_shortcut_alert) {
     LPGAMECLIENT client;
     LPEDICT target;
