@@ -902,9 +902,12 @@ DWORD IssuePointOrderByIdLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
+    BOOL accepted;
 
-    if (G_UnitIsBuilding(order))
-        return jass_pushboolean(j, G_IssueBuildOrder(whichUnit, order, whichLocation));
+    if (G_UnitIsBuilding(order)) {
+        accepted = G_IssueBuildOrder(whichUnit, order, whichLocation);
+        return jass_pushboolean(j, accepted);
+    }
     return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), whichLocation));
 }
 DWORD IssueTargetOrder(LPJASS j) {
@@ -917,12 +920,23 @@ DWORD IssueTargetOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
+    LPCSTR order_name = G_OrderId2String(order);
+    BOOL accepted;
+
+    /* Blizzard.j routes IssueBuildOrderByIdLocBJ('ugol') through this target
+     * native after finding the neutral ngol. Translate that retail-specific
+     * target order into the shared build path so the Acolyte walks to the mine
+     * and construction performs the normal overlay binding on arrival. */
+    if (order == MAKEFOURCC('u','g','o','l') && targetWidget &&
+        targetWidget->class_id == MAKEFOURCC('n','g','o','l'))
+        accepted = G_IssueBuildOrder(whichUnit, order, &targetWidget->s.origin2);
+    else
+        accepted = unit_issuetargetorder(whichUnit, order_name, targetWidget);
 
     /* The numeric argument is an order id, not a unit rawcode. Build-on-mine
-     * placement uses IssueBuildOrderById; routing this API through the build
-     * path misclassifies an unrelated order whose integer happens to match a
-     * building rawcode. */
-    return jass_pushboolean(j, unit_issuetargetorder(whichUnit, G_OrderId2String(order), targetWidget));
+     * placement uses the explicit ugol target case above; other ids remain
+     * ordinary order ids and must not be interpreted as unit rawcodes. */
+    return jass_pushboolean(j, accepted);
 }
 DWORD IssueInstantTargetOrder(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
