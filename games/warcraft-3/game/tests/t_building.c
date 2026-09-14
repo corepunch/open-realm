@@ -205,6 +205,72 @@ static void building_restore_upgrade_data(slkTestData_t *old, slkTestData_t *row
     free_slk_rows(rows);
 }
 
+static const char building_morph_balance_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X8;Y3;D0\n"
+    "C;X1;Y1;K\"unitBalanceID\"\n"
+    "C;X2;K\"goldcost\"\n"
+    "C;X3;K\"lumbercost\"\n"
+    "C;X4;K\"realHP\"\n"
+    "C;X5;K\"bldtm\"\n"
+    "C;X6;K\"fused\"\n"
+    "C;X7;K\"fmade\"\n"
+    "C;X8;K\"isbldg\"\n"
+    "C;X1;Y2;K\"hbar\"\n"
+    "C;X2;K100\n"
+    "C;X3;K50\n"
+    "C;X4;K1000\n"
+    "C;X5;K60\n"
+    "C;X6;K2\n"
+    "C;X7;K12\n"
+    "C;X8;K1\n"
+    "C;X1;Y3;K\"otrb\"\n"
+    "C;X2;K320\n"
+    "C;X3;K210\n"
+    "C;X4;K1500\n"
+    "C;X5;K140\n"
+    "C;X6;K3\n"
+    "C;X7;K14\n"
+    "C;X8;K1\n"
+    "E\n";
+
+static const char building_morph_ui_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X4;Y3;D0\n"
+    "C;X1;Y1;K\"unitUIID\"\n"
+    "C;X2;K\"isbldg\"\n"
+    "C;X4;K\"file\"\n"
+    "C;X1;Y2;K\"hbar\"\n"
+    "C;X2;K1\n"
+    "C;X4;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx\"\n"
+    "C;X1;Y3;K\"otrb\"\n"
+    "C;X2;K1\n"
+    "C;X4;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx\"\n"
+    "E\n";
+
+typedef struct {
+    slkTestData_t *old_balance;
+    slkTestData_t *old_ui;
+    slkTestData_t *balance_rows;
+    slkTestData_t *ui_rows;
+} buildingMorphRows_t;
+
+static buildingMorphRows_t building_install_morph_data(void) {
+    buildingMorphRows_t rows = {0};
+    rows.balance_rows = parse_slk_string(building_morph_balance_slk);
+    rows.ui_rows = parse_slk_string(building_morph_ui_slk);
+    rows.old_balance = G_SetSLKRows("UnitBalance", rows.balance_rows);
+    rows.old_ui = G_SetSLKRows("UnitUI", rows.ui_rows);
+    return rows;
+}
+
+static void building_restore_morph_data(buildingMorphRows_t rows) {
+    G_SetSLKRows("UnitUI", rows.old_ui);
+    G_SetSLKRows("UnitBalance", rows.old_balance);
+    free_slk_rows(rows.ui_rows);
+    free_slk_rows(rows.balance_rows);
+}
+
 static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(building_repair_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -234,6 +300,109 @@ TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
 
     G_SetPlayerTechMaxAllowed(client, barracks, -1);
     T_EQ(G_GetPlayerTechMaxAllowed(client, barracks), -1);
+}
+
+TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores_state) {
+    LPGAMECLIENT client = &game.clients[0];
+    DWORD const source_id = MAKEFOURCC('h','b','a','r');
+    DWORD const target_id = MAKEFOURCC('o','t','r','b');
+    UnitProfile_t profile = { .upgrade = "otrb" };
+    buildingMorphRows_t rows;
+    LPEDICT building;
+    LONG gold = 0, lumber = 0, food = 0;
+    char reason[128];
+
+    setup_test_world();
+    rows = building_install_morph_data();
+    building = alloc_test_unit(source_id, 0, 0);
+    building->data.UnitProfile = &profile;
+    building->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
+    G_SetUnitFoodUsed(building, 2);
+    G_SetUnitFoodMade(building, 12);
+    memset(client->tech, 0, sizeof(client->tech));
+    level.events.read = level.events.write = 0;
+
+    G_GetBuildingUpgradeCosts(building, target_id, &gold, &lumber, &food);
+    T_EQ(gold, 220);
+    T_EQ(lumber, 160);
+    T_EQ(food, 1);
+    T_EQ(G_GetBuildingUpgradeCommandState(client, building, target_id, reason, sizeof(reason)),
+         BUILD_COMMAND_AVAILABLE);
+
+    T_ASSERT(G_StartBuildingUpgrade(building, target_id));
+    T_ASSERT(G_BuildingUpgradeActive(building));
+    T_EQ(building->class_id, source_id);
+    T_EQ(building->research.upgrade, target_id);
+    T_FEQ(building->research.duration, 140.0f, 0.001f);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 280);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 340);
+    T_EQ(building->food.used, 3);
+    T_EQ(G_GetPlayerTechInProgress(client, target_id), 1);
+    T_ASSERT(building->aiflags & AI_HOLD_FRAME);
+    T_EQ(level.events.write, 2);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_UPGRADE_START);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_UPGRADE_START);
+
+    T_ASSERT(G_CancelBuildingUpgrade(building));
+    T_ASSERT(!G_BuildingUpgradeActive(building));
+    T_EQ(building->class_id, source_id);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 500);
+    T_EQ(building->food.used, 2);
+    T_EQ(G_GetPlayerTechInProgress(client, target_id), 0);
+    T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
+    T_EQ(level.events.write, 4);
+    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_UPGRADE_CANCEL);
+    T_EQ(level.events.queue[3].type, EVENT_UNIT_UPGRADE_CANCEL);
+
+    building_restore_morph_data(rows);
+}
+
+TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_health_ratio) {
+    LPGAMECLIENT client = &game.clients[0];
+    DWORD const source_id = MAKEFOURCC('h','b','a','r');
+    DWORD const target_id = MAKEFOURCC('o','t','r','b');
+    UnitProfile_t profile = { .upgrade = "otrb" };
+    buildingMorphRows_t rows;
+    LPEDICT building;
+    LPEDICT identity;
+
+    setup_test_world();
+    rows = building_install_morph_data();
+    building = alloc_test_unit(source_id, 64, 64);
+    identity = building;
+    building->data.UnitProfile = &profile;
+    building->s.player = client->ps.number;
+    building->health.value = 500.0f;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
+    G_SetUnitFoodUsed(building, 2);
+    G_SetUnitFoodMade(building, 12);
+    memset(client->tech, 0, sizeof(client->tech));
+    level.events.read = level.events.write = 0;
+
+    T_ASSERT(G_StartBuildingUpgrade(building, target_id));
+    building->research.progress = building->research.duration;
+    G_RunBuildingUpgradeFrame(building);
+
+    T_ASSERT(building == identity);
+    T_ASSERT(!G_BuildingUpgradeActive(building));
+    T_EQ(building->class_id, target_id);
+    T_FEQ(building->health.max_value, 1500.0f, 0.001f);
+    T_FEQ(building->health.value, 750.0f, 0.001f);
+    T_EQ(building->food.used, 3);
+    T_EQ(building->food.made, 14);
+    T_EQ(G_GetPlayerTechInProgress(client, target_id), 0);
+    T_EQ(G_GetPlayerTechCountValue(client, target_id), 1);
+    T_EQ(level.events.write, 4);
+    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_UPGRADE_FINISH);
+    T_EQ(level.events.queue[3].type, EVENT_UNIT_UPGRADE_FINISH);
+
+    building_restore_morph_data(rows);
 }
 
 TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock) {

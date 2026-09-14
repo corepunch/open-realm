@@ -417,9 +417,17 @@ void CMD_CancelCommand(LPEDICT ent) {
     LPEDICT producer;
     if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
         G_UnitCanControl(ent->client, producer)) {
-        /* Spawned construction is cancelled by the structure itself. Keep it
-         * ahead of queue cancellation so CmdCancelBuild cannot fall through to
-         * unrelated producer state. */
+        /* In-place upgrades and spawned construction are both cancelled by
+         * the selected structure itself. Keep them ahead of queue cancellation
+         * so CmdCancelBuild cannot fall through to unrelated producer state. */
+        if (G_BuildingUpgradeActive(producer) && G_CancelBuildingUpgrade(producer)) {
+            if (ent->client->connected) {
+                G_RefreshResourceBar(ent);
+                Get_Portrait_f(ent);
+                Get_Commands_f(ent);
+            }
+            return;
+        }
         if (producer->construction.active && G_CancelStructureConstruction(producer)) {
             if (ent->client->connected) {
                 G_RefreshResourceBar(ent);
@@ -855,6 +863,18 @@ CLIENTCOMMAND(Research) {
     } else {
         G_HeroLearnSkill(ent, abilcode);
     }
+    Get_Commands_f(clent);
+}
+
+CLIENTCOMMAND(Upgrade) {
+    LPCSTR classname = argc >= 2 ? argv[1] : NULL;
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    LPEDICT ent = client ? G_GetMainSelectedUnit(client) : NULL;
+    DWORD unit_id = 0;
+
+    if (!G_UnitCanControl(client, ent) || !classname || strlen(classname) != 4) return;
+    memcpy(&unit_id, classname, sizeof(unit_id));
+    G_StartBuildingUpgrade(ent, unit_id);
     Get_Commands_f(clent);
 }
 
@@ -2322,6 +2342,7 @@ clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },
+    { "upgrade", CMD_Upgrade },
     { "inventory", CMD_Inventory },
     { "itemdrag", CMD_ItemDrag },
     { "cargounload", CMD_CargoUnload },

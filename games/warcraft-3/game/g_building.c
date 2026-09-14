@@ -347,6 +347,46 @@ BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id) {
         G_ProducerContains(producer->data.UnitProfile->researches, upgrade_id);
 }
 
+BOOL G_ProducerCanUpgrade(LPEDICT producer, DWORD unit_id) {
+    return producer && producer->data.UnitProfile &&
+        G_UnitIsBuilding(producer->class_id) && G_UnitIsBuilding(unit_id) &&
+        G_ProducerContains(producer->data.UnitProfile->upgrade, unit_id);
+}
+
+BOOL G_BuildingUpgradeActive(LPCEDICT building) {
+    return building && building->inuse && !building->training &&
+        building->research.upgrade != 0 &&
+        G_UnitIsBuilding(building->class_id) &&
+        G_UnitIsBuilding(building->research.upgrade);
+}
+
+static BOOL G_RelativeBuildingUpgradeCosts(void) {
+    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", "RelativeUpgradeCost");
+    /* Warsmash treats zero as the relative-cost mode. Missing Misc data follows
+     * the same default so stock total unit costs do not get charged twice. */
+    return !value || !*value || atoi(value) == 0;
+}
+
+void G_GetBuildingUpgradeCosts(LPCEDICT building, DWORD unit_id,
+                               LONG *gold, LONG *lumber, LONG *food) {
+    UnitBalance_t const *from = building ? building->data.UnitBalance : NULL;
+    UnitBalance_t const *to = G_UnitBalance(unit_id);
+    LONG relative_gold = to ? MAX(0, to->goldCost) : 0;
+    LONG relative_lumber = to ? MAX(0, to->lumberCost) : 0;
+    LONG food_delta = to ? MAX(0, to->foodUsed) : 0;
+
+    if (from) {
+        if (G_RelativeBuildingUpgradeCosts()) {
+            relative_gold -= MAX(0, from->goldCost);
+            relative_lumber -= MAX(0, from->lumberCost);
+        }
+        food_delta -= MAX(0, from->foodUsed);
+    }
+    if (gold) *gold = MAX(0, relative_gold);
+    if (lumber) *lumber = MAX(0, relative_lumber);
+    if (food) *food = MAX(0, food_delta);
+}
+
 static LONG G_RequirementAmount(LPCSTR amounts, DWORD index) {
     char amount[32];
     LONG value = 1;
@@ -588,6 +628,47 @@ buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT produ
     return BUILD_COMMAND_AVAILABLE;
 }
 
+buildCommandState_t G_GetBuildingUpgradeCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id,
+                                                     LPSTR reason, DWORD reason_size) {
+    LONG maximum;
+    LONG gold, lumber, food;
+    UnitBalance_t const *target;
+
+    if (reason && reason_size) reason[0] = '\0';
+    if (!client || !G_ProducerCanUpgrade(producer, unit_id)) return BUILD_COMMAND_ABSENT;
+    target = G_UnitBalance(unit_id);
+    if (!target || target->id != unit_id || !G_UnitUI(unit_id)->modelFile) return BUILD_COMMAND_ABSENT;
+    if (G_BuildingUpgradeActive(producer) || producer->construction.active || producer->training || producer->build) {
+        return BUILD_COMMAND_DISABLED;
+    }
+
+    if (!G_BuildAllEnabled()) {
+        maximum = G_GetPlayerTechMaxAllowed(client, unit_id);
+        if (maximum >= 0 &&
+            G_GetPlayerTechCountValue(client, unit_id) + G_GetPlayerTechInProgress(client, unit_id) >= maximum) {
+            return BUILD_COMMAND_HIDDEN;
+        }
+        if (!G_RequirementsSatisfied(client, unit_id, reason, reason_size)) {
+            return BUILD_COMMAND_DISABLED;
+        }
+    }
+
+    G_GetBuildingUpgradeCosts(producer, unit_id, &gold, &lumber, &food);
+    if (gold > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
+        return BUILD_COMMAND_UNAFFORDABLE;
+    }
+    if (lumber > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
+        return BUILD_COMMAND_UNAFFORDABLE;
+    }
+    if (!G_PlayerHasFoodFor(client, food)) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough food");
+        return BUILD_COMMAND_UNAFFORDABLE;
+    }
+    return BUILD_COMMAND_AVAILABLE;
+}
+
 BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id) {
     UnitBalance_t const *b;
 
@@ -606,6 +687,177 @@ void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id) {
     b = G_UnitBalance(building_id);
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += MAX(0, b->goldCost);
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += MAX(0, b->lumberCost);
+}
+
+static void G_RefreshBuildingUpgradeUI(LPEDICT building) {
+    LPGAMECLIENT client;
+    LPEDICT clent;
+
+    if (!building) return;
+    client = G_GetPlayerClientByNumber(building->s.player);
+    if (!client || client->ps.number != building->s.player) return;
+    G_InvalidateCommands(client);
+    clent = G_GetPlayerEntityByNumber(building->s.player);
+    if (!clent || !client->connected) return;
+    G_RefreshResourceBar(clent);
+    Get_Commands_f(clent);
+    Get_Portrait_f(clent);
+}
+
+void G_UpdateBuildingUpgradeAnimation(LPEDICT building) {
+    LPCANIMATION anim;
+    FLOAT fraction;
+    DWORD first, last, span, frame;
+
+    if (!G_BuildingUpgradeActive(building) || building->research.duration <= 0.0f) return;
+    anim = building->animation;
+    if (!G_AnimationHasPrimary(anim, "birth")) anim = G_GetUnitAnimation(building, "birth");
+    if (!anim || anim->interval[1] <= anim->interval[0]) return;
+    building->animation = anim;
+
+    fraction = MAX(0.0f, MIN(1.0f, building->research.progress / building->research.duration));
+    first = anim->interval[0];
+    last = anim->interval[1];
+    span = last - first;
+    frame = first + (DWORD)((FLOAT)span * fraction);
+    if (frame >= last) frame = last - 1;
+    building->s.frame = frame;
+}
+
+BOOL G_StartBuildingUpgrade(LPEDICT building, DWORD unit_id) {
+    LPGAMECLIENT client;
+    LPEDICT clent;
+    buildCommandState_t state;
+    UnitBalance_t const *target;
+    LONG gold, lumber, food;
+    char reason[128];
+
+    if (!building || !unit_id) return false;
+    client = G_GetPlayerClientByNumber(building->s.player);
+    if (!client || client->ps.number != building->s.player) return false;
+    clent = G_GetPlayerEntityByNumber(building->s.player);
+    state = G_GetBuildingUpgradeCommandState(client, building, unit_id, reason, sizeof(reason));
+    if (state != BUILD_COMMAND_AVAILABLE) {
+        if (clent && client->connected && reason[0]) G_ShowCommandErrorText(clent, reason);
+        return false;
+    }
+
+    target = G_UnitBalance(unit_id);
+    G_GetBuildingUpgradeCosts(building, unit_id, &gold, &lumber, &food);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
+
+    /* Upgrade construction is owned by the existing edict. Reuse the otherwise
+     * producer-local research scalars for target/cost/timing state; queued
+     * UpgradeData research continues to live on hidden training edicts. */
+    G_ClearUnitOrderQueue(building);
+    if (building->stand) building->stand(building);
+    memset(&building->research, 0, sizeof(building->research));
+    building->research.upgrade = unit_id;
+    building->research.gold = gold;
+    building->research.lumber = lumber;
+    building->research.duration = (FLOAT)MAX(0, target->buildTime);
+    building->research.progress = 0.0f;
+    G_SetUnitFoodUsed(building, MAX(0, target->foodUsed));
+    G_AddPlayerTechInProgress(client, unit_id, 1);
+    building->aiflags |= AI_HOLD_FRAME;
+    G_UpdateBuildingUpgradeAnimation(building);
+    G_PublishEvent(building, EVENT_PLAYER_UNIT_UPGRADE_START);
+    G_PublishEvent(building, EVENT_UNIT_UPGRADE_START);
+    G_RefreshBuildingUpgradeUI(building);
+    return true;
+}
+
+void G_StopBuildingUpgrade(LPEDICT building, BOOL refund) {
+    LPGAMECLIENT client;
+    DWORD unit_id;
+
+    if (!G_BuildingUpgradeActive(building)) return;
+    unit_id = building->research.upgrade;
+    client = G_GetPlayerClientByNumber(building->s.player);
+    if (client && client->ps.number == building->s.player) {
+        if (refund) {
+            LONG gold = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] +
+                        MAX(0, building->research.gold);
+            LONG lumber = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] +
+                          MAX(0, building->research.lumber);
+            client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
+            client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+        }
+        G_AddPlayerTechInProgress(client, unit_id, -1);
+    }
+    G_SetUnitFoodUsed(building, building->data.UnitBalance ? MAX(0, building->data.UnitBalance->foodUsed) : 0);
+    memset(&building->research, 0, sizeof(building->research));
+    if (!building->construction.active && !(building->svflags & SVF_DEADMONSTER) && !M_IsDead(building)) {
+        building->aiflags &= ~AI_HOLD_FRAME;
+        if (building->stand) building->stand(building);
+    }
+    G_RefreshBuildingUpgradeUI(building);
+}
+
+BOOL G_CancelBuildingUpgrade(LPEDICT building) {
+    if (!G_BuildingUpgradeActive(building)) return false;
+    G_PublishEvent(building, EVENT_PLAYER_UNIT_UPGRADE_CANCEL);
+    G_PublishEvent(building, EVENT_UNIT_UPGRADE_CANCEL);
+    G_StopBuildingUpgrade(building, true);
+    return true;
+}
+
+static BOOL G_CompleteBuildingUpgrade(LPEDICT building) {
+    LPGAMECLIENT client;
+    DWORD unit_id;
+    LONG charged_gold, charged_lumber;
+
+    if (!G_BuildingUpgradeActive(building)) return false;
+    unit_id = building->research.upgrade;
+    charged_gold = MAX(0, building->research.gold);
+    charged_lumber = MAX(0, building->research.lumber);
+    client = G_GetPlayerClientByNumber(building->s.player);
+    if (client && client->ps.number == building->s.player)
+        G_AddPlayerTechInProgress(client, unit_id, -1);
+
+    /* Clear the transient state before type rebinding so the new unit profile
+     * owns the command card immediately and the transform's food refresh uses
+     * only the completed target type. */
+    memset(&building->research, 0, sizeof(building->research));
+    building->aiflags &= ~AI_HOLD_FRAME;
+    if (!G_TransformUnitType(building, unit_id)) {
+        /* Command acceptance validates the target, so this is defensive. Do
+         * not strand resources/food if map data becomes invalid mid-upgrade. */
+        if (client && client->ps.number == building->s.player) {
+            LONG gold = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + charged_gold;
+            LONG lumber = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + charged_lumber;
+            client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
+            client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+        }
+        G_SetUnitFoodUsed(building, building->data.UnitBalance ? MAX(0, building->data.UnitBalance->foodUsed) : 0);
+        if (building->stand) building->stand(building);
+        G_RefreshBuildingUpgradeUI(building);
+        return false;
+    }
+    building->aiflags &= ~AI_HOLD_FRAME;
+    if (building->stand) building->stand(building);
+    G_PublishEvent(building, EVENT_PLAYER_UNIT_UPGRADE_FINISH);
+    G_PublishEvent(building, EVENT_UNIT_UPGRADE_FINISH);
+    G_RefreshBuildingUpgradeUI(building);
+    return true;
+}
+
+void G_RunBuildingUpgradeFrame(LPEDICT building) {
+    if (!G_BuildingUpgradeActive(building)) return;
+    if (M_IsDead(building) || (building->svflags & SVF_DEADMONSTER)) {
+        G_StopBuildingUpgrade(building, false);
+        return;
+    }
+    if (building->paused) return;
+    if (building->research.duration <= 0.0f || G_PlayerInstantBuild(building->s.player)) {
+        G_CompleteBuildingUpgrade(building);
+        return;
+    }
+    building->research.progress += (FLOAT)FRAMETIME / 1000.0f;
+    G_UpdateBuildingUpgradeAnimation(building);
+    if (building->research.progress >= building->research.duration)
+        G_CompleteBuildingUpgrade(building);
 }
 
 void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE required) {

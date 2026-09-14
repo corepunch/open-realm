@@ -18,7 +18,7 @@ DWORD UI_ClassIdFromCode(LPCSTR code) {
 }
 
 static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LONG level,
-                                   LPSTR out, DWORD out_size) {
+                                   LPCEDICT producer, BOOL building_upgrade, LPSTR out, DWORD out_size) {
     DWORD class_id = UI_ClassIdFromCode(code);
     UnitBalance_t const *balance = class_id ? G_UnitBalance(class_id) : NULL;
     UpgradeData_t const *upgrade = class_id ? G_UpgradeData(class_id) : NULL;
@@ -26,7 +26,13 @@ static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT
     DWORD lumber_cost = balance ? (DWORD)MAX(0, balance->lumberCost) : 0;
     DWORD food_cost = balance ? (DWORD)MAX(0, balance->foodUsed) : 0;
 
-    if (upgrade && upgrade->id == class_id && ui_current_client) {
+    if (building_upgrade && producer && class_id) {
+        LONG gold = 0, lumber = 0, food = 0;
+        G_GetBuildingUpgradeCosts(producer, class_id, &gold, &lumber, &food);
+        gold_cost = (DWORD)MAX(0, gold);
+        lumber_cost = (DWORD)MAX(0, lumber);
+        food_cost = (DWORD)MAX(0, food);
+    } else if (upgrade && upgrade->id == class_id && ui_current_client) {
         LONG const level_value = level > 0 ? level : G_GetPlayerTechResearchedLevel(ui_current_client, class_id) + 1;
         gold_cost = (DWORD)G_UpgradeGoldCost(class_id, level_value);
         lumber_cost = (DWORD)G_UpgradeLumberCost(class_id, level_value);
@@ -72,12 +78,14 @@ static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT
 }
 
 void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size) {
-    UI_FormatTooltipLevel(code, tip, ubertip, manacost, 0, out, out_size);
+    UI_FormatTooltipLevel(code, tip, ubertip, manacost, 0, NULL, false, out, out_size);
 }
 
 static void UI_FormatCommandTooltip(gameCommandButton_t const *button, LPSTR out, DWORD out_size) {
+    LPEDICT producer = ui_current_client ? G_GetMainSelectedUnit(ui_current_client) : NULL;
     UI_FormatTooltipLevel(button->command, button->tooltip, button->ubertip, button->manacost,
-                          button->research ? (LONG)button->level : 0, out, out_size);
+                          button->research ? (LONG)button->level : 0, producer,
+                          button->building_upgrade != 0, out, out_size);
 }
 
 static void UI_WriteCommandButtonNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD number) {
@@ -166,7 +174,9 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     if (button->alternate_active) frame.flagsvalue |= UIFLAG_ALTERNATE_ACTIVE;
     UI_FormatCommandTooltip(button, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
-    snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
+    snprintf(onclick, sizeof(onclick), "%s %s",
+             button->building_upgrade ? "upgrade" : (button->research ? "research" : "button"),
+             button->command);
     frame.onclick = button->disabled ? NULL : onclick;
     frame.text = button->disabled || !button->alternate[0] ? NULL : button->alternate;
     UI_SetFrameRect(&frame, x, y, 0.039f, 0.039f);
@@ -200,6 +210,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     uiFrame_t buildtimer;
     uiFrame_t list;
     BOOL const constructing = ent && ent->currentmove && ent->currentmove->think == ai_birth;
+    BOOL const upgrading = G_BuildingUpgradeActive(ent);
     FLOAT const active_x = 0.320546875f;
     FLOAT const active_y = 0.526875000f;
     FLOAT const active_size = 0.026718750f;
@@ -215,7 +226,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
      * only icon contents, timings, click targets, and the positions of the
      * repeated queue icons that Warcraft creates in code. */
     buildtimer_number = UI_WriteBuildingQueueShell(
-        ent, constructing ? "CONSTRUCTING" :
+        ent, constructing ? "CONSTRUCTING" : upgrading ? "UPGRADING" :
              (ent && ent->build && ent->build->research.upgrade != 0 ? "RESEARCHING" : "TRAINING"));
     if (!buildtimer_number) {
         fprintf(stderr, "UI_WriteBuildQueue: SimpleInfoPanel building shell unavailable; using runtime progress fallback\n");
@@ -260,8 +271,8 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     /* Match the repeated icon geometry for cancellation hit targets as well as
      * drawing.  Slot 0 is the larger active item beside the progress bar; the
      * remaining slots are the smaller row along the panel bottom. */
-    if (constructing || (ent->build && ent->build->training)) {
-        DWORD const cancel_count = constructing ? 1 : count;
+    if (constructing || upgrading || (ent->build && ent->build->training)) {
+        DWORD const cancel_count = (constructing || upgrading) ? 1 : count;
         FOR_LOOP(i, cancel_count) {
             uiFrame_t cancel;
             char onclick[64];
@@ -269,7 +280,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
 
             memset(&cancel, 0, sizeof(cancel));
             cancel.flags.type = FT_SIMPLEFRAME;
-            if (constructing)
+            if (constructing || upgrading)
                 snprintf(onclick, sizeof(onclick), "button %s", STR_CmdCancelBuild);
             else
                 snprintf(onclick, sizeof(onclick), "canceltrain %u", (unsigned)i);

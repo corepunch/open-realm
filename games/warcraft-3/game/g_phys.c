@@ -121,6 +121,7 @@ void G_RunEntity(LPEDICT ent) {
             break;
     }
     G_RunConstructionFrame(ent);
+    G_RunBuildingUpgradeFrame(ent);
     SAFE_CALL(ent->think, ent);
     /* Mana regeneration (WC3 'umpr', mana/second), plus a hero's Intelligence
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;

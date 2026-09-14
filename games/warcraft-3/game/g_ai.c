@@ -155,6 +155,10 @@ LPEDICT G_FindNearestEnemy(LPEDICT self, FLOAT radius) {
 void ai_stand(LPEDICT self) {
     if (!(self->svflags & SVF_MONSTER))
         return;
+    /* Upgrading structures keep their world entity but their ordinary
+     * abilities/orders are construction-disabled in Warcraft/Warsmash. */
+    if (G_BuildingUpgradeActive(self))
+        return;
     if (S_UnitAbilityEvent(self, A_IDLE))
         return;
     /* Neutral/creep units do not initiate (avoids map-wide neutral-vs-neutral

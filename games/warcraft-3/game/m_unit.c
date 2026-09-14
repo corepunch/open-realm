@@ -138,7 +138,10 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
     /* Construction owns Repair workers and a self-linked HUD queue marker.
-     * Tear that state down before generic production/revival death cleanup. */
+     * Tear that state down before generic production/revival death cleanup.
+     * A structure upgrade is the same edict rather than a queued child; death
+     * abandons it without the player-cancel refund. */
+    if (G_BuildingUpgradeActive(self)) G_StopBuildingUpgrade(self, false);
     if (self->construction.active) G_StopConstruction(self);
     if (self->mineoverlay.parent || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
@@ -583,7 +586,7 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
     if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
         return false;
     }
-    if (M_IsDead(self)) {
+    if (M_IsDead(self) || G_BuildingUpgradeActive(self)) {
         return false;
     }
     /* Rally is producer metadata rather than an interruptible unit behavior. */
@@ -637,7 +640,7 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
 BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
                            BOOL queue, DWORD issuer_player, FLOAT group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
-    if (M_IsDead(self)) return false;
+    if (M_IsDead(self) || G_BuildingUpgradeActive(self)) return false;
     /* Rally-point changes are metadata and apply immediately even when Shift is down. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         BOOL accepted;
@@ -707,11 +710,13 @@ BOOL G_UnitStartNextQueuedOrder(LPEDICT self) {
 }
 
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
+    if (G_BuildingUpgradeActive(self)) return false;
     return G_IssueUnitTargetOrder(self, order, target, false,
                                   self ? self->s.player : 0);
 }
 
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
+    if (G_BuildingUpgradeActive(self)) return false;
     return G_IssueUnitPointOrder(self, order, point, false,
                                  self ? self->s.player : 0, 0.0f);
 }
@@ -725,8 +730,14 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     FLOAT health_ratio, mana_ratio, temporary_armor;
     FLOAT temporary_attack1, temporary_attack2;
     DWORD old_flags;
+    BOOL source_building, target_building;
 
-    if (!unit || !type || !G_UnitUI(type)->modelFile || G_UnitIsBuilding(type)) return false;
+    if (!unit || !type || !G_UnitUI(type)->modelFile) return false;
+    source_building = G_UnitIsBuilding(unit->class_id);
+    target_building = G_UnitIsBuilding(type);
+    /* Keep pathing/lifecycle ownership coherent: morphs may stay within the
+     * mobile-unit family or within the building family, but never cross it. */
+    if (source_building != target_building) return false;
     health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
     mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
     temporary_armor = unit->temporary_armor_bonus;
@@ -735,6 +746,10 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     old_flags = unit->s.flags;
 
     G_ClearUnitFood(unit);
+    if (source_building && unit->pathtex) {
+        gi.MemFree(unit->pathtex);
+        unit->pathtex = NULL;
+    }
     if (old_flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     unit->class_id = unit->s.class_id = type;
     G_BindEntityData(unit);
@@ -755,6 +770,7 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     G_ActivateUnitFood(unit);
     unit->animation = NULL;
     gi.LinkEntity(unit);
+    if (target_building) CM_BakeStaticObstacles();
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (client && client->ps.number == unit->s.player) G_InvalidateCommands(client);
     G_InvalidateUnitInfoPanel(unit);
@@ -768,6 +784,7 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     if (!self || !order) {
         return false;
     }
+    if (G_BuildingUpgradeActive(self)) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self))
         return false;

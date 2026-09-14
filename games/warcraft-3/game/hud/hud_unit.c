@@ -379,6 +379,14 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     is_burrow = S_CargoIsBurrow(ent);
     burrow_occupied = is_burrow && ent->cargo.count > 0;
 
+    /* In-place structure upgrades expose only Cancel while the existing edict
+     * is in its Birth/progress state, matching the construction-style command
+     * lock without treating the building as newly constructed. */
+    if (G_BuildingUpgradeActive(ent)) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancelBuild, false, 0);
+        return count;
+    }
+
     /* Construction has its own command-card state.  Returning no buttons for
      * every birth move made spawned Human buildings impossible to cancel. */
     if (ent->construction.active) {
@@ -444,6 +452,26 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {
                 G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = ha->code, .level = ha->level, .button = &buttons[idx] });
+            }
+        }
+    }
+    if (G_UnitProfile(ent->class_id)->upgrade) {
+        PARSE_LIST(G_UnitProfile(ent->class_id)->upgrade, upgrade_to, parse_segment) {
+            LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+            DWORD unit_id = 0;
+            buildCommandState_t state;
+            char reason[128];
+            BYTE idx;
+
+            if (strlen(upgrade_to) != 4 || !client || client->ps.number != ent->s.player) continue;
+            memcpy(&unit_id, upgrade_to, sizeof(unit_id));
+            state = G_GetBuildingUpgradeCommandState(client, ent, unit_id, reason, sizeof(reason));
+            if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
+            idx = count;
+            G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade_to, false, 0);
+            if (count > idx) {
+                buttons[idx].building_upgrade = 1;
+                if (state == BUILD_COMMAND_DISABLED) G_DisableCommandButton(&buttons[idx], reason);
             }
         }
     }
@@ -543,10 +571,32 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     DWORD cursor = G_Time();
     BOOL food_blocked = false;
 
-    if (!ent || !queue) {
+    if (!ent || !queue || max_queue == 0) {
         return 0;
     }
     memset(queue, 0, sizeof(*queue) * max_queue);
+
+    /* A structure upgrade is not a producer child: the selected building owns
+     * its target/timer directly so entity identity survives the morph. Expose
+     * that state through the same queue payload used by training/research. */
+    if (G_BuildingUpgradeActive(ent)) {
+        gameCommandButton_t button;
+        DWORD const duration = (DWORD)(MAX(0.0f, ent->research.duration) * 1000.0f);
+        FLOAT progress = ent->research.duration > 0.0f
+            ? ent->research.progress / ent->research.duration : 1.0f;
+        DWORD const elapsed = (DWORD)((FLOAT)duration * MAX(0.0f, MIN(1.0f, progress)));
+
+        if (G_BuildCommandButton(ent, GetClassName(ent->research.upgrade), false, 0, &button)) {
+            UI_CopyString(queue[0].art, sizeof(queue[0].art), button.art);
+        } else {
+            UI_CopyString(queue[0].art, sizeof(queue[0].art),
+                          FindConfigValue(GetClassName(ent->research.upgrade), STR_ART));
+        }
+        queue[0].starttime = elapsed <= cursor ? cursor - elapsed : cursor;
+        queue[0].endtime = queue[0].starttime + duration;
+        return 1;
+    }
+
     for (LPEDICT build = ent->build; build && count < max_queue;
          build = build->revival.reviving ? build->revival.queue_next : build->build) {
         DWORD duration;

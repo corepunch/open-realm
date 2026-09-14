@@ -149,6 +149,7 @@ as gameplay instead of returning to `sheetRow_t`. Add fields to the owning row a
 | `UNIT_ABILITIES_HERO` | `uhab` | hero abilities |
 | `G_UnitProfile(id)->trains` | `utra` | trainable unit codes |
 | `G_UnitProfile(id)->builds` | `ubui` | buildable structure codes |
+| `G_UnitProfile(id)->upgrade` | `uupt` | in-place unit-type upgrade targets (for example Town Hall -> Keep); distinct from `UpgradeData.slk` research |
 
 ## Ability Field Codes
 

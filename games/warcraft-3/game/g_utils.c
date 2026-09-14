@@ -17,7 +17,10 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
-    /* Direct JASS RemoveUnit must release construction workers before the building edict is cleared. */
+    /* Direct JASS RemoveUnit must release transient construction/upgrade state
+     * before the edict is cleared. Forced removal does not grant a player
+     * cancellation refund. */
+    if (G_BuildingUpgradeActive(ent)) G_StopBuildingUpgrade(ent, false);
     if (ent->construction.active) G_StopConstruction(ent);
     if (ent->mineoverlay.parent || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);

@@ -956,7 +956,7 @@ struct edict_s {
     BOOL training; /* spawned in a production queue but not yet completed */
     BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
     struct {
-        DWORD upgrade;     /* non-zero on lightweight research queue edicts */
+        DWORD upgrade;     /* research rawcode on queue edicts; target unit type on in-place upgrades */
         LONG level;        /* 1-based level being researched */
         LONG gold, lumber; /* exact charged cost, retained for cancellation */
         FLOAT duration;    /* seconds */
@@ -1897,13 +1897,22 @@ BOOL G_BuildAllEnabled(void);
 BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id);
 BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id);
 BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id);
+BOOL G_ProducerCanUpgrade(LPEDICT producer, DWORD unit_id);
+BOOL G_BuildingUpgradeActive(LPCEDICT building);
+void G_GetBuildingUpgradeCosts(LPCEDICT building, DWORD unit_id, LONG *gold, LONG *lumber, LONG *food);
 buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id, LPSTR reason, DWORD reason_size);
 buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);
 buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD upgrade_id, LONG *next_level, LPSTR reason, DWORD reason_size);
+buildCommandState_t G_GetBuildingUpgradeCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);
 LONG G_UpgradeGoldCost(DWORD upgrade_id, LONG level_value);
 LONG G_UpgradeLumberCost(DWORD upgrade_id, LONG level_value);
 FLOAT G_UpgradeResearchTime(DWORD upgrade_id, LONG level_value);
 BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id);
+BOOL G_StartBuildingUpgrade(LPEDICT building, DWORD unit_id);
+BOOL G_CancelBuildingUpgrade(LPEDICT building);
+void G_StopBuildingUpgrade(LPEDICT building, BOOL refund);
+void G_RunBuildingUpgradeFrame(LPEDICT building);
+void G_UpdateBuildingUpgradeAnimation(LPEDICT building);
 void G_ApplyPlayerUpgradesToUnit(LPEDICT unit);
 DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class);
 BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);

@@ -2,7 +2,7 @@
 
 ## Contract
 
-Construction is server-authoritative. `UnitProfile.Builds` remains the source of which structures a worker can offer; a client cannot select an arbitrary unit rawcode and bypass that list. Training follows the same authority rule through `UnitProfile.Trains`: command-card visibility and the eventual `button <rawcode>` request both re-evaluate the producer list, per-player technology maximum, normal requirements, and hero-count tier requirements before a unit can enter the queue. `games/warcraft-3/game/g_building.c` owns the shared technology/requirement checks as well as building resource availability and placement validation.
+Construction is server-authoritative. `UnitProfile.Builds` remains the source of which structures a worker can offer; a client cannot select an arbitrary unit rawcode and bypass that list. Training follows the same authority rule through `UnitProfile.Trains`. In-place structure tier upgrades follow it through `UnitProfile.Upgrade` (`uupt`): the command card and the eventual `upgrade <rawcode>` request both re-evaluate the authored target list, per-player technology maximum, normal requirements, and owner resources before the upgrade can begin. `games/warcraft-3/game/g_building.c` owns the shared technology/requirement checks as well as building resource availability, structure-upgrade lifecycle, and placement validation.
 
 Command-card activation is independent of JASS `EnableUserUI`. `button CmdBuild`, `button <unit rawcode>`, and other gameplay button commands must continue through `CMD_Button()` when `EnableUserUI(false)` is recorded; that native suppresses presentation affordances, not gameplay command authorization. A rebase briefly special-cased `client->no_ui` inside `CMD_Button()`, which made the button animate client-side while silently discarding both the Peasant Build submenu and Town Hall training requests.
 
@@ -14,7 +14,7 @@ The runtime developer override is:
 +set wc3_build_all 1
 ```
 
-It makes every structure or trained unit already present in the selected producer's final `Builds` / `Trains` list available regardless of technology maximums or `Requires`. Structure construction also keeps the existing debug behavior of bypassing gold, lumber, and food charges. Training bypasses technology/requirement gates but still performs normal gold/lumber/food availability checks and payment/reservation. It does **not** invent commands outside `Builds` / `Trains`, bypass building classification, or relax map bounds, terrain/static pathing, live-unit occupancy, or build-on-target rules. This keeps the cheat useful for tech-tree testing without allowing invalid production commands or world placement.
+It makes every structure, trained unit, or in-place structure upgrade already present in the selected producer's final `Builds` / `Trains` / `Upgrade` list available regardless of technology maximums or `Requires`. Structure construction also keeps the existing debug behavior of bypassing gold, lumber, and food charges. Training and structure upgrading bypass technology/requirement gates but still perform their normal resource/food availability checks and payment/reservation. It does **not** invent commands outside those authored lists, bypass building classification, or relax map bounds, terrain/static pathing, live-unit occupancy, or build-on-target rules. This keeps the cheat useful for tech-tree testing without allowing invalid production commands or world placement.
 
 Food-only capacity checks have their own runtime override: `+set wc3_food_limits 0`. Unlike `wc3_build_all`, it leaves producer/tech/resource behavior intact and only removes the requirement for sufficient Food Cap/Farms; Food Used remains accounted for upkeep and HUD state.
 
@@ -61,6 +61,49 @@ UnitProfile.Trains
 
 Only the queue head owns a food reservation; later linked queue entries remain unreserved until they advance. See [Warcraft III Food, Supply, And Upkeep](food-and-upkeep.md) for the food ownership and upkeep lifecycle.
 Queue insertion reserves food immediately when the new item is the head. A later head that cannot reserve food remains paid and queued, reports the shortage once, and retries without progress. Queue icons issue `canceltrain <slot>`; cancellation refunds that item's gold/lumber and releases only a reservation actually owned by that hidden queue edict.
+
+## In-place structure upgrades (`uupt`)
+
+Unit-type structure upgrades such as Human Town Hall -> Keep are distinct from `UpgradeData.slk` research. The source building's `UnitProfile.Upgrade` / `uupt` list supplies the allowed target unit rawcodes. `G_GetBuildingUpgradeCommandState()` re-checks that list on both command-card construction and command execution, so a client cannot submit an arbitrary building morph.
+
+The accepted command follows the Warsmash `CAbilityUpgrade` / `CUnit.beginUpgrade` ownership model:
+
+```text
+UnitProfile.Upgrade / uupt
+    -> G_GetBuildingUpgradeCommandState
+       -> target is a building
+       -> target technology maximum
+       -> target Requires / Requiresamount
+       -> relative target gold/lumber cost
+       -> target Food Used - source Food Used
+    -> G_StartBuildingUpgrade
+       -> deduct exact accepted cost
+       -> reserve target Food Used on the existing edict
+       -> mark target technology in progress
+       -> clear ordinary orders
+       -> hold the source building on its Birth progress sequence
+       -> publish UPGRADE_START events
+    -> G_RunBuildingUpgradeFrame
+       -> advance target UnitBalance.buildTime
+       -> completion: G_TransformUnitType(existing edict, target)
+    -> target unit data/model/stats/abilities/pathing
+       -> preserve edict/JASS identity, owner, position, and health percentage
+       -> refresh target Food Made/Food Used
+       -> target rawcode now satisfies normal techtree counts
+       -> publish UPGRADE_FINISH events
+```
+
+`Misc.RelativeUpgradeCost` follows Warsmash semantics: zero (and the compatibility default when the field is absent) charges the target unit's gold/lumber cost minus the source unit's cost. Non-zero charges the target's full unit cost. The displayed command tooltip uses the same calculated values as command acceptance/payment. Food is always the positive target-minus-source `foodUsed` delta for the availability check; once accepted, the existing building owns the target Food Used value immediately, matching Warsmash.
+
+The upgrade state is owned by the **existing building edict**, not a hidden training child. OpenRealm reuses the edict's otherwise producer-local `research` scalar block for target rawcode, exact charged gold/lumber, duration, and progress; ordinary `UpgradeData.slk` research continues to live on hidden training queue edicts. This keeps save/load on the existing serialized edict layout while making the two lifecycles unambiguous through `G_BuildingUpgradeActive()`.
+
+While upgrading, the command card exposes only `CmdCancelBuild`, ordinary target/point/immediate orders and idle auto-acquisition are rejected, and the normal build-queue panel shows the target icon with the `UPGRADING` progress label. The source structure remains attackable and retains its current health rather than receiving construction health gain. The source footprint remains authoritative until completion.
+
+Player cancellation publishes `EVENT_PLAYER_UNIT_UPGRADE_CANCEL` / `EVENT_UNIT_UPGRADE_CANCEL`, restores the source Food Used value, removes the target in-progress reservation, and refunds the **exact full amount charged**. Ownership transfer first cancels/refunds the upgrade while the original owner is still authoritative, preventing resource and techtree reservations from crossing players. Destruction or forced `RemoveUnit` tears down the same transient state without a refund. This is intentionally separate from spawned-building cancellation, whose construction refund/death policy remains unchanged.
+
+Completion generalizes `G_TransformUnitType()` from mobile->mobile morphs to same-family building->building morphs. Cross-family unit<->building transforms remain rejected. For buildings the helper releases the old pathing texture, binds and spawns the target unit data on the same edict, preserves health/mana ratios and temporary combat modifiers, reapplies food, links the entity, and rebuilds static obstacles so the target footprint becomes authoritative. Selection/JASS references keep the same edict identity; no destroy-and-respawn substitution is used.
+
+The current implementation intentionally does not attempt a separate target-model construction overlay or retail-specific upgrade dust/effect layer; it drives the source building's authored `Birth` sequence by authoritative progress. Those presentation details should be added only after their exact data/retail contract is established.
 
 Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards. The same invalidation reaches connected shared-control viewers whose selected unit belongs to the changed owner; those viewers also evaluate build state against the owner's resources and technology.
 
@@ -285,10 +328,11 @@ Target eligibility remains intentionally conservative: the target must be a live
 Construction and owned-building Repair now share the behavior described above. The following clean-room-spec items remain incomplete:
 
 - `war3map.w3u` now merges registered `UnitUI` fields (including custom models), but other typed rows are not yet fully merged, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
-- research/upgrade production now has a shared queue, per-level costs/times,
-  requirements, cancellation/refunds, and Blacksmith `ratd`/`rarm` effects; W3I
-  upgrade-availability records are still parsed but are not yet applied to that
-  player research state;
+- `UpgradeData.slk` research has a shared queue, per-level costs/times,
+  requirements, cancellation/refunds, and Blacksmith `ratd`/`rarm` effects;
+  unit-type structure upgrading through `uupt` is a separate in-place lifecycle
+  documented above. W3I upgrade-availability records are still parsed but are
+  not yet applied to the player research state;
 - `SetPlayerAbilityAvailable` remains separate from unit/building technology availability and is not yet backed by per-player disabled-ability state;
 - hero training applies the authored `Requirescount`/`Requires1`... tier selected by the owner's completed hero count; custom map unit-object overrides for those fields remain incomplete until all typed `war3map.w3u` rows merge into the normalized profile;
 - training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; queued unit icons can now cancel/refund their exact hidden queue edict, and producer death/removal cancels/refunds all queued unit entries;

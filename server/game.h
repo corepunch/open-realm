@@ -108,6 +108,7 @@ typedef struct {
     BYTE x;
     BYTE y;
     BYTE research;
+    BYTE building_upgrade; /* unit-type morph command; uses target unit data/costs */
     DWORD level; /* authored research level used for owner-specific tooltip costs */
     BYTE active;
     BYTE disabled;
