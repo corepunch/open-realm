@@ -67,6 +67,8 @@ typedef struct {
     CinematicPanel_t cinematic;
     TimerDialog_t timer_dialog;
     LeaderBoard_t leaderboard;
+    FRAMEDEF leaderboard_anchor;
+    FLOAT leaderboard_width;
     COLOR32 leaderboard_default_title_color;
     COLOR32 leaderboard_default_item_color;
     FRAMEDEF timer_dialog_anchor;

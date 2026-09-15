@@ -48,3 +48,7 @@ These limits do not block the counted-objective path where a campaign script cre
 ## Regression Coverage
 
 Tests cover creation, labels, item insertion/update, stable sorting/player lookup, assignment/display state, and save/load restoration of handle alias identity and item/color state.
+
+## Compact HUD Placement
+
+The board is anchored to the same widescreen-aware top-right position and top offset as the TimerDialog. Its root, backdrop, and list container are compacted to the actual visible row count.
