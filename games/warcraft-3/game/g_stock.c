@@ -3,7 +3,9 @@
 #include "g_local.h"
 #include "skills/s_skills.h"
 
-#define SHOP_DEFAULT_ACTIVATION_RADIUS 450.0f
+#define SHOP_DEFAULT_ACTIVATION_RADIUS 450.0f // world units; retail custom-data interaction fallback; used when Aneu/Aall DataA is absent
+
+static BOOL shop_warned_activation_fallback, shop_warned_pawn_rate, shop_warned_give_range;
 
 static void G_ResetItemStock(LPEDICT unit) {
     if (!unit) return;
@@ -49,6 +51,7 @@ void G_SetStockSlots(LPEDICT unit, BOOL items, LONG slots) {
     }
 }
 
+/* Identifies live units whose authored merchandise makes them item shops. */
 BOOL G_IsItemShop(LPCEDICT shop) {
     LPCSTR items;
 
@@ -57,6 +60,7 @@ BOOL G_IsItemShop(LPCEDICT shop) {
     return items && *items;
 }
 
+/* Applies the neutral/public versus owned/control-authority policy for shop access. */
 BOOL G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop) {
     if (!client || !G_IsItemShop(shop)) return false;
     /* Neutral Passive shops are public. Owned/racial shops remain usable by
@@ -72,7 +76,14 @@ BOOL G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop) {
 FLOAT G_ShopActivationRadius(LPCEDICT shop) {
     LPCSTR abilities;
 
-    if (!shop || !shop->data.UnitAbilities) return SHOP_DEFAULT_ACTIVATION_RADIUS;
+    if (!shop || !shop->data.UnitAbilities) {
+        if (!shop_warned_activation_fallback) {
+            fprintf(stderr, "WC3 shop: missing Aneu/Aall DataA; using %.0f activation radius\n",
+                    SHOP_DEFAULT_ACTIVATION_RADIUS);
+            shop_warned_activation_fallback = true;
+        }
+        return SHOP_DEFAULT_ACTIVATION_RADIUS;
+    }
     abilities = shop->data.UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, ability, parse_segment) {
@@ -85,6 +96,11 @@ FLOAT G_ShopActivationRadius(LPCEDICT shop) {
             radius = S_SpellData(FS_SLKKey(ability), 1, 1);
             if (radius > 0.0f) return radius;
         }
+    }
+    if (!shop_warned_activation_fallback) {
+        fprintf(stderr, "WC3 shop: invalid or missing Aneu/Aall DataA; using %.0f activation radius\n",
+                SHOP_DEFAULT_ACTIVATION_RADIUS);
+        shop_warned_activation_fallback = true;
     }
     return SHOP_DEFAULT_ACTIVATION_RADIUS;
 }
@@ -148,10 +164,20 @@ static void G_InitItemStock(LPEDICT shop) {
         DWORD start_delay;
 
         if (shop->stock.item_count >= limit) break;
-        if (strlen(item_name) != 4) continue;
+        if (strlen(item_name) != 4) {
+            fprintf(stderr, "WC3 shop: invalid Sellitems entry '%s' on unit %.4s\n", item_name, (LPCSTR)&shop->class_id);
+            continue;
+        }
         memcpy(&item_id, item_name, sizeof(item_id));
         item = G_ItemData(item_id);
-        if (!item || !item->file) continue;
+        if (!item) {
+            fprintf(stderr, "WC3 shop: unresolved Sellitems item %.4s on unit %.4s\n", item_name, (LPCSTR)&shop->class_id);
+            continue;
+        }
+        if (!item->file) {
+            fprintf(stderr, "WC3 shop: item %.4s on unit %.4s has no model\n", item_name, (LPCSTR)&shop->class_id);
+            continue;
+        }
 
         index = shop->stock.item_count++;
         shop->stock.items[index].id = item_id;
@@ -250,7 +276,12 @@ static void G_DisableShopButton(gameCommandButton_t *button, LPCSTR reason) {
              "%s|cffffcc00%s|r", used ? "|n" : "", reason);
 }
 
-BYTE G_GetShopItemButtons(LPGAMECLIENT client, LPEDICT shop, gameCommandButton_t *buttons, BYTE max_buttons) {
+/* Builds the visible merchandise card while revalidating patron, stock, and resources. */
+BYTE G_GetShopItemButtons(shopItemButtonsParams_t *params) {
+    LPGAMECLIENT client = params ? params->client : NULL;
+    LPEDICT shop = params ? params->shop : NULL;
+    gameCommandButton_t *buttons = params ? params->buttons : NULL;
+    BYTE max_buttons = params ? params->max_buttons : 0;
     LPEDICT patron;
     BYTE count = 0;
 
@@ -356,17 +387,38 @@ BOOL G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, DWORD item_id) {
 
 static FLOAT G_ShopPawnRate(void) {
     LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", "PawnItemRate");
-    FLOAT rate = value ? atof(value) : 0.5f;
+    FLOAT rate;
+
+    if (!value) {
+        if (!shop_warned_pawn_rate) {
+            fprintf(stderr, "WC3 shop: missing Misc.PawnItemRate; using 0.5\n");
+            shop_warned_pawn_rate = true;
+        }
+        rate = 0.5f;
+    } else rate = atof(value);
     return MAX(0.0f, rate);
 }
 
 static FLOAT G_ShopGiveItemRange(void) {
     LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", "GiveItemRange");
-    FLOAT range = value ? atof(value) : ITEM_DROP_RANGE;
+    FLOAT range;
+
+    if (!value) {
+        if (!shop_warned_give_range) {
+            fprintf(stderr, "WC3 shop: missing Misc.GiveItemRange; using %.0f\n", ITEM_DROP_RANGE);
+            shop_warned_give_range = true;
+        }
+        range = ITEM_DROP_RANGE;
+    } else range = atof(value);
     return MAX(0.0f, range);
 }
 
-BOOL G_ShopPawnItem(LPEDICT clent, LPEDICT shop, LPEDICT carrier, LPEDICT item) {
+/* Sells a carried pawnable item only after validating shop authority and authored range. */
+BOOL G_ShopPawnItem(shopPawnItemParams_t *params) {
+    LPEDICT clent = params ? params->clent : NULL;
+    LPEDICT shop = params ? params->shop : NULL;
+    LPEDICT carrier = params ? params->carrier : NULL;
+    LPEDICT item = params ? params->item : NULL;
     LPGAMECLIENT client = clent ? clent->client : NULL;
     ItemData_t const *data;
     FLOAT distance;

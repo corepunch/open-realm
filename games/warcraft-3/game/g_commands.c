@@ -1412,7 +1412,8 @@ static BOOL G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
     LPEDICT carrier = G_IsItem(item) ? item->item.carrier : NULL;
 
     if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
-        G_ShopPawnItem(clent, target, carrier, item)) {
+        G_ShopPawnItem(&(shopPawnItemParams_t){
+            .clent = clent, .shop = target, .carrier = carrier, .item = item })) {
         G_RefreshResourceBar(clent);
         Get_Portrait_f(clent);
         return true;

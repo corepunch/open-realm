@@ -994,7 +994,8 @@ void Get_Commands_f(LPEDICT ent) {
     UI_SetCurrentClient(ent->client);
     UI_WriteStart(LAYER_COMMANDBAR);
     count = G_CanUseItemShop(ent->client, selected)
-        ? G_GetShopItemButtons(ent->client, selected, buttons, 12)
+        ? G_GetShopItemButtons(&(shopItemButtonsParams_t){
+            .client = ent->client, .shop = selected, .buttons = buttons, .max_buttons = 12 })
         : G_GetCommandButtons(selected, buttons, 12);
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);

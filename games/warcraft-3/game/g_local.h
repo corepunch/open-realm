@@ -29,7 +29,7 @@
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
-#define MAX_SHOP_STOCK 24 /* runtime entries; comfortably above Blizzard.j's default 11 item slots */
+#define MAX_SHOP_STOCK 24 // entries; exceeds Blizzard.j's default 11 item slots; bounds persisted shop merchandise
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
@@ -943,6 +943,20 @@ typedef struct edictStock_s {
     DWORD item_count;
     edictShopStockItem_t items[MAX_SHOP_STOCK];
 } edictStock_t;
+
+typedef struct {
+    LPGAMECLIENT client;
+    LPEDICT shop;
+    gameCommandButton_t *buttons;
+    BYTE max_buttons;
+} shopItemButtonsParams_t;
+
+typedef struct {
+    LPEDICT clent;
+    LPEDICT shop;
+    LPEDICT carrier;
+    LPEDICT item;
+} shopPawnItemParams_t;
 
 #define WC3_ANIMATION_REQUEST_SIZE 80
 #define WC3_ANIMATION_PROPERTIES_SIZE 128
@@ -2413,9 +2427,9 @@ BOOL G_IsItemShop(LPCEDICT shop);
 BOOL G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop);
 FLOAT G_ShopActivationRadius(LPCEDICT shop);
 LPEDICT G_FindShopPatron(LPGAMECLIENT client, LPEDICT shop);
-BYTE G_GetShopItemButtons(LPGAMECLIENT client, LPEDICT shop, gameCommandButton_t *buttons, BYTE max_buttons);
+BYTE G_GetShopItemButtons(shopItemButtonsParams_t *params);
 BOOL G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, DWORD item_id);
-BOOL G_ShopPawnItem(LPEDICT clent, LPEDICT shop, LPEDICT carrier, LPEDICT item);
+BOOL G_ShopPawnItem(shopPawnItemParams_t *params);
 
 // g_destructable.c
 void G_SetDestructableScriptBinding(BOOL enabled);

@@ -694,7 +694,8 @@ TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {
     T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
     item = hero->inventory[0];
     T_NOT_NULL(item);
-    T_ASSERT(G_ShopPawnItem(player, shop, hero, item));
+    T_ASSERT(G_ShopPawnItem(&(shopPawnItemParams_t){
+        .clent = player, .shop = shop, .carrier = hero, .item = item }));
     T_NULL(hero->inventory[0]);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 425);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 88);
