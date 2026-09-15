@@ -471,8 +471,11 @@ DWORD IsLocationInRegion(LPJASS j) {
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
     return jass_pushboolean(j, whichRegion && whichLocation && G_RegionContains(whichRegion, whichLocation));
 }
+/* Return the loaded terrain bounds so Blizzard.j's GetEntireMapRect can enumerate every map unit. */
 DWORD GetWorldBounds(LPJASS j) {
-    return jass_pushnullhandle(j, "rect");
+    API_ALLOC(BOX2, rect);
+    *rect = CM_GetWorldBounds();
+    return 1;
 }
 DWORD GetFilterUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");

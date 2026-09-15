@@ -558,6 +558,25 @@ TEST(wc3_api, camera_margin_is_default_camera_inset_from_playable_area) {
     T_FEQ(level.camera_bounds.max.y, 1280.0f, 0.001f);
 }
 
+TEST(wc3_api, world_bounds_enables_full_map_group_transfer) {
+    LPEDICT unit;
+
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'l', 'a'), 128.0f, 128.0f);
+    unit->svflags |= SVF_MONSTER;
+    unit->s.player = 8;
+    T_ASSERT(run_test_jass(
+        "function transfer_action takes nothing returns nothing\n"
+        "  call SetUnitOwner(GetEnumUnit(), Player(1), true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local group units = CreateGroup()\n"
+        "  call GroupEnumUnitsInRect(units, GetWorldBounds(), null)\n"
+        "  call ForGroup(units, function transfer_action)\n"
+        "endfunction\n"));
+    T_EQ(unit->s.player, 1);
+}
+
 TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
     LPGAMECLIENT gc = &game.clients[0];
     VECTOR2 requested = { 500.0f, -500.0f };
