@@ -18,7 +18,10 @@ static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD client_num) {
 }
 
 void UI_LoadHudTimerDialogs(void) {
-    if (!TimerDialog_Load(&hud.timer_dialog)) return;
+    if (!TimerDialog_Load(&hud.timer_dialog)) {
+        fprintf(stderr, "WC3 HUD: missing TimerDialog.fdf\n");
+        return;
+    }
 
     /* Match the Hero shortcut layer's full-screen horizontal canvas so the
      * mirrored timer stays against the actual right edge on widescreen too. */
@@ -61,7 +64,7 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     dialog = UI_VisibleTimerDialog(client_num);
     if (!dialog || !hud.timer_dialog.TimerDialog || !hud.timer_dialog.TimerDialogTitle ||
         !hud.timer_dialog.TimerDialogValue) {
-        UI_ClearLayer(ent, LAYER_TIMERDIALOG);
+        UI_ClearLayer(ent, WC3_LAYER_TIMERDIALOG);
         return;
     }
 
@@ -79,7 +82,7 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     UI_SetText(hud.timer_dialog.TimerDialogValue, "%s", value);
 
     UI_SetCurrentClient(ent->client);
-    UI_WriteStart(LAYER_TIMERDIALOG);
+    UI_WriteStart(WC3_LAYER_TIMERDIALOG);
     UI_WriteFrame(&hud.timer_dialog_anchor);
     UI_WriteFrameWithChildren(hud.timer_dialog.TimerDialog, &hud.timer_dialog_anchor);
     UI_WriteEnd(ent);

@@ -3572,6 +3572,8 @@ TEST(wc3_save, round_trip_timer_dialog_state_and_handle) {
 
     currentplayer = NULL;
     T_ASSERT(run_test_jass(
+        "type timer extends handle\n"
+        "type timerdialog extends handle\n"
         "globals\n"
         "  timer savedTimerDialogTimer = null\n"
         "  timerdialog savedTimerDialog = null\n"
@@ -3622,6 +3624,7 @@ TEST(wc3_save, round_trip_leaderboard_state_and_handle) {
     currentplayer = NULL;
 
     T_ASSERT(run_test_jass(
+        "type leaderboard extends handle\n"
         "globals\n"
         "  leaderboard savedBoard = null\n"
         "  leaderboard savedAlias = null\n"

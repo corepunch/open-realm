@@ -772,6 +772,8 @@ typedef struct {
 #define MAX_TIMERDIALOGS 64 // handles; bounds map-lifetime timer-dialog registry slots
 #define MAX_LEADERBOARDS 32 // handles; fixed save-stable leaderboard registry
 #define MAX_LEADERBOARD_ITEMS 24 // rows; covers classic player/campaign boards
+#define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
+#define WC3_LAYER_LEADERBOARD LAYER_GAME_1
 #define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity

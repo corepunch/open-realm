@@ -44,7 +44,10 @@ static void ResetFramePoints(LPFRAMEDEF frame) {
 }
 
 void UI_LoadHudLeaderboards(void) {
-    if (!LeaderBoard_Load(&hud.leaderboard)) return;
+    if (!LeaderBoard_Load(&hud.leaderboard)) {
+        fprintf(stderr, "WC3 HUD: missing LeaderBoard.fdf\n");
+        return;
+    }
 
     /* Use the same full-screen widescreen anchor and edge offsets as the
      * TimerDialog so both HUD types start at the same top-right position. */
@@ -86,7 +89,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     title = hud.leaderboard.LeaderboardTitle;
     container = hud.leaderboard.LeaderboardListContainer;
     if (!board || !(board->displayed_clients & (1u << player)) || !root || !container) {
-        UI_ClearLayer(ent, LAYER_LEADERBOARD);
+        UI_ClearLayer(ent, WC3_LAYER_LEADERBOARD);
         return;
     }
 
@@ -136,7 +139,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
                 LEADERBOARD_EDGE_INSET, -list_top);
 
     UI_SetCurrentClient(ent->client);
-    UI_WriteStart(LAYER_LEADERBOARD);
+    UI_WriteStart(WC3_LAYER_LEADERBOARD);
     UI_WriteFrame(&hud.leaderboard_anchor);
     UI_WriteFrameWithChildren(root, &hud.leaderboard_anchor);
     parent = UI_GetWrittenFrameNumber(container);
