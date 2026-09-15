@@ -517,7 +517,8 @@ DWORD TriggerWaitForSound(LPJASS j) {
 }
 DWORD TriggerEvaluate(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    BOOL result = jass_evaluatetrigger(j, whichTrigger, NULL);
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    BOOL result = jass_evaluatetrigger(j, whichTrigger, context ? context->unit : NULL);
     if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
         LPCJASSCONTEXT ctx = jass_getcontext(j);
         LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
@@ -545,6 +546,7 @@ DWORD TriggerEvaluate(LPJASS j) {
 }
 DWORD TriggerExecute(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPCJASSCONTEXT context = jass_getcontext(j);
     if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
         LPCJASSCONTEXT ctx = jass_getcontext(j);
         LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
@@ -568,7 +570,7 @@ DWORD TriggerExecute(LPJASS j) {
                 jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(native/root)",
                 (int)whichTrigger->disabled);
     }
-    jass_executetrigger(j, whichTrigger, NULL);
+    jass_executetrigger(j, whichTrigger, context ? context->unit : NULL);
     return 0;
 }
 DWORD TriggerExecuteWait(LPJASS j) {
