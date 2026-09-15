@@ -988,7 +988,7 @@ static BOOL G_BuildTooCloseToGoldMine(DWORD building_id, LPCVECTOR2 point) {
     if (!point || !S_UnitTypeReturnsGold(building_id)) return false;
 
     FILTER_EDICTS(mine, mine->inuse && !M_IsDead(mine) && S_GoldMineIsMine(mine)) {
-        if (Vector2_distance(point, &mine->s.origin2) < RESOURCE_GOLD_SOURCE_MIN_DISTANCE)
+        if (Vector2_distance(point, &mine->s.origin2) < WC3_GOLD_MINE_MIN_DISTANCE)
             return true;
     }
     return false;

@@ -105,4 +105,6 @@ static inline unitRace_t WC3_RaceFromString(LPCSTR name) {
     return RACE_UNKNOWN;
 }
 
+#define WC3_GOLD_MINE_MIN_DISTANCE 512.0f
+
 #endif

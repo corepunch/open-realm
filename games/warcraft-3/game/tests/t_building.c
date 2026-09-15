@@ -1360,7 +1360,7 @@ TEST(wc3_building, gold_return_building_respects_gold_mine_exclusion_radius) {
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128.0f, 0.0f);
     mine = alloc_test_unit(MAKEFOURCC('n','T','S','T'),
-                           RESOURCE_GOLD_SOURCE_MIN_DISTANCE - 1.0f, 0.0f);
+                           WC3_GOLD_MINE_MIN_DISTANCE - 1.0f, 0.0f);
     mine->data.UnitAbilities = &mine_abilities;
 
     T_ASSERT(S_UnitTypeReturnsGold(gold_return_building));
@@ -1369,7 +1369,7 @@ TEST(wc3_building, gold_return_building_respects_gold_mine_exclusion_radius) {
          PLACE_TOO_CLOSE_TO_GOLD_MINE);
     T_EQ(G_EvaluateBuildPlacement(builder, ordinary_building, &requested, &snapped), PLACE_OK);
 
-    mine->s.origin2.x = RESOURCE_GOLD_SOURCE_MIN_DISTANCE;
+    mine->s.origin2.x = WC3_GOLD_MINE_MIN_DISTANCE;
     mine->s.origin.x = mine->s.origin2.x;
     T_EQ(G_EvaluateBuildPlacement(builder, gold_return_building, &requested, &snapped), PLACE_OK);
 }

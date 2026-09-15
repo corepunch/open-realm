@@ -28,6 +28,8 @@ static cmW3Read_t const cm_w3_readers[] = {
 };
 
 #ifdef BZ_CLIENT_WORLD
+#include "client/client.h"
+
 /* The engine needs terrain pathing for placement previews, without game-owned routing jobs or imports. */
 static struct {
     DWORD width, height;
@@ -53,6 +55,25 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 pos, LPBYTE flags) {
     if (x < 0 || y < 0 || x >= cl_path.width || y >= cl_path.height) return false;
     *flags = cl_path.cells[x + y * cl_path.width];
     return true;
+}
+
+#define WC3_GOLD_MINE_MIN_DISTANCE 512.0f
+
+BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
+    FLOAT const min_dist_sq = WC3_GOLD_MINE_MIN_DISTANCE * WC3_GOLD_MINE_MIN_DISTANCE;
+    if (!origin || !cl.cursorEntity || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN)) return false;
+    FOR_LOOP(i, cl.num_active) {
+        DWORD const number = cl.active_entities[i];
+        entityState_t const *state;
+        FLOAT dx, dy;
+        if (!number || number >= MAX_CLIENT_ENTITIES) continue;
+        state = &cl.ents[number].current;
+        if (!(state->flags & EF_RESOURCE_SOURCE) || (state->flags & EF_NOT_SELECTABLE)) continue;
+        dx = state->origin.x - origin->x;
+        dy = state->origin.y - origin->y;
+        if (dx * dx + dy * dy < min_dist_sq) return true;
+    }
+    return false;
 }
 #endif
 

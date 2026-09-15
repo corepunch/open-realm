@@ -139,8 +139,8 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     ent->model = G_RegisterModel(buffer);
     ent->scale = ui->modelScale;
     ent->angle = -M_PI / 2;
-    if (S_UnitTypeIsGoldMine(unit_id)) ent->flags |= EF_RESOURCE_GOLD_SOURCE;
-    if (S_UnitTypeReturnsGold(unit_id)) ent->flags |= EF_RESOURCE_GOLD_RETURN;
+    if (S_UnitTypeIsGoldMine(unit_id)) ent->flags |= EF_RESOURCE_SOURCE;
+    if (S_UnitTypeReturnsGold(unit_id)) ent->flags |= EF_RESOURCE_RETURN;
     {
         UnitData_t const *data = G_UnitData(unit_id);
         pathTex_t *pathtex = M_LoadPathTex(data->pathingTexture);
