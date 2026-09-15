@@ -1606,6 +1606,19 @@ TEST(wc3_api, createunit_does_not_reuse_deferred_dead_unit) {
     G_FreeEdict(replacement);
 }
 
+TEST(wc3_api, createunit_allocates_fresh_nearby_unit) {
+    LPEDICT existing, created;
+
+    G_ResetDeferredFrees();
+    reset_entities();
+    existing = alloc_test_unit(MAKEFOURCC('n','z','o','m'), 0, 0);
+    created = unit_create(0, MAKEFOURCC('n','z','o','m'), &(VECTOR2){0, 0}, 0);
+    T_ASSERT(created && created != existing);
+    T_ASSERT(created->inuse);
+    G_FreeEdict(created);
+    G_FreeEdict(existing);
+}
+
 TEST(wc3_api, message_log_is_bounded_and_evicts_oldest_entry) {
     LPGAMECLIENT gc = &game.clients[0];
     EDICT ent = { .client = gc };

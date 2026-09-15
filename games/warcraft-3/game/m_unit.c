@@ -836,7 +836,7 @@ LPEDICT unit_create(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facin
     if (unit->stand) {
         unit->stand(unit);
     }
-    unit->s.angle = facing * M_PI / 180;;
+    unit->s.angle = facing * M_PI / 180;
     G_ActivateUnitFood(unit);
     return unit;
 }
