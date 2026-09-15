@@ -81,6 +81,7 @@ KNOWN_AS(gregion_s, REGION);
 KNOWN_AS(gevent_s, EVENT);
 KNOWN_AS(gtrigger_s, TRIGGER);
 KNOWN_AS(gtimer_s, GTIMER);
+KNOWN_AS(gtimerdialog_s, TIMERDIALOG);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
 
@@ -767,6 +768,7 @@ typedef struct {
 #define JASS_GROUP_INITIAL_CAPACITY 64 // handle pointer slots; grows dynamically while group objects stay at stable addresses
 #define MAX_TRIGGERS 4096 // handles; bounds deterministic per-map trigger registry slots
 #define MAX_TIMERS 1024 // handles; bounds deterministic per-map timer registry slots
+#define MAX_TIMERDIALOGS 64 // handles; bounds map-lifetime timer-dialog registry slots
 #define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
@@ -817,6 +819,18 @@ struct gtimer_s {
     struct jass_function const *handler;
     DWORD duration, remaining;
     BOOL periodic, paused, running;
+};
+
+struct gtimerdialog_s {
+    LPGTIMER timer;
+    BOOL inuse;
+    BOOL title_set;
+    BOOL title_color_set;
+    BOOL time_color_set;
+    DWORD visible_clients;
+    COLOR32 title_color;
+    COLOR32 time_color;
+    char title[MAX_TRIGSTR_LENGTH];
 };
 
 struct gquestitem_s {
@@ -1533,6 +1547,10 @@ struct level_locals {
     DWORD num_triggers;
     GTIMER timers[MAX_TIMERS];
     DWORD num_timers;
+    TIMERDIALOG timer_dialogs[MAX_TIMERDIALOGS];
+    DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
+    LONG timer_dialog_last_index[MAX_CLIENTS]; /* transient active-slot cache */
+    LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
     gweather_t weather_effects[MAX_WEATHER_EFFECTS];
     DWORD next_weather_id;
     bot_t bots[MAX_PLAYERS];
@@ -1777,6 +1795,13 @@ void G_WeatherInitMap(void);
 DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size);
 LPTRIGGER G_AllocJassTrigger(void);
 LPGTIMER G_AllocJassTimer(void);
+LPTIMERDIALOG G_AllocTimerDialog(LPGTIMER timer);
+void G_FreeTimerDialog(LPTIMERDIALOG dialog);
+void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, BOOL visible);
+BOOL G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player);
+void G_MarkTimerDialogDirty(LPCTIMERDIALOG dialog);
+void G_UpdateTimerDialogs(void);
+void G_FormatTimerDialogValue(LPCGTIMER timer, LPSTR out, size_t out_size);
 void G_ClearSaveRegistries(void);
 BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_RunTimers(void);
@@ -2076,6 +2101,8 @@ void UI_ClearTemplates(void);
 void UI_ResetHud(void);
 void UI_LoadHud(void);
 void UI_LoadHudLoading(void);
+void UI_LoadHudTimerDialogs(void);
+void UI_WriteTimerDialogs(LPEDICT ent);
 void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info);
 void UI_ParseFDF(LPCSTR);
 void UI_ParseFDF_Buffer(LPCSTR, LPSTR);

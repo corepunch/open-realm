@@ -19,6 +19,7 @@
 #include "../generated/game_result_dialog.h"
 #include "../generated/cinematic_panel.h"
 #include "../generated/loading_screen.h"
+#include "../generated/timer_dialog.h"
 
 /* HUD font sizes */
 #define HUD_FONT_SIZE 10
@@ -59,6 +60,10 @@ typedef struct {
     AllianceDialog_t allies;
     GameResultDialog_t result;
     CinematicPanel_t cinematic;
+    TimerDialog_t timer_dialog;
+    char timer_dialog_default_title[MAX_TRIGSTR_LENGTH];
+    COLOR32 timer_dialog_default_title_color;
+    COLOR32 timer_dialog_default_time_color;
     FRAMEDEF msg_root, msg_text;
     PATHSTR image_key[MAX_IMAGES];
     PATHSTR image_name[MAX_IMAGES];
@@ -112,6 +117,8 @@ void UI_LoadHudAllies(void);
 void UI_LoadHudGameResult(void);
 void UI_LoadHudCinematic(void);
 void UI_LoadHudMessage(void);
+void UI_LoadHudTimerDialogs(void);
+void UI_WriteTimerDialogs(LPEDICT ent);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 

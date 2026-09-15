@@ -1434,47 +1434,71 @@ DWORD CreateTrackable(LPJASS j) {
     return jass_pushnullhandle(j, "trackable");
 }
 DWORD CreateTimerDialog(LPJASS j) {
-    //HANDLE t = jass_checkhandle(j, 1, "timer");
-    return jass_pushnullhandle(j, "timerdialog");
+    LPGTIMER timer = jass_checkhandle(j, 1, "timer");
+    LPTIMERDIALOG dialog = G_AllocTimerDialog(timer);
+    if (!dialog) {
+        jass_rterror(j, "CreateTimerDialog: timer-dialog registry is full");
+        return jass_pushnullhandle(j, "timerdialog");
+    }
+    return jass_pushlighthandle(j, dialog, "timerdialog");
 }
 DWORD DestroyTimerDialog(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
+    G_FreeTimerDialog(jass_checkhandle(j, 1, "timerdialog"));
     return 0;
 }
 DWORD TimerDialogSetTitle(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
-    //LPCSTR title = jass_checkstring(j, 2);
+    LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
+    LPCSTR title = jass_checkstring(j, 2);
+    if (!dialog || !dialog->inuse) return 0;
+    strlcpy(dialog->title, G_LevelString(title ? title : ""), sizeof(dialog->title));
+    dialog->title_set = true;
+    G_MarkTimerDialogDirty(dialog);
     return 0;
 }
 DWORD TimerDialogSetTitleColor(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
-    //LONG red = jass_checkinteger(j, 2);
-    //LONG green = jass_checkinteger(j, 3);
-    //LONG blue = jass_checkinteger(j, 4);
-    //LONG alpha = jass_checkinteger(j, 5);
+    LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
+    LONG red = jass_checkinteger(j, 2);
+    LONG green = jass_checkinteger(j, 3);
+    LONG blue = jass_checkinteger(j, 4);
+    LONG alpha = jass_checkinteger(j, 5);
+    if (!dialog || !dialog->inuse) return 0;
+    dialog->title_color = MAKE(COLOR32,
+        (BYTE)MAX(0, MIN(255, red)), (BYTE)MAX(0, MIN(255, green)),
+        (BYTE)MAX(0, MIN(255, blue)), (BYTE)MAX(0, MIN(255, alpha)));
+    dialog->title_color_set = true;
+    G_MarkTimerDialogDirty(dialog);
     return 0;
 }
 DWORD TimerDialogSetTimeColor(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
-    //LONG red = jass_checkinteger(j, 2);
-    //LONG green = jass_checkinteger(j, 3);
-    //LONG blue = jass_checkinteger(j, 4);
-    //LONG alpha = jass_checkinteger(j, 5);
+    LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
+    LONG red = jass_checkinteger(j, 2);
+    LONG green = jass_checkinteger(j, 3);
+    LONG blue = jass_checkinteger(j, 4);
+    LONG alpha = jass_checkinteger(j, 5);
+    if (!dialog || !dialog->inuse) return 0;
+    dialog->time_color = MAKE(COLOR32,
+        (BYTE)MAX(0, MIN(255, red)), (BYTE)MAX(0, MIN(255, green)),
+        (BYTE)MAX(0, MIN(255, blue)), (BYTE)MAX(0, MIN(255, alpha)));
+    dialog->time_color_set = true;
+    G_MarkTimerDialogDirty(dialog);
     return 0;
 }
 DWORD TimerDialogSetSpeed(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
-    //FLOAT speedMultFactor = jass_checknumber(j, 2);
+    /* Deliberately left unsupported until retail display-rate semantics are
+     * pinned down.  Do not alter the authoritative gameplay timer here. */
+    (void)jass_checkhandle(j, 1, "timerdialog");
+    (void)jass_checknumber(j, 2);
     return 0;
 }
 DWORD TimerDialogDisplay(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
-    //BOOL display = jass_checkboolean(j, 2);
+    LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
+    BOOL display = jass_checkboolean(j, 2);
+    G_SetTimerDialogVisible(dialog, currentplayer, display);
     return 0;
 }
 DWORD IsTimerDialogDisplayed(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "timerdialog");
-    return jass_pushboolean(j, 0);
+    LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
+    return jass_pushboolean(j, G_IsTimerDialogVisible(dialog, currentplayer));
 }
 DWORD SetCinematicScene(LPJASS j) {
     LONG portraitUnitId = jass_checkinteger(j, 1);

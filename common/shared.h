@@ -479,6 +479,7 @@ typedef enum {
     LAYER_WORLD_HOVER,
     LAYER_UNIT_SHORTCUTS,
     LAYER_LOADING,
+    LAYER_TIMERDIALOG,
 } UILAYOUTLAYER;
 
 typedef enum {

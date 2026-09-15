@@ -811,6 +811,7 @@ void UI_LoadHud(void) {
     UI_LoadHudGameResult();
     UI_LoadHudCinematic();
     UI_LoadHudMessage();
+    UI_LoadHudTimerDialogs();
     UI_LoadHudLoading();
 }
 

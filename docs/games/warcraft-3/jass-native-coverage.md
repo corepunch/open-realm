@@ -356,7 +356,7 @@ remaining inside.
 
 `PauseGame(flag)` is wired through the WC3 game module to the generic server scheduler pause. The server freezes `sv.time` / simulation frames while continuing network reads and client traffic. Pause sources are combined in game code so closing a Quest modal cannot accidentally clear a script-owned `PauseGame(true)`. Quest-driven pausing is restricted to single-client sessions. See [Pause And Modal UI](pause-and-modal-ui.md).
 
-This is distinct from `PauseUnit`, `PauseCompAI`, and timer pause state. `PauseTimer` / `ResumeTimer` remain unimplemented object-level timer natives.
+This is distinct from `PauseUnit`, `PauseCompAI`, and timer pause state. `PauseTimer` / `ResumeTimer` operate on the existing deterministic countdown timer and do not alter the global scheduler pause source.
 
 ## Timers
 
@@ -370,6 +370,10 @@ One scheduler should drive both timer handlers and timer-expire trigger events.
 Periodic timers reschedule from their intended expiry to avoid frame-time drift.
 Destroying a timer cancels pending work and invalidates event references without
 leaving a scheduler pointer to freed JASS handle storage.
+
+Timer dialogs are now implemented for the ordinary campaign-countdown path. `CreateTimerDialog` allocates a stable fixed-slot handle associated with an existing timer; `DestroyTimerDialog` removes only presentation state and leaves that timer running. `TimerDialogSetTitle`, title/time RGBA setters, `TimerDialogDisplay`, and `IsTimerDialogDisplayed` drive the stock `TimerDialog.fdf` HUD through a dedicated layout layer. Values render as zero-padded `MM:SS` and refresh only when the visible whole second or dialog presentation state changes. Local visibility follows the existing `currentplayer` convention. Timer-dialog handles and presentation state survive save/load through stable slot IDs. See [Timer Dialogs And Mission Countdowns](timer-dialogs.md).
+
+`TimerDialogSetSpeed` is still intentionally a no-op pending verified retail display-rate semantics, and `TimerDialogSetRealTimeRemaining` is not registered yet. The renderer currently displays the lowest-slot visible dialog rather than guessing at retail multi-dialog stacking.
 
 ## Units, Items, And Destructables
 

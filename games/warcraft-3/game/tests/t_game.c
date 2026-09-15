@@ -35,6 +35,31 @@ BOOL  M_IsDead(LPCEDICT ent);
 DWORD FindEnumValue(LPCSTR value, LPCSTR values[]);
 void  unit_runwait(LPEDICT self, void (*callback)(LPEDICT));
 
+TEST(wc3_game, timer_dialog_formats_zero_padded_countdown) {
+    GTIMER timer = {0};
+    char value[32];
+
+    timer.remaining = 30u * 60u * 1000u;
+    G_FormatTimerDialogValue(&timer, value, sizeof(value));
+    T_STREQ(value, "30:00");
+
+    timer.remaining = 9u * 60u * 1000u + 7u * 1000u;
+    G_FormatTimerDialogValue(&timer, value, sizeof(value));
+    T_STREQ(value, "09:07");
+
+    timer.remaining = 64u * 1000u;
+    G_FormatTimerDialogValue(&timer, value, sizeof(value));
+    T_STREQ(value, "01:04");
+
+    timer.remaining = 9u * 1000u;
+    G_FormatTimerDialogValue(&timer, value, sizeof(value));
+    T_STREQ(value, "00:09");
+
+    timer.remaining = 0;
+    G_FormatTimerDialogValue(&timer, value, sizeof(value));
+    T_STREQ(value, "00:00");
+}
+
 TEST(wc3_game, target_type_missing_returns_none) {
     T_EQ(G_GetTargetType(NULL), TARG_NONE);
     T_EQ(G_GetTargetType(""), TARG_NONE);
@@ -3539,6 +3564,56 @@ TEST(wc3_save, round_trip_jass_globals) {
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     remove(filename);
+}
+
+TEST(wc3_save, round_trip_timer_dialog_state_and_handle) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-timer-dialog-save-test.bin";
+    LPPLAYER saved = currentplayer;
+
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  timer savedTimerDialogTimer = null\n"
+        "  timerdialog savedTimerDialog = null\n"
+        "  timerdialog savedTimerDialogAlias = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set savedTimerDialogTimer = CreateTimer()\n"
+        "  call TimerStart(savedTimerDialogTimer, 65.0, false, null)\n"
+        "  set savedTimerDialog = CreateTimerDialog(savedTimerDialogTimer)\n"
+        "  set savedTimerDialogAlias = savedTimerDialog\n"
+        "  call TimerDialogSetTitle(savedTimerDialog, \"Until Reinforcements Arrive\")\n"
+        "  call TimerDialogSetTitleColor(savedTimerDialog, 10, 20, 30, 40)\n"
+        "  call TimerDialogSetTimeColor(savedTimerDialog, 50, 60, 70, 80)\n"
+        "  call TimerDialogDisplay(savedTimerDialog, true)\n"
+        "endfunction\n"
+        "function mutate takes nothing returns nothing\n"
+        "  call TimerDialogDisplay(savedTimerDialog, false)\n"
+        "  call TimerDialogSetTitle(savedTimerDialog, \"mutated\")\n"
+        "  call DestroyTimerDialog(savedTimerDialog)\n"
+        "  set savedTimerDialogAlias = null\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(savedTimerDialog == savedTimerDialogAlias, \"timer-dialog alias mismatch\")\n"
+        "  call BJassAssert(IsTimerDialogDisplayed(savedTimerDialog), \"timer-dialog visibility mismatch\")\n"
+        "  call BJassAssert(TimerGetRemaining(savedTimerDialogTimer) > 64.0, \"timer-dialog timer mismatch\")\n"
+        "endfunction\n"));
+
+    T_ASSERT(level.timer_dialogs[0].inuse);
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm, "mutate", false);
+    T_ASSERT(!level.timer_dialogs[0].inuse);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(level.timer_dialogs[0].inuse);
+    T_STREQ(level.timer_dialogs[0].title, "Until Reinforcements Arrive");
+    T_EQ(level.timer_dialogs[0].title_color.r, 10); T_EQ(level.timer_dialogs[0].title_color.g, 20);
+    T_EQ(level.timer_dialogs[0].title_color.b, 30); T_EQ(level.timer_dialogs[0].title_color.a, 40);
+    T_EQ(level.timer_dialogs[0].time_color.r, 50); T_EQ(level.timer_dialogs[0].time_color.g, 60);
+    T_EQ(level.timer_dialogs[0].time_color.b, 70); T_EQ(level.timer_dialogs[0].time_color.a, 80);
+    remove(filename);
+    currentplayer = saved;
 }
 
 TEST(wc3_save, round_trip_weather_effect_state_and_handle) {

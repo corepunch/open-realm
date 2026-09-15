@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 22, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 23, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -34,6 +34,7 @@ Version 19 adds the ability-owned per-unit Raven Form takeoff state (`fly_height
 Version 20 adds race-specific construction lifecycle state and an explicit `F_EDICT` fixup for `construction.worker`; v19 saves are rejected rather than interpreting the expanded raw edict record.
 Version 21 adds `mineoverlay.parent` and `acolyte_mine.mine` `F_EDICT` fixups plus overlay income timing/index and Acolyte slot/generation state. The original `Agld` edict remains the finite resource owner for Haunted/Entangled overlays, so those relationships must survive load rather than being reconstructed from proximity.
 Version 22 adds neutral-shop stock state: global item/unit slot capacities plus each shop edict's initialized item-stock entries, current counts, and absolute start/replenish deadlines. `stock_fields` bounds `item_count` by `MAX_SHOP_STOCK`; the deadlines use the restored simulation clock, so partially elapsed restock timers resume without rebasing. The expanded `edict_t` layout and format version reject older records instead of interpreting shifted state.
+Version 23 adds the fixed TimerDialog registry. Each live slot persists its timer association, title/colour presentation state, and client visibility mask; non-null JASS `timerdialog` values snapshot as stable slot indexes. Layout payloads remain transient, so load invalidates the timer-dialog HUD cache and republishes restored state on the next frame. See [Timer Dialogs And Mission Countdowns](timer-dialogs.md).
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 
@@ -58,7 +59,7 @@ The embedded snapshot starts with `JSVM`, snapshot format version 4, a program-i
 - `boolexpr`, `conditionfunc`, and `filterfunc` handles by semantic JASS function name;
 - sleeping coroutine frames as function/block token ordinals, locals, operand stack values, wake delay, and event context, including scalar and optional point spell response data.
 
-The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, timers, and weather effects. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
+The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, timers, timer dialogs, and weather effects. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
 
 Handle encoding dispatches value handles, VM-owned payloads, and function handles before consulting the game host. A failed host lookup means null only for host-owned native domains, such as a removed unit; applying that rule to VM-owned handles would silently replace valid sounds, camera setups, rects, locations, forces, and game caches with null.
 
@@ -124,7 +125,7 @@ Q2 `ReadLevel` states the contract we hit: SpawnEntities has already run the sam
 
 Do not replace JASS VM `HANDLE` / `LPCJASSFUNC` / `LPEDICT` fields with integers. Q2 keeps `edict_t *` and `think` pointers in memory and remaps them in `WriteField1` / `ReadField`. The VM should do the same.
 
-- Host-owned natives (`unit`, `widget`, `item`, `player`, `quest`, `trigger`, `group`, `timer`, `event`, `weathereffect`) snapshot as stable ordinals through `G_SaveJassHandle` / `G_LoadJassHandle`.
+- Host-owned natives (`unit`, `widget`, `item`, `player`, `quest`, `trigger`, `group`, `timer`, `timerdialog`, `event`, `weathereffect`) snapshot as stable ordinals through `G_SaveJassHandle` / `G_LoadJassHandle`.
 - Stale host-owned handles are normalized to null at the save boundary, including handles retained by yielded coroutine/event contexts. Removed units can outlive their edict only as stale JASS pointers; they must not make an otherwise valid save fail. A missing host codec or snapshot I/O failure remains fatal.
 - VM-owned payloads (sounds, rects, locations, forces, game caches) snapshot identity plus bytes.
 - `code` / trigger actions snapshot as function names, the analog of Q2 `F_FUNCTION` without a relocated code segment.

@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 22; // format version; persists neutral-shop stock/capacity state
+static DWORD const save_version = 23; // format version; persists WC3 timer-dialog handles/presentation state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -141,6 +141,7 @@ typedef enum {
     JASS_HANDLE_TRIGGER,
     JASS_HANDLE_GROUP,
     JASS_HANDLE_TIMER,
+    JASS_HANDLE_TIMERDIALOG,
     JASS_HANDLE_WEATHER,
 } jassHandleDomain_t;
 
@@ -157,9 +158,22 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "trigger", JASS_HANDLE_TRIGGER },
     { "group", JASS_HANDLE_GROUP },
     { "timer", JASS_HANDLE_TIMER },
+    { "timerdialog", JASS_HANDLE_TIMERDIALOG },
     { "weathereffect", JASS_HANDLE_WEATHER },
 };
 
+static field_t const timer_dialog_fields[] = {
+    F(gtimerdialog_s, timer, F_TIMER, 0, FIELD_NONE),
+    F(gtimerdialog_s, inuse, F_INT),
+    F(gtimerdialog_s, title_set, F_INT),
+    F(gtimerdialog_s, title_color_set, F_INT),
+    F(gtimerdialog_s, time_color_set, F_INT),
+    F(gtimerdialog_s, visible_clients, F_INT),
+    F(gtimerdialog_s, title_color, F_INT),
+    F(gtimerdialog_s, time_color, F_INT),
+    F(gtimerdialog_s, title, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
 
 static field_t const weather_fields[] = {
     TF(gweather_t, inuse, F_INT),
@@ -282,6 +296,7 @@ static field_t const level_fields[] = {
     F(level_locals, quests, F_STRUCT, MAX_QUESTS, quest_fields),
     FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
     FC(level_locals, timers, F_STRUCT, MAX_TIMERS, timer_fields, num_timers),
+    F(level_locals, timer_dialogs, F_STRUCT, MAX_TIMERDIALOGS, timer_dialog_fields),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
     FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
     { NULL, 0, 0, 0, 0, 0 }
@@ -743,6 +758,8 @@ static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
         if (id < MAX_WEATHER_EFFECTS && level.weather_effects[id].inuse) return &level.weather_effects[id];
     } else if (domain == JASS_HANDLE_TRIGGER && id < level.num_triggers) return &level.triggers[id];
     else if (domain == JASS_HANDLE_TIMER && id < level.num_timers) return &level.timers[id];
+    else if (domain == JASS_HANDLE_TIMERDIALOG && id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse)
+        return &level.timer_dialogs[id];
     return NULL;
 }
 
@@ -775,6 +792,13 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
     }
     if (domain == JASS_HANDLE_TIMER) {
         return TimerIndex(value, id);
+    }
+    if (domain == JASS_HANDLE_TIMERDIALOG) {
+        LPTIMERDIALOG dialog = value;
+        if (dialog < level.timer_dialogs || dialog >= level.timer_dialogs + MAX_TIMERDIALOGS || !dialog->inuse)
+            return false;
+        *id = (DWORD)(dialog - level.timer_dialogs);
+        return true;
     }
     if (domain == JASS_HANDLE_WEATHER) {
         LPGWEATHER effect = value;
@@ -810,6 +834,8 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
         return group && group->inuse ? group : NULL;
     }
     if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? &level.timers[id] : NULL;
+    if (domain == JASS_HANDLE_TIMERDIALOG)
+        return id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse ? &level.timer_dialogs[id] : NULL;
     return JassListHandle(domain, id);
 }
 
@@ -1333,6 +1359,13 @@ BOOL ReadGame(LPCSTR filename) {
      * Re-emit the restored semantic music state for clients that remained
      * connected across the load. */
     FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) G_MusicSyncClient(game.clients + i);
+    /* svc_layout layers are client presentation state and are not serialized.
+     * Force the restored timer-dialog model to republish on the next frame. */
+    FOR_LOOP(i, MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS)) {
+        level.timer_dialog_dirty_clients |= 1u << i;
+        level.timer_dialog_last_index[i] = -1;
+        level.timer_dialog_last_seconds[i] = -1;
+    }
     G_DisableStartingResourceCheatForLoadedGame();
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;

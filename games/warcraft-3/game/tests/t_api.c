@@ -139,6 +139,53 @@ TEST(wc3_api, quest_flash_is_player_local_and_acknowledged) {
     currentplayer = saved; level.time = oldtime;
 }
 
+TEST(wc3_api, timer_dialog_natives_store_state_and_local_visibility) {
+    LPPLAYER saved = currentplayer;
+    LPTIMERDIALOG dialog;
+    LPGTIMER timer;
+
+    setup_test_world();
+    currentplayer = test_player(1);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  timer countdown = null\n"
+        "  timerdialog countdownDialog = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set countdown = CreateTimer()\n"
+        "  call TimerStart(countdown, 65.0, false, null)\n"
+        "  set countdownDialog = CreateTimerDialog(countdown)\n"
+        "  call BJassAssert(countdownDialog != null, \"timer dialog should be allocated\")\n"
+        "  call TimerDialogSetTitle(countdownDialog, \"Until Reinforcements Arrive\")\n"
+        "  call TimerDialogSetTitleColor(countdownDialog, 300, -5, 64, 255)\n"
+        "  call TimerDialogSetTimeColor(countdownDialog, 1, 2, 3, 4)\n"
+        "  call BJassAssert(not IsTimerDialogDisplayed(countdownDialog), \"dialog starts hidden\")\n"
+        "  call TimerDialogDisplay(countdownDialog, true)\n"
+        "  call BJassAssert(IsTimerDialogDisplayed(countdownDialog), \"dialog should be visible locally\")\n"
+        "endfunction\n"
+        "function destroyDialog takes nothing returns nothing\n"
+        "  call DestroyTimerDialog(countdownDialog)\n"
+        "  call BJassAssert(TimerGetRemaining(countdown) > 64.0, \"destroying dialog must not destroy timer\")\n"
+        "endfunction\n"));
+
+    dialog = &level.timer_dialogs[0];
+    T_ASSERT(dialog->inuse);
+    T_ASSERT(dialog->timer != NULL);
+    timer = dialog->timer;
+    T_STREQ(dialog->title, "Until Reinforcements Arrive");
+    T_EQ(dialog->title_color.r, 255); T_EQ(dialog->title_color.g, 0);
+    T_EQ(dialog->title_color.b, 64);  T_EQ(dialog->title_color.a, 255);
+    T_EQ(dialog->time_color.r, 1);   T_EQ(dialog->time_color.g, 2);
+    T_EQ(dialog->time_color.b, 3);   T_EQ(dialog->time_color.a, 4);
+    T_EQ(dialog->visible_clients, 1u << 1);
+
+    jass_callbyname(level.vm, "destroyDialog", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!dialog->inuse);
+    T_ASSERT(timer->running);
+    currentplayer = saved;
+}
+
 TEST(wc3_api, version_queries_accept_typed_handles) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

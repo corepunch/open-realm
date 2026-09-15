@@ -50,6 +50,7 @@ nav:
         - UI Quick Reference: games/warcraft-3/architecture/ui-quick-reference.md
         - Map Renderer: games/warcraft-3/architecture/map-renderer.md
         - Cinematics: games/warcraft-3/cinematics.md
+        - Timer Dialogs And Mission Countdowns: games/warcraft-3/timer-dialogs.md
         - Sounds: games/warcraft-3/sounds.md
     - World of Warcraft:
       - Overview: games/world-of-warcraft/readme.md
