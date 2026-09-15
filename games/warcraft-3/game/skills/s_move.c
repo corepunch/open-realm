@@ -59,17 +59,19 @@ static LPEDICT trymove_colliders[MAX_MOVE_COLLIDERS];
 /* Keep a failed exceptional route search from monopolizing the frame while
  * the same goal remains unreachable; order changes clear this state below. */
 static BOOL move_fallback_throttled(LPEDICT self, LPCVECTOR2 target, FLOAT radius) {
-    if (self->movement.flow_fallback_applied && self->movement.flow_fallback_goal == self->goalentity) {
+    if (self->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED &&
+        self->movement.flow_fallback_goal == self->goalentity) {
         self->movement.flow_unreachable = true;
         return true;
     }
-    if (!self->movement.flow_fallback_valid)
+    if (self->movement.flow_fallback_state != MOVE_FALLBACK_RETRY)
         return false;
-    if (fabsf(self->movement.flow_fallback_target.x - target->x) >= 0.01f ||
+    if (self->movement.flow_fallback_goal != self->goalentity ||
+        fabsf(self->movement.flow_fallback_target.x - target->x) >= 0.01f ||
         fabsf(self->movement.flow_fallback_target.y - target->y) >= 0.01f ||
         fabsf(self->movement.flow_fallback_radius - radius) >= 0.01f ||
         (DWORD)(level.time - self->movement.flow_fallback_time) >= MOVE_FALLBACK_RETRY_MS) {
-        self->movement.flow_fallback_valid = false;
+        self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
         return false;
     }
     self->movement.flow_unreachable = true;
@@ -581,16 +583,16 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                     self->movement.flow_fallback_target = self->goalentity->s.origin2;
                     self->movement.flow_fallback_radius = radius;
                     self->movement.flow_fallback_time = level.time;
-                    self->movement.flow_fallback_valid = true;
-                    if (CM_ClosestReachablePointForRadius(
-                            &self->s.origin2, &self->goalentity->s.origin2, radius, &closest)) {
+                    self->movement.flow_fallback_goal = self->goalentity;
+                    self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
+                    if (CM_ClosestReachablePointForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius, &closest)) {
                         self->goalentity->s.origin2 = closest;
                         self->goalentity->secondarygoal = NULL;
                         self->goalentity->heatmap2 = 0;
                         self->goalentity->heatmap2_radius = 0;
                         move_reset_progress(self);
                         self->movement.flow_fallback_goal = self->goalentity;
-                        self->movement.flow_fallback_applied = true;
+                        self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                     }
                     return;
                 }
@@ -953,9 +955,8 @@ void move_reset_progress(LPEDICT self) {
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
-    self->movement.flow_fallback_valid = false;
     self->movement.flow_fallback_goal = NULL;
-    self->movement.flow_fallback_applied = false;
+    self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
     self->movement.worker_avoid_origin = self->s.origin2;
     self->movement.worker_avoid_heading = self->s.angle;
     self->movement.worker_avoid_blocked_frames = 0;

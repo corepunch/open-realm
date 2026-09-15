@@ -929,7 +929,7 @@ TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
 
     CM_ResetTestPathPerfStats();
     unit_changeangle(unit);
-    T_ASSERT(unit->movement.flow_fallback_valid);
+    T_EQ(unit->movement.flow_fallback_state, MOVE_FALLBACK_RETRY);
     first_time = unit->movement.flow_fallback_time;
     unit_changeangle(unit);
     second_time = unit->movement.flow_fallback_time;
@@ -954,7 +954,7 @@ TEST(wc3_pathfinding, movement_remembers_applied_unreachable_fallback) {
     T_ASSERT(CM_BuildHeatmapForRadius(goal, unit->collision) != 0);
 
     unit_changeangle(unit);
-    T_ASSERT(unit->movement.flow_fallback_applied);
+    T_EQ(unit->movement.flow_fallback_state, MOVE_FALLBACK_APPLIED);
     T_ASSERT(unit->movement.flow_fallback_goal == goal);
 }
 

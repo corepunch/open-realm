@@ -961,6 +961,12 @@ typedef struct {
 #define WC3_ANIMATION_REQUEST_SIZE 80
 #define WC3_ANIMATION_PROPERTIES_SIZE 128
 
+typedef enum {
+    MOVE_FALLBACK_NONE,
+    MOVE_FALLBACK_RETRY,
+    MOVE_FALLBACK_APPLIED,
+} moveFallbackState_t;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -1174,9 +1180,8 @@ struct edict_s {
         VECTOR2 flow_fallback_target; /* last unreachable fallback request */
         FLOAT flow_fallback_radius;
         DWORD flow_fallback_time;
-        BOOL flow_fallback_valid;
         LPEDICT flow_fallback_goal;
-        BOOL flow_fallback_applied;
+        moveFallbackState_t flow_fallback_state;
         ROUTEPATH path; /* persistent WC3 accelerator state shared with other server games */
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
