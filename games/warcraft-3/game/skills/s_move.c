@@ -24,6 +24,7 @@
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
 #define MOVE_ARRIVE_TOLERANCE 4.0f
+#define MOVE_FALLBACK_RETRY_MS 500 // milliseconds; bounds repeated unreachable floods for one unchanged move goal
 
 typedef struct {
     VECTOR2 point;
@@ -54,6 +55,22 @@ typedef enum {
 static LPEDICT trymove_self = NULL;
 static LPEDICT trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static LPEDICT trymove_colliders[MAX_MOVE_COLLIDERS];
+
+/* Keep a failed exceptional route search from monopolizing the frame while
+ * the same goal remains unreachable; order changes clear this state below. */
+static BOOL move_fallback_throttled(LPEDICT self, LPCVECTOR2 target, FLOAT radius) {
+    if (!self->movement.flow_fallback_valid)
+        return false;
+    if (fabsf(self->movement.flow_fallback_target.x - target->x) >= 0.01f ||
+        fabsf(self->movement.flow_fallback_target.y - target->y) >= 0.01f ||
+        fabsf(self->movement.flow_fallback_radius - radius) >= 0.01f ||
+        (DWORD)(level.time - self->movement.flow_fallback_time) >= MOVE_FALLBACK_RETRY_MS) {
+        self->movement.flow_fallback_valid = false;
+        return false;
+    }
+    self->movement.flow_unreachable = true;
+    return true;
+}
 
 /* Wrap an angle delta into [-PI, PI]. */
 static FLOAT angle_wrap(FLOAT a) {
@@ -555,7 +572,13 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                  * raw click made local avoidance walk forever along walls. */
                 if (radius > 0.0f && self->movement.flow_unreachable) {
                     VECTOR2 closest;
-                        if (CM_ClosestReachablePointForRadius(
+                    if (move_fallback_throttled(self, &self->goalentity->s.origin2, radius))
+                        return;
+                    self->movement.flow_fallback_target = self->goalentity->s.origin2;
+                    self->movement.flow_fallback_radius = radius;
+                    self->movement.flow_fallback_time = level.time;
+                    self->movement.flow_fallback_valid = true;
+                    if (CM_ClosestReachablePointForRadius(
                             &self->s.origin2, &self->goalentity->s.origin2, radius, &closest)) {
                         self->goalentity->s.origin2 = closest;
                         self->goalentity->secondarygoal = NULL;
@@ -924,6 +947,7 @@ void move_reset_progress(LPEDICT self) {
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
+    self->movement.flow_fallback_valid = false;
     self->movement.worker_avoid_origin = self->s.origin2;
     self->movement.worker_avoid_heading = self->s.angle;
     self->movement.worker_avoid_blocked_frames = 0;

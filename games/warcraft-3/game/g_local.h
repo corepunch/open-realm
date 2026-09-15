@@ -1171,6 +1171,10 @@ struct edict_s {
         BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
         BOOL flow_unreachable;  /* field exists but current cell has no route */
         BOOL flow_direct;       /* static path from mover to requested goal is clear */
+        VECTOR2 flow_fallback_target; /* last unreachable fallback request */
+        FLOAT flow_fallback_radius;
+        DWORD flow_fallback_time;
+        BOOL flow_fallback_valid;
         ROUTEPATH path; /* persistent WC3 accelerator state shared with other server games */
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it

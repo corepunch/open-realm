@@ -74,6 +74,7 @@ void order_move(LPEDICT self, LPEDICT target);
 void order_patrol(LPEDICT self, LPEDICT target);
 void order_attackmove(LPEDICT self, LPEDICT target);
 BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
+void unit_changeangle(LPEDICT self);
 
 /* From m_unit.c */
 void unit_stand(LPEDICT self);
@@ -907,6 +908,32 @@ TEST(wc3_pathfinding, closest_reachable_respects_collision_radius) {
     T_ASSERT(CM_ClosestReachablePointForRadius(&from, &target, 1.0f, &out));
     T_FEQ(out.x, 3.5f, 0.001f);
     T_FEQ(out.y, 5.5f, 0.001f);
+}
+
+/* An impossible footprint must not synchronously reflood the map on every
+ * steering tick while the same move order remains active. */
+TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
+    BYTE blocked_map[MAP_W * MAP_H];
+    DWORD first_time, second_time;
+    LPEDICT unit, goal;
+
+    memset(blocked_map, 0, sizeof(blocked_map));
+    setup_test_pathmap(MAP_W, MAP_H, blocked_map);
+    reset_entities();
+    level.time = 1000;
+    unit = make_unit_at(100.0f, 100.0f);
+    unit->collision = 1.0f;
+    goal = make_waypoint(8.5f, 8.5f);
+    order_move(unit, goal);
+    T_ASSERT(CM_BuildHeatmapForRadius(goal, unit->collision) != 0);
+
+    CM_ResetTestPathPerfStats();
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement.flow_fallback_valid);
+    first_time = unit->movement.flow_fallback_time;
+    unit_changeangle(unit);
+    second_time = unit->movement.flow_fallback_time;
+    T_EQ(second_time, first_time);
 }
 
 /* The flood and the flow must not cut diagonally through a wall corner: with
