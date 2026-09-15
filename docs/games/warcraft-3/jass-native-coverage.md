@@ -207,6 +207,18 @@ negative paths so expected failures do not resemble test-run failures. Ordinary
 `run_test_jass()` calls print captured errors as `JASS test error:` before
 returning false.
 
+## Code Callback Representation
+
+Every declared function used as a JASS `code` value retains its `LPCJASSFUNC` declaration, including native functions.
+`jass_pushfunction()` must not replace a native declaration with the separately allocated `jasstype_cfunction` wrapper used for
+raw host calls. A script argument typed as `code` copies its value by pointer; copying that wrapper and later treating it as a
+`JASSFUNC` makes the wrapper's first word (the C function address) appear to be `func->args`. On AArch64 this produced the issue
+#410 crash in `jass_call_impl()` while iterating the apparent argument list. Dispatch resolves `func->nativefunc` only when the
+retained declaration is invoked.
+
+`jass_syntax.native_code_survives_script_argument` reproduces the complete contract: it forwards a declared native callback through
+a script `code` parameter, stores it in a host callback, and invokes it later. Run it through `make test-galaxy`.
+
 ## Map Configuration Contract
 
 The following callbacks form one coherent setup subsystem:

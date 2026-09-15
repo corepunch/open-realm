@@ -72,6 +72,8 @@ static void gal_actor_destroy(unsigned id) { gal_actor_destroyed++; gal_actor_la
 static BOOL gal_unit_moving;
 static LONG gal_move_count;
 static FLOAT gal_move_x;
+static LPCJASSFUNC gal_saved_code;
+static DWORD gal_code_calls;
 static void *gal_unit_create(LPCSTR type, int player, float x, float y, float angle) {
     (void)type; (void)player; (void)x; (void)y; (void)angle;
     return (void *)(uintptr_t)1;
@@ -88,6 +90,10 @@ static void gal_unit_move(void *ent, float x, float y) {
 }
 static BOOL gal_is_moving(void *ent) { (void)ent; return gal_unit_moving; }
 
+static DWORD gal_save_code(LPJASS j) { gal_saved_code = jass_checkcode(j, 1); return 0; }
+static DWORD gal_call_saved(LPJASS j) { jass_pushfunction(j, gal_saved_code); return jass_call(j, 0); }
+static DWORD gal_code_callback(LPJASS j) { (void)j; gal_code_calls++; return 0; }
+
 static unsigned int gal_TestFail(LPJASS j) {
     LPCSTR msg = jass_checkstring(j, 1);
     jass_rterror(j, msg ? msg : "TestFail");
@@ -97,6 +103,9 @@ static unsigned int gal_TestFail(LPJASS j) {
 static JASSMODULE gal_test_natives[] = {
     { "TestFail", gal_TestFail },
     { "NoValue", gal_void },
+    { "SaveCode", gal_save_code },
+    { "CallSaved", gal_call_saved },
+    { "NativeCallback", gal_code_callback },
     /* Stubs for natives used during InitGlobals / InitTriggers init paths */
     { "TriggerCreate",               gal_stub },
     { "TriggerAddEventMapInit",      gal_stub },
@@ -547,6 +556,25 @@ TEST(jass_syntax, unresolved_native_stops_synchronous_call) {
     jass_rterror_clear(s.j);
     jass_callbyname(s.j, "verify", false);
     T_ASSERT(!jass_rterror_pending(s.j));
+    gal_destroy(&s);
+}
+
+TEST(jass_syntax, native_code_survives_script_argument) {
+    gal_state_t s = gal_new();
+    gal_saved_code = NULL;
+    gal_code_calls = 0;
+    T_ASSERT(gal_run_mode(&s,
+        "native SaveCode takes code callback returns nothing\n"
+        "native CallSaved takes nothing returns nothing\n"
+        "native NativeCallback takes nothing returns nothing\n"
+        "function forward takes code callback returns nothing\n"
+        "call SaveCode(callback)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call forward(function NativeCallback)\n"
+        "call CallSaved()\n"
+        "endfunction\n", JASS_MODE_JASS));
+    T_EQ(gal_code_calls, 1);
     gal_destroy(&s);
 }
 

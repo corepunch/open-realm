@@ -1465,14 +1465,11 @@ DWORD jass_pushcfunction(LPJASS j, LPJASSCFUNCTION func) {
     return 1;
 }
 
+/* Code values retain their declaration so native and scripted callbacks share one stable representation. */
 DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func) {
-    if (func->nativefunc) {
-        return jass_pushcfunction(j, func->nativefunc);
-    } else {
-        JASS_ADD_STACK(j, var, jasstype_code);
-        var->value = (LPJASSFUNC)func;
-        return 1;
-    }
+    JASS_ADD_STACK(j, var, jasstype_code);
+    var->value = (LPJASSFUNC)func;
+    return 1;
 }
 
 DWORD jass_pushvalue(LPJASS j, LPCJASSVAR other) {
@@ -2751,20 +2748,22 @@ static DWORD jass_call_impl(LPJASS j, DWORD args) {
 #ifdef DEBUG_JASS
         printf("%s\n", func->name);
 #endif
-        FOR_EACH_LIST(JASSARG, arg, func->args) {
-            LPJASSDICT local = JASSALLOC(JASSDICT);
-            local->key = arg->name;
-            local->value.type = arg->type;
-            jass_copy(j, &local->value, &j->stack_pointer[argnum]);
-            PUSH_BACK(JASSDICT, local, locals);
-            argnum++;
-        }
-        root->env.done = false;
-        root->env.returnstack = -1;
-        root->env.locals = locals;
-        eval_TOKENS(j, func->code);
-        if (root->env.returnstack != -1) {
-            ret = j->num_stack - root->env.returnstack;
+        if (func->nativefunc) {
+            ret = func->nativefunc(j);
+        } else {
+            FOR_EACH_LIST(JASSARG, arg, func->args) {
+                LPJASSDICT local = JASSALLOC(JASSDICT);
+                local->key = arg->name;
+                local->value.type = arg->type;
+                jass_copy(j, &local->value, &j->stack_pointer[argnum]);
+                PUSH_BACK(JASSDICT, local, locals);
+                argnum++;
+            }
+            root->env.done = false;
+            root->env.returnstack = -1;
+            root->env.locals = locals;
+            eval_TOKENS(j, func->code);
+            if (root->env.returnstack != -1) ret = j->num_stack - root->env.returnstack;
         }
     }
     LPJASSVAR last = &j->stack[j->num_stack - ret];
