@@ -24,7 +24,7 @@
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
 #define MOVE_ARRIVE_TOLERANCE 4.0f
-#define MOVE_FALLBACK_RETRY_MS 500 // milliseconds; bounds repeated unreachable floods for one unchanged move goal
+#define BZ_MOVE_FALLBACK_RETRY_MS 500 // milliseconds; bounds repeated unreachable floods; used as the retry interval
 
 typedef struct {
     VECTOR2 point;
@@ -70,7 +70,7 @@ static BOOL move_fallback_throttled(LPEDICT self, LPCVECTOR2 target, FLOAT radiu
         fabsf(self->movement.flow_fallback_target.x - target->x) >= 0.01f ||
         fabsf(self->movement.flow_fallback_target.y - target->y) >= 0.01f ||
         fabsf(self->movement.flow_fallback_radius - radius) >= 0.01f ||
-        (DWORD)(level.time - self->movement.flow_fallback_time) >= MOVE_FALLBACK_RETRY_MS) {
+        (DWORD)(level.time - self->movement.flow_fallback_time) >= BZ_MOVE_FALLBACK_RETRY_MS) {
         self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
         return false;
     }
@@ -577,15 +577,16 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                  * closest legal point in this mover's component; aiming at the
                  * raw click made local avoidance walk forever along walls. */
                 if (radius > 0.0f && self->movement.flow_unreachable) {
+                    LPCVECTOR2 from = &self->s.origin2, target = &self->goalentity->s.origin2;
                     VECTOR2 closest;
-                    if (move_fallback_throttled(self, &self->goalentity->s.origin2, radius))
+                    if (move_fallback_throttled(self, target, radius))
                         return;
-                    self->movement.flow_fallback_target = self->goalentity->s.origin2;
+                    self->movement.flow_fallback_target = *target;
                     self->movement.flow_fallback_radius = radius;
                     self->movement.flow_fallback_time = level.time;
                     self->movement.flow_fallback_goal = self->goalentity;
                     self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
-                    if (CM_ClosestReachablePointForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius, &closest)) {
+                    if (CM_ClosestReachablePointForRadius(from, target, radius, &closest)) {
                         self->goalentity->s.origin2 = closest;
                         self->goalentity->secondarygoal = NULL;
                         self->goalentity->heatmap2 = 0;

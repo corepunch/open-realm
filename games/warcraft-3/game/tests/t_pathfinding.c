@@ -914,7 +914,8 @@ TEST(wc3_pathfinding, closest_reachable_respects_collision_radius) {
  * steering tick while the same move order remains active. */
 TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
     BYTE blocked_map[MAP_W * MAP_H];
-    DWORD first_time, second_time;
+    DWORD first_time, second_time, first_calls;
+    struct routePerfStats_s stats;
     LPEDICT unit, goal;
 
     memset(blocked_map, 0, sizeof(blocked_map));
@@ -931,9 +932,14 @@ TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
     unit_changeangle(unit);
     T_EQ(unit->movement.flow_fallback_state, MOVE_FALLBACK_RETRY);
     first_time = unit->movement.flow_fallback_time;
+    stats = CM_GetTestPathPerfStats();
+    first_calls = stats.closest_reachable_calls;
+    T_EQ(first_calls, 1);
     unit_changeangle(unit);
     second_time = unit->movement.flow_fallback_time;
     T_EQ(second_time, first_time);
+    stats = CM_GetTestPathPerfStats();
+    T_EQ(stats.closest_reachable_calls, first_calls);
 }
 
 /* A successful fallback retarget must not be recomputed when its move order

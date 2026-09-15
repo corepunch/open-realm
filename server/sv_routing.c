@@ -100,19 +100,19 @@ static void heatmap_job_cancel(void) {
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Per-call perf counters; only tracked in test builds to avoid overhead. */
 static struct {
-    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed;
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed, closest_reachable_calls;
 } g_perf;
 
 void CM_ResetTestPathPerfStats(void) { memset(&g_perf, 0, sizeof(g_perf)); }
 
 typedef struct routePerfStats_s {
-    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed;
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed, closest_reachable_calls;
 } routePerfStats_t;
 
 routePerfStats_t CM_GetTestPathPerfStats(void) {
     return (routePerfStats_t){
         g_perf.cache_hits, g_perf.cache_misses,
-        g_perf.heatmap_iterations, g_perf.flow_cells_computed,
+        g_perf.heatmap_iterations, g_perf.flow_cells_computed, g_perf.closest_reachable_calls,
     };
 }
 #define PERF_INC(field) g_perf.field++
@@ -1351,6 +1351,7 @@ BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT
 
     if (!from || !target || !out || !pathmap.original || !pathmap.heatmap)
         return false;
+    PERF_INC(closest_reachable_calls);
     radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     if (!closest_pathable_node_original(from, radius, &start))
         return false;
