@@ -96,6 +96,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `AHhb` | `s_holylight.c` | Partial target spell; validates target/range/masks, spends mana, starts cooldown, heals allies, damages undead enemies, and plays target art. |
 | `AHtb` | `s_thunderbolt.c` | Partial target spell; projectile, damage, mana, cooldown, range, target masks, and stun status. |
 | `ANfb` | `s_thunderbolt.c` | Partial target spell sharing Thunder Bolt behavior with Fire Bolt data/art. |
+| `ANdc`, `SNdc` | `s_campaign_abilities.c` | Dark Conversion consumes the targeted unit, spawns the authored `UnitID` at its location, applies its authored buff, and publishes summon events. Human05's JASS conversion trigger owns the final zombie replacement, allegiance, and order. |
 | `AHwe`, `AOsf` | `s_summon.c` | Partial no-target summon; reads unit id/count/duration, spawns owned timed-life units, and publishes unit/player summon events. |
 | `AOmi` | `s_mirror_image.c` | Partial Mirror Image; no-target cast creates data-counted timed copies, marks them as illusions, copies visible Hero state, excludes them from persistent Hero shortcut/XP/revival behavior, and publishes summon events. Damage multipliers, dispel, shuffle, and complete visual semantics remain. |
 | `AHbz`, `AUcs`, `ANcl` | `s_area_spell.c` | Partial point/channel spell family; Blizzard ticks area damage, Carrion Swarm applies a simple point blast, Channel opens cancel mode. |

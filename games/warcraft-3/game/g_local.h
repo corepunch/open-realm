@@ -2255,6 +2255,7 @@ void G_ClearUnitOrderQueue(LPEDICT);
 DWORD G_UnitQueuedOrderCount(LPCEDICT);
 void unit_birth(LPEDICT);
 void unit_die(LPEDICT, LPEDICT);
+LPEDICT unit_create(DWORD, DWORD, LPCVECTOR2, FLOAT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
 BOOL unit_additem(LPEDICT, LPEDICT);

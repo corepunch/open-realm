@@ -1048,11 +1048,7 @@ DWORD CreateUnit(LPJASS j) {
     if (!player) {
         return jass_pushnullhandle(j, "unit");
     }
-    LPEDICT unit =
-    unit_createorfind(PLAYER_NUM(player),
-                        unitid,
-                        &location,
-                        facing);
+    LPEDICT unit = unit_create(PLAYER_NUM(player), unitid, &location, facing);
     return jass_pushlighthandle(j, unit, "unit");
 }
 DWORD CreateUnitByName(LPJASS j) {
@@ -1071,11 +1067,7 @@ DWORD CreateUnitAtLoc(LPJASS j) {
     if (!player || !location) {
         return jass_pushnullhandle(j, "unit");
     }
-    LPEDICT unit =
-    unit_createorfind(PLAYER_NUM(player),
-                      unitid,
-                      location,
-                      facing);
+    LPEDICT unit = unit_create(PLAYER_NUM(player), unitid, location, facing);
     return jass_pushlighthandle(j, unit, "unit");
 }
 DWORD CreateUnitAtLocByName(LPJASS j) {

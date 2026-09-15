@@ -1501,4 +1501,51 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Human05 turns each converted villager into a summon, then its JASS trigger
+ * owns the final zombie replacement, allegiance, and attack order. */
+TEST(wc3_spell, dark_conversion_consumes_target_and_publishes_zombie_summon) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"UnitID1\"\nC;Y1;X8;K\"BuffID1\"\n"
+        "C;Y1;X9;K\"Dur1\"\nC;Y1;X10;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"SNdc\"\nC;Y2;X2;K\"ANdc\"\n"
+        "C;Y2;X3;K\"air,ground,organic,nonhero\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"1000\"\n"
+        "C;Y2;X7;K\"nzom\"\nC;Y2;X8;K\"BNdc\"\n"
+        "C;Y2;X9;K\"6\"\nC;Y2;X10;K\"6\"\nE\n";
+    DWORD const ability = MAKEFOURCC('S','N','d','c');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT caster = make_hero(MAKEFOURCC('U','C','0','2'), 1000, 1000, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('n','v','i','l'), 64, 0);
+    LPEDICT summon;
+    DWORD summon_num;
+
+    caster->heroabilities[0] = MAKE(heroability_t, .code = ability, .level = 1);
+    caster->s.player = PLAYER_NEUTRAL_PASSIVE;
+    target->s.player = 0; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100;
+    memset(&level.events, 0, sizeof(level.events));
+    summon_num = globals.num_edicts;
+
+    T_NOT_NULL(S_SpellAbilityForCode(ability));
+    T_ASSERT(S_AbilityHasCommand(S_SpellAbilityForCode(ability)));
+    T_EQ(G_OrderId("darkconversion"), 852228);
+    T_ASSERT(unit_issuetargetorder(caster, "darkconversion", target));
+    summon = &globals.edicts[summon_num];
+    T_ASSERT(!target->inuse);
+    T_ASSERT(summon->inuse);
+    T_EQ(summon->class_id, MAKEFOURCC('n','z','o','m'));
+    T_EQ(summon->s.player, PLAYER_NEUTRAL_PASSIVE);
+    T_FEQ(summon->s.origin2.x, 64, 0.001f); T_FEQ(summon->s.origin2.y, 0, 0.001f);
+    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_SUMMON);
+    T_ASSERT(level.events.queue[2].edict == caster);
+    T_ASSERT(level.events.queue[2].source == summon);
+    T_EQ(level.events.queue[3].type, EVENT_UNIT_SUMMON);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

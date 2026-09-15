@@ -307,6 +307,8 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "animatedead", 852217, MAKEFOURCC('A','U','a','n') },
     { "carrionswarm", 852218, MAKEFOURCC('A','U','c','s') },
     { "darkritual", 852219, MAKEFOURCC('A','U','d','r') },
+    { "darkconversion", 852228, MAKEFOURCC('S','N','d','c') },
+    { "darkconversion", 852228, MAKEFOURCC('A','N','d','c') },
     { "deathanddecay", 852221, MAKEFOURCC('A','U','d','d') },
     { "deathcoil", 852222, MAKEFOURCC('A','U','d','c') },
     { "deathpact", 852223, MAKEFOURCC('A','U','d','p') },
@@ -365,8 +367,9 @@ static DWORD unit_spell_code_for_order(LPCEDICT unit, LPCSTR order) {
     if (!unit || !order) return 0;
     FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         DWORD const code = unit_order_defs[i].ability;
-        if (code && !strcmp(order, unit_order_defs[i].name) &&
-            G_UnitAbilityLevel(unit, code) && S_SpellAbilityForCode(code)) {
+        DWORD const level = code ? G_UnitAbilityLevel(unit, code) : 0;
+        ability_t const *spell = code ? S_SpellAbilityForCode(code) : NULL;
+        if (code && !strcmp(order, unit_order_defs[i].name) && level && spell) {
             return code;
         }
     }
@@ -823,12 +826,22 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     return false;
 }
 
-LPEDICT 
-unit_createorfind(DWORD player,
-                  DWORD unitid,
-                  LPCVECTOR2 location,
-                  FLOAT facing) 
-{
+/* Create a new runtime unit; explicit JASS creation must not reuse a nearby
+ * entity because ReplaceUnitBJ destroys the returned replacement handle. */
+LPEDICT unit_create(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
+    LPEDICT unit = SP_SpawnAtLocation(unitid, player, location);
+    if (!unit) {
+        return NULL;
+    }
+    if (unit->stand) {
+        unit->stand(unit);
+    }
+    unit->s.angle = facing * M_PI / 180;;
+    G_ActivateUnitFood(unit);
+    return unit;
+}
+
+LPEDICT unit_createorfind(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
         if (ent->inuse && !M_IsDead(ent) && ent->class_id == unitid &&
@@ -840,17 +853,7 @@ unit_createorfind(DWORD player,
             return ent;
         }
     }
-    LPEDICT unit = SP_SpawnAtLocation(unitid, player, location);
-//    printf("%.4s\n", &unit->class_id);
-    if (!unit) {
-        return NULL;
-    }
-    if (unit->stand) {
-        unit->stand(unit);
-    }
-    unit->s.angle = facing * M_PI / 180;;
-    G_ActivateUnitFood(unit);
-    return unit;
+    return unit_create(player, unitid, location, facing);
 }
 
 BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD i) {
@@ -1096,39 +1099,14 @@ static heroability_t *G_FindRuntimeAbility(LPEDICT ent, DWORD abilcode) {
     return NULL;
 }
 
-static BOOL G_FourCCListContains(LPCSTR list, DWORD code) {
-    LPCSTR cursor = list;
-
-    if (!list || !code) {
-        return false;
-    }
-    while (*cursor) {
-        LPCSTR start;
-        LPCSTR end;
-        DWORD item = 0;
-
-        while (*cursor == ',' || isspace((unsigned char)*cursor)) cursor++;
-        if (!*cursor) break;
-        start = cursor;
-        while (*cursor && *cursor != ',') cursor++;
-        end = cursor;
-        while (end > start && isspace((unsigned char)end[-1])) end--;
-        if ((size_t)(end - start) == sizeof(item)) {
-            memcpy(&item, start, sizeof(item));
-            if (item == code) return true;
-        }
-        if (*cursor == ',') cursor++;
-    }
-    return false;
-}
-
 static DWORD G_HeroSkillLevel(LPCEDICT ent, DWORD abilcode) {
+    DWORD const base_code = G_AbilityCode(abilcode);
     if (!ent || !abilcode) {
         return 0;
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
-        if (ha->level && ha->code == abilcode) {
+        if (ha->level && G_AbilityCode(ha->code) == base_code) {
             return ha->level;
         }
     }
@@ -1219,10 +1197,31 @@ static DWORD G_HeroAbilityLevelSkip(void) {
 }
 
 BOOL G_HeroHasCandidateSkill(LPCEDICT ent, DWORD abilcode) {
+    DWORD const base_code = G_AbilityCode(abilcode);
+    LPCSTR list;
     if (!ent || !G_UnitIsHero(ent) || !ent->data.UnitAbilities || !abilcode) {
         return false;
     }
-    return G_FourCCListContains(ent->data.UnitAbilities->heroAbilList, abilcode);
+    list = ent->data.UnitAbilities->heroAbilList;
+    if (!list) return false;
+    while (*list) {
+        LPCSTR start;
+        LPCSTR end;
+        DWORD item = 0;
+
+        while (*list == ',' || isspace((unsigned char)*list)) list++;
+        if (!*list) break;
+        start = list;
+        while (*list && *list != ',') list++;
+        end = list;
+        while (end > start && isspace((unsigned char)end[-1])) end--;
+        if ((size_t)(end - start) == sizeof(item)) {
+            memcpy(&item, start, sizeof(item));
+            if (G_AbilityCode(item) == base_code) return true;
+        }
+        if (*list == ',') list++;
+    }
+    return false;
 }
 
 DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode) {

@@ -41,6 +41,20 @@ BZ_SIMPLE_SPELL_PROC(AbilityAvatarCampaign) {
     DWORD level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level);
     if (form) G_TransformUnitType(caster, form);
 }
+/* Dark Conversion consumes its victim only after publishing the spawned unit;
+ * campaign JASS observes that summon and owns its final replacement/order. */
+BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
+    DWORD level = S_SpellLevel(caster, spell->code), unit = S_SpellUnitId(spell->code, level);
+    LPEDICT summon;
+    LPCSTR buff;
+
+    if (!caster || !st.entity || !unit) return;
+    summon = S_SummonAt(caster, unit, &st.entity->s.origin2, 0.0f);
+    if (!summon) return;
+    buff = campaign_buff(spell, level);
+    if (buff) unit_addtimedstatus(summon, buff, level, S_SpellDuration(spell->code, level, false));
+    G_FreeEdict(st.entity);
+}
 BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { campaign_area_damage_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
     DWORD level = S_SpellLevel(caster, spell->code);

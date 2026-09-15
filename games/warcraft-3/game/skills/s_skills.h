@@ -176,6 +176,7 @@ BZ_ABILITY_PROC(CAbilityOnFireHuman);
 BZ_ABILITY_PROC(CAbilityAttributeModSkill);
 BZ_ABILITY_PROC(CAbilitySpawnTentacle);
 BZ_ABILITY_PROC(CAbilityAvatarCampaign);
+BZ_ABILITY_PROC(CAbilityDarkConversion);
 BZ_ABILITY_PROC(CAbilityShockwaveCampaign);
 BZ_ABILITY_PROC(CAbilityWarStompCampaign);
 BZ_ABILITY_PROC(CAbilityFeralSpiritCampaign);

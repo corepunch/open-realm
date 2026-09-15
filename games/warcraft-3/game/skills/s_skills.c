@@ -34,6 +34,8 @@ static ability_t abilitylist[] = {
     { "ACtn", CAbilitySpawnTentacle, AB_SPELL, SPELL_TARGET_POINT },  /* Spawn Tentacle */
     { "ACs7", CAbilityFeralSpiritCampaign, AB_SPELL },  /* Feral Spirit */
     { "ANav", CAbilityAvatarCampaign, AB_SPELL },  /* Avatar */
+    { "ANdc", CAbilityDarkConversion, AB_SPELL, SPELL_TARGET_UNIT },  /* Malganis - Dark Conversion */
+    { "SNdc", CAbilityDarkConversion, AB_SPELL, SPELL_TARGET_UNIT },  /* Dark Conversion (Fast) */
     { "ANsh", CAbilityShockwaveCampaign, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave */
     { "ACs8", CAbilitySpiritBeast, AB_SPELL },  /* Spirit Beast */
     { "ANr2", CAbilityReincarnationCampaign, AB_SPELL },  /* Reincarnation */
@@ -373,7 +375,6 @@ static ability_t abilitylist[] = {
     // TODO: Arng a_revenge  /* Revenge */
     // TODO: Atol a_upgrade  /* Tree of Life upgrade ability */
     // TODO: Awrp a_warp  /* Waygate ability */
-    // TODO: ANdc a_spell  /* Dark Conversion */
     // TODO: ANsl a_spell  /* Soul Preservation */
     // TODO: ANfd a_spell  /* Finger of Death */
     // TODO: ANdp CAbilityMassTeleport  /* Dark Portal */
@@ -866,7 +867,6 @@ static ability_t abilitylist[] = {
     // TODO: SCae a_unknown  /* Aura - Endurance (Creep) */
     // TODO: SCc1 a_unknown  /* Cyclone (Cenarius) */
     // TODO: SCva a_unknown  /* Vampiric attack */
-    // TODO: SNdc a_unknown  /* Dark Conversion (Fast) */
     // TODO: SNdd a_unknown  /* Super Death and Decay */
     // TODO: SNeq a_unknown  /* Super Earthquake */
     // TODO: SNin a_unknown  /* Tichondrius - Inferno */
