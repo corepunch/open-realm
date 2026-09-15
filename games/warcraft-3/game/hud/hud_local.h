@@ -25,6 +25,10 @@
 #define HUD_FONT_SIZE 10
 #define HUD_SMALL_FONT_SIZE 8
 #define HUD_TITLE_FONT_SIZE 12
+
+/* Persistent top-edge HUD controls share these authored screen offsets. */
+#define HUD_HERO_SHORTCUT_EDGE_X 0.0060f
+#define HUD_HERO_SHORTCUT_TOP_Y  0.0350f
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
 
@@ -61,6 +65,7 @@ typedef struct {
     GameResultDialog_t result;
     CinematicPanel_t cinematic;
     TimerDialog_t timer_dialog;
+    FRAMEDEF timer_dialog_anchor;
     char timer_dialog_default_title[MAX_TRIGSTR_LENGTH];
     COLOR32 timer_dialog_default_title_color;
     COLOR32 timer_dialog_default_time_color;

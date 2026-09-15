@@ -3,8 +3,6 @@
  */
 #include "hud_local.h"
 
-#define HERO_SHORTCUT_X       0.0060f
-#define HERO_SHORTCUT_Y       0.0350f
 #define HERO_SHORTCUT_SIZE    0.0340f
 #define HERO_SHORTCUT_GAP     0.0030f
 #define IDLE_WORKER_X         0.0080f
@@ -98,11 +96,11 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
             snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
             snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
-            UI_WriteUnitShortcutButton(shortcut_root, HERO_SHORTCUT_X,
-                                       HERO_SHORTCUT_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
+            UI_WriteUnitShortcutButton(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
+                                       HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
                                        HERO_SHORTCUT_SIZE, unit, command, tooltip, unit->s.player == client->ps.number);
-            UI_WriteShortcutNumber(shortcut_root, HERO_SHORTCUT_X,
-                                   HERO_SHORTCUT_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
+            UI_WriteShortcutNumber(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
+                                   HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
                                    HERO_SHORTCUT_SIZE, HERO_SHORTCUT_SIZE, unit->hero.skillpoints);
             hero_slot++;
         }

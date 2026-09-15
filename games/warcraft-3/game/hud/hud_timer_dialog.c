@@ -19,6 +19,27 @@ static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD client_num) {
 
 void UI_LoadHudTimerDialogs(void) {
     if (!TimerDialog_Load(&hud.timer_dialog)) return;
+
+    /* Match the Hero shortcut layer's full-screen horizontal canvas so the
+     * mirrored timer stays against the actual right edge on widescreen too. */
+    memset(&hud.timer_dialog_anchor, 0, sizeof(hud.timer_dialog_anchor));
+    hud.timer_dialog_anchor.Type = FT_SIMPLEFRAME;
+    hud.timer_dialog_anchor.ui_flags |= UIFLAG_EXTEND_WIDESCREEN_X;
+    UI_SetSize(&hud.timer_dialog_anchor, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+    UI_SetPoint(&hud.timer_dialog_anchor,
+                FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+
+    /* Align the timer with the first Hero shortcut vertically, mirrored to the
+     * opposite screen edge. Preserve the stock TimerDialog size/child layout. */
+    if (hud.timer_dialog.TimerDialog) {
+        memset(&hud.timer_dialog.TimerDialog->Points, 0,
+               sizeof(hud.timer_dialog.TimerDialog->Points));
+        hud.timer_dialog.TimerDialog->AnyPointsSet = false;
+        UI_SetPoint(hud.timer_dialog.TimerDialog,
+                    FRAMEPOINT_TOPRIGHT, &hud.timer_dialog_anchor, FRAMEPOINT_TOPRIGHT,
+                    -HUD_HERO_SHORTCUT_EDGE_X, -HUD_HERO_SHORTCUT_TOP_Y);
+    }
+
     if (hud.timer_dialog.TimerDialogTitle) {
         strlcpy(hud.timer_dialog_default_title,
                 hud.timer_dialog.TimerDialogTitle->Text ? hud.timer_dialog.TimerDialogTitle->Text : "",
@@ -58,6 +79,9 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     UI_SetText(hud.timer_dialog.TimerDialogValue, "%s", value);
 
     UI_SetCurrentClient(ent->client);
-    UI_WriteLayout(ent, hud.timer_dialog.TimerDialog, LAYER_TIMERDIALOG);
+    UI_WriteStart(LAYER_TIMERDIALOG);
+    UI_WriteFrame(&hud.timer_dialog_anchor);
+    UI_WriteFrameWithChildren(hud.timer_dialog.TimerDialog, &hud.timer_dialog_anchor);
+    UI_WriteEnd(ent);
     UI_SetCurrentClient(NULL);
 }
