@@ -1175,6 +1175,8 @@ struct edict_s {
         FLOAT flow_fallback_radius;
         DWORD flow_fallback_time;
         BOOL flow_fallback_valid;
+        LPEDICT flow_fallback_goal;
+        BOOL flow_fallback_applied;
         ROUTEPATH path; /* persistent WC3 accelerator state shared with other server games */
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it

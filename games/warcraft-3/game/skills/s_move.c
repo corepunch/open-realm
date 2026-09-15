@@ -59,6 +59,10 @@ static LPEDICT trymove_colliders[MAX_MOVE_COLLIDERS];
 /* Keep a failed exceptional route search from monopolizing the frame while
  * the same goal remains unreachable; order changes clear this state below. */
 static BOOL move_fallback_throttled(LPEDICT self, LPCVECTOR2 target, FLOAT radius) {
+    if (self->movement.flow_fallback_applied && self->movement.flow_fallback_goal == self->goalentity) {
+        self->movement.flow_unreachable = true;
+        return true;
+    }
     if (!self->movement.flow_fallback_valid)
         return false;
     if (fabsf(self->movement.flow_fallback_target.x - target->x) >= 0.01f ||
@@ -585,6 +589,8 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                         self->goalentity->heatmap2 = 0;
                         self->goalentity->heatmap2_radius = 0;
                         move_reset_progress(self);
+                        self->movement.flow_fallback_goal = self->goalentity;
+                        self->movement.flow_fallback_applied = true;
                     }
                     return;
                 }
@@ -948,6 +954,8 @@ void move_reset_progress(LPEDICT self) {
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
     self->movement.flow_fallback_valid = false;
+    self->movement.flow_fallback_goal = NULL;
+    self->movement.flow_fallback_applied = false;
     self->movement.worker_avoid_origin = self->s.origin2;
     self->movement.worker_avoid_heading = self->s.angle;
     self->movement.worker_avoid_blocked_frames = 0;

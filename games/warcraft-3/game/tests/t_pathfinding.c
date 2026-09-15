@@ -936,6 +936,28 @@ TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
     T_EQ(second_time, first_time);
 }
 
+/* A successful fallback retarget must not be recomputed when its move order
+ * has already been adjusted once. */
+TEST(wc3_pathfinding, movement_remembers_applied_unreachable_fallback) {
+    BYTE split[MAP_W * MAP_H];
+    LPEDICT unit, goal;
+
+    build_split_map();
+    memcpy(split, split_map, sizeof(split));
+    setup_test_pathmap(MAP_W, MAP_H, split);
+    reset_entities();
+    level.time = 1000;
+    unit = make_unit_at(1.5f, 5.5f);
+    unit->collision = 1.0f;
+    goal = make_waypoint(8.5f, 5.5f);
+    order_move(unit, goal);
+    T_ASSERT(CM_BuildHeatmapForRadius(goal, unit->collision) != 0);
+
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement.flow_fallback_applied);
+    T_ASSERT(unit->movement.flow_fallback_goal == goal);
+}
+
 /* The flood and the flow must not cut diagonally through a wall corner: with
  * walls at (1,0) and (0,1), the cell (0,0) is boxed off from a goal at (1,1)
  * (squeezing the corner is not a legal move), so its flow is zero, not a
