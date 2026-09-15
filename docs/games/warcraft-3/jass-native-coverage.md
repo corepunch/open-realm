@@ -38,7 +38,7 @@ raw `return 0` counts are not meaningful.
 | `api_trigger.h` | 48 | 26 | 22 |
 | `api_camera.h` | 42 | 39 | 3 |
 | `api_sound.h` | 35 | 10 | 25 |
-| `api_leaderboard.h` | 27 | 2 | 25 |
+| `api_leaderboard.h` | 27 | 27 | 0 |
 | `api_math.h` | 26 | 18 | 8 |
 | `api_group.h` | 25 | 18 | 7 |
 | `api_quest.h` | 24 | 22 | 2 |
@@ -433,16 +433,11 @@ Summon event context uses the summoner as the trigger unit and the created unit 
 
 ## Leaderboards
 
-A leaderboard is server-authored UI state: label, visibility, style, ordered
-items, colors, and per-player assignment. Store model state in the game module
-and serialize it through the existing layout/UI message path. Do not put
-leaderboard geometry in C and do not make the client authoritative for values.
+Leaderboards are now fixed-slot, save-stable server-authored UI models with copied labels, integer values, optional player ownership, styles, colors, stable sorting, and per-player assignment. All 27 registered leaderboard natives mutate/query this state. `PlayerSetLeaderboard` selects one board for a player; `LeaderboardDisplay` controls that board's per-client presentation mask.
 
-Each item owns a copied label, value, optional player handle, style bits, and
-colors. Sort callbacks reorder items stably by the requested key and direction;
-player lookup returns the current post-sort index. `PlayerSetLeaderboard` is a
-per-player association, so displaying one board need not expose it to every
-client.
+The HUD loads stock `LeaderBoard.fdf` chrome and emits runtime text rows through dedicated `LAYER_LEADERBOARD`. A value update therefore refreshes only the assigned clients' leaderboard layer. Labels resolve through the existing map-string path. Save format 24 persists board/item state, assignment indexes, and JASS handle identity. See [Leaderboards And Counted Objective HUDs](leaderboards.md).
+
+Current presentation intentionally defers icon rendering and exact retail row/player-color packing; those flags are retained in model state rather than guessed visually.
 
 ## Implementation Order
 

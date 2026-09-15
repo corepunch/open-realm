@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 23; // format version; persists WC3 timer-dialog handles/presentation state
+static DWORD const save_version = 24; // format version; persists WC3 leaderboard handles/items/player assignment
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -142,6 +142,7 @@ typedef enum {
     JASS_HANDLE_GROUP,
     JASS_HANDLE_TIMER,
     JASS_HANDLE_TIMERDIALOG,
+    JASS_HANDLE_LEADERBOARD,
     JASS_HANDLE_WEATHER,
 } jassHandleDomain_t;
 
@@ -159,6 +160,7 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "group", JASS_HANDLE_GROUP },
     { "timer", JASS_HANDLE_TIMER },
     { "timerdialog", JASS_HANDLE_TIMERDIALOG },
+    { "leaderboard", JASS_HANDLE_LEADERBOARD },
     { "weathereffect", JASS_HANDLE_WEATHER },
 };
 
@@ -233,6 +235,38 @@ static field_t const timer_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const leaderboard_item_fields[] = {
+    F(gleaderboarditem_s, label, F_INT),
+    F(gleaderboarditem_s, value, F_INT),
+    F(gleaderboarditem_s, player, F_INT),
+    F(gleaderboarditem_s, show_label, F_INT),
+    F(gleaderboarditem_s, show_value, F_INT),
+    F(gleaderboarditem_s, show_icon, F_INT),
+    F(gleaderboarditem_s, label_color_set, F_INT),
+    F(gleaderboarditem_s, value_color_set, F_INT),
+    F(gleaderboarditem_s, label_color, F_INT),
+    F(gleaderboarditem_s, value_color, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const leaderboard_fields[] = {
+    F(gleaderboard_s, inuse, F_INT),
+    F(gleaderboard_s, displayed_clients, F_INT),
+    F(gleaderboard_s, show_label, F_INT),
+    F(gleaderboard_s, show_names, F_INT),
+    F(gleaderboard_s, show_values, F_INT),
+    F(gleaderboard_s, show_icons, F_INT),
+    F(gleaderboard_s, label_color_set, F_INT),
+    F(gleaderboard_s, value_color_set, F_INT),
+    F(gleaderboard_s, label_color, F_INT),
+    F(gleaderboard_s, value_color, F_INT),
+    F(gleaderboard_s, size_by_item_count, F_INT),
+    F(gleaderboard_s, item_count, F_INT),
+    F(gleaderboard_s, label, F_INT),
+    FC(gleaderboard_s, items, F_STRUCT, MAX_LEADERBOARD_ITEMS, leaderboard_item_fields, item_count),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const questitem_fields[] = {
     F(gquestitem_s, description, F_LSTRING),
     F(gquestitem_s, completed, F_INT),
@@ -297,6 +331,8 @@ static field_t const level_fields[] = {
     FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
     FC(level_locals, timers, F_STRUCT, MAX_TIMERS, timer_fields, num_timers),
     F(level_locals, timer_dialogs, F_STRUCT, MAX_TIMERDIALOGS, timer_dialog_fields),
+    F(level_locals, leaderboards, F_STRUCT, MAX_LEADERBOARDS, leaderboard_fields),
+    F(level_locals, player_leaderboards, F_INT),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
     FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
     { NULL, 0, 0, 0, 0, 0 }
@@ -760,6 +796,8 @@ static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
     else if (domain == JASS_HANDLE_TIMER && id < level.num_timers) return &level.timers[id];
     else if (domain == JASS_HANDLE_TIMERDIALOG && id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse)
         return &level.timer_dialogs[id];
+    else if (domain == JASS_HANDLE_LEADERBOARD && id < MAX_LEADERBOARDS && level.leaderboards[id].inuse)
+        return &level.leaderboards[id];
     return NULL;
 }
 
@@ -800,6 +838,15 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         *id = (DWORD)(dialog - level.timer_dialogs);
         return true;
     }
+    if (domain == JASS_HANDLE_LEADERBOARD) {
+        LPLEADERBOARD board = value;
+        uintptr_t ptr = (uintptr_t)board, base = (uintptr_t)level.leaderboards;
+        size_t span = sizeof(level.leaderboards);
+        if (!board || ptr < base || ptr >= base + span ||
+            (ptr - base) % sizeof(*board) != 0 || !board->inuse) return false;
+        *id = (DWORD)((ptr - base) / sizeof(*board));
+        return true;
+    }
     if (domain == JASS_HANDLE_WEATHER) {
         LPGWEATHER effect = value;
         if (effect < level.weather_effects || effect >= level.weather_effects + MAX_WEATHER_EFFECTS || !effect->inuse)
@@ -836,6 +883,8 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? &level.timers[id] : NULL;
     if (domain == JASS_HANDLE_TIMERDIALOG)
         return id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse ? &level.timer_dialogs[id] : NULL;
+    if (domain == JASS_HANDLE_LEADERBOARD)
+        return id < MAX_LEADERBOARDS && level.leaderboards[id].inuse ? &level.leaderboards[id] : NULL;
     return JassListHandle(domain, id);
 }
 
@@ -1365,6 +1414,7 @@ BOOL ReadGame(LPCSTR filename) {
         level.timer_dialog_dirty_clients |= 1u << i;
         level.timer_dialog_last_index[i] = -1;
         level.timer_dialog_last_seconds[i] = -1;
+        level.leaderboard_dirty_clients |= 1u << i;
     }
     G_DisableStartingResourceCheatForLoadedGame();
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);

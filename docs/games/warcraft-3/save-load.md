@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 23, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 24, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -35,6 +35,7 @@ Version 20 adds race-specific construction lifecycle state and an explicit `F_ED
 Version 21 adds `mineoverlay.parent` and `acolyte_mine.mine` `F_EDICT` fixups plus overlay income timing/index and Acolyte slot/generation state. The original `Agld` edict remains the finite resource owner for Haunted/Entangled overlays, so those relationships must survive load rather than being reconstructed from proximity.
 Version 22 adds neutral-shop stock state: global item/unit slot capacities plus each shop edict's initialized item-stock entries, current counts, and absolute start/replenish deadlines. `stock_fields` bounds `item_count` by `MAX_SHOP_STOCK`; the deadlines use the restored simulation clock, so partially elapsed restock timers resume without rebasing. The expanded `edict_t` layout and format version reject older records instead of interpreting shifted state.
 Version 23 adds the fixed TimerDialog registry. Each live slot persists its timer association, title/colour presentation state, and client visibility mask; non-null JASS `timerdialog` values snapshot as stable slot indexes. Layout payloads remain transient, so load invalidates the timer-dialog HUD cache and republishes restored state on the next frame. See [Timer Dialogs And Mission Countdowns](timer-dialogs.md).
+Version 24 adds the fixed leaderboard registry, ordered item/style/color state, per-player leaderboard assignment indexes, per-client display masks, and stable JASS `leaderboard` handle IDs. Leaderboard layout payloads remain transient and are republished after load. See [Leaderboards And Counted Objective HUDs](leaderboards.md).
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 
@@ -48,6 +49,7 @@ Weather effects use the same stable-slot rule. `level.weather_effects[MAX_WEATHE
 
 Event handler registrations store type, subject entity index, trigger index, timer index, region, range, game-state ID, `limitop`, and limit value. The extra condition fields preserve `TriggerRegisterGameStateEvent` time-of-day registrations across save/load. The unread portion of the bounded gameplay event ring preserves event type, subject/source entity indexes, scalar value, optional point target, and the target registration ordinal. Consumed queue entries are not saved. Loads reject queue overflow and unresolved entity or registration IDs.
 
+
 ## JASS Snapshot
 
 The embedded snapshot starts with `JSVM`, snapshot format version 4, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
@@ -59,7 +61,7 @@ The embedded snapshot starts with `JSVM`, snapshot format version 4, a program-i
 - `boolexpr`, `conditionfunc`, and `filterfunc` handles by semantic JASS function name;
 - sleeping coroutine frames as function/block token ordinals, locals, operand stack values, wake delay, and event context, including scalar and optional point spell response data.
 
-The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, timers, timer dialogs, and weather effects. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
+The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, timers, timer dialogs, leaderboards, and weather effects. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
 
 Handle encoding dispatches value handles, VM-owned payloads, and function handles before consulting the game host. A failed host lookup means null only for host-owned native domains, such as a removed unit; applying that rule to VM-owned handles would silently replace valid sounds, camera setups, rects, locations, forces, and game caches with null.
 

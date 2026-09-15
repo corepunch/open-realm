@@ -186,6 +186,41 @@ TEST(wc3_api, timer_dialog_natives_store_state_and_local_visibility) {
     currentplayer = saved;
 }
 
+TEST(wc3_api, leaderboard_natives_manage_items_sort_and_player_assignment) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  leaderboard lb = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set lb = CreateLeaderboard()\n"
+        "  call BJassAssert(lb != null, \"leaderboard handle\")\n"
+        "  call LeaderboardSetLabel(lb, \"Grunts Trained\")\n"
+        "  call LeaderboardAddItem(lb, \"Second\", 2, Player(1))\n"
+        "  call LeaderboardAddItem(lb, \"First\", 1, Player(0))\n"
+        "  call LeaderboardSortItemsByValue(lb, true)\n"
+        "  call BJassAssert(LeaderboardGetPlayerIndex(lb, Player(0)) == 0, \"sort/player index\")\n"
+        "  call BJassAssert(LeaderboardHasPlayerItem(lb, Player(1)), \"player item\")\n"
+        "  call LeaderboardSetItemValue(lb, 0, 3)\n"
+        "  call LeaderboardSetItemLabel(lb, 0, \"Grunts\")\n"
+        "  call PlayerSetLeaderboard(Player(0), lb)\n"
+        "  call LeaderboardDisplay(lb, true)\n"
+        "  call BJassAssert(PlayerGetLeaderboard(Player(0)) == lb, \"player assignment\")\n"
+        "  call BJassAssert(IsLeaderboardDisplayed(lb), \"displayed\")\n"
+        "  call BJassAssert(LeaderboardGetItemCount(lb) == 2, \"item count\")\n"
+        "  call BJassAssert(LeaderboardGetLabelText(lb) == \"Grunts Trained\", \"label\")\n"
+        "endfunction\n"));
+
+    T_ASSERT(level.leaderboards[0].inuse);
+    T_STREQ(level.leaderboards[0].items[0].label, "Grunts");
+    T_EQ(level.leaderboards[0].items[0].value, 3);
+    T_EQ(level.player_leaderboards[0], 0);
+    T_ASSERT(level.leaderboards[0].displayed_clients & 1u);
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, version_queries_accept_typed_handles) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

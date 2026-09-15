@@ -480,6 +480,7 @@ typedef enum {
     LAYER_UNIT_SHORTCUTS,
     LAYER_LOADING,
     LAYER_TIMERDIALOG,
+    LAYER_LEADERBOARD,
 } UILAYOUTLAYER;
 
 typedef enum {

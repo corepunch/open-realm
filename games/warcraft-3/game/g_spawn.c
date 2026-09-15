@@ -626,6 +626,7 @@ void G_SpawnEntities(void) {
     G_ClearJassGroupRegistry();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
+    FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();
     level.time = gi.GetTime();
 

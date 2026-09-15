@@ -82,6 +82,7 @@ KNOWN_AS(gevent_s, EVENT);
 KNOWN_AS(gtrigger_s, TRIGGER);
 KNOWN_AS(gtimer_s, GTIMER);
 KNOWN_AS(gtimerdialog_s, TIMERDIALOG);
+KNOWN_AS(gleaderboard_s, LEADERBOARD);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
 
@@ -769,6 +770,8 @@ typedef struct {
 #define MAX_TRIGGERS 4096 // handles; bounds deterministic per-map trigger registry slots
 #define MAX_TIMERS 1024 // handles; bounds deterministic per-map timer registry slots
 #define MAX_TIMERDIALOGS 64 // handles; bounds map-lifetime timer-dialog registry slots
+#define MAX_LEADERBOARDS 32 // handles; fixed save-stable leaderboard registry
+#define MAX_LEADERBOARD_ITEMS 24 // rows; covers classic player/campaign boards
 #define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
@@ -831,6 +834,27 @@ struct gtimerdialog_s {
     COLOR32 title_color;
     COLOR32 time_color;
     char title[MAX_TRIGSTR_LENGTH];
+};
+
+struct gleaderboarditem_s {
+    char label[MAX_TRIGSTR_LENGTH];
+    LONG value;
+    LONG player; /* player number, -1 = no player */
+    BOOL show_label, show_value, show_icon;
+    BOOL label_color_set, value_color_set;
+    COLOR32 label_color, value_color;
+};
+
+struct gleaderboard_s {
+    BOOL inuse;
+    DWORD displayed_clients;
+    BOOL show_label, show_names, show_values, show_icons;
+    BOOL label_color_set, value_color_set;
+    COLOR32 label_color, value_color;
+    LONG size_by_item_count;
+    DWORD item_count;
+    char label[MAX_TRIGSTR_LENGTH];
+    struct gleaderboarditem_s items[MAX_LEADERBOARD_ITEMS];
 };
 
 struct gquestitem_s {
@@ -1548,6 +1572,9 @@ struct level_locals {
     GTIMER timers[MAX_TIMERS];
     DWORD num_timers;
     TIMERDIALOG timer_dialogs[MAX_TIMERDIALOGS];
+    LEADERBOARD leaderboards[MAX_LEADERBOARDS];
+    LONG player_leaderboards[MAX_PLAYERS]; /* registry index, -1 = none */
+    DWORD leaderboard_dirty_clients;
     DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
     LONG timer_dialog_last_index[MAX_CLIENTS]; /* transient active-slot cache */
     LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
@@ -1802,6 +1829,14 @@ BOOL G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player);
 void G_MarkTimerDialogDirty(LPCTIMERDIALOG dialog);
 void G_UpdateTimerDialogs(void);
 void G_FormatTimerDialogValue(LPCGTIMER timer, LPSTR out, size_t out_size);
+LPLEADERBOARD G_AllocLeaderboard(void);
+void G_FreeLeaderboard(LPLEADERBOARD board);
+void G_MarkLeaderboardDirty(LPCLEADERBOARD board);
+void G_SetLeaderboardDisplayed(LPLEADERBOARD board, LPPLAYER player, BOOL displayed);
+BOOL G_IsLeaderboardDisplayed(LPCLEADERBOARD board, LPCPLAYER player);
+void G_UpdateLeaderboards(void);
+LPLEADERBOARD G_PlayerLeaderboard(DWORD player);
+void G_SetPlayerLeaderboard(DWORD player, LPLEADERBOARD board);
 void G_ClearSaveRegistries(void);
 BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_RunTimers(void);
@@ -2103,6 +2138,8 @@ void UI_LoadHud(void);
 void UI_LoadHudLoading(void);
 void UI_LoadHudTimerDialogs(void);
 void UI_WriteTimerDialogs(LPEDICT ent);
+void UI_LoadHudLeaderboards(void);
+void UI_WriteLeaderboard(LPEDICT ent);
 void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info);
 void UI_ParseFDF(LPCSTR);
 void UI_ParseFDF_Buffer(LPCSTR, LPSTR);

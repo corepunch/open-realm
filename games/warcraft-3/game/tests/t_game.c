@@ -3616,6 +3616,49 @@ TEST(wc3_save, round_trip_timer_dialog_state_and_handle) {
     currentplayer = saved;
 }
 
+TEST(wc3_save, round_trip_leaderboard_state_and_handle) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-leaderboard-save-test.bin";
+    LPPLAYER saved_currentplayer = currentplayer;
+    currentplayer = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  leaderboard savedBoard = null\n"
+        "  leaderboard savedAlias = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set savedBoard = CreateLeaderboard()\n"
+        "  set savedAlias = savedBoard\n"
+        "  call LeaderboardSetLabel(savedBoard, \"Grunts Trained\")\n"
+        "  call LeaderboardAddItem(savedBoard, \"Grunts\", 4, Player(0))\n"
+        "  call LeaderboardSetItemValueColor(savedBoard, 0, 10, 20, 30, 40)\n"
+        "  call PlayerSetLeaderboard(Player(0), savedBoard)\n"
+        "  call LeaderboardDisplay(savedBoard, true)\n"
+        "endfunction\n"
+        "function mutate takes nothing returns nothing\n"
+        "  call DestroyLeaderboard(savedBoard)\n"
+        "  set savedAlias = null\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(savedBoard == savedAlias, \"leaderboard alias\")\n"
+        "  call BJassAssert(PlayerGetLeaderboard(Player(0)) == savedBoard, \"leaderboard assignment\")\n"
+        "  call BJassAssert(IsLeaderboardDisplayed(savedBoard), \"leaderboard display\")\n"
+        "  call BJassAssert(LeaderboardGetItemCount(savedBoard) == 1, \"leaderboard item count\")\n"
+        "endfunction\n"));
+
+    T_ASSERT(WriteGame(filename));
+    jass_callbyname(level.vm, "mutate", false);
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_STREQ(level.leaderboards[0].label, "Grunts Trained");
+    T_EQ(level.leaderboards[0].items[0].value, 4);
+    T_EQ(level.leaderboards[0].items[0].value_color.r, 10);
+    T_EQ(level.leaderboards[0].items[0].value_color.a, 40);
+    remove(filename);
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_save, round_trip_weather_effect_state_and_handle) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-weather-save-test.bin";
 

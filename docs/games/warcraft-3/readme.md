@@ -128,6 +128,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Cinematics](cinematics.md)
 - [Time Of Day](time-of-day.md)
 - [Timer Dialogs And Mission Countdowns](timer-dialogs.md)
+- [Leaderboards And Counted Objective HUDs](leaderboards.md)
 - [Hero Revival](hero-revival.md)
 - [Sounds](sounds.md)
 - [Music Playback](music.md)

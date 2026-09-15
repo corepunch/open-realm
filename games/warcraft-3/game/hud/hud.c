@@ -812,6 +812,7 @@ void UI_LoadHud(void) {
     UI_LoadHudCinematic();
     UI_LoadHudMessage();
     UI_LoadHudTimerDialogs();
+    UI_LoadHudLeaderboards();
     UI_LoadHudLoading();
 }
 

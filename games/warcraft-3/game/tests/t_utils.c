@@ -133,6 +133,7 @@ static void reset_test_state(void) {
     }
     G_ClearJassGroupRegistry();
     memset(&level, 0, sizeof(level));
+    FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));
     level.mapinfo = &test_mapinfo;

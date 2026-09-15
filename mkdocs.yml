@@ -51,6 +51,7 @@ nav:
         - Map Renderer: games/warcraft-3/architecture/map-renderer.md
         - Cinematics: games/warcraft-3/cinematics.md
         - Timer Dialogs And Mission Countdowns: games/warcraft-3/timer-dialogs.md
+        - Leaderboards And Counted Objective HUDs: games/warcraft-3/leaderboards.md
         - Sounds: games/warcraft-3/sounds.md
     - World of Warcraft:
       - Overview: games/world-of-warcraft/readme.md
