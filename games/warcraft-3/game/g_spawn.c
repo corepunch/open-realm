@@ -903,10 +903,11 @@ BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FL
 }
 
 static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
+    BYTE const blocked_flags = M_UnitStaticPathingFlags(unit);
     if (!unit || !point) {
         return false;
     }
-    if (!CM_PointIsPathableForRadius(point, unit->collision)) {
+    if (!CM_PointIsPathableForRadiusFlags(point, unit->collision, blocked_flags)) {
         return false;
     }
 
@@ -915,6 +916,9 @@ static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
         VECTOR2 delta;
 
         if (other == unit || IS_HOLLOW(other) || other->movetype == MOVETYPE_NONE || other->collision <= 0.0f) {
+            continue;
+        }
+        if (!!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) {
             continue;
         }
         delta = Vector2_sub(&other->s.origin2, point);
@@ -926,10 +930,11 @@ static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
 }
 
 static BOOL G_CanRepositionUnitAt(LPEDICT unit, LPCVECTOR2 point) {
+    BYTE const blocked_flags = M_UnitStaticPathingFlags(unit);
     if (!unit || !point) {
         return false;
     }
-    if (!CM_PointIsPathableForRadius(point, unit->collision)) {
+    if (!CM_PointIsPathableForRadiusFlags(point, unit->collision, blocked_flags)) {
         return false;
     }
 

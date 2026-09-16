@@ -1535,6 +1535,32 @@ TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
     T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
 }
 
+TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
+    enum { CELLS = 16 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    VECTOR2 const requested = {256.0f, 256.0f};
+    VECTOR2 out;
+    LPEDICT mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+
+    mover->s.model = 1;
+    mover->collision = 16.0f;
+    mover->aiflags |= AI_FLYING;
+    pathmap[8 * CELLS + 8] = CM_PATHING_UNWALKABLE;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    T_FEQ(out.x, 256.0f, 0.001f);
+    T_FEQ(out.y, 256.0f, 0.001f);
+
+    pathmap[8 * CELLS + 8] = CM_PATHING_UNFLYABLE;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    T_FEQ(out.x, 256.0f, 0.001f);
+    T_FEQ(out.y, 192.0f, 0.001f);
+}
+
 TEST(wc3_api, unit_unstuck_search_skips_live_unit_collision) {
     VECTOR2 const requested = {256.0f, 256.0f};
     VECTOR2 out;

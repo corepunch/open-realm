@@ -20,7 +20,8 @@ static BOOL blink_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const
 static void blink_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, NULL, true);
     VECTOR2 dest = st.point;
-    CM_ClosestPathablePointForRadius(&st.point, caster->collision, &dest);
+    CM_ClosestPathablePointForRadiusFlags(
+        &st.point, caster->collision, M_UnitStaticPathingFlags(caster), &dest);
     caster->s.origin2 = dest;
     caster->s.origin.x = dest.x;
     caster->s.origin.y = dest.y;

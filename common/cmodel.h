@@ -9,9 +9,16 @@ struct edict_s;
 
 typedef void (*cmLoadYield_t)(void);
 
+/* Warcraft III pathing bits used by movement-class-aware routing.  Existing
+ * walkability APIs keep their historical UNWALKABLE behavior; callers that
+ * need another movement class pass the appropriate blocked bit explicitly. */
+#define CM_PATHING_UNWALKABLE 0x02
+#define CM_PATHING_UNFLYABLE  0x04
+
 typedef struct {
     LPCVECTOR2 from, target;
     FLOAT radius;
+    BYTE blocked_flags; /* 0 preserves the legacy UNWALKABLE contract */
 } pathAccelParams_t;
 
 struct War3MapVertex {
@@ -60,8 +67,11 @@ VECTOR2 CM_GetNormalizedMapPosition(float x, float y);
 VECTOR2 CM_GetDenormalizedMapPosition(float x, float y);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+BOOL CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
+BOOL CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
+BOOL CM_PointIsPathableForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 /* Optional byte-mask pathing sample used by generic local presentation.
  * Backends without a compatible cell mask return false and clear flags. */
@@ -69,10 +79,13 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);
 BOOL CM_TerrainPointIsWalkable(LPCVECTOR2 location);
 BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location);
 BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
+BOOL CM_LineIsPathableForRadiusFlags(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius, BYTE blocked_flags);
 BOOL CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out);
 BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
 FLOAT CM_PathCellWorldSize(void);
 DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
+DWORD CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, FLOAT radius, BYTE blocked_flags);
+BOOL CM_ActivateCachedFlowForFlags(DWORD generation, BYTE blocked_flags);
 void CM_ProcessPathJobs(DWORD work_budget);
 BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);

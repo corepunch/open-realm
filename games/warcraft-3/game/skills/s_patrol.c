@@ -53,7 +53,8 @@ static BOOL patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
             continue;
         }
         VECTOR2 target = *location;
-        CM_ClosestPathablePointForRadius(location, ent->collision, &target);
+        CM_ClosestPathablePointForRadiusFlags(
+            location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
         order_patrol(ent, Waypoint_add(&target));
         any = true;
     }

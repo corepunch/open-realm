@@ -12,6 +12,16 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach uses ordinary collision-sized generic movement.
 
+### Movement-class static pathing
+
+WC3 `movetp="fly"` units now use the WPM/pathing-texture **UNFLYABLE** bit (`0x04`) for static movement instead of the ground **UNWALKABLE** bit (`0x02`). Ground movers keep the existing UNWALKABLE contract. This selection is carried through destination correction, direct/swept line tests, bounded A*, closest-reachable fallback, resumable flow fields, trained-unit exit placement, and pathing-aware scripted repositioning.
+
+The generic `CM_*Walkable*` entry points intentionally remain UNWALKABLE wrappers so SC2 and existing ground callers do not change semantics. WC3 movement calls the mask-aware `CM_*Pathable*Flags` forms when the mover is `AI_FLYING`. Flow-cache identity includes the blocked-pathing mask as well as adjusted target cell and collision radius, so an air field cannot be reused as a ground field (or vice versa).
+
+Static entity footprints preserve both relevant Warcraft pathing channels when they are baked: the TGA file red channel continues to contribute UNWALKABLE and the green channel contributes UNFLYABLE. `LoadTGA` stores source BGRA bytes in `COLOR32`, so these are `.b` and `.g` respectively in the current loader. A tall model does not automatically block flight; only authored UNFLYABLE pathing does. Conversely, ordinary UNWALKABLE ground footprint cells do not stop a flyer. Dynamic collision remains layer-based in `skills/s_move.c`: air blocks air, ground blocks ground, and opposite layers do not block each other.
+
+This patch deliberately does **not** generalize every WC3 movement type yet. `float`/water pathing and full amphibious horizontal routing still need their own movement-class predicates rather than being inferred from the new fly/ground split.
+
 ### Harvest Worker Routing
 
 Harvest/resource movement now follows the Warsmash-style collision contract directly: Gold Mine approach and all resource-return movement ignore **live units** while still respecting static pathing; tree approach uses ordinary generic unit collision. Building interaction routes use the worker's real collision radius, mover-owned bounded A* detours while shared fields rebuild, and footprint-aware near-side endpoints for Town Halls/Lumber Mills.
@@ -58,7 +68,7 @@ Plain Move also keeps the stand presentation while that pair is clear. The order
 
 Production services the shared incremental build with 32,768 queue pops per 10 Hz server frame. A 256x256 open field therefore completes in at most two frames instead of the previous sixteen-frame (1.6 second) delay. Override `wc3_path_work_budget` for slower targets. Complete destination-rooted publication remains the long-route fallback; the bounded accelerator is what removes that publication delay from nearby obstacle detours.
 
-`CM_BuildHeatmapForRadius()` and the resumable request path both key cached fields by adjusted target cell and mover collision radius. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
+`CM_BuildHeatmapForRadius()` and the resumable request path key cached fields by adjusted target cell and mover collision radius; movement-class-aware requests additionally key by the blocked pathing mask. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
 
 Flow vectors only descend to a strictly lower heatmap price for both collision-sized and radius-zero point fields. The adjusted goal cell therefore has a zero vector instead of pointing back out to a higher-cost neighbour. This matters for shared interaction routes such as Gold Mines and resource drop-offs: an outward point-flow at the adjusted cell makes every worker sharing that field orbit the same wrong location. Cached prices retain `INT_MAX` for cells that the completed field cannot reach. `CM_FlowReachedGoal(generation, x, y)` identifies the adjusted goal cell, while `CM_FlowCanReach(generation, x, y)` distinguishes a disconnected cell from a zero produced by interpolation near the goal.
 
@@ -150,7 +160,7 @@ Do not reintroduce a distance-only timeout around Harvest to hide these routing 
 300 candidates against unit collision and movement pathing. If no candidate is legal, the requested point remains the fallback.
 
 OpenRealm mirrors that contract in `G_FindUnitUnstuckPosition()` (`g_spawn.c`). The requested point is checked against
-`CM_PointIsPathableForRadius()` and live same-layer collision circles before the spiral advances. Authored building/destructable
+the mover's movement-class static pathing (`UNFLYABLE` for flyers, `UNWALKABLE` otherwise) and live same-layer collision circles before the spiral advances. Authored building/destructable
 pathing is already baked into the static pathmap, so a script that requests a point inside a structure is displaced to the first
 legal nearby candidate instead of being left occluded inside the structure. `SetUnitX` and `SetUnitY` intentionally remain raw
 coordinate setters; do not route them through the unstuck search.
@@ -188,6 +198,10 @@ followed by `start` and `reached` for the replacement tree.
 Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movement.c`. They cover:
 
 - cache separation by collision radius;
+- cache separation between ground/UNWALKABLE and flying/UNFLYABLE fields;
+- WPM UNWALKABLE versus UNFLYABLE point/line queries;
+- green-channel static path textures contributing UNFLYABLE without making ground unwalkable;
+- flyer move validation accepting UNWALKABLE-only cells and rejecting UNFLYABLE cells;
 - resumable cache misses serialize without losing a later destination;
 - collision-radius-aware line walkability;
 - water rejection with an explicitly passable bridge lane;
@@ -206,6 +220,7 @@ Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movem
 - lumber return to a Town Hall through an authored blocking building footprint;
 - a distant temporarily blocked plain move keeps its order alive while near-goal jitter still settles;
 - `SetUnitPosition` / `SetUnitPositionLoc` use the Warsmash-style blocked-point unstuck spiral while `SetUnitX/Y` remain raw.
+- flying `SetUnitPosition` unstuck checks ignore UNWALKABLE-only cells and obey UNFLYABLE cells.
 
 Run when validating locally:
 

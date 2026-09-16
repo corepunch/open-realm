@@ -560,7 +560,8 @@ static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
-        CM_ClosestPathablePointForRadius(location, ent->collision, &target);
+        CM_ClosestPathablePointForRadiusFlags(
+            location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
         if (G_IssueUnitPointOrder(ent, "attack", &target,
                                   clent->client->menu.order_queued,
                                   clent->client->ps.number, 0.0f)) {

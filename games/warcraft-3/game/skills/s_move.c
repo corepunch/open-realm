@@ -132,7 +132,11 @@ FLOAT unit_movedistance(LPEDICT self) {
  * that the old post-move push solver violated). */
 
 static BOOL unit_is_flying(LPCEDICT ent) {
-    return (ent->aiflags & AI_FLYING) != 0;
+    return ent && (ent->aiflags & AI_FLYING) != 0;
+}
+
+BYTE M_UnitStaticPathingFlags(LPCEDICT ent) {
+    return unit_is_flying(ent) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
 }
 
 /* BoxEdicts predicate: solid units/buildings sharing this mover's collision
@@ -172,6 +176,7 @@ static FLOAT point_segment_distance(LPCVECTOR2 a, LPCVECTOR2 b, LPCVECTOR2 p) {
  * so the slide can apply speed-priority give-way. */
 static BOOL move_is_valid_policy(LPEDICT self, LPCVECTOR2 cand,
                                  moveCollisionPolicy_t collision_policy) {
+    BYTE const blocked_flags = M_UnitStaticPathingFlags(self);
     trymove_blocker = NULL;
     /* Pathing-disabled units (SetUnitPathing(false), scripted moves) ignore
      * all collision, matching the old unconditional translate. */
@@ -179,13 +184,13 @@ static BOOL move_is_valid_policy(LPEDICT self, LPCVECTOR2 cand,
         return true;
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
-    if (!CM_PointIsPathableForRadius(cand, self->collision))
+    if (!CM_PointIsPathableForRadiusFlags(cand, self->collision, blocked_flags))
         return false;
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
      * endpoint remains the authoritative legal position. */
-    if (CM_PointIsPathableForRadius(&self->s.origin2, self->collision) &&
-        !CM_LineIsWalkableForRadius(&self->s.origin2, cand, self->collision))
+    if (CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags) &&
+        !CM_LineIsPathableForRadiusFlags(&self->s.origin2, cand, self->collision, blocked_flags))
         return false;
 
     if (collision_policy == MOVE_IGNORE_UNITS)
@@ -478,7 +483,7 @@ static void unit_changeangle_towards_point_policy(LPEDICT self, LPCVECTOR2 point
 static BOOL unit_accel_direction_to_point(LPEDICT self, LPCVECTOR2 target,
                                           FLOAT radius, LPVECTOR2 dir) {
     if (!self || !target || !dir) return false;
-    pathAccelParams_t params = { &self->s.origin2, target, radius };
+    pathAccelParams_t params = { &self->s.origin2, target, radius, M_UnitStaticPathingFlags(self) };
     return CM_AccelerateRoute(&self->movement.path, &params, dir);
 }
 
@@ -512,7 +517,8 @@ BOOL unit_changeangle_towards_point_ignore_units(LPEDICT self, LPCVECTOR2 point)
      * exact point when it is directly reachable; otherwise use the same
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
-    if (CM_LineIsWalkableForRadius(&self->s.origin2, point, self->collision)) {
+    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, point, self->collision,
+                                        M_UnitStaticPathingFlags(self))) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
@@ -544,12 +550,13 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
      * Move orders own radius-valid reserved destinations, so their route must
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
-    if (CM_LineIsWalkableForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius)) {
+    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2,
+                                        radius, M_UnitStaticPathingFlags(self))) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
-        DWORD heatmap = M_RefreshHeatmap(self->goalentity, radius);
+        DWORD heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap) {
             if (!unit_accel_direction(self, radius, &dir))
@@ -586,7 +593,8 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                     self->movement.flow_fallback_time = level.time;
                     self->movement.flow_fallback_goal = self->goalentity;
                     self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
-                    if (CM_ClosestReachablePointForRadius(from, target, radius, &closest)) {
+                    if (CM_ClosestReachablePointForRadiusFlags(
+                            from, target, radius, M_UnitStaticPathingFlags(self), &closest)) {
                         self->goalentity->s.origin2 = closest;
                         self->goalentity->secondarygoal = NULL;
                         self->goalentity->heatmap2 = 0;
@@ -632,14 +640,14 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
 
-    if (CM_LineIsWalkableForRadius(&self->s.origin2,
-                                   &self->goalentity->s.origin2,
-                                   radius)) {
+    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2,
+                                        &self->goalentity->s.origin2,
+                                        radius, M_UnitStaticPathingFlags(self))) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
-        DWORD heatmap = M_RefreshHeatmap(self->goalentity, radius);
+        DWORD heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap) {
             if (!unit_accel_direction(self, radius, &dir))
@@ -723,8 +731,9 @@ static int move_harvest_path_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
-DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
+DWORD M_RefreshHeatmapForMover(LPCEDICT mover, LPEDICT self, FLOAT radius) {
     LPEDICT route = self && self->secondarygoal ? self->secondarygoal : self;
+    BYTE const blocked_flags = M_UnitStaticPathingFlags(mover);
     BOOL radius_matches;
     BOOL cached = false;
     DWORD generation;
@@ -734,7 +743,7 @@ DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
 
     radius_matches = fabsf(route->heatmap2_radius - radius) < 0.01f;
     if (radius_matches && route->heatmap2)
-        cached = CM_ActivateCachedFlow(route->heatmap2);
+        cached = CM_ActivateCachedFlowForFlags(route->heatmap2, blocked_flags);
 
     /* Fixed waypoints never move, so a still-cached field remains valid until
      * static pathing invalidates the routing cache. */
@@ -752,7 +761,7 @@ DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
      * a moving target while its replacement is being built; fixed goals with
      * no field simply wait until a later tick instead of steering straight into
      * the obstacle that caused routing to be needed. */
-    generation = CM_RequestHeatmapForRadius(route, radius);
+    generation = CM_RequestHeatmapForRadiusFlags(route, radius, blocked_flags);
     if (!generation)
         return cached ? route->heatmap2 : 0;
 
@@ -767,6 +776,10 @@ DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
                 route->s.number, route->heatmap2, radius);
     }
     return route->heatmap2;
+}
+
+DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
+    return M_RefreshHeatmapForMover(NULL, self, radius);
 }
 
 static LPCSTR M_UnitMoveTypeName(LPCEDICT self) {
@@ -842,11 +855,12 @@ static BOOL move_slot_overlaps(LPCVECTOR2 point,
 
 static BOOL move_try_slot(LPCVECTOR2 point,
                           FLOAT radius,
+                          BYTE blocked_flags,
                           moveSlot_t const *reserved,
                           DWORD num_reserved,
                           LPVECTOR2 out) {
     VECTOR2 pathable = *point;
-    if (!CM_ClosestPathablePointForRadius(point, radius, &pathable)) {
+    if (!CM_ClosestPathablePointForRadiusFlags(point, radius, blocked_flags, &pathable)) {
         return false;
     }
     if (move_slot_overlaps(&pathable, radius, reserved, num_reserved)) {
@@ -859,6 +873,7 @@ static BOOL move_try_slot(LPCVECTOR2 point,
 static BOOL move_find_reserved_slot(LPCVECTOR2 location,
                                     LPCVECTOR2 preferred,
                                     FLOAT radius,
+                                    BYTE blocked_flags,
                                     FLOAT spacing,
                                     DWORD unit_count,
                                     moveSlot_t const *reserved,
@@ -869,7 +884,7 @@ static BOOL move_find_reserved_slot(LPCVECTOR2 location,
     VECTOR2 best = *location;
     int max_ring = (int)ceilf(sqrtf(MAX(1, unit_count))) + 8;
 
-    if (move_try_slot(preferred, radius, reserved, num_reserved, out)) {
+    if (move_try_slot(preferred, radius, blocked_flags, reserved, num_reserved, out)) {
         return true;
     }
 
@@ -888,7 +903,7 @@ static BOOL move_find_reserved_slot(LPCVECTOR2 location,
                 VECTOR2 pathable;
                 FLOAT distance;
 
-                if (!move_try_slot(&candidate, radius, reserved, num_reserved, &pathable)) {
+                if (!move_try_slot(&candidate, radius, blocked_flags, reserved, num_reserved, &pathable)) {
                     continue;
                 }
 
@@ -1357,13 +1372,15 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
         if (!move_find_reserved_slot(location,
                                      &preferred,
                                      ent->collision,
+                                     M_UnitStaticPathingFlags(ent),
                                      spacing,
                                      num_units,
                                      reserved,
                                      i,
                                      &target)) {
             target = *location;
-            CM_ClosestPathablePointForRadius(location, ent->collision, &target);
+            CM_ClosestPathablePointForRadiusFlags(
+                location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
         }
         reserved[i] = (moveSlot_t){ target, ent->collision };
         if (!have_confirmation) {

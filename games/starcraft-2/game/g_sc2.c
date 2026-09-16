@@ -243,7 +243,7 @@ static void SC2_RunUnit(LPEDICT ent) {
     } else {
         DWORD flow = CM_RequestHeatmapForRadius(&sc2_waypoints[number], ent->collision);
         if (!flow) {
-            pathAccelParams_t params = { &ent->s.origin2, &sc2_move[number].target, ent->collision };
+            pathAccelParams_t params = { &ent->s.origin2, &sc2_move[number].target, ent->collision, 0 };
             if (!CM_AccelerateRoute(&sc2_move[number].path, &params, &dir)) return;
         } else {
             sc2_move[number].path.valid = false;

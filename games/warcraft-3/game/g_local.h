@@ -1907,6 +1907,8 @@ void M_MoveFrame(LPEDICT);
 FLOAT M_DistanceToGoal(LPEDICT);
 FLOAT unit_movedistance(LPEDICT);
 DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
+DWORD M_RefreshHeatmapForMover(LPCEDICT, LPEDICT, FLOAT);
+BYTE M_UnitStaticPathingFlags(LPCEDICT);
 BOOL M_IsDead(LPCEDICT);
 void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);

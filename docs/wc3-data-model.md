@@ -255,10 +255,13 @@ Trees do **not** fabricate a collision circle — footprint only.
 - SPFA relaxation; no diagonal corner-cutting.
 - Collision radius in cells uses `/32` (one cell), not `/24`.
 - The old `0xffff` iteration cap truncated large maps and is removed.
-- `CM_PointIsPathableForRadius` for cheap static-terrain queries.
+- `CM_PointIsPathableForRadius` remains the ground/UNWALKABLE query; mask-aware routing APIs select UNFLYABLE for flyers.
+- Shared flow-cache identity includes adjusted goal, collision radius, and blocked pathing mask so ground and flying fields cannot alias.
 
 ### Movement
+- `movetp="fly"` / `AI_FLYING` uses static UNFLYABLE (`0x04`) rather than UNWALKABLE (`0x02`); path-texture green contributes UNFLYABLE.
 - Move-time validation (swept circle-vs-circle), not post-move push: units block and slide, they don't shove idle units.
+- Dynamic collision is layer-separated: air blocks air, ground blocks ground, and air/ground pass through each other.
 - Broad-phase box spans the whole step so fast units can't tunnel through blockers between ticks.
 - Avoidance resolves into a single heading per tick; slower unit yields to faster (speed-priority give-way).
 

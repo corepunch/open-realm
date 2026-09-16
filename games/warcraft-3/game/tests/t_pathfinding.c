@@ -24,6 +24,7 @@
  */
 
 #include <math.h>
+#include <limits.h>
 #include <string.h>
 #include "test.h"
 #include "../g_local.h"
@@ -50,10 +51,14 @@ extern struct routePerfStats_s CM_GetTestPathPerfStats(void);
 DWORD  CM_BuildHeatmap(edict_t *goalentity);
 DWORD  CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius);
 DWORD  CM_RequestHeatmapForRadius(edict_t *goalentity, FLOAT radius);
+DWORD  CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, FLOAT radius, BYTE blocked_flags);
 void   CM_ProcessPathJobs(DWORD work_budget);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+BOOL   CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 BOOL   CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
+BOOL   CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
+BOOL   CM_LineIsPathableForRadiusFlags(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius, BYTE blocked_flags);
 BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FindApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FindInnerApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
@@ -64,6 +69,7 @@ VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
 /* Static-map point test from routing.c — the static half of move-time
  * collision (unit_trymove in skills/s_move.c). */
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
+BOOL CM_PointIsPathableForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags);
 
 /* From g_monster.c */
 LPEDICT Waypoint_add(LPCVECTOR2 spot);
@@ -171,6 +177,98 @@ TEST(wc3_pathfinding, terrain_flags_and_routing_share_game_storage) {
     T_ASSERT(CM_GetPathingFlagsAt(&point, &flags)); T_EQ(flags, 0);
     T_ASSERT(CM_PointIsPathableForRadius(&point, 0));
     setup_test_world();
+}
+
+TEST(wc3_pathfinding, movement_class_pathing_distinguishes_walk_and_fly_bits) {
+    BYTE cells[10 * 10] = { 0 };
+    VECTOR2 nowalk = { 4.5f, 3.5f };
+    VECTOR2 nofly = { 4.5f, 6.5f };
+    VECTOR2 walk_from = { 1.5f, 3.5f }, walk_to = { 8.5f, 3.5f };
+    VECTOR2 fly_from = { 1.5f, 6.5f }, fly_to = { 8.5f, 6.5f };
+
+    cells[3 * 10 + 4] = CM_PATHING_UNWALKABLE;
+    cells[6 * 10 + 4] = CM_PATHING_UNFLYABLE;
+    setup_test_pathmap(10, 10, cells);
+
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&nowalk, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&nowalk, 0.0f, CM_PATHING_UNFLYABLE));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&nofly, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&nofly, 0.0f, CM_PATHING_UNFLYABLE));
+
+    T_ASSERT(!CM_LineIsPathableForRadiusFlags(&walk_from, &walk_to, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(CM_LineIsPathableForRadiusFlags(&walk_from, &walk_to, 0.0f, CM_PATHING_UNFLYABLE));
+    T_ASSERT(CM_LineIsPathableForRadiusFlags(&fly_from, &fly_to, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(!CM_LineIsPathableForRadiusFlags(&fly_from, &fly_to, 0.0f, CM_PATHING_UNFLYABLE));
+}
+
+TEST(wc3_pathfinding, static_path_texture_green_channel_marks_unflyable) {
+    BYTE cells[8 * 8] = { 0 }, flags = 0;
+    VECTOR2 center = { 4.5f, 4.5f };
+    LPEDICT building;
+    pathTex_t *pathtex;
+
+    setup_test_pathmap(8, 8, cells);
+    reset_entities();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), center.x, center.y);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = 1;
+    pathtex->height = 1;
+    pathtex->map[0] = (COLOR32){ .g = 255, .a = 255 };
+    building->pathtex = pathtex;
+
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(CM_GetPathingFlagsAt(&center, &flags));
+    T_ASSERT(flags & CM_PATHING_UNFLYABLE);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&center, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&center, 0.0f, CM_PATHING_UNFLYABLE));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
+TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
+    BYTE cells[8 * 8] = { 0 };
+    VECTOR2 target = { 4.5f, 4.5f };
+    LPEDICT flyer;
+
+    cells[4 * 8 + 4] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(8, 8, cells);
+    reset_entities();
+    flyer = make_unit_at(3.5f, 4.5f);
+    flyer->collision = 0.0f;
+    flyer->aiflags |= AI_FLYING;
+    T_ASSERT(M_MoveIsValid(flyer, &target));
+
+    cells[4 * 8 + 4] = CM_PATHING_UNFLYABLE;
+    setup_test_pathmap(8, 8, cells);
+    T_ASSERT(!M_MoveIsValid(flyer, &target));
+}
+
+TEST(wc3_pathfinding, heatmap_cache_separates_ground_and_flying_pathing) {
+    BYTE cells[10 * 10] = { 0 };
+    LPEDICT goal;
+    DWORD fly_gen, ground_gen;
+
+    for (int y = 0; y < 10; y++)
+        cells[y * 10 + 4] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(10, 10, cells);
+    reset_entities();
+    goal = make_waypoint(8.5f, 5.5f);
+
+    T_EQ(CM_RequestHeatmapForRadiusFlags(goal, 0.0f, CM_PATHING_UNFLYABLE), 0);
+    CM_ProcessPathJobs(UINT_MAX);
+    fly_gen = CM_RequestHeatmapForRadiusFlags(goal, 0.0f, CM_PATHING_UNFLYABLE);
+    T_ASSERT(fly_gen != 0);
+    T_ASSERT(CM_FlowCanReach(fly_gen, 1.5f, 5.5f));
+
+    T_EQ(CM_RequestHeatmapForRadiusFlags(goal, 0.0f, CM_PATHING_UNWALKABLE), 0);
+    CM_ProcessPathJobs(UINT_MAX);
+    ground_gen = CM_RequestHeatmapForRadiusFlags(goal, 0.0f, CM_PATHING_UNWALKABLE);
+    T_ASSERT(ground_gen != 0);
+    T_NE(fly_gen, ground_gen);
+    T_ASSERT(!CM_FlowCanReach(ground_gen, 1.5f, 5.5f));
 }
 
 TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
@@ -323,7 +421,7 @@ TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames
 
 TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
     VECTOR2 from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
-    pathAccelParams_t params = { &from, &target, 0.0f };
+    pathAccelParams_t params = { &from, &target, 0.0f, 0 };
 
     build_wall_map();
     setup_test_pathmap(MAP_W, MAP_H, wall_map);
@@ -337,7 +435,7 @@ TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
     enum { WIDTH = 128, HEIGHT = 16 };
     static BYTE open[WIDTH * HEIGHT];
     VECTOR2 from = {2.0f, 8.0f}, target = {100.0f, 8.0f}, waypoint;
-    pathAccelParams_t params = { &from, &target, 0.0f };
+    pathAccelParams_t params = { &from, &target, 0.0f, 0 };
 
     memset(open, 0, sizeof(open));
     setup_test_pathmap(WIDTH, HEIGHT, open);
@@ -347,8 +445,8 @@ TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
 TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
     BYTE narrow[MAP_W * MAP_H];
     VECTOR2 from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
-    pathAccelParams_t point = { &from, &target, 0.0f };
-    pathAccelParams_t wide = { &from, &target, 1.0f };
+    pathAccelParams_t point = { &from, &target, 0.0f, 0 };
+    pathAccelParams_t wide = { &from, &target, 1.0f, 0 };
 
     memset(narrow, 0, sizeof(narrow));
     FOR_LOOP(y, MAP_H) narrow[5 + y * MAP_W] = 0x02;
