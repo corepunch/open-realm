@@ -477,6 +477,51 @@ TEST(server_net, findindex_new_slot_marks_value_for_reliable_resync) {
     T_ASSERT(!sv.syncstrings[CS_FONTS + second]);
 }
 
+TEST(server_net, image_registry_exceeds_legacy_255_slot_limit) {
+    char name[64];
+    int image = 0;
+
+    reset_server_state(1);
+    T_ASSERT(MAX_IMAGES > 300);
+    for (int i = 1; i <= 300; i++) {
+        snprintf(name, sizeof(name), "UI\\CommandButtons\\BTNTest%03d.blp", i);
+        image = SV_ImageIndex(name);
+        T_EQ(image, i);
+    }
+    T_ASSERT(image > 255);
+    T_STREQ(sv.configstrings[CS_IMAGES + image], "UI\\CommandButtons\\BTNTest300.blp");
+}
+
+TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
+    BYTE copy[MAX_MSGLEN];
+    char name[MAX_QPATH];
+    sizeBuf_t msg;
+    LPCLIENT client;
+    int image;
+
+    reset_server_state(1);
+    sv.state = ss_game;
+    svs.num_clients = 1;
+    client = &svs.clients[0];
+    SZ_Init(&client->netchan.message, client->netchan.message_buf, sizeof(client->netchan.message_buf));
+
+    image = SV_ImageIndex("ReplaceableTextures\\CommandButtons\\BTNFootman.blp");
+    T_ASSERT(image > 0);
+    T_ASSERT(!sv.syncstrings[CS_IMAGES + image]);
+
+    SV_QueuePendingConfigStrings();
+    MSG_WriteByte(&client->netchan.message, svc_layout);
+
+    memcpy(copy, client->netchan.message.data, client->netchan.message.cursize);
+    msg = (sizeBuf_t){ .data = copy, .maxsize = sizeof(copy), .cursize = client->netchan.message.cursize };
+    T_EQ(MSG_ReadByte(&msg), svc_configstring);
+    T_EQ(MSG_ReadShort(&msg), CS_IMAGES + image);
+    MSG_ReadStringN(&msg, name, sizeof(name));
+    T_STREQ(name, "ReplaceableTextures\\CommandButtons\\BTNFootman.blp");
+    T_EQ(MSG_ReadByte(&msg), svc_layout);
+    T_ASSERT(sv.syncstrings[CS_IMAGES + image]);
+}
+
 TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();

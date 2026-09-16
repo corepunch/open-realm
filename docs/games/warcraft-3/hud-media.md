@@ -29,6 +29,25 @@ Glue UI (`games/warcraft-3/menu/`) is a separate `stb_fdf` instance with its own
 
 Same-map load never changes `CS_WORLD`, so the client cannot wait for `CL_ClearState`. `CL_RestartRefresh` zeros `cl.pics` / `cl.fonts` / `cl.models` (renderer caches still own the GPU objects). `CL_PrepRefresh` always binds from the current configstring, and empty slots stay NULL so leftover art cannot draw.
 
+## Runtime Registration Order And Capacity
+
+Command/build/status art is still server-authored through `gi.ImageIndex()` and `CS_IMAGES`; it is not part of the client's
+`MAX_DYNAMIC_IMAGES` text-path cache. Two constraints follow from that ownership:
+
+- a newly allocated image configstring must be serialized before the `svc_layout` that first references its numeric slot;
+  `PF_Unicast()` therefore calls `SV_QueuePendingConfigStrings()` before appending the authored layout to the client's message;
+- occupied `CS_IMAGES` slots cannot be evicted/reused during the level because retained layers may still hold their numbers.
+  `MAX_IMAGES` is 2048 (2,047 usable nonzero indices), replacing the legacy 256-entry table that could make later command icons
+  resolve to index 0 after enough distinct UI art had been visited.
+
+A renderer texture-cache miss and a network image-index exhaustion are different failures. Renderer-local textures remain in the
+unbounded session hash described in `docs/fs-loading-architecture.md`; increasing or recycling `MAX_DYNAMIC_IMAGES` does not repair a
+full `CS_IMAGES` table.
+
+Verification is covered by `server_net.image_registry_exceeds_legacy_255_slot_limit` and
+`server_net.pending_image_configstring_precedes_dependent_payload`. A visual run is still useful for final artwork correctness, but is
+not required to establish these transport/index invariants.
+
 ## Diagnostic Workflow
 
 After `load quick`, tabs must show resolved `KEY_QUESTS` strings and tab art, not the FDF ids themselves. Command-card icons must match the selected unit, not shuffled chrome.

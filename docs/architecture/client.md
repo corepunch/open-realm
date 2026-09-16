@@ -129,8 +129,11 @@ modules may use it for press-and-hold controls without adding game-specific bran
 
 Configstrings are also live server state, not connect-time-only metadata. A game-side `gi.configstring()` call reaches
 `PF_Confignstring()`, which delegates storage to the generic server-owned `SV_SetConfigString()`. That helper clears
-`sv.syncstrings[index]`; `SV_FindIndex()` uses the same path when it creates model/sound/image entries. At the start of a later
-`SV_SendClientMessages()` pass, each unsynced entry is sent reliably with `svc_configstring` before normal spawned-client datagrams.
+`sv.syncstrings[index]`; `SV_FindIndex()` uses the same path when it creates model/sound/image entries. `SV_QueuePendingConfigStrings()`
+appends each unsynced value to every current client's reliable message before the normal spawned-client datagram. `PF_Unicast()` calls
+the same helper before appending an immediate game payload, because layout authoring can allocate an image/font/model index and then
+unicast a frame that references it in the same game callback. This guarantees the `svc_configstring` precedes the dependent layout in
+the same outbound message instead of leaving a first-use frame temporarily bound to an unregistered slot.
 `CL_ParseConfigString` keeps the already-loaded model/image handle when the resent path is unchanged; begin and same-map load
 used to `ReleaseModel`/`LoadModel` every slot. A changed or newly filled slot still binds immediately
 so late presentation models (after `CL_PrepRefresh`) stay coherent. Do not mutate `sv.configstrings[]` directly for runtime values,

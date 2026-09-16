@@ -261,7 +261,7 @@ enum {
 #define MAX_MODELS 256
 #define MAX_FONTSTYLES 256
 #define MAX_SOUNDS 512 // units carry many sounds (what/yes/attack/death per unit type); a single map peaks above 256
-#define MAX_IMAGES 256
+#define MAX_IMAGES 2048 // UI-heavy games can reference hundreds of distinct command/status textures in one map session
 #define MAX_DYNAMIC_IMAGES 32
 #define MAX_ITEMS 256
 #define MAX_GENERAL (MAX_CLIENTS*2)

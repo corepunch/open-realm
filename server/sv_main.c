@@ -48,7 +48,7 @@ DWORD SV_ConfigStringWireSize(DWORD index) {
     return 1 + 2 + (DWORD)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
 }
 
-void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
+static void SV_AppendConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
     if (i == CS_STATUSBAR) {
@@ -56,7 +56,23 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     } else {
         MSG_WriteString(msg, ge->GetThemeValue(sv.configstrings[i]));
     }
+}
+
+void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
+    SV_AppendConfigString(msg, i);
     sv.syncstrings[i] = true;
+}
+
+/* Queue live configstrings before any later payload that may reference them.
+ * syncstrings[] is global because the same update is appended to every current
+ * client; clients that connect later receive the complete signon table. */
+void SV_QueuePendingConfigStrings(void) {
+    for (DWORD i = 0; sv.state == ss_game && i < MAX_CONFIGSTRINGS; i++) {
+        if (!*sv.configstrings[i] || sv.syncstrings[i]) continue;
+        FOR_LOOP(client_index, svs.num_clients)
+            SV_AppendConfigString(&svs.clients[client_index].netchan.message, i);
+        sv.syncstrings[i] = true;
+    }
 }
 
 static void SV_SendClientDatagram(LPCLIENT client) {
@@ -67,12 +83,7 @@ static void SV_SendClientDatagram(LPCLIENT client) {
 /* Flush any un-synced config strings to all clients, then send a per-frame
  * datagram to every spawned client containing the current entity snapshot. */
 static void SV_SendClientMessages(void) {
-    for (DWORD i = 0; sv.state == ss_game && i < MAX_CONFIGSTRINGS; i++) {
-        if (*sv.configstrings[i] && !sv.syncstrings[i]) {
-            SV_WriteConfigString(&sv.multicast, i);
-            SV_Multicast(&(VECTOR3){0,0,0}, MULTICAST_ALL_R);
-        }
-    }
+    SV_QueuePendingConfigStrings();
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
         if (client->state == cs_spawned && sv.state == ss_game) {

@@ -170,6 +170,7 @@ void SV_InitGameProgs(void);
 // sv_main.c
 DWORD SV_ConfigStringWireSize(DWORD index);
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);
+void SV_QueuePendingConfigStrings(void);
 void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len);
 
 // sv_user.c

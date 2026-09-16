@@ -210,6 +210,17 @@ world models, sound sets and UI, but is not a minimal dependency list:
 - `CS_WORLD` and `CS_ASSET_SCOPE` legitimately repeat the map path for different consumers; font sizes likewise
   require distinct entries. The figures above describe this map/edition, not a fixed protocol budget.
 
+`CS_IMAGES` has 2,047 usable nonzero slots (`MAX_IMAGES == 2048`). The earlier 255-slot limit was too small for
+Warcraft III's long-lived HUD: command cards, build menus, inventories, status panels, and FDF chrome can discover new art throughout
+a map session, and `SV_FindIndex()` cannot safely recycle an occupied network slot while retained layouts still reference its number.
+The larger table changes only index capacity; signon still serializes nonempty entries rather than the entire reserved range, and the
+renderer-local texture registry remains independently unbounded.
+
+Runtime resource publication is ordered with dependent UI payloads. `SV_FindIndex()` marks a new slot unsynced;
+`SV_QueuePendingConfigStrings()` appends those `svc_configstring` records to every current client before `PF_Unicast()` appends and
+transmits the layout/window payload that may contain the new index. The regular frame-send path calls the same queue helper. Do not
+restore deferred-only publication: an immediate unicast can otherwise reach the client one packet before the configstring it uses.
+
 To repeat the audit, temporarily log nonempty entries and `SV_ConfigStringWireSize` at the first
 `SV_Configstrings_f` request, then run the bounded paired reproduction below. The loading layout now travels
 separately through `svc_loading_screen`; see the [loading transport contract](../games/warcraft-3/loading-and-assets.md#loading-screen-ownership).

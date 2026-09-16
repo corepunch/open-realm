@@ -154,6 +154,10 @@ void PF_Unicast(edict_t *ent) {
         client = svs.clients + (p - 1);
     if (!client && svs.num_clients == 1) client = svs.clients;
     if (!client) { SZ_Clear(&sv.multicast); return; }
+    /* Image/font/model indices may have been allocated while authoring this
+     * payload. Publish those configstrings first so a client never parses a
+     * layout that references a resource slot it has not registered yet. */
+    SV_QueuePendingConfigStrings();
     SZ_Write(&client->netchan.message, sv.multicast.data, sv.multicast.cursize);
     SZ_Clear(&sv.multicast);
     Netchan_Transmit(NS_SERVER, &client->netchan);
