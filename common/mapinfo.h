@@ -37,6 +37,12 @@ enum mapInfoFlags_t {
     show_water_waves_on_rolling_shores = 0x1000,
 };
 
+typedef enum {
+    kMapGameDataSetDefault = 0,
+    kMapGameDataSetCustom = 1,
+    kMapGameDataSetMelee = 2,
+} mapGameDataSet_t;
+
 enum playerFlags_t {
     fixed_start_position = 0x0001,
 };
@@ -216,7 +222,7 @@ struct mapInfo_s {
     LPSTR loadingScreenTitle;
     LPSTR loadingScreenSubtitle;
     DWORD loadingScreenNumber; // (-1 = none)
-    DWORD gameDataSet; // TFT+
+    DWORD gameDataSet; // TFT+: mapGameDataSet_t (0 falls back from melee_map flag)
     LPSTR prologueScreenModel; // TFT+
     LPSTR prologueScreenText;
     LPSTR prologueScreenTitle;

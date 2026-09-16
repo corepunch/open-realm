@@ -15,6 +15,34 @@ miscellaneous, command, and ability text files remain `stbIniCache_t` values que
 `sheetRow_t`, fields, linked lists, and append operations are private implementation details of
 `games/warcraft-3/sheet/sheet.c` and must not cross the parser boundary.
 
+## RoC/TFT Edition And W3I Game Data Sets
+
+OpenRealm has two independent inputs when selecting Warcraft object data:
+
+1. `fs_expansion` selects the installed game edition. `0` is Reign of Chaos and hides the configured `War3x*` archive family; `1` is The Frozen Throne and exposes it.
+2. `war3map.w3i::gameDataSet` selects the map data overlay inside that edition. `1` selects `Custom_V0`/`Custom_V1`; other explicit values select `Melee_V0`/`Melee_V1`. When the W3I field is absent or zero, the `melee_map` flag selects Melee and other maps select Custom, matching Warsmash's map-loader rule.
+
+The resulting lookup is therefore:
+
+```text
+fs_expansion = 0 + custom map -> Custom_V0\<sheet path> -> root fallback
+fs_expansion = 0 + melee map  -> Melee_V0\<sheet path>  -> root fallback
+fs_expansion = 1 + custom map -> Custom_V1\<sheet path> -> root fallback
+fs_expansion = 1 + melee map  -> Melee_V1\<sheet path>  -> root fallback
+```
+
+`G_ReadGameDataFile` owns this overlay for sheet/object-data parsing. It first asks the engine filesystem for the prefixed path and, when that file is absent, asks for the ordinary path. Archive precedence and the existing RoC/TFT `War3x*` visibility rule therefore remain authoritative; there is no hard-coded list of TFT-only unit, ability, building, or upgrade rawcodes.
+
+`G_LoadMap` applies the W3I-selected prefix only after `gi.ClearWorld()`, because live edicts retain typed-row pointers. When the prefix changes, OpenRealm reloads `war3skins.txt`, misc constants, typed unit/ability/upgrade tables, profile/command INI data, and ability `A_INIT` caches as one map-boundary operation, then rebuilds map-local `war3map.w3u` overrides. Command-card `Builds`, `Trains`, `Researches`, unit `abilList`, and in-place `Upgrade` lists consequently come from the active data set instead of being filtered by a TFT rawcode blacklist.
+
+W3I format version is a separate compatibility input. `G_IsReignOfChaosMap()` recognizes parsed formats `1..24` as RoC maps; zero is treated as unknown for synthetic/test metadata. This helper is for runtime semantic differences, such as the stock RoC hero-inventory fallback, and must not be confused with `fs_expansion` or `gameDataSet`.
+
+Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback, `Custom_V0`/`Melee_V1` prefix formation, RoC-map detection, prefixed fixture selection, and root fallback. Fixture files live under `games/warcraft-3/tests/resources-src/{Custom_V0,Melee_V1}/`.
+
+The current overlay is deliberately scoped to sheet/INI object data. Warsmash applies its subdirectory data source more broadly, but extending model/texture/FDF asset resolution would cross the renderer/client asset-scope boundary and is separate work; it is not required to keep TFT-only techtree rows out of RoC command cards.
+
+See also [WC3 map format](games/warcraft-3/file-formats/map.md) for the W3I fields and [runtime](architecture/runtime.md) for `fs_expansion`.
+
 ## The Base-vs-Computed Column Trap
 
 Several UnitBalance.slk columns exist in both a **base** form and a **computed** (real) form. The base column is the editor-entered value; the computed column includes bonuses (hero attributes, etc.). Always read the computed column at runtime — base values are 0 or wrong for heroes.

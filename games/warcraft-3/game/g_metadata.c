@@ -1521,6 +1521,39 @@ FLOAT G_UnitCastPoint(DWORD id) {
     return d ? d->castPoint : 0.f;
 }
 
+BOOL G_IsReignOfChaosMap(LPCMAPINFO mapinfo) {
+    /* Real ROC W3I formats are <= 24.  Treat zero as unknown so synthetic
+     * tests/maps without parsed W3I metadata do not silently gain ROC rules. */
+    return mapinfo && mapinfo->fileFormat > 0 && mapinfo->fileFormat <= 24;
+}
+
+DWORD G_MapGameDataSet(LPCMAPINFO mapinfo) {
+    DWORD data_set = mapinfo && mapinfo->fileFormat >= 25
+        ? mapinfo->gameDataSet
+        : kMapGameDataSetDefault;
+
+    /* W3I <= 24 has no gameDataSet field.  Warsmash also uses this fallback
+     * when a later map stores zero: melee maps select Melee, other maps Custom. */
+    if (data_set == kMapGameDataSetDefault) {
+        data_set = mapinfo && (mapinfo->flags & melee_map)
+            ? kMapGameDataSetMelee
+            : kMapGameDataSetCustom;
+    }
+    /* Match Warsmash's binary branch: 1 is Custom; every other explicit
+     * value follows the Melee data path. */
+    return data_set == kMapGameDataSetCustom
+        ? kMapGameDataSetCustom
+        : kMapGameDataSetMelee;
+}
+
+void G_MapGameDataPrefix(LPCMAPINFO mapinfo, DWORD game_version, LPSTR out, DWORD out_size) {
+    LPCSTR kind;
+
+    if (!out || !out_size) return;
+    kind = G_MapGameDataSet(mapinfo) == kMapGameDataSetCustom ? "Custom" : "Melee";
+    snprintf(out, out_size, "%s_V%u", kind, (unsigned)(game_version ? 1u : 0u));
+}
+
 /* Launch offsets moved from UnitData (ROC) to UnitWeapons (TFT). */
 FLOAT G_UnitAttack1LaunchX(DWORD id) {
     UnitWeapons_t const *w = G_UnitWeapons(id);

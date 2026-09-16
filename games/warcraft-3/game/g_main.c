@@ -38,6 +38,26 @@ extern JASSMODULE jass_funcs[];
 
 static void G_StartScripts(void);
 static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after);
+static void InitConstants(void);
+static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo);
+
+/* Sheet/object data follows the map's W3I gameDataSet overlay while ordinary
+ * engine file lookup remains unchanged.  Missing versioned files fall back to
+ * the already-selected ROC/TFT archive view. */
+static HANDLE G_ReadGameDataFile(LPCSTR filename, LPDWORD size) {
+    char path[MAX_PATHLEN * 2];
+    DWORD ignored_size = 0;
+    HANDLE data;
+
+    if (!filename || !*filename || !gi.ReadFile) return NULL;
+    if (!size) size = &ignored_size;
+    if (game.data_prefix[0]) {
+        snprintf(path, sizeof(path), "%s\\%s", game.data_prefix, filename);
+        data = gi.ReadFile(path, size);
+        if (data) return data;
+    }
+    return gi.ReadFile(filename, size);
+}
 #define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
 static LPCSTR wc3_campaign_paths[] = {
     "Maps\\Campaign\\", "Maps/Campaign/", "Maps\\FrozenThrone\\Campaign\\", "Maps/FrozenThrone/Campaign/"
@@ -236,18 +256,22 @@ static bool G_LoadMap(LPCSTR mapFilename) {
      * levels can make a new index resolve to the previous map's filename. */
     G_FreeModels();
     G_ResetDeferredFrees();
-    /* Resolve presentation from the active skin before publishing the client media contract. */
+    gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    gi.ClearWorld();
+    /* Old edicts can retain pointers into typed rows, so clear the world and
+     * HUD before swapping the map-selected object-data overlay. */
+    UI_ResetHud();
+    G_ApplyMapGameDataSet(CM_GetMapInfo());
+    /* Resolve presentation from the active map data set before publishing the
+     * gameplay media contract. */
     LPCSTR marker = Stb_IniCacheFind(&game.config.theme, "Default", "TargetPointConfirm");
     if (!marker || !*marker) fprintf(stderr, "G_LoadMap: missing skin field TargetPointConfirm\n");
     gi.configstring(CS_ORDER_MARKER, marker ? marker : "");
-    gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
-    gi.ClearWorld();
     gi.LoadingFrame();
     G_MusicResetState();
     G_SetMapUnitOverrides(CM_GetMapInfo());
-    /* SV_Map already wiped CS_IMAGES/CS_FONTS. Clear hud, then bind every
-     * panel once so write paths do not parse FDF on first use. */
-    UI_ResetHud();
+    /* SV_Map already wiped CS_IMAGES/CS_FONTS. Bind every panel once so write
+     * paths do not parse FDF on first use. */
     UI_LoadHud();
     gi.LoadingFrame();
     G_SpawnEntities();
@@ -382,6 +406,25 @@ static void InitConstants(void) {
  * Example:
  *   openwarcraft3 -data <dir> +set jass_test games/warcraft-3/tests/fixtures/test_jass_assertions.j
  * ------------------------------------------------------------------------- */
+static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo) {
+    char prefix[sizeof(game.data_prefix)];
+    DWORD game_version = atoi(gi.CvarString("fs_expansion", "0")) != 0 ? 1u : 0u;
+
+    G_MapGameDataPrefix(mapinfo, game_version, prefix, sizeof(prefix));
+    if (!strcmp(game.data_prefix, prefix)) return;
+
+    /* InitUnitData and ability A_INIT handlers cache values from the sheet
+     * reader, so replace them together at the map boundary. */
+    ShutdownUnitData();
+    Stb_IniCacheFree(&game.config.theme);
+    Stb_IniCacheFree(&game.config.misc);
+    strlcpy(game.data_prefix, prefix, sizeof(game.data_prefix));
+    Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
+    InitConstants();
+    InitUnitData();
+    InitAbilities();
+}
+
 static void G_RunJassTests(LPCSTR script, LPCSTR entry) {
     if (!entry || !*entry) {
         entry = "run_tests";
@@ -443,6 +486,7 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
+    game.data_prefix[0] = '\0';
     Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
     InitConstants();
     InitUnitData();
@@ -471,6 +515,7 @@ static void G_ShutdownGame(void) {
 
     ShutdownUnitData();
     Stb_IniCacheFree(&game.config.theme); Stb_IniCacheFree(&game.config.misc);
+    game.data_prefix[0] = '\0';
     SAFE_DELETE(game.clients, gi.MemFree);
 }
 
@@ -1250,7 +1295,7 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
     FS_SetSheetHost(&MAKE(SHEETHOST,
-        .ReadFile = gi.ReadFile,
+        .ReadFile = G_ReadGameDataFile,
         .FreeFile = (void (*)(HANDLE))gi.MemFree,
         .MemAlloc = gi.MemAlloc,
         .MemFree = gi.MemFree,

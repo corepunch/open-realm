@@ -208,6 +208,8 @@ All cvars registered in `Cvar_Init()`:
 | `ui_chat_support` | `"0"` | CVAR_ARCHIVE | Chat UI support |
 | `s_provider` | `"1"` | CVAR_ARCHIVE | Sound provider |
 
+For Warcraft III gameplay data, `fs_expansion` supplies the `V0`/`V1` half of the map-selected sheet overlay. After W3I is parsed, `gameDataSet` (with the `melee_map` fallback) selects `Custom_V<edition>` or `Melee_V<edition>`; missing prefixed files fall back to the ordinary path in the already-filtered archive view. See [WC3 Data Model](../wc3-data-model.md#roctft-edition-and-w3i-game-data-sets).
+
 ## Module Boundary
 
 The runtime libraries are built into `build/lib/`:

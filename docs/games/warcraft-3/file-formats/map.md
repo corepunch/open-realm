@@ -49,6 +49,10 @@ DWORD  num_forces
 ...
 ```
 
+For W3I format 25 and later, the loading/prologue block includes `gameDataSet`. OpenRealm interprets it using the same branch as Warsmash: `1` means the `Custom_V<edition>` data overlay, while other explicit values mean `Melee_V<edition>`. Zero (and RoC W3I files where the field does not exist) falls back to the `melee_map` flag: melee maps select Melee and other maps select Custom. The `<edition>` suffix comes from `fs_expansion` (`0` RoC, `1` TFT), not from the W3I format version. See [WC3 Data Model](../../../wc3-data-model.md#roctft-edition-and-w3i-game-data-sets).
+
+W3I format version remains a separate runtime compatibility signal. `G_IsReignOfChaosMap()` treats parsed versions `1..24` as RoC; format 25 and later is not RoC. This is used for behavior differences, not for choosing the `Custom` versus `Melee` overlay.
+
 The four W3I camera-bound complements are stored in **left, right, bottom, top** order. They describe how many terrain cells on each side of the complete W3E terrain lie outside the playable rectangle; they are **not** the JASS `GetCameraMargin` values. OpenRealm stores them as `cameraBounds.complement` in the same on-disk order because the W3I reader copies the structure directly. The playable rectangle is reconstructed from `CM_GetWorldBounds()` as:
 
 ```text

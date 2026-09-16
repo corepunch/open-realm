@@ -194,8 +194,7 @@ DWORD G_InventoryCapacity(LPCEDICT unit) {
      * AInv ability when a hero has no inventory ability authored in its normal
      * ability list.  ROC map formats are <= 24; TFT/custom data may intentionally
      * omit inventory, so do not synthesize AInv there. */
-    if (!has_inventory_ability && level.mapinfo && level.mapinfo->fileFormat > 0 &&
-        level.mapinfo->fileFormat <= 24 && G_UnitIsHero(unit)) {
+    if (!has_inventory_ability && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit)) {
         return G_InventoryAbilityCapacity(unit, "AInv");
     }
     return 0;

@@ -13,6 +13,87 @@
 
 void setup_test_world(void);
 
+TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
+    MAPINFO info = { 0 };
+
+    info.fileFormat = 24;
+    info.gameDataSet = kMapGameDataSetMelee; /* field is absent on disk for ROC and must be ignored */
+    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetCustom);
+    info.flags = melee_map;
+    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+
+    info.fileFormat = 25;
+    info.flags = 0;
+    info.gameDataSet = kMapGameDataSetDefault;
+    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetCustom);
+    info.flags = melee_map;
+    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+
+    info.flags = 0;
+    info.gameDataSet = kMapGameDataSetCustom;
+    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetCustom);
+    info.gameDataSet = kMapGameDataSetMelee;
+    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+    info.gameDataSet = 99;
+    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+}
+
+TEST(wc3_slk, map_game_data_prefix_tracks_dataset_and_edition) {
+    MAPINFO info = { .fileFormat = 25, .gameDataSet = kMapGameDataSetCustom };
+    char prefix[32];
+
+    G_MapGameDataPrefix(&info, 0, prefix, sizeof(prefix));
+    T_STREQ(prefix, "Custom_V0");
+    G_MapGameDataPrefix(&info, 1, prefix, sizeof(prefix));
+    T_STREQ(prefix, "Custom_V1");
+
+    info.gameDataSet = kMapGameDataSetMelee;
+    G_MapGameDataPrefix(&info, 0, prefix, sizeof(prefix));
+    T_STREQ(prefix, "Melee_V0");
+    G_MapGameDataPrefix(&info, 1, prefix, sizeof(prefix));
+    T_STREQ(prefix, "Melee_V1");
+}
+
+TEST(wc3_slk, reign_of_chaos_map_requires_real_roc_w3i_version) {
+    MAPINFO info = { 0 };
+
+    T_ASSERT(!G_IsReignOfChaosMap(NULL));
+    T_ASSERT(!G_IsReignOfChaosMap(&info));
+    info.fileFormat = 24;
+    T_ASSERT(G_IsReignOfChaosMap(&info));
+    info.fileFormat = 25;
+    T_ASSERT(!G_IsReignOfChaosMap(&info));
+}
+
+TEST(wc3_slk, sheet_reader_prefers_active_map_data_overlay) {
+    stbIniCache_t data = { 0 };
+    char saved_prefix[sizeof(game.data_prefix)];
+
+    strlcpy(saved_prefix, game.data_prefix, sizeof(saved_prefix));
+
+    game.data_prefix[0] = '\0';
+    T_ASSERT(Stb_IniCacheLoad(&data, "TestData\\GameDataSet.txt"));
+    T_STREQ(Stb_IniCacheFind(&data, "Data", "Value"), "base");
+    Stb_IniCacheFree(&data);
+
+    strlcpy(game.data_prefix, "Custom_V0", sizeof(game.data_prefix));
+    T_ASSERT(Stb_IniCacheLoad(&data, "TestData\\GameDataSet.txt"));
+    T_STREQ(Stb_IniCacheFind(&data, "Data", "Value"), "custom-v0");
+    Stb_IniCacheFree(&data);
+
+    strlcpy(game.data_prefix, "Melee_V1", sizeof(game.data_prefix));
+    T_ASSERT(Stb_IniCacheLoad(&data, "TestData\\GameDataSet.txt"));
+    T_STREQ(Stb_IniCacheFind(&data, "Data", "Value"), "melee-v1");
+    Stb_IniCacheFree(&data);
+
+    strlcpy(game.data_prefix, "Custom_V1", sizeof(game.data_prefix));
+    T_ASSERT(Stb_IniCacheLoad(&data, "TestData\\GameDataSet.txt"));
+    T_STREQ(Stb_IniCacheFind(&data, "Data", "Value"), "base");
+    Stb_IniCacheFree(&data);
+
+    strlcpy(game.data_prefix, saved_prefix, sizeof(game.data_prefix));
+}
+
 slkTestData_t *parse_slk_string(const char *slk_text) {
     static slkField_t const schema[] = { { NULL, 0, 0 } };
     void *rows = NULL;

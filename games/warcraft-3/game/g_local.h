@@ -1334,6 +1334,9 @@ struct game_locals {
         stbIniCache_t theme;
         stbIniCache_t misc;
     } config;
+    /* W3I gameDataSet selects a Warsmash-style Custom_V0/V1 or
+     * Melee_V0/V1 sheet-data overlay for the active map. */
+    char data_prefix[32];
     struct {
         FLOAT attackHalfAngle;
         FLOAT maxCollisionRadius;
@@ -2216,6 +2219,9 @@ FLOAT UnitMetaReal(LPEDICT, DWORD);
 void InitUnitData(void);
 void ShutdownUnitData(void);
 void G_SetMapUnitOverrides(LPCMAPINFO);
+BOOL G_IsReignOfChaosMap(LPCMAPINFO);
+DWORD G_MapGameDataSet(LPCMAPINFO);
+void G_MapGameDataPrefix(LPCMAPINFO, DWORD game_version, LPSTR out, DWORD out_size);
 #ifdef BZ_TESTS
 typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
 slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
