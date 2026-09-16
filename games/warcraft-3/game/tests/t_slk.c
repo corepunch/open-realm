@@ -17,40 +17,44 @@ TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
     MAPINFO info = { 0 };
 
     info.fileFormat = 24;
-    info.gameDataSet = kMapGameDataSetMelee; /* field is absent on disk for ROC and must be ignored */
-    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetCustom);
+    info.gameDataSet = WC3_MAP_GAME_DATA_SET_MELEE; /* field is absent on disk for ROC and must be ignored */
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_CUSTOM);
     info.flags = melee_map;
-    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_MELEE);
 
     info.fileFormat = 25;
     info.flags = 0;
-    info.gameDataSet = kMapGameDataSetDefault;
-    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetCustom);
+    info.gameDataSet = WC3_MAP_GAME_DATA_SET_DEFAULT;
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_CUSTOM);
     info.flags = melee_map;
-    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_MELEE);
 
     info.flags = 0;
-    info.gameDataSet = kMapGameDataSetCustom;
-    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetCustom);
-    info.gameDataSet = kMapGameDataSetMelee;
-    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+    info.gameDataSet = WC3_MAP_GAME_DATA_SET_CUSTOM;
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_CUSTOM);
+    info.gameDataSet = WC3_MAP_GAME_DATA_SET_MELEE;
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_MELEE);
     info.gameDataSet = 99;
-    T_EQ(G_MapGameDataSet(&info), kMapGameDataSetMelee);
+    T_EQ(G_MapGameDataSet(&info), WC3_MAP_GAME_DATA_SET_MELEE);
 }
 
 TEST(wc3_slk, map_game_data_prefix_tracks_dataset_and_edition) {
-    MAPINFO info = { .fileFormat = 25, .gameDataSet = kMapGameDataSetCustom };
+    MAPINFO info = { .fileFormat = 25, .gameDataSet = WC3_MAP_GAME_DATA_SET_CUSTOM };
     char prefix[32];
+    wc3MapGameDataPrefixParams_t params = { .info = &info, .version = 0, .out = prefix, .size = sizeof(prefix) };
 
-    G_MapGameDataPrefix(&info, 0, prefix, sizeof(prefix));
+    G_MapGameDataPrefix(&params);
     T_STREQ(prefix, "Custom_V0");
-    G_MapGameDataPrefix(&info, 1, prefix, sizeof(prefix));
+    params.version = 1;
+    G_MapGameDataPrefix(&params);
     T_STREQ(prefix, "Custom_V1");
 
-    info.gameDataSet = kMapGameDataSetMelee;
-    G_MapGameDataPrefix(&info, 0, prefix, sizeof(prefix));
+    info.gameDataSet = WC3_MAP_GAME_DATA_SET_MELEE;
+    params.version = 0;
+    G_MapGameDataPrefix(&params);
     T_STREQ(prefix, "Melee_V0");
-    G_MapGameDataPrefix(&info, 1, prefix, sizeof(prefix));
+    params.version = 1;
+    G_MapGameDataPrefix(&params);
     T_STREQ(prefix, "Melee_V1");
 }
 

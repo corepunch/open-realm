@@ -494,7 +494,7 @@ TEST(server_net, image_registry_exceeds_legacy_255_slot_limit) {
 
 TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     BYTE copy[MAX_MSGLEN];
-    char name[MAX_QPATH];
+    char name[MAX_PATHLEN];
     sizeBuf_t msg;
     LPCLIENT client;
     int image;
@@ -503,6 +503,7 @@ TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     sv.state = ss_game;
     svs.num_clients = 1;
     client = &svs.clients[0];
+    client->state = cs_spawned;
     SZ_Init(&client->netchan.message, client->netchan.message_buf, sizeof(client->netchan.message_buf));
 
     image = SV_ImageIndex("ReplaceableTextures\\CommandButtons\\BTNFootman.blp");
@@ -520,6 +521,43 @@ TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     T_STREQ(name, "ReplaceableTextures\\CommandButtons\\BTNFootman.blp");
     T_EQ(MSG_ReadByte(&msg), svc_layout);
     T_ASSERT(sv.syncstrings[CS_IMAGES + image]);
+}
+
+TEST(server_net, pending_configstrings_flush_before_message_limit) {
+    BYTE packet[MAX_MSGLEN];
+    char value[32];
+    sizeBuf_t msg = { .data = packet, .maxsize = sizeof(packet) };
+    netadr_t from;
+    LPCLIENT client;
+    DWORD index;
+    int count = 0;
+
+    reset_server_state(1);
+    sv.state = ss_game;
+    svs.num_clients = 1;
+    client = &svs.clients[0];
+    client->state = cs_spawned;
+    client->netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client->netchan.message, client->netchan.message_buf, 48);
+    FOR_LOOP(i, 4) {
+        snprintf(value, sizeof(value), "pending-%u", (unsigned)i);
+        SV_SetConfigString(CS_GENERAL + i, value, sizeof(value));
+    }
+
+    SV_QueuePendingConfigStrings();
+    T_ASSERT(!client->netchan.message.overflowed);
+    Netchan_Transmit(NS_SERVER, &client->netchan);
+    while (NET_GetPacket(NS_CLIENT, &from, &msg)) {
+        while (msg.readcount < msg.cursize) {
+            T_EQ(MSG_ReadByte(&msg), svc_configstring);
+            index = MSG_ReadShort(&msg);
+            MSG_ReadStringN(&msg, value, sizeof(value));
+            T_EQ(index, CS_GENERAL + count);
+            count++;
+        }
+    }
+    T_EQ(count, 4);
+    FOR_LOOP(i, 4) T_ASSERT(sv.syncstrings[CS_GENERAL + i]);
 }
 
 TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
@@ -706,7 +744,8 @@ TEST(server_net, duplicate_loopback_connect_replies_without_allocating_client) {
     NET_Shutdown(); reset_server_state(1); SV_ClientConnect(); drain_client_packets();
     SV_DirectConnect(&loopback, "\\name\\Player");
     T_EQ(svs.num_clients, 1); T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
-    T_EQ(*(int *)msg.data, -1); T_ASSERT(!strcmp((char *)msg.data + 4, "client_connect"));
+    T_EQ(*(int *)msg.data, -1); T_EQ(msg.cursize, 4 + sizeof("client_connect") - 1);
+    T_ASSERT(!memcmp(msg.data + 4, "client_connect", sizeof("client_connect") - 1));
     SV_Shutdown(); NET_Shutdown();
 }
 

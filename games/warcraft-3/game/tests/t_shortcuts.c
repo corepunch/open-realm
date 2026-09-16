@@ -252,6 +252,7 @@ TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
         { .priority = 3 },
         { .priority = 2 },
     };
+    UnitProfile_t hero_profile = { .art = "TestUI\\Textures\\solid_white.blp" };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image)(LPCSTR) = gi.ImageIndex;
@@ -269,6 +270,7 @@ TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
         heroes[i]->svflags |= SVF_MONSTER;
         heroes[i]->s.player = 0;
         heroes[i]->data.UnitData = &hero_data[i];
+        heroes[i]->data.UnitProfile = &hero_profile;
         T_ASSERT(G_UnitShowsHeroShortcut(client, heroes[i]));
         G_SelectEntity(client, heroes[i]);
     }

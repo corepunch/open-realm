@@ -28,6 +28,20 @@
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
+
+typedef enum {
+    WC3_MAP_GAME_DATA_SET_DEFAULT = 0,
+    WC3_MAP_GAME_DATA_SET_CUSTOM = 1,
+    WC3_MAP_GAME_DATA_SET_MELEE = 2,
+} wc3MapGameDataSet_t;
+
+typedef struct {
+    LPCMAPINFO info;
+    DWORD version;
+    LPSTR out;
+    DWORD size;
+} wc3MapGameDataPrefixParams_t;
+
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
 #define MAX_SHOP_STOCK 24 // entries; exceeds Blizzard.j's default 11 item slots; bounds persisted shop merchandise
 #define MAX_CARGO 8
@@ -2221,7 +2235,7 @@ void ShutdownUnitData(void);
 void G_SetMapUnitOverrides(LPCMAPINFO);
 BOOL G_IsReignOfChaosMap(LPCMAPINFO);
 DWORD G_MapGameDataSet(LPCMAPINFO);
-void G_MapGameDataPrefix(LPCMAPINFO, DWORD game_version, LPSTR out, DWORD out_size);
+void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params);
 #ifdef BZ_TESTS
 typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
 slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);

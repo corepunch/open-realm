@@ -1530,28 +1530,28 @@ BOOL G_IsReignOfChaosMap(LPCMAPINFO mapinfo) {
 DWORD G_MapGameDataSet(LPCMAPINFO mapinfo) {
     DWORD data_set = mapinfo && mapinfo->fileFormat >= 25
         ? mapinfo->gameDataSet
-        : kMapGameDataSetDefault;
+        : WC3_MAP_GAME_DATA_SET_DEFAULT;
 
     /* W3I <= 24 has no gameDataSet field.  Warsmash also uses this fallback
      * when a later map stores zero: melee maps select Melee, other maps Custom. */
-    if (data_set == kMapGameDataSetDefault) {
+    if (data_set == WC3_MAP_GAME_DATA_SET_DEFAULT) {
         data_set = mapinfo && (mapinfo->flags & melee_map)
-            ? kMapGameDataSetMelee
-            : kMapGameDataSetCustom;
+            ? WC3_MAP_GAME_DATA_SET_MELEE
+            : WC3_MAP_GAME_DATA_SET_CUSTOM;
     }
     /* Match Warsmash's binary branch: 1 is Custom; every other explicit
      * value follows the Melee data path. */
-    return data_set == kMapGameDataSetCustom
-        ? kMapGameDataSetCustom
-        : kMapGameDataSetMelee;
+    return data_set == WC3_MAP_GAME_DATA_SET_CUSTOM
+        ? WC3_MAP_GAME_DATA_SET_CUSTOM
+        : WC3_MAP_GAME_DATA_SET_MELEE;
 }
 
-void G_MapGameDataPrefix(LPCMAPINFO mapinfo, DWORD game_version, LPSTR out, DWORD out_size) {
+void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params) {
     LPCSTR kind;
 
-    if (!out || !out_size) return;
-    kind = G_MapGameDataSet(mapinfo) == kMapGameDataSetCustom ? "Custom" : "Melee";
-    snprintf(out, out_size, "%s_V%u", kind, (unsigned)(game_version ? 1u : 0u));
+    if (!params || !params->out || !params->size) return;
+    kind = G_MapGameDataSet(params->info) == WC3_MAP_GAME_DATA_SET_CUSTOM ? "Custom" : "Melee";
+    snprintf(params->out, params->size, "%s_V%u", kind, (unsigned)(params->version ? 1u : 0u));
 }
 
 /* Launch offsets moved from UnitData (ROC) to UnitWeapons (TFT). */

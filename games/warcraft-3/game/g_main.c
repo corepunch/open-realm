@@ -41,6 +41,11 @@ static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after);
 static void InitConstants(void);
 static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo);
 
+#define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
+static LPCSTR wc3_campaign_paths[] = {
+    "Maps\\Campaign\\", "Maps/Campaign/", "Maps\\FrozenThrone\\Campaign\\", "Maps/FrozenThrone/Campaign/"
+};
+
 /* Sheet/object data follows the map's W3I gameDataSet overlay while ordinary
  * engine file lookup remains unchanged.  Missing versioned files fall back to
  * the already-selected ROC/TFT archive view. */
@@ -49,19 +54,17 @@ static HANDLE G_ReadGameDataFile(LPCSTR filename, LPDWORD size) {
     DWORD ignored_size = 0;
     HANDLE data;
 
-    if (!filename || !*filename || !gi.ReadFile) return NULL;
+    if (!filename || !*filename) return NULL;
     if (!size) size = &ignored_size;
     if (game.data_prefix[0]) {
         snprintf(path, sizeof(path), "%s\\%s", game.data_prefix, filename);
         data = gi.ReadFile(path, size);
         if (data) return data;
+        fprintf(stderr, "WC3: map data overlay missing %s; using base %s\n", path, filename);
     }
-    return gi.ReadFile(filename, size);
+    data = gi.ReadFile(filename, size);
+    return data;
 }
-#define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
-static LPCSTR wc3_campaign_paths[] = {
-    "Maps\\Campaign\\", "Maps/Campaign/", "Maps\\FrozenThrone\\Campaign\\", "Maps/FrozenThrone/Campaign/"
-};
 
 static BOOL starting_resource_cheat_armed;
 static DWORD starting_resource_cheat_applied_mask;
@@ -409,8 +412,11 @@ static void InitConstants(void) {
 static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo) {
     char prefix[sizeof(game.data_prefix)];
     DWORD game_version = atoi(gi.CvarString("fs_expansion", "0")) != 0 ? 1u : 0u;
+    wc3MapGameDataPrefixParams_t params = {
+        .info = mapinfo, .version = game_version, .out = prefix, .size = sizeof(prefix)
+    };
 
-    G_MapGameDataPrefix(mapinfo, game_version, prefix, sizeof(prefix));
+    G_MapGameDataPrefix(&params);
     if (!strcmp(game.data_prefix, prefix)) return;
 
     /* InitUnitData and ability A_INIT handlers cache values from the sheet

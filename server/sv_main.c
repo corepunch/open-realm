@@ -58,6 +58,20 @@ static void SV_AppendConfigString(LPSIZEBUF msg, DWORD i) {
     }
 }
 
+static BOOL SV_QueueConfigString(LPCLIENT client, DWORD i) {
+    DWORD size = SV_ConfigStringWireSize(i);
+    DWORD limit = SV_SignonLimit(&client->netchan);
+
+    if (size + 32 > limit) {
+        fprintf(stderr, "SV_QueueConfigString: configstring %u exceeds message limit\n", (unsigned)i);
+        return false;
+    }
+    if (client->netchan.message.cursize && client->netchan.message.cursize + size + 32 > limit)
+        Netchan_Transmit(NS_SERVER, &client->netchan);
+    SV_AppendConfigString(&client->netchan.message, i);
+    return true;
+}
+
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     SV_AppendConfigString(msg, i);
     sv.syncstrings[i] = true;
@@ -69,9 +83,13 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
 void SV_QueuePendingConfigStrings(void) {
     for (DWORD i = 0; sv.state == ss_game && i < MAX_CONFIGSTRINGS; i++) {
         if (!*sv.configstrings[i] || sv.syncstrings[i]) continue;
-        FOR_LOOP(client_index, svs.num_clients)
-            SV_AppendConfigString(&svs.clients[client_index].netchan.message, i);
-        sv.syncstrings[i] = true;
+        BOOL queued = true;
+        FOR_LOOP(client_index, svs.num_clients) {
+            LPCLIENT client = &svs.clients[client_index];
+            if (client->state == cs_free || client->state == cs_zombie) continue;
+            if (!SV_QueueConfigString(client, i)) queued = false;
+        }
+        if (queued) sv.syncstrings[i] = true;
     }
 }
 
