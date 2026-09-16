@@ -72,7 +72,8 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
     LPGAMECLIENT client;
     LPEDICT next_idle = NULL;
     LPEDICT wrap_idle = NULL;
-    DWORD hero_slot = 0;
+    LPEDICT *heroes;
+    DWORD hero_count = 0;
     DWORD idle_count = 0;
     DWORD shortcut_root;
     char command[64];
@@ -80,29 +81,28 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
     if (!clent || !(client = clent->client)) return;
 
+    heroes = gi.MemAlloc(MAX(1u, globals.num_edicts) * sizeof(*heroes));
     UI_SetCurrentClient(client);
     UI_WriteStart(LAYER_UNIT_SHORTCUTS);
     shortcut_root = UI_WriteShortcutRoot();
 
-    /* One entity pass per dirty rebuild: emit Hero buttons while also counting
-     * workers and choosing the next cycle target. */
+    /* One entity pass per dirty rebuild: collect Hero buttons while also
+     * counting workers and choosing the next cycle target. Hero emission is
+     * deferred so the roster can use the exact same stable ordering as the
+     * multiselect status panel. */
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT unit = &globals.edicts[i];
 
         if (G_UnitShowsHeroShortcut(client, unit)) {
-            DWORD number = (DWORD)(unit - globals.edicts);
-            LPCSTR name = unit->data.UnitProfile && unit->data.UnitProfile->name
-                ? G_LevelString(unit->data.UnitProfile->name) : "Hero";
+            DWORD insert = hero_count++;
 
-            snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
-            snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
-            UI_WriteUnitShortcutButton(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
-                                       HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
-                                       HERO_SHORTCUT_SIZE, unit, command, tooltip, unit->s.player == client->ps.number);
-            UI_WriteShortcutNumber(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
-                                   HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
-                                   HERO_SHORTCUT_SIZE, HERO_SHORTCUT_SIZE, unit->hero.skillpoints);
-            hero_slot++;
+            heroes[insert] = unit;
+            while (insert > 0 && G_CompareSelectionOrder(heroes[insert], heroes[insert - 1]) < 0) {
+                LPEDICT swap = heroes[insert - 1];
+                heroes[insert - 1] = heroes[insert];
+                heroes[insert] = swap;
+                insert--;
+            }
         }
 
         if (G_UnitShowsIdleWorkerShortcut(client, unit)) {
@@ -111,6 +111,23 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
             if (!next_idle && i > client->shortcuts.last_idle_worker) next_idle = unit;
         }
     }
+
+    FOR_LOOP(hero_slot, hero_count) {
+        LPEDICT unit = heroes[hero_slot];
+        DWORD number = (DWORD)(unit - globals.edicts);
+        LPCSTR name = unit->data.UnitProfile && unit->data.UnitProfile->name
+            ? G_LevelString(unit->data.UnitProfile->name) : "Hero";
+
+        snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
+        snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
+        UI_WriteUnitShortcutButton(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
+                                   HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
+                                   HERO_SHORTCUT_SIZE, unit, command, tooltip, unit->s.player == client->ps.number);
+        UI_WriteShortcutNumber(shortcut_root, HUD_HERO_SHORTCUT_EDGE_X,
+                               HUD_HERO_SHORTCUT_TOP_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
+                               HERO_SHORTCUT_SIZE, HERO_SHORTCUT_SIZE, unit->hero.skillpoints);
+    }
+
     if (!next_idle) next_idle = wrap_idle;
     if (idle_count && next_idle) {
         DWORD number = (DWORD)(next_idle - globals.edicts);
@@ -123,4 +140,5 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
     UI_WriteEnd(clent);
     UI_SetCurrentClient(NULL);
+    gi.MemFree(heroes);
 }

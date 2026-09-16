@@ -2268,6 +2268,7 @@ extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav c
 extern BYTE g_numTreeFallSounds;
 
 // g_command.c
+LONG G_CompareSelectionOrder(LPCEDICT, LPCEDICT);
 DWORD G_GetOrderedSelectedUnits(LPGAMECLIENT, LPEDICT *, DWORD);
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);

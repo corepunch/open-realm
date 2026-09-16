@@ -59,11 +59,12 @@ static DWORD G_SelectionRawcodeValue(DWORD class_id) {
            ((class_id & 0xff000000u) >> 24);
 }
 
-/* Return < 0 when lhs belongs before rhs in the Warcraft multiselect panel.
- * Warsmash sorts unit type priority, level, then War3ID descending.  Equal
- * unit types compare equal so the stable insertion sort below preserves the
- * authoritative selection scan order for otherwise-identical entries. */
-static LONG G_CompareSelectionOrder(LPCEDICT lhs, LPCEDICT rhs) {
+/* Return < 0 when lhs belongs before rhs in Warcraft selection presentation.
+ * Warsmash sorts unit type priority, level, then War3ID descending. Equal
+ * unit types compare equal so stable callers preserve authoritative entity
+ * scan order for otherwise-identical entries. The multiselect panel and Hero
+ * shortcuts intentionally share this comparator. */
+LONG G_CompareSelectionOrder(LPCEDICT lhs, LPCEDICT rhs) {
     LONG left_value;
     LONG right_value;
     DWORD left_rawcode;

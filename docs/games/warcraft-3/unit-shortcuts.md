@@ -36,7 +36,7 @@ is separate from this shortcut subsystem.
 
 Dead Heroes remain in the roster because Warcraft Hero identity survives death and OpenRealm keeps the Hero edict for revival. A dead Hero cannot become normal selection, but its shortcut can still center the camera on its current location.
 
-Hero slots are stable with respect to the current entity ordering. F1-F7 address the first seven visible shortcut Heroes; the HUD itself is not artificially capped.
+Hero slots use the same stable Warcraft selection ordering as the multiselect status panel: unit-type priority descending, unit level descending, then canonical Warcraft rawcode descending, with entity scan order preserved for equal entries. This keeps a group of selected Heroes in the same top-to-bottom order in both presentations. F1-F7 address the first seven Heroes in that ordered roster; the HUD itself is not artificially capped.
 
 The button art uses `UnitProfile.art`, the same unit icon source used by train/revive presentation. This keeps the shortcut race/unit-specific without introducing a hard-coded asset path.
 
@@ -89,10 +89,10 @@ The generic free path calls the invalidation hook, but the hook rejects non-mons
 
 Shortcut activations may perform bounded entity scans because those happen only in response to user input. Hero HUD clicks and F1-F7 then enter the same-Hero 500 ms activation tracker, so input source does not change single-vs-double activation semantics:
 
-- F1-F7 finds the requested Hero slot;
+- F1-F7 finds the requested Hero slot using the same ordering as the visible Hero-button roster and multiselect panel;
 - idle-worker cycling finds the next qualifying worker after the saved entity-number cursor.
 
-A dirty HUD rebuild uses one combined entity pass to emit Hero buttons, count idle workers, and choose the next worker icon. Repeated rapid clicks remain correct even if the previous dirty layout has not reached the client yet: the server rejects the previously selected worker as a stale button hint and advances from `last_idle_worker`.
+A dirty HUD rebuild uses one combined entity pass to collect and stably order Hero buttons while also counting idle workers and choosing the next worker icon. The temporary Hero pointer list exists only during that dirty rebuild; there is still no per-frame roster scan. Repeated rapid clicks remain correct even if the previous dirty layout has not reached the client yet: the server rejects the previously selected worker as a stale button hint and advances from `last_idle_worker`.
 
 ## Selection Synchronization
 
@@ -147,26 +147,26 @@ The first implementation intentionally does not guess at retail behavior that is
 - no dedicated dead/reviving visual treatment beyond retaining the Hero icon;
 - no `SetReservedLocalHeroButtons` JASS/native implementation;
 - no backtick idle-worker binding while that key owns the developer console;
-- no retail-specific Hero-slot reordering beyond entity order.
 
 These are presentation/compatibility additions and should not be implemented by reintroducing per-frame roster scans.
 
 ## Verification
 
-Added unit tests cover the idle-worker predicate and shortcut dirty invalidation. The implementation also needs runtime verification after building:
+Unit tests cover the idle-worker predicate, shortcut dirty invalidation, and that Hero HUD/F-key ordering matches the multiselect status-panel ordering. The implementation also needs runtime verification after building:
 
 1. Start a map with one Hero and several Peasants.
 2. Confirm the Hero icon is below the upper menu and the worker icon/count is above the minimap.
 3. Click the Hero icon once from another selection; only selection should move to that Hero. Double-click the Hero icon; the second click should center the camera. A later isolated click must not center it.
-4. Press F1 once from another selection; only selection should change. Press F1 again within 500 ms to center. After waiting longer than 500 ms, another isolated F1 press must not move the camera even though the Hero is already selected.
-5. Leave three Peasants idle; confirm count `3`.
-6. Repeatedly click the worker button or press F8; each activation should select/center a different idle Peasant and wrap.
-7. Order one Peasant to harvest and confirm the count drops without periodic polling.
-8. Stop that Peasant and confirm the count rises after its transition to plain stand.
-9. Kill/free/transfer a worker and confirm the count/roster changes.
-10. Give a Hero one or more unspent skill points and confirm the number appears in the lower-right of its shortcut; spend the final point and confirm the number disappears.
-11. Damage the owned Hero and confirm its shortcut pulses red for several flashes without affecting the portrait art or selection behavior. Repeated damage should refresh the warning window.
-12. Hide a Hero with `ShowUnit(hero, false)` and confirm its shortcut disappears; show it again and confirm the shortcut returns.
+4. With multiple Heroes, select them together and confirm the persistent Hero icons appear in the same order as those Heroes in the status-panel multiselect grid; F1-F7 must address that same order.
+5. Press F1 once from another selection; only selection should change. Press F1 again within 500 ms to center. After waiting longer than 500 ms, another isolated F1 press must not move the camera even though the Hero is already selected.
+6. Leave three Peasants idle; confirm count `3`.
+7. Repeatedly click the worker button or press F8; each activation should select/center a different idle Peasant and wrap.
+8. Order one Peasant to harvest and confirm the count drops without periodic polling.
+9. Stop that Peasant and confirm the count rises after its transition to plain stand.
+10. Kill/free/transfer a worker and confirm the count/roster changes.
+11. Give a Hero one or more unspent skill points and confirm the number appears in the lower-right of its shortcut; spend the final point and confirm the number disappears.
+12. Damage the owned Hero and confirm its shortcut pulses red for several flashes without affecting the portrait art or selection behavior. Repeated damage should refresh the warning window.
+13. Hide a Hero with `ShowUnit(hero, false)` and confirm its shortcut disappears; show it again and confirm the shortcut returns.
 13. Kill and revive a Hero and confirm its persistent shortcut remains available.
 
 No local compile or test execution is required to update this document; use the repository test commands in `CONTRIBUTING.md` when validating a built tree.

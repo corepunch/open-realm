@@ -114,13 +114,34 @@ LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, DWORD after) {
 }
 
 static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, DWORD slot) {
-    DWORD found = 0;
+    LPEDICT ordered[WC3_HERO_FUNCTION_KEYS] = { 0 };
+    DWORD seen = 0;
 
     if (!client || slot >= WC3_HERO_FUNCTION_KEYS) return NULL;
     FILTER_EDICTS(ent, G_UnitShowsHeroShortcut(client, ent)) {
-        if (found++ == slot) return ent;
+        DWORD insert;
+
+        if (seen < WC3_HERO_FUNCTION_KEYS) {
+            insert = seen;
+            ordered[insert] = ent;
+        } else if (G_CompareSelectionOrder(ent, ordered[WC3_HERO_FUNCTION_KEYS - 1]) < 0) {
+            insert = WC3_HERO_FUNCTION_KEYS - 1;
+            ordered[insert] = ent;
+        } else {
+            seen++;
+            continue;
+        }
+
+        while (insert > 0 && G_CompareSelectionOrder(ordered[insert], ordered[insert - 1]) < 0) {
+            LPEDICT swap = ordered[insert - 1];
+            ordered[insert - 1] = ordered[insert];
+            ordered[insert] = swap;
+            insert--;
+        }
+        seen++;
     }
-    return NULL;
+
+    return slot < MIN(seen, (DWORD)WC3_HERO_FUNCTION_KEYS) ? ordered[slot] : NULL;
 }
 
 static BOOL G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {

@@ -15,6 +15,8 @@ static BOOL shortcut_count_parented;
 static BOOL shortcut_skill_count_seen;
 static BOOL shortcut_hero_alert_seen;
 static FLOAT shortcut_hero_alert_deadline;
+static DWORD shortcut_hero_entities[8];
+static DWORD shortcut_hero_entity_count;
 
 static int shortcut_test_image(LPCSTR name) {
     T_ASSERT(name && *name);
@@ -47,9 +49,15 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
     T_EQ(frame->points.y[FPP_MIN].relativeTo, UI_PARENT);
     if (frame->flags.type == FT_COMMANDBUTTON && frame->onclick) {
         if (!strncmp(frame->onclick, "herobutton ", 11)) {
+            unsigned number;
+
             shortcut_hero_parented = true;
             shortcut_hero_alert_seen = !!(frame->flagsvalue & UIFLAG_ALERT_RED_PULSE);
             shortcut_hero_alert_deadline = frame->value;
+            if (shortcut_hero_entity_count < sizeof(shortcut_hero_entities) / sizeof(shortcut_hero_entities[0]) &&
+                sscanf(frame->onclick, "herobutton %u", &number) == 1) {
+                shortcut_hero_entities[shortcut_hero_entity_count++] = (DWORD)number;
+            }
         }
         if (!strncmp(frame->onclick, "idleworker ", 11)) shortcut_worker_parented = true;
     } else if (frame->flags.type == FT_STRING) {
@@ -234,6 +242,69 @@ TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
     T_FEQ(client->camera.state.position.y, 144.0f, 0.001f);
 }
 
+TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT clent;
+    LPEDICT heroes[3];
+    LPEDICT ordered[3] = { 0 };
+    UnitData_t hero_data[3] = {
+        { .priority = 1 },
+        { .priority = 3 },
+        { .priority = 2 },
+    };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_image)(LPCSTR) = gi.ImageIndex;
+    int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
+
+    reset_entities();
+    setup_test_world();
+    client->ps.number = 0;
+    client->connected = true;
+    clent = &g_edicts[0];
+    clent->client = client;
+
+    FOR_LOOP(i, 3) {
+        heroes[i] = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64.0f + i * 32.0f, 64.0f);
+        heroes[i]->svflags |= SVF_MONSTER;
+        heroes[i]->s.player = 0;
+        heroes[i]->data.UnitData = &hero_data[i];
+        T_ASSERT(G_UnitShowsHeroShortcut(client, heroes[i]));
+        G_SelectEntity(client, heroes[i]);
+    }
+
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, 3), 3);
+    T_ASSERT(ordered[0] == heroes[1]);
+    T_ASSERT(ordered[1] == heroes[2]);
+    T_ASSERT(ordered[2] == heroes[0]);
+
+    shortcut_root_number = 0;
+    shortcut_root_extended = false;
+    shortcut_hero_entity_count = 0;
+    memset(shortcut_hero_entities, 0, sizeof(shortcut_hero_entities));
+    gi.Write = shortcut_test_write;
+    gi.unicast = shortcut_test_unicast;
+    gi.ImageIndex = shortcut_test_image;
+    gi.FontIndex = shortcut_test_font;
+
+    UI_WriteUnitShortcutLayer(clent);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.ImageIndex = old_image;
+    gi.FontIndex = old_font;
+    T_EQ(shortcut_hero_entity_count, 3);
+    FOR_LOOP(i, 3) T_EQ(shortcut_hero_entities[i], ordered[i]->s.number);
+
+    /* F1-F7 address the same ordered Hero roster as the visible buttons. */
+    client->connected = false;
+    level.time = 100000;
+    G_ActivateHeroKey(clent, 0);
+    T_ASSERT(G_IsEntitySelected(client, ordered[0]));
+    T_ASSERT(!G_IsEntitySelected(client, ordered[1]));
+    T_ASSERT(!G_IsEntitySelected(client, ordered[2]));
+}
+
 TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT clent;
@@ -284,6 +355,8 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     shortcut_skill_count_seen = false;
     shortcut_hero_alert_seen = false;
     shortcut_hero_alert_deadline = 0.0f;
+    shortcut_hero_entity_count = 0;
+    memset(shortcut_hero_entities, 0, sizeof(shortcut_hero_entities));
     gi.Write = shortcut_test_write;
     gi.unicast = shortcut_test_unicast;
     gi.ImageIndex = shortcut_test_image;
