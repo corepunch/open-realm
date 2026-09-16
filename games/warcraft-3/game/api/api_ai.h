@@ -189,6 +189,10 @@ DWORD AddAssault(LPJASS j) {
 DWORD CaptainGroupSize(LPJASS j) { return jass_pushinteger(j, G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
 DWORD CaptainIsFull(LPJASS j) { return jass_pushboolean(j, G_BotCaptainIsFull(jass_getcontext(j)->playerState)); }
 DWORD CaptainIsEmpty(LPJASS j) { return jass_pushboolean(j, !G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
+DWORD SuicidePlayer(LPJASS j) {
+    return jass_pushboolean(j, G_BotSuicidePlayer(jass_getcontext(j)->playerState,
+        jass_checkhandle(j, 1, "player"), jass_checkboolean(j, 2)));
+}
 DWORD CaptainReadiness(LPJASS j) { return jass_pushinteger(j, G_BotCaptainReadiness(jass_getcontext(j)->playerState, false)); }
 DWORD CaptainReadinessHP(LPJASS j) { return jass_pushinteger(j, G_BotCaptainReadiness(jass_getcontext(j)->playerState, false)); }
 DWORD CaptainReadinessMa(LPJASS j) { return jass_pushinteger(j, G_BotCaptainReadiness(jass_getcontext(j)->playerState, true)); }

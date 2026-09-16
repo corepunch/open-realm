@@ -1,0 +1,3 @@
+function main takes nothing returns nothing
+    call SuicidePlayer(Player(1), true)
+endfunction
