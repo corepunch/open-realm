@@ -342,6 +342,10 @@ static void clear_heatmap(void) {
 static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int radius_cells, BYTE blocked_flags);
 static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_cells);
 
+static BOOL path_ok(int x, int y, int radius, BYTE flags) {
+    return is_pathable_node_original_for_radius_cells_flags(x, y, radius, flags);
+}
+
 static void begin_heatmap_build(heatmapJob_t *job, point2_t target, int radius_cells, BYTE blocked_flags) {
     DWORD const width = pathmap.width;
     DWORD const ti = (DWORD)target.x + (DWORD)target.y * width;
@@ -384,9 +388,11 @@ static BOOL step_heatmap_build(heatmapJob_t *job, DWORD work_budget) {
             int const ny = uy + dy[i];
             if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, job->radius_cells, job->blocked_flags))
                 continue;
-            if (i >= 4 && !(is_pathable_node_original_for_radius_cells_flags(nx, uy, job->radius_cells, job->blocked_flags) &&
-                            is_pathable_node_original_for_radius_cells_flags(ux, ny, job->radius_cells, job->blocked_flags)))
-                continue;
+            if (i >= 4) {
+                BOOL const side_x = path_ok(nx, uy, job->radius_cells, job->blocked_flags);
+                BOOL const side_y = path_ok(ux, ny, job->radius_cells, job->blocked_flags);
+                if (!(side_x && side_y)) continue;
+            }
             DWORD const v = (DWORD)nx + (DWORD)ny * width;
             routeNode_t *const vn = &pathmap.heatmap[v];
             int const np = up + gv[i];
@@ -561,12 +567,16 @@ static void apply_dynamic_obstacles(edict_t const *ignore) {
             continue;
         point2_t p = LocationToPathMap(&ent->s.origin2);
         DWORD radius = collision_radius_cells(ent->collision);
+        BYTE const blocked_flags = entity_dynamic_pathing_flags(ent);
         FOR_LOOP(x, radius * 2) {
             FOR_LOOP(y, radius * 2) {
                 int px = (int)x + p.x - (int)radius;
                 int py = (int)y + p.y - (int)radius;
-                if (is_valid_point(px, py))
-                    path_node(px, py)->nowalk |= 1;
+                if (is_valid_point(px, py)) {
+                    pathMapCell_t *cell = path_node(px, py);
+                    if (blocked_flags & CM_PATHING_UNWALKABLE) cell->nowalk |= 1;
+                    if (blocked_flags & CM_PATHING_UNFLYABLE) cell->nofly |= 1;
+                }
             }
         }
     }
@@ -999,9 +1009,12 @@ BOOL CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out) {
         }
         FOR_LOOP(dir, 8) {
             int const nx = cx + dx[dir], ny = cy + dy[dir];
-            if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, radius_cells, blocked_flags) ||
-                (dir >= 4 && !(is_pathable_node_original_for_radius_cells_flags(nx, cy, radius_cells, blocked_flags) &&
-                              is_pathable_node_original_for_radius_cells_flags(cx, ny, radius_cells, blocked_flags)))) continue;
+            if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, radius_cells, blocked_flags)) continue;
+            if (dir >= 4) {
+                BOOL const side_x = path_ok(nx, cy, radius_cells, blocked_flags);
+                BOOL const side_y = path_ok(cx, ny, radius_cells, blocked_flags);
+                if (!(side_x && side_y)) continue;
+            }
             DWORD const next = (DWORD)nx + (DWORD)ny * pathmap.width;
             pathNode_t *next_node = &pathmap.pathnodes[next];
             int const next_g = node->g + gv[dir];

@@ -575,8 +575,7 @@ static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FL
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
     target = *point;
-    CM_ClosestPathablePointForRadiusFlags(
-        point, self->collision, M_UnitStaticPathingFlags(self), &target);
+    CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
     waypoint = Waypoint_add(&target);
     if (!waypoint) return false;
     self->movement.holding_position = false;

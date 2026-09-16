@@ -517,8 +517,7 @@ BOOL unit_changeangle_towards_point_ignore_units(LPEDICT self, LPCVECTOR2 point)
      * exact point when it is directly reachable; otherwise use the same
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, point, self->collision,
-                                        M_UnitStaticPathingFlags(self))) {
+    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, point, self->collision, M_UnitStaticPathingFlags(self))) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
@@ -536,6 +535,7 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     VECTOR2 dir;
     FLOAT const radius = unit_routes_to_location(self) ? self->collision : 0.0f;
+    BYTE const blocked_flags = M_UnitStaticPathingFlags(self);
 
     self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
     self->movement.flow_generation = 0;
@@ -550,8 +550,7 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
      * Move orders own radius-valid reserved destinations, so their route must
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2,
-                                        radius, M_UnitStaticPathingFlags(self))) {
+    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -593,8 +592,7 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                     self->movement.flow_fallback_time = level.time;
                     self->movement.flow_fallback_goal = self->goalentity;
                     self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
-                    if (CM_ClosestReachablePointForRadiusFlags(
-                            from, target, radius, M_UnitStaticPathingFlags(self), &closest)) {
+                    if (CM_ClosestReachablePointForRadiusFlags(from, target, radius, blocked_flags, &closest)) {
                         self->goalentity->s.origin2 = closest;
                         self->goalentity->secondarygoal = NULL;
                         self->goalentity->heatmap2 = 0;
@@ -633,6 +631,7 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
         return;
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     VECTOR2 dir;
+    BYTE const blocked_flags = M_UnitStaticPathingFlags(self);
 
     self->movement.heading = self->s.angle;
     self->movement.flow_generation = 0;
@@ -640,9 +639,7 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
 
-    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2,
-                                        &self->goalentity->s.origin2,
-                                        radius, M_UnitStaticPathingFlags(self))) {
+    if (CM_LineIsPathableForRadiusFlags(&self->s.origin2, &self->goalentity->s.origin2, radius, blocked_flags)) {
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
@@ -1379,8 +1376,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
                                      i,
                                      &target)) {
             target = *location;
-            CM_ClosestPathablePointForRadiusFlags(
-                location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
+            CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
         }
         reserved[i] = (moveSlot_t){ target, ent->collision };
         if (!have_confirmation) {

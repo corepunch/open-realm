@@ -7,6 +7,10 @@ static BOOL entity_is_live_walkable_surface(edict_t const *ent) {
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
 
+static BYTE entity_dynamic_pathing_flags(edict_t const *ent) {
+    return M_UnitStaticPathingFlags(ent);
+}
+
 static inline HANDLE G_WorldReadFile(LPCSTR filename, LPDWORD size) { return gi.ReadFile(filename, size); }
 static inline HANDLE G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
 static inline void G_WorldMemFree(HANDLE mem) { gi.MemFree(mem); }

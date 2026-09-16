@@ -56,7 +56,8 @@ void   CM_ProcessPathJobs(DWORD work_budget);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 BOOL   CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
-BOOL   CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
+BOOL   CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius,
+                                              BYTE blocked_flags, LPVECTOR2 out);
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL   CM_LineIsPathableForRadiusFlags(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius, BYTE blocked_flags);
 BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
@@ -976,6 +977,32 @@ TEST(wc3_pathfinding, closest_pathable_ignores_dead_dynamic_unit) {
     T_ASSERT(CM_ClosestPathablePointForRadius(&point, 0, &dead_out));
     T_FEQ(dead_out.x, point.x, 0.001f);
     T_FEQ(dead_out.y, point.y, 0.001f);
+}
+
+TEST(wc3_pathfinding, closest_pathable_dynamic_units_use_movement_layer) {
+    BYTE cells[MAP_W * MAP_H] = { 0 };
+    VECTOR2 point = { 2.0f, 5.0f }, out = { 0 };
+    LPEDICT blocker;
+
+    setup_test_pathmap(MAP_W, MAP_H, cells);
+    reset_entities();
+    blocker = make_unit_at(point.x, point.y);
+    blocker->svflags |= SVF_MONSTER;
+    blocker->collision = 0.5f;
+    blocker->aiflags |= AI_FLYING;
+
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0.0f, CM_PATHING_UNWALKABLE, &out));
+    T_FEQ(out.x, point.x, 0.001f);
+    T_FEQ(out.y, point.y, 0.001f);
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0.0f, CM_PATHING_UNFLYABLE, &out));
+    T_ASSERT(fabsf(out.x - point.x) > 0.001f || fabsf(out.y - point.y) > 0.001f);
+
+    blocker->aiflags &= ~AI_FLYING;
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0.0f, CM_PATHING_UNWALKABLE, &out));
+    T_ASSERT(fabsf(out.x - point.x) > 0.001f || fabsf(out.y - point.y) > 0.001f);
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&point, 0.0f, CM_PATHING_UNFLYABLE, &out));
+    T_FEQ(out.x, point.x, 0.001f);
+    T_FEQ(out.y, point.y, 0.001f);
 }
 
 TEST(wc3_pathfinding, closest_reachable_keeps_exact_reachable_point) {
