@@ -481,7 +481,7 @@ static ability_t abilitylist[] = {
     { "Arpb", CAbilityReplenish, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Replenish */
     { "Arpl", CAbilityReplenishLife, AB_SPELL | AB_AUTOCAST },  /* Essence of Blight */
     { "Arpm", CAbilityReplenishMana, AB_SPELL | AB_AUTOCAST },  /* Spirit Touch */
-    // TODO: Aexh a_button  /* Exhume Corpses */
+    { "Aexh", CAbilityExhumeCorpses, AB_PASSIVE | AB_UPDATE },  /* Exhume Corpses */
     // TODO: Aave CAbilityStampede  /* Destroyer Form */
     // TODO: Afak a_spell  /* Orb of Annihilation */
     { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic */
