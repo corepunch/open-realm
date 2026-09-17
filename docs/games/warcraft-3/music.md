@@ -67,6 +67,10 @@ Direct Warcraft paths containing `\\` bypass skin lookup and remain paths.
 
 ### `UI\\SoundInfo\\Music.slk`
 
+Retail never shipped `Music.slk` in either MPQ, so the typed loader marks it optional: a missing file stays silent with zero rows, and `G_MusicData` keeps returning its static zero row. `G_MusicResolvePlaylist` (`g_music.c:30-54`) then falls back to the raw skin token as a direct path. The fixture MPQ ships a `Music.slk` with a `TestMusic` row so playlist alias expansion stays covered.
+
+The real per-edition playlist comes from `war3skins.txt`, not the SLK. `Theme_PlayerString` resolves the JASS token through the recipient's race section, then `Default`, then the versioned `<field>_V0` (RoC) / `<field>_V1` (TFT) key. Only the resolved token is checked against `Music.slk` row names before `FileNames` expansion.
+
 `Music.slk` is loaded as typed Warcraft metadata. Only two fields are needed by the current playback contract:
 
 ```text

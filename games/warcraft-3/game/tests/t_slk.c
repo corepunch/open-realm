@@ -635,6 +635,15 @@ TEST(wc3_slk, weapon_columns_decode_into_attack_records) {
     G_SetSLKRows("UnitWeapons", saved); free_slk_rows(rows);
 }
 
+TEST(wc3_slk, optional_tables_tolerate_absent_files) {
+    T_ASSERT(G_SLKStoreOptional("AbilityBuffData")); /* expansion-only: War3x.mpq, hidden when fs_expansion==0 */
+    T_ASSERT(G_SLKStoreOptional("Music")); /* never shipped; Warsmash loads it optionally */
+    T_ASSERT(!G_SLKStoreOptional("UnitBalance"));
+    T_ASSERT(!G_SLKStoreOptional("NoSuchTable"));
+    T_EQ(G_AbilityBuffData(MAKEFOURCC('x','x','x','x'))->id, 0); /* unknown keys return the static zero row */
+    T_NULL(G_MusicData("NoSuchMusic")->FileNames);
+}
+
 TEST(wc3_slk, ability_buff_ui_columns_decode) {
     AbilityBuffData_t const *buff = G_AbilityBuffData(MAKEFOURCC('B','i','m','l'));
     T_EQ(buff->id, MAKEFOURCC('B','i','m','l'));

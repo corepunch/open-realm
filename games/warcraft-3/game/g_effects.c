@@ -142,7 +142,7 @@ static void G_EffectLoopStand(LPEDICT effect) {
 static void G_EffectEnterStand(LPEDICT effect) {
     unit_setmove(effect, &wc3_effect_stand);
     if (!effect->animation) {
-        effect->think = NULL;
+        effect->think = G_FreeEdict;
         effect->currentmove = NULL;
     }
 }
@@ -159,7 +159,10 @@ static void G_EffectStartAnimation(LPEDICT effect, BOOL temporary) {
              * leak an edict indefinitely. */
             G_FreeEdict(effect);
         } else {
-            effect->think = NULL;
+            /* A persistent effect with no animation sequences cannot drive its
+             * own lifetime.  Schedule an immediate free so the edict does not
+             * leak when the JASS caller omits DestroyEffect. */
+            effect->think = G_FreeEdict;
             effect->currentmove = NULL;
         }
     }
@@ -171,6 +174,7 @@ LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target,
 
     if (!model || !*model || (!point && !target)) return NULL;
     effect = G_Spawn();
+    if (!effect) return NULL;
     /* JASS effect extends agent, not widget.  Special/spell effect art is
      * presentation only and must never win world selection or right-click
      * picking over the terrain/real widget beneath it.  The client maps this

@@ -69,7 +69,7 @@ const LPCSTR WarcraftSheets[] = {
     "UI\\SoundInfo\\AmbienceSounds.slk",
     "UI\\SoundInfo\\UISounds.slk",
     "UI\\SoundInfo\\UnitAckSounds.slk",
-    "UI\\SoundInfo\\Music.slk",
+    /* Music.slk is intentionally absent: retail never shipped it in either MPQ (Warsmash loads it optionally). */
 
     NULL
 };

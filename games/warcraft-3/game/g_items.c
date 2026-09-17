@@ -182,8 +182,9 @@ DWORD G_InventoryCapacity(LPCEDICT unit) {
     if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
-            /* Typed AbilityData resolves custom inventory abilities without returning to the removed sheet cache. */
-            if (G_AbilityCodeName(abil) != MAKEFOURCC('A','I','n','v')) continue;
+            /* TFT inventory abilities share code AInv; RoC aliases share code AIab. */
+            DWORD const code = G_AbilityCodeName(abil);
+            if (code != MAKEFOURCC('A','I','n','v') && code != MAKEFOURCC('A','I','a','b')) continue;
             has_inventory_ability = true;
             if (!G_InventoryAbilityAvailable(unit, abil)) continue;
             return G_InventoryAbilityCapacity(unit, abil);
@@ -191,11 +192,26 @@ DWORD G_InventoryCapacity(LPCEDICT unit) {
     }
 
     /* Warsmash restores the classic ROC hero contract by adding the stock
-     * AInv ability when a hero has no inventory ability authored in its normal
-     * ability list.  ROC map formats are <= 24; TFT/custom data may intentionally
-     * omit inventory, so do not synthesize AInv there. */
+     * inventory ability when a hero has no inventory ability authored in its
+     * normal ability list.  ROC map formats are <= 24; TFT/custom data may
+     * intentionally omit inventory, so do not synthesize there. */
     if (!has_inventory_ability && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit)) {
-        return G_InventoryAbilityCapacity(unit, "AInv");
+        /* TFT ships AInv; RoC ships AIab as the base code for 6-slot aliases
+         * (e.g. AIa6).  Try direct row lookups first, then scan all ability
+         * rows for any alias whose code resolves to AIab — needed when only
+         * alias rows are present (minimal / pure-RoC AbilityData). */
+        LONG cap = (LONG)AB_Data("AInv", 1, 1);
+        if (cap <= 0) cap = (LONG)AB_Data("AIab", 1, 1);
+        if (cap <= 0) {
+            DWORD const roc_inv = MAKEFOURCC('A','I','a','b');
+            FOR_LOOP(i, g_AbilityDataCount) {
+                AbilityData_t const *row = &g_AbilityData[i];
+                if (!row->id || G_AbilityCode(row->id) != roc_inv) continue;
+                cap = (LONG)row->level[0].data[0].number;
+                if (cap > 0) break;
+            }
+        }
+        return cap > 0 ? (DWORD)MIN(cap, MAX_INVENTORY) : 0;
     }
     return 0;
 }
@@ -336,7 +352,7 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
     LPEDICT item;
     VECTOR2 drop_position;
 
-    if (!unit || !position || slot >= MAX_INVENTORY) {
+    if (!unit || !position || slot >= (DWORD)G_InventoryCapacity(unit)) {
         return false;
     }
     item = unit->inventory[slot];

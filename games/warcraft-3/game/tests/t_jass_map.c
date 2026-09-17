@@ -163,6 +163,19 @@ TEST(wc3_jass_map, array_assignment_and_access_evaluate_expressions) {
     ));
 }
 
+TEST(wc3_jass_map, empty_globals_block_parses) {
+    /* NightElf01 AI scripts (n01_yellow/pink/gray) declare an empty
+     * globals/endglobals block; the top-level parser must accept it
+     * instead of throwing "unknown keyword". */
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(true, \"empty globals\")\n"
+        "endfunction\n"
+    ));
+}
+
 TEST(wc3_jass_map, coroutine_discards_statement_return_values) {
     T_ASSERT(run_test_jass(
         "function retained takes nothing returns integer\n"

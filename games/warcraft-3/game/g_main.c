@@ -1027,6 +1027,18 @@ void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned) {
     G_PublishEventWithSource(summoner, EVENT_UNIT_SUMMON, summoned);
 }
 
+/* Ownership changes publish both the player-unit and unit-scoped change-owner
+ * events. The value carries the previous owner + 1 so GetChangingUnitPrevOwner
+ * can resolve it from trigger context while zero keeps meaning "no change
+ * context" for callbacks (death, research, spell) that share the trigger. */
+void G_PublishChangeOwnerEvents(LPEDICT unit, DWORD old_player) {
+    LONG value;
+    if (!unit || old_player > MAX_PLAYERS) return;
+    value = (LONG)old_player + 1;
+    G_PublishEventWithValue(unit, EVENT_PLAYER_UNIT_CHANGE_OWNER, NULL, value);
+    G_PublishEventWithValue(unit, EVENT_UNIT_CHANGE_OWNER, NULL, value);
+}
+
 /* Gameplay messages expose state-machine transitions without turning internal
  * engine flow into Warcraft/JASS events or retaining entity pointers. */
 BOOL G_SubscribeMessage(gameMsgFn fn, void *ctx) {

@@ -96,7 +96,8 @@ static void warn_unregistered_field(DWORD id) {
             return;
         }
     }
-    if (count < 64) seen[count++] = id;
+    if (count < 64) { seen[count++] = id; }
+    else return; /* table full; suppress further spam */
     fprintf(stderr, "WARNING: unit-data field code '%.4s' has no DDX metadata entry\n", (LPCSTR)&id);
 }
 
@@ -860,6 +861,7 @@ typedef struct {
     void **rows;
     DWORD *count;
     slkIndex_t *idx;
+    BOOL optional; /* legitimately absent in some data sets; zero rows stay silent, typed reads use the static zero */
 } slkStore_t;
 
 static slkStore_t slk_stores[] = {
@@ -870,19 +872,28 @@ static slkStore_t slk_stores[] = {
     { "UnitWeapons", "Units\\UnitWeapons.slk", weapons_schema, sizeof(*g_UnitWeapons), (void **)&g_UnitWeapons, &g_UnitWeaponsCount, &weapons_idx },
     { "UnitAbilities", "Units\\UnitAbilities.slk", abil_schema, sizeof(*g_UnitAbilities), (void **)&g_UnitAbilities, &g_UnitAbilitiesCount, &abil_idx },
     { "AbilityData", "Units\\AbilityData.slk", ability_schema, sizeof(*g_AbilityData), (void **)&g_AbilityData, &g_AbilityDataCount, &ability_idx },
-    { "AbilityBuffData", "Units\\AbilityBuffData.slk", ability_buff_schema, sizeof(*g_AbilityBuffData), (void **)&g_AbilityBuffData, &g_AbilityBuffDataCount, &ability_buff_idx },
+    /* AbilityBuffData.slk ships only in War3x.mpq; RoC hides expansion archives, so zero rows are legitimate. */
+    { "AbilityBuffData", "Units\\AbilityBuffData.slk", ability_buff_schema, sizeof(*g_AbilityBuffData), (void **)&g_AbilityBuffData, &g_AbilityBuffDataCount, &ability_buff_idx, true },
     { "Doodads", "Doodads\\Doodads.slk", doodad_schema, sizeof(*g_Doodads), (void **)&g_Doodads, &g_DoodadsCount, &doodad_idx },
     { "UberSplatData", "Splats\\UberSplatData.slk", uber_schema, sizeof(*g_UberSplatData), (void **)&g_UberSplatData, &g_UberSplatDataCount, &uber_idx },
     { "UnitAckSounds",    "UI\\SoundInfo\\UnitAckSounds.slk",    sound_schema, sizeof(*g_UnitAckSounds),    (void **)&g_UnitAckSounds,    &g_UnitAckSoundsCount,    NULL },
     { "UnitCombatSounds", "UI\\SoundInfo\\UnitCombatSounds.slk", sound_schema, sizeof(*g_UnitCombatSounds), (void **)&g_UnitCombatSounds, &g_UnitCombatSoundsCount, NULL },
     { "UISounds",         "UI\\SoundInfo\\UISounds.slk",         sound_schema, sizeof(*g_UISounds),         (void **)&g_UISounds,         &g_UISoundsCount,         NULL },
-    { "Music",            "UI\\SoundInfo\\Music.slk",            music_schema, sizeof(*g_MusicData),        (void **)&g_MusicData,        &g_MusicDataCount,        NULL },
+    /* Music.slk never shipped in retail MPQs; Warsmash loads it optionally and readers fall back to the raw token. */
+    { "Music",            "UI\\SoundInfo\\Music.slk",            music_schema, sizeof(*g_MusicData),        (void **)&g_MusicData,        &g_MusicDataCount,        NULL, true },
     { "ItemData", "Units\\ItemData.slk", item_schema, sizeof(*g_ItemData), (void **)&g_ItemData, &g_ItemDataCount, &item_idx },
     { "DestructableData", "Units\\DestructableData.slk", dest_schema, sizeof(*g_DestructableData), (void **)&g_DestructableData, &g_DestructableDataCount, &dest_idx },
 };
 
 /* Tests replace a typed table and restore its original parser-owned source. */
 #ifdef BZ_TESTS
+/* Tests assert the documented-optional contract without capturing stderr from InitUnitData. */
+BOOL G_SLKStoreOptional(LPCSTR name) {
+    FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores))
+        if (name && !strcmp(name, slk_stores[i].name)) return slk_stores[i].optional;
+    return false;
+}
+
 slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
@@ -1620,7 +1631,7 @@ void InitUnitData(void) {
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
         *store->count = Stb_SlkLoad(store->path, store->schema, store->rows, store->row_size);
-        if (!*store->count) fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
+        if (!*store->count && !store->optional) fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
         if (!strcmp(store->name, "UnitWeapons"))
             NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
         if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);

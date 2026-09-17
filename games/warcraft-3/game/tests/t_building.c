@@ -1340,6 +1340,30 @@ TEST(wc3_building, command_button_number_draws_bottom_right_overlay) {
     gi.ImageIndex = old_image_index;
 }
 
+TEST(wc3_building, tech_state_default_values_do_not_consume_slots) {
+    LPGAMECLIENT client = &game.clients[0];
+
+    memset(client->tech, 0, sizeof(client->tech));
+    /* Default max_allowed (-1/unlimited) and researched/in-progress 0 must not
+     * allocate entries; NightElfX02 issues 137 distinct non-default techs and
+     * must not lose slots to default-valued writes. */
+    G_SetPlayerTechMaxAllowed(client, 0x43000001u, -1);
+    G_SetPlayerTechResearched(client, 0x43000002u, 0);
+    G_AddPlayerTechResearched(client, 0x43000003u, 0);
+    G_AddPlayerTechInProgress(client, 0x43000004u, 0);
+    T_EQ(G_GetPlayerTechMaxAllowed(client, 0x43000001u), -1);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, 0x43000002u), 0);
+    /* A full table of real entries must still fit after the default writes. */
+    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
+        DWORD const techid = 0x44000000u + i + 1;
+        G_SetPlayerTechMaxAllowed(client, techid, 2);
+    }
+    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
+        DWORD const techid = 0x44000000u + i + 1;
+        T_EQ(G_GetPlayerTechMaxAllowed(client, techid), 2);
+    }
+}
+
 TEST(wc3_building, tech_state_capacity_is_bounded_without_clobbering_existing_entries) {
     LPGAMECLIENT client = &game.clients[0];
 

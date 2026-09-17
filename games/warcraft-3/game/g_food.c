@@ -158,6 +158,7 @@ void G_SetUnitPlayer(LPEDICT unit, DWORD player) {
         G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food.made);
     }
     unit->s.player = player;
+    G_PublishChangeOwnerEvents(unit, old_player);
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);
     G_InvalidateUnitInfoPanel(unit);

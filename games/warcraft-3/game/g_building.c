@@ -235,7 +235,12 @@ void G_ApplyPlayerUpgradesToUnit(LPEDICT unit) {
 }
 
 void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum) {
-    LONG slot = G_FindTechSlot(client, techid, true);
+    LONG slot;
+    /* The default (-1/unlimited) needs no entry; allocating one per default
+     * write exhausts the table before genuine restrictions (NightElfX02 uses
+     * 137 distinct techs) can fit. */
+    if (maximum < 0 && G_FindTechSlot(client, techid, false) < 0) return;
+    slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
     client->tech[slot].max_allowed = maximum < 0 ? -1 : maximum;
     G_InvalidateCommands(client);
@@ -247,10 +252,13 @@ LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid) {
 }
 
 void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value) {
-    LONG slot = G_FindTechSlot(client, techid, true);
+    LONG slot;
     LONG old_level;
     LONG new_level;
 
+    /* Researched 0 is the default; do not burn a slot recording it. */
+    if (MAX(0, level_value) == 0 && G_FindTechSlot(client, techid, false) < 0) return;
+    slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
     old_level = MAX(0, client->tech[slot].researched);
     new_level = MAX(0, level_value);
@@ -260,10 +268,24 @@ void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_val
 }
 
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels) {
-    LONG slot = G_FindTechSlot(client, techid, true);
+    LONG slot;
     LONG old_level;
     LONG new_level;
 
+    if (!levels) return;
+    slot = G_FindTechSlot(client, techid, false);
+    old_level = slot < 0 ? 0 : MAX(0, client->tech[slot].researched);
+    new_level = MAX(0, old_level + levels);
+    if (new_level == 0) {
+        /* Returning to the default of 0; clear the slot without allocating. */
+        if (slot >= 0) {
+            client->tech[slot].researched = 0;
+            G_ApplyTechLevelToOwnedUnits(client, techid, old_level, 0);
+            G_InvalidateCommands(client);
+        }
+        return;
+    }
+    slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
     old_level = MAX(0, client->tech[slot].researched);
     new_level = MAX(0, old_level + levels);
@@ -283,9 +305,17 @@ LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid) {
 }
 
 void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels) {
-    LONG slot = G_FindTechSlot(client, techid, true);
+    LONG slot = G_FindTechSlot(client, techid, false);
+    LONG in_progress = slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
+    LONG new_level = MAX(0, in_progress + levels);
+    if (new_level == 0) {
+        /* Returning to the default of 0; clear the existing slot without allocating. */
+        if (slot >= 0) { client->tech[slot].in_progress = 0; G_InvalidateCommands(client); }
+        return;
+    }
+    slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
-    client->tech[slot].in_progress = MAX(0, client->tech[slot].in_progress + levels);
+    client->tech[slot].in_progress = new_level;
     G_InvalidateCommands(client);
 }
 

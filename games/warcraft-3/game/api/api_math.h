@@ -141,15 +141,14 @@ DWORD RemoveLocation(LPJASS j) {
 }
 DWORD MoveLocation(LPJASS j) {
     LPVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
-    whichLocation->x = jass_checknumber(j, 2);
-    whichLocation->y = jass_checknumber(j, 3);
+    if (whichLocation) { whichLocation->x = jass_checknumber(j, 2); whichLocation->y = jass_checknumber(j, 3); }
     return 0;
 }
 DWORD GetLocationX(LPJASS j) {
-    LPVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
-    return jass_pushnumber(j, whichLocation->x);
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
+    return jass_pushnumber(j, whichLocation ? whichLocation->x : 0); // null location reads as 0, like GetRectCenterX
 }
 DWORD GetLocationY(LPJASS j) {
-    LPVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
-    return jass_pushnumber(j, whichLocation->y);
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
+    return jass_pushnumber(j, whichLocation ? whichLocation->y : 0); // null location reads as 0, like GetRectCenterX
 }

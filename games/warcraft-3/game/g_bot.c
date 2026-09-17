@@ -383,6 +383,103 @@ void G_BotReturnGuardPosts(LPPLAYER player) {
     }
 }
 
+/* common.ai captain selectors are script constants: ATTACK_CAPTAIN=1, DEFENSE_CAPTAIN=2, BOTH_CAPTAINS=3. */
+void G_BotSetCaptainHome(LPPLAYER player, LONG which, FLOAT x, FLOAT y) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    VECTOR2 home;
+    if (!bot) return;
+    home = MAKE(VECTOR2, x, y);
+    if (which == 1 || which == 3) bot->captains[BOT_CAPTAIN_ATTACK].home = home;
+    if (which == 2 || which == 3) bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
+}
+
+void G_BotSetStagePoint(LPPLAYER player, FLOAT x, FLOAT y) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    bot->stage = MAKE(VECTOR2, x, y); bot->stage_valid = true;
+}
+
+static BOOL G_BotIsHostile(LPPLAYER player, LPEDICT ent) {
+    LPPLAYER owner;
+    if (!player || !ent) return false;
+    owner = G_GetPlayerByNumber(ent->s.player);
+    return !G_GetPlayerAlliance(player, owner, ALLIANCE_PASSIVE);
+}
+
+/* Assault targeting stays inside ordinary combat validity: live units and
+ * buildings, so waves never order attacks on items, waypoints, corpses, or
+ * the attackers themselves. A negative target suicides against any hostile
+ * owner; otherwise only the named player's forces qualify. */
+static LPEDICT G_BotAssaultTarget(LPPLAYER player, LPEDICT self, LONG target) {
+    LPEDICT best = NULL;
+    FLOAT best_dist = 0;
+    if (!player || !G_BotUnitAlive(self)) return NULL;
+    FILTER_EDICTS(ent, ent != self && ent->inuse && !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
+        ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsBuilding(ent->class_id)) &&
+        (target >= 0 ? ent->s.player == (DWORD)target : G_BotIsHostile(player, ent))) {
+        FLOAT dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
+        if (!best || dist < best_dist) { best = ent; best_dist = dist; }
+    }
+    return best;
+}
+
+/* Send one assault member at the enemy, falling back to an attack-move toward
+ * the staged point so waves keep moving when no target is visible yet. */
+static void G_BotOrderAssaultMember(bot_t *bot, LPEDICT unit, LONG target) {
+    LPEDICT enemy = bot ? G_BotAssaultTarget(bot->player, unit, target) : NULL;
+    if (enemy) { order_attack(unit, enemy); return; }
+    if (bot && bot->stage_valid) order_attackmove(unit, Waypoint_add(&bot->stage));
+}
+
+/* SuicideUnit/SuicideUnitEx share one backend: fill the assault roster through
+ * the ordinary AddAssault path, then send the requested type at the enemy.
+ * Retail common.ai declares both natives void; the boolean reports roster
+ * acceptance for tests, mirroring AddAssault. */
+BOOL G_BotSuicideUnits(LPPLAYER player, LONG qty, DWORD class_id, LONG target) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    BOOL accepted;
+    if (!bot || qty <= 0 || !class_id) return qty <= 0;
+    accepted = G_BotAddAssault(player, qty, class_id);
+    FOR_EACH_ARRAY(LPEDICT, member, bot->captains[BOT_CAPTAIN_ATTACK].units) {
+        LPEDICT unit = *member;
+        if (G_BotUnitAlive(unit) && unit->class_id == class_id) G_BotOrderAssaultMember(bot, unit, target);
+    }
+    return accepted;
+}
+
+/* SuicidePlayer launches the formed assault captain at the named player and
+ * reports whether the wave left. check_full holds the wave until the roster
+ * reaches its requested size; without it an under-strength captain still
+ * attacks so campaign scripts never stall on a missing full house. */
+BOOL G_BotSuicidePlayer(LPPLAYER player, DWORD target, BOOL check_full) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    BOOL any = false;
+    if (!bot) return false;
+    captain = bot->captains + BOT_CAPTAIN_ATTACK;
+    FOR_EACH_ARRAY(LPEDICT, member, captain->units) if (G_BotUnitAlive(*member)) { any = true; break; }
+    if (!any) return false;
+    if (check_full && !G_BotCaptainIsFull(player)) return false;
+    FOR_EACH_ARRAY(LPEDICT, member, captain->units)
+        if (G_BotUnitAlive(*member)) G_BotOrderAssaultMember(bot, *member, (LONG)target);
+    captain->state = BOT_CAPTAIN_ACTIVE;
+    if (bot->stage_valid) captain->goal = bot->stage;
+    return true;
+}
+
+/* MergeUnits reports whether the requested fused count already stands as live,
+ * completed, owned units. Automatic a+b->make merge orders are not implemented
+ * yet, so a shortfall returns false and production (SetBuildUnit/Conversions)
+ * remains responsible for supplying the fused type. */
+BOOL G_BotMergeUnits(LPPLAYER player, LONG qty, DWORD a, DWORD b, DWORD make) {
+    LONG have = 0;
+    (void)a; (void)b;
+    if (!player || qty <= 0 || !make) return qty <= 0;
+    FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
+        ent->class_id == make && !ent->construction.active && !ent->training) have++;
+    return have >= qty;
+}
+
 /* CommandAI is a per-player stack: GetLast* observes the newest command until PopLastCommand removes it. */
 BOOL G_BotPushCommand(LPPLAYER player, LONG command, LONG data) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;

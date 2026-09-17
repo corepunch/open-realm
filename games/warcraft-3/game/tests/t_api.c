@@ -1318,6 +1318,39 @@ TEST(wc3_environment_fog, reset_without_default_is_noop) {
     gi.configstring = old_configstring;
 }
 
+static LPCSTR fog_roc_cvar(LPCSTR name, LPCSTR fallback) { return !strcmp(name, "fs_expansion") ? "0" : fallback; }
+static LPCSTR fog_tft_cvar(LPCSTR name, LPCSTR fallback) { return !strcmp(name, "fs_expansion") ? "1" : fallback; }
+
+static void check_singleton_default_zfog(wc3EnvironmentFogState_t const *fog) {
+    T_EQ(fog->style, WC3_ENV_FOG_LINEAR); /* authored 0 maps through +1 */
+    T_FEQ(fog->start, 20000.0f, 0.001f);
+    T_FEQ(fog->end, 50000.0f, 0.001f);
+    T_FEQ(fog->density, 0.0f, 0.001f);
+    T_FEQ(fog->color.x, 0.0f, 0.001f);
+    T_FEQ(fog->color.y, 0.0f, 0.001f);
+    T_FEQ(fog->color.z, 0.0f, 0.001f);
+}
+
+/* Retail [DefaultZFog] is a singleton; TFT index 1 never parses, so index 0 is the per-field fallback. */
+TEST(wc3_environment_fog, singleton_default_zfog_parses_under_both_editions) {
+    stbIniCache_t saved = game.config.misc, custom = { 0 };
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    wc3EnvironmentFogState_t fog;
+
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\DefaultZFog.txt"));
+    game.config.misc = custom;
+    gi.CvarString = fog_roc_cvar;
+    T_ASSERT(G_EnvironmentFogDefault(&fog));
+    check_singleton_default_zfog(&fog);
+    gi.CvarString = fog_tft_cvar;
+    T_ASSERT(G_EnvironmentFogDefault(&fog));
+    check_singleton_default_zfog(&fog);
+
+    gi.CvarString = old_cvar;
+    game.config.misc = saved;
+    Stb_IniCacheFree(&custom);
+}
+
 TEST(wc3_environment_fog, invalid_extended_style_disables_scene_fog) {
     void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
 
@@ -1594,6 +1627,25 @@ TEST(wc3_api, set_unit_position_loc_uses_same_unstuck_search) {
     T_NOT_NULL(moved);
     T_FEQ(moved->s.origin.x, 256.0f, 0.001f);
     T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
+}
+
+/* Issue-418: HumanX03.w3x calls OffsetLocation(GetUnitLoc(null unit), ...) which
+ * reaches GetLocationX/MoveLocation with a null handle. Null locations read as 0
+ * (same contract as GetRectCenterX) and MoveLocation on null is a safe no-op. */
+TEST(wc3_api, null_location_natives_return_zero_and_noop) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local location nullLoc = null\n"
+        "  local location live = Location(10.0, 20.0)\n"
+        "  call BJassAssert(GetLocationX(nullLoc) == 0.0, \"GetLocationX(null) must be 0\")\n"
+        "  call BJassAssert(GetLocationY(nullLoc) == 0.0, \"GetLocationY(null) must be 0\")\n"
+        "  call MoveLocation(nullLoc, 100.0, 200.0)\n"
+        "  call BJassAssert(GetLocationX(live) == 10.0, \"live location x\")\n"
+        "  call BJassAssert(GetLocationY(live) == 20.0, \"live location y\")\n"
+        "  call MoveLocation(live, 30.0, 40.0)\n"
+        "  call BJassAssert(GetLocationX(live) == 30.0, \"moved location x\")\n"
+        "  call BJassAssert(GetLocationY(live) == 40.0, \"moved location y\")\n"
+        "endfunction\n"));
 }
 
 TEST(wc3_api, set_unit_x_y_remain_raw_coordinates_on_blocked_pathing) {

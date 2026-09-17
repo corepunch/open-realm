@@ -1,0 +1,6 @@
+[DefaultZFog]
+Style=0
+Start=20000
+End=50000
+Density=0
+Color=0,0,0,0

@@ -24,7 +24,13 @@ static BOOL G_EnvironmentFogListValue(LPCSTR value, DWORD index, LPFLOAT out) {
     return false;
 }
 
-static BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
+/* [DefaultZFog] is a singleton (index 0); [MenuZFog] is versioned. Try the expansion cell, retry the RoC cell. */
+static BOOL G_EnvironmentFogVersionedValue(LPCSTR value, DWORD index, DWORD fallback, LPFLOAT out) {
+    if (G_EnvironmentFogListValue(value, index, out)) return true;
+    return index != fallback && G_EnvironmentFogListValue(value, fallback, out);
+}
+
+BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
     if (!fog) return false;
     *fog = (wc3EnvironmentFogState_t){ .style = WC3_ENV_FOG_NONE };
     DWORD const version = atoi(gi.CvarString("fs_expansion", "0")) != 0 ? 1u : 0u;
@@ -36,7 +42,7 @@ static BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
     FLOAT style = -1.0f;
     FLOAT alpha = 255.0f, red = 0.0f, green = 0.0f, blue = 0.0f;
 
-    if (!G_EnvironmentFogListValue(style_value, version, &style)) {
+    if (!G_EnvironmentFogVersionedValue(style_value, version, 0, &style)) {
         fprintf(stderr, "WC3: DefaultZFog.Style is missing version %u\n", (unsigned)version);
         return false;
     }
@@ -47,13 +53,13 @@ static BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
         fprintf(stderr, "WC3: DefaultZFog.Style %.3f is invalid\n", style);
         return false;
     }
-    if (!G_EnvironmentFogListValue(start_value, version, &fog->start) ||
-        !G_EnvironmentFogListValue(end_value, version, &fog->end) ||
-        !G_EnvironmentFogListValue(density_value, version, &fog->density) ||
-        !G_EnvironmentFogListValue(color_value, version * 4u + 0u, &alpha) ||
-        !G_EnvironmentFogListValue(color_value, version * 4u + 1u, &red) ||
-        !G_EnvironmentFogListValue(color_value, version * 4u + 2u, &green) ||
-        !G_EnvironmentFogListValue(color_value, version * 4u + 3u, &blue)) {
+    if (!G_EnvironmentFogVersionedValue(start_value, version, 0, &fog->start) ||
+        !G_EnvironmentFogVersionedValue(end_value, version, 0, &fog->end) ||
+        !G_EnvironmentFogVersionedValue(density_value, version, 0, &fog->density) ||
+        !G_EnvironmentFogVersionedValue(color_value, version * 4u + 0u, 0u, &alpha) ||
+        !G_EnvironmentFogVersionedValue(color_value, version * 4u + 1u, 1u, &red) ||
+        !G_EnvironmentFogVersionedValue(color_value, version * 4u + 2u, 2u, &green) ||
+        !G_EnvironmentFogVersionedValue(color_value, version * 4u + 3u, 3u, &blue)) {
         fprintf(stderr, "WC3: DefaultZFog is incomplete for version %u\n", (unsigned)version);
         return false;
     }
