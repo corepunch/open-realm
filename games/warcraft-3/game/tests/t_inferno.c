@@ -66,34 +66,34 @@ static LPEDICT inferno_summon(LPEDICT caster) {
     return NULL;
 }
 
-static INFIX inferno_setup(DWORD code) {
-    INFIX fix;
+/* Fill the caller's INFIX. Returning a copy would dangle UnitBalance pointers
+ * (&local.unit_bal) after return; Linux then misreads G_UnitIsHero (HeroDur vs Dur). */
+static void inferno_setup(INFIX *fix, DWORD code) {
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
-    fix.rows = parse_slk_string(inferno_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
-    fix.unit_bal = MAKE(UnitBalance_t, .maxHealth = 500);
-    fix.hero_bal = MAKE(UnitBalance_t, .maxHealth = 500, .strength = 20);
-    fix.caster = alloc_test_unit(MAKEFOURCC('U', 'w', 'a', 'r'), 0, 0);
-    fix.enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
-    fix.far = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 400, 0);
-    fix.hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 96, 0);
-    fix.caster->s.player = 0;
-    fix.enemy->s.player = fix.far->s.player = fix.hero->s.player = 1;
-    fix.caster->svflags |= SVF_MONSTER; fix.enemy->svflags |= SVF_MONSTER;
-    fix.far->svflags |= SVF_MONSTER; fix.hero->svflags |= SVF_MONSTER;
-    fix.caster->targtype = fix.enemy->targtype = fix.far->targtype = fix.hero->targtype = TARG_GROUND;
-    fix.enemy->data.UnitBalance = &fix.unit_bal;
-    fix.far->data.UnitBalance = &fix.unit_bal;
-    fix.hero->data.UnitBalance = &fix.hero_bal;
-    fix.enemy->health.value = fix.enemy->health.max_value = 500;
-    fix.far->health.value = fix.far->health.max_value = 500;
-    fix.hero->health.value = fix.hero->health.max_value = 500;
-    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
-    fix.caster->mana.value = fix.caster->mana.max_value = 200;
-    fix.point = fix.enemy->s.origin2;
-    return fix;
+    fix->rows = parse_slk_string(inferno_slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
+    fix->unit_bal = MAKE(UnitBalance_t, .maxHealth = 500);
+    fix->hero_bal = MAKE(UnitBalance_t, .maxHealth = 500, .strength = 20);
+    fix->caster = alloc_test_unit(MAKEFOURCC('U', 'w', 'a', 'r'), 0, 0);
+    fix->enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
+    fix->far = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 400, 0);
+    fix->hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 96, 0);
+    fix->caster->s.player = 0;
+    fix->enemy->s.player = fix->far->s.player = fix->hero->s.player = 1;
+    fix->caster->svflags |= SVF_MONSTER; fix->enemy->svflags |= SVF_MONSTER;
+    fix->far->svflags |= SVF_MONSTER; fix->hero->svflags |= SVF_MONSTER;
+    fix->caster->targtype = fix->enemy->targtype = fix->far->targtype = fix->hero->targtype = TARG_GROUND;
+    fix->enemy->data.UnitBalance = &fix->unit_bal;
+    fix->far->data.UnitBalance = &fix->unit_bal;
+    fix->hero->data.UnitBalance = &fix->hero_bal;
+    fix->enemy->health.value = fix->enemy->health.max_value = 500;
+    fix->far->health.value = fix->far->health.max_value = 500;
+    fix->hero->health.value = fix->hero->health.max_value = 500;
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
+    fix->caster->mana.value = fix->caster->mana.max_value = 200;
+    fix->point = fix->enemy->s.origin2;
 }
 
 static void inferno_done(INFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
@@ -109,7 +109,7 @@ TEST(wc3_spell, inferno_procedure_and_flags) {
 
 /* DataC delays blast: no damage/stun/summon until the authored delay elapses. */
 TEST(wc3_spell, inferno_impact_after_authored_delay) {
-    INFIX fix = inferno_setup(BZ_ANIN);
+    INFIX fix; inferno_setup(&fix, BZ_ANIN);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
     T_EQ(fix.caster->channel.code, 0);
     T_FEQ(fix.enemy->health.value, 500, 0.001f);
@@ -133,7 +133,7 @@ TEST(wc3_spell, inferno_impact_after_authored_delay) {
 }
 
 TEST(wc3_spell, inferno_out_of_area_untouched) {
-    INFIX fix = inferno_setup(BZ_ANIN);
+    INFIX fix; inferno_setup(&fix, BZ_ANIN);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
     level.time += (DWORD)(BZ_DELAY * 1000.0f); G_RunEntities();
     T_FEQ(fix.far->health.value, 500, 0.001f);
@@ -142,7 +142,7 @@ TEST(wc3_spell, inferno_out_of_area_untouched) {
 }
 
 TEST(wc3_spell, inferno_summon_uses_datab_life) {
-    INFIX fix = inferno_setup(BZ_ANIN);
+    INFIX fix; inferno_setup(&fix, BZ_ANIN);
     LPEDICT summon;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
     level.time += (DWORD)(BZ_DELAY * 1000.0f); G_RunEntities();
@@ -158,7 +158,7 @@ TEST(wc3_spell, inferno_summon_uses_datab_life) {
 }
 
 TEST(wc3_spell, inferno_stun_uses_herodur_for_heroes) {
-    INFIX fix = inferno_setup(BZ_ANIN);
+    INFIX fix; inferno_setup(&fix, BZ_ANIN);
     VECTOR2 point = fix.hero->s.origin2;
     T_ASSERT(G_UnitIsHero(fix.hero));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &point));
@@ -171,7 +171,7 @@ TEST(wc3_spell, inferno_stun_uses_herodur_for_heroes) {
 
 /* Rain of Chaos DataA still resolves the Inferno row for the landing blast+summon. */
 TEST(wc3_spell, inferno_rain_of_chaos_lands_via_inferno_row) {
-    INFIX fix = inferno_setup(BZ_ANRC);
+    INFIX fix; inferno_setup(&fix, BZ_ANRC);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANRC, &fix.point));
     T_EQ(fix.caster->channel.code, 0);
     /* Fixture DataC=0.5 so the RoC landing schedules Inferno delay before summon. */
