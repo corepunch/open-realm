@@ -301,7 +301,7 @@ TEST(wc3_ability_lifecycle, volcano_scheduler_uses_authored_damage_interval_and_
         level.time += 1000; G_RunEntity(thinker);
     }
     T_NOT_NULL(item.ability); T_ASSERT(item.ability && item.ability->flags & AB_CHANNEL);
-    T_EQ(item.ability ? item.ability->target : SPELL_TARGET_NONE, SPELL_TARGET_POINT);
+    T_EQ(item.ability ? item.ability->target_type : SPELL_TARGET_NONE, SPELL_TARGET_POINT);
     T_ASSERT(cast); T_NOT_NULL(thinker); T_FEQ(enemy->health.value, 960, .001f);
     T_FEQ(building->health.value, 920, .001f); T_EQ(G_UnitStatusLevel(enemy, FS_SLKKey("Bstu")), 1);
     T_EQ(caster->channel.code, FS_SLKKey("ANvc"));
