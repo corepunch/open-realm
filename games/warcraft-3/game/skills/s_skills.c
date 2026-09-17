@@ -457,7 +457,7 @@ static ability_t abilitylist[] = {
     // TODO: Aetf a_morph  /* Ethereal Form */
     // TODO: Aspl a_creep_sleep  /* Spirit Link */
     // TODO: Aliq CAbilityOnFireHuman  /* Liquid Fire */
-    // TODO: Auco a_spell  /* Unstable Concoction */
+    { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
     // TODO: Acha a_unknown  /* Chaos */
     // TODO: Achl a_cargo_load  /* Chaos Cargo Load */
     // TODO: Awar a_bounce  /* Pulverize */
