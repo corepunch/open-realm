@@ -258,9 +258,9 @@ enum {
 #define MAX_GAME_ENTITIES 16000
 #define MAX_PACKET_ENTITIES 1024 // per-frame packet snapshot budget
 #define MAX_CLIENTS 24
-#define MAX_MODELS 256
+#define MAX_MODELS 512 // campaign maps can reference more than 255 distinct models
 #define MAX_FONTSTYLES 256
-#define MAX_SOUNDS 512 // units carry many sounds (what/yes/attack/death per unit type); a single map peaks above 256
+#define MAX_SOUNDS 1024 // campaign maps can reference more than 512 unit and ambient sounds
 #define MAX_IMAGES 2048 // UI-heavy games can reference hundreds of distinct command/status textures in one map session
 #define MAX_DYNAMIC_IMAGES 32
 #define MAX_ITEMS 256
@@ -680,8 +680,8 @@ typedef struct entityState_s {
     FLOAT ground_offset; /* presentation: current altitude above the authoritative support surface (WC3 FlyHeight) */
     BYTE stats[ENT_STAT_COUNT];
     BYTE player;
-    BYTE model;
-    BYTE model2;
+    USHORT model;
+    USHORT model2;
     BYTE effect;
     USHORT effect_flags; /* EFX_* presentation contract for effect/splat effects */
     USHORT image;
@@ -708,7 +708,7 @@ typedef struct entityState_s {
 
 _Static_assert(MAX_CLIENTS     <= 256,  "entityState_t.player is BYTE — bump to USHORT if MAX_CLIENTS exceeds 255");
 _Static_assert(MAX_GAME_ENTITIES <= 65535, "entityState_t.pathing_preview reserves 16 bits for the ignored entity number");
-_Static_assert(MAX_MODELS      <= 256,  "entityState_t.model/model2 are BYTE — bump to USHORT if MAX_MODELS exceeds 255");
+_Static_assert(MAX_MODELS      <= 65535, "entityState_t.model/model2 are USHORT — bump to DWORD if MAX_MODELS exceeds 65534");
 _Static_assert(MAX_SOUNDS      <= 65535, "entityState_t.sound is USHORT — bump to DWORD if MAX_SOUNDS exceeds 65534");
 _Static_assert(MAX_CONFIGSTRINGS <= 65536, "entityState_t.image is USHORT — bump to DWORD if MAX_CONFIGSTRINGS exceeds 65535");
 _Static_assert(ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN, "packed name configstring must exactly fill one PATHSTR");

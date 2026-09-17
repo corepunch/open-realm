@@ -4371,18 +4371,18 @@ TEST(wc3_api, destroyed_quest_handle_is_safe) {
         "endfunction\n"));
 }
 
-/* Issue #418: bot assault natives must be registered (no AI_STOP) and safe on null player. */
+/* Issue #418: bot assault natives must use the retail common.ai signatures. */
 TEST(wc3_api, bot_assault_natives_noop_on_null_player) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "  call SetCaptainHome(null, 1, 0.0, 0.0)\n"
-        "  call SetStagePoint(null, 0.0, 0.0)\n"
-        "  call SuicideUnit(null, 1, 'hfoo')\n"
-        "  call SuicideUnitEx(null, 1, 'hfoo', null)\n"
-        "  call SuicidePlayer(null, null)\n"
-        "  call BJassAssert(not MergeUnits(null, 1, 'hfoo', 'hfoo', 'hfoo'), \"null player returns false\")\n"
-        "  call BJassAssert(GetUpgradeGoldCost(0, 1) == 0, \"unknown upgrade returns 0\")\n"
-        "  call BJassAssert(GetUpgradeLumberCost(0, 1) == 0, \"unknown upgrade returns 0\")\n"
+        "  call SetCaptainHome(1, 0.0, 0.0)\n"
+        "  call SetStagePoint(0.0, 0.0)\n"
+        "  call SuicideUnit(1, 'hfoo')\n"
+        "  call SuicideUnitEx(1, 'hfoo', 0)\n"
+        "  call BJassAssert(not SuicidePlayer(null, false), \"empty player returns false\")\n"
+        "  call BJassAssert(not MergeUnits(1, 'hfoo', 'hfoo', 'hfoo'), \"empty player returns false\")\n"
+        "  call BJassAssert(GetUpgradeGoldCost(0) == 0, \"unknown upgrade returns 0\")\n"
+        "  call BJassAssert(GetUpgradeLumberCost(0) == 0, \"unknown upgrade returns 0\")\n"
         "endfunction\n"));
 }
 

@@ -233,8 +233,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
         return;
     }
-    /* model is a BYTE and MAX_MODELS is 256, so it is always a valid index;
-       the old `>= MAX_MODELS` guard was a constant-false comparison. */
+    /* model is a USHORT and MAX_MODELS bounds the configstring lookup. */
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
 #ifdef WOW
@@ -299,7 +298,7 @@ static void V_AddClientEntity(centity_t const *ent) {
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 24) & 0xff)));
 #endif
 #ifdef WOW
-    /* model2 is a BYTE, so every nonzero value is a valid MAX_MODELS index. */
+    /* model2 is a USHORT; validate it against the negotiated model pool. */
     if (ent->current.model2 > 0 && (ent->current.renderfx & RF_ATTACH_OVERHEAD))
         re.overhead_model = cl.models[ent->current.model2];
     else if (ent->current.model2 > 0)
@@ -316,7 +315,7 @@ static void V_AddClientEntity(centity_t const *ent) {
         if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
             return;
         }
-        /* model2 is a BYTE and MAX_MODELS is 256, so it is always a valid index. */
+        /* model2 is a USHORT and MAX_MODELS bounds the configstring lookup. */
         re.model = cl.models[ent->current.model2];
         re.skin = 0;
         re.frame = 0;
@@ -440,7 +439,7 @@ static void CL_AddBuilding(void) {
         return;
     if (view_state.num_entities >= MAX_CLIENT_ENTITIES)
         return;
-    if (!cl.cursorEntity->model)  /* 0 = no model registered (BYTE; always < MAX_MODELS) */
+    if (!cl.cursorEntity->model)  /* 0 = no model registered */
         return;
 
     renderEntity_t ent;

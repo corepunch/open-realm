@@ -237,53 +237,53 @@ DWORD JassSleep(LPJASS j) {
 }
 
 DWORD SetCaptainHome(LPJASS j) {
-    LPPLAYER player = jass_checkhandle(j, 1, "player");
-    LONG which = jass_checkinteger(j, 2);
-    FLOAT x = jass_checknumber(j, 3), y = jass_checknumber(j, 4);
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    LONG which = jass_checkinteger(j, 1);
+    FLOAT x = jass_checknumber(j, 2), y = jass_checknumber(j, 3);
     G_BotSetCaptainHome(player, which, x, y);
     return 0;
 }
 DWORD SetStagePoint(LPJASS j) {
-    LPPLAYER player = jass_checkhandle(j, 1, "player");
-    FLOAT x = jass_checknumber(j, 2), y = jass_checknumber(j, 3);
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    FLOAT x = jass_checknumber(j, 1), y = jass_checknumber(j, 2);
     G_BotSetStagePoint(player, x, y);
     return 0;
 }
 /* SuicideUnit: void in retail; sends qty units of class_id at any hostile enemy. */
 DWORD SuicideUnit(LPJASS j) {
-    LPPLAYER player = jass_checkhandle(j, 1, "player");
-    LONG qty = jass_checkinteger(j, 2);
-    DWORD class_id = (DWORD)jass_checkinteger(j, 3);
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    LONG qty = jass_checkinteger(j, 1);
+    DWORD class_id = (DWORD)jass_checkinteger(j, 2);
     G_BotSuicideUnits(player, qty, class_id, -1);
     return 0;
 }
 /* SuicideUnitEx: same but targets a specific player's forces. */
 DWORD SuicideUnitEx(LPJASS j) {
-    LPPLAYER player = jass_checkhandle(j, 1, "player");
-    LONG qty = jass_checkinteger(j, 2);
-    DWORD class_id = (DWORD)jass_checkinteger(j, 3);
-    LPPLAYER target = jass_checkhandle(j, 4, "player");
-    G_BotSuicideUnits(player, qty, class_id, target ? (LONG)PLAYER_NUM(target) : -1);
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    LONG qty = jass_checkinteger(j, 1);
+    DWORD class_id = (DWORD)jass_checkinteger(j, 2);
+    LONG target = jass_checkinteger(j, 3);
+    G_BotSuicideUnits(player, qty, class_id, target);
     return 0;
 }
-/* SuicidePlayer: launches the formed assault captain at target player; void in retail. */
+/* SuicidePlayer: launches the formed assault captain at target player. */
 DWORD SuicidePlayer(LPJASS j) {
-    LPPLAYER player = jass_checkhandle(j, 1, "player");
-    LPPLAYER target = jass_checkhandle(j, 2, "player");
-    G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, false);
-    return 0;
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    LPPLAYER target = jass_checkhandle(j, 1, "player");
+    BOOL check_full = jass_checkboolean(j, 2);
+    return jass_pushboolean(j, G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, check_full));
 }
 DWORD MergeUnits(LPJASS j) {
-    LPPLAYER player = jass_checkhandle(j, 1, "player");
-    LONG qty = jass_checkinteger(j, 2);
-    DWORD a = (DWORD)jass_checkinteger(j, 3), b = (DWORD)jass_checkinteger(j, 4), make = (DWORD)jass_checkinteger(j, 5);
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    LONG qty = jass_checkinteger(j, 1);
+    DWORD a = (DWORD)jass_checkinteger(j, 2), b = (DWORD)jass_checkinteger(j, 3), make = (DWORD)jass_checkinteger(j, 4);
     return jass_pushboolean(j, G_BotMergeUnits(player, qty, a, b, make));
 }
 DWORD GetUpgradeGoldCost(LPJASS j) {
-    return jass_pushinteger(j, G_UpgradeGoldCost((DWORD)jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
+    return jass_pushinteger(j, G_UpgradeGoldCost((DWORD)jass_checkinteger(j, 1), 0));
 }
 DWORD GetUpgradeLumberCost(LPJASS j) {
-    return jass_pushinteger(j, G_UpgradeLumberCost((DWORD)jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
+    return jass_pushinteger(j, G_UpgradeLumberCost((DWORD)jass_checkinteger(j, 1), 0));
 }
 
 #endif /* api_ai_h */

@@ -43,7 +43,7 @@ static void add_creep_sleep_overlay(LPEDICT unit, DWORD code) {
     if (art && *art) {
         effect = G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, unit, "overhead", false);
     } else {
-        fprintf(stderr, "WC3 CreepSleep: %.4s TargetArt missing; using canonical sleep art for unit %u\n", (LPCSTR)&code, unit->s.number);
+        fprintf(stderr, "WC3 CreepSleep: %.4s TargetArt unavailable in map data; selected canonical sleep art for unit %u\n", (LPCSTR)&code, unit->s.number);
         effect = G_SpawnModelEffect(BZ_CREEP_SLEEP_ART, NULL, unit, "overhead", false);
     }
     if (!effect) {
