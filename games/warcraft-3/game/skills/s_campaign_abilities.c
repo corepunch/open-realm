@@ -79,7 +79,48 @@ BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
 BZ_SIMPLE_SPELL_PROC(AbilitySubmergeMyrmidon) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySubmergeRoyalGuard) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySubmergeSnapDragon) { campaign_toggle_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilityEnsnare) { campaign_status_execute(caster, st, spell); }
+
+/* BuffID is "Bena,Beng"; index 0 is air, index 1 is ground. Empty ROC BuffID falls back to Bens. */
+static LPCSTR ensnare_buff_token(LPCSTR list, DWORD index) {
+    DWORD i = 0;
+    if (!list) return NULL;
+    for (;;) {
+        if (strlen(list) < 4) return NULL;
+        if (i == index) return list;
+        list = strchr(list, ',');
+        if (!list) return NULL;
+        list++; i++;
+    }
+}
+
+static BOOL ensnare_is_flyer(LPCEDICT unit) {
+    LPCSTR movetp;
+    if (!unit) return false;
+    if (unit->aiflags & AI_FLYING) return true;
+    movetp = unit->data.UnitData ? unit->data.UnitData->moveTypeName : NULL;
+    return movetp && !strcmp(movetp, "fly");
+}
+
+BOOL S_UnitIsEnsnared(LPCEDICT unit) {
+    return unit && (G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 's')) ||
+                    G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 'a')) ||
+                    G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 'g')));
+}
+
+/* Name=Ensnare — bind target; air takes Bena and lands via unit_refreshstatusflags. */
+BZ_SIMPLE_SPELL_PROC(AbilityEnsnare) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    LPCSTR list, buff;
+    (void)caster;
+    if (!st.entity) return;
+    list = G_AbilityLevel(spell->code, level)->buffID;
+    buff = ensnare_buff_token(list, ensnare_is_flyer(st.entity) ? 0 : 1);
+    if (!buff || strlen(buff) < 4) buff = ensnare_buff_token(list, 0);
+    if (!buff || strlen(buff) < 4) buff = "Bens";
+    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    st.entity->goalentity = NULL;
+}
+
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmorCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityParasiteCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityCycloneCampaign) { campaign_status_execute(caster, st, spell); }

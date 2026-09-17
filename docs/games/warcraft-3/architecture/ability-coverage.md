@@ -109,7 +109,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Acri`, `ACcr` | `s_status_spells.c` | Partial; enemy unit-target timed status applies `Bcri`. `S_CrippleMoveReduction` feeds `unit_effective_speed`; `S_CrippleAttackReduction` feeds the attack-speed divisor; `S_CrippleDamageReduction` scales outgoing attack damage. All three read authored DataA/DataB/DataC. |
 | `ANso` | `s_status_spells.c` | `CAbilitySoulBurn`. Enemy unit-target timed status applies `BNso`. `S_SoulBurnDamageRate` drains authored DataA HP/sec; `S_SoulBurnDamageReduction` scales outgoing attack damage by DataC. `S_UnitIsSilenced` (`BNso` or `BNsi`) blocks `spell_validate` / `spell_validate_point`. DataB unused. |
 | `Atau` | `s_status_spells.c` | Partial; no-target AOE issues `order_attack(enemy, caster)` for each alive enemy within authored Area. No persistent buff; effect is a one-shot re-target. |
-| `Aens` | `s_campaign_abilities.c` | Partial; `CAbilityEnsnare` applies `Bens`. `order_move` rejects movement when `Bens` is active (same pattern as `BEer` Entangling Roots). Flying-unit land-and-lock and buff expiry restoration remain. |
+| `Aens`, `ANen` | `s_campaign_abilities.c` | `CAbilityEnsnare`. TFT `Bena`/`Beng` by air/ground, ROC empty BuffID → `Bens`. `S_UnitIsEnsnared` locks `order_move` with `BEer`. Flyers clear `AI_FLYING`, land to support surface, restore from authored `movetp=fly` on expiry/dispel. DataA/B gradual land and DataC meleeRange unused. `ACen` unregistered. |
 | `ACtb` | `s_thunderbolt.c` (shared) | Registered; shares `CAbilityThunderBolt` with own authored data (Hurl Boulder projectile, stun, damage). |
 | `Adch` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Summoned-unit damage (DataB) remains. |
 | `Advm` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Per-buff HP/mana heal (DataA/DataB) and summoned-unit damage (DataE) remain. |
@@ -199,7 +199,7 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `Acri`, `ACcr` | Cripple | Partial | Enemy unit-target timed status; all three reduction consumers wired. Art/sound and any additional dispel interactions remain. |
 | `ANso` | Soul Burn | Done | Enemy unit-target `BNso`; DataA drain, DataC attack reduction, and cast silence via `S_UnitIsSilenced` (also covers `BNsi`). |
 | `Atau` | Taunt | Partial | No-target AOE re-targets all alive enemies in Area to attack the caster. No persistent buff. |
-| `Aens` | Ensnare | Partial | Buff application and movement block in `order_move` wired. Flying-unit altitude lock and buff-expiry restore remain. |
+| `Aens`, `ANen` | Ensnare | Done | Air/ground buff split, move lock, flyer land-and-restore via status refresh. Gradual DataA/B land and DataC meleeRange remain unused. |
 | `ACtb` | Hurl Boulder | Partial | Shares `CAbilityThunderBolt`; projectile stun and authored damage use own SLK row. Art remains. |
 | `Adch` | Disenchant | Partial | Shares `CAbilityDispelMagic` area dispel. Summoned-unit DataB damage remains. |
 | `Advm` | Devour Magic | Partial | Shares `CAbilityDispelMagic` area dispel. Per-buff HP/mana heal and summoned-unit damage remain. |

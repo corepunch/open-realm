@@ -95,6 +95,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Anti-Magic Shell Bams immunity vs Bam2 DataC absorption, Aam2/ACam aliases | [docs/games/warcraft-3/anti-magic-shell.md](docs/games/warcraft-3/anti-magic-shell.md) |
 | WC3 Cyclone organic-enemy lock, BuffID fallback, and attack/move/spell gates | [docs/games/warcraft-3/cyclone.md](docs/games/warcraft-3/cyclone.md) |
 | WC3 Soul Burn BNso drain/reduction and cast silence shared with BNsi | [docs/games/warcraft-3/soul-burn.md](docs/games/warcraft-3/soul-burn.md) |
+| WC3 Ensnare Bena/Beng/Bens lock, flyer land-and-restore, ANen alias | [docs/games/warcraft-3/ensnare.md](docs/games/warcraft-3/ensnare.md) |
 | WC3 Volcano channeled waves, DataB/C/D/E mapping, stun vs channel duration | [docs/games/warcraft-3/volcano.md](docs/games/warcraft-3/volcano.md) |
 | WC3 Pocket Factory timed producer, DataB Clockwerk unitCode, ANs1–ANs3 aliases | [docs/games/warcraft-3/pocket-factory.md](docs/games/warcraft-3/pocket-factory.md) |
 | WC3 Rain of Chaos Inferno landings, DataA abilCode, not a Rain of Fire alias | [docs/games/warcraft-3/rain-of-chaos.md](docs/games/warcraft-3/rain-of-chaos.md) |

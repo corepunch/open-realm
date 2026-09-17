@@ -971,13 +971,37 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
         S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent);
 }
 
+static BOOL unit_status_ensnares(DWORD code) {
+    return code == MAKEFOURCC('B', 'e', 'n', 's') || code == MAKEFOURCC('B', 'e', 'n', 'a') ||
+           code == MAKEFOURCC('B', 'e', 'n', 'g');
+}
+
+static BOOL unit_authored_flyer(LPCEDICT ent) {
+    LPCSTR movetp = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
+    return movetp && !strcmp(movetp, "fly");
+}
+
+/* Ensnare land/restore lives here so expiry, death cleanup, and dispel share one path. */
 static void unit_refreshstatusflags(LPEDICT ent) {
+    BOOL ensnared = false;
     ent->stunned = false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
-        if (status->level && unit_status_stuns(status->code)) {
-            ent->stunned = true;
+        if (!status->level) continue;
+        if (unit_status_stuns(status->code)) ent->stunned = true;
+        if (unit_status_ensnares(status->code)) ensnared = true;
+    }
+    if (ensnared) {
+        if (ent->aiflags & AI_FLYING) {
+            ent->aiflags &= ~AI_FLYING;
+            ent->unitinfo.FlyHeight = 0.0f;
+            M_CheckGround(ent);
         }
+    } else if (unit_authored_flyer(ent) && !(ent->aiflags & AI_FLYING)) {
+        ent->aiflags |= AI_FLYING;
+        if (ent->unitinfo.FlyHeight <= 0.0f)
+            ent->unitinfo.FlyHeight = ent->data.UnitData->moveHeight;
+        M_CheckGround(ent);
     }
 }
 

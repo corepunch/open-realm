@@ -1328,7 +1328,7 @@ void order_move(LPEDICT self, LPEDICT target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
-        || G_UnitStatusLevel(self, MAKEFOURCC('B', 'e', 'n', 's')))
+        || S_UnitIsEnsnared(self))
         return;
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;
