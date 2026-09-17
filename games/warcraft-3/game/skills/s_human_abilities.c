@@ -2,6 +2,7 @@
 
 #define HUMAN_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AVATAR_BUFF MAKEFOURCC('B', 'H', 'a', 'v') // rawcode; timed Avatar buff that owns immunity and bonuses
+#define BZ_ANTI_MAGIC_SHELL_BUFF MAKEFOURCC('B', 'a', 'm', 's') // rawcode; timed Anti-Magic Shell immunity buff
 #define BZ_POLYMORPH MAKEFOURCC('A', 'p', 'l', 'y') // rawcode; stock Polymorph ability code
 #define BZ_POLYMORPH_GROUND_SLOT 2 // data slot; authored Ply2 ground morph form
 #define BZ_POLYMORPH_FLY_SLOT 3 // data slot; authored Ply3 flying morph form
@@ -53,8 +54,10 @@ static void human_toggle_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
     unit_addtimedstatus(caster, GetClassName(spell->code), level, duration);
 }
 
-/* Retail CBuffAvatar owns immunity for its lifetime, independently of invulnerability. */
-BOOL S_UnitSpellImmune(LPCEDICT unit) { return unit && G_UnitStatusLevel(unit, BZ_AVATAR_BUFF); }
+/* Retail timed immunity buffs block spell targeting and impacts, independently of physical damage. */
+BOOL S_UnitSpellImmune(LPCEDICT unit) {
+    return unit && (G_UnitStatusLevel(unit, BZ_AVATAR_BUFF) || G_UnitStatusLevel(unit, BZ_ANTI_MAGIC_SHELL_BUFF));
+}
 
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast. */
 BOOL S_SpellDamage(LPEDICT target, LPEDICT caster, int damage) {

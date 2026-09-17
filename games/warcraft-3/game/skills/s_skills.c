@@ -502,7 +502,7 @@ static ability_t abilitylist[] = {
     { "Arai", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead */
     { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
-    // TODO: Aams a_magic_immunity  /* Anti-magic Shell */
+    { "Aams", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shell */
     // TODO: Apos a_creep_sleep  /* Possession */
     // TODO: Aps2 a_creep_sleep  /* Possession */
     { "Acri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple */

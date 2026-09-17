@@ -7,6 +7,17 @@ static LPCSTR undead_buff(abilityitem_t const *spell, DWORD level) {
     return buff && strlen(buff) >= 4 ? buff : NULL;
 }
 
+/* ROC and the active TFT data both make Bams a timed spell-immunity status; no damage pool is authored. */
+static void anti_magic_shell_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    LPCSTR buff = undead_buff(spell, level);
+    if (!st.entity || !buff) return;
+    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+}
+
+BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShell) { anti_magic_shell_execute(caster, st, spell); }
+
 /* Shared unit-target autocast acquire: friendly wounded targets for replenish. */
 static BOOL undead_unit_autocast_acquire(LPEDICT caster, DWORD code, BOOL wounded) {
     LPEDICT best = NULL;
