@@ -237,6 +237,12 @@ BZ_ABILITY_PROC(CAbilityPurge);
 BZ_ABILITY_PROC(CAbilityLightningShield);
 BZ_ABILITY_PROC(CAbilityHealingWard);
 BZ_ABILITY_PROC(CAbilityAuraRegenLife);
+BZ_ABILITY_PROC(CAbilityMoonGlaive);
+BZ_ABILITY_PROC(CAbilitySlowPoison);
+BZ_ABILITY_PROC(CAbilityReplenish);
+BZ_ABILITY_PROC(CAbilityReplenishLife);
+BZ_ABILITY_PROC(CAbilityReplenishMana);
+BZ_ABILITY_PROC(CAbilityRaiseDead);
 
 void human_ability_think(LPEDICT thinker);
 BOOL S_HoldPosition(LPEDICT unit);
@@ -293,6 +299,10 @@ FLOAT S_CrippleDamageReduction(LPCEDICT unit);
 FLOAT S_SoulBurnDamageRate(LPCEDICT unit);
 FLOAT S_SoulBurnDamageReduction(LPCEDICT unit);
 FLOAT S_PurgeMoveReduction(LPCEDICT unit);
+void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage);
+void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target);
+FLOAT S_SlowPoisonMoveReduction(LPCEDICT unit);
+FLOAT S_SlowPoisonAttackReduction(LPCEDICT unit);
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);

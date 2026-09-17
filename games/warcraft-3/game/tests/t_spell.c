@@ -1825,6 +1825,78 @@ TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, nightelf_passive_abilities_are_registered_with_correct_handlers) {
+	InitAbilities();
+	ability_t const *vengeance = FindAbilityByClassname("Avng");
+	ability_t const *moon_glaive = FindAbilityByClassname("Amgl");
+	ability_t const *moon_glaive_r = FindAbilityByClassname("Amgr");
+	ability_t const *slow_poison = FindAbilityByClassname("Aspo");
+	T_NOT_NULL(vengeance); T_NOT_NULL(moon_glaive); T_NOT_NULL(moon_glaive_r); T_NOT_NULL(slow_poison);
+	T_EQ(vengeance->proc, CAbilitySpiritOfVengeance); T_ASSERT(vengeance->flags & AB_SPELL);
+	T_EQ((int)vengeance->target_type, (int)SPELL_TARGET_NONE);
+	T_EQ(moon_glaive->proc, CAbilityMoonGlaive); T_ASSERT(moon_glaive->flags & AB_PASSIVE);
+	T_EQ(moon_glaive_r->proc, CAbilityMoonGlaive); T_ASSERT(moon_glaive_r->flags & AB_PASSIVE);
+	T_EQ(slow_poison->proc, CAbilitySlowPoison); T_ASSERT(slow_poison->flags & AB_PASSIVE);
+}
+
+TEST(wc3_spell, slow_poison_on_hit_applies_buff_and_returns_authored_reduction) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X6\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\n"
+		"C;Y2;X1;K\"Aspo\"\nC;Y2;X2;K\"Aspo\"\nC;Y2;X3;K\"10\"\n"
+		"C;Y2;X4;K\"5\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"15\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('e','h','u','n'), 300, 0, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	level.time = 0;
+	attacker->s.player = 0; target->s.player = 1;
+	target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+	target->health.value = target->health.max_value = 200.0f;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
+	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','s','p','o'), .level = 1);
+	T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','s','p','o')));
+	T_FEQ(S_SlowPoisonMoveReduction(target), 0.0f, 0.001f);
+	S_SlowPoisonOnHit(attacker, target);
+	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','s','p','o')));
+	T_FEQ(S_SlowPoisonMoveReduction(target), 0.25f, 0.001f);
+	T_FEQ(S_SlowPoisonAttackReduction(target), 0.15f, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_glaive_bounces_attack_to_nearby_enemy) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X4\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Area1\"\n"
+		"C;Y2;X1;K\"Amgl\"\nC;Y2;X2;K\"Amgl\"\nC;Y2;X3;K\"2\"\nC;Y2;X4;K\"200\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('e','h','u','n'), 300, 0, 0, 0);
+	LPEDICT primary = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT nearby = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT far_away = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	attacker->s.player = 0;
+	primary->s.player = nearby->s.player = far_away->s.player = 1;
+	primary->svflags |= SVF_MONSTER; nearby->svflags |= SVF_MONSTER; far_away->svflags |= SVF_MONSTER;
+	primary->targtype = nearby->targtype = far_away->targtype = TARG_GROUND;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
+	primary->health.value = primary->health.max_value = 500.0f;
+	nearby->health.value = nearby->health.max_value = 500.0f;
+	far_away->health.value = far_away->health.max_value = 500.0f;
+	primary->die = nearby->die = far_away->die = unit_die;
+	primary->s.origin2.x = 0; primary->s.origin2.y = 0;
+	nearby->s.origin2.x = 50; nearby->s.origin2.y = 0;
+	far_away->s.origin2.x = 5000; far_away->s.origin2.y = 0;
+	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','m','g','l'), .level = 1);
+	S_MoonGlaiveAttack(attacker, primary, 50);
+	T_ASSERT(nearby->health.value < 500.0f);
+	T_FEQ(far_away->health.value, 500.0f, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, purge_and_lightning_shield_registration_aliases) {
 	T_EQ(S_AbilityItem(FS_SLKKey("Aprg")).ability->proc, CAbilityPurge);
 	T_EQ(S_AbilityItem(FS_SLKKey("Apg2")).ability->proc, CAbilityPurge);
@@ -1832,6 +1904,76 @@ TEST(wc3_spell, purge_and_lightning_shield_registration_aliases) {
 	T_EQ(S_AbilityItem(FS_SLKKey("Alsh")).ability->proc, CAbilityLightningShield);
 	T_EQ(S_AbilityItem(FS_SLKKey("Ahwd")).ability->proc, CAbilityHealingWard);
 	T_EQ(S_AbilityItem(FS_SLKKey("Aoar")).ability->proc, CAbilityAuraRegenLife);
+	T_EQ(S_AbilityItem(FS_SLKKey("Aabr")).ability->proc, CAbilityAuraRegenLife);
+	T_EQ(S_AbilityItem(FS_SLKKey("Arpb")).ability->proc, CAbilityReplenish);
+	T_EQ(S_AbilityItem(FS_SLKKey("Arpl")).ability->proc, CAbilityReplenishLife);
+	T_EQ(S_AbilityItem(FS_SLKKey("Arpm")).ability->proc, CAbilityReplenishMana);
+	T_EQ(S_AbilityItem(FS_SLKKey("Arai")).ability->proc, CAbilityRaiseDead);
+}
+
+TEST(wc3_spell, replenish_restores_health_and_mana_essence_heals_area_spirit_touch_restores_mana) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y4;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+		"C;Y1;X3;K\"Rng1\"\nC;Y1;X4;K\"Area1\"\n"
+		"C;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"BuffID1\"\n"
+		"C;Y2;X1;K\"Arpb\"\nC;Y2;X2;K\"Arpb\"\nC;Y2;X3;K\"500\"\n"
+		"C;Y2;X5;K\"100\"\nC;Y2;X6;K\"50\"\nC;Y2;X7;K\"Brpb\"\n"
+		"C;Y3;X1;K\"Arpl\"\nC;Y3;X2;K\"Arpl\"\nC;Y3;X4;K\"600\"\n"
+		"C;Y3;X5;K\"80\"\n"
+		"C;Y4;X1;K\"Arpm\"\nC;Y4;X2;K\"Arpm\"\nC;Y4;X4;K\"600\"\n"
+		"C;Y4;X6;K\"40\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('U','D','k','i'), 500, 500, 0, 0);
+	LPEDICT ally = alloc_test_unit(MAKEFOURCC('u','d','e','a'), 50, 0);
+	abilityitem_t rpb = S_AbilityItem(FS_SLKKey("Arpb"));
+	abilityitem_t rpl = S_AbilityItem(FS_SLKKey("Arpl"));
+	abilityitem_t rpm = S_AbilityItem(FS_SLKKey("Arpm"));
+	caster->s.player = ally->s.player = 0;
+	ally->svflags |= SVF_MONSTER;
+	ally->health.value = 60; ally->health.max_value = 200;
+	ally->mana.value = 10; ally->mana.max_value = 200;
+	T_EQ(rpb.ability->proc, CAbilityReplenish); T_ASSERT(rpb.ability->flags & AB_AUTOCAST);
+	T_EQ(rpl.ability->proc, CAbilityReplenishLife); T_ASSERT(rpl.ability->flags & AB_AUTOCAST);
+	T_EQ(rpm.ability->proc, CAbilityReplenishMana); T_ASSERT(rpm.ability->flags & AB_AUTOCAST);
+	test_execute_code(caster, "Arpb", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
+	T_FEQ(ally->health.value, 160.0f, 0.001f);
+	T_FEQ(ally->mana.value, 60.0f, 0.001f);
+	ally->health.value = 50; ally->health.max_value = 200;
+	test_execute_code(caster, "Arpl", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+	T_ASSERT(ally->health.value > 50.0f);
+	ally->mana.value = 5; ally->mana.max_value = 200;
+	test_execute_code(caster, "Arpm", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+	T_ASSERT(ally->mana.value > 5.0f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, raise_dead_summons_from_nearest_corpse_and_frees_it) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X6\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+		"C;Y1;X3;K\"Rng1\"\nC;Y1;X4;K\"Dur1\"\n"
+		"C;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"UnitID1\"\n"
+		"C;Y2;X1;K\"Arai\"\nC;Y2;X2;K\"Arai\"\n"
+		"C;Y2;X3;K\"800\"\nC;Y2;X4;K\"30\"\n"
+		"C;Y2;X5;K\"2\"\nC;Y2;X6;K\"uske\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('U','D','k','i'), 500, 500, 0, 0);
+	LPEDICT corpse = alloc_test_unit(MAKEFOURCC('u','d','e','a'), 100, 0);
+	DWORD summon_num;
+	abilityitem_t rai = S_AbilityItem(FS_SLKKey("Arai"));
+	caster->s.player = 0;
+	corpse->health.value = 0; corpse->health.max_value = 100;
+	corpse->svflags |= SVF_DEADMONSTER;
+	summon_num = globals.num_edicts;
+	T_EQ(rai.ability->proc, CAbilityRaiseDead); T_ASSERT(rai.ability->flags & AB_AUTOCAST);
+	T_ASSERT(corpse->inuse); T_ASSERT(M_IsDead(corpse));
+	test_execute_code(caster, "Arai", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+	T_ASSERT(!corpse->inuse);
+	T_ASSERT(globals.num_edicts >= summon_num + 2);
+	T_EQ(globals.edicts[summon_num].class_id, MAKEFOURCC('u','s','k','e'));
+	T_EQ(globals.edicts[summon_num + 1].class_id, MAKEFOURCC('u','s','k','e'));
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 #endif /* BZ_TESTS */

@@ -414,7 +414,7 @@ static ability_t abilitylist[] = {
     // TODO: Asud a_spell  /* Sell Units */
 
     /* NightElfAbilityStrings.txt */
-    // TODO: Avng a_revenge  /* Spirit of Vengeance */
+    { "Avng", CAbilitySpiritOfVengeance, AB_SPELL, SPELL_TARGET_NONE },  /* Spirit of Vengeance */
     // TODO: Amfl CAbilityFrostNova  /* Mana Flare */
     // TODO: Apsh CAbilityStampede  /* Phase Shift */
     // TODO: Aetl a_button  /* Ethereal */
@@ -422,8 +422,8 @@ static ability_t abilitylist[] = {
     // TODO: Assk a_button  /* Hardened Skin */
     // TODO: Arsk a_morph  /* Resistant Skin */
     { "Atau", CAbilityTaunt, AB_SPELL },  /* Taunt */
-    // TODO: Amgl a_bounce  /* Moon Glaive */
-    // TODO: Aspo a_poison_attack  /* Slow Poison */
+    { "Amgl", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive */
+    { "Aspo", CAbilitySlowPoison, AB_PASSIVE | AB_INNATE },  /* Slow Poison */
     // TODO: Ashm a_shadow_meld  /* Shadow Meld */
     // TODO: Ahid a_shadow_meld  /* Shadow Meld */
     // TODO: Aesn a_button  /* Sentinel */
@@ -472,9 +472,9 @@ static ability_t abilitylist[] = {
     // TODO: Aakb a_aura_command  /* War Drums */
 
     /* UndeadAbilityStrings.txt */
-    // TODO: Arpb a_spell  /* Replenish */
-    // TODO: Arpl a_spell  /* Essence of Blight */
-    // TODO: Arpm a_spell  /* Spirit Touch */
+    { "Arpb", CAbilityReplenish, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Replenish */
+    { "Arpl", CAbilityReplenishLife, AB_SPELL | AB_AUTOCAST },  /* Essence of Blight */
+    { "Arpm", CAbilityReplenishMana, AB_SPELL | AB_AUTOCAST },  /* Spirit Touch */
     // TODO: Aexh a_button  /* Exhume Corpses */
     // TODO: Aave CAbilityStampede  /* Destroyer Form */
     // TODO: Afak a_spell  /* Orb of Annihilation */
@@ -499,7 +499,7 @@ static ability_t abilitylist[] = {
     // TODO: Afrb a_button  /* Frost Breath */
     // TODO: Afra a_button  /* Frost Attack */
     // TODO: Afrz CAbilityFrostNova  /* Freezing Breath */
-    // TODO: Arai a_simple_spell  /* Raise Dead */
+    { "Arai", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead */
     { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
     // TODO: Aams a_magic_immunity  /* Anti-magic Shell */
@@ -829,7 +829,7 @@ static ability_t abilitylist[] = {
     // TODO: Amb2 a_unknown  /* Mana Battery (Obsidian Statue) */
     // TODO: Ambb a_unknown  /* Mana Burn (Hotkey B) */
     // TODO: Ambd a_unknown  /* Mana Burn (demon) */
-    // TODO: Amgr a_unknown  /* Moon Glaive (No research) */
+    { "Amgr", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive (Naisha) */
     // TODO: Amnb a_unknown  /* Mana Burn (demon) */
     // TODO: Amnx a_unknown  /* Death Damage (mine) */
     // TODO: Amnz a_unknown  /* Death Damage (mine BIG) */

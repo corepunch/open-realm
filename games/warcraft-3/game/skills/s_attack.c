@@ -266,6 +266,8 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
             T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
     }
     S_BlackArrowDeath(attacker, target);
+    S_MoonGlaiveAttack(attacker, target, damage);
+    S_SlowPoisonOnHit(attacker, target);
     G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
     if (target->inuse) {
         FLOAT thorns = S_ThornsDamageReturn(target, attacker, damage);
@@ -440,7 +442,7 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
                           : 0.02f;
     FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
-                      - S_CrippleAttackReduction(self);
+                      - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT aura = g_edicts + i;
         DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));

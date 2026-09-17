@@ -988,6 +988,7 @@ static FLOAT unit_effective_speed(LPEDICT ent) {
     speed *= S_HumanMoveFactor(ent);
     speed *= 1.0f - S_CrippleMoveReduction(ent);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
+    speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT aura = g_edicts + i;
         DWORD aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
