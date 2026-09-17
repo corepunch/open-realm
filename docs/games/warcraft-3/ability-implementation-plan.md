@@ -119,6 +119,24 @@ Do not debug `make test` `+test '*'` while finishing one ability. A full
 (`wc3_ability_dispatch.cyclone_*` → `jass_runevents(NULL)`). That is a Cyclone
 gap, not a failure of the ability you just polled.
 
+### 7. Batch: one agent per unrelated group
+
+When finishing several abilities in one pass, split the list into groups that
+do not share a procedure, `s_*.c` owner, or shared hook (`S_SpellDamage`,
+`S_UnitSpellImmune`, `edict_t` fields, `abilstatus` payload). Spawn one
+subagent per unrelated group. Each child polls its own rawcodes, writes its
+own tests and docs, and commits only its group.
+
+Keep in the same agent (do not split):
+
+- `code=` aliases of one implementation (`Aams` / `Aam2` / `ACam`);
+- rawcodes that already share a procedure or will after the change;
+- anything that edits the same shared predicate or `edict_t` layout.
+
+The parent agent owns `s_skills.c` registry rows if two groups would both
+touch it; otherwise each child adds its own rows. Do not spawn a subagent per
+rawcode when the brief shows they are the same `code=`.
+
 ## Sources Of Truth
 
 Use sources in this order, choosing the smallest set that answers the question:
