@@ -162,11 +162,16 @@ void ai_stand(LPEDICT self) {
         return;
     if (S_UnitAbilityEvent(self, A_IDLE))
         return;
-    /* Neutral/creep units do not initiate (avoids map-wide neutral-vs-neutral
-     * aggression); campaign defenders may be rescuable until script takeover
-     * and still use normal unit auto-acquisition while hostile. */
-    if (level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral)
-        return;
+    /* Neutral creeps sleep until an enemy enters acquisition range, then wake
+     * permanently and fight normally.  Campaign defenders that were made hostile
+     * by script have already had AI_SLEEPING cleared and use regular acquisition. */
+    if (level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral) {
+        if (self->aiflags & AI_SLEEPING) {
+            if (!G_ShouldAcquireThisFrame(self)) return;
+            if (!G_FindNearestEnemy(self, G_AcquisitionRange(self))) return;
+            self->aiflags &= ~AI_SLEEPING;
+        }
+    }
     if (!G_ShouldAcquireThisFrame(self))
         return;
 

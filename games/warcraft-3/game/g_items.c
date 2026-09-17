@@ -336,7 +336,7 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
     LPEDICT item;
     VECTOR2 drop_position;
 
-    if (!unit || !position || slot >= MAX_INVENTORY) {
+    if (!unit || !position || slot >= (DWORD)G_InventoryCapacity(unit)) {
         return false;
     }
     item = unit->inventory[slot];

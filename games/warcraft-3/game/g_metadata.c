@@ -96,7 +96,8 @@ static void warn_unregistered_field(DWORD id) {
             return;
         }
     }
-    if (count < 64) seen[count++] = id;
+    if (count < 64) { seen[count++] = id; }
+    else return; /* table full; suppress further spam */
     fprintf(stderr, "WARNING: unit-data field code '%.4s' has no DDX metadata entry\n", (LPCSTR)&id);
 }
 

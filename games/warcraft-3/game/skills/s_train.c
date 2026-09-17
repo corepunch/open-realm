@@ -569,6 +569,7 @@ BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
         lumber > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
 
     item = G_Spawn();
+    if (!item) return false;
     /* This is queue state, not a world unit/tech entity. Keep class_id zero so
      * generic entity-count queries never mistake in-progress research for a
      * completed technology or owned unit of the same rawcode. */

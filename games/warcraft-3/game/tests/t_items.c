@@ -1093,4 +1093,31 @@ TEST(wc3_items, removing_carried_item_clears_slot) {
     T_ASSERT(!item->inuse);
 }
 
+TEST(wc3_items, drop_at_rejects_slot_beyond_capacity) {
+    /* G_DropItemAt must use G_InventoryCapacity, not MAX_INVENTORY, so that a
+     * slot index in-range for the hard array but beyond the unit's authored
+     * capacity is rejected cleanly instead of silently failing on item guard. */
+    setup_test_world();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
+    unit->s.model = 1;
+    unit->s.player = PLAYER_NEUTRAL_PASSIVE;
+    unit->movetype = MOVETYPE_STEP;
+    unit->health.value = 100.0f;
+    unit->health.max_value = 100.0f;
+    unit->stand = unit_stand;
+    unit_stand(unit);
+    gi.LinkEntity(unit);
+    T_EQ(G_InventoryCapacity(unit), 2);
+
+    LPEDICT item0 = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
+    LPEDICT item1 = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 32);
+    T_ASSERT(G_AddItemToSlot(unit, item0, 0));
+    T_ASSERT(G_AddItemToSlot(unit, item1, 1));
+
+    VECTOR2 pos = MAKE(VECTOR2, 0, 0);
+    T_ASSERT(!G_DropItemAt(unit, 4, &pos));
+    T_ASSERT(unit->inventory[0] == item0);
+    T_ASSERT(unit->inventory[1] == item1);
+}
+
 #endif /* BZ_TESTS */

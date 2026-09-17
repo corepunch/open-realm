@@ -127,6 +127,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
+    if (!thinker) return;
     thinker->owner = caster;
     thinker->resources = caster->invulnerable;
     thinker->spawn_time = G_Time() + (DWORD)(MAX(0.1f, S_SpellDuration(spell->code, level, true)) * 1000.0f);

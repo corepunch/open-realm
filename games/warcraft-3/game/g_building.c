@@ -276,8 +276,15 @@ void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels) {
     slot = G_FindTechSlot(client, techid, false);
     old_level = slot < 0 ? 0 : MAX(0, client->tech[slot].researched);
     new_level = MAX(0, old_level + levels);
-    /* Adding levels that net to the default still needs no entry. */
-    if (new_level == 0) return;
+    if (new_level == 0) {
+        /* Returning to the default of 0; clear the slot without allocating. */
+        if (slot >= 0) {
+            client->tech[slot].researched = 0;
+            G_ApplyTechLevelToOwnedUnits(client, techid, old_level, 0);
+            G_InvalidateCommands(client);
+        }
+        return;
+    }
     slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
     old_level = MAX(0, client->tech[slot].researched);
@@ -300,11 +307,15 @@ LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid) {
 void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels) {
     LONG slot = G_FindTechSlot(client, techid, false);
     LONG in_progress = slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
-    /* In-progress 0 is the default; do not burn a slot recording it. */
-    if (MAX(0, in_progress + levels) == 0) return;
+    LONG new_level = MAX(0, in_progress + levels);
+    if (new_level == 0) {
+        /* Returning to the default of 0; clear the existing slot without allocating. */
+        if (slot >= 0) { client->tech[slot].in_progress = 0; G_InvalidateCommands(client); }
+        return;
+    }
     slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
-    client->tech[slot].in_progress = MAX(0, client->tech[slot].in_progress + levels);
+    client->tech[slot].in_progress = new_level;
     G_InvalidateCommands(client);
 }
 

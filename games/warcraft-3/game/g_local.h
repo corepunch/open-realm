@@ -168,6 +168,7 @@ enum {
     AI_AUTOCAST_REPAIR = 1 << 3, /* persisted Repair-family autocast toggle */
     AI_AUTOCAST_ACTIVE = 1 << 4, /* fast unit-wide marker: some autocast ability is enabled */
     AI_ILLUSION    = 1 << 5,  /* summoned copy created by illusion abilities */
+    AI_SLEEPING    = 1 << 6,  /* neutral creep is dormant; wakes on enemy proximity */
 };
 
 typedef enum {

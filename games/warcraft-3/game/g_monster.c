@@ -515,6 +515,11 @@ void SP_SpawnUnit(LPEDICT self) {
         if (movetp && !strcmp(movetp, "fly"))
             self->aiflags |= AI_FLYING;
     }
+    /* Neutral creeps sleep until a hero enters acquisition range; non-neutral
+     * units (including camp defenders made hostile by script) start awake. */
+    if (self->s.player < MAX_PLAYERS &&
+        level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral)
+        self->aiflags |= AI_SLEEPING;
 
     self->defense_type = FindEnumValue(b->defenseType, defense_type);
     self->armor_value = b->armor;
