@@ -45,6 +45,7 @@
 /* Concrete AbilityData implementations. */
 
 extern LPCSTR const raven_orders[];
+extern LPCSTR const barkskin_orders[];
 BZ_ABILITY_PROC(CAbilityHarvest);
 BZ_ABILITY_PROC(CAbilityMove);
 BZ_ABILITY_PROC(CAbilityRavenForm);
@@ -64,6 +65,7 @@ BZ_ABILITY_PROC(CAbilitySelectSkill);
 BZ_ABILITY_PROC(CAbilityAuraDevotion);
 BZ_ABILITY_PROC(CAbilityHolyBolt);
 BZ_ABILITY_PROC(CAbilitySimpleSpell);
+BZ_ABILITY_PROC(CAbilityModalSpell);
 BZ_ABILITY_PROC(S_AbilityMessage);
 BZ_ABILITY_PROC(CAbilityNoop);
 BZ_ABILITY_PROC(CAbilityPassive);
@@ -240,6 +242,7 @@ BZ_ABILITY_PROC(CAbilityHealingWard);
 BZ_ABILITY_PROC(CAbilityAuraRegenLife);
 BZ_ABILITY_PROC(CAbilityMoonGlaive);
 BZ_ABILITY_PROC(CAbilitySlowPoison);
+BZ_ABILITY_PROC(CAbilityBarkskin);
 BZ_ABILITY_PROC(CAbilityReplenish);
 BZ_ABILITY_PROC(CAbilityReplenishLife);
 BZ_ABILITY_PROC(CAbilityReplenishMana);
@@ -305,6 +308,7 @@ void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage);
 void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target);
 FLOAT S_SlowPoisonMoveReduction(LPCEDICT unit);
 FLOAT S_SlowPoisonAttackReduction(LPCEDICT unit);
+FLOAT S_BarkskinArmorBonus(LPCEDICT unit);
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);

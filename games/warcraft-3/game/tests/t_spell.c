@@ -158,6 +158,67 @@ TEST(wc3_spell, registry_keeps_identity_outside_shared_handlers) {
     }
 }
 
+/* Barkskin is a friendly target spell whose modal parent owns autocast selection, not a self-toggle. */
+static void test_barkskin_contract(LPCSTR armor_field) {
+	char slk[1024];
+	DWORD const barkskin = MAKEFOURCC('A','b','a','r'), buff = MAKEFOURCC('B','b','a','r');
+	UnitAbilities_t abilities = { .abilList = "Abar" };
+	slkTestData_t *rows, *old;
+	LPEDICT caster = make_hero(MAKEFOURCC('e','d','o','c'), 500, 200, 0, 0);
+	LPEDICT ally = alloc_test_unit(MAKEFOURCC('e','a','r','c'), 50, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 75, 0);
+	ability_t const *ability;
+
+	snprintf(slk, sizeof(slk),
+		"ID;PWXL;N;EBB;Y2;X9\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Rng1\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+		"C;Y1;X7;K\"%s\"\nC;Y1;X8;K\"BuffID1\"\nC;Y1;X9;K\"levels\"\n"
+		"C;Y2;X1;K\"Abar\"\nC;Y2;X2;K\"Abar\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+		"C;Y2;X4;K\"600\"\nC;Y2;X5;K\"10\"\nC;Y2;X6;K\"4\"\n"
+		"C;Y2;X7;K\"3\"\nC;Y2;X8;K\"Bbar\"\nC;Y2;X9;K\"1\"\nE\n", armor_field);
+	rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+	caster->data.UnitAbilities = &abilities;
+	caster->s.player = ally->s.player = 0; enemy->s.player = 1;
+	ally->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+	ally->targtype = enemy->targtype = TARG_GROUND;
+	ally->health.value = ally->health.max_value = enemy->health.value = enemy->health.max_value = 100;
+	ally->armor_value = 2.0f; level.time = 1000;
+
+	ability = FindAbilityByClassname("Abar");
+	T_NOT_NULL(ability); T_EQ(ability->proc, CAbilityBarkskin);
+	T_ASSERT(ability->flags & AB_SPELL); T_ASSERT(ability->flags & AB_AUTOCAST);
+	T_ASSERT(!(ability->flags & AB_TOGGLE)); T_EQ(ability->target_type, SPELL_TARGET_UNIT);
+	T_ASSERT(!G_UnitAutocastIsOn(caster, barkskin));
+	T_ASSERT(G_SetUnitAutocast(caster, barkskin, true)); T_ASSERT(G_UnitAutocastIsOn(caster, barkskin));
+	T_ASSERT(test_ability_message(caster, A_AUTOCAST_ACQUIRE, &(abilityitem_t){
+		.code = barkskin, .ability = ability
+	}, NULL));
+	T_EQ(G_UnitStatusLevel(ally, buff), 1); T_FEQ(G_UnitArmorValue(ally), 5.0f, 0.001f);
+	T_ASSERT(!test_ability_message(caster, A_AUTOCAST_ACQUIRE, &(abilityitem_t){
+		.code = barkskin, .ability = ability
+	}, NULL));
+	T_ASSERT(!S_CastUnitTargetSpell(caster, barkskin, enemy));
+	T_ASSERT(S_CastUnitTargetSpell(caster, barkskin, ally));
+	T_EQ(G_UnitStatusLevel(ally, buff), 1); T_FEQ(G_UnitArmorValue(ally), 5.0f, 0.001f);
+	T_ASSERT(G_SetUnitAutocast(caster, barkskin, false)); T_ASSERT(!G_UnitAutocastIsOn(caster, barkskin));
+	T_EQ(G_UnitStatusLevel(ally, buff), 1);
+
+	level.time = 6000;
+	T_ASSERT(S_CastUnitTargetSpell(caster, barkskin, ally));
+	level.time = 15000;
+	T_EQ(G_UnitStatusLevel(ally, buff), 1); T_FEQ(G_UnitArmorValue(ally), 5.0f, 0.001f);
+	level.time = 16001; unit_updatestatuses(ally);
+	T_EQ(G_UnitStatusLevel(ally, buff), 0); T_FEQ(G_UnitArmorValue(ally), 2.0f, 0.001f);
+	ally->health.value = 0;
+	T_ASSERT(!S_CastUnitTargetSpell(caster, barkskin, ally));
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, barkskin_roc_schema_uses_timed_friendly_armor_buff) { test_barkskin_contract("Data11"); }
+TEST(wc3_spell, barkskin_tft_schema_uses_timed_friendly_armor_buff) { test_barkskin_contract("DataA1"); }
+
 TEST(wc3_spell, relationship_uses_passive_alliance_not_other_flags) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);

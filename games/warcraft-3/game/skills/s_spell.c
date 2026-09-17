@@ -75,6 +75,16 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
     }
 }
 
+/* Modal spells share autocast selection while concrete children own acquisition and effects. */
+BZ_ABILITY_PROC(CAbilityModalSpell) {
+    DWORD code = call && call->item ? call->item->code : 0;
+    switch (msg) {
+    case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
+    case A_AUTOCAST_SET: return true;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
 void S_SpellCodeString(DWORD code, LPSTR out) {
     memcpy(out, &code, 4);
     out[4] = '\0';

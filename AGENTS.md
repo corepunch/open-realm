@@ -50,6 +50,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 natural neutral-creep sleep, `canSleep`, sleep natives, wake rules, and known camp gaps | [docs/games/warcraft-3/creep-sleep.md](docs/games/warcraft-3/creep-sleep.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
+| WC3 Barkskin modal autocast, authored armor status, expiry/death inverse | [docs/games/warcraft-3/barkskin.md](docs/games/warcraft-3/barkskin.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
 | WC3 triggered dialogue, gameplay/cinematic presentation split, message and transmission lifetimes | [docs/games/warcraft-3/triggered-dialogue.md](docs/games/warcraft-3/triggered-dialogue.md) |
 | WC3 pre-rendered movies, optional FFmpeg backend, `PlayCinematic` lifecycle, campaign camera rows | [docs/games/warcraft-3/pre-rendered-movies.md](docs/games/warcraft-3/pre-rendered-movies.md) |

@@ -895,6 +895,7 @@ static ability_t abilitylist[] = {
     /* END GENERATED TODO ABILITIES */
 
     /* Passive regeneration base codes remain explicit outside generated TODOs. */
+    { "Abar", CAbilityBarkskin, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT, barkskin_orders },  /* Barkskin */
     { "Aarm", CAbilityPassive, AB_PASSIVE },  /* Mana Regeneration Aura */
     { "Aoar", CAbilityPassive, AB_PASSIVE },  /* Healing Ward Aura */
     { "Aabr", CAbilityPassive, AB_PASSIVE },  /* Aura of Blight */

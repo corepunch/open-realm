@@ -308,6 +308,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "whirlwind", 852128, MAKEFOURCC('A','O','w','w') },
     { "windwalk", 852129, MAKEFOURCC('A','O','w','k') },
     { "eattree", 852146, MAKEFOURCC('A','e','a','t') },
+    { "barkskin", 852135, MAKEFOURCC('A','b','a','r') },
     { "entanglingroots", 852171, MAKEFOURCC('A','E','e','r') },
     { "forceofnature", 852176, MAKEFOURCC('A','E','f','n') },
     { "manaburn", 852179, MAKEFOURCC('A','E','m','b') },
@@ -964,7 +965,8 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
             armor += ability->level[level - 1].data[0].number;
         }
     }
-    return armor + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) + S_FaerieArmorDelta(ent) + S_FrenzyArmorDelta(ent);
+    return armor + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) + S_FaerieArmorDelta(ent) +
+        S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent);
 }
 
 static void unit_refreshstatusflags(LPEDICT ent) {
