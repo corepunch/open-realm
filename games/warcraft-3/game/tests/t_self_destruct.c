@@ -40,7 +40,8 @@ static char const sd_slk[] =
 	"C;Y3;X13;K\"0\"\nC;Y3;X14;K\"0\"\n"
 	"C;Y4;X1;K\"Asds\"\nC;Y4;X2;K\"Asds\"\nC;Y4;X3;K\"1\"\n"
 	"C;Y4;X4;K\"ground,structure,debris,tree,ward\"\n"
-	"C;Y4;X5;K\"100\"\nC;Y4;X6;K\"250\"\nC;Y4;X7;K\"250\"\nC;Y4;X8;K\"100\"\n"
+	/* Non-stock DataB=175 so Kaboom click cannot pass on retail TFT 250. */
+	"C;Y4;X5;K\"100\"\nC;Y4;X6;K\"175\"\nC;Y4;X7;K\"250\"\nC;Y4;X8;K\"100\"\n"
 	"C;Y4;X9;K\"3\"\nC;Y4;X10;K\"0\"\nC;Y4;X11;K\"0.1\"\nC;Y4;X12;K\"0.1\"\n"
 	"C;Y4;X13;K\"0\"\nC;Y4;X14;K\"0\"\nE\n";
 
@@ -108,6 +109,37 @@ TEST(wc3_spell, self_destruct_asds_without_dataf_does_not_explode_on_death) {
 	SDFIX fix = sd_setup(BZ_ASDS);
 	unit_die(fix.goblin, NULL);
 	T_FEQ(fix.near_enemy->health.value, 500, 0.001f);
+	sd_done(fix);
+}
+
+/* Kaboom click is a point-target cast: authored DataB blast + caster death, even with DataF=0. */
+TEST(wc3_spell, self_destruct_asds_click_detonates_and_kills_caster) {
+	SDFIX fix = sd_setup(BZ_ASDS);
+	VECTOR2 point = { 0, 0 };
+	ability_t const *abil = S_AbilityItem(BZ_ASDS).ability;
+	T_NOT_NULL(abil);
+	T_ASSERT(abil->flags & AB_SPELL);
+	T_ASSERT(abil->flags & AB_AUTOCAST);
+	T_EQ(abil->target_type, SPELL_TARGET_POINT);
+	T_ASSERT(S_CastPointTargetSpell(fix.goblin, BZ_ASDS, &point));
+	T_ASSERT(M_IsDead(fix.goblin));
+	T_FEQ(fix.near_enemy->health.value, 325, 0.001f); /* 500 - 175 */
+	T_FEQ(fix.far_enemy->health.value, 500, 0.001f);
+	sd_done(fix);
+}
+
+/* Right-click autocast toggles on the Asds row; Clockwerk classname rows stay passive. */
+TEST(wc3_spell, self_destruct_asds_autocast_toggle) {
+	SDFIX fix = sd_setup(BZ_ASDS);
+	ability_t const *asdg = FindAbilityByClassname("Asdg");
+	T_ASSERT(G_SetUnitAutocast(fix.goblin, BZ_ASDS, true));
+	T_ASSERT(G_UnitAutocastIsOn(fix.goblin, BZ_ASDS));
+	T_ASSERT(G_SetUnitAutocast(fix.goblin, BZ_ASDS, false));
+	T_ASSERT(!G_UnitAutocastIsOn(fix.goblin, BZ_ASDS));
+	/* S_AbilityItem(Asdg) follows code=Asds; exact classname rows stay death-only. */
+	T_NOT_NULL(asdg);
+	T_ASSERT(!(asdg->flags & AB_SPELL));
+	T_ASSERT(asdg->flags & AB_PASSIVE);
 	sd_done(fix);
 }
 

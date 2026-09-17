@@ -395,7 +395,6 @@ static ability_t abilitylist[] = {
     // TODO: Apig a_harvest_return  /* Permanent Immolation */
     // TODO: Andt a_evil_eye  /* Reveal */
     { "ANin", CAbilityInferno, AB_SPELL, SPELL_TARGET_POINT },  /* Inferno */
-    // TODO: Asds a_button  /* Kaboom! click/autocast; death explosion is CAbilitySelfDestruct */
     // TODO: Anhe CAbilityHeal  /* Heal */
     // TODO: ACtc a_creep_thunder_clap  /* Slam */
     { "ACtb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Hurl Boulder */
@@ -851,7 +850,7 @@ static ability_t abilitylist[] = {
     // TODO: Arlm a_unknown  /* Return (Lumber) */
     // TODO: Aro1 a_unknown  /* Root (Ancients) */
     // TODO: Aro2 a_unknown  /* Root (Ancient Protector) */
-    { "Asds", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct / Kaboom! (code=) */
+    { "Asds", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! */
     { "Asdg", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct (Clockwerk Goblins) */
     { "Asd2", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct 2 (Clockwerk Goblins) */
     { "Asd3", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct 3 (Clockwerk Goblins) */

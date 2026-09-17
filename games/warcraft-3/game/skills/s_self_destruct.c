@@ -36,6 +36,34 @@ static void self_destruct_explode(LPEDICT ent, DWORD code) {
 	}
 }
 
+/* Guards A_DEATH while intentional cast kills the caster (DataF aliases would double-blast). */
+static BOOL kaboom_cast;
+
+/* Intentional Kaboom always blasts, then kills the caster; DataF does not gate this path. */
+static void self_destruct_kaboom(LPEDICT ent, DWORD code) {
+	if (!ent || !code || M_IsDead(ent)) return;
+	self_destruct_explode(ent, code);
+	kaboom_cast = true;
+	G_SetHealth(ent, 0);
+	if (ent->die) ent->die(ent, ent);
+	else unit_die(ent, ent);
+	kaboom_cast = false;
+}
+
+/* Autocast: detonate in place when a valid target is already inside DataA. */
+static BOOL self_destruct_autocast_acquire(LPEDICT caster, DWORD code) {
+	DWORD level = MAX(1u, G_UnitAbilityLevel(caster, code));
+	FLOAT full_r = S_SpellData(code, level, 1);
+	VECTOR2 point;
+	if (full_r <= 0.0f) full_r = 100.0f;
+	FILTER_EDICTS(target, self_destruct_allows(code, caster, target)) {
+		if (Vector2_distance(&target->s.origin2, &caster->s.origin2) > full_r) continue;
+		point = caster->s.origin2;
+		return S_CastPointTargetSpell(caster, code, &point);
+	}
+	return false;
+}
+
 static BOOL death_seen(DWORD *seen, DWORD *n, DWORD code) {
 	FOR_LOOP(i, *n) if (seen[i] == code) return true;
 	if (*n < 32) seen[(*n)++] = code;
@@ -77,14 +105,31 @@ void S_UnitDeathAbilities(LPEDICT ent) {
 
 /* Name=Kaboom! / Self Destruct
  * DataA/B full radius/damage, DataC/D partial radius/damage, DataE building factor,
- * DataF explodes-on-death. Intentional Kaboom cast remains unimplemented.
+ * DataF explodes-on-death. Point-target click always blasts; death path needs DataF.
  */
 BZ_ABILITY_PROC(CAbilitySelfDestruct) {
 	DWORD code = call && call->item ? call->item->code : 0;
 	DWORD level;
-	if (msg != A_DEATH || !code || !ent) return false;
-	level = MAX(1u, G_UnitAbilityLevel(ent, code));
-	if (S_SpellData(code, level, 6) <= 0.0f) return false;
-	self_destruct_explode(ent, code);
-	return true;
+	switch (msg) {
+	case A_VALIDATE:
+		return call && call->target && call->target->type == SPELL_TARGET_POINT;
+	case A_EXECUTE:
+		if (!ent || !code) return false;
+		self_destruct_kaboom(ent, code);
+		return true;
+	case A_DEATH:
+		if (!code || !ent || kaboom_cast) return false;
+		level = MAX(1u, G_UnitAbilityLevel(ent, code));
+		if (S_SpellData(code, level, 6) <= 0.0f) return false;
+		self_destruct_explode(ent, code);
+		return true;
+	case A_AUTOCAST_ON:
+		return ent && code && ent->autocast_code == code;
+	case A_AUTOCAST_SET:
+		return true;
+	case A_AUTOCAST_ACQUIRE:
+		return code && self_destruct_autocast_acquire(ent, code);
+	default:
+		return CAbilitySimpleSpell(ent, msg, call);
+	}
 }
