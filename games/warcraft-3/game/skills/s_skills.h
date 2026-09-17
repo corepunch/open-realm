@@ -253,10 +253,13 @@ BZ_ABILITY_PROC(CAbilityCannibalize);
 BZ_ABILITY_PROC(CAbilityRaiseDead);
 BZ_ABILITY_PROC(CAbilityAntiMagicShell);
 BZ_ABILITY_PROC(CAbilityRainOfChaos);
+BZ_ABILITY_PROC(CAbilityInferno);
 BZ_ABILITY_PROC(CAbilityVolcano);
 
 void human_ability_think(LPEDICT thinker);
 void rain_of_chaos_think(LPEDICT thinker);
+void inferno_think(LPEDICT thinker);
+void S_InfernoLand(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point);
 BOOL S_HoldPosition(LPEDICT unit);
 BOOL S_MilitiaEnsureHallAbility(LPEDICT hall);
 FLOAT S_MilitiaPairSearchRadius(DWORD ability);

@@ -118,7 +118,8 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Acyc`, `ACcy`, `SCc1`, `Acny` | `s_cyclone.c` | `CAbilityCyclone`. Authored targs (TFT `organic`); first BuffID token or ROC `Bcyc` fallback; `S_UnitIsCycloned` locks move/attack/spell. DataA (`Can Be Dispelled`) via `status.data` + `S_StatusIsUndispellable` (0 survives Dispel/Purge). Item `AIcy` unregistered. |
 | `ANvc` | `s_volcano.c` | `CAbilityVolcano` channel. DataB waves every DataC seconds, DataE damage via `T_Damage`, buildings × DataD, stun `Bstu` for Dur/HeroDur. DataA rings, DataF half-damage, Volc destructible, and trees remain. |
 | `ANsy`, `ANs1`, `ANs2`, `ANs3` | `s_pocket_factory.c` | `CAbilityPocketFactory`. UnitID factory, DataA interval, DataB Clockwerk via `S_SpellDataId`, DataC goblin life, DataD offset. DataE leash and ANfy are not implemented. |
-| `ANrc`, `ANr3` | `s_summon.c` | `CAbilityRainOfChaos`. Not channeled. DataA Inferno abilCode, DataB landing count, Dur delay, Area scatter. Inferno landing damage/stun remain with `ANin`. |
+| `ANin` | `s_summon.c` | `CAbilityInferno`. Point-target delayed landing: DataA damage, DataB summon life, DataC impact delay, Dur/HeroDur `Bstu` stun, UnitID summon. See [inferno.md](../inferno.md). |
+| `ANrc`, `ANr3` | `s_summon.c` | `CAbilityRainOfChaos`. Not channeled. DataA Inferno abilCode, DataB landing count, Dur interval, Area scatter. Each landing calls `S_InfernoLand`. |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 

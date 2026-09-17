@@ -100,6 +100,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Volcano channeled waves, DataB/C/D/E mapping, stun vs channel duration | [docs/games/warcraft-3/volcano.md](docs/games/warcraft-3/volcano.md) |
 | WC3 Pocket Factory timed producer, DataB Clockwerk unitCode, ANs1–ANs3 aliases | [docs/games/warcraft-3/pocket-factory.md](docs/games/warcraft-3/pocket-factory.md) |
 | WC3 Rain of Chaos Inferno landings, DataA abilCode, not a Rain of Fire alias | [docs/games/warcraft-3/rain-of-chaos.md](docs/games/warcraft-3/rain-of-chaos.md) |
+| WC3 Inferno ANin landing damage/stun/DataC delay, DataB summon life, not Thunder Bolt | [docs/games/warcraft-3/inferno.md](docs/games/warcraft-3/inferno.md) |
 | WC3 Purge Apg2 DataD/DataE immobilize, Aprg/AIlp aliases, Bprg slow | [docs/games/warcraft-3/purge.md](docs/games/warcraft-3/purge.md) |
 | WC3 Ancestral Spirit target rules, authored data, and same-edict corpse revival | [docs/games/warcraft-3/ancestral-spirit.md](docs/games/warcraft-3/ancestral-spirit.md) |
 | WC3 Mana Shield toggle, authored damage/mana ratio, buff and order lifecycle | [docs/games/warcraft-3/mana-shield.md](docs/games/warcraft-3/mana-shield.md) |

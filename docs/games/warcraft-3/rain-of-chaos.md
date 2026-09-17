@@ -23,11 +23,8 @@ Stock TFT/ROC `ANrc` L1: `DataA=ANin`, `DataB=2`, `Dur=1`, `Area=900`,
 `Rng=1000`, `Cool=120`. L2/L3 raise `DataB` and shorten `Dur`. `ANr3` authors
 `DataB=2` as the button variant.
 
-Each landing summons through the Inferno row linked by DataA:
-`S_SummonAt(owner, S_SpellUnitId(inferno, level), scatter, S_SpellDuration(inferno, …))`
-with `BTLF` timed life. Inferno landing damage (`ANin` DataA), impact delay
-(`DataC`), and stun remain on the unfinished Inferno ability — not implemented
-here.
+Each landing calls `S_InfernoLand` on the Inferno row linked by DataA (damage,
+stun, DataC impact delay, UnitID + DataB timed life). See [Inferno](inferno.md).
 
 ## Data Flow
 
@@ -37,7 +34,7 @@ AbilityData.slk (ANrc / ANr3)
 CAbilityRainOfChaos
   -> spawn thinker at cast point; first landing immediate
 rain_of_chaos_think
-  -> S_SpellDataId/UnitId/Duration on Inferno -> S_SummonAt + BTLF
+  -> S_InfernoLand(inferno row) -> delay/damage/stun/summon
   -> schedule next landing after Dur; free when count exhausted
 ```
 
@@ -71,5 +68,5 @@ count/interval/UnitID, immediate first landing, Dur-spaced later landings via
 
 ## Remaining Gaps
 
-- Full Inferno (`ANin`): landing damage, stun buff, impact delay, and presentation.
 - Effect edict `XErc` / `CEffectRainOfChaos` presentation.
+- Inferno tree destruction and meteor presentation (see [inferno.md](inferno.md)).

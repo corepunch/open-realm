@@ -1,6 +1,7 @@
 #include "s_skills.h"
 
 #define ID_TIMED_LIFE "BTLF"
+#define ID_STUN_BUFF "Bstu"
 
 static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count, FLOAT duration) {
     VECTOR2 loc;
@@ -45,6 +46,63 @@ LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration
     return summon;
 }
 
+/* Inferno blast hits living ground/structure enemies; air is out of authored targs. */
+static BOOL inferno_hits(LPEDICT caster, LPEDICT target, FLOAT radius, LPCVECTOR2 origin) {
+    if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target)) return false;
+    if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
+    if (target->targtype == TARG_AIR) return false;
+    return target->targtype == TARG_GROUND || target->targtype == TARG_STRUCTURE ||
+           G_UnitIsBuilding(target->class_id);
+}
+
+/* DataA damage + Bstu Dur/HeroDur, then UnitID with DataB timed life. */
+static void inferno_impact(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point) {
+    FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    int damage = (int)S_SpellData(code, level, 1);
+    FLOAT life = S_SpellData(code, level, 2);
+    DWORD unit_id = S_SpellUnitId(code, level);
+
+    FILTER_EDICTS(target, inferno_hits(caster, target, area, point)) {
+        S_SpellDamage(target, caster, damage);
+        if (!M_IsDead(target))
+            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, G_UnitIsHero(target)));
+    }
+    if (!unit_id) {
+        fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (LPCSTR)&code);
+        return;
+    }
+    S_SummonAt(caster, unit_id, point, life);
+}
+
+void inferno_think(LPEDICT ent) {
+    DWORD now = G_Time();
+    if (ent->freetime && now < ent->freetime) return;
+    if (!ent->owner || !ent->owner->inuse) { G_FreeEdict(ent); return; }
+    inferno_impact(ent->owner, ent->class_id, (DWORD)ent->wait, &ent->s.origin2);
+    G_FreeEdict(ent);
+}
+
+/* DataC<=0 impacts immediately; otherwise a thinker owns the meteor delay. */
+void S_InfernoLand(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point) {
+    FLOAT delay;
+    LPEDICT thinker;
+    if (!caster || !point) return;
+    delay = S_SpellData(code, level, 3);
+    if (delay <= 0.0f) { inferno_impact(caster, code, level, point); return; }
+    thinker = G_Spawn();
+    thinker->owner = caster; thinker->class_id = code; thinker->wait = (FLOAT)level;
+    thinker->s.origin2 = *point; thinker->s.origin.x = point->x; thinker->s.origin.y = point->y;
+    thinker->freetime = G_Time() + (DWORD)(delay * 1000.0f);
+    thinker->think = inferno_think;
+}
+
+/* Name=Inferno
+ * Ubertip: area damage + stun on land, then summon Infernal for DataB seconds after DataC delay.
+ */
+BZ_SIMPLE_SPELL_PROC(AbilityInferno) {
+    S_InfernoLand(caster, spell->code, S_SpellLevel(caster, spell->code), &st.point);
+}
+
 /* Rain of Chaos resolves each landing through the Inferno ability linked by DataA. */
 void rain_of_chaos_think(LPEDICT ent) {
     DWORD now = G_Time(), level = (DWORD)ent->wait, inferno = ent->damage, code = ent->class_id;
@@ -55,7 +113,7 @@ void rain_of_chaos_think(LPEDICT ent) {
     angle = ((FLOAT)rand() / (FLOAT)RAND_MAX) * 2.0f * (FLOAT)M_PI;
     radius = sqrtf((FLOAT)rand() / (FLOAT)RAND_MAX) * ent->collision;
     loc.x += cosf(angle) * radius; loc.y += sinf(angle) * radius;
-    S_SummonAt(ent->owner, S_SpellUnitId(inferno, level), &loc, S_SpellDuration(inferno, level, false));
+    S_InfernoLand(ent->owner, inferno, level, &loc);
     if (!--ent->resources) { G_FreeEdict(ent); return; }
     /* Zero Dur cannot schedule the next landing; stop rather than spin every frame. */
     if (ent->velocity <= 0.0f) {
