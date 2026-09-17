@@ -45,38 +45,37 @@ static DWORD volcano_stun_ms(LPCEDICT unit) {
     return 0;
 }
 
-static VOLCFIX volcano_setup(void) {
-    VOLCFIX fix;
+/* Fill *fix in place so UnitBalance pointers stay on the caller's struct, not a returned copy. */
+static void volcano_setup(VOLCFIX *fix) {
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
-    fix.rows = parse_slk_string(volcano_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
-    fix.unit_bal = MAKE(UnitBalance_t, .maxHealth = 500);
-    fix.bldg_bal = MAKE(UnitBalance_t, .maxHealth = 1000, .isBuilding = true);
-    fix.hero_bal = MAKE(UnitBalance_t, .maxHealth = 500, .strength = 20);
-    fix.caster = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 0, 0);
-    fix.enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
-    fix.building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 96, 0);
-    fix.far = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 400, 0);
-    fix.hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 128, 0);
-    fix.caster->s.player = 0;
-    fix.enemy->s.player = fix.building->s.player = fix.far->s.player = fix.hero->s.player = 1;
-    fix.caster->svflags |= SVF_MONSTER; fix.enemy->svflags |= SVF_MONSTER;
-    fix.building->svflags |= SVF_MONSTER; fix.far->svflags |= SVF_MONSTER; fix.hero->svflags |= SVF_MONSTER;
-    fix.caster->targtype = fix.enemy->targtype = fix.far->targtype = fix.hero->targtype = TARG_GROUND;
-    fix.building->targtype = TARG_STRUCTURE;
-    fix.enemy->data.UnitBalance = &fix.unit_bal;
-    fix.building->data.UnitBalance = &fix.bldg_bal;
-    fix.far->data.UnitBalance = &fix.unit_bal;
-    fix.hero->data.UnitBalance = &fix.hero_bal;
-    fix.enemy->health.value = fix.enemy->health.max_value = 500;
-    fix.building->health.value = fix.building->health.max_value = 1000;
-    fix.far->health.value = fix.far->health.max_value = 500;
-    fix.hero->health.value = fix.hero->health.max_value = 500;
-    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANVC, .level = 1);
-    fix.caster->mana.value = fix.caster->mana.max_value = 200;
-    return fix;
+    fix->rows = parse_slk_string(volcano_slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
+    fix->unit_bal = MAKE(UnitBalance_t, .maxHealth = 500);
+    fix->bldg_bal = MAKE(UnitBalance_t, .maxHealth = 1000, .isBuilding = true);
+    fix->hero_bal = MAKE(UnitBalance_t, .maxHealth = 500, .strength = 20);
+    fix->caster = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 0, 0);
+    fix->enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
+    fix->building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 96, 0);
+    fix->far = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 400, 0);
+    fix->hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 128, 0);
+    fix->caster->s.player = 0;
+    fix->enemy->s.player = fix->building->s.player = fix->far->s.player = fix->hero->s.player = 1;
+    fix->caster->svflags |= SVF_MONSTER; fix->enemy->svflags |= SVF_MONSTER;
+    fix->building->svflags |= SVF_MONSTER; fix->far->svflags |= SVF_MONSTER; fix->hero->svflags |= SVF_MONSTER;
+    fix->caster->targtype = fix->enemy->targtype = fix->far->targtype = fix->hero->targtype = TARG_GROUND;
+    fix->building->targtype = TARG_STRUCTURE;
+    fix->enemy->data.UnitBalance = &fix->unit_bal;
+    fix->building->data.UnitBalance = &fix->bldg_bal;
+    fix->far->data.UnitBalance = &fix->unit_bal;
+    fix->hero->data.UnitBalance = &fix->hero_bal;
+    fix->enemy->health.value = fix->enemy->health.max_value = 500;
+    fix->building->health.value = fix->building->health.max_value = 1000;
+    fix->far->health.value = fix->far->health.max_value = 500;
+    fix->hero->health.value = fix->hero->health.max_value = 500;
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANVC, .level = 1);
+    fix->caster->mana.value = fix->caster->mana.max_value = 200;
 }
 
 static void volcano_done(VOLCFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
@@ -91,7 +90,7 @@ TEST(wc3_spell, volcano_procedure_is_channel_point_spell) {
 
 /* First wave runs on cast: unit takes DataE, building takes DataE*DataD, stun uses Dur. */
 TEST(wc3_spell, volcano_first_wave_damages_unit_and_building_with_factor) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.enemy->s.origin2;
     T_ASSERT(G_UnitIsBuilding(fix.building->class_id));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
@@ -106,7 +105,7 @@ TEST(wc3_spell, volcano_first_wave_damages_unit_and_building_with_factor) {
 }
 
 TEST(wc3_spell, volcano_stun_uses_herodur_for_heroes) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.hero->s.origin2;
     T_ASSERT(G_UnitIsHero(fix.hero));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
@@ -117,7 +116,7 @@ TEST(wc3_spell, volcano_stun_uses_herodur_for_heroes) {
 
 /* Second pulse waits for authored DataC, then fires through the entity scheduler. */
 TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.enemy->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     LPEDICT thinker = volcano_thinker(fix.caster);
@@ -133,7 +132,7 @@ TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
 }
 
 TEST(wc3_spell, volcano_caster_move_cancels_remaining_waves) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.enemy->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     LPEDICT thinker = volcano_thinker(fix.caster);

@@ -33,13 +33,16 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
 }
 
 void reset_entities(void) {
+    DWORD cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_JassSoundRuntimeReset();
-    /* Tests may temporarily shrink max_edicts (Pocket Factory alloc-failure). Restore
-     * the production cap before wiping the pool so later suites cannot inherit 26. */
+    /* Wipe only the live cap, then restore MAX_ENTITIES. Pocket Factory's alloc-failure
+     * test shrinks max_edicts to num_edicts+1 (26 in the full suite); walking 16000
+     * edicts first would G_FreeActorSkills stale high slots. */
+    if (cap > MAX_ENTITIES) cap = MAX_ENTITIES;
+    FOR_LOOP(i, cap) G_FreeActorSkills(g_edicts + i);
+    memset(g_edicts, 0, sizeof(edict_t) * cap);
     globals.max_edicts = MAX_ENTITIES;
-    FOR_LOOP(i, globals.max_edicts) G_FreeActorSkills(g_edicts + i);
-    memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
     FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
