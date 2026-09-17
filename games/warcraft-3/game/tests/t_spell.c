@@ -1567,6 +1567,49 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y5;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Rng1\"\n"
+		"C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"BuffID1\"\n"
+		"C;Y1;X9;K\"Area1\"\nC;Y1;X10;K\"targs\"\n"
+		"C;Y2;X1;K\"Ablo\"\nC;Y2;X2;K\"Ablo\"\nC;Y2;X4;K\"60\"\nC;Y2;X5;K\"60\"\n"
+		"C;Y2;X6;K\"0.4\"\nC;Y2;X7;K\"0.25\"\nC;Y2;X8;K\"Bblo\"\n"
+		"C;Y3;X1;K\"Afae\"\nC;Y3;X2;K\"Afae\"\nC;Y3;X4;K\"90\"\nC;Y3;X5;K\"60\"\n"
+		"C;Y3;X6;K\"4\"\nC;Y3;X8;K\"Bfae\"\n"
+		"C;Y4;X1;K\"Arej\"\nC;Y4;X2;K\"Arej\"\nC;Y4;X4;K\"12\"\nC;Y4;X5;K\"12\"\n"
+		"C;Y4;X6;K\"400\"\nC;Y4;X8;K\"Brej\"\n"
+		"C;Y5;X1;K\"Aroa\"\nC;Y5;X2;K\"Aroa\"\nC;Y5;X4;K\"45\"\nC;Y5;X5;K\"45\"\n"
+		"C;Y5;X6;K\"0.25\"\nC;Y5;X8;K\"Broa\"\nC;Y5;X9;K\"500\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+	LPEDICT ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+	abilityitem_t blo = S_AbilityItem(FS_SLKKey("Ablo"));
+	abilityitem_t fae = S_AbilityItem(FS_SLKKey("Afae"));
+	abilityitem_t rej = S_AbilityItem(FS_SLKKey("Arej"));
+	abilityitem_t roa = S_AbilityItem(FS_SLKKey("Aroa"));
+	caster->s.player = ally->s.player = 0; enemy->s.player = 1;
+	ally->armor_value = 2; enemy->armor_value = 6;
+	ally->health.value = 60; ally->health.max_value = 100;
+	ally->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+	T_EQ(blo.ability->proc, CAbilityBloodlust); T_ASSERT(blo.ability->flags & AB_AUTOCAST);
+	T_EQ(fae.ability->proc, CAbilityFaerieFire); T_ASSERT(fae.ability->flags & AB_AUTOCAST);
+	T_EQ(rej.ability->proc, CAbilityRejuvination);
+	T_EQ(roa.ability->proc, CAbilityRoar);
+	test_execute_code(caster, "Ablo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','b','l','o')));
+	T_FEQ(S_BloodlustAttackBonus(ally), 0.4f, 0.001f); T_FEQ(S_BloodlustMoveBonus(ally), 0.25f, 0.001f);
+	test_execute_code(caster, "Afae", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e'))); T_FEQ(G_UnitArmorValue(enemy), 2.0f, 0.001f);
+	test_execute_code(caster, "Arej", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','e','j'))); T_FEQ(S_RejuvHealRate(ally), 400.0f / 12.0f, 0.01f);
+	test_execute_code(caster, "Aroa", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','o','a'))); T_FEQ(S_RoarDamageBonus(ally), 0.25f, 0.001f);
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Human05 turns each converted villager into a summon, then its JASS trigger
  * owns the final zombie replacement, allegiance, and attack order. */
 TEST(wc3_spell, dark_conversion_consumes_target_and_publishes_zombie_summon) {

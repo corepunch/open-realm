@@ -139,7 +139,8 @@ void G_RunEntity(LPEDICT ent) {
      * = no regen), "none" never.  Living, wounded units only. */
     if (ent->health.max_value > 0 && ent->health.value > 0 && ent->health.value < ent->health.max_value) {
         FLOAT const aura = S_RegenerationHealthAura(ent);
-        FLOAT rate = aura;
+        FLOAT const rejuv = S_RejuvHealRate(ent);
+        FLOAT rate = aura + rejuv;
         BOOL const natural = G_UnitRegeneratesHP(ent);
         if (natural)
             rate += ent->data.UnitBalance->healthRegen +

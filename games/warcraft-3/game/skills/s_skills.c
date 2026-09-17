@@ -224,6 +224,9 @@ static ability_t abilitylist[] = {
     { "AEar", CAbilityPassive, AB_PASSIVE },  /* Trueshot Aura */
     { "AEsf", CAbilityStarfall, AB_SPELL | AB_CHANNEL },  /* Starfall */
     { "Aren", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST },  /* Renew */
+    { "Afae", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */
+    { "Arej", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation */
+    { "Aroa", CAbilityRoar, AB_SPELL },  /* Roar */
 
     /* OrcAbilityStrings.txt */
     { "AOhw", CAbilityHealingWave, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave */
@@ -243,6 +246,7 @@ static ability_t abilitylist[] = {
     { "AOae", CAbilityPassive, AB_PASSIVE },  /* Endurance Aura */
     { "AOre", CAbilityPassive, AB_PASSIVE },  /* Reincarnation */
     { "AOws", CAbilityStomp, AB_SPELL },  /* War Stomp */
+    { "Ablo", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust */
 
     /* UndeadAbilityStrings.txt */
     { "AUim", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impale */
@@ -434,10 +438,7 @@ static ability_t abilitylist[] = {
     // TODO: Adec CAbilityDefend  /* Dismount */
     // TODO: Acor a_bounce  /* Corrosive Breath */
     // TODO: AEst a_button  /* Scout */
-    // TODO: Afae a_auto_target_spell  /* Faerie Fire */
     // TODO: Acyc a_morph  /* Cyclone */
-    // TODO: Arej a_regen_life  /* Rejuvenation */
-    // TODO: Aroa a_roar  /* Roar */
     // TODO: Alit a_lightning_attack  /* Lightning Attack */
 
     /* OrcAbilityStrings.txt */
@@ -458,7 +459,6 @@ static ability_t abilitylist[] = {
     // TODO: Adev a_devour  /* Devour */
     // TODO: Aprg a_lightning_purge  /* Purge */
     // TODO: Alsh a_lightning_shield  /* Lightning Shield */
-    // TODO: Ablo a_bloodlust  /* Bloodlust */
     // TODO: Aeye a_button  /* Sentry Ward */
     // TODO: Asta a_stasis_trap  /* Stasis Trap */
     // TODO: Ahwd a_healing_ward  /* Healing Ward */

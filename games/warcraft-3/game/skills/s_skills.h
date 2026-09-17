@@ -223,6 +223,10 @@ BZ_ABILITY_PROC(CAbilityPolymorph);
 BZ_ABILITY_PROC(CAbilityAvatar);
 BZ_ABILITY_PROC(CAbilityDoom);
 BZ_ABILITY_PROC(CAbilityDrunkenHaze);
+BZ_ABILITY_PROC(CAbilityBloodlust);
+BZ_ABILITY_PROC(CAbilityFaerieFire);
+BZ_ABILITY_PROC(CAbilityRejuvination);
+BZ_ABILITY_PROC(CAbilityRoar);
 
 void human_ability_think(LPEDICT thinker);
 BOOL S_HoldPosition(LPEDICT unit);
@@ -263,6 +267,11 @@ void S_HumanStatusExpired(LPEDICT unit, DWORD code, DWORD level);
 BOOL S_UnitSpellImmune(LPCEDICT unit);
 BOOL S_SpellDamage(LPEDICT target, LPEDICT caster, int damage);
 void S_AvatarExpire(LPEDICT unit);
+FLOAT S_BloodlustAttackBonus(LPCEDICT unit);
+FLOAT S_BloodlustMoveBonus(LPCEDICT unit);
+FLOAT S_FaerieArmorDelta(LPCEDICT unit);
+FLOAT S_RoarDamageBonus(LPCEDICT unit);
+FLOAT S_RejuvHealRate(LPCEDICT unit);
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);

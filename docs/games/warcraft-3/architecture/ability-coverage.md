@@ -102,6 +102,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `AHbz`, `AUcs`, `ANcl` | `s_area_spell.c` | Partial point/channel spell family; Blizzard ticks area damage, Carrion Swarm applies a simple point blast, Channel opens cancel mode. |
 | `ANch`, `AIco`, `Aeat`, `Ambt`, `Aroo` | `s_utility_abilities.c` | Partial utility behaviors: Charm ownership transfer, Eat Tree heal/remove, Moon Well transfer, Root toggle. |
 | `AIhe`, `AIma`, `AImi` | `s_item.c` | Synchronous item use for heal, mana restore, and permanent life gain; successful charged uses decrement charges and zero-charge perishables are removed. |
+| `Ablo`, `Afae`, `Arej`, `Aroa` | `s_melee_spells.c` | Partial melee unit spells; Bloodlust/Faerie Fire are autocast unit-target timed statuses, Rejuvenation is a friendly heal-over-time status, Roar is a no-target friendly-area status. Attack-rate/move, armor, damage-bonus, and heal-rate consumers read authored DataA/DataB/Dur. Faerie Fire vision and Ensnare-style movement locks remain. |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 
@@ -130,6 +131,17 @@ summoned unit or level data exists for a faithful registration.
 
 `a_train` exists in `s_train.c`, but training is currently handled by the
 generic `Button` command path rather than by a registered ability code.
+
+`Ablo` (Bloodlust, `CAbilityBloodlust`/`AAat`), `Afae` (Faerie Fire,
+`CAbilityFaerieFire`/`AAat`), `Arej` (Rejuvenation,
+`CAbilityRejuvination`/`AAsm`), and `Aroa` (Roar, `CAbilityRoar`/`AAsp`) share
+one status-execution path in `s_melee_spells.c`. ROC and TFT `ability_audit`
+rows match for all four. Bloodlust contributes `DataA` to the attack-speed
+divisor and `DataB` to move speed; Faerie Fire subtracts `DataA` armor in
+`G_UnitArmorValue`; Roar scales attack damage by `DataA`; Rejuvenation heals
+`DataA`/`Dur` per second through the HP-regen block. Bloodlust and Faerie Fire
+expose the retail right-click autocast policy; Rejuvenation and Roar do not.
+Faerie Fire vision of the target is not yet implemented.
 
 ## Reference Parity List
 

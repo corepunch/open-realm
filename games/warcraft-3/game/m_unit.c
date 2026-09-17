@@ -954,7 +954,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
             armor += ability->level[level - 1].data[0].number;
         }
     }
-    return armor + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent);
+    return armor + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) + S_FaerieArmorDelta(ent);
 }
 
 static void unit_refreshstatusflags(LPEDICT ent) {
