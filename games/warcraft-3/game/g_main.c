@@ -1098,6 +1098,12 @@ LPCSTR G_MapString(LPCMAPINFO info, LPCSTR name) {
 
 LPCSTR G_LevelString(LPCSTR name) { return G_MapString(level.mapinfo, name); }
 
+LPCSTR G_UnitName(DWORD id) {
+    UnitProfile_t const *profile = G_UnitProfile(id);
+    LPCSTR name = profile->name && *profile->name ? profile->name : GetClassName(id);
+    return G_LevelString(name);
+}
+
 static void G_RefreshPauseState(void) { gi.SetPaused(level.script_paused || level.modal_paused); }
 
 /* Quest presentation is local, so only a single connected client may promote
@@ -1292,11 +1298,9 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     state->name = 0;
     if (hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
-        UnitProfile_t const *prof = G_UnitProfile(ent->s.class_id);
         /* UnitProfile.Name is empty for some ROC building rows; the rawcode is
          * still the authoritative identity used by the loaded UnitData row. */
-        state->name = G_UnitNameConfigstring(prof->name && *prof->name
-            ? prof->name : GetClassName(ent->s.class_id));
+        state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));
         state->flags |= EF_HOVER_HEALTH;
         if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;

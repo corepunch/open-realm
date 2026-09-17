@@ -1727,6 +1727,7 @@ void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 LPCSTR G_MapString(LPCMAPINFO info, LPCSTR name);
+LPCSTR G_UnitName(DWORD);
 FLOAT G_Cinefade(void);
 BOOL G_SkipCutscene(void);
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);

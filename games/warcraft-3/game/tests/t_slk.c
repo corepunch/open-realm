@@ -222,6 +222,46 @@ TEST(wc3_slk, profile_ddx_and_fourcc_metadata_share_typed_row) {
     G_SetProfileRows(old);
 }
 
+TEST(wc3_slk, map_unit_name_resolves_wts_override) {
+    static const char profile_slk[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"Name\"\n"
+        "C;Y2;X1;K\"hfoo\"\n"
+        "C;Y2;X2;K\"Footman\"\n"
+        "E\n";
+    DWORD const base_id = MAKEFOURCC('h','f','o','o');
+    DWORD const custom_id = MAKEFOURCC('x','f','o','o');
+    mapTrigStr_t string = { .id = 28, .text = "Plagued Male Villager" };
+    unitModification_t name = {
+        .modID = MAKEFOURCC('u','n','a','m'), .type = mod_string,
+        .data = (HANDLE)"TRIGSTR_028"
+    };
+    unitData_t custom = {
+        .originalUnitID = base_id, .newUnitID = custom_id,
+        .numbeOfModifications = 1, .modifications = &name
+    };
+    MAPINFO mapinfo = {
+        .strings = &string, .num_userCreatedUnits = 1, .userCreatedUnits = &custom
+    };
+    slkTestData_t *rows = parse_slk_string(profile_slk);
+    slkTestData_t *saved_rows;
+    LPCMAPINFO saved_mapinfo;
+
+    setup_test_world();
+    saved_rows = G_SetProfileRows(rows);
+    saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_STREQ(G_UnitProfile(custom_id)->name, "TRIGSTR_028");
+    T_STREQ(G_UnitName(custom_id), "Plagued Male Villager");
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    G_SetProfileRows(saved_rows);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, slk_fourcc_metadata_reads_typed_row) {
     DWORD id = MAKEFOURCC('h','p','e','a');
     edict_t unit = { .class_id = id };

@@ -577,6 +577,7 @@ static DWORD G_RacePreference(LPCMAPPLAYER player) {
 
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
+    LPCSTR name = player && player->playerName ? G_LevelString(player->playerName) : NULL;
     LPPLAYER ps = &clent->client->ps;
     G_SetClientConnected(clent, false);
     G_ResetSelectionFocus(clent->client);
@@ -588,7 +589,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->team = G_MapPlayerTeam(mapinfo, playernum);
     ps->color = player ? player->color : playernum;
     ps->race = player ? player->playerRace : kPlayerRaceNone;
-    ps->name = player ? player->playerName : NULL;
+    ps->name = (LPSTR)name;
     ps->start_location = player ? (LONG)playernum : -1;
     ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (USHORT)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
     ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
@@ -624,7 +625,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     clent->client->jass.race_pref = G_RacePreference(player);
     clent->client->jass.race_selectable = true;
     clent->client->jass.handicap = clent->client->jass.handicap_xp = 100.0f;
-    strlcpy(clent->client->jass.name, player && player->playerName ? player->playerName : "", sizeof(clent->client->jass.name));
+    strlcpy(clent->client->jass.name, name ? name : "", sizeof(clent->client->jass.name));
     ps->name = clent->client->jass.name;
 }
 
@@ -666,8 +667,8 @@ void G_SpawnEntities(void) {
     level.setup.default_difficulty = (DWORD)difficulty;
     level.setup.resource_density = level.setup.creature_density = 2;
     if (mapinfo) {
-        strlcpy(level.setup.name, mapinfo->mapName ? mapinfo->mapName : "", sizeof(level.setup.name));
-        strlcpy(level.setup.description, mapinfo->mapDescription ? mapinfo->mapDescription : "", sizeof(level.setup.description));
+        strlcpy(level.setup.name, G_LevelString(mapinfo->mapName ? mapinfo->mapName : ""), sizeof(level.setup.name));
+        strlcpy(level.setup.description, G_LevelString(mapinfo->mapDescription ? mapinfo->mapDescription : ""), sizeof(level.setup.description));
     }
     G_FowInit();
     G_InitJassHost();

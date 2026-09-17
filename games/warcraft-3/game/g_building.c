@@ -528,7 +528,7 @@ static BOOL G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, DWORD upgrade_id
         if (G_PlayerRequirementCount(client, rawcode) >= required) continue;
 
         if (reason && reason_size) {
-            name = G_UnitProfile(rawcode)->name;
+            name = G_LevelString(G_UnitProfile(rawcode)->name);
             if (!name || !*name) name = FindConfigValue(GetClassName(rawcode), "Name");
             if (required > 1) {
                 snprintf(reason, reason_size, "Requires %s x%d",
@@ -559,7 +559,7 @@ static BOOL G_RequirementsListSatisfied(LPGAMECLIENT client, DWORD type_id, LPCS
         required = G_RequirementAmount(amounts, i);
         if (G_PlayerRequirementCount(client, rawcode) < required) {
             if (reason && reason_size) {
-                LPCSTR name = G_UnitProfile(rawcode)->name;
+                LPCSTR name = G_LevelString(G_UnitProfile(rawcode)->name);
                 if (required > 1) {
                     snprintf(reason, reason_size, "Requires %s x%d",
                              name && *name ? name : requirement, required);

@@ -681,8 +681,7 @@ static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero
 
     if (!hud.simple.SimpleInfoPanelUnitDetail) return;
     UI_SetText(hud.simple.SimpleNameValue, "%s", display_name ? display_name : "");
-    unit_name = G_UnitProfile(ent->class_id)->name;
-    if (!unit_name || !*unit_name) unit_name = GetClassName(ent->class_id);
+    unit_name = G_UnitName(ent->class_id);
 
     /* Warsmash shows this timer only for a single unit owned by the local
      * player. UI_SendInfoPanel already guarantees single-selection here; keep
@@ -760,8 +759,7 @@ DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key) {
     if (!ent) return 0;
     if (!hud.simple.SimpleInfoPanelUnitDetail) return 0;
 
-    name = G_UnitProfile(ent->class_id)->name;
-    if (!name || !*name) name = GetClassName(ent->class_id);
+    name = G_UnitName(ent->class_id);
     UI_SetText(hud.simple.SimpleBuildingNameValue, "%s", name);
     UI_SetText(hud.simple.SimpleBuildingDescriptionValue, "%s", "");
     UI_SetHidden(hud.simple.SimpleBuildingDescriptionValue, true);
@@ -777,8 +775,8 @@ DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key) {
 void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
     UnitBalance_t const *balance = ent->data.UnitBalance;
     UnitWeapons_t const *weapons = ent->data.UnitWeapons;
-    LPCSTR name = G_UnitProfile(ent->class_id)->properNames;
-    LPCSTR unit_name = G_UnitProfile(ent->class_id)->name;
+    LPCSTR name = G_LevelString(G_UnitProfile(ent->class_id)->properNames);
+    LPCSTR unit_name = G_UnitName(ent->class_id);
     BOOL const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
     DWORD level = is_hero && ent->hero.level > 0 ? ent->hero.level
                                                  : MAX(1, balance->level);
@@ -791,7 +789,6 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
     LONG min_damage2 = has_attack2 ? MAX(0, (LONG)(ent->attack2.damageBase + dice2)) : 0;
     LONG max_damage2 = has_attack2 ? MAX(0, (LONG)(ent->attack2.damageBase + dice2 * ent->attack2.sidesPerDie)) : 0;
 
-    if (!unit_name || !*unit_name) unit_name = GetClassName(ent->class_id);
     if (!name || !*name) name = unit_name;
 
     if (hud.simple.SimpleInfoPanelUnitDetail) {
@@ -834,7 +831,7 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
                     uiFrame_t frame;
                     char command[64];
                     LPCSTR art = FindConfigValue(GetClassName(occupant->class_id), STR_ART);
-                    LPCSTR tip = G_UnitProfile(occupant->class_id)->name;
+                    LPCSTR tip = G_UnitName(occupant->class_id);
 
                     if (!art || !*art) {
                         fprintf(stderr, "UI_WC3: missing cargo art for unit %s\n", GetClassName(occupant->class_id));
