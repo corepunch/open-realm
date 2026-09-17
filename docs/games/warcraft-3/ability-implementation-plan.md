@@ -100,6 +100,13 @@ Enemy targeting tests must mark both players `kPlayerTypeHuman` and clear
 `level.alliances`. `setup_test_world()` leaves `kPlayerTypeNone`, which makes
 `S_SpellIsEnemy` false even when player ids differ.
 
+If edicts point at `UnitBalance` / `UnitData` stored in the fixture, fill the
+caller in place (`void setup(FIX *fix)`). Do not return the fixture by value
+(the copy's pointers still address the setup frame; Linux then misreads
+`G_UnitIsHero`). Do not park those rows in file-scope statics either — they
+are process-global and sit outside the fixture the test owns. Return-by-value
+is fine only when the fixture holds no storage edicts point into.
+
 ### 5. Implement in the owning `s_*.c`
 
 Keep execute/validate/absorb in the ability file. Hook shared predicates

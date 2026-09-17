@@ -39,10 +39,8 @@ static LPCSTR volcano_dest_slk =
 typedef struct {
     slkTestData_t *rows, *old, *dest_rows, *dest_old;
     LPEDICT caster, enemy, building, far, hero, outer, tree, debris;
+    UnitBalance_t unit_bal, bldg_bal, hero_bal;
 } VOLCFIX;
-
-/* File-scope balances: &local.unit_bal would dangle after return-by-value. */
-static UnitBalance_t volcano_unit_bal, volcano_bldg_bal, volcano_hero_bal;
 
 static LPEDICT volcano_thinker(LPEDICT caster) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) return ent;
@@ -77,47 +75,46 @@ static LPEDICT volcano_make_destructable(FLOAT life, FLOAT x, FLOAT y, TARGTYPE 
     return ent;
 }
 
-static VOLCFIX volcano_setup(void) {
-    VOLCFIX fix;
+/* Fill the caller's VOLCFIX. Edicts point at fix->unit_bal; a returned copy would dangle. */
+static void volcano_setup(VOLCFIX *fix) {
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
-    fix.rows = parse_slk_string(volcano_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
-    fix.dest_rows = parse_slk_string(volcano_dest_slk);
-    fix.dest_old = G_SetSLKRows("DestructableData", fix.dest_rows);
-    volcano_unit_bal = MAKE(UnitBalance_t, .maxHealth = 500);
-    volcano_bldg_bal = MAKE(UnitBalance_t, .maxHealth = 1000, .isBuilding = true);
-    volcano_hero_bal = MAKE(UnitBalance_t, .maxHealth = 500, .strength = 20);
-    fix.caster = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 0, 0);
-    fix.enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
-    fix.building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 96, 0);
-    fix.far = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 400, 0);
-    fix.hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 128, 0);
-    fix.outer = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 150, 0);
+    fix->rows = parse_slk_string(volcano_slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
+    fix->dest_rows = parse_slk_string(volcano_dest_slk);
+    fix->dest_old = G_SetSLKRows("DestructableData", fix->dest_rows);
+    fix->unit_bal = MAKE(UnitBalance_t, .maxHealth = 500);
+    fix->bldg_bal = MAKE(UnitBalance_t, .maxHealth = 1000, .isBuilding = true);
+    fix->hero_bal = MAKE(UnitBalance_t, .maxHealth = 500, .strength = 20);
+    fix->caster = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 0, 0);
+    fix->enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
+    fix->building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 96, 0);
+    fix->far = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 400, 0);
+    fix->hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), 128, 0);
+    fix->outer = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 150, 0);
     /* Keep HP above DataE so waves damage without death/loot (avoids CM_Bake/event noise). */
-    fix.tree = volcano_make_destructable(200, 50, 0, TARG_TREE);
-    fix.debris = volcano_make_destructable(200, 70, 0, TARG_DEBRIS);
-    fix.caster->s.player = 0;
-    fix.enemy->s.player = fix.building->s.player = fix.far->s.player = fix.hero->s.player = fix.outer->s.player = 1;
-    fix.caster->svflags |= SVF_MONSTER; fix.enemy->svflags |= SVF_MONSTER;
-    fix.building->svflags |= SVF_MONSTER; fix.far->svflags |= SVF_MONSTER;
-    fix.hero->svflags |= SVF_MONSTER; fix.outer->svflags |= SVF_MONSTER;
-    fix.caster->targtype = fix.enemy->targtype = fix.far->targtype = fix.hero->targtype = fix.outer->targtype = TARG_GROUND;
-    fix.building->targtype = TARG_STRUCTURE;
-    fix.enemy->data.UnitBalance = &volcano_unit_bal;
-    fix.building->data.UnitBalance = &volcano_bldg_bal;
-    fix.far->data.UnitBalance = &volcano_unit_bal;
-    fix.hero->data.UnitBalance = &volcano_hero_bal;
-    fix.outer->data.UnitBalance = &volcano_unit_bal;
-    fix.enemy->health.value = fix.enemy->health.max_value = 500;
-    fix.building->health.value = fix.building->health.max_value = 1000;
-    fix.far->health.value = fix.far->health.max_value = 500;
-    fix.hero->health.value = fix.hero->health.max_value = 500;
-    fix.outer->health.value = fix.outer->health.max_value = 500;
-    fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANVC, .level = 1);
-    fix.caster->mana.value = fix.caster->mana.max_value = 200;
-    return fix;
+    fix->tree = volcano_make_destructable(200, 50, 0, TARG_TREE);
+    fix->debris = volcano_make_destructable(200, 70, 0, TARG_DEBRIS);
+    fix->caster->s.player = 0;
+    fix->enemy->s.player = fix->building->s.player = fix->far->s.player = fix->hero->s.player = fix->outer->s.player = 1;
+    fix->caster->svflags |= SVF_MONSTER; fix->enemy->svflags |= SVF_MONSTER;
+    fix->building->svflags |= SVF_MONSTER; fix->far->svflags |= SVF_MONSTER;
+    fix->hero->svflags |= SVF_MONSTER; fix->outer->svflags |= SVF_MONSTER;
+    fix->caster->targtype = fix->enemy->targtype = fix->far->targtype = fix->hero->targtype = fix->outer->targtype = TARG_GROUND;
+    fix->building->targtype = TARG_STRUCTURE;
+    fix->enemy->data.UnitBalance = &fix->unit_bal;
+    fix->building->data.UnitBalance = &fix->bldg_bal;
+    fix->far->data.UnitBalance = &fix->unit_bal;
+    fix->hero->data.UnitBalance = &fix->hero_bal;
+    fix->outer->data.UnitBalance = &fix->unit_bal;
+    fix->enemy->health.value = fix->enemy->health.max_value = 500;
+    fix->building->health.value = fix->building->health.max_value = 1000;
+    fix->far->health.value = fix->far->health.max_value = 500;
+    fix->hero->health.value = fix->hero->health.max_value = 500;
+    fix->outer->health.value = fix->outer->health.max_value = 500;
+    fix->caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANVC, .level = 1);
+    fix->caster->mana.value = fix->caster->mana.max_value = 200;
 }
 
 static void volcano_done(VOLCFIX fix) {
@@ -135,7 +132,7 @@ TEST(wc3_spell, volcano_procedure_is_channel_point_spell) {
 
 /* First wave: inner unit DataE, building DataE*DataD, outer DataE*DataF, stun Dur. */
 TEST(wc3_spell, volcano_first_wave_damages_unit_and_building_with_factor) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.enemy->s.origin2;
     T_ASSERT(G_UnitIsBuilding(fix.building->class_id));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
@@ -151,7 +148,7 @@ TEST(wc3_spell, volcano_first_wave_damages_unit_and_building_with_factor) {
 
 /* Area=200 → full inside 100; outer at 150 takes DataE*DataF (40*0.25=10). */
 TEST(wc3_spell, volcano_outer_ring_takes_half_damage_factor) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = MAKE(VECTOR2, 0, 0);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     T_FEQ(fix.enemy->health.value, 460, 0.001f);
@@ -162,7 +159,7 @@ TEST(wc3_spell, volcano_outer_ring_takes_half_damage_factor) {
 }
 
 TEST(wc3_spell, volcano_stun_uses_herodur_for_heroes) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.hero->s.origin2;
     T_ASSERT(G_UnitIsHero(fix.hero));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
@@ -173,7 +170,7 @@ TEST(wc3_spell, volcano_stun_uses_herodur_for_heroes) {
 
 /* targs include tree,debris: first wave applies DataE via G_DestructableApplyDamage. */
 TEST(wc3_spell, volcano_damages_trees_and_debris_in_area) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = MAKE(VECTOR2, 0, 0);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     T_FEQ(fix.tree->health.value, 160, 0.001f);
@@ -185,7 +182,7 @@ TEST(wc3_spell, volcano_damages_trees_and_debris_in_area) {
 
 /* UnitID doodad spawns at the channel point from authored DestructableData. */
 TEST(wc3_spell, volcano_spawns_unitid_destructible_at_point) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = MAKE(VECTOR2, 32, 48);
     LPEDICT doodad;
     T_EQ((int)S_SpellUnitId(BZ_ANVC, 1), (int)BZ_VTST);
@@ -199,7 +196,7 @@ TEST(wc3_spell, volcano_spawns_unitid_destructible_at_point) {
 
 /* Second pulse waits for authored DataC, then fires through the entity scheduler. */
 TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.enemy->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     LPEDICT thinker = volcano_thinker(fix.caster);
@@ -215,7 +212,7 @@ TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
 }
 
 TEST(wc3_spell, volcano_caster_move_cancels_remaining_waves) {
-    VOLCFIX fix = volcano_setup();
+    VOLCFIX fix; volcano_setup(&fix);
     VECTOR2 point = fix.enemy->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     LPEDICT thinker = volcano_thinker(fix.caster);
