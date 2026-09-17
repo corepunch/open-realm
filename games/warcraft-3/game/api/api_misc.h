@@ -830,6 +830,9 @@ DWORD SetCampaignMenuRace(LPJASS j) {
     //HANDLE r = jass_checkhandle(j, 1, "race");
     return 0;
 }
+static LONG ally_color_filter_state;
+DWORD GetAllyColorFilterState(LPJASS j) { (void)j; return jass_pushinteger(j, ally_color_filter_state); }
+DWORD SetAllyColorFilterState(LPJASS j) { ally_color_filter_state = jass_checkinteger(j, 1); return 0; }
 DWORD SetCampaignMenuRaceEx(LPJASS j) {
     //LONG campaignIndex = jass_checkinteger(j, 1); /* TODO: wire to campaign UI */
     return 0;

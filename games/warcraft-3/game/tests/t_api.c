@@ -4350,6 +4350,27 @@ TEST(wc3_api, campaign_stub_natives_accept_calls_without_crash) {
         "endfunction\n"));
 }
 
+TEST(wc3_api, issue_418_campaign_natives_are_registered) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetAllyColorFilterState(2)\n"
+        "  call BJassAssert(GetAllyColorFilterState() == 2, \"ally color state round-trip\")\n"
+        "  call UnitRemoveBuffsEx(null, true, true, true, true, true, true, true)\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, destroyed_quest_handle_is_safe) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local quest q = CreateQuest()\n"
+        "  local questitem qi = QuestCreateItem(q)\n"
+        "  call DestroyQuest(q)\n"
+        "  call QuestSetDiscovered(q, true)\n"
+        "  call QuestItemSetCompleted(qi, true)\n"
+        "  call BJassAssert(not IsQuestDiscovered(q), \"destroyed quest is invalid\")\n"
+        "endfunction\n"));
+}
+
 /* Issue #418: bot assault natives must be registered (no AI_STOP) and safe on null player. */
 TEST(wc3_api, bot_assault_natives_noop_on_null_player) {
     T_ASSERT(run_test_jass(

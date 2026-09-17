@@ -1848,6 +1848,8 @@ BOOL G_EnsureJassGroupSlots(DWORD count);
 BOOL G_JassGroupValid(ggroup_t const *group);
 BOOL G_JassGroupIndex(ggroup_t const *group, DWORD *index);
 ggroup_t *G_JassGroupByIndex(DWORD index);
+BOOL G_QuestValid(QUEST const *quest);
+BOOL G_QuestItemValid(QUESTITEM const *item);
 void G_FreeJassGroup(ggroup_t *group);
 void G_ClearJassGroupRegistry(void);
 BOOL G_JassGroupDebugEnabled(void);

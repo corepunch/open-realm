@@ -861,6 +861,11 @@ DWORD UnitRemoveBuffs(LPJASS j) {
     //BOOL removeNegative = jass_checkboolean(j, 3);
     return 0;
 }
+DWORD UnitRemoveBuffsEx(LPJASS j) {
+    /* TODO: ability-owned dispel filtering is not represented yet. */
+    (void)j;
+    return 0;
+}
 DWORD UnitAddSleep(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     BOOL add = jass_checkboolean(j, 2);

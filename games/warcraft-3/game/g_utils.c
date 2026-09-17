@@ -212,6 +212,17 @@ BOOL G_JassGroupValid(ggroup_t const *group) {
     return G_JassGroupIndex(group, NULL) && group->inuse;
 }
 
+BOOL G_QuestValid(QUEST const *quest) {
+    return quest && quest >= level.quests && quest < level.quests + MAX_QUESTS && quest->inuse;
+}
+
+BOOL G_QuestItemValid(QUESTITEM const *item) {
+    FOR_LOOP(i, MAX_QUESTS) if (level.quests[i].inuse && item >= level.quests[i].items &&
+                                item < level.quests[i].items + MAX_QUESTITEMS)
+        return item->inuse;
+    return false;
+}
+
 void G_SetJassGroupDebugContext(ggroup_t *group, LPCSTR creator, LPCSTR chain, LONG trigger_ordinal) {
     DWORD index;
     jass_group_debug_slot_t *slot;

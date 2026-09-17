@@ -18,6 +18,11 @@ BOOL run_test_jass(LPCSTR src);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
+TEST(wc3_destructable, unknown_entity_without_data_is_not_destructable) {
+    edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('d', 'u', 'm', 'y') };
+    T_ASSERT(!G_IsDestructable(&ent));
+}
+
 typedef struct {
     WORD width;
     WORD height;

@@ -75,7 +75,7 @@ dump-wc3-jass: mpqtool
 
 WC3_AUDIT_ARGS ?=
 audit-wc3-maps: $(BINARY) mpqtool
-	python3 tools/wc3_map_audit.py --rerun-crashes $(WC3_AUDIT_ARGS)
+	python3 tools/wc3_map_audit.py --data "$(subst \,,$(WC3DATA))" --binary "$(BINARY)" --mpqtool "$(BIN_DIR)/mpqtool$(EXE_EXT)" --rerun-crashes $(WC3_AUDIT_ARGS)
 
 test-wc3-map-audit:
 	python3 tests/test_wc3_map_audit.py
