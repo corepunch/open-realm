@@ -228,6 +228,9 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     }
     centity_t *cent = &cl.ents[index];
     memset(&cent->baseline, 0, sizeof(entityState_t));
+    /* Zero is not a valid default model scale.  A dynamic replacement can
+     * delta against an empty baseline, so seed omitted scale fields at 1. */
+    cent->baseline.scale = 1.0f;
     MSG_ReadDeltaEntity(msg, &cent->baseline, index, bits);
     memcpy(&cent->current, &cent->baseline, sizeof(entityState_t));
     memcpy(&cent->prev, &cent->baseline, sizeof(entityState_t));

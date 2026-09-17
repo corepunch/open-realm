@@ -2864,6 +2864,34 @@ static void net_send_remove(sizeBuf_t *sb, DWORD number) {
     MSG_WriteEntityBits(sb, 0, 0);
 }
 
+TEST(net, baseline_defaults_omitted_entity_scale) {
+    BYTE buf[512];
+    sizeBuf_t sb;
+    entityState_t state = { .number = 7, .model = 1 };
+
+    test_client_stubs_init();
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_baseline(&sb, &state);
+    net_parse(&sb);
+    T_FEQ(cl.ents[7].baseline.scale, 1.0f, 0.0001f);
+    T_FEQ(cl.ents[7].current.scale, 1.0f, 0.0001f);
+    T_FEQ(cl.ents[7].prev.scale, 1.0f, 0.0001f);
+
+    state.scale = 1.25f;
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_baseline(&sb, &state);
+    net_parse(&sb);
+    T_FEQ(cl.ents[7].baseline.scale, 1.25f, 0.0001f);
+    T_FEQ(cl.ents[7].current.scale, 1.25f, 0.0001f);
+    T_FEQ(cl.ents[7].prev.scale, 1.25f, 0.0001f);
+}
+
+TEST(net, client_entity_scale_normalizes_nonpositive_values) {
+    T_FEQ(cl_normalize_entity_scale(0.0f), 1.0f, 0.0001f);
+    T_FEQ(cl_normalize_entity_scale(-1.0f), 1.0f, 0.0001f);
+    T_FEQ(cl_normalize_entity_scale(1.25f), 1.25f, 0.0001f);
+}
+
 /* Membership must track current.model exactly across both transitions, plus the
  * U_REMOVE-after-model-cleared sequence the server produces for model-less
  * sound/event entities. */

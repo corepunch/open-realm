@@ -240,6 +240,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.rotation = Vector3_lerp(&ent->prev.rotation, &ent->current.rotation, cl.viewDef.lerpfrac);
 #endif
     re.scale = LerpNumber(ent->prev.scale, ent->current.scale, cl.viewDef.lerpfrac);
+    /* Entity scale defaults to one; an omitted replacement delta must not
+     * collapse the rendered model and its collision shape to zero. */
+    re.scale = cl_normalize_entity_scale(re.scale);
     re.frame = ent->current.frame;
     re.oldframe = ent->prev.frame;
     re.health = ent->current.stats[ENT_HEALTH];
