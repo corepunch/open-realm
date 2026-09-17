@@ -385,7 +385,7 @@ static ability_t abilitylist[] = {
     // TODO: Awrp a_warp  /* Waygate ability */
     // TODO: ANsl a_spell  /* Soul Preservation */
     // TODO: ANfd a_spell  /* Finger of Death */
-    // TODO: ANdp CAbilityMassTeleport  /* Dark Portal */
+    { "ANdp", CAbilityDarkPortal, AB_SPELL, SPELL_TARGET_POINT },  /* Dark Portal */
     { "ANrc", CAbilityRainOfChaos, AB_SPELL, SPELL_TARGET_POINT },  /* Rain of Chaos */
     { "ANr3", CAbilityRainOfChaos, AB_SPELL, SPELL_TARGET_POINT },  /* Rain of Chaos (button) */
     // TODO: Achd CAbilityCargoHold  /* Cargo Hold Death */

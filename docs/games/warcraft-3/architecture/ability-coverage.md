@@ -122,6 +122,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Asds`, `Asdg`, `Asd2`, `Asd3` | `s_self_destruct.c` | `CAbilitySelfDestruct`. `DataF` explodes on death; DataA/B full radius/damage, DataC/D partial, DataE building factor. Kaboom cast/autocast not implemented. |
 | `ANin` | `s_summon.c` | `CAbilityInferno`. Point-target delayed landing: DataA damage, DataB summon life, DataC impact delay, Dur/HeroDur `Bstu` stun, UnitID summon. See [inferno.md](../inferno.md). |
 | `ANrc`, `ANr3` | `s_summon.c` | `CAbilityRainOfChaos`. Not channeled. DataA Inferno abilCode, DataB landing count, Dur interval, Area scatter. Each landing calls `S_InfernoLand`. |
+| `ANdp` | `s_dark_portal.c` | `CAbilityDarkPortal`. Point-target, not Mass Teleport. DataA unitList, DataB/C min/max count, Dur exit interval. Permanent troops (no owner/BTLF). See [dark-portal.md](../dark-portal.md). |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 
