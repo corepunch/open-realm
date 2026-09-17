@@ -9,9 +9,9 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
-static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe" };
+static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe,Acan" };
 static char const review_slk[] =
-    "ID;PWXL;N;EBB;Y10;X15\n"
+    "ID;PWXL;N;EBB;Y11;X15\n"
     "C;Y1;X1;K\"alias\"\n"
     "C;Y1;X2;K\"code\"\n"
     "C;Y1;X3;K\"targs\"\n"
@@ -152,6 +152,20 @@ static char const review_slk[] =
     "C;Y10;X12;K\"0\"\n"
     "C;Y10;X13;K\"0\"\n"
     "C;Y10;X14;K\"\"\n"
+    "C;Y11;X1;K\"Acan\"\n"
+    "C;Y11;X2;K\"Acan\"\n"
+    "C;Y11;X3;K\"ground,dead,organic\"\n"
+    "C;Y11;X4;K\"0\"\n"
+    "C;Y11;X5;K\"50\"\n"
+    "C;Y11;X6;K\"33\"\n"
+    "C;Y11;X7;K\"33\"\n"
+    "C;Y11;X8;K\"0\"\n"
+    "C;Y11;X9;K\"10\"\n"
+    "C;Y11;X10;K\"800\"\n"
+    "C;Y11;X11;K\"0\"\n"
+    "C;Y11;X12;K\"0\"\n"
+    "C;Y11;X13;K\"0\"\n"
+    "C;Y11;X14;K\"\"\n"
     "C;Y1;X15;K\"Cast1\"\n"
     "C;Y2;X15;K1.33\n"
     "C;Y3;X15;K1\n"
@@ -260,6 +274,47 @@ TEST(wc3_ability_lifecycle, no_target_tranquility_establishes_channel) {
     DWORD channel = caster->channel.code;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     T_ASSERT(cast); T_EQ(channel, FS_SLKKey("AEtq"));
+}
+
+/* Cannibalize picks the nearest eligible corpse, consumes it at channel start, and heals on one-second pulses. */
+TEST(wc3_ability_lifecycle, cannibalize_consumes_nearest_organic_corpse_and_caps_healing) {
+    LPEDICT caster = review_setup(), mechanical = review_unit(1, 10), near = review_unit(1, 30), far = review_unit(1, 40);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    mechanical->health.value = near->health.value = far->health.value = 0;
+    mechanical->svflags |= SVF_DEADMONSTER; near->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER;
+    mechanical->targtype = TARG_MECHANICAL; caster->health.value = 995;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
+    LPEDICT thinker = review_thinker(caster);
+    T_ASSERT(mechanical->inuse); T_ASSERT(!near->inuse); T_ASSERT(far->inuse); T_NOT_NULL(thinker);
+    T_FEQ(caster->health.value, 995, .001f); level.time += 1000; G_RunEntities();
+    T_FEQ(caster->health.value, 1000, .001f); T_EQ(caster->channel.code, FS_SLKKey("Acan"));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Dur=33 and DataA=10 are authoritative in both ROC and TFT; the production frame scheduler owns every pulse. */
+TEST(wc3_ability_lifecycle, cannibalize_heals_for_authored_duration_through_entity_scheduler) {
+    LPEDICT caster = review_setup(), corpse = review_unit(1, 40);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    caster->health.value = 500; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
+    FOR_LOOP(i, 33) { level.time += 1000; G_RunEntities(); }
+    T_FEQ(caster->health.value, 830, .001f); T_EQ(caster->channel.code, 0);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Live, mechanical, Hero-lifecycle and out-of-search-range units cannot fund a cast; movement interrupts an active feast. */
+TEST(wc3_ability_lifecycle, cannibalize_rejects_invalid_corpses_and_stops_when_caster_moves) {
+    LPEDICT caster = review_setup(), live = review_unit(1, 20), mechanical = review_unit(1, 30), far = review_unit(1, 801);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    mechanical->health.value = far->health.value = 0;
+    mechanical->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER; mechanical->targtype = TARG_MECHANICAL;
+    T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
+    T_ASSERT(live->inuse); T_ASSERT(mechanical->inuse); T_ASSERT(far->inuse);
+    far->s.origin2.x = far->s.origin.x = 40; caster->health.value = 500;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
+    caster->s.origin2.x += 10; caster->s.origin.x += 10; level.time += 1000; G_RunEntities();
+    T_FEQ(caster->health.value, 500, .001f); T_EQ(caster->channel.code, 0);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* A launched bolt must not stun a target which becomes spell immune before impact. */

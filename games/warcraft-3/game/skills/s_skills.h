@@ -246,6 +246,7 @@ BZ_ABILITY_PROC(CAbilityBarkskin);
 BZ_ABILITY_PROC(CAbilityReplenish);
 BZ_ABILITY_PROC(CAbilityReplenishLife);
 BZ_ABILITY_PROC(CAbilityReplenishMana);
+BZ_ABILITY_PROC(CAbilityCannibalize);
 BZ_ABILITY_PROC(CAbilityRaiseDead);
 BZ_ABILITY_PROC(CAbilityAntiMagicShell);
 

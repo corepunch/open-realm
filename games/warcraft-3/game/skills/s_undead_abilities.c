@@ -138,6 +138,53 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
     }
 }
 
+/* ---- Cannibalize (Acan) -----------------------------------------------------
+ * Name=Cannibalize
+ * Ubertip="Consumes a nearby corpse to restore hit points over time."
+ * DataA = HP restored per second, DataB = corpse acquisition radius, Dur = channel duration.
+ */
+static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
+    LPEDICT corpse = NULL;
+    /* Dead Heroes and mechanical units retain distinct lifecycles and cannot fund Cannibalize. */
+    FILTER_EDICTS(unit, unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit) && unit->targtype != TARG_MECHANICAL) {
+        FLOAT distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+        if (distance <= range && distance < best) { corpse = unit; best = distance; }
+    }
+    return corpse;
+}
+
+/* Healing starts after one full second; the final authored-duration pulse ends the channel. */
+static void cannibalize_think(LPEDICT thinker) {
+    DWORD now = G_Time();
+    if (!S_SpellChannelActive(thinker)) { S_SpellEndChannel(thinker); return; }
+    if (now < thinker->freetime) return;
+    S_SpellHeal(thinker->owner, thinker->velocity);
+    if (now >= thinker->spawn_time) { S_SpellEndChannel(thinker); return; }
+    thinker->freetime = now + 1000;
+}
+
+BZ_ABILITY_PROC(CAbilityCannibalize) {
+    abilityitem_t const *spell = call ? call->item : NULL;
+    switch (msg) {
+    case A_VALIDATE: return ent && spell && cannibalize_corpse(ent, spell);
+    case A_EXECUTE: {
+        DWORD level = S_SpellLevel(ent, spell->code);
+        LPEDICT corpse = cannibalize_corpse(ent, spell), thinker;
+        if (!corpse) { S_SpellCancelChannel(ent); return false; }
+        G_FreeEdict(corpse);
+        thinker = S_SpellChannelThinker(ent, spell->code);
+        thinker->velocity = S_SpellData(spell->code, level, 1);
+        thinker->freetime = G_Time() + 1000;
+        thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f);
+        thinker->think = cannibalize_think;
+        return true;
+    }
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
 /* ---- Raise Dead (Arai) -------------------------------------------------------
  * Name=Raise Dead
  * Ubertip="Raises DataA1 skeletons from a corpse."

@@ -365,6 +365,12 @@ register `AB_UPDATE` and handle `A_UPDATE`. Lifecycle messages belong in the own
 Concrete relatives can call the same helper or parent procedure: Fire Bolt and Thunder Bolt share effect code
 while the per-use `abilityitem_t` carries the actual rawcode. There is no runtime parent wiring.
 
+Corpse-fed no-target channels keep acquisition and periodic behavior in their ability procedure. `Acan`
+(Cannibalize) selects the nearest dead, non-Hero, organic unit within `DataB`, consumes that corpse when the
+cast commits, then restores `DataA` health once per second for `Dur`. The shared `AB_CHANNEL` lifecycle owns
+movement/death interruption; the ability-owned thinker owns pulse timing and ends the channel after the final
+authored-duration pulse. ROC and TFT both author `DataA=10`, `DataB=800`, and `Dur=33` for stock `Acan`.
+
 ### 6. Write tests
 
 Write focused tests before launching the game. See [Testing](#testing) for the required

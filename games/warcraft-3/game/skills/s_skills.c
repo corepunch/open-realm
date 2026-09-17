@@ -488,7 +488,7 @@ static ability_t abilitylist[] = {
     // TODO: Agyd a_simple_spell  /* Create Corpse */
     // TODO: Alam a_spell  /* Sacrifice */
     // TODO: Asac a_spell  /* Sacrifice */
-    // TODO: Acan a_cannibalize  /* Cannibalize */
+    { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
     // TODO: Aspa CAbilityAttack  /* Spider Attack */
     // TODO: Aweb a_auto_target_spell  /* Web */
     // TODO: Astn a_morph  /* Stone Form */
