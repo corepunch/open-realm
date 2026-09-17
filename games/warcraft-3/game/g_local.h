@@ -2507,6 +2507,8 @@ void death_and_decay_think(LPEDICT);
 void tranquility_think(LPEDICT);
 void earthquake_think(LPEDICT);
 void whirlwind_think(LPEDICT);
+void volcano_think(LPEDICT);
+void pocket_factory_think(LPEDICT);
 BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
 BOOL move_should_arrive(LPEDICT, FLOAT);
 BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);

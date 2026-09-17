@@ -116,6 +116,8 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(earthquake_think),
     SAVE_CFUNCTION(whirlwind_think),
     SAVE_CFUNCTION(rain_of_chaos_think),
+    SAVE_CFUNCTION(volcano_think),
+    SAVE_CFUNCTION(pocket_factory_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

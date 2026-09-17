@@ -253,6 +253,7 @@ BZ_ABILITY_PROC(CAbilityCannibalize);
 BZ_ABILITY_PROC(CAbilityRaiseDead);
 BZ_ABILITY_PROC(CAbilityAntiMagicShell);
 BZ_ABILITY_PROC(CAbilityRainOfChaos);
+BZ_ABILITY_PROC(CAbilityVolcano);
 
 void human_ability_think(LPEDICT thinker);
 void rain_of_chaos_think(LPEDICT thinker);

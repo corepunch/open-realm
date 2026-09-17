@@ -115,6 +115,10 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Advm` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Per-buff HP/mana heal (DataA/DataB) and summoned-unit damage (DataE) remain. |
 | `ACcs` | `s_melee_spells.c` (shared) | Registered; shares `CAbilityCurse` with autocast for the creep Curse variant. |
 | `Aams`, `Aam2`, `ACam` | `s_undead_abilities.c` | `CAbilityAntiMagicShell`. Empty DataC applies `Bams` targeting/spell immunity; authored DataC applies `Bam2` and absorbs that much `S_SpellDamage`. Physical hits ignore the shell. ROC rows omit BuffID and fall back to `Bams`. |
+| `Acyc`, `ACcy`, `SCc1`, `Acny` | `s_cyclone.c` | `CAbilityCyclone`. Authored targs (TFT `organic`); first BuffID token or ROC `Bcyc` fallback; `S_UnitIsCycloned` locks move/attack/spell. DataA dispel eligibility is not consumed. Item `AIcy` unregistered. |
+| `ANvc` | `s_volcano.c` | `CAbilityVolcano` channel. DataB waves every DataC seconds, DataE damage via `T_Damage`, buildings × DataD, stun `Bstu` for Dur/HeroDur. DataA rings, DataF half-damage, Volc destructible, and trees remain. |
+| `ANsy`, `ANs1`, `ANs2`, `ANs3` | `s_pocket_factory.c` | `CAbilityPocketFactory`. UnitID factory, DataA interval, DataB Clockwerk via `S_SpellDataId`, DataC goblin life, DataD offset. DataE leash and ANfy are not implemented. |
+| `ANrc`, `ANr3` | `s_summon.c` | `CAbilityRainOfChaos`. Not channeled. DataA Inferno abilCode, DataB landing count, Dur delay, Area scatter. Inferno landing damage/stun remain with `ANin`. |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 

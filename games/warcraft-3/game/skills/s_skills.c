@@ -49,7 +49,7 @@ static ability_t abilitylist[] = {
     { "ANen", CAbilityEnsnare, AB_SPELL, SPELL_TARGET_UNIT },  /* Ensnare */
     { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "ANpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite */
-    { "Acny", CAbilityCycloneCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone */
+    { "Acny", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
     { "Ahnl", CAbilitySummoningRitual, AB_SPELL },  /* Summoning Ritual */
     { "ANcl", CAbilityChannel, AB_COMMAND },  /* Channel */
     { "Arsq", CAbilitySummonQuilbeastCampaign, AB_SPELL },  /* Summon Quilbeast */
@@ -358,8 +358,11 @@ static ability_t abilitylist[] = {
     // TODO: ANia CAbilityInnerFire  /* Incinerate */
     { "ANso", CAbilitySoulBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Soul Burn */
     // TODO: ANlm a_lightning_shield  /* Summon Lava Spawn */
-    // TODO: ANvc a_spell  /* Volcano */
+    { "ANvc", CAbilityVolcano, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Volcano */
     { "ANsy", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory */
+    { "ANs1", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 1) */
+    { "ANs2", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 2) */
+    { "ANs3", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 3) */
     // TODO: ANcs a_spell  /* Cluster Rockets */
     // TODO: ANeg CAbilityEvasion  /* Engineering Upgrade */
     // TODO: ANrg a_regen_base  /* Robo-Goblin */
@@ -384,6 +387,7 @@ static ability_t abilitylist[] = {
     // TODO: ANfd a_spell  /* Finger of Death */
     // TODO: ANdp CAbilityMassTeleport  /* Dark Portal */
     { "ANrc", CAbilityRainOfChaos, AB_SPELL, SPELL_TARGET_POINT },  /* Rain of Chaos */
+    { "ANr3", CAbilityRainOfChaos, AB_SPELL, SPELL_TARGET_POINT },  /* Rain of Chaos (button) */
     // TODO: Achd CAbilityCargoHold  /* Cargo Hold Death */
     // TODO: Asla a_sleep_always  /* Sleep Always; UnitCanSleepPerm recognizes ownership, behavior remains unresolved */
     // TODO: Advc a_devour_cargo  /* Devour Cargo */
@@ -440,6 +444,8 @@ static ability_t abilitylist[] = {
     // TODO: Acor a_bounce  /* Corrosive Breath */
     // TODO: AEst a_button  /* Scout */
     { "Acyc", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone */
+    { "ACcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (creep) */
+    { "SCc1", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (Cenarius) */
     // TODO: Alit a_lightning_attack  /* Lightning Attack */
 
     /* OrcAbilityStrings.txt */
@@ -544,7 +550,7 @@ static ability_t abilitylist[] = {
     // TODO: ACct a_unknown  /* Critical Strike (creep) */
     // TODO: ACcv a_unknown  /* Crushing Wave */
     // TODO: ACcw a_unknown  /* Cold Arrows (creep) */
-    // TODO: ACcy a_unknown  /* Cyclone (creep) */
+    // ACcy registered with CAbilityCyclone
     // TODO: ACd2 a_unknown  /* Abolish Magic (Creep, 1,2 pos) */
     // TODO: ACdc a_unknown  /* Death Coil (creep) */
     // TODO: ACde a_unknown  /* Devour Magic(creep) */
@@ -768,12 +774,10 @@ static ability_t abilitylist[] = {
     // TODO: ANg1 a_unknown  /* Tinkerer - Robo-Goblin (Level 1) */
     // TODO: ANg2 a_unknown  /* Tinkerer - Robo-Goblin (Level 2) */
     // TODO: ANg3 a_unknown  /* Tinkerer - Robo-Goblin (Level 3) */
-    // TODO: ANr3 a_unknown  /* Rain of Chaos(Button 0,2) */
+    // ANr3 registered with CAbilityRainOfChaos
     // TODO: ANre a_unknown  /* Neutral Regen (mana only) */
     // TODO: ANrn a_unknown  /* Mannoroth - Reincarnation */
-    // TODO: ANs1 a_unknown  /* Tinkerer - Summon Factory (Level 1) */
-    // TODO: ANs2 a_unknown  /* Tinkerer - Summon Factory (Level 2) */
-    // TODO: ANs3 a_unknown  /* Tinkerer - Summon Factory (Level 3) */
+    // ANs1/ANs2/ANs3 registered with CAbilityPocketFactory
     // TODO: ANt2 a_unknown  /* Thorny Shield (Dragon Turtle) */
     // TODO: ANta a_unknown  /* Taunt(Creep) */
     // TODO: ANth a_unknown  /* Thorny Shield (Creep) */
@@ -866,7 +870,7 @@ static ability_t abilitylist[] = {
     // TODO: Awrh a_unknown  /* War Stomp (hydra) */
     // TODO: Awrs a_unknown  /* War Stomp (creep) */
     // TODO: SCae a_unknown  /* Aura - Endurance (Creep) */
-    // TODO: SCc1 a_unknown  /* Cyclone (Cenarius) */
+    // SCc1 registered with CAbilityCyclone
     // TODO: SCva a_unknown  /* Vampiric attack */
     // TODO: SNdd a_unknown  /* Super Death and Decay */
     // TODO: SNeq a_unknown  /* Super Earthquake */

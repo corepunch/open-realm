@@ -47,7 +47,7 @@ LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration
 
 /* Rain of Chaos resolves each landing through the Inferno ability linked by DataA. */
 void rain_of_chaos_think(LPEDICT ent) {
-    DWORD now = G_Time(), level = (DWORD)ent->wait, inferno = ent->damage;
+    DWORD now = G_Time(), level = (DWORD)ent->wait, inferno = ent->damage, code = ent->class_id;
     FLOAT angle, radius;
     VECTOR2 loc = ent->s.origin2;
     if (!ent->owner || !ent->owner->inuse || !ent->resources) { G_FreeEdict(ent); return; }
@@ -57,6 +57,11 @@ void rain_of_chaos_think(LPEDICT ent) {
     loc.x += cosf(angle) * radius; loc.y += sinf(angle) * radius;
     S_SummonAt(ent->owner, S_SpellUnitId(inferno, level), &loc, S_SpellDuration(inferno, level, false));
     if (!--ent->resources) { G_FreeEdict(ent); return; }
+    /* Zero Dur cannot schedule the next landing; stop rather than spin every frame. */
+    if (ent->velocity <= 0.0f) {
+        fprintf(stderr, "WC3 Rain of Chaos: landing interval became zero for %.4s\n", (LPCSTR)&code);
+        G_FreeEdict(ent); return;
+    }
     ent->freetime = now + (DWORD)(ent->velocity * 1000.0f);
 }
 

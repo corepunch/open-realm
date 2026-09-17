@@ -36,7 +36,7 @@ The brief already contains:
 | `id` / `code` / `comments` | registry rawcode vs shared procedure identity |
 | `class` / `parent` | `CAbility*` name and TFT parent (`AAsm`, `AAat`, `AAcs`, …) |
 | `L1` `targs` `cost` `cool` `rng` `dur` `heroDur` `area` | targeting and `spell_cmd` inputs |
-| `DataA-I` plus any non-zero `DataC=` line | authored numbers; 1-based `S_SpellData` |
+| `DataA-I` plus any non-zero `DataC=` / `DataB=` line | authored numbers via `S_SpellData`; unitCode/abilCode cells (`ncgb`, `ANin`) print as fourcc — read those with `S_SpellDataId` |
 | `BuffID` | comma list; each token is a different buff |
 | `strings` `Name`/`Ubertip`/`Untip` | visible contract and inverse/autocast |
 | `buffs` `Buffubertip` | what the status actually does (immunity vs shield, etc.) |
@@ -114,10 +114,10 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.<name>*'
 make test-wc3-engine WC3_PATTERN='wc3_save.*'   # only if edict_t / abilstatus changed
 ```
 
-Do not debug `make test` `+test '*'` while finishing one ability. A full
-`wc3_*` run currently dies in the unfinished Cyclone test
-(`wc3_ability_dispatch.cyclone_*` → `jass_runevents(NULL)`). That is a Cyclone
-gap, not a failure of the ability you just polled.
+Do not debug `make test` `+test '*'` while finishing one ability. Never
+`globals.RunFrame()` or `level.started`/`scriptsStarted` in spell tests;
+that path dies in `jass_runevents(NULL)`. Advance buffs with
+`unit_updatestatuses` and thinkers with `G_RunEntities`.
 
 ### 7. Batch: one agent per unrelated group
 

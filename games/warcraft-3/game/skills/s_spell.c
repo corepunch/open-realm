@@ -385,6 +385,9 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
         !(strstr(targets, "ground") && target->targtype == TARG_GROUND)) {
         return false;
     }
+    /* organic/mechanical are targtype tokens, not air/ground; TFT Cyclone authors organic. */
+    if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
+    if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
     if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) {
         return true;
     }
