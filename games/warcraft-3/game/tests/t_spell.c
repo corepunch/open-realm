@@ -1741,4 +1741,97 @@ TEST(wc3_spell, dark_conversion_consumes_target_and_publishes_zombie_summon) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, purge_removes_status_applies_slow_and_damages_summoned) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y4;X9\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Rng1\"\n"
+		"C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataC1\"\n"
+		"C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"Area1\"\nC;Y1;X9;K\"targs\"\n"
+		/* Purge: slow factor 0.5, summoned damage 200, dur 15, buff Bprg */
+		"C;Y2;X1;K\"Aprg\"\nC;Y2;X2;K\"Aprg\"\nC;Y2;X3;K\"600\"\n"
+		"C;Y2;X4;K\"15\"\nC;Y2;X5;K\"0.5\"\nC;Y2;X6;K\"200\"\n"
+		"C;Y2;X7;K\"Bprg\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"air,ground,enemy,neutral\"\n"
+		/* Cripple: so we can verify Purge clears it */
+		"C;Y3;X1;K\"Acri\"\nC;Y3;X2;K\"Acri\"\nC;Y3;X3;K\"600\"\n"
+		"C;Y3;X4;K\"30\"\nC;Y3;X5;K\"0.5\"\nC;Y3;X6;K\"0\"\n"
+		"C;Y3;X7;K\"Bcri\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"air,ground,enemy\"\n"
+		/* Item Purge: shares CAbilityPurge */
+		"C;Y4;X1;K\"AIlp\"\nC;Y4;X2;K\"Aprg\"\nC;Y4;X3;K\"600\"\n"
+		"C;Y4;X4;K\"10\"\nC;Y4;X5;K\"0.5\"\nC;Y4;X6;K\"100\"\n"
+		"C;Y4;X7;K\"Bprg\"\nC;Y4;X8;K\"0\"\nC;Y4;X9;K\"air,ground,enemy\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('o','s', 'h','m'), 300, 300, 0, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 500, 0);
+	caster->s.player = 0; enemy->s.player = 1;
+	enemy->svflags |= SVF_MONSTER; enemy->health.value = enemy->health.max_value = 500;
+	T_EQ(S_AbilityItem(FS_SLKKey("Aprg")).ability->proc, CAbilityPurge);
+	T_EQ(S_AbilityItem(FS_SLKKey("AIlp")).ability->proc, CAbilityPurge);
+	/* Apply Cripple buff, then Purge it away and check Purge slow replaces it. */
+	test_execute_code(caster, "Acri", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','i')));
+	test_execute_code(caster, "Aprg", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(!S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','i')));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','p','r','g')));
+	T_FEQ(S_PurgeMoveReduction(enemy), 0.5f, 0.001f);
+	/* No extra damage when target is not a summoned unit (no owner). */
+	T_FEQ(enemy->health.value, 500, 0.001f);
+	/* Summoned unit (owner set) takes DataC damage. */
+	LPEDICT summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 300, 0);
+	summon->s.player = 1; summon->svflags |= SVF_MONSTER;
+	summon->health.value = summon->health.max_value = 500; summon->owner = caster;
+	test_execute_code(caster, "Aprg", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = summon));
+	T_ASSERT(summon->health.value < 500);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X8\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"Area1\"\n"
+		"C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"Rng1\"\n"
+		"C;Y2;X1;K\"Alsh\"\nC;Y2;X2;K\"Alsh\"\nC;Y2;X3;K\"air,ground,friend,enemy\"\n"
+		"C;Y2;X4;K\"15\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"200\"\n"
+		"C;Y2;X7;K\"Blsh\"\nC;Y2;X8;K\"600\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('o','s','h','m'), 300, 300, 0, 0);
+	/* Carrier is far from caster (0,0) so caster is outside the 200-unit Area. */
+	LPEDICT carrier = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 500, 0);
+	LPEDICT nearby = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 600, 0);  /* 100 from carrier, within Area=200 */
+	LPEDICT far_unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 800, 0);  /* 300 from carrier, beyond Area=200 */
+	carrier->s.player = 0; carrier->svflags |= SVF_MONSTER; carrier->targtype = TARG_GROUND;
+	carrier->health.value = carrier->health.max_value = 1000;
+	nearby->s.player = 1; nearby->svflags |= SVF_MONSTER; nearby->targtype = TARG_GROUND;
+	nearby->health.value = nearby->health.max_value = 1000;
+	far_unit->s.player = 1; far_unit->svflags |= SVF_MONSTER; far_unit->targtype = TARG_GROUND;
+	far_unit->health.value = far_unit->health.max_value = 1000;
+	T_EQ(S_AbilityItem(FS_SLKKey("Alsh")).ability->proc, CAbilityLightningShield);
+	test_execute_code(caster, "Alsh", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = carrier));
+	T_ASSERT(S_UnitHasStatus(carrier, MAKEFOURCC('B','l','s','h')));
+	/* Find the thinker and run it — nearby unit takes the initial tick of damage. */
+	LPEDICT thinker = NULL;
+	FILTER_EDICTS(ent, ent->owner == carrier && ent->think) thinker = ent;
+	T_NOT_NULL(thinker);
+	level.time = 1000; G_RunEntity(thinker);
+	T_ASSERT(nearby->health.value < 1000);    /* took damage */
+	T_FEQ(far_unit->health.value, 1000, 0.001f);  /* too far, untouched */
+	/* Second tick at 2000ms deals another round. */
+	FLOAT hp = nearby->health.value;
+	level.time = 2000; G_RunEntity(thinker);
+	T_ASSERT(nearby->health.value < hp);
+	/* Past expiry the thinker stops and the carrier no longer has the buff (status expired). */
+	level.time = 30000; G_RunEntity(thinker);
+	T_ASSERT(!thinker->inuse);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, purge_and_lightning_shield_registration_aliases) {
+	T_EQ(S_AbilityItem(FS_SLKKey("Aprg")).ability->proc, CAbilityPurge);
+	T_EQ(S_AbilityItem(FS_SLKKey("Apg2")).ability->proc, CAbilityPurge);
+	T_EQ(S_AbilityItem(FS_SLKKey("AIlp")).ability->proc, CAbilityPurge);
+	T_EQ(S_AbilityItem(FS_SLKKey("Alsh")).ability->proc, CAbilityLightningShield);
+	T_EQ(S_AbilityItem(FS_SLKKey("Ahwd")).ability->proc, CAbilityHealingWard);
+	T_EQ(S_AbilityItem(FS_SLKKey("Aoar")).ability->proc, CAbilityAuraRegenLife);
+}
+
 #endif /* BZ_TESTS */

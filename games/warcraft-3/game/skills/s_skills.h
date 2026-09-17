@@ -233,6 +233,10 @@ BZ_ABILITY_PROC(CAbilityCurse);
 BZ_ABILITY_PROC(CAbilityCripple);
 BZ_ABILITY_PROC(CAbilitySoulBurn);
 BZ_ABILITY_PROC(CAbilityTaunt);
+BZ_ABILITY_PROC(CAbilityPurge);
+BZ_ABILITY_PROC(CAbilityLightningShield);
+BZ_ABILITY_PROC(CAbilityHealingWard);
+BZ_ABILITY_PROC(CAbilityAuraRegenLife);
 
 void human_ability_think(LPEDICT thinker);
 BOOL S_HoldPosition(LPEDICT unit);
@@ -288,6 +292,7 @@ FLOAT S_CrippleAttackReduction(LPCEDICT unit);
 FLOAT S_CrippleDamageReduction(LPCEDICT unit);
 FLOAT S_SoulBurnDamageRate(LPCEDICT unit);
 FLOAT S_SoulBurnDamageReduction(LPCEDICT unit);
+FLOAT S_PurgeMoveReduction(LPCEDICT unit);
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);

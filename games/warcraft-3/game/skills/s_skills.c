@@ -300,7 +300,7 @@ static ability_t abilitylist[] = {
     // TODO: AIdi a_item_dispel_aoe  /* Item Dispel */
     // TODO: AIfb CAbilityOnFireHuman  /* Item Attack Fire Bonus */
     // TODO: AIlb a_bounce  /* Item Attack Lightning Bonus */
-    // TODO: AIlp a_lightning_purge  /* Item Purge */
+    { "AIlp", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Purge */
     // TODO: AIob CAbilityFrostNova  /* Item Attack Frost Bonus */
     // TODO: AIpb a_item_mana_restore  /* Item Attack Poison Bonus */
     // TODO: AIcb a_button  /* Item Attack Corruption Bonus */
@@ -457,12 +457,13 @@ static ability_t abilitylist[] = {
     // TODO: Awar a_bounce  /* Pulverize */
     { "Aens", CAbilityEnsnare, AB_SPELL, SPELL_TARGET_UNIT },  /* Ensnare */
     // TODO: Adev a_devour  /* Devour */
-    // TODO: Aprg a_lightning_purge  /* Purge */
-    // TODO: Alsh a_lightning_shield  /* Lightning Shield */
+    { "Aprg", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge */
+    { "Apg2", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (TFT melee; TODO: Apg2 immobilization not yet implemented) */
+    { "Alsh", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield */
     // TODO: Aeye a_button  /* Sentry Ward */
     // TODO: Asta a_stasis_trap  /* Stasis Trap */
-    // TODO: Ahwd a_healing_ward  /* Healing Ward */
-    // TODO: Aoar a_aura_regen_life  /* Healing Ward Aura */
+    { "Ahwd", CAbilityHealingWard, AB_SPELL, SPELL_TARGET_POINT },  /* Healing Ward */
+    { "Aoar", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE },  /* Healing Ward Aura */
     // TODO: Aven a_venom_spear  /* Envenomed Spears */
     // TODO: Apoi a_poison_attack  /* Poison Sting */
     // TODO: Apo2 a_item_invul  /* Poison Sting */
