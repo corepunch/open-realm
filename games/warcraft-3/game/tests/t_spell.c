@@ -1610,6 +1610,44 @@ TEST(wc3_spell, melee_spells_use_authored_status_and_bonus_values) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, frenzy_unholy_frenzy_curse_use_authored_status_and_bonus_values) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y4;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Rng1\"\n"
+		"C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"BuffID1\"\n"
+		"C;Y1;X9;K\"Area1\"\nC;Y1;X10;K\"targs\"\n"
+		"C;Y2;X1;K\"Afzy\"\nC;Y2;X2;K\"Afzy\"\nC;Y2;X4;K\"20\"\nC;Y2;X5;K\"20\"\n"
+		"C;Y2;X6;K\"0.5\"\nC;Y2;X7;K\"3\"\nC;Y2;X8;K\"Bfzy\"\n"
+		"C;Y3;X1;K\"Auhf\"\nC;Y3;X2;K\"Auhf\"\nC;Y3;X4;K\"15\"\nC;Y3;X5;K\"15\"\n"
+		"C;Y3;X6;K\"0.5\"\nC;Y3;X7;K\"2\"\nC;Y3;X8;K\"Buhf\"\n"
+		"C;Y4;X1;K\"Acrs\"\nC;Y4;X2;K\"Acrs\"\nC;Y4;X4;K\"60\"\nC;Y4;X5;K\"60\"\n"
+		"C;Y4;X6;K\"0.33\"\nC;Y4;X8;K\"Bcrs\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+	LPEDICT ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+	abilityitem_t fzy = S_AbilityItem(FS_SLKKey("Afzy"));
+	abilityitem_t uhf = S_AbilityItem(FS_SLKKey("Auhf"));
+	abilityitem_t crs = S_AbilityItem(FS_SLKKey("Acrs"));
+	caster->s.player = ally->s.player = 0; enemy->s.player = 1;
+	ally->armor_value = 5; ally->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+	ally->health.value = ally->health.max_value = 100;
+	T_EQ(fzy.ability->proc, CAbilityFrenzy); T_ASSERT(fzy.ability->flags & AB_AUTOCAST);
+	T_EQ(uhf.ability->proc, CAbilityUnholyFrenzy); T_ASSERT(!(uhf.ability->flags & AB_AUTOCAST));
+	T_EQ(crs.ability->proc, CAbilityCurse); T_ASSERT(crs.ability->flags & AB_AUTOCAST);
+	test_execute_code(caster, "Afzy", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','f','z','y')));
+	T_FEQ(S_FrenzyAttackBonus(ally), 0.5f, 0.001f); T_FEQ(S_FrenzyArmorDelta(ally), -3.0f, 0.001f);
+	T_FEQ(G_UnitArmorValue(ally), 5.0f - 3.0f, 0.001f);
+	test_execute_code(caster, "Auhf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','u','h','f')));
+	T_FEQ(S_UnholyFrenzyAttackBonus(ally), 0.5f, 0.001f); T_FEQ(S_UnholyFrenzyLifeDrain(ally), 2.0f, 0.001f);
+	test_execute_code(caster, "Acrs", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','s'))); T_FEQ(S_CurseMissChance(enemy), 0.33f, 0.001f);
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Human05 turns each converted villager into a summon, then its JASS trigger
  * owns the final zombie replacement, allegiance, and attack order. */
 TEST(wc3_spell, dark_conversion_consumes_target_and_publishes_zombie_summon) {

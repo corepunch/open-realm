@@ -394,7 +394,7 @@ static ability_t abilitylist[] = {
     // TODO: Anhe CAbilityHeal  /* Heal */
     // TODO: ACtc a_creep_thunder_clap  /* Slam */
     // TODO: ACtb a_creep_thunder_bolt  /* Hurl Boulder */
-    // TODO: Afzy a_spell  /* Frenzy */
+    { "Afzy", CAbilityFrenzy, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frenzy */
     // TODO: ACdv a_creep_devour  /* Devour */
     { "ACsp", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE },  /* Natural creep sleep */
     // TODO: Asod a_simple_spell  /* Spawn Skeleton */
@@ -499,8 +499,8 @@ static ability_t abilitylist[] = {
     // TODO: Afra a_button  /* Frost Attack */
     // TODO: Afrz CAbilityFrostNova  /* Freezing Breath */
     // TODO: Arai a_simple_spell  /* Raise Dead */
-    // TODO: Auhf a_creep_sleep  /* Unholy Frenzy */
-    // TODO: Acrs a_auto_target_spell  /* Curse */
+    { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
+    { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
     // TODO: Aams a_magic_immunity  /* Anti-magic Shell */
     // TODO: Apos a_creep_sleep  /* Possession */
     // TODO: Aps2 a_creep_sleep  /* Possession */

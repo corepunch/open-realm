@@ -61,6 +61,92 @@ build/bin/ability_audit -data 'data/Warcraft III' -roc -raw AOws
 build/bin/ability_audit -data 'data/Warcraft III' -tft -raw AOws
 ```
 
+## AbilityData.slk Column Reference
+
+`AbilityData.slk` is the authoritative source for authored numeric and rawcode
+ability data. It maps to `AbilityData_t` and its per-level `abilityLevel_t`
+records in `g_unitrow.h`. The full game SLK has roughly 200 columns per level;
+only the fields the runtime actually reads are present in `abilityLevel_t`.
+
+### Per-ability columns (AbilityData_t)
+
+| Column | Field | Notes |
+| --- | --- | --- |
+| `alias` | `id` | the rawcode looked up at runtime |
+| `code` | `code` | the base-class rawcode (aliases share this) |
+| `levels` | `levels` | number of levels authored for this entry |
+| `reqLevel` | `reqLevel` | hero level required to learn |
+| `levelSkip` | `levelSkip` | levels between learnable ranks |
+| `hero` | `hero` | true for hero-only abilities |
+| `item` | `item` | true for item-class abilities |
+| `race` | `race` | faction string (`human`, `orc`, etc.) |
+| `sort` | `sort` | ordering hint; not a gameplay value |
+
+### Per-level columns (abilityLevel_t, suffix `N` = level index 1–4)
+
+| Column | Field | Accessor |
+| --- | --- | --- |
+| `targs` | `targs` | target filter string; drives `S_SpellAllowsTarget` |
+| `Rng` | `range` | `S_SpellNumber(code, ABILITY_NUMBER_RANGE, level)` |
+| `Dur` | `dur` | `S_SpellDuration(code, level, false)` |
+| `HeroDur` | `heroDur` | `S_SpellDuration(code, level, true)` |
+| `Cool` | `cool` | `S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level)` |
+| `Cost` | `cost` (mana) | `S_SpellNumber(code, ABILITY_NUMBER_COST, level)` |
+| `Area` | `area` | `S_SpellNumber(code, ABILITY_NUMBER_AREA, level)` |
+| `Cast` | `cast` | cast-point delay |
+| `DataA`–`DataI` | `data[0]`–`data[8]` | `S_SpellData(code, level, 1–9)` for floats; `S_SpellDataId` for rawcode IDs |
+| `UnitID` | `unitID` | summoned-unit rawcode; `S_SpellUnitId(code, level)` |
+| `BuffID` | `buffID` | buff rawcode applied on success; read via `G_AbilityLevel(code, level)->buffID` |
+| `EfctID` | `efctID` | effect rawcode; drives `G_SpawnAbilityEffect*` with `WC3_EFFECT_EFFECT` |
+
+`Data11`/`Data12`/`Data13` are the ROC column names for `DataA`/`DataB`/`DataC`
+respectively. Both names refer to the same three fields; `S_SpellData` handles
+both archive variants.
+
+### What is NOT in AbilityData.slk
+
+**Projectile and missile art are not authored in AbilityData.slk.** They live in
+two other places:
+
+- **Unit weapon art** (`UnitWeapons.slk` / `UnitWeapons_t.attack[i].art`) — the
+  missile model for normal and ranged attacks. This is per-weapon, not per-ability.
+- **Buff/ability presentation** (`AbilityBuffData.slk` / the runtime buff row) —
+  the `missileArt`, `targetArt`, `specialArt`, `effectArt` strings that drive
+  `G_SpawnAbilityEffect*`. These are looked up by the buff rawcode (`BuffID`),
+  not by the ability rawcode.
+
+Other fields absent from AbilityData.slk: cast/target animation names, sound
+sets, and the `WC3_EFFECT_CASTER`/`WC3_EFFECT_SPECIAL` art paths. Those come
+from the buff row or from `AbilityStrings.txt` fields such as `animProps`.
+
+### Reading a row in practice
+
+```sh
+# Show the full normalized TFT row for a known rawcode:
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Ablo
+
+# Show both archives to catch ROC/TFT divergence:
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Ablo
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Ablo
+```
+
+In C, read a specific level's field through the public helpers:
+
+```c
+/* DataA of Bloodlust at level 1 (1-indexed): */
+FLOAT attack_bonus = S_SpellData(MAKEFOURCC('A','b','l','o'), 1, 1);
+
+/* Buff rawcode applied by level 1: */
+LPCSTR buff = G_AbilityLevel(MAKEFOURCC('A','b','l','o'), 1)->buffID;
+
+/* Summoned unit rawcode for a summon ability: */
+DWORD unit_id = S_SpellUnitId(MAKEFOURCC('A','H','w','e'), 1);
+```
+
+Never hardcode per-level constants copied from the SLK; always read them at
+runtime through the normalized row so the implementation works for both ROC and
+TFT data sets and for any custom-map overrides.
+
 ## Reading AbilityStrings
 
 Ability strings provide a compact behavioral sketch:

@@ -147,6 +147,8 @@ void G_RunEntity(LPEDICT ent) {
                     (FLOAT)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
         if (rate != 0.0f) G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
     }
+    /* Unholy Frenzy drains HP at DataB HP/sec regardless of current health. */
+    { FLOAT const drain = S_UnholyFrenzyLifeDrain(ent); if (drain > 0.0f && ent->health.value > 0) G_AddHealth(ent, -drain * (FRAMETIME / 1000.0f)); }
     /* Retail refreshes aura recipients on a two-second cadence; keep the first
      * update immediate while avoiding a full recipient scan every simulation tick. */
     if (ent->data.UnitBalance && S_RegenerationAuraUpdateDue(ent))

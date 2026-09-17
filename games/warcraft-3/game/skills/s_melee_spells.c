@@ -135,3 +135,74 @@ FLOAT S_RejuvHealRate(LPCEDICT unit) {
     duration = S_SpellDuration(MAKEFOURCC('A', 'r', 'e', 'j'), level, false);
     return duration > 0.0f ? S_SpellData(MAKEFOURCC('A', 'r', 'e', 'j'), level, 1) / duration : 0.0f;
 }
+
+/* Name=Frenzy
+ * Ubertip="Increases a unit's attack rate by <Afzy,DataA1,%>% but reduces its armor by <Afzy,DataB1>. |nLasts <Afzy,Dur1> seconds."
+ * Untip="|cffc3dbffRight-click to activate auto-casting.|r"
+ * Unubertip="|cffc3dbffRight-click to deactivate auto-casting.|r"
+ */
+BZ_ABILITY_PROC(CAbilityFrenzy) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    DWORD code = call && call->item ? call->item->code : 0;
+    switch (msg) {
+    case A_VALIDATE: return bloodlust_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
+    case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
+    case A_AUTOCAST_SET: return true;
+    case A_AUTOCAST_ACQUIRE: return melee_autocast_acquire(ent, code, true, false);
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+/* DataA owns the attack-rate bonus as a fraction; DataB owns the armor reduction (flat). */
+FLOAT S_FrenzyAttackBonus(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
+    return level ? S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 1) : 0.0f;
+}
+
+FLOAT S_FrenzyArmorDelta(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
+    return level ? -S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 2) : 0.0f;
+}
+
+/* Name=Unholy Frenzy
+ * Ubertip="Increases a friendly unit's attack rate by <Auhf,DataA1,%>% but deals <Auhf,DataB1> damage per second to the unit. |nLasts <Auhf,Dur1> seconds."
+ */
+BZ_VALIDATED_SPELL_PROC(AbilityUnholyFrenzy, bloodlust_validate, melee_status_execute)
+
+/* DataA owns the attack-rate bonus as a fraction; DataB owns the life drain in HP/second. */
+FLOAT S_UnholyFrenzyAttackBonus(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
+    return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 1) : 0.0f;
+}
+
+FLOAT S_UnholyFrenzyLifeDrain(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
+    return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 2) : 0.0f;
+}
+
+/* Name=Curse
+ * Ubertip="Curses a target enemy unit, giving it a <Acrs,DataA1,%>% chance to miss when attacking. |nLasts <Acrs,Dur1> seconds."
+ * Untip="|cffc3dbffRight-click to activate auto-casting.|r"
+ * Unubertip="|cffc3dbffRight-click to deactivate auto-casting.|r"
+ */
+BZ_ABILITY_PROC(CAbilityCurse) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    DWORD code = call && call->item ? call->item->code : 0;
+    switch (msg) {
+    case A_VALIDATE: return faerie_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: melee_status_execute(ent, target, call ? call->item : NULL); return true;
+    case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
+    case A_AUTOCAST_SET: return true;
+    case A_AUTOCAST_ACQUIRE: return melee_autocast_acquire(ent, code, false, false);
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+/* DataA owns the miss chance as a fraction (0.33 = 33% miss chance). */
+FLOAT S_CurseMissChance(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 's'));
+    return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 's'), level, 1) : 0.0f;
+}

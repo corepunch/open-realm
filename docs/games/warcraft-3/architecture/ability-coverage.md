@@ -103,6 +103,9 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `ANch`, `AIco`, `Aeat`, `Ambt`, `Aroo` | `s_utility_abilities.c` | Partial utility behaviors: Charm ownership transfer, Eat Tree heal/remove, Moon Well transfer, Root toggle. |
 | `AIhe`, `AIma`, `AImi` | `s_item.c` | Synchronous item use for heal, mana restore, and permanent life gain; successful charged uses decrement charges and zero-charge perishables are removed. |
 | `Ablo`, `Afae`, `Arej`, `Aroa` | `s_melee_spells.c` | Partial melee unit spells; Bloodlust/Faerie Fire are autocast unit-target timed statuses, Rejuvenation is a friendly heal-over-time status, Roar is a no-target friendly-area status. Attack-rate/move, armor, damage-bonus, and heal-rate consumers read authored DataA/DataB/Dur. Faerie Fire vision and Ensnare-style movement locks remain. |
+| `Afzy` | `s_melee_spells.c` | Partial; autocast unit-target timed status applies `Bfzy`. `S_FrenzyAttackBonus` feeds the attack-speed divisor; `S_FrenzyArmorDelta` subtracts authored DataB armor in `G_UnitArmorValue`. |
+| `Auhf` | `s_melee_spells.c` | Partial; unit-target timed status applies `Buhf`. `S_UnholyFrenzyAttackBonus` feeds the attack-speed divisor; `S_UnholyFrenzyLifeDrain` drains authored DataB HP/sec in the physics tick. No autocast (parent `AAsm`). |
+| `Acrs` | `s_melee_spells.c` | Partial; autocast unit-target timed status applies `Bcrs`. `S_CurseMissChance` returns authored DataA miss fraction checked against the attacker before damage in `S_ResolveAttackHit`. Vision reveal of cursed targets is not yet implemented. |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 
@@ -143,6 +146,16 @@ divisor and `DataB` to move speed; Faerie Fire subtracts `DataA` armor in
 expose the retail right-click autocast policy; Rejuvenation and Roar do not.
 Faerie Fire vision of the target is not yet implemented.
 
+`Afzy` (Frenzy, `CAbilityFrenzy`/`Ablo`) and `Auhf` (Unholy Frenzy,
+`CAbilityUnholyFrenzy`/`AAsm`) extend the Bloodlust execution family. Frenzy
+adds a `DataA` attack-speed bonus and `DataB` armor reduction; Unholy Frenzy
+adds a `DataA` attack-speed bonus and drains `DataB` HP/sec from the carrier
+through the physics tick. Frenzy exposes the autocast policy like Bloodlust;
+Unholy Frenzy does not (parent `AAsm`). `Acrs` (Curse, `CAbilityCurse`/`AAat`)
+applies `Bcrs` to an enemy unit; `S_CurseMissChance` returns authored `DataA`
+and is checked against the attacker in `S_ResolveAttackHit` before damage
+is applied. All three abilities share the `melee_status_execute` path.
+
 ## Reference Parity List
 
 | Code | Reference behavior | OpenWarcraft3 status | Notes |
@@ -167,6 +180,9 @@ Faerie Fire vision of the target is not yet implemented.
 | `ANch` | Charm | Partial | Target ownership transfer, range, mana/cooldown, and max-level gate exist. Needs full target restrictions/order cleanup. |
 | `AIco` | Item command using Charm behavior | Partial | Shares Charm handler; inventory alias-to-base dispatch is wired. |
 | `AHca` | Cold Arrows | TODO | Needs autocast/toggle projectile modifier and slow buff. |
+| `Afzy` | Frenzy | Partial | Autocast unit-target timed status, attack-speed and armor consumers wired. Aliased creep variants resolve through SLK. Art/sound effects and exact retail target mask remain. |
+| `Auhf` | Unholy Frenzy | Partial | Friendly unit-target timed status; attack-speed bonus and life drain per second are wired. Vision of Faerie Fire is analogous but here the drain carries the risk. Aliased creep/item variants resolve through SLK. Art/sound effects remain. |
+| `Acrs` | Curse | Partial | Autocast enemy unit-target timed status; miss-chance consumer checked before attack damage. Vision reveal of cursed targets is not yet implemented. |
 | `ANfl` | Forked Lightning | Partial | Unit-target bounce spell; starts at the selected unit, applies constant authored `DataA` damage to up to `DataB` alive enemy targets, and selects subsequent unvisited targets within `Area`. Projectile presentation and exact retail target ordering remain. The test fixture marks synthetic targets with `SVF_MONSTER`. |
 | `Agld` | Gold Mine | Partial | Per-mine `Agld`-derived capacity/duration/max-gold, finite depletion, waiting workers, inside-miner protection, partial final trips, WORK occupancy animation, and shared Haunted/Entangled parent-resource ownership are implemented. Remaining gaps are mostly feedback/presentation parity. |
 | `Agl2` | Overlayed Gold Mine | Partial | Shared parent-mine relationship keeps the underlying `Agld` entity as the sole finite resource pool, hides/pauses it while overlaid, and restores it on overlay death/removal. Exact visual/effect parity remains. |

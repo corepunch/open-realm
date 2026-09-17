@@ -227,6 +227,9 @@ BZ_ABILITY_PROC(CAbilityBloodlust);
 BZ_ABILITY_PROC(CAbilityFaerieFire);
 BZ_ABILITY_PROC(CAbilityRejuvination);
 BZ_ABILITY_PROC(CAbilityRoar);
+BZ_ABILITY_PROC(CAbilityFrenzy);
+BZ_ABILITY_PROC(CAbilityUnholyFrenzy);
+BZ_ABILITY_PROC(CAbilityCurse);
 
 void human_ability_think(LPEDICT thinker);
 BOOL S_HoldPosition(LPEDICT unit);
@@ -272,6 +275,11 @@ FLOAT S_BloodlustMoveBonus(LPCEDICT unit);
 FLOAT S_FaerieArmorDelta(LPCEDICT unit);
 FLOAT S_RoarDamageBonus(LPCEDICT unit);
 FLOAT S_RejuvHealRate(LPCEDICT unit);
+FLOAT S_FrenzyAttackBonus(LPCEDICT unit);
+FLOAT S_FrenzyArmorDelta(LPCEDICT unit);
+FLOAT S_UnholyFrenzyAttackBonus(LPCEDICT unit);
+FLOAT S_UnholyFrenzyLifeDrain(LPCEDICT unit);
+FLOAT S_CurseMissChance(LPCEDICT unit);
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);
