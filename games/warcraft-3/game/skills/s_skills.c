@@ -10,6 +10,7 @@ int G_AutocastDebugLevel(void) {
 #endif
 
 LPCSTR const raven_orders[] = { "ravenform", "unravenform", NULL };
+static LPCSTR const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
@@ -166,7 +167,7 @@ static ability_t abilitylist[] = {
 
     /* NeutralAbilityStrings.txt */
     { "ANab", CAbilityAcidBomb, AB_SPELL, SPELL_TARGET_UNIT },  /* Acid Bomb */
-    { "ANms", CAbilityPassive, AB_PASSIVE },  /* Mana Shield */
+    { "ANms", CAbilityManaShield, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, mana_shield_orders },  /* Mana Shield */
     { "ANrf", CAbilityRainOfFire, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Rain of Fire */
     { "AHca", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Cold Arrows */
     { "ANht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */

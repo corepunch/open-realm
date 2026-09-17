@@ -347,6 +347,8 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "charm", 852581, MAKEFOURCC('A','N','c','h') },
     { "drunkenhaze", 852585, MAKEFOURCC('A','N','d','h') },
     { "forkedlightning", 852587, MAKEFOURCC('A','N','f','l') },
+    { "manashieldon", 852589, 0 },
+    { "manashieldoff", 852590, 0 },
     { "silence", 852592, MAKEFOURCC('A','N','s','i') },
     { "stampede", 852593, MAKEFOURCC('A','N','s','t') },
     { "summongrizzly", 852594, MAKEFOURCC('A','N','s','g') },

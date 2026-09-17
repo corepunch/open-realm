@@ -1000,7 +1000,10 @@ TEST(wc3_spell, requested_neutral_hero_abilities_have_contracts) {
 	T_NOT_NULL(doom);
 	T_NOT_NULL(howl);
 	T_NOT_NULL(cleave);
-	T_ASSERT(mana_shield->flags & AB_PASSIVE);
+	T_EQ(mana_shield->proc, CAbilityManaShield);
+	T_ASSERT(mana_shield->flags & AB_SPELL);
+	T_ASSERT(mana_shield->flags & AB_TOGGLE);
+	T_EQ((int)mana_shield->target_type, (int)SPELL_TARGET_NONE);
 	T_ASSERT(brawler->flags & AB_PASSIVE);
 	T_ASSERT(cleave->flags & AB_PASSIVE);
 	T_EQ((int)revive->target_type, (int)SPELL_TARGET_NONE);
@@ -1189,18 +1192,37 @@ TEST(wc3_spell, poison_arrows_uses_its_own_authored_bonus_damage) {
 	free_slk_rows(rows);
 }
 
-TEST(wc3_spell, mana_shield_consumes_authored_mana_before_life) {
+TEST(wc3_spell, mana_shield_toggle_status_controls_authored_damage_absorption) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y2;X4\n"
-		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Area1\"\n"
-		"C;Y2;X1;K\"ANms\"\nC;Y2;X2;K\"ANms\"\nC;Y2;X3;K\"2\"\nC;Y2;X4;K\"128\"\nE\n";
+		"ID;PWXL;N;EBB;Y2;X6\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+		"C;Y1;X5;K\"BuffID1\"\nC;Y1;X6;K\"Area1\"\n"
+		"C;Y2;X1;K\"ANms\"\nC;Y2;X2;K\"ANms\"\nC;Y2;X3;K\"2\"\nC;Y2;X4;K\"0.5\"\n"
+		"C;Y2;X5;K\"BNms\"\nC;Y2;X6;K\"128\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-	LPEDICT caster = make_hero(MAKEFOURCC('h', 'p', 'e', 'a'), 100, 10, 0, 0);
+	LPEDICT attacker = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 50, 0);
+	LPEDICT caster = make_hero(MAKEFOURCC('h', 'p', 'e', 'a'), 100, 3, 0, 0);
 	caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A', 'N', 'm', 's'), .level = 1);
-	T_EQ(S_ManaShieldDamage(caster, 4), 0);
-	T_FEQ(caster->mana.value, 2.0f, 0.01f);
-	T_EQ(S_ManaShieldDamage(caster, 4), 3);
-	T_FEQ(caster->mana.value, 0.0f, 0.01f);
+	T_Damage(caster, attacker, 10);
+	T_FEQ(caster->health.value, 90.0f, 0.01f); T_FEQ(caster->mana.value, 3.0f, 0.01f);
+	T_ASSERT(test_execute_code(caster, "ANms", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE)));
+	T_ASSERT(S_UnitHasStatus(caster, MAKEFOURCC('B', 'N', 'm', 's')));
+	T_Damage(caster, attacker, 8);
+	T_FEQ(caster->health.value, 86.0f, 0.01f); T_FEQ(caster->mana.value, 1.0f, 0.01f);
+	T_Damage(caster, attacker, 10);
+	T_FEQ(caster->health.value, 78.0f, 0.01f); T_FEQ(caster->mana.value, 0.0f, 0.01f);
+	T_ASSERT(!S_UnitHasStatus(caster, MAKEFOURCC('B', 'N', 'm', 's')));
+	T_Damage(caster, attacker, 10);
+	T_FEQ(caster->health.value, 68.0f, 0.01f);
+	T_ASSERT(test_execute_code(caster, "ANms", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE)));
+	T_ASSERT(!S_UnitHasStatus(caster, MAKEFOURCC('B', 'N', 'm', 's')));
+	caster->mana.value = 3.0f;
+	T_ASSERT(unit_issueimmediateorder(caster, "manashieldon"));
+	T_ASSERT(S_UnitHasStatus(caster, MAKEFOURCC('B', 'N', 'm', 's')));
+	T_ASSERT(unit_issueimmediateorder(caster, "manashieldon"));
+	T_ASSERT(S_UnitHasStatus(caster, MAKEFOURCC('B', 'N', 'm', 's')));
+	T_ASSERT(unit_issueimmediateorder(caster, "manashieldoff"));
+	T_ASSERT(!S_UnitHasStatus(caster, MAKEFOURCC('B', 'N', 'm', 's')));
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
 }

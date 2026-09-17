@@ -427,14 +427,60 @@ int S_SearingArrowDamage(LPEDICT attacker, int damage) {
     return level && attacker->attack1.weapon == WPN_MISSILE ? damage + (int)S_SpellData(code, level, 1) : damage;
 }
 
-/* Mana Shield converts incoming damage to mana loss using the authored Ams4 factor. */
+static DWORD mana_shield_buff(DWORD code, DWORD level) {
+    LPCSTR buff = G_AbilityLevel(code, level)->buffID;
+    return buff && strlen(buff) >= 4 ? FS_SLKKey(buff) : 0;
+}
+
+static void mana_shield_remove(LPEDICT unit, DWORD buff) {
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff)
+            memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
+    G_InvalidateUnitInfoPanel(unit);
+}
+
+/* Mana Shield owns its authored buff so learned-but-inactive abilities never intercept damage. */
+BZ_ABILITY_PROC(CAbilityManaShield) {
+    DWORD code = call && call->item && call->item->code ? call->item->code : ID_MANA_SHIELD;
+    DWORD level = S_SpellLevel(ent, code), buff = mana_shield_buff(code, level);
+    BOOL active = buff && G_UnitStatusLevel(ent, buff);
+    switch (msg) {
+    case A_TOGGLE_ON: return active;
+    case A_EXECUTE:
+        if (active) mana_shield_remove(ent, buff);
+        else if (buff && ent->mana.value > 0.0f) unit_addstatus(ent, GetClassName(buff), level);
+        return true;
+    case A_ORDER:
+        if (!call || !call->order) return false;
+        if (!strcmp(call->order, "manashieldon")) {
+            if (!active && buff && ent->mana.value > 0.0f) unit_addstatus(ent, GetClassName(buff), level);
+            return true;
+        }
+        if (!strcmp(call->order, "manashieldoff")) {
+            if (active) mana_shield_remove(ent, buff);
+            return true;
+        }
+        return false;
+    case A_DISABLE:
+    case A_UNIT_REMOVE:
+        if (active) mana_shield_remove(ent, buff);
+        return true;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+/* Retail DataA is damage absorbed per mana and DataB is the fraction of each hit absorbed. */
 int S_ManaShieldDamage(LPEDICT target, int damage) {
     DWORD level = G_UnitAbilityLevel(target, ID_MANA_SHIELD);
-    FLOAT loss, absorbed;
-    if (!level || damage <= 0 || target->mana.value <= 0.0f) return damage;
-    loss = MAX(0.001f, S_SpellData(ID_MANA_SHIELD, level, 1));
-    absorbed = MIN((FLOAT)damage, target->mana.value / loss);
-    target->mana.value -= absorbed * loss;
+    DWORD buff = level ? mana_shield_buff(ID_MANA_SHIELD, level) : 0;
+    FLOAT ratio, fraction, absorbed;
+    if (!buff || !G_UnitStatusLevel(target, buff) || damage <= 0 || target->mana.value <= 0.0f) return damage;
+    ratio = S_SpellData(ID_MANA_SHIELD, level, 1);
+    fraction = MIN(1.0f, MAX(0.0f, S_SpellData(ID_MANA_SHIELD, level, 2)));
+    if (ratio <= 0.0f || fraction <= 0.0f) return damage;
+    absorbed = MIN((FLOAT)damage * fraction, target->mana.value * ratio);
+    target->mana.value = MAX(0.0f, target->mana.value - absorbed / ratio);
+    if (target->mana.value <= 0.0f) mana_shield_remove(target, buff);
     return damage - (int)absorbed;
 }
 

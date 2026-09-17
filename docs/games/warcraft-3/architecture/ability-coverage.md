@@ -125,8 +125,8 @@ existing whirlwind thinker. ROC and TFT `ability_audit` rows both author a
 thinker therefore follows the caster like `AOww` while retaining the normal
 channel lifetime and periodic area-status path.
 
-The selected neutral-hero contracts now also cover `ANms` (Mana Shield) at the
-central damage boundary, `AHre` (Resurrection) through nearby ordinary friendly-corpse
+The selected neutral-hero contracts now also cover `ANms` (Mana Shield) as an
+authored-`BNms` no-target toggle at the central damage boundary, `AHre` (Resurrection) through nearby ordinary friendly-corpse
 revival, `ANbf` (Breath of Fire) through point-area damage, `ANdb` (Drunken
 Brawler) through the existing critical/evasion hooks, `ANdh` (Drunken Haze) and
 `ANdo` (Doom) through timed target buffs, `ANht` (Howl of Terror) through its

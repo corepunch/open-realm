@@ -175,6 +175,7 @@ BZ_ABILITY_PROC(CAbilityHex);
 BZ_ABILITY_PROC(CAbilitySpiritOfVengeance);
 BZ_ABILITY_PROC(CAbilityVoodoo);
 BZ_ABILITY_PROC(CAbilityAcidBomb);
+BZ_ABILITY_PROC(CAbilityManaShield);
 BZ_ABILITY_PROC(CAbilityPoisonArrows);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
 BZ_ABILITY_PROC(CAbilityAttributeModSkill);
