@@ -53,6 +53,8 @@ the original placeholder baseline" is a different target: 180 of the original
 360 placeholders, yielding 656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
 to the registry or a placeholder begins consuming authoritative state.
 
+Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`, `SetStagePoint`, `SuicideUnit`, `SuicideUnitEx`, `SuicidePlayer`, `MergeUnits`, `GetUpgradeGoldCost`, `GetUpgradeLumberCost` (all in `api_ai.h`), `EnumItemsInRect` / `GetEnumItem` (items in rect, mirrors `EnumDestructablesInRect`; boolexpr filter TODO), `GetChangingUnit` / `GetChangingUnitPrevOwner` (ownership-change event context, eventValue = prev_owner+1), `SetUnitUserData` / `GetUnitUserData` / `UnitSetUsesAltIcon` (unit state fields). Stubs added: `SetCampaignMenuRaceEx`, `SetAltMinimapIcon`, `DoNotSaveReplay`. Bot AI signatures for `SetCaptainHome` and `SuicideUnit*` take the player as explicit arg 1 (not from context); scripts call `GetAiPlayer()` to supply it. `EnumItemsInRect` arg 3 is the actionFunc; arg 2 (boolexpr) is skipped (TODO). `currentenumitem` is defined alongside `G_IsItem` in `g_items.c`.
+
 `AddIndicator` and `UnitAddIndicator` are implemented as local transient presentation rather than widget state.
 The game sends the widget entity number plus clamped RGBA to each applicable client, which reuses the ordinary
 terrain-conforming selection circle for two flashes without changing authoritative selection membership. This also
