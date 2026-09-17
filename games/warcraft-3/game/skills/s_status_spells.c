@@ -1,8 +1,14 @@
 #include "s_skills.h"
 
+static LPCSTR status_buff_fallback(DWORD code) {
+    if (code == MAKEFOURCC('A', 'c', 'r', 'i') || code == MAKEFOURCC('A', 'C', 'c', 'r')) return "Bcri";
+    if (code == MAKEFOURCC('A', 'N', 's', 'o')) return "BNso";
+    return NULL;
+}
+
 static LPCSTR status_buff(abilityitem_t const *spell, DWORD level) {
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : NULL;
+    return buff && strlen(buff) >= 4 ? buff : status_buff_fallback(spell->code);
 }
 
 static void status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {

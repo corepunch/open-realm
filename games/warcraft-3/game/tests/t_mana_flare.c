@@ -93,6 +93,7 @@ TEST(wc3_spell, mana_flare_registers_channel_procedure) {
 	T_EQ(item.ability->proc, CAbilityManaFlare);
 	T_ASSERT(item.ability->flags & AB_SPELL);
 	T_ASSERT(item.ability->flags & AB_CHANNEL);
+	T_ASSERT(item.ability->flags & AB_UPDATE);
 	T_EQ(item.ability->target_type, SPELL_TARGET_NONE);
 }
 
@@ -158,7 +159,9 @@ TEST(wc3_spell, mana_flare_cancel_and_expiry_clear_buff) {
 	fix.flare->mana.value = 200;
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	level.time += 30000; unit_updatestatuses(fix.flare);
+	S_RunAbilityUpdates(fix.flare);
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 0);
+	T_EQ(fix.flare->channel.code, 0);
 	T_FEQ(G_UnitArmorValue(fix.flare), 0, 0.001f);
 	mfl_done(&fix);
 }

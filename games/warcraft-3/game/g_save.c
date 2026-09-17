@@ -121,6 +121,11 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(pocket_factory_think),
     SAVE_CFUNCTION(exhume_think),
     SAVE_CFUNCTION(stasis_trap_think),
+    SAVE_CFUNCTION(dark_portal_think),
+    SAVE_CFUNCTION(healing_spray_think),
+    SAVE_CFUNCTION(cannibalize_think),
+    SAVE_CFUNCTION(possession_two_think),
+    SAVE_CFUNCTION(lsh_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

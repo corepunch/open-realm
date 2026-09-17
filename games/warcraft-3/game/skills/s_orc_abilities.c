@@ -71,8 +71,7 @@ static void purge_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const 
         heroabilitystatus_t *s = st.entity->abilstatus + i;
         if (!s->level || !s->timestamp) continue;
         if (S_StatusIsUndispellable(s)) continue;
-        S_HumanStatusExpired(st.entity, s->code, s->level);
-        memset(s, 0, sizeof(*s));
+        unit_expirestatus(st.entity, s);
     }
     buff = G_AbilityLevel(spell->code, level)->buffID;
     if (!buff || strlen(buff) < 4) buff = "Bprg";
@@ -136,7 +135,7 @@ FLOAT S_PurgeMoveReduction(LPCEDICT unit) {
  * damages all other living units within Area of the carrier each second.
  * Attribution uses the original caster for damage and resistance calculations.
  */
-static void lsh_think(LPEDICT thinker) {
+void lsh_think(LPEDICT thinker) {
     DWORD level;
     FLOAT area, damage;
     if (!thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }

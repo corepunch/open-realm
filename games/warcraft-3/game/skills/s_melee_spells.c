@@ -2,9 +2,30 @@
 
 #define MELEE_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 
+/* ROC AbilityData omits BuffID; apply the TFT token like Aams→Bams / Acyc→Bcyc. */
+static LPCSTR melee_buff_fallback(DWORD code) {
+    static struct { DWORD code; LPCSTR buff; } const table[] = {
+        { MAKEFOURCC('A', 'b', 'l', 'o'), "Bblo" },
+        { MAKEFOURCC('A', 'C', 'b', 'l'), "Bblo" },
+        { MAKEFOURCC('A', 'C', 'b', 'b'), "Bblo" },
+        { MAKEFOURCC('A', 'f', 'a', 'e'), "Bfae" },
+        { MAKEFOURCC('A', 'r', 'e', 'j'), "Brej" },
+        { MAKEFOURCC('A', 'r', 'o', 'a'), "Broa" },
+        { MAKEFOURCC('A', 'c', 'r', 's'), "Bcrs" },
+        { MAKEFOURCC('A', 'C', 'c', 's'), "Bcrs" },
+        { MAKEFOURCC('A', 'u', 'h', 'f'), "BUhf" },
+        { MAKEFOURCC('A', 'C', 'u', 'f'), "BUhf" },
+        { MAKEFOURCC('S', 'u', 'h', 'f'), "BUhf" },
+        { MAKEFOURCC('A', 'f', 'z', 'y'), "Bfzy" },
+    };
+    FOR_LOOP(i, sizeof(table) / sizeof(table[0]))
+        if (table[i].code == code) return table[i].buff;
+    return NULL;
+}
+
 static LPCSTR melee_buff(abilityitem_t const *spell, DWORD level) {
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : NULL;
+    return buff && strlen(buff) >= 4 ? buff : melee_buff_fallback(spell->code);
 }
 
 static void melee_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -167,18 +188,30 @@ FLOAT S_FrenzyArmorDelta(LPCEDICT unit) {
 }
 
 /* Name=Unholy Frenzy
- * Ubertip="Increases a friendly unit's attack rate by <Auhf,DataA1,%>% but deals <Auhf,DataB1> damage per second to the unit. |nLasts <Auhf,Dur1> seconds."
+ * Ubertip="Increases the attack rate of a target unit by <Auhf,DataA1,%>%, but drains <Auhf,DataB1> hit points per second. |nLasts <Auhf,Dur1> seconds."
+ * targs are air,ground,organic with no allegiance token; enemy casts are legal.
  */
-BZ_VALIDATED_SPELL_PROC(AbilityUnholyFrenzy, bloodlust_validate, melee_status_execute)
+static BOOL unholy_frenzy_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    return spell && st.entity && S_SpellIsAliveTarget(st.entity) &&
+        S_SpellAllowsTarget(spell->code, caster, st.entity);
+}
+
+BZ_VALIDATED_SPELL_PROC(AbilityUnholyFrenzy, unholy_frenzy_validate, melee_status_execute)
+
+/* TFT BuffID is BUhf; item AIuf authors Buhf. Consumers accept both fourccs. */
+static DWORD unholy_frenzy_level(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'U', 'h', 'f'));
+    return level ? level : G_UnitStatusLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
+}
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the life drain in HP/second. */
 FLOAT S_UnholyFrenzyAttackBonus(LPCEDICT unit) {
-    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
+    DWORD level = unholy_frenzy_level(unit);
     return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 1) : 0.0f;
 }
 
 FLOAT S_UnholyFrenzyLifeDrain(LPCEDICT unit) {
-    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
+    DWORD level = unholy_frenzy_level(unit);
     return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 2) : 0.0f;
 }
 

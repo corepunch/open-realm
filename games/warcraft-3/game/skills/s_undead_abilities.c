@@ -205,7 +205,7 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
 }
 
 /* Healing starts after one full second; the final authored-duration pulse ends the channel. */
-static void cannibalize_think(LPEDICT thinker) {
+void cannibalize_think(LPEDICT thinker) {
     DWORD now = G_Time();
     if (!S_SpellChannelActive(thinker)) { S_SpellEndChannel(thinker); return; }
     if (now < thinker->freetime) return;
@@ -358,7 +358,7 @@ static void possession_strip_channel(LPEDICT thinker) {
         possession_clear_status(caster, BZ_BPOC);
 }
 
-static void possession_two_think(LPEDICT thinker) {
+void possession_two_think(LPEDICT thinker) {
     LPEDICT caster = thinker->owner, target = thinker->goalentity;
     if (!S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target) ||
         target->spawn_time != thinker->channel.target_spawn_time) {

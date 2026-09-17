@@ -1731,6 +1731,72 @@ TEST(wc3_spell, frenzy_unholy_frenzy_curse_use_authored_status_and_bonus_values)
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* ROC omits BuffID; apply the TFT fourcc so Bloodlust/Faerie/Roar/Curse still land. */
+TEST(wc3_spell, melee_status_roc_empty_buffid_applies_default_fourcc) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y7;X8\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+		"C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+		"C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"targs\"\n"
+		"C;Y2;X1;K\"Ablo\"\nC;Y2;X2;K\"Ablo\"\nC;Y2;X3;K\"12\"\nC;Y2;X4;K\"12\"\nC;Y2;X5;K\"0.31\"\nC;Y2;X6;K\"0.17\"\n"
+		"C;Y3;X1;K\"Afae\"\nC;Y3;X2;K\"Afae\"\nC;Y3;X3;K\"12\"\nC;Y3;X4;K\"12\"\nC;Y3;X5;K\"3\"\n"
+		"C;Y4;X1;K\"Arej\"\nC;Y4;X2;K\"Arej\"\nC;Y4;X3;K\"8\"\nC;Y4;X4;K\"8\"\nC;Y4;X5;K\"80\"\n"
+		"C;Y5;X1;K\"Aroa\"\nC;Y5;X2;K\"Aroa\"\nC;Y5;X3;K\"12\"\nC;Y5;X4;K\"12\"\nC;Y5;X5;K\"0.19\"\nC;Y5;X7;K\"400\"\n"
+		"C;Y6;X1;K\"Acrs\"\nC;Y6;X2;K\"Acrs\"\nC;Y6;X3;K\"12\"\nC;Y6;X4;K\"12\"\nC;Y6;X5;K\"0.21\"\n"
+		"C;Y7;X1;K\"Auhf\"\nC;Y7;X2;K\"Auhf\"\nC;Y7;X3;K\"12\"\nC;Y7;X4;K\"12\"\nC;Y7;X5;K\"0.37\"\nC;Y7;X6;K\"3\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+	LPEDICT ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+	caster->s.player = ally->s.player = 0; enemy->s.player = 1;
+	ally->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+	ally->health.value = ally->health.max_value = 100;
+	test_execute_code(caster, "Ablo", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','b','l','o')));
+	T_FEQ(S_BloodlustAttackBonus(ally), 0.31f, 0.001f);
+	test_execute_code(caster, "Afae", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','f','a','e')));
+	test_execute_code(caster, "Arej", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = ally));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','e','j')));
+	test_execute_code(caster, "Aroa", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+	T_ASSERT(S_UnitHasStatus(ally, MAKEFOURCC('B','r','o','a')));
+	test_execute_code(caster, "Acrs", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','s')));
+	test_execute_code(caster, "Auhf", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','U','h','f')));
+	T_FEQ(S_UnholyFrenzyAttackBonus(enemy), 0.37f, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* targs have no allegiance token; TFT BuffID BUhf must drive the attack/drain consumers. */
+TEST(wc3_spell, unholy_frenzy_accepts_enemy_and_reads_tft_buffid) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+		"C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"Rng1\"\n"
+		"C;Y2;X1;K\"Auhf\"\nC;Y2;X2;K\"Auhf\"\nC;Y2;X3;K\"air,ground,organic\"\n"
+		"C;Y2;X4;K\"11\"\nC;Y2;X5;K\"15\"\nC;Y2;X6;K\"15\"\n"
+		"C;Y2;X7;K\"0.5\"\nC;Y2;X8;K\"2\"\nC;Y2;X9;K\"BUhf\"\nC;Y2;X10;K\"500\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('u','n','e','c'), 300, 300, 0, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
+	caster->s.player = 0; enemy->s.player = 1;
+	caster->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+	caster->targtype = enemy->targtype = TARG_GROUND;
+	caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','u','h','f'), .level = 1);
+	caster->mana.value = caster->mana.max_value = 100;
+	enemy->health.value = enemy->health.max_value = 200;
+	T_ASSERT(S_CastUnitTargetSpell(caster, MAKEFOURCC('A','u','h','f'), enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','U','h','f')));
+	T_FEQ(S_UnholyFrenzyAttackBonus(enemy), 0.5f, 0.001f);
+	T_FEQ(S_UnholyFrenzyLifeDrain(enemy), 2.0f, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, cripple_and_soul_burn_apply_status_and_read_authored_consumers) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y4;X10\n"
@@ -1765,6 +1831,24 @@ TEST(wc3_spell, cripple_and_soul_burn_apply_status_and_read_authored_consumers) 
 	T_FEQ(S_SoulBurnDamageReduction(enemy), 0.25f, 0.001f);
 	test_execute_code(caster, "Atau", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
 
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, cripple_roc_empty_buffid_applies_bcri) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+		"C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"DataC1\"\n"
+		"C;Y2;X1;K\"Acri\"\nC;Y2;X2;K\"Acri\"\nC;Y2;X3;K\"14\"\nC;Y2;X4;K\"7\"\n"
+		"C;Y2;X5;K\"0.41\"\nC;Y2;X6;K\"0.27\"\nC;Y2;X7;K\"0.13\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 500, 0);
+	caster->s.player = 0; enemy->s.player = 1;
+	enemy->svflags |= SVF_MONSTER;
+	test_execute_code(caster, "Acri", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','i')));
+	T_FEQ(S_CrippleMoveReduction(enemy), 0.41f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -1928,7 +2012,7 @@ TEST(wc3_spell, slow_poison_on_hit_applies_buff_and_returns_authored_reduction) 
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
 		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\n"
 		"C;Y2;X1;K\"Aspo\"\nC;Y2;X2;K\"Aspo\"\nC;Y2;X3;K\"10\"\n"
-		"C;Y2;X4;K\"5\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"15\"\nE\n";
+		"C;Y2;X4;K\"5\"\nC;Y2;X5;K\"0.25\"\nC;Y2;X6;K\"0.15\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	LPEDICT attacker = make_hero(MAKEFOURCC('e','h','u','n'), 300, 0, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
@@ -1946,6 +2030,38 @@ TEST(wc3_spell, slow_poison_on_hit_applies_buff_and_returns_authored_reduction) 
 	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','s','p','o')));
 	T_FEQ(S_SlowPoisonMoveReduction(target), 0.25f, 0.001f);
 	T_FEQ(S_SlowPoisonAttackReduction(target), 0.15f, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* HeroDur is 1s vs Dur 10s; DataB/C stay fractions. */
+TEST(wc3_spell, slow_poison_uses_herodur_and_fraction_data) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+		"C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"DataC1\"\n"
+		"C;Y2;X1;K\"Aspo\"\nC;Y2;X2;K\"Aspo\"\nC;Y2;X3;K\"10\"\n"
+		"C;Y2;X4;K\"1\"\nC;Y2;X5;K\"4\"\nC;Y2;X6;K\"0.5\"\nC;Y2;X7;K\"0.25\"\nE\n";
+	static UnitBalance_t hero_bal;
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('e','h','u','n'), 300, 0, 0, 0);
+	LPEDICT hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 50, 0);
+	level.time = 1000;
+	attacker->s.player = 0; hero->s.player = 1;
+	hero->svflags |= SVF_MONSTER; hero->targtype = TARG_GROUND;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
+	memset(&hero_bal, 0, sizeof(hero_bal));
+	hero_bal.strength = 20; hero_bal.maxHealth = 400;
+	hero->data.UnitBalance = &hero_bal;
+	hero->health.value = hero->health.max_value = 400;
+	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','s','p','o'), .level = 1);
+	S_SlowPoisonOnHit(attacker, hero);
+	T_ASSERT(S_UnitHasStatus(hero, MAKEFOURCC('B','s','p','o')));
+	T_FEQ(S_SlowPoisonMoveReduction(hero), 0.5f, 0.001f);
+	T_FEQ(S_SlowPoisonAttackReduction(hero), 0.25f, 0.001f);
+	level.time += 1000; unit_updatestatuses(hero);
+	T_ASSERT(!S_UnitHasStatus(hero, MAKEFOURCC('B','s','p','o')));
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -1975,7 +2091,39 @@ TEST(wc3_spell, moon_glaive_bounces_attack_to_nearby_enemy) {
 	far_away->s.origin2.x = 5000; far_away->s.origin2.y = 0;
 	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','m','g','l'), .level = 1);
 	S_MoonGlaiveAttack(attacker, primary, 50);
-	T_ASSERT(nearby->health.value < 500.0f);
+	T_FEQ(nearby->health.value, 450.0f, 0.001f);
+	T_FEQ(far_away->health.value, 500.0f, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Stock Amgl DataA/Area are 0: bounce once inside attack range, same mitigated hit. */
+TEST(wc3_spell, moon_glaive_stock_zeros_bounce_inside_attack_range) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X2\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+		"C;Y2;X1;K\"Amgl\"\nC;Y2;X2;K\"Amgl\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('e','h','u','n'), 300, 0, 0, 0);
+	LPEDICT primary = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT nearby = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT far_away = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	attacker->s.player = 0;
+	primary->s.player = nearby->s.player = far_away->s.player = 1;
+	primary->svflags |= SVF_MONSTER; nearby->svflags |= SVF_MONSTER; far_away->svflags |= SVF_MONSTER;
+	primary->targtype = nearby->targtype = far_away->targtype = TARG_GROUND;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
+	primary->health.value = primary->health.max_value = 500.0f;
+	nearby->health.value = nearby->health.max_value = 500.0f;
+	far_away->health.value = far_away->health.max_value = 500.0f;
+	primary->s.origin2.x = 0; primary->s.origin2.y = 0;
+	nearby->s.origin2.x = 50; nearby->s.origin2.y = 0;
+	far_away->s.origin2.x = 5000; far_away->s.origin2.y = 0;
+	attacker->attack1.range = 200;
+	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','m','g','l'), .level = 1);
+	S_MoonGlaiveAttack(attacker, primary, 50);
+	T_FEQ(nearby->health.value, 450.0f, 0.001f);
 	T_FEQ(far_away->health.value, 500.0f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

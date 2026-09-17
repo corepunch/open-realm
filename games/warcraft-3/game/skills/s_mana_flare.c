@@ -47,6 +47,10 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 		if (!buff || strlen(buff) < 4) buff = "Bmfl";
 		unit_addtimedstatus(ent, buff, level, S_SpellDuration(code, level, G_UnitIsHero(ent)));
 		return true;
+	case A_UPDATE:
+		if (ent && ent->channel.code == code && !G_UnitStatusLevel(ent, ID_BMFL))
+			S_SpellCancelChannel(ent);
+		return true;
 	case A_CANCEL:
 	case A_DISABLE:
 	case A_UNIT_REMOVE:

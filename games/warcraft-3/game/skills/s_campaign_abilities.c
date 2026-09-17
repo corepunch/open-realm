@@ -170,6 +170,11 @@ static void ensnare_update(LPEDICT unit) {
     }
 }
 
+BOOL S_StatusIsEnsnare(DWORD code) {
+    return code == MAKEFOURCC('B', 'e', 'n', 's') || code == MAKEFOURCC('B', 'e', 'n', 'a') ||
+        code == MAKEFOURCC('B', 'e', 'n', 'g');
+}
+
 BOOL S_UnitIsEnsnared(LPCEDICT unit) {
     return unit && (G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 's')) ||
                     G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 'a')) ||

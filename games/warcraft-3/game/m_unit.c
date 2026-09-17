@@ -974,10 +974,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
         S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent) + S_ManaFlareArmorBonus(ent);
 }
 
-static BOOL unit_status_ensnares(DWORD code) {
-    return code == MAKEFOURCC('B', 'e', 'n', 's') || code == MAKEFOURCC('B', 'e', 'n', 'a') ||
-           code == MAKEFOURCC('B', 'e', 'n', 'g');
-}
+
 
 static BOOL unit_authored_flyer(LPCEDICT ent) {
     LPCSTR movetp = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
@@ -985,14 +982,14 @@ static BOOL unit_authored_flyer(LPCEDICT ent) {
 }
 
 /* Ensnare clears AI_FLYING here; FlyHeight land/rise is owned by CAbilityEnsnare. */
-static void unit_refreshstatusflags(LPEDICT ent) {
+void unit_refreshstatusflags(LPEDICT ent) {
     BOOL ensnared = false;
     ent->stunned = false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
         if (unit_status_stuns(status->code)) ent->stunned = true;
-        if (unit_status_ensnares(status->code)) ensnared = true;
+        if (S_StatusIsEnsnare(status->code)) ensnared = true;
     }
     if (ensnared) {
         if (ent->aiflags & AI_FLYING) {
@@ -1014,6 +1011,15 @@ static void unit_refreshstatusflags(LPEDICT ent) {
     }
 }
 
+/* Dispel/Purge share this so Ensnare flyers start their rise before the slot is wiped. */
+void unit_expirestatus(LPEDICT ent, heroabilitystatus_t *status) {
+    if (!ent || !status || !status->level) return;
+    S_HumanStatusExpired(ent, status->code, status->level);
+    if (S_StatusIsEnsnare(status->code))
+        S_EnsnareStatusExpired(ent, status);
+    memset(status, 0, sizeof(*status));
+}
+
 void unit_updatestatuses(LPEDICT ent) {
     DWORD now = G_Time();
     BOOL changed = false;
@@ -1032,14 +1038,11 @@ void unit_updatestatuses(LPEDICT ent) {
             if (status->code == MAKEFOURCC('B', 'O', 'w', 'k')) {
                 ent->s.renderfx &= ~RF_HIDDEN;
             }
-            S_HumanStatusExpired(ent, status->code, status->level);
-            if (unit_status_ensnares(status->code))
-                S_EnsnareStatusExpired(ent, status);
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
             }
             unit_timed_status_log("expire", ent, status);
-            memset(status, 0, sizeof(*status));
+            unit_expirestatus(ent, status);
             changed = true;
         }
     }

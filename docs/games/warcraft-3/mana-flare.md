@@ -9,7 +9,8 @@ ignore `ability_map.c` and the old TODO comment.
 No-target channeled spell (`AB_SPELL | AB_CHANNEL`, `SPELL_TARGET_NONE`).
 Activation spends Cost, starts the shared channel lock (movement cancels),
 and applies `BuffID` token `Bmfl` for `Dur`/`HeroDur` seconds. `Untip` /
-Stop / move cancel ends the channel and strips `Bmfl`. `Bmfa`
+Stop / move cancel ends the channel and strips `Bmfl`. `Bmfl` expiry (via
+`AB_UPDATE`) also clears `channel.code`. `Bmfa`
 (`CBuffManaFlareAoe`, parent `BAOE`) is presentation-only and is not required
 for damage or armor.
 
@@ -44,7 +45,8 @@ AbilityData.slk (Amfl)
   -> Cost, Cool, Area, Rng, Cast, Dur, DataA-F, BuffID, targs
 CAbilityManaFlare
   -> S_CastNoTargetSpell / A_EXECUTE: Bmfl + AB_CHANNEL lock
-  -> A_CANCEL / expiry: strip Bmfl
+  -> A_CANCEL: strip Bmfl
+  -> A_UPDATE: if channel is Amfl and Bmfl is gone, S_SpellCancelChannel
 spell_commit (successful cast)
   -> S_ManaFlareOnCast(caster, code, level)
      scan enemies-of-caster with Bmfl in Area
@@ -56,7 +58,7 @@ G_UnitArmorValue
 ## Registry
 
 ```c
-{ "Amfl", CAbilityManaFlare, AB_SPELL | AB_CHANNEL, SPELL_TARGET_NONE },
+{ "Amfl", CAbilityManaFlare, AB_SPELL | AB_CHANNEL | AB_UPDATE, SPELL_TARGET_NONE },
 ```
 
 ## Diagnostic Workflow
@@ -73,4 +75,5 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.mana_flare*'
 
 Focused tests cover procedure registration, authored non-stock DataA damage,
 enemy-cast trigger, out-of-area ignore, friendly-cast ignore, armor bonus,
-Cast interval gating, channel/expiry cleanup, and splash mana-pool filter.
+Cast interval gating, channel/expiry cleanup (`channel.code == 0` after `Bmfl`
+expires), and splash mana-pool filter.

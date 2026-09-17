@@ -3309,14 +3309,22 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     LPEDICT effect = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 3.0f, 0.0f);
     LPEDICT tree = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 4.0f, 0.0f);
     LPEDICT human = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 5.0f, 0.0f);
+    LPEDICT portal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 6.0f, 0.0f);
+    LPEDICT spray = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 7.0f, 0.0f);
+    LPEDICT can = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 8.0f, 0.0f);
+    LPEDICT pos = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 9.0f, 0.0f);
+    LPEDICT lsh = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 10.0f, 0.0f);
     unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
     mine->stand = unit_stand; mine->think = blight_mine_think;
     idle->stand = unit_stand; idle->think = NULL;
     effect->think = G_EffectThink; effect->prethink = G_EffectValidateTarget;
     tree->stand = tree_stand; tree->birth = tree_birth; tree->pain = tree_pain; tree->die = tree_die; tree->think = G_FreeEdict;
     human->think = human_ability_think;
+    portal->think = dark_portal_think; spray->think = healing_spray_think;
+    can->think = cannibalize_think; pos->think = possession_two_think; lsh->think = lsh_think;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
+    portal->think = spray->think = can->think = pos->think = lsh->think = monster_think;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
     unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
     T_ASSERT(ReadGame(filename));
@@ -3327,6 +3335,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(tree->stand == tree_stand && tree->birth == tree_birth && tree->pain == tree_pain && tree->die == tree_die);
     T_ASSERT(tree->think == G_FreeEdict);
     T_ASSERT(human->think == human_ability_think);
+    T_ASSERT(portal->think == dark_portal_think && spray->think == healing_spray_think);
+    T_ASSERT(can->think == cannibalize_think && pos->think == possession_two_think && lsh->think == lsh_think);
     remove(filename);
 }
 

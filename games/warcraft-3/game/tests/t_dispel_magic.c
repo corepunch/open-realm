@@ -5,6 +5,7 @@
 #define BZ_ADIS MAKEFOURCC('A', 'd', 'i', 's') // rawcode; Priest Dispel Magic
 #define BZ_ADCH MAKEFOURCC('A', 'd', 'c', 'h') // rawcode; TFT Disenchant(old)
 #define BZ_ADVM MAKEFOURCC('A', 'd', 'v', 'm') // rawcode; Destroyer Devour Magic
+#define BZ_AENS MAKEFOURCC('A', 'e', 'n', 's') // rawcode; Raider Ensnare
 #define BZ_BSLO MAKEFOURCC('B', 's', 'l', 'o') // rawcode; Slow timed status probe
 #define BZ_BINF MAKEFOURCC('B', 'i', 'n', 'f') // rawcode; Inner Fire timed status probe
 
@@ -141,6 +142,53 @@ TEST(wc3_spell, devour_magic_summoned_damage_uses_datae) {
 	T_FEQ(fix.caster->health.value, 100, 0.001f);
 	T_FEQ(fix.caster->mana.value, 10, 0.001f);
 	dispel_done(fix);
+}
+
+/* Dispel must restore AI_FLYING; Ensnare expiry is not only a timed-status path. */
+TEST(wc3_spell, dispel_restores_ensnared_flyer) {
+	static UnitData_t flyer_data;
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y3;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+		"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Rng1\"\n"
+		"C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"Area1\"\nC;Y1;X10;K\"BuffID1\"\n"
+		"C;Y2;X1;K\"Adis\"\nC;Y2;X2;K\"Adis\"\nC;Y2;X3;K\"1\"\n"
+		"C;Y2;X4;K\"air,ground,ward,invu,vuln\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"500\"\n"
+		"C;Y2;X7;K\"0\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"250\"\n"
+		"C;Y3;X1;K\"Aens\"\nC;Y3;X2;K\"Aens\"\nC;Y3;X3;K\"1\"\n"
+		"C;Y3;X4;K\"ground,air,enemy,neutral\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"500\"\n"
+		"C;Y3;X7;K\"7\"\nC;Y3;X8;K\"3\"\nC;Y3;X10;K\"Bena,Beng\"\nE\n";
+	slkTestData_t *rows, *old;
+	LPEDICT priest, raider, flyer;
+	VECTOR2 point;
+	reset_entities(); setup_test_world(); level.time = 1000;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
+	rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+	priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 0, 0);
+	raider = alloc_test_unit(MAKEFOURCC('o', 'r', 'a', 'i'), 32, 0);
+	flyer = alloc_test_unit(MAKEFOURCC('h', 'g', 'r', 'y'), 96, 0);
+	priest->s.player = raider->s.player = 0; flyer->s.player = 1;
+	priest->svflags |= SVF_MONSTER; raider->svflags |= SVF_MONSTER; flyer->svflags |= SVF_MONSTER;
+	priest->targtype = raider->targtype = TARG_GROUND; flyer->targtype = TARG_AIR;
+	priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
+	raider->heroabilities[0] = MAKE(heroability_t, .code = BZ_AENS, .level = 1);
+	priest->mana.value = priest->mana.max_value = 100;
+	raider->mana.value = raider->mana.max_value = 100;
+	memset(&flyer_data, 0, sizeof(flyer_data));
+	flyer_data.moveTypeName = "fly"; flyer_data.moveHeight = 180.0f;
+	flyer->data.UnitData = &flyer_data;
+	flyer->aiflags |= AI_FLYING; flyer->unitinfo.FlyHeight = 180.0f;
+	T_ASSERT(S_CastUnitTargetSpell(raider, BZ_AENS, flyer));
+	T_ASSERT(S_UnitIsEnsnared(flyer));
+	T_ASSERT(!(flyer->aiflags & AI_FLYING));
+	point = flyer->s.origin2;
+	T_ASSERT(S_CastPointTargetSpell(priest, BZ_ADIS, &point));
+	T_ASSERT(!S_UnitIsEnsnared(flyer));
+	T_ASSERT(flyer->aiflags & AI_FLYING);
+	T_FEQ(flyer->unitinfo.FlyHeight, 180, 0.001f);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 TEST(wc3_spell, devour_magic_empty_area_heals_nothing) {

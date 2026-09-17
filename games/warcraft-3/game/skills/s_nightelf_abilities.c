@@ -15,19 +15,23 @@ LPCSTR const barkskin_orders[] = { "barkskinon", "barkskinoff", NULL };
 
 BZ_ABILITY_PROC(CAbilityMoonGlaive) { return CAbilityPassive(ent, msg, call); }
 
-/* Called from S_ResolveAttackHit after the primary hit lands.  Bounces the
- * attack to DataA-1 additional enemies within Area of the current bounce
- * target.  Damage is fixed at the same value as the primary hit (no falloff). */
+/* Called from S_ResolveAttackHit after the primary hit lands. Stock Amgl DataA
+ * and Area are 0; that means one extra bounce inside attack range, not "no bounce".
+ * Authored DataA>0 is total targets. Damage is the already-mitigated primary hit. */
 void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage) {
     DWORD level = G_UnitAbilityLevel(attacker, ID_MOON_GLAIVE);
+    FLOAT data_a, range;
+    DWORD total;
+    LPEDICT visited[8], current;
+    DWORD nvisited = 0;
     if (!level) level = G_UnitAbilityLevel(attacker, ID_MOON_GLAIVER);
     if (!level || !primary) return;
-    DWORD total = (DWORD)MAX(1.0f, S_SpellData(ID_MOON_GLAIVE, level, 1));
-    FLOAT range = S_SpellNumber(ID_MOON_GLAIVE, ABILITY_NUMBER_AREA, level);
-    LPEDICT visited[8];
-    DWORD nvisited = 0;
+    data_a = S_SpellData(ID_MOON_GLAIVE, level, 1);
+    total = data_a > 0.0f ? (DWORD)data_a : 2; /* stock 0 → primary + 1 bounce */
+    range = S_SpellNumber(ID_MOON_GLAIVE, ABILITY_NUMBER_AREA, level);
+    if (range <= 0.0f) range = attacker->attack1.range;
     if (nvisited < 8) visited[nvisited++] = primary;
-    LPEDICT current = primary;
+    current = primary;
     for (DWORD i = 1; i < total; i++) {
         LPEDICT next = NULL;
         FILTER_EDICTS(other, other != attacker && S_SpellIsAliveTarget(other) &&
@@ -39,7 +43,7 @@ void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage) {
         }
         if (!next) break;
         if (nvisited < 8) visited[nvisited++] = next;
-        T_Damage(next, attacker, G_AttackDamage(attacker, next, damage));
+        T_Damage(next, attacker, damage);
         current = next;
     }
 }
@@ -53,21 +57,21 @@ BZ_ABILITY_PROC(CAbilitySlowPoison) { return CAbilityPassive(ent, msg, call); }
 void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target) {
     DWORD level = G_UnitAbilityLevel(attacker, ID_SLOW_POISON);
     if (!level || !target || !S_SpellIsEnemy(attacker, target)) return;
-    unit_addtimedstatus(target, "Bspo", level, S_SpellDuration(ID_SLOW_POISON, level, false));
+    /* DataA DPS / BuffID Bssd are leftover; this slice only applies Bspo slow. */
+    unit_addtimedstatus(target, "Bspo", level, S_SpellDuration(ID_SLOW_POISON, level, G_UnitIsHero(target)));
 }
 
-/* Movement-speed reduction fraction while Bspo is active on unit. */
+/* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */
 FLOAT S_SlowPoisonMoveReduction(LPCEDICT unit) {
     DWORD level = G_UnitStatusLevel(unit, BUFF_SLOW_POI);
     if (!level) return 0.0f;
-    return S_SpellData(ID_SLOW_POISON, level, 2) * 0.01f;
+    return S_SpellData(ID_SLOW_POISON, level, 2);
 }
 
-/* Attack-speed reduction fraction while Bspo is active on unit. */
 FLOAT S_SlowPoisonAttackReduction(LPCEDICT unit) {
     DWORD level = G_UnitStatusLevel(unit, BUFF_SLOW_POI);
     if (!level) return 0.0f;
-    return S_SpellData(ID_SLOW_POISON, level, 3) * 0.01f;
+    return S_SpellData(ID_SLOW_POISON, level, 3);
 }
 
 /* ---- Barkskin (Abar): modal autocast of a timed friendly armor buff ------- */

@@ -469,13 +469,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
-                DWORD code = target->abilstatus[i].code, status_level = target->abilstatus[i].level;
                 if (S_StatusIsUndispellable(&target->abilstatus[i])) continue;
-                S_HumanStatusExpired(target, code, status_level);
-                memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+                unit_expirestatus(target, target->abilstatus + i);
                 removed++;
             }
         }
+        unit_refreshstatusflags(target);
         if (dispel_is_summoned(target) && summon_dmg > 0.0f)
             S_SpellDamage(target, caster, (int)summon_dmg);
     }
