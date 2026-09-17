@@ -28,7 +28,6 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
         return false;
     }
     unit_addtimedstatus(target->entity, buff, level, S_SpellDuration(call->item->code, level, G_UnitIsHero(target->entity)));
-    unit_stand(target->entity);
-    G_SpawnAbilityEffectTarget(call->item->code, WC3_EFFECT_TARGET, 0, target->entity, NULL, true);
+    target->entity->goalentity = NULL; target->entity->currentmove = &holdpos_move_stand;
     return true;
 }

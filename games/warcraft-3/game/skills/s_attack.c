@@ -418,7 +418,7 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
-    if (!self || !can_attack(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target)) {
+    if (!self || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target)) {
         return;
     }
     unit_entercombat(self, target);
@@ -428,7 +428,7 @@ void order_attack(LPEDICT self, LPEDICT target) {
 
 /* Player orders replace retained movement; automatic acquisition keeps it so combat can resume Follow/Patrol. */
 BOOL S_OrderAttack(LPEDICT self, LPEDICT target) {
-    if (!self || M_IsDead(self) || !can_attack(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target))
+    if (!self || M_IsDead(self) || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target))
         return false;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = self->movement.patrol_b = self->movement.patrol_target = NULL;
