@@ -14,8 +14,8 @@
 | `ACen` | ROC and TFT | creep Ensnare — unregistered |
 
 Casting binds one living enemy/neutral unit so it cannot move for `Dur` /
-`HeroDur`. Air units are forced onto the support surface for the buff duration
-and can be attacked as land units while grounded.
+`HeroDur`. Air units lose `AI_FLYING` immediately so ground attacks can hit them,
+then descend to the support surface over `DataA`.
 
 ## ROC vs TFT
 
@@ -27,10 +27,13 @@ and can be attacked as land units while grounded.
 | `DataA` / `DataB` / `DataC` | 0.6 / 200 / 128 | same |
 | `BuffID` | empty | `Bena,Beng` |
 
-OE labels for DataA–C are `flyingUnitAdjust`, `flyingUnitHeight`, and
-`meleeRange`. Immediate land-and-lock clears `AI_FLYING` and sets
-`unitinfo.FlyHeight` to 0; gradual adjust/height from DataA/DataB is not
-consumed yet. DataC melee-range presentation is unused.
+WorldEdit `AbilityMetaData` labels (`WESTRING_AEVAL_ENS*`):
+
+| Field | Stock | Meta name | Runtime |
+| --- | ---: | --- | --- |
+| `DataA` | 0.6 | Air Unit Lower Duration | seconds to land (and to rise on expiry); `<=0` snaps |
+| `DataB` | 200 | Air Unit Height | land start height when `DataA>0` |
+| `DataC` | 128 | Melee Attack Range | ensnared unit's attack range while bound |
 
 ROC omits `BuffID`; apply `Bens` (`CBuffEnsnare`) as the documented fallback
 (same pattern as empty `Aams` → `Bams` / empty `Acyc` → `Bcyc`). TFT
@@ -45,16 +48,21 @@ AbilityData.slk (Aens / ANen)
   -> targs, Cost, Rng, Dur/HeroDur, BuffID, DataA-C
 CAbilityEnsnare
   -> A_EXECUTE: unit_addtimedstatus(Bena | Beng | Bens fallback)
+              store spell->code in status.data; begin land (DataA/B)
+  -> A_UPDATE: advance land / rise FlyHeight; M_CheckGround
 unit_refreshstatusflags
-  -> while ensnared: clear AI_FLYING, FlyHeight=0, M_CheckGround
-  -> after expiry/dispel: restore AI_FLYING + authored moveHeight when movetp=fly
+  -> while ensnared: clear AI_FLYING (height owned by ensnare update)
+  -> after expiry: restore AI_FLYING; S_EnsnareStatusExpired starts rise when DataA>0
 order_move
   -> S_UnitIsEnsnared / BEer reject movement
+s_attack range
+  -> S_EnsnareMeleeRange returns DataC while ensnared
 ```
 
-Restore uses authored `UnitData.moveTypeName == "fly"` and `moveHeight`, not a
-saved status payload, so expiry, death cleanup, and dispel all re-enter the same
-refresh path after the buff slot is cleared.
+Land uses buff age against `DataA` with start height `DataB` (else authored
+`moveHeight`). Rise after expiry stores `DataA` on the edict and lerps from 0 to
+authored `moveHeight`. Zero/missing `DataA` keeps the prior instant land-and-
+restore path so fixtures without those cells stay deterministic.
 
 ## Diagnostic Workflow
 
@@ -70,5 +78,5 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.ensnare*'
 ```
 
 Focused tests cover alias procedure lookup, ground `Bens` move lock, flyer
-land-and-lock, expiry restore of `AI_FLYING`/altitude, ground targets staying
-non-flying, and recast refresh.
+land-and-lock, gradual `DataA`/`DataB` descent, expiry restore of
+`AI_FLYING`/altitude, ground targets staying non-flying, and recast refresh.

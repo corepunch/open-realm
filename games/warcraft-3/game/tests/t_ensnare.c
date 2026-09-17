@@ -14,7 +14,8 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
-/* Non-stock Dur/Cost so tests cannot pass on hardcoded retail 12/0. */
+/* Non-stock Dur/Cost so tests cannot pass on hardcoded retail 12/0.
+ * Instant-land fixtures omit DataA/B so missing cells stay 0 (snap path). */
 #define ENS_SLK \
     "ID;PWXL;N;EBB;Y2;X10\n" \
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n" \
@@ -36,6 +37,20 @@ void free_slk_rows(slkTestData_t *rows);
     "C;Y2;X4;K\"ground,air,enemy,neutral\"\nC;Y2;X5;K\"17\"\nC;Y2;X6;K\"0\"\n" \
     "C;Y2;X7;K\"500\"\nC;Y2;X8;K\"7\"\nC;Y2;X9;K\"3\"\n" \
     "C;Y2;X10;K\"Bens\"\nE\n"
+
+/* Non-stock DataA=2s / DataB=160 / DataC=90 so gradual land cannot pass on 0.6/200/128. */
+#define ENS_GRADUAL_SLK \
+    "ID;PWXL;N;EBB;Y2;X13\n" \
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n" \
+    "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n" \
+    "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n" \
+    "C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"DataA1\"\nC;Y1;X12;K\"DataB1\"\n" \
+    "C;Y1;X13;K\"DataC1\"\n" \
+    "C;Y2;X1;K\"Aens\"\nC;Y2;X2;K\"Aens\"\nC;Y2;X3;K\"1\"\n" \
+    "C;Y2;X4;K\"ground,air,enemy,neutral\"\nC;Y2;X5;K\"17\"\nC;Y2;X6;K\"0\"\n" \
+    "C;Y2;X7;K\"500\"\nC;Y2;X8;K\"7\"\nC;Y2;X9;K\"3\"\n" \
+    "C;Y2;X10;K\"Bena,Beng\"\nC;Y2;X11;K\"2\"\nC;Y2;X12;K\"160\"\n" \
+    "C;Y2;X13;K\"90\"\nE\n"
 
 typedef struct {
     slkTestData_t *rows, *old;
@@ -174,6 +189,47 @@ TEST(wc3_spell, ensnare_roc_empty_buffid_and_recast) {
     wp = Waypoint_add(&(VECTOR2){300, 0});
     order_move(fix.ground, wp);
     T_ASSERT(fix.ground->goalentity != wp);
+    ens_done(fix);
+}
+
+/* DataA/B lower FlyHeight over time; AI_FLYING clears immediately; DataC sets melee range. */
+TEST(wc3_spell, ensnare_flyer_gradual_land_uses_dataa_datab) {
+    ENSFIX fix = ens_setup(ENS_GRADUAL_SLK);
+    FLOAT mid;
+
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
+    T_ASSERT(S_UnitIsEnsnared(fix.flyer));
+    T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 160, 0.001f); /* DataB start; not snapped to 0 */
+    T_FEQ(S_EnsnareMeleeRange(fix.flyer), 90, 0.001f);
+
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    mid = fix.flyer->unitinfo.FlyHeight;
+    T_ASSERT(mid > 1.0f && mid < 159.0f);
+
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
+    ens_done(fix);
+}
+
+/* After gradual land, expiry rises over DataA instead of snapping moveHeight. */
+TEST(wc3_spell, ensnare_gradual_restore_after_expiry) {
+    ENSFIX fix = ens_setup(ENS_GRADUAL_SLK);
+
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
+    level.time += 2000; S_RunAbilityUpdates(fix.flyer);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
+
+    level.time += 5000; unit_updatestatuses(fix.flyer);
+    T_ASSERT(!S_UnitIsEnsnared(fix.flyer));
+    T_ASSERT(fix.flyer->aiflags & AI_FLYING);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f); /* rise just started */
+
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_ASSERT(fix.flyer->unitinfo.FlyHeight > 1.0f && fix.flyer->unitinfo.FlyHeight < 179.0f);
+
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
     ens_done(fix);
 }
 

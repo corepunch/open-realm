@@ -46,7 +46,7 @@ static ability_t abilitylist[] = {
     { "Asb2", CAbilitySubmergeRoyalGuard, AB_SPELL | AB_TOGGLE },  /* Submerge */
     { "Asb3", CAbilitySubmergeSnapDragon, AB_SPELL | AB_TOGGLE },  /* Submerge */
     { "ANha", CAbilityHarvest, AB_COMMAND },  /* Harvest */
-    { "ANen", CAbilityEnsnare, AB_SPELL, SPELL_TARGET_UNIT },  /* Ensnare */
+    { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
     { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "ANpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite */
     { "Acny", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (naga; code=Acyc) */
@@ -461,7 +461,7 @@ static ability_t abilitylist[] = {
     // TODO: Acha a_unknown  /* Chaos */
     // TODO: Achl a_cargo_load  /* Chaos Cargo Load */
     // TODO: Awar a_bounce  /* Pulverize */
-    { "Aens", CAbilityEnsnare, AB_SPELL, SPELL_TARGET_UNIT },  /* Ensnare */
+    { "Aens", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
     // TODO: Adev a_devour  /* Devour */
     { "Aprg", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge */
     { "Apg2", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (TFT melee; DataD/DataE pause) */

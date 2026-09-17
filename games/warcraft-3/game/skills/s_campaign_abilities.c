@@ -101,16 +101,109 @@ static BOOL ensnare_is_flyer(LPCEDICT unit) {
     return movetp && !strcmp(movetp, "fly");
 }
 
+static heroabilitystatus_t *ensnare_status(LPEDICT unit) {
+    if (!unit) return NULL;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *slot = unit->abilstatus + i;
+        if (!slot->level) continue;
+        if (slot->code == MAKEFOURCC('B', 'e', 'n', 's') || slot->code == MAKEFOURCC('B', 'e', 'n', 'a') ||
+            slot->code == MAKEFOURCC('B', 'e', 'n', 'g'))
+            return slot;
+    }
+    return NULL;
+}
+
+static FLOAT ensnare_authored_height(LPCEDICT unit) {
+    return unit && unit->data.UnitData ? unit->data.UnitData->moveHeight : 0.0f;
+}
+
+/* Apply DataA/B land: zero DataA snaps; otherwise start at DataB (else current/authored). */
+static void ensnare_begin_land(LPEDICT unit, DWORD spell_code, DWORD level) {
+    FLOAT adjust, height;
+    if (!unit || !ensnare_is_flyer(unit)) {
+        if (unit) memset(&unit->ensnare, 0, sizeof(unit->ensnare));
+        return;
+    }
+    adjust = S_SpellData(spell_code, level, 1);
+    height = S_SpellData(spell_code, level, 2);
+    if (height <= 0.0f) height = unit->unitinfo.FlyHeight > 0.0f ? unit->unitinfo.FlyHeight : ensnare_authored_height(unit);
+    unit->ensnare.adjust = adjust;
+    unit->ensnare.height = height;
+    unit->ensnare.start = G_Time();
+    if (adjust <= 0.0f) {
+        unit->unitinfo.FlyHeight = 0.0f;
+        memset(&unit->ensnare, 0, sizeof(unit->ensnare));
+    } else {
+        unit->ensnare.phase = ENSNARE_HEIGHT_LAND;
+        unit->unitinfo.FlyHeight = height;
+    }
+    M_CheckGround(unit);
+    gi.LinkEntity(unit);
+}
+
+static void ensnare_set_height(LPEDICT unit, FLOAT height) {
+    unit->unitinfo.FlyHeight = MAX(0.0f, height);
+    M_CheckGround(unit);
+    gi.LinkEntity(unit);
+}
+
+/* Advance land/rise owned by CAbilityEnsnare (AB_UPDATE). */
+static void ensnare_update(LPEDICT unit) {
+    FLOAT frac, target;
+    if (!unit || unit->ensnare.phase == ENSNARE_HEIGHT_NONE || unit->ensnare.adjust <= 0.0f) return;
+    frac = ((FLOAT)G_Time() - (FLOAT)unit->ensnare.start) / (unit->ensnare.adjust * 1000.0f);
+    if (unit->ensnare.phase == ENSNARE_HEIGHT_LAND) {
+        if (frac >= 1.0f) {
+            ensnare_set_height(unit, 0.0f);
+            unit->ensnare.phase = ENSNARE_HEIGHT_NONE;
+        } else {
+            ensnare_set_height(unit, unit->ensnare.height * MAX(0.0f, 1.0f - frac));
+        }
+        return;
+    }
+    target = unit->ensnare.height > 0.0f ? unit->ensnare.height : ensnare_authored_height(unit);
+    if (frac >= 1.0f) {
+        ensnare_set_height(unit, target);
+        memset(&unit->ensnare, 0, sizeof(unit->ensnare));
+    } else {
+        ensnare_set_height(unit, target * MAX(0.0f, frac));
+    }
+}
+
 BOOL S_UnitIsEnsnared(LPCEDICT unit) {
     return unit && (G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 's')) ||
                     G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 'a')) ||
                     G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 'g')));
 }
 
-/* Name=Ensnare — bind target; air takes Bena and lands via unit_refreshstatusflags. */
-BZ_SIMPLE_SPELL_PROC(AbilityEnsnare) {
+/* DataC Melee Attack Range while the bind is active; 0 when not ensnared. */
+FLOAT S_EnsnareMeleeRange(LPCEDICT unit) {
+    heroabilitystatus_t const *slot = ensnare_status((LPEDICT)unit);
+    if (!slot || !slot->data) return 0.0f;
+    return S_SpellData(slot->data, slot->level, 3);
+}
+
+/* Buff expiry starts gradual rise when DataA was non-zero; otherwise height snaps in refresh. */
+void S_EnsnareStatusExpired(LPEDICT unit, heroabilitystatus_t const *status) {
+    FLOAT adjust, target;
+    if (!unit || !status || !ensnare_is_flyer(unit)) return;
+    adjust = status->data ? S_SpellData(status->data, status->level, 1) : unit->ensnare.adjust;
+    target = ensnare_authored_height(unit);
+    if (adjust <= 0.0f) {
+        memset(&unit->ensnare, 0, sizeof(unit->ensnare));
+        return;
+    }
+    unit->ensnare.adjust = adjust;
+    unit->ensnare.height = target > 0.0f ? target : unit->ensnare.height;
+    unit->ensnare.start = G_Time();
+    unit->ensnare.phase = ENSNARE_HEIGHT_RISE;
+    unit->unitinfo.FlyHeight = 0.0f;
+}
+
+static void ensnare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR list, buff;
+    heroabilitystatus_t *slot;
     (void)caster;
     if (!st.entity) return;
     list = G_AbilityLevel(spell->code, level)->buffID;
@@ -118,7 +211,21 @@ BZ_SIMPLE_SPELL_PROC(AbilityEnsnare) {
     if (!buff || strlen(buff) < 4) buff = ensnare_buff_token(list, 0);
     if (!buff || strlen(buff) < 4) buff = "Bens";
     unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    slot = ensnare_status(st.entity);
+    if (slot) slot->data = spell->code;
+    ensnare_begin_land(st.entity, spell->code, level);
     st.entity->goalentity = NULL;
+}
+
+/* Name=Ensnare — bind; air takes Bena and lands via DataA/B (AB_UPDATE advances height). */
+BZ_ABILITY_PROC(CAbilityEnsnare) {
+    if (msg == A_UPDATE) { ensnare_update(ent); return true; }
+    if (msg == A_EXECUTE) {
+        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+        ensnare_execute(ent, target, call ? call->item : NULL);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmorCampaign) { campaign_status_execute(caster, st, spell); }

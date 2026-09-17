@@ -181,4 +181,35 @@ TEST(wc3_spell, purge_apg2_zero_dataa_is_full_move_reduction_after_pause) {
 	purge_done(fix);
 }
 
+/* After pause, DataA slow is full at t=0 then weaker later in Dur (non-stock 0.4, not 5). */
+TEST(wc3_spell, purge_gradual_recovery_weakens_after_pause) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X14\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+		"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Rng1\"\n"
+		"C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"BuffID1\"\n"
+		"C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataC1\"\n"
+		"C;Y1;X12;K\"DataD1\"\nC;Y1;X13;K\"DataE1\"\nC;Y1;X14;K\"Cool1\"\n"
+		"C;Y2;X1;K\"Apg2\"\nC;Y2;X2;K\"Aprg\"\nC;Y2;X3;K\"1\"\n"
+		"C;Y2;X4;K\"air,ground,enemy\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"700\"\n"
+		"C;Y2;X7;K\"10\"\nC;Y2;X8;K\"4\"\nC;Y2;X9;K\"Bprg\"\n"
+		"C;Y2;X10;K\"0.4\"\nC;Y2;X11;K\"180\"\nC;Y2;X12;K\"2\"\n"
+		"C;Y2;X13;K\"1\"\nC;Y2;X14;K\"0\"\nE\n";
+	PURGEFIX fix = purge_setup(slk, BZ_APG2);
+	FLOAT early, late;
+
+	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
+	T_ASSERT(S_PurgeIsImmobilized(fix.enemy));
+	level.time += 2000; /* DataD pause ends; initial reduction = 1 - 0.4 = 0.6 */
+	T_ASSERT(!S_PurgeIsImmobilized(fix.enemy));
+	early = S_PurgeMoveReduction(fix.enemy);
+	T_FEQ(early, 0.6f, 0.001f);
+
+	level.time += 4000; /* halfway through remaining 8s slow window */
+	late = S_PurgeMoveReduction(fix.enemy);
+	T_ASSERT(late < early - 0.05f);
+	T_ASSERT(late > 0.05f);
+	purge_done(fix);
+}
+
 #endif

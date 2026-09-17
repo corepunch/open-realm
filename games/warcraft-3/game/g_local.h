@@ -409,6 +409,12 @@ typedef enum {
     RAVEN_RISE_ACTIVE,
 } ravenRiseState_t;
 
+typedef enum {
+    ENSNARE_HEIGHT_NONE,
+    ENSNARE_HEIGHT_LAND,
+    ENSNARE_HEIGHT_RISE,
+} ensnareHeightState_t;
+
 struct gcamerasetup_s {
     FLOAT target_distance;
     FLOAT far_z;
@@ -1134,6 +1140,12 @@ struct edict_s {
         FLOAT rise_duration;
         ravenRiseState_t rise_state;
     } raven;
+    struct edictEnsnare_s {
+        FLOAT adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
+        FLOAT height; /* DataB land start, or authored moveHeight while rising */
+        DWORD start;  /* G_Time() when current land/rise phase began */
+        ensnareHeightState_t phase;
+    } ensnare;
     DWORD heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
     DWORD heatmap2_time;      /* level.time when heatmap2 was last built */
@@ -2466,6 +2478,7 @@ BOOL S_GoldMineWorkerIsInside(LPCEDICT);
 BOOL S_MilitiaTargetOrder(LPEDICT, LPCSTR, LPEDICT);
 void S_CancelMilitiaPairing(LPEDICT);
 void S_MilitiaExpire(LPEDICT);
+void S_EnsnareStatusExpired(LPEDICT, heroabilitystatus_t const *);
 void S_GoldMineInitUnit(LPEDICT);
 void S_GoldMineReleaseWorker(LPEDICT);
 BOOL S_MineOverlayBind(LPEDICT, LPEDICT);

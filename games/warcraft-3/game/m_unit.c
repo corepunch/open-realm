@@ -983,7 +983,7 @@ static BOOL unit_authored_flyer(LPCEDICT ent) {
     return movetp && !strcmp(movetp, "fly");
 }
 
-/* Ensnare land/restore lives here so expiry, death cleanup, and dispel share one path. */
+/* Ensnare clears AI_FLYING here; FlyHeight land/rise is owned by CAbilityEnsnare. */
 static void unit_refreshstatusflags(LPEDICT ent) {
     BOOL ensnared = false;
     ent->stunned = false;
@@ -996,13 +996,19 @@ static void unit_refreshstatusflags(LPEDICT ent) {
     if (ensnared) {
         if (ent->aiflags & AI_FLYING) {
             ent->aiflags &= ~AI_FLYING;
-            ent->unitinfo.FlyHeight = 0.0f;
             M_CheckGround(ent);
         }
     } else if (unit_authored_flyer(ent) && !(ent->aiflags & AI_FLYING)) {
         ent->aiflags |= AI_FLYING;
-        if (ent->unitinfo.FlyHeight <= 0.0f)
+        /* Dispel/expiry mid-land: convert stored DataA land into a rise. */
+        if (ent->ensnare.phase == ENSNARE_HEIGHT_LAND && ent->ensnare.adjust > 0.0f) {
+            ent->ensnare.height = ent->data.UnitData->moveHeight;
+            ent->ensnare.start = G_Time();
+            ent->ensnare.phase = ENSNARE_HEIGHT_RISE;
+            ent->unitinfo.FlyHeight = 0.0f;
+        } else if (ent->ensnare.phase != ENSNARE_HEIGHT_RISE && ent->unitinfo.FlyHeight <= 0.0f) {
             ent->unitinfo.FlyHeight = ent->data.UnitData->moveHeight;
+        }
         M_CheckGround(ent);
     }
 }
@@ -1026,6 +1032,8 @@ void unit_updatestatuses(LPEDICT ent) {
                 ent->s.renderfx &= ~RF_HIDDEN;
             }
             S_HumanStatusExpired(ent, status->code, status->level);
+            if (unit_status_ensnares(status->code))
+                S_EnsnareStatusExpired(ent, status);
             if (status->code == MAKEFOURCC('B', 'm', 'i', 'l')) {
                 militia_expired = true;
             }

@@ -37,12 +37,13 @@ BZ_VALIDATED_SPELL_PROC(AbilityAncestralSpirit, ancestral_spirit_validate, ances
 
 /* ---- Purge (Aprg / Apg2 / AIlp) ---------------------------------------------
  * Name=Purge
- * DataA=Movement Update Frequency (fixtures use it as slow complement: 1-DataA)
+ * DataA=Movement Update Frequency / ubertip slow factor (fixtures often use a
+ *   remaining-speed complement in (0,1]; stock DataA>=1 means factor 1/DataA)
  * DataC=Summoned Unit Damage; DataD=Unit Pause Duration; DataE=Hero Pause Duration
  * BuffID=Bprg (ROC Aprg may omit; fall back to Bprg).
  *
- * TODO: retail slow gradually recovers over Dur using DataA update frequency;
- * this build applies a uniform 1-DataA reduction for the whole buff lifetime.
+ * After any DataD/DataE pause, reduction lerps from the initial slow to 0 over
+ * the remaining buff lifetime.
  */
 static heroabilitystatus_t const *purge_status(LPCEDICT unit) {
     if (!unit) return NULL;
@@ -101,12 +102,28 @@ BOOL S_PurgeIsImmobilized(LPCEDICT unit) {
     return G_Time() < start + pause_ms;
 }
 
-/* During pause reduction is 1.0; afterward 1-DataA from the casting rawcode in status.data. */
+/* Pause is full stop; afterward initial DataA slow recovers linearly over Dur-pause. */
 FLOAT S_PurgeMoveReduction(LPCEDICT unit) {
     heroabilitystatus_t const *slot = purge_status(unit);
+    FLOAT dataA, initial, pause, progress;
+    DWORD start, pause_ms, slow_ms, elapsed;
     if (!slot) return 0.0f;
     if (S_PurgeIsImmobilized(unit)) return 1.0f;
-    return 1.0f - S_SpellData(slot->data, slot->level, 1);
+    dataA = S_SpellData(slot->data, slot->level, 1);
+    if (dataA <= 0.0f) initial = 1.0f;
+    else if (dataA > 1.0f) initial = 1.0f - (1.0f / dataA); /* stock factor */
+    else initial = 1.0f - dataA; /* fixture remaining-speed complement */
+    if (initial <= 0.0f) return 0.0f;
+    if (!slot->duration_ms || slot->timestamp < slot->duration_ms) return initial;
+    start = slot->timestamp - slot->duration_ms;
+    pause = purge_pause_seconds(unit, slot);
+    pause_ms = (DWORD)(MAX(0.0f, pause) * 1000.0f);
+    if (slot->duration_ms <= pause_ms) return initial;
+    slow_ms = slot->duration_ms - pause_ms;
+    if (G_Time() <= start + pause_ms) return initial;
+    elapsed = G_Time() - (start + pause_ms);
+    progress = MIN(1.0f, (FLOAT)elapsed / (FLOAT)slow_ms);
+    return initial * (1.0f - progress);
 }
 
 /* ---- Lightning Shield (Alsh) -----------------------------------------------

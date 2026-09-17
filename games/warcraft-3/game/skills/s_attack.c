@@ -355,18 +355,21 @@ static void ai_ranged(LPEDICT ent) {
 
 static BOOL attack_target_out_of_range(LPEDICT ent) {
     LPEDICT target;
-    FLOAT footprint;
+    FLOAT footprint, range, ensnare_range;
 
     if (!ent || !(target = ent->goalentity)) {
         return true;
     }
+    /* Ensnare DataC forces the bound unit's own attacks to melee range. */
+    ensnare_range = S_EnsnareMeleeRange(ent);
+    range = ensnare_range > 0.0f ? ensnare_range : ent->attack1.range;
     if (G_UnitIsBuilding(target->class_id)) {
         footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
         if (footprint < FLT_MAX) {
-            return footprint > ent->collision + ent->attack1.range;
+            return footprint > ent->collision + range;
         }
     }
-    return M_DistanceToGoal(ent) > ent->attack1.range;
+    return M_DistanceToGoal(ent) > range;
 }
 
 static void ai_melee_cooldown(LPEDICT ent) {

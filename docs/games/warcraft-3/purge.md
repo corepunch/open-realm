@@ -24,7 +24,7 @@ WorldEdit `AbilityMetaData` labels (`WESTRING_AEVAL_PRG*`):
 
 | Field | Stock `Aprg` | Stock `Apg2` | Meta name | Runtime |
 | --- | ---: | ---: | --- | --- |
-| `DataA` | 5 | 5 | Movement Update Frequency | slow factor in fixtures via `1 - DataA`; gradual recovery TODO |
+| `DataA` | 5 | 5 | Movement Update Frequency | initial slow; see below |
 | `DataB` | 0 | 0 | Attack Update Frequency | unused |
 | `DataC` | 400 | 400 | Summoned Unit Damage | `S_SpellDamage` when `owner` set |
 | `DataD` | 0 | 3 | Unit Pause Duration | non-hero immobilize window (seconds) |
@@ -39,6 +39,16 @@ move lock (reject `order_move`, 100% `S_PurgeMoveReduction`), not a separate
 stun buff. Do not treat stock `DataA=5` as “zero speed”; pause comes from
 `DataD`/`DataE`.
 
+### DataA slow + gradual recovery
+
+Ubertip “factor of DataA” means stock `DataA=5` starts at speed `1/5`. Fixtures
+often author a remaining-speed complement in `(0,1]` (e.g. `0.5`); those use
+`1 - DataA` as the initial reduction. `DataA <= 0` is a full stop.
+
+After any pause window, reduction lerps from that initial value down to `0`
+over the remaining buff lifetime (`Dur - pause`). At the instant pause ends,
+reduction is still the full initial slow; later samples are weaker.
+
 ## Data Flow
 
 ```text
@@ -50,6 +60,7 @@ CAbilityPurge
   -> S_SpellDamage(DataC) when target->owner
 S_PurgeMoveReduction / S_PurgeIsImmobilized
   -> read DataA/D/E from status.data (casting rawcode), not hardcoded Aprg
+  -> after pause: initial slow * (1 - elapsed_after_pause / slow_window)
 s_move order_move / ai_move_walk
   -> S_PurgeIsImmobilized rejects/stops translation (same family as Bens/BEer)
 ```
@@ -58,10 +69,6 @@ Purge ubertip says “Removes all buffs”, but Cyclone authors `Can Be Dispelle
 (`DataA`). ROC `DataA=0` cyclone survives Purge's clear loop; TFT non-zero does
 not. Unit-target selection of an already-cycloned unit is still blocked by
 `S_SpellAllowsTarget`; see [Cyclone](cyclone.md).
-
-Retail slow gradually recovers over `Dur` using Movement Update Frequency
-(`DataA`). This build applies a uniform `1 - DataA` reduction for the whole
-buff lifetime; gradual recovery remains a documented TODO.
 
 ## Diagnostic Workflow
 
@@ -78,5 +85,6 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.purge*'
 ```
 
 Focused tests cover alias procedure sharing, Aprg authored DataA slow,
-Apg2 DataD immobilize + expiry restore, Hero DataE pause, and summoned DataC
-damage. Existing `t_spell.c` Purge cases must keep passing.
+Apg2 DataD immobilize + expiry restore, Hero DataE pause, summoned DataC
+damage, and gradual post-pause recovery. Existing `t_spell.c` Purge cases must
+keep passing.

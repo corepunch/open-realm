@@ -397,6 +397,8 @@ BOOL S_UnitIsCycloned(LPCEDICT unit);
 BOOL S_StatusIsUndispellable(heroabilitystatus_t const *status);
 BOOL S_UnitIsSilenced(LPCEDICT unit);
 BOOL S_UnitIsEnsnared(LPCEDICT unit);
+FLOAT S_EnsnareMeleeRange(LPCEDICT unit);
+void S_EnsnareStatusExpired(LPEDICT unit, heroabilitystatus_t const *status);
 BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target);
 BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target);
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target);
