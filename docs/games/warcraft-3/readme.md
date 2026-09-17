@@ -108,6 +108,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Inventory And World Items](inventory-and-items.md)
+- [Map Trigger Strings in Authored Names](trigger-strings.md)
 - [Neutral Item Shops](neutral-shops.md)
 - [Ability And Item Effects](ability-and-item-effects.md)
 - [Cyclone](cyclone.md): organic-enemy action lock, ROC BuffID fallback, TFT `organic` targs.

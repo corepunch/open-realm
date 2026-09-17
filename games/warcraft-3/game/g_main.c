@@ -1098,6 +1098,7 @@ LPCSTR G_MapString(LPCMAPINFO info, LPCSTR name) {
 
 LPCSTR G_LevelString(LPCSTR name) { return G_MapString(level.mapinfo, name); }
 
+/* UnitProfile names may be map overrides, so resolve their TRIGSTR token from the active WTS table before presentation. */
 LPCSTR G_UnitName(DWORD id) {
     UnitProfile_t const *profile = G_UnitProfile(id);
     LPCSTR name = profile->name && *profile->name ? profile->name : GetClassName(id);
@@ -1298,8 +1299,7 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     state->name = 0;
     if (hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
-        /* UnitProfile.Name is empty for some ROC building rows; the rawcode is
-         * still the authoritative identity used by the loaded UnitData row. */
+        /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));
         state->flags |= EF_HOVER_HEALTH;
         if (relation == SELECT_RELATION_ENEMY) {

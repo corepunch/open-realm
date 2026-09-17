@@ -236,6 +236,11 @@ TEST(wc3_slk, map_unit_name_resolves_wts_override) {
         .modID = MAKEFOURCC('u','n','a','m'), .type = mod_string,
         .data = (HANDLE)"TRIGSTR_028"
     };
+    entityState_t state = { 0 };
+    edict_t ent = {
+        .inuse = true, .class_id = custom_id, .svflags = SVF_MONSTER,
+        .s = { .class_id = custom_id, .player = 0 }
+    };
     unitData_t custom = {
         .originalUnitID = base_id, .newUnitID = custom_id,
         .numbeOfModifications = 1, .modifications = &name
@@ -246,8 +251,11 @@ TEST(wc3_slk, map_unit_name_resolves_wts_override) {
     slkTestData_t *rows = parse_slk_string(profile_slk);
     slkTestData_t *saved_rows;
     LPCMAPINFO saved_mapinfo;
+    LPCSTR pool;
+    DWORD slot;
 
     setup_test_world();
+    ent.health.value = 100.0f;
     saved_rows = G_SetProfileRows(rows);
     saved_mapinfo = level.mapinfo;
     level.mapinfo = &mapinfo;
@@ -255,6 +263,15 @@ TEST(wc3_slk, map_unit_name_resolves_wts_override) {
 
     T_STREQ(G_UnitProfile(custom_id)->name, "TRIGSTR_028");
     T_STREQ(G_UnitName(custom_id), "Plagued Male Villager");
+    T_STREQ(G_UnitName(base_id), "Footman");
+
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.name != 0);
+    slot = (state.name - 1) / ENT_NAMES_PER_CS;
+    pool = gi.GetConfigstring(CS_GENERAL + slot);
+    T_NOT_NULL(pool);
+    if (pool)
+        T_ASSERT(entity_name_slot_equals(pool + ((state.name - 1) % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, "Plagued Male Villager"));
 
     G_SetMapUnitOverrides(NULL);
     level.mapinfo = saved_mapinfo;
