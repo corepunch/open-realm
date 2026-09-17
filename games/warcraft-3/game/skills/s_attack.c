@@ -91,6 +91,7 @@ void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
 }
 
 static BOOL can_attack(LPCEDICT ent) {
+    if (S_UnitIsCycloned(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
     if (ent->attack1.type == ATK_NONE)
@@ -105,6 +106,7 @@ static BOOL attack_target_is_valid(LPCEDICT attacker, LPCEDICT target) {
     if (!target || !target->inuse) {
         return false;
     }
+    if (S_UnitIsCycloned(target)) return false;
     if (target->destructable.initialized) {
         return G_DestructableCanBeAttackedBy(attacker, target);
     }
@@ -187,7 +189,7 @@ int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     BOOL instant_kill;
 
-    if (!target || target->invulnerable || M_IsDead(target)) {
+    if (!target || target->invulnerable || S_UnitIsCycloned(target) || M_IsDead(target)) {
         return;
     }
     /* Instant-kill follows the same combat path for units and attackable destructables; the old
@@ -416,7 +418,7 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
-    if (!self || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target)) {
+    if (!self || !can_attack(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target)) {
         return;
     }
     unit_entercombat(self, target);
@@ -426,7 +428,7 @@ void order_attack(LPEDICT self, LPEDICT target) {
 
 /* Player orders replace retained movement; automatic acquisition keeps it so combat can resume Follow/Patrol. */
 BOOL S_OrderAttack(LPEDICT self, LPEDICT target) {
-    if (!self || M_IsDead(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target))
+    if (!self || M_IsDead(self) || !can_attack(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target))
         return false;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = self->movement.patrol_b = self->movement.patrol_target = NULL;

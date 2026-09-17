@@ -372,7 +372,7 @@ BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     LPCSTR targets;
 
-    if (!S_SpellIsAliveTarget(target)) {
+    if (!S_SpellIsAliveTarget(target) || S_UnitIsCycloned(target)) {
         return false;
     }
     if (S_UnitSpellImmune(target)) return false;
@@ -484,7 +484,7 @@ void spell_run_frame(LPEDICT ent) {
 
 /* Shared validation for spell spells: mana, cooldown, and optional range check. */
 static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
-    if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster)) return false;
+    if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster) || S_UnitIsCycloned(caster)) return false;
     if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
         G_ShowCommandErrorText(clent, "Silenced.");
         return false;
@@ -506,7 +506,8 @@ static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD leve
 static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
     if (!params || !params->caster || !params->point)
         return false;
-    if (!S_SpellIsAliveTarget(params->caster) || params->caster->stunned || S_UnitPolymorphed(params->caster)) return false;
+    if (!S_SpellIsAliveTarget(params->caster) || params->caster->stunned || S_UnitPolymorphed(params->caster) ||
+        S_UnitIsCycloned(params->caster)) return false;
     if (S_UnitHasStatus(params->caster, MAKEFOURCC('B','N','s','i'))) {
         G_ShowCommandErrorText(params->clent, "Silenced.");
         return false;
@@ -635,7 +636,7 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
 static BOOL spell_begin_unit_target_approach(LPEDICT caster, DWORD code, LPEDICT target) {
     LPEDICT thinker;
 
-    if (!caster || !target || (caster->aiflags & AI_IMMOBILE) ||
+    if (!caster || !target || (caster->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(caster) ||
         G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')))
         return false;
 

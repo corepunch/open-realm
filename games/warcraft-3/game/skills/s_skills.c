@@ -438,7 +438,7 @@ static ability_t abilitylist[] = {
     // TODO: Adec CAbilityDefend  /* Dismount */
     // TODO: Acor a_bounce  /* Corrosive Breath */
     // TODO: AEst a_button  /* Scout */
-    // TODO: Acyc a_morph  /* Cyclone */
+    { "Acyc", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone */
     // TODO: Alit a_lightning_attack  /* Lightning Attack */
 
     /* OrcAbilityStrings.txt */

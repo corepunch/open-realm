@@ -130,4 +130,62 @@ TEST(wc3_ability_dispatch, shackles_locks_target_until_its_channel_ends) {
     T_ASSERT(S_HumanCanAttack(target)); T_FEQ(S_HumanMoveFactor(target), 1, 0.001f);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
+
+/* Stock Cyclone makes an enemy organic unit unable to act or be targeted until its authored duration expires. */
+TEST(wc3_ability_dispatch, cyclone_locks_actions_and_targeting_until_expiry) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\nC;Y1;X4;K\"Rng1\"\n"
+        "C;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\nC;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\n"
+        "C;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"Cost1\"\nC;Y1;X12;K\"Cool1\"\n"
+        "C;Y2;X1;K\"Acyc\"\nC;Y2;X2;K\"Acyc\"\nC;Y2;X3;K\"air,ground,enemy,neutral,organic\"\n"
+        "C;Y2;X4;K\"600\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"6\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y2;X8;K\"0\"\nC;Y2;X9;K\"0\"\nC;Y2;X10;K\"Bcyc,Bcy2\"\nC;Y2;X11;K\"150\"\nC;Y2;X12;K\"8\"\nE\n";
+    UnitAbilities_t list = { .abilList = "Acyc" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    reset_entities(); setup_test_world(); InitAbilities(); level.time = 1000;
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    LPEDICT caster = alloc_test_unit(MAKEFOURCC('e','d','o','c'), 0, 0);
+    LPEDICT victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 150, 0);
+    LPEDICT ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 200, 0);
+    LPEDICT mechanical = alloc_test_unit(MAKEFOURCC('h','m','t','t'), 250, 0);
+    LPEDICT waypoint = Waypoint_add(&MAKE(VECTOR2, .x = 400));
+    LPEDICT units[] = { caster, victim, attacker, ally, mechanical };
+    FOR_LOOP(i, sizeof(units) / sizeof(*units)) {
+        units[i]->data.UnitAbilities = &list;
+        units[i]->svflags |= SVF_MONSTER;
+        units[i]->targtype = TARG_GROUND;
+        units[i]->health.value = units[i]->health.max_value = 1000;
+        units[i]->mana.value = units[i]->mana.max_value = 500;
+        units[i]->attack1.type = ATK_NORMAL; units[i]->attack1.cooldown = 1; units[i]->attack1.damageBase = 10;
+    }
+    caster->s.player = attacker->s.player = ally->s.player = mechanical->s.player = 0;
+    victim->s.player = 1; mechanical->s.player = 1; mechanical->targtype = TARG_MECHANICAL;
+
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("Acyc"), ally));
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("Acyc"), mechanical));
+    T_FEQ(caster->mana.value, 500, 0.001f);
+    order_move(victim, waypoint); T_ASSERT(move_is_active_order_walk(victim));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Acyc"), victim));
+    T_EQ(G_UnitStatusLevel(victim, FS_SLKKey("Bcyc")), 1);
+    T_ASSERT(!move_is_active_order_walk(victim));
+    order_move(victim, waypoint); T_ASSERT(!move_is_active_order_walk(victim));
+    T_ASSERT(!S_OrderAttack(victim, caster));
+    T_ASSERT(!S_OrderAttack(attacker, victim));
+    T_ASSERT(!S_CastUnitTargetSpell(victim, FS_SLKKey("Acyc"), caster));
+    T_ASSERT(!S_CastUnitTargetSpell(attacker, FS_SLKKey("Acyc"), victim));
+    S_ResolveAttackHit(attacker, victim, 25); T_FEQ(victim->health.value, 1000, 0.001f);
+
+    level.started = true; level.scriptsStarted = true;
+    level.time += 20000; globals.RunFrame();
+    T_EQ(G_UnitStatusLevel(victim, FS_SLKKey("Bcyc")), 0);
+    order_move(victim, waypoint); T_ASSERT(move_is_active_order_walk(victim));
+    T_ASSERT(S_OrderAttack(victim, caster));
+    S_ResolveAttackHit(attacker, victim, 25); T_ASSERT(victim->health.value < 1000);
+    T_ASSERT(S_CastUnitTargetSpell(attacker, FS_SLKKey("Acyc"), victim));
+    level.started = false;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
 #endif

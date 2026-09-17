@@ -632,6 +632,19 @@ Only use a bounded game run for a named property the tests and tools cannot meas
 State that gap before launching and exercise it directly. Animation selection, effect lifetime, status cleanup, and
 return to the normal state should already have automated assertions. Once covered, rerun the tests instead of the game.
 
+### Cyclone (`Acyc`)
+
+ROC and TFT `AbilityData.slk` define Cyclone as a one-level, 600-range unit spell with `DataA-C = 1,0,0`,
+`Dur = 20`, `HeroDur = 6`, and `BuffID = Bcyc,Bcy2`. Its allowed targets are enemy organic air and ground units;
+the TFT tooltip states the non-mechanical restriction explicitly. TFT registers `Acyc` as `CAbilityCyclone` with
+`CAbilitySimpleSpell` (`AAsm`) as its parent, while `Bcyc` and `Bcy2` are `CBuffCyclone` and
+`CBuffCycloneTwo` respectively.
+
+OpenRealm stores the active authored buff in `abilstatus[]` and derives Cyclone's action and target locks from either
+Cyclone buff rawcode. The concrete procedure validates the enemy/non-mechanical rule, applies the first authored
+`BuffID` for `Dur` or `HeroDur`, and stops the target's current order. Generic Move, Attack, spell-caster, spell-target,
+and damage paths consult the status predicate, so expiry restores behavior without an `edict_t` or network-state field.
+
 ## Known Pitfalls
 
 - Do not read units from tooltip prose; use `ability_audit` and the normalized row.
