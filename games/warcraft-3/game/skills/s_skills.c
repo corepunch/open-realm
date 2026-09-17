@@ -437,9 +437,9 @@ static ability_t abilitylist[] = {
     // TODO: Aadm a_auto_dispel_magic  /* Abolish Magic */
     // TODO: Amim a_magic_immunity  /* Spell Immunity */
     // TODO: Ault a_night_vision  /* Ultravision */
-    // TODO: Acoa a_morph  /* Mount Hippogryph */
-    // TODO: Acoh a_morph  /* Pick up Archer */
-    // TODO: Adec CAbilityDefend  /* Dismount */
+    { "Acoa", CAbilityCoupleArcher, AB_SPELL, SPELL_TARGET_UNIT },  /* Mount Hippogryph */
+    { "Acoh", CAbilityCoupleHippogryph, AB_SPELL, SPELL_TARGET_UNIT },  /* Pick up Archer */
+    { "Adec", CAbilityDecouple, AB_SPELL, SPELL_TARGET_NONE },  /* Dismount */
     // TODO: Acor a_bounce  /* Corrosive Breath */
     // TODO: AEst a_button  /* Scout */
     { "Acyc", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone */
