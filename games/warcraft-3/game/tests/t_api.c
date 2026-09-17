@@ -1792,6 +1792,89 @@ TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
     T_ASSERT(!unit->inuse);
 }
 
+/* Human04's intro-cancel path kills the temporary Haunted Gold Mine and then
+ * removes its workers/buildings from JASS while the trigger is still running.
+ * Keep that authored event order here: the mine gets a death transition, while
+ * RemoveUnit hides the other widgets and retires them only after the callback. */
+TEST(wc3_api, human04_intro_cancel_preserves_unit_lifecycle_until_frame_end) {
+    LPEDICT mine = NULL, worker = NULL, building = NULL, replacement;
+    ggroup_t *cancel_group;
+    DWORD const bit = 1u << game.clients[0].ps.number;
+    char number[16];
+    LPCSTR select[] = { "select", number };
+
+    setup_test_world();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit hauntedMine = null\n"
+        "  unit acolyte = null\n"
+        "  unit townHall = null\n"
+        "  group cancelUnits = null\n"
+        "endglobals\n"
+        "function cancelIntro takes nothing returns nothing\n"
+        "  call KillUnit(hauntedMine)\n"
+        "  call RemoveUnit(acolyte)\n"
+        "  call BJassAssert(GetUnitTypeId(acolyte) == 'hpea', \"worker handle must survive cancellation action\")\n"
+        "  call RemoveUnit(townHall)\n"
+        "  call BJassAssert(GetUnitTypeId(townHall) == 'hbar', \"building handle must survive cancellation action\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set hauntedMine = CreateUnit(Player(0), 'ugol', 0.0, 0.0, 0.0)\n"
+        "  set acolyte = CreateUnit(Player(0), 'hpea', 64.0, 0.0, 0.0)\n"
+        "  set townHall = CreateUnit(Player(0), 'hbar', 128.0, 0.0, 0.0)\n"
+        "  set cancelUnits = CreateGroup()\n"
+        "  call GroupAddUnit(cancelUnits, acolyte)\n"
+        "  call GroupAddUnit(cancelUnits, townHall)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].class_id == BZ_WC3_UNIT_HAUNTED_GOLD_MINE) mine = &g_edicts[i];
+        if (g_edicts[i].class_id == BZ_WC3_UNIT_PEASANT) worker = &g_edicts[i];
+        if (g_edicts[i].class_id == BZ_WC3_UNIT_BARRACKS) building = &g_edicts[i];
+    }
+    T_NOT_NULL(mine); T_NOT_NULL(worker); T_NOT_NULL(building);
+    if (!mine || !worker || !building) goto cleanup;
+    mine->birth(mine);
+    T_ASSERT(G_StartUndeadConstruction(worker, mine));
+    T_ASSERT(mine->construction.active);
+    T_STREQ(mine->currentmove->animation, "birth");
+
+    jass_callbyname(level.vm, "cancelIntro", false);
+    jass_runevents(level.vm);
+    T_ASSERT(mine->svflags & SVF_DEADMONSTER);
+    T_STREQ(mine->currentmove->animation, "death");
+    T_ASSERT(!mine->construction.active);
+    T_ASSERT(worker->inuse);
+    T_ASSERT(G_IsDeferredFree(worker));
+    T_ASSERT(G_IsDeferredFree(building));
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    T_ASSERT(building->s.renderfx & RF_HIDDEN);
+    cancel_group = level.groups[0];
+    T_EQ(cancel_group->num_units, 0);
+    T_ASSERT(!G_UnitCanBeSelected(&game.clients[0], worker));
+
+    level.started = true; level.scriptsStarted = true; globals.RunFrame();
+    T_ASSERT(!worker->inuse);
+    T_ASSERT(!building->inuse);
+    replacement = alloc_test_unit(BZ_WC3_UNIT_BARRACKS, 128.0f, 0.0f);
+    T_NOT_NULL(replacement);
+    if (replacement) {
+        replacement->s.player = 0;
+        replacement->svflags |= SVF_MONSTER;
+        T_ASSERT(replacement != building);
+        T_ASSERT(G_UnitCanBeSelected(&game.clients[0], replacement));
+        snprintf(number, sizeof(number), "%u", replacement->s.number);
+        globals.ClientCommand(&g_edicts[0], 2, select);
+        T_ASSERT(replacement->selected & bit);
+        G_DeselectEntity(&game.clients[0], replacement);
+        G_FreeEdict(replacement);
+    }
+
+cleanup:
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, createunit_does_not_reuse_deferred_dead_unit) {
     LPEDICT dead, replacement;
 
@@ -1818,6 +1901,94 @@ TEST(wc3_api, createunit_allocates_fresh_nearby_unit) {
     T_ASSERT(created->inuse);
     G_FreeEdict(created);
     G_FreeEdict(existing);
+}
+
+TEST(wc3_api, createunit_starts_ready_without_birth_delay) {
+    static LPCSTR const ui_slk =
+        "ID;PWXL;N;EBB;Y3;X2\n"
+        "C;Y1;X1;K\"unitUIID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y2;X1;K\"hfoo\"\n"
+        "C;Y2;X2;K\"TestUI\\\\Models\\\\quad_sprite.mdx\"\n"
+        "E\n";
+    slkTestData_t *ui_rows, *old_ui;
+    LPEDICT unit;
+
+    G_ResetDeferredFrees();
+    reset_entities();
+    setup_test_world();
+    ui_rows = parse_slk_string(ui_slk);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    unit = unit_create(0, BZ_WC3_UNIT_FOOTMAN, &(VECTOR2){0, 0}, 0);
+    T_NOT_NULL(unit);
+    T_NOT_NULL(unit->currentmove);
+    T_STREQ(unit->currentmove->animation, "stand");
+    T_EQ((int)unit->wait, 0);
+    G_FreeEdict(unit);
+    G_SetSLKRows("UnitUI", old_ui);
+    free_slk_rows(ui_rows);
+}
+
+TEST(wc3_api, createunit_links_building_collision_bounds) {
+    static LPCSTR const ui_slk =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"unitUIID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"isbldg\"\n"
+        "C;Y2;X1;K\"hpea\"\n"
+        "C;Y2;X2;K\"TestUI\\\\Models\\\\quad_sprite.mdx\"\n"
+        "C;Y2;X3;K1\n"
+        "E\n";
+    static LPCSTR const balance_slk =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"collision\"\n"
+        "C;Y1;X3;K\"isbldg\"\n"
+        "C;Y2;X1;K\"hpea\"\n"
+        "C;Y2;X2;K64\n"
+        "C;Y2;X3;K1\n"
+        "E\n";
+    static LPCSTR const data_slk =
+        "ID;PWXL;N;EBB;Y1;X1\n"
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y2;X1;K\"hpea\"\n"
+        "E\n";
+    slkTestData_t *ui_rows, *old_ui, *balance_rows, *old_balance, *data_rows, *old_data;
+    LPEDICT building;
+    LPEDICT found[4] = { 0 };
+    BOX2 area = { { -256.0f, -256.0f }, { 256.0f, 256.0f } };
+    BOOL linked = false;
+
+    reset_entities();
+    setup_test_world();
+    ui_rows = parse_slk_string(ui_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    data_rows = parse_slk_string(data_slk);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    T_ASSERT(G_UnitIsBuilding(BZ_WC3_UNIT_PEASANT));
+    T_EQ((int)G_UnitCollision(BZ_WC3_UNIT_PEASANT), 64);
+    building = unit_create(0, BZ_WC3_UNIT_PEASANT, &(VECTOR2){0, 0}, 0);
+    T_NOT_NULL(building);
+    if (!building) return;
+    T_ASSERT(building->data.UnitUI->modelFile);
+    T_ASSERT(building->data.UnitBalance->isBuilding);
+    T_EQ((int)building->data.UnitBalance->collision, 64);
+    T_ASSERT(building->s.flags & EF_BUILDING);
+    T_ASSERT(building->collision > 0.0f);
+    T_EQ(building->bounds.min.x, -building->collision - 1.0f);
+    T_EQ(building->bounds.max.x, building->collision + 1.0f);
+    FOR_LOOP(i, gi.BoxEdicts(&area, found, 4, NULL))
+        if (found[i] == building) linked = true;
+    T_ASSERT(linked);
+    G_FreeEdict(building);
+    G_SetSLKRows("UnitUI", old_ui);
+    G_SetSLKRows("UnitBalance", old_balance);
+    G_SetSLKRows("UnitData", old_data);
+    free_slk_rows(ui_rows);
+    free_slk_rows(balance_rows);
+    free_slk_rows(data_rows);
 }
 
 TEST(wc3_api, message_log_is_bounded_and_evicts_oldest_entry) {

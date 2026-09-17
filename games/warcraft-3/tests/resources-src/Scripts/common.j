@@ -335,6 +335,7 @@ globals
     constant mapdensity MAP_DENSITY_LIGHT = ConvertMapDensity(1)
     constant mapdensity MAP_DENSITY_HEAVY = ConvertMapDensity(3)
     constant gamedifficulty MAP_DIFFICULTY_EASY = ConvertGameDifficulty(0)
+    constant gamedifficulty MAP_DIFFICULTY_NORMAL = ConvertGameDifficulty(1)
     constant gamedifficulty MAP_DIFFICULTY_HARD = ConvertGameDifficulty(2)
     constant aidifficulty AI_DIFFICULTY_NORMAL = ConvertAIDifficulty(1)
     constant gamespeed MAP_SPEED_FAST = ConvertGameSpeed(3)

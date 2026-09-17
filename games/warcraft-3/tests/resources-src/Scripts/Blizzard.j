@@ -30,3 +30,7 @@ function SetCampaignAvailableBJ takes boolean available, integer campaignNumber 
     call SetCampaignMenuRaceBJ(campaignNumber)
     call ForceCampaignSelectScreen()
 endfunction
+
+function IsUnitAliveBJ takes unit whichUnit returns boolean
+    return GetWidgetLife(whichUnit) > 0.405
+endfunction
