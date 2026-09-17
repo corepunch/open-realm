@@ -6,6 +6,7 @@
 #define BZ_ACCY MAKEFOURCC('A', 'C', 'c', 'y') // rawcode; creep Cyclone alias
 #define BZ_SCC1 MAKEFOURCC('S', 'C', 'c', '1') // rawcode; Cenarius Cyclone alias
 #define BZ_ACNY MAKEFOURCC('A', 'c', 'n', 'y') // rawcode; naga Cyclone alias
+#define BZ_AICY MAKEFOURCC('A', 'I', 'c', 'y') // rawcode; item Cyclone alias
 #define BZ_ADIS MAKEFOURCC('A', 'd', 'i', 's') // rawcode; Dispel Magic
 #define BZ_APRG MAKEFOURCC('A', 'p', 'r', 'g') // rawcode; Purge
 #define BZ_BCYC MAKEFOURCC('B', 'c', 'y', 'c') // rawcode; primary Cyclone buff
@@ -69,6 +70,51 @@ TEST(wc3_spell, cyclone_aliases_share_procedure) {
     T_EQ(S_AbilityItem(BZ_ACCY).ability->proc, CAbilityCyclone);
     T_EQ(S_AbilityItem(BZ_SCC1).ability->proc, CAbilityCyclone);
     T_EQ(S_AbilityItem(BZ_ACNY).ability->proc, CAbilityCyclone);
+    T_EQ(S_AbilityItem(BZ_AICY).ability->proc, CAbilityCyclone);
+}
+
+/* Item AIcy reads its own Dur/DataA; status.data keeps AIcy for S_StatusIsUndispellable. */
+TEST(wc3_spell, cyclone_item_aicy_applies_authored_duration_and_dispel) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"DataA1\"\nC;Y1;X12;K\"Area1\"\n"
+        "C;Y2;X1;K\"AIcy\"\nC;Y2;X2;K\"Acyc\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"ground,enemy,neutral\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\n"
+        "C;Y2;X7;K\"600\"\nC;Y2;X8;K\"13\"\nC;Y2;X9;K\"7\"\n"
+        "C;Y2;X10;K\"Bcyc,Bcy2\"\nC;Y2;X11;K\"2\"\nC;Y2;X12;K\"0\"\n"
+        "C;Y3;X1;K\"Adis\"\nC;Y3;X2;K\"Adis\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"air,ground,ward,invu,vuln\"\nC;Y3;X5;K\"61\"\nC;Y3;X6;K\"0\"\n"
+        "C;Y3;X7;K\"500\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"0\"\n"
+        "C;Y3;X10;K\"\"\nC;Y3;X11;K\"0\"\nC;Y3;X12;K\"250\"\nE\n";
+    CYCFIX fix = cyc_setup(slk, BZ_AICY);
+    LPEDICT priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
+    heroabilitystatus_t *slot = NULL;
+    VECTOR2 point;
+
+    T_EQ(S_AbilityItem(BZ_AICY).ability->proc, CAbilityCyclone);
+    T_FEQ(S_SpellDuration(BZ_AICY, 1, false), 13, 0.001f);
+    T_FEQ(S_SpellDuration(BZ_AICY, 1, true), 7, 0.001f);
+    T_ASSERT(S_SpellAllowsTarget(BZ_AICY, fix.caster, fix.enemy));
+    T_ASSERT(!S_SpellAllowsTarget(BZ_AICY, fix.caster, fix.ally));
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AICY, fix.enemy));
+    T_ASSERT(S_UnitIsCycloned(fix.enemy));
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (fix.enemy->abilstatus[i].level && fix.enemy->abilstatus[i].code == BZ_BCYC) {
+            slot = fix.enemy->abilstatus + i; break;
+        }
+    T_NOT_NULL(slot);
+    T_EQ(slot->data, BZ_AICY);
+    T_ASSERT(!S_StatusIsUndispellable(slot));
+    priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
+    priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
+    priest->mana.value = priest->mana.max_value = 200;
+    point = fix.enemy->s.origin2;
+    T_ASSERT(S_CastPointTargetSpell(priest, BZ_ADIS, &point));
+    T_ASSERT(!S_UnitIsCycloned(fix.enemy));
+    cyc_done(fix);
 }
 
 /* TFT organic token rejects mechanical; organic enemy is accepted; allies are not. */

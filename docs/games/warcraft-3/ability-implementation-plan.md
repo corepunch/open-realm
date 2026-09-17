@@ -72,8 +72,8 @@ Look up the parent in the [shared behavior table](#2-identify-shared-behavior).
 Add one `abilitylist` row per `AbilityData.alias` that this change implements.
 Point them at the same `CAbility*` procedure. Read data through
 `abilityitem_t.code` so `Aams` and `Aam2` keep their own `targs`/`DataC`/`BuffID`.
-Do not register abstract TFT classes (`AAsm`, `AAat`). Skip `Aami` / item rows
-until their own brief is in scope.
+Do not register abstract TFT classes (`AAsm`, `AAat`). Item Instant AMS
+(`Aami`/`AIxs`) and item Cyclone (`AIcy`) are in scope on their own briefs.
 
 ### 4. Tests first, from the brief
 

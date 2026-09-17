@@ -260,6 +260,7 @@ BZ_ABILITY_PROC(CAbilityRaiseDead);
 BZ_ABILITY_PROC(CAbilityExhumeCorpses);
 BZ_ABILITY_PROC(CAbilityAntiMagicShell);
 BZ_ABILITY_PROC(CAbilitySpiritLink);
+BZ_ABILITY_PROC(CAbilityAntiMagicShellInstant);
 BZ_ABILITY_PROC(CAbilityPossession);
 BZ_ABILITY_PROC(CAbilityPossessionTwo);
 BZ_ABILITY_PROC(CAbilityRainOfChaos);

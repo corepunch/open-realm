@@ -317,7 +317,7 @@ static ability_t abilitylist[] = {
     // TODO: AIcf CAbilityImmolation  /* Item Immolation */
     // TODO: AIzb CAbilityFrostNova  /* Item Freeze Damage Bonus */
     // TODO: Arel a_aura_regen_life  /* Item Life Regeneration */
-    // TODO: Aami a_unknown  /* Item Anti-Magic Shell */
+    { "Aami", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-Magic Shell Instant */
     // TODO: AIas a_unknown  /* Item Attack Speed Bonus */
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
     // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
@@ -643,7 +643,7 @@ static ability_t abilitylist[] = {
     // TODO: AIcl a_unknown  /* Chain Lightning (item) */
     // TODO: AIcm a_unknown  /* Control Magic (item) */
     // TODO: AIcs a_unknown  /* Critical Strike (item) */
-    // TODO: AIcy a_unknown  /* Cyclone */
+    { "AIcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Cyclone */
     // TODO: AId0 a_unknown  /* DefenseBonus (+10) */
     // TODO: AId1 a_unknown  /* DefenseBonus (+1) */
     // TODO: AId2 a_unknown  /* DefenseBonus (+2) */
@@ -758,7 +758,7 @@ static ability_t abilitylist[] = {
     // TODO: AIx4 a_unknown  /* (All + 4) */
     // TODO: AIx5 a_unknown  /* Crown of Kings (All + 5) */
     // TODO: AIxk a_unknown  /* Beserk (item) */
-    // TODO: AIxs a_unknown  /* Anti-magic Shield */
+    { "AIxs", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-magic Shield */
     // TODO: ANak a_unknown  /* Orb of Annihilation (Quill Spray) */
     // TODO: ANb2 a_unknown  /* Bash (maul , SP Bear, level 3) */
     // TODO: ANbh a_unknown  /* Bash (Beastmaster Bear) */

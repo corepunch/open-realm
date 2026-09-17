@@ -48,6 +48,9 @@ static void anti_magic_shell_execute(LPEDICT caster, spellTarget_t st, abilityit
  */
 BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShell) { anti_magic_shell_execute(caster, st, spell); }
 
+/* Item Instant AMS (Aami/AIxs): same Bams/Bam2 DataC path; distinct TFT class, not an Aams alias. */
+BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShellInstant) { anti_magic_shell_execute(caster, st, spell); }
+
 /* Bam2 is not magic-immune: spells may target the unit, but S_SpellDamage consumes the authored pool first. */
 int S_AntiMagicShellAbsorb(LPEDICT target, int damage) {
     heroabilitystatus_t *slot = NULL;

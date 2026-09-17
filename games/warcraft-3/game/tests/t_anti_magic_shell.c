@@ -5,6 +5,8 @@
 #define BZ_AMS MAKEFOURCC('A', 'a', 'm', 's') // rawcode; stock duration immunity Anti-Magic Shell
 #define BZ_AAM2 MAKEFOURCC('A', 'a', 'm', '2') // rawcode; TFT melee absorption Anti-Magic Shell
 #define BZ_ACAM MAKEFOURCC('A', 'C', 'a', 'm') // rawcode; creep Anti-Magic Shell alias
+#define BZ_AAMI MAKEFOURCC('A', 'a', 'm', 'i') // rawcode; Instant AMS class / potion cooldownID
+#define BZ_AIXS MAKEFOURCC('A', 'I', 'x', 's') // rawcode; item Instant Anti-Magic Shell
 #define BZ_BAMS MAKEFOURCC('B', 'a', 'm', 's') // rawcode; targeting/spell-immunity buff
 #define BZ_BAM2 MAKEFOURCC('B', 'a', 'm', '2') // rawcode; spell-damage absorption buff
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt, used as a hostile spell probe
@@ -149,6 +151,57 @@ TEST(wc3_spell, anti_magic_shell_aliases_share_procedure) {
     T_EQ(S_AbilityItem(BZ_AMS).ability->proc, CAbilityAntiMagicShell);
     T_EQ(S_AbilityItem(BZ_AAM2).ability->proc, CAbilityAntiMagicShell);
     T_EQ(S_AbilityItem(BZ_ACAM).ability->proc, CAbilityAntiMagicShell);
+    T_EQ(S_AbilityItem(BZ_AAMI).ability->proc, CAbilityAntiMagicShellInstant);
+    T_EQ(S_AbilityItem(BZ_AIXS).ability->proc, CAbilityAntiMagicShellInstant);
+}
+
+/* Item AIxs (code=Aami) reads its own Dur/DataC; empty DataC applies Bams via Instant. */
+TEST(wc3_spell, anti_magic_shell_item_aixs_applies_bams_with_authored_duration) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AIxs\"\nC;Y2;X2;K\"Aami\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"air,ground\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"30\"\n"
+        "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"17\"\nC;Y2;X9;K\"17\"\n"
+        "C;Y2;X10;K\"Bams,Bam2\"\nC;Y2;X11;K\"10\"\nC;Y2;X12;K\"0\"\nE\n";
+    AMSFIX fix = ams_setup(slk, BZ_AIXS);
+    T_EQ(S_AbilityItem(BZ_AIXS).ability->proc, CAbilityAntiMagicShellInstant);
+    T_FEQ(S_SpellDuration(BZ_AIXS, 1, false), 17, 0.001f);
+    T_FEQ(S_SpellData(BZ_AIXS, 1, 2), 10, 0.001f);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AIXS, fix.ally));
+    T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAMS), 1);
+    T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAM2), 0);
+    T_ASSERT(S_UnitSpellImmune(fix.ally));
+    T_ASSERT(!S_SpellDamage(fix.ally, fix.enemy, 40));
+    T_FEQ(fix.ally->health.value, 500, 0.001f);
+    level.time += 17000; unit_updatestatuses(fix.ally);
+    T_ASSERT(!S_UnitSpellImmune(fix.ally));
+    ams_done(fix);
+}
+
+/* Non-zero item DataC still drives Bam2 absorb through the shared Instant path. */
+TEST(wc3_spell, anti_magic_shell_item_aixs_datac_uses_bam2_absorb) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"DataB1\"\n"
+        "C;Y2;X1;K\"AIxs\"\nC;Y2;X2;K\"Aami\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"air,ground\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\n"
+        "C;Y2;X7;K\"17\"\nC;Y2;X8;K\"17\"\nC;Y2;X9;K\"140\"\n"
+        "C;Y2;X10;K\"Bams,Bam2\"\nC;Y2;X11;K\"10\"\nE\n";
+    AMSFIX fix = ams_setup(slk, BZ_AIXS);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AIXS, fix.ally));
+    T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAM2), 1);
+    T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAMS), 0);
+    T_EQ(ams_remaining(fix.ally), 140);
+    T_ASSERT(!S_SpellDamage(fix.ally, fix.enemy, 40));
+    T_EQ(ams_remaining(fix.ally), 100);
+    ams_done(fix);
 }
 
 /* Remaining Bam2 absorption lives on abilstatus.data and is part of the raw edict save record. */
