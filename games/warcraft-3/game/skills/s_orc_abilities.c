@@ -69,6 +69,7 @@ static void purge_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *s = st.entity->abilstatus + i;
         if (!s->level || !s->timestamp) continue;
+        if (S_StatusIsUndispellable(s)) continue;
         S_HumanStatusExpired(st.entity, s->code, s->level);
         memset(s, 0, sizeof(*s));
     }

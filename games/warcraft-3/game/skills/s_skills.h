@@ -368,6 +368,7 @@ BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT target);
 BOOL S_SpellTargetInRange(LPEDICT caster, LPEDICT target, FLOAT range);
 BOOL S_SpellIsAliveTarget(LPEDICT target);
 BOOL S_UnitIsCycloned(LPCEDICT unit);
+BOOL S_StatusIsUndispellable(heroabilitystatus_t const *status);
 BOOL S_UnitIsSilenced(LPCEDICT unit);
 BOOL S_UnitIsEnsnared(LPCEDICT unit);
 BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target);

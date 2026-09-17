@@ -115,7 +115,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Adis`, `Adch`, `Advm` | `s_human_abilities.c` | `CAbilityDispelMagic`. Area timed-status dispel. Adis/Adch summoned damage from DataB; Advm heals caster DataA HP / DataB mana per buff removed and damages summons with DataE. See [dispel-magic.md](../dispel-magic.md). |
 | `ACcs` | `s_melee_spells.c` (shared) | Registered; shares `CAbilityCurse` with autocast for the creep Curse variant. |
 | `Aams`, `Aam2`, `ACam` | `s_undead_abilities.c` | `CAbilityAntiMagicShell`. Empty DataC applies `Bams` targeting/spell immunity; authored DataC applies `Bam2` and absorbs that much `S_SpellDamage`. Physical hits ignore the shell. ROC rows omit BuffID and fall back to `Bams`. |
-| `Acyc`, `ACcy`, `SCc1`, `Acny` | `s_cyclone.c` | `CAbilityCyclone`. Authored targs (TFT `organic`); first BuffID token or ROC `Bcyc` fallback; `S_UnitIsCycloned` locks move/attack/spell. DataA dispel eligibility is not consumed. Item `AIcy` unregistered. |
+| `Acyc`, `ACcy`, `SCc1`, `Acny` | `s_cyclone.c` | `CAbilityCyclone`. Authored targs (TFT `organic`); first BuffID token or ROC `Bcyc` fallback; `S_UnitIsCycloned` locks move/attack/spell. DataA (`Can Be Dispelled`) via `status.data` + `S_StatusIsUndispellable` (0 survives Dispel/Purge). Item `AIcy` unregistered. |
 | `ANvc` | `s_volcano.c` | `CAbilityVolcano` channel. DataB waves every DataC seconds, DataE damage via `T_Damage`, buildings × DataD, stun `Bstu` for Dur/HeroDur. DataA rings, DataF half-damage, Volc destructible, and trees remain. |
 | `ANsy`, `ANs1`, `ANs2`, `ANs3` | `s_pocket_factory.c` | `CAbilityPocketFactory`. UnitID factory, DataA interval, DataB Clockwerk via `S_SpellDataId`, DataC goblin life, DataD offset. DataE leash and ANfy are not implemented. |
 | `ANrc`, `ANr3` | `s_summon.c` | `CAbilityRainOfChaos`. Not channeled. DataA Inferno abilCode, DataB landing count, Dur delay, Area scatter. Inferno landing damage/stun remain with `ANin`. |
@@ -200,9 +200,9 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `ANso` | Soul Burn | Done | Enemy unit-target `BNso`; DataA drain, DataC attack reduction, and cast silence via `S_UnitIsSilenced` (also covers `BNsi`). |
 | `Atau` | Taunt | Partial | No-target AOE re-targets all alive enemies in Area to attack the caster. No persistent buff. |
 | `Aens`, `ANen` | Ensnare | Done | Air/ground buff split, move lock, flyer land-and-restore via status refresh. Gradual DataA/B land and DataC meleeRange remain unused. |
-| `Aprg`, `Apg2`, `AIlp` | Purge | Partial | Shared `CAbilityPurge`; dispel, Bprg slow from casting-row DataA, summoned DataC damage, Apg2 DataD/DataE immobilize. Gradual recovery and `ACpu` remain. |
+| `Aprg`, `Apg2`, `AIlp` | Purge | Partial | Shared `CAbilityPurge`; dispel (skips `S_StatusIsUndispellable`), Bprg slow from casting-row DataA, summoned DataC damage, Apg2 DataD/DataE immobilize. Gradual recovery and `ACpu` remain. |
 | `ACtb` | Hurl Boulder | Partial | Shares `CAbilityThunderBolt`; projectile stun and authored damage use own SLK row. Art remains. |
-| `Adis` | Dispel Magic | Partial | Area timed-status dispel and DataB summoned damage via `CAbilityDispelMagic`. Tree targs / Adcn+Adsm aliases remain. |
+| `Adis` | Dispel Magic | Partial | Area timed-status dispel and DataB summoned damage via `CAbilityDispelMagic`. Honors `S_StatusIsUndispellable` (Cyclone DataA). Tree targs / Adcn+Adsm aliases remain. |
 | `Adch` | Disenchant | Partial | Shares `CAbilityDispelMagic`; DataB summoned damage from own row. Enemy-only targs filter remains. |
 | `Advm` | Devour Magic | Partial | Shares `CAbilityDispelMagic`; per-buff DataA/DataB heals and DataE summoned damage. DataF and ACde alias remain. |
 | `ANfl` | Forked Lightning | Partial | Unit-target bounce spell; starts at the selected unit, applies constant authored `DataA` damage to up to `DataB` alive enemy targets, and selects subsequent unvisited targets within `Area`. Projectile presentation and exact retail target ordering remain. The test fixture marks synthetic targets with `SVF_MONSTER`. |

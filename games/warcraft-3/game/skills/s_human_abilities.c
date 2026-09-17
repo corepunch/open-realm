@@ -469,6 +469,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
                 DWORD code = target->abilstatus[i].code, status_level = target->abilstatus[i].level;
+                if (S_StatusIsUndispellable(&target->abilstatus[i])) continue;
                 S_HumanStatusExpired(target, code, status_level);
                 memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
                 removed++;

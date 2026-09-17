@@ -51,11 +51,15 @@ summoned damage.
 AbilityData.slk (Adis / Adch / Advm)
   -> Area, DataA/B/E, Cost, Rng, targs
 CAbilityDispelMagic
-  -> clear timed abilstatus slots (S_HumanStatusExpired first)
+  -> clear timed abilstatus slots (skip S_StatusIsUndispellable; S_HumanStatusExpired first)
   -> if DataE > 0: heal caster DataA/DataB per removed buff; damage summons DataE
   -> else: damage summons DataB
 S_SpellDamage / S_SpellHeal
 ```
+
+Cyclone `DataA==0` (ROC) is undispellable via `S_StatusIsUndispellable` owned by
+`s_cyclone.c`. Skipped slots do not increment Advm's per-buff heal count. See
+[Cyclone](cyclone.md).
 
 ## Diagnostic Workflow
 

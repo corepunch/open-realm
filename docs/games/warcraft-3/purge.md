@@ -45,7 +45,7 @@ stun buff. Do not treat stock `DataA=5` as “zero speed”; pause comes from
 AbilityData.slk (Aprg / Apg2 / AIlp)
   -> DataA/C/D/E, Dur/HeroDur, BuffID, targs, Cost, Rng
 CAbilityPurge
-  -> clear timed statuses
+  -> clear timed statuses (skip S_StatusIsUndispellable; Cyclone DataA==0)
   -> unit_addtimedstatus(BuffID or Bprg); store spell->code in status.data
   -> S_SpellDamage(DataC) when target->owner
 S_PurgeMoveReduction / S_PurgeIsImmobilized
@@ -53,6 +53,11 @@ S_PurgeMoveReduction / S_PurgeIsImmobilized
 s_move order_move / ai_move_walk
   -> S_PurgeIsImmobilized rejects/stops translation (same family as Bens/BEer)
 ```
+
+Purge ubertip says “Removes all buffs”, but Cyclone authors `Can Be Dispelled`
+(`DataA`). ROC `DataA=0` cyclone survives Purge's clear loop; TFT non-zero does
+not. Unit-target selection of an already-cycloned unit is still blocked by
+`S_SpellAllowsTarget`; see [Cyclone](cyclone.md).
 
 Retail slow gradually recovers over `Dur` using Movement Update Frequency
 (`DataA`). This build applies a uniform `1 - DataA` reduction for the whole
