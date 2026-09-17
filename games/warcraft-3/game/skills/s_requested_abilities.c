@@ -371,7 +371,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
 /* Resurrection operates on nearby ordinary corpses; Heroes retain their separate altar revival lifecycle. */
 static BOOL resurrection_target(LPEDICT caster, LPEDICT target, abilityitem_t const *spell) {
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, spell->code));
-    return target->inuse && (target->svflags & SVF_MONSTER) && M_IsDead(target) &&
+    return target->inuse && (target->svflags & SVF_MONSTER) &&
+        (target->svflags & SVF_DEADMONSTER) && M_IsDead(target) &&
         !G_UnitIsHero(target) && !G_UnitIsBuilding(target->class_id) && S_SpellIsFriend(caster, target) &&
         Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius;
 }
@@ -387,12 +388,7 @@ static void resurrection_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
     DWORD rank = S_SpellLevel(caster, spell->code), count = 0;
     DWORD limit = (DWORD)S_SpellData(spell->code, rank, 1);
     FILTER_EDICTS(target, count < limit && resurrection_target(caster, target, spell)) {
-        target->svflags &= ~SVF_DEADMONSTER; target->s.flags &= ~EF_NOT_SELECTABLE;
-        target->aiflags &= ~AI_HOLD_FRAME; target->s.renderfx &= ~RF_HIDDEN;
-        target->combatentity = target->goalentity = target->secondarygoal = NULL;
-        target->wait = 0; G_ClearUnitOrderQueue(target);
-        G_SetHealth(target, target->health.max_value); G_ActivateUnitFood(target);
-        unit_stand(target); gi.LinkEntity(target);
+        G_ReviveCorpse(target, 1.0f);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
         count++;
     }

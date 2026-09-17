@@ -1,5 +1,40 @@
 #include "s_skills.h"
 
+/* Aast inherits the nearest-target contract: only the caster's dead ordinary Tauren inside authored range qualify. */
+static LPEDICT ancestral_spirit_target(LPEDICT caster, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT range = S_SpellRange(spell->code, level), nearest = 0.0f;
+    LPEDICT selected = NULL;
+    FILTER_EDICTS(target, target->inuse && (target->svflags & SVF_MONSTER) &&
+                  (target->svflags & SVF_DEADMONSTER) && M_IsDead(target) &&
+                  target->class_id == MAKEFOURCC('o','t','a','u') && !G_UnitIsHero(target) &&
+                  target->s.player == caster->s.player) {
+        FLOAT distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
+        if ((range <= 0.0f || distance <= range) && (!selected || distance < nearest)) {
+            nearest = distance; selected = target;
+        }
+    }
+    return selected;
+}
+
+/* Reject an empty cast before the common spell path spends the authored 250 mana. */
+static BOOL ancestral_spirit_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)st;
+    return ancestral_spirit_target(caster, spell) != NULL;
+}
+
+/* Revive the original edict so JASS handles, owner, unit type and runtime identity remain authoritative. */
+static void ancestral_spirit_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    LPEDICT target = ancestral_spirit_target(caster, spell);
+    DWORD level = S_SpellLevel(caster, spell->code);
+    (void)st;
+    if (!target) return;
+    G_ReviveCorpse(target, S_SpellData(spell->code, level, 1));
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+}
+
+BZ_VALIDATED_SPELL_PROC(AbilityAncestralSpirit, ancestral_spirit_validate, ancestral_spirit_execute)
+
 /* ---- Purge (Aprg) ----------------------------------------------------------
  * Name=Purge
  * Ubertip="Removes all buffs from a target unit, and slows its movement speed

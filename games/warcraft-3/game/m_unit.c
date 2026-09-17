@@ -125,6 +125,16 @@ void G_SetHealth(LPEDICT ent, FLOAT value) {
 
 void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
 
+/* Ordinary corpse revival keeps handle identity while retiring every death-state owner before returning to idle. */
+void G_ReviveCorpse(LPEDICT ent, FLOAT life_fraction) {
+    ent->svflags &= ~SVF_DEADMONSTER; ent->s.flags &= ~EF_NOT_SELECTABLE;
+    ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
+    ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
+    ent->wait = 0; G_ClearUnitOrderQueue(ent);
+    G_SetHealth(ent, ent->health.max_value * MAX(0.0f, MIN(1.0f, life_fraction)));
+    G_ActivateUnitFood(ent); unit_stand(ent); gi.LinkEntity(ent);
+}
+
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
     DWORD selected_mask;

@@ -1976,4 +1976,65 @@ TEST(wc3_spell, raise_dead_summons_from_nearest_corpse_and_frees_it) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Aast's `player,dead` target contract selects the nearest owned ordinary Tauren and restores its original edict. */
+TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+		"C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+		"C;Y2;X1;K\"Aast\"\nC;Y2;X2;K\"Aast\"\nC;Y2;X3;K\"ground,player,dead\"\n"
+		"C;Y2;X4;K\"250\"\nC;Y2;X5;K\"30\"\nC;Y2;X6;K\"350\"\nC;Y2;X7;K\"0.4\"\nE\n";
+	static UnitBalance_t const tauren = { .foodUsed = 5 }, hero = { .strength = 1 };
+	UnitAbilities_t abilities = { .abilList = "Aast" };
+	slkTestData_t *rows = parse_slk_string(slk), *old;
+	LPEDICT caster = make_hero(MAKEFOURCC('o','s','p','m'), 500, 1000, 0, 0);
+	LPEDICT zero_health = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 10, 0);
+	LPEDICT living = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 20, 0);
+	LPEDICT hero_corpse = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 30, 0);
+	LPEDICT other_corpse = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 40, 0);
+	LPEDICT allied_corpse = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 50, 0);
+	LPEDICT nearest = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 100, 0);
+	LPEDICT next = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 200, 0);
+	LPEDICT distant = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 351, 0);
+	DWORD nearest_spawn = nearest->spawn_time;
+
+	old = G_SetSLKRows("AbilityData", rows);
+	caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+	zero_health->data.UnitBalance = &tauren; zero_health->s.player = 0;
+	zero_health->svflags |= SVF_MONSTER; zero_health->health.value = 0; zero_health->health.max_value = 400;
+	living->data.UnitBalance = nearest->data.UnitBalance = next->data.UnitBalance = distant->data.UnitBalance = &tauren;
+	living->s.player = 0; living->svflags |= SVF_MONSTER;
+	living->health.value = living->health.max_value = 400;
+	hero_corpse->data.UnitBalance = &hero; other_corpse->data.UnitBalance = &tauren;
+	allied_corpse->data.UnitBalance = &tauren;
+	LPEDICT corpses[] = { hero_corpse, other_corpse, allied_corpse, nearest, next, distant };
+	FOR_LOOP(i, sizeof(corpses) / sizeof(*corpses)) {
+		corpses[i]->s.player = corpses[i] == allied_corpse ? 1 : 0;
+		corpses[i]->svflags |= SVF_MONSTER; corpses[i]->stand = unit_stand;
+		corpses[i]->health.value = corpses[i]->health.max_value = 400;
+		unit_die(corpses[i], caster);
+	}
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
+
+	T_EQ(S_AbilityItem(MAKEFOURCC('A','a','s','t')).ability->proc, CAbilityAncestralSpirit);
+	T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t')));
+	T_EQ(nearest->spawn_time, nearest_spawn); T_EQ(nearest->s.player, 0);
+	T_FEQ(nearest->health.value, 160.0f, .001f);
+	T_ASSERT(!(nearest->svflags & SVF_DEADMONSTER)); T_ASSERT(!(nearest->s.flags & EF_NOT_SELECTABLE));
+	T_EQ(nearest->food.used, 5); T_ASSERT(M_IsDead(next)); T_ASSERT(M_IsDead(allied_corpse));
+	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
+	T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_ASSERT(!M_IsDead(next));
+	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
+	FLOAT mana = caster->mana.value;
+	T_ASSERT(!S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_FEQ(caster->mana.value, mana, .001f);
+	level.alliances[0][1] &= ~(1 << ALLIANCE_PASSIVE);
+	T_ASSERT(!S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_FEQ(caster->mana.value, mana, .001f);
+	T_ASSERT(M_IsDead(zero_health)); T_ASSERT(!(zero_health->svflags & SVF_DEADMONSTER));
+	T_ASSERT(!M_IsDead(living)); T_ASSERT(M_IsDead(hero_corpse)); T_ASSERT(M_IsDead(other_corpse));
+	T_ASSERT(M_IsDead(allied_corpse)); T_ASSERT(M_IsDead(distant));
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

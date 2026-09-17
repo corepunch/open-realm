@@ -445,7 +445,7 @@ static ability_t abilitylist[] = {
     // TODO: Abof a_aura_command  /* Burning Oil */
     // TODO: Absk a_button  /* Berserk */
     // TODO: Arbr a_button  /* Reinforced Burrows Upgrade */
-    // TODO: Aast a_aura  /* Ancestral Spirit */
+    { "Aast", CAbilityAncestralSpirit, AB_SPELL, SPELL_TARGET_NONE },  /* Ancestral Spirit */
     { "Adch", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant */
     // TODO: Acpf a_purge  /* Corporeal Form */
     // TODO: Aetf a_morph  /* Ethereal Form */

@@ -163,6 +163,7 @@ BZ_ABILITY_PROC(CAbilityForkedLightning);
 BZ_ABILITY_PROC(CAbilityEarthquake);
 BZ_ABILITY_PROC(CAbilityFarSight);
 BZ_ABILITY_PROC(CAbilityResurrection);
+BZ_ABILITY_PROC(CAbilityAncestralSpirit);
 BZ_ABILITY_PROC(CAbilityBreathOfFire);
 BZ_ABILITY_PROC(CAbilityHowlOfTerror);
 BZ_ABILITY_PROC(CAbilityFlamingArrows);

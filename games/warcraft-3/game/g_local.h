@@ -2419,6 +2419,7 @@ void G_HeroApplyLevel(LPEDICT, DWORD level);
 void G_HeroSetXP(LPEDICT, DWORD xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
 void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
+void G_ReviveCorpse(LPEDICT, FLOAT life_fraction);
 BOOL G_UnitIsHero(LPCEDICT ent);
 FLOAT G_UnitArmorValue(LPCEDICT ent);
 BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
