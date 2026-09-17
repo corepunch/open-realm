@@ -68,7 +68,8 @@ Owner chain: factory is owned by the caster; each Clockwerk is owned by the fact
 ## Remaining
 
 - `DataE` leash range is AI-facing and intentionally unimplemented.
-- Clockwerk death explosion (`Asdg` / `Asd2` / `Asd3`) is out of scope for this ability.
+- Clockwerk death explosion is owned by Self Destruct (`Asdg` / `Asd2` / `Asd3`);
+  see [self-destruct.md](self-destruct.md).
 
 ## Diagnostic Workflow
 

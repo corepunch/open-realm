@@ -78,6 +78,8 @@ BZ_ABILITY_PROC(CAbilitySummonGrizzly);
 BZ_ABILITY_PROC(CAbilitySummonQuillbeast);
 BZ_ABILITY_PROC(CAbilitySummonWarEagle);
 BZ_ABILITY_PROC(CAbilityPocketFactory);
+BZ_ABILITY_PROC(CAbilitySelfDestruct);
+void S_UnitDeathAbilities(LPEDICT ent);
 BZ_ABILITY_PROC(CAbilityMirrorImage);
 BZ_ABILITY_PROC(CAbilityBlizzard);
 BZ_ABILITY_PROC(CAbilityStarfall);

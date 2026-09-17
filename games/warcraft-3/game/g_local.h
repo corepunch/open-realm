@@ -644,6 +644,7 @@ typedef enum {
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
+    A_DEATH,            /* unit_die: ability-owned death behavior on the dying unit. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call)

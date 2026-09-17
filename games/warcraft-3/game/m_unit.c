@@ -196,6 +196,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
+    S_UnitDeathAbilities(self);
     S_ReincarnationOnDeath(self);
     /* Static building footprints are baked into pathmap.original. Rebuild after
      * the death flag becomes authoritative so destroyed/cancelled structures
