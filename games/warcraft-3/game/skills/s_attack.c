@@ -256,6 +256,8 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
         FOR_LOOP(i, MAX_UNIT_STATUSES)
             if (attacker->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(attacker->abilstatus + i, 0, sizeof(attacker->abilstatus[i]));
     }
+    damage = S_PossessionDamageTaken(target, damage);
+    if (damage <= 0) return;
     T_Damage(target, attacker, damage);
     S_HumanAttackSplash(attacker, target, damage);
     DWORD cleave_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a'));

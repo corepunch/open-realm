@@ -115,6 +115,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Adis`, `Adch`, `Advm` | `s_human_abilities.c` | `CAbilityDispelMagic`. Area timed-status dispel. Adis/Adch summoned damage from DataB; Advm heals caster DataA HP / DataB mana per buff removed and damages summons with DataE. See [dispel-magic.md](../dispel-magic.md). |
 | `ACcs` | `s_melee_spells.c` (shared) | Registered; shares `CAbilityCurse` with autocast for the creep Curse variant. |
 | `Aams`, `Aam2`, `ACam` | `s_undead_abilities.c` | `CAbilityAntiMagicShell`. Empty DataC applies `Bams` targeting/spell immunity; authored DataC applies `Bam2` and absorbs that much `S_SpellDamage`. Physical hits ignore the shell. ROC rows omit BuffID and fall back to `Bams`. |
+| `Apos`, `ACps`, `Aps2` | `s_undead_abilities.c` | `CAbilityPossession` / `CAbilityPossessionTwo`. Instant Apos/ACps transfer ownership and kill the caster. TFT `Aps2` channels for Dur with `Bpos`/`Bpoc`, DataB attack amp, DataC invuln, DataD spell-immune. Not Charm. See [possession.md](../possession.md). |
 | `Acyc`, `ACcy`, `SCc1`, `Acny` | `s_cyclone.c` | `CAbilityCyclone`. Authored targs (TFT `organic`); first BuffID token or ROC `Bcyc` fallback; `S_UnitIsCycloned` locks move/attack/spell. DataA (`Can Be Dispelled`) via `status.data` + `S_StatusIsUndispellable` (0 survives Dispel/Purge). Item `AIcy` unregistered. |
 | `ANvc` | `s_volcano.c` | `CAbilityVolcano` channel. DataB waves every DataC seconds, DataE damage via `T_Damage`, buildings × DataD, stun `Bstu` for Dur/HeroDur. DataA rings, DataF half-damage, Volc destructible, and trees remain. |
 | `ANsy`, `ANs1`, `ANs2`, `ANs3` | `s_pocket_factory.c` | `CAbilityPocketFactory`. UnitID factory, DataA interval, DataB Clockwerk via `S_SpellDataId`, DataC goblin life, DataD offset. DataE leash and ANfy are not implemented. |
@@ -191,6 +192,8 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `Aegm` | Entangled Mine | Partial | Uses `Aenc` cargo occupancy, Warsmash-style round-robin income slots, the parent mine's finite gold pool, direct player income, depletion death, Wisp ejection, and parent restoration. Needs remaining presentation parity. |
 | `Aeat` | Eat Tree | Partial | Tree target, self-heal, mana/cooldown, and tree removal exist. Needs rip/eat timing and buff art. |
 | `Ambt` | Moon Well | Partial | Manual friendly replenish restores life first and then mana from the well pool using authored DataB/DataA ratios. Needs autocast, night-only regeneration, and water-level presentation. |
+| `Apos`, `ACps` | Possession | Done | Instant takeover + caster death; DataA max-level; targs ground/nonhero/enemy/organic/neutral. |
+| `Aps2` | Possession (Channeling) | Done | TFT channel; Bpos/Bpoc, DataB amp, DataC/DataD victim protections; abort strips buffs. |
 | `ANch` | Charm | Partial | Target ownership transfer, range, mana/cooldown, and max-level gate exist. Needs full target restrictions/order cleanup. |
 | `AIco` | Item command using Charm behavior | Partial | Shares Charm handler; inventory alias-to-base dispatch is wired. |
 | `AHca` | Cold Arrows | TODO | Needs autocast/toggle projectile modifier and slow buff. |

@@ -511,8 +511,8 @@ static ability_t abilitylist[] = {
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
     { "Aams", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shell */
     { "Aam2", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shell (Magic Resistance) */
-    // TODO: Apos a_creep_sleep  /* Possession */
-    // TODO: Aps2 a_creep_sleep  /* Possession */
+    { "Apos", CAbilityPossession, AB_SPELL, SPELL_TARGET_UNIT },  /* Possession */
+    { "Aps2", CAbilityPossessionTwo, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Possession (Channeling) */
     { "Acri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple */
 
     /* No AbilityStrings source file */
@@ -527,6 +527,7 @@ static ability_t abilitylist[] = {
     // TODO: ACac a_unknown  /* Aura - Command (Creep) */
     // TODO: ACah a_unknown  /* Thorns Aura (creep) */
     { "ACam", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shield (creep) */
+    { "ACps", CAbilityPossession, AB_SPELL, SPELL_TARGET_UNIT },  /* Possession (creep) */
     // TODO: ACat a_unknown  /* Aura - Trueshot (Creep) */
     // TODO: ACav a_unknown  /* Aura - Devotion (Creep) */
     // TODO: ACba a_unknown  /* Aura - Brilliance (creep) */
@@ -584,7 +585,6 @@ static ability_t abilitylist[] = {
     // TODO: ACmp a_unknown  /* Impale(Creep) */
     // TODO: ACnr a_unknown  /* Neutral Regen (health only) */
     // TODO: ACpa a_unknown  /* Parasite(eredar) */
-    // TODO: ACps a_unknown  /* Possession (creep) */
     // TODO: ACpu a_unknown  /* Purge (Creep) */
     // TODO: ACpv a_unknown  /* Pulverize (Sea Giant) */
     // TODO: ACpy a_unknown  /* Polymorph (creep) */

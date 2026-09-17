@@ -284,3 +284,165 @@ BZ_ABILITY_PROC(CAbilityRaiseDead) {
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
+
+/* ---- Possession (Apos / ACps instant; Aps2 channeled) -------------------------
+ * Not Charm. Instant rows destroy the caster immediately; Aps2 locks for Dur then
+ * transfers. Bpoc must not set stunned or spell_run_frame cancels the channel.
+ */
+#define BZ_BPOS MAKEFOURCC('B', 'p', 'o', 's') // rawcode; target Possession stun
+#define BZ_BPOC MAKEFOURCC('B', 'p', 'o', 'c') // rawcode; caster Possession damage amp
+#define BZ_POS_MAGIC_IMMUNE 1u // Bpos.data bit; authored DataD > 0 during channel
+
+static BOOL possession_is_neutral(LPCEDICT target) {
+    return target && target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
+}
+
+static BOOL possession_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    LPEDICT target = st.entity;
+    DWORD level = S_SpellLevel(caster, spell->code);
+    DWORD max_level = (DWORD)S_SpellData(spell->code, level, 1);
+    if (!target || !target->data.UnitBalance) return false;
+    if (G_UnitIsHero(target)) return false;
+    if (!S_SpellIsEnemy(caster, target) && !possession_is_neutral(target)) return false;
+    if (max_level && (DWORD)target->data.UnitBalance->level > max_level) return false;
+    return true;
+}
+
+static void possession_clear_status(LPEDICT ent, DWORD code) {
+    if (!ent) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
+            memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
+}
+
+/* Keep stunned in sync after stripping Bpos without waiting for a later status tick. */
+static void possession_refresh_stun(LPEDICT ent) {
+    if (!ent) return;
+    ent->stunned = false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        DWORD c = ent->abilstatus[i].code;
+        if (!ent->abilstatus[i].level) continue;
+        if (c == MAKEFOURCC('B', 's', 't', 'u') || c == MAKEFOURCC('B', 'U', 's', 'l') || c == BZ_BPOS)
+            ent->stunned = true;
+    }
+}
+
+static void possession_takeover(LPEDICT caster, LPEDICT target) {
+    G_SetUnitPlayer(target, caster->s.player);
+    target->owner = NULL;
+    target->combatentity = NULL;
+    if (target->stand) target->stand(target);
+    G_SetHealth(caster, 0);
+    if (caster->die) caster->die(caster, caster);
+    else unit_die(caster, caster);
+}
+
+static void possession_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
+    if (!st.entity) return;
+    possession_takeover(caster, st.entity);
+}
+
+static void possession_strip_channel(LPEDICT thinker) {
+    LPEDICT caster = thinker->owner, target = thinker->goalentity;
+    if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time) {
+        possession_clear_status(target, BZ_BPOS);
+        possession_refresh_stun(target);
+        if (thinker->damage) target->invulnerable = thinker->invulnerable;
+    }
+    if (caster && caster->inuse && caster->spawn_time == thinker->channel.owner_spawn_time)
+        possession_clear_status(caster, BZ_BPOC);
+}
+
+static void possession_two_think(LPEDICT thinker) {
+    LPEDICT caster = thinker->owner, target = thinker->goalentity;
+    if (!S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target) ||
+        target->spawn_time != thinker->channel.target_spawn_time) {
+        possession_strip_channel(thinker);
+        S_SpellEndChannel(thinker);
+        return;
+    }
+    if (G_Time() < thinker->spawn_time) return;
+    possession_strip_channel(thinker);
+    S_SpellEndChannel(thinker);
+    if (caster && caster->inuse && !M_IsDead(caster) && S_SpellIsAliveTarget(target))
+        possession_takeover(caster, target);
+}
+
+static void possession_two_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT duration = S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity));
+    FLOAT damage_mult = S_SpellData(spell->code, level, 2);
+    FLOAT invuln = S_SpellData(spell->code, level, 3);
+    FLOAT magic_imm = S_SpellData(spell->code, level, 4);
+    LPCSTR buffs = G_AbilityLevel(spell->code, level)->buffID;
+    char target_buff[5] = "Bpos", caster_buff[5] = "Bpoc";
+    LPEDICT thinker;
+    heroabilitystatus_t *slot;
+
+    if (!st.entity) return;
+    if (buffs && sscanf(buffs, "%4[^,],%4s", target_buff, caster_buff) != 2)
+        fprintf(stderr, "WC3 Possession: BuffID expected Bpos,Bpoc for %08x\n", spell->code);
+
+    thinker = S_SpellChannelThinker(caster, spell->code);
+    thinker->goalentity = st.entity;
+    thinker->channel.target_spawn_time = st.entity->spawn_time;
+    thinker->spawn_time = G_Time() + (DWORD)(duration * 1000.0f);
+    thinker->damage = invuln > 0.0f ? 1 : 0;
+    thinker->invulnerable = st.entity->invulnerable;
+    thinker->think = possession_two_think;
+
+    unit_addtimedstatus(st.entity, target_buff, level, duration);
+    unit_addtimedstatus(caster, caster_buff, level, duration);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        slot = st.entity->abilstatus + i;
+        if (slot->level && slot->code == *((DWORD const *)target_buff)) {
+            slot->data = magic_imm > 0.0f ? BZ_POS_MAGIC_IMMUNE : 0;
+            break;
+        }
+    }
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        slot = caster->abilstatus + i;
+        if (slot->level && slot->code == *((DWORD const *)caster_buff)) {
+            slot->data = (DWORD)(damage_mult * 1000.0f + 0.5f);
+            break;
+        }
+    }
+    if (invuln > 0.0f) st.entity->invulnerable = true;
+}
+
+BOOL S_PossessionSpellImmune(LPCEDICT unit) {
+    if (!unit) return false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BPOS &&
+            (unit->abilstatus[i].data & BZ_POS_MAGIC_IMMUNE) &&
+            (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time()))
+            return true;
+    return false;
+}
+
+/* DataB lives on Bpoc.data as milli-units (1.66 → 1660). Attack hits only. */
+int S_PossessionDamageTaken(LPEDICT target, int damage) {
+    DWORD milli = 0;
+    if (!target || damage <= 0) return damage;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (target->abilstatus[i].level && target->abilstatus[i].code == BZ_BPOC &&
+            (!target->abilstatus[i].timestamp || target->abilstatus[i].timestamp > G_Time())) {
+            milli = target->abilstatus[i].data; break;
+        }
+    if (!milli) return damage;
+    return (int)((FLOAT)damage * (FLOAT)milli / 1000.0f);
+}
+
+BZ_VALIDATED_SPELL_PROC(AbilityPossession, possession_validate, possession_execute)
+
+BZ_ABILITY_PROC(CAbilityPossessionTwo) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    switch (msg) {
+    case A_VALIDATE: return possession_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: possession_two_execute(ent, target, call ? call->item : NULL); return true;
+    default: return CAbilityPossession(ent, msg, call);
+    }
+}

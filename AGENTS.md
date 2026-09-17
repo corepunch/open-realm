@@ -102,6 +102,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Rain of Chaos Inferno landings, DataA abilCode, not a Rain of Fire alias | [docs/games/warcraft-3/rain-of-chaos.md](docs/games/warcraft-3/rain-of-chaos.md) |
 | WC3 Inferno ANin landing damage/stun/DataC delay, DataB summon life, not Thunder Bolt | [docs/games/warcraft-3/inferno.md](docs/games/warcraft-3/inferno.md) |
 | WC3 Purge Apg2 DataD/DataE immobilize, Aprg/AIlp aliases, Bprg slow | [docs/games/warcraft-3/purge.md](docs/games/warcraft-3/purge.md) |
+| WC3 Possession Apos/ACps instant and Aps2 channel, caster consume, DataB amp | [docs/games/warcraft-3/possession.md](docs/games/warcraft-3/possession.md) |
 | WC3 Ancestral Spirit target rules, authored data, and same-edict corpse revival | [docs/games/warcraft-3/ancestral-spirit.md](docs/games/warcraft-3/ancestral-spirit.md) |
 | WC3 Mana Shield toggle, authored damage/mana ratio, buff and order lifecycle | [docs/games/warcraft-3/mana-shield.md](docs/games/warcraft-3/mana-shield.md) |
 | WC3 demo/TFT FOURCC-to-class extraction, registration offsets, generated references | [docs/games/warcraft-3/demo-ability-classes.md](docs/games/warcraft-3/demo-ability-classes.md) |
