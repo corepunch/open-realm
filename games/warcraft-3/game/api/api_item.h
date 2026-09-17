@@ -96,3 +96,25 @@ DWORD GetManipulatedItem(LPJASS j) {
 DWORD GetOrderTargetItem(LPJASS j) {
     return jass_pushnullhandle(j, "item");
 }
+DWORD GetEnumItem(LPJASS j) {
+    extern LPEDICT currentenumitem;
+    return jass_pushlighthandle(j, currentenumitem, "item");
+}
+DWORD EnumItemsInRect(LPJASS j) {
+    /* Visit every in-world item inside the rect, exposing each as the enum item
+     * (GetEnumItem) while the action runs. Mirrors EnumDestructablesInRect;
+     * the boolexpr filter (arg 2) is ignored for now. */
+    extern LPEDICT currentenumitem;
+    LPBOX2 r = jass_checkhandle(j, 1, "rect");
+    LPCJASSFUNC actionFunc = jass_checkcode(j, 3);
+    if (!r) return 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        if (G_IsItem(ent) && ent->item.in_world && Box2_containsPoint(r, &ent->s.origin2)) {
+            currentenumitem = ent;
+            if (actionFunc) { jass_pushfunction(j, actionFunc); jass_call(j, 0); }
+        }
+    }
+    currentenumitem = NULL;
+    return 0;
+}

@@ -130,6 +130,10 @@ BOOL G_IsItem(LPCEDICT item) {
         (item->item.in_world || item->item.carrier || (item->data.ItemData && item->data.ItemData->file));
 }
 
+/* The item currently being visited by EnumItemsInRect, read back by the
+ * GetEnumItem native inside the enum action (mirrors currentdestructable). */
+LPEDICT currentenumitem = NULL;
+
 static DWORD G_InventoryRequiredUpgrade(DWORD ability_id) {
     /* Stock unit-inventory abilities are present on the unit before the race
      * Backpack upgrade is researched. UpgradeData effects are not normalized
