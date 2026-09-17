@@ -430,10 +430,16 @@ BOOL S_SpellIsChanneling(LPEDICT caster) {
 }
 
 void S_SpellCancelChannel(LPEDICT caster) {
-    if (!caster || !caster->channel.code) {
-        return;
-    }
+    DWORD code;
+    if (!caster || !caster->channel.code) return;
+    code = caster->channel.code;
     caster->channel.code = 0;
+    /* Notify the channeled ability so it can strip owned buffs (Mana Flare Bmfl). */
+    {
+        abilityitem_t item = S_AbilityItem(code);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        if (item.ability) S_AbilityMessage(caster, A_CANCEL, &call);
+    }
 }
 
 /* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
@@ -536,12 +542,13 @@ static void spell_begin_channel(LPEDICT caster, DWORD code) {
     caster->channel.origin = caster->s.origin2;
 }
 
-/* Pre-execute common work: spend mana, start cooldown. */
+/* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
 static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_SpellSpendMana(caster, code, level);
     S_SpellStartCooldown(caster, code, level);
+    S_ManaFlareOnCast(caster, code, level);
 }
 
 /* Warcraft exposes spell response data only while dispatching the spell event.

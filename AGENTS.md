@@ -110,6 +110,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Unsummon Building Auns DataA refund of UnitBalance gold/lumber | [docs/games/warcraft-3/unsummon.md](docs/games/warcraft-3/unsummon.md) |
 | WC3 Hippogryph couple Acoa/Acoh mount and Adec dismount, UnitID ehpr | [docs/games/warcraft-3/hippogryph-couple.md](docs/games/warcraft-3/hippogryph-couple.md) |
 | WC3 Spirit Link Aspl DataA share / DataB cap, Bspl redirect via T_Damage | [docs/games/warcraft-3/spirit-link.md](docs/games/warcraft-3/spirit-link.md) |
+| WC3 Mana Flare Amfl channel, Bmfl armor/DataE, enemy-cast flare hook | [docs/games/warcraft-3/mana-flare.md](docs/games/warcraft-3/mana-flare.md) |
 | WC3 Ancestral Spirit target rules, authored data, and same-edict corpse revival | [docs/games/warcraft-3/ancestral-spirit.md](docs/games/warcraft-3/ancestral-spirit.md) |
 | WC3 Mana Shield toggle, authored damage/mana ratio, buff and order lifecycle | [docs/games/warcraft-3/mana-shield.md](docs/games/warcraft-3/mana-shield.md) |
 | WC3 demo/TFT FOURCC-to-class extraction, registration offsets, generated references | [docs/games/warcraft-3/demo-ability-classes.md](docs/games/warcraft-3/demo-ability-classes.md) |

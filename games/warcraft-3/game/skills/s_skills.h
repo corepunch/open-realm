@@ -182,6 +182,8 @@ BZ_ABILITY_PROC(CAbilitySpiritOfVengeance);
 BZ_ABILITY_PROC(CAbilityVoodoo);
 BZ_ABILITY_PROC(CAbilityAcidBomb);
 BZ_ABILITY_PROC(CAbilityManaShield);
+BZ_ABILITY_PROC(CAbilityManaFlare);
+void S_ManaFlareOnCast(LPEDICT caster, DWORD spell_code, DWORD spell_level);
 BZ_ABILITY_PROC(CAbilityPoisonArrows);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
 BZ_ABILITY_PROC(CAbilityAttributeModSkill);
@@ -339,6 +341,7 @@ void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target);
 FLOAT S_SlowPoisonMoveReduction(LPCEDICT unit);
 FLOAT S_SlowPoisonAttackReduction(LPCEDICT unit);
 FLOAT S_BarkskinArmorBonus(LPCEDICT unit);
+FLOAT S_ManaFlareArmorBonus(LPCEDICT unit);
 
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index);

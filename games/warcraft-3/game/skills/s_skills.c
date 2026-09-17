@@ -419,7 +419,7 @@ static ability_t abilitylist[] = {
 
     /* NightElfAbilityStrings.txt */
     { "Avng", CAbilitySpiritOfVengeance, AB_SPELL, SPELL_TARGET_NONE },  /* Spirit of Vengeance */
-    // TODO: Amfl CAbilityFrostNova  /* Mana Flare */
+    { "Amfl", CAbilityManaFlare, AB_SPELL | AB_CHANNEL, SPELL_TARGET_NONE },  /* Mana Flare */
     // TODO: Apsh CAbilityStampede  /* Phase Shift */
     // TODO: Aetl a_button  /* Ethereal */
     // TODO: Agra a_poison_attack  /* War Club */

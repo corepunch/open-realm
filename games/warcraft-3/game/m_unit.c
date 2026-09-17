@@ -970,7 +970,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
         }
     }
     return armor + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) + S_FaerieArmorDelta(ent) +
-        S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent);
+        S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent) + S_ManaFlareArmorBonus(ent);
 }
 
 static BOOL unit_status_ensnares(DWORD code) {
