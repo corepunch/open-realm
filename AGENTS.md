@@ -107,6 +107,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Possession Apos/ACps instant and Aps2 channel, caster consume, DataB amp | [docs/games/warcraft-3/possession.md](docs/games/warcraft-3/possession.md) |
 | WC3 Unstable Concoction Auco air suicide blast, DataB/C/D splash, caster dies | [docs/games/warcraft-3/unstable-concoction.md](docs/games/warcraft-3/unstable-concoction.md) |
 | WC3 Exhume Corpses Aexh Dur interval, DataA cap, UnitID corpse, cargo deferred | [docs/games/warcraft-3/exhume-corpses.md](docs/games/warcraft-3/exhume-corpses.md) |
+| WC3 Unsummon Building Auns DataA refund of UnitBalance gold/lumber | [docs/games/warcraft-3/unsummon.md](docs/games/warcraft-3/unsummon.md) |
 | WC3 Ancestral Spirit target rules, authored data, and same-edict corpse revival | [docs/games/warcraft-3/ancestral-spirit.md](docs/games/warcraft-3/ancestral-spirit.md) |
 | WC3 Mana Shield toggle, authored damage/mana ratio, buff and order lifecycle | [docs/games/warcraft-3/mana-shield.md](docs/games/warcraft-3/mana-shield.md) |
 | WC3 demo/TFT FOURCC-to-class extraction, registration offsets, generated references | [docs/games/warcraft-3/demo-ability-classes.md](docs/games/warcraft-3/demo-ability-classes.md) |

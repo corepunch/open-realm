@@ -490,7 +490,7 @@ static ability_t abilitylist[] = {
     // TODO: Abur a_creep_sleep  /* Burrow */
     // TODO: Amtc a_unknown  /* Cargo Hold */
     // TODO: Atru a_true_sight  /* True Sight */
-    // TODO: Auns a_button  /* Unsummon Building */
+    { "Auns", CAbilityUnsummon, AB_SPELL, SPELL_TARGET_UNIT },  /* Unsummon Building */
     // TODO: Agyd a_simple_spell  /* Create Corpse */
     // TODO: Alam a_spell  /* Sacrifice */
     // TODO: Asac a_spell  /* Sacrifice */

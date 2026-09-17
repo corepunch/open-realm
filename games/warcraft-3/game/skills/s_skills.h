@@ -262,6 +262,7 @@ BZ_ABILITY_PROC(CAbilityRainOfChaos);
 BZ_ABILITY_PROC(CAbilityInferno);
 BZ_ABILITY_PROC(CAbilityDarkPortal);
 BZ_ABILITY_PROC(CAbilityVolcano);
+BZ_ABILITY_PROC(CAbilityUnsummon);
 
 void human_ability_think(LPEDICT thinker);
 void rain_of_chaos_think(LPEDICT thinker);
