@@ -465,7 +465,7 @@ static ability_t abilitylist[] = {
     { "Aens", CAbilityEnsnare, AB_SPELL, SPELL_TARGET_UNIT },  /* Ensnare */
     // TODO: Adev a_devour  /* Devour */
     { "Aprg", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge */
-    { "Apg2", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (TFT melee; TODO: Apg2 immobilization not yet implemented) */
+    { "Apg2", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (TFT melee; DataD/DataE pause) */
     { "Alsh", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield */
     // TODO: Aeye a_button  /* Sentry Ward */
     // TODO: Asta a_stasis_trap  /* Stasis Trap */
@@ -485,7 +485,7 @@ static ability_t abilitylist[] = {
     // TODO: Aexh a_button  /* Exhume Corpses */
     // TODO: Aave CAbilityStampede  /* Destroyer Form */
     // TODO: Afak a_spell  /* Orb of Annihilation */
-    { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic — dispel behavior shared; per-buff HP/mana heal remains */
+    { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic */
     { "Aabr", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE },  /* Aura of Blight */
     // TODO: Aabs a_aura  /* Absorb Mana */
     // TODO: Abur a_creep_sleep  /* Burrow */
