@@ -330,19 +330,43 @@ static void dump_buff_tokens(LPCSTR list, AbilityBuffData_t const *buffs, DWORD 
     }
 }
 
+/* DataA–I are FLOAT in the schema and FOURCC in the same cells (unitCode/abilCode).
+ * SLK "-" sentinels are not codes. A leading letter means fourcc; "ncgb" must not become 0. */
+static BOOL data_slot_is_code(DWORD id, FLOAT number) {
+    unsigned char c;
+    (void)number;
+    if (!id) return false;
+    c = (unsigned char)id;
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+}
+
+static void dump_data_slot(AbilityData_t const *row, DWORD level, DWORD slot) {
+    if (data_slot_is_code(row->dataId[level][slot], row->data[level][slot]))
+        printf("%.4s", (char const *)&row->dataId[level][slot]);
+    else
+        printf("%g", row->data[level][slot]);
+}
+
 static void dump_level(AbilityData_t const *row, DWORD level) {
     static LPCSTR const data_name[] = { "DataA", "DataB", "DataC", "DataD", "DataE", "DataF", "DataG", "DataH", "DataI" };
     printf("  L%u targs=%s cost=%g cool=%g rng=%g dur=%g heroDur=%g area=%g cast=%g\n",
            level + 1, row->targs[level] ? row->targs[level] : "", row->cost[level], row->cool[level],
            row->range[level], row->dur[level], row->heroDur[level], row->area[level], row->cast[level]);
     printf("     DataA-I=");
-    FOR_LOOP(slot, 9) printf("%s%g", slot ? "," : "", row->data[level][slot]);
+    FOR_LOOP(slot, 9) {
+        if (slot) printf(",");
+        dump_data_slot(row, level, slot);
+    }
     printf(" ");
     print_fourcc("UnitID", row->unitID[level]);
     printf(" BuffID=%s EfctID=%s\n", row->buffID[level] ? row->buffID[level] : "",
            row->efctID[level] ? row->efctID[level] : "");
-    FOR_LOOP(slot, 9)
-        if (row->data[level][slot] != 0.0f) printf("     %s=%g\n", data_name[slot], row->data[level][slot]);
+    FOR_LOOP(slot, 9) {
+        if (data_slot_is_code(row->dataId[level][slot], row->data[level][slot]))
+            printf("     %s=%.4s\n", data_name[slot], (char const *)&row->dataId[level][slot]);
+        else if (row->data[level][slot] != 0.0f)
+            printf("     %s=%g\n", data_name[slot], row->data[level][slot]);
+    }
 }
 
 static void dump_row(AbilityData_t const *row, AbilityData_t const *rows, DWORD count,
@@ -375,9 +399,12 @@ static void dump_row(AbilityData_t const *row, AbilityData_t const *rows, DWORD 
         if (alias->comments) printf(" comments=%s", alias->comments);
         if (alias->targs[0]) printf(" targs=%s", alias->targs[0]);
         printf(" cost=%g", alias->cost[0]);
-        FOR_LOOP(slot, 9)
-            if (alias->data[0][slot] != 0.0f)
+        FOR_LOOP(slot, 9) {
+            if (data_slot_is_code(alias->dataId[0][slot], alias->data[0][slot]))
+                printf(" Data%c=%.4s", (char)('A' + slot), (char const *)&alias->dataId[0][slot]);
+            else if (alias->data[0][slot] != 0.0f)
                 printf(" Data%c=%g", (char)('A' + slot), alias->data[0][slot]);
+        }
         if (alias->buffID[0]) printf(" BuffID=%s", alias->buffID[0]);
         printf("\n");
     }

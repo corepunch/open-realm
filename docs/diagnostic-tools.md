@@ -21,7 +21,8 @@ build/bin/ability_audit -data 'data/Warcraft III' -raw Aams
 
 `-raw ID` prints a ROC section then a TFT section: `id`/`code`, TFT class and
 parent, per-level targs/cost/range/duration/DataA–I/BuffID, Name/Ubertip,
-each BuffID token's Buffubertip, and other rows that share `code=`.
+each BuffID token's Buffubertip, and other rows that share `code=`. Data cells
+that store a unit or ability fourcc (`ncgb`, `ANin`) print as fourcc, not `0`.
 
 - `-roc` / `-tft` restrict to one overlay. `-roc` must be used to see ROC
   AbilityData; a plain `-data` walk would otherwise let War3x.mpq win.
