@@ -70,7 +70,6 @@ JASSMODULE jass_funcs[] = {
     { "CaptainGroupSize", CaptainGroupSize },
     { "CaptainIsFull", CaptainIsFull },
     { "CaptainIsEmpty", CaptainIsEmpty },
-    { "SuicidePlayer", SuicidePlayer },
     { "CaptainReadiness", CaptainReadiness },
     { "CaptainReadinessHP", CaptainReadinessHP },
     { "CaptainReadinessMa", CaptainReadinessMa },

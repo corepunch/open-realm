@@ -212,7 +212,7 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `CaptainGroupSize`, `CaptainIsEmpty`, and `CaptainIsFull` inspect the attack captain and count only live roster members. Fullness compares that count with the accumulated desired total; a fresh zero-desire captain is therefore both empty and full, allowing Blizzard's zero-unit formation path to complete. Dead and removed members remain harmless stale references until the next `InitAssault` rebuild.
 
-`SuicidePlayer(target, check_full)` launches the live attack captain with authoritative point attack orders aimed at the target player's W3I start location. The explicit target player is script-authored information; the implementation does not inspect hidden target units. With `check_full`, an undersized captain remains forming and returns false so `common.ai` can retry. Once the deadline permits a partial wave, the same native launches any live roster members, records the goal, marks the captain active, and returns true.
+`SuicidePlayer(target, check_full)` launches the live attack captain against the target player's valid units, falling back to the bot's staged point when no target is visible. With `check_full`, an undersized captain remains forming and returns false so `common.ai` can retry. Once the deadline permits a partial wave, the same native launches any live roster members, records the staged goal when available, marks the captain active, and returns true.
 
 ### Captain Readiness Provenance
 

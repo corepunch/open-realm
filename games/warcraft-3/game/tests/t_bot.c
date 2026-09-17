@@ -471,32 +471,37 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     T_ASSERT(first != second && building != enemy);
 }
 
-TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_authored_start) {
+TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_target_player) {
     bot_t *bot = level.bots + 2;
     LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
     DWORD type = MAKEFOURCC('h','f','o','o');
     LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
     LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
+    LPEDICT enemy = make_bot_harvest_unit(type, 256, 128, 1, NULL);
     LPPLAYER target = &game.clients[1].ps;
 
+    enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
     mapinfo->players[1].startingPosition = MAKE(VECTOR2, 256, 128);
+    bot->player = &game.clients[2].ps;
+    G_BotSetStagePoint(&game.clients[2].ps, 256, 128);
     G_BotCreateCaptains(&game.clients[2].ps);
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 3, type));
-    T_ASSERT(!G_BotSuicidePlayer(&game.clients[2].ps, target, true));
+    T_ASSERT(!G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), true));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
 
-    T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, target, false));
+    T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), false));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
     T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.x, 256, 0.001f);
     T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].goal.y, 128, 0.001f);
-    T_EQ(G_GetIssuedOrderId(first), G_OrderId("attack"));
-    T_EQ(G_GetIssuedOrderId(second), G_OrderId("attack"));
+    T_EQ(first->goalentity, enemy);
+    T_EQ(second->goalentity, enemy);
+    T_ASSERT(enemy != NULL);
 
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 3, type));
-    T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, target, false));
+    T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), false));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
 }
 
@@ -504,7 +509,9 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     bot_t *bot = level.bots + 2;
     LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
     LPEDICT unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
+    LPEDICT enemy = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 256, 128, 1, NULL);
 
+    enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
     mapinfo->players[1].startingPosition = MAKE(VECTOR2, 256, 128);
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_suicide_player.ai", BOT_CAMPAIGN));
@@ -515,7 +522,8 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
-    T_EQ(G_GetIssuedOrderId(unit), G_OrderId("attack"));
+    T_EQ(unit->goalentity, enemy);
+    T_ASSERT(enemy != NULL);
 }
 
 TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {

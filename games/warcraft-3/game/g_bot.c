@@ -321,25 +321,6 @@ BOOL G_BotCaptainIsFull(LPPLAYER player) {
     return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
 }
 
-/* SuicidePlayer attacks the target player's authored start location. */
-/* Choosing hidden live units here would leak fogged state. */
-BOOL G_BotSuicidePlayer(LPPLAYER player, LPPLAYER target, BOOL check_full) {
-    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    botCaptain_t *captain;
-    VECTOR2 goal;
-    DWORD issued = 0;
-    if (!bot || !target || !level.mapinfo || PLAYER_NUM(target) >= MAX_PLAYERS ||
-        !level.mapinfo->players[PLAYER_NUM(target)].used) return false;
-    captain = bot->captains + BOT_CAPTAIN_ATTACK;
-    if (!G_BotCaptainGroupSize(player) || (check_full && !G_BotCaptainIsFull(player))) return false;
-    goal = level.mapinfo->players[PLAYER_NUM(target)].startingPosition;
-    FOR_EACH_ARRAY(LPEDICT, unit, captain->units)
-        if (G_BotUnitAlive(*unit) && G_IssueUnitPointOrder(*unit, "attack", &goal, false, PLAYER_NUM(player), 0.0f)) issued++;
-    if (!issued) return false;
-    captain->goal = goal; captain->state = BOT_CAPTAIN_ACTIVE;
-    return true;
-}
-
 /* Blizzard scores heroes and ordinary units separately so one healthy category cannot hide the other's losses. */
 LONG G_BotCaptainReadiness(LPPLAYER player, BOOL mana) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;

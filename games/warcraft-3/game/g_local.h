@@ -1772,7 +1772,6 @@ BOOL G_BotCaptainInCombat(LPPLAYER, BOOL);
 BOOL G_BotAddAssault(LPPLAYER, LONG, DWORD);
 DWORD G_BotCaptainGroupSize(LPPLAYER);
 BOOL G_BotCaptainIsFull(LPPLAYER);
-BOOL G_BotSuicidePlayer(LPPLAYER, LPPLAYER, BOOL);
 LONG G_BotCaptainReadiness(LPPLAYER, BOOL);
 BOOL G_BotAddDefenders(LPPLAYER, LONG, DWORD);
 void G_BotAddGuardPost(LPPLAYER, DWORD, FLOAT, FLOAT);
