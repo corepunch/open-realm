@@ -846,7 +846,10 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
 /* Create a new runtime unit; explicit JASS creation must not reuse a nearby
  * entity because ReplaceUnitBJ destroys the returned replacement handle. */
 LPEDICT unit_create(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
-    LPEDICT unit = SP_SpawnAtLocation(unitid, player, location);
+    /* CreateUnit returns an immediately usable unit. SP_SpawnAtLocation's
+     * presentation birth is for callers that own a spawn lifecycle; applying
+     * it here left a stale birth wait behind the explicit stand transition. */
+    LPEDICT unit = SP_SpawnAtLocationNoBirth(unitid, player, location);
     if (!unit) {
         return NULL;
     }

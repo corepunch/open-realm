@@ -752,8 +752,10 @@ static LPEDICT SP_SpawnAtLocationInternal(DWORD class_id, DWORD player, LPCVECTO
     ent->s.scale = 1;
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;
-    gi.LinkEntity(ent);
     SP_CallSpawn(ent);
+    /* SP_SpawnUnit fills collision and the server broad-phase bounds depend on
+     * that value. Link only after the class-owned spawn initializer runs. */
+    gi.LinkEntity(ent);
     /* Dynamic unit creation must establish Hero progression independently of
      * presentation data.  SP_SpawnUnit already initializes normal Heroes, but
      * custom/minimal data may omit UnitUI/model rows while still defining Hero
