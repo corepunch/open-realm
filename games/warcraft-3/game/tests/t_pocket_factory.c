@@ -18,7 +18,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct { slkTestData_t *rows, *old; LPEDICT caster; } PFFIX;
 
-/* Non-stock DataA/Dur/DataC and hfoo/ogru UnitID/DataB prove the execute path is data-driven. */
+/* Non-stock DataA/Dur/DataC/DataE and hfoo/ogru UnitID/DataB prove the execute path is data-driven. */
 static char const pf_slk[] =
     "ID;PWXL;N;EBB;Y3;X15\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
@@ -28,11 +28,11 @@ static char const pf_slk[] =
     "C;Y2;X1;K\"ANsy\"\nC;Y2;X2;K\"ANsy\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"\"\n"
     "C;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"500\"\nC;Y2;X8;K\"25\"\n"
     "C;Y2;X9;K\"25\"\nC;Y2;X10;K\"2\"\nC;Y2;X11;K\"ogru\"\nC;Y2;X12;K\"8\"\n"
-    "C;Y2;X13;K\"64\"\nC;Y2;X14;K\"1100\"\nC;Y2;X15;K\"hfoo\"\n"
+    "C;Y2;X13;K\"64\"\nC;Y2;X14;K\"200\"\nC;Y2;X15;K\"hfoo\"\n"
     "C;Y3;X1;K\"ANs1\"\nC;Y3;X2;K\"ANsy\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"\"\n"
     "C;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"500\"\nC;Y3;X8;K\"25\"\n"
     "C;Y3;X9;K\"25\"\nC;Y3;X10;K\"1\"\nC;Y3;X11;K\"ogru\"\nC;Y3;X12;K\"8\"\n"
-    "C;Y3;X13;K\"64\"\nC;Y3;X14;K\"1100\"\nC;Y3;X15;K\"hfoo\"\nE\n";
+    "C;Y3;X13;K\"64\"\nC;Y3;X14;K\"200\"\nC;Y3;X15;K\"hfoo\"\nE\n";
 
 static PFFIX pf_setup(DWORD code) {
     PFFIX fix;
@@ -143,6 +143,29 @@ TEST(wc3_spell, pocket_factory_thinker_alloc_failure_rolls_back_factory) {
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     globals.max_edicts = max_edicts;
     T_NULL(pf_find(BZ_HFOO));
+    pf_done(fix);
+}
+
+/* DataE leash: a factory-owned Clockwerk past the authored range is ordered home. */
+TEST(wc3_spell, pocket_factory_datae_leash_returns_clockwerk) {
+    PFFIX fix = pf_setup(BZ_ANSY);
+    VECTOR2 point = { 256, 192 };
+    LPEDICT factory, goblin, thinker;
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
+    factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
+    T_NOT_NULL(factory); T_NOT_NULL(thinker);
+    T_FEQ(thinker->velocity, 200.0f, .001f);
+    pf_tick(2000); goblin = pf_find(BZ_OGRU); T_NOT_NULL(goblin);
+    /* Fixture ogru has no UnitBalance row; give life so M_IsDead does not skip the leash. */
+    goblin->health.value = goblin->health.max_value = 100;
+    goblin->s.origin2.x = point.x + 400.0f; goblin->s.origin2.y = point.y;
+    goblin->s.origin.x = goblin->s.origin2.x; goblin->s.origin.y = goblin->s.origin2.y;
+    goblin->goalentity = NULL;
+    pf_tick(1);
+    T_NOT_NULL(goblin->goalentity);
+    if (!goblin->goalentity) { pf_done(fix); return; }
+    T_FEQ(goblin->goalentity->s.origin2.x, factory->s.origin2.x, .001f);
+    T_FEQ(goblin->goalentity->s.origin2.y, factory->s.origin2.y, .001f);
     pf_done(fix);
 }
 

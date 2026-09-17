@@ -20,7 +20,7 @@ Clockwerk goblins. Production is owned by `ANsy`, not by an ability on the facto
 | `DataB` | Nsy2 Spawn Unit ID | `ncgb` | Clockwerk unit rawcode (`S_SpellDataId`) |
 | `DataC` | Nsy3 Spawn Unit Duration | `12` | Clockwerk timed life (seconds, `BTLF`) |
 | `DataD` | Nsy4 Spawn Unit Offset | `200` | spawn distance from factory origin |
-| `DataE` | Nsy5 Leash Range | `1100` | AI leash; not implemented |
+| `DataE` | Nsy5 Leash Range | `1100` | max distance Clockwerks may leave the factory; beyond it they return |
 | `UnitID` | Nsyu Factory Unit ID | `nfac` | factory unit rawcode (`S_SpellUnitId`) |
 | `Dur` / `HeroDur` | | `40` | factory timed life (`BTLF`) |
 
@@ -54,8 +54,9 @@ AbilityData.slk (ANsy / ANs1 / ANs2 / ANs3)
   -> UnitID, Dur, DataA–E
 CAbilityPocketFactory
   -> S_SummonAt(caster, UnitID, point, Dur)   // factory.owner = caster
-  -> classless thinker owned by factory
+  -> classless thinker owned by factory (velocity = DataE leash)
 G_RunEntities / ent->think
+  -> leash: factory-owned DataB units beyond DataE order_move home
   -> S_SummonAt(factory, DataB, offset, DataC) // clockwerk.owner = factory
 G_FreeEdict(factory)
   -> next think sees !factory->inuse and frees itself
@@ -65,9 +66,19 @@ Owner chain: factory is owned by the caster; each Clockwerk is owned by the fact
 (player id still matches the caster). The thinker's `spawn_time` also equals factory
 `Dur`, so factory BTLF expiry and thinker teardown share the same bound.
 
+## DataE leash
+
+`AbilityMetaData` labels DataE as Nsy5 Leash Range. Stock is `1100` on `ANsy` and
+all `ANs*` aliases. Ubertip does not mention the leash; the meta name is the contract.
+
+Each think tick, before the spawn-interval gate, the factory thinker pulls every
+living factory-owned unit whose `class_id` matches DataB back toward the factory
+when `distance(goblin, factory) > DataE`. `DataE <= 0` disables the leash. The
+pull uses `order_move` to a factory waypoint and skips re-issue when the goblin
+already has that home as its goal.
+
 ## Remaining
 
-- `DataE` leash range is AI-facing and intentionally unimplemented.
 - Clockwerk death explosion is owned by Self Destruct (`Asdg` / `Asd2` / `Asd3`);
   see [self-destruct.md](self-destruct.md).
 
@@ -85,6 +96,6 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.pocket_factory*'
 ```
 
 Focused tests drive `S_CastPointTargetSpell` with a non-stock fixture (`DataA=2`,
-`Dur=25`, `DataC=8`, `UnitID=hfoo`, `DataB=ogru`), advance with `level.time` +
-`G_RunEntities` (never `globals.RunFrame`), cover alias `ANs1` DataA, factory removal,
-and thinker-alloc rollback.
+`Dur=25`, `DataC=8`, `DataE=200`, `UnitID=hfoo`, `DataB=ogru`), advance with
+`level.time` + `G_RunEntities` (never `globals.RunFrame`), cover alias `ANs1` DataA,
+DataE return-to-factory leash, factory removal, and thinker-alloc rollback.
