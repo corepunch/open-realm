@@ -44,7 +44,7 @@ Left click remains the normal Repair targeting action. Right-button down/up over
 
 The server toggles all controllable selected units that carry the requested authored rawcode and plays `AutoCastButtonClick`. Enabling Auto Repair on an already idle worker immediately tries one acquisition pass; toggling during active movement/work does not interrupt that behavior.
 
-JASS/string immediate orders `repairon` and `repairoff` use the same toggle path. Numeric `IssueImmediateOrderById` now exists for canonical table entries, but repair toggle order IDs are not part of that table and continue to use their string path.
+JASS/string immediate orders `repairon` and `repairoff` use the same toggle path. The canonical order table also exposes `repair=852024`, `repairon=852025`, and `repairoff=852026`, so numeric `IssueTargetOrderById` / `IssueImmediateOrderById` resolve through the same ordinary order paths.
 
 ## Acquisition ordering
 
@@ -76,9 +76,9 @@ max(0, center_distance - worker_collision - target_collision)
 
 5. Issue the ordinary `repair` entity-target order for the nearest candidate.
 
-The acquisition range is a discovery radius, not Repair cast range. Once the normal Repair order is issued, `s_repair.c` remains authoritative for footprint-aware approach routing, `Rng`, work animation, completed-building costs, Human paused-construction/power-building rules, failure, completion, and Shift-order continuation.
+The acquisition range is a discovery radius, not Repair cast range. Once the normal Repair order is issued, `s_repair.c` remains authoritative for building-footprint or live mechanical-unit approach routing, `Rng` plus floating-target `DataE`, work animation, completed-target costs, Human paused-construction/power-building rules, failure, completion, and Shift-order continuation.
 
-Current Auto Repair target coverage deliberately matches the high-confidence Repair validator already implemented in OpenRealm: owned buildings, plus paused Human construction where `Arep` permits it. Allied/mechanical/destructible target-mask expansion and `DataE` naval range remain separate gaps.
+Auto Repair uses the same high-confidence Repair validator as explicit orders. Authored stock-style `targs` can therefore admit completed Friend structures and damaged mechanical non-buildings, including `ground`/`air` and Ancient/Non-Ancient classification restrictions; sparse rows still fall back to the legacy building-only policy. Human power building remains owner-only. Destructible Repair and complete generic target-mask semantics remain separate gaps.
 
 ## Repair cancellation and replacement orders
 
@@ -115,6 +115,10 @@ Focused coverage lives primarily in `games/warcraft-3/game/tests/t_building.c` a
 - command-card secondary command serialization and active state;
 - client right-click dispatch/consumption;
 - nearest valid damaged building selection;
+- nearest valid damaged mechanical-unit selection;
+- Friend/allied completed-target validation without stealing active Human construction ownership;
+- `DataE` naval range only for `float` mechanical targets;
+- canonical numeric `repair` / `repairon` / `repairoff` order IDs;
 - collision-aware acquisition of a large nearby building whose centre lies outside `uacq`;
 - ignoring a nearer full-health building;
 - autocast before idle auto-attack, with attack fallback when autocast is off;

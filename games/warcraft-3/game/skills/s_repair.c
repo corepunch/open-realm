@@ -51,6 +51,92 @@ static AbilityData_t const *repair_data(LPEDICT ent) {
     return ent && ent->buildwork.ability ? G_AbilityData(ent->buildwork.ability) : NULL;
 }
 
+static BOOL repair_list_has_token(LPCSTR list, LPCSTR full, LPCSTR short_name) {
+    if (!list || !*list || !full || !*full) return false;
+    PARSE_LIST(list, item, parse_segment) {
+        if (!strcasecmp(item, full) || (short_name && !strcasecmp(item, short_name))) return true;
+    }
+    return false;
+}
+
+static BOOL repair_target_has_classification(LPCEDICT target, LPCSTR wanted) {
+    LPCSTR classifications;
+
+    if (!target || !wanted || !*wanted) return false;
+    classifications = target->data.UnitBalance ? target->data.UnitBalance->type : NULL;
+    if (!classifications || !*classifications) {
+        classifications = target->data.UnitData ? target->data.UnitData->unitClassification : NULL;
+    }
+    return repair_list_has_token(classifications, wanted, NULL);
+}
+
+static BOOL repair_target_category_allowed(LPCEDICT target, AbilityData_t const *data) {
+    LPCSTR targets;
+    BOOL building;
+
+    if (!target) return false;
+    building = G_UnitIsBuilding(target->class_id);
+    targets = data ? data->level[0].targs : NULL;
+
+    /* Preserve the legacy completed-building fallback for sparse ROC/custom
+     * rows that omit targs.  Expanding that fallback to ordinary units would
+     * make Repair heal arbitrary organic units, so non-buildings require an
+     * authored mechanical category. */
+    if (!targets || !*targets) return building;
+
+    if (repair_list_has_token(targets, "nonancient", "nona") &&
+        repair_target_has_classification(target, "ancient")) {
+        return false;
+    }
+    if (repair_list_has_token(targets, "ancient", "anci") &&
+        !repair_target_has_classification(target, "ancient")) {
+        return false;
+    }
+
+    if (building) {
+        return repair_list_has_token(targets, "structure", "stru");
+    }
+    if (!repair_target_has_classification(target, "mechanical") ||
+        !repair_list_has_token(targets, "mechanical", "mech")) {
+        return false;
+    }
+
+    /* WC3 target categories overlap: a mechanical unit is still authored as
+     * ground or air in UnitData.targType. Honor those physical target classes
+     * when the Repair row constrains them. */
+    if (repair_list_has_token(targets, "air", NULL) ||
+        repair_list_has_token(targets, "ground", "grou")) {
+        if (target->targtype == TARG_AIR)
+            return repair_list_has_token(targets, "air", NULL);
+        if (target->targtype == TARG_GROUND)
+            return repair_list_has_token(targets, "ground", "grou");
+        return false;
+    }
+    return true;
+}
+
+static BOOL repair_target_relation_allowed(LPEDICT ent, LPEDICT target, AbilityData_t const *data) {
+    LPCSTR targets;
+
+    if (!ent || !target) return false;
+    if (target->s.player == ent->s.player) return true;
+    targets = data ? data->level[0].targs : NULL;
+    if (!targets || !*targets) return false;
+
+    /* Stock Repair uses Friend: owner or ally. Keep enemy/neutral targeting
+     * out until the rest of Repair's relation-mask surface is needed. */
+    if (repair_list_has_token(targets, "friend", "frie") ||
+        repair_list_has_token(targets, "allies", "alli")) {
+        return S_SpellIsFriend(ent, target);
+    }
+    return false;
+}
+
+static BOOL repair_target_is_float(LPCEDICT target) {
+    LPCSTR movetp = target && target->data.UnitData ? target->data.UnitData->moveTypeName : NULL;
+    return movetp && !strcasecmp(movetp, "float");
+}
+
 static BOOL repair_primary_active(LPEDICT building) {
     LPEDICT worker;
     if (!building) return false;
@@ -108,7 +194,8 @@ void S_CancelRepair(LPEDICT ent) {
 /* Finish Repair consistently: completed Town Halls return their workers to gold mining. */
 static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
     LPEDICT building = ent ? ent->build : NULL;
-    BOOL resume_harvest = building && building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
+    BOOL resume_harvest = building && ent && building->s.player == ent->s.player &&
+                          building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
                           (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete") ||
                            (!strcmp(reason, "work_target_invalid") && !building->construction.active &&
                             building->health.value >= building->health.max_value));
@@ -201,14 +288,15 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL pr
     AbilityData_t const *data = G_AbilityData(code);
 
     if (!ent || !target || !target->inuse || M_IsDead(target)) return false;
-    if (!G_UnitIsBuilding(target->class_id) || !target->data.UnitBalance) return false;
-    /* Keep the current ownership/building rule until Repair has a target-mask
-     * evaluator that understands WC3's overlapping categories (for example a
-     * structure can also be a ground target).  S_SpellAllowsTarget() models a
-     * smaller spell subset and can reject otherwise-valid Repair structures. */
-    if (target->s.player != ent->s.player) return false;
+    if (!target->data.UnitBalance || !repair_target_category_allowed(target, data)) return false;
+    if (!repair_target_relation_allowed(ent, target, data)) return false;
 
     if (target->construction.active) {
+        /* Human power building is construction ownership, not ordinary Friend
+         * Repair. Do not let an allied worker become another player's primary
+         * or additional builder through this completed-unit target expansion. */
+        if (target->s.player != ent->s.player) return false;
+        if (!G_UnitIsBuilding(target->class_id)) return false;
         /* Power Build is a Human construction rule. Orc, Undead, and Night
          * Elf structures progress autonomously and ordinary Repair must not
          * become an accidental second construction clock for them. */
@@ -222,9 +310,16 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL pr
     return target->health.value < target->health.max_value;
 }
 
-static FLOAT repair_range(LPEDICT ent) {
+static FLOAT repair_range(LPEDICT ent, LPCEDICT target) {
     AbilityData_t const *data = repair_data(ent);
-    return data ? MAX(0.0f, data->level[0].range) : 0.0f;
+    FLOAT range = data ? MAX(0.0f, data->level[0].range) : 0.0f;
+
+    /* Repair DataE is the naval range bonus. Warsmash applies it only to unit
+     * targets whose authored movement type is FLOAT. */
+    if (data && repair_target_is_float(target)) {
+        range += MAX(0.0f, data->level[0].data[4].number);
+    }
+    return range;
 }
 
 /* Work may begin only from the worker's current position.  Do not include the
@@ -236,10 +331,12 @@ static BOOL repair_in_range(LPEDICT ent, LPEDICT target) {
     FLOAT range;
 
     if (!ent || !target) return false;
-    range = repair_range(ent);
-    footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
-    if (footprint < FLT_MAX) {
-        return footprint <= ent->collision + range;
+    range = repair_range(ent, target);
+    if (G_UnitIsBuilding(target->class_id)) {
+        footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
+        if (footprint < FLT_MAX) {
+            return footprint <= ent->collision + range;
+        }
     }
     return M_DistanceToGoal(ent) <= ent->collision + target->collision + range;
 }
@@ -263,7 +360,17 @@ static BOOL repair_prepare_approach(LPEDICT ent) {
     BOOL found;
 
     if (!ent || !building) return false;
-    interaction_range = ent->collision + repair_range(ent);
+    interaction_range = ent->collision + repair_range(ent, building);
+
+    /* Mobile mechanical units are live movement goals, not static pathing
+     * footprints. Following the entity also lets Repair track a target that
+     * moves while the worker is approaching it. */
+    if (!G_UnitIsBuilding(building->class_id)) {
+        ent->goalentity = building;
+        move_reset_progress(ent);
+        return true;
+    }
+
     found = CM_FindApproachPointToFootprintForRadius(
         building, &ent->s.origin2, interaction_range, ent->collision, &approach);
     if (found) {
@@ -567,6 +674,10 @@ BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred) {
     if (!code) return false;
 
     if (target->construction.active) {
+        /* Friend permits ordinary allied Repair, not construction ownership.
+         * Reject before touching primary_builder so an allied Repair click can
+         * never detach the owning player's Human builder. */
+        if (target->s.player != ent->s.player) return false;
         if (repair_handler(code) != CAbilityRepair) return false;
         if (!repair_primary_active(target)) {
             target->construction.primary_builder = NULL;
@@ -604,12 +715,12 @@ static LPCSTR repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, DWORD c
     if (!code) return "no_repair_code";
     if (!target->inuse) return "unused";
     if (M_IsDead(target)) return "dead";
-    if (!G_UnitIsBuilding(target->class_id)) return "not_building";
     if (!target->data.UnitBalance) return "no_balance";
-    if (target->s.player != ent->s.player) return "wrong_owner";
 
     handler = repair_handler(code);
     data = G_AbilityData(code);
+    if (!repair_target_category_allowed(target, data)) return "target_category";
+    if (!repair_target_relation_allowed(ent, target, data)) return "target_relation";
     if (target->construction.active) {
         if (handler != CAbilityRepair) return "construction_requires_human_repair";
         if (!target->construction.paused) return "construction_not_paused";
@@ -774,8 +885,8 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
     code = clent->client->menu.ability_code;
     handler = repair_handler(code);
     if (handler != CAbilityRepair && handler != CAbilityRepairGeneric) return false;
-    if (!target->inuse || M_IsDead(target) || !G_UnitIsBuilding(target->class_id) ||
-        target->s.player != clent->client->ps.number) {
+    if (!target->inuse || M_IsDead(target) || !target->data.UnitBalance ||
+        !repair_target_category_allowed(target, G_AbilityData(code))) {
         return false;
     }
 

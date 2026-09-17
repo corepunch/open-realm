@@ -289,6 +289,9 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "attack", 851983, 0 },
     { "move", 851986, 0 },
     { "holdposition", 851993, 0 },
+    { "repair", 852024, 0 },
+    { "repairon", 852025, 0 },
+    { "repairoff", 852026, 0 },
 
     { "avatar", 852086, MAKEFOURCC('A','H','a','v') },
     { "blizzard", 852089, MAKEFOURCC('A','H','b','z') },

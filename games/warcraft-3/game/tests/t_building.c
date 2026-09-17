@@ -111,6 +111,11 @@ static const char building_repair_slk[] =
     "C;X9;K\"ground,structure,friend\"\n"
     "E\n";
 
+static LPCSTR const building_repair_stock_targets =
+    "ground,air,structure,mechanical,friend,nonancient,invulnerable,vulnerable";
+static LPCSTR const building_renew_stock_targets =
+    "ground,air,structure,mechanical,friend,invulnerable,vulnerable";
+
 static const char building_upgrade_slk[] =
     "ID;PWXL;N;E\n"
     "B;X17;Y8;D0\n"
@@ -2336,6 +2341,268 @@ TEST(wc3_building, completed_repair_uses_repair_time_ratios_and_fractional_costs
     building_restore_repair_data(old_abilities, rows);
 }
 
+TEST(wc3_building, repair_accepts_authored_mechanical_unit_and_rejects_organic_unit) {
+    LPEDICT worker;
+    LPEDICT mechanical;
+    LPEDICT organic;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    AbilityData_t *repair;
+    UnitBalance_t mechanical_balance;
+    UnitBalance_t organic_balance;
+    UnitData_t mechanical_data;
+    UnitData_t organic_data;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','n'));
+    T_NOT_NULL(repair);
+    repair->level[0].targs = building_repair_stock_targets;
+
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    mechanical = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    organic = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    worker->data.UnitAbilities = &abilities;
+    worker->collision = 16.0f;
+    worker->stand = unit_stand;
+
+    mechanical_balance = *mechanical->data.UnitBalance;
+    mechanical_balance.type = "mechanical";
+    mechanical_balance.reptm = 10;
+    mechanical_balance.goldRep = 0;
+    mechanical_balance.lumberRep = 0;
+    mechanical->data.UnitBalance = &mechanical_balance;
+    mechanical_data = *mechanical->data.UnitData;
+    mechanical_data.moveTypeName = "foot";
+    mechanical->data.UnitData = &mechanical_data;
+    mechanical->targtype = TARG_GROUND;
+    mechanical->s.player = worker->s.player;
+    mechanical->collision = 16.0f;
+    mechanical->health.max_value = 1000.0f;
+    mechanical->health.value = 500.0f;
+
+    organic_balance = *organic->data.UnitBalance;
+    organic_balance.type = "";
+    organic_balance.reptm = 10;
+    organic->data.UnitBalance = &organic_balance;
+    organic_data = *organic->data.UnitData;
+    organic_data.unitClassification = "";
+    organic_data.moveTypeName = "foot";
+    organic->data.UnitData = &organic_data;
+    organic->targtype = TARG_GROUND;
+    organic->s.player = worker->s.player;
+    organic->collision = 16.0f;
+    organic->health.max_value = 1000.0f;
+    organic->health.value = 500.0f;
+
+    T_ASSERT(S_OrderRepair(worker, mechanical, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(worker->build == mechanical);
+    T_STREQ(worker->currentmove->animation, "stand work");
+    worker->currentmove->think(worker);
+    T_ASSERT(mechanical->health.value > 500.0f);
+
+    unit_stand(worker);
+    T_ASSERT(!S_OrderRepair(worker, organic, MAKEFOURCC('A','r','e','n')));
+    T_NULL(worker->build);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_mobile_unit_requires_mechanical_target_mask) {
+    LPEDICT worker;
+    LPEDICT mechanical;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    UnitBalance_t balance;
+    UnitData_t data;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    mechanical = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    worker->data.UnitAbilities = &abilities;
+    balance = *mechanical->data.UnitBalance;
+    balance.type = "mechanical";
+    balance.reptm = 10;
+    mechanical->data.UnitBalance = &balance;
+    data = *mechanical->data.UnitData;
+    data.moveTypeName = "foot";
+    mechanical->data.UnitData = &data;
+    mechanical->targtype = TARG_GROUND;
+    mechanical->s.player = worker->s.player;
+    mechanical->health.max_value = 1000.0f;
+    mechanical->health.value = 500.0f;
+
+    /* The synthetic Aren row intentionally omits mechanical from targs. A
+     * mobile unit must not become repairable merely because its classification
+     * says mechanical; the Repair row must authorize that category too. */
+    T_ASSERT(!S_OrderRepair(worker, mechanical, MAKEFOURCC('A','r','e','n')));
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_friend_target_allows_allied_completed_structure) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->data.UnitAbilities = &abilities;
+    worker->s.player = 0;
+    building->s.player = 1;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+
+    T_ASSERT(!S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    level.alliances[0][1] |= 1u << ALLIANCE_PASSIVE;
+    T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(worker->build == building);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, allied_repair_does_not_take_over_active_human_construction) {
+    LPEDICT primary;
+    LPEDICT ally;
+    LPEDICT building;
+    UnitAbilities_t human_repair = { .abilList = "Arep" };
+    AbilityData_t *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    level.alliances[1][0] |= 1u << ALLIANCE_PASSIVE;
+
+    repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','p'));
+    T_NOT_NULL(repair);
+    repair->level[0].targs = building_repair_stock_targets;
+
+    primary = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    ally = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 96, 0);
+    primary->data.UnitAbilities = &human_repair;
+    ally->data.UnitAbilities = &human_repair;
+    primary->s.player = building->s.player = 0;
+    ally->s.player = 1;
+
+    T_ASSERT(G_StartHumanConstruction(primary, building));
+    T_ASSERT(building->construction.primary_builder == primary);
+    T_ASSERT(!S_OrderRepair(ally, building, MAKEFOURCC('A','r','e','p')));
+    T_ASSERT(building->construction.primary_builder == primary);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_datae_adds_range_only_for_floating_mechanical_units) {
+    LPEDICT worker;
+    LPEDICT floating;
+    LPEDICT ground;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    AbilityData_t *repair;
+    UnitBalance_t floating_balance;
+    UnitBalance_t ground_balance;
+    UnitData_t floating_data;
+    UnitData_t ground_data;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','n'));
+    T_NOT_NULL(repair);
+    repair->level[0].targs = building_repair_stock_targets;
+    repair->level[0].range = 50.0f;
+    repair->level[0].data[4].number = 75.0f;
+
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    floating = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 130, 0);
+    ground = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 130, 64);
+    worker->data.UnitAbilities = &abilities;
+    worker->stand = unit_stand;
+    worker->collision = 16.0f;
+
+    floating_balance = *floating->data.UnitBalance;
+    floating_balance.type = "mechanical";
+    floating_balance.reptm = 10;
+    floating->data.UnitBalance = &floating_balance;
+    floating_data = *floating->data.UnitData;
+    floating_data.moveTypeName = "float";
+    floating->data.UnitData = &floating_data;
+    floating->targtype = TARG_GROUND;
+    floating->s.player = worker->s.player;
+    floating->collision = 16.0f;
+    floating->health.max_value = 1000.0f;
+    floating->health.value = 500.0f;
+
+    ground_balance = *ground->data.UnitBalance;
+    ground_balance.type = "mechanical";
+    ground_balance.reptm = 10;
+    ground->data.UnitBalance = &ground_balance;
+    ground_data = *ground->data.UnitData;
+    ground_data.moveTypeName = "foot";
+    ground->data.UnitData = &ground_data;
+    ground->targtype = TARG_GROUND;
+    ground->s.player = worker->s.player;
+    ground->collision = 16.0f;
+    ground->health.max_value = 1000.0f;
+    ground->health.value = 500.0f;
+
+    /* 130 > 16+16+50, but 130 <= 16+16+50+75. */
+    T_ASSERT(S_OrderRepair(worker, floating, MAKEFOURCC('A','r','e','n')));
+    T_STREQ(worker->currentmove->animation, "stand work");
+
+    unit_stand(worker);
+    T_ASSERT(S_OrderRepair(worker, ground, MAKEFOURCC('A','r','e','n')));
+    T_STREQ(worker->currentmove->animation, "walk");
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_nonancient_mask_rejects_ancient_but_renew_can_accept_it) {
+    LPEDICT worker;
+    LPEDICT ancient;
+    UnitAbilities_t abilities = { .abilList = "Arep,Arst" };
+    AbilityData_t *repair;
+    AbilityData_t *renew;
+    UnitBalance_t balance;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','p'));
+    renew = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','s','t'));
+    T_NOT_NULL(repair);
+    T_NOT_NULL(renew);
+    repair->level[0].targs = building_repair_stock_targets;
+    renew->level[0].targs = building_renew_stock_targets;
+
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    ancient = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->data.UnitAbilities = &abilities;
+    balance = *ancient->data.UnitBalance;
+    balance.type = "ancient";
+    balance.reptm = 10;
+    ancient->data.UnitBalance = &balance;
+    ancient->s.player = worker->s.player;
+    ancient->health.max_value = 1000.0f;
+    ancient->health.value = 500.0f;
+
+    T_ASSERT(!S_OrderRepair(worker, ancient, MAKEFOURCC('A','r','e','p')));
+    T_ASSERT(S_OrderRepair(worker, ancient, MAKEFOURCC('A','r','s','t')));
+    T_ASSERT(worker->build == ancient);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
 TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
     LPEDICT worker;
     LPEDICT building;
@@ -2450,10 +2717,16 @@ TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starti
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
-    T_ASSERT(unit_issueimmediateorder(worker, "repairon"));
+    T_EQ(G_OrderId("repair"), 852024);
+    T_EQ(G_OrderId("repairon"), 852025);
+    T_EQ(G_OrderId("repairoff"), 852026);
+    T_STREQ(G_OrderId2String(852024), "repair");
+    T_STREQ(G_OrderId2String(852025), "repairon");
+    T_STREQ(G_OrderId2String(852026), "repairoff");
+    T_ASSERT(unit_issueimmediateorder(worker, G_OrderId2String(852025)));
     T_ASSERT(G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
     T_NULL(worker->build);
-    T_ASSERT(unit_issueimmediateorder(worker, "repairoff"));
+    T_ASSERT(unit_issueimmediateorder(worker, G_OrderId2String(852026)));
     T_ASSERT(!G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
     T_NULL(worker->build);
 
@@ -2517,6 +2790,52 @@ TEST(wc3_building, repair_autocast_chooses_nearest_valid_damaged_building) {
     T_ASSERT(G_TryUnitAutocast(worker));
     T_ASSERT(worker->build == near_building);
     T_ASSERT(worker->build != far_building);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_autocast_can_choose_damaged_mechanical_unit) {
+    LPEDICT worker;
+    LPEDICT mechanical;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    AbilityData_t *repair_data;
+    ability_t const *repair;
+    UnitBalance_t balance;
+    UnitData_t data;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    repair_data = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','n'));
+    T_NOT_NULL(repair_data);
+    repair_data->level[0].targs = building_repair_stock_targets;
+
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    mechanical = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    worker->data.UnitAbilities = &abilities;
+    worker->runtime.acquisition_range = 400.0f;
+    worker->collision = 16.0f;
+
+    balance = *mechanical->data.UnitBalance;
+    balance.type = "mechanical";
+    balance.reptm = 10;
+    mechanical->data.UnitBalance = &balance;
+    data = *mechanical->data.UnitData;
+    data.moveTypeName = "foot";
+    mechanical->data.UnitData = &data;
+    mechanical->targtype = TARG_GROUND;
+    mechanical->s.player = worker->s.player;
+    mechanical->collision = 16.0f;
+    mechanical->health.max_value = 1000.0f;
+    mechanical->health.value = 500.0f;
+
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mechanical);
+    repair = FindAbilityForCommand("Aren");
+    T_NOT_NULL(repair);
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
+    T_ASSERT(G_TryUnitAutocast(worker));
+    T_ASSERT(worker->build == mechanical);
 
     building_restore_repair_data(old_abilities, rows);
 }
