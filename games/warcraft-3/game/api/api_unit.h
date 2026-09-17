@@ -1,7 +1,7 @@
 extern LPPLAYER currentplayer;
 
-static DWORD const order_ugol = MAKEFOURCC('u','g','o','l');
-static DWORD const unit_ngol = MAKEFOURCC('n','g','o','l');
+static DWORD const order_ugol = BZ_WC3_UNIT_HAUNTED_GOLD_MINE;
+static DWORD const unit_ngol = BZ_WC3_UNIT_GOLD_MINE;
 
 #define UNIT_TYPED_ACCESS(NAME, FIELD, TYPE) \
 DWORD SetUnit##NAME(LPJASS j) {  \
