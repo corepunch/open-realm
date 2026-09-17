@@ -92,7 +92,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 inventory, world-item lifecycle, item UI presentation | [docs/games/warcraft-3/inventory-and-items.md](docs/games/warcraft-3/inventory-and-items.md) |
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
 | WC3 ability implementation from data, behavior, and focused evidence | [docs/games/warcraft-3/ability-implementation-plan.md](docs/games/warcraft-3/ability-implementation-plan.md) |
-| WC3 Anti-Magic Shell ROC/TFT data, timed immunity lifecycle, and Aami distinction | [docs/games/warcraft-3/anti-magic-shell.md](docs/games/warcraft-3/anti-magic-shell.md) |
+| WC3 Anti-Magic Shell Bams immunity vs Bam2 DataC absorption, Aam2/ACam aliases | [docs/games/warcraft-3/anti-magic-shell.md](docs/games/warcraft-3/anti-magic-shell.md) |
 | WC3 Ancestral Spirit target rules, authored data, and same-edict corpse revival | [docs/games/warcraft-3/ancestral-spirit.md](docs/games/warcraft-3/ancestral-spirit.md) |
 | WC3 Mana Shield toggle, authored damage/mana ratio, buff and order lifecycle | [docs/games/warcraft-3/mana-shield.md](docs/games/warcraft-3/mana-shield.md) |
 | WC3 demo/TFT FOURCC-to-class extraction, registration offsets, generated references | [docs/games/warcraft-3/demo-ability-classes.md](docs/games/warcraft-3/demo-ability-classes.md) |

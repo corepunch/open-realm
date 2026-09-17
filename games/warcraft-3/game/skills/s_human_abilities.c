@@ -59,9 +59,12 @@ BOOL S_UnitSpellImmune(LPCEDICT unit) {
     return unit && (G_UnitStatusLevel(unit, BZ_AVATAR_BUFF) || G_UnitStatusLevel(unit, BZ_ANTI_MAGIC_SHELL_BUFF));
 }
 
-/* Spell impacts recheck immunity because a missile may have launched before Avatar was cast. */
+/* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.
+ * Bam2 absorption is not targeting immunity: leftover damage after the shell breaks still applies. */
 BOOL S_SpellDamage(LPEDICT target, LPEDICT caster, int damage) {
     if (!target || S_UnitSpellImmune(target)) return false;
+    damage = S_AntiMagicShellAbsorb(target, damage);
+    if (damage <= 0) return false;
     T_Damage(target, caster, damage); return true;
 }
 

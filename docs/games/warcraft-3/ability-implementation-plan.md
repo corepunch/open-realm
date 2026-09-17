@@ -668,6 +668,7 @@ and damage paths consult the status predicate, so expiry restores behavior witho
 See also:
 
 - [Ability coverage](architecture/ability-coverage.md)
+- [Anti-Magic Shell](anti-magic-shell.md)
 - [Unit animation properties](unit-animation-properties.md)
 - [Ability and item effects](ability-and-item-effects.md)
 - [Warcraft III data model](../../wc3-data-model.md)

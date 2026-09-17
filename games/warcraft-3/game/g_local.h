@@ -980,6 +980,7 @@ typedef struct {
     DWORD level;
     DWORD timestamp;
     DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
+    DWORD data; /* ability-owned payload; Anti-Magic Shell remaining absorption, 0 otherwise */
 } heroabilitystatus_t;
 
 typedef struct {

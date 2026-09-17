@@ -504,6 +504,7 @@ static ability_t abilitylist[] = {
     { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
     { "Aams", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shell */
+    { "Aam2", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shell (Magic Resistance) */
     // TODO: Apos a_creep_sleep  /* Possession */
     // TODO: Aps2 a_creep_sleep  /* Possession */
     { "Acri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple */
@@ -519,7 +520,7 @@ static ability_t abilitylist[] = {
     /* AbilityData rows without a generated AbilityStrings entry. */
     // TODO: ACac a_unknown  /* Aura - Command (Creep) */
     // TODO: ACah a_unknown  /* Thorns Aura (creep) */
-    // TODO: ACam a_unknown  /* Anti-magic Shield (creep) */
+    { "ACam", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shield (creep) */
     // TODO: ACat a_unknown  /* Aura - Trueshot (Creep) */
     // TODO: ACav a_unknown  /* Aura - Devotion (Creep) */
     // TODO: ACba a_unknown  /* Aura - Brilliance (creep) */
@@ -790,7 +791,6 @@ static ability_t abilitylist[] = {
     // TODO: APrr a_unknown  /* Rune of Greater Resurrection */
     // TODO: APsa a_unknown  /* RuneSpeedAoe */
     // TODO: APwt a_unknown  /* Rune of the Watcher */
-    // TODO: Aam2 a_unknown  /* Anti-magic Shield (Matrix) */
     // TODO: Aap1 a_unknown  /* Aura - Plague (Abomination) */
     // TODO: Aap2 a_unknown  /* Aura - Plague (Plague Ward) */
     // TODO: Aap3 a_unknown  /* Aura - Plague (Creep) */

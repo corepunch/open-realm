@@ -1057,6 +1057,7 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
             } else {
                 /* "Replace" (default): overwrite level and timestamp. */
                 status->level = level;
+                status->data = 0;
                 if (duration_ms) {
                     status->timestamp = now + duration_ms;
                     status->duration_ms = duration_ms;
@@ -1082,6 +1083,7 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
     slot->level = level;
     slot->timestamp = duration_ms ? now + duration_ms : 0;
     slot->duration_ms = duration_ms;
+    slot->data = 0;
     unit_refreshstatusflags(ent);
     unit_timed_status_log("add", ent, slot);
     G_InvalidateUnitInfoPanel(ent);

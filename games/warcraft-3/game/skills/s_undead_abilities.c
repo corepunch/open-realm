@@ -1,22 +1,68 @@
 #include "s_skills.h"
 
 #define UNDEAD_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
+#define BZ_AMS_SHIELD MAKEFOURCC('B', 'a', 'm', '2') // rawcode; Bam2 DataC spell-damage absorption
 
 static LPCSTR undead_buff(abilityitem_t const *spell, DWORD level) {
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
     return buff && strlen(buff) >= 4 ? buff : NULL;
 }
 
-/* ROC and the active TFT data both make Bams a timed spell-immunity status; no damage pool is authored. */
+/* BuffID is "Bams,Bam2"; DataC selects the token. Index 0 is Bams, index 1 is Bam2. */
+static LPCSTR ams_buff_token(LPCSTR list, DWORD index) {
+    DWORD i = 0;
+    if (!list) return NULL;
+    for (;;) {
+        if (strlen(list) < 4) return NULL;
+        if (i == index) return list;
+        list = strchr(list, ',');
+        if (!list) return NULL;
+        list++; i++;
+    }
+}
+
+/* DataC > 0 is the TFT melee shield (Aam2); empty DataC is ROC-style targeting immunity (Aams/ACam). */
 static void anti_magic_shell_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPCSTR buff = undead_buff(spell, level);
-    if (!st.entity || !buff) return;
+    FLOAT absorb = S_SpellData(spell->code, level, 3);
+    LPCSTR list = G_AbilityLevel(spell->code, level)->buffID;
+    LPCSTR buff = ams_buff_token(list, absorb > 0.0f ? 1 : 0);
+    heroabilitystatus_t *slot;
+    (void)caster;
+    if (!st.entity) return;
+    /* ROC AbilityData omits BuffID; UndeadAbilityStrings still names Bams as the shell buff. */
+    if (!buff) buff = absorb > 0.0f ? "Bam2" : "Bams";
     unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    if (absorb > 0.0f) {
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            slot = st.entity->abilstatus + i;
+            if (slot->level && slot->code == *((DWORD const *)buff)) { slot->data = (DWORD)absorb; break; }
+        }
+    }
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
+/* Name=Anti-magic Shell
+ * Ubertip="Creates a barrier that stops spells from affecting a target unit. |nLasts <Aams,Dur1> seconds."
+ * Aam2 Ubertip="Creates a barrier that stops <Aam2,DataC1> points of spell damage from affecting a target unit."
+ */
 BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShell) { anti_magic_shell_execute(caster, st, spell); }
+
+/* Bam2 is not magic-immune: spells may target the unit, but S_SpellDamage consumes the authored pool first. */
+int S_AntiMagicShellAbsorb(LPEDICT target, int damage) {
+    heroabilitystatus_t *slot = NULL;
+    if (!target || damage <= 0) return damage;
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (target->abilstatus[i].level && target->abilstatus[i].code == BZ_AMS_SHIELD &&
+            (!target->abilstatus[i].timestamp || target->abilstatus[i].timestamp > G_Time())) {
+            slot = target->abilstatus + i; break;
+        }
+    if (!slot) return damage;
+    if (slot->data >= (DWORD)damage) { slot->data -= (DWORD)damage; return 0; }
+    damage -= (int)slot->data;
+    memset(slot, 0, sizeof(*slot));
+    return damage;
+}
 
 /* Shared unit-target autocast acquire: friendly wounded targets for replenish. */
 static BOOL undead_unit_autocast_acquire(LPEDICT caster, DWORD code, BOOL wounded) {

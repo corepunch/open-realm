@@ -114,6 +114,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Adch` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Summoned-unit damage (DataB) remains. |
 | `Advm` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Per-buff HP/mana heal (DataA/DataB) and summoned-unit damage (DataE) remain. |
 | `ACcs` | `s_melee_spells.c` (shared) | Registered; shares `CAbilityCurse` with autocast for the creep Curse variant. |
+| `Aams`, `Aam2`, `ACam` | `s_undead_abilities.c` | `CAbilityAntiMagicShell`. Empty DataC applies `Bams` targeting/spell immunity; authored DataC applies `Bam2` and absorbs that much `S_SpellDamage`. Physical hits ignore the shell. ROC rows omit BuffID and fall back to `Bams`. |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 

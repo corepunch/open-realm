@@ -1,32 +1,68 @@
 # Anti-Magic Shell
 
-## Authoritative Data
+## Contract
 
-The active ROC and TFT archives both define `Aams` as the same one-level Undead unit spell:
+`Aams` is TFT `CAbilityAntiMagicShell` (parent `AAsm`). `Aam2` and `ACam` are
+`AbilityData` aliases whose `code` is `Aams`, so they share `CAbilityAntiMagicShell`
+and read their own rows through `abilityitem_t.code`.
 
-- `code=Aams`, range `500`, mana cost `75`, `Dur1=90`, and `HeroDur1=90`.
-- `targs=air,ground`; allegiance is not restricted by the row.
-- `BuffID1=Bams,Bam2`; `Bams` is the recipient status used for immunity.
-- `DataA` through `DataI` are empty/zero. There is no authored absorption amount.
-- ROC and TFT `UndeadAbilityStrings.txt` both say the barrier stops spells from affecting the target and lasts `Dur1` seconds.
+Authored `DataC` selects the shell kind:
 
-Verify the normalized rows with:
+| Rawcode | Archive | DataC | Buff applied | Effect |
+| --- | --- | ---: | --- | --- |
+| `Aams` | ROC and TFT | 0 | `Bams` | cannot be targeted by spells; `S_SpellDamage` is rejected |
+| `ACam` | ROC and TFT | 0 | `Bams` | same immunity; creep cost/tooltip row |
+| `Aam2` | TFT melee | 300 | `Bam2` | unit stays targetable; spell damage consumes the pool |
+
+ROC `AbilityData.slk` omits `BuffID`. The strings table still names `Bams`, so
+an empty BuffID with empty DataC applies `Bams`. TFT rows author
+`BuffID1=Bams,Bam2`; empty DataC uses the first token, non-zero DataC uses the
+second. Do not treat DataA/DataB as the shield amount.
+
+`Aami` / item `AIxs` (`code=Aami`, `CAbilityAntiMagicShellInstant`) remain
+unregistered. `AIxs` has its own duration, cooldown, and DataB row and is not
+an `Aams` alias.
+
+## Data Flow
+
+```text
+AbilityData.slk (Aams / Aam2 / ACam)
+  -> DataC, Dur/HeroDur, BuffID, targs, Cost, Rng
+CAbilityAntiMagicShell
+  -> unit_addtimedstatus(Bams or Bam2)
+S_UnitSpellImmune
+  -> Bams only (Avatar also uses this predicate)
+S_SpellDamage
+  -> reject Bams; S_AntiMagicShellAbsorb consumes Bam2.remaining
+S_ResolveAttackHit / T_Damage
+  -> physical damage is not absorbed
+```
+
+Remaining Bam2 absorption is `heroabilitystatus_t.data` on the `Bam2` slot. It
+is part of the raw `edict_t` save record. Recasting `Aam2` replaces the buff
+and resets the pool to authored DataC. Overflow damage after the pool hits
+zero applies through `T_Damage` and `S_SpellDamage` returns true so other
+spell effects (stun, etc.) may proceed. Fully absorbed hits return false.
+
+`Aams` targs are `air,ground` (no allegiance filter). `Aam2` targs include
+`friend,self`, so enemies are invalid.
+
+## Diagnostic Workflow
 
 ```sh
 build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Aams
 build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aams
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aam2
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw ACam
 ```
 
-The TFT class extraction maps `Aams` to `CAbilityAntiMagicShell`, parent `AAsm`. It maps `Aami` to the distinct subclass
-`CAbilityAntiMagicShellInstant`, parent `Aams`, but `Aami` has no active ROC/TFT `AbilityData` row in the installed archives.
-Do not register `Aami` or infer item behavior until authoritative object data supplies its concrete semantics.
+## Verification
 
-## Runtime Contract
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_spell.anti_magic_shell*'
+```
 
-`CAbilityAntiMagicShell` delegates ordinary cast handling to `CAbilitySimpleSpell` and applies the first authored buff ID
-through `unit_addtimedstatus`. `S_UnitSpellImmune` recognizes active `Bams`, so the shared target-validation and
-`S_SpellDamage` paths reject spells until status expiry. Recasting an already protected target is rejected by that same
-generic immunity check; after expiry, the ordinary cast path can apply a fresh status.
-
-Physical attacks continue through `S_ResolveAttackHit` and `T_Damage`. Anti-Magic Shell does not use
-`S_ManaShieldDamage`, does not consume mana from the protected unit, and does not maintain an absorption pool.
+Focused tests cover Bams targeting immunity, physical pass-through, recast
+rejection while immune, expiry, the ROC missing-BuffID fallback, Aam2
+absorption/overflow/refresh, alias procedure sharing, and save/load of the
+remaining pool.

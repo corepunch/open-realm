@@ -292,6 +292,7 @@ void S_HumanAttackSplash(LPEDICT attacker, LPEDICT target, int damage);
 void S_HumanBreakInvisibility(LPEDICT unit);
 void S_HumanStatusExpired(LPEDICT unit, DWORD code, DWORD level);
 BOOL S_UnitSpellImmune(LPCEDICT unit);
+int S_AntiMagicShellAbsorb(LPEDICT target, int damage);
 BOOL S_SpellDamage(LPEDICT target, LPEDICT caster, int damage);
 void S_AvatarExpire(LPEDICT unit);
 FLOAT S_BloodlustAttackBonus(LPCEDICT unit);
