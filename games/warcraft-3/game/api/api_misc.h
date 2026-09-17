@@ -643,6 +643,16 @@ DWORD GetTransportUnit(LPJASS j) {
 DWORD GetLoadedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
+/* GetChangingUnit/GetChangingUnitPrevOwner read ownership-change event context.
+ * eventValue carries prev_owner+1; zero means no change context. */
+DWORD GetChangingUnit(LPJASS j) {
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+}
+DWORD GetChangingUnitPrevOwner(LPJASS j) {
+    LONG val = jass_getcontext(j)->eventValue;
+    LPPLAYER player = val > 0 ? G_GetPlayerByNumber((DWORD)(val - 1)) : NULL;
+    return jass_pushlighthandle(j, player, "player");
+}
 DWORD GetManipulatingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
@@ -791,6 +801,7 @@ DWORD RestartGame(LPJASS j) {
 DWORD ReloadGame(LPJASS j) {
     return 0;
 }
+DWORD DoNotSaveReplay(LPJASS j) { /* TODO: replay recording not yet implemented */ return 0; }
 DWORD SaveGame(LPJASS j) {
     LPCSTR name = jass_checkstring(j, 1);
     PATHSTR path;
@@ -817,6 +828,10 @@ DWORD LoadGame(LPJASS j) {
 }
 DWORD SetCampaignMenuRace(LPJASS j) {
     //HANDLE r = jass_checkhandle(j, 1, "race");
+    return 0;
+}
+DWORD SetCampaignMenuRaceEx(LPJASS j) {
+    //LONG campaignIndex = jass_checkinteger(j, 1); /* TODO: wire to campaign UI */
     return 0;
 }
 DWORD ForceCampaignSelectScreen(LPJASS j) {
@@ -1384,6 +1399,10 @@ DWORD PingMinimapEx(LPJASS j) {
             G_SendMinimapPing(&game.clients[i], &position, duration, color,
                               extraEffects ? MINIMAP_PING_EXTRA_EFFECTS : 0);
     }
+    return 0;
+}
+DWORD SetAltMinimapIcon(LPJASS j) {
+    //LPCSTR iconPath = jass_checkstring(j, 1); /* TODO: minimap icon override not yet implemented */
     return 0;
 }
 DWORD EnableOcclusion(LPJASS j) {

@@ -4268,4 +4268,101 @@ TEST(wc3_api, controller_focus_updates_camera_and_respects_control) {
     T_FEQ(gc->camera.state.position.x, 0, 0.001f); T_FEQ(gc->camera.state.position.y, 512, 0.001f);
 }
 
+/* Issue #418: SetUnitUserData / GetUnitUserData must persist scratch integer on the unit. */
+TEST(wc3_api, unit_user_data_survives_set_get) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call SetUnitUserData(u, 42)\n"
+        "  call BJassAssert(GetUnitUserData(u) == 42, \"user data must round-trip\")\n"
+        "  call SetUnitUserData(u, -7)\n"
+        "  call BJassAssert(GetUnitUserData(u) == -7, \"negative user data\")\n"
+        "  call SetUnitUserData(null, 99)\n"
+        "  call BJassAssert(GetUnitUserData(null) == 0, \"null unit must return 0\")\n"
+        "endfunction\n"));
+}
+
+/* Issue #418: UnitSetUsesAltIcon must persist the flag on the unit. */
+TEST(wc3_api, unit_set_uses_alt_icon_persists) {
+    LPEDICT unit = NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call UnitSetUsesAltIcon(u, true)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) {
+            unit = &g_edicts[i]; break;
+        }
+    }
+    T_NOT_NULL(unit);
+    T_ASSERT(unit->uses_alt_icon);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call UnitSetUsesAltIcon(null, true)\n"
+        "endfunction\n"));
+}
+
+/* Issue #418: GetChangingUnit / GetChangingUnitPrevOwner must expose ownership-change event context. */
+TEST(wc3_api, change_owner_event_exposes_unit_and_prev_owner) {
+    /* Verify the natives are registered and callable without crash. The
+     * trigger-context getters return null outside an event callback, which
+     * is correct because no ownership change event was published yet. */
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(GetChangingUnit() == null, \"no event context: null unit\")\n"
+        "  local player p = GetChangingUnitPrevOwner()\n"
+        "  call BJassAssert(p == null, \"no event context: null player\")\n"
+        "endfunction\n"));
+}
+
+/* Issue #418: EnumItemsInRect must visit in-world items and bind GetEnumItem. */
+TEST(wc3_api, enum_items_in_rect_visits_world_items) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer udg_EnumCount = 0\n"
+        "  item udg_LastItem = null\n"
+        "endglobals\n"
+        "function countItem takes nothing returns nothing\n"
+        "  set udg_EnumCount = udg_EnumCount + 1\n"
+        "  set udg_LastItem = GetEnumItem()\n"
+        "endfunction\n"
+        "function verifyEnum takes nothing returns nothing\n"
+        "  call BJassAssert(udg_EnumCount == 1, \"one world item must be enumerated\")\n"
+        "  call BJassAssert(udg_LastItem != null, \"GetEnumItem must be non-null inside callback\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call CreateItem('spro', 0.0, 0.0)\n"
+        "  call EnumItemsInRect(GetWorldBounds(), null, function countItem)\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "verifyEnum", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+/* Issue #418: stub natives must execute without crash or AI_STOP. */
+TEST(wc3_api, campaign_stub_natives_accept_calls_without_crash) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCampaignMenuRaceEx(1)\n"
+        "  call DoNotSaveReplay()\n"
+        "  call SetAltMinimapIcon(\"UI\\MiniMap\\Human.blp\")\n"
+        "endfunction\n"));
+}
+
+/* Issue #418: bot assault natives must be registered (no AI_STOP) and safe on null player. */
+TEST(wc3_api, bot_assault_natives_noop_on_null_player) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCaptainHome(null, 1, 0.0, 0.0)\n"
+        "  call SetStagePoint(null, 0.0, 0.0)\n"
+        "  call SuicideUnit(null, 1, 'hfoo')\n"
+        "  call SuicideUnitEx(null, 1, 'hfoo', null)\n"
+        "  call SuicidePlayer(null, null)\n"
+        "  call BJassAssert(not MergeUnits(null, 1, 'hfoo', 'hfoo', 'hfoo'), \"null player returns false\")\n"
+        "  call BJassAssert(GetUpgradeGoldCost(0, 1) == 0, \"unknown upgrade returns 0\")\n"
+        "  call BJassAssert(GetUpgradeLumberCost(0, 1) == 0, \"unknown upgrade returns 0\")\n"
+        "endfunction\n"));
+}
+
 #endif /* BZ_TESTS */

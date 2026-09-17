@@ -260,6 +260,20 @@ DWORD SetUnitVertexColor(LPJASS j) {
     }
     return 0;
 }
+DWORD SetUnitUserData(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    if (whichUnit) whichUnit->user_data = jass_checkinteger(j, 2);
+    return 0;
+}
+DWORD GetUnitUserData(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichUnit ? whichUnit->user_data : 0);
+}
+DWORD UnitSetUsesAltIcon(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    if (whichUnit) whichUnit->uses_alt_icon = jass_checkboolean(j, 2);
+    return 0;
+}
 DWORD QueueUnitAnimation(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     //LPCSTR whichAnimation = jass_checkstring(j, 2);
