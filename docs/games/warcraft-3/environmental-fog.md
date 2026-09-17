@@ -36,9 +36,12 @@ renderer does not yet consume density or distinguish the two exponential identif
 supplied Warsmash tree: loading `DefaultZFog` does not automatically copy it into `worldScene.fogSettings`. `ResetTerrainFog()` copies
 the saved default state into the active state and republishes it when that row was present; if no default row was loaded, reset is a no-op, matching the supplied Warsmash guard.
 
-The default reset target comes from the merged MiscData cache's `[DefaultZFog]` row. `fs_expansion == 0` selects the RoC entry and a
-non-zero value selects the TFT entry. `Style`, `Start`, `End`, and `Density` use that version index. `Color` is stored as four values
-per version in A,R,G,B order; OpenRealm retains RGB after dividing the authored 0..255 values by 255. `war3mapMisc.txt` participates in
+The default reset target comes from the merged MiscData cache's `[DefaultZFog]` row. Retail ships it as a singleton
+in both MPQs (`Style=0/Start=20000/End=50000/Density=0/Color=0,0,0,0`); only `[MenuZFog]` was ever versioned in TFT.
+`fs_expansion == 0` therefore selects the same index-0 entry as TFT: the parser tries the expansion cell per field
+(per `Color` lane) and retries index 0 when that cell is absent. `Style`, `Start`, `End`, and `Density` use that
+resolved index. `Color` is stored as four values per version in A,R,G,B order; OpenRealm retains RGB after dividing
+the authored 0..255 values by 255. `war3mapMisc.txt` participates in
 the same existing merged MiscData cache, so its row can override earlier data through the normal loader.
 
 The W3I parser also retains `fogStyle`, `fogStartZ`, `fogEndZ`, `fogDensity`, and `fogColor`. This patch intentionally does not make

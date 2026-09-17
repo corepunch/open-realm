@@ -484,10 +484,14 @@ LPTOKEN JASS_ParseTokens(LPPARSER p) {
         LPTOKEN token = NULL;
         while (*peek_token(p)) {
             LPGRAMMARFUNC func = eat_keyword(p, global_keywords);
-            if (func && (token = func(p))) {
+            if (!func) {
+                PARSER_THROW("unknown keyword");
+            }
+            /* An empty globals/endglobals block yields no declarations.
+             * It is valid (retail AI scripts use it) and contributes no tokens. */
+            token = func(p);
+            if (token) {
                 PUSH_BACK(TOKEN, token, tokens);
-            } else {
-                PARSER_THROW("unknwon keyword");
             }
         }
         return tokens;

@@ -9,6 +9,8 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
 BOOL run_test_jass(LPCSTR src);
+slkTestData_t *parse_slk_string(const char *slk_text);
+void free_slk_rows(slkTestData_t *rows);
 
 static DWORD inventory_refresh_unicast_count;
 static LPEDICT inventory_refresh_unicast_target;
@@ -226,6 +228,49 @@ TEST(wc3_items, tft_hero_without_authored_inventory_does_not_get_roc_default) {
 
     T_ASSERT(G_UnitIsHero(hero));
     T_EQ(G_InventoryCapacity(hero), 0);
+}
+
+TEST(wc3_items, roc_hero_synthesis_uses_roc_stock_alias_when_ainv_absent) {
+    /* Retail ROC AbilityData.slk has no AInv row; AIa6 (code AIab,
+     * Data11/DataA1 6) is the ROC 6-slot stock alias. Synthesis must resolve
+     * capacity from ROC data instead of logging INVENTORY_DATA. */
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIa6\"\nC;Y2;X2;K\"AIab\"\nC;Y2;X3;K\"6\"\nE\n";
+    UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT hero;
+
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->data.UnitAbilities = &no_inventory;
+
+    T_ASSERT(G_UnitIsHero(hero));
+    T_EQ(G_InventoryCapacity(hero), 6);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, roc_authored_inventory_alias_is_recognized) {
+    /* ROC inventory aliases carry code AIab, not AInv; the capacity scan must
+     * accept both base codes. */
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIa6\"\nC;Y2;X2;K\"AIab\"\nC;Y2;X3;K\"6\"\nE\n";
+    UnitAbilities_t roc_inventory = { .abilList = "AIa6", .heroAbilList = "" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT unit;
+
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    unit->data.UnitAbilities = &roc_inventory;
+
+    T_EQ(G_InventoryCapacity(unit), 6);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_items, inventory_capacity_rejects_zero_and_clamps_above_storage_limit) {

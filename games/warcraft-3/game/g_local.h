@@ -52,7 +52,7 @@ typedef struct {
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
 #define MAX_START_PRIO 16 // slots; one possible priority entry per WC3 player start location
-#define MAX_PLAYER_TECH_STATE 128
+#define MAX_PLAYER_TECH_STATE 256 // slots; NightElfX02 scripts 137 distinct techs for one player, exceeding the former 128; game-local only, not a network contract
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -383,6 +383,14 @@ typedef enum {
     EVENT_UNIT_SPELL_EFFECT = 291,
     EVENT_UNIT_SPELL_FINISH = 292,
     EVENT_UNIT_SPELL_ENDCAST = 293,
+
+    /* Ownership-change ids retain their retail common.j numbers (270/287) so
+     * TriggerRegisterPlayerUnitEvent/TriggerRegisterUnitEvent handles match.
+     * The published value carries the previous owner + 1 (zero stays reserved
+     * for "no change context", which keeps death/research/spell callbacks that
+     * share a trigger observing null from GetChangingUnit). */
+    EVENT_PLAYER_UNIT_CHANGE_OWNER = 270,
+    EVENT_UNIT_CHANGE_OWNER = 287,
 
     EVENT_UNIT_IN_RANGE = 92,
 } EVENTTYPE;
@@ -1221,6 +1229,8 @@ struct edict_s {
         VECTOR2 origin; // position when channel started (movement cancels channel)
     } channel;
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
+    LONG user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
+    BOOL uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     VECTOR2 old_origin;
     unitOrderQueue_t order_queue;
     struct edictMovement_s {
@@ -1528,6 +1538,8 @@ typedef struct {
     LPPLAYER player;
     struct jass_function const *hero_levels;
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
+    VECTOR2 stage; /* SetStagePoint staging area; assault fallback when no enemy target is visible */
+    BOOL stage_valid;
     ARRAY(botCommand_t, commands);
     ARRAY(LPEDICT, harvesters);
     ARRAY(botGuardPost_t, guards);
@@ -1715,6 +1727,7 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
 GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params);
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned);
+void G_PublishChangeOwnerEvents(LPEDICT unit, DWORD old_player);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
@@ -1753,6 +1766,11 @@ DWORD G_BotCommandsWaiting(LPPLAYER);
 LONG G_BotLastCommand(LPPLAYER);
 LONG G_BotLastData(LPPLAYER);
 void G_BotPopCommand(LPPLAYER);
+void G_BotSetCaptainHome(LPPLAYER, LONG, FLOAT, FLOAT);
+void G_BotSetStagePoint(LPPLAYER, FLOAT, FLOAT);
+BOOL G_BotSuicideUnits(LPPLAYER, LONG, DWORD, LONG);
+BOOL G_BotSuicidePlayer(LPPLAYER, DWORD, BOOL);
+BOOL G_BotMergeUnits(LPPLAYER, LONG, DWORD, DWORD, DWORD);
 
 // g_fow.c
 void G_FowInit(void);
@@ -1783,6 +1801,7 @@ void G_CameraTraceSnapshot(LPCSTR);
 #endif
 
 // g_environment_fog.c
+BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog); /* exposed: tests parse singleton DefaultZFog under both editions */
 void G_EnvironmentFogInitMap(void);
 void G_EnvironmentFogSet(wc3EnvironmentFogParams_t const *params);
 void G_EnvironmentFogReset(void);
@@ -2240,6 +2259,7 @@ DWORD G_MapGameDataSet(LPCMAPINFO);
 void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params);
 #ifdef BZ_TESTS
 typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
+BOOL G_SLKStoreOptional(LPCSTR);
 slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
 slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif
