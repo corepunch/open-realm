@@ -44,6 +44,14 @@ FLOAT S_CrippleDamageReduction(LPCEDICT unit) {
  * Name=Soul Burn
  * Ubertip="Wreaths an enemy unit in magical flames which cause <ANso,DataA1> damage per second, prevent the casting of spells, and reduce attack damage by <ANso,DataC1,%>%.|nLasts <ANso,Dur1> seconds."
  */
+#define BZ_SILENCE_BUFF MAKEFOURCC('B', 'N', 's', 'i') // rawcode; Silence (ANsi) cast lock
+#define BZ_SOUL_BURN_BUFF MAKEFOURCC('B', 'N', 's', 'o') // rawcode; Soul Burn cast lock + drain
+
+/* BNsi (Silence) and BNso (Soul Burn) both reject spell casts with "Silenced." */
+BOOL S_UnitIsSilenced(LPCEDICT unit) {
+    return unit && (S_UnitHasStatus(unit, BZ_SILENCE_BUFF) || S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF));
+}
+
 static BOOL soul_burn_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
@@ -53,12 +61,12 @@ BZ_VALIDATED_SPELL_PROC(AbilitySoulBurn, soul_burn_validate, status_execute)
 
 /* DataA = damage per second; DataC = attack damage reduction fraction. */
 FLOAT S_SoulBurnDamageRate(LPCEDICT unit) {
-    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'N', 's', 'o'));
+    DWORD level = G_UnitStatusLevel(unit, BZ_SOUL_BURN_BUFF);
     return level ? S_SpellData(MAKEFOURCC('A', 'N', 's', 'o'), level, 1) : 0.0f;
 }
 
 FLOAT S_SoulBurnDamageReduction(LPCEDICT unit) {
-    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'N', 's', 'o'));
+    DWORD level = G_UnitStatusLevel(unit, BZ_SOUL_BURN_BUFF);
     return level ? S_SpellData(MAKEFOURCC('A', 'N', 's', 'o'), level, 3) : 0.0f;
 }
 

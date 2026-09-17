@@ -488,7 +488,7 @@ void spell_run_frame(LPEDICT ent) {
 /* Shared validation for spell spells: mana, cooldown, and optional range check. */
 static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
     if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster) || S_UnitIsCycloned(caster)) return false;
-    if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
+    if (S_UnitIsSilenced(caster)) {
         G_ShowCommandErrorText(clent, "Silenced.");
         return false;
     }
@@ -511,7 +511,7 @@ static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
         return false;
     if (!S_SpellIsAliveTarget(params->caster) || params->caster->stunned || S_UnitPolymorphed(params->caster) ||
         S_UnitIsCycloned(params->caster)) return false;
-    if (S_UnitHasStatus(params->caster, MAKEFOURCC('B','N','s','i'))) {
+    if (S_UnitIsSilenced(params->caster)) {
         G_ShowCommandErrorText(params->clent, "Silenced.");
         return false;
     }
