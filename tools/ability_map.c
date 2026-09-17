@@ -305,7 +305,7 @@ static rawcode_map_t const classmap[] = {
     {"Asid", "CAbilityButton"},          {"Asud", "CAbilitySpell"},
     {"ACtn", "CAbilityCreepThunderClap"},{"Ahid", "CAbilityShadowMeld"},
     {"Asps", "CAbilityCreepSleep"},      {"Asph", "CAbilityPoisonAttack"},
-    {"Aspl", "CAbilityCreepSleep"},      {"Asb1", "CAbilitySlow"},
+    {"Aspl", "CAbilitySpiritLink"},      {"Asb1", "CAbilitySlow"},
     {"Asb2", "CAbilitySlow"},            {"Asb3", "CAbilitySlow"},
     {"Srtt", "CAbilityMorph"},           {"Atau", "CAbilitySpell"},
     {"Atdg", "CAbilityStomp"},           {"Atsp", "CAbilityAura"},

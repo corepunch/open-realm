@@ -455,7 +455,7 @@ static ability_t abilitylist[] = {
     { "Adch", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant */
     // TODO: Acpf a_purge  /* Corporeal Form */
     // TODO: Aetf a_morph  /* Ethereal Form */
-    // TODO: Aspl a_creep_sleep  /* Spirit Link */
+    { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
     // TODO: Aliq CAbilityOnFireHuman  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
     // TODO: Acha a_unknown  /* Chaos */

@@ -207,6 +207,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         }
         return;
     }
+    damage = S_SpiritLinkRedirect(target, attacker, damage);
+    if (damage <= 0) return;
     S_UnitAbilityEvent(target, A_DAMAGED);
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
