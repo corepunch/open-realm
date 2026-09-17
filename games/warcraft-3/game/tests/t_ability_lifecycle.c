@@ -9,7 +9,7 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
-static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe,Acan" };
+static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe,ANvc" };
 static char const review_slk[] =
     "ID;PWXL;N;EBB;Y11;X15\n"
     "C;Y1;X1;K\"alias\"\n"
@@ -152,20 +152,20 @@ static char const review_slk[] =
     "C;Y10;X12;K\"0\"\n"
     "C;Y10;X13;K\"0\"\n"
     "C;Y10;X14;K\"\"\n"
-    "C;Y11;X1;K\"Acan\"\n"
-    "C;Y11;X2;K\"Acan\"\n"
-    "C;Y11;X3;K\"ground,dead,organic\"\n"
+    "C;Y11;X1;K\"ANvc\"\n"
+    "C;Y11;X2;K\"ANvc\"\n"
+    "C;Y11;X3;K\"ground,enemy\"\n"
     "C;Y11;X4;K\"0\"\n"
-    "C;Y11;X5;K\"50\"\n"
-    "C;Y11;X6;K\"33\"\n"
-    "C;Y11;X7;K\"33\"\n"
-    "C;Y11;X8;K\"0\"\n"
-    "C;Y11;X9;K\"10\"\n"
-    "C;Y11;X10;K\"800\"\n"
-    "C;Y11;X11;K\"0\"\n"
-    "C;Y11;X12;K\"0\"\n"
-    "C;Y11;X13;K\"0\"\n"
-    "C;Y11;X14;K\"\"\n"
+    "C;Y11;X5;K\"800\"\n"
+    "C;Y11;X6;K\"2\"\n"
+    "C;Y11;X7;K\"1\"\n"
+    "C;Y11;X8;K\"200\"\n"
+    "C;Y11;X9;K\"35\"\n"
+    "C;Y11;X10;K\"0\"\n"
+    "C;Y11;X11;K\"1\"\n"
+    "C;Y11;X12;K\"2\"\n"
+    "C;Y11;X13;K\"40\"\n"
+    "C;Y11;X14;K\"BNvc\"\n"
     "C;Y1;X15;K\"Cast1\"\n"
     "C;Y2;X15;K1.33\n"
     "C;Y3;X15;K1\n"
@@ -286,6 +286,26 @@ TEST(wc3_ability_lifecycle, blizzard_stock_zero_duration_keeps_all_six_waves) {
     FLOAT hp = enemy->health.value;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
     T_ASSERT(cast); T_FEQ(hp, 820, .001f);
+}
+
+/* Volcano must be a concrete point-channel ability whose pulses run through the entity scheduler. */
+TEST(wc3_ability_lifecycle, volcano_scheduler_uses_authored_damage_interval_and_stun) {
+    LPEDICT caster = review_setup(), enemy = review_unit(1, 100), building = review_unit(1, 150);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    building->class_id = MAKEFOURCC('h','b','a','r');
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("ANvc"));
+    BOOL cast = S_CastPointTargetSpell(caster, item.code, &enemy->s.origin2);
+    LPEDICT thinker = review_thinker(caster);
+    if (thinker) {
+        G_RunEntity(thinker); T_FEQ(enemy->health.value, 1000, .001f);
+        level.time += 1000; G_RunEntity(thinker);
+    }
+    T_NOT_NULL(item.ability); T_ASSERT(item.ability && item.ability->flags & AB_CHANNEL);
+    T_EQ(item.ability ? item.ability->target : SPELL_TARGET_NONE, SPELL_TARGET_POINT);
+    T_ASSERT(cast); T_NOT_NULL(thinker); T_FEQ(enemy->health.value, 960, .001f);
+    T_FEQ(building->health.value, 920, .001f); T_EQ(G_UnitStatusLevel(enemy, FS_SLKKey("Bstu")), 1);
+    T_EQ(caster->channel.code, FS_SLKKey("ANvc"));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* Cancelling the caster's channel must retire its pending resource transfer too. */
