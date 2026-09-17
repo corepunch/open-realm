@@ -196,6 +196,57 @@ static LPEDICT review_thinker(LPEDICT caster) {
     return NULL;
 }
 
+static DWORD rain_of_chaos_summons(LPEDICT caster, VECTOR2 point, FLOAT area) {
+    DWORD count = 0;
+    FILTER_EDICTS(ent, ent->owner == caster && ent->class_id == MAKEFOURCC('n','i','n','f')) {
+        T_ASSERT(Vector2_distance(&ent->s.origin2, &point) <= area);
+        T_EQ(ent->s.player, caster->s.player);
+        T_ASSERT(S_UnitHasStatus(ent, MAKEFOURCC('B','T','L','F')));
+        count++;
+    }
+    return count;
+}
+
+/* ANrc DataA links ANin; DataB is count, Dur is the delay, and Area bounds each landing point. */
+TEST(wc3_ability_lifecycle, rain_of_chaos_uses_authored_scheduler_and_infernal_lifetime) {
+    static char const slk[] =
+        "ID;PWXL;N;EBB;Y3;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"Area1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"UnitID1\"\n"
+        "C;Y1;X10;K\"BuffID1\"\nC;Y1;X11;K\"Rng1\"\nC;Y1;X12;K\"Cost1\"\n"
+        "C;Y2;X1;K\"ANrc\"\nC;Y2;X2;K\"ANrc\"\nC;Y2;X3;K\"\"\n"
+        "C;Y2;X4;K\"0.8\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"900\"\n"
+        "C;Y2;X7;K\"ANin\"\nC;Y2;X8;K\"3\"\nC;Y2;X11;K\"1000\"\nC;Y2;X12;K\"0\"\n"
+        "C;Y3;X1;K\"ANin\"\nC;Y3;X2;K\"ANin\"\n"
+        "C;Y3;X3;K\"ground,structure,debris,enemy,neutral\"\n"
+        "C;Y3;X4;K\"4\"\nC;Y3;X5;K\"2\"\nC;Y3;X6;K\"250\"\n"
+        "C;Y3;X7;K\"50\"\nC;Y3;X8;K\"360\"\nC;Y3;X9;K\"ninf\"\n"
+        "C;Y3;X10;K\"BNin\"\nC;Y3;X11;K\"900\"\nC;Y3;X12;K\"175\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "ANrc" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT caster = review_setup();
+    VECTOR2 point = { 128, 96 };
+
+    caster->data.UnitAbilities = &abilities;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','N','r','c'), .level = 1);
+    T_ASSERT(S_CastPointTargetSpell(caster, MAKEFOURCC('A','N','r','c'), &point));
+    T_EQ(caster->channel.code, 0);
+    T_EQ(rain_of_chaos_summons(caster, point, 900.0f), 1);
+
+    level.started = true; level.scriptsStarted = true;
+    level.time += 799; globals.RunFrame();
+    T_EQ(rain_of_chaos_summons(caster, point, 900.0f), 1);
+    level.time += 1; globals.RunFrame();
+    T_EQ(rain_of_chaos_summons(caster, point, 900.0f), 2);
+    level.time += 800; globals.RunFrame();
+    T_EQ(rain_of_chaos_summons(caster, point, 900.0f), 3);
+    T_NULL(review_thinker(caster));
+
+    level.started = false;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Stock AHfs starts burning promptly; DataA is damage per full-damage pulse, not a 15-second delay. */
 TEST(wc3_ability_lifecycle, flame_strike_stock_data_burns_within_two_seconds) {
     LPEDICT caster = review_setup(), enemy = review_unit(1, 100);

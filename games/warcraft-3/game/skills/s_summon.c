@@ -45,6 +45,34 @@ LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration
     return summon;
 }
 
+/* Rain of Chaos resolves each landing through the Inferno ability linked by DataA. */
+void rain_of_chaos_think(LPEDICT ent) {
+    DWORD now = G_Time(), level = (DWORD)ent->wait, inferno = ent->damage;
+    FLOAT angle, radius;
+    VECTOR2 loc = ent->s.origin2;
+    if (!ent->owner || !ent->owner->inuse || !ent->resources) { G_FreeEdict(ent); return; }
+    if (ent->freetime && now < ent->freetime) return;
+    angle = ((FLOAT)rand() / (FLOAT)RAND_MAX) * 2.0f * (FLOAT)M_PI;
+    radius = sqrtf((FLOAT)rand() / (FLOAT)RAND_MAX) * ent->collision;
+    loc.x += cosf(angle) * radius; loc.y += sinf(angle) * radius;
+    S_SummonAt(ent->owner, S_SpellUnitId(inferno, level), &loc, S_SpellDuration(inferno, level, false));
+    if (!--ent->resources) { G_FreeEdict(ent); return; }
+    ent->freetime = now + (DWORD)(ent->velocity * 1000.0f);
+}
+
+/* Unlike Rain of Fire, Rain of Chaos is not channeled: its effect owns the remaining landings after cast. */
+BZ_SIMPLE_SPELL_PROC(AbilityRainOfChaos) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    LPEDICT thinker = G_Spawn();
+    thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
+    thinker->collision = MAX(0.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
+    thinker->damage = S_SpellDataId(spell->code, level, 1);
+    thinker->resources = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 2));
+    thinker->velocity = MAX(0.0f, S_SpellDuration(spell->code, level, false));
+    thinker->wait = (FLOAT)level; thinker->think = rain_of_chaos_think;
+    rain_of_chaos_think(thinker);
+}
+
 static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD unit_id = S_SpellUnitId(spell->code, level);

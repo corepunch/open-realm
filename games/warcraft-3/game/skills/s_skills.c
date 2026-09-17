@@ -382,7 +382,7 @@ static ability_t abilitylist[] = {
     // TODO: ANsl a_spell  /* Soul Preservation */
     // TODO: ANfd a_spell  /* Finger of Death */
     // TODO: ANdp CAbilityMassTeleport  /* Dark Portal */
-    // TODO: ANrc CAbilityRainOfFire  /* Rain of Chaos */
+    { "ANrc", CAbilityRainOfChaos, AB_SPELL, SPELL_TARGET_POINT },  /* Rain of Chaos */
     // TODO: Achd CAbilityCargoHold  /* Cargo Hold Death */
     // TODO: Asla a_sleep_always  /* Sleep Always; UnitCanSleepPerm recognizes ownership, behavior remains unresolved */
     // TODO: Advc a_devour_cargo  /* Devour Cargo */
