@@ -838,7 +838,6 @@ static ability_t abilitylist[] = {
     // TODO: Anh2 a_unknown  /* Heal (Creep High) */
     // TODO: Ansk a_unknown  /* Hardened Skin(Naga Turtle) */
     // TODO: Apak a_unknown  /* Inventory (Pack Mule) */
-    // TODO: Apg2 a_unknown  /* Purge */
     // TODO: Apmf a_unknown  /* Permanent Immolation (flying) */
     // TODO: Ara2 a_unknown  /* Roar */
     // TODO: Argd a_unknown  /* Return (Gold) */
