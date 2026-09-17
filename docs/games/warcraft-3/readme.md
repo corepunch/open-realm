@@ -117,6 +117,8 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Rain of Chaos](rain-of-chaos.md): point-target Inferno landings, DataA abilCode, not channeled.
 - [Inferno](inferno.md): point-target delayed blast + summon; DataB life, Dur stun, DataC delay.
 - [Dark Portal](dark-portal.md): Archimonde point-target demon exits; DataA unitList, DataB/C min/max, not Mass Teleport.
+- [Healing Spray](healing-spray.md): channeled point heal waves; DataA/DataF heal/waves, DataD max budget.
+- [Transmute](transmute.md): kill unit for `goldCost * DataA`; DataC max creep level.
 - [Adding Warcraft III Abilities](ability-implementation-plan.md): data, procedure macros, registration, and tests.
 - [Implemented Ability Verification Review](ability-verification-review.md): reproduced failures, lifecycle fixes, and permanent regression coverage.
 - [Campaign Map Audit](map-audit.md): bounded bulk runtime sweeps with per-map errors and retained logs.

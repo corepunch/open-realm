@@ -368,9 +368,9 @@ static ability_t abilitylist[] = {
     // TODO: ANrg a_regen_base  /* Robo-Goblin */
     // TODO: ANde a_button  /* Demolish */
     // TODO: ANfy CAbilityOnFireHuman  /* Factory */
-    // TODO: ANhs CAbilityHeal  /* Healing Spray */
+    { "ANhs", CAbilityHealingSpray, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Healing Spray */
     // TODO: ANcr CAbilityCriticalStrike  /* Chemical Rage */
-    // TODO: ANtm a_aura_regen_life  /* Transmute */
+    { "ANtm", CAbilityTransmute, AB_SPELL, SPELL_TARGET_UNIT },  /* Transmute */
     // TODO: Aasl CAbilitySlow  /* Slow Aura */
     // TODO: Atdg CAbilityStampede  /* Building Damage Aura */
     // TODO: Atsp a_aura  /* Tornado Spin */
