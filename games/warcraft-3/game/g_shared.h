@@ -109,15 +109,10 @@ static inline unitRace_t WC3_RaceFromString(LPCSTR name) {
 
 #define BZ_WC3_UNIT_GOLD_MINE          MAKEFOURCC('n','g','o','l')
 #define BZ_WC3_UNIT_HAUNTED_GOLD_MINE MAKEFOURCC('u','g','o','l')
-#define BZ_WC3_UNIT_ACOLYTE            MAKEFOURCC('u','a','c','o')
 #define BZ_WC3_UNIT_TOWN_HALL          MAKEFOURCC('h','t','o','w')
-#define BZ_WC3_UNIT_KEEP               MAKEFOURCC('h','k','e','e')
-#define BZ_WC3_UNIT_CASTLE             MAKEFOURCC('h','c','a','s')
 #define BZ_WC3_UNIT_CRYPT              MAKEFOURCC('u','s','e','p')
 #define BZ_WC3_UNIT_BARRACKS           MAKEFOURCC('h','b','a','r')
 #define BZ_WC3_UNIT_PEASANT            MAKEFOURCC('h','p','e','a')
 #define BZ_WC3_UNIT_FOOTMAN            MAKEFOURCC('h','f','o','o')
-#define BZ_WC3_UNIT_ZIGGURAT           MAKEFOURCC('u','z','g','1')
-#define BZ_WC3_UNIT_ZIGGURAT_UPGRADED  MAKEFOURCC('u','z','i','g')
 
 #endif

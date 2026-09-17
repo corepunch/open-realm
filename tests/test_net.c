@@ -2886,12 +2886,6 @@ TEST(net, baseline_defaults_omitted_entity_scale) {
     T_FEQ(cl.ents[7].prev.scale, 1.25f, 0.0001f);
 }
 
-TEST(net, client_entity_scale_normalizes_nonpositive_values) {
-    T_FEQ(cl_normalize_entity_scale(0.0f), 1.0f, 0.0001f);
-    T_FEQ(cl_normalize_entity_scale(-1.0f), 1.0f, 0.0001f);
-    T_FEQ(cl_normalize_entity_scale(1.25f), 1.25f, 0.0001f);
-}
-
 /* Membership must track current.model exactly across both transitions, plus the
  * U_REMOVE-after-model-cleared sequence the server produces for model-less
  * sound/event entities. */

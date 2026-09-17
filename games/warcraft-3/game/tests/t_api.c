@@ -1921,10 +1921,14 @@ TEST(wc3_api, createunit_starts_ready_without_birth_delay) {
     old_ui = G_SetSLKRows("UnitUI", ui_rows);
     unit = unit_create(0, BZ_WC3_UNIT_FOOTMAN, &(VECTOR2){0, 0}, 0);
     T_NOT_NULL(unit);
-    T_NOT_NULL(unit->currentmove);
-    T_STREQ(unit->currentmove->animation, "stand");
-    T_EQ((int)unit->wait, 0);
-    G_FreeEdict(unit);
+    if (unit) {
+        T_NOT_NULL(unit->currentmove);
+        if (unit->currentmove) {
+            T_STREQ(unit->currentmove->animation, "stand");
+            T_EQ((int)unit->wait, 0);
+        }
+        G_FreeEdict(unit);
+    }
     G_SetSLKRows("UnitUI", old_ui);
     free_slk_rows(ui_rows);
 }
@@ -1971,18 +1975,19 @@ TEST(wc3_api, createunit_links_building_collision_bounds) {
     T_EQ((int)G_UnitCollision(BZ_WC3_UNIT_PEASANT), 64);
     building = unit_create(0, BZ_WC3_UNIT_PEASANT, &(VECTOR2){0, 0}, 0);
     T_NOT_NULL(building);
-    if (!building) return;
-    T_ASSERT(building->data.UnitUI->modelFile);
-    T_ASSERT(building->data.UnitBalance->isBuilding);
-    T_EQ((int)building->data.UnitBalance->collision, 64);
-    T_ASSERT(building->s.flags & EF_BUILDING);
-    T_ASSERT(building->collision > 0.0f);
-    T_EQ(building->bounds.min.x, -building->collision - 1.0f);
-    T_EQ(building->bounds.max.x, building->collision + 1.0f);
-    FOR_LOOP(i, gi.BoxEdicts(&area, found, 4, NULL))
-        if (found[i] == building) linked = true;
-    T_ASSERT(linked);
-    G_FreeEdict(building);
+    if (building) {
+        T_ASSERT(building->data.UnitUI->modelFile);
+        T_ASSERT(building->data.UnitBalance->isBuilding);
+        T_EQ((int)building->data.UnitBalance->collision, 64);
+        T_ASSERT(building->s.flags & EF_BUILDING);
+        T_ASSERT(building->collision > 0.0f);
+        T_EQ(building->bounds.min.x, -building->collision - 1.0f);
+        T_EQ(building->bounds.max.x, building->collision + 1.0f);
+        FOR_LOOP(i, gi.BoxEdicts(&area, found, 4, NULL))
+            if (found[i] == building) linked = true;
+        T_ASSERT(linked);
+        G_FreeEdict(building);
+    }
     G_SetSLKRows("UnitUI", old_ui);
     G_SetSLKRows("UnitBalance", old_balance);
     G_SetSLKRows("UnitData", old_data);

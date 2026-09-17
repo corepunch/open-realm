@@ -716,6 +716,41 @@ static BOOL v_test_absolute(void) { return false; }
 static FLOAT v_test_exact(FLOAT x, FLOAT y) { (void)y; return x; }
 static FLOAT v_test_blurred(FLOAT x, FLOAT y) { (void)x; (void)y; return 50.0f; }
 
+TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
+    MODEL model = { 0 };
+    centity_t cent = { .prev = { .number = 7, .model = 1 }, .current = { .number = 7, .model = 1 } };
+    viewDef_t saved_view = cl.viewDef;
+    renderEntity_t saved_entity;
+    LPMODEL saved_model = cl.models[1];
+    int const saved_count = view_state.num_entities;
+    BOOL const had_entity = saved_count > 0;
+
+    if (had_entity) saved_entity = view_state.entities[0];
+    cl.models[1] = &model;
+    cl.viewDef.lerpfrac = 0.5f;
+    view_state.num_entities = 0;
+    V_AddClientEntity(&cent);
+    T_EQ(view_state.num_entities, 1);
+    T_FEQ(view_state.entities[0].scale, 1.0f, 0.0001f);
+
+    cent.prev.scale = cent.current.scale = -1.0f;
+    view_state.num_entities = 0;
+    V_AddClientEntity(&cent);
+    T_EQ(view_state.num_entities, 1);
+    T_FEQ(view_state.entities[0].scale, 1.0f, 0.0001f);
+
+    cent.prev.scale = cent.current.scale = 1.25f;
+    view_state.num_entities = 0;
+    V_AddClientEntity(&cent);
+    T_EQ(view_state.num_entities, 1);
+    T_FEQ(view_state.entities[0].scale, 1.25f, 0.0001f);
+
+    if (had_entity) view_state.entities[0] = saved_entity;
+    view_state.num_entities = saved_count;
+    cl.models[1] = saved_model;
+    cl.viewDef = saved_view;
+}
+
 /* Recover camera Z from the actual projection with a zero-angle, zero-distance test camera. */
 static FLOAT v_test_camera_z(void) {
     MATRIX4 inv;
