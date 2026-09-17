@@ -273,6 +273,31 @@ TEST(wc3_items, roc_authored_inventory_alias_is_recognized) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, roc_unit_with_explicit_ainv_uses_aiab_fallback) {
+    /* A unit whose abilList contains AInv on a RoC map used to log INVENTORY_DATA
+     * because retail RoC AbilityData.slk has no AInv row (inv1=0).  The engine
+     * must fall back to the AIab alias tree — the same path the hero synthesis
+     * uses — rather than returning 0 and spamming the error log. */
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIa6\"\nC;Y2;X2;K\"AIab\"\nC;Y2;X3;K\"6\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT unit;
+
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    unit->data.UnitAbilities = &abilities;
+
+    /* AInv is absent from the test SLK above; AIa6 (code AIab, inv1=6) is the
+     * RoC alias.  G_InventoryCapacity must resolve 6 via the fallback, not 0. */
+    T_EQ(G_InventoryCapacity(unit), 6);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, inventory_capacity_rejects_zero_and_clamps_above_storage_limit) {
     LPEDICT zero = alloc_test_unit(MAKEFOURCC('H','0','0','2'), 0, 0);
     LPEDICT oversized = alloc_test_unit(MAKEFOURCC('H','0','0','9'), 0, 0);
