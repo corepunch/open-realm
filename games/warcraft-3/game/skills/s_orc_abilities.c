@@ -35,43 +35,77 @@ static void ancestral_spirit_execute(LPEDICT caster, spellTarget_t st, abilityit
 
 BZ_VALIDATED_SPELL_PROC(AbilityAncestralSpirit, ancestral_spirit_validate, ancestral_spirit_execute)
 
-/* ---- Purge (Aprg) ----------------------------------------------------------
+/* ---- Purge (Aprg / Apg2 / AIlp) ---------------------------------------------
  * Name=Purge
- * Ubertip="Removes all buffs from a target unit, and slows its movement speed
- *          by a factor of <Aprg,DataA1>. Purged units will slowly regain their
- *          movement speed over <Aprg,Dur1> seconds. |nDeals <Aprg,DataC1>
- *          damage to summoned units."
+ * DataA=Movement Update Frequency (fixtures use it as slow complement: 1-DataA)
+ * DataC=Summoned Unit Damage; DataD=Unit Pause Duration; DataE=Hero Pause Duration
+ * BuffID=Bprg (ROC Aprg may omit; fall back to Bprg).
  *
- * Purge removes every timed status from the target, applies its own slow buff,
- * and deals DataC damage to summoned units. DataA is the slow factor (movement
- * speed fraction; 0.5 = 50% speed). TODO: the retail slow gradually recovers
- * over Dur1 seconds; this implementation applies the full reduction uniformly
- * for the buff duration.
+ * TODO: retail slow gradually recovers over Dur using DataA update frequency;
+ * this build applies a uniform 1-DataA reduction for the whole buff lifetime.
  */
+static heroabilitystatus_t const *purge_status(LPCEDICT unit) {
+    if (!unit) return NULL;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *slot = unit->abilstatus + i;
+        abilityitem_t item;
+        if (!slot->level || !slot->data) continue;
+        if (slot->timestamp && slot->timestamp <= G_Time()) continue;
+        item = S_AbilityItem(slot->data);
+        if (item.ability && item.ability->proc == CAbilityPurge) return slot;
+    }
+    return NULL;
+}
+
+static FLOAT purge_pause_seconds(LPCEDICT unit, heroabilitystatus_t const *slot) {
+    return S_SpellData(slot->data, slot->level, G_UnitIsHero(unit) ? 5 : 4);
+}
+
 static void purge_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff;
+    heroabilitystatus_t *slot;
     if (!st.entity) return;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t *slot = st.entity->abilstatus + i;
-        if (!slot->level || !slot->timestamp) continue;
-        S_HumanStatusExpired(st.entity, slot->code, slot->level);
-        memset(slot, 0, sizeof(*slot));
+        heroabilitystatus_t *s = st.entity->abilstatus + i;
+        if (!s->level || !s->timestamp) continue;
+        S_HumanStatusExpired(st.entity, s->code, s->level);
+        memset(s, 0, sizeof(*s));
     }
     buff = G_AbilityLevel(spell->code, level)->buffID;
-    if (buff && strlen(buff) >= 4)
-        unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
+    if (!buff || strlen(buff) < 4) buff = "Bprg";
+    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        slot = st.entity->abilstatus + i;
+        if (slot->level && slot->code == *((DWORD const *)buff)) { slot->data = spell->code; break; }
+    }
     if (st.entity->owner)
         S_SpellDamage(st.entity, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 3)));
+    if (S_PurgeIsImmobilized(st.entity) && st.entity->stand) st.entity->stand(st.entity);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityPurge) { purge_execute(caster, st, spell); }
 
-/* DataA1 is the movement speed fraction applied while Bprg is active (0 = stopped). */
+/* True while inside DataD (unit) / DataE (hero) pause window of an active Purge. */
+BOOL S_PurgeIsImmobilized(LPCEDICT unit) {
+    heroabilitystatus_t const *slot = purge_status(unit);
+    FLOAT pause;
+    DWORD start, pause_ms;
+    if (!slot || !slot->duration_ms || slot->timestamp < slot->duration_ms) return false;
+    pause = purge_pause_seconds(unit, slot);
+    if (pause <= 0.0f) return false;
+    start = slot->timestamp - slot->duration_ms;
+    pause_ms = (DWORD)(pause * 1000.0f);
+    return G_Time() < start + pause_ms;
+}
+
+/* During pause reduction is 1.0; afterward 1-DataA from the casting rawcode in status.data. */
 FLOAT S_PurgeMoveReduction(LPCEDICT unit) {
-    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'p', 'r', 'g'));
-    return level ? 1.0f - S_SpellData(MAKEFOURCC('A', 'p', 'r', 'g'), level, 1) : 0.0f;
+    heroabilitystatus_t const *slot = purge_status(unit);
+    if (!slot) return 0.0f;
+    if (S_PurgeIsImmobilized(unit)) return 1.0f;
+    return 1.0f - S_SpellData(slot->data, slot->level, 1);
 }
 
 /* ---- Lightning Shield (Alsh) -----------------------------------------------

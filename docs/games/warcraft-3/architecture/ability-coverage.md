@@ -110,6 +110,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `ANso` | `s_status_spells.c` | `CAbilitySoulBurn`. Enemy unit-target timed status applies `BNso`. `S_SoulBurnDamageRate` drains authored DataA HP/sec; `S_SoulBurnDamageReduction` scales outgoing attack damage by DataC. `S_UnitIsSilenced` (`BNso` or `BNsi`) blocks `spell_validate` / `spell_validate_point`. DataB unused. |
 | `Atau` | `s_status_spells.c` | Partial; no-target AOE issues `order_attack(enemy, caster)` for each alive enemy within authored Area. No persistent buff; effect is a one-shot re-target. |
 | `Aens`, `ANen` | `s_campaign_abilities.c` | `CAbilityEnsnare`. TFT `Bena`/`Beng` by air/ground, ROC empty BuffID → `Bens`. `S_UnitIsEnsnared` locks `order_move` with `BEer`. Flyers clear `AI_FLYING`, land to support surface, restore from authored `movetp=fly` on expiry/dispel. DataA/B gradual land and DataC meleeRange unused. `ACen` unregistered. |
+| `Aprg`, `Apg2`, `AIlp` | `s_orc_abilities.c` | `CAbilityPurge`. Clears timed statuses, applies BuffID/`Bprg`, slows via authored DataA (`S_PurgeMoveReduction`), damages summoned (`DataC` when `owner` set). `Apg2` immobilizes for `DataD` (unit) / `DataE` (hero) via `S_PurgeIsImmobilized` in `order_move` / walk. Gradual slow recovery over Dur and creep `ACpu` remain. See [Purge](../purge.md). |
 | `ACtb` | `s_thunderbolt.c` (shared) | Registered; shares `CAbilityThunderBolt` with own authored data (Hurl Boulder projectile, stun, damage). |
 | `Adch` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Summoned-unit damage (DataB) remains. |
 | `Advm` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Per-buff HP/mana heal (DataA/DataB) and summoned-unit damage (DataE) remain. |
@@ -200,6 +201,7 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `ANso` | Soul Burn | Done | Enemy unit-target `BNso`; DataA drain, DataC attack reduction, and cast silence via `S_UnitIsSilenced` (also covers `BNsi`). |
 | `Atau` | Taunt | Partial | No-target AOE re-targets all alive enemies in Area to attack the caster. No persistent buff. |
 | `Aens`, `ANen` | Ensnare | Done | Air/ground buff split, move lock, flyer land-and-restore via status refresh. Gradual DataA/B land and DataC meleeRange remain unused. |
+| `Aprg`, `Apg2`, `AIlp` | Purge | Partial | Shared `CAbilityPurge`; dispel, Bprg slow from casting-row DataA, summoned DataC damage, Apg2 DataD/DataE immobilize. Gradual recovery and `ACpu` remain. |
 | `ACtb` | Hurl Boulder | Partial | Shares `CAbilityThunderBolt`; projectile stun and authored damage use own SLK row. Art remains. |
 | `Adch` | Disenchant | Partial | Shares `CAbilityDispelMagic` area dispel. Summoned-unit DataB damage remains. |
 | `Advm` | Devour Magic | Partial | Shares `CAbilityDispelMagic` area dispel. Per-buff HP/mana heal and summoned-unit damage remain. |

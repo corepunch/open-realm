@@ -1264,7 +1264,8 @@ static void ai_move_walk(LPEDICT ent) {
     FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     BOOL blocked;
 
-    if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))) {
+    if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
+        || S_PurgeIsImmobilized(ent)) {
         ent->stand(ent);
         return;
     }
@@ -1328,7 +1329,7 @@ void order_move(LPEDICT self, LPEDICT target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
-        || S_UnitIsEnsnared(self))
+        || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
         return;
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;

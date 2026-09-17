@@ -312,6 +312,7 @@ FLOAT S_CrippleDamageReduction(LPCEDICT unit);
 FLOAT S_SoulBurnDamageRate(LPCEDICT unit);
 FLOAT S_SoulBurnDamageReduction(LPCEDICT unit);
 FLOAT S_PurgeMoveReduction(LPCEDICT unit);
+BOOL S_PurgeIsImmobilized(LPCEDICT unit);
 void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage);
 void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target);
 FLOAT S_SlowPoisonMoveReduction(LPCEDICT unit);
