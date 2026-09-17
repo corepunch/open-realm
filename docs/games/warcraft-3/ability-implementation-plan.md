@@ -10,8 +10,114 @@ supposed to observe. It is not a complete specification, so every implementation
 record separates confirmed facts, reasonable deductions, and unresolved behavior.
 
 Ability-owned behavior is the default architecture: keep the full behavior in its ability module and reach it through
-generic dispatch. Start with [Adding a New Ability](#adding-a-new-ability); see [ownership](#ability-owned-orders-and-persistent-behavior)
+generic dispatch. Start with [Mechanical Workflow](#mechanical-workflow); see [ownership](#ability-owned-orders-and-persistent-behavior)
 and [testing](#testing) before adding code.
+
+## Mechanical Workflow
+
+Do these steps in order. Do not skip the poll. Do not write a Python SLK parser.
+Do not open War3.mpq by hand unless the brief is missing a field you can name.
+
+### 1. Poll ROC and TFT in one command
+
+```sh
+make build/bin/ability_audit
+build/bin/ability_audit -data 'data/Warcraft III' -raw Aams
+```
+
+`-raw` without `-roc`/`-tft` prints a ROC section then a TFT section. That split is
+mandatory: TFT `War3x.mpq` overlays `AbilityData.slk`, and the same rawcode can
+change cost, `targs`, `BuffID`, and even which aliases exist.
+
+The brief already contains:
+
+| Block | What to copy into the implementation record |
+| --- | --- |
+| `id` / `code` / `comments` | registry rawcode vs shared procedure identity |
+| `class` / `parent` | `CAbility*` name and TFT parent (`AAsm`, `AAat`, `AAcs`, …) |
+| `L1` `targs` `cost` `cool` `rng` `dur` `heroDur` `area` | targeting and `spell_cmd` inputs |
+| `DataA-I` plus any non-zero `DataC=` line | authored numbers; 1-based `S_SpellData` |
+| `BuffID` | comma list; each token is a different buff |
+| `strings` `Name`/`Ubertip`/`Untip` | visible contract and inverse/autocast |
+| `buffs` `Buffubertip` | what the status actually does (immunity vs shield, etc.) |
+| `aliases of code=` | other rawcodes that share this `code` and should share the procedure |
+
+Restrict to one archive set only when comparing a single overlay:
+
+```sh
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Aams
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aams
+```
+
+`-roc` opens War3.mpq only. `-tft` searches War3x.mpq first, then War3.mpq.
+If a later agent uses `mpqtool cat Units/AbilityData.slk` after `-data` opened
+every archive, they will silently read the TFT overlay and think ROC matches.
+
+### 2. Turn the brief into a one-page contract
+
+Write (or update) `docs/games/warcraft-3/<ability>.md` from the brief before
+coding. Record:
+
+- which rawcodes share `CAbility*` (`code=` plus the alias list);
+- which `Data*` fields the execute path will read;
+- which BuffID token applies when (empty DataC vs authored DataC is a real split);
+- ROC-only omissions (missing `BuffID` is allowed; do not invent DataC);
+- TFT-only rows (`AbilityData: not found` under ROC).
+
+Look up the parent in the [shared behavior table](#2-identify-shared-behavior).
+`AAsm` is the simple-spell pipeline, not “this is easy”.
+
+### 3. Register every concrete alias, share one procedure
+
+Add one `abilitylist` row per `AbilityData.alias` that this change implements.
+Point them at the same `CAbility*` procedure. Read data through
+`abilityitem_t.code` so `Aams` and `Aam2` keep their own `targs`/`DataC`/`BuffID`.
+Do not register abstract TFT classes (`AAsm`, `AAat`). Skip `Aami` / item rows
+until their own brief is in scope.
+
+### 4. Tests first, from the brief
+
+Use the production cast path (`S_CastUnitTargetSpell` / `S_CastNoTargetSpell`).
+Put the test in `games/warcraft-3/game/tests/t_*.c` with suite `wc3_spell`.
+The `TEST(suite, name)` identifier is `suite.name`, so the glob has no extra dot:
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_spell.anti_magic_shell*'
+```
+
+`WC3_PATTERN='wc3_spell.anti_magic_shell.*'` matches zero tests.
+
+Minimum coverage, taken from the brief:
+
+- procedure lookup for each registered alias;
+- authored field mapping (use a non-stock DataA/DataC in the fixture so the
+  test cannot pass on a hardcoded retail constant);
+- positive path and the nearest invalid target (`targs`, dead, wrong owner);
+- duration/expiry or pool-break, and recast;
+- save/load when new persistent state is added (`abilstatus.data`, edict fields).
+
+Enemy targeting tests must mark both players `kPlayerTypeHuman` and clear
+`level.alliances`. `setup_test_world()` leaves `kPlayerTypeNone`, which makes
+`S_SpellIsEnemy` false even when player ids differ.
+
+### 5. Implement in the owning `s_*.c`
+
+Keep execute/validate/absorb in the ability file. Hook shared predicates
+(`S_UnitSpellImmune`, `S_SpellDamage`) only when the brief’s buff contract
+belongs on that path. Prefer branching on authored data over a second
+procedure.
+
+### 6. Verify the focused pattern, then the family
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_spell.<name>*'
+make test-wc3-engine WC3_PATTERN='wc3_save.*'   # only if edict_t / abilstatus changed
+```
+
+Do not debug `make test` `+test '*'` while finishing one ability. A full
+`wc3_*` run currently dies in the unfinished Cyclone test
+(`wc3_ability_dispatch.cyclone_*` → `jass_runevents(NULL)`). That is a Cyclone
+gap, not a failure of the ability you just polled.
 
 ## Sources Of Truth
 
@@ -53,12 +159,11 @@ Resolve values through the existing accessors rather than copying level tables i
 - `G_AbilityLevel(FS_SLKKey(classname), level)` when the complete normalized row is needed.
 
 Levels and data indices are 1-based at the public helper boundary. Use `ability_audit`
-to inspect ROC and TFT rows separately:
+to inspect ROC and TFT in one shot (see [Mechanical Workflow](#mechanical-workflow)):
 
 ```sh
 make build/bin/ability_audit
-build/bin/ability_audit -data 'data/Warcraft III' -roc -raw AOws
-build/bin/ability_audit -data 'data/Warcraft III' -tft -raw AOws
+build/bin/ability_audit -data 'data/Warcraft III' -raw AOws
 ```
 
 ## AbilityData.slk Column Reference
@@ -129,12 +234,8 @@ from the buff row or from `AbilityStrings.txt` fields such as `animProps`.
 ### Reading a row in practice
 
 ```sh
-# Show the full normalized TFT row for a known rawcode:
-build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Ablo
-
-# Show both archives to catch ROC/TFT divergence:
-build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Ablo
-build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Ablo
+# ROC section then TFT section, including strings, buffs, and code= aliases:
+build/bin/ability_audit -data 'data/Warcraft III' -raw Ablo
 ```
 
 In C, read a specific level's field through the public helpers:
@@ -237,13 +338,14 @@ delimited by their own generated markers.
 
 ### 1. Identify the ability
 
-Look up the FourCC in `tft-ability-classes.txt` to find its TFT class name and parent:
+Poll the ability first (see [Mechanical Workflow](#mechanical-workflow)):
 
-```
-{ "ANdo", "CAbilityDoom" },  /* parent="AAsm" */
+```sh
+build/bin/ability_audit -data 'data/Warcraft III' -raw ANdo
 ```
 
-Run the audit tool to see where this ability stands:
+The brief already prints `class:` / `parent=` from `tft-ability-classes.txt`. Confirm
+registry status only if the brief is not enough:
 
 ```sh
 python3 tools/wc3_ability_class_audit.py --format=todo | rg ANdo
@@ -553,8 +655,7 @@ implemented in the snapshot/FOW visibility contract rather than by globally clea
 Useful checks:
 
 ```sh
-build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Adef
-build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Adef
+build/bin/ability_audit -data 'data/Warcraft III' -raw Adef
 make test-wc3-engine WC3_PATTERN='wc3_spell.*'
 make test-wc3-engine WC3_PATTERN='wc3_save.*'
 ```
@@ -654,7 +755,25 @@ and damage paths consult the status predicate, so expiry restores behavior witho
 
 ## Known Pitfalls
 
-- Do not read units from tooltip prose; use `ability_audit` and the normalized row.
+- Do not parse `AbilityData.slk` with an ad-hoc script. `ability_audit -raw`
+  already uses the same DDX schema as the game.
+- Do not treat `-data 'data/Warcraft III'` as ROC. That directory contains
+  `Frozen Throne/War3x.mpq`; first-wins MPQ search returns the TFT row unless
+  `-roc` opened War3.mpq alone.
+- Do not treat `code=` aliases as identical behavior. `Aams` and `Aam2` share
+  `CAbilityAntiMagicShell` and `BuffID=Bams,Bam2`, but empty DataC applies `Bams`
+  (cannot be targeted) and DataC=300 applies `Bam2` (spell-damage pool). The
+  Buffubertip, not the comments column, states that split.
+- ROC may omit `BuffID` while `*AbilityStrings.txt` still names the buff. Document
+  the fallback; do not invent DataC that the ROC row does not have.
+- `BuffID=Bams,Bam2` is two tokens. `unit_addtimedstatus` reads only the first
+  four characters of the string you pass it; pick the token the brief says to apply.
+- `targs` without `friend`/`enemy`/`neutral` allows any living air/ground unit,
+  including enemies. `Aam2` adds `friend,self` and must reject enemies.
+- `TEST(wc3_spell, foo_bar)` is matched by `wc3_spell.foo_bar` / `wc3_spell.foo*`,
+  not `wc3_spell.foo.*`.
+- `S_SpellIsEnemy` is false when `mapinfo->players[n].playerType` is
+  `kPlayerTypeNone`. Set Human (or another real type) in the fixture.
 - Do not assume a campaign rawcode is interchangeable with its standard counterpart.
 - Do not expose a passive ability as a command merely because it has a `CAbility*`
   class name.
@@ -668,10 +787,11 @@ and damage paths consult the status predicate, so expiry restores behavior witho
 See also:
 
 - [Ability coverage](architecture/ability-coverage.md)
-- [Anti-Magic Shell](anti-magic-shell.md)
+- [Anti-Magic Shell](anti-magic-shell.md) — worked example of the `-raw` brief and DataC/BuffID split
 - [Unit animation properties](unit-animation-properties.md)
 - [Ability and item effects](ability-and-item-effects.md)
 - [Warcraft III data model](../../wc3-data-model.md)
+- [Diagnostic tools](../../diagnostic-tools.md#ability-brief-ability_audit)
 
 ## Ability-owned orders and persistent behavior
 

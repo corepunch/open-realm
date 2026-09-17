@@ -8,6 +8,28 @@ Use `make test-wc3-map-audit` for the retail-data-independent tool tests. See
 [Warcraft III Campaign Map Audit](games/warcraft-3/map-audit.md) for focused
 runs, longer frame budgets, report semantics, and the GitHub issue command.
 
+## Ability brief (ability_audit)
+
+Poll one Warcraft III ability from the installed MPQs without parsing SLK by
+hand. This is the first command when implementing or finishing an ability.
+See [Mechanical Workflow](games/warcraft-3/ability-implementation-plan.md#mechanical-workflow).
+
+```sh
+make build/bin/ability_audit
+build/bin/ability_audit -data 'data/Warcraft III' -raw Aams
+```
+
+`-raw ID` prints a ROC section then a TFT section: `id`/`code`, TFT class and
+parent, per-level targs/cost/range/duration/DataA–I/BuffID, Name/Ubertip,
+each BuffID token's Buffubertip, and other rows that share `code=`.
+
+- `-roc` / `-tft` restrict to one overlay. `-roc` must be used to see ROC
+  AbilityData; a plain `-data` walk would otherwise let War3x.mpq win.
+- `-all` still lists abilities. `-raw` is the implementation brief.
+
+Do not write a new SLK walker for this. `ability_audit` uses the same DDX
+schema as `g_metadata.c`.
+
 ## MPQ Inspection (mpqtool)
 
 - When investigating Warcraft III assets, prefer using the local CLI utility `build/bin/mpqtool` instead of guessing file paths.

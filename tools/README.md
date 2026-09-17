@@ -3,6 +3,23 @@
 This directory contains the standalone command-line tools used to inspect
 Warcraft III assets and game data.
 
+## `ability_audit`
+
+Dump one ability's ROC and TFT contract from the installed MPQs. First command
+when implementing a WC3 ability. See
+[Mechanical Workflow](../docs/games/warcraft-3/ability-implementation-plan.md#mechanical-workflow).
+
+```sh
+make build/bin/ability_audit
+build/bin/ability_audit -data 'data/Warcraft III' -raw Aams
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Aams
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aam2
+```
+
+`-raw` prints class/parent, targs, cost, durations, DataA–I, BuffID tokens,
+strings, and `code=` aliases. `-roc` opens War3.mpq only; `-tft` searches
+War3x.mpq first. Without either flag, `-raw` prints both sections.
+
 ## `extract_wc3_ability_classes.py`
 
 Extract the demo/TFT binaries' actual FOURCC-to-class registration mappings using Python's

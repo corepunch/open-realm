@@ -50,10 +50,7 @@ spell effects (stun, etc.) may proceed. Fully absorbed hits return false.
 ## Diagnostic Workflow
 
 ```sh
-build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Aams
-build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aams
-build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aam2
-build/bin/ability_audit -data 'data/Warcraft III' -roc -raw ACam
+build/bin/ability_audit -data 'data/Warcraft III' -raw Aams
 ```
 
 ## Verification
