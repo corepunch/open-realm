@@ -479,7 +479,7 @@ static ability_t abilitylist[] = {
     // TODO: Aave CAbilityStampede  /* Destroyer Form */
     // TODO: Afak a_spell  /* Orb of Annihilation */
     { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic — dispel behavior shared; per-buff HP/mana heal remains */
-    // TODO: Aabr a_aura_regen_life  /* Aura of Blight */
+    { "Aabr", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE },  /* Aura of Blight */
     // TODO: Aabs a_aura  /* Absorb Mana */
     // TODO: Abur a_creep_sleep  /* Burrow */
     // TODO: Amtc a_unknown  /* Cargo Hold */
