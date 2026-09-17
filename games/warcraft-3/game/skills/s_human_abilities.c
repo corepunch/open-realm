@@ -451,20 +451,35 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
 }
 /* Name=Inner Fire; Untip="Right-click to activate auto-casting." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilityInnerFire, inner_fire_validate(ent, target, call ? call->item : NULL), human_status_execute, true, false)
-/* Name=Dispel Magic; Ubertip="Removes all buffs from units in a target area. Deals <Adis,DataB1> damage to summoned units." */
+/* Dispel Magic family (Adis/Adch/Advm): area timed-status clear; Advm also heals per buff.
+ * Adis/Adch author summoned damage in DataB; Advm authors heals in DataA/DataB and damage in DataE.
+ * Summons are marked with owner (S_SummonAt), and optionally summon_ability / AI_ILLUSION. */
+static BOOL dispel_is_summoned(LPCEDICT unit) {
+    return unit && (unit->owner || unit->summon_ability || (unit->aiflags & AI_ILLUSION));
+}
+
 BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    DWORD level = S_SpellLevel(caster, spell->code), removed = 0;
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    FLOAT data_a = S_SpellData(spell->code, level, 1), data_b = S_SpellData(spell->code, level, 2);
+    FLOAT data_e = S_SpellData(spell->code, level, 5);
+    FLOAT summon_dmg = data_e > 0.0f ? data_e : data_b;
+    FLOAT heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
                 DWORD code = target->abilstatus[i].code, status_level = target->abilstatus[i].level;
                 S_HumanStatusExpired(target, code, status_level);
                 memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+                removed++;
             }
         }
-        if (target->owner) S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 2));
+        if (dispel_is_summoned(target) && summon_dmg > 0.0f)
+            S_SpellDamage(target, caster, (int)summon_dmg);
     }
+    if (removed && heal_hp > 0.0f) S_SpellHeal(caster, heal_hp * (FLOAT)removed);
+    if (removed && heal_mana > 0.0f)
+        caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + heal_mana * (FLOAT)removed);
 }
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilityHeal, heal_validate(ent, target, call ? call->item : NULL), heal_execute, true, true)

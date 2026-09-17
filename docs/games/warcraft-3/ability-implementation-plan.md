@@ -806,6 +806,7 @@ See also:
 
 - [Ability coverage](architecture/ability-coverage.md)
 - [Anti-Magic Shell](anti-magic-shell.md) — worked example of the `-raw` brief and DataC/BuffID split
+- [Dispel Magic](dispel-magic.md) — Adis/Adch/Advm shared procedure, DataB vs DataE, per-buff heals
 - [Unit animation properties](unit-animation-properties.md)
 - [Ability and item effects](ability-and-item-effects.md)
 - [Warcraft III data model](../../wc3-data-model.md)

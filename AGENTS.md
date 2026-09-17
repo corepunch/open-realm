@@ -93,6 +93,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
 | WC3 ability implementation from data, behavior, and focused evidence | [docs/games/warcraft-3/ability-implementation-plan.md](docs/games/warcraft-3/ability-implementation-plan.md) |
 | WC3 Anti-Magic Shell Bams immunity vs Bam2 DataC absorption, Aam2/ACam aliases | [docs/games/warcraft-3/anti-magic-shell.md](docs/games/warcraft-3/anti-magic-shell.md) |
+| WC3 Dispel Magic / Disenchant / Devour Magic DataB vs DataE and per-buff heals | [docs/games/warcraft-3/dispel-magic.md](docs/games/warcraft-3/dispel-magic.md) |
 | WC3 Cyclone organic-enemy lock, BuffID fallback, and attack/move/spell gates | [docs/games/warcraft-3/cyclone.md](docs/games/warcraft-3/cyclone.md) |
 | WC3 Soul Burn BNso drain/reduction and cast silence shared with BNsi | [docs/games/warcraft-3/soul-burn.md](docs/games/warcraft-3/soul-burn.md) |
 | WC3 Ensnare Bena/Beng/Bens lock, flyer land-and-restore, ANen alias | [docs/games/warcraft-3/ensnare.md](docs/games/warcraft-3/ensnare.md) |
