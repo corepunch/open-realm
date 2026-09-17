@@ -341,7 +341,7 @@ static void GameSetup_SetupSlotRow(gameSetupSlotRow_t *slot) {
         UI_MenuAddItem(slot->frames.NamePopupMenuMenu, "Player", GAME_SETUP_SLOT_HUMAN);
         UI_MenuAddItem(slot->frames.NamePopupMenuMenu, "Computer", GAME_SETUP_SLOT_COMPUTER);
         UI_MenuAddItem(slot->frames.NamePopupMenuMenu, "Closed", GAME_SETUP_SLOT_CLOSED);
-        UI_SetOnClick(slot->frames.NamePopupMenuMenu, "menu_game_setup_slot_type %u %%u", (unsigned)index);
+        UI_SetOnClick(slot->frames.NamePopupMenuMenu, "menu_game_setup_slot_type %u", (unsigned)index);
         UI_SetHidden(slot->frames.NamePopupMenuMenu, true);
     }
     if (slot->frames.RacePopupMenuMenu) {
@@ -351,7 +351,7 @@ static void GameSetup_SetupSlotRow(gameSetupSlotRow_t *slot) {
         UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Orc", kPlayerRaceOrc);
         UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Undead", kPlayerRaceUndead);
         UI_MenuAddItem(slot->frames.RacePopupMenuMenu, "Night Elf", kPlayerRaceNightElf);
-        UI_SetOnClick(slot->frames.RacePopupMenuMenu, "menu_game_setup_slot_race %u %%u", (unsigned)index);
+        UI_SetOnClick(slot->frames.RacePopupMenuMenu, "menu_game_setup_slot_race %u", (unsigned)index);
         UI_SetHidden(slot->frames.RacePopupMenuMenu, true);
     }
     UI_SetOnClick(slot->frames.TeamButton, "menu_game_setup_slot_team_next %u", (unsigned)index);

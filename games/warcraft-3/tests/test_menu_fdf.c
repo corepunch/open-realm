@@ -38,7 +38,8 @@ static DWORD captured_glue_changes;
 static uintptr_t fake_texture_id;
 static LPTEXTURE hover_texture;
 static DWORD captured_hover_draws;
-static RECT captured_text_rects[8];
+static RECT captured_text_rects[8], popup_row_rect;
+static LPCSTR popup_row_text;
 static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
@@ -216,6 +217,7 @@ static VECTOR2 test_get_text_size(LPCDRAWTEXT draw_text) {
 } */
 
 static void test_draw_text(LPCDRAWTEXT draw_text) {
+    if (draw_text && popup_row_text == draw_text->text) popup_row_rect = draw_text->rect;
     if (captured_text_draws < sizeof(captured_text_rects) / sizeof(captured_text_rects[0]) &&
         draw_text) {
         captured_text_rects[captured_text_draws] = draw_text->rect;
@@ -3434,6 +3436,55 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     test_glue_tick(0);
     T_STREQ(captured_sprite_anim[0], "SinglePlayerSkirmish Stand");
     T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
+    /* Select real popup rows: a visible title change alone must not conceal a rejected command. */
+    state.slots[1].type = LOBBY_SLOT_OPEN;
+    state.slots[1].map_player = 1;
+    state.slots[1].team = 1;
+    state.slots[1].color = 1;
+    struct { LPCSTR popup, menu; DWORD value; } const picks[] = {
+        { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_COMPUTER },
+        { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_CLOSED },
+        { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_OPEN },
+        { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_COMPUTER },
+        { "RaceMenu", "RacePopupMenuMenu", kPlayerRaceOrc },
+        { "RaceMenu", "RacePopupMenuMenu", kPlayerRaceNone },
+        { "RaceMenu", "RacePopupMenuMenu", kPlayerRaceHuman },
+    };
+    FOR_LOOP(edition, 2) {
+        test_fs_expansion = edition;
+        GameSetup_UpdateLobbySetup(&state);
+        LPFRAMEDEF row = UI_FindFrame("CreateGamePlayerSlot1");
+        T_NOT_NULL(row);
+        FOR_LOOP(i, sizeof(picks) / sizeof(picks[0])) {
+            LPFRAMEDEF popup = UI_FindChildFrame(row, picks[i].popup);
+            LPFRAMEDEF menu = UI_FindChildFrame(popup, picks[i].menu);
+            T_NOT_NULL(popup);
+            T_NOT_NULL(menu);
+            UI_TogglePopup(popup);
+            popup_row_text = menu->Menu.Items[picks[i].value].text;
+            popup_row_rect = (RECT){0};
+            UI_DrawFrame(UI_FindFrame("GameChatroom"));
+            T_ASSERT(popup_row_rect.h > 0);
+            captured_command[0] = 0;
+            UI_PopupSelectItem(popup_row_rect.x + popup_row_rect.w / 2, popup_row_rect.y + popup_row_rect.h / 2);
+            popup_row_text = NULL;
+            Cbuf_AddText(captured_command);
+            Cbuf_AddText("\n");
+            captured_command[0] = 0;
+            Cbuf_Execute();
+            unsigned slot = 0, visible = 0, player = 0, type = 0, race = 0, team = 0, color = 0;
+            T_EQ(sscanf(captured_command, "lobby_slot %u %u %u %u %u %u %u", &slot, &visible, &player, &type, &race, &team, &color), 7);
+            T_EQ(slot, 1);
+            T_EQ(player, 1);
+            if (i < 4) T_EQ(type, picks[i].value);
+            else { T_EQ(type, LOBBY_SLOT_COMPUTER); T_EQ(race, picks[i].value); }
+        }
+        captured_command[0] = 0;
+        T_ASSERT(GameSetup_StartGame());
+        T_ASSERT(strstr(captured_command, "lobby_slot 1 1 1 2 1 1 1 ") != NULL);
+        T_ASSERT(strstr(captured_command, "map ") != NULL);
+    }
+    test_fs_expansion = false;
     Cmd_ExecuteString("menu_ingame");
     UI_ResetGlueSceneModels();
     mi = saved;

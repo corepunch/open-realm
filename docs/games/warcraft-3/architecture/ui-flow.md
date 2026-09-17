@@ -268,6 +268,19 @@ selection, LAN join/create, lobby slot changes, quoted chat/map arguments, and g
 fixtures and their StandardTemplates dependencies are included in `tests.mpq`; the Tutorial fixture is extracted from the RoC
 CampaignStrings section. `make test-commands` covers the underlying engine command and map-loading contracts.
 
+### Custom-game slot popup commands
+
+`UI_PopupSelectItem` appends the selected row index to a menu's `OnClick` command. GameSetup therefore binds
+`menu_game_setup_slot_type <slot>` and `menu_game_setup_slot_race <slot>` without a trailing format placeholder.
+Leaving a literal `%u` in either binding produces three arguments instead of two. The popup changes its visible title,
+but the console handler rejects the command and never publishes the slot change. An Open slot can consequently appear
+as Computer while loading and melee initialization still exclude that opponent, causing an immediate solo victory (#422).
+
+`menu_fdf.console_lan_and_lobby_commands_deliver_arguments` selects the rendered slot popup rows, drains their commands
+through the production command buffer, and checks the published slot settings and final map-start command batch. It covers
+Computer/Closed/Open transitions and race changes in ROC and TFT mode using the shared PlayerSlot/GameChatroom fixtures.
+Run `make test-menu`; no interactive game launch is needed to verify this command contract.
+
 ## Single Player Flow
 
 The WC3 single-player frontend uses the native Blizzard glue FDFs and keeps campaign/map metadata separate from the
