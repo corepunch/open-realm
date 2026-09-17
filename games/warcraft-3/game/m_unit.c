@@ -908,7 +908,8 @@ static void unit_timed_status_log(LPCSTR stage, LPCEDICT ent, heroabilitystatus_
 
 static BOOL unit_status_stuns(DWORD code) {
     return code == MAKEFOURCC('B', 's', 't', 'u') || code == MAKEFOURCC('B', 'U', 's', 'l') ||
-           code == MAKEFOURCC('B', 'p', 'o', 's'); /* Possession channel victim lock */
+           code == MAKEFOURCC('B', 'p', 'o', 's') || /* Possession channel victim lock */
+           code == MAKEFOURCC('B', 's', 't', 'a'); /* Stasis Trap stun */
 }
 
 static BOOL unit_status_timedlife(DWORD code) {

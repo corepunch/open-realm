@@ -120,6 +120,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(volcano_think),
     SAVE_CFUNCTION(pocket_factory_think),
     SAVE_CFUNCTION(exhume_think),
+    SAVE_CFUNCTION(stasis_trap_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

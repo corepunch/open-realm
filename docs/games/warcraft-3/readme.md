@@ -113,6 +113,8 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Cyclone](cyclone.md): organic-enemy action lock, ROC BuffID fallback, TFT `organic` targs.
 - [Volcano](volcano.md): channeled molten-rock waves; Dur is stun length, DataB×DataC is channel length.
 - [Pocket Factory](pocket-factory.md): timed factory producer; DataB is Clockwerk unitCode via `S_SpellDataId`.
+- [Stasis Trap](stasis-trap.md): Asta ward arm/detect/detonate; DataD/HeroDur stun, BuffID `Bsta`.
+- [Sentry Ward](sentry-ward.md): Aeye/AIsw summon; detect radius from Adt1 Rng via `S_UnitIsDetected`.
 - [Self Destruct](self-destruct.md): Clockwerk/Sapper Kaboom; `DataF` death blast via `S_UnitDeathAbilities`.
 - [Rain of Chaos](rain-of-chaos.md): point-target Inferno landings, DataA abilCode, not channeled.
 - [Inferno](inferno.md): point-target delayed blast + summon; DataB life, Dur stun, DataC delay.

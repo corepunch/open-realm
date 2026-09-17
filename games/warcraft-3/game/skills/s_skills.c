@@ -466,8 +466,8 @@ static ability_t abilitylist[] = {
     { "Aprg", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge */
     { "Apg2", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (TFT melee; DataD/DataE pause) */
     { "Alsh", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield */
-    // TODO: Aeye a_button  /* Sentry Ward */
-    // TODO: Asta a_stasis_trap  /* Stasis Trap */
+    { "Aeye", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentry Ward */
+    { "Asta", CAbilityStasisTrap, AB_SPELL, SPELL_TARGET_POINT },  /* Stasis Trap */
     { "Ahwd", CAbilityHealingWard, AB_SPELL, SPELL_TARGET_POINT },  /* Healing Ward */
     { "Aoar", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE },  /* Healing Ward Aura */
     // TODO: Aven a_venom_spear  /* Envenomed Spears */
@@ -729,7 +729,7 @@ static ability_t abilitylist[] = {
     // TODO: AIs6 a_unknown  /* StrengthBonus (+6) */
     // TODO: AIse a_unknown  /* Silence(Item) */
     // TODO: AIsl a_unknown  /* Scroll of Life Regen */
-    // TODO: AIsw a_unknown  /* Sentry Ward */
+    { "AIsw", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentry Ward (item; code=Aeye) */
     // TODO: AIsx a_unknown  /* Attack Speed Increase */
     // TODO: AIsz a_unknown  /* Slow Poison (item) */
     // TODO: AIt6 a_unknown  /* AttackBonus */
