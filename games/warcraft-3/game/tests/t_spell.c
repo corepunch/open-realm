@@ -1648,6 +1648,52 @@ TEST(wc3_spell, frenzy_unholy_frenzy_curse_use_authored_status_and_bonus_values)
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, cripple_and_soul_burn_apply_status_and_read_authored_consumers) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y4;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Rng1\"\n"
+		"C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\n"
+		"C;Y1;X8;K\"BuffID1\"\nC;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"Area1\"\n"
+		"C;Y2;X1;K\"Acri\"\nC;Y2;X2;K\"Acri\"\nC;Y2;X4;K\"30\"\nC;Y2;X5;K\"15\"\n"
+		"C;Y2;X6;K\"0.5\"\nC;Y2;X7;K\"0.4\"\nC;Y2;X8;K\"Bcri\"\nC;Y2;X9;K\"0.3\"\n"
+		"C;Y3;X1;K\"ANso\"\nC;Y3;X2;K\"ANso\"\nC;Y3;X4;K\"10\"\nC;Y3;X5;K\"10\"\n"
+		"C;Y3;X6;K\"5\"\nC;Y3;X8;K\"BNso\"\nC;Y3;X9;K\"0.25\"\n"
+		"C;Y4;X1;K\"Atau\"\nC;Y4;X2;K\"Atau\"\nC;Y4;X10;K\"400\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT caster = make_hero(MAKEFOURCC('h','p','r','i'), 300, 300, 0, 0);
+	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 500, 0);
+	abilityitem_t cri = S_AbilityItem(FS_SLKKey("Acri"));
+	abilityitem_t nso = S_AbilityItem(FS_SLKKey("ANso"));
+	abilityitem_t tau = S_AbilityItem(FS_SLKKey("Atau"));
+	caster->s.player = 0; enemy->s.player = 1;
+	enemy->svflags |= SVF_MONSTER;
+	enemy->health.value = enemy->health.max_value = 500;
+	T_EQ(cri.ability->proc, CAbilityCripple);
+	T_EQ(nso.ability->proc, CAbilitySoulBurn);
+	T_EQ(tau.ability->proc, CAbilityTaunt);
+	test_execute_code(caster, "Acri", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','c','r','i')));
+	T_FEQ(S_CrippleMoveReduction(enemy), 0.5f, 0.001f);
+	T_FEQ(S_CrippleAttackReduction(enemy), 0.4f, 0.001f);
+	T_FEQ(S_CrippleDamageReduction(enemy), 0.3f, 0.001f);
+	test_execute_code(caster, "ANso", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = enemy));
+	T_ASSERT(S_UnitHasStatus(enemy, MAKEFOURCC('B','N','s','o')));
+	T_FEQ(S_SoulBurnDamageRate(enemy), 5.0f, 0.001f);
+	T_FEQ(S_SoulBurnDamageReduction(enemy), 0.25f, 0.001f);
+	test_execute_code(caster, "Atau", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, alias_registrations_resolve_correct_procs) {
+	T_EQ(S_AbilityItem(FS_SLKKey("ACtb")).ability->proc, CAbilityThunderBolt);
+	T_EQ(S_AbilityItem(FS_SLKKey("Aens")).ability->proc, CAbilityEnsnare);
+	T_EQ(S_AbilityItem(FS_SLKKey("Adch")).ability->proc, CAbilityDispelMagic);
+	T_EQ(S_AbilityItem(FS_SLKKey("Advm")).ability->proc, CAbilityDispelMagic);
+	T_EQ(S_AbilityItem(FS_SLKKey("ACcs")).ability->proc, CAbilityCurse);
+	T_EQ(S_AbilityItem(FS_SLKKey("ACcr")).ability->proc, CAbilityCripple);
+}
+
 /* Human05 turns each converted villager into a summon, then its JASS trigger
  * owns the final zombie replacement, allegiance, and attack order. */
 TEST(wc3_spell, dark_conversion_consumes_target_and_publishes_zombie_summon) {

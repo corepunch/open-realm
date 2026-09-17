@@ -238,7 +238,8 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     { FLOAT const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (FLOAT)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
     damage = S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage)));
-    damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_RoarDamageBonus(attacker)));
+    damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_RoarDamageBonus(attacker)
+                                         - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
     bash_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
@@ -438,7 +439,8 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
     FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
-                      + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self);
+                      + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
+                      - S_CrippleAttackReduction(self);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT aura = g_edicts + i;
         DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));

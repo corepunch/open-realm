@@ -986,6 +986,7 @@ static FLOAT unit_effective_speed(LPEDICT ent) {
     speed *= 1.0f + S_UnholyMoveBonus(ent);
     speed *= 1.0f + S_BloodlustMoveBonus(ent);
     speed *= S_HumanMoveFactor(ent);
+    speed *= 1.0f - S_CrippleMoveReduction(ent);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT aura = g_edicts + i;
         DWORD aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
@@ -1324,7 +1325,8 @@ BOOL move_is_active_order_walk(LPCEDICT ent) {
 void order_move(LPEDICT self, LPEDICT target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    if ((self->aiflags & AI_IMMOBILE) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r')))
+    if ((self->aiflags & AI_IMMOBILE) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
+        || G_UnitStatusLevel(self, MAKEFOURCC('B', 'e', 'n', 's')))
         return;
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;

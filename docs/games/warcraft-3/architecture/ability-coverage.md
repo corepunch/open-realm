@@ -106,6 +106,14 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `Afzy` | `s_melee_spells.c` | Partial; autocast unit-target timed status applies `Bfzy`. `S_FrenzyAttackBonus` feeds the attack-speed divisor; `S_FrenzyArmorDelta` subtracts authored DataB armor in `G_UnitArmorValue`. |
 | `Auhf` | `s_melee_spells.c` | Partial; unit-target timed status applies `Buhf`. `S_UnholyFrenzyAttackBonus` feeds the attack-speed divisor; `S_UnholyFrenzyLifeDrain` drains authored DataB HP/sec in the physics tick. No autocast (parent `AAsm`). |
 | `Acrs` | `s_melee_spells.c` | Partial; autocast unit-target timed status applies `Bcrs`. `S_CurseMissChance` returns authored DataA miss fraction checked against the attacker before damage in `S_ResolveAttackHit`. Vision reveal of cursed targets is not yet implemented. |
+| `Acri`, `ACcr` | `s_status_spells.c` | Partial; enemy unit-target timed status applies `Bcri`. `S_CrippleMoveReduction` feeds `unit_effective_speed`; `S_CrippleAttackReduction` feeds the attack-speed divisor; `S_CrippleDamageReduction` scales outgoing attack damage. All three read authored DataA/DataB/DataC. |
+| `ANso` | `s_status_spells.c` | Partial; enemy unit-target timed status applies `BNso`. `S_SoulBurnDamageRate` drains authored DataA HP/sec in the physics tick; `S_SoulBurnDamageReduction` scales the attacker's outgoing damage. Silence (prevention of spell casting) is not yet wired into the spell-command pipeline. |
+| `Atau` | `s_status_spells.c` | Partial; no-target AOE issues `order_attack(enemy, caster)` for each alive enemy within authored Area. No persistent buff; effect is a one-shot re-target. |
+| `Aens` | `s_campaign_abilities.c` | Partial; `CAbilityEnsnare` applies `Bens`. `order_move` rejects movement when `Bens` is active (same pattern as `BEer` Entangling Roots). Flying-unit land-and-lock and buff expiry restoration remain. |
+| `ACtb` | `s_thunderbolt.c` (shared) | Registered; shares `CAbilityThunderBolt` with own authored data (Hurl Boulder projectile, stun, damage). |
+| `Adch` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Summoned-unit damage (DataB) remains. |
+| `Advm` | `s_human_abilities.c` (shared) | Registered; shares `CAbilityDispelMagic` for area dispel. Per-buff HP/mana heal (DataA/DataB) and summoned-unit damage (DataE) remain. |
+| `ACcs` | `s_melee_spells.c` (shared) | Registered; shares `CAbilityCurse` with autocast for the creep Curse variant. |
 | `AIda` | `s_item.c` | Scroll of Protection item-defense AOE: applies authored `Bdef` duration/area/armor bonus to allowed friendly targets and consumes the successful charged use. |
 | Heavy/system abilities | `s_ability_stubs.c` | Registered explicit stubs for passive autocast, cargo, mine, shop, harvest variants, item passives, and stat/XP item families. |
 
@@ -183,6 +191,13 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `Afzy` | Frenzy | Partial | Autocast unit-target timed status, attack-speed and armor consumers wired. Aliased creep variants resolve through SLK. Art/sound effects and exact retail target mask remain. |
 | `Auhf` | Unholy Frenzy | Partial | Friendly unit-target timed status; attack-speed bonus and life drain per second are wired. Vision of Faerie Fire is analogous but here the drain carries the risk. Aliased creep/item variants resolve through SLK. Art/sound effects remain. |
 | `Acrs` | Curse | Partial | Autocast enemy unit-target timed status; miss-chance consumer checked before attack damage. Vision reveal of cursed targets is not yet implemented. |
+| `Acri`, `ACcr` | Cripple | Partial | Enemy unit-target timed status; all three reduction consumers wired. Art/sound and any additional dispel interactions remain. |
+| `ANso` | Soul Burn | Partial | Enemy unit-target timed status; damage-per-second drain via physics tick and attack-damage reduction consumer wired. Silence (blocking spell casts) is not yet wired into the cast pipeline. |
+| `Atau` | Taunt | Partial | No-target AOE re-targets all alive enemies in Area to attack the caster. No persistent buff. |
+| `Aens` | Ensnare | Partial | Buff application and movement block in `order_move` wired. Flying-unit altitude lock and buff-expiry restore remain. |
+| `ACtb` | Hurl Boulder | Partial | Shares `CAbilityThunderBolt`; projectile stun and authored damage use own SLK row. Art remains. |
+| `Adch` | Disenchant | Partial | Shares `CAbilityDispelMagic` area dispel. Summoned-unit DataB damage remains. |
+| `Advm` | Devour Magic | Partial | Shares `CAbilityDispelMagic` area dispel. Per-buff HP/mana heal and summoned-unit damage remain. |
 | `ANfl` | Forked Lightning | Partial | Unit-target bounce spell; starts at the selected unit, applies constant authored `DataA` damage to up to `DataB` alive enemy targets, and selects subsequent unvisited targets within `Area`. Projectile presentation and exact retail target ordering remain. The test fixture marks synthetic targets with `SVF_MONSTER`. |
 | `Agld` | Gold Mine | Partial | Per-mine `Agld`-derived capacity/duration/max-gold, finite depletion, waiting workers, inside-miner protection, partial final trips, WORK occupancy animation, and shared Haunted/Entangled parent-resource ownership are implemented. Remaining gaps are mostly feedback/presentation parity. |
 | `Agl2` | Overlayed Gold Mine | Partial | Shared parent-mine relationship keeps the underlying `Agld` entity as the sole finite resource pool, hides/pauses it while overlaid, and restores it on overlay death/removal. Exact visual/effect parity remains. |

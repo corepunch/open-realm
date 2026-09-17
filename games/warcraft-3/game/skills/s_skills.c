@@ -355,7 +355,7 @@ static ability_t abilitylist[] = {
     /* NeutralAbilityStrings.txt */
     // TODO: ANic CAbilityInnerFire  /* Incinerate */
     // TODO: ANia CAbilityInnerFire  /* Incinerate */
-    // TODO: ANso a_spell  /* Soul Burn */
+    { "ANso", CAbilitySoulBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Soul Burn */
     // TODO: ANlm a_lightning_shield  /* Summon Lava Spawn */
     // TODO: ANvc a_spell  /* Volcano */
     // TODO: ANsy a_button  /* Pocket Factory */
@@ -393,7 +393,7 @@ static ability_t abilitylist[] = {
     // TODO: Asds a_button  /* Kaboom! */
     // TODO: Anhe CAbilityHeal  /* Heal */
     // TODO: ACtc a_creep_thunder_clap  /* Slam */
-    // TODO: ACtb a_creep_thunder_bolt  /* Hurl Boulder */
+    { "ACtb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Hurl Boulder */
     { "Afzy", CAbilityFrenzy, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frenzy */
     // TODO: ACdv a_creep_devour  /* Devour */
     { "ACsp", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE },  /* Natural creep sleep */
@@ -421,7 +421,7 @@ static ability_t abilitylist[] = {
     // TODO: Agra a_poison_attack  /* War Club */
     // TODO: Assk a_button  /* Hardened Skin */
     // TODO: Arsk a_morph  /* Resistant Skin */
-    // TODO: Atau a_spell  /* Taunt */
+    { "Atau", CAbilityTaunt, AB_SPELL },  /* Taunt */
     // TODO: Amgl a_bounce  /* Moon Glaive */
     // TODO: Aspo a_poison_attack  /* Slow Poison */
     // TODO: Ashm a_shadow_meld  /* Shadow Meld */
@@ -446,7 +446,7 @@ static ability_t abilitylist[] = {
     // TODO: Absk a_button  /* Berserk */
     // TODO: Arbr a_button  /* Reinforced Burrows Upgrade */
     // TODO: Aast a_aura  /* Ancestral Spirit */
-    // TODO: Adch a_spell  /* Disenchant */
+    { "Adch", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant */
     // TODO: Acpf a_purge  /* Corporeal Form */
     // TODO: Aetf a_morph  /* Ethereal Form */
     // TODO: Aspl a_creep_sleep  /* Spirit Link */
@@ -455,7 +455,7 @@ static ability_t abilitylist[] = {
     // TODO: Acha a_unknown  /* Chaos */
     // TODO: Achl a_cargo_load  /* Chaos Cargo Load */
     // TODO: Awar a_bounce  /* Pulverize */
-    // TODO: Aens CAbilityEnsnare  /* Ensnare */
+    { "Aens", CAbilityEnsnare, AB_SPELL, SPELL_TARGET_UNIT },  /* Ensnare */
     // TODO: Adev a_devour  /* Devour */
     // TODO: Aprg a_lightning_purge  /* Purge */
     // TODO: Alsh a_lightning_shield  /* Lightning Shield */
@@ -477,7 +477,7 @@ static ability_t abilitylist[] = {
     // TODO: Aexh a_button  /* Exhume Corpses */
     // TODO: Aave CAbilityStampede  /* Destroyer Form */
     // TODO: Afak a_spell  /* Orb of Annihilation */
-    // TODO: Advm CAbilityDispelMagic  /* Devour Magic */
+    { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic — dispel behavior shared; per-buff HP/mana heal remains */
     // TODO: Aabr a_aura_regen_life  /* Aura of Blight */
     // TODO: Aabs a_aura  /* Absorb Mana */
     // TODO: Abur a_creep_sleep  /* Burrow */
@@ -504,7 +504,7 @@ static ability_t abilitylist[] = {
     // TODO: Aams a_magic_immunity  /* Anti-magic Shell */
     // TODO: Apos a_creep_sleep  /* Possession */
     // TODO: Aps2 a_creep_sleep  /* Possession */
-    // TODO: Acri a_cripple  /* Cripple */
+    { "Acri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple */
 
     /* No AbilityStrings source file */
     // TODO: AIgl a_unknown  /* FortificationGlyph — CAbility [ITEM] other */
@@ -536,8 +536,8 @@ static ability_t abilitylist[] = {
     // TODO: ACch a_unknown  /* Charm */
     // TODO: ACcl a_unknown  /* Chain Lightning (creep) */
     // TODO: ACcn a_unknown  /* Cannibalize (creep) */
-    // TODO: ACcr a_unknown  /* Cripple (creep) */
-    // TODO: ACcs a_unknown  /* Curse (creep) */
+    { "ACcr", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple (creep) */
+    { "ACcs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse (creep) */
     // TODO: ACct a_unknown  /* Critical Strike (creep) */
     // TODO: ACcv a_unknown  /* Crushing Wave */
     // TODO: ACcw a_unknown  /* Cold Arrows (creep) */
