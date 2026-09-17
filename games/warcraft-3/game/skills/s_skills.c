@@ -358,7 +358,7 @@ static ability_t abilitylist[] = {
     { "ANso", CAbilitySoulBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Soul Burn */
     // TODO: ANlm a_lightning_shield  /* Summon Lava Spawn */
     // TODO: ANvc a_spell  /* Volcano */
-    // TODO: ANsy a_button  /* Pocket Factory */
+    { "ANsy", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory */
     // TODO: ANcs a_spell  /* Cluster Rockets */
     // TODO: ANeg CAbilityEvasion  /* Engineering Upgrade */
     // TODO: ANrg a_regen_base  /* Robo-Goblin */

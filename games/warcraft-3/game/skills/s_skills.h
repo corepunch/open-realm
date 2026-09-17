@@ -77,6 +77,7 @@ BZ_ABILITY_PROC(CAbilityForceOfNature);
 BZ_ABILITY_PROC(CAbilitySummonGrizzly);
 BZ_ABILITY_PROC(CAbilitySummonQuillbeast);
 BZ_ABILITY_PROC(CAbilitySummonWarEagle);
+BZ_ABILITY_PROC(CAbilityPocketFactory);
 BZ_ABILITY_PROC(CAbilityMirrorImage);
 BZ_ABILITY_PROC(CAbilityBlizzard);
 BZ_ABILITY_PROC(CAbilityStarfall);

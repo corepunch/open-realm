@@ -103,6 +103,13 @@ only the fields the runtime actually reads are present in `abilityLevel_t`.
 respectively. Both names refer to the same three fields; `S_SpellData` handles
 both archive variants.
 
+Pocket Factory (`ANsy`) is a data-driven timed producer: `UnitID` selects the
+factory for the learned rank, `Dur` controls its lifetime, `DataA` is the
+Clockwerk production interval, `DataB` is the rank-specific Clockwerk rawcode,
+and `DataC` is each Clockwerk's timed life. A classless ability-owned thinker is
+owned by the factory and runs through `G_RunEntities`; factory removal therefore
+cancels production without adding Pocket Factory rules to general entity code.
+
 ### What is NOT in AbilityData.slk
 
 **Projectile and missile art are not authored in AbilityData.slk.** They live in
