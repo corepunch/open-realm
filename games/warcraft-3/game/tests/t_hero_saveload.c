@@ -11,6 +11,9 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
 void reset_entities(void);
+void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_SetupTestWorldBounds(LPCBOX2 bounds);
+void CM_ProcessPathJobs(DWORD work_budget);
 
 static LPEDICT make_walk_hero(FLOAT x, FLOAT y) {
     LPEDICT hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), x, y);
@@ -45,6 +48,28 @@ static void step_walk(LPEDICT hero, DWORD frames) {
         hero->currentmove->think(hero);
         level.time += FRAMETIME;
     }
+}
+
+static LPCSTR hero_audit_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_hero_saveload_audit") ? "1" : fallback;
+}
+
+static void step_hero_audit(DWORD frames) {
+    DWORD i;
+    for (i = 0; i < frames; i++) {
+        G_RunEntities();
+        CM_ProcessPathJobs(65536);
+        G_HeroSaveLoadAuditFrame();
+        level.time += FRAMETIME;
+    }
+}
+
+static void arm_hero_audit(LPCSTR map) {
+    strlcpy(level.map_path, map, sizeof(level.map_path));
+    level.started = true;
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    ((LPMAPINFO)level.mapinfo)->players[0].used = 1;
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 }
 
 TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
@@ -124,5 +149,93 @@ TEST(wc3_save, hero_dump_formats_empty_hero) {
     char snap[64];
     G_FormatHeroSaveSnap(NULL, snap, sizeof(snap));
     T_STREQ(snap, "unit=none");
+}
+
+/* Hidden cinematic stand-ins (HumanX06Finale N000) must not lock the walker. */
+TEST(wc3_save, hero_audit_skips_hidden_first_hero) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPEDICT hidden, visible;
+    FLOAT hidden_x, visible_x;
+
+    reset_entities();
+    setup_test_world();
+    hidden = make_walk_hero(0.0f, 0.0f);
+    hidden->s.renderfx |= RF_HIDDEN;
+    visible = make_walk_hero(200.0f, 0.0f);
+    hidden_x = hidden->s.origin.x;
+    visible_x = visible->s.origin.x;
+    arm_hero_audit("Maps\\Campaign\\HeroAuditHidden.w3m");
+    gi.CvarString = hero_audit_cvar;
+    step_hero_audit(12);
+    gi.CvarString = old_cvar;
+    T_FEQ(hidden->s.origin.x, hidden_x, 0.01f);
+    T_ASSERT(visible->s.origin.x > visible_x + 1.0f);
+}
+
+/* PauseAllUnitsBJ during intro; walk only after cleanup unpauses. */
+TEST(wc3_save, hero_audit_waits_while_paused_then_walks) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPEDICT hero;
+    FLOAT start_x;
+
+    reset_entities();
+    setup_test_world();
+    hero = make_walk_hero(0.0f, 0.0f);
+    hero->paused = true;
+    start_x = hero->s.origin.x;
+    arm_hero_audit("Maps\\Campaign\\HeroAuditPaused.w3m");
+    gi.CvarString = hero_audit_cvar;
+    step_hero_audit(5);
+    T_FEQ(hero->s.origin.x, start_x, 0.01f);
+    hero->paused = false;
+    step_hero_audit(12);
+    gi.CvarString = old_cvar;
+    T_ASSERT(hero->s.origin.x > start_x + 1.0f);
+}
+
+/* CinematicModeBJ(true) holds the walker until gameplay UI returns. */
+TEST(wc3_save, hero_audit_waits_while_cinematic_then_walks) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPEDICT hero;
+    FLOAT start_x;
+
+    reset_entities();
+    setup_test_world();
+    hero = make_walk_hero(0.0f, 0.0f);
+    game.clients[0].ps.client_ui_state = CLIENT_UI_CINEMATIC;
+    start_x = hero->s.origin.x;
+    arm_hero_audit("Maps\\Campaign\\HeroAuditCinematic.w3m");
+    gi.CvarString = hero_audit_cvar;
+    step_hero_audit(5);
+    T_FEQ(hero->s.origin.x, start_x, 0.01f);
+    game.clients[0].ps.client_ui_state = CLIENT_UI_GAME;
+    step_hero_audit(12);
+    gi.CvarString = old_cvar;
+    T_ASSERT(hero->s.origin.x > start_x + 1.0f);
+}
+
+/* +80 X snaps home on a blocked cell; the walker must retry another open axis. */
+TEST(wc3_save, hero_audit_retries_when_80_unit_dest_snaps_home) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    BYTE cells[64 * 64];
+    LPEDICT hero;
+    FLOAT start_x, start_y;
+
+    reset_entities();
+    setup_test_world();
+    memset(cells, 0, sizeof(cells));
+    FOR_LOOP(y, 64)
+        FOR_LOOP(x, 64)
+            if (x >= 33 && x <= 39) cells[y * 64 + x] = CM_PATHING_UNWALKABLE;
+    setup_test_pathmap(64, 64, cells);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    hero = make_walk_hero(16.0f, 16.0f);
+    start_x = hero->s.origin.x;
+    start_y = hero->s.origin.y;
+    arm_hero_audit("Maps\\Campaign\\HeroAuditSnap.w3m");
+    gi.CvarString = hero_audit_cvar;
+    step_hero_audit(16);
+    gi.CvarString = old_cvar;
+    T_ASSERT(hero->s.origin.x < start_x - 1.0f || hero->s.origin.y > start_y + 1.0f || hero->s.origin.y < start_y - 1.0f);
 }
 #endif

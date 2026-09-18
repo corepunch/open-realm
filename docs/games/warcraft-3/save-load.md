@@ -194,6 +194,8 @@ skills, inserts two charged items, issues `unit_issueorder(..., "move", ...)`,
 steps until origin changes while `currentmove` is still `walk`, then
 `WriteGame`/`ReadGame` and checks origin, `heroabilities[]`, `abilities.added[]`,
 inventory class/charges, and that one more walk think still advances.
+`wc3_save.hero_audit_*` drives `G_HeroSaveLoadAuditFrame` for hidden-first-Hero,
+paused/cinematic wait, and dest-snap retries.
 
 Campaign maps are a local diagnostic, not `make test`. Arm the production
 binary with `wc3_hero_saveload_audit=1`; after `G_LoadMap` the game module waits
@@ -211,8 +213,21 @@ credits and some Rexxar sub-areas; it is not a serializer failure. This path
 does not call `SV_Map` reconnect; it restores onto the already-loaded map, which
 is the same game-module boundary the CI test uses.
 
-First full sweep: 88 pass, 5 `no_hero`, 4 `fail_move` (walk accepted, origin
-unchanged, `currentmove` stayed `stand`). Tracked in
+The walker must not start during intro cinematic. HumanX03 (Hkal dungeon
+pocket), NightElfX01 (Maiev intro start), and OrcX03a (Rexxar intro cliff)
+used to issue `move` before Intro_Cleanup teleported the player Hero.
+HumanX06Finale picked hidden Kil'jaeden `N000` first. The audit now skips
+`RF_HIDDEN`, waits for `!paused` and non-cinematic UI (with a timeout fallback
+for finales that stay cinematic), and re-issues if cleanup teleports mid-walk.
+
+`unit_issueorder("move")` returning true does not mean the snapped dest left
+the cell; ClosestPathable can fold an 80-unit click back onto the stand-in
+cell, then the first think arrives immediately (`stand`, origin unchanged).
+The walker retries 80/160/256/512 and eight directions until `goalentity` XY
+actually leaves.
+
+Do not teach `skip_cutscene` to unpause, fire ESC skip, or end cinematic; JASS
+cleanup owns that. Close-note: tracked by
 [#438](https://github.com/corepunch/open-realm/issues/438).
 
 Manual cheats (`sv_cheats 1`): `hero dump` prints the same snapshot line, and

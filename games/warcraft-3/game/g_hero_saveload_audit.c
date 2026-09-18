@@ -11,6 +11,7 @@
 #define HSA_WAIT_FRAMES 150 // frames; 15s at 10 Hz for cinematic skip / scripted spawn
 #define HSA_MOVE_FRAMES 40 // frames; 4s to observe a walk step before save
 #define HSA_ORIGIN_EPS 0.5f // world units; restored origin must match the pre-save snapshot
+#define HSA_LEAVE_EPS 1.0f // world units; snapped dest must leave the current cell, not just accept issueorder
 
 typedef enum {
     HSA_IDLE,
@@ -113,6 +114,11 @@ void G_FormatHeroSaveSnap(LPCEDICT hero, LPSTR out, DWORD out_size) {
     hsa_append(out, out_size, " move=%s", snap.move[0] ? snap.move : "none");
 }
 
+static BOOL hsa_hero_ok(LPCEDICT ent) {
+    return ent && ent->inuse && (ent->svflags & SVF_MONSTER) && !M_IsDead(ent) &&
+        G_UnitIsHero(ent) && !(ent->s.renderfx & RF_HIDDEN);
+}
+
 static LPEDICT hsa_find_hero(void) {
     FOR_LOOP(player, MAX_PLAYERS) {
         if (level.mapinfo && (!level.mapinfo->players[player].used ||
@@ -120,30 +126,54 @@ static LPEDICT hsa_find_hero(void) {
             continue;
         FOR_LOOP(i, globals.num_edicts) {
             LPEDICT ent = g_edicts + i;
-            if (ent->inuse && (ent->svflags & SVF_MONSTER) && !M_IsDead(ent) &&
-                    G_UnitIsHero(ent) && ent->s.player == player)
+            if (hsa_hero_ok(ent) && ent->s.player == player)
                 return ent;
         }
         if (!level.mapinfo) break;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = g_edicts + i;
-        if (ent->inuse && (ent->svflags & SVF_MONSTER) && !M_IsDead(ent) && G_UnitIsHero(ent))
+        if (hsa_hero_ok(ent))
             return ent;
     }
     return NULL;
 }
 
+static BOOL hsa_in_cinematic(LPCEDICT hero) {
+    if (hero && hero->s.player < (DWORD)game.max_clients)
+        return game.clients[hero->s.player].ps.client_ui_state == CLIENT_UI_CINEMATIC;
+    FOR_LOOP(i, game.max_clients)
+        if (game.clients[i].connected &&
+                game.clients[i].ps.client_ui_state == CLIENT_UI_CINEMATIC)
+            return true;
+    return false;
+}
+
+static BOOL hsa_ready_to_walk(LPCEDICT hero, BOOL timed_out) {
+    if (!hsa_hero_ok(hero) || hero->paused) return false;
+    return timed_out || !hsa_in_cinematic(hero);
+}
+
 static BOOL hsa_issue_walk(LPEDICT hero) {
+    static FLOAT const dist[] = { HSA_WALK_DIST, 160.0f, 256.0f, 512.0f };
     static VECTOR2 const dirs[] = {
-        { HSA_WALK_DIST, 0 }, { -HSA_WALK_DIST, 0 }, { 0, HSA_WALK_DIST }, { 0, -HSA_WALK_DIST },
-        { 56, 56 }, { -56, 56 }, { 56, -56 }, { -56, -56 }
+        { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
+        { 0.7f, 0.7f }, { -0.7f, 0.7f }, { 0.7f, -0.7f }, { -0.7f, -0.7f }
     };
-    VECTOR2 dest;
-    FOR_LOOP(i, sizeof(dirs) / sizeof(dirs[0])) {
-        dest.x = hero->s.origin2.x + dirs[i].x;
-        dest.y = hero->s.origin2.y + dirs[i].y;
-        if (unit_issueorder(hero, "move", &dest)) return true;
+    VECTOR2 dest, goal;
+
+    /* unit_issueorder("move") stays true when ClosestPathable snaps the click
+     * back onto the current cell (intro pocket). Require the waypoint to leave. */
+    FOR_LOOP(d, sizeof(dist) / sizeof(dist[0])) {
+        FOR_LOOP(i, sizeof(dirs) / sizeof(dirs[0])) {
+            dest.x = hero->s.origin2.x + dirs[i].x * dist[d];
+            dest.y = hero->s.origin2.y + dirs[i].y * dist[d];
+            if (!unit_issueorder(hero, "move", &dest) || !hero->goalentity) continue;
+            goal = hero->goalentity->s.origin2;
+            if (fabsf(goal.x - hero->s.origin2.x) > HSA_LEAVE_EPS ||
+                    fabsf(goal.y - hero->s.origin2.y) > HSA_LEAVE_EPS)
+                return true;
+        }
     }
     return false;
 }
@@ -204,9 +234,23 @@ static void hsa_saveload(LPEDICT hero) {
     hsa_finish(status, hero);
 }
 
+static BOOL hsa_start_walk(LPEDICT hero) {
+    hsa_index = hero->s.number;
+    hsa_before.origin = hero->s.origin;
+    if (!hsa_issue_walk(hero)) {
+        hsa_finish("fail_order", hero);
+        return false;
+    }
+    hsa_phase = HSA_WALK;
+    hsa_walk = 0;
+    return true;
+}
+
 void G_HeroSaveLoadAuditFrame(void) {
     LPCSTR armed = gi.CvarString ? gi.CvarString("wc3_hero_saveload_audit", "0") : "0";
     LPEDICT hero;
+    BOOL timed_out, walking;
+    FLOAT dx, dy;
 
     if (!armed || atoi(armed) == 0) return;
     if (!level.started || !level.map_path[0]) return;
@@ -217,31 +261,46 @@ void G_HeroSaveLoadAuditFrame(void) {
         memset(&hsa_before, 0, sizeof(hsa_before));
     }
     if (hsa_phase == HSA_IDLE || hsa_phase == HSA_DONE) return;
-    hero = hsa_index ? g_edicts + hsa_index : hsa_find_hero();
+    timed_out = hsa_wait >= HSA_WAIT_FRAMES;
     if (hsa_phase == HSA_WAIT_HERO) {
-        if (hero) {
-            hsa_index = hero->s.number;
-            hsa_before.origin = hero->s.origin;
-            if (!hsa_issue_walk(hero)) {
-                hsa_finish("fail_order", hero);
-                return;
-            }
-            hsa_phase = HSA_WALK;
-            hsa_walk = 0;
+        hero = hsa_find_hero();
+        if (hsa_ready_to_walk(hero, timed_out)) {
+            hsa_start_walk(hero);
             return;
         }
-        if (++hsa_wait >= HSA_WAIT_FRAMES) hsa_finish("no_hero", NULL);
+        if (++hsa_wait >= HSA_WAIT_FRAMES && !hero) hsa_finish("no_hero", NULL);
         return;
     }
-    if (!hero || !hero->inuse || M_IsDead(hero) || !G_UnitIsHero(hero)) {
+    hero = (hsa_index && hsa_index < globals.num_edicts) ? g_edicts + hsa_index : NULL;
+    if (!hero || !hero->inuse || M_IsDead(hero) || !G_UnitIsHero(hero) || !(hero->svflags & SVF_MONSTER)) {
         hsa_finish("fail_missing", hero);
         return;
     }
-    hsa_walk++;
-    if (fabsf(hero->s.origin.x - hsa_before.origin.x) > 1.0f ||
-            fabsf(hero->s.origin.y - hsa_before.origin.y) > 1.0f) {
+    if (!hsa_hero_ok(hero)) {
+        hero = hsa_find_hero();
+        if (!hero) {
+            hsa_finish("fail_missing", NULL);
+            return;
+        }
+        if (hsa_ready_to_walk(hero, true)) hsa_start_walk(hero);
+        return;
+    }
+    dx = hero->s.origin.x - hsa_before.origin.x;
+    dy = hero->s.origin.y - hsa_before.origin.y;
+    walking = move_is_active_order_walk(hero);
+    if (fabsf(dx) > HSA_LEAVE_EPS || fabsf(dy) > HSA_LEAVE_EPS) {
+        /* Cleanup teleports jump without a walk step; resume from the new origin. */
+        if (!walking || fabsf(dx) > HSA_WALK_DIST || fabsf(dy) > HSA_WALK_DIST) {
+            hsa_start_walk(hero);
+            return;
+        }
         hsa_saveload(hero);
         return;
     }
-    if (hsa_walk >= HSA_MOVE_FRAMES) hsa_finish("fail_move", hero);
+    if (hero->paused || hsa_in_cinematic(hero)) return;
+    if (!walking && !hsa_issue_walk(hero)) {
+        hsa_finish("fail_order", hero);
+        return;
+    }
+    if (++hsa_walk >= HSA_MOVE_FRAMES) hsa_finish("fail_move", hero);
 }
