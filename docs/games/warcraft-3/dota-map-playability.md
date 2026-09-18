@@ -115,11 +115,11 @@ Unregistered groups, by identifier count:
 | --- | ---: | ---: | --- |
 | Hashtables (`InitHashtable`, `GetHandleId`, `Save*`/`Load*`/`HaveSaved*`/`FlushChild*`/`RemoveSaved*`) | 53 | 8,692 | DotA 6.83d's primary data model (YDWE / patch 1.24). Runtime natives in `api_hashtable.h` (#437); VM snapshot of live handle slots still a gap. |
 | `GetObjectName` | 1 | 833 | Ability/item/unit tooltips and chat. |
-| Multiboard | 17 | 1,022 | Scoreboard / KDA / player list. |
+| Multiboard | 17 | 1,022 | Scoreboard / KDA / player list. DotA surface implemented (#434); HUD draw deferred — [multiboard-and-texttag.md](multiboard-and-texttag.md). |
 | `GetEventDamageSource` | 1 | 213 | Kill credit, lifesteal, on-hit scripts. |
 | `SetUnitAbilityLevel` / `IncUnitAbilityLevel` / `UnitDamageTarget` / `GetUnitCurrentOrder` / `GetUnitLevel` / type flags | 10 | 510 | Skill ranks and spell scripts. |
 | Shop (`GetSoldUnit`, `GetBuyingUnit`, `GetSellingUnit`, stock add/remove) | 6 | 192 | Side shop / secret shop / tavern. |
-| TextTag | 10 | 225 | Gold/last-hit floating text. |
+| TextTag | 10 | 225 | Gold/last-hit floating text. DotA surface implemented (#434); client draw deferred — [multiboard-and-texttag.md](multiboard-and-texttag.md). |
 | `GetHeroStr` / `GetHeroAgi` / `GetHeroInt` | 3 | 123 | Attribute-scaling spells. |
 | Item user-data / visibility / pawnable | 10 | 239 | Courier and stash. |
 | Lightning / image / ubersplat | 13 | 90 | Skill presentation. |

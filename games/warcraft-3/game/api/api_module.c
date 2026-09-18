@@ -8,6 +8,7 @@
 #include "api_misc.h"
 #include "api_player.h"
 #include "api_leaderboard.h"
+#include "api_multiboard.h"
 #include "api_destructable.h"
 #include "api_sound.h"
 #include "api_trigger.h"
@@ -839,6 +840,33 @@ JASSMODULE jass_funcs[] = {
     { "LeaderboardSetItemStyle", LeaderboardSetItemStyle },
     { "LeaderboardSetItemLabelColor", LeaderboardSetItemLabelColor },
     { "LeaderboardSetItemValueColor", LeaderboardSetItemValueColor },
+    { "CreateMultiboard", CreateMultiboard },
+    { "DestroyMultiboard", DestroyMultiboard },
+    { "MultiboardDisplay", MultiboardDisplay },
+    { "MultiboardMinimize", MultiboardMinimize },
+    { "IsMultiboardMinimized", IsMultiboardMinimized },
+    { "MultiboardSetTitleText", MultiboardSetTitleText },
+    { "MultiboardSetRowCount", MultiboardSetRowCount },
+    { "MultiboardSetColumnCount", MultiboardSetColumnCount },
+    { "MultiboardGetItem", MultiboardGetItem },
+    { "MultiboardReleaseItem", MultiboardReleaseItem },
+    { "MultiboardSetItemStyle", MultiboardSetItemStyle },
+    { "MultiboardSetItemValue", MultiboardSetItemValue },
+    { "MultiboardSetItemValueColor", MultiboardSetItemValueColor },
+    { "MultiboardSetItemWidth", MultiboardSetItemWidth },
+    { "MultiboardSetItemIcon", MultiboardSetItemIcon },
+    { "MultiboardSetItemsStyle", MultiboardSetItemsStyle },
+    { "MultiboardSetItemsWidth", MultiboardSetItemsWidth },
+    { "CreateTextTag", CreateTextTag },
+    { "DestroyTextTag", DestroyTextTag },
+    { "SetTextTagText", SetTextTagText },
+    { "SetTextTagColor", SetTextTagColor },
+    { "SetTextTagPosUnit", SetTextTagPosUnit },
+    { "SetTextTagVelocity", SetTextTagVelocity },
+    { "SetTextTagVisibility", SetTextTagVisibility },
+    { "SetTextTagPermanent", SetTextTagPermanent },
+    { "SetTextTagLifespan", SetTextTagLifespan },
+    { "SetTextTagFadepoint", SetTextTagFadepoint },
     { "SetCameraPosition", SetCameraPosition },
     { "SetCameraQuickPosition", SetCameraQuickPosition },
     { "SetCameraBounds", SetCameraBounds },

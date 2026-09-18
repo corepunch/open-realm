@@ -41,7 +41,7 @@ Save format version 24 persists the fixed leaderboard registry, all item/style/c
 
 - `showIcons` and per-item `showIcon` are stored but icons are not rendered yet because classic icon source/packing semantics are not established confidently.
 - Exact retail row-column widths, player-color/name styling, and backdrop resizing are not yet pixel-matched. Current rows are laid out relative to the authored list container rather than hard-coding a campaign-specific HUD.
-- Only the player's assigned leaderboard is presented, matching the `PlayerSetLeaderboard` ownership model. Multiboard interaction/repositioning remains separate work.
+- Only the player's assigned leaderboard is presented, matching the `PlayerSetLeaderboard` ownership model. Multiboard is a separate widget; see [multiboard-and-texttag.md](multiboard-and-texttag.md).
 
 These limits do not block the counted-objective path where a campaign script creates a board, assigns it to the player, adds one numeric row, and updates that row from 0 through a target value.
 

@@ -39,6 +39,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
 | WC3 timer-dialog mission countdowns, stock FDF HUD, local visibility, save/load identity | [docs/games/warcraft-3/timer-dialogs.md](docs/games/warcraft-3/timer-dialogs.md) |
 | WC3 leaderboards, counted-objective HUDs, per-player assignment, save/load identity | [docs/games/warcraft-3/leaderboards.md](docs/games/warcraft-3/leaderboards.md) |
+| WC3 multiboard/texttag JASS registries, local display bits, presentation gaps | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |
 | WC3 campaign map bulk runtime audit, per-map reports, commands | [docs/games/warcraft-3/map-audit.md](docs/games/warcraft-3/map-audit.md) |
 | WC3 DotA custom-map playability, protected-MPQ load, hashtable demand | [docs/games/warcraft-3/dota-map-playability.md](docs/games/warcraft-3/dota-map-playability.md) |
 | WC3 JASS group handle lifecycle, DestroyGroup slot reuse, save/load identity | [docs/games/warcraft-3/jass-groups.md](docs/games/warcraft-3/jass-groups.md) |

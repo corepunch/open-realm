@@ -97,6 +97,9 @@ KNOWN_AS(gtrigger_s, TRIGGER);
 KNOWN_AS(gtimer_s, GTIMER);
 KNOWN_AS(gtimerdialog_s, TIMERDIALOG);
 KNOWN_AS(gleaderboard_s, LEADERBOARD);
+KNOWN_AS(gmultiboard_s, MULTIBOARD);
+KNOWN_AS(gmultiboarditem_s, MULTIBOARDITEM);
+KNOWN_AS(gtexttag_s, TEXTTAG);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
 
@@ -802,6 +805,13 @@ typedef struct {
 #define MAX_TIMERDIALOGS 64 // handles; bounds map-lifetime timer-dialog registry slots
 #define MAX_LEADERBOARDS 32 // handles; fixed save-stable leaderboard registry
 #define MAX_LEADERBOARD_ITEMS 24 // rows; covers classic player/campaign boards
+#define MAX_MULTIBOARDS 16 // handles; DotA/scoreboard boards stay well under this
+#define MAX_MULTIBOARD_ROWS 24 // rows; covers DotA player list plus header rows
+#define MAX_MULTIBOARD_COLS 12 // columns; covers KDA/gold/item scoreboard layouts
+#define MAX_MULTIBOARD_CELLS (MAX_MULTIBOARD_ROWS * MAX_MULTIBOARD_COLS) // cells; flat row-major storage
+#define MAX_MULTIBOARD_VALUE 96 // chars; scoreboard cell text, not TRIGSTR blobs
+#define MAX_MULTIBOARD_ITEMS 256 // views; MultiboardGetItem refcounted cell handles
+#define MAX_TEXTTAGS 100 // handles; retail-ish floating-text pool
 #define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
 #define WC3_LAYER_LEADERBOARD LAYER_GAME_1
 #define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
@@ -887,6 +897,45 @@ struct gleaderboard_s {
     DWORD item_count;
     char label[MAX_TRIGSTR_LENGTH];
     struct gleaderboarditem_s items[MAX_LEADERBOARD_ITEMS];
+};
+
+struct gmultiboardcell_s {
+    char value[MAX_MULTIBOARD_VALUE];
+    char icon[MAX_PATHLEN];
+    FLOAT width;
+    BOOL show_value, show_icon;
+    BOOL value_color_set;
+    COLOR32 value_color;
+};
+
+struct gmultiboard_s {
+    BOOL inuse;
+    DWORD displayed_clients;
+    DWORD minimized_clients;
+    DWORD rows, cols;
+    char title[MAX_TRIGSTR_LENGTH];
+    struct gmultiboardcell_s cells[MAX_MULTIBOARD_CELLS];
+};
+
+/* Refcounted view into one multiboard cell; ReleaseItem frees the view, not the cell. */
+struct gmultiboarditem_s {
+    BOOL inuse;
+    DWORD refs;
+    LONG board; /* registry index; -1 when the board was destroyed */
+    LONG row, col;
+};
+
+struct gtexttag_s {
+    BOOL inuse;
+    DWORD visible_clients;
+    BOOL permanent;
+    FLOAT height, height_offset;
+    FLOAT x, y;
+    FLOAT xvel, yvel;
+    FLOAT age, lifespan, fadepoint;
+    COLOR32 color;
+    LPEDICT unit; /* SetTextTagPosUnit anchor; NULL when unset */
+    char text[MAX_MULTIBOARD_VALUE];
 };
 
 struct gquestitem_s {
@@ -1626,6 +1675,11 @@ struct level_locals {
     LEADERBOARD leaderboards[MAX_LEADERBOARDS];
     LONG player_leaderboards[MAX_PLAYERS]; /* registry index, -1 = none */
     DWORD leaderboard_dirty_clients;
+    MULTIBOARD multiboards[MAX_MULTIBOARDS];
+    MULTIBOARDITEM multiboard_items[MAX_MULTIBOARD_ITEMS];
+    TEXTTAG texttags[MAX_TEXTTAGS];
+    /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
+    DWORD multiboard_dirty_clients;
     DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
     LONG timer_dialog_last_index[MAX_CLIENTS]; /* transient active-slot cache */
     LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
@@ -1909,6 +1963,23 @@ BOOL G_IsLeaderboardDisplayed(LPCLEADERBOARD board, LPCPLAYER player);
 void G_UpdateLeaderboards(void);
 LPLEADERBOARD G_PlayerLeaderboard(DWORD player);
 void G_SetPlayerLeaderboard(DWORD player, LPLEADERBOARD board);
+LPMULTIBOARD G_AllocMultiboard(void);
+void G_FreeMultiboard(LPMULTIBOARD board);
+void G_SetMultiboardDisplayed(LPMULTIBOARD board, LPPLAYER player, BOOL displayed);
+BOOL G_IsMultiboardDisplayed(LPCMULTIBOARD board, LPCPLAYER player);
+void G_SetMultiboardMinimized(LPMULTIBOARD board, LPPLAYER player, BOOL minimized);
+BOOL G_IsMultiboardMinimized(LPCMULTIBOARD board, LPCPLAYER player);
+void G_MarkMultiboardDirty(LPCMULTIBOARD board);
+void G_MultiboardSetRowCount(LPMULTIBOARD board, LONG count);
+void G_MultiboardSetColumnCount(LPMULTIBOARD board, LONG count);
+struct gmultiboardcell_s *G_MultiboardCell(LPMULTIBOARD board, LONG row, LONG col);
+LPMULTIBOARDITEM G_MultiboardGetItem(LPMULTIBOARD board, LONG row, LONG col);
+void G_MultiboardReleaseItem(LPMULTIBOARDITEM item);
+LPMULTIBOARD G_MultiboardItemBoard(LPCMULTIBOARDITEM item);
+LPTEXTTAG G_AllocTextTag(void);
+void G_FreeTextTag(LPTEXTTAG tag);
+void G_SetTextTagVisible(LPTEXTTAG tag, LPPLAYER player, BOOL visible);
+BOOL G_IsTextTagVisible(LPCTEXTTAG tag, LPCPLAYER player);
 void G_ClearSaveRegistries(void);
 BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_HeroSaveLoadAuditFrame(void);

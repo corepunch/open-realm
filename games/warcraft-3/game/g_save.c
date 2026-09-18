@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 29; // format version; persists per-entry neutral-shop stock maxima
+static DWORD const save_version = 30; // format version; persists multiboard and texttag registries
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -154,6 +154,9 @@ typedef enum {
     JASS_HANDLE_TIMER,
     JASS_HANDLE_TIMERDIALOG,
     JASS_HANDLE_LEADERBOARD,
+    JASS_HANDLE_MULTIBOARD,
+    JASS_HANDLE_MULTIBOARDITEM,
+    JASS_HANDLE_TEXTTAG,
     JASS_HANDLE_WEATHER,
 } jassHandleDomain_t;
 
@@ -172,6 +175,9 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "timer", JASS_HANDLE_TIMER },
     { "timerdialog", JASS_HANDLE_TIMERDIALOG },
     { "leaderboard", JASS_HANDLE_LEADERBOARD },
+    { "multiboard", JASS_HANDLE_MULTIBOARD },
+    { "multiboarditem", JASS_HANDLE_MULTIBOARDITEM },
+    { "texttag", JASS_HANDLE_TEXTTAG },
     { "weathereffect", JASS_HANDLE_WEATHER },
 };
 
@@ -279,6 +285,56 @@ static field_t const leaderboard_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const multiboard_cell_fields[] = {
+    F(gmultiboardcell_s, value, F_INT),
+    F(gmultiboardcell_s, icon, F_INT),
+    F(gmultiboardcell_s, width, F_FLOAT),
+    F(gmultiboardcell_s, show_value, F_INT),
+    F(gmultiboardcell_s, show_icon, F_INT),
+    F(gmultiboardcell_s, value_color_set, F_INT),
+    F(gmultiboardcell_s, value_color, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const multiboard_fields[] = {
+    F(gmultiboard_s, inuse, F_INT),
+    F(gmultiboard_s, displayed_clients, F_INT),
+    F(gmultiboard_s, minimized_clients, F_INT),
+    F(gmultiboard_s, rows, F_INT),
+    F(gmultiboard_s, cols, F_INT),
+    F(gmultiboard_s, title, F_INT),
+    F(gmultiboard_s, cells, F_STRUCT, MAX_MULTIBOARD_CELLS, multiboard_cell_fields),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const multiboard_item_fields[] = {
+    F(gmultiboarditem_s, inuse, F_INT),
+    F(gmultiboarditem_s, refs, F_INT),
+    F(gmultiboarditem_s, board, F_INT),
+    F(gmultiboarditem_s, row, F_INT),
+    F(gmultiboarditem_s, col, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const texttag_fields[] = {
+    F(gtexttag_s, inuse, F_INT),
+    F(gtexttag_s, visible_clients, F_INT),
+    F(gtexttag_s, permanent, F_INT),
+    F(gtexttag_s, height, F_FLOAT),
+    F(gtexttag_s, height_offset, F_FLOAT),
+    F(gtexttag_s, x, F_FLOAT),
+    F(gtexttag_s, y, F_FLOAT),
+    F(gtexttag_s, xvel, F_FLOAT),
+    F(gtexttag_s, yvel, F_FLOAT),
+    F(gtexttag_s, age, F_FLOAT),
+    F(gtexttag_s, lifespan, F_FLOAT),
+    F(gtexttag_s, fadepoint, F_FLOAT),
+    F(gtexttag_s, color, F_INT),
+    F(gtexttag_s, unit, F_EDICT, 0, FIELD_NONE),
+    F(gtexttag_s, text, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const questitem_fields[] = {
     F(gquestitem_s, description, F_LSTRING),
     F(gquestitem_s, completed, F_INT),
@@ -345,6 +401,9 @@ static field_t const level_fields[] = {
     F(level_locals, timer_dialogs, F_STRUCT, MAX_TIMERDIALOGS, timer_dialog_fields),
     F(level_locals, leaderboards, F_STRUCT, MAX_LEADERBOARDS, leaderboard_fields),
     F(level_locals, player_leaderboards, F_INT),
+    F(level_locals, multiboards, F_STRUCT, MAX_MULTIBOARDS, multiboard_fields),
+    F(level_locals, multiboard_items, F_STRUCT, MAX_MULTIBOARD_ITEMS, multiboard_item_fields),
+    F(level_locals, texttags, F_STRUCT, MAX_TEXTTAGS, texttag_fields),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
     FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
     { NULL, 0, 0, 0, 0, 0 }
@@ -822,6 +881,12 @@ static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
         return &level.timer_dialogs[id];
     else if (domain == JASS_HANDLE_LEADERBOARD && id < MAX_LEADERBOARDS && level.leaderboards[id].inuse)
         return &level.leaderboards[id];
+    else if (domain == JASS_HANDLE_MULTIBOARD && id < MAX_MULTIBOARDS && level.multiboards[id].inuse)
+        return &level.multiboards[id];
+    else if (domain == JASS_HANDLE_MULTIBOARDITEM && id < MAX_MULTIBOARD_ITEMS && level.multiboard_items[id].inuse)
+        return &level.multiboard_items[id];
+    else if (domain == JASS_HANDLE_TEXTTAG && id < MAX_TEXTTAGS && level.texttags[id].inuse)
+        return &level.texttags[id];
     return NULL;
 }
 
@@ -871,6 +936,33 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         *id = (DWORD)((ptr - base) / sizeof(*board));
         return true;
     }
+    if (domain == JASS_HANDLE_MULTIBOARD) {
+        LPMULTIBOARD board = value;
+        uintptr_t ptr = (uintptr_t)board, base = (uintptr_t)level.multiboards;
+        size_t span = sizeof(level.multiboards);
+        if (!board || ptr < base || ptr >= base + span ||
+            (ptr - base) % sizeof(*board) != 0 || !board->inuse) return false;
+        *id = (DWORD)((ptr - base) / sizeof(*board));
+        return true;
+    }
+    if (domain == JASS_HANDLE_MULTIBOARDITEM) {
+        LPMULTIBOARDITEM item = value;
+        uintptr_t ptr = (uintptr_t)item, base = (uintptr_t)level.multiboard_items;
+        size_t span = sizeof(level.multiboard_items);
+        if (!item || ptr < base || ptr >= base + span ||
+            (ptr - base) % sizeof(*item) != 0 || !item->inuse) return false;
+        *id = (DWORD)((ptr - base) / sizeof(*item));
+        return true;
+    }
+    if (domain == JASS_HANDLE_TEXTTAG) {
+        LPTEXTTAG tag = value;
+        uintptr_t ptr = (uintptr_t)tag, base = (uintptr_t)level.texttags;
+        size_t span = sizeof(level.texttags);
+        if (!tag || ptr < base || ptr >= base + span ||
+            (ptr - base) % sizeof(*tag) != 0 || !tag->inuse) return false;
+        *id = (DWORD)((ptr - base) / sizeof(*tag));
+        return true;
+    }
     if (domain == JASS_HANDLE_WEATHER) {
         LPGWEATHER effect = value;
         if (effect < level.weather_effects || effect >= level.weather_effects + MAX_WEATHER_EFFECTS || !effect->inuse)
@@ -909,6 +1001,12 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
         return id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse ? &level.timer_dialogs[id] : NULL;
     if (domain == JASS_HANDLE_LEADERBOARD)
         return id < MAX_LEADERBOARDS && level.leaderboards[id].inuse ? &level.leaderboards[id] : NULL;
+    if (domain == JASS_HANDLE_MULTIBOARD)
+        return id < MAX_MULTIBOARDS && level.multiboards[id].inuse ? &level.multiboards[id] : NULL;
+    if (domain == JASS_HANDLE_MULTIBOARDITEM)
+        return id < MAX_MULTIBOARD_ITEMS && level.multiboard_items[id].inuse ? &level.multiboard_items[id] : NULL;
+    if (domain == JASS_HANDLE_TEXTTAG)
+        return id < MAX_TEXTTAGS && level.texttags[id].inuse ? &level.texttags[id] : NULL;
     return JassListHandle(domain, id);
 }
 

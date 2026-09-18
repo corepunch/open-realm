@@ -10,7 +10,7 @@ Current scope is intentionally narrow:
 
 - `SetUnitVertexColor` is implemented end-to-end.
 - `SetWaterBaseColor` remains a placeholder; the W3M water renderer has no live server-authored base-colour contract yet.
-- General JASS `texttag` handles and `SetTextTagColor` remain unimplemented.
+- JASS `texttag` / `SetTextTagColor` store registry state; client draw is still deferred ([multiboard-and-texttag.md](multiboard-and-texttag.md)).
 - Unit invisibility continues to use its existing gameplay/render-state path; this work does not redefine invisibility as vertex alpha.
 - Parsed `UnitUI.slk` `red`/`green`/`blue` values are not yet applied as the default runtime tint. `SetUnitVertexColor` supplies an explicit runtime override when scripts call it.
 

@@ -151,9 +151,10 @@ Quit button remains inside that panel. The fallback still uses `GlobalStrings.fd
 DotA 6.83d's compiled map script references 525 natives, 137 of them unregistered.
 The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, typed
 `Save*`/`Load*`/`HaveSaved*`/`RemoveSaved*`/`Flush*`) is registered in
-`api_hashtable.h`. Remaining DotA holes are multiboard, texttag, shop events, and
-hero attributes. Hashtable contents are runtime-only (no VM snapshot fixup yet);
-see [DotA Custom-Map Playability](dota-map-playability.md).
+`api_hashtable.h`. Multiboard/texttag DotA surfaces are registered as server-owned
+state ([multiboard-and-texttag.md](multiboard-and-texttag.md)); HUD/client draw remains
+deferred. Remaining DotA holes are shop events and hero attributes. Hashtable contents
+are runtime-only (no VM snapshot fixup yet); see [DotA Custom-Map Playability](dota-map-playability.md).
 
 `EndGame`, `ChangeLevel`, `RestartGame`, and `DisplayLoadDialog` cross the existing `gi.MenuAction` session boundary.
 `EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested map, `RestartGame` reloads the
