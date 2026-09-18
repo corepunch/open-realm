@@ -123,6 +123,72 @@ TEST(wc3_jass_map, parse_segment_quoted_list_advances_to_next_value) {
     T_NULL(parse_segment(&parser));
 }
 
+/* Minified Vexorian JASS: return"" / return"hello" with no space (#441).
+ * Double-quote is not a jdo delimiter; identifier scan must stop at '"'.
+ * Call jlex_parse_token: game unity TU shadows parse_token with stb_fdf's copy. */
+TEST(wc3_jass_map, minified_return_empty_string_tokens) {
+    char const *src = "return\"\"";
+    PARSER parser = {
+        .buffer = src,
+        .start = src,
+        .delimiters = ",;()[]+-/*=<>!"
+    };
+    char first[16];
+    LPCSTR tok = jlex_parse_token(&parser);
+
+    T_STREQ(tok, "return");
+    strlcpy(first, tok, sizeof(first));
+    tok = jlex_parse_token(&parser);
+    T_STREQ(first, "return");
+    T_STREQ(tok, "\"\"");
+}
+
+TEST(wc3_jass_map, minified_return_nonempty_string_tokens) {
+    char const *src = "return\"hello\"";
+    PARSER parser = {
+        .buffer = src,
+        .start = src,
+        .delimiters = ",;()[]+-/*=<>!"
+    };
+    char first[16];
+    LPCSTR tok = jlex_parse_token(&parser);
+
+    T_STREQ(tok, "return");
+    strlcpy(first, tok, sizeof(first));
+    tok = jlex_parse_token(&parser);
+    T_STREQ(first, "return");
+    T_STREQ(tok, "\"hello\"");
+}
+
+TEST(wc3_jass_map, minified_return_empty_string) {
+    T_ASSERT(run_test_jass(
+        "function foo takes nothing returns string\n"
+        "  return\"\"\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(foo() == \"\", \"empty minified return\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_jass_map, minified_return_nonempty_string) {
+    T_ASSERT(run_test_jass(
+        "function foo takes nothing returns string\n"
+        "  return\"ok\"\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(foo() == \"ok\", \"nonempty minified return\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_jass_map, minified_set_empty_string) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local string s\n"
+        "  set s=\"\"\n"
+        "  call BJassAssert(s == \"\", \"minified set empty string\")\n"
+        "endfunction\n"));
+}
+
 /* =========================================================================
  * Sanity — assertion helpers work end-to-end
  * ========================================================================= */
@@ -329,6 +395,7 @@ TEST(wc3_jass_map, human07_normal_removal_is_absent_from_green_building_count) {
     T_ASSERT(!crypt->inuse);
 
 cleanup:
+    ; /* label cannot end a compound statement pre-C23 */
 }
 
 /* Human04 initializes difficulty before the opening cinematic, removes the

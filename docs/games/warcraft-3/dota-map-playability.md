@@ -3,8 +3,9 @@
 OpenRealm cannot yet play Defense of the Ancients. On `6f1057f1` a dedicated run
 of `Maps/DotA v6.83dAI PMV 1.42 EN.w3x` died in `jass_remove_comments(NULL)`.
 On `feature/dota-compatibility` the same run reaches `com_frame_limit` with
-exit 0, but the 4.1 MiB script fails to parse (`return""` with no space), so
-`main` never runs.
+exit 0. Minified `return""` (no space) is tokenized by stopping identifiers at
+`"` in `parse_token` (#441); full 4.1 MiB / 5,708-function parse of this map is
+still unproven in CI.
 
 This document is the evidence and work order for that map. Reaching
 `com_frame_limit` later will still not mean the game is playable.
@@ -140,11 +141,14 @@ those as partial, not as coverage.
 ## How Far
 
 Load no longer crashes. A 30-frame dedicated run on this branch exits 0:
-`war3map.doo` opens, `scripts\war3map.j` is found, then the JASS parser dies
-at line 1 with `error parsing function at line 1 near 'return""'` and
-`unknown function: main`. The next load blocker is minified JASS (no space
-between `return` and `""`). Hashtable, shop, hero, and HUD natives are
-registered but unexercised until `main` runs.
+`war3map.doo` opens and `scripts\war3map.j` is found. Minified keyword+string
+juxtaposition (`return""`, `return"ok"`) is accepted: identifier scan in
+`jlex.c` `parse_token` stops at `"`, then the existing quoted-string branch
+reads the literal (#441; covered by `wc3_jass_map.minified*`). Do not treat
+`returnnull` / `return0` the same way — those remain valid identifiers.
+Hashtable, shop, hero, and HUD natives are registered; exercising them still
+needs a successful full mapscript parse and `main`. The next load risk is VM
+capacity / remaining stub natives once `main` runs, not the `return""` token.
 
 Suggested order (GitHub #431 and children):
 

@@ -17,6 +17,7 @@ struct word_extractor {
 #endif
 
 LPCSTR parse_token(LPPARSER p);
+LPCSTR jlex_parse_token(LPPARSER p); /* libjass entry; game TU may shadow parse_token via stb_fdf */
 LPCSTR parse_segment(LPPARSER p);
 LPCSTR parse_segment2(LPPARSER p);
 LPCSTR peek_token(LPPARSER p);
