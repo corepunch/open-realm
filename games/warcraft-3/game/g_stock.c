@@ -175,7 +175,11 @@ static BOOL G_ShopPatronEligible(LPCEDICT shop, LPCEDICT unit, BOOL require_inve
     LONG const interaction = G_ShopInteractionType(shop);
     BOOL const is_unit = unit && ((unit->svflags & SVF_MONSTER) || G_UnitIsBuilding(unit->class_id));
 
-    if (!shop || !is_unit || M_IsDead((LPEDICT)unit) || !G_ShopPatronInRange(shop, unit)) return false;
+    if (!shop || !unit || M_IsDead((LPEDICT)unit) || !G_ShopPatronInRange(shop, unit)) return false;
+    /* Item shops retain the existing inventory-carrier contract, which also
+     * admits heroes whose edict is not marked as a monster. Mercenary shops
+     * use the authored neutral-building interaction to select real units. */
+    if (!require_inventory && !is_unit) return false;
     switch (interaction) {
     case SHOP_INTERACT_INVENTORY:
         if (!G_UnitHasInventory((LPEDICT)unit)) return false;
