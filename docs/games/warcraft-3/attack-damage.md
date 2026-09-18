@@ -143,6 +143,14 @@ These affect existing owned units and newly spawned units that inherit already-r
 
 `AIde` changes both `temporary_armor_bonus` and the current `armor_value`, so later Hero Agility recomputation preserves the item armor modifier.
 
+## Missile Presentation
+
+Ranged Attack 1 missiles remain ordinary server entities with `MOVETYPE_FLYMISSILE`; the renderer does not own a parallel WC3-only projectile object. `G_StartProjectilePresentation()` therefore initializes presentation state when the missile is spawned: the entity is non-selectable, does not cast a unit shadow, and selects the projectile model's authored `Stand` sequence, falling back to `Birth` only when no `Stand` sequence exists. `SV_Physics_Toss()` advances that sequence while the missile is in flight and updates yaw from the current homing direction every simulation frame. The existing snapshot `model`/`frame`/`angle` fields are sufficient, so this adds no network-only projectile state. Attack and spell missiles also inherit the firing unit's existing `s.player`, allowing the client MDX renderer to resolve replaceable team-colour textures from the correct source player just as it does for ordinary entities.
+
+This is important for Warcraft missile MDX files whose visible geosets/emitters begin in a sequence interval above frame zero. Merely assigning the registered missile model with `frame == 0` can leave a valid projectile simulation entity visually empty. Spell missiles using the same `MOVETYPE_FLYMISSILE` path receive the same initialization rather than maintaining a second animation policy.
+
+The current implementation still moves the simulation entity on a straight three-dimensional line toward the target. Authored projectile arc/pitch and a post-impact `Death` presentation are separate fidelity gaps; they are not approximated here because the current `entityState_t` Warcraft path has only yaw orientation and frees basic attack missiles immediately when damage resolves.
+
 ## Weapon Target Legality And Acquisition
 
 Attack 1 target legality is owned by `skills/s_attack.c`, not by the generic AI scanner. `UnitWeapons.slk` `targs1` (or map-object `ua1g`) is decoded to the runtime `attack1.targetsAllowed` Warcraft `targetflag` mask. `G_TargetFlagForType()` is the shared `TARGTYPE` -> targetflag conversion used by ordinary units and destructables.
