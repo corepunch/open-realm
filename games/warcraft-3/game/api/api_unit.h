@@ -1058,6 +1058,12 @@ DWORD IssuePointOrder(LPJASS j) {
     FLOAT x = jass_checknumber(j, 3);
     FLOAT y = jass_checknumber(j, 4);
     BOOL ret = unit_issueorder(whichUnit, order, &MAKE(VECTOR2, x, y));
+    if (WC3_HUMAN09_DEBUG_ENABLED())
+        fprintf(stderr, "WC3_HUMAN09 native=IssuePointOrder unit=%ld id=%.4s order=\"%s\" point=(%.1f,%.1f) accepted=%d caller=\"%s\"\n",
+                whichUnit ? (long)(whichUnit - globals.edicts) : -1L,
+                whichUnit ? (LPCSTR)&whichUnit->class_id : "----", order ? order : "(null)",
+                x, y, (int)ret,
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)");
     return jass_pushboolean(j, ret);
 }
 DWORD IssuePointOrderLoc(LPJASS j) {
@@ -1065,6 +1071,13 @@ DWORD IssuePointOrderLoc(LPJASS j) {
     LPCSTR order = jass_checkstring(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
     BOOL ret = unit_issueorder(whichUnit, order, whichLocation);
+    if (WC3_HUMAN09_DEBUG_ENABLED())
+        fprintf(stderr, "WC3_HUMAN09 native=IssuePointOrderLoc unit=%ld id=%.4s order=\"%s\" point=(%.1f,%.1f) accepted=%d caller=\"%s\"\n",
+                whichUnit ? (long)(whichUnit - globals.edicts) : -1L,
+                whichUnit ? (LPCSTR)&whichUnit->class_id : "----", order ? order : "(null)",
+                whichLocation ? whichLocation->x : 0.0f, whichLocation ? whichLocation->y : 0.0f,
+                (int)ret,
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)");
     return jass_pushboolean(j, ret);
 }
 DWORD IssuePointOrderById(LPJASS j) {

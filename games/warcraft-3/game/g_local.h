@@ -838,6 +838,12 @@ typedef struct {
 #define WC3_TUTORIAL_DEBUG_ENABLED() false
 #endif
 
+#ifdef WC3_DEBUG_HUMAN09
+#define WC3_HUMAN09_DEBUG_ENABLED() (gi.CvarString && atoi(gi.CvarString("wc3_human09_debug", "0")) != 0)
+#else
+#define WC3_HUMAN09_DEBUG_ENABLED() false
+#endif
+
 typedef struct {
     DWORD handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
     BOOL inuse;

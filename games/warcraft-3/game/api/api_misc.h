@@ -1382,6 +1382,10 @@ DWORD SetSkyModel(LPJASS j) {
 }
 DWORD EnableUserControl(LPJASS j) {
     BOOL b = jass_checkboolean(j, 1);
+    if (WC3_HUMAN09_DEBUG_ENABLED())
+        fprintf(stderr, "WC3_HUMAN09 native=EnableUserControl enabled=%d player=%d caller=\"%s\"\n",
+                (int)b, currentplayer ? (int)PLAYER_NUM(currentplayer) : -1,
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)");
     /* Fast-forwarding must preserve the script's input lock; early edge scrolling overwrote its final camera snap. */
     if (currentplayer) {
         PLAYER_CLIENT(currentplayer)->no_control = !b;
@@ -1419,6 +1423,10 @@ DWORD ShowInterface(LPJASS j) {
     BOOL flag = jass_checkboolean(j, 1);
     FLOAT fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
+    if (WC3_HUMAN09_DEBUG_ENABLED())
+        fprintf(stderr, "WC3_HUMAN09 native=ShowInterface enabled=%d fade=%.3f player=%d caller=\"%s\"\n",
+                (int)flag, fadeDuration, player ? (int)PLAYER_NUM(player) : -1,
+                jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)");
     /* Fast-forwarding compresses time, but the script still owns the cinematic-to-game UI transition. */
     if (player)
         UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);

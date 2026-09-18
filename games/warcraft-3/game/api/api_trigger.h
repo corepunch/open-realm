@@ -1,5 +1,5 @@
 static BOOL QuestPeonStageDebugEnabled(void) {
-    return WC3_TUTORIAL_DEBUG_ENABLED();
+    return WC3_TUTORIAL_DEBUG_ENABLED() || WC3_HUMAN09_DEBUG_ENABLED();
 }
 
 static LONG QuestPeonStageTriggerOrdinal(LPTRIGGER trigger) {
@@ -13,7 +13,7 @@ static BOOL SubgroupDebugTrigger(LPTRIGGER trigger) {
 
 static BOOL TutorialFlowDebugTrigger(LPTRIGGER trigger) {
     LONG ordinal = QuestPeonStageTriggerOrdinal(trigger);
-    return ordinal >= 120 && ordinal <= 165;
+    return WC3_HUMAN09_DEBUG_ENABLED() || (ordinal >= 120 && ordinal <= 165);
 }
 
 static void TutorialFlowDebugLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
@@ -59,6 +59,9 @@ static void QuestPeonStageLogRegistration(LPTRIGGER trigger, EVENTTYPE type,
 DWORD CreateTrigger(LPJASS j) {
     LPTRIGGER trigger = G_AllocJassTrigger();
     if (!trigger) { jass_rterror(j, "CreateTrigger: trigger registry is full"); return 0; }
+    if (WC3_HUMAN09_DEBUG_ENABLED())
+        fprintf(stderr, "WC3_HUMAN09 trigger-create trigger=%ld disabled=%d\n",
+                (long)QuestPeonStageTriggerOrdinal(trigger), (int)trigger->disabled);
     return jass_pushlighthandle(j, trigger, "trigger");
 }
 DWORD DestroyTrigger(LPJASS j) {
