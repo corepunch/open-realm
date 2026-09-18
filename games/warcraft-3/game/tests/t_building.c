@@ -1596,12 +1596,15 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 /* Leave the mobile Barracks peasant in the Town Hall footprint.
                  * Retail accepts the order and displaces it when construction
                  * materializes; it is not a placement-time hard blocker. */
+                LPEDICT const barracks_goal = workers[1]->goalentity;
                 VECTOR2 const before_preview = workers[1]->s.origin2;
                 workers[1]->s.origin2 = points[i];
                 gi.LinkEntity(workers[1]);
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
                 T_NOT_NULL(workers[i]->build_preview);
                 T_ASSERT(Vector2_distance(&workers[1]->s.origin2, &before_preview) > 1.0f);
+                T_ASSERT(workers[1]->goalentity == barracks_goal);
+                T_ASSERT(move_is_active_order_walk(workers[1]));
                 T_ASSERT(workers[i]->build_preview->aiflags & AI_HOLD_FRAME);
                 if (workers[i]->build_preview->animation)
                     T_EQ(workers[i]->build_preview->s.frame,
@@ -1704,12 +1707,16 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     building->s.flags &= ~EF_NOT_SELECTABLE;
     T_ASSERT(G_StartHumanConstruction(builder, building));
     T_ASSERT(!CM_PointIsPathableForRadius(&building_point, 0.0f));
+    T_ASSERT(worker->goalentity == waypoint);
+    T_ASSERT(move_is_active_order_walk(worker));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     level.started = true;
     level.scriptsStarted = true;
     FOR_LOOP(frame, 240) globals.RunFrame();
     T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);
-    T_ASSERT(worker->goalentity == waypoint || !worker->build_project);
+    T_ASSERT(worker->goalentity == waypoint);
+    T_FEQ(waypoint->s.origin2.x, later_build.x, 0.001f);
+    T_FEQ(waypoint->s.origin2.y, later_build.y, 0.001f);
 
     building->pathtex = NULL;
     gi.MemFree(pathtex);

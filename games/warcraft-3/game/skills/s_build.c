@@ -186,7 +186,10 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
             (long)(builder - g_edicts), (LPCSTR)&building_id,
             builder->build_preview ? (long)(builder->build_preview - g_edicts) : -1L);
 #endif
-    if (!builder->build_preview) return false;
+    if (!builder->build_preview) {
+        G_FreeEdict(waypoint);
+        return false;
+    }
     builder->goalentity = waypoint;
     builder->build_project = building_id;
     move_reset_progress(builder);

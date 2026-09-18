@@ -56,6 +56,9 @@ static LPEDICT trymove_self = NULL;
 static LPEDICT trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static LPEDICT trymove_colliders[MAX_MOVE_COLLIDERS];
 
+static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir, moveAvoidPolicy_t policy);
+static BOOL move_fallback_steer(LPEDICT self, moveAvoidPolicy_t policy);
+
 /* Keep a failed exceptional route search from monopolizing the frame while
  * the same goal remains unreachable; order changes clear this state below. */
 static BOOL move_fallback_throttled(LPEDICT self, LPCVECTOR2 target, FLOAT radius) {
@@ -76,6 +79,17 @@ static BOOL move_fallback_throttled(LPEDICT self, LPCVECTOR2 target, FLOAT radiu
     }
     self->movement.flow_unreachable = true;
     return true;
+}
+
+static BOOL move_has_active_construction(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &g_edicts[i];
+        if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
+            (ent->s.flags & (EF_BUILDING | EF_CONSTRUCTING)) ==
+                (EF_BUILDING | EF_CONSTRUCTING))
+            return true;
+    }
+    return false;
 }
 
 /* Wrap an angle delta into [-PI, PI]. */
@@ -532,6 +546,8 @@ BOOL unit_changeangle_towards_point_ignore_units(LPEDICT self, LPCVECTOR2 point)
 static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
     if (self->aiflags & AI_IMMOBILE)
         return;
+    if (move_fallback_steer(self, policy))
+        return;
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     VECTOR2 dir;
     FLOAT const radius = unit_routes_to_location(self) ? self->collision : 0.0f;
@@ -593,13 +609,24 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                     self->movement.flow_fallback_goal = self->goalentity;
                     self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
                     if (CM_ClosestReachablePointForRadiusFlags(from, target, radius, blocked_flags, &closest)) {
-                        self->goalentity->s.origin2 = closest;
-                        self->goalentity->secondarygoal = NULL;
                         self->goalentity->heatmap2 = 0;
                         self->goalentity->heatmap2_radius = 0;
                         move_reset_progress(self);
+                        self->movement.flow_fallback_target = *target;
+                        self->movement.flow_fallback_approach = closest;
+                        self->movement.flow_fallback_radius = radius;
                         self->movement.flow_fallback_goal = self->goalentity;
-                        self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
+                        if (move_has_active_construction() &&
+                            Vector2_distance(&closest, target) > 1.0f) {
+                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
+                            dir = Vector2_sub(&closest, &self->s.origin2);
+                            self->movement.flow_direct = true;
+                            unit_apply_heading(self, &dir, policy);
+                        } else {
+                            self->goalentity->s.origin2 = closest;
+                            self->goalentity->secondarygoal = NULL;
+                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
+                        }
                     }
                     return;
                 }
@@ -792,6 +819,24 @@ static BOOL M_UnitUsesWaterSurface(LPCEDICT self, LPCSTR movetp) {
                !CM_TerrainPointIsWalkable(&self->s.origin2);
     }
     return false;
+}
+
+static BOOL move_fallback_steer(LPEDICT self, moveAvoidPolicy_t policy) {
+    VECTOR2 dir;
+
+    if (!self || self->movement.flow_fallback_state != MOVE_FALLBACK_APPLIED ||
+        self->movement.flow_fallback_goal != self->goalentity)
+        return false;
+    if (Vector2_distance(&self->s.origin2, &self->movement.flow_fallback_approach) <=
+        unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE) {
+        self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
+        self->movement.flow_fallback_goal = NULL;
+        return false;
+    }
+    dir = Vector2_sub(&self->movement.flow_fallback_approach, &self->s.origin2);
+    self->movement.flow_direct = true;
+    unit_apply_heading(self, &dir, policy);
+    return true;
 }
 
 /* Resolve the visual/support surface, then apply the unit's mutable fly height.
@@ -1316,13 +1361,9 @@ static void ai_move_walk(LPEDICT ent) {
                             approach.x, approach.y, ent->goalentity->s.origin2.x,
                             ent->goalentity->s.origin2.y, (long)(ent->goalentity - g_edicts));
 #endif
-                if (Vector2_distance(&approach, &ent->goalentity->s.origin2) > 1.0f) {
-                    ent->goalentity->s.origin2 = approach;
-                    ent->goalentity->secondarygoal = NULL;
-                    move_reset_progress(ent);
-                    unit_setanimation(ent, "walk");
-                    return;
-                }
+                /* unit_changeangle() normally owns this fallback. Keep the
+                 * original waypoint authoritative if it could not install a
+                 * temporary approach route for this tick. */
             }
             /* The closest-cell query can return the original point even when
              * the flow interpolation has no descending neighbour. Use the

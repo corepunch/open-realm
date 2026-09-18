@@ -4,7 +4,7 @@
 #define WC3_BUILD_GRID_SIZE 64.0f
 #define WC3_BUILD_START_LIFE 0.10f
 #define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
-#define WC3_BUILD_DISPLACE_MARGIN 128.0f /* reserve the approach lane as construction begins */
+#define WC3_BUILD_DISPLACE_MARGIN_CELLS 4.0f /* retail clears the four-cell construction approach lane */
 
 /* Retail shows an accepted building's Birth presentation before the worker
  * arrives.  This entity is presentation-only: it has no collision and never
@@ -1110,7 +1110,7 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER) &&
                   G_BuildUnitCanDisplace(builder, ent) && ent != builder &&
                   CM_DistanceToPathingFootprint(building, &ent->s.origin2) <
-                      ent->collision + WC3_BUILD_DISPLACE_MARGIN) {
+                      ent->collision + WC3_BUILD_DISPLACE_MARGIN_CELLS * CM_PathCellWorldSize()) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD displace-candidate builder=%ld building=%ld id=%.4s unit=%ld unitid=%.4s origin=(%.1f,%.1f) move=%s project=%.4s build=%ld goal=%ld\n",
                 (long)(builder - g_edicts), (long)(building - g_edicts), (LPCSTR)&building->class_id,
