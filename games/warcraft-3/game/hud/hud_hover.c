@@ -57,7 +57,7 @@ void UI_WriteHoverLayout(LPEDICT ent) {
     UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, 0, -0.043f, true);
     UI_WriteProxyFrame(&frame, &data, sizeof(data));
 
-    UI_WriteHoverTexture(-0.0225f, -0.019f, 0.045f, 0.008f, black, 0, MAKE(COLOR32, 0, 0, 0, 220));
+    UI_WriteHoverTexture(-0.0225f, -0.019f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 0, 0, 0, 220));
     UI_WriteHoverBar(-0.0215f, -0.018f, 0.043f, 0.006f, hp, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 80, 200, 80, 255));
     UI_WriteHoverTexture(-0.0225f, -0.010f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 0, 0, 0, 220));
     UI_WriteHoverBar(-0.0215f, -0.009f, 0.043f, 0.006f, mana, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 60, 90, 235, 255));

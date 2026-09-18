@@ -236,7 +236,11 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     UI_SetHidden(hud.unit.AttackLabel2, !has_attack2);
     UI_SetHidden(hud.unit.AttackValue2, !has_attack2);
     UI_SetText(hud.unit.DefenseLabel, "Armor:");
-    UI_SetText(hud.unit.DefenseValue, "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+    if (ent->invulnerable) UI_SetText(hud.unit.DefenseValue, "%s", "|cffff0000Invulnerable|r");
+    else {
+        snprintf(buffer, sizeof(buffer), "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+        UI_SetText(hud.unit.DefenseValue, "%s", buffer);
+    }
     UI_SetText(hud.unit.SpeedTitle, "Speed:");
     UI_SetText(hud.unit.SpeedValue, "%d", (int)(ent->unitinfo.MoveSpeed + 0.5f));
     UI_SetText(hud.unit.RangeTitle1, "Range:");
@@ -614,7 +618,11 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
 
     SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop_2, "Armor", ent->data.UnitBalance->defenseType,
                           armor_upgrade != 0);
-    UI_SetText(hud.simple.InfoPanelIconValue_2, "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+    if (ent->invulnerable) UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", "|cffff0000Invulnerable|r");
+    else {
+        snprintf(value, sizeof(value), "%d", (int)(G_UnitArmorValue(ent) + 0.5f));
+        UI_SetText(hud.simple.InfoPanelIconValue_2, "%s", value);
+    }
     SetUpgradeLevel(hud.simple.InfoPanelIconLevel_2, armor_upgrade, ent);
     UI_WriteFrame(&hud.armor);
     UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconArmor, &hud.armor);
@@ -1091,7 +1099,8 @@ static void WritePortraitStats(LPEDICT ent) {
      * OpenRealm keeps the portrait runtime-authored because SmashUI is not a
      * retail MPQ FDF, but uses the same final WC3-space geometry. */
     /* Move both baselines up by roughly two pixels while preserving their gap. */
-    WritePortraitText(health, PortraitHealthColor(ent), 0.584f, UI_STAT_SELECTION_HEALTH_TEXT);
+    if (!ent->invulnerable)
+        WritePortraitText(health, PortraitHealthColor(ent), 0.584f, UI_STAT_SELECTION_HEALTH_TEXT);
     WritePortraitText(mana, COLOR32_WHITE, 0.5985f, UI_STAT_SELECTION_MANA_TEXT);
 }
 

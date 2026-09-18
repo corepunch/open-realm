@@ -314,7 +314,7 @@ static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
     LPCENTITYSTATE const state = &cl.ents[entnum].current;
     return state->model &&
            state->stats[ENT_HEALTH] > 0 &&
-           (state->flags & EF_HOVER_HEALTH) &&
+           (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)) &&
            !(state->flags & EF_NOT_SELECTABLE);
 }
 
