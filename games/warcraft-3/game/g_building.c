@@ -4,6 +4,7 @@
 #define WC3_BUILD_GRID_SIZE 64.0f
 #define WC3_BUILD_START_LIFE 0.10f
 #define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
+#define WC3_BUILD_DISPLACE_MARGIN 128.0f /* reserve the approach lane as construction begins */
 
 /* Retail shows an accepted building's Birth presentation before the worker
  * arrives.  This entity is presentation-only: it has no collision and never
@@ -45,11 +46,9 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 loca
     preview->aiflags |= AI_HOLD_FRAME;
     if (!G_DisplaceBuildOccupants(builder, preview)) {
 #ifdef WC3_DEBUG_BUILD
-        fprintf(stderr, "WC3_BUILD preview-rejected worker=%ld preview=%ld id=%.4s reason=displacement\n",
+        fprintf(stderr, "WC3_BUILD preview-displace-incomplete worker=%ld preview=%ld id=%.4s\n",
                 (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&building_id);
 #endif
-        G_FreeEdict(preview);
-        return NULL;
     }
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD preview-create worker=%ld preview=%ld id=%.4s point=(%.1f,%.1f)\n",
@@ -1110,7 +1109,8 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     }
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER) &&
                   G_BuildUnitCanDisplace(builder, ent) && ent != builder &&
-                  CM_DistanceToPathingFootprint(building, &ent->s.origin2) < ent->collision) {
+                  CM_DistanceToPathingFootprint(building, &ent->s.origin2) <
+                      ent->collision + WC3_BUILD_DISPLACE_MARGIN) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD displace-candidate builder=%ld building=%ld id=%.4s unit=%ld unitid=%.4s origin=(%.1f,%.1f) move=%s project=%.4s build=%ld goal=%ld\n",
                 (long)(builder - g_edicts), (long)(building - g_edicts), (LPCSTR)&building->class_id,

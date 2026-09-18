@@ -1296,15 +1296,50 @@ static void ai_move_walk(LPEDICT ent) {
         unit_changeangle(ent);
 
         if (ent->movement.flow_unreachable) {
+            VECTOR2 approach;
+            VECTOR2 direction;
+            /* A newly started construction can split the old route field while
+             * a cinematic Peasant is still travelling to a broad trigger
+             * region. Preserve the point order: retarget only the movement
+             * endpoint to the closest reachable cell, and never consume the
+             * order as a terminal hold merely because the original point is
+             * temporarily behind the construction footprint. */
+            if (CM_ClosestReachablePointForRadiusFlags(&ent->s.origin2,
+                                                       &ent->goalentity->s.origin2,
+                                                       ent->collision,
+                                                       M_UnitStaticPathingFlags(ent),
+                                                       &approach)) {
 #ifdef WC3_DEBUG_BUILD
-            if (ent->class_id == MAKEFOURCC('h','p','e','a'))
-                fprintf(stderr, "WC3_BUILD move-stop unit=%ld reason=unreachable origin=(%.1f,%.1f) target=(%.1f,%.1f) distance=%.1f goal=%ld\n",
-                        (long)(ent - g_edicts), ent->s.origin2.x, ent->s.origin2.y,
-                        ent->goalentity ? ent->goalentity->s.origin2.x : 0.0f,
-                        ent->goalentity ? ent->goalentity->s.origin2.y : 0.0f,
-                        distance, ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
+                if (ent->class_id == MAKEFOURCC('h','p','e','a'))
+                    fprintf(stderr, "WC3_BUILD move-approach unit=%ld from=(%.1f,%.1f) approach=(%.1f,%.1f) target=(%.1f,%.1f) goal=%ld\n",
+                            (long)(ent - g_edicts), ent->s.origin2.x, ent->s.origin2.y,
+                            approach.x, approach.y, ent->goalentity->s.origin2.x,
+                            ent->goalentity->s.origin2.y, (long)(ent->goalentity - g_edicts));
 #endif
-            move_hold(ent); /* static topology says this goal cannot be reached */
+                if (Vector2_distance(&approach, &ent->goalentity->s.origin2) > 1.0f) {
+                    ent->goalentity->s.origin2 = approach;
+                    ent->goalentity->secondarygoal = NULL;
+                    move_reset_progress(ent);
+                    unit_setanimation(ent, "walk");
+                    return;
+                }
+            }
+            /* The closest-cell query can return the original point even when
+             * the flow interpolation has no descending neighbour. Use the
+             * persistent A* accelerator for the actual detour before falling
+             * back to local steering; a cinematic move must not be cancelled. */
+            if (unit_accel_direction_to_point(ent, &ent->goalentity->s.origin2,
+                                              ent->collision, &direction)) {
+                ent->movement.flow_unreachable = false;
+                ent->movement.flow_direct = false;
+                unit_apply_heading(ent, &direction, MOVE_AVOID_GENERIC);
+                unit_moveindirection(ent);
+                return;
+            }
+            ent->movement.flow_unreachable = false;
+            ent->movement.flow_direct = true;
+            unit_changeangle_towards_point(ent, &ent->goalentity->s.origin2);
+            unit_moveindirection(ent);
             return;
         }
         if (!ent->movement.flow_direct && !ent->movement.path.valid && !ent->movement.flow_generation) {

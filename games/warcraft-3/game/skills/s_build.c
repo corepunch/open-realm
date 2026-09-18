@@ -61,14 +61,16 @@ static void ai_build_walk(LPEDICT ent) {
 
     if (move_is_blocked(ent, distance, step)) {
 #ifdef WC3_DEBUG_BUILD
-        fprintf(stderr, "WC3_BUILD walk-stop worker=%ld id=%.4s reason=blocked distance=%.1f step=%.1f flow=(%d,%d) origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
+        fprintf(stderr, "WC3_BUILD walk-retry worker=%ld id=%.4s reason=blocked distance=%.1f step=%.1f flow=(%d,%d) origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
                 (long)(ent - g_edicts), (LPCSTR)&ent->build_project, distance, step,
                 ent->movement.flow_goal_reached, ent->movement.flow_unreachable,
                 ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y);
 #endif
-        G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to reach build site.");
-        ent->stand(ent);
-        return;
+        /* A construction footprint makes the raw build center blocked, but
+         * the worker may still have a valid route to its approach edge. Do
+         * not turn a temporary settle watermark into an order cancellation;
+         * clear it and let the build-specific route/fallback below retry. */
+        move_reset_progress(ent);
     }
 
     direct_approach = CM_FindDirectApproachPointForRadius(
@@ -351,14 +353,9 @@ void build_build(LPEDICT ent) {
      * static obstacle is baked only after Birth completes. */
     if (!G_DisplaceBuildOccupants(ent, building)) {
 #ifdef WC3_DEBUG_BUILD
-        fprintf(stderr, "WC3_BUILD spawned-rejected worker=%ld building=%ld id=%.4s reason=displacement\n",
+        fprintf(stderr, "WC3_BUILD spawned-displace-incomplete worker=%ld building=%ld id=%.4s\n",
                 (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&building_id);
 #endif
-        G_FreeEdict(building);
-        G_RefundBuilding(client, building_id);
-        ent->build_project = 0;
-        ent->stand(ent);
-        return;
     }
     race = WC3_RaceFromString(ent->data.UnitData ? ent->data.UnitData->race : NULL);
     /* Repair is shared by worker data, but only Human construction uses the
