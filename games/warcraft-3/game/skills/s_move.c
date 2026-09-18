@@ -1271,6 +1271,14 @@ static void ai_move_walk(LPEDICT ent) {
     }
 
     if (move_should_arrive(ent, move_distance)) {
+#ifdef WC3_DEBUG_BUILD
+        if (ent->class_id == MAKEFOURCC('h','p','e','a'))
+            fprintf(stderr, "WC3_BUILD move-arrive unit=%ld origin=(%.1f,%.1f) target=(%.1f,%.1f) distance=%.1f goal=%ld\n",
+                    (long)(ent - g_edicts), ent->s.origin2.x, ent->s.origin2.y,
+                    ent->goalentity ? ent->goalentity->s.origin2.x : 0.0f,
+                    ent->goalentity ? ent->goalentity->s.origin2.y : 0.0f,
+                    distance, ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
+#endif
         /* Snap exactly onto the goal only if that spot is actually free; if the
          * goal is occupied (e.g. ordered onto another unit, or an attack target)
          * stop where we are rather than overlapping it. */
@@ -1288,6 +1296,14 @@ static void ai_move_walk(LPEDICT ent) {
         unit_changeangle(ent);
 
         if (ent->movement.flow_unreachable) {
+#ifdef WC3_DEBUG_BUILD
+            if (ent->class_id == MAKEFOURCC('h','p','e','a'))
+                fprintf(stderr, "WC3_BUILD move-stop unit=%ld reason=unreachable origin=(%.1f,%.1f) target=(%.1f,%.1f) distance=%.1f goal=%ld\n",
+                        (long)(ent - g_edicts), ent->s.origin2.x, ent->s.origin2.y,
+                        ent->goalentity ? ent->goalentity->s.origin2.x : 0.0f,
+                        ent->goalentity ? ent->goalentity->s.origin2.y : 0.0f,
+                        distance, ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
+#endif
             move_hold(ent); /* static topology says this goal cannot be reached */
             return;
         }
@@ -1338,6 +1354,12 @@ void order_move(LPEDICT self, LPEDICT target) {
     self->movement.patrol_target = NULL;
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
+#ifdef WC3_DEBUG_BUILD
+    if (self->class_id == MAKEFOURCC('h','p','e','a'))
+        fprintf(stderr, "WC3_BUILD move-order unit=%ld origin=(%.1f,%.1f) target=(%.1f,%.1f) goal=%ld\n",
+                (long)(self - g_edicts), self->s.origin2.x, self->s.origin2.y,
+                target->s.origin2.x, target->s.origin2.y, (long)(target - g_edicts));
+#endif
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
     /* No route heading exists at submission time. Hold the stand pose instead

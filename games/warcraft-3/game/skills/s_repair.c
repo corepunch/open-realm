@@ -213,6 +213,17 @@ static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
 #else
     (void)reason;
 #endif
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD repair-stop worker=%ld reason=%s building=%ld id=%.4s active=%d hp=%.1f/%.1f primary=%d move=%s goal=%ld\n",
+            ent && g_edicts ? (long)(ent - g_edicts) : -1L, reason ? reason : "unknown",
+            building && g_edicts ? (long)(building - g_edicts) : -1L,
+            building ? (LPCSTR)&building->class_id : "----",
+            building ? (int)building->construction.active : 0,
+            building ? building->health.value : 0.0f, building ? building->health.max_value : 0.0f,
+            ent && ent->buildwork.primary ? 1 : 0,
+            ent && ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
+            ent && ent->goalentity && g_edicts ? (long)(ent->goalentity - g_edicts) : -1L);
+#endif
     if (ent) ent->goalentity = NULL;
     repair_release(ent);
     if (resume_harvest) {
@@ -578,6 +589,11 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
     FLOAT angle;
 
     if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary)) return false;
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD repair-begin worker=%ld building=%ld id=%.4s primary=%d origin=(%.1f,%.1f)\n",
+            (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&building->class_id, primary,
+            ent->s.origin2.x, ent->s.origin2.y);
+#endif
     S_CancelRepair(ent);
     ent->build = building;
     ent->goalentity = building;

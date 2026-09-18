@@ -25,12 +25,18 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 loca
     preview->s.angle = -M_PI / 2;
     preview->s.player = builder->s.player;
     SP_CallSpawn(preview);
+    preview->s.flags |= EF_CONSTRUCTING;
     preview->collision = 0.0f;
     preview->s.collision = 0.0f;
     preview->s.flags |= EF_NOT_SELECTABLE;
     preview->s.renderfx |= RF_NO_UBERSPLAT;
     gi.LinkEntity(preview);
     if (preview->birth) preview->birth(preview);
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD preview-create worker=%ld preview=%ld id=%.4s point=(%.1f,%.1f)\n",
+            (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&building_id,
+            location->x, location->y);
+#endif
     return preview;
 }
 
@@ -38,6 +44,10 @@ void G_ClearBuildPreview(LPEDICT builder) {
     LPEDICT preview;
 
     if (!builder || !(preview = builder->build_preview)) return;
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD preview-clear worker=%ld preview=%ld id=%.4s\n",
+            (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&preview->class_id);
+#endif
     builder->build_preview = NULL;
     G_FreeEdict(preview);
 }
@@ -1082,7 +1092,20 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER) &&
                   G_BuildUnitCanDisplace(builder, ent) && ent != builder &&
                   CM_DistanceToPathingFootprint(building, &ent->s.origin2) < ent->collision) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD displace-candidate builder=%ld building=%ld id=%.4s unit=%ld unitid=%.4s origin=(%.1f,%.1f) move=%s project=%.4s build=%ld goal=%ld\n",
+                (long)(builder - g_edicts), (long)(building - g_edicts), (LPCSTR)&building->class_id,
+                (long)(ent - g_edicts), (LPCSTR)&ent->class_id, ent->s.origin2.x, ent->s.origin2.y,
+                ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
+                ent->build_project ? (LPCSTR)&ent->build_project : "----",
+                ent->build ? (long)(ent->build - g_edicts) : -1L,
+                ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
+#endif
         if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angles[count])) {
+#ifdef WC3_DEBUG_BUILD
+            fprintf(stderr, "WC3_BUILD displace-failed builder=%ld building=%ld unit=%ld reason=no-exit\n",
+                    (long)(builder - g_edicts), (long)(building - g_edicts), (long)(ent - g_edicts));
+#endif
             gi.MemFree(angles); gi.MemFree(positions); gi.MemFree(units); return false;
         }
         units[count++] = ent;
@@ -1095,6 +1118,14 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
         }
     }
     FOR_LOOP(i, count) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD displace-apply building=%ld unit=%ld old=(%.1f,%.1f) new=(%.1f,%.1f) move=%s project=%.4s goal=%ld\n",
+                (long)(building - g_edicts), (long)(units[i] - g_edicts),
+                units[i]->s.origin2.x, units[i]->s.origin2.y, positions[i].x, positions[i].y,
+                units[i]->currentmove && units[i]->currentmove->animation ? units[i]->currentmove->animation : "<none>",
+                units[i]->build_project ? (LPCSTR)&units[i]->build_project : "----",
+                units[i]->goalentity ? (long)(units[i]->goalentity - g_edicts) : -1L);
+#endif
         units[i]->s.origin2 = positions[i];
         units[i]->s.origin.x = positions[i].x; units[i]->s.origin.y = positions[i].y;
         units[i]->s.origin.z = CM_GetHeightAtPoint(positions[i].x, positions[i].y);
@@ -1269,6 +1300,7 @@ static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL 
     if (!building || !G_UnitIsBuilding(building->class_id)) return false;
     hp = &building->health;
     building->construction.active = true;
+    building->s.flags |= EF_CONSTRUCTING;
     building->construction.paused = paused;
     building->construction.type = type;
     building->construction.primary_builder = NULL;
@@ -1446,6 +1478,13 @@ void G_RunConstructionFrame(LPEDICT building) {
  * retain pointers to an entity whose construction state no longer exists. */
 void G_StopConstruction(LPEDICT building) {
     if (!building || !building->construction.active) return;
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD construction-stop building=%ld id=%.4s type=%d health=%.1f/%.1f progress=%.1f primary=%ld build=%ld\n",
+            (long)(building - g_edicts), (LPCSTR)&building->class_id, building->construction.type,
+            building->health.value, building->health.max_value, building->construction.progress,
+            building->construction.primary_builder ? (long)(building->construction.primary_builder - g_edicts) : -1L,
+            building->build ? (long)(building->build - g_edicts) : -1L);
+#endif
 
     FILTER_EDICTS(worker, worker->inuse && worker != building && worker->build == building &&
                            worker->buildwork.ability) {
@@ -1459,6 +1498,7 @@ void G_StopConstruction(LPEDICT building) {
      * Clear it before unit_die() walks production/revival ownership. */
     if (building->build == building) building->build = NULL;
     building->construction.active = false;
+    building->s.flags &= ~EF_CONSTRUCTING;
     building->construction.paused = false;
     building->construction.type = CONSTRUCTION_NONE;
     building->construction.primary_builder = NULL;
@@ -1494,6 +1534,11 @@ BOOL G_CancelStructureConstruction(LPEDICT building) {
         (building->svflags & SVF_DEADMONSTER) || !G_UnitIsBuilding(building->class_id)) {
         return false;
     }
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD construction-cancel building=%ld id=%.4s health=%.1f/%.1f progress=%.1f payer=%d\n",
+            (long)(building - g_edicts), (LPCSTR)&building->class_id, building->health.value,
+            building->health.max_value, building->construction.progress, building->construction.payer);
+#endif
 
     gold = building->construction.paid
         ? G_ConstructionCancelRefund(building->construction.gold) : 0;
@@ -1540,6 +1585,7 @@ void G_CompleteConstruction(LPEDICT building) {
     if (client && client->ps.number != building->s.player) client = NULL;
     G_ReleaseConstructionWorker(building, true);
     building->construction.active = false;
+    building->s.flags &= ~EF_CONSTRUCTING;
     building->construction.paused = false;
     building->construction.type = CONSTRUCTION_NONE;
     building->construction.primary_builder = NULL;
@@ -1559,6 +1605,10 @@ void G_CompleteConstruction(LPEDICT building) {
     building->aiflags &= ~AI_HOLD_FRAME;
     if (building->build == building) building->build = NULL;
     G_SetHealth(building, building->health.max_value);
+	/* A Birth construction site is walk-through in retail.  Its authored
+	 * footprint becomes a static route obstacle only when the building is
+	 * complete. */
+    CM_BakeStaticObstacles();
 	if (building->stand) building->stand(building);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",

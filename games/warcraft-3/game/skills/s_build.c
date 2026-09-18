@@ -35,6 +35,12 @@ static void ai_build_walk(LPEDICT ent) {
     BOOL direct_approach;
 
     if (!ent || !goal || !ent->build_project) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD walk-stop worker=%ld reason=missing-state goal=%ld project=%.4s\n",
+                ent ? (long)(ent - g_edicts) : -1L,
+                goal && g_edicts ? (long)(goal - g_edicts) : -1L,
+                ent && ent->build_project ? (LPCSTR)&ent->build_project : "----");
+#endif
         if (ent && ent->stand) ent->stand(ent);
         return;
     }
@@ -44,11 +50,22 @@ static void ai_build_walk(LPEDICT ent) {
     approach_range = G_BuildApproachDistance(ent->build_project) + ent->collision;
     reach = approach_range + step;
     if (distance <= reach) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD walk-arrive worker=%ld id=%.4s distance=%.1f reach=%.1f origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
+                (long)(ent - g_edicts), (LPCSTR)&ent->build_project, distance, reach,
+                ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y);
+#endif
         build_build(ent);
         return;
     }
 
     if (move_is_blocked(ent, distance, step)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD walk-stop worker=%ld id=%.4s reason=blocked distance=%.1f step=%.1f flow=(%d,%d) origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
+                (long)(ent - g_edicts), (LPCSTR)&ent->build_project, distance, step,
+                ent->movement.flow_goal_reached, ent->movement.flow_unreachable,
+                ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y);
+#endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to reach build site.");
         ent->stand(ent);
         return;
@@ -62,6 +79,11 @@ static void ai_build_walk(LPEDICT ent) {
         unit_changeangle_for_radius(ent, ent->collision);
 
     if (ent->movement.flow_unreachable) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD walk-stop worker=%ld id=%.4s reason=unreachable distance=%.1f origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
+                (long)(ent - g_edicts), (LPCSTR)&ent->build_project, distance,
+                ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y);
+#endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to reach build site.");
         ent->stand(ent);
         return;
@@ -82,6 +104,10 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     LPEDICT waypoint;
 
     if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player))) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD issue rejected worker=%ld id=%.4s reason=invalid-input\n",
+                builder ? (long)(builder - g_edicts) : -1L, (LPCSTR)&building_id);
+#endif
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING issue-build rejected reason=invalid-input builder=%ld building=%.4s\n",
                 builder ? (long)(builder - globals.edicts) : -1L, (LPCSTR)&building_id);
@@ -89,6 +115,10 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
         return false;
     }
     if (G_GetBuildCommandState(client, builder, building_id, NULL, 0) != BUILD_COMMAND_AVAILABLE) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD issue rejected worker=%ld id=%.4s reason=command-state\n",
+                (long)(builder - g_edicts), (LPCSTR)&building_id);
+#endif
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING issue-build rejected reason=command-state builder=%ld building=%.4s\n",
                 (long)(builder - globals.edicts), (LPCSTR)&building_id);
@@ -96,6 +126,10 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
         return false;
     }
     if (G_EvaluateBuildPlacement(builder, building_id, location, &snapped) != PLACE_OK) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD issue rejected worker=%ld id=%.4s reason=placement requested=(%.1f,%.1f)\n",
+                (long)(builder - g_edicts), (LPCSTR)&building_id, location->x, location->y);
+#endif
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING issue-build rejected reason=placement builder=%ld building=%.4s requested=(%.1f,%.1f)\n",
                 (long)(builder - globals.edicts), (LPCSTR)&building_id, location->x, location->y);
@@ -104,12 +138,21 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     }
     waypoint = Waypoint_add(&snapped);
     if (!waypoint) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD issue rejected worker=%ld id=%.4s reason=waypoint\n",
+                (long)(builder - g_edicts), (LPCSTR)&building_id);
+#endif
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING issue-build rejected reason=waypoint builder=%ld building=%.4s point=(%.1f,%.1f)\n",
                 (long)(builder - globals.edicts), (LPCSTR)&building_id, snapped.x, snapped.y);
 #endif
         return false;
     }
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD issue accepted worker=%ld id=%.4s point=(%.1f,%.1f) origin=(%.1f,%.1f)\n",
+            (long)(builder - g_edicts), (LPCSTR)&building_id, snapped.x, snapped.y,
+            builder->s.origin2.x, builder->s.origin2.y);
+#endif
 #ifdef WC3_DEBUG_MINING
     fprintf(stderr, "WC3_MINING issue-build accepted builder=%ld building=%.4s point=(%.1f,%.1f)\n",
             (long)(builder - globals.edicts), (LPCSTR)&building_id, snapped.x, snapped.y);
@@ -117,6 +160,11 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     /* Build orders used to strand selected miners hidden inside the mine, permanently consuming its worker capacity. */
     S_GoldMineReleaseWorker(builder);
     builder->build_preview = G_CreateBuildPreview(builder, building_id, &snapped);
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD issue preview worker=%ld id=%.4s preview=%ld\n",
+            (long)(builder - g_edicts), (LPCSTR)&building_id,
+            builder->build_preview ? (long)(builder->build_preview - g_edicts) : -1L);
+#endif
     if (!builder->build_preview) return false;
     builder->goalentity = waypoint;
     builder->build_project = building_id;
@@ -182,6 +230,12 @@ void build_build(LPEDICT ent) {
         return;
     }
     building_id = ent->build_project;
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD arrival worker=%ld id=%.4s origin=(%.1f,%.1f) goal=%ld preview=%ld\n",
+            (long)(ent - g_edicts), (LPCSTR)&building_id, ent->s.origin2.x, ent->s.origin2.y,
+            ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L,
+            ent->build_preview ? (long)(ent->build_preview - g_edicts) : -1L);
+#endif
     /* The Birth placeholder is non-blocking and exists only until this
      * worker wins the arrival-time placement check. */
     G_ClearBuildPreview(ent);
@@ -189,6 +243,11 @@ void build_build(LPEDICT ent) {
     placement = G_EvaluateBuildPlacement(ent, ent->build_project, &ent->goalentity->s.origin2, &snapped);
     state = G_GetBuildCommandState(client, ent, ent->build_project, NULL, 0);
     if (placement != PLACE_OK) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=placement result=%d point=(%.1f,%.1f)\n",
+                (long)(ent - g_edicts), (LPCSTR)&building_id, placement,
+                ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y);
+#endif
 #ifdef WC3_DEBUG_AI
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s placement=%d\n",
             (long)(ent - g_edicts), (LPCSTR)&ent->build_project, placement);
@@ -199,6 +258,10 @@ void build_build(LPEDICT ent) {
         return;
     }
     if (state != BUILD_COMMAND_AVAILABLE) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=state state=%d\n",
+                (long)(ent - g_edicts), (LPCSTR)&building_id, state);
+#endif
 #ifdef WC3_DEBUG_AI
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s state=%d\n",
             (long)(ent - g_edicts), (LPCSTR)&ent->build_project, state);
@@ -209,6 +272,10 @@ void build_build(LPEDICT ent) {
         return;
     }
     if (!G_ChargeBuilding(client, ent->build_project)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=payment\n",
+                (long)(ent - g_edicts), (LPCSTR)&building_id);
+#endif
 #ifdef WC3_DEBUG_AI
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s payment\n",
             (long)(ent - g_edicts), (LPCSTR)&ent->build_project);
@@ -221,6 +288,10 @@ void build_build(LPEDICT ent) {
 
     building = SP_SpawnAtLocation(ent->build_project, ent->s.player, &snapped);
     if (!building) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=spawn\n",
+                (long)(ent - g_edicts), (LPCSTR)&building_id);
+#endif
         G_RefundBuilding(client, building_id);
         ent->build_project = 0;
         ent->stand(ent);
@@ -229,6 +300,11 @@ void build_build(LPEDICT ent) {
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI build started worker=%ld building=%ld id=%.4s\n",
         (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&ent->build_project);
+#endif
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_BUILD spawned worker=%ld building=%ld id=%.4s point=(%.1f,%.1f)\n",
+            (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&building_id,
+            building->s.origin2.x, building->s.origin2.y);
 #endif
     /* G_ChargeBuilding validates food before spawn. Once the structure exists,
      * make the entity own that accounted Food Used so death/removal can release
@@ -251,13 +327,15 @@ void build_build(LPEDICT ent) {
         return;
     }
 
-    /* The structure blocks pathing as soon as construction starts. Bake its
-     * authored footprint before relocating the worker so the egress search
-     * cannot choose a point that becomes blocked immediately afterward. */
-    CM_BakeStaticObstacles();
+    /* Retail's Birth construction site reserves placement but remains
+     * walk-through.  Displacement uses the authored footprint directly; the
+     * static obstacle is baked only after Birth completes. */
     if (!G_DisplaceBuildOccupants(ent, building)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD spawned-rejected worker=%ld building=%ld id=%.4s reason=displacement\n",
+                (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&building_id);
+#endif
         G_FreeEdict(building);
-        CM_BakeStaticObstacles();
         G_RefundBuilding(client, building_id);
         ent->build_project = 0;
         ent->stand(ent);
@@ -277,6 +355,11 @@ void build_build(LPEDICT ent) {
         }
     }
     if (construction_started) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD construction-start worker=%ld building=%ld id=%.4s type=%d health=%.1f/%.1f\n",
+                (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&building_id,
+                building->construction.type, building->health.value, building->health.max_value);
+#endif
         /* Cancellation refunds the exact base construction payment, not later
          * power-build Repair spending. Record that transaction on the spawned
          * structure while the paying client and authored cost are still known. */

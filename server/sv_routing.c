@@ -540,6 +540,11 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
 
 static BOOL entity_blocks_static_pathing(edict_t const *ent) {
     if (!ent || !ent->inuse || (ent->s.renderfx & RF_HIDDEN)) return false;
+    /* WC3 construction Birth is a visible reservation, not a completed
+     * building obstacle. The game marks both real unfinished structures and
+     * pending previews with EF_CONSTRUCTING; placement still sees the live
+     * entity separately. */
+    if ((ent->s.flags & EF_BUILDING) && (ent->s.flags & EF_CONSTRUCTING)) return false;
     /* Unit buildings keep their authored path texture after death for entity
      * presentation/save state, but that alive footprint must no longer block.
      * Dead destructables may deliberately swap to a death path texture, so

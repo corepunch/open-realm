@@ -1623,6 +1623,37 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     T_ASSERT(townhall_spawned);
 }
 
+TEST(wc3_building, construction_birth_is_walkthrough_until_completion) {
+    enum { CELLS = 64 };
+    static BYTE pathmap[CELLS * CELLS];
+    size_t const pathtex_size = sizeof(pathTex_t) + sizeof(COLOR32);
+    LPEDICT building;
+    pathTex_t *pathtex;
+    VECTOR2 point = { 0.0f, 0.0f };
+
+    setup_test_world();
+    memset(pathmap, 0, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -1024.0f, -1024.0f },
+                                  .max = { 1024.0f, 1024.0f }));
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), point.x, point.y);
+    building->s.flags |= EF_BUILDING | EF_CONSTRUCTING;
+    pathtex = gi.MemAlloc(pathtex_size);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = pathtex->height = 1;
+    pathtex->map[0].b = 0xff;
+    building->pathtex = pathtex;
+    gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+    T_ASSERT(CM_PointIsPathableForRadius(&point, 0.0f));
+
+    building->s.flags &= ~EF_CONSTRUCTING;
+    CM_BakeStaticObstacles();
+    T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
 TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT worker, mine;
