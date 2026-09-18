@@ -7,6 +7,8 @@ bounded headless frame budget and produce per-map JSON, Markdown, and raw logs.
 Use `make test-wc3-map-audit` for the retail-data-independent tool tests. See
 [Warcraft III Campaign Map Audit](games/warcraft-3/map-audit.md) for focused
 runs, longer frame budgets, report semantics, and the GitHub issue command.
+Loose custom maps are not in that enumerator; see
+[DotA Custom-Map Playability](games/warcraft-3/dota-map-playability.md).
 
 Use `make audit-wc3-hero-saveload` to walk the player Hero on every campaign
 map, save, load, and compare origin/abilities/inventory. Parser tests are

@@ -46,6 +46,9 @@ Hero walk / save / load on the same campaign enumerator is a separate local
 diagnostic: `make audit-wc3-hero-saveload`. See
 [Save/Load](save-load.md#hero-walk--save--load).
 
+Custom-map playability for DotA is tracked separately in
+[#431](https://github.com/corepunch/open-realm/issues/431).
+
 ## Focused and Longer Runs
 
 Pass runner arguments through `WC3_AUDIT_ARGS`:
@@ -106,3 +109,10 @@ code zero. `SIGSEGV`, `timeout`, and `auditor-error` are process-level failures.
 Warnings and runtime errors remain listed even when the process reaches its
 frame limit. Visual correctness requires a rendered pass or human inspection;
 mission completion requires scripted milestones or human play.
+
+## Custom Maps
+
+This enumerator only walks retail campaign members inside `War3.mpq` /
+`War3x.mpq`. Loose custom scenarios such as
+`data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x` must be launched
+directly. See [DotA Custom-Map Playability](dota-map-playability.md).

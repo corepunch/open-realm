@@ -148,6 +148,11 @@ for a consistent race-skinned menu panel and extends one action row below the no
 Quit button remains inside that panel. The fallback still uses `GlobalStrings.fdf`
 `GAMEOVER_*` labels where available and only exposes actions the current engine can execute.
 
+DotA 6.83d's compiled map script references 525 natives, 137 of them unregistered.
+The dominant hole is the patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`,
+typed `Save*`/`Load*`), then multiboard, texttag, shop events, and hero attributes.
+See [DotA Custom-Map Playability](dota-map-playability.md).
+
 `EndGame`, `ChangeLevel`, `RestartGame`, and `DisplayLoadDialog` cross the existing `gi.MenuAction` session boundary.
 `EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested map, `RestartGame` reloads the
 current `map` cvar, and `DisplayLoadDialog` enters the frontend load-game screen. `ForceCampaignSelectScreen` is different:

@@ -42,6 +42,8 @@ Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback, `Cus
 The current overlay is deliberately scoped to sheet/INI object data. Warsmash applies its subdirectory data source more broadly, but extending model/texture/FDF asset resolution would cross the renderer/client asset-scope boundary and is separate work; it is not required to keep TFT-only techtree rows out of RoC command cards.
 
 See also [WC3 map format](games/warcraft-3/file-formats/map.md) for the W3I fields and [runtime](architecture/runtime.md) for `fs_expansion`.
+Custom maps that import `Units\CampaignUnitFunc.txt` or `war3mapMisc.txt` into the map MPQ still miss this overlay;
+see [DotA Custom-Map Playability](games/warcraft-3/dota-map-playability.md).
 
 ## The Base-vs-Computed Column Trap
 

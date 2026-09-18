@@ -221,7 +221,9 @@ This is intentionally narrower than a full Warsmash-style data-source stack. The
 implement JASS `Preload`/`Preloader`, or expose staged byte/task loading progress. `war3map.w3u` now applies the
 registered `UnitBalance`/`UnitProfile`/`UnitUI` subset (including balance/stock values, Required Animation Names, and custom model
 paths), but the remaining Data/Weapons/Abilities tables and true per-map `war3mapMisc.txt`/skin overlays remain separate data-layer work;
-do not infer those capabilities from the renderer's map-import lookup.
+do not infer those capabilities from the renderer's map-import lookup. DotA 6.83d ships heroes, items, and
+`war3mapMisc.txt` inside the map archive (`Units\CampaignUnitFunc.txt`, `war3map.w3a`); those members are
+invisible to `G_ReadGameDataFile` today. See [DotA Custom-Map Playability](dota-map-playability.md).
 ## Loading progress contract
 
 Loading progress is client-owned and intentionally coarse. `CL_BeginLoadingMap` resets `cl.loading_progress` to
