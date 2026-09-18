@@ -1044,6 +1044,7 @@ static void WritePortraitText(LPCSTR text, COLOR32 color, FLOAT bottom, DWORD st
     frame.color = color;
     frame.stat = stat;
     frame.textLength = 20; /* Warsmash UnitPortraitTextTemplate */
+    frame.size.width = 0.0835f; /* Keep 9999 / 9999 inside the portrait width. */
     frame.size.height = 0.01640625f;
     label.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
     label.textalignx = FONT_JUSTIFYCENTER;
@@ -1079,8 +1080,9 @@ static void WritePortraitStats(LPEDICT ent) {
      * below the model: HP at BOTTOM + 0.014 and mana at BOTTOM - 0.0005.
      * OpenRealm keeps the portrait runtime-authored because SmashUI is not a
      * retail MPQ FDF, but uses the same final WC3-space geometry. */
-    WritePortraitText(health, PortraitHealthColor(ent), 0.586f, UI_STAT_SELECTION_HEALTH_TEXT);
-    WritePortraitText(mana, COLOR32_WHITE, 0.6005f, UI_STAT_SELECTION_MANA_TEXT);
+    /* Move both baselines up by roughly two pixels while preserving their gap. */
+    WritePortraitText(health, PortraitHealthColor(ent), 0.584f, UI_STAT_SELECTION_HEALTH_TEXT);
+    WritePortraitText(mana, COLOR32_WHITE, 0.5985f, UI_STAT_SELECTION_MANA_TEXT);
 }
 
 void UI_WriteSelectedPortraitLayer(LPEDICT ent) {
