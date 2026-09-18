@@ -79,6 +79,25 @@ static void ai_build_walk(LPEDICT ent) {
         unit_changeangle_for_radius(ent, ent->collision);
 
     if (ent->movement.flow_unreachable) {
+        /* A real construction footprint is now static pathing, so its center
+         * is intentionally unreachable. Build must continue to the closest
+         * legal approach cell instead of treating the worker's point order as
+         * cancelled; build_build() still validates and uses the original
+         * waypoint when the approach range is reached. */
+        if (CM_ClosestReachablePointForRadiusFlags(&ent->s.origin2, &goal->s.origin2,
+                                                   ent->collision, M_UnitStaticPathingFlags(ent), &approach)) {
+#ifdef WC3_DEBUG_BUILD
+            fprintf(stderr, "WC3_BUILD walk-approach worker=%ld id=%.4s origin=(%.1f,%.1f) approach=(%.1f,%.1f) target=(%.1f,%.1f)\n",
+                    (long)(ent - g_edicts), (LPCSTR)&ent->build_project,
+                    ent->s.origin2.x, ent->s.origin2.y, approach.x, approach.y,
+                    goal->s.origin2.x, goal->s.origin2.y);
+#endif
+            unit_changeangle_towards_point(ent, &approach);
+            if (!ent->movement.flow_unreachable) {
+                unit_moveindirection(ent);
+                return;
+            }
+        }
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD walk-stop worker=%ld id=%.4s reason=unreachable distance=%.1f origin=(%.1f,%.1f) target=(%.1f,%.1f)\n",
                 (long)(ent - g_edicts), (LPCSTR)&ent->build_project, distance,

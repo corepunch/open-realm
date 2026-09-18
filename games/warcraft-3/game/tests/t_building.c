@@ -1596,13 +1596,16 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 /* Leave the mobile Barracks peasant in the Town Hall footprint.
                  * Retail accepts the order and displaces it when construction
                  * materializes; it is not a placement-time hard blocker. */
-                VECTOR2 const saved = workers[1]->s.origin2;
+                VECTOR2 const before_preview = workers[1]->s.origin2;
                 workers[1]->s.origin2 = points[i];
                 gi.LinkEntity(workers[1]);
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
                 T_NOT_NULL(workers[i]->build_preview);
-                workers[1]->s.origin2 = saved;
-                gi.LinkEntity(workers[1]);
+                T_ASSERT(Vector2_distance(&workers[1]->s.origin2, &before_preview) > 1.0f);
+                T_ASSERT(workers[i]->build_preview->aiflags & AI_HOLD_FRAME);
+                if (workers[i]->build_preview->animation)
+                    T_EQ(workers[i]->build_preview->s.frame,
+                         workers[i]->build_preview->animation->interval[0]);
             } else {
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
             }
@@ -1623,7 +1626,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     T_ASSERT(townhall_spawned);
 }
 
-TEST(wc3_building, construction_birth_is_walkthrough_until_completion) {
+TEST(wc3_building, construction_birth_blocks_after_preview) {
     enum { CELLS = 64 };
     static BYTE pathmap[CELLS * CELLS];
     size_t const pathtex_size = sizeof(pathTex_t) + sizeof(COLOR32);
@@ -1637,7 +1640,7 @@ TEST(wc3_building, construction_birth_is_walkthrough_until_completion) {
     CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -1024.0f, -1024.0f },
                                   .max = { 1024.0f, 1024.0f }));
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), point.x, point.y);
-    building->s.flags |= EF_BUILDING | EF_CONSTRUCTING;
+    building->s.flags |= EF_BUILDING | EF_CONSTRUCTING | EF_NOT_SELECTABLE;
     pathtex = gi.MemAlloc(pathtex_size);
     memset(pathtex, 0, pathtex_size);
     pathtex->width = pathtex->height = 1;
@@ -1647,7 +1650,7 @@ TEST(wc3_building, construction_birth_is_walkthrough_until_completion) {
     CM_BakeStaticObstacles();
     T_ASSERT(CM_PointIsPathableForRadius(&point, 0.0f));
 
-    building->s.flags &= ~EF_CONSTRUCTING;
+    building->s.flags &= ~EF_NOT_SELECTABLE;
     CM_BakeStaticObstacles();
     T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
     building->pathtex = NULL;
