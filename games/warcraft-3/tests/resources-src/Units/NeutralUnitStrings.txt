@@ -1,2 +1,8 @@
 [opeo]
 Name=Peon
+
+[nmer]
+Name=Test Mercenary
+Art=TestUI\Textures\solid_white.blp
+Tip=Hire Test Mercenary
+Ubertip=Test neutral unit stock.

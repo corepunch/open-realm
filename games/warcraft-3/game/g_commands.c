@@ -843,15 +843,17 @@ CLIENTCOMMAND(Button) {
     producer = G_GetMainSelectedUnit(client);
     classname = argv[1];
     /* A neutral shop remains neutral selection state; buying from it must not
-     * weaken G_UnitCanControl() for ordinary enemy/neutral units.  Item shop
-     * buttons are raw item IDs, validated again by the authoritative shop
-     * purchase path before resources or stock change. */
-    if (G_CanUseItemShop(client, producer)) {
-        DWORD item_id = 0;
+     * weaken G_UnitCanControl() for ordinary enemy/neutral units. Merchandise
+     * commands are raw object IDs and the authoritative stock path decides
+     * whether the selected shop sells an item or a non-Hero unit. */
+    if (G_CanUseItemShop(client, producer) || G_CanUseUnitShop(client, producer)) {
+        DWORD merchandise_id = 0;
         if (strlen(classname) != 4) return;
-        memcpy(&item_id, classname, sizeof(item_id));
-        if (G_ShopPurchaseItem(clent, producer, item_id)) {
-            Get_Portrait_f(clent);
+        memcpy(&merchandise_id, classname, sizeof(merchandise_id));
+        if (G_ShopSellsItem(producer, merchandise_id)) {
+            if (G_ShopPurchaseItem(clent, producer, merchandise_id)) Get_Portrait_f(clent);
+        } else if (G_ShopSellsUnit(producer, merchandise_id)) {
+            G_ShopPurchaseUnit(clent, producer, merchandise_id);
         }
         Get_Commands_f(clent);
         return;

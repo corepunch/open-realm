@@ -267,7 +267,7 @@ The following are deliberately not inferred by the current implementation:
 - invisibility/detection-aware selectability (`IsUnitDetected`/`IsUnitInvisible` coverage is incomplete);
 - Shift-click toggle semantics (Shift-drag addition exists separately);
 - exact Warsmash within-identical-type insertion ordering (selection membership currently retains only per-player bits, so stable ties use edict scan order);
-- exact neutral-shop `Aneu` patron-selection button/indicator and persistent per-player patron state; the current deterministic nearby-patron purchase flow is documented in [Neutral Item Shops](neutral-shops.md);
+- exact neutral-shop `Aneu` patron-selection button/indicator and persistent per-player patron state; the current deterministic nearby-patron purchase flow is documented in [Neutral Shops And Mercenary Camps](neutral-shops.md);
 - data-driven `SelectionCircle` relationship colours;
 - Neutral Passive critter-specific selection response rules;
 - exact retail behavior for `ALLIANCE_SHARED_ADVANCED_CONTROL`;

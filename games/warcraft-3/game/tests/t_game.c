@@ -2990,6 +2990,7 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         LPEDICT shop;
         field_t const *stock_desc;
         field_t const *items_desc;
+        field_t const *units_desc;
 
         setup_test_world();
         reset_entities();
@@ -3009,15 +3010,29 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
             .delay_start = 5000,
             .delay_end = 65000,
         };
+        shop->stock.units_initialized = true;
+        shop->stock.unit_count = 1;
+        shop->stock.units[0] = (edictShopStockItem_t){
+            .id = MAKEFOURCC('n','m','e','r'),
+            .current = 0,
+            .delay_start = 9000,
+            .delay_end = 14000,
+        };
 
         stock_desc = find_save_field("stock");
         items_desc = find_save_field("stock.items");
+        units_desc = find_save_field("stock.units");
         T_NOT_NULL(stock_desc);
         T_NOT_NULL(items_desc);
+        T_NOT_NULL(units_desc);
         if (stock_desc) T_EQ(stock_desc->type, F_STRUCT);
         if (items_desc) {
             T_EQ(items_desc->type, F_STRUCT);
             T_EQ(items_desc->array_size, MAX_SHOP_STOCK);
+        }
+        if (units_desc) {
+            T_EQ(units_desc->type, F_STRUCT);
+            T_EQ(units_desc->array_size, MAX_SHOP_STOCK);
         }
 
         T_ASSERT(WriteGame(filename));
@@ -3035,6 +3050,12 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         T_EQ(shop->stock.items[0].current, 1);
         T_EQ(shop->stock.items[0].delay_start, 5000);
         T_EQ(shop->stock.items[0].delay_end, 65000);
+        T_ASSERT(shop->stock.units_initialized);
+        T_EQ(shop->stock.unit_count, 1);
+        T_EQ(shop->stock.units[0].id, MAKEFOURCC('n','m','e','r'));
+        T_EQ(shop->stock.units[0].current, 0);
+        T_EQ(shop->stock.units[0].delay_start, 9000);
+        T_EQ(shop->stock.units[0].delay_end, 14000);
         remove(filename);
     }
 }

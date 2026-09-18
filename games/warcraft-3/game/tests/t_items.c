@@ -142,6 +142,34 @@ static LPEDICT make_item_test_shop(FLOAT x, FLOAT y) {
     return shop;
 }
 
+static LPEDICT make_unit_test_shop(FLOAT x, FLOAT y) {
+    static UnitProfile_t profile;
+    static UnitAbilities_t abilities = { .abilList = "Aneu", .heroAbilList = "" };
+    LPEDICT shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, y);
+
+    memset(&profile, 0, sizeof(profile));
+    profile.sellUnits = "nmer";
+    shop->data.UnitProfile = &profile;
+    shop->data.UnitAbilities = &abilities;
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    shop->collision = 32.0f;
+    shop->spawn_time = G_Time();
+    shop->stock.unit_slots = 11;
+    gi.LinkEntity(shop);
+    return shop;
+}
+
+static LPEDICT make_unit_shop_patron(FLOAT x, FLOAT y, DWORD player) {
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+    unit->s.player = player;
+    unit->health.value = unit->health.max_value = 100.0f;
+    unit->movetype = MOVETYPE_STEP;
+    unit->collision = 16.0f;
+    unit->svflags |= SVF_MONSTER;
+    gi.LinkEntity(unit);
+    return unit;
+}
+
 TEST(wc3_items, spawn_initializes_world_state) {
     LPEDICT item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 64);
 
@@ -742,6 +770,107 @@ TEST(wc3_items, neutral_shop_stock_is_shared_and_replenishes_from_item_data) {
     T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
     level.time += 60000;
     T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+}
+
+TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediately) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT patron;
+    LPEDICT shop;
+    LPEDICT hired = NULL;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+    patron = make_unit_shop_patron(100, 0, 0);
+    shop = make_unit_test_shop(0, 0);
+    {
+        LPEDICT nonunit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20, 0);
+        nonunit->s.player = 0;
+        nonunit->collision = 8.0f;
+        gi.LinkEntity(nonunit);
+    }
+
+    /* DataA1=137 is deliberately non-retail fixture data. DataB1=2 accepts
+     * the non-inventory Peasant but not the closer non-unit edict. */
+    T_FEQ(G_ShopActivationRadius(shop), 137.0f, 0.001f);
+    T_EQ(G_FindUnitShopPatron(client, shop), patron);
+    level.time += 3000;
+    T_ASSERT(G_ShopPurchaseUnit(player, shop, MAKEFOURCC('n','m','e','r')));
+    FILTER_EDICTS(unit, unit->inuse && unit != shop && unit != patron &&
+                  unit->class_id == MAKEFOURCC('n','m','e','r') && unit->s.player == 0) {
+        hired = unit;
+        break;
+    }
+    T_NOT_NULL(hired);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 350);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 75);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
+    T_EQ(shop->stock.unit_count, 1);
+    T_EQ(shop->stock.units[0].current, 0);
+}
+
+TEST(wc3_items, neutral_unit_shop_stock_delay_and_replenishment_are_shared) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT shop;
+    gameCommandButton_t buttons[12];
+    shopItemButtonsParams_t params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
+    make_unit_shop_patron(100, 0, 0);
+    shop = make_unit_test_shop(0, 0);
+    params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 12 };
+
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.units[0].current, 0);
+    T_ASSERT(buttons[0].disabled);
+    level.time += 3000;
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.units[0].current, 1);
+    T_ASSERT(!buttons[0].disabled);
+    level.time += 5000;
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.units[0].current, 2);
+    level.time += 5000;
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.units[0].current, 2);
+}
+
+TEST(wc3_items, neutral_unit_shop_food_failure_preserves_stock_and_resources) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT shop;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 1;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+    make_unit_shop_patron(100, 0, 0);
+    shop = make_unit_test_shop(0, 0);
+    level.time += 3000;
+
+    T_ASSERT(!G_ShopPurchaseUnit(player, shop, MAKEFOURCC('n','m','e','r')));
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 500);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 100);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 0);
+    T_EQ(shop->stock.unit_count, 1);
+    T_EQ(shop->stock.units[0].current, 1);
 }
 
 TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {

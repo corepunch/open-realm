@@ -1013,6 +1013,9 @@ typedef struct edictStock_s {
     BOOL items_initialized;
     DWORD item_count;
     edictShopStockItem_t items[MAX_SHOP_STOCK];
+    BOOL units_initialized;
+    DWORD unit_count;
+    edictShopStockItem_t units[MAX_SHOP_STOCK];
 } edictStock_t;
 
 typedef struct {
@@ -2586,11 +2589,19 @@ DWORD G_ItemTypeFromClass(LPCSTR cls);
 
 // g_stock.c / neutral shops
 BOOL G_IsItemShop(LPCEDICT shop);
+BOOL G_IsUnitShop(LPCEDICT shop);
 BOOL G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop);
+BOOL G_CanUseUnitShop(LPGAMECLIENT client, LPCEDICT shop);
 FLOAT G_ShopActivationRadius(LPCEDICT shop);
 LPEDICT G_FindShopPatron(LPGAMECLIENT client, LPEDICT shop);
+LPEDICT G_FindUnitShopPatron(LPGAMECLIENT client, LPEDICT shop);
 BYTE G_GetShopItemButtons(shopItemButtonsParams_t *params);
+BYTE G_GetShopUnitButtons(shopItemButtonsParams_t *params);
+BYTE G_GetShopButtons(shopItemButtonsParams_t *params);
+BOOL G_ShopSellsItem(LPEDICT shop, DWORD item_id);
+BOOL G_ShopSellsUnit(LPEDICT shop, DWORD unit_id);
 BOOL G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, DWORD item_id);
+BOOL G_ShopPurchaseUnit(LPEDICT clent, LPEDICT shop, DWORD unit_id);
 BOOL G_ShopPawnItem(shopPawnItemParams_t *params);
 
 // g_destructable.c

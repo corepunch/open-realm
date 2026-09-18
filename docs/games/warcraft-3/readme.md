@@ -111,7 +111,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Map Trigger Strings in Authored Names](trigger-strings.md)
 - [Runtime Unit Spawn Lifecycle](unit-spawn-lifecycle.md)
 - [Human07 Mission Troubleshooting](human07-troubleshooting.md): mission-end, AI assault, removal, spawn, collision, and Birth regressions.
-- [Neutral Item Shops](neutral-shops.md)
+- [Neutral Shops And Mercenary Camps](neutral-shops.md)
 - [Ability And Item Effects](ability-and-item-effects.md)
 - [Cyclone](cyclone.md): organic-enemy action lock, ROC BuffID fallback, TFT `organic` targs.
 - [Volcano](volcano.md): channeled molten-rock waves; Dur is stun length, DataB×DataC is channel length.

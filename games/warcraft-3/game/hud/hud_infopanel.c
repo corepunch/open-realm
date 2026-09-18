@@ -978,7 +978,8 @@ void Get_Commands_f(LPEDICT ent) {
     ent->client->commands_dirty = false;
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
     if (!selected || (!G_UnitCanControl(ent->client, selected) &&
-                      !G_CanUseItemShop(ent->client, selected))) {
+                      !G_CanUseItemShop(ent->client, selected) &&
+                      !G_CanUseUnitShop(ent->client, selected))) {
         UI_ClearLayer(ent, LAYER_COMMANDBAR);
         return;
     }
@@ -990,8 +991,8 @@ void Get_Commands_f(LPEDICT ent) {
     previous_ui_client = ui_current_client;
     UI_SetCurrentClient(ent->client);
     UI_WriteStart(LAYER_COMMANDBAR);
-    count = G_CanUseItemShop(ent->client, selected)
-        ? G_GetShopItemButtons(&(shopItemButtonsParams_t){
+    count = (G_CanUseItemShop(ent->client, selected) || G_CanUseUnitShop(ent->client, selected))
+        ? G_GetShopButtons(&(shopItemButtonsParams_t){
             .client = ent->client, .shop = selected, .buttons = buttons, .max_buttons = 12 })
         : G_GetCommandButtons(selected, buttons, 12);
     FOR_LOOP(i, count) {
