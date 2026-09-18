@@ -761,6 +761,7 @@ static void JassMarkSelectionDirty(LPPLAYER player) {
 DWORD ClearSelection(LPJASS j) {
     FOR_LOOP(i, globals.num_edicts) {
         if (currentplayer) {
+            /* Selection is a per-player bitmask; clear only this player's bit. */
             g_edicts[i].selected &= ~(1u << PLAYER_NUM(currentplayer));
         } else {
             g_edicts[i].selected = 0;
@@ -783,6 +784,7 @@ DWORD SelectUnit(LPJASS j) {
         }
     } else {
         if (currentplayer) {
+            /* SelectUnit(false) must preserve every other player's selection bit. */
             whichUnit->selected &= ~(1u << PLAYER_NUM(currentplayer));
         } else {
             whichUnit->selected = 0;

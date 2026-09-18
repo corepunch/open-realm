@@ -4797,6 +4797,8 @@ TEST(wc3_api, create_item_rejects_empty_item_id) {
         "function main takes nothing returns nothing\n"
         "  local item i = CreateItem(0, 0.0, 0.0)\n"
         "  call BJassAssert(i == null, \"empty item ID must return null\")\n"
+        "  set i = CreateItem('zzzz', 0.0, 0.0)\n"
+        "  call BJassAssert(i == null, \"unresolved item ID must return null\")\n"
         "endfunction\n"));
 }
 

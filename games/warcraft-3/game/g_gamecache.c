@@ -663,6 +663,8 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
     memcpy(unit->heroabilities, saved->abilities, sizeof(unit->heroabilities));
     G_RecomputeHeroStats(unit);
     unit->health = saved->health;
+    /* RestoreUnit creates a fresh living entity; a cached dead Hero must not
+     * remain at zero health or Human09 cannot issue its opening movement. */
     if (G_UnitIsHero(unit) && unit->health.value <= 0.0f) {
         unit->health.value =
             unit->health.max_value * GAMECACHE_DEAD_HERO_RESTORE_HEALTH_FACTOR;
