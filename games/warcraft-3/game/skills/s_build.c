@@ -116,6 +116,8 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
 #endif
     /* Build orders used to strand selected miners hidden inside the mine, permanently consuming its worker capacity. */
     S_GoldMineReleaseWorker(builder);
+    builder->build_preview = G_CreateBuildPreview(builder, building_id, &snapped);
+    if (!builder->build_preview) return false;
     builder->goalentity = waypoint;
     builder->build_project = building_id;
     move_reset_progress(builder);
@@ -180,6 +182,9 @@ void build_build(LPEDICT ent) {
         return;
     }
     building_id = ent->build_project;
+    /* The Birth placeholder is non-blocking and exists only until this
+     * worker wins the arrival-time placement check. */
+    G_ClearBuildPreview(ent);
     client = G_GetPlayerClientByNumber(ent->s.player);
     placement = G_EvaluateBuildPlacement(ent, ent->build_project, &ent->goalentity->s.origin2, &snapped);
     state = G_GetBuildCommandState(client, ent, ent->build_project, NULL, 0);

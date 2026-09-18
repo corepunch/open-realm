@@ -50,6 +50,7 @@ void unit_setmove(LPEDICT self, umove_t *move) {
      * Stop/Move, so later code could mistake an idle worker for an active build. */
     if (self->currentmove && self->currentmove->proc == CAbilityBuild &&
         move->proc != CAbilityBuild) {
+        G_ClearBuildPreview(self);
         self->build_project = 0;
     }
     if (self->currentmove != move)

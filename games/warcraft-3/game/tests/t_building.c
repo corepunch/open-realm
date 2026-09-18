@@ -1515,9 +1515,9 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
 /* Human04's opening sends these three preplaced Peasants to the centres of
  * BuildFarm (-1360,-4608), BuildBarracks (-1744,-3536), and BuildTownHall
  * (-2208,-4048).  Keep the authored starts, region-entry order, and build
- * centers here; the stopped Barracks peasant then occupies the Town Hall
- * footprint at the trigger handoff, reproducing the cancellation. */
-TEST(wc3_building, human04_opening_positions_cancel_townhall_build) {
+ * centers here. Retail's pending Birth preview is non-blocking, so the
+ * Barracks peasant may occupy the Town Hall footprint without cancelling it. */
+TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     enum { CELLS = 512 };
     static BYTE pathmap[CELLS * CELLS];
     static UnitProfile_t const profile = { .builds = "hhou,hbar,htow" };
@@ -1592,18 +1592,15 @@ TEST(wc3_building, human04_opening_positions_cancel_townhall_build) {
                 workers[i]->s.origin2.y > region_max[i].y) continue;
             issued[i] = true;
             if (i == 2) {
-                /* The Barracks peasant is the live unit that blocks the Town
-                 * Hall footprint in the retail opening.  Preserve the real
-                 * route/arrival timing above, then leave that worker in the
-                 * footprint for the Town Hall trigger's placement check. */
+                /* Leave the mobile Barracks peasant in the Town Hall footprint.
+                 * Retail accepts the order and displaces it when construction
+                 * materializes; it is not a placement-time hard blocker. */
                 VECTOR2 const saved = workers[1]->s.origin2;
-                MOVETYPE const saved_movetype = workers[1]->movetype;
                 workers[1]->s.origin2 = points[i];
-                workers[1]->movetype = MOVETYPE_NONE;
                 gi.LinkEntity(workers[1]);
-                T_ASSERT(!G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
+                T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
+                T_NOT_NULL(workers[i]->build_preview);
                 workers[1]->s.origin2 = saved;
-                workers[1]->movetype = saved_movetype;
                 gi.LinkEntity(workers[1]);
             } else {
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
@@ -1618,7 +1615,7 @@ TEST(wc3_building, human04_opening_positions_cancel_townhall_build) {
     FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].inuse && g_edicts[i].class_id == buildings[2])
             townhall_spawned = true;
-    T_ASSERT(!townhall_spawned);
+    T_ASSERT(townhall_spawned);
 }
 
 TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {

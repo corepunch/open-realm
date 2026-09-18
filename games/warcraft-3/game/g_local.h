@@ -1151,6 +1151,7 @@ struct edict_s {
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
+    LPEDICT build_preview; /* non-blocking Birth presentation for an accepted build order */
     BOOL rally_indicator;
     struct edictConstruction_s {
         BOOL active;
@@ -1960,6 +1961,8 @@ BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out
 BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 LPEDICT SP_SpawnAtLocationNoBirth(DWORD, DWORD, LPCVECTOR2);
+LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
+void G_ClearBuildPreview(LPEDICT builder);
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
 LPEDICT G_CreateDeadDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
