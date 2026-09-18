@@ -10,7 +10,7 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 
 `games/warcraft-3/game/skills/s_move.c` owns per-tick steering and local block-and-slide. `server/sv_routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
 
-Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach uses ordinary collision-sized generic movement.
+Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 
 ### Movement-class static pathing
 
@@ -24,7 +24,7 @@ This patch deliberately does **not** generalize every WC3 movement type yet. `fl
 
 ### Harvest Worker Routing
 
-Harvest/resource movement now follows the Warsmash-style collision contract directly: Gold Mine approach and all resource-return movement ignore **live units** while still respecting static pathing; tree approach uses ordinary generic unit collision. Building interaction routes use the worker's real collision radius, mover-owned bounded A* detours while shared fields rebuild, and footprint-aware near-side endpoints for Town Halls/Lumber Mills.
+Harvest/resource movement now follows the Warsmash-style collision contract directly: Gold Mine approach and all resource-return movement ignore **live units** while still respecting static pathing; tree approach keeps ordinary live-unit collision but applies the deterministic resource-worker queue/pass policy when another worker blocks the local approach. Building interaction routes use the worker's real collision radius, mover-owned bounded A* detours while shared fields rebuild, and footprint-aware near-side endpoints for Town Halls/Lumber Mills.
 
 The movement validator is split accordingly: ordinary movement calls the full static + swept-unit check, while Harvest building legs exit after the static point/line checks. `SetUnitPathing(false)` remains the stronger existing override and still bypasses all collision. The Harvest policy does not mutate the shared pathmap, does not make buildings walkable, and does not alter Harvest/Return resource accounting.
 

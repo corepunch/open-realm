@@ -1094,8 +1094,9 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
     T_ASSERT(worker->goalentity == tree);
 }
 
-/* Same-tree workers should progress toward the same chop target without
- * overtaking or being forced onto an artificial lateral lane. */
+/* Same-tree workers keep the same chop target.  A worker directly behind
+ * another Peasant may queue for a tick while the front worker advances, but it
+ * must not be assigned a persistent angular harvest slot. */
 TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
@@ -1107,7 +1108,11 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
 
     first->collision = second->collision = 16.0f;
     first->unitinfo.MoveSpeed = second->unitinfo.MoveSpeed = 190.0f;
+    first->s.model = second->s.model = 1;
     tree->collision = 0.0f;
+    gi.LinkEntity(first);
+    gi.LinkEntity(second);
+    gi.LinkEntity(tree);
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
     CM_SetupTestWorldBounds(&MAKE(BOX2,
         .min = {-1024.0f, -1024.0f},
@@ -1117,8 +1122,13 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     HARVEST_SEARCH_RANGE = 1000.0f;
     harvest_start(first, tree);
     harvest_start(second, tree);
+    /* If the rear worker is processed first it may queue for the occupied
+     * direct step.  Once the front worker advances, the rear worker must resume
+     * the same direct route on its next think rather than keeping a side lane. */
     first->currentmove->think(first);
+    T_FEQ(first->s.origin2.x, first_origin.x, 0.01f);
     second->currentmove->think(second);
+    first->currentmove->think(first);
     T_ASSERT(first->goalentity == tree);
     T_ASSERT(second->goalentity == tree);
     T_ASSERT(first->movement.flow_direct);
@@ -1128,6 +1138,60 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     T_ASSERT(fabsf(first->s.origin2.y - first_origin.y) < 2.0f);
     T_ASSERT(second->s.origin2.x > second_origin.x);
     T_ASSERT(fabsf(second->s.origin2.y - second_origin.y) < 2.0f);
+}
+
+/* A Peasant already chopping the shared tree is a permanent live-unit blocker
+ * for the direct radial approach.  Generic left/right slide selection can make
+ * following workers fight over that same line indefinitely.  Harvest uses the
+ * resource-worker crowd policy: wait briefly behind same-stream traffic, then
+ * take a deterministic bounded pass while preserving live-unit collision. */
+TEST(wc3_movement, lumber_same_tree_worker_routes_around_chopper) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT chopper = make_moving_unit(-60.0f, 0.0f);
+    LPEDICT follower = add_gold_worker(-95.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(0.0f, 0.0f, 500.0f);
+    FLOAT const saved_range = HARVEST_RANGE;
+    BOOL follower_started_chopping = false;
+
+    chopper->collision = follower->collision = 16.0f;
+    chopper->unitinfo.MoveSpeed = follower->unitinfo.MoveSpeed = 190.0f;
+    chopper->attack1.damagePoint = follower->attack1.damagePoint = 0.01f;
+    chopper->s.model = follower->s.model = 1;
+    tree->collision = 0.0f;
+    gi.LinkEntity(chopper);
+    gi.LinkEntity(follower);
+    gi.LinkEntity(tree);
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    HARVEST_RANGE = 64.0f;
+    harvest_start(chopper, tree);
+    harvest_start(follower, tree);
+
+    /* The front worker is already inside chop range and therefore remains a
+     * stationary live collision circle while its attack animation is active. */
+    chopper->currentmove->think(chopper);
+    T_STREQ(chopper->currentmove->animation, "attack");
+
+    FOR_LOOP(i, 24) {
+        follower->currentmove->think(follower);
+        if (follower->currentmove && !strcmp(follower->currentmove->animation, "attack")) {
+            follower_started_chopping = true;
+            break;
+        }
+    }
+
+    T_ASSERT(follower_started_chopping);
+    T_ASSERT(follower->goalentity == tree);
+    T_ASSERT(Vector2_distance(&follower->s.origin2, &tree->s.origin2) <= HARVEST_RANGE);
+    T_ASSERT(Vector2_distance(&follower->s.origin2, &chopper->s.origin2) >=
+             follower->collision + chopper->collision - 0.5f);
+    T_ASSERT(fabsf(follower->s.origin2.y) <= follower->collision * 6.0f + 0.5f);
+
+    HARVEST_RANGE = saved_range;
 }
 
 /* A nearby static detour uses the bounded per-mover accelerator immediately;

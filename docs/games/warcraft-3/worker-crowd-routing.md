@@ -6,13 +6,24 @@ Harvest movement uses the Warsmash-style collision split directly:
 
 - Gold Mine approach keeps terrain, tree, and building pathing but ignores live-unit collision.
 - Gold/lumber return keeps terrain, tree, and building pathing but ignores live-unit collision.
-- Tree approach uses ordinary generic movement and live-unit collision.
+- Tree approach keeps live-unit collision and uses the resource-worker local
+  avoidance policy: same-stream workers queue briefly, then use a deterministic
+  bounded pass if the worker ahead remains stopped at the tree.
 - Resource-building routes use the worker collision radius for static pathing. A newly constructed Farm therefore invalidates/rebuilds the static route and the bounded mover-owned A* accelerator can detour around it without reintroducing worker-vs-worker blocking.
 - Return Resources targets the innermost collision-safe ring around the Town Hall/Lumber Mill footprint, choosing the worker's current side. Reaching that exact rasterized endpoint is a valid deposit handoff when the path grid leaves it just outside the continuous footprint+step threshold.
 
-`games/warcraft-3/game/skills/s_move.c` owns the static-only steering/movement policy through `MOVE_AVOID_STATIC_ONLY`, `unit_changeangle_interaction_ignore_units`, and the near-side point helper. `skills/s_goldmine.c` owns Mine/Gold-return behavior; `skills/s_harvest_lumber.c` owns tree and lumber-return behavior. Target choice, Mine capacity, resource accounting, and replacement-tree selection remain outside the router.
+`games/warcraft-3/game/skills/s_move.c` owns both sides of that movement split:
+`MOVE_AVOID_STATIC_ONLY` / `unit_changeangle_interaction_ignore_units` for
+Mine/drop-off legs, and `MOVE_AVOID_RESOURCE_WORKER` for collision-preserving
+tree approach. `skills/s_goldmine.c` owns Mine/Gold-return behavior;
+`skills/s_harvest_lumber.c` owns tree and lumber-return behavior. Target choice,
+Mine capacity, resource accounting, and replacement-tree selection remain
+outside the router.
 
-The queue/pass-right implementation described below is historical investigation context. Its helper/tests remain useful for understanding the earlier Human02 crowding work, but Harvest/Return no longer select `MOVE_AVOID_RESOURCE_WORKER`.
+The queue/pass-right implementation described below is used only where live-unit
+collision remains part of the resource contract: the approach to a tree. Gold
+Mine approach and both resource-return legs intentionally ignore live units and
+therefore do not select `MOVE_AVOID_RESOURCE_WORKER`.
 
 ## Why Queue Instead Of Alternating Lanes
 
@@ -94,7 +105,8 @@ Focused C regressions cover the policy primitives:
 
 - `wc3_collision.resource_worker_queues_then_passes_right` checks four same-stream hold decisions followed by a bounded right-side escape;
 - `wc3_collision.resource_worker_passes_opposing_traffic_immediately` checks counterflow does not enter the queue delay;
-- `wc3_movement.lumber_same_tree_workers_preserve_direct_order` checks two workers keep the same direct tree target/order without being assigned artificial angular lanes;
+- `wc3_movement.lumber_same_tree_workers_preserve_direct_order` checks two moving workers keep the same direct tree target/order without being assigned artificial angular lanes;
+- `wc3_movement.lumber_same_tree_worker_routes_around_chopper` checks a following worker queues briefly, then routes around a Peasant already chopping the shared tree without disabling live-unit collision;
 - `wc3_movement.worker_resource_gold_approach_ignores_live_units` checks resource movement can cross another Peasant's collision circle on a Mine leg;
 - `wc3_movement.worker_resource_tree_approach_keeps_live_unit_collision` checks tree harvesting retains ordinary unit collision for a destructable/tree target;
 - `wc3_movement.worker_resource_lumber_return_ignores_live_units` checks Return Resources uses the no-live-unit-collision policy;
