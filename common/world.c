@@ -722,6 +722,8 @@ static void __attribute__((unused)) CM_ReadHeightmap(HANDLE archive) {
 void CM_ReadModification(HANDLE file, unitModification_t *mod) {
     SFileReadFile(file, &mod->modID, 4, NULL, NULL);
     SFileReadFile(file, &mod->type, 4, NULL, NULL);
+    mod->level = 0;
+    mod->dataPointer = 0;
     DWORD strlength = 0;
     switch (mod->type) {
         case mod_int:
@@ -796,6 +798,73 @@ static void CM_ReadObjectData(HANDLE archive, LPCSTR filename,
     SFileCloseFile(file);
 }
 
+/* Ability/doodad/upgrade object files insert level + data-pointer ints before the value. */
+void CM_ReadAbilityModification(HANDLE file, unitModification_t *mod) {
+    SFileReadFile(file, &mod->modID, 4, NULL, NULL);
+    SFileReadFile(file, &mod->type, 4, NULL, NULL);
+    SFileReadFile(file, &mod->level, 4, NULL, NULL);
+    SFileReadFile(file, &mod->dataPointer, 4, NULL, NULL);
+    DWORD strlength = 0;
+    switch (mod->type) {
+        case mod_int:
+        case mod_real:
+        case mod_unreal:
+            mod->data = MemAlloc(4);
+            SFileReadFile(file, mod->data, 4, NULL, NULL);
+            break;
+        case mod_bool:
+        case mod_char:
+            mod->data = MemAlloc(1);
+            SFileReadFile(file, mod->data, 1, NULL, NULL);
+            break;
+        case mod_string:
+        case mod_unitList:
+        case mod_itemList:
+        case mod_regenType:
+        case mod_attackType:
+        case mod_weaponType:
+        case mod_targetType:
+        case mod_moveType:
+        case mod_defenseType:
+        case mod_pathingTexture:
+        case mod_upgradeList:
+        case mod_stringList:
+        case mod_abilityList:
+        case mod_heroAbilityList:
+        case mod_missileArt:
+        case mod_attributeType:
+        case mod_attackBits:
+            strlength = SFileReadStringLength(file);
+            mod->data = MemAlloc(strlength);
+            SFileReadFile(file, mod->data, strlength, NULL, NULL);
+            break;
+        default:
+            fprintf(stderr, "CM_ReadAbilityModification: unknown type %u for '%.4s'\n",
+                    (unsigned)mod->type, (LPCSTR)&mod->modID);
+            mod->data = NULL;
+            break;
+    }
+}
+
+static unitData_t *CM_ReadAbilityOverrides(HANDLE file, DWORD *numUnits) {
+    DWORD unknown;
+    SFileReadFile(file, numUnits, 4, NULL, NULL);
+    unitData_t *units = MemAlloc(*numUnits * sizeof(unitData_t));
+    for (unitData_t *unit = units; unit - units < *numUnits; unit++) {
+        DWORD mod_count = 0;
+        SFileReadFile(file, &unit->originalUnitID, 4, NULL, NULL);
+        SFileReadFile(file, &unit->newUnitID, 4, NULL, NULL);
+        SFileReadFile(file, &mod_count, 4, NULL, NULL);
+        unit->numbeOfModifications = (WORD)mod_count;
+        unit->modifications = MemAlloc(unit->numbeOfModifications * sizeof(unitModification_t));
+        FOR_LOOP(j, unit->numbeOfModifications) {
+            CM_ReadAbilityModification(file, &unit->modifications[j]);
+            SFileReadFile(file, &unknown, 4, NULL, NULL);
+        }
+    }
+    return units;
+}
+
 void CM_ReadUnits(HANDLE archive) {
     CM_ReadObjectData(archive, "war3map.w3u",
                       &world.info.num_originalUnits, &world.info.originalUnits,
@@ -806,6 +875,22 @@ void CM_ReadItems(HANDLE archive) {
     CM_ReadObjectData(archive, "war3map.w3t",
                       &world.info.num_originalItems, &world.info.originalItems,
                       &world.info.num_userCreatedItems, &world.info.userCreatedItems);
+}
+
+void CM_ReadAbilities(HANDLE archive) {
+    DWORD version;
+    HANDLE file;
+    if (!SFileOpenFileEx(archive, "war3map.w3a", SFILE_OPEN_FROM_MPQ, &file)) {
+        world.info.num_originalAbilities = 0;
+        world.info.num_userCreatedAbilities = 0;
+        world.info.originalAbilities = NULL;
+        world.info.userCreatedAbilities = NULL;
+        return;
+    }
+    SFileReadFile(file, &version, 4, NULL, NULL);
+    world.info.originalAbilities = CM_ReadAbilityOverrides(file, &world.info.num_originalAbilities);
+    world.info.userCreatedAbilities = CM_ReadAbilityOverrides(file, &world.info.num_userCreatedAbilities);
+    SFileCloseFile(file);
 }
 
 LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {

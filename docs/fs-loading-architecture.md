@@ -13,7 +13,10 @@
 | `FS_ReadFileAll(name, cb, ud)` | loose or MPQ path | none (callback) | same as FS_ReadFile | caller owns buffer in callback |
 
 `FS_ReadFile` tries MPQ archives first (`FS_OpenFile` → the in-tree `common/mpq.c` reader), then falls back to
-`FS_ReadLooseFile`. `SFileOpenFileEx` also recognizes an archive component inside the requested path and can open
+`FS_ReadLooseFile`. `FS_OpenFile` consults an optional `FS_SetPriorityArchive` handle before `archives[]` — WC3
+`CM_LoadMapFormat` mounts the open map MPQ there so sheet/INI loaders see map-imported members. Clear with
+`FS_SetPriorityArchive(NULL)` on map teardown (`gi.SetPriorityArchive` from the game module).
+`SFileOpenFileEx` also recognizes an archive component inside the requested path and can open
 that file as a nested MPQ. A game renderer can use the generic map-asset scope to probe
 `<map/archive path>\<model-or-texture path>` before its ordinary asset path. Keep the full nested path as the cache
 identity; path-only caches otherwise let one map's imported resource satisfy a later map's lookup.

@@ -1,0 +1,4 @@
+[Harf]
+Name=MapOverlay Omniknight
+Propernames=FixtureOmni
+Art=ReplaceableTextures\CommandButtons\BTNHeroPaladin.blp

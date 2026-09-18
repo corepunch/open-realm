@@ -31,19 +31,29 @@ fs_expansion = 1 + custom map -> Custom_V1\<sheet path> -> root fallback
 fs_expansion = 1 + melee map  -> Melee_V1\<sheet path>  -> root fallback
 ```
 
-`G_ReadGameDataFile` owns this overlay for sheet/object-data parsing. It first asks the engine filesystem for the prefixed path and, when that file is absent, asks for the ordinary path. Archive precedence and the existing RoC/TFT `War3x*` visibility rule therefore remain authoritative; there is no hard-coded list of TFT-only unit, ability, building, or upgrade rawcodes.
+`G_ReadGameDataFile` owns this overlay for sheet/object-data parsing. Lookup order:
 
-`G_LoadMap` applies the W3I-selected prefix only after `gi.ClearWorld()`, because live edicts retain typed-row pointers. When the prefix changes, OpenRealm reloads `war3skins.txt`, misc constants, typed unit/ability/upgrade tables, profile/command INI data, and ability `A_INIT` caches as one map-boundary operation, then rebuilds map-local `war3map.w3u` overrides. Command-card `Builds`, `Trains`, `Researches`, unit `abilList`, and in-place `Upgrade` lists consequently come from the active data set instead of being filtered by a TFT rawcode blacklist.
+```text
+1. current map archive (FS_SetPriorityArchive / CM_LoadMapFormat) — if mounted
+2. <gameDataSet prefix>\<sheet path>   e.g. Custom_V1\Units\CampaignUnitFunc.txt
+3. root path in the already-selected ROC/TFT archive view
+```
+
+Archive precedence and the existing RoC/TFT `War3x*` visibility rule therefore remain authoritative; there is no hard-coded list of TFT-only unit, ability, building, or upgrade rawcodes.
+
+`CM_LoadMapFormat` keeps the open map MPQ mounted as the FS priority archive for the lifetime of the map so `Units\CampaignUnitFunc.txt`, `war3mapMisc.txt`, and other map-imported sheets win over Custom_V*/base. `FS_SetPriorityArchive(NULL)` runs on map clear.
+
+`G_LoadMap` applies the W3I-selected prefix only after `gi.ClearWorld()`, because live edicts retain typed-row pointers. When the prefix changes **or** a map archive is mounted, OpenRealm reloads `war3skins.txt`, misc constants, typed unit/ability/upgrade tables, profile/command INI data, and ability `A_INIT` caches as one map-boundary operation, then rebuilds map-local `war3map.w3u` / `war3map.w3a` overrides. Command-card `Builds`, `Trains`, `Researches`, unit `abilList`, and in-place `Upgrade` lists consequently come from the active data set instead of being filtered by a TFT rawcode blacklist.
+
+`war3mapMisc.txt` is listed first in `miscdata_files[]` so `FS_FindSheetCell` (first-match) prefers map Misc keys such as `MaxHeroLevel` over stock `MiscGame.txt`.
 
 W3I format version is a separate compatibility input. `G_IsReignOfChaosMap()` recognizes parsed formats `1..24` as RoC maps; zero is treated as unknown for synthetic/test metadata. This helper is for runtime semantic differences, such as the stock RoC hero-inventory fallback, and must not be confused with `fs_expansion` or `gameDataSet`.
 
-Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback, `Custom_V0`/`Melee_V1` prefix formation, RoC-map detection, prefixed fixture selection, and root fallback. Fixture files live under `games/warcraft-3/tests/resources-src/{Custom_V0,Melee_V1}/`.
+Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback, `Custom_V0`/`Melee_V1` prefix formation, RoC-map detection, prefixed fixture selection, root fallback, and map-archive CampaignUnitFunc / war3mapMisc / w3a overrides. Fixture files live under `games/warcraft-3/tests/resources-src/{Custom_V0,Melee_V1,MapOverlay}/`.
 
 The current overlay is deliberately scoped to sheet/INI object data. Warsmash applies its subdirectory data source more broadly, but extending model/texture/FDF asset resolution would cross the renderer/client asset-scope boundary and is separate work; it is not required to keep TFT-only techtree rows out of RoC command cards.
 
-See also [WC3 map format](games/warcraft-3/file-formats/map.md) for the W3I fields and [runtime](architecture/runtime.md) for `fs_expansion`.
-Custom maps that import `Units\CampaignUnitFunc.txt` or `war3mapMisc.txt` into the map MPQ still miss this overlay;
-see [DotA Custom-Map Playability](games/warcraft-3/dota-map-playability.md).
+See also [WC3 map format](games/warcraft-3/file-formats/map.md) for the W3I fields, [runtime](architecture/runtime.md) for `fs_expansion`, and [DotA Custom-Map Playability](games/warcraft-3/dota-map-playability.md).
 
 ## The Base-vs-Computed Column Trap
 
@@ -69,13 +79,19 @@ items, upgrades, and JASS natives modify those values after spawn. Cohesive tran
 named edict sections (`item`, `destructable`, `cargo`, `movement`, `channel`, and `sound`). The server-visible prefix
 through `areabounds` must remain aligned with `server.h`.
 
-### Map-local `war3map.w3u` / `war3map.w3t` typed-row overrides
+### Map-local `war3map.w3u` / `war3map.w3t` / `war3map.w3a` typed-row overrides
 
 `CM_LoadMap` parses original-unit edits and user-created units from `war3map.w3u` into `MAPINFO.originalUnits` and
 `MAPINFO.userCreatedUnits`. Before map entities spawn, `G_SetMapUnitOverrides` builds stable per-map `UnitBalance_t`,
 `UnitProfile_t`, and `UnitUI_t` rows. Original-unit edits are applied first; a custom unit then inherits the already-overridden base
 rows and applies its own registered Balance/Profile/UI modifications. `G_UnitBalance(id)`, `G_UnitProfile(id)`, and `G_UnitUI(id)`
 check these exact-ID rows before falling back to the base-SLK/custom-ID remap.
+
+Ability object edits from `war3map.w3a` land in `MAPINFO.originalAbilities` / `userCreatedAbilities` (w3a modifications include
+the level + data-pointer ints that w3u omits). `G_SetMapAbilityOverrides` builds `AbilityData_t` rows. `G_AbilityData` checks
+these exact-ID rows before falling back to the base-SLK/custom-ID remap. Ability apply currently covers
+`alev`/`arlv`/`alsk`/`apri`, leveled `amcs`/`acas`/`adur`/`ahdu`/`acdn`/`aare`/`aran`/`atar`, and DataA–I via
+`dataPointer`+`level`. Full AbilityMetaData-driven field coverage remains follow-up work.
 
 The same map-load pass parses `war3map.w3t` into `MAPINFO.originalItems` / `userCreatedItems` and builds stable per-map `ItemData_t`
 rows. Original-item edits are applied before custom items inherit their base row. `G_ItemData(id)` therefore sees map-authored item

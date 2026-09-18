@@ -31,6 +31,7 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
 static inline HANDLE G_WorldReadFile(LPCSTR filename, LPDWORD size) { return gi.ReadFile(filename, size); }
 static inline HANDLE G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
 static inline void G_WorldMemFree(HANDLE mem) { gi.MemFree(mem); }
+static inline void G_WorldSetPriorityArchive(HANDLE archive) { gi.SetPriorityArchive(archive); }
 static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 	size_t len;
 	if (!buffer) return INVALID_BOM;
@@ -42,6 +43,7 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 }
 #define FS_ReadFile G_WorldReadFile
 #define FS_FreeFile G_WorldMemFree
+#define FS_SetPriorityArchive G_WorldSetPriorityArchive
 #define MemAlloc G_WorldMemAlloc
 #define MemFree G_WorldMemFree
 #define PF_TextRemoveBom G_WorldTextRemoveBom
@@ -55,6 +57,7 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 
 #undef FS_ReadFile
 #undef FS_FreeFile
+#undef FS_SetPriorityArchive
 #undef MemAlloc
 #undef MemFree
 #undef PF_TextRemoveBom

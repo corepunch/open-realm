@@ -190,6 +190,9 @@ void Sys_Quit(void);
 HANDLE FS_AddArchive(LPCSTR filename);
 BOOL FS_AddDataDirectory(LPCSTR dirname);
 BOOL FS_ArchiveFileVisible(LPCSTR archive, LPCSTR filename);
+/* Highest-priority open archive for FS_OpenFile/FS_ReadFile (e.g. current map MPQ). NULL clears. */
+void FS_SetPriorityArchive(HANDLE archive);
+HANDLE FS_GetPriorityArchive(void);
 HANDLE FS_OpenFile(LPCSTR fileName);
 void FS_CloseFile(HANDLE file);
 HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);

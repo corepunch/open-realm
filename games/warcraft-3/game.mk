@@ -241,6 +241,12 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		"morph TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Units/Creeps/Medivh/Medivh.mdx"; do \
 		$(BIN_DIR)/mdxgen$(EXE_EXT) $$model; \
 	done
+	@echo "[test-assets] packing map-overlay fixture MPQ"
+	@mkdir -p $(TESTS_RES_DIR)/Maps
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/MapOverlay.w3x pack \
+		$(TESTS_SRC_DIR)/MapOverlay/Units/CampaignUnitFunc.txt "Units\\CampaignUnitFunc.txt" \
+		$(TESTS_SRC_DIR)/MapOverlay/war3mapMisc.txt war3mapMisc.txt \
+		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a
 	@echo "[test-assets] packing tests.mpq"
 	@set --; \
 	for f in $$(find $(TESTS_RES_DIR) -type f | sort); do \
@@ -248,7 +254,8 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	done; \
 	for f in $$(find $(TESTS_SRC_DIR) -type f | sort); do \
 		rel=$${f#$(TESTS_SRC_DIR)/}; arc=$$rel; \
-		case "$$rel" in TestUI/FrameDef/*|TestUI/CampaignStrings*) arc=UI/$${rel#TestUI/};; esac; \
+		case "$$rel" in TestUI/FrameDef/*|TestUI/CampaignStrings*) arc=UI/$${rel#TestUI/};; \
+		MapOverlay/*) continue;; esac; \
 		set -- "$$@" "$$f" "$$arc"; \
 	done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) pack "$$@"

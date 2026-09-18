@@ -184,6 +184,8 @@ typedef struct {
 typedef struct unitModification_t {
     DWORD modID;
     unitModificationType_t type;
+    DWORD level;       /* w3a/w3q/w3d leveled fields; 0 for w3u */
+    DWORD dataPointer; /* w3a DataA-I column index; 0 for non-Data fields */
     HANDLE data;
 } unitModification_t;
 
@@ -246,6 +248,8 @@ struct mapInfo_s {
     DWORD num_userCreatedUnits;
     DWORD num_originalItems;
     DWORD num_userCreatedItems;
+    DWORD num_originalAbilities;
+    DWORD num_userCreatedAbilities;
     DWORD num_weatherRegions;
     mapPlayer_t players[MAX_PLAYERS];
     mapTeam_t *teams;
@@ -260,6 +264,8 @@ struct mapInfo_s {
      * war3map.w3u; unitData_t keeps the existing parser-owned representation. */
     unitData_t *originalItems;
     unitData_t *userCreatedItems;
+    unitData_t *originalAbilities; /* war3map.w3a original-table rows */
+    unitData_t *userCreatedAbilities;
     mapWeatherRegion_t *weatherRegions;
     LPSTR mapscript;
 };

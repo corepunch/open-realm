@@ -2375,6 +2375,7 @@ FLOAT UnitMetaReal(LPEDICT, DWORD);
 void InitUnitData(void);
 void ShutdownUnitData(void);
 void G_SetMapUnitOverrides(LPCMAPINFO);
+void G_SetMapAbilityOverrides(LPCMAPINFO);
 BOOL G_IsReignOfChaosMap(LPCMAPINFO);
 DWORD G_MapGameDataSet(LPCMAPINFO);
 void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params);

@@ -65,6 +65,8 @@ struct game_import {
     /* Calls callback for every archive copy of filename, lowest priority first.
      * Useful for merging layered data files (e.g. GameData/Assets.txt). */
     void (*ReadFileAll)(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud);
+    /* Mount/clear the highest-priority FS archive (current map MPQ). NULL clears. */
+    void (*SetPriorityArchive)(HANDLE archive);
     DWORD (*GetTime)(void);
     /* Rewind/advance the simulation clock only. sv.framenum indexes the snapshot delta
      * ring and is process state, so a loaded game must not move it. */

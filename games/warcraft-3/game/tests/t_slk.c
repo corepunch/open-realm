@@ -10,6 +10,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "common/stb_slk.h"
+#include "common/mpq.h"
 
 void setup_test_world(void);
 
@@ -96,6 +97,145 @@ TEST(wc3_slk, sheet_reader_prefers_active_map_data_overlay) {
     Stb_IniCacheFree(&data);
 
     strlcpy(game.data_prefix, saved_prefix, sizeof(game.data_prefix));
+}
+
+/* Map-archive Units\CampaignUnitFunc.txt and war3mapMisc.txt must win over base
+ * TFT through gi.SetPriorityArchive (the same hook CM_LoadMapFormat installs). */
+TEST(wc3_slk, map_archive_campaign_unit_func_overrides_base) {
+    HANDLE archive = NULL;
+    char saved_prefix[sizeof(game.data_prefix)];
+    stbIniCache_t data = { 0 };
+    DWORD size = 0;
+    HANDLE bytes;
+
+    T_NOT_NULL(gi.SetPriorityArchive);
+    strlcpy(saved_prefix, game.data_prefix, sizeof(saved_prefix));
+    game.data_prefix[0] = '\0'; /* exercise the unprefixed map-archive path */
+    bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);
+    T_NOT_NULL(bytes);
+    T_ASSERT(SFileOpenArchiveFromMemory(bytes, size, 0, &archive));
+    gi.SetPriorityArchive(archive);
+
+    T_ASSERT(Stb_IniCacheLoad(&data, "Units\\CampaignUnitFunc.txt"));
+    T_STREQ(Stb_IniCacheFind(&data, "Harf", "Name"), "MapOverlay Omniknight");
+    Stb_IniCacheFree(&data);
+
+    gi.SetPriorityArchive(NULL);
+    SFileCloseArchive(archive);
+    gi.MemFree(bytes);
+    strlcpy(game.data_prefix, saved_prefix, sizeof(game.data_prefix));
+}
+
+TEST(wc3_slk, map_archive_war3map_misc_overrides_max_hero_level) {
+    HANDLE archive = NULL;
+    char saved_prefix[sizeof(game.data_prefix)];
+    void *old_misc;
+    DWORD size = 0;
+    HANDLE bytes;
+    LPCSTR expected;
+
+    T_NOT_NULL(gi.SetPriorityArchive);
+    strlcpy(saved_prefix, game.data_prefix, sizeof(saved_prefix));
+    game.data_prefix[0] = '\0';
+    bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);
+    T_NOT_NULL(bytes);
+    T_ASSERT(SFileOpenArchiveFromMemory(bytes, size, 0, &archive));
+    gi.SetPriorityArchive(archive);
+
+    /* Read the fixture value first so the assertion cannot pass on a hardcoded 25. */
+    {
+        stbIniCache_t file = { 0 };
+        T_ASSERT(Stb_IniCacheLoad(&file, "war3mapMisc.txt"));
+        expected = Stb_IniCacheFind(&file, "Misc", "MaxHeroLevel");
+        T_NOT_NULL(expected);
+        T_ASSERT(atoi(expected) > 10); /* non-stock vs default 10 */
+        old_misc = game.config.misc.source;
+        game.config.misc.source = file.source;
+        T_EQ((int)G_MaxHeroLevel(), atoi(expected));
+        game.config.misc.source = old_misc;
+        Stb_IniCacheFree(&file);
+    }
+
+    gi.SetPriorityArchive(NULL);
+    SFileCloseArchive(archive);
+    gi.MemFree(bytes);
+    strlcpy(game.data_prefix, saved_prefix, sizeof(game.data_prefix));
+}
+
+TEST(wc3_slk, map_w3a_applies_levels_and_data_a) {
+    DWORD const id = MAKEFOURCC('A','H','h','b');
+    FLOAT data_a = 123.0f;
+    DWORD levels = 4; /* stock fixture AHhb uses 3 */
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('a','l','e','v'), .type = mod_int, .data = &levels },
+        { .modID = MAKEFOURCC('H','h','b','1'), .type = mod_real, .level = 1, .dataPointer = 0, .data = &data_a },
+    };
+    unitData_t original = {
+        .originalUnitID = id, .numbeOfModifications = 2, .modifications = mods
+    };
+    MAPINFO mapinfo = { .num_originalAbilities = 1, .originalAbilities = &original };
+    AbilityData_t const *before;
+    AbilityData_t const *after;
+
+    setup_test_world();
+    before = G_AbilityData(id);
+    T_ASSERT(before->levels != 4);
+    T_ASSERT(before->level[0].data[0].number != 123.0f);
+
+    G_SetMapAbilityOverrides(&mapinfo);
+    after = G_AbilityData(id);
+    T_EQ(after->levels, 4);
+    T_FEQ(after->level[0].data[0].number, 123.0f, 0.001f);
+
+    G_SetMapAbilityOverrides(NULL);
+    T_EQ(G_AbilityData(id)->levels, before->levels);
+    T_ASSERT(G_AbilityData(id)->level[0].data[0].number != 123.0f);
+}
+
+TEST(wc3_slk, map_archive_w3a_parse_stores_original_ability_mods) {
+    HANDLE archive = NULL;
+    DWORD size = 0;
+    HANDLE bytes;
+    DWORD saved_orig = 0, saved_user = 0;
+    unitData_t *saved_orig_ptr = NULL, *saved_user_ptr = NULL;
+
+    bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);
+    T_NOT_NULL(bytes);
+    T_ASSERT(SFileOpenArchiveFromMemory(bytes, size, 0, &archive));
+
+    saved_orig = world.info.num_originalAbilities;
+    saved_user = world.info.num_userCreatedAbilities;
+    saved_orig_ptr = world.info.originalAbilities;
+    saved_user_ptr = world.info.userCreatedAbilities;
+    world.info.num_originalAbilities = 0;
+    world.info.num_userCreatedAbilities = 0;
+    world.info.originalAbilities = NULL;
+    world.info.userCreatedAbilities = NULL;
+
+    CM_ReadAbilities(archive);
+    T_EQ(world.info.num_originalAbilities, 1);
+    T_EQ(world.info.originalAbilities[0].originalUnitID, MAKEFOURCC('A','H','h','b'));
+    T_EQ(world.info.originalAbilities[0].numbeOfModifications, 2);
+    T_EQ(world.info.originalAbilities[0].modifications[0].modID, MAKEFOURCC('a','l','e','v'));
+    T_EQ(*(DWORD const *)world.info.originalAbilities[0].modifications[0].data, 3);
+    T_EQ(world.info.originalAbilities[0].modifications[1].dataPointer, 0);
+    T_EQ(world.info.originalAbilities[0].modifications[1].level, 1);
+    T_FEQ(*(FLOAT const *)world.info.originalAbilities[0].modifications[1].data, 123.0f, 0.001f);
+
+    /* Free parse results; restore any prior world pointers. */
+    FOR_LOOP(i, world.info.num_originalAbilities) {
+        FOR_LOOP(j, world.info.originalAbilities[i].numbeOfModifications)
+            gi.MemFree(world.info.originalAbilities[i].modifications[j].data);
+        gi.MemFree(world.info.originalAbilities[i].modifications);
+    }
+    gi.MemFree(world.info.originalAbilities);
+    world.info.num_originalAbilities = saved_orig;
+    world.info.num_userCreatedAbilities = saved_user;
+    world.info.originalAbilities = saved_orig_ptr;
+    world.info.userCreatedAbilities = saved_user_ptr;
+
+    SFileCloseArchive(archive);
+    gi.MemFree(bytes);
 }
 
 slkTestData_t *parse_slk_string(const char *slk_text) {

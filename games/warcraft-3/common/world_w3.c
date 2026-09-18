@@ -13,8 +13,12 @@ static void CM_ReadInfo(HANDLE archive);
 static void CM_ReadWeather(HANDLE archive);
 void CM_ReadUnits(HANDLE archive);
 void CM_ReadItems(HANDLE archive);
+void CM_ReadAbilities(HANDLE archive);
 void CM_ReadStrings(HANDLE archive);
 void CM_ReadMapScript(HANDLE archive);
+
+static HANDLE cm_w3_map_archive;
+static HANDLE cm_w3_map_data;
 
 static cmW3Read_t const cm_w3_readers[] = {
     CM_ReadPathMap,
@@ -25,6 +29,7 @@ static cmW3Read_t const cm_w3_readers[] = {
     CM_ReadWeather,
     CM_ReadUnits,
     CM_ReadItems,
+    CM_ReadAbilities,
     CM_ReadStrings,
     CM_ReadMapScript,
 };
@@ -260,11 +265,23 @@ static void CM_W3FreeDoodadPlacement(LPDOODAD doodad) {
     SAFE_DELETE(doodad->diffAvailUnits, MemFree);
 }
 
+static void CM_W3ReleaseMapArchive(void) {
+    FS_SetPriorityArchive(NULL);
+    if (cm_w3_map_archive) {
+        SFileCloseArchive(cm_w3_map_archive);
+        cm_w3_map_archive = NULL;
+    }
+    SAFE_DELETE(cm_w3_map_data, MemFree);
+}
+
 static void CM_W3ClearMapData(void) {
+    CM_W3ReleaseMapArchive();
     CM_W3FreeUnitOverrides(world.info.num_originalUnits, &world.info.originalUnits);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedUnits, &world.info.userCreatedUnits);
     CM_W3FreeUnitOverrides(world.info.num_originalItems, &world.info.originalItems);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedItems, &world.info.userCreatedItems);
+    CM_W3FreeUnitOverrides(world.info.num_originalAbilities, &world.info.originalAbilities);
+    CM_W3FreeUnitOverrides(world.info.num_userCreatedAbilities, &world.info.userCreatedAbilities);
     CM_ReleaseModel();
     while (world.doodads) {
         LPDOODAD doodad = world.doodads;
@@ -283,27 +300,27 @@ static void CM_W3ClearMapData(void) {
 }
 
 bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
-    HANDLE mapArchive;
-    HANDLE mapData;
     DWORD mapSize = 0;
 
     CM_W3ClearMapData();
-    mapData = FS_ReadFile(mapFilename, &mapSize);
-    if (!mapData || mapSize == 0) {
+    cm_w3_map_data = FS_ReadFile(mapFilename, &mapSize);
+    if (!cm_w3_map_data || mapSize == 0) {
+        SAFE_DELETE(cm_w3_map_data, MemFree);
         Com_Error(ERR_DROP, "CM_LoadMap: failed to read map %s\n", mapFilename);
         return false;
     }
-    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &mapArchive)) {
-        MemFree(mapData);
+    if (!SFileOpenArchiveFromMemory(cm_w3_map_data, mapSize, 0, &cm_w3_map_archive)) {
+        SAFE_DELETE(cm_w3_map_data, MemFree);
         Com_Error(ERR_DROP, "CM_LoadMap: failed to open map archive %s\n", mapFilename);
         return false;
     }
+    /* Keep the open map as the highest-priority FS source so sheet/INI loaders
+     * (G_ReadGameDataFile) see map-imported Units\*.txt and war3mapMisc.txt. */
+    FS_SetPriorityArchive(cm_w3_map_archive);
     FOR_LOOP(i, sizeof(cm_w3_readers) / sizeof(*cm_w3_readers)) {
-        cm_w3_readers[i](mapArchive);
+        cm_w3_readers[i](cm_w3_map_archive);
         yield();
     }
-    SFileCloseArchive(mapArchive);
-    MemFree(mapData);
     return true;
 }
 

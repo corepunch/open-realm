@@ -252,6 +252,7 @@ void G_UpdateTimeOfDay(void) {
 static bool G_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         G_SetMapUnitOverrides(NULL);
+        G_SetMapAbilityOverrides(NULL);
         return false;
     }
     gi.LoadingFrame();
@@ -274,6 +275,7 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     gi.LoadingFrame();
     G_MusicResetState();
     G_SetMapUnitOverrides(CM_GetMapInfo());
+    G_SetMapAbilityOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Bind every panel once so write
      * paths do not parse FDF on first use. */
     UI_LoadHud();
@@ -287,13 +289,15 @@ static bool G_LoadMap(LPCSTR mapFilename) {
     return true;
 }
 
+/* war3mapMisc.txt is first so FS_FindSheetCell (first-match) prefers map/base
+ * war3mapMisc keys over stock MiscGame — matching the documented override rule. */
 LPCSTR miscdata_files[] = {
+    "war3mapMisc.txt",
     "UI\\MiscData.txt",
     "Units\\MiscData.txt",
     "Units\\MiscGame.txt",
     "UI\\MiscUI.txt",
     "UI\\SoundInfo\\MiscData.txt",
-    "war3mapMisc.txt",
     NULL
 };
 
@@ -418,10 +422,9 @@ static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo) {
     };
 
     G_MapGameDataPrefix(&params);
-    if (!strcmp(game.data_prefix, prefix)) return;
-
-    /* InitUnitData and ability A_INIT handlers cache values from the sheet
-     * reader, so replace them together at the map boundary. */
+    /* Always reload at the map boundary: even when the W3I data-set prefix is
+     * unchanged, the mounted map archive may supply Units\*.txt / war3mapMisc.txt
+     * that the previous InitUnitData never saw. */
     ShutdownUnitData();
     Stb_IniCacheFree(&game.config.theme);
     Stb_IniCacheFree(&game.config.misc);

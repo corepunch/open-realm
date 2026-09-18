@@ -80,6 +80,7 @@ const LPCSTR WarcraftSheets[] = {
 static HANDLE archives[MAX_ARCHIVES] = { 0 };
 static PATHSTR archiveNames[MAX_ARCHIVES];
 static PATHSTR gameDirs[MAX_GAME_DIRS];
+static HANDLE priority_archive; /* optional session overlay; searched before archives[] */
 
 typedef void (*fsDiskEntryFunc_t)(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData);
 
@@ -249,6 +250,14 @@ HANDLE FS_AddArchive(LPCSTR filename) {
         return archives[i];
     }
     return NULL;
+}
+
+void FS_SetPriorityArchive(HANDLE archive) {
+    priority_archive = archive;
+}
+
+HANDLE FS_GetPriorityArchive(void) {
+    return priority_archive;
 }
 
 static BOOL FS_StatPath(LPCSTR filename, BOOL *isDirectory, BOOL *isFile) {
@@ -949,6 +958,11 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
         filelock = false;
         return NULL;
     }
+    if (priority_archive) {
+        HANDLE file;
+        if (SFileOpenFileEx(priority_archive, fileName, SFILE_OPEN_FROM_MPQ, &file))
+            return file;
+    }
     for (int i = MAX_ARCHIVES - 1; i >= 0; i--) {
         HANDLE file;
         if (!archives[i]) {
@@ -1195,8 +1209,9 @@ void FS_MunmapFile(void *ptr) { MemFree(ptr); }
 
 /* Read every copy of 'filename' across all loaded archives, lowest priority
  * first (so later calls override earlier ones when merging key=value data).
- * callback receives a NUL-terminated buffer + its byte length; it must NOT
- * free the buffer — the caller owns it and frees after the callback returns. */
+ * The optional priority archive is invoked last. callback receives a
+ * NUL-terminated buffer + its byte length; it must NOT free the buffer — the
+ * caller owns it and frees after the callback returns. */
 void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud) {
     if (!filename || !*filename || !callback) return;
     for (int i = 0; i < MAX_ARCHIVES; i++) {
@@ -1211,6 +1226,18 @@ void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, vo
         SFileCloseFile(file);
         callback(buf, sz, ud);
         MemFree(buf);
+    }
+    if (priority_archive) {
+        HANDLE file;
+        if (SFileOpenFileEx(priority_archive, filename, SFILE_OPEN_FROM_MPQ, &file)) {
+            DWORD sz = SFileGetFileSize(file, NULL);
+            LPSTR buf = MemAlloc(sz + 1);
+            SFileReadFile(file, buf, sz, NULL, NULL);
+            buf[sz] = '\0';
+            SFileCloseFile(file);
+            callback(buf, sz, ud);
+            MemFree(buf);
+        }
     }
 }
 
@@ -1479,6 +1506,7 @@ void FS_Init(void) {
 }
 
 void FS_Shutdown(void) {
+    priority_archive = NULL;
     FOR_LOOP(i, MAX_ARCHIVES) {
         SFileCloseArchive(archives[i]);
         archives[i] = NULL;

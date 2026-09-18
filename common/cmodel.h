@@ -63,6 +63,7 @@ DWORD CM_GetLocalPlayerNumber(void);
 LPCMAPINFO CM_GetMapInfo(void);
 BOOL CM_ReadMapInfo(LPCSTR filename, LPMAPINFO info);
 void CM_FreeMapInfo(LPMAPINFO info);
+void CM_ReadAbilities(HANDLE archive);
 VECTOR2 CM_GetNormalizedMapPosition(float x, float y);
 VECTOR2 CM_GetDenormalizedMapPosition(float x, float y);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);

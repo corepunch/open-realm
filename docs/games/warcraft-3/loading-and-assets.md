@@ -217,13 +217,15 @@ Standalone renderer regression coverage exercises both a present scoped model/ca
 model that falls back to the base path, including scope clearing at a registration boundary.
 
 This is intentionally narrower than a full Warsmash-style data-source stack. The current transition still does
-**not** rebuild all WC3 SLK/TXT data per map, merge all `war3map.w3a/.w3t/.w3b/.w3d/.w3q` object modifications,
+**not** rebuild all WC3 SLK/TXT data from scratch for every unrelated reason, merge all `war3map.w3t/.w3b/.w3d/.w3q` object modifications,
 implement JASS `Preload`/`Preloader`, or expose staged byte/task loading progress. `war3map.w3u` now applies the
 registered `UnitBalance`/`UnitProfile`/`UnitUI` subset (including balance/stock values, Required Animation Names, and custom model
-paths), but the remaining Data/Weapons/Abilities tables and true per-map `war3mapMisc.txt`/skin overlays remain separate data-layer work;
+paths), but the remaining Data/Weapons tables and full AbilityMetaData-driven `war3map.w3a` field coverage remain separate data-layer work;
 do not infer those capabilities from the renderer's map-import lookup. DotA 6.83d ships heroes, items, and
-`war3mapMisc.txt` inside the map archive (`Units\CampaignUnitFunc.txt`, `war3map.w3a`); those members are
-invisible to `G_ReadGameDataFile` today. See [DotA Custom-Map Playability](dota-map-playability.md).
+`war3mapMisc.txt` inside the map archive (`Units\CampaignUnitFunc.txt`, `war3map.w3a`); after #432
+`CM_LoadMapFormat` mounts that archive via `FS_SetPriorityArchive` so `G_ReadGameDataFile` sees those members
+before Custom_V*/base, and `CM_ReadAbilities` / `G_SetMapAbilityOverrides` apply DataA–I plus common leveled
+fields. See [DotA Custom-Map Playability](dota-map-playability.md) and [WC3 Data Model](../../wc3-data-model.md).
 ## Loading progress contract
 
 Loading progress is client-owned and intentionally coarse. `CL_BeginLoadingMap` resets `cl.loading_progress` to

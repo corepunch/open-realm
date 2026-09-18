@@ -199,6 +199,7 @@ void SV_InitGameProgs(void) {
     import.SetPaused = SV_SetPaused;
     import.ReadFile = FS_ReadFile;
     import.ReadFileAll = FS_ReadFileAll;
+    import.SetPriorityArchive = FS_SetPriorityArchive;
     import.error = PF_error;
     import.LinkEntity = SV_LinkEntity;
     import.UnlinkEntity = SV_UnlinkEntity;

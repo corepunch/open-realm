@@ -859,6 +859,11 @@ typedef struct {
     ItemData_t row;
 } mapItemDataOverride_t;
 
+typedef struct {
+    DWORD id;
+    AbilityData_t row;
+} mapAbilityOverride_t;
+
 static mapUnitBalanceOverride_t *map_unit_balance_overrides;
 static DWORD map_unit_balance_override_count;
 static mapUnitProfileOverride_t *map_unit_profile_overrides;
@@ -867,6 +872,8 @@ static mapUnitUIOverride_t *map_unit_ui_overrides;
 static DWORD map_unit_ui_override_count;
 static mapItemDataOverride_t *map_item_data_overrides;
 static DWORD map_item_data_override_count;
+static mapAbilityOverride_t *map_ability_overrides;
+static DWORD map_ability_override_count;
 
 typedef struct {
     LPCSTR name, path;
@@ -1445,6 +1452,115 @@ void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
     }
 }
 
+/* war3map.w3a → AbilityData. Apply DataA–I via dataPointer+level, plus common
+ * scalar fields identified by AbilityMetaData-style fourccs (alev/arlv/…). */
+static AbilityData_t const *FindMapAbilityOverride(DWORD id) {
+    FOR_LOOP(i, map_ability_override_count) {
+        if (map_ability_overrides[i].id == id)
+            return &map_ability_overrides[i].row;
+    }
+    return NULL;
+}
+
+static void ApplyMapAbilityMod(AbilityData_t *row, unitModification_t const *mod) {
+    DWORD level;
+    abilityLevel_t *slot;
+    FLOAT value;
+
+    if (!row || !mod || !mod->data) return;
+
+    /* Named AbilityMetaData fields first — their dataPointer is often 0 and
+     * must not be mistaken for DataA. */
+    switch (mod->modID) {
+    case MAKEFOURCC('a','l','e','v'):
+        if (mod->type == mod_int) row->levels = (LONG)*(DWORD const *)mod->data;
+        return;
+    case MAKEFOURCC('a','r','l','v'):
+        if (mod->type == mod_int) row->reqLevel = (LONG)*(DWORD const *)mod->data;
+        return;
+    case MAKEFOURCC('a','l','s','k'):
+        if (mod->type == mod_int) row->levelSkip = (LONG)*(DWORD const *)mod->data;
+        return;
+    case MAKEFOURCC('a','p','r','i'):
+        if (mod->type == mod_int) row->priority = (LONG)*(DWORD const *)mod->data;
+        return;
+    case MAKEFOURCC('a','t','a','r'):
+        if (mod->level >= 1 && mod->level <= 4 && UnitModificationString(mod))
+            row->level[mod->level - 1].targs = (LPCSTR)mod->data;
+        return;
+    case MAKEFOURCC('a','m','c','s'):
+    case MAKEFOURCC('a','c','a','s'):
+    case MAKEFOURCC('a','d','u','r'):
+    case MAKEFOURCC('a','h','d','u'):
+    case MAKEFOURCC('a','c','d','n'):
+    case MAKEFOURCC('a','a','r','e'):
+    case MAKEFOURCC('a','r','a','n'):
+        if (mod->level < 1 || mod->level > 4) return;
+        slot = &row->level[mod->level - 1];
+        value = (mod->type == mod_int) ? (FLOAT)*(DWORD const *)mod->data : *(FLOAT const *)mod->data;
+        if (mod->modID == MAKEFOURCC('a','c','a','s')) slot->cast = value;
+        else if (mod->modID == MAKEFOURCC('a','d','u','r')) slot->dur = value;
+        else if (mod->modID == MAKEFOURCC('a','h','d','u')) slot->heroDur = value;
+        else if (mod->modID == MAKEFOURCC('a','c','d','n')) slot->cool = value;
+        else if (mod->modID == MAKEFOURCC('a','a','r','e')) slot->area = value;
+        else if (mod->modID == MAKEFOURCC('a','r','a','n')) slot->range = value;
+        else slot->cost = value;
+        return;
+    default:
+        break;
+    }
+
+    /* Remaining leveled mods with dataPointer address DataA–I. */
+    if (mod->dataPointer <= 8 && mod->level >= 1 && mod->level <= 4) {
+        level = mod->level - 1;
+        slot = &row->level[level];
+        if (mod->type == mod_int) {
+            slot->data[mod->dataPointer].number = (FLOAT)*(DWORD const *)mod->data;
+            slot->data[mod->dataPointer].id = *(DWORD const *)mod->data;
+        } else if (mod->type == mod_real || mod->type == mod_unreal) {
+            slot->data[mod->dataPointer].number = *(FLOAT const *)mod->data;
+        }
+    }
+}
+
+static void AddMapAbilityOverride(unitData_t const *ability, DWORD target_id, DWORD base_id) {
+    AbilityData_t const *base = FindMapAbilityOverride(base_id);
+    mapAbilityOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&ability_idx, base_id);
+    override = map_ability_overrides + map_ability_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, ability->numbeOfModifications)
+        ApplyMapAbilityMod(&override->row, ability->modifications + i);
+}
+
+void G_SetMapAbilityOverrides(LPCMAPINFO mapinfo) {
+    DWORD capacity;
+
+    free(map_ability_overrides);
+    map_ability_overrides = NULL;
+    map_ability_override_count = 0;
+    if (!mapinfo) return;
+
+    capacity = mapinfo->num_originalAbilities + mapinfo->num_userCreatedAbilities;
+    if (!capacity) return;
+    map_ability_overrides = calloc(capacity, sizeof(*map_ability_overrides));
+    if (!map_ability_overrides) return;
+
+    FOR_LOOP(i, mapinfo->num_originalAbilities) {
+        unitData_t const *ability = mapinfo->originalAbilities + i;
+        AddMapAbilityOverride(ability, ability->originalUnitID, ability->originalUnitID);
+    }
+    FOR_LOOP(i, mapinfo->num_userCreatedAbilities) {
+        unitData_t const *ability = mapinfo->userCreatedAbilities + i;
+        AddMapAbilityOverride(ability, ability->newUnitID, ability->originalUnitID);
+    }
+}
+
 /* =========================================================================
  * Public lookup functions.
  * Map-created units remap their ID to the base unit ID for typed tables that
@@ -1541,7 +1657,14 @@ UnitUI_t const *G_UnitUI(DWORD id) {
 }
 UnitWeapons_t const *G_UnitWeapons(DWORD id) { static UnitWeapons_t zero; UnitWeapons_t *row = FS_SLKLookup(&weapons_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitAbilities_t const *G_UnitAbil(DWORD id) { static UnitAbilities_t zero; UnitAbilities_t *row = FS_SLKLookup(&abil_idx, ResolveUnitID(id)); return row ? row : &zero; }
-AbilityData_t const *G_AbilityData(DWORD id) { static AbilityData_t zero; AbilityData_t *row = FS_SLKLookup(&ability_idx, id); return row ? row : &zero; }
+AbilityData_t const *G_AbilityData(DWORD id) {
+    static AbilityData_t zero;
+    AbilityData_t const *override = FindMapAbilityOverride(id);
+    AbilityData_t *row;
+    if (override) return override;
+    row = FS_SLKLookup(&ability_idx, id);
+    return row ? row : &zero;
+}
 AbilityData_t const *G_AbilityDataName(LPCSTR name) { return G_AbilityData(FS_SLKKey(name)); }
 abilityLevel_t const *G_AbilityLevel(DWORD id, DWORD level) {
     AbilityData_t const *row = G_AbilityData(id);
@@ -1749,6 +1872,7 @@ void InitUnitData(void) {
 
 void ShutdownUnitData(void) {
     G_SetMapUnitOverrides(NULL);
+    G_SetMapAbilityOverrides(NULL);
     FS_SLKFreeIndex(&profile_idx);
     FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
     g_UnitProfile = NULL; g_UnitProfileCount = 0;

@@ -38,17 +38,19 @@ compressed+encrypted. One file uses PKWARE implode (`(listfile)`).
 
 ```text
 loose Maps/*.w3x
-  -> CM_LoadMap opens the map as a nested MPQ (not added to the global FS stack)
+  -> CM_LoadMap opens the map as a nested MPQ and mounts it via FS_SetPriorityArchive
+  -> CM_ReadUnits / CM_ReadItems / CM_ReadAbilities parse war3map.w3u / w3t / w3a into MAPINFO
   -> CM_ReadMapScript tries war3map.j, then scripts\war3map.j (case-insensitive)
   -> miss logs and leaves mapscript NULL; jass_dobuffer refuses NULL
+  -> G_ApplyMapGameDataSet reloads sheets; G_ReadGameDataFile sees map members first
+  -> G_SetMapUnitOverrides / G_SetMapAbilityOverrides
   -> G_SpawnEntities skips jass_dobuffer when mapscript is NULL
   -> G_StartScripts calls main()
 ```
 
 Gameplay sheets (`Units\CampaignUnitFunc.txt`, `war3mapMisc.txt`) go through
-`G_ReadGameDataFile`: `Custom_V1\<path>` then the base MPQ path. They never see
-members inside the current map archive. Renderer map-asset scope covers models
-and textures only.
+`G_ReadGameDataFile`: **current map archive**, then `Custom_V1\<path>`, then the
+base MPQ path. Renderer map-asset scope still covers models and textures only.
 
 ## Diagnostic Workflow
 
@@ -87,9 +89,9 @@ Observed on `6f1057f1`:
    `> 65536` down to 4096 (`common/mpq.c` before #435), open fails. Small
    members such as `war3map.w3i` still open (one sector under both sizes).
    After #435 the authored 16 MiB sector size is honored.
-2. Overlay spam: `Custom_V1\Units\*.txt` and `Custom_V1\war3mapMisc.txt` miss and
-   fall back to base TFT data. The map's own `Units\` and `war3mapMisc.txt` are
-   never consulted.
+2. Overlay spam: `Custom_V1\Units\*.txt` and `Custom_V1\war3mapMisc.txt` miss
+   (expected). After #432 the unprefixed path consults the mounted map archive
+   before base TFT, so map `Units\` and `war3mapMisc.txt` win.
 3. `EXC_BAD_ACCESS` in `jass_remove_comments` at `jdo.c:1980` with `buf == NULL`,
    because `CM_ReadMapScript` stored a null `war3map.j`.
 
@@ -149,8 +151,9 @@ Suggested order (GitHub #431 and children):
 3. Implement the hashtable native family (#437) — done for runtime; snapshot gap
    documented below.
 4. Resolve map-archive `Units\*.txt`, `war3mapMisc.txt`, and `war3map.w3a`
-   through the existing sheet/object-data path (mount the map as the highest
-   FS archive, or read those members from the already-open map handle) (#432).
+   through the existing sheet/object-data path (#432 — map FS priority + w3a
+   parse/apply for DataA–I and common leveled fields; full AbilityMetaData
+   coverage remains follow-up).
 5. Shop, damage-source, hero-attribute, texttag, and multiboard natives
    (#434, #436). Issue #436 registers GetEventDamageSource, Set/IncUnitAbilityLevel,
    UnitDamageTarget, GetHeroStr/Agi/Int, shop stock/sell context, item user-data
@@ -169,8 +172,8 @@ after the mapscript actually loads.
 - `CM_ReadHeightmap` is unused; terrain open failures are easy to miss because
   doodad errors print first.
 - Overlay logs for missing `Custom_V1\...` are expected for this map and are
-  not the same as "the map has no CampaignUnitFunc". The map has one; FS cannot
-  see it.
+  not the same as "the map has no CampaignUnitFunc". The map has one; after
+  #432 the unprefixed lookup reads it from the mounted map archive.
 - Do not treat a later `completed` audit row as playable DotA. Spawn, shops,
   items, and win conditions are all script-driven.
 
