@@ -135,4 +135,128 @@ TEST(wc3_api, hashtable_player_location_and_gethandleid_stable) {
         "endfunction\n"));
 }
 
+/* Live hashtable globals must round-trip scalars and nested host handles through WriteGame/ReadGame. */
+TEST(wc3_api, hashtable_save_load_scalars_and_unit) {
+    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-save-test.bin";
+    remove(path);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable ht = null\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set ht = InitHashtable()\n"
+        "  set u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SaveInteger(ht, 1, 2, 42)\n"
+        "  call SaveStr(ht, 1, 3, \"arthas\")\n"
+        "  call SaveUnitHandle(ht, 1, 4, u)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(LoadInteger(ht, 1, 2) == 42, \"int\")\n"
+        "  call BJassAssert(LoadStr(ht, 1, 3) == \"arthas\", \"str\")\n"
+        "  call BJassAssert(LoadUnitHandle(ht, 1, 4) == u, \"unit\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(path);
+}
+
+TEST(wc3_api, hashtable_save_load_nested_host_handles) {
+    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-nested-save-test.bin";
+    remove(path);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable ht = null\n"
+        "  group g = null\n"
+        "  timer t = null\n"
+        "  trigger tr = null\n"
+        "  texttag tt = null\n"
+        "  multiboard mb = null\n"
+        "  player p = null\n"
+        "  item it = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set ht = InitHashtable()\n"
+        "  set g = CreateGroup()\n"
+        "  set t = CreateTimer()\n"
+        "  set tr = CreateTrigger()\n"
+        "  set tt = CreateTextTag()\n"
+        "  set mb = CreateMultiboard()\n"
+        "  set p = Player(0)\n"
+        "  set it = CreateItem('ratf', 0.0, 0.0)\n"
+        "  call SaveGroupHandle(ht, 2, 1, g)\n"
+        "  call SaveTimerHandle(ht, 2, 2, t)\n"
+        "  call SaveTriggerHandle(ht, 2, 3, tr)\n"
+        "  call SaveTextTagHandle(ht, 2, 4, tt)\n"
+        "  call SaveMultiboardHandle(ht, 2, 5, mb)\n"
+        "  call SavePlayerHandle(ht, 2, 6, p)\n"
+        "  call SaveItemHandle(ht, 2, 7, it)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(LoadGroupHandle(ht, 2, 1) == g, \"group\")\n"
+        "  call BJassAssert(LoadTimerHandle(ht, 2, 2) == t, \"timer\")\n"
+        "  call BJassAssert(LoadTriggerHandle(ht, 2, 3) == tr, \"trigger\")\n"
+        "  call BJassAssert(LoadTextTagHandle(ht, 2, 4) == tt, \"texttag\")\n"
+        "  call BJassAssert(LoadMultiboardHandle(ht, 2, 5) == mb, \"multiboard\")\n"
+        "  call BJassAssert(LoadPlayerHandle(ht, 2, 6) == p, \"player\")\n"
+        "  call BJassAssert(LoadItemHandle(ht, 2, 7) == it, \"item\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(path);
+}
+
+TEST(wc3_api, hashtable_save_load_stale_unit_becomes_null) {
+    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-stale-unit-save-test.bin";
+    remove(path);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable ht = null\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set ht = InitHashtable()\n"
+        "  set u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SaveUnitHandle(ht, 1, 1, u)\n"
+        "  call RemoveUnit(u)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(HaveSavedHandle(ht, 1, 1), \"slot kept\")\n"
+        "  call BJassAssert(LoadUnitHandle(ht, 1, 1) == null, \"stale unit\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(path);
+}
+
+TEST(wc3_api, hashtable_save_load_gethandleid_stable_slot) {
+    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-handleid-save-test.bin";
+    remove(path);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable ht = null\n"
+        "  integer hid = 0\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set ht = InitHashtable()\n"
+        "  set hid = GetHandleId(ht)\n"
+        "  call SaveInteger(ht, hid, 0, 7)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(GetHandleId(ht) == hid, \"GetHandleId drifted\")\n"
+        "  call BJassAssert(LoadInteger(ht, hid, 0) == 7, \"parent key lost\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(path);
+}
+
 #endif /* BZ_TESTS */

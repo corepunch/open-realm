@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 30; // format version; persists multiboard and texttag registries
+static DWORD const save_version = 31; // format version; persists hashtable registry + typed nested-handle fixup
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -157,6 +157,7 @@ typedef enum {
     JASS_HANDLE_MULTIBOARD,
     JASS_HANDLE_MULTIBOARDITEM,
     JASS_HANDLE_TEXTTAG,
+    JASS_HANDLE_HASHTABLE,
     JASS_HANDLE_WEATHER,
 } jassHandleDomain_t;
 
@@ -178,6 +179,7 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "multiboard", JASS_HANDLE_MULTIBOARD },
     { "multiboarditem", JASS_HANDLE_MULTIBOARDITEM },
     { "texttag", JASS_HANDLE_TEXTTAG },
+    { "hashtable", JASS_HANDLE_HASHTABLE },
     { "weathereffect", JASS_HANDLE_WEATHER },
 };
 
@@ -335,6 +337,12 @@ static field_t const texttag_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+/* entries/capacity stay process-owned; WriteHashtables persists the entry payload. */
+static field_t const hashtable_fields[] = {
+    F(ghashtable_s, inuse, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const questitem_fields[] = {
     F(gquestitem_s, description, F_LSTRING),
     F(gquestitem_s, completed, F_INT),
@@ -404,6 +412,7 @@ static field_t const level_fields[] = {
     F(level_locals, multiboards, F_STRUCT, MAX_MULTIBOARDS, multiboard_fields),
     F(level_locals, multiboard_items, F_STRUCT, MAX_MULTIBOARD_ITEMS, multiboard_item_fields),
     F(level_locals, texttags, F_STRUCT, MAX_TEXTTAGS, texttag_fields),
+    F(level_locals, hashtables, F_STRUCT, MAX_HASHTABLES, hashtable_fields),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
     FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
     { NULL, 0, 0, 0, 0, 0 }
@@ -889,6 +898,8 @@ static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
         return &level.multiboard_items[id];
     else if (domain == JASS_HANDLE_TEXTTAG && id < MAX_TEXTTAGS && level.texttags[id].inuse)
         return &level.texttags[id];
+    else if (domain == JASS_HANDLE_HASHTABLE && id < MAX_HASHTABLES && level.hashtables[id].inuse)
+        return &level.hashtables[id];
     return NULL;
 }
 
@@ -965,6 +976,10 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         *id = (DWORD)((ptr - base) / sizeof(*tag));
         return true;
     }
+    if (domain == JASS_HANDLE_HASHTABLE) {
+        if (!G_HashtableIndex(value, id)) return false;
+        return true;
+    }
     if (domain == JASS_HANDLE_WEATHER) {
         LPGWEATHER effect = value;
         if (effect < level.weather_effects || effect >= level.weather_effects + MAX_WEATHER_EFFECTS || !effect->inuse)
@@ -1009,6 +1024,8 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
         return id < MAX_MULTIBOARD_ITEMS && level.multiboard_items[id].inuse ? &level.multiboard_items[id] : NULL;
     if (domain == JASS_HANDLE_TEXTTAG)
         return id < MAX_TEXTTAGS && level.texttags[id].inuse ? &level.texttags[id] : NULL;
+    if (domain == JASS_HANDLE_HASHTABLE)
+        return id < MAX_HASHTABLES && level.hashtables[id].inuse ? &level.hashtables[id] : NULL;
     return JassListHandle(domain, id);
 }
 
@@ -1342,6 +1359,116 @@ static BOOL ReadGroups(FILE *f, DWORD count) {
     return true;
 }
 
+/* Nested HT_HANDLE types without a host domain (location/lightning/...) restore as null. */
+static void hashtable_log_unsupported_type(LPCSTR type) {
+    static char last[MAX_HASHTABLE_TYPE];
+    if (!type) type = "";
+    if (!strcmp(last, type)) return;
+    snprintf(last, sizeof(last), "%s", type);
+    fprintf(stderr, "WC3 LoadGame: hashtable nested handle type '%s' has no host domain; restoring null\n", type);
+}
+
+static BOOL WriteHashtableEntry(FILE *f, hashtableEntry_t const *e) {
+    DWORD type = (DWORD)e->type;
+    int handle_id = -1;
+    if (!SaveBytes(f, &e->parent, sizeof(e->parent)) || !SaveBytes(f, &e->child, sizeof(e->child)) ||
+        !SaveBytes(f, &type, sizeof(type))) return false;
+    switch (e->type) {
+    case HT_INTEGER: return SaveBytes(f, &e->value.integer, sizeof(e->value.integer));
+    case HT_REAL: return SaveBytes(f, &e->value.real, sizeof(e->value.real));
+    case HT_BOOLEAN: return SaveBytes(f, &e->value.boolean, sizeof(e->value.boolean));
+    case HT_STRING: return SaveBytes(f, e->value.string, sizeof(e->value.string));
+    case HT_HANDLE:
+        if (!SaveBytes(f, e->handle_type, sizeof(e->handle_type))) return false;
+        if (e->value.handle && e->handle_type[0]) {
+            DWORD id = 0;
+            if (G_SaveJassHandle(e->handle_type, e->value.handle, &id)) handle_id = (int)id;
+            /* Stale or unsupported nested handles become null; keep the type string. */
+        }
+        return SaveBytes(f, &handle_id, sizeof(handle_id));
+    default:
+        fprintf(stderr, "WC3 SaveGame: unknown hashtable slot type %u\n", (unsigned)type);
+        return false;
+    }
+}
+
+static BOOL ReadHashtableEntry(FILE *f, hashtableEntry_t *e) {
+    DWORD type = 0;
+    int handle_id = -1;
+    memset(e, 0, sizeof(*e));
+    if (!LoadBytes(f, &e->parent, sizeof(e->parent)) || !LoadBytes(f, &e->child, sizeof(e->child)) ||
+        !LoadBytes(f, &type, sizeof(type))) return false;
+    e->type = (hashtableSlotType_t)type;
+    switch (e->type) {
+    case HT_INTEGER: return LoadBytes(f, &e->value.integer, sizeof(e->value.integer));
+    case HT_REAL: return LoadBytes(f, &e->value.real, sizeof(e->value.real));
+    case HT_BOOLEAN: return LoadBytes(f, &e->value.boolean, sizeof(e->value.boolean));
+    case HT_STRING: return LoadBytes(f, e->value.string, sizeof(e->value.string));
+    case HT_HANDLE: {
+        jassHandleDomain_t domain;
+        if (!LoadBytes(f, e->handle_type, sizeof(e->handle_type)) ||
+            !LoadBytes(f, &handle_id, sizeof(handle_id))) return false;
+        e->handle_type[sizeof(e->handle_type) - 1] = 0;
+        if (handle_id < 0 || !e->handle_type[0]) { e->value.handle = NULL; return true; }
+        if (!JassHandleDomain(e->handle_type, &domain)) {
+            hashtable_log_unsupported_type(e->handle_type);
+            e->value.handle = NULL;
+            return true;
+        }
+        e->value.handle = G_LoadJassHandle(e->handle_type, (DWORD)handle_id);
+        return true;
+    }
+    default:
+        fprintf(stderr, "WC3 LoadGame: unknown hashtable slot type %u\n", (unsigned)type);
+        return false;
+    }
+}
+
+static BOOL WriteHashtables(FILE *f) {
+    FOR_LOOP(i, MAX_HASHTABLES) {
+        LPHASHTABLE table = &level.hashtables[i];
+        DWORD count;
+        if (!table->inuse) continue;
+        count = table->num_entries;
+        if (count > MAX_HASHTABLE_ENTRIES) {
+            fprintf(stderr, "WC3 SaveGame: hashtable %u entry count %u exceeds %u\n",
+                (unsigned)i, (unsigned)count, (unsigned)MAX_HASHTABLE_ENTRIES);
+            return false;
+        }
+        if (!SaveBytes(f, &count, sizeof(count))) return false;
+        FOR_LOOP(j, count) {
+            if (!WriteHashtableEntry(f, table->entries + j)) {
+                fprintf(stderr, "WC3 SaveGame: failed at hashtable %u entry %u\n", (unsigned)i, (unsigned)j);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static BOOL ReadHashtables(FILE *f) {
+    FOR_LOOP(i, MAX_HASHTABLES) {
+        LPHASHTABLE table = &level.hashtables[i];
+        DWORD count = 0;
+        if (table->entries) { gi.MemFree(table->entries); table->entries = NULL; }
+        table->num_entries = table->capacity = 0;
+        if (!table->inuse) continue;
+        if (!LoadBytes(f, &count, sizeof(count)) || count > MAX_HASHTABLE_ENTRIES) {
+            fprintf(stderr, "WC3 LoadGame: failed at hashtable %u header\n", (unsigned)i);
+            return false;
+        }
+        if (count && !G_HashtableReserve(table, count)) return false;
+        FOR_LOOP(j, count) {
+            if (!ReadHashtableEntry(f, table->entries + j)) {
+                fprintf(stderr, "WC3 LoadGame: failed at hashtable %u entry %u\n", (unsigned)i, (unsigned)j);
+                return false;
+            }
+            table->num_entries = j + 1;
+        }
+    }
+    return true;
+}
+
 static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
     edict_t temp = *ent;
     field_t const *field;
@@ -1415,6 +1542,7 @@ BOOL WriteGame(LPCSTR filename) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
     if (!WriteGroups(f)) goto done;
+    if (!WriteHashtables(f)) { fprintf(stderr, "WC3 SaveGame: failed at hashtables\n"); goto done; }
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
     }
@@ -1485,6 +1613,7 @@ BOOL ReadGame(LPCSTR filename) {
     }
     G_ResetJassGroupDebug();
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
+    if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
     gi.SetGameTime(level.time);
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {

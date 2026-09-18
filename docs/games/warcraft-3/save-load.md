@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 29, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 31, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -40,6 +40,13 @@ Version 28 extends neutral-shop persistence with initialized `Sellunits` stock e
 Version 29 adds each neutral-shop stock entry's effective `maximum`. Runtime `AddItemToStock` / `AddUnitToStock` overrides can differ
 from the object-data maximum, so both item merchants and Mercenary Camps restore that explicit cap instead of recomputing it from SLK
 or map object data. The current count and absolute replenishment deadline continue to restore against the saved simulation clock.
+Version 30 persists the fixed multiboard, multiboard-item, and texttag registries (including `texttag.unit` via `F_EDICT`) so JASS
+scoreboard/floating-text handles relocate by slot index. See [Multiboard And TextTag](multiboard-and-texttag.md).
+Version 31 adds the fixed hashtable registry (`level.hashtables[MAX_HASHTABLES]`) plus a typed nested-handle entry payload written
+after groups. Each `HT_HANDLE` slot stores the JASS type name so load can call `G_LoadJassHandle`; nested types without a host
+domain (`location`, `lightning`, `image`, `ubersplat`, …) restore as null with a one-shot stderr diagnostic. JSVM snapshot format
+remains version 4 — hashtable globals relocate through the host codec, not an owned-payload allowlist entry. See
+[DotA Custom-Map Playability](dota-map-playability.md#hashtable-saveload).
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 
@@ -65,7 +72,7 @@ The embedded snapshot starts with `JSVM`, snapshot format version 4, a program-i
 - `boolexpr`, `conditionfunc`, and `filterfunc` handles by semantic JASS function name;
 - sleeping coroutine frames as function/block token ordinals, locals, operand stack values, wake delay, and event context, including scalar and optional point spell response data.
 
-The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, timers, timer dialogs, leaderboards, and weather effects. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
+The snapshot never writes parser pointers, dictionary links, refcount addresses, stack pointers, or `jmp_buf`. Code values and coroutine PCs resolve against the already-parsed program after the identity hash matches. Handles relocate through game-owned codecs for entities (`unit`, `widget`, `destructable`, `item`, `effect`), players, quests, quest items, events, triggers, groups, timers, timer dialogs, leaderboards, multiboards, texttags, hashtables, and weather effects. Safe VM-owned handles serialize their payload and snapshot-local identity so aliases remain aliases after load. Unsupported non-null handle types reject the save with a diagnostic instead of writing an address or silently dropping the value.
 
 Handle encoding dispatches value handles, VM-owned payloads, and function handles before consulting the game host. A failed host lookup means null only for host-owned native domains, such as a removed unit; applying that rule to VM-owned handles would silently replace valid sounds, camera setups, rects, locations, forces, and game caches with null.
 

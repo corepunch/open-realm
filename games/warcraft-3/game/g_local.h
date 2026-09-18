@@ -100,6 +100,7 @@ KNOWN_AS(gleaderboard_s, LEADERBOARD);
 KNOWN_AS(gmultiboard_s, MULTIBOARD);
 KNOWN_AS(gmultiboarditem_s, MULTIBOARDITEM);
 KNOWN_AS(gtexttag_s, TEXTTAG);
+KNOWN_AS(ghashtable_s, HASHTABLE);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
 
@@ -824,6 +825,12 @@ typedef struct {
 #define MAX_MULTIBOARD_VALUE 96 // chars; scoreboard cell text, not TRIGSTR blobs
 #define MAX_MULTIBOARD_ITEMS 256 // views; MultiboardGetItem refcounted cell handles
 #define MAX_TEXTTAGS 100 // handles; retail-ish floating-text pool
+#define MAX_HASHTABLES 256 // handles; DotA uses many tables but not thousands; overflow logs to stderr
+#define MAX_HASHTABLE_ENTRIES 65536 // hard cap per table; grow from a small capacity
+#define MAX_HASHTABLE_TYPE 24 // chars; longest JASS handle type name + NUL for nested HT_HANDLE slots
+#define HASHTABLE_HANDLE_ID_BASE 0x100000u // keep allocated GetHandleId values out of low edict range
+#define MAX_GAMECACHE_ENTRIES 256 // mission/key slots per campaign cache blob
+#define MAX_GAMECACHE_STRING 256 // chars; shared string cap for gamecache and hashtable string slots
 #define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
 #define WC3_LAYER_LEADERBOARD LAYER_GAME_1
 #define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
@@ -950,6 +957,33 @@ struct gtexttag_s {
     char text[MAX_MULTIBOARD_VALUE];
 };
 
+typedef enum {
+    HT_INTEGER = 1,
+    HT_REAL,
+    HT_BOOLEAN,
+    HT_STRING,
+    HT_HANDLE,
+} hashtableSlotType_t;
+
+typedef struct {
+    LONG parent, child;
+    hashtableSlotType_t type;
+    char handle_type[MAX_HASHTABLE_TYPE]; /* HT_HANDLE only; SaveUnitHandle vs SaveItemHandle */
+    union {
+        LONG integer;
+        FLOAT real;
+        BOOL boolean;
+        HANDLE handle;
+        char string[MAX_GAMECACHE_STRING];
+    } value;
+} hashtableEntry_t;
+
+struct ghashtable_s {
+    BOOL inuse;
+    DWORD num_entries, capacity; /* capacity is runtime only; entries pointer is not in the level schema */
+    hashtableEntry_t *entries;
+};
+
 struct gquestitem_s {
     LPSTR description;
     BOOL completed;
@@ -988,9 +1022,6 @@ typedef struct {
     DWORD code;
     DWORD level;
 } heroability_t;
-
-#define MAX_GAMECACHE_ENTRIES 256
-#define MAX_GAMECACHE_STRING 256
 
 typedef enum {
     GAMECACHE_INTEGER = 1,
@@ -1695,6 +1726,7 @@ struct level_locals {
     MULTIBOARD multiboards[MAX_MULTIBOARDS];
     MULTIBOARDITEM multiboard_items[MAX_MULTIBOARD_ITEMS];
     TEXTTAG texttags[MAX_TEXTTAGS];
+    HASHTABLE hashtables[MAX_HASHTABLES];
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     DWORD multiboard_dirty_clients;
     DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
@@ -1997,6 +2029,11 @@ LPTEXTTAG G_AllocTextTag(void);
 void G_FreeTextTag(LPTEXTTAG tag);
 void G_SetTextTagVisible(LPTEXTTAG tag, LPPLAYER player, BOOL visible);
 BOOL G_IsTextTagVisible(LPCTEXTTAG tag, LPCPLAYER player);
+LPHASHTABLE G_AllocHashtable(void);
+void G_FreeHashtable(LPHASHTABLE table);
+void G_ClearHashtableRegistry(void);
+BOOL G_HashtableIndex(LPCHASHTABLE table, DWORD *index);
+BOOL G_HashtableReserve(LPHASHTABLE table, DWORD need);
 void G_ClearSaveRegistries(void);
 BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_HeroSaveLoadAuditFrame(void);

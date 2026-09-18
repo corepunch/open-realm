@@ -59,6 +59,14 @@ type filterfunc      extends boolexpr
 type sound           extends agent
 type camerasetup     extends handle
 type gamecache       extends agent
+type group           extends agent
+type timer           extends agent
+type hashtable       extends agent
+type multiboard      extends agent
+type multiboarditem  extends agent
+type texttag         extends handle
+type timerdialog     extends agent
+type leaderboard     extends agent
 
 // Cinematic skip regression uses the same event and local-player guards as campaign scripts.
 native ConvertPlayerEvent         takes integer i returns playerevent

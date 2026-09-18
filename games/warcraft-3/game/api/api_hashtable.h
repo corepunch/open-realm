@@ -1,54 +1,5 @@
-/* Patch 1.24 hashtable natives: parent+child keys to typed slots. Not a gamecache substitute. */
-
-#define MAX_HASHTABLE_ENTRIES 65536 // hard cap per table; grow from a small capacity
-#define HASHTABLE_HANDLE_ID_BASE 0x100000u // keep allocated ids out of low edict range
-
-typedef enum {
-    HT_INTEGER = 1,
-    HT_REAL,
-    HT_BOOLEAN,
-    HT_STRING,
-    HT_HANDLE,
-} hashtableSlotType_t;
-
-typedef struct {
-    LONG parent, child;
-    hashtableSlotType_t type;
-    union {
-        LONG integer;
-        FLOAT real;
-        BOOL boolean;
-        HANDLE handle;
-        char string[MAX_GAMECACHE_STRING];
-    } value;
-} hashtableEntry_t;
-
-typedef struct {
-    DWORD num_entries, capacity;
-    hashtableEntry_t *entries;
-} ghashtable_t;
-
-static BOOL hashtable_reserve(ghashtable_t *table, DWORD need) {
-    hashtableEntry_t *next;
-    DWORD cap;
-    if (!table) return false;
-    if (need <= table->capacity) return true;
-    if (need > MAX_HASHTABLE_ENTRIES) {
-        fprintf(stderr, "InitHashtable: entry limit %u reached\n", (unsigned)MAX_HASHTABLE_ENTRIES);
-        return false;
-    }
-    cap = table->capacity ? table->capacity : 16;
-    while (cap < need) cap = MIN(cap * 2, MAX_HASHTABLE_ENTRIES);
-    next = jass_alloc(cap * sizeof(*next));
-    if (!next) return false;
-    if (table->entries) {
-        memcpy(next, table->entries, table->num_entries * sizeof(*next));
-        jass_free(table->entries);
-    }
-    table->entries = next;
-    table->capacity = cap;
-    return true;
-}
+/* Patch 1.24 hashtable natives: parent+child keys to typed slots. Not a gamecache substitute.
+ * Tables live in level.hashtables[]; nested HT_HANDLE slots store the JASS type for save/load. */
 
 /* Bob Jenkins lookup2 (SStrHash2): uppercase + '/'→'\\' then mix; empty → 0. */
 static DWORD hashtable_sstrhash2(LPCSTR text) {
@@ -116,20 +67,23 @@ static BOOL hashtable_is_edict(HANDLE h, DWORD *out_id) {
     return true;
 }
 
+/* Prefer stable registry ordinals over pointer hashes so GetHandleId survives save/load. */
 static DWORD hashtable_handle_id(HANDLE h) {
     DWORD id;
     uintptr_t p;
     if (!h) return 0;
     if (hashtable_is_edict(h, &id)) return id;
+    if (G_HashtableIndex(h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x3000u + id;
     FOR_LOOP(i, game.max_clients)
         if (h == &game.clients[i].ps) return HASHTABLE_HANDLE_ID_BASE + (DWORD)i;
+    if (G_JassGroupIndex(h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x2000u + id;
     p = (uintptr_t)h;
     return HASHTABLE_HANDLE_ID_BASE + 0x1000u + (DWORD)((p >> 3) ^ (p >> 32));
 }
 
-static hashtableEntry_t *hashtable_find(ghashtable_t *table, LONG parent, LONG child, hashtableSlotType_t type) {
+static hashtableEntry_t *hashtable_find(LPHASHTABLE table, LONG parent, LONG child, hashtableSlotType_t type) {
     DWORD i;
-    if (!table) return NULL;
+    if (!table || !table->inuse) return NULL;
     for (i = 0; i < table->num_entries; i++) {
         hashtableEntry_t *e = table->entries + i;
         if (e->parent == parent && e->child == child && e->type == type) return e;
@@ -137,10 +91,10 @@ static hashtableEntry_t *hashtable_find(ghashtable_t *table, LONG parent, LONG c
     return NULL;
 }
 
-static hashtableEntry_t *hashtable_ensure(ghashtable_t *table, LONG parent, LONG child, hashtableSlotType_t type) {
+static hashtableEntry_t *hashtable_ensure(LPHASHTABLE table, LONG parent, LONG child, hashtableSlotType_t type) {
     hashtableEntry_t *e = hashtable_find(table, parent, child, type);
     if (e) return e;
-    if (!table || !hashtable_reserve(table, table->num_entries + 1)) return NULL;
+    if (!table || !G_HashtableReserve(table, table->num_entries + 1)) return NULL;
     e = table->entries + table->num_entries++;
     memset(e, 0, sizeof(*e));
     e->parent = parent;
@@ -149,13 +103,13 @@ static hashtableEntry_t *hashtable_ensure(ghashtable_t *table, LONG parent, LONG
     return e;
 }
 
-static void hashtable_remove_at(ghashtable_t *table, DWORD index) {
+static void hashtable_remove_at(LPHASHTABLE table, DWORD index) {
     if (!table || index >= table->num_entries) return;
     table->entries[index] = table->entries[table->num_entries - 1];
     table->num_entries--;
 }
 
-static void hashtable_remove(ghashtable_t *table, LONG parent, LONG child, hashtableSlotType_t type) {
+static void hashtable_remove(LPHASHTABLE table, LONG parent, LONG child, hashtableSlotType_t type) {
     DWORD i;
     if (!table) return;
     for (i = 0; i < table->num_entries; i++) {
@@ -176,13 +130,14 @@ static HANDLE hashtable_live_handle(HANDLE h) {
         return h;
     }
     if (G_JassGroupIndex(h, &id) && !G_JassGroupValid(h)) return NULL;
+    if (G_HashtableIndex(h, &id)) return h;
     return h;
 }
 
 DWORD InitHashtable(LPJASS j) {
-    API_ALLOC(ghashtable_t, hashtable);
-    memset(hashtable, 0, sizeof(*hashtable));
-    return 1;
+    LPHASHTABLE hashtable = G_AllocHashtable();
+    if (!hashtable) return jass_pushnullhandle(j, "hashtable");
+    return jass_pushlighthandle(j, hashtable, "hashtable");
 }
 
 DWORD GetHandleId(LPJASS j) {
@@ -194,28 +149,28 @@ DWORD StringHash(LPJASS j) {
 }
 
 DWORD SaveInteger(LPJASS j) {
-    ghashtable_t *table = jass_checkhandle(j, 1, "hashtable");
+    LPHASHTABLE table = jass_checkhandle(j, 1, "hashtable");
     hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER);
     if (e) e->value.integer = jass_checkinteger(j, 4);
     return 0;
 }
 
 DWORD SaveReal(LPJASS j) {
-    ghashtable_t *table = jass_checkhandle(j, 1, "hashtable");
+    LPHASHTABLE table = jass_checkhandle(j, 1, "hashtable");
     hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL);
     if (e) e->value.real = jass_checknumber(j, 4);
     return 0;
 }
 
 DWORD SaveBoolean(LPJASS j) {
-    ghashtable_t *table = jass_checkhandle(j, 1, "hashtable");
+    LPHASHTABLE table = jass_checkhandle(j, 1, "hashtable");
     hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN);
     if (e) e->value.boolean = jass_checkboolean(j, 4);
     return 0;
 }
 
 DWORD SaveStr(LPJASS j) {
-    ghashtable_t *table = jass_checkhandle(j, 1, "hashtable");
+    LPHASHTABLE table = jass_checkhandle(j, 1, "hashtable");
     LPCSTR text = jass_checkstring(j, 4);
     hashtableEntry_t *e;
     if (!table || !text) return jass_pushboolean(j, false);
@@ -225,12 +180,13 @@ DWORD SaveStr(LPJASS j) {
     return jass_pushboolean(j, true);
 }
 
-static BOOL hashtable_save_handle(ghashtable_t *table, LONG parent, LONG child, HANDLE value) {
+static BOOL hashtable_save_handle(LPHASHTABLE table, LONG parent, LONG child, HANDLE value, LPCSTR type) {
     hashtableEntry_t *e;
-    if (!table || !value) return false;
+    if (!table || !value || !type) return false;
     e = hashtable_ensure(table, parent, child, HT_HANDLE);
     if (!e) return false;
     e->value.handle = value;
+    snprintf(e->handle_type, sizeof(e->handle_type), "%s", type);
     return true;
 }
 
@@ -301,16 +257,17 @@ DWORD RemoveSavedHandle(LPJASS j) {
 }
 
 DWORD FlushParentHashtable(LPJASS j) {
-    ghashtable_t *table = jass_checkhandle(j, 1, "hashtable");
-    if (table) {
-        SAFE_DELETE(table->entries, jass_free);
+    LPHASHTABLE table = jass_checkhandle(j, 1, "hashtable");
+    if (table && table->inuse) {
+        if (table->entries) gi.MemFree(table->entries);
+        table->entries = NULL;
         table->num_entries = table->capacity = 0;
     }
     return 0;
 }
 
 DWORD FlushChildHashtable(LPJASS j) {
-    ghashtable_t *table = jass_checkhandle(j, 1, "hashtable");
+    LPHASHTABLE table = jass_checkhandle(j, 1, "hashtable");
     LONG parent = jass_checkinteger(j, 2);
     DWORD i;
     if (!table) return 0;
@@ -324,7 +281,7 @@ DWORD FlushChildHashtable(LPJASS j) {
 #define HT_SAVE_HANDLE(Name, Type) \
 DWORD Save##Name##Handle(LPJASS j) { \
     return jass_pushboolean(j, hashtable_save_handle(jass_checkhandle(j, 1, "hashtable"), \
-        jass_checkinteger(j, 2), jass_checkinteger(j, 3), jass_checkhandle(j, 4, Type))); \
+        jass_checkinteger(j, 2), jass_checkinteger(j, 3), jass_checkhandle(j, 4, Type), Type)); \
 }
 #define HT_LOAD_HANDLE(Name, Type) \
 DWORD Load##Name##Handle(LPJASS j) { \

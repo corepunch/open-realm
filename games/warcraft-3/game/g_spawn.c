@@ -642,6 +642,7 @@ void G_SpawnEntities(void) {
     G_JassSoundRuntimeReset();
     G_ClearSaveRegistries();
     G_ClearJassGroupRegistry();
+    G_ClearHashtableRegistry();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
