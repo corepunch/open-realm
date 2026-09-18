@@ -113,7 +113,7 @@ Unregistered groups, by identifier count:
 
 | Group | Natives | Refs | Why it matters |
 | --- | ---: | ---: | --- |
-| Hashtables (`InitHashtable`, `GetHandleId`, `Save*`/`Load*`/`HaveSaved*`/`FlushChild*`/`RemoveSaved*`) | 53 | 8,692 | DotA 6.83d's primary data model (YDWE / patch 1.24). Zero implementations in tree. |
+| Hashtables (`InitHashtable`, `GetHandleId`, `Save*`/`Load*`/`HaveSaved*`/`FlushChild*`/`RemoveSaved*`) | 53 | 8,692 | DotA 6.83d's primary data model (YDWE / patch 1.24). Runtime natives in `api_hashtable.h` (#437); VM snapshot of live handle slots still a gap. |
 | `GetObjectName` | 1 | 833 | Ability/item/unit tooltips and chat. |
 | Multiboard | 17 | 1,022 | Scoreboard / KDA / player list. |
 | `GetEventDamageSource` | 1 | 213 | Kill credit, lifesteal, on-hit scripts. |
@@ -136,17 +136,18 @@ those as partial, not as coverage.
 ## How Far
 
 Not close. The map does not finish loading. After the two load bugs below, the
-script still cannot run: the first `InitHashtable` / `GetHandleId` is an
-unimplemented native. After that, heroes, items, and abilities are map-imported
-rows that the gameplay loader never sees, plus 1,364 `war3map.w3a` modifications
-the object-data merge does not apply.
+script still cannot run until the load bugs below are fixed. Hashtable natives
+are registered (#437). After load works, heroes, items, and abilities are still
+map-imported rows that the gameplay loader never sees, plus 1,364 `war3map.w3a`
+modifications the object-data merge does not apply.
 
 Suggested order (GitHub #431 and children):
 
 1. Honor MPQ sector sizes above 64 KiB so protected maps open (#435).
 2. Read `scripts\war3map.j` when `war3map.j` is absent; refuse null mapscripts
-   instead of crashing (#433) — done in tree; still blocked on #435 for DotA.
-3. Implement the hashtable native family (#437).
+   instead of crashing (#433).
+3. Implement the hashtable native family (#437) — done for runtime; snapshot gap
+   documented below.
 4. Resolve map-archive `Units\*.txt`, `war3mapMisc.txt`, and `war3map.w3a`
    through the existing sheet/object-data path (mount the map as the highest
    FS archive, or read those members from the already-open map handle) (#432).
@@ -178,6 +179,17 @@ must get past `jass_dobuffer` and `main()` without `SIGSEGV` or
 map-scoped `Units\CampaignUnitFunc.txt` and `war3map.w3a` row win over base
 TFT data. Hashtable natives need handle-lifetime tests, including
 `FlushChildHashtable` and typed `Save*Handle` / `Load*Handle`.
+
+## Hashtable save/load gap
+
+Runtime natives live in `games/warcraft-3/game/api/api_hashtable.h` and are
+registered from `api_module.c`. Tables store live `HANDLE` pointers (not
+value copies). The JASS VM snapshot path persists only a fixed owned-handle
+allowlist in `jdo.c` (`gamecache`, `location`, …) and does **not** include
+`hashtable`; even a raw byte dump would leave nested unit/group pointers
+stale after load. Campaign `gamecache` remains the durable store. Map save
+games that retain hashtable globals will not round-trip those slots until a
+typed handle fixup is added — document-only gap for #437.
 
 See also [Campaign Map Audit](map-audit.md), [JASS Native Coverage](jass-native-coverage.md),
 [WC3 Data Model](../../wc3-data-model.md), and [Loading and Assets](loading-and-assets.md).
