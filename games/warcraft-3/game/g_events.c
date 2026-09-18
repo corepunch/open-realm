@@ -2,35 +2,6 @@
 
 BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
 
-static BOOL G_Human09TraceEvent(EVENTTYPE type) {
-    return WC3_HUMAN09_DEBUG_ENABLED() &&
-        (type == EVENT_GAME_ENTER_REGION || type == EVENT_GAME_LEAVE_REGION ||
-         type == EVENT_PLAYER_END_CINEMATIC || type == EVENT_UNIT_DEATH ||
-         type == EVENT_PLAYER_UNIT_DEATH);
-}
-
-static void G_Human09TraceTrigger(LPCSTR phase, LPTRIGGER trigger,
-                                  GAMEEVENT const *event, BOOL result) {
-    TRIGGERACTION *action;
-    TRIGGERCONDITION *condition;
-
-    if (!G_Human09TraceEvent(event->type) || !trigger) return;
-    fprintf(stderr,
-            "WC3_HUMAN09 trigger-%s event=%u trigger=%ld disabled=%d subject=%ld id=%.4s result=%d conditions=",
-            phase, (unsigned)event->type, (long)(trigger - level.triggers),
-            (int)trigger->disabled,
-            event->edict ? (long)(event->edict - globals.edicts) : -1L,
-            event->edict ? (LPCSTR)&event->edict->class_id : "----", (int)result);
-    for (condition = trigger->conditions; condition; condition = condition->next)
-        fprintf(stderr, "%s%s", condition == trigger->conditions ? "" : ",",
-                condition->expr ? jass_functionname(condition->expr) : "(null)");
-    fprintf(stderr, " actions=");
-    for (action = trigger->actions; action; action = action->next)
-        fprintf(stderr, "%s%s", action == trigger->actions ? "" : ",",
-                action->func ? jass_functionname(action->func) : "(null)");
-    fputc('\n', stderr);
-}
-
 BOOL G_LimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     switch (op) {
         case WC3_LIMITOP_LESS_THAN: return value < limit;
@@ -126,13 +97,6 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     BOOL result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     DWORD matching_handlers = 0, invoked_handlers = 0;
 
-    if (G_Human09TraceEvent(evt->type))
-        fprintf(stderr, "WC3_HUMAN09 execute event=%u subject=%ld id=%.4s queue=%u/%u\n",
-                (unsigned)evt->type,
-                evt->edict ? (long)(evt->edict - globals.edicts) : -1L,
-                evt->edict ? (LPCSTR)&evt->edict->class_id : "----",
-                (unsigned)level.events.read, (unsigned)level.events.write);
-
     if (result_event) {
         G_GameResultDebug("execute event type=%s subject_ent=%ld owner=%u",
             evt->type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
@@ -158,14 +122,12 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 break;
             case EVENT_GAME_ENTER_REGION:
                 if (evt->responseTo == e) {
-                    BOOL result = jass_calltriggerevent(level.vm, e->trigger, evt);
-                    G_Human09TraceTrigger("dispatch", e->trigger, evt, result);
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
                 }
                 break;
             case EVENT_GAME_LEAVE_REGION:
                 if (evt->responseTo == e) {
-                    BOOL result = jass_calltriggerevent(level.vm, e->trigger, evt);
-                    G_Human09TraceTrigger("dispatch", e->trigger, evt, result);
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
                 }
                 break;
             case EVENT_UNIT_IN_RANGE:
@@ -255,7 +217,6 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                     }
                     if (direct || owner_match) {
                         BOOL queued = jass_calltriggerevent(level.vm, e->trigger, evt);
-                        G_Human09TraceTrigger("dispatch", e->trigger, evt, queued);
                         if (quest_build_event) {
                             fprintf(stderr,
                                     "WC3_QUEST_BUILD dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",
@@ -298,16 +259,7 @@ static void G_TouchTriggers(LPEDICT ent) {
                 if (G_RegionContains(&evt->region, &ent->s.origin2) &&
                     !G_RegionContains(&evt->region, &ent->old_origin))
                 {
-                    GAMEEVENT *published = G_PublishEvent(ent, evt->type);
-                    published->responseTo = evt;
-                    if (WC3_HUMAN09_DEBUG_ENABLED())
-                        fprintf(stderr,
-                                "WC3_HUMAN09 region-cross event=ENTER_REGION trigger=%ld unit=%ld id=%.4s old=(%.1f,%.1f) new=(%.1f,%.1f) rects=%u\n",
-                                evt->trigger ? (long)(evt->trigger - level.triggers) : -1L,
-                                (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
-                                ent->old_origin.x, ent->old_origin.y,
-                                ent->s.origin2.x, ent->s.origin2.y,
-                                (unsigned)evt->region.num_rects);
+                    G_PublishEvent(ent, evt->type)->responseTo = evt;
                 }
                 break;
             case EVENT_GAME_LEAVE_REGION:

@@ -37,9 +37,6 @@ endif
 ifeq ($(WC3_DEBUG_ROUTING),1)
 	WC3_CFLAGS += -DWC3_DEBUG_ROUTING
 endif
-ifeq ($(WC3_DEBUG_HUMAN09),1)
-	WC3_CFLAGS += -DWC3_DEBUG_HUMAN09
-endif
 WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION -DSTB_FDF_GLOBALS
 WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
 MENU_HEADERS := $(shell find $(WC3_DIR)/menu -name '*.h' | sort) client/menu.h

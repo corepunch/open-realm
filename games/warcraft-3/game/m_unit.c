@@ -1,26 +1,5 @@
 #include "g_local.h"
 
-static BOOL human09_trace_unit(LPCEDICT self) {
-#ifdef WC3_DEBUG_HUMAN09
-    return WC3_HUMAN09_DEBUG_ENABLED() && self && self->class_id == MAKEFOURCC('H', 'a', 'r', 't');
-#else
-    return false;
-#endif
-}
-
-static void human09_trace_order_state(LPCEDICT self, LPCSTR stage, LPCSTR reason) {
-    if (!human09_trace_unit(self)) return;
-    fprintf(stderr, "WC3_HUMAN09 order-state stage=%s reason=%s unit=%ld id=%.4s inuse=%d dead=%d health=%.1f paused=%d stunned=%d immobile=%d no_pathing=%d move=\"%s\" origin=(%.1f,%.1f) goal=%ld queue=%u blocked=%u flow=(gen=%u direct=%d reached=%d unreachable=%d)\n",
-            stage ? stage : "", reason ? reason : "", (long)(self - globals.edicts), (LPCSTR)&self->class_id,
-            (int)self->inuse, (int)M_IsDead(self), self->health.value, (int)self->paused, (int)self->stunned,
-            (int)((self->aiflags & AI_IMMOBILE) != 0), (int)self->no_pathing,
-            self->currentmove && self->currentmove->animation ? self->currentmove->animation : "(none)",
-            self->s.origin2.x, self->s.origin2.y,
-            self->goalentity ? (long)(self->goalentity - globals.edicts) : -1L, (unsigned)self->order_queue.count,
-            (unsigned)self->movement.blocked_frames, (unsigned)self->movement.flow_generation,
-            (int)self->movement.flow_direct, (int)self->movement.flow_goal_reached, (int)self->movement.flow_unreachable);
-}
-
 //void unit_die(LPEDICT self);
 //void unit_decay2(LPEDICT self);
 void unit_decay1(LPEDICT self);
@@ -605,36 +584,27 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
 static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FLOAT group_speed) {
     VECTOR2 target;
     LPEDICT waypoint;
-    BOOL pathable;
 
     if (!self || !order || !point) return false;
-    human09_trace_order_state(self, "issue-now", "begin");
-    if (M_IsDead(self)) { human09_trace_order_state(self, "reject", "dead"); return false; }
-    if (S_GoldMineWorkerIsInside(self)) { human09_trace_order_state(self, "reject", "gold-mine-worker-inside"); return false; }
-    if (self->aiflags & AI_IMMOBILE) { human09_trace_order_state(self, "reject", "ai-immobile"); return false; }
-    if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) { human09_trace_order_state(self, "reject", "polymorphed"); return false; }
+    if (M_IsDead(self)) return false;
+    if (S_GoldMineWorkerIsInside(self)) return false;
+    if (self->aiflags & AI_IMMOBILE) return false;
+    if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
     target = *point;
-    pathable = CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
-    if (human09_trace_unit(self))
-        fprintf(stderr, "WC3_HUMAN09 order-path unit=%ld requested=(%.1f,%.1f) adjusted=(%.1f,%.1f) pathable=%d radius=%.1f flags=0x%x\n",
-                (long)(self - globals.edicts), point->x, point->y, target.x, target.y, (int)pathable,
-                self->collision, (unsigned)M_UnitStaticPathingFlags(self));
+    CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
     waypoint = Waypoint_add(&target);
-    if (!waypoint) { human09_trace_order_state(self, "reject", "waypoint-allocation"); return false; }
+    if (!waypoint) return false;
     self->movement.holding_position = false;
     if (!strcmp(order, "smart") || !strcmp(order, "move")) {
         order_move(self, waypoint);
         self->movement.group_speed = group_speed;
-        human09_trace_order_state(self, "issue-now", "after-order-move");
         return true;
     }
     if (!strcmp(order, "attack")) {
         order_attackmove(self, waypoint);
-        human09_trace_order_state(self, "issue-now", "after-order-attack");
         return true;
     }
-    human09_trace_order_state(self, "reject", "unsupported-point-order");
     return false;
 }
 
@@ -697,9 +667,7 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
 BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
                            BOOL queue, DWORD issuer_player, FLOAT group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
-    human09_trace_order_state(self, "submit", order);
-    if (M_IsDead(self)) { human09_trace_order_state(self, "reject", "dead"); return false; }
-    if (G_BuildingUpgradeActive(self)) { human09_trace_order_state(self, "reject", "building-upgrade"); return false; }
+    if (M_IsDead(self) || G_BuildingUpgradeActive(self)) return false;
     /* Rally-point changes are metadata and apply immediately even when Shift is down. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         BOOL accepted;
@@ -711,7 +679,7 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
         }
         return accepted;
     }
-    if (S_GoldMineWorkerIsInside(self)) { human09_trace_order_state(self, "reject", "gold-mine-worker-inside"); return false; }
+    if (S_GoldMineWorkerIsInside(self)) return false;
     {
         DWORD const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
@@ -726,11 +694,8 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
             return accepted;
         }
     }
-    if (self->aiflags & AI_IMMOBILE) { human09_trace_order_state(self, "reject", "ai-immobile"); return false; }
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) {
-        human09_trace_order_state(self, "reject", "unsupported-point-order");
-        return false;
-    }
+    if (self->aiflags & AI_IMMOBILE) return false;
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) return false;
 
     if (queue && unit_has_active_order(self)) {
         BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
@@ -739,7 +704,6 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
-        if (!accepted) human09_trace_order_state(self, "reject", "queued-order-full");
         return accepted;
     }
     if (!queue) G_ClearUnitOrderQueue(self);
@@ -749,7 +713,6 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
         }
-        if (!accepted) human09_trace_order_state(self, "reject", "issue-now-failed");
         return accepted;
     }
 }

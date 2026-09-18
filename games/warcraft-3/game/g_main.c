@@ -998,21 +998,6 @@ GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source
     evt->edict = edict;
     evt->source = source;
     evt->value = value;
-    if (WC3_HUMAN09_DEBUG_ENABLED() &&
-        (type == EVENT_GAME_ENTER_REGION || type == EVENT_GAME_LEAVE_REGION ||
-         type == EVENT_PLAYER_END_CINEMATIC || type == EVENT_UNIT_DEATH ||
-         type == EVENT_PLAYER_UNIT_DEATH ||
-         type == EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER ||
-         type == EVENT_UNIT_ISSUED_POINT_ORDER))
-        fprintf(stderr,
-                "WC3_HUMAN09 publish event=%u ordinal=%u subject=%ld id=%.4s owner=%u source=%ld source_id=%.4s value=%ld queue=%u/%u\n",
-                (unsigned)type, (unsigned)(index + 1),
-                edict ? (long)(edict - globals.edicts) : -1L,
-                edict ? (LPCSTR)&edict->class_id : "----",
-                edict ? (unsigned)edict->s.player : 0u,
-                source ? (long)(source - globals.edicts) : -1L,
-                source ? (LPCSTR)&source->class_id : "----", (long)value,
-                (unsigned)level.events.read, (unsigned)level.events.write);
     if (type == EVENT_PLAYER_VICTORY || type == EVENT_PLAYER_DEFEAT) {
         G_GameResultDebug("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",
             type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
