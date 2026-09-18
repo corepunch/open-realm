@@ -104,6 +104,10 @@ The `svc_layout` payload itself is not serialized. After `ReadGame()`, timer-dia
 
 The state model supports multiple timer-dialog handles, but the current HUD renderer presents the lowest-slot visible dialog for each client. Exact retail simultaneous-dialog stacking/packing has not been established, so no speculative layout policy is implemented yet.
 
+When a client also has a visible leaderboard, the leaderboard is placed below
+the visible timer dialog. Clients without a visible timer retain the normal
+leaderboard top offset.
+
 Title and colour state are shared authoritative dialog state. Only display visibility currently has per-client local-state semantics.
 
 ## Regression Coverage

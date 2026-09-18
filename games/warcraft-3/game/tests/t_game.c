@@ -1509,6 +1509,24 @@ TEST(wc3_game, hud_reset_drops_save_panel_bindings) {
     T_ASSERT(!hud.save_list.inuse);
 }
 
+TEST(wc3_game, leaderboard_stacks_below_visible_timer_per_client) {
+    FRAMEDEF timer_frame = { .Height = 0.022f };
+    FRAMEDEF *old_timer_frame = hud.timer_dialog.TimerDialog;
+    TIMERDIALOG old_dialog = level.timer_dialogs[0];
+
+    hud.timer_dialog.TimerDialog = &timer_frame;
+    memset(&level.timer_dialogs[0], 0, sizeof(level.timer_dialogs[0]));
+    T_FEQ(UI_TimerDialogLeaderboardOffset(0), 0.0f, 0.0001f);
+
+    level.timer_dialogs[0].inuse = true;
+    level.timer_dialogs[0].visible_clients = 1u;
+    T_FEQ(UI_TimerDialogLeaderboardOffset(0), 0.026f, 0.0001f);
+    T_FEQ(UI_TimerDialogLeaderboardOffset(1), 0.0f, 0.0001f);
+
+    hud.timer_dialog.TimerDialog = old_timer_frame;
+    level.timer_dialogs[0] = old_dialog;
+}
+
 TEST(wc3_game, hud_save_panel_accepts_native_list_in_authored_frame_slot) {
     FRAMEDEF frame = {0};
 

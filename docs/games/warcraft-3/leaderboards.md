@@ -51,4 +51,4 @@ Tests cover creation, labels, item insertion/update, stable sorting/player looku
 
 ## Compact HUD Placement
 
-The board is anchored to the same widescreen-aware top-right position and top offset as the TimerDialog. Its root/backdrop width is measured from the visible title and rows, while its height and list container are compacted to the actual visible row count.
+The board is anchored to the same widescreen-aware top-right position and top offset as the TimerDialog. When the client has a visible TimerDialog, the board moves below that dialog with a small authored gap; a client with no visible timer keeps the original top position. Its root/backdrop width is measured from the visible title and rows, while its height and list container are compacted to the actual visible row count.
