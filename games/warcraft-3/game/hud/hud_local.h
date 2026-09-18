@@ -30,6 +30,7 @@
 /* Persistent top-edge HUD controls share these authored screen offsets. */
 #define HUD_HERO_SHORTCUT_EDGE_X 0.0060f
 #define HUD_HERO_SHORTCUT_TOP_Y  0.0350f
+#define HUD_TIMER_DIALOG_STACK_GAP 0.0040f
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
 
@@ -130,6 +131,7 @@ void UI_LoadHudCinematic(void);
 void UI_LoadHudMessage(void);
 void UI_LoadHudTimerDialogs(void);
 void UI_WriteTimerDialogs(LPEDICT ent);
+FLOAT UI_TimerDialogLeaderboardOffset(DWORD client_num);
 void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(LPEDICT ent);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);

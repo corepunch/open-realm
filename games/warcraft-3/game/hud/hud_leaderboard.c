@@ -101,7 +101,7 @@ void UI_LoadHudLeaderboards(void) {
 void UI_WriteLeaderboard(LPEDICT ent) {
     LPLEADERBOARD board;
     LPFRAMEDEF root, backdrop, title, container;
-    FLOAT row_height, title_height, total_height, list_top;
+    FLOAT row_height, title_height, total_height, list_top, top_y;
     DWORD player, rows, visible_rows, parent, measure_font;
 
     if (!ent || !ent->client) return;
@@ -121,6 +121,13 @@ void UI_WriteLeaderboard(LPEDICT ent) {
         UI_ClearLayer(ent, WC3_LAYER_LEADERBOARD);
         return;
     }
+
+    /* Leaderboard-only HUDs keep the stock top position. When this client has
+     * a visible timer dialog, place the board below that dialog instead of
+     * letting the two server-authored layers overlap. */
+    top_y = HUD_HERO_SHORTCUT_TOP_Y + UI_TimerDialogLeaderboardOffset(player);
+    UI_SetPoint(root, FRAMEPOINT_TOPRIGHT, &hud.leaderboard_anchor, FRAMEPOINT_TOPRIGHT,
+                -HUD_HERO_SHORTCUT_EDGE_X, -top_y);
 #ifdef WC3_DEBUG_HUMAN06
     if (WC3_HUMAN06_DEBUG_ENABLED())
         fprintf(stderr, "Human06Diag leaderboard draw client=%u board=%p items=%u label=\"%s\" displayed=0x%08x\n",

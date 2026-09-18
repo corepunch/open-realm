@@ -45,6 +45,11 @@ static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD client_num) {
     return NULL;
 }
 
+FLOAT UI_TimerDialogLeaderboardOffset(DWORD client_num) {
+    if (!UI_VisibleTimerDialog(client_num) || !hud.timer_dialog.TimerDialog) return 0.0f;
+    return hud.timer_dialog.TimerDialog->Height + HUD_TIMER_DIALOG_STACK_GAP;
+}
+
 void UI_LoadHudTimerDialogs(void) {
     if (!TimerDialog_Load(&hud.timer_dialog)) {
         fprintf(stderr, "WC3 HUD: missing TimerDialog.fdf\n");
