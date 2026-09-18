@@ -4441,6 +4441,39 @@ TEST(wc3_api, gamecache_restore_preserves_hero_progression) {
     T_EQ((int)restored->heroabilities[0].level, 1);
 }
 
+TEST(wc3_api, gamecache_restore_dead_hero_at_quarter_health) {
+    LPEDICT restored = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit restoredDeadHero = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local gamecache c = InitGameCache(\"openrealm-test-dead-hero-memory-only.w3v\")\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  call FlushGameCache(c)\n"
+        "  call SetHeroLevel(h, 2, false)\n"
+        "  call KillUnit(h)\n"
+        "  call BJassAssert(StoreUnit(c, \"Human01\", \"Arthas\", h), \"StoreUnit failed for dead hero\")\n"
+        "  set restoredDeadHero = RestoreUnit(c, \"Human01\", \"Arthas\", Player(0), 256.0, 64.0, 90.0)\n"
+        "  call BJassAssert(restoredDeadHero != null, \"RestoreUnit returned null for dead hero\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') &&
+            fabsf(ent->s.origin2.x - 256.0f) < 0.01f &&
+            fabsf(ent->s.origin2.y - 64.0f) < 0.01f) {
+            restored = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(restored);
+    T_ASSERT(restored->health.max_value > 0.0f);
+    T_FEQ(restored->health.value, restored->health.max_value * 0.25f, 0.01f);
+    T_ASSERT(!M_IsDead(restored));
+}
+
 /* =========================================================================
  * Death event context
  * ========================================================================= */

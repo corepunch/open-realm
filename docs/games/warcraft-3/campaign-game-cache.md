@@ -73,7 +73,10 @@ restore deterministically:
 
 `RestoreUnit()` creates a fresh unit for the `forWhichPlayer` argument at the
 requested position/facing, restores Hero progression and learned ranks, rebuilds
-Hero-derived stats, then restores health/mana and inventory.
+Hero-derived stats, then restores health/mana and inventory. If a cached Hero's
+current health is zero or below, OpenRealm restores that Hero with 25% of the
+cached maximum health instead of recreating a zero-health living entity. Living
+Heroes retain their exact cached current health, including values below 25%.
 
 The snapshot deliberately does not claim to serialize transient simulation
 objects such as buffs, cooldown timers, current orders, production/revival state,
@@ -176,7 +179,9 @@ semantics remain separate work.
 - `SaveGameCache()` committing a process-memory snapshot while unsaved handle
   mutations remain private;
 - restoring a level-2 Paladin with Holy Light rank 1 and exactly one remaining
-  Hero skill point.
+  Hero skill point;
+- restoring a cached dead Hero at 25% of its cached maximum health so the fresh
+  entity is alive and internally consistent.
 
 For a retail-like campaign run, use the default `disk` mode: complete Human01 so
 its script reaches `SaveGameCache()`, then load Human02. The carried state may be

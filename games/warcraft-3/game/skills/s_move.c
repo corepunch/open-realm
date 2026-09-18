@@ -14,6 +14,14 @@
  */
 #include "s_skills.h"
 
+static BOOL human09_trace_move_unit(LPCEDICT self) {
+#ifdef WC3_DEBUG_HUMAN09
+    return WC3_HUMAN09_DEBUG_ENABLED() && self && self->class_id == MAKEFOURCC('H', 'a', 'r', 't');
+#else
+    return false;
+#endif
+}
+
 /* With move-time collision (block-and-slide), "blocked" now means the unit
  * could not take a step this frame because it was boxed in — common and
  * transient while a group slides around obstacles.  These thresholds are
@@ -1264,6 +1272,17 @@ static void ai_move_walk(LPEDICT ent) {
     FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     BOOL blocked;
 
+    if (human09_trace_move_unit(ent) && (level.framenum % 30) == 0)
+        fprintf(stderr, "WC3_HUMAN09 move-tick unit=%ld origin=(%.1f,%.1f) goal=(%.1f,%.1f) distance=%.1f paused=%d stunned=%d move=\"%s\" blocked=%u flow=(gen=%u direct=%d reached=%d unreachable=%d)\n",
+                (long)(ent - globals.edicts), ent->s.origin2.x, ent->s.origin2.y,
+                ent->goalentity ? ent->goalentity->s.origin2.x : 0.0f,
+                ent->goalentity ? ent->goalentity->s.origin2.y : 0.0f, distance,
+                (int)ent->paused, (int)ent->stunned,
+                ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "(none)",
+                (unsigned)ent->movement.blocked_frames, (unsigned)ent->movement.flow_generation,
+                (int)ent->movement.flow_direct, (int)ent->movement.flow_goal_reached,
+                (int)ent->movement.flow_unreachable);
+
     if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_PurgeIsImmobilized(ent)) {
         ent->stand(ent);
@@ -1326,11 +1345,17 @@ BOOL move_is_active_order_walk(LPCEDICT ent) {
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
 void order_move(LPEDICT self, LPEDICT target) {
-    if (S_GoldMineWorkerIsInside(self))
+    if (S_GoldMineWorkerIsInside(self)) {
+        if (human09_trace_move_unit(self)) fprintf(stderr, "WC3_HUMAN09 order-move-reject unit=%ld reason=gold-mine-worker-inside\n", (long)(self - globals.edicts));
         return;
+    }
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
-        || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
+        || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self)) {
+        if (human09_trace_move_unit(self)) fprintf(stderr, "WC3_HUMAN09 order-move-reject unit=%ld reason=movement-gate immobile=%d cycloned=%d ensnared=%d purge=%d\n",
+                (long)(self - globals.edicts), (int)((self->aiflags & AI_IMMOBILE) != 0), (int)S_UnitIsCycloned(self),
+                (int)S_UnitIsEnsnared(self), (int)S_PurgeIsImmobilized(self));
         return;
+    }
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = NULL;
@@ -1340,6 +1365,10 @@ void order_move(LPEDICT self, LPEDICT target) {
     self->movement.holding_position = false;
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
+    if (human09_trace_move_unit(self)) fprintf(stderr, "WC3_HUMAN09 order-move-accepted unit=%ld goal=%ld goal_origin=(%.1f,%.1f) paused=%d stunned=%d\n",
+            (long)(self - globals.edicts), target ? (long)(target - globals.edicts) : -1L,
+            target ? target->s.origin2.x : 0.0f, target ? target->s.origin2.y : 0.0f,
+            (int)self->paused, (int)self->stunned);
     /* No route heading exists at submission time. Hold the stand pose instead
      * of showing a walking unit facing its previous, often opposite, heading. */
     unit_setanimation(self, "stand");

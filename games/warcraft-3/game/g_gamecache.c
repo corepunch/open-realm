@@ -6,6 +6,7 @@
 #define GAMECACHE_FILE_VERSION 1
 #define GAMECACHE_FILE_SUFFIX ".orcgc"
 #define MAX_GAMECACHE_MEMORY_CACHES 8
+#define GAMECACHE_DEAD_HERO_RESTORE_HEALTH_FACTOR 0.25f
 
 typedef enum {
     GAMECACHE_STORAGE_DISABLED,
@@ -662,6 +663,10 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
     memcpy(unit->heroabilities, saved->abilities, sizeof(unit->heroabilities));
     G_RecomputeHeroStats(unit);
     unit->health = saved->health;
+    if (G_UnitIsHero(unit) && unit->health.value <= 0.0f) {
+        unit->health.value =
+            unit->health.max_value * GAMECACHE_DEAD_HERO_RESTORE_HEALTH_FACTOR;
+    }
     unit->mana = saved->mana;
     unit->unit_color = saved->unit_color;
     if (saved->unit_color) {
