@@ -18,9 +18,14 @@ BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code) {
     return false;
 }
 
+static LPCSTR spell_buff_fallback(DWORD code) {
+    if (code == MAKEFOURCC('A', 'C', 'm', 'p')) return "Bimp";  /* Impale (creep) */
+    return NULL;
+}
+
 static LPCSTR spell_buff(abilityitem_t const *spell, DWORD level) {
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : NULL;
+    return buff && strlen(buff) >= 4 ? buff : spell_buff_fallback(spell->code);
 }
 
 static void target_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
