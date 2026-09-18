@@ -27,7 +27,7 @@ Strings pass through `G_LevelString()` on mutation, so map `TRIGSTR_` strings fo
 
 `UI_LoadHudLeaderboards()` loads the authored `LeaderBoard.fdf` root, backdrop, title, and list container. `LAYER_LEADERBOARD` is a dedicated server-authored layout layer appended after the timer-dialog layer, so leaderboard refreshes do not resend unrelated HUD panels.
 
-The stock title/backdrop/container provide the board chrome. Runtime rows are emitted as text frames parented to `LeaderboardListContainer`: a left name/label column and a right integer-value column. Row height and width are derived from the authored list-container dimensions when available, with conservative font-based fallbacks.
+The stock title/backdrop/container provide the board chrome. Runtime rows are emitted as text frames parented to `LeaderboardListContainer`: a natural-width left name/label and a natural-width right integer value. The client measures the title and visible row strings with the real rendered font and sizes the board root to the widest line plus the stock edge inset, so the backdrop grows and shrinks with its contents instead of keeping a fixed authored width. Row height still follows the authored title font with a conservative fallback.
 
 The common campaign-counter case therefore renders as a stock leaderboard title plus a changing value without rebuilding the leaderboard handle.
 
@@ -40,7 +40,7 @@ Save format version 24 persists the fixed leaderboard registry, all item/style/c
 ## Known Limits
 
 - `showIcons` and per-item `showIcon` are stored but icons are not rendered yet because classic icon source/packing semantics are not established confidently.
-- Exact retail row-column widths, player-color/name styling, and backdrop resizing are not yet pixel-matched. Current rows are laid out relative to the authored list container rather than hard-coding a campaign-specific HUD.
+- Exact retail player-color/name styling remains to be pixel-matched. Row text and backdrop width are content-sized rather than hard-coded to a campaign-specific fixed width.
 - Only the player's assigned leaderboard is presented, matching the `PlayerSetLeaderboard` ownership model. Multiboard is a separate widget; see [multiboard-and-texttag.md](multiboard-and-texttag.md).
 
 These limits do not block the counted-objective path where a campaign script creates a board, assigns it to the player, adds one numeric row, and updates that row from 0 through a target value.
@@ -51,4 +51,4 @@ Tests cover creation, labels, item insertion/update, stable sorting/player looku
 
 ## Compact HUD Placement
 
-The board is anchored to the same widescreen-aware top-right position and top offset as the TimerDialog. Its root, backdrop, and list container are compacted to the actual visible row count.
+The board is anchored to the same widescreen-aware top-right position and top offset as the TimerDialog. Its root/backdrop width is measured from the visible title and rows, while its height and list container are compacted to the actual visible row count.

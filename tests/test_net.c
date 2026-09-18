@@ -1366,6 +1366,48 @@ TEST(net, layout_text_length_uses_space_advance_for_implicit_width) {
     T_FEQ(rect->w, 0.060f, 0.001f);
 }
 
+TEST(net, layout_structural_frame_sizes_to_measured_text) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = {0};
+    uiSizeToText_t fit = {0};
+    LPCRECT rect;
+
+    frame.number = 1;
+    frame.flags.type = FT_SIMPLEFRAME;
+    frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT;
+    frame.text = "Timer title    00:30";
+    frame.size.height = 0.030f;
+    frame.points.x[FPP_MAX].used = 1;
+    frame.points.x[FPP_MAX].targetPos = FPP_MAX;
+    frame.points.x[FPP_MAX].relativeTo = 0;
+    frame.points.x[FPP_MAX].offset = (SHORT)(-0.006f * UI_FRAMEPOINT_SCALE);
+    frame.points.y[FPP_MIN].used = 1;
+    frame.points.y[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.y[FPP_MIN].relativeTo = 0;
+    fit.padding_x = 0.006f;
+    fit.min_width = 0.020f;
+
+    test_client_stubs_init();
+    re.GetTextSize = text_length_mock_size;
+    MSG_WriteByte(&sb, LAYER_CONSOLE);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, sizeof(fit));
+    MSG_Write(&sb, &fit, sizeof(fit));
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+
+    CL_ParseLayout(&sb);
+    T_NOT_NULL(cl.layout[LAYER_CONSOLE]);
+    SCR_Clear(cl.layout[LAYER_CONSOLE]);
+    rect = SCR_LayoutRect(SCR_Frame(1));
+    T_NOT_NULL(rect);
+    T_FEQ(rect->w, 0.030f, 0.001f);
+    T_FEQ(rect->x + rect->w, UI_BASE_WIDTH - 0.006f, 0.001f);
+    T_FEQ(rect->h, 0.030f, 0.001f);
+}
+
 TEST(net, layout_authored_height_with_top_bottom_anchors_keeps_bottom_edge) {
     BYTE buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

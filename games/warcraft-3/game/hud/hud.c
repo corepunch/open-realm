@@ -712,6 +712,41 @@ static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_val
     gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, &tmp);
 }
 
+static void UI_WriteBuiltFrameSizedToText(LPCFRAMEDEF frame, LPCSTR measure_text,
+                                          DWORD font, FLOAT padding_x, FLOAT min_width) {
+    UINAME textbuf;
+    uiFrame_t tmp;
+    BYTE typedata[256] = { 0 };
+    uiSizeToText_t fit = {
+        .text = {
+            .font = font,
+            .textalignx = FONT_JUSTIFYLEFT,
+            .textaligny = FONT_JUSTIFYTOP,
+        },
+        .padding_x = padding_x,
+        .min_width = min_width,
+    };
+
+    if (!UI_BuildFrameForWrite(frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
+        return;
+    }
+
+    /* The normal frame remains the visual/layout parent. Only its horizontal
+     * size is deferred to the client so proportional font metrics stay exact. */
+    tmp.flagsvalue |= UIFLAG_SIZE_TO_CONTENT;
+    tmp.size.width = 0.0f;
+    tmp.text = measure_text && *measure_text ? measure_text : " ";
+    tmp.buffer.data = &fit;
+    tmp.buffer.size = sizeof(fit);
+    if (ui_window_writing) {
+        tmp.text = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.text);
+        tmp.tooltip = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.tooltip);
+        tmp.onclick = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.onclick);
+    }
+    ui_next_frame_number = UI_NextProxyFrameNumber(ui_next_frame_number, tmp.number);
+    gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, &tmp);
+}
+
 void UI_WriteFrame(LPCFRAMEDEF frame) {
     UI_WriteBuiltFrame(frame, 0.0f, false);
 }
@@ -734,6 +769,28 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
     } else {
         UI_WriteFrame(frame);
     }
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPCFRAMEDEF it = frames + i;
+        if (it->Parent == frame && !it->hidden &&
+            !UI_IsEmbeddedControlArtPart(frame, it)) {
+            UI_WriteFrameWithChildren(it, NULL);
+        }
+    }
+}
+
+void UI_WriteFrameWithChildrenSizedToText(LPCFRAMEDEF frame, LPCFRAMEDEF parent,
+                                          LPCSTR measure_text, DWORD font,
+                                          FLOAT padding_x, FLOAT min_width) {
+    LPCFRAMEDEF oldparent = NULL;
+
+    UI_PrepareScrollBar(frame);
+    if (parent) {
+        oldparent = frame->Parent;
+        ((LPFRAMEDEF)frame)->Parent = parent;
+    }
+    UI_WriteBuiltFrameSizedToText(frame, measure_text, font, padding_x, min_width);
+    if (parent) ((LPFRAMEDEF)frame)->Parent = oldparent;
+
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF it = frames + i;
         if (it->Parent == frame && !it->hidden &&
