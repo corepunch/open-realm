@@ -39,8 +39,10 @@ LPCSTR parse_token(LPPARSER p) {
         return word;
     } else {
         size_t segmentLength = 0;
+        /* Stop at '"' too: minified JASS uses return"" / set s="" without space.
+         * Quote is not always a delimiter (JASS jdo set); next parse_token reads the string. */
         while (*p->buffer &&
-           (!isspace(*p->buffer) && strchr(p->delimiters, *p->buffer) == NULL) &&
+           (!isspace(*p->buffer) && *p->buffer != '"' && strchr(p->delimiters, *p->buffer) == NULL) &&
                segmentLength < MAX_SEGMENT_SIZE - 1) {
             word[segmentLength++] = *(p->buffer++);
         }
@@ -48,6 +50,8 @@ LPCSTR parse_token(LPPARSER p) {
         return word;
     }
 }
+
+LPCSTR jlex_parse_token(LPPARSER p) { return parse_token(p); }
 
 LPCSTR peek_token(LPPARSER p) {
     PARSER tmp = *p;
