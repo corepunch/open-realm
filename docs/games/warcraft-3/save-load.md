@@ -43,10 +43,11 @@ or map object data. The current count and absolute replenishment deadline contin
 Version 30 persists the fixed multiboard, multiboard-item, and texttag registries (including `texttag.unit` via `F_EDICT`) so JASS
 scoreboard/floating-text handles relocate by slot index. See [Multiboard And TextTag](multiboard-and-texttag.md).
 Version 31 adds the fixed hashtable registry (`level.hashtables[MAX_HASHTABLES]`) plus a typed nested-handle entry payload written
-after groups. Each `HT_HANDLE` slot stores the JASS type name so load can call `G_LoadJassHandle`; nested types without a host
-domain (`location`, `lightning`, `image`, `ubersplat`, …) restore as null with a one-shot stderr diagnostic. JSVM snapshot format
-remains version 4 — hashtable globals relocate through the host codec, not an owned-payload allowlist entry. See
-[DotA Custom-Map Playability](dota-map-playability.md#hashtable-saveload).
+after edicts (not after groups). Nested `unit`/`item` slots call `G_LoadJassHandle` only once restored edict `inuse` bits exist;
+`SV_Map` runs `main()` first, so a pre-edict resolve would see the map baseline and drop script-created units. Each `HT_HANDLE`
+slot stores the JASS type name; nested types without a host domain (`location`, `lightning`, `image`, `ubersplat`, …) restore as
+null with a one-shot stderr diagnostic. JSVM snapshot format remains version 4 — hashtable globals relocate through the host codec,
+not an owned-payload allowlist entry. See [DotA Custom-Map Playability](dota-map-playability.md#hashtable-saveload).
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 

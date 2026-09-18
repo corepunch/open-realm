@@ -1542,7 +1542,6 @@ BOOL WriteGame(LPCSTR filename) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
     if (!WriteGroups(f)) goto done;
-    if (!WriteHashtables(f)) { fprintf(stderr, "WC3 SaveGame: failed at hashtables\n"); goto done; }
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
     }
@@ -1554,6 +1553,10 @@ BOOL WriteGame(LPCSTR filename) {
             fprintf(stderr, "WC3 SaveGame: failed at edict %d class=%08x\n", i, g_edicts[i].class_id); goto done;
         }
     }
+    /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
+     * requires restored inuse bits. SV_Map runs main() first, so a pre-edict
+     * resolve would see baseline slots and drop script-created units. */
+    if (!WriteHashtables(f)) { fprintf(stderr, "WC3 SaveGame: failed at hashtables\n"); goto done; }
     if (!WriteJass(f)) { fprintf(stderr, "WC3 SaveGame: failed at jass\n"); goto done; }
     if (!WriteFooter(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
@@ -1613,7 +1616,6 @@ BOOL ReadGame(LPCSTR filename) {
     }
     G_ResetJassGroupDebug();
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
-    if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
     gi.SetGameTime(level.time);
     FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
@@ -1635,6 +1637,8 @@ BOOL ReadGame(LPCSTR filename) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
         }
     }
+    /* Nested hashtable unit/item handles resolve here, after edict inuse is restored. */
+    if (!ReadHashtables(f)) { fprintf(stderr, "WC3 LoadGame: failed at hashtables\n"); fclose(f); return false; }
     /* JASS sound-handle playback parameters are transient presentation state,
      * not VM-owned payload bytes. Clear old pointer keys before snapshot handles
      * are reconstructed so a reused allocation cannot inherit stale state. */

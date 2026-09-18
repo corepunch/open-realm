@@ -155,8 +155,8 @@ Suggested order (GitHub #431 and children):
 1. Honor MPQ sector sizes above 64 KiB so protected maps open (#435).
 2. Read `scripts\war3map.j` when `war3map.j` is absent; refuse null mapscripts
    instead of crashing (#433).
-3. Implement the hashtable native family (#437) — runtime + save/load registry done
-   documented below.
+3. Implement the hashtable native family (#437) — runtime + save/load registry
+   done; see below.
 4. Resolve map-archive `Units\*.txt`, `war3mapMisc.txt`, and `war3map.w3a`
    through the existing sheet/object-data path (#432 — map FS priority + w3a
    parse/apply for DataA–I and common leveled fields; full AbilityMetaData
@@ -209,8 +209,9 @@ domain (`location`, `lightning`, `image`, `ubersplat`, and other VM-owned
 payloads) log once to stderr and restore as null rather than writing a raw
 address. Stale/removed units become null, matching the group/unit handle
 rule. Save format version **31** adds the registry `inuse` bits to the level
-field stream plus a per-slot entry payload after groups. See
-[Save/Load](save-load.md).
+field stream plus a per-slot entry payload **after edicts**, so nested unit/item
+handles resolve against restored `inuse` bits (production `SV_Map` runs `main()`
+before `ReadGame`). See [Save/Load](save-load.md).
 
 See also [Campaign Map Audit](map-audit.md), [JASS Native Coverage](jass-native-coverage.md),
 [WC3 Data Model](../../wc3-data-model.md), and [Loading and Assets](loading-and-assets.md).

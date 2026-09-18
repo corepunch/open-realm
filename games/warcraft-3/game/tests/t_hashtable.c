@@ -210,6 +210,32 @@ TEST(wc3_api, hashtable_save_load_nested_host_handles) {
     remove(path);
 }
 
+/* SV_Map runs main() then ReadGame. Script-created units are unused on the
+ * baseline until edict records land; nested handles must wait for that restore. */
+TEST(wc3_api, hashtable_save_load_unit_survives_cleared_edicts) {
+    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-cleared-edict-save-test.bin";
+    remove(path);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  hashtable ht = null\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set ht = InitHashtable()\n"
+        "  set u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SaveUnitHandle(ht, 1, 1, u)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(LoadUnitHandle(ht, 1, 1) == u, \"unit after baseline\")\n"
+        "endfunction\n"));
+    T_ASSERT(WriteGame(path));
+    FOR_LOOP(i, globals.num_edicts) g_edicts[i].inuse = false;
+    T_ASSERT(ReadGame(path));
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(path);
+}
+
 TEST(wc3_api, hashtable_save_load_stale_unit_becomes_null) {
     LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-stale-unit-save-test.bin";
     remove(path);
