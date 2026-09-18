@@ -63,6 +63,8 @@ BOOL SFileFindClose(HANDLE find);
 
 #ifdef MPQ_TEST_API
 BOOL Mpq_TestDecompressSector(BYTE const *src, DWORD src_size, BYTE *dst, DWORD dst_size, DWORD *out_size);
+DWORD Mpq_TestHashString(const char *str, DWORD hash_type);
+BOOL Mpq_TestEncryptBlock(BYTE *data, DWORD size, DWORD seed);
 #endif
 
 #ifdef __cplusplus

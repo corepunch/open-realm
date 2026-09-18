@@ -33,7 +33,7 @@
 #define MPQ_HASH_ENTRY_DELETED 0xFFFFFFFE
 #define MPQ_HASH_ENTRY_FREE 0xFFFFFFFF
 #define MPQ_BLOCK_INDEX_MASK 0x0FFFFFFF
-#define MPQ_SECTOR_SIZE_DEFAULT 4096
+#define MPQ_SECTOR_SIZE_SHIFT_MAX 15 // Storm max; 1<<(15+9) = 16 MiB sectors (protected WC3 maps)
 #define MPQ_FILE_COMPRESS 0x00000200
 #define MPQ_FILE_IMPLODE 0x00000100
 #define MPQ_FILE_ENCRYPTED 0x00010000
@@ -672,7 +672,7 @@ static const char *BaseNamePtr(const char *path)
 static BOOL DecryptBlock(LPBYTE data, DWORD size, DWORD seed1)
 {
     LPDWORD pdw = (LPDWORD)data;
-    DWORD nblocks = size >> 2;  // Convert to DWORD count
+    DWORD nblocks = size >> 2; // DWORD-aligned only; leftover 1-3 bytes stay ciphertext/plaintext as stored
     DWORD seed2 = 0xEEEEEEEE;
     DWORD index;
 
@@ -697,7 +697,7 @@ static BOOL DecryptBlock(LPBYTE data, DWORD size, DWORD seed1)
 static BOOL EncryptBlock(LPBYTE data, DWORD size, DWORD seed1)
 {
     LPDWORD pdw = (LPDWORD)data;
-    DWORD nblocks = size >> 2;
+    DWORD nblocks = size >> 2; // DWORD-aligned only; leftover 1-3 bytes stay plaintext
     DWORD seed2 = 0xEEEEEEEE;
     DWORD index;
 
@@ -716,6 +716,11 @@ static BOOL EncryptBlock(LPBYTE data, DWORD size, DWORD seed1)
 
     return TRUE;
 }
+
+#ifdef MPQ_TEST_API
+DWORD Mpq_TestHashString(const char *str, DWORD hash_type) { return HashString(str, hash_type); }
+BOOL Mpq_TestEncryptBlock(BYTE *data, DWORD size, DWORD seed) { return EncryptBlock(data, size, seed); }
+#endif
 
 static DWORD NextPowerOfTwo(DWORD value)
 {
@@ -1195,15 +1200,19 @@ static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
         goto fail;
     }
 
-    // Calculate sector size
-    mpq->sector_size = (1 << (mpq->header.wSectorSizeShift + 9));
-    if (mpq->sector_size < 512 || mpq->sector_size > 65536) {
-        mpq->sector_size = MPQ_SECTOR_SIZE_DEFAULT;
+    /* Sector size is 512 << wSectorSizeShift. Storm accepts up to shift 15 (16 MiB).
+     * Protected maps such as DotA v6.83d use that max; never clamp it down to 4096. */
+    if (mpq->header.wSectorSizeShift > MPQ_SECTOR_SIZE_SHIFT_MAX) {
+        fprintf(stderr, "MPQ: unsupported wSectorSizeShift %u (max %u)\n",
+                mpq->header.wSectorSizeShift, MPQ_SECTOR_SIZE_SHIFT_MAX);
+        goto fail;
     }
+    mpq->sector_size = 1u << (mpq->header.wSectorSizeShift + 9);
 
-    // Allocate sector buffer
+    // Allocate sector buffer (one scratch sector; 16 MiB once at open is acceptable)
     mpq->sector_buffer = (BYTE *)malloc(mpq->sector_size);
     if (!mpq->sector_buffer) {
+        fprintf(stderr, "MPQ: failed to allocate %u-byte sector buffer\n", mpq->sector_size);
         goto fail;
     }
 

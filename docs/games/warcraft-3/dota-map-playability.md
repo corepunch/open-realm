@@ -28,8 +28,11 @@ Authoritative inner members (hash lookup, not the listfile):
 | `war3map.w3e` / `war3map.doo` / `war3map.wpm` | terrain / doodads / pathing | Present. `war3mapUnits.doo`, `war3map.w3u`, and `war3map.w3t` are absent; units and items are script- and INI-authored. |
 
 The archive is MPQ v1 at file offset 512 (`HM3W` user data). Header
-`wSectorSizeShift` is **15** (16 MiB sectors). 1,299 files exist; 1,296 of them
-are compressed+encrypted. One file uses PKWARE implode (`(listfile)`).
+`wSectorSizeShift` is **15** (16 MiB sectors). Storm's sector size is
+`512 << wSectorSizeShift` (max shift 15). OpenRealm must honor that value;
+clamping anything above 64 KiB down to 4096 makes `SectorTableLooksValid` reject
+every multi-kilobyte compressed member. 1,299 files exist; 1,296 of them are
+compressed+encrypted. One file uses PKWARE implode (`(listfile)`).
 
 ## Data Flow
 
@@ -63,9 +66,10 @@ build/bin/openwarcraft3 \
 Observed on `6f1057f1`:
 
 1. `CM_ReadDoodads: missing war3map.doo` and `CM_ReadUnitDoodads: missing war3mapUnits.doo`.
-   `war3map.doo` is in the hash table; open fails because the MPQ reader clamps
-   sector size `> 65536` down to 4096 (`common/mpq.c`). Small members such as
-   `war3map.w3i` still open (one sector under both sizes).
+   `war3map.doo` is in the hash table; on builds that still clamp sector size
+   `> 65536` down to 4096 (`common/mpq.c` before #435), open fails. Small
+   members such as `war3map.w3i` still open (one sector under both sizes).
+   After #435 the authored 16 MiB sector size is honored.
 2. Overlay spam: `Custom_V1\Units\*.txt` and `Custom_V1\war3mapMisc.txt` miss and
    fall back to base TFT data. The map's own `Units\` and `war3mapMisc.txt` are
    never consulted.

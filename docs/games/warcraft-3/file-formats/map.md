@@ -4,6 +4,11 @@ Warcraft III maps are stored as MPQ archives with a `.w3m` (melee/campaign) or `
 
 ## Archive Layout
 
+Map archives are MPQ v1 (often with `HM3W` user data before the `MPQ\x1a`
+header). Sector size is `512 << wSectorSizeShift`. Ordinary World Editor maps
+use shift 3 (4 KiB). Some protected custom maps raise shift to Storm's maximum
+of 15 (16 MiB), so the reader must not clamp large sector sizes down to 4 KiB.
+
 A typical map archive contains the following files:
 
 | File | Description |
