@@ -7,10 +7,12 @@
 
 /* Retail shows an accepted building's Birth presentation before the worker
  * arrives.  This entity is presentation-only: it has no collision and never
- * bakes static pathing.  The real structure is still created only after the
- * worker's arrival-time placement check succeeds. */
+ * bakes static pathing.  Its footprint still displaces friendly mobile units
+ * at placement time; the real structure repeats that displacement when
+ * construction starts after the worker arrives. */
 LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
     LPEDICT preview;
+    LPCANIMATION birth;
 
     if (!builder || !location || !G_UnitIsBuilding(building_id)) return NULL;
     preview = G_Spawn();
@@ -32,6 +34,23 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 loca
     preview->s.renderfx |= RF_NO_UBERSPLAT;
     gi.LinkEntity(preview);
     if (preview->birth) preview->birth(preview);
+    /* A pending Birth is a placement marker, not construction progress. Keep
+     * it on the first authored Birth frame until the worker arrives. */
+    birth = preview->animation;
+    if (!G_AnimationHasPrimary(birth, "birth")) birth = G_GetUnitAnimation(preview, "birth");
+    if (birth) {
+        preview->animation = birth;
+        preview->s.frame = birth->interval[0];
+    }
+    preview->aiflags |= AI_HOLD_FRAME;
+    if (!G_DisplaceBuildOccupants(builder, preview)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD preview-rejected worker=%ld preview=%ld id=%.4s reason=displacement\n",
+                (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&building_id);
+#endif
+        G_FreeEdict(preview);
+        return NULL;
+    }
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD preview-create worker=%ld preview=%ld id=%.4s point=(%.1f,%.1f)\n",
             (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&building_id,
@@ -1319,6 +1338,11 @@ static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL 
     building->construction.lumber = 0;
     building->aiflags |= AI_HOLD_FRAME;
     G_SetHealth(building, MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE));
+
+    /* Birth is walk-through only while the accepted placement is a preview.
+     * The construction footprint becomes a route obstacle before the worker
+     * begins Repair/build work. */
+    CM_BakeStaticObstacles();
 
     G_UpdateConstructionAnimation(building);
     return true;
