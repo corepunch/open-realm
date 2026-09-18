@@ -321,6 +321,17 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     FLOAT avl_space = runtimes[0].rect.w;
     drawText_t drawtext = {0};
     switch (frame->flags.type) {
+        case FT_FRAME:
+        case FT_SIMPLEFRAME: {
+            if ((frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT) &&
+                frame->buffer.data && frame->buffer.size >= sizeof(uiSizeToText_t)) {
+                uiSizeToText_t const *fit = frame->buffer.data;
+                drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), &fit->text);
+                elemsize = re.GetTextSize(&drawtext);
+                elemsize.x = MAX(fit->min_width, elemsize.x + fit->padding_x * 2.0f);
+            }
+            break;
+        }
         case FT_STRING:
         case FT_TEXT: {
             uiLabel_t const *label = frame->buffer.data;

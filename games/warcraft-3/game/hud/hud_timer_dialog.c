@@ -8,6 +8,34 @@
 
 #include "hud_local.h"
 
+#define TIMER_DIALOG_EDGE_INSET 0.006f
+#define TIMER_DIALOG_MIN_WIDTH  0.060f
+
+static void TimerDialogSetHorizontalPoint(LPFRAMEDEF frame, uiFramePointPos_t point,
+                                          LPCFRAMEDEF relative, uiFramePointPos_t target,
+                                          FLOAT offset) {
+    if (!frame) return;
+    memset(&frame->Points.x, 0, sizeof(frame->Points.x));
+    frame->Points.x[point].used = true;
+    frame->Points.x[point].relativeTo = relative;
+    frame->Points.x[point].targetPos = target;
+    frame->Points.x[point].offset = offset;
+    frame->Width = 0.0f;
+    frame->AnyPointsSet = true;
+}
+
+static DWORD TimerDialogMeasureFont(void) {
+    LPFRAMEDEF title = hud.timer_dialog.TimerDialogTitle;
+    LPFRAMEDEF value = hud.timer_dialog.TimerDialogValue;
+    LPFRAMEDEF measure = title;
+
+    DWORD font;
+
+    if (!measure || (value && value->Font.Size > measure->Font.Size)) measure = value;
+    font = measure ? UI_LiveFont(measure->Font.Index) : 0;
+    return font ? font : gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+}
+
 static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD client_num) {
     if (client_num >= MAX_CLIENTS) return NULL;
     FOR_LOOP(i, MAX_TIMERDIALOGS) {
@@ -33,7 +61,7 @@ void UI_LoadHudTimerDialogs(void) {
                 FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
 
     /* Align the timer with the first Hero shortcut vertically, mirrored to the
-     * opposite screen edge. Preserve the stock TimerDialog size/child layout. */
+     * opposite screen edge. */
     if (hud.timer_dialog.TimerDialog) {
         memset(&hud.timer_dialog.TimerDialog->Points, 0,
                sizeof(hud.timer_dialog.TimerDialog->Points));
@@ -42,6 +70,27 @@ void UI_LoadHudTimerDialogs(void) {
                     FRAMEPOINT_TOPRIGHT, &hud.timer_dialog_anchor, FRAMEPOINT_TOPRIGHT,
                     -HUD_HERO_SHORTCUT_EDGE_X, -HUD_HERO_SHORTCUT_TOP_Y);
     }
+
+    /* The retail timer is a compact strip. Let the client measure the actual
+     * proportional title/time glyphs, while the two labels stay pinned to
+     * opposite edges of the resulting strip. */
+    if (hud.timer_dialog.TimerDialogBackdrop && hud.timer_dialog.TimerDialog) {
+        memset(&hud.timer_dialog.TimerDialogBackdrop->Points, 0,
+               sizeof(hud.timer_dialog.TimerDialogBackdrop->Points));
+        hud.timer_dialog.TimerDialogBackdrop->AnyPointsSet = false;
+        UI_SetPoint(hud.timer_dialog.TimerDialogBackdrop,
+                    FRAMEPOINT_TOPLEFT, hud.timer_dialog.TimerDialog, FRAMEPOINT_TOPLEFT,
+                    0.0f, 0.0f);
+        UI_SetPoint(hud.timer_dialog.TimerDialogBackdrop,
+                    FRAMEPOINT_BOTTOMRIGHT, hud.timer_dialog.TimerDialog, FRAMEPOINT_BOTTOMRIGHT,
+                    0.0f, 0.0f);
+    }
+    TimerDialogSetHorizontalPoint(hud.timer_dialog.TimerDialogTitle, FPP_MIN,
+                                  hud.timer_dialog.TimerDialog, FPP_MIN,
+                                  TIMER_DIALOG_EDGE_INSET);
+    TimerDialogSetHorizontalPoint(hud.timer_dialog.TimerDialogValue, FPP_MAX,
+                                  hud.timer_dialog.TimerDialog, FPP_MAX,
+                                  -TIMER_DIALOG_EDGE_INSET);
 
     if (hud.timer_dialog.TimerDialogTitle) {
         strlcpy(hud.timer_dialog_default_title,
@@ -57,6 +106,7 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     LPTIMERDIALOG dialog;
     LPCSTR title;
     char value[32];
+    char measure[MAX_TRIGSTR_LENGTH + sizeof(value) + 8];
     DWORD client_num;
 
     if (!ent || !ent->client) return;
@@ -80,11 +130,17 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
         ? dialog->time_color : hud.timer_dialog_default_time_color;
     G_FormatTimerDialogValue(dialog->timer, value, sizeof(value));
     UI_SetText(hud.timer_dialog.TimerDialogValue, "%s", value);
+    snprintf(measure, sizeof(measure), "%s    %s",
+             title && *title ? title : " ", value);
 
     UI_SetCurrentClient(ent->client);
     UI_WriteStart(WC3_LAYER_TIMERDIALOG);
     UI_WriteFrame(&hud.timer_dialog_anchor);
-    UI_WriteFrameWithChildren(hud.timer_dialog.TimerDialog, &hud.timer_dialog_anchor);
+    UI_WriteFrameWithChildrenSizedToText(hud.timer_dialog.TimerDialog,
+                                         &hud.timer_dialog_anchor,
+                                         measure, TimerDialogMeasureFont(),
+                                         TIMER_DIALOG_EDGE_INSET,
+                                         TIMER_DIALOG_MIN_WIDTH);
     UI_WriteEnd(ent);
     UI_SetCurrentClient(NULL);
 }

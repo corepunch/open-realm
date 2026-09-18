@@ -51,7 +51,7 @@ RGBA arguments are clamped to byte range before they reach the FDF string frames
 UI\\FrameDef\\UI\\TimerDialog.fdf
 ```
 
-The stock root is re-anchored at the top-right of a widescreen-aware HUD anchor. Its top edge uses the same `0.035` vertical offset as the first Hero shortcut, with the Hero controls' `0.006` edge inset mirrored to the actual right edge of the screen. The TimerDialog's authored size and child layout remain unchanged.
+The stock root is re-anchored at the top-right of a widescreen-aware HUD anchor. Its top edge uses the same `0.035` vertical offset as the first Hero shortcut, with the Hero controls' `0.006` edge inset mirrored to the actual right edge of the screen. The root width is measured client-side from the current title plus timer value using the actual rendered font metrics, so short titles produce a compact strip while long titles expand without clipping. The title remains left-anchored, the timer value remains right-anchored, and the stock backdrop stretches with the measured root.
 
 The runtime updates:
 

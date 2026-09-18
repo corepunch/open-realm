@@ -68,7 +68,6 @@ typedef struct {
     TimerDialog_t timer_dialog;
     LeaderBoard_t leaderboard;
     FRAMEDEF leaderboard_anchor;
-    FLOAT leaderboard_width;
     COLOR32 leaderboard_default_title_color;
     COLOR32 leaderboard_default_item_color;
     FRAMEDEF timer_dialog_anchor;
@@ -134,6 +133,9 @@ void UI_WriteTimerDialogs(LPEDICT ent);
 void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(LPEDICT ent);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
+void UI_WriteFrameWithChildrenSizedToText(LPCFRAMEDEF frame, LPCFRAMEDEF parent,
+                                          LPCSTR measure_text, DWORD font,
+                                          FLOAT padding_x, FLOAT min_width);
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 
 /* Theme (hud_write.c) */

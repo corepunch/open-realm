@@ -202,6 +202,15 @@ vitals through `CustomizeEntity` and keeps `entityState_t.name` hidden until tha
 and terminator with no frames until its gameplay state can author a real widget. The renderer has no parallel health-bar pass, and
 there is no ALT-driven show-all mode because one `LAYER_WORLD_HOVER` instance has one `cl.hover_entity` context.
 
+## Client-Measured Structural Widths
+
+`UIFLAG_SIZE_TO_CONTENT` can also size an `FT_FRAME`/`FT_SIMPLEFRAME` horizontally from text without making the server guess glyph
+advances. The sender supplies `uiSizeToText_t` plus a representative measurement string; `SCR_LayoutRect()` measures that string
+with the actual client font, adds the declared horizontal padding, applies the minimum width, and leaves the authored height and
+anchors unchanged. WC3 TimerDialog and Leaderboard use this path so their top-right edge stays fixed while the backdrop expands or
+contracts with the visible text. Keep the measurement string presentation-only: gameplay state remains authoritative on the server,
+and the client only resolves renderer-dependent geometry.
+
 ## Key Files
 
 | File | Responsibility |
