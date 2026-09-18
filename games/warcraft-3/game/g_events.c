@@ -259,6 +259,17 @@ static void G_TouchTriggers(LPEDICT ent) {
                 if (G_RegionContains(&evt->region, &ent->s.origin2) &&
                     !G_RegionContains(&evt->region, &ent->old_origin))
                 {
+#ifdef WC3_DEBUG_BUILD
+                    if (ent->class_id == MAKEFOURCC('h','p','e','a') && evt->region.num_rects) {
+                        BOX2 const *rect = evt->region.rects;
+                        fprintf(stderr, "WC3_BUILD region-enter unit=%ld origin=(%.1f,%.1f) old=(%.1f,%.1f) rect=(%.1f,%.1f)-(%.1f,%.1f) move=%s goal=%ld\n",
+                                (long)(ent - g_edicts), ent->s.origin2.x, ent->s.origin2.y,
+                                ent->old_origin.x, ent->old_origin.y, rect->min.x, rect->min.y,
+                                rect->max.x, rect->max.y,
+                                ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
+                                ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
+                    }
+#endif
                     G_PublishEvent(ent, evt->type)->responseTo = evt;
                 }
                 break;

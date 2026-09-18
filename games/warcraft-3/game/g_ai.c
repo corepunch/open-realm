@@ -50,6 +50,16 @@ void unit_setmove(LPEDICT self, umove_t *move) {
      * Stop/Move, so later code could mistake an idle worker for an active build. */
     if (self->currentmove && self->currentmove->proc == CAbilityBuild &&
         move->proc != CAbilityBuild) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_BUILD order-replaced worker=%ld old=%s new=%s project=%.4s goal=%ld preview=%ld origin=(%.1f,%.1f)\n",
+                (long)(self - g_edicts),
+                self->currentmove->animation ? self->currentmove->animation : "<none>",
+                move->animation ? move->animation : "<none>",
+                self->build_project ? (LPCSTR)&self->build_project : "----",
+                self->goalentity ? (long)(self->goalentity - g_edicts) : -1L,
+                self->build_preview ? (long)(self->build_preview - g_edicts) : -1L,
+                self->s.origin2.x, self->s.origin2.y);
+#endif
         G_ClearBuildPreview(self);
         self->build_project = 0;
     }

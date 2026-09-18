@@ -225,6 +225,7 @@ enum {
     FLAG(EF_RESOURCE_SOURCE, 13), /* resource source presentation metadata */
     FLAG(EF_RESOURCE_RETURN, 14), /* resource-return destination presentation metadata */
     FLAG(EF_HOVER_MANA, 15),      /* client may expose this entity's mana on world hover */
+    FLAG(EF_CONSTRUCTING, 16),    /* WC3 Birth site; visible but walk-through until completion */
 };
 
 enum {
