@@ -102,6 +102,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     LPLEADERBOARD board;
     LPFRAMEDEF root, backdrop, title, container;
     FLOAT row_height, title_height, total_height, list_top, top_y;
+    BOOL has_title;
     DWORD player, rows, visible_rows, parent, measure_font;
 
     if (!ent || !ent->client) return;
@@ -137,6 +138,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     rows = board->size_by_item_count >= 0 ? (DWORD)board->size_by_item_count : board->item_count;
     rows = MAX(1u, MIN(rows, (DWORD)MAX_LEADERBOARD_ITEMS));
     visible_rows = MAX(1u, MIN(board->item_count, rows));
+    has_title = board->show_label && board->label[0];
 
     /* The stock list container reserves substantially more vertical space than
      * a campaign counter needs. Size the visible board to its actual rows so a
@@ -144,7 +146,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     row_height = title && title->Font.Size > 0.0f
         ? MAX(LEADERBOARD_TEXT_HEIGHT, title->Font.Size * 1.25f)
         : LEADERBOARD_TEXT_HEIGHT;
-    title_height = board->show_label ? row_height : 0.0f;
+    title_height = has_title ? row_height : 0.0f;
     list_top = LEADERBOARD_TOP_PAD + title_height + (title_height > 0.0f ? LEADERBOARD_TITLE_GAP : 0.0f);
     total_height = list_top + visible_rows * row_height + LEADERBOARD_BOTTOM_PAD;
 
@@ -159,11 +161,11 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     }
 
     if (title) {
-        UI_SetHidden(title, !board->show_label);
+        UI_SetHidden(title, !has_title);
         UI_SetText(title, "%s", board->label[0] ? board->label : " ");
         title->Font.Color = board->label_color_set
             ? board->label_color : hud.leaderboard_default_title_color;
-        if (board->show_label) {
+        if (has_title) {
             ResetFramePoints(title);
             UI_SetPoint(title, FRAMEPOINT_TOPLEFT, root, FRAMEPOINT_TOPLEFT,
                         LEADERBOARD_EDGE_INSET, -LEADERBOARD_TOP_PAD);
@@ -182,7 +184,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     container->Height = visible_rows * row_height;
 
     leaderboard_measure_text[0] = '\0';
-    if (board->show_label)
+    if (has_title)
         LeaderboardAppendMeasureLine(leaderboard_measure_text, sizeof(leaderboard_measure_text),
                                      board->label[0] ? board->label : " ", NULL);
     FOR_LOOP(i, MIN(board->item_count, rows)) {
