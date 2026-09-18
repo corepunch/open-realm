@@ -70,10 +70,17 @@ Look up the parent in the [shared behavior table](#2-identify-shared-behavior).
 ### 3. Register every concrete alias, share one procedure
 
 Add one `abilitylist` row per `AbilityData.alias` that this change implements.
-Point them at the same `CAbility*` procedure. Read data through
-`abilityitem_t.code` so `Aams` and `Aam2` keep their own `targs`/`DataC`/`BuffID`.
-Do not register abstract TFT classes (`AAsm`, `AAat`). Item Instant AMS
-(`Aami`/`AIxs`) and item Cyclone (`AIcy`) are in scope on their own briefs.
+Point them at the same `CAbility*` procedure, next to the parent row when that
+parent is already registered. Read data through `abilityitem_t.code` so `Aams`
+and `Aam2` keep their own `targs`/`DataC`/`BuffID`. Poll `code=` before mapping;
+a similar name is not a contract (`ACmo` is Monsoon, not Forked Lightning).
+
+Do not collect creep aliases into a separate `s_creep.c`. Creep rows are extra
+rawcodes of an existing procedure. Unique creep-only behavior already lives in
+`s_creep_sleep.c`. Do not register abstract TFT classes (`AAsm`, `AAat`). Item
+Instant AMS (`Aami`/`AIxs`) and item Cyclone (`AIcy`) are in scope on their own
+briefs. Leave unimplemented parents as TODO with their aliases. See
+[Creep Ability Aliases](creep-ability-aliases.md).
 
 ### 4. Tests first, from the brief
 

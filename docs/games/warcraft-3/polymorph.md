@@ -15,6 +15,10 @@ OpenRealm implements the stock `Aply` Polymorph contract through the shared spel
 - `DataE` / `Ply5`: water morph unit;
 - normal mana, range, duration, targets, and `BuffID` fields.
 
+Creep `ACpy` is a `code=Aply` alias. ROC omits BuffID; `human_buff` falls back to
+the TFT token `Bply`. That fallback is not in `melee_buff_fallback` — Polymorph
+never reads the melee table.
+
 The current typed AbilityData loader exposes the first rawcode from each `Ply2`-`Ply5` unit-list string. Stock `Aply` uses that representation directly. Selecting among multiple authored morph-unit rawcodes remains future data-loader work rather than a hard-coded fallback.
 
 Movement-class selection uses `UnitData.moveTypeName`: `fly` selects `Ply3`, `amph` selects `Ply4`, `float` selects `Ply5`, and ordinary ground/hover movement selects `Ply2`.
