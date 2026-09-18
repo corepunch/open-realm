@@ -4,6 +4,43 @@
 #define WC3_BUILD_GRID_SIZE 64.0f
 #define WC3_BUILD_START_LIFE 0.10f
 #define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
+
+/* Retail shows an accepted building's Birth presentation before the worker
+ * arrives.  This entity is presentation-only: it has no collision and never
+ * bakes static pathing.  The real structure is still created only after the
+ * worker's arrival-time placement check succeeds. */
+LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
+    LPEDICT preview;
+
+    if (!builder || !location || !G_UnitIsBuilding(building_id)) return NULL;
+    preview = G_Spawn();
+    if (!preview) return NULL;
+    preview->class_id = preview->s.class_id = building_id;
+    preview->spawn_time = G_Time();
+    preview->s.origin2 = *location;
+    preview->s.origin.x = location->x;
+    preview->s.origin.y = location->y;
+    preview->s.origin.z = CM_GetHeightAtPoint(location->x, location->y);
+    preview->s.scale = 1.0f;
+    preview->s.angle = -M_PI / 2;
+    preview->s.player = builder->s.player;
+    SP_CallSpawn(preview);
+    preview->collision = 0.0f;
+    preview->s.collision = 0.0f;
+    preview->s.flags |= EF_NOT_SELECTABLE;
+    preview->s.renderfx |= RF_NO_UBERSPLAT;
+    gi.LinkEntity(preview);
+    if (preview->birth) preview->birth(preview);
+    return preview;
+}
+
+void G_ClearBuildPreview(LPEDICT builder) {
+    LPEDICT preview;
+
+    if (!builder || !(preview = builder->build_preview)) return;
+    builder->build_preview = NULL;
+    G_FreeEdict(preview);
+}
 #define WC3_UNDEAD_BUILD_WORK_MS 2267 // milliseconds; Warsmash CBehaviorUndeadBuild summon-work window
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
