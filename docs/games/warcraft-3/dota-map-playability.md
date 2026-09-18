@@ -1,8 +1,10 @@
 # DotA Custom-Map Playability
 
-OpenRealm cannot yet play Defense of the Ancients. A bounded dedicated run of
-`Maps/DotA v6.83dAI PMV 1.42 EN.w3x` on commit `6f1057f1` dies during map load
-with `SIGSEGV` in `jass_remove_comments(NULL)` before any simulated frame.
+OpenRealm cannot yet play Defense of the Ancients. On `6f1057f1` a dedicated run
+of `Maps/DotA v6.83dAI PMV 1.42 EN.w3x` died in `jass_remove_comments(NULL)`.
+On `feature/dota-compatibility` the same run reaches `com_frame_limit` with
+exit 0, but the 4.1 MiB script fails to parse (`return""` with no space), so
+`main` never runs.
 
 This document is the evidence and work order for that map. Reaching
 `com_frame_limit` later will still not mean the game is playable.
@@ -137,11 +139,12 @@ those as partial, not as coverage.
 
 ## How Far
 
-Not close. The map does not finish loading. After the two load bugs below, the
-script still cannot run until the load bugs below are fixed. Hashtable natives
-are registered (#437). After load works, heroes, items, and abilities are still
-map-imported rows that the gameplay loader never sees, plus 1,364 `war3map.w3a`
-modifications the object-data merge does not apply.
+Load no longer crashes. A 30-frame dedicated run on this branch exits 0:
+`war3map.doo` opens, `scripts\war3map.j` is found, then the JASS parser dies
+at line 1 with `error parsing function at line 1 near 'return""'` and
+`unknown function: main`. The next load blocker is minified JASS (no space
+between `return` and `""`). Hashtable, shop, hero, and HUD natives are
+registered but unexercised until `main` runs.
 
 Suggested order (GitHub #431 and children):
 
