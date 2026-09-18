@@ -712,22 +712,22 @@ static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_val
     gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, &tmp);
 }
 
-static void UI_WriteBuiltFrameSizedToText(LPCFRAMEDEF frame, LPCSTR measure_text,
-                                          DWORD font, FLOAT padding_x, FLOAT min_width) {
+static void UI_WriteBuiltFrameSizedToText(uiSizeToTextParams_t const *params) {
     UINAME textbuf;
     uiFrame_t tmp;
     BYTE typedata[256] = { 0 };
     uiSizeToText_t fit = {
         .text = {
-            .font = font,
+            .font = params ? params->font : 0,
             .textalignx = FONT_JUSTIFYLEFT,
             .textaligny = FONT_JUSTIFYTOP,
         },
-        .padding_x = padding_x,
-        .min_width = min_width,
+        .padding_x = params ? params->padding_x : 0.0f,
+        .min_width = params ? params->min_width : 0.0f,
     };
 
-    if (!UI_BuildFrameForWrite(frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
+    if (!params || !params->frame ||
+        !UI_BuildFrameForWrite(params->frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
         return;
     }
 
@@ -735,7 +735,7 @@ static void UI_WriteBuiltFrameSizedToText(LPCFRAMEDEF frame, LPCSTR measure_text
      * size is deferred to the client so proportional font metrics stay exact. */
     tmp.flagsvalue |= UIFLAG_SIZE_TO_CONTENT;
     tmp.size.width = 0.0f;
-    tmp.text = measure_text && *measure_text ? measure_text : " ";
+    tmp.text = params->measure_text && *params->measure_text ? params->measure_text : " ";
     tmp.buffer.data = &fit;
     tmp.buffer.size = sizeof(fit);
     if (ui_window_writing) {
@@ -778,18 +778,18 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
     }
 }
 
-void UI_WriteFrameWithChildrenSizedToText(LPCFRAMEDEF frame, LPCFRAMEDEF parent,
-                                          LPCSTR measure_text, DWORD font,
-                                          FLOAT padding_x, FLOAT min_width) {
+void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params) {
     LPCFRAMEDEF oldparent = NULL;
+    LPCFRAMEDEF frame;
 
+    if (!params || !(frame = params->frame)) return;
     UI_PrepareScrollBar(frame);
-    if (parent) {
+    if (params->parent) {
         oldparent = frame->Parent;
-        ((LPFRAMEDEF)frame)->Parent = parent;
+        ((LPFRAMEDEF)frame)->Parent = params->parent;
     }
-    UI_WriteBuiltFrameSizedToText(frame, measure_text, font, padding_x, min_width);
-    if (parent) ((LPFRAMEDEF)frame)->Parent = oldparent;
+    UI_WriteBuiltFrameSizedToText(params);
+    if (params->parent) ((LPFRAMEDEF)frame)->Parent = oldparent;
 
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF it = frames + i;

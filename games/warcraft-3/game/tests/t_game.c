@@ -176,6 +176,23 @@ static void selection_test_write(pfWriteType_t type, void const *data) {
 
 static void selection_test_unicast(LPEDICT ent) { (void)ent; }
 
+static BOOL timer_dialog_size_capture;
+static char timer_dialog_measure_text[128];
+static uiSizeToText_t timer_dialog_size_to_text;
+
+static void timer_dialog_test_write(pfWriteType_t type, void const *data) {
+    LPCUIFRAME frame;
+
+    if (type != PF_UIFRAME || !data) return;
+    frame = data;
+    if (!(frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT)) return;
+    timer_dialog_size_capture = true;
+    timer_dialog_measure_text[0] = '\0';
+    if (frame->text) strlcpy(timer_dialog_measure_text, frame->text, sizeof(timer_dialog_measure_text));
+    if (frame->buffer.data && frame->buffer.size >= sizeof(timer_dialog_size_to_text))
+        memcpy(&timer_dialog_size_to_text, frame->buffer.data, sizeof(timer_dialog_size_to_text));
+}
+
 TEST(wc3_game, selected_unit_cheats_preserve_controller_and_run_death) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPCSTR god[] = { "god" }, kill[] = { "kill" };
@@ -746,6 +763,48 @@ TEST(wc3_game, hud_authored_window_frame_uses_offset_codec) {
     ui_window_writing = false; gi.Write = old_write;
     T_EQ(window_frame_type, PF_UIWINDOWFRAME);
     T_ASSERT(window_text_offset > 0);
+}
+
+TEST(wc3_game, timer_dialog_writer_sends_client_measured_content_contract) {
+    FRAMEDEF timer_frame = { .Type = FT_SIMPLEFRAME, .Height = 0.022f };
+    FRAMEDEF title_frame = { .Type = FT_STRING };
+    FRAMEDEF value_frame = { .Type = FT_STRING };
+    GTIMER timer = { .remaining = 65u * 1000u };
+    TimerDialog_t old_timer_binding = hud.timer_dialog;
+    TIMERDIALOG old_dialog = level.timer_dialogs[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+
+    setup_test_world();
+    timer_dialog_size_capture = false;
+    timer_dialog_measure_text[0] = '\0';
+    memset(&timer_dialog_size_to_text, 0, sizeof(timer_dialog_size_to_text));
+    memset(&title_frame, 0, sizeof(title_frame));
+    memset(&value_frame, 0, sizeof(value_frame));
+    title_frame.Type = value_frame.Type = FT_STRING;
+    hud.timer_dialog.TimerDialog = &timer_frame;
+    hud.timer_dialog.TimerDialogTitle = &title_frame;
+    hud.timer_dialog.TimerDialogValue = &value_frame;
+    memset(&level.timer_dialogs[0], 0, sizeof(level.timer_dialogs[0]));
+    level.timer_dialogs[0].inuse = true;
+    level.timer_dialogs[0].visible_clients = 1u;
+    level.timer_dialogs[0].timer = &timer;
+    level.timer_dialogs[0].title_set = true;
+    strlcpy(level.timer_dialogs[0].title, "Harvest", sizeof(level.timer_dialogs[0].title));
+    gi.Write = timer_dialog_test_write;
+    gi.unicast = selection_test_unicast;
+
+    UI_WriteTimerDialogs(&g_edicts[0]);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    hud.timer_dialog = old_timer_binding;
+    level.timer_dialogs[0] = old_dialog;
+    T_ASSERT(timer_dialog_size_capture);
+    T_STREQ(timer_dialog_measure_text, "Harvest    01:05");
+    T_EQ(timer_dialog_size_to_text.text.textalignx, FONT_JUSTIFYLEFT);
+    T_ASSERT(timer_dialog_size_to_text.padding_x > 0.0f);
+    T_ASSERT(timer_dialog_size_to_text.min_width > 0.0f);
 }
 
 TEST(wc3_game, text_exact_width_fits) { T_ASSERT(R_TextFitsWidth(0.0f)); }

@@ -30,7 +30,7 @@
 /* Persistent top-edge HUD controls share these authored screen offsets. */
 #define HUD_HERO_SHORTCUT_EDGE_X 0.0060f
 #define HUD_HERO_SHORTCUT_TOP_Y  0.0350f
-#define HUD_TIMER_DIALOG_STACK_GAP 0.0040f
+#define BZ_WC3_HUD_TIMER_DIALOG_STACK_GAP 0.0040f // normalized UI units; separates a leaderboard from a visible timer
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
 
@@ -38,6 +38,15 @@ typedef struct {
     BOOL resolved;
     PATHSTR texture;
 } infoPanelIconCache_t;
+
+typedef struct {
+    LPCFRAMEDEF frame;
+    LPCFRAMEDEF parent;
+    LPCSTR measure_text;
+    DWORD font;
+    FLOAT padding_x;
+    FLOAT min_width;
+} uiSizeToTextParams_t;
 
 /* Process-lifetime HUD bindings. memset(&hud, 0, sizeof(hud)) on map load. */
 typedef struct {
@@ -135,9 +144,7 @@ FLOAT UI_TimerDialogLeaderboardOffset(DWORD client_num);
 void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(LPEDICT ent);
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value);
-void UI_WriteFrameWithChildrenSizedToText(LPCFRAMEDEF frame, LPCFRAMEDEF parent,
-                                          LPCSTR measure_text, DWORD font,
-                                          FLOAT padding_x, FLOAT min_width);
+void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params);
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame);
 
 /* Theme (hud_write.c) */
