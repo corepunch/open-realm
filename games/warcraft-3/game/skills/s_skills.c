@@ -539,7 +539,7 @@ static ability_t abilitylist[] = {
     // TODO: ACbz a_unknown  /* Blizzard (creep) */
     // TODO: ACc2 a_unknown  /* Crushing Wave (Dragon Turtle) */
     // TODO: ACc3 a_unknown  /* Crushing Wave (Lesser) */
-    // TODO: ACca a_unknown  /* Carrion Swarm (creep) */
+    { "ACca", CAbilityCarrionSwarm, AB_SPELL, SPELL_TARGET_POINT },  /* Carrion Swarm (creep) */
     // TODO: ACcb a_unknown  /* Frost Bolt */
     // TODO: ACce a_unknown  /* Cleaving Attack (Creep) */
     // TODO: ACch a_unknown  /* Charm */
@@ -552,7 +552,7 @@ static ability_t abilitylist[] = {
     // TODO: ACcw a_unknown  /* Cold Arrows (creep) */
     // ACcy registered with CAbilityCyclone
     // TODO: ACd2 a_unknown  /* Abolish Magic (Creep, 1,2 pos) */
-    // TODO: ACdc a_unknown  /* Death Coil (creep) */
+    { "ACdc", CAbilityDeathCoil, AB_SPELL, SPELL_TARGET_UNIT },  /* Death Coil (creep) */
     // TODO: ACde a_unknown  /* Devour Magic(creep) */
     // TODO: ACdm a_unknown  /* Abolish Magic (Creep) */
     // TODO: ACdr a_unknown  /* Drain Life(Creep) */
@@ -563,19 +563,19 @@ static ability_t abilitylist[] = {
     // TODO: ACf2 a_unknown  /* Frost Armor (creep,autocast) */
     // TODO: ACf3 a_unknown  /* Finger of Pain (2,1 Button) */
     // TODO: ACfa a_unknown  /* Frost Armor (creep,old) */
-    // TODO: ACfb a_unknown  /* Fire Bolt (creep) */
+    { "ACfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (creep) */
     // TODO: ACfd a_unknown  /* Finger of Pain */
-    // TODO: ACff a_unknown  /* Faerie Fire (creep) */
-    // TODO: ACfl a_unknown  /* Forked Lightning(creep) */
-    // TODO: ACfn a_unknown  /* Frost Nova (creep) */
+    { "ACff", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire (creep) */
+    { "ACfl", CAbilityForkedLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Forked Lightning (creep) */
+    { "ACfn", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Nova (creep) */
     // TODO: ACfr a_unknown  /* Force of Nature (creep) */
-    // TODO: ACfs a_unknown  /* Flame Strike (Creep) */
-    // TODO: AChv a_unknown  /* Healing Wave(Creep) */
+    { "ACfs", CAbilityFlameStrikeNeutral, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike (Creep) */
+    { "AChv", CAbilityHealingWave, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave (Creep) */
     // TODO: AChw a_unknown  /* Healing Ward (creep) */
-    // TODO: AChx a_unknown  /* Hex (Creep) */
-    // TODO: ACif a_unknown  /* Inner Fire (Creep) */
-    // TODO: ACim a_unknown  /* Immolation (creep) */
-    // TODO: ACls a_unknown  /* Lightning Shield (creep) */
+    { "AChx", CAbilityHex, AB_SPELL, SPELL_TARGET_UNIT },  /* Hex (Creep) */
+    { "ACif", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire (Creep) */
+    { "ACim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation (creep) */
+    { "ACls", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield (creep) */
     // TODO: ACm2 a_unknown  /* Magic Immunity (Archimonde) */
     // TODO: ACm3 a_unknown  /* Magic Immunity (Dragons) */
     // TODO: ACmf a_unknown  /* Mana Shield(Creep) */
@@ -587,25 +587,25 @@ static ability_t abilitylist[] = {
     // TODO: ACpu a_unknown  /* Purge (Creep) */
     // TODO: ACpv a_unknown  /* Pulverize (Sea Giant) */
     // TODO: ACpy a_unknown  /* Polymorph (creep) */
-    // TODO: ACr1 a_unknown  /* Roar (creep) -- Skeletal Orc */
-    // TODO: ACr2 a_unknown  /* Rejuvination (Furbolg) */
+    { "ACr1", CAbilityRoar, AB_SPELL },  /* Roar (creep) -- Skeletal Orc */
+    { "ACr2", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation (Furbolg) */
     // TODO: ACrd a_unknown  /* Raise Dead (Creep) */
     // TODO: ACrf a_unknown  /* Rain of Fire (creep) */
     // TODO: ACrg a_unknown  /* Rain of Fire (creep,greater) */
-    // TODO: ACrj a_unknown  /* Rejuvination (creep) */
+    { "ACrj", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation (creep) */
     // TODO: ACrk a_unknown  /* Resistant Skin (creep) */
-    // TODO: ACro a_unknown  /* Roar (creep) */
+    { "ACro", CAbilityRoar, AB_SPELL },  /* Roar (creep) */
     // TODO: ACs9 a_unknown  /* Feral Spirit (creep - pig) */
     // TODO: ACsa a_unknown  /* Searing Arrows (creep) */
     // TODO: ACsf a_unknown  /* Feral Spirit (creep) */
-    // TODO: ACsh a_unknown  /* Shockwave (Creep) */
+    { "ACsh", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Creep) */
     // TODO: ACsi a_unknown  /* Silence(Creep) */
     // TODO: ACsk a_unknown  /* Resistant Skin(3,1 pos, creep) */
     // TODO: ACsl a_unknown  /* Sleep (creep) */
-    // TODO: ACsm a_unknown  /* Siphon Mana (Creep) */
-    // TODO: ACss a_unknown  /* Shadow Strike(Creep) */
+    { "ACsm", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana (Creep) */
+    { "ACss", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
     // TODO: ACst a_unknown  /* Shockwave (Trap) */
-    // TODO: ACsw a_unknown  /* Slow (Creep) */
+    { "ACsw", CAbilitySlow, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Slow (Creep) */
     // TODO: ACt2 a_unknown  /* Thunder Clap (Thunder Lizard) */
     // TODO: ACua a_unknown  /* Unholy Aura (creep) */
     // TODO: ACuf a_unknown  /* Unholy Frenzy (creep) */

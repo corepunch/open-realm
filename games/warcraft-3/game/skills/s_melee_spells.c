@@ -17,6 +17,11 @@ static LPCSTR melee_buff_fallback(DWORD code) {
         { MAKEFOURCC('A', 'C', 'u', 'f'), "BUhf" },
         { MAKEFOURCC('S', 'u', 'h', 'f'), "BUhf" },
         { MAKEFOURCC('A', 'f', 'z', 'y'), "Bfzy" },
+        { MAKEFOURCC('A', 'C', 'r', 'o'), "Broa" },
+        { MAKEFOURCC('A', 'C', 'r', '1'), "Broa" },
+        { MAKEFOURCC('A', 'C', 'r', 'j'), "Brej" },
+        { MAKEFOURCC('A', 'C', 'r', '2'), "Brej" },
+        { MAKEFOURCC('A', 'C', 'f', 'f'), "Bfae" },
     };
     FOR_LOOP(i, sizeof(table) / sizeof(table[0]))
         if (table[i].code == code) return table[i].buff;
