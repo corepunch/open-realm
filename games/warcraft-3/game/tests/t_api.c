@@ -147,6 +147,69 @@ TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT mover = NULL;
+    VECTOR2 destination = {80.0f, 0.0f};
+
+    reset_entities();
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  unit mover = null\n"
+        "  unit entering = null\n"
+        "  boolean entered = false\n"
+        "endglobals\n"
+        "function on_enter takes nothing returns nothing\n"
+        "  set entering = GetEnteringUnit()\n"
+        "  set entered = true\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local region area = CreateRegion()\n"
+        "  local trigger event = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call RegionAddRect(area, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(event, area, null)\n"
+        "  call TriggerAddAction(event, function on_enter)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(entered, \"movement did not enter region\")\n"
+        "  call BJassAssert(entering == mover, \"GetEnteringUnit mismatch\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].s.player == 0 &&
+            g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            mover = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(mover);
+    mover->movetype = MOVETYPE_STEP;
+    mover->stand = unit_stand;
+    mover->birth = unit_birth;
+    mover->die = unit_die;
+    mover->think = monster_think;
+    mover->collision = 0.0f;
+    mover->health.value = 250.0f;
+    mover->health.max_value = 250.0f;
+    unit_stand(mover);
+    T_ASSERT(unit_issueorder(mover, "move", &destination));
+
+    G_RunEntities();
+    T_ASSERT(mover->s.origin2.x > 24.0f);
+    T_ASSERT(mover->s.origin2.x < 64.0f);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
 static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
