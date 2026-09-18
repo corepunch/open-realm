@@ -144,7 +144,7 @@ static LPEDICT make_item_test_shop(FLOAT x, FLOAT y) {
 
 static LPEDICT make_unit_test_shop(FLOAT x, FLOAT y) {
     static UnitProfile_t profile;
-    static UnitAbilities_t abilities = { .abilList = "Aneu", .heroAbilList = "" };
+    static UnitAbilities_t abilities = { .abilList = "Aneu,Asud", .heroAbilList = "" };
     LPEDICT shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, y);
 
     memset(&profile, 0, sizeof(profile));
@@ -813,6 +813,42 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
     T_EQ(shop->stock.unit_count, 1);
     T_EQ(shop->stock.units[0].current, 0);
+}
+
+TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replenishes) {
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT shop;
+    gameCommandButton_t buttons[12];
+    shopItemButtonsParams_t params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 20;
+    make_unit_shop_patron(100, 0, 0);
+    shop = make_unit_test_shop(0, 0);
+    params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 12 };
+
+    /* Campaign stock natives override the authored initial delay immediately. */
+    T_ASSERT(G_AddUnitStock(shop, MAKEFOURCC('n','m','e','r'), 1, 1));
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.units[0].current, 1);
+    T_EQ(shop->stock.units[0].maximum, 1);
+    T_ASSERT(!buttons[0].disabled);
+
+    T_ASSERT(G_ShopPurchaseUnit(player, shop, MAKEFOURCC('n','m','e','r')));
+    T_EQ(shop->stock.units[0].current, 0);
+    level.time += 5000;
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.units[0].current, 1);
+    T_ASSERT(!buttons[0].disabled);
+
+    G_RemoveUnitStock(shop, MAKEFOURCC('n','m','e','r'));
+    T_EQ(G_GetShopButtons(&params), 0);
 }
 
 TEST(wc3_items, neutral_unit_shop_stock_delay_and_replenishment_are_shared) {

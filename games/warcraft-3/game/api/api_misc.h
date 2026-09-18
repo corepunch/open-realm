@@ -1165,6 +1165,27 @@ DWORD SetUnitTypeSlots(LPJASS j) {
     return 0;
 }
 
+DWORD AddUnitToStock(LPJASS j) {
+    G_AddUnitStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2),
+                   jass_checkinteger(j, 3), jass_checkinteger(j, 4));
+    return 0;
+}
+
+DWORD AddUnitToAllStock(LPJASS j) {
+    G_AddUnitStockAll((DWORD)jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkinteger(j, 3));
+    return 0;
+}
+
+DWORD RemoveUnitFromStock(LPJASS j) {
+    G_RemoveUnitStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2));
+    return 0;
+}
+
+DWORD RemoveUnitFromAllStock(LPJASS j) {
+    G_RemoveUnitStockAll((DWORD)jass_checkinteger(j, 1));
+    return 0;
+}
+
 static BOOL JassRandomItemEligible(ItemData_t const *row, LONG level, DWORD type) {
     if (!row->pickRandom || row->level != level) return false;
     return type == 8 || G_ItemTypeFromClass(row->itemClass) == type;

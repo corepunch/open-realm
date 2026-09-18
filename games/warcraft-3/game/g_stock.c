@@ -78,7 +78,7 @@ BOOL G_IsUnitShop(LPCEDICT shop) {
 
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((LPEDICT)shop)) return false;
     units = shop->data.UnitProfile ? shop->data.UnitProfile->sellUnits : NULL;
-    return units && *units;
+    return (units && *units) || (shop->stock.units_initialized && shop->stock.unit_count);
 }
 
 static BOOL G_CanUseShop(LPGAMECLIENT client, LPCEDICT shop) {
@@ -273,10 +273,11 @@ static void G_InitItemStock(LPEDICT shop) {
 
         index = shop->stock.item_count++;
         shop->stock.items[index].id = item_id;
-        if (item->stockMax <= 0) continue;
+        shop->stock.items[index].maximum = MAX(0, item->stockMax);
+        if (shop->stock.items[index].maximum <= 0) continue;
         start_delay = G_StockDelayMs(item->stockStart);
         if (!start_delay) {
-            shop->stock.items[index].current = item->stockMax;
+            shop->stock.items[index].current = shop->stock.items[index].maximum;
         } else {
             shop->stock.items[index].current = 0;
             shop->stock.items[index].delay_start = shop->spawn_time;
@@ -285,11 +286,12 @@ static void G_InitItemStock(LPEDICT shop) {
     }
 }
 
-static void G_UpdateStockEntry(edictShopStockItem_t *entry, LONG max_stock, LONG regen_seconds) {
+static void G_UpdateStockEntry(edictShopStockItem_t *entry, LONG regen_seconds) {
     DWORD now, regen, increments, elapsed;
+    LONG max_stock;
 
     if (!entry) return;
-    max_stock = MAX(0, max_stock);
+    max_stock = MAX(0, entry->maximum);
     if (entry->current >= max_stock) {
         entry->current = max_stock;
         entry->delay_start = entry->delay_end = 0;
@@ -314,10 +316,10 @@ static void G_UpdateStockEntry(edictShopStockItem_t *entry, LONG max_stock, LONG
     }
 }
 
-static void G_StartStockRestock(edictShopStockItem_t *entry, LONG max_stock, LONG regen_seconds) {
+static void G_StartStockRestock(edictShopStockItem_t *entry, LONG regen_seconds) {
     DWORD regen, now;
 
-    if (!entry || entry->current >= MAX(0, max_stock) || entry->delay_end) return;
+    if (!entry || entry->current >= MAX(0, entry->maximum) || entry->delay_end) return;
     regen = G_StockDelayMs(regen_seconds);
     if (!regen) return;
     now = G_Time();
@@ -330,7 +332,7 @@ static void G_UpdateItemStockEntry(LPEDICT shop, DWORD index) {
 
     if (!shop || index >= shop->stock.item_count) return;
     item = G_ItemData(shop->stock.items[index].id);
-    if (item) G_UpdateStockEntry(&shop->stock.items[index], item->stockMax, item->stockRegen);
+    if (item) G_UpdateStockEntry(&shop->stock.items[index], item->stockRegen);
 }
 
 static LONG G_FindShopItemStock(LPEDICT shop, DWORD item_id) {
@@ -348,7 +350,7 @@ static void G_StartItemRestock(LPEDICT shop, DWORD index) {
 
     if (!shop || index >= shop->stock.item_count) return;
     item = G_ItemData(shop->stock.items[index].id);
-    if (item) G_StartStockRestock(&shop->stock.items[index], item->stockMax, item->stockRegen);
+    if (item) G_StartStockRestock(&shop->stock.items[index], item->stockRegen);
 }
 
 static void G_InitUnitStock(LPEDICT shop) {
@@ -395,10 +397,11 @@ static void G_InitUnitStock(LPEDICT shop) {
 
         index = shop->stock.unit_count++;
         shop->stock.units[index].id = unit_id;
-        if (unit->stockMax <= 0) continue;
+        shop->stock.units[index].maximum = MAX(0, unit->stockMax);
+        if (shop->stock.units[index].maximum <= 0) continue;
         start_delay = G_StockDelayMs(unit->stockStart);
         if (!start_delay) {
-            shop->stock.units[index].current = unit->stockMax;
+            shop->stock.units[index].current = shop->stock.units[index].maximum;
         } else {
             shop->stock.units[index].current = 0;
             shop->stock.units[index].delay_start = shop->spawn_time;
@@ -413,7 +416,7 @@ static void G_UpdateUnitStockEntry(LPEDICT shop, DWORD index) {
     if (!shop || index >= shop->stock.unit_count) return;
     unit = G_UnitBalance(shop->stock.units[index].id);
     if (unit && unit->id == shop->stock.units[index].id)
-        G_UpdateStockEntry(&shop->stock.units[index], unit->stockMax, unit->stockRegen);
+        G_UpdateStockEntry(&shop->stock.units[index], unit->stockRegen);
 }
 
 static LONG G_FindShopUnitStock(LPEDICT shop, DWORD unit_id) {
@@ -432,7 +435,66 @@ static void G_StartUnitRestock(LPEDICT shop, DWORD index) {
     if (!shop || index >= shop->stock.unit_count) return;
     unit = G_UnitBalance(shop->stock.units[index].id);
     if (unit && unit->id == shop->stock.units[index].id)
-        G_StartStockRestock(&shop->stock.units[index], unit->stockMax, unit->stockRegen);
+        G_StartStockRestock(&shop->stock.units[index], unit->stockRegen);
+}
+
+static LONG G_FindUnitStockEntry(LPEDICT shop, DWORD unit_id) {
+    if (!shop) return -1;
+    FOR_LOOP(i, shop->stock.unit_count)
+        if (shop->stock.units[i].id == unit_id) return (LONG)i;
+    return -1;
+}
+
+/* Warcraft's stock natives override the current/max stock immediately; the
+ * unit type's authored stockRegen continues to own later replenishment. */
+BOOL G_AddUnitStock(LPEDICT shop, DWORD unit_id, LONG current, LONG maximum) {
+    UnitBalance_t const *unit;
+    LONG index;
+    DWORD limit;
+
+    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asud")) return false;
+    unit = G_UnitBalance(unit_id);
+    if (!unit || unit->id != unit_id) return false;
+
+    G_InitUnitStock(shop);
+    index = G_FindUnitStockEntry(shop, unit_id);
+    if (index < 0) {
+        limit = MIN(shop->stock.unit_slots, (DWORD)MAX_SHOP_STOCK);
+        if (shop->stock.unit_count >= limit) return false;
+        index = (LONG)shop->stock.unit_count++;
+    }
+
+    shop->stock.units[index] = (edictShopStockItem_t){
+        .id = unit_id,
+        .current = MIN(MAX(0, current), MAX(0, maximum)),
+        .maximum = MAX(0, maximum),
+    };
+    G_StartUnitRestock(shop, (DWORD)index);
+    return true;
+}
+
+void G_RemoveUnitStock(LPEDICT shop, DWORD unit_id) {
+    LONG index;
+
+    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asud")) return;
+    G_InitUnitStock(shop);
+    index = G_FindUnitStockEntry(shop, unit_id);
+    if (index < 0) return;
+    if ((DWORD)index + 1u < shop->stock.unit_count)
+        memmove(&shop->stock.units[index], &shop->stock.units[index + 1],
+                (shop->stock.unit_count - (DWORD)index - 1u) * sizeof(shop->stock.units[0]));
+    shop->stock.unit_count--;
+    memset(&shop->stock.units[shop->stock.unit_count], 0, sizeof(shop->stock.units[0]));
+}
+
+void G_AddUnitStockAll(DWORD unit_id, LONG current, LONG maximum) {
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asud"))
+        G_AddUnitStock(shop, unit_id, current, maximum);
+}
+
+void G_RemoveUnitStockAll(DWORD unit_id) {
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asud"))
+        G_RemoveUnitStock(shop, unit_id);
 }
 
 BOOL G_ShopSellsItem(LPEDICT shop, DWORD item_id) {
@@ -482,7 +544,7 @@ BYTE G_GetShopItemButtons(shopItemButtonsParams_t *params) {
         button->x = count % 4;
         button->y = count / 4;
         item = G_ItemData(shop->stock.items[i].id);
-        if (item && item->stockMax > 0) button->number = (DWORD)MAX(0, shop->stock.items[i].current);
+        if (shop->stock.items[i].maximum > 0) button->number = (DWORD)MAX(0, shop->stock.items[i].current);
 
         if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");
@@ -537,7 +599,7 @@ BYTE G_GetShopUnitButtons(shopItemButtonsParams_t *params) {
         button->x = count % 4;
         button->y = count / 4;
         unit = G_UnitBalance(shop->stock.units[i].id);
-        if (unit && unit->stockMax > 0) button->number = (DWORD)MAX(0, shop->stock.units[i].current);
+        if (shop->stock.units[i].maximum > 0) button->number = (DWORD)MAX(0, shop->stock.units[i].current);
 
         if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");

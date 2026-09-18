@@ -3007,6 +3007,7 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         shop->stock.items[0] = (edictShopStockItem_t){
             .id = MAKEFOURCC('s','p','r','o'),
             .current = 1,
+            .maximum = 3,
             .delay_start = 5000,
             .delay_end = 65000,
         };
@@ -3015,6 +3016,7 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         shop->stock.units[0] = (edictShopStockItem_t){
             .id = MAKEFOURCC('n','m','e','r'),
             .current = 0,
+            .maximum = 2,
             .delay_start = 9000,
             .delay_end = 14000,
         };
@@ -3048,12 +3050,14 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
         T_EQ(shop->stock.item_count, 1);
         T_EQ(shop->stock.items[0].id, MAKEFOURCC('s','p','r','o'));
         T_EQ(shop->stock.items[0].current, 1);
+        T_EQ(shop->stock.items[0].maximum, 3);
         T_EQ(shop->stock.items[0].delay_start, 5000);
         T_EQ(shop->stock.items[0].delay_end, 65000);
         T_ASSERT(shop->stock.units_initialized);
         T_EQ(shop->stock.unit_count, 1);
         T_EQ(shop->stock.units[0].id, MAKEFOURCC('n','m','e','r'));
         T_EQ(shop->stock.units[0].current, 0);
+        T_EQ(shop->stock.units[0].maximum, 2);
         T_EQ(shop->stock.units[0].delay_start, 9000);
         T_EQ(shop->stock.units[0].delay_end, 14000);
         remove(filename);

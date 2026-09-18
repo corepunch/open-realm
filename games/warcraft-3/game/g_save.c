@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 28; // format version; persists neutral unit-shop stock state
+static DWORD const save_version = 29; // format version; persists per-entry neutral-shop stock maxima
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -513,6 +513,7 @@ static field_t const channel_fields[] = {
 static field_t const shop_stock_item_fields[] = {
     F(edictShopStockItem_s, id, F_INT),
     F(edictShopStockItem_s, current, F_INT),
+    F(edictShopStockItem_s, maximum, F_INT),
     F(edictShopStockItem_s, delay_start, F_INT),
     F(edictShopStockItem_s, delay_end, F_INT),
     { NULL, 0, 0, 0, 0, 0 }

@@ -144,10 +144,11 @@ DWORD  num_custom_records
 
 Each record contains a four-character unit ID followed by a list of `(field_tag, value)` pairs, terminated by a zero DWORD.
 
-OpenRealm currently applies registered `UnitProfile_t` and `UnitUI_t` fields at map load. Stable per-map rows preserve
-custom `uani` Required Animation Names, `umdl` model paths, and the other mapped Profile/UI fields when a custom rawcode
-otherwise resolves to its base SLK unit. Original-unit edits are applied before custom-unit inheritance. Balance/Data/
-Weapons/Abilities are still base-row fallbacks and must not be assumed to honor all `war3map.w3u` fields yet. See
+OpenRealm currently applies registered `UnitBalance_t`, `UnitProfile_t`, and `UnitUI_t` fields at map load. Stable per-map rows
+preserve balance fields such as `usma`/`usrg`/`usst`, custom `uani` Required Animation Names, `umdl` model paths, and the other
+mapped Balance/Profile/UI fields when a custom rawcode otherwise resolves to its base SLK unit. Original-unit edits are applied before
+custom-unit inheritance. Data/Weapons/Abilities are still base-row fallbacks and must not be assumed to honor all `war3map.w3u`
+fields yet. See
 `docs/wc3-data-model.md` and `docs/games/warcraft-3/unit-animation-properties.md`.
 
 ## Related Source Files

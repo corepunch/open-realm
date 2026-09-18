@@ -78,7 +78,7 @@ Runtime ordinary-ability membership from `UnitAddAbility` / `UnitRemoveAbility` 
 
 ## Known Boundaries
 
-Map/campaign object modifications are only partially merged into typed runtime rows. `war3map.w3u` now applies registered `UnitProfile`/`UnitUI` fields such as `uani` and `umdl`, but a map-specific `heroAbilList`, Balance/Data/Weapons/Abilities unit fields, and `war3map.w3a`/campaign overrides for `levels`, `reqLevel`, `levelSkip`, or Research UI fields still require the broader object-data merge layer.
+Map/campaign object modifications are only partially merged into typed runtime rows. `war3map.w3u` now applies registered `UnitBalance`/`UnitProfile`/`UnitUI` fields such as `usst`, `uani`, and `umdl`, but a map-specific `heroAbilList`, Data/Weapons/Abilities unit fields, and `war3map.w3a`/campaign overrides for `levels`, `reqLevel`, `levelSkip`, or Research UI fields still require the broader object-data merge layer.
 
 `SetPlayerAbilityAvailable` also remains separate work; player-wide ability disable state needs explicit ownership and runtime/UI gating rather than a Hero-menu-only special case.
 

@@ -841,6 +841,11 @@ DestructableData_t *g_DestructableData; DWORD g_DestructableDataCount; static sl
 
 typedef struct {
     DWORD id;
+    UnitBalance_t row;
+} mapUnitBalanceOverride_t;
+
+typedef struct {
+    DWORD id;
     UnitProfile_t row;
 } mapUnitProfileOverride_t;
 
@@ -849,6 +854,8 @@ typedef struct {
     UnitUI_t row;
 } mapUnitUIOverride_t;
 
+static mapUnitBalanceOverride_t *map_unit_balance_overrides;
+static DWORD map_unit_balance_override_count;
 static mapUnitProfileOverride_t *map_unit_profile_overrides;
 static DWORD map_unit_profile_override_count;
 static mapUnitUIOverride_t *map_unit_ui_overrides;
@@ -1213,14 +1220,22 @@ unitMeta_t const UnitsMetaData[] = {
 #undef M
 
 /* =========================================================================
- * Map-local unit presentation overrides.
+ * Map-local unit typed-row overrides.
  *
  * war3map.w3u records are owned by CM/mapInfo for the lifetime of a map. A
  * spawned edict keeps immutable typed-row pointers, so overrides must live in
- * stable per-map rows rather than a shared scratch object. UnitProfile owns
- * Required Animation Names (uani/animProps); UnitUI owns the model and related
- * render fields. Other typed tables still resolve custom IDs to their base row.
+ * stable per-map rows rather than a shared scratch object. UnitBalance,
+ * UnitProfile, and UnitUI currently have per-map merges; other typed tables
+ * still resolve custom IDs to their base row.
  * =========================================================================*/
+static UnitBalance_t const *FindMapUnitBalanceOverride(DWORD id) {
+    FOR_LOOP(i, map_unit_balance_override_count) {
+        if (map_unit_balance_overrides[i].id == id)
+            return &map_unit_balance_overrides[i].row;
+    }
+    return NULL;
+}
+
 static UnitProfile_t const *FindMapUnitProfileOverride(DWORD id) {
     FOR_LOOP(i, map_unit_profile_override_count) {
         if (map_unit_profile_overrides[i].id == id)
@@ -1296,6 +1311,21 @@ static void ApplyMapUnitTypedField(void *row, size_t row_offset, unitModificatio
     }
 }
 
+static void AddMapUnitBalanceOverride(unitData_t const *unit, DWORD target_id, DWORD base_id) {
+    UnitBalance_t const *base = FindMapUnitBalanceOverride(base_id);
+    mapUnitBalanceOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&balance_idx, base_id);
+    override = map_unit_balance_overrides + map_unit_balance_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, unit->numbeOfModifications)
+        ApplyMapUnitTypedField(&override->row, offsetof(edict_t, data.UnitBalance), unit->modifications + i);
+}
+
 static void AddMapUnitProfileOverride(unitData_t const *unit, DWORD target_id, DWORD base_id) {
     UnitProfile_t const *base = FindMapUnitProfileOverride(base_id);
     mapUnitProfileOverride_t *override;
@@ -1329,6 +1359,9 @@ static void AddMapUnitUIOverride(unitData_t const *unit, DWORD target_id, DWORD 
 void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
     DWORD capacity;
 
+    free(map_unit_balance_overrides);
+    map_unit_balance_overrides = NULL;
+    map_unit_balance_override_count = 0;
     free(map_unit_profile_overrides);
     map_unit_profile_overrides = NULL;
     map_unit_profile_override_count = 0;
@@ -1339,9 +1372,11 @@ void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
 
     capacity = mapinfo->num_originalUnits + mapinfo->num_userCreatedUnits;
     if (!capacity) return;
+    map_unit_balance_overrides = calloc(capacity, sizeof(*map_unit_balance_overrides));
     map_unit_profile_overrides = calloc(capacity, sizeof(*map_unit_profile_overrides));
     map_unit_ui_overrides = calloc(capacity, sizeof(*map_unit_ui_overrides));
-    if (!map_unit_profile_overrides || !map_unit_ui_overrides) {
+    if (!map_unit_balance_overrides || !map_unit_profile_overrides || !map_unit_ui_overrides) {
+        free(map_unit_balance_overrides); map_unit_balance_overrides = NULL;
         free(map_unit_profile_overrides); map_unit_profile_overrides = NULL;
         free(map_unit_ui_overrides); map_unit_ui_overrides = NULL;
         return;
@@ -1350,11 +1385,13 @@ void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
     /* Original-object edits become the inheritance source for custom objects. */
     FOR_LOOP(i, mapinfo->num_originalUnits) {
         unitData_t const *unit = mapinfo->originalUnits + i;
+        AddMapUnitBalanceOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitProfileOverride(unit, unit->originalUnitID, unit->originalUnitID);
         AddMapUnitUIOverride(unit, unit->originalUnitID, unit->originalUnitID);
     }
     FOR_LOOP(i, mapinfo->num_userCreatedUnits) {
         unitData_t const *unit = mapinfo->userCreatedUnits + i;
+        AddMapUnitBalanceOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitProfileOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitUIOverride(unit, unit->newUnitID, unit->originalUnitID);
     }
@@ -1363,7 +1400,8 @@ void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
 /* =========================================================================
  * Public lookup functions.
  * Map-created units remap their ID to the base unit ID for typed tables that
- * do not yet have a per-map merge. UnitProfile and UnitUI check stable map rows first.
+ * do not yet have a per-map merge. UnitBalance, UnitProfile, and UnitUI check
+ * stable map rows first.
  * =========================================================================*/
 static DWORD ResolveUnitID(DWORD id) {
     if (!level.mapinfo) return id;
@@ -1418,7 +1456,14 @@ FLOAT UnitMetaReal(LPEDICT unit, DWORD field_id) {
     return *(LONG const *)value;
 }
 
-UnitBalance_t const *G_UnitBalance(DWORD id) { static UnitBalance_t zero; UnitBalance_t *row = FS_SLKLookup(&balance_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UnitBalance_t const *G_UnitBalance(DWORD id) {
+    static UnitBalance_t zero;
+    UnitBalance_t const *override = FindMapUnitBalanceOverride(id);
+    UnitBalance_t *row;
+    if (override) return override;
+    row = FS_SLKLookup(&balance_idx, ResolveUnitID(id));
+    return row ? row : &zero;
+}
 UpgradeData_t const *G_UpgradeData(DWORD id) { static UpgradeData_t zero; UpgradeData_t *row = FS_SLKLookup(&upgrade_idx, id); return row ? row : &zero; }
 UnitProfile_t const *G_UnitProfile(DWORD id) {
     static UnitProfile_t zero;

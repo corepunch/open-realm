@@ -423,6 +423,61 @@ TEST(wc3_slk, unit_model_filename_adds_mdx_to_base_slk_stem) {
     T_STREQ(path, "Units\\Human\\Footman\\Footman.mdx");
 }
 
+TEST(wc3_slk, map_unit_balance_overrides_stock_fields_and_custom_inheritance) {
+    DWORD const base_id = MAKEFOURCC('n','m','e','r');
+    DWORD const custom_id = MAKEFOURCC('x','m','e','r');
+    DWORD stock_max = 1, stock_regen = 7, stock_start = 0, gold = 321;
+    LPCMAPINFO saved_mapinfo;
+    UnitBalance_t const *base;
+    LONG saved_stock_max, saved_stock_regen, saved_stock_start, saved_gold;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('u','s','m','a'), .type = mod_int, .data = &stock_max },
+        { .modID = MAKEFOURCC('u','s','r','g'), .type = mod_int, .data = &stock_regen },
+        { .modID = MAKEFOURCC('u','s','s','t'), .type = mod_int, .data = &stock_start },
+        { .modID = MAKEFOURCC('u','g','o','l'), .type = mod_int, .data = &gold },
+    };
+    unitData_t original = {
+        .originalUnitID = base_id, .numbeOfModifications = 4, .modifications = mods
+    };
+    unitData_t custom = { .originalUnitID = base_id, .newUnitID = custom_id };
+    MAPINFO mapinfo = {
+        .num_originalUnits = 1, .originalUnits = &original,
+        .num_userCreatedUnits = 1, .userCreatedUnits = &custom
+    };
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    base = G_UnitBalance(base_id);
+    saved_stock_max = base->stockMax;
+    saved_stock_regen = base->stockRegen;
+    saved_stock_start = base->stockStart;
+    saved_gold = base->goldCost;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_EQ(G_UnitBalance(base_id)->stockMax, 1);
+    T_EQ(G_UnitBalance(base_id)->stockRegen, 7);
+    T_EQ(G_UnitBalance(base_id)->stockStart, 0);
+    T_EQ(G_UnitBalance(base_id)->goldCost, 321);
+    T_EQ(G_UnitBalance(custom_id)->stockMax, 1);
+    T_EQ(G_UnitBalance(custom_id)->stockRegen, 7);
+    T_EQ(G_UnitBalance(custom_id)->stockStart, 0);
+    T_EQ(G_UnitBalance(custom_id)->goldCost, 321);
+    {
+        edict_t unit = { .class_id = custom_id };
+        G_BindEntityData(&unit);
+        T_ASSERT(unit.data.UnitBalance == G_UnitBalance(custom_id));
+        T_EQ(UnitMetaInteger(&unit, MAKEFOURCC('u','s','s','t')), 0);
+    }
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    T_EQ(G_UnitBalance(base_id)->stockMax, saved_stock_max);
+    T_EQ(G_UnitBalance(base_id)->stockRegen, saved_stock_regen);
+    T_EQ(G_UnitBalance(base_id)->stockStart, saved_stock_start);
+    T_EQ(G_UnitBalance(base_id)->goldCost, saved_gold);
+}
+
 TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
     static const char slk_ui[] =
         "C;Y1;X1;K\"unitUIID\"\n"

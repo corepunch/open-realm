@@ -227,6 +227,14 @@ native TriggerRegisterGameStateEvent takes trigger whichTrigger, gamestate which
 
 // Unit/death-event coverage used by player structure-count regression tests.
 native CreateUnit                takes player id, integer unitid, real x, real y, real face returns unit
+native SetAllItemTypeSlots      takes integer slots returns nothing
+native SetAllUnitTypeSlots      takes integer slots returns nothing
+native SetItemTypeSlots         takes unit whichUnit, integer slots returns nothing
+native SetUnitTypeSlots         takes unit whichUnit, integer slots returns nothing
+native AddUnitToStock           takes unit whichUnit, integer unitId, integer currentStock, integer stockMax returns nothing
+native AddUnitToAllStock        takes integer unitId, integer currentStock, integer stockMax returns nothing
+native RemoveUnitFromStock      takes unit whichUnit, integer unitId returns nothing
+native RemoveUnitFromAllStock   takes integer unitId returns nothing
 native SetUnitScale              takes unit whichUnit, real scaleX, real scaleY, real scaleZ returns nothing
 native SetCinematicScene         takes integer portraitUnitId, playercolor color, string speakerTitle, string text, real sceneDuration, real voiceoverDuration returns nothing
 native EndCinematicScene         takes nothing returns nothing

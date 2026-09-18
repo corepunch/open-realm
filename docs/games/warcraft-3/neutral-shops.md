@@ -55,10 +55,14 @@ A zero `stockStart` begins at `stockMax`. A positive start delay begins at zero 
 expires, and further copies replenish every `stockRegen` until `stockMax`. Item and unit runtime stock are separate arrays on the shop
 edict and are shared between players, so one player's purchase changes what every player sees.
 
+Unit merchandise balance values resolve through the map-local `war3map.w3u` `UnitBalance` overlay before stock is initialized. This
+includes `usma` (Stock Maximum), `usrg` (Stock Replenish Interval), `usst` (Stock Start Delay), and ordinary balance fields such as
+unit cost/food when the map modifies them. Original-unit edits are also the inheritance source for custom unit IDs.
+
 Stock updates are lazy: command-card queries and purchase attempts advance expired timers. No per-frame shop thinker is needed. The
-stock fields are inline numeric `edict_t` state and are represented by `stock_fields` in `g_save.c`; save format 28 preserves item and
-unit counts plus absolute restock deadlines, while `level.stock` preserves the global item/unit slot defaults. No `F_EDICT` pointer
-fixups are required.
+stock fields are inline numeric `edict_t` state and are represented by `stock_fields` in `g_save.c`; save format 29 preserves item and
+unit counts, each entry's effective maximum, plus absolute restock deadlines, while `level.stock` preserves the global item/unit slot
+defaults. No `F_EDICT` pointer fixups are required.
 
 ## Patron Selection
 
@@ -86,6 +90,18 @@ A successful mercenary hire is immediate rather than a training queue. The new u
 without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units, then has food activated.
 Gold/lumber and shared stock are deducted only after spawn/placement succeeds. Failures leave resources and stock unchanged.
 
+## JASS Unit Stock Overrides
+
+Warcraft campaign scripts can override neutral unit stock at runtime. OpenRealm registers `AddUnitToStock`, `AddUnitToAllStock`,
+`RemoveUnitFromStock`, and `RemoveUnitFromAllStock`. The add natives use their explicit `currentStock` and `stockMax` immediately, so
+they intentionally bypass an authored `stockStart` delay for that runtime entry. If current stock is below the supplied maximum, the
+unit type's authored `stockRegen` continues to control later replenishment.
+
+The per-shop forms require the target to carry the Warcraft `Asud` (Sell Units) ability. The all-shop forms apply to currently live
+`Asud` sellers. Runtime-added unit types participate in the same shared command-card, purchase, save/load, and replenishment path as
+`Sellunits` merchandise; `RemoveUnitFromStock` removes the entry without affecting mercenaries already hired. Unit slot capacity from
+`SetAllUnitTypeSlots` / `SetUnitTypeSlots` still bounds how many stock entries a shop can carry.
+
 ## Pawn / Sell Back
 
 `ItemDrag` already owns right-click inventory drag target mode. Its entity callback now recognizes neutral item shops. A sale succeeds
@@ -107,7 +123,7 @@ is not inserted into the shop's authored merchandise or stock.
 - Walking an out-of-range Hero to the shop before pawning is not implemented; pawn targeting succeeds only when already in range.
 - Neutral Hero/Tavern sales are not implemented; Hero entries in `Sellunits` are deliberately excluded from the mercenary path.
 - Unit-sale trigger events (`EVENT_UNIT_SELL` / player-unit sale context) are not published yet.
-- JASS `AddItemToStock`, `AddItemToAllStock`, `RemoveItemFromStock`, and unit-stock counterparts are not registered yet.
+- JASS item-stock mutation (`AddItemToStock`, `AddItemToAllStock`, `RemoveItemFromStock`, `RemoveItemFromAllStock`) is not registered yet.
 - Power-up/auto-use-on-acquire item semantics remain part of the broader item lifecycle and are not special-cased by the shop.
 - Shop merchandise tech-tree availability beyond authored stock timing is not yet modeled.
 
@@ -122,6 +138,8 @@ is not inserted into the shop's authored merchandise or stock.
 - non-inventory mercenary patron resolution;
 - immediate mercenary ownership, resource deduction, and food activation;
 - unit `stockStart` / `stockRegen` / `stockMax` command availability;
+- runtime `AddUnitToStock` current/max overrides, replenishment, removal, and all-shop native registration;
+- map-local `war3map.w3u` UnitBalance stock overrides and custom-unit inheritance;
 - failed mercenary food validation preserving stock/resources;
 - pawnable item removal and `PawnItemRate` refund.
 

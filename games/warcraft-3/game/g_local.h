@@ -1004,6 +1004,7 @@ typedef struct {
 typedef struct edictShopStockItem_s {
     DWORD id;
     LONG current;
+    LONG maximum;
     DWORD delay_start;
     DWORD delay_end;
 } edictShopStockItem_t;
@@ -1741,6 +1742,10 @@ void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 void G_SetAllStockSlots(BOOL, LONG);
 void G_SetStockSlots(LPEDICT, BOOL, LONG);
 void G_InitStockSlots(LPEDICT);
+BOOL G_AddUnitStock(LPEDICT, DWORD, LONG, LONG);
+void G_RemoveUnitStock(LPEDICT, DWORD);
+void G_AddUnitStockAll(DWORD, LONG, LONG);
+void G_RemoveUnitStockAll(DWORD);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
