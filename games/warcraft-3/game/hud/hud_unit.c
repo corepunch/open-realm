@@ -545,7 +545,10 @@ BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryIte
     item_name = GetClassName(item->class_id);
     art = FindConfigValue(item_name, STR_ART);
     UI_CopyString(out->art, sizeof(out->art), G_UIArtPath(art));
-    UI_CopyString(out->tooltip, sizeof(out->tooltip), G_CleanTooltipString(FindConfigValue(item_name, STR_TIP), 0));
+    /* Item Tip is also used by shop purchase buttons and may intentionally
+     * start with "Purchase".  Inventory owns the item already, so its title
+     * comes from ItemData's display name instead of the purchase tooltip. */
+    UI_CopyString(out->tooltip, sizeof(out->tooltip), G_ObjectName(item->class_id));
     UI_CopyString(out->ubertip, sizeof(out->ubertip), G_CleanTooltipString(FindConfigValue(item_name, STR_UBERTIP), 0));
     out->slot = slot;
     out->charges = G_ItemCharges(item);
