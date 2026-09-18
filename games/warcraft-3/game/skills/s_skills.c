@@ -523,34 +523,30 @@ static ability_t abilitylist[] = {
     // TODO: Ansp a_neutral_spell  /* Neutral Spies — CAbilityNeutralSpell creeps */
 
     /* AbilityData rows without a generated AbilityStrings entry. */
-    // TODO: ACac a_unknown  /* Aura - Command (Creep) */
-    // TODO: ACah a_unknown  /* Thorns Aura (creep) */
+    { "ACac", CAbilityPassive, AB_PASSIVE },  /* Aura - Command (Creep) */
+    { "ACah", CAbilityPassive, AB_PASSIVE },  /* Thorns Aura (creep) */
     { "ACam", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shield (creep) */
     { "ACps", CAbilityPossession, AB_SPELL, SPELL_TARGET_UNIT },  /* Possession (creep) */
-    // TODO: ACat a_unknown  /* Aura - Trueshot (Creep) */
-    // TODO: ACav a_unknown  /* Aura - Devotion (Creep) */
-    // TODO: ACba a_unknown  /* Aura - Brilliance (creep) */
+    { "ACat", CAbilityPassive, AB_PASSIVE },  /* Aura - Trueshot (Creep) */
+    { "ACav", CAbilityPassive, AB_PASSIVE },  /* Aura - Devotion (Creep) */
+    { "ACba", CAbilityPassive, AB_PASSIVE },  /* Aura - Brilliance (creep) */
     { "ACbb", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust (creep, Hotkey B) */
     { "ACbc", CAbilityBreathOfFire, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire (Creep) */
-    // TODO: ACbh a_unknown  /* Bash (creep) */
-    // TODO: ACbk a_unknown  /* Black Arrow (melee, creep) */
-    // TODO: ACbl a_unknown  /* Bloodlust (Creep) */
+    { "ACbh", CAbilityPassive, AB_PASSIVE },  /* Bash (creep) */
+    { "ACbk", CAbilityBlackArrow, AB_SPELL | AB_TOGGLE | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Black Arrow (melee, creep) */
+    { "ACbl", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust (Creep) */
     { "ACbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish (Creep) */
     { "ACbz", CAbilityBlizzard, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Blizzard (creep) */
-    // TODO: ACc2 a_unknown  /* Crushing Wave (Dragon Turtle) */
-    // TODO: ACc3 a_unknown  /* Crushing Wave (Lesser) */
     { "ACca", CAbilityCarrionSwarm, AB_SPELL, SPELL_TARGET_POINT },  /* Carrion Swarm (creep) */
-    // TODO: ACcb a_unknown  /* Frost Bolt */
-    // TODO: ACce a_unknown  /* Cleaving Attack (Creep) */
-    // TODO: ACch a_unknown  /* Charm */
+    { "ACcb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Bolt */
+    { "ACce", CAbilityPassive, AB_PASSIVE },  /* Cleaving Attack (Creep) */
+    { "ACch", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Charm */
     { "ACcl", CAbilityChainLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Chain Lightning (creep) */
     { "ACcn", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (creep) */
     { "ACcr", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple (creep) */
     { "ACcs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse (creep) */
-    // TODO: ACct a_unknown  /* Critical Strike (creep) */
-    // TODO: ACcv a_unknown  /* Crushing Wave */
-    // TODO: ACcw a_unknown  /* Cold Arrows (creep) */
-    // ACcy registered with CAbilityCyclone
+    { "ACct", CAbilityPassive, AB_PASSIVE },  /* Critical Strike (creep) */
+    { "ACcw", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Cold Arrows (creep) */
     { "ACd2", CAbilityAbolishMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Abolish Magic (Creep, 1,2 pos) */
     { "ACdc", CAbilityDeathCoil, AB_SPELL, SPELL_TARGET_UNIT },  /* Death Coil (creep) */
     { "ACde", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic (creep) */
@@ -558,13 +554,13 @@ static ability_t abilitylist[] = {
     { "ACdr", CAbilityDrainNeutral, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Drain Life (Creep) */
     { "ACds", CAbilityDivineShield, AB_SPELL },  /* Divine Shield (creep) */
     { "ACen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare (Creep) */
-    // TODO: ACes a_unknown  /* Evasion (creep 100%) */
-    // TODO: ACev a_unknown  /* Evasion (creep) */
+    { "ACes", CAbilityPassive, AB_PASSIVE },  /* Evasion (creep 100%) */
+    { "ACev", CAbilityPassive, AB_PASSIVE },  /* Evasion (creep) */
     { "ACf2", CAbilityFrostArmor, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frost Armor (creep, autocast) */
-    // TODO: ACf3 a_unknown  /* Finger of Pain (2,1 Button) */
+    { "ACf3", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Pain (2,1 Button) */
     { "ACfa", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor (creep, old) */
     { "ACfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (creep) */
-    // TODO: ACfd a_unknown  /* Finger of Pain */
+    { "ACfd", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Pain */
     { "ACff", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire (creep) */
     { "ACfl", CAbilityForkedLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Forked Lightning (creep) */
     { "ACfn", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Nova (creep) */
@@ -576,334 +572,130 @@ static ability_t abilitylist[] = {
     { "ACif", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire (Creep) */
     { "ACim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation (creep) */
     { "ACls", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield (creep) */
-    // TODO: ACm2 a_unknown  /* Magic Immunity (Archimonde) */
-    // TODO: ACm3 a_unknown  /* Magic Immunity (Dragons) */
-    // TODO: ACmf a_unknown  /* Mana Shield(Creep) */
-    // TODO: ACmi a_unknown  /* Magic Immunity (Creep) */
-    // TODO: ACmo a_unknown  /* Monsoon(creep) */
+    { "ACm2", CAbilityPassive, AB_PASSIVE },  /* Magic Immunity (Archimonde) */
+    { "ACm3", CAbilityPassive, AB_PASSIVE },  /* Magic Immunity (Dragons) */
+    { "ACmf", CAbilityManaShield, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE },  /* Mana Shield (creep) */
+    { "ACmi", CAbilityPassive, AB_PASSIVE },  /* Magic Immunity (Creep) */
+    { "ACmo", CAbilityForkedLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Monsoon (creep) */
     { "ACmp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impale (Creep) */
-    // TODO: ACnr a_unknown  /* Neutral Regen (health only) */
-    // TODO: ACpa a_unknown  /* Parasite(eredar) */
+    { "ACnr", CAbilityPassive, AB_PASSIVE },  /* Neutral Regen (health only) */
+    { "ACpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite (eredar) */
     { "ACpu", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (Creep) */
-    // TODO: ACpv a_unknown  /* Pulverize (Sea Giant) */
-    // TODO: ACpy a_unknown  /* Polymorph (creep) */
+    { "ACpv", CAbilityPassive, AB_PASSIVE },  /* Pulverize (Sea Giant) */
+    { "ACpy", CAbilityPolymorph, AB_SPELL, SPELL_TARGET_UNIT },  /* Polymorph (creep) */
     { "ACr1", CAbilityRoar, AB_SPELL },  /* Roar (creep) -- Skeletal Orc */
     { "ACr2", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation (Furbolg) */
     { "ACrd", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead (Creep) */
     { "ACrf", CAbilityRainOfFire, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Rain of Fire (creep) */
-    // TODO: ACrg a_unknown  /* Rain of Fire (creep,greater) */
+    { "ACrg", CAbilityRainOfFire, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Rain of Fire (creep, greater) */
     { "ACrj", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation (creep) */
-    // TODO: ACrk a_unknown  /* Resistant Skin (creep) */
+    { "ACrk", CAbilityPassive, AB_PASSIVE },  /* Resistant Skin (creep) */
     { "ACro", CAbilityRoar, AB_SPELL },  /* Roar (creep) */
-    // TODO: ACs9 a_unknown  /* Feral Spirit (creep - pig) */
-    // TODO: ACsa a_unknown  /* Searing Arrows (creep) */
-    // TODO: ACsf a_unknown  /* Feral Spirit (creep) */
+    { "ACs9", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit (creep - pig) */
+    { "ACsa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Searing Arrows (creep) */
+    { "ACsf", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit (creep) */
     { "ACsh", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Creep) */
-    // TODO: ACsi a_unknown  /* Silence(Creep) */
-    // TODO: ACsk a_unknown  /* Resistant Skin(3,1 pos, creep) */
-    // TODO: ACsl a_unknown  /* Sleep (creep) */
+    { "ACsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence (Creep) */
+    { "ACsk", CAbilityPassive, AB_PASSIVE },  /* Resistant Skin (3,1 pos, creep) */
+    { "ACsl", CAbilitySleep, AB_SPELL, SPELL_TARGET_UNIT },  /* Sleep (creep) */
     { "ACsm", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana (Creep) */
     { "ACss", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
-    // TODO: ACst a_unknown  /* Shockwave (Trap) */
+    { "ACst", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Trap) */
     { "ACsw", CAbilitySlow, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Slow (Creep) */
-    // TODO: ACt2 a_unknown  /* Thunder Clap (Thunder Lizard) */
-    // TODO: ACua a_unknown  /* Unholy Aura (creep) */
-    // TODO: ACuf a_unknown  /* Unholy Frenzy (creep) */
-    // TODO: ACvp a_unknown  /* Vampiric Aura (creep) */
-    // TODO: ACvs a_unknown  /* Venom Spears (Creep) */
-    // TODO: ACwb a_unknown  /* Web (creep) */
-    // TODO: ACwe a_unknown  /* Summon Sea Elemental */
-    // TODO: AEIl a_unknown  /* Illidan - Metamorphosis */
-    // TODO: AEsb a_unknown  /* Cenarius - Beefy Starfall */
-    // TODO: AEvi a_unknown  /* Evil Illidan - Metamorphosis */
-    // TODO: AHta a_unknown  /* Reveal(Arcane Tower) */
-    // TODO: AI2m a_unknown  /* 200 mana bonus */
-    // TODO: AIa1 a_unknown  /* AgilityBonus (+1) */
-    // TODO: AIa3 a_unknown  /* AgilityBonus (+3) */
-    // TODO: AIa4 a_unknown  /* AgilityBonus (+4) */
-    // TODO: AIa6 a_unknown  /* AgilityBonus (+6) */
-    // TODO: AIad a_unknown  /* ItemAuraDevotion */
-    // TODO: AIae a_unknown  /* ItemAuraEndurance */
-    // TODO: AIar a_unknown  /* ItemAuraTrueshot */
-    // TODO: AIau a_unknown  /* ItemAuraUnholy */
-    // TODO: AIav a_unknown  /* ItemAuraVampiric */
-    // TODO: AIaz a_unknown  /* AgilityBonus (+10) */
-    // TODO: AIba a_unknown  /* ItemAuraBrilliance */
-    // TODO: AIbb a_unknown  /* Build Tiny Blacksmith */
-    // TODO: AIbf a_unknown  /* Build Tiny Farm */
-    // TODO: AIbg a_unknown  /* Build Tiny Great Hall */
-    // TODO: AIbh a_unknown  /* Build Tiny Altar */
-    // TODO: AIbk a_unknown  /* Blink (Item) */
-    // TODO: AIbm a_unknown  /* MaxManaBonus (Most) */
-    // TODO: AIbr a_unknown  /* Build Tiny Lumber Mill */
-    // TODO: AIbs a_unknown  /* Build Tiny Barracks */
-    // TODO: AIbt a_unknown  /* Build Tiny Scout Tower */
-    // TODO: AIbx a_unknown  /* Bash (item) */
-    // TODO: AIcd a_unknown  /* ItemAuraCommand */
-    // TODO: AIcl a_unknown  /* Chain Lightning (item) */
-    // TODO: AIcm a_unknown  /* Control Magic (item) */
-    // TODO: AIcs a_unknown  /* Critical Strike (item) */
+    { "ACt2", CAbilityThunderClap, AB_SPELL },  /* Thunder Clap (Thunder Lizard) */
+    { "ACua", CAbilityPassive, AB_PASSIVE },  /* Unholy Aura (creep) */
+    { "ACuf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy (creep) */
+    { "ACvp", CAbilityPassive, AB_PASSIVE },  /* Vampiric Aura (creep) */
+    { "ACvs", CAbilityPassive, AB_PASSIVE },  /* Venom Spears (Creep) */
+    { "ACwb", CAbilityPassive, AB_PASSIVE },  /* Web (creep) */
+    { "ACwe", CAbilityWaterElemental, AB_SPELL },  /* Summon Sea Elemental */
+    { "AHta", CAbilityPassive, AB_PASSIVE },  /* Reveal (Arcane Tower) */
+    { "ANak", CAbilityPassive, AB_PASSIVE },  /* Orb of Annihilation (Quill Spray) */
+    { "ANb2", CAbilityPassive, AB_PASSIVE },  /* Bash (maul, SP Bear, level 3) */
+    { "ANbh", CAbilityPassive, AB_PASSIVE },  /* Bash (Beastmaster Bear) */
+    { "ANbl", CAbilityBlink, AB_SPELL, SPELL_TARGET_POINT },  /* Blink (Beastmaster Bear) */
+    { "ANfa", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Sea Witch - Frost Arrows */
+    { "ANre", CAbilityPassive, AB_PASSIVE },  /* Neutral Regen (mana only) */
+    { "ANrn", CAbilityPassive, AB_PASSIVE },  /* Mannoroth - Reincarnation */
+    { "ANta", CAbilityTaunt, AB_SPELL },  /* Taunt (Creep) */
+    { "ANtr", CAbilityPassive, AB_PASSIVE },  /* Detect (War Eagle) */
+    { "ANwk", CAbilityWindWalk, AB_SPELL },  /* Wind Walk */
+    { "Aap1", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Abomination) */
+    { "Aap2", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Plague Ward) */
+    { "Aap3", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Creep) */
+    { "Aap4", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Creep gfx) */
+    { "SCae", CAbilityPassive, AB_PASSIVE },  /* Aura - Endurance (Creep) */
+    { "SCva", CAbilityPassive, AB_PASSIVE },  /* Vampiric attack */
+    { "Adsm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic (creep) */
+    { "Adcn", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant (new) */
+    { "Ache", CAbilityPassive, AB_PASSIVE },  /* Chain Dispel */
+    { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
+    { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
+    { "Acdb", CAbilityPassive, AB_PASSIVE },  /* Chen - Drunken Brawler */
+    { "Aco2", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Archer) */
+    { "Aco3", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Hippogryph) */
+    { "Adt1", CAbilityPassive, AB_PASSIVE },  /* Detect (Sentry Ward) */
+    { "Adtg", CAbilityPassive, AB_PASSIVE },  /* Detect (general) */
+    { "Aenr", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots (creep) */
+    { "Afa2", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */
+    { "Afbt", CAbilityPassive, AB_PASSIVE },  /* Feedback (Arcane Tower) */
+    { "Anh1", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (Creep Normal) */
+    { "Anh2", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (Creep High) */
+    { "Ansk", CAbilityPassive, AB_PASSIVE },  /* Hardened Skin (Naga Turtle) */
+    { "Aihn", CAbilityInventory, AB_PASSIVE },  /* Inventory (2 slot unit) Human */
+    { "Aion", CAbilityInventory, AB_PASSIVE },  /* Inventory (2 slot unit) Orc */
+    { "Aiun", CAbilityInventory, AB_PASSIVE },  /* Inventory (2 slot unit) Undead */
+    { "Aien", CAbilityInventory, AB_PASSIVE },  /* Inventory (2 slot unit) Night Elf */
+    { "Apak", CAbilityInventory, AB_PASSIVE },  /* Inventory (Pack Mule) */
+    { "Ane2", CAbilityInventory, AB_PASSIVE },  /* Neutral Building (any unit) */
+    { "Amb2", CAbilityManaBattery, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Battery (Obsidian Statue) */
+    { "Ambb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn (Hotkey B) */
+    { "Ambd", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn (demon) */
+    { "Amnb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn (demon) */
+    { "Ara2", CAbilityRoar, AB_SPELL },  /* Roar */
+    { "Argd", CAbilityReturn, AB_COMMAND },  /* Return (Gold) */
+    { "Argl", CAbilityReturn, AB_COMMAND },  /* Return (Gold & Lumber) */
+    { "Arlm", CAbilityReturn, AB_COMMAND },  /* Return (Lumber) */
+    { "Aro1", CAbilityRoot, AB_COMMAND },  /* Root (Ancients) */
+    { "Aro2", CAbilityRoot, AB_COMMAND },  /* Root (Ancient Protector) */
+    { "Awfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (warlock) */
+    { "Awrg", CAbilityStomp, AB_SPELL },  /* War Stomp (sea giant) */
+    { "Awrh", CAbilityStomp, AB_SPELL },  /* War Stomp (hydra) */
+    { "Awrs", CAbilityStomp, AB_SPELL },  /* War Stomp (creep) */
+    { "Sca1", CAbilityPassive, AB_PASSIVE },  /* Chaos (Grunt) */
+    { "Sca2", CAbilityPassive, AB_PASSIVE },  /* Chaos (Raider) */
+    { "Sca3", CAbilityPassive, AB_PASSIVE },  /* Chaos (Shaman) */
+    { "Sca4", CAbilityPassive, AB_PASSIVE },  /* Chaos (Kodo) */
+    { "Sca5", CAbilityPassive, AB_PASSIVE },  /* Chaos (Peon) */
+    { "Sca6", CAbilityPassive, AB_PASSIVE },  /* Chaos (Grom) */
+    { "Sch2", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Meat Wagon) */
+    { "Sch3", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Transport) */
+    { "Sch4", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Tank) */
+    { "Sch5", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Ship) */
+    { "Scri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple (Warlock) */
+    { "Sdro", CAbilityCargoDrop, AB_COMMAND },  /* Drop */
+    { "Slo2", CAbilityCargoLoad, AB_COMMAND },  /* Load (Entangled Gold Mine) */
+    { "Slo3", CAbilityCargoLoad, AB_COMMAND },  /* Load (Navies) */
+    { "Sloa", CAbilityCargoLoad, AB_COMMAND },  /* Load (Burrow) */
+    { "Stpm", CAbilityCargoLoad, AB_COMMAND },  /* Pilot Tank (Mortar Team) */
+    { "Stpr", CAbilityCargoLoad, AB_COMMAND },  /* Pilot Tank (Rifleman) */
+    { "Suhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy (Warlock) */
+    { "Sbtl", CAbilityBattlestations, AB_COMMAND },  /* Battlestations (Chaos) */
+    { "Sbsk", CAbilityPassive, AB_PASSIVE },  /* Berserker Upgrade */
     { "AIcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Cyclone */
-    // TODO: AId0 a_unknown  /* DefenseBonus (+10) */
-    // TODO: AId1 a_unknown  /* DefenseBonus (+1) */
-    // TODO: AId2 a_unknown  /* DefenseBonus (+2) */
-    // TODO: AId3 a_unknown  /* DefenseBonus (+3) */
-    // TODO: AId4 a_unknown  /* DefenseBonus (+4) */
-    // TODO: AId5 a_unknown  /* DefenseBonus (+5) */
-    // TODO: AId7 a_unknown  /* DefenseBonus (+7) */
-    // TODO: AId8 a_unknown  /* DefenseBonus (+8) */
-    // TODO: AIdb a_unknown  /* ItemDefenseAoe (+ Healing) */
-    // TODO: AIdf a_unknown  /* Orb of Darkness */
-    // TODO: AIdn a_unknown  /* Shadow Orb Ability */
-    // TODO: AIdp a_unknown  /* Death Pact (item) */
-    // TODO: AIds a_unknown  /* ItemDispelAoeWithCooldown */
-    // TODO: AIdv a_unknown  /* Divine Shield (Item) */
-    // TODO: AIe2 a_unknown  /* ExperienceMod greater */
-    // TODO: AIev a_unknown  /* Evasion */
-    // TODO: AIfd a_unknown  /* FigurineRedDrake */
-    // TODO: AIff a_unknown  /* FigurineFurbolg */
-    // TODO: AIfg a_unknown  /* Cloud of Fog (Item) */
-    // TODO: AIfh a_unknown  /* FigurineFelHound */
-    // TODO: AIfr a_unknown  /* FigurineRockGolem */
-    // TODO: AIft a_unknown  /* Frostguard - frost melee */
-    // TODO: AIfu a_unknown  /* FigurineDoomGuard */
-    // TODO: AIfw a_unknown  /* Searing Blade - fire melee */
-    // TODO: AIfx a_unknown  /* Flag (Orc Battle Standard) */
-    // TODO: AIfz a_unknown  /* Finger of Death (item) */
-    // TODO: AIgd a_unknown  /* Orb of Guldan */
-    // TODO: AIgf a_unknown  /* FortificationGlyph */
-    // TODO: AIgm a_unknown  /* AgilityMod +2 */
-    // TODO: AIgu a_unknown  /* UltraVisionGlyph */
-    // TODO: AIgx a_unknown  /* Aura - Regeneration (item) */
-    // TODO: AIh1 a_unknown  /* ItemHeal (Lesser) */
-    // TODO: AIh2 a_unknown  /* ItemHeal (Greater) */
-    // TODO: AIh3 a_unknown  /* ItemHeal (Least) */
-    // TODO: AIhb a_unknown  /* ItemHealAoeGreater */
-    // TODO: AIhl a_unknown  /* Holy Light (item) */
-    // TODO: AIhw a_unknown  /* Healing Ward */
-    // TODO: AIhx a_unknown  /* ItemHeal (Leastest) */
-    // TODO: AIi1 a_unknown  /* IntelligenceBonus (+1) */
-    // TODO: AIi3 a_unknown  /* IntelligenceBonus (+3) */
-    // TODO: AIi4 a_unknown  /* IntelligenceBonus (+4) */
-    // TODO: AIi6 a_unknown  /* IntelligenceBonus (+6) */
-    // TODO: AIin a_unknown  /* ItemInferno */
-    // TODO: AIir a_unknown  /* FigurineIceRevenant */
-    // TODO: AIl1 a_unknown  /* MaxLifeBonus (Lesser) */
-    // TODO: AIl2 a_unknown  /* MaxLifeBonus (Greater) */
-    // TODO: AIlf a_unknown  /* MaxLifeBonus (Least) */
-    // TODO: AIll a_unknown  /* Orb of Lightning */
-    // TODO: AIls a_unknown  /* Lightning Shield */
-    // TODO: AIlx a_unknown  /* Shaman Claws - lightning melee */
-    // TODO: AIlz a_unknown  /* MaxLifeBonus (Leastest) */
-    // TODO: AIm1 a_unknown  /* ItemManaRestore (Lesser) */
-    // TODO: AIm2 a_unknown  /* ItemManaRestore (Greater) */
-    // TODO: AImb a_unknown  /* MaxManaBonus (Least) */
-    // TODO: AImh a_unknown  /* Permanent Hit point Bonus */
-    // TODO: AImt a_unknown  /* Staff o' Teleportation */
-    // TODO: AImv a_unknown  /* MaxManaBonus (Leastest, Really) */
-    // TODO: AImx a_unknown  /* Magic Immunity */
-    // TODO: AImz a_unknown  /* MaxManaBonus (Leastest) */
-    // TODO: AInd a_unknown  /* Animate Dead (item, special) */
-    // TODO: AInm a_unknown  /* StrengthMod +2 */
-    // TODO: AIos a_unknown  /* Slow */
-    // TODO: AIp1 a_unknown  /* Potion of Rejuv I */
-    // TODO: AIp2 a_unknown  /* Potion of Rejuv II */
-    // TODO: AIp3 a_unknown  /* Potion of Rejuv III */
-    // TODO: AIp4 a_unknown  /* Potion of Rejuv IV */
-    // TODO: AIp5 a_unknown  /* Scroll of Rejuv I */
-    // TODO: AIp6 a_unknown  /* Scroll of Rejuv II */
-    // TODO: AIpg a_unknown  /* Purge(orb) */
-    // TODO: AIpl a_unknown  /* Potion of Mana Regen(lesser) */
-    // TODO: AIpr a_unknown  /* Potion of Mana Regen(greater) */
-    // TODO: AIps a_unknown  /* Purge(Totem, SP) */
-    // TODO: AIpx a_unknown  /* Permanent Hit point Bonus (small) */
-    // TODO: AIpz a_unknown  /* Penguin Squeek */
-    // TODO: AIrl a_unknown  /* Potion of Life Regen */
-    // TODO: AIrn a_unknown  /* ItemRegenMana lesser */
-    // TODO: AIrr a_unknown  /* Roar */
-    // TODO: AIrx a_unknown  /* Resurrection - Item */
-    // TODO: AIs1 a_unknown  /* StrengthBonus (+1) */
-    // TODO: AIs2 a_unknown  /* Attack Speed Increase(greater) */
-    // TODO: AIs3 a_unknown  /* StrengthBonus (+3) */
-    // TODO: AIs4 a_unknown  /* StrengthBonus (+4) */
-    // TODO: AIs6 a_unknown  /* StrengthBonus (+6) */
-    // TODO: AIse a_unknown  /* Silence(Item) */
-    // TODO: AIsl a_unknown  /* Scroll of Life Regen */
     { "AIsw", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentry Ward (item; code=Aeye) */
-    // TODO: AIsx a_unknown  /* Attack Speed Increase */
-    // TODO: AIsz a_unknown  /* Slow Poison (item) */
-    // TODO: AIt6 a_unknown  /* AttackBonus */
-    // TODO: AIt9 a_unknown  /* AttackBonus */
-    // TODO: AItc a_unknown  /* AttackBonus */
-    // TODO: AItf a_unknown  /* AttackBonus */
-    // TODO: AItg a_unknown  /* AttackBonus +1 */
-    // TODO: AIth a_unknown  /* AttackBonus +2 */
-    // TODO: AIti a_unknown  /* AttackBonus +4 */
-    // TODO: AItj a_unknown  /* AttackBonus +5 */
-    // TODO: AItk a_unknown  /* AttackBonus +7 */
-    // TODO: AItl a_unknown  /* AttackBonus +8 */
-    // TODO: AItm a_unknown  /* IntelligenceMod +2 */
-    // TODO: AItn a_unknown  /* AttackBonus +10 */
-    // TODO: AItx a_unknown  /* AttackBonus +20 */
-    // TODO: AIuf a_unknown  /* Unholy Frenzy (item) */
-    // TODO: AIuv a_unknown  /* ItemUltravision */
-    // TODO: AIuw a_unknown  /* FigurineUrsaWarrior */
-    // TODO: AIv1 a_unknown  /* ItemInvis (Lesser) */
-    // TODO: AIv2 a_unknown  /* ItemInvis (Greater) */
-    // TODO: AIvl a_unknown  /* ItemInvul */
-    // TODO: AIwm a_unknown  /* Watery Minion (item) */
-    // TODO: AIx1 a_unknown  /* (All + 1) */
-    // TODO: AIx2 a_unknown  /* (All + 2) */
-    // TODO: AIx3 a_unknown  /* (All + 3) */
-    // TODO: AIx4 a_unknown  /* (All + 4) */
-    // TODO: AIx5 a_unknown  /* Crown of Kings (All + 5) */
-    // TODO: AIxk a_unknown  /* Beserk (item) */
     { "AIxs", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-magic Shield */
-    // TODO: ANak a_unknown  /* Orb of Annihilation (Quill Spray) */
-    // TODO: ANb2 a_unknown  /* Bash (maul , SP Bear, level 3) */
-    // TODO: ANbh a_unknown  /* Bash (Beastmaster Bear) */
-    // TODO: ANbl a_unknown  /* Blink(Beastmaster Bear) */
-    // TODO: ANc1 a_unknown  /* Tinkerer - Cluster Rockets (Level 1) */
-    // TODO: ANc2 a_unknown  /* Tinkerer - Cluster Rockets (Level 2) */
-    // TODO: ANc3 a_unknown  /* Tinkerer - Cluster Rockets (Level 3) */
-    // TODO: ANd1 a_unknown  /* Tinkerer - Demolish (Level 1) */
-    // TODO: ANd2 a_unknown  /* Tinkerer - Demolish (Level 2) */
-    // TODO: ANd3 a_unknown  /* Tinkerer - Demolish (Level 3) */
-    // TODO: ANfa a_unknown  /* Sea Witch - Frost Arrows */
-    // TODO: ANg1 a_unknown  /* Tinkerer - Robo-Goblin (Level 1) */
-    // TODO: ANg2 a_unknown  /* Tinkerer - Robo-Goblin (Level 2) */
-    // TODO: ANg3 a_unknown  /* Tinkerer - Robo-Goblin (Level 3) */
-    // ANr3 registered with CAbilityRainOfChaos
-    // TODO: ANre a_unknown  /* Neutral Regen (mana only) */
-    // TODO: ANrn a_unknown  /* Mannoroth - Reincarnation */
-    // ANs1/ANs2/ANs3 registered with CAbilityPocketFactory
-    // TODO: ANt2 a_unknown  /* Thorny Shield (Dragon Turtle) */
-    // TODO: ANta a_unknown  /* Taunt(Creep) */
-    // TODO: ANth a_unknown  /* Thorny Shield (Creep) */
-    // TODO: ANtr a_unknown  /* Detect(War Eagle) */
-    // TODO: ANwk a_unknown  /* Wind Walk */
-    // TODO: AOsw a_unknown  /* Shadow Hunter - Serpent Ward */
-    // TODO: APdi a_unknown  /* PowerupDispelAoe */
-    // TODO: APh1 a_unknown  /* PowerupHealAoeLesser */
-    // TODO: APh2 a_unknown  /* PowerupHealAoe */
-    // TODO: APh3 a_unknown  /* PowerupHealAoeGreater */
-    // TODO: APmg a_unknown  /* RuneManaRestoreGreaterAoe */
-    // TODO: APmr a_unknown  /* RuneManaRestoreAoe */
-    // TODO: APra a_unknown  /* RuneRestoreAoe */
-    // TODO: APrl a_unknown  /* Rune of Lesser Resurrection */
-    // TODO: APrr a_unknown  /* Rune of Greater Resurrection */
-    // TODO: APsa a_unknown  /* RuneSpeedAoe */
-    // TODO: APwt a_unknown  /* Rune of the Watcher */
-    // TODO: Aap1 a_unknown  /* Aura - Plague (Abomination) */
-    // TODO: Aap2 a_unknown  /* Aura - Plague (Plague Ward) */
-    // TODO: Aap3 a_unknown  /* Aura - Plague (Creep) */
-    // TODO: Aap4 a_unknown  /* Aura - Plague (Creep gfx) */
-    // TODO: Abdl a_unknown  /* Blight Dispel (Large) */
-    // TODO: Abds a_unknown  /* Blight Dispel (Small) */
-    // TODO: Abgl a_unknown  /* Blight Growth (Large) */
-    // TODO: Abgs a_unknown  /* Blight Growth (Small) */
-    // TODO: Abu2 a_unknown  /* Burrow(scarab lvl 2) */
-    // TODO: Abu3 a_unknown  /* Burrow(scarab lvl 3) */
-    // TODO: Abu5 a_unknown  /* Burrow(Barbed Arachnathid) */
-    // TODO: Acdb a_unknown  /* Chen- Drunken Brawler */
-    // TODO: Ache a_unknown  /* Chain Dispel */
-    // TODO: Acht a_unknown  /* Howl of Terror */
-    // TODO: Acn2 a_unknown  /* Cannibalize (Abomination) */
-    // TODO: Aco2 a_unknown  /* Couple Instant (Archer) */
-    // TODO: Aco3 a_unknown  /* Couple Instant (Hippogryph) */
-    // TODO: Adcn a_unknown  /* Disenchant(new) */
-    // TODO: Adsm a_unknown  /* Dispel Magic (creep) */
-    // TODO: Adt1 a_unknown  /* Detect (Sentry Ward) */
-    // TODO: Adtg a_unknown  /* Detect (general) */
-    // TODO: Aegr a_unknown  /* Elune's Grace */
-    // TODO: Aenr a_unknown  /* Entangling Roots (creep) */
-    // TODO: Aenw a_unknown  /* Entangling Seaweed */
-    // TODO: Aesr a_unknown  /* Sentinel (no research) */
-    // TODO: Afa2 a_unknown  /* Faerie Fire */
-    // TODO: Afbt a_unknown  /* Feedback(Arcane Tower) */
-    // TODO: Afod a_unknown  /* Finger of Death */
-    // TODO: Afr2 a_unknown  /* Frost Attack (1,2) */
-    // TODO: Ahr2 a_unknown  /* Harvest Lumber (Arch ghouls) */
-    // TODO: Ahr3 a_unknown  /* Harvest Lumber (shredder) */
-    // TODO: Ahrp a_unknown  /* Repair (Human) */
-    // TODO: Aien a_unknown  /* Inventory(2 slot unit) Night Elf */
-    // TODO: Aihn a_unknown  /* Inventory(2 slot unit) Human */
-    // TODO: Aion a_unknown  /* Inventory(2 slot unit) Orc */
-    // TODO: Aiun a_unknown  /* Inventory(2 slot unit) Undead */
-    // TODO: Amb2 a_unknown  /* Mana Battery (Obsidian Statue) */
-    // TODO: Ambb a_unknown  /* Mana Burn (Hotkey B) */
-    // TODO: Ambd a_unknown  /* Mana Burn (demon) */
     { "Amgr", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive (Naisha) */
-    // TODO: Amnb a_unknown  /* Mana Burn (demon) */
-    // TODO: Amnx a_unknown  /* Death Damage (mine) */
-    // TODO: Amnz a_unknown  /* Death Damage (mine BIG) */
-    // TODO: Ane2 a_unknown  /* Neutral Building (any unit) */
-    // TODO: Anh1 a_unknown  /* Heal (Creep Normal) */
-    // TODO: Anh2 a_unknown  /* Heal (Creep High) */
-    // TODO: Ansk a_unknown  /* Hardened Skin(Naga Turtle) */
-    // TODO: Apak a_unknown  /* Inventory (Pack Mule) */
-    // TODO: Apmf a_unknown  /* Permanent Immolation (flying) */
-    // TODO: Ara2 a_unknown  /* Roar */
-    // TODO: Argd a_unknown  /* Return (Gold) */
-    // TODO: Argl a_unknown  /* Return (Gold & Lumber) */
-    // TODO: Arll a_unknown  /* Regen Life */
-    // TODO: Arlm a_unknown  /* Return (Lumber) */
-    // TODO: Aro1 a_unknown  /* Root (Ancients) */
-    // TODO: Aro2 a_unknown  /* Root (Ancient Protector) */
     { "Asds", CAbilitySelfDestruct, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Kaboom! */
     { "Asdg", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct (Clockwerk Goblins) */
     { "Asd2", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct 2 (Clockwerk Goblins) */
     { "Asd3", CAbilitySelfDestruct, AB_PASSIVE },  /* Self Destruct 3 (Clockwerk Goblins) */
-    // TODO: Aslp a_unknown  /* Summon Lobstrok Prawns */
-    // TODO: Asp1 a_unknown  /* Sphere (SoV Level 1) */
-    // TODO: Asp2 a_unknown  /* Sphere (SoV Level 2) */
-    // TODO: Asp3 a_unknown  /* Sphere (SoV Level 3) */
-    // TODO: Asp4 a_unknown  /* Sphere (SoV Level 4) */
-    // TODO: Asp5 a_unknown  /* Sphere (SoV Level 5) */
-    // TODO: Asp6 a_unknown  /* Sphere (SoV Level 6) */
-    // TODO: Aspp a_unknown  /* Rune of Spirit Link */
-    // TODO: Aspt a_unknown  /* Spawn Hydra Hatchling */
-    // TODO: Aspy a_unknown  /* Spawn Hydra */
-    // TODO: Awfb a_unknown  /* Fire Bolt (warlock) */
-    // TODO: Awh2 a_unknown  /* Wisp Harvest (Invulnerable) */
-    // TODO: Awrg a_unknown  /* War Stomp (sea giant) */
-    // TODO: Awrh a_unknown  /* War Stomp (hydra) */
-    // TODO: Awrs a_unknown  /* War Stomp (creep) */
-    // TODO: SCae a_unknown  /* Aura - Endurance (Creep) */
-    // SCc1 registered with CAbilityCyclone
-    // TODO: SCva a_unknown  /* Vampiric attack */
-    // TODO: SNdd a_unknown  /* Super Death and Decay */
-    // TODO: SNeq a_unknown  /* Super Earthquake */
-    // TODO: SNin a_unknown  /* Tichondrius - Inferno */
-    // TODO: Sbsk a_unknown  /* Berserker Upgrade */
-    // TODO: Sbtl a_unknown  /* Battlestations (Chaos) */
-    // TODO: Sca1 a_unknown  /* Chaos (Grunt) */
-    // TODO: Sca2 a_unknown  /* Chaos (Raider) */
-    // TODO: Sca3 a_unknown  /* Chaos (Shaman) */
-    // TODO: Sca4 a_unknown  /* Chaos (Kodo) */
-    // TODO: Sca5 a_unknown  /* Chaos (Peon) */
-    // TODO: Sca6 a_unknown  /* Chaos (Grom) */
-    // TODO: Sch2 a_unknown  /* Cargo Hold (Meat Wagon) */
-    // TODO: Sch3 a_unknown  /* Cargo Hold (Transport) */
-    // TODO: Sch4 a_unknown  /* Cargo Hold (Tank) */
-    // TODO: Sch5 a_unknown  /* Cargo Hold (Ship) */
-    // TODO: Scri a_unknown  /* Cripple (Warlock) */
-    // TODO: Sdro a_unknown  /* Drop */
-    // TODO: Slo2 a_unknown  /* Load (Entangled Gold Mine) */
-    // TODO: Slo3 a_unknown  /* Load (Navies) */
-    // TODO: Sloa a_unknown  /* Load (Burrow) */
-    // TODO: Srtt a_unknown  /* Tank Upgrade */
-    // TODO: Sshm a_unknown  /* Shadow Meld (Instant) */
-    // TODO: Stpm a_unknown  /* Pilot Tank (Mortar Team) */
-    // TODO: Stpr a_unknown  /* PIlot Tank (Rifleman) */
-    // TODO: Suhf a_unknown  /* Unholy Frenzy (Warlock) */
+    { "Srtt", CAbilityPassive, AB_PASSIVE },  /* Tank Upgrade */
     /* END GENERATED TODO ABILITIES */
 
     /* Passive regeneration base codes remain explicit outside generated TODOs. */
     { "Abar", CAbilityBarkskin, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT, barkskin_orders },  /* Barkskin */
     { "Aarm", CAbilityPassive, AB_PASSIVE },  /* Mana Regeneration Aura */
-    { "Aoar", CAbilityPassive, AB_PASSIVE },  /* Healing Ward Aura */
-    { "Aabr", CAbilityPassive, AB_PASSIVE },  /* Aura of Blight */
 };
 
 /* Build a compact unique procedure list once, rather than scan the whole registry per unit tick. */
