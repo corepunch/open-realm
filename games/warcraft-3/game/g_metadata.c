@@ -793,17 +793,17 @@ static DWORD ParseWeaponTargetMask(LPCSTR text) {
         while (*p && *p != ',' && len + 1 < sizeof(token)) token[len++] = *p++;
         while (len && (token[len - 1] == ' ' || token[len - 1] == '\t')) len--;
         token[len] = '\0';
-        if (!strcasecmp(token, "none"))            mask |= 1u;
-        else if (!strcasecmp(token, "ground"))     mask |= 2u;
-        else if (!strcasecmp(token, "air"))        mask |= 4u;
-        else if (!strcasecmp(token, "structure"))  mask |= 8u;
-        else if (!strcasecmp(token, "ward"))       mask |= 16u;
-        else if (!strcasecmp(token, "item"))       mask |= 32u;
-        else if (!strcasecmp(token, "tree"))       mask |= 64u;
-        else if (!strcasecmp(token, "wall"))       mask |= 128u;
-        else if (!strcasecmp(token, "debris"))     mask |= 256u;
-        else if (!strcasecmp(token, "decoration")) mask |= 512u;
-        else if (!strcasecmp(token, "bridge"))     mask |= 1024u;
+        if (!strcasecmp(token, "none"))            mask |= WC3_TARGET_FLAG_NONE;
+        else if (!strcasecmp(token, "ground"))     mask |= WC3_TARGET_FLAG_GROUND;
+        else if (!strcasecmp(token, "air"))        mask |= WC3_TARGET_FLAG_AIR;
+        else if (!strcasecmp(token, "structure"))  mask |= WC3_TARGET_FLAG_STRUCTURE;
+        else if (!strcasecmp(token, "ward"))       mask |= WC3_TARGET_FLAG_WARD;
+        else if (!strcasecmp(token, "item"))       mask |= WC3_TARGET_FLAG_ITEM;
+        else if (!strcasecmp(token, "tree"))       mask |= WC3_TARGET_FLAG_TREE;
+        else if (!strcasecmp(token, "wall"))       mask |= WC3_TARGET_FLAG_WALL;
+        else if (!strcasecmp(token, "debris"))     mask |= WC3_TARGET_FLAG_DEBRIS;
+        else if (!strcasecmp(token, "decoration")) mask |= WC3_TARGET_FLAG_DECORATION;
+        else if (!strcasecmp(token, "bridge"))     mask |= WC3_TARGET_FLAG_BRIDGE;
         while (*p && *p != ',') p++;
         if (*p == ',') p++;
     }

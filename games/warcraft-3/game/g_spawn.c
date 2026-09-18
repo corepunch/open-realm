@@ -236,6 +236,22 @@ LPCSTR targs[] = {
     "deco", // DECORATION
 };
 
+DWORD G_TargetFlagForType(TARGTYPE type) {
+    switch (type) {
+    case TARG_GROUND:     return WC3_TARGET_FLAG_GROUND;
+    case TARG_AIR:        return WC3_TARGET_FLAG_AIR;
+    case TARG_STRUCTURE:  return WC3_TARGET_FLAG_STRUCTURE;
+    case TARG_WARD:       return WC3_TARGET_FLAG_WARD;
+    case TARG_ITEM:       return WC3_TARGET_FLAG_ITEM;
+    case TARG_TREE:       return WC3_TARGET_FLAG_TREE;
+    case TARG_WALL:       return WC3_TARGET_FLAG_WALL;
+    case TARG_DEBRIS:     return WC3_TARGET_FLAG_DEBRIS;
+    case TARG_DECORATION: return WC3_TARGET_FLAG_DECORATION;
+    case TARG_BRIDGE:     return WC3_TARGET_FLAG_BRIDGE;
+    default:              return 0u;
+    }
+}
+
 TARGTYPE G_GetTargetType(LPCSTR str) {
     /* Missing target metadata means no target flags; strlen(NULL) previously crashed sparse unit transforms. */
     if (!str || !*str) return TARG_NONE;

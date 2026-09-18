@@ -252,6 +252,21 @@ typedef enum {
     TARG_DECORATION,
 } TARGTYPE;
 
+/* Warcraft common.j targetflag bits used by UnitWeapons ua1g/ua2g. */
+enum {
+    WC3_TARGET_FLAG_NONE       = 1u,
+    WC3_TARGET_FLAG_GROUND     = 2u,
+    WC3_TARGET_FLAG_AIR        = 4u,
+    WC3_TARGET_FLAG_STRUCTURE  = 8u,
+    WC3_TARGET_FLAG_WARD       = 16u,
+    WC3_TARGET_FLAG_ITEM       = 32u,
+    WC3_TARGET_FLAG_TREE       = 64u,
+    WC3_TARGET_FLAG_WALL       = 128u,
+    WC3_TARGET_FLAG_DEBRIS     = 256u,
+    WC3_TARGET_FLAG_DECORATION = 512u,
+    WC3_TARGET_FLAG_BRIDGE     = 1024u,
+};
+
 typedef enum {
     MOVETYPE_NONE,            // never moves
     MOVETYPE_NOCLIP,          // origin and angles change with no interaction
@@ -1836,6 +1851,7 @@ void G_SetScriptPaused(BOOL paused);
 void G_SetClientModal(LPEDICT player, DWORD modal, BOOL open);
 void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
 TARGTYPE G_GetTargetType(LPCSTR);
+DWORD G_TargetFlagForType(TARGTYPE);
 LPCSTR G_LevelString(LPCSTR);
 LPCSTR G_MapString(LPCMAPINFO info, LPCSTR name);
 LPCSTR G_UnitName(DWORD);
@@ -2605,6 +2621,8 @@ LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 
 void order_attack(LPEDICT, LPEDICT);
 BOOL S_OrderAttack(LPEDICT self, LPEDICT target);
+BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target);
+BOOL S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target);
 void order_move(LPEDICT, LPEDICT);
 BOOL move_is_active_order_walk(LPCEDICT);
 void move_start_displacement(LPEDICT, LPCVECTOR2);

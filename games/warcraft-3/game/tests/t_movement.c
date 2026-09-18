@@ -3915,6 +3915,9 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
     burrow->cargo.count = 1;
     peon->s.renderfx |= RF_HIDDEN;
     peon->paused = true;
+    burrow->attack1.type = ATK_PIERCE;
+    burrow->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_GROUND;
 
     order_attack(burrow, target);
     T_NOT_NULL(burrow->currentmove);

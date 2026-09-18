@@ -105,24 +105,8 @@ BOOL G_DestructableIsWalkable(LPCEDICT ent) {
         ent->destructable.placement_solid && !ent->destructable.dead;
 }
 
-/* Warcraft targetflag values from common.j/common.txt.  TARGTYPE is an
- * internal enum, so its ordinal must not be used as the attack-mask bit. */
-static DWORD G_DestructableTargetFlag(TARGTYPE type) {
-    switch (type) {
-    case TARG_GROUND:     return 2u;
-    case TARG_AIR:        return 4u;
-    case TARG_STRUCTURE:  return 8u;
-    case TARG_WARD:       return 16u;
-    case TARG_ITEM:       return 32u;
-    case TARG_TREE:       return 64u;
-    case TARG_WALL:       return 128u;
-    case TARG_DEBRIS:     return 256u;
-    case TARG_DECORATION: return 512u;
-    case TARG_BRIDGE:     return 1024u;
-    default:              return 0u;
-    }
-}
-
+/* Warcraft target flags are shared with ordinary unit weapon targeting;
+ * G_TargetFlagForType() owns the TARGTYPE -> common.j bit conversion. */
 BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
     DWORD flag;
 
@@ -136,7 +120,7 @@ BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
     if (target->targtype == TARG_TREE) {
         return true;
     }
-    flag = G_DestructableTargetFlag(target->targtype);
+    flag = G_TargetFlagForType(target->targtype);
     return flag && (attacker->attack1.targetsAllowed & flag) != 0;
 }
 
