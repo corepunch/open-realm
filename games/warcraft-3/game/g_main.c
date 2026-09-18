@@ -943,6 +943,8 @@ static void G_RunFrame(void) {
     G_FowUpdate();
     G_UpdateClientSelections();
     G_FowSendDeltas();
+    /* Optional live-map diagnostic: walk the player Hero, save, load, compare. */
+    G_HeroSaveLoadAuditFrame();
 }
 
 static LPCSTR G_GetThemeValue(LPCSTR filename) {

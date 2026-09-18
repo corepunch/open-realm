@@ -83,6 +83,13 @@ audit-wc3-maps: $(BINARY) mpqtool
 test-wc3-map-audit:
 	python3 tests/test_wc3_map_audit.py
 
+WC3_HERO_SAVELOAD_ARGS ?=
+audit-wc3-hero-saveload: $(BINARY) mpqtool
+	python3 tools/wc3_hero_saveload_audit.py --data "$(subst \,,$(WC3DATA))" --binary "$(BINARY)" --mpqtool "$(BIN_DIR)/mpqtool$(EXE_EXT)" $(WC3_HERO_SAVELOAD_ARGS)
+
+test-wc3-hero-saveload-audit:
+	python3 tests/test_wc3_hero_saveload_audit.py
+
 TRACE_FILE := build/profile-map.trace
 
 profile-map: $(BINARY) xctraceprof
@@ -185,7 +192,7 @@ TEST_JOBS ?= 16
 	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net \
 		test-renderer-model test-mdx-ui test-renderer-view test-renderer-shadows test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera
+		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
@@ -282,7 +289,7 @@ $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass \
-	audit-wc3-maps test-wc3-map-audit test \
+	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
 	test-commands test-server-net test-renderer-model test-mdx-ui test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine download
 

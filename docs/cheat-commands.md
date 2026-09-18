@@ -83,6 +83,8 @@ hero select
 
 The command requires `sv_cheats 1` and refreshes the normal selection events, portrait, command card, and client selection snapshot.
 
+`hero dump` prints a machine-readable `HERO_SAVELOAD snapshot=dump` line for the selected Hero, or the first live Hero owned by the issuing player when nothing is selected. `hero walk [dx dy]` issues an ordinary `move` order from the selected Hero; omitted offsets walk 80 world units along +X. Both require `sv_cheats 1`. The campaign diagnostic `wc3_hero_saveload_audit` uses the same snapshot format without needing a connected client; see [Save/Load](games/warcraft-3/save-load.md#hero-walk--save--load).
+
 The command uses the ordinary Hero XP/level-up path so attribute growth and Hero level events remain authoritative. After leveling, it ensures the Hero has at least one total skill point per Hero level minus already learned Hero ability ranks; existing extra skill points awarded by map scripts are preserved. The command requires `sv_cheats 1` and a selected controllable Hero.
 
 The same selected-Hero command family can restore or directly set current health and mana:

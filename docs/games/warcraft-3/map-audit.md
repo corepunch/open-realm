@@ -42,6 +42,10 @@ To replace the body of the tracking issue with a fresh report:
 gh issue edit 418 --body-file build/wc3-map-audit/report.md
 ```
 
+Hero walk / save / load on the same campaign enumerator is a separate local
+diagnostic: `make audit-wc3-hero-saveload`. See
+[Save/Load](save-load.md#hero-walk--save--load).
+
 ## Focused and Longer Runs
 
 Pass runner arguments through `WC3_AUDIT_ARGS`:

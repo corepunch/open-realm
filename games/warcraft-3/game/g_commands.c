@@ -1160,10 +1160,50 @@ CLIENTCOMMAND(Hero) {
         G_CheatPrintf(clent, "WC3: no controllable hero found for player %u", (unsigned)client->ps.number);
         return;
     }
+    if (argc >= 2 && !strcasecmp(argv[1], "dump")) {
+        char snap[512];
+        hero = client ? G_GetMainSelectedUnit(client) : NULL;
+        if (!hero || !G_UnitIsHero(hero)) {
+            FOR_LOOP(i, globals.num_edicts) {
+                LPEDICT candidate = &globals.edicts[i];
+                if (candidate->inuse && (candidate->svflags & SVF_MONSTER) && !M_IsDead(candidate) &&
+                        G_UnitIsHero(candidate) && (!client || candidate->s.player == client->ps.number)) {
+                    hero = candidate;
+                    break;
+                }
+            }
+        }
+        G_FormatHeroSaveSnap(hero, snap, sizeof(snap));
+        G_CheatPrintf(clent, "HERO_SAVELOAD snapshot=dump %s", snap);
+        return;
+    }
+    if (argc >= 2 && !strcasecmp(argv[1], "walk")) {
+        VECTOR2 dest;
+        FLOAT dx = 80.0f, dy = 0.0f;
+        hero = client ? G_GetMainSelectedUnit(client) : NULL;
+        if (!hero || !G_UnitCanControl(client, hero) || !G_UnitIsHero(hero)) {
+            G_CheatPrintf(clent, "WC3: hero walk requires a selected friendly hero");
+            return;
+        }
+        if (argc == 4 && G_DebugIsNumber(argv[2]) && G_DebugIsNumber(argv[3])) {
+            dx = (FLOAT)atoi(argv[2]);
+            dy = (FLOAT)atoi(argv[3]);
+        } else if (argc != 2) {
+            G_CheatPrintf(clent, "WC3: usage: hero walk [dx dy]");
+            return;
+        }
+        dest = (VECTOR2){ hero->s.origin2.x + dx, hero->s.origin2.y + dy };
+        if (!unit_issueorder(hero, "move", &dest)) {
+            G_CheatPrintf(clent, "WC3: hero walk order rejected");
+            return;
+        }
+        G_CheatPrintf(clent, "WC3: hero walk to %.0f %.0f", dest.x, dest.y);
+        return;
+    }
     if (argc < 2 || argc > 3 ||
             (strcasecmp(argv[1], "max") && strcasecmp(argv[1], "health") && strcasecmp(argv[1], "mana")) ||
             (!strcasecmp(argv[1], "max") && argc != 2)) {
-        G_CheatPrintf(clent, "WC3: usage: hero select | hero max | hero health [amount] | hero mana [amount]");
+        G_CheatPrintf(clent, "WC3: usage: hero select | hero dump | hero walk [dx dy] | hero max | hero health [amount] | hero mana [amount]");
         return;
     }
     hero = client ? G_GetMainSelectedUnit(client) : NULL;

@@ -127,6 +127,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Adding Warcraft III Abilities](ability-implementation-plan.md): data, procedure macros, registration, and tests.
 - [Implemented Ability Verification Review](ability-verification-review.md): reproduced failures, lifecycle fixes, and permanent regression coverage.
 - [Campaign Map Audit](map-audit.md): bounded bulk runtime sweeps with per-map errors and retained logs.
+- [Save/Load](save-load.md): versioned game serializer, Hero walk/save/load campaign diagnostic.
 - [Ability Coverage](architecture/ability-coverage.md)
 - [Flat C Ability System: Flags and Message Procedures](ability-inheritance-plan.md)
 - [Ability Inheritance: Binary Evidence](ability-inheritance-binary.md)

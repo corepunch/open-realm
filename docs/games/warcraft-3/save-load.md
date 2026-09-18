@@ -180,6 +180,45 @@ persisted deadline.
 Regression test: `wc3_save.load_restores_server_clock_onto_saved_time` in
 `games/warcraft-3/game/tests/t_game.c`.
 
+## Hero walk / save / load
+
+The serializer already round-trips edict pointers, Hero skill slots, runtime
+ability lists, and inventory items. The gameplay contract a player notices is
+stronger: a Hero that has walked away from spawn must restore that location
+together with learned skills and carried items.
+
+CI covers that contract without retail maps in
+`wc3_save.walking_hero_round_trips_abilities_inventory_origin`
+(`games/warcraft-3/game/tests/t_hero_saveload.c`). The test learns two Paladin
+skills, inserts two charged items, issues `unit_issueorder(..., "move", ...)`,
+steps until origin changes while `currentmove` is still `walk`, then
+`WriteGame`/`ReadGame` and checks origin, `heroabilities[]`, `abilities.added[]`,
+inventory class/charges, and that one more walk think still advances.
+
+Campaign maps are a local diagnostic, not `make test`. Arm the production
+binary with `wc3_hero_saveload_audit=1`; after `G_LoadMap` the game module waits
+for a live Hero, issues a short walk, saves, reloads through `WriteGame`/
+`ReadGame`, and prints `HERO_SAVELOAD` lines. Isolated per-map processes:
+
+```sh
+make audit-wc3-hero-saveload
+make audit-wc3-hero-saveload WC3_HERO_SAVELOAD_ARGS='--map Human02.w3m --jobs 1'
+make test-wc3-hero-saveload-audit
+```
+
+Reports land in `build/wc3-hero-saveload-audit/`. `no_hero` is typical for
+credits and some Rexxar sub-areas; it is not a serializer failure. This path
+does not call `SV_Map` reconnect; it restores onto the already-loaded map, which
+is the same game-module boundary the CI test uses.
+
+First full sweep: 88 pass, 5 `no_hero`, 4 `fail_move` (walk accepted, origin
+unchanged, `currentmove` stayed `stand`). Tracked in
+[#438](https://github.com/corepunch/open-realm/issues/438).
+
+Manual cheats (`sv_cheats 1`): `hero dump` prints the same snapshot line, and
+`hero walk [dx dy]` issues a move order from the selected Hero. See
+[Campaign Map Audit](map-audit.md) for the sibling startup smoke sweep.
+
 ## Active Behavior (`F_MMOVE`)
 
 `edict_s.currentmove` is the running `umove_t` state machine. `monster_think` returns immediately

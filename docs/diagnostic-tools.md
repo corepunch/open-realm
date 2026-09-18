@@ -8,6 +8,11 @@ Use `make test-wc3-map-audit` for the retail-data-independent tool tests. See
 [Warcraft III Campaign Map Audit](games/warcraft-3/map-audit.md) for focused
 runs, longer frame budgets, report semantics, and the GitHub issue command.
 
+Use `make audit-wc3-hero-saveload` to walk the player Hero on every campaign
+map, save, load, and compare origin/abilities/inventory. Parser tests are
+`make test-wc3-hero-saveload-audit`. See
+[Hero walk / save / load](games/warcraft-3/save-load.md#hero-walk--save--load).
+
 ## Ability brief (ability_audit)
 
 Poll one Warcraft III ability from the installed MPQs without parsing SLK by
