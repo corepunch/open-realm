@@ -141,7 +141,7 @@ LPCENTITYSTATE SCR_LayoutContextEntity(void) {
 
     if (!cl.hover_entity || cl.hover_entity >= MAX_CLIENT_ENTITIES) return NULL;
     ent = &cl.ents[cl.hover_entity].current;
-    if (!ent->model || !ent->stats[ENT_HEALTH] || !(ent->flags & EF_HOVER_HEALTH)) return NULL;
+    if (!ent->model) return NULL;
     return ent;
 }
 
@@ -162,9 +162,11 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
     if (!ent) return false;
     switch (stat) {
         case UI_STAT_CONTEXT_HEALTH:
+            if (!(ent->flags & EF_HOVER_HEALTH)) return false;
             *value = ent->stats[ENT_HEALTH] / 255.0f;
             break;
         case UI_STAT_CONTEXT_MANA:
+            if (!(ent->flags & EF_HOVER_MANA)) return false;
             *value = ent->stats[ENT_MANA] / 255.0f;
             break;
         default:

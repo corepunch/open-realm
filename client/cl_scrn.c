@@ -370,7 +370,9 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     FLOAT value;
-    if (SCR_LayoutContextValue(frame->stat, &value) && value <= 0.0f) return;
+    if (frame->stat == UI_STAT_CONTEXT_HEALTH || frame->stat == UI_STAT_CONTEXT_MANA) {
+        if (!SCR_LayoutContextValue(frame->stat, &value) || value <= 0.0f) return;
+    } else if (SCR_LayoutContextValue(frame->stat, &value) && value <= 0.0f) return;
     if (!frame->tex.index) return;  /* unresolved texture — skip to avoid drawing cl.pics[0] */
     LPCTEXTURE tex = cl.pics[frame->tex.index];
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < PLAYERTEXT_COUNT) {
