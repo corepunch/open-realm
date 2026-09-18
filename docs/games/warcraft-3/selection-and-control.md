@@ -128,6 +128,17 @@ focused unit used by focused-unit commands, inventory, and the persistent unit
 portrait. The portrait remains visible for multiselections and follows focus; its
 live HP/mana bindings follow the same focused entity.
 
+Multiselect portrait clicks also preserve Warsmash's exact-unit second-click
+behavior. Clicking a different icon changes the concrete focused unit while
+keeping the full selection, even when that icon belongs to the already-focused
+unit-type subgroup. Clicking that same exact focused icon again collapses the
+authoritative selection to only that unit. The collapse is a real membership
+change: the server publishes deselection events for the removed members, mirrors
+the one-unit selection through `svc_set_selection`, and uses the normal selection
+acknowledgement sound path. Active entity-target commands still take precedence,
+so their portrait clicks target the selected unit instead of changing focus or
+collapsing membership.
+
 When an entity-target command is active, the same multiselect-icon click is routed
 to `menu.on_entity_selected` instead of changing focus. This preserves the
 Warsmash behavior where a selected-unit portrait can be used as the target of the
@@ -147,10 +158,9 @@ reuses the normal focus refresh path, so subgroup highlight, portrait, inventory
 and command card stay synchronized, and a successful change plays the authored
 `SubGroupSelectionChange` UI sound.
 
-OpenRealm still does not reproduce Warsmash's focused/unfocused icon scaling or
-the behavior where clicking the already-focused exact icon collapses the group
-to that one unit. Those are presentation/navigation gaps, not reasons to merge
-inventory state across the group.
+OpenRealm still does not reproduce Warsmash's focused/unfocused icon scaling.
+That is a presentation gap, not a reason to merge inventory state across the
+group.
 
 ### Same-type selection
 
@@ -276,7 +286,7 @@ Do not bypass these gaps by weakening `G_UnitCanControl` or by restoring owner c
 
 ## Verification
 
-In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, Hero revival restoring selectability, selection/deselection JASS event deltas, same-type server filtering, and Warsmash priority/level/canonical-rawcode multiselect ordering. Shared `client_input` coverage drives the real click-release path for Ctrl-click and double-click same-type packet generation and viewport candidate filtering. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
+In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` for relationship classification, visible foreign selectability, shared-control authority, dead-unit non-selectability, selection removal, Hero revival restoring selectability, selection/deselection JASS event deltas, same-type server filtering, Warsmash priority/level/canonical-rawcode multiselect ordering, and exact-focused multiselect portrait second-click collapse. Shared `client_input` coverage drives the real click-release path for Ctrl-click and double-click same-type packet generation and viewport candidate filtering. `t_items.c` additionally covers mixed-selection Smart item pickup with a non-inventory unit first in the selection.
 
 Useful targeted commands after building the test binary:
 

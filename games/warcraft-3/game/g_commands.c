@@ -665,6 +665,36 @@ CLIENTCOMMAND(Focus) {
         }
         return;
     }
+
+    /* Warsmash gives the already-focused multiselect portrait a second-click
+     * meaning: collapse the authoritative selection to that exact unit. A
+     * different portrait, including another unit in the same type subgroup,
+     * only changes focus and leaves the full selection intact. */
+    if (G_GetMainSelectedUnit(client) == target) {
+        LPEDICT old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        DWORD old_count = 0;
+
+        FOR_SELECTED_UNITS(client, selected) {
+            if (old_count >= WC3_SELECTION_LIMIT) break;
+            old_selection[old_count++] = selected;
+        }
+        if (old_count <= 1) return;
+
+        FOR_LOOP(i, old_count) {
+            if (old_selection[i] != target) G_DeselectEntity(client, old_selection[i]);
+        }
+        G_FocusSelectedUnit(client, target);
+
+        if (G_UnitCanControl(client, target)) {
+            G_QueueSelectionSound(target);
+        } else if (target->s.player != PLAYER_NEUTRAL_PASSIVE) {
+            G_PlayUISoundForPlayer(clent, "InterfaceClick");
+        }
+        G_PublishSelectionDelta(client, old_selection, old_count);
+        G_SyncClientSelection(client);
+        return;
+    }
+
     if (!G_FocusSelectedUnit(client, target)) return;
 
     /* Selection membership is unchanged. Rebuild the full focused-selection

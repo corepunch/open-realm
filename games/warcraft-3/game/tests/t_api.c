@@ -2587,6 +2587,44 @@ TEST(wc3_api, multiselect_focus_tracks_one_selected_unit_and_falls_back_when_rem
     T_ASSERT(!G_FocusSelectedUnit(client, second));
 }
 
+TEST(wc3_api, multiselect_portrait_second_click_collapses_exact_focused_unit) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT footman_first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT footman_second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    LPEDICT paladin = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64, 0);
+    char second_number[16];
+    LPCSTR focus_second[] = { "focus", second_number };
+
+    client->ps.number = 0;
+    G_ResetSelectionFocus(client);
+    footman_first->s.player = footman_second->s.player = paladin->s.player = 0;
+    footman_first->svflags |= SVF_MONSTER;
+    footman_second->svflags |= SVF_MONSTER;
+    paladin->svflags |= SVF_MONSTER;
+    G_SelectEntity(client, footman_first);
+    G_SelectEntity(client, footman_second);
+    G_SelectEntity(client, paladin);
+    snprintf(second_number, sizeof(second_number), "%u", (unsigned)footman_second->s.number);
+
+    T_ASSERT(G_GetMainSelectedUnit(client) == footman_first);
+
+    /* Another member of the already-active Footman subgroup becomes the exact
+     * representative without changing the three-unit selection. */
+    globals.ClientCommand(&g_edicts[0], 2, focus_second);
+    T_ASSERT(G_GetMainSelectedUnit(client) == footman_second);
+    T_ASSERT(G_IsEntitySelected(client, footman_first));
+    T_ASSERT(G_IsEntitySelected(client, footman_second));
+    T_ASSERT(G_IsEntitySelected(client, paladin));
+
+    /* Clicking that same representative again matches Warsmash: the status
+     * panel selection collapses to only the clicked unit. */
+    globals.ClientCommand(&g_edicts[0], 2, focus_second);
+    T_ASSERT(G_GetMainSelectedUnit(client) == footman_second);
+    T_ASSERT(!G_IsEntitySelected(client, footman_first));
+    T_ASSERT(G_IsEntitySelected(client, footman_second));
+    T_ASSERT(!G_IsEntitySelected(client, paladin));
+}
+
 TEST(wc3_api, tab_cycle_advances_unit_type_subgroups_and_wraps) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT footman_first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
