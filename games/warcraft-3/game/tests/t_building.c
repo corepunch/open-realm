@@ -1547,6 +1547,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
         MAKEFOURCC('h','h','o','u'), MAKEFOURCC('h','b','a','r'), MAKEFOURCC('h','t','o','w')
     };
     BOOL issued[3] = { false, false, false };
+    BOOL barracks_spawned = false;
     BOOL townhall_spawned = false;
     LPGAMECLIENT client;
 
@@ -1613,8 +1614,12 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     T_ASSERT(!barracks->build_project);
     T_ASSERT(!townhall->build_project);
     FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == buildings[1])
+            barracks_spawned = true;
+    FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].inuse && g_edicts[i].class_id == buildings[2])
             townhall_spawned = true;
+    T_ASSERT(barracks_spawned);
     T_ASSERT(townhall_spawned);
 }
 
