@@ -444,6 +444,7 @@ void R_DrawMinimapScene(LPCRECT screen, LPCSTR map);
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
 bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen);
 void R_DrawMinimapCameraRect(LPCRECT screen);
+void R_DrawMinimapBorder(LPCRECT screen, COLOR32 color);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);

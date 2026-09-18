@@ -323,6 +323,9 @@ void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
     }
 
     R_DrawMinimapCameraRect(&content);
+    /* Draw last so the border remains visible over the map and camera overlay.
+     * It outlines the actual aspect-preserving map area, not letterbox margins. */
+    R_DrawMinimapBorder(&content, MAKE(COLOR32, 192, 192, 192, 255));
 }
 
 void R_RegisterMap(LPCSTR mapFileName) {
