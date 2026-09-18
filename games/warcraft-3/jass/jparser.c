@@ -39,7 +39,12 @@ static BOOL token_in(LPCSTR tok, LPCSTR const *grammar, DWORD count) {
 
 static DWORD parser_line(LPPARSER p) {
     DWORD line = 1;
-    for (LPCSTR cur = p->start; cur && cur < p->buffer; cur++) if (*cur == '\n') line++;
+    for (LPCSTR cur = p->start; cur && cur < p->buffer; cur++) {
+        if (*cur == '\n' || *cur == '\r') {
+            if (*cur == '\r' && cur[1] == '\n') cur++;
+            line++;
+        }
+    }
     return line;
 }
 
@@ -179,6 +184,8 @@ PARSER(parse_function_decl) {
     return token;
 }
 
+PARSER(keyword_function);
+
 PARSER(keyword_native) {
     LPTOKEN token = parse_function_decl(p);
     token->flags |= TF_NATIVE;
@@ -190,9 +197,13 @@ PARSER(keyword_constant) {
         LPTOKEN token = keyword_native(p);
         token->flags |= TF_CONSTANT;
         return token;
-    } else {
-        PARSER_THROW("expected native after constant");
     }
+    if (eat_token(p, "function")) {
+        LPTOKEN token = keyword_function(p);
+        token->flags |= TF_CONSTANT;
+        return token;
+    }
+    PARSER_THROW("expected native or function after constant");
 }
 
 static void jass_remove_quotes(LPSTR str, char quote) {
@@ -386,7 +397,7 @@ PARSER(statement_if) {
     token->condition = parse_logical_expression(p);
     if (!eat_token(p, "then")) {
         FREE(token);
-        PARSER_THROW("THEN expected");
+        PARSER_THROW("THEN expected at line %u near '%s'", parser_line(p), peek_token(p));
     }
     while (!eat_token(p, "endif")) {
         if (eat_token(p, "elseif")) {
@@ -394,7 +405,7 @@ PARSER(statement_if) {
             next->condition = parse_logical_expression(p);
             if (!eat_token(p, "then")) {
                 FREE(token);
-                PARSER_THROW("THEN expected");
+                PARSER_THROW("THEN expected at line %u near '%s'", parser_line(p), peek_token(p));
             }
             target->elseblock = next;
             target = next;

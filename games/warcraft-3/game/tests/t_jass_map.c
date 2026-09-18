@@ -189,6 +189,77 @@ TEST(wc3_jass_map, minified_set_empty_string) {
         "endfunction\n"));
 }
 
+/* DotA's compiled script is CR-only and glues )then / if( the way Vexorian does. */
+TEST(wc3_jass_map, minified_constant_function) {
+    T_ASSERT(run_test_jass(
+        "constant function Warpath_AbilityCode takes nothing returns integer\n"
+        "  return 'A0F0'\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(Warpath_AbilityCode() == 'A0F0', \"constant function\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_jass_map, minified_c_hex_integer) {
+    T_ASSERT(run_test_jass(
+        "function foo takes nothing returns integer\n"
+        "  return 0x10\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(foo() == 16, \"0x hex\")\n"
+        "  call BJassAssert(I2R(0x10) == 16.0, \"I2R 0x hex\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_jass_map, minified_int_then_or_glued) {
+    T_ASSERT(run_test_jass(
+        "function foo takes integer n returns integer\n"
+        "  if n!=851983then\n"
+        "    return 1\n"
+        "  endif\n"
+        "  if n==851983or n==2 then\n"
+        "    return 2\n"
+        "  endif\n"
+        "  return 0\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(foo(3) == 1, \"int then\")\n"
+        "  call BJassAssert(foo(851983) == 2, \"int or\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_jass_map, minified_fourcc_or_glued) {
+    T_ASSERT(run_test_jass(
+        "function foo takes integer id returns integer\n"
+        "  if(id=='Hmbr'or(id=='Hfoo'))then\n"
+        "    return 1\n"
+        "  endif\n"
+        "  return 0\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(foo('Hmbr') == 1, \"glued fourcc or\")\n"
+        "  call BJassAssert(foo('Hfoo') == 1, \"glued paren or\")\n"
+        "  call BJassAssert(foo('Hbar') == 0, \"no match\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_jass_map, minified_cr_if_then) {
+    T_ASSERT(run_test_jass(
+        "globals\rboolean flag=true\rendglobals\r"
+        "function foo takes string script, string void returns integer\r"
+        "if flag then\r"
+        "return 1\r"
+        "endif\r"
+        "if(1>0)then\r"
+        "return 2\r"
+        "endif\r"
+        "return 0\r"
+        "endfunction\r"
+        "function main takes nothing returns nothing\r"
+        "  call BJassAssert(foo(\"a\", \"b\") == 1, \"cr if then\")\r"
+        "endfunction\r"));
+}
+
 /* =========================================================================
  * Sanity — assertion helpers work end-to-end
  * ========================================================================= */

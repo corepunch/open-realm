@@ -152,3 +152,7 @@ DWORD GetLocationY(LPJASS j) {
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
     return jass_pushnumber(j, whichLocation ? whichLocation->y : 0); // null location reads as 0, like GetRectCenterX
 }
+DWORD GetLocationZ(LPJASS j) {
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
+    return jass_pushnumber(j, whichLocation ? CM_GetHeightAtPoint(whichLocation->x, whichLocation->y) : 0);
+}

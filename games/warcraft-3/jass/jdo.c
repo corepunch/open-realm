@@ -330,7 +330,13 @@ void removeDoubleBackslashes(LPSTR str) {
 
 BOOL is_integer(LPCSTR tok) {
     LPSTR endptr;
-    strtol(tok, &endptr, 10);
+    if (!tok || !*tok) return false;
+    if (*tok == '$') {
+        if (!tok[1]) return false;
+        strtol(tok + 1, &endptr, 16);
+        return *endptr == '\0';
+    }
+    strtol(tok, &endptr, 0); /* base 0 accepts 0x hex used by Vexorian output */
     return *endptr == '\0';
 }
 
@@ -1576,7 +1582,9 @@ static DWORD jass_popinteger(LPJASS j) {
  * ========================================================================= */
 
 DWORD VM_EvalInteger(LPJASS j, LPCTOKEN token) {
-    return jass_pushinteger(j, atoi(token->primary));
+    LPCSTR s = token->primary;
+    if (s && *s == '$') return jass_pushinteger(j, (LONG)strtol(s + 1, NULL, 16));
+    return jass_pushinteger(j, (LONG)strtol(s, NULL, 0));
 }
 
 DWORD VM_EvalReal(LPJASS j, LPCTOKEN token) {
@@ -1984,7 +1992,7 @@ static void jass_remove_comments(LPSTR buf) {
             else if (src[0] == '/' && src[1] == '/') { in_line  = true;  src += 2; }
             else if (src[0] == '/' && src[1] == '*') { in_block = true;  src += 2; }
             else { *dst++ = *src++; }
-        } else if (in_line  && *src == '\n')                        { in_line  = false; *dst++ = *src++; }
+        } else if (in_line && (*src == '\n' || *src == '\r')) { in_line = false; *dst++ = *src++; }
           else if (in_block && src[0] == '*' && src[1] == '/')      { in_block = false; src += 2; }
           else { src++; }
     }

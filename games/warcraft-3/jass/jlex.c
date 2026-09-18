@@ -16,17 +16,24 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
 LPCSTR parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
     while (isspace(*p->buffer)) ++p->buffer;
-    if (*p->buffer == '\"') {
-        LPCSTR closingQuote = strchr(p->buffer+1, '"');
-        size_t stringLength = closingQuote-p->buffer+1;
+    if (*p->buffer == '\"' || *p->buffer == '\'') {
+        char quote = *p->buffer;
+        LPCSTR closingQuote = strchr(p->buffer + 1, quote);
+        size_t stringLength;
+        if (!closingQuote) {
+            strlcpy(word, p->buffer, MAX_SEGMENT_SIZE);
+            p->buffer += strlen(p->buffer);
+            return word;
+        }
+        stringLength = (size_t)(closingQuote - p->buffer + 1);
         if (p->eat_quotes) {
             p->buffer++;
             stringLength -= 2;
         }
+        if (stringLength >= MAX_SEGMENT_SIZE) stringLength = MAX_SEGMENT_SIZE - 1;
         memcpy(word, p->buffer, stringLength);
         word[stringLength] = '\0';
-        p->buffer = ++closingQuote;
-//        printf("%s\n", word);
+        p->buffer = closingQuote + 1;
         return word;
     } else if (strchr(p->delimiters, *p->buffer)) {
         word[0] = *(p->buffer++);
@@ -37,12 +44,35 @@ LPCSTR parse_token(LPPARSER p) {
             word[2] = '\0';
         }
         return word;
+    } else if (*p->buffer == '$' || isdigit((unsigned char)*p->buffer) || (*p->buffer == '.' && isdigit((unsigned char)p->buffer[1]))) {
+        /* Minified JASS glues 851983then / 0x hex; keep $hex and 0xhex as one token. */
+        size_t n = 0;
+        if (*p->buffer == '$') {
+            word[n++] = *(p->buffer++);
+            while (isxdigit((unsigned char)*p->buffer) && n < MAX_SEGMENT_SIZE - 1)
+                word[n++] = *(p->buffer++);
+        } else if (p->buffer[0] == '0' && (p->buffer[1] == 'x' || p->buffer[1] == 'X')) {
+            word[n++] = *(p->buffer++);
+            word[n++] = *(p->buffer++);
+            while (isxdigit((unsigned char)*p->buffer) && n < MAX_SEGMENT_SIZE - 1)
+                word[n++] = *(p->buffer++);
+        } else {
+            while (isdigit((unsigned char)*p->buffer) && n < MAX_SEGMENT_SIZE - 1)
+                word[n++] = *(p->buffer++);
+            if (*p->buffer == '.' && n < MAX_SEGMENT_SIZE - 1) {
+                word[n++] = *(p->buffer++);
+                while (isdigit((unsigned char)*p->buffer) && n < MAX_SEGMENT_SIZE - 1)
+                    word[n++] = *(p->buffer++);
+            }
+        }
+        word[n] = '\0';
+        return word;
     } else {
         size_t segmentLength = 0;
-        /* Stop at '"' too: minified JASS uses return"" / set s="" without space.
-         * Quote is not always a delimiter (JASS jdo set); next parse_token reads the string. */
+        /* Stop at quotes: minified JASS glues return"" and 'Hpal'or(x) without space.
+         * Quotes are not jdo delimiters; the quote branches above read the literal. */
         while (*p->buffer &&
-           (!isspace(*p->buffer) && *p->buffer != '"' && strchr(p->delimiters, *p->buffer) == NULL) &&
+           (!isspace(*p->buffer) && *p->buffer != '"' && *p->buffer != '\'' && strchr(p->delimiters, *p->buffer) == NULL) &&
                segmentLength < MAX_SEGMENT_SIZE - 1) {
             word[segmentLength++] = *(p->buffer++);
         }

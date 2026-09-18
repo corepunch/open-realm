@@ -1,11 +1,10 @@
 # DotA Custom-Map Playability
 
-OpenRealm cannot yet play Defense of the Ancients. On `6f1057f1` a dedicated run
-of `Maps/DotA v6.83dAI PMV 1.42 EN.w3x` died in `jass_remove_comments(NULL)`.
-On `feature/dota-compatibility` the same run reaches `com_frame_limit` with
-exit 0. Minified `return""` (no space) is tokenized by stopping identifiers at
-`"` in `parse_token` (#441); full 4.1 MiB / 5,708-function parse of this map is
-still unproven in CI.
+OpenRealm cannot yet *play* Defense of the Ancients (custom `A00Y` abilities,
+HUD draw). The load path on `feature/dota-jass-followup` parses the 4.1 MiB
+CR-only Vexorian script and enters `main()`: identifier scan stops at quotes,
+fourccs, and `0x`/`$` hex so `'Hpal'or` / `851983then` / `I2R(0x540BE3FF)`
+tokenize; `constant function` is accepted; remaining used natives are registered.
 
 This document is the evidence and work order for that map. Reaching
 `com_frame_limit` later will still not mean the game is playable.
@@ -140,15 +139,15 @@ those as partial, not as coverage.
 
 ## How Far
 
-Load no longer crashes. A 30-frame dedicated run on this branch exits 0:
-`war3map.doo` opens and `scripts\war3map.j` is found. Minified keyword+string
-juxtaposition (`return""`, `return"ok"`) is accepted: identifier scan in
-`jlex.c` `parse_token` stops at `"`, then the existing quoted-string branch
-reads the literal (#441; covered by `wc3_jass_map.minified*`). Do not treat
-`returnnull` / `return0` the same way — those remain valid identifiers.
-Hashtable, shop, hero, and HUD natives are registered; exercising them still
-needs a successful full mapscript parse and `main`. The next load risk is VM
-capacity / remaining stub natives once `main` runs, not the `return""` token.
+Load no longer crashes. The 4.1 MiB CR-only mapscript parses and `G_StartScripts`
+calls `main()` (#441). Lexer: stop identifiers at `"`/`'`, scan `0x`/`$` hex and
+decimals separately so `851983then` / `'Ucrl'or(` split, `constant function`
+parses as a function. `parser_line` counts `\r`. Used natives that were still
+unregistered (`SetCreepCampFilterState`, `GetLocationZ`, `CopySaveGame`, terrain
+pathing, `DestroyForce`, `TerrainDeformRipple`) are registered. `main()` then
+spends a long time filling arrays (`jass_set_array_value`) before returning to
+the frame loop — `+com_frame_limit` does not tick until `main()` returns.
+Custom `A00Y` map abilities and HUD draw remain gameplay follow-ups.
 
 Suggested order (GitHub #431 and children):
 

@@ -4817,6 +4817,8 @@ TEST(wc3_api, issue_418_campaign_natives_are_registered) {
         "function main takes nothing returns nothing\n"
         "  call SetAllyColorFilterState(2)\n"
         "  call BJassAssert(GetAllyColorFilterState() == 2, \"ally color state round-trip\")\n"
+        "  call SetCreepCampFilterState(false)\n"
+        "  call BJassAssert(not GetCreepCampFilterState(), \"creep camp filter\")\n"
         "  call UnitRemoveBuffsEx(null, true, true, true, true, true, true, true)\n"
         "endfunction\n"));
 }

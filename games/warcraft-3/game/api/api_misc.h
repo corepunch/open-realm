@@ -387,6 +387,11 @@ DWORD ForceClear(LPJASS j) {
     if (whichForce) *whichForce = 0;
     return 0;
 }
+DWORD DestroyForce(LPJASS j) {
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    if (whichForce) *whichForce = 0;
+    return 0;
+}
 /* Force filters bind each candidate as GetFilterPlayer(); limits count accepted
  * players, matching group enumeration rather than limiting candidates tested. */
 DWORD ForceEnumPlayers(LPJASS j) {
@@ -869,8 +874,40 @@ DWORD SetCampaignMenuRace(LPJASS j) {
     return 0;
 }
 static LONG ally_color_filter_state;
+static BOOL creep_camp_filter_state = true;
 DWORD GetAllyColorFilterState(LPJASS j) { (void)j; return jass_pushinteger(j, ally_color_filter_state); }
 DWORD SetAllyColorFilterState(LPJASS j) { ally_color_filter_state = jass_checkinteger(j, 1); return 0; }
+DWORD GetCreepCampFilterState(LPJASS j) { (void)j; return jass_pushboolean(j, creep_camp_filter_state); }
+DWORD SetCreepCampFilterState(LPJASS j) { creep_camp_filter_state = jass_checkboolean(j, 1); return 0; }
+DWORD EnableMinimapFilterButtons(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+DWORD EnableDragSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+DWORD EnablePreSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+DWORD EnableSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+DWORD SetReservedLocalHeroButtons(LPJASS j) { (void)jass_checkinteger(j, 1); return 0; }
+DWORD CopySaveGame(LPJASS j) {
+    (void)jass_checkstring(j, 1);
+    (void)jass_checkstring(j, 2);
+    return jass_pushboolean(j, false); /* PMV Lua bridge; no save-file copy */
+}
+DWORD GetTerrainType(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
+DWORD GetTerrainVariance(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
+DWORD IsPointBlighted(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushboolean(j, false); }
+DWORD IsTerrainPathable(LPJASS j) {
+    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
+    return jass_pushboolean(j, true);
+}
+DWORD SetTerrainPathable(LPJASS j) {
+    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
+    (void)jass_checkboolean(j, 4);
+    return 0;
+}
+DWORD TerrainDeformRipple(LPJASS j) {
+    (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checknumber(j, 3); (void)jass_checknumber(j, 4);
+    (void)jass_checkinteger(j, 5); (void)jass_checkinteger(j, 6);
+    (void)jass_checknumber(j, 7); (void)jass_checknumber(j, 8); (void)jass_checknumber(j, 9);
+    (void)jass_checkboolean(j, 10);
+    return jass_pushnullhandle(j, "terraindeformation");
+}
 DWORD SetCampaignMenuRaceEx(LPJASS j) {
     //LONG campaignIndex = jass_checkinteger(j, 1); /* TODO: wire to campaign UI */
     return 0;
