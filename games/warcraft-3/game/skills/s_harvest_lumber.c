@@ -505,9 +505,13 @@ static void ai_walktree(LPEDICT ent) {
                          ent->s.number, ent->goalentity ? ent->goalentity->s.number : -1);
         look_for_another_tree(ent);
     } else if (distance > range) {
-        /* Warsmash delegates destructable harvesting to ordinary generic move
-         * collision. The Harvest state machine owns target/range semantics. */
-        unit_changeangle_for_radius(ent, ent->collision);
+        /* Warsmash keeps live-unit collision enabled for destructable harvest
+         * movement.  Keep that collision contract, but use the worker crowd
+         * policy so several Peasants converging on one tree do not repeatedly
+         * choose competing generic slide sides.  Same-stream workers queue
+         * briefly, then take the deterministic bounded pass if the worker in
+         * front has stopped inside chop range. */
+        unit_changeangle_for_radius_worker(ent, ent->collision);
         if (ent->movement.flow_goal_reached) {
             harvest_route_failed(ent, "route_goal_out_of_range");
             return;
