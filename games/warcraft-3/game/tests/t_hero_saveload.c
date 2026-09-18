@@ -214,6 +214,26 @@ TEST(wc3_save, hero_audit_waits_while_cinematic_then_walks) {
     T_ASSERT(hero->s.origin.x > start_x + 1.0f);
 }
 
+/* HumanX06Finale stays cinematic; after the wait budget the visible Hero still walks. */
+TEST(wc3_save, hero_audit_walks_after_wait_timeout_while_cinematic) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPEDICT hero;
+    FLOAT start_x;
+
+    reset_entities();
+    setup_test_world();
+    hero = make_walk_hero(0.0f, 0.0f);
+    game.clients[0].ps.client_ui_state = CLIENT_UI_CINEMATIC;
+    start_x = hero->s.origin.x;
+    arm_hero_audit("Maps\\Campaign\\HeroAuditFinale.w3m");
+    gi.CvarString = hero_audit_cvar;
+    step_hero_audit(5);
+    T_FEQ(hero->s.origin.x, start_x, 0.01f);
+    step_hero_audit(160);
+    gi.CvarString = old_cvar;
+    T_ASSERT(hero->s.origin.x > start_x + 1.0f);
+}
+
 /* +80 X snaps home on a blocked cell; the walker must retry another open axis. */
 TEST(wc3_save, hero_audit_retries_when_80_unit_dest_snaps_home) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;

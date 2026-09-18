@@ -289,15 +289,18 @@ void G_HeroSaveLoadAuditFrame(void) {
     dy = hero->s.origin.y - hsa_before.origin.y;
     walking = move_is_active_order_walk(hero);
     if (fabsf(dx) > HSA_LEAVE_EPS || fabsf(dy) > HSA_LEAVE_EPS) {
-        /* Cleanup teleports jump without a walk step; resume from the new origin. */
-        if (!walking || fabsf(dx) > HSA_WALK_DIST || fabsf(dy) > HSA_WALK_DIST) {
+        /* Intro_Cleanup SetUnitPosition jumps without a walk step. A real walk
+         * think is tens of units; do not treat that first step as a teleport. */
+        if (!walking) {
             hsa_start_walk(hero);
             return;
         }
         hsa_saveload(hero);
         return;
     }
-    if (hero->paused || hsa_in_cinematic(hero)) return;
+    /* PauseAllUnitsBJ freezes think; keep waiting. Cinematic UI already gated
+     * WAIT_HERO; finale timeout fallback must still count walk frames. */
+    if (hero->paused) return;
     if (!walking && !hsa_issue_walk(hero)) {
         hsa_finish("fail_order", hero);
         return;
