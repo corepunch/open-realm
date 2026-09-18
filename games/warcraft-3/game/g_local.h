@@ -2061,6 +2061,7 @@ BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
 void G_HeroSaveLoadAuditFrame(void);
 void G_FormatHeroSaveSnap(LPCEDICT hero, LPSTR out, DWORD out_size);
 void G_RunTimers(void);
+void G_StartProjectilePresentation(LPEDICT ent);
 void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, struct jass_function const *handler);
 void G_TimerPause(LPGTIMER timer);
 void G_TimerResume(LPGTIMER timer);

@@ -36,18 +36,18 @@ typedef struct {
  * The entity is given MOVETYPE_FLYMISSILE so that SV_Physics_Toss() in
  * g_phys.c will move it each frame until it reaches the target. */
 void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
-    VECTOR3 dir = Vector3_sub(&desc->target->s.origin, &ent->s.origin);
-    Vector3_normalize(&dir);
     LPEDICT rocket = G_Spawn();
     rocket->s.origin = desc->start;
-    rocket->s.angle = atan2f(dir.y, dir.x);
+    rocket->s.angle = atan2f(desc->target->s.origin.y - desc->start.y,
+                             desc->target->s.origin.x - desc->start.x);
     rocket->s.model = desc->model;
+    rocket->s.player = ent->s.player;
     rocket->velocity = desc->speed / 1000.f;
     rocket->damage = desc->damage;
     rocket->goalentity = desc->target;
     rocket->owner = ent;
     rocket->movetype = MOVETYPE_FLYMISSILE;
-    rocket->s.renderfx |= 64;
+    G_StartProjectilePresentation(rocket);
 //    rocket->clipmask = MASK_SHOT;
 //    rocket->solid = SOLID_BBOX;
 //    rocket->s.effects |= EF_ROCKET;

@@ -45,12 +45,14 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
     missile->s.origin = caster->s.origin;
     missile->s.angle = caster->s.angle;
     missile->s.model = art ? G_RegisterModel(art) : 0;
+    missile->s.player = caster->s.player;
     missile->goalentity = target;
     missile->owner = caster;
     missile->velocity = speed / 1000.0f;
     missile->damage = (DWORD)S_SpellData(code, level, 1);
     missile->wait = duration;
     missile->movetype = MOVETYPE_FLYMISSILE;
+    G_StartProjectilePresentation(missile);
     missile->currentmove = code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move;
 }
 

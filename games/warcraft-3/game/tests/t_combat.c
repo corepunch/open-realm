@@ -107,6 +107,47 @@ static void attach_stub_anim(LPEDICT ent) {
  * Ability presentation effects
  * ========================================================================== */
 
+TEST(wc3_combat, projectile_presentation_selects_stand_sequence) {
+    LPEDICT missile;
+
+    setup_test_world();
+    reset_entities();
+    missile = G_Spawn();
+    missile->s.model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+
+    G_StartProjectilePresentation(missile);
+
+    T_NOT_NULL(missile->animation);
+    T_STREQ(missile->animation->name, "Stand");
+    T_EQ(missile->s.frame, missile->animation->interval[0]);
+    T_ASSERT(missile->s.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(missile->s.renderfx & RF_NO_SHADOW);
+}
+
+TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
+    animation_t stand = { .name = "Stand", .interval = { 1000, 1300 } };
+    LPEDICT missile;
+    LPEDICT target;
+
+    setup_test_world();
+    reset_entities();
+    missile = G_Spawn();
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 200.0f, 200.0f);
+    missile->s.origin = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    missile->goalentity = target;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->velocity = 0.1f;
+    missile->animation = &stand;
+    missile->s.frame = 1250;
+
+    G_RunEntity(missile);
+
+    T_FEQ(missile->s.angle, (FLOAT)(M_PI / 4.0), 0.001f);
+    T_ASSERT(missile->s.frame >= stand.interval[0]);
+    T_ASSERT(missile->s.frame < stand.interval[1]);
+    T_NE(missile->s.frame, 1250);
+}
+
 TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) {
     DWORD const holy_light = MAKEFOURCC('A','H','h','b');
 

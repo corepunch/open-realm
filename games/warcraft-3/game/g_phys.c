@@ -43,6 +43,53 @@ void SV_Physics_Step(LPEDICT ent) {
     M_CheckGround(ent);
 }
 
+/* Missile entities use the same snapshot/model path as ordinary units, but
+ * they do not run monster_think() and therefore never select/advance an MDX
+ * sequence on their own.  Start with the authored Stand sequence (the normal
+ * travelling sequence for WC3 missiles), falling back to Birth for models
+ * that only provide a one-shot sequence.  Keeping this state on the server
+ * means the existing entity snapshot contract remains sufficient for every
+ * client renderer. */
+void G_StartProjectilePresentation(LPEDICT ent) {
+    LPCANIMATION anim;
+
+    if (!ent) return;
+    ent->s.flags |= EF_NOT_SELECTABLE;
+    ent->s.renderfx |= RF_NO_SHADOW;
+    if (!ent->s.model) return;
+
+    anim = G_GetAnimation(ent->s.model, "Stand");
+    if (!anim) anim = G_GetAnimation(ent->s.model, "Birth");
+    ent->animation = anim;
+    if (anim) ent->s.frame = anim->interval[0];
+}
+
+static void G_AdvanceProjectilePresentation(LPEDICT ent) {
+    LPCANIMATION anim = ent->animation;
+    DWORD step;
+    DWORD next;
+
+    /* Save/load does not need a new pointer contract: reacquire the sequence
+     * from the already-networked model when a live missile has no cached
+     * animation pointer. */
+    if (!anim && ent->s.model) {
+        G_StartProjectilePresentation(ent);
+        anim = ent->animation;
+    }
+    if (!anim || anim->interval[1] <= anim->interval[0]) return;
+
+    step = (DWORD)MAX(1.0f, FRAMETIME);
+    next = ent->s.frame + step;
+    if (next >= anim->interval[1]) {
+        if (anim->flags & 1)
+            next = anim->interval[1] - 1;
+        else
+            next = anim->interval[0] + (next - anim->interval[0]) %
+                   (anim->interval[1] - anim->interval[0]);
+    }
+    ent->s.frame = next;
+}
+
 /* Move a projectile (MOVETYPE_FLYMISSILE) one frame toward its target.
  * If the distance remaining is less than the per-frame travel distance the
  * projectile hits, deals damage via T_Damage(), and is freed. */
@@ -67,6 +114,10 @@ void SV_Physics_Toss(LPEDICT ent) {
         }
     } else {
         Vector3_normalize(&dir);
+        /* Homing projectiles must visually follow their changing trajectory;
+         * the previous implementation kept only the launch-time yaw. */
+        ent->s.angle = atan2f(dir.y, dir.x);
+        G_AdvanceProjectilePresentation(ent);
         G_PushEntity3(ent, distance, &dir);
     }
 }
