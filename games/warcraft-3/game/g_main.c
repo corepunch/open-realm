@@ -1302,7 +1302,7 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
         !(state->flags & EF_NOT_SELECTABLE) &&
         G_FowPlayerCanHoverEntity(player, ent);
 
-    state->flags &= ~(EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL);
+    state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL);
     state->name = 0;
     if (hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);

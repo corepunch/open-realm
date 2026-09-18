@@ -2749,6 +2749,17 @@ TEST(wc3_api, customize_entity_marks_live_unit_hoverable) {
     T_ASSERT(!(state.flags & EF_NEUTRAL));
 }
 
+TEST(wc3_api, customize_entity_hides_invulnerable_health_but_keeps_mana) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
+    ent.health.value = 100.0f;
+    ent.invulnerable = true;
+
+    globals.CustomizeEntity(3, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+    T_ASSERT(state.flags & EF_HOVER_MANA);
+}
+
 TEST(wc3_api, customize_entity_marks_enemy_hover_relation_hostile) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 2 } };
