@@ -781,38 +781,6 @@ DWORD StringCase(LPJASS j) {
     buf[n] = '\0';
     return jass_pushstring(j, buf);
 }
-/* Storm-style path hash (case-insensitive, / and \ equivalent). DotA keys
- * are computed at runtime, so self-consistency matters more than retail bit-identity. */
-DWORD StringHash(LPJASS j) {
-    static DWORD crypt[0x500];
-    static BOOL ready;
-    LPCSTR s = jass_checkstring(j, 1);
-    DWORD seed1 = 0x7FED7FED, seed2 = 0xEEEEEEEE, i;
-    if (!s || !*s) return jass_pushinteger(j, 0);
-    if (!ready) {
-        DWORD seed = 0x100001;
-        for (i = 0; i < 0x100; i++) {
-            DWORD j2;
-            for (j2 = 0; j2 < 5; j2++) {
-                DWORD t1, t2;
-                seed = (seed * 125 + 3) % 0x2AAAAB;
-                t1 = (seed & 0xFFFF) << 16;
-                seed = (seed * 125 + 3) % 0x2AAAAB;
-                t2 = seed & 0xFFFF;
-                crypt[i + j2 * 0x100] = t1 | t2;
-            }
-        }
-        ready = true;
-    }
-    for (; *s; s++) {
-        unsigned char c = (unsigned char)*s;
-        if (c >= 'a' && c <= 'z') c = (unsigned char)(c - 32);
-        if (c == '/') c = '\\';
-        seed1 = crypt[c] ^ (seed1 + seed2);
-        seed2 = c + seed1 + seed2 + (seed2 << 5) + 3;
-    }
-    return jass_pushinteger(j, (LONG)seed1);
-}
 DWORD GetEventDetectingPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }

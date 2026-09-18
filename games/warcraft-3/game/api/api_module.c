@@ -1154,7 +1154,6 @@ JASSMODULE jass_funcs[] = {
     { "IsItemPowerup", IsItemPowerup },
     { "SetItemPawnable", SetItemPawnable },
     { "UnitDropItemPoint", UnitDropItemPoint },
-    { "StringHash", StringHash },
     { "StringCase", StringCase },
     { "StringLength", StringLength },
     { "AddLightning", AddLightning },
