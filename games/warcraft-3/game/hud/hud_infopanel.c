@@ -673,6 +673,7 @@ static FLOAT HeroLevelProgress(LPEDICT ent) {
 
 static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero, LPGAMECLIENT viewer) {
     char class_text[128];
+    LPFRAMEDEF unit_action_label;
     heroabilitystatus_t const *timed_status = NULL;
     LPCSTR timed_label = NULL;
     LPCSTR unit_name;
@@ -680,6 +681,15 @@ static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero
     BOOL old_hero_hidden;
 
     if (!hud.simple.SimpleInfoPanelUnitDetail) return;
+    /* SimpleInfoPanel.fdf supplies a building-action placeholder on this
+     * shared unit tree. Ordinary units do not use it; clear it before the
+     * tree is serialized so the retail placeholder cannot leak into the HUD. */
+    unit_action_label = UI_FindChildFrame(hud.simple.SimpleInfoPanelUnitDetail,
+                                          "SimpleBuildingActionLabel");
+    if (unit_action_label) {
+        UI_SetText(unit_action_label, "%s", "");
+        UI_SetHidden(unit_action_label, true);
+    }
     UI_SetText(hud.simple.SimpleNameValue, "%s", display_name ? display_name : "");
     unit_name = G_UnitName(ent->class_id);
 
