@@ -139,6 +139,7 @@ static void reset_test_state(void) {
         g_edicts[i].client = &game.clients[i];
     }
     G_ClearJassGroupRegistry();
+    G_ClearHashtableRegistry();
     memset(&level, 0, sizeof(level));
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));

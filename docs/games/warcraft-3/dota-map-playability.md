@@ -118,7 +118,7 @@ Unregistered groups, by identifier count:
 
 | Group | Natives | Refs | Why it matters |
 | --- | ---: | ---: | --- |
-| Hashtables (`InitHashtable`, `GetHandleId`, `Save*`/`Load*`/`HaveSaved*`/`FlushChild*`/`RemoveSaved*`) | 53 | 8,692 | DotA 6.83d's primary data model (YDWE / patch 1.24). Runtime natives in `api_hashtable.h` (#437); VM snapshot of live handle slots still a gap. |
+| Hashtables (`InitHashtable`, `GetHandleId`, `Save*`/`Load*`/`HaveSaved*`/`FlushChild*`/`RemoveSaved*`) | 53 | 8,692 | DotA 6.83d's primary data model (YDWE / patch 1.24). Runtime natives + save/load registry in `api_hashtable.h` / `g_hashtable.c` (#437). |
 | `GetObjectName` | 1 | 833 | Ability/item/unit tooltips and chat. |
 | Multiboard | 17 | 1,022 | Scoreboard / KDA / player list. DotA surface implemented (#434); HUD draw deferred — [multiboard-and-texttag.md](multiboard-and-texttag.md). |
 | `GetEventDamageSource` | 1 | 213 | Kill credit, lifesteal, on-hit scripts. |
@@ -155,7 +155,7 @@ Suggested order (GitHub #431 and children):
 1. Honor MPQ sector sizes above 64 KiB so protected maps open (#435).
 2. Read `scripts\war3map.j` when `war3map.j` is absent; refuse null mapscripts
    instead of crashing (#433).
-3. Implement the hashtable native family (#437) — done for runtime; snapshot gap
+3. Implement the hashtable native family (#437) — runtime + save/load registry done
    documented below.
 4. Resolve map-archive `Units\*.txt`, `war3mapMisc.txt`, and `war3map.w3a`
    through the existing sheet/object-data path (#432 — map FS priority + w3a
@@ -193,16 +193,24 @@ map-scoped `Units\CampaignUnitFunc.txt` and `war3map.w3a` row win over base
 TFT data. Hashtable natives need handle-lifetime tests, including
 `FlushChildHashtable` and typed `Save*Handle` / `Load*Handle`.
 
-## Hashtable save/load gap
+## Hashtable save/load
 
 Runtime natives live in `games/warcraft-3/game/api/api_hashtable.h` and are
-registered from `api_module.c`. Tables store live `HANDLE` pointers (not
-value copies). The JASS VM snapshot path persists only a fixed owned-handle
-allowlist in `jdo.c` (`gamecache`, `location`, …) and does **not** include
-`hashtable`; even a raw byte dump would leave nested unit/group pointers
-stale after load. Campaign `gamecache` remains the durable store. Map save
-games that retain hashtable globals will not round-trip those slots until a
-typed handle fixup is added — document-only gap for #437.
+registered from `api_module.c`. Tables are host-owned registry slots on
+`level.hashtables[MAX_HASHTABLES]` (`G_AllocHashtable` / `jass_pushlighthandle`),
+not VM-owned `API_ALLOC` blobs. `InitHashtable` identity is the stable slot
+ordinal (via `G_SaveJassHandle("hashtable", …)`); JSVM snapshot version 4 is
+unchanged because the host codec relocates the light handle.
+
+Each `HT_HANDLE` entry stores the JASS type string (`unit`, `item`, `player`,
+…) alongside the pointer so save/load can call `G_SaveJassHandle` /
+`G_LoadJassHandle`. Scalars persist by value. Nested types without a host
+domain (`location`, `lightning`, `image`, `ubersplat`, and other VM-owned
+payloads) log once to stderr and restore as null rather than writing a raw
+address. Stale/removed units become null, matching the group/unit handle
+rule. Save format version **31** adds the registry `inuse` bits to the level
+field stream plus a per-slot entry payload after groups. See
+[Save/Load](save-load.md).
 
 See also [Campaign Map Audit](map-audit.md), [JASS Native Coverage](jass-native-coverage.md),
 [WC3 Data Model](../../wc3-data-model.md), and [Loading and Assets](loading-and-assets.md).
