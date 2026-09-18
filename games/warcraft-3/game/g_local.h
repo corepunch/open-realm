@@ -1359,6 +1359,7 @@ struct edict_s {
         BOOL flow_unreachable;  /* field exists but current cell has no route */
         BOOL flow_direct;       /* static path from mover to requested goal is clear */
         VECTOR2 flow_fallback_target; /* last unreachable fallback request */
+        VECTOR2 flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
         FLOAT flow_fallback_radius;
         DWORD flow_fallback_time;
         LPEDICT flow_fallback_goal;
