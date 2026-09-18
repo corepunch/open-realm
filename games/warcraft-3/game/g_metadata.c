@@ -1793,3 +1793,20 @@ LPCSTR GetClassName(DWORD class_id) {
     memcpy(classname, &class_id, 4);
     return classname;
 }
+
+/* GetObjectName: unit/item/ability profile Name, then fourcc fallback. */
+LPCSTR G_ObjectName(DWORD objectId) {
+    UnitProfile_t const *profile;
+    ItemData_t const *item;
+    LPCSTR name;
+
+    if (!objectId) return "";
+    profile = G_UnitProfile(objectId);
+    if (profile && profile->name && *profile->name) return G_LevelString(profile->name);
+    item = G_ItemData(objectId);
+    if (item && item->id == objectId && item->displayName && *item->displayName)
+        return G_LevelString(item->displayName);
+    name = FindConfigValue(GetClassName(objectId), "Name");
+    if (name && *name) return G_LevelString(name);
+    return GetClassName(objectId);
+}

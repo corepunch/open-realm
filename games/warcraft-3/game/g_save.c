@@ -461,6 +461,7 @@ static field_t const acolyte_mine_fields[] = {
 
 static field_t const item_fields[] = {
     TF(edictItem_s, carrier, F_EDICT, 0, FIELD_NONE),
+    /* user_data / pawnable_* are plain values retained by the raw edict record. */
     { NULL, 0, 0, 0, 0, 0 }
 };
 

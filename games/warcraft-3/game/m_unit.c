@@ -1234,6 +1234,36 @@ DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode) {
     return G_ActorHasSkill(ent, id) ? 1 : 0;
 }
 
+/* SetUnitAbilityLevel / IncUnitAbilityLevel: rank lives in heroabilities[].
+ * Returns the new level, or 0 when the unit does not own the ability. */
+DWORD G_UnitSetAbilityLevel(LPEDICT ent, DWORD abilcode, LONG level) {
+    heroability_t *existing;
+    char id[5] = { 0 };
+    DWORD current;
+
+    if (!ent || !abilcode) return 0;
+    current = G_UnitAbilityLevel(ent, abilcode);
+    if (!current) return 0;
+    if (level < 1) level = 1;
+    existing = G_FindRuntimeAbility(ent, abilcode);
+    if (existing) {
+        existing->level = (DWORD)level;
+        return existing->level;
+    }
+    /* Unit owns the skill via abilList/added but has no heroabilities slot yet. */
+    memcpy(id, &abilcode, 4);
+    if (!G_ActorHasSkill(ent, id)) return 0;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t *ha = ent->heroabilities + i;
+        if (ha->level == 0) {
+            ha->code = abilcode;
+            ha->level = (DWORD)level;
+            return ha->level;
+        }
+    }
+    return 0;
+}
+
 void unit_learnability(LPEDICT ent, DWORD abilcode) {
     heroability_t *existing = G_FindRuntimeAbility(ent, abilcode);
     if (existing) {

@@ -774,6 +774,13 @@ BOOL G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, DWORD item_id) {
     shop->stock.items[stock_index].current--;
     G_StartItemRestock(shop, (DWORD)stock_index);
     G_InvalidateCommands(client);
+    /* Sell-item event context: unit=shop (selling), source=patron (buying).
+     * eventsolditem stays set through queued trigger execution (same contract as
+     * GetEventDamageSource — meaningful only while handling the sell event). */
+    eventsolditem = item_ent;
+    eventsoldunit = NULL;
+    G_PublishEventWithSource(shop, EVENT_UNIT_SELL_ITEM, patron);
+    G_PublishEventWithSource(shop, EVENT_PLAYER_UNIT_SELL_ITEM, patron);
     return true;
 }
 
@@ -849,6 +856,37 @@ BOOL G_ShopPurchaseUnit(LPEDICT clent, LPEDICT shop, DWORD unit_id) {
     return true;
 }
 
+LPEDICT eventsolditem = NULL;
+LPEDICT eventsoldunit = NULL;
+
+void G_SetPlayerAbilityAvailable(LPGAMECLIENT client, DWORD abilid, BOOL avail) {
+    DWORD i;
+    if (!client || !abilid) return;
+    if (avail) {
+        for (i = 0; i < client->jass.disabled_ability_count; i++) {
+            if (client->jass.disabled_abilities[i] != abilid) continue;
+            client->jass.disabled_abilities[i] =
+                client->jass.disabled_abilities[--client->jass.disabled_ability_count];
+            return;
+        }
+        return;
+    }
+    for (i = 0; i < client->jass.disabled_ability_count; i++)
+        if (client->jass.disabled_abilities[i] == abilid) return;
+    if (client->jass.disabled_ability_count >=
+        sizeof(client->jass.disabled_abilities) / sizeof(client->jass.disabled_abilities[0]))
+        return;
+    client->jass.disabled_abilities[client->jass.disabled_ability_count++] = abilid;
+}
+
+BOOL G_IsPlayerAbilityAvailable(LPCGAMECLIENT client, DWORD abilid) {
+    DWORD i;
+    if (!client || !abilid) return true;
+    for (i = 0; i < client->jass.disabled_ability_count; i++)
+        if (client->jass.disabled_abilities[i] == abilid) return false;
+    return true;
+}
+
 static FLOAT G_ShopPawnRate(void) {
     LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", "PawnItemRate");
     FLOAT rate;
@@ -895,7 +933,9 @@ BOOL G_ShopPawnItem(shopPawnItemParams_t *params) {
         !carrier || carrier->s.player != client->ps.number || !G_IsItem(item) ||
         item->item.carrier != carrier || item->item.in_world) return false;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
-    if (!data || !data->pawnable) return false;
+    if (!data) return false;
+    if (item->item.pawnable_set) { if (!item->item.pawnable) return false; }
+    else if (!data->pawnable) return false;
 
     distance = Vector2_distance(&carrier->s.origin2, &shop->s.origin2);
     reach = G_ShopGiveItemRange() + MAX(0.0f, carrier->collision) + MAX(0.0f, shop->collision);

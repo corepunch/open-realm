@@ -449,6 +449,132 @@ DWORD GetUnitAbilityLevel(LPJASS j) {
     LONG abilcode = jass_checkinteger(j, 2);
     return jass_pushinteger(j, whichUnit ? (LONG)G_UnitAbilityLevel(whichUnit, (DWORD)abilcode) : 0);
 }
+DWORD SetUnitAbilityLevel(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG abilcode = jass_checkinteger(j, 2);
+    LONG level = jass_checkinteger(j, 3);
+    return jass_pushinteger(j, whichUnit ? (LONG)G_UnitSetAbilityLevel(whichUnit, (DWORD)abilcode, level) : 0);
+}
+DWORD IncUnitAbilityLevel(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG abilcode = jass_checkinteger(j, 2);
+    DWORD cur;
+    if (!whichUnit) return jass_pushinteger(j, 0);
+    cur = G_UnitAbilityLevel(whichUnit, (DWORD)abilcode);
+    if (!cur) return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, (LONG)G_UnitSetAbilityLevel(whichUnit, (DWORD)abilcode, (LONG)cur + 1));
+}
+DWORD GetHeroStr(LPJASS j) {
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    BOOL includeBonuses = jass_checkboolean(j, 2);
+    (void)includeBonuses; /* TODO: attribute bonuses from items/auras are not tracked separately yet. */
+    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.str : 0);
+}
+DWORD GetHeroAgi(LPJASS j) {
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    BOOL includeBonuses = jass_checkboolean(j, 2);
+    (void)includeBonuses;
+    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.agi : 0);
+}
+DWORD GetHeroInt(LPJASS j) {
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    BOOL includeBonuses = jass_checkboolean(j, 2);
+    (void)includeBonuses;
+    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.intel : 0);
+}
+DWORD GetUnitLevel(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    if (!whichUnit) return jass_pushinteger(j, 0);
+    if (G_UnitIsHero(whichUnit)) return jass_pushinteger(j, (LONG)whichUnit->hero.level);
+    return jass_pushinteger(j, whichUnit->data.UnitBalance ? whichUnit->data.UnitBalance->level : 0);
+}
+DWORD GetUnitCurrentOrder(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichUnit ? (LONG)G_GetIssuedOrderId(whichUnit) : 0);
+}
+DWORD UnitInventorySize(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    return jass_pushinteger(j, whichUnit ? (LONG)G_InventoryCapacity(whichUnit) : 0);
+}
+DWORD UnitDropItemPoint(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT whichItem = jass_checkhandle(j, 2, "item");
+    FLOAT x = jass_checknumber(j, 3);
+    FLOAT y = jass_checknumber(j, 4);
+    LONG slot;
+    if (!whichUnit || !whichItem || whichItem->item.carrier != whichUnit)
+        return jass_pushboolean(j, 0);
+    slot = whichItem->item.inventory_slot;
+    if (slot < 0) return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, G_DropItemAt(whichUnit, (DWORD)slot, &MAKE(VECTOR2, x, y)));
+}
+DWORD UnitDamageTarget(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT target = jass_checkhandle(j, 2, "widget");
+    FLOAT amount = jass_checknumber(j, 3);
+    /* attack/ranged/attackType/damageType/weaponType are accepted but not yet modeled. */
+    (void)jass_checkboolean(j, 4);
+    (void)jass_checkboolean(j, 5);
+    (void)jass_checkhandle(j, 6, "attacktype");
+    (void)jass_checkhandle(j, 7, "damagetype");
+    (void)jass_checkhandle(j, 8, "weapontype");
+    if (!whichUnit || !target || amount <= 0.0f) return jass_pushboolean(j, 0);
+    if (target->invulnerable || M_IsDead(target)) return jass_pushboolean(j, 0);
+    T_Damage(target, whichUnit, (int)amount);
+    return jass_pushboolean(j, 1);
+}
+DWORD UnitAddType(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
+    if (!whichUnit || !whichUnitType || *whichUnitType >= 32) return jass_pushboolean(j, 0);
+    whichUnit->script_unit_types |= (1u << *whichUnitType);
+    return jass_pushboolean(j, 1);
+}
+DWORD UnitRemoveType(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
+    if (!whichUnit || !whichUnitType || *whichUnitType >= 32) return jass_pushboolean(j, 0);
+    whichUnit->script_unit_types &= ~(1u << *whichUnitType);
+    return jass_pushboolean(j, 1);
+}
+DWORD UnitCountBuffsEx(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL timedLife;
+    LONG count = 0;
+    /* TODO: positive/negative/magic/physical/aura/autoDispel filters need buff-type metadata. */
+    (void)jass_checkboolean(j, 2); (void)jass_checkboolean(j, 3);
+    (void)jass_checkboolean(j, 4); (void)jass_checkboolean(j, 5);
+    timedLife = jass_checkboolean(j, 6);
+    (void)jass_checkboolean(j, 7); (void)jass_checkboolean(j, 8);
+    if (!whichUnit) return jass_pushinteger(j, 0);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *s = whichUnit->abilstatus + i;
+        if (!s->level) continue;
+        if (timedLife && s->code != MAKEFOURCC('B', 'T', 'L', 'F')) continue;
+        count++;
+    }
+    return jass_pushinteger(j, count);
+}
+DWORD UnitPauseTimedLife(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL flag = jass_checkboolean(j, 2);
+    DWORD now;
+    if (!whichUnit || whichUnit->timed_life_paused == flag) return 0;
+    now = G_Time();
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *s = whichUnit->abilstatus + i;
+        if (!s->level || s->code != MAKEFOURCC('B', 'T', 'L', 'F')) continue;
+        if (flag) {
+            s->data = s->timestamp > now ? s->timestamp - now : 0;
+            s->timestamp = 0;
+        } else if (s->data) {
+            s->timestamp = now + s->data;
+            s->data = 0;
+        }
+    }
+    whichUnit->timed_life_paused = flag;
+    return 0;
+}
 DWORD UnitResetCooldown(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     S_SpellResetCooldowns(whichUnit);
@@ -773,10 +899,24 @@ DWORD IsUnitType(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
     if (!whichUnit || !whichUnitType) return jass_pushboolean(j, 0);
+    if (*whichUnitType < 32 && (whichUnit->script_unit_types & (1u << *whichUnitType)))
+        return jass_pushboolean(j, 1);
     if (*whichUnitType == WC3_UNIT_TYPE_STRUCTURE)
         return jass_pushboolean(j, G_UnitIsBuilding(whichUnit->class_id));
+    if (*whichUnitType == 0) /* UNIT_TYPE_HERO */
+        return jass_pushboolean(j, G_UnitIsHero(whichUnit));
+    if (*whichUnitType == 1) /* UNIT_TYPE_DEAD */
+        return jass_pushboolean(j, M_IsDead(whichUnit));
     if (*whichUnitType == WC3_UNIT_TYPE_POLYMORPHED)
         return jass_pushboolean(j, S_UnitPolymorphed(whichUnit));
+    if (*whichUnitType == 23) /* UNIT_TYPE_SLEEPING */
+        return jass_pushboolean(j, G_UnitIsSleeping(whichUnit));
+    if (*whichUnitType == 11) /* UNIT_TYPE_STUNNED */
+        return jass_pushboolean(j, whichUnit->stunned);
+    if (*whichUnitType == 3) /* UNIT_TYPE_FLYING */
+        return jass_pushboolean(j, whichUnit->aiflags & AI_FLYING);
+    if (*whichUnitType == 10) /* UNIT_TYPE_SUMMONED */
+        return jass_pushboolean(j, whichUnit->summon_ability != 0);
     return jass_pushboolean(j, 0);
 }
 DWORD IsUnit(LPJASS j) {

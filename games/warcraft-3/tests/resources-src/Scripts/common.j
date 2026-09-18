@@ -22,6 +22,7 @@ type event            extends handle
 type triggeraction    extends handle
 type playerevent      extends handle
 type playerunitevent  extends handle
+type unitevent        extends handle
 type alliancetype     extends handle
 type racepreference  extends handle
 type mapcontrol      extends handle
@@ -42,6 +43,12 @@ type fgamestate       extends gamestate
 type limitop          extends handle
 type fogstate         extends handle
 type unittype        extends handle
+type attacktype      extends handle
+type damagetype      extends handle
+type weapontype      extends handle
+type lightning       extends handle
+type image           extends handle
+type ubersplat       extends handle
 type rect            extends handle
 type region          extends handle
 type location        extends handle
@@ -56,9 +63,11 @@ type gamecache       extends agent
 // Cinematic skip regression uses the same event and local-player guards as campaign scripts.
 native ConvertPlayerEvent         takes integer i returns playerevent
 native ConvertPlayerUnitEvent     takes integer i returns playerunitevent
+native ConvertUnitEvent           takes integer i returns unitevent
 native CreateTrigger              takes nothing returns trigger
 native TriggerRegisterPlayerEvent     takes trigger whichTrigger, player whichPlayer, playerevent whichPlayerEvent returns event
 native TriggerRegisterPlayerUnitEvent takes trigger whichTrigger, player whichPlayer, playerunitevent whichPlayerUnitEvent, boolexpr filter returns event
+native TriggerRegisterUnitEvent   takes trigger whichTrigger, unit whichUnit, unitevent whichEvent returns event
 native TriggerAddAction           takes trigger whichTrigger, code actionFunc returns triggeraction
 native GetLocalPlayer             takes nothing returns player
 native ShowInterface              takes boolean flag, real fadeDuration returns nothing
@@ -245,6 +254,8 @@ native EndCinematicScene         takes nothing returns nothing
 native ForceCinematicSubtitles  takes boolean flag returns nothing
 native TriggerRegisterDeathEvent takes trigger whichTrigger, widget whichWidget returns event
 native SetWidgetLife             takes widget whichWidget, real newLife returns nothing
+constant native GetWidgetLife    takes widget whichWidget returns real
+native SetUnitInvulnerable       takes unit whichUnit, boolean flag returns nothing
 
 // Scripted fog state coverage.
 native SetFogStateRect      takes player forWhichPlayer, fogstate whichState, rect where, boolean useSharedVision returns nothing
@@ -260,6 +271,42 @@ native Player                   takes integer number returns player
 native CreateItem               takes integer itemid, real x, real y returns item
 native GetItemCharges           takes item whichItem returns integer
 native SetItemCharges           takes item whichItem, integer charges returns nothing
+native GetItemName              takes item whichItem returns string
+native GetItemUserData          takes item whichItem returns integer
+native SetItemUserData          takes item whichItem, integer data returns nothing
+native SetItemVisible           takes item whichItem, boolean show returns nothing
+native IsItemVisible            takes item whichItem returns boolean
+native IsItemOwned              takes item whichItem returns boolean
+native IsItemPowerup            takes item whichItem returns boolean
+native SetItemPawnable          takes item whichItem, boolean flag returns nothing
+
+// DotA #436: hero/combat/shop/string/presentation natives exercised by wc3_api.dota_* tests.
+constant native GetObjectName        takes integer objectId returns string
+constant native GetEventDamage       takes nothing returns real
+constant native GetEventDamageSource takes nothing returns unit
+native StringLength                  takes string s returns integer
+native StringCase                    takes string source, boolean upper returns string
+native StringHash                    takes string s returns integer
+native GetHeroStr                    takes unit whichHero, boolean includeBonuses returns integer
+native GetHeroAgi                    takes unit whichHero, boolean includeBonuses returns integer
+native GetHeroInt                    takes unit whichHero, boolean includeBonuses returns integer
+constant native GetUnitLevel         takes unit whichUnit returns integer
+native IncUnitAbilityLevel           takes unit whichUnit, integer abilcode returns integer
+native SetUnitAbilityLevel           takes unit whichUnit, integer abilcode, integer level returns integer
+native UnitInventorySize             takes unit whichUnit returns integer
+native UnitAddType                   takes unit whichUnit, unittype whichUnitType returns boolean
+native UnitRemoveType                takes unit whichUnit, unittype whichUnitType returns boolean
+native UnitDamageTarget              takes unit whichUnit, widget target, real amount, boolean attack, boolean ranged, attacktype attackType, damagetype damageType, weapontype weaponType returns boolean
+native GetUnitCurrentOrder           takes unit whichUnit returns integer
+native AddUnitToStock                takes unit whichUnit, integer unitId, integer currentStock, integer stockMax returns nothing
+native RemoveUnitFromStock           takes unit whichUnit, integer unitId returns nothing
+native SetPlayerAbilityAvailable     takes player whichPlayer, integer abilid, boolean avail returns nothing
+native ConvertAttackType             takes integer i returns attacktype
+native ConvertDamageType             takes integer i returns damagetype
+native ConvertWeaponType             takes integer i returns weapontype
+native AddLightning                  takes string codeName, boolean checkVisibility, real x1, real y1, real x2, real y2 returns lightning
+native CreateImage                   takes string file, real sizeX, real sizeY, real sizeZ, real posX, real posY, real posZ, real originX, real originY, real originZ, integer imageType returns image
+native CreateUbersplat               takes real x, real y, string name, integer red, integer green, integer blue, integer alpha, boolean forcePaused, boolean noBirthTime returns ubersplat
 
 // Quest management.
 native CreateQuest               takes nothing returns quest
@@ -315,6 +362,7 @@ globals
     constant playerunitevent EVENT_PLAYER_UNIT_SUMMON = ConvertPlayerUnitEvent(47)
     constant gameevent EVENT_GAME_STATE_LIMIT = ConvertGameEvent(3)
     constant gameevent EVENT_GAME_ENTER_REGION = ConvertGameEvent(5)
+    constant unitevent EVENT_UNIT_DAMAGED = ConvertUnitEvent(52)
     constant unitevent EVENT_UNIT_DEATH = ConvertUnitEvent(53)
     constant unitevent EVENT_UNIT_IN_RANGE = ConvertUnitEvent(61)
     constant unitevent EVENT_UNIT_CONSTRUCT_CANCEL = ConvertUnitEvent(64)

@@ -210,6 +210,9 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     damage = S_SpiritLinkRedirect(target, attacker, damage);
     if (damage <= 0) return;
     S_UnitAbilityEvent(target, A_DAMAGED);
+    /* GetEventDamage / GetEventDamageSource read value/source from these events. */
+    G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
+    G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
     FOR_LOOP(i, MAX_UNIT_STATUSES)

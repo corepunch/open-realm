@@ -432,9 +432,10 @@ DWORD GetPlayerTechCount(LPJASS j) {
     return jass_pushinteger(j, whichPlayer ? G_GetPlayerTechCountValue(PLAYER_CLIENT(whichPlayer), (DWORD)techid) : 0);
 }
 DWORD SetPlayerAbilityAvailable(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG abilid = jass_checkinteger(j, 2);
-    //BOOL avail = jass_checkboolean(j, 3);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG abilid = jass_checkinteger(j, 2);
+    BOOL avail = jass_checkboolean(j, 3);
+    if (whichPlayer) G_SetPlayerAbilityAvailable(PLAYER_CLIENT(whichPlayer), (DWORD)abilid, avail);
     return 0;
 }
 DWORD SetPlayerState(LPJASS j) {

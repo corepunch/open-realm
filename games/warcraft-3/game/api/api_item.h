@@ -118,3 +118,54 @@ DWORD EnumItemsInRect(LPJASS j) {
     currentenumitem = NULL;
     return 0;
 }
+DWORD GetItemName(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    LPCSTR name = whichItem ? G_ObjectName(whichItem->class_id) : NULL;
+    return jass_pushstring(j, name ? name : "");
+}
+DWORD GetItemUserData(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    return jass_pushinteger(j, whichItem ? whichItem->item.user_data : 0);
+}
+DWORD SetItemUserData(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    if (whichItem) whichItem->item.user_data = jass_checkinteger(j, 2);
+    return 0;
+}
+DWORD SetItemVisible(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    BOOL show = jass_checkboolean(j, 2);
+    if (!whichItem || !G_IsItem(whichItem)) return 0;
+    if (show) {
+        whichItem->s.renderfx &= ~RF_HIDDEN;
+        whichItem->svflags &= ~SVF_NOCLIENT;
+    } else {
+        whichItem->s.renderfx |= RF_HIDDEN;
+        whichItem->svflags |= SVF_NOCLIENT;
+    }
+    return 0;
+}
+DWORD IsItemVisible(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    return jass_pushboolean(j, whichItem && !(whichItem->s.renderfx & RF_HIDDEN) &&
+                              !(whichItem->svflags & SVF_NOCLIENT));
+}
+DWORD IsItemOwned(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    return jass_pushboolean(j, whichItem && whichItem->item.carrier && !whichItem->item.in_world);
+}
+DWORD IsItemPowerup(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    ItemData_t const *data = whichItem ? whichItem->data.ItemData : NULL;
+    if (!data && whichItem) data = G_ItemData(whichItem->class_id);
+    return jass_pushboolean(j, data && data->powerup);
+}
+DWORD SetItemPawnable(LPJASS j) {
+    LPEDICT whichItem = jass_checkhandle(j, 1, "item");
+    BOOL flag = jass_checkboolean(j, 2);
+    if (whichItem) {
+        whichItem->item.pawnable_set = true;
+        whichItem->item.pawnable = flag;
+    }
+    return 0;
+}

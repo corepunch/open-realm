@@ -4648,4 +4648,136 @@ TEST(wc3_api, bot_assault_natives_noop_on_null_player) {
         "endfunction\n"));
 }
 
+/* Issue #436: DotA shop/hero/combat/item/string natives. */
+TEST(wc3_api, dota_string_and_object_name_natives) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(StringLength(\"abc\") == 3, \"StringLength\")\n"
+        "  call BJassAssert(StringLength(\"\") == 0, \"empty StringLength\")\n"
+        "  call BJassAssert(StringCase(\"AbC\", true) == \"ABC\", \"StringCase upper\")\n"
+        "  call BJassAssert(StringCase(\"AbC\", false) == \"abc\", \"StringCase lower\")\n"
+        "  call BJassAssert(StringHash(\"\") == 0, \"empty StringHash\")\n"
+        "  call BJassAssert(StringHash(\"case\") == StringHash(\"CASE\"), \"StringHash casefold\")\n"
+        "  call BJassAssert(StringHash(\"path/to\") == StringHash(\"path\\\\to\"), \"StringHash slash\")\n"
+        "  call BJassAssert(StringLength(GetObjectName('hfoo')) > 0, \"GetObjectName footman\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, dota_hero_attr_ability_level_and_order) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 64.0, 0.0, 0.0)\n"
+        "  call SetHeroStr(h, 22, true)\n"
+        "  call SetHeroAgi(h, 17, true)\n"
+        "  call SetHeroInt(h, 19, true)\n"
+        "  call BJassAssert(GetHeroStr(h, false) == 22, \"GetHeroStr\")\n"
+        "  call BJassAssert(GetHeroAgi(h, true) == 17, \"GetHeroAgi\")\n"
+        "  call BJassAssert(GetHeroInt(h, false) == 19, \"GetHeroInt\")\n"
+        "  call BJassAssert(GetUnitLevel(h) >= 1, \"hero GetUnitLevel\")\n"
+        "  call BJassAssert(GetUnitLevel(u) >= 0, \"unit GetUnitLevel\")\n"
+        "  call SelectHeroSkill(h, 'AHhb')\n"
+        "  call BJassAssert(GetUnitAbilityLevel(h, 'AHhb') == 1, \"learned level 1\")\n"
+        "  call BJassAssert(SetUnitAbilityLevel(h, 'AHhb', 3) == 3, \"SetUnitAbilityLevel\")\n"
+        "  call BJassAssert(GetUnitAbilityLevel(h, 'AHhb') == 3, \"level stuck at 3\")\n"
+        "  call BJassAssert(IncUnitAbilityLevel(h, 'AHhb') == 4, \"IncUnitAbilityLevel\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(h) == 0 or GetUnitCurrentOrder(h) != 0, \"GetUnitCurrentOrder callable\")\n"
+        "  call BJassAssert(UnitInventorySize(h) >= 0, \"UnitInventorySize\")\n"
+        "  call BJassAssert(UnitAddType(u, ConvertUnitType(10)), \"UnitAddType\")\n"
+        "  call BJassAssert(IsUnitType(u, ConvertUnitType(10)), \"script type visible\")\n"
+        "  call BJassAssert(UnitRemoveType(u, ConvertUnitType(10)), \"UnitRemoveType\")\n"
+        "  call BJassAssert(not IsUnitType(u, ConvertUnitType(10)), \"script type cleared\")\n"
+        "  call SetPlayerAbilityAvailable(Player(0), 'AHhb', false)\n"
+        "  call SetPlayerAbilityAvailable(Player(0), 'AHhb', true)\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, dota_unit_damage_target_and_invulnerable) {
+    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    FLOAT life_before;
+    T_NOT_NULL(attacker); T_NOT_NULL(target);
+    G_SetHealth(attacker, 500); G_SetHealth(target, 500);
+    life_before = target->health.value;
+    /* Drive the registered native through JASS with null typed handles (allowed). */
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit a = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  local unit t = CreateUnit(Player(0), 'hfoo', 64.0, 0.0, 0.0)\n"
+        "  call SetWidgetLife(t, 500.0)\n"
+        "  call BJassAssert(UnitDamageTarget(a, t, 40.0, true, false, null, null, null), \"damage ok\")\n"
+        "  call BJassAssert(GetWidgetLife(t) < 500.0, \"life dropped\")\n"
+        "  call SetUnitInvulnerable(t, true)\n"
+        "  call BJassAssert(not UnitDamageTarget(a, t, 40.0, true, false, null, null, null), \"invuln rejected\")\n"
+        "endfunction\n"));
+    /* Also exercise the C damage path used by the native. */
+    T_Damage(target, attacker, 40);
+    T_ASSERT(target->health.value < life_before);
+    T_ASSERT(target->health.value <= life_before - 39.0f);
+}
+
+TEST(wc3_api, dota_item_user_data_visibility_and_stock) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local item it = CreateItem('ratf', 0.0, 0.0)\n"
+        "  local unit shop = CreateUnit(Player(0), 'nmer', 128.0, 128.0, 0.0)\n"
+        "  call SetItemUserData(it, 77)\n"
+        "  call BJassAssert(GetItemUserData(it) == 77, \"item user data\")\n"
+        "  call BJassAssert(StringLength(GetItemName(it)) >= 0, \"GetItemName\")\n"
+        "  call SetItemVisible(it, false)\n"
+        "  call BJassAssert(not IsItemVisible(it), \"hidden item\")\n"
+        "  call SetItemVisible(it, true)\n"
+        "  call BJassAssert(IsItemVisible(it), \"shown item\")\n"
+        "  call SetItemPawnable(it, false)\n"
+        "  call BJassAssert(not IsItemOwned(it), \"world item not owned\")\n"
+        "  call AddUnitToStock(shop, 'hfoo', 2, 5)\n"
+        "  call RemoveUnitFromStock(shop, 'hfoo')\n"
+        "  call BJassAssert(AddLightning(\"CLPB\", false, 0.0, 0.0, 10.0, 10.0) != null, \"AddLightning\")\n"
+        "  call BJassAssert(CreateImage(\"\", 32.0, 32.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0) != null, \"CreateImage\")\n"
+        "  call BJassAssert(CreateUbersplat(0.0, 0.0, \"\", 255, 255, 255, 255, false, false) != null, \"CreateUbersplat\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, dota_damage_event_exposes_source_and_amount) {
+    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT target = NULL;
+    T_NOT_NULL(attacker);
+    attacker->s.player = 1;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit g_src = null\n"
+        "  real g_dmg = 0.0\n"
+        "  unit g_tgt = null\n"
+        "endglobals\n"
+        "function on_damaged takes nothing returns nothing\n"
+        "  set g_src = GetEventDamageSource()\n"
+        "  set g_dmg = GetEventDamage()\n"
+        "endfunction\n"
+        "function verify_damage takes nothing returns nothing\n"
+        "  call BJassAssert(g_src != null, \"GetEventDamageSource set\")\n"
+        "  call BJassAssert(g_dmg == 25.0, \"GetEventDamage\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger trig = CreateTrigger()\n"
+        "  set g_tgt = CreateUnit(Player(0), 'hfoo', 256.0, 256.0, 0.0)\n"
+        "  call TriggerRegisterUnitEvent(trig, g_tgt, EVENT_UNIT_DAMAGED)\n"
+        "  call TriggerAddAction(trig, function on_damaged)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            g_edicts[i].s.origin2.x > 200.0f) {
+            target = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(target);
+    G_SetHealth(target, 500);
+    T_Damage(target, attacker, 25);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_damage", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 #endif /* BZ_TESTS */

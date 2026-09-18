@@ -741,7 +741,77 @@ DWORD GetEventUnitState(LPJASS j) {
     return jass_pushnullhandle(j, "unitstate");
 }
 DWORD GetEventDamage(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    return jass_pushnumber(j, (FLOAT)jass_getcontext(j)->eventValue);
+}
+DWORD GetEventDamageSource(LPJASS j) {
+    return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
+}
+DWORD GetObjectName(LPJASS j) {
+    LONG objectId = jass_checkinteger(j, 1);
+    return jass_pushstring(j, G_ObjectName((DWORD)objectId));
+}
+DWORD GetSellingUnit(LPJASS j) {
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+}
+DWORD GetBuyingUnit(LPJASS j) {
+    return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
+}
+DWORD GetSoldUnit(LPJASS j) {
+    return jass_pushlighthandle(j, eventsoldunit, "unit");
+}
+DWORD GetSoldItem(LPJASS j) {
+    return jass_pushlighthandle(j, eventsolditem, "item");
+}
+DWORD StringLength(LPJASS j) {
+    LPCSTR s = jass_checkstring(j, 1);
+    return jass_pushinteger(j, s ? (LONG)strlen(s) : 0);
+}
+DWORD StringCase(LPJASS j) {
+    LPCSTR source = jass_checkstring(j, 1);
+    BOOL upper = jass_checkboolean(j, 2);
+    char buf[1024];
+    DWORD i, n;
+    if (!source) return jass_pushstring(j, "");
+    n = (DWORD)strlen(source);
+    if (n >= sizeof(buf)) n = sizeof(buf) - 1;
+    for (i = 0; i < n; i++) {
+        unsigned char c = (unsigned char)source[i];
+        buf[i] = (char)(upper ? toupper(c) : tolower(c));
+    }
+    buf[n] = '\0';
+    return jass_pushstring(j, buf);
+}
+/* Storm-style path hash (case-insensitive, / and \ equivalent). DotA keys
+ * are computed at runtime, so self-consistency matters more than retail bit-identity. */
+DWORD StringHash(LPJASS j) {
+    static DWORD crypt[0x500];
+    static BOOL ready;
+    LPCSTR s = jass_checkstring(j, 1);
+    DWORD seed1 = 0x7FED7FED, seed2 = 0xEEEEEEEE, i;
+    if (!s || !*s) return jass_pushinteger(j, 0);
+    if (!ready) {
+        DWORD seed = 0x100001;
+        for (i = 0; i < 0x100; i++) {
+            DWORD j2;
+            for (j2 = 0; j2 < 5; j2++) {
+                DWORD t1, t2;
+                seed = (seed * 125 + 3) % 0x2AAAAB;
+                t1 = (seed & 0xFFFF) << 16;
+                seed = (seed * 125 + 3) % 0x2AAAAB;
+                t2 = seed & 0xFFFF;
+                crypt[i + j2 * 0x100] = t1 | t2;
+            }
+        }
+        ready = true;
+    }
+    for (; *s; s++) {
+        unsigned char c = (unsigned char)*s;
+        if (c >= 'a' && c <= 'z') c = (unsigned char)(c - 32);
+        if (c == '/') c = '\\';
+        seed1 = crypt[c] ^ (seed1 + seed2);
+        seed2 = c + seed1 + seed2 + (seed2 << 5) + 3;
+    }
+    return jass_pushinteger(j, (LONG)seed1);
 }
 DWORD GetEventDetectingPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
@@ -1782,6 +1852,142 @@ DWORD ConvertPlayerScore(LPJASS j) {
     *playerscore = jass_checkinteger(j, 1);
     return 1;
 }
+/* Minimal lightning/image/ubersplat handles — presentation is partial; scripts need create/destroy/move/color/show. */
+typedef struct {
+    VECTOR3 a, b;
+    FLOAT color[4];
+    BOOL shown;
+    char code[8];
+} jassLightning_t;
+typedef struct {
+    VECTOR3 pos, size, origin;
+    FLOAT color[4];
+    BOOL shown, render, render_always;
+    char file[128];
+} jassImage_t;
+typedef struct {
+    VECTOR2 pos;
+    FLOAT color[4];
+    BOOL shown, render, render_always, finished;
+    char name[64];
+} jassUbersplat_t;
+
+DWORD AddLightningEx(LPJASS j) {
+    LPCSTR codeName = jass_checkstring(j, 1);
+    jassLightning_t *bolt = jass_newhandle(j, sizeof(*bolt), "lightning");
+    (void)jass_checkboolean(j, 2);
+    if (!bolt) return jass_pushnullhandle(j, "lightning");
+    memset(bolt, 0, sizeof(*bolt));
+    bolt->a = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
+    bolt->b = MAKE(VECTOR3, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
+    bolt->color[0] = bolt->color[1] = bolt->color[2] = bolt->color[3] = 1.0f;
+    bolt->shown = true;
+    if (codeName) strlcpy(bolt->code, codeName, sizeof(bolt->code));
+    return 1;
+}
+DWORD AddLightning(LPJASS j) {
+    LPCSTR codeName = jass_checkstring(j, 1);
+    BOOL checkVisibility = jass_checkboolean(j, 2);
+    FLOAT x1 = jass_checknumber(j, 3), y1 = jass_checknumber(j, 4);
+    FLOAT x2 = jass_checknumber(j, 5), y2 = jass_checknumber(j, 6);
+    jassLightning_t *bolt = jass_newhandle(j, sizeof(*bolt), "lightning");
+    (void)checkVisibility;
+    if (!bolt) return jass_pushnullhandle(j, "lightning");
+    memset(bolt, 0, sizeof(*bolt));
+    bolt->a = MAKE(VECTOR3, x1, y1, 0); bolt->b = MAKE(VECTOR3, x2, y2, 0);
+    bolt->color[0] = bolt->color[1] = bolt->color[2] = bolt->color[3] = 1.0f;
+    bolt->shown = true;
+    if (codeName) strlcpy(bolt->code, codeName, sizeof(bolt->code));
+    return 1;
+}
+DWORD DestroyLightning(LPJASS j) {
+    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
+    if (bolt) bolt->shown = false;
+    return jass_pushboolean(j, bolt != NULL);
+}
+DWORD MoveLightningEx(LPJASS j) {
+    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
+    (void)jass_checkboolean(j, 2);
+    if (!bolt) return jass_pushboolean(j, 0);
+    bolt->a = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
+    bolt->b = MAKE(VECTOR3, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
+    return jass_pushboolean(j, 1);
+}
+DWORD MoveLightning(LPJASS j) {
+    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
+    (void)jass_checkboolean(j, 2);
+    if (!bolt) return jass_pushboolean(j, 0);
+    bolt->a.x = jass_checknumber(j, 3); bolt->a.y = jass_checknumber(j, 4);
+    bolt->b.x = jass_checknumber(j, 5); bolt->b.y = jass_checknumber(j, 6);
+    return jass_pushboolean(j, 1);
+}
+DWORD SetLightningColor(LPJASS j) {
+    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
+    if (!bolt) return jass_pushboolean(j, 0);
+    bolt->color[0] = jass_checknumber(j, 2); bolt->color[1] = jass_checknumber(j, 3);
+    bolt->color[2] = jass_checknumber(j, 4); bolt->color[3] = jass_checknumber(j, 5);
+    return jass_pushboolean(j, 1);
+}
+DWORD GetLightningColorR(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[0] : 0); }
+DWORD GetLightningColorG(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[1] : 0); }
+DWORD GetLightningColorB(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[2] : 0); }
+DWORD GetLightningColorA(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[3] : 0); }
+
+DWORD CreateImage(LPJASS j) {
+    LPCSTR file = jass_checkstring(j, 1);
+    jassImage_t *img = jass_newhandle(j, sizeof(*img), "image");
+    if (!img) return jass_pushnullhandle(j, "image");
+    memset(img, 0, sizeof(*img));
+    img->size = MAKE(VECTOR3, jass_checknumber(j, 2), jass_checknumber(j, 3), jass_checknumber(j, 4));
+    img->pos = MAKE(VECTOR3, jass_checknumber(j, 5), jass_checknumber(j, 6), jass_checknumber(j, 7));
+    img->origin = MAKE(VECTOR3, jass_checknumber(j, 8), jass_checknumber(j, 9), jass_checknumber(j, 10));
+    (void)jass_checkinteger(j, 11);
+    img->color[0] = img->color[1] = img->color[2] = img->color[3] = 1.0f;
+    img->shown = true;
+    if (file) strlcpy(img->file, file, sizeof(img->file));
+    return 1;
+}
+DWORD DestroyImage(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->shown = false; return 0; }
+DWORD ShowImage(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->shown = jass_checkboolean(j, 2); return 0; }
+DWORD SetImagePosition(LPJASS j) {
+    jassImage_t *img = jass_checkhandle(j, 1, "image");
+    if (img) img->pos = MAKE(VECTOR3, jass_checknumber(j, 2), jass_checknumber(j, 3), jass_checknumber(j, 4));
+    return 0;
+}
+DWORD SetImageColor(LPJASS j) {
+    jassImage_t *img = jass_checkhandle(j, 1, "image");
+    if (img) {
+        img->color[0] = jass_checkinteger(j, 2) / 255.0f; img->color[1] = jass_checkinteger(j, 3) / 255.0f;
+        img->color[2] = jass_checkinteger(j, 4) / 255.0f; img->color[3] = jass_checkinteger(j, 5) / 255.0f;
+    }
+    return 0;
+}
+DWORD SetImageRender(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->render = jass_checkboolean(j, 2); return 0; }
+DWORD SetImageRenderAlways(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->render_always = jass_checkboolean(j, 2); return 0; }
+DWORD SetImageConstantHeight(LPJASS j) { (void)j; return 0; }
+DWORD SetImageAboveWater(LPJASS j) { (void)j; return 0; }
+DWORD SetImageType(LPJASS j) { (void)j; return 0; }
+
+DWORD CreateUbersplat(LPJASS j) {
+    jassUbersplat_t *u = jass_newhandle(j, sizeof(*u), "ubersplat");
+    LPCSTR name = jass_checkstring(j, 3);
+    if (!u) return jass_pushnullhandle(j, "ubersplat");
+    memset(u, 0, sizeof(*u));
+    u->pos = MAKE(VECTOR2, jass_checknumber(j, 1), jass_checknumber(j, 2));
+    u->color[0] = jass_checkinteger(j, 4) / 255.0f; u->color[1] = jass_checkinteger(j, 5) / 255.0f;
+    u->color[2] = jass_checkinteger(j, 6) / 255.0f; u->color[3] = jass_checkinteger(j, 7) / 255.0f;
+    (void)jass_checkboolean(j, 8); (void)jass_checkboolean(j, 9);
+    u->shown = true;
+    if (name) strlcpy(u->name, name, sizeof(u->name));
+    return 1;
+}
+DWORD DestroyUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->shown = false; return 0; }
+DWORD ResetUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->finished = false; return 0; }
+DWORD FinishUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->finished = true; return 0; }
+DWORD ShowUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->shown = jass_checkboolean(j, 2); return 0; }
+DWORD SetUbersplatRender(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->render = jass_checkboolean(j, 2); return 0; }
+DWORD SetUbersplatRenderAlways(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->render_always = jass_checkboolean(j, 2); return 0; }
+
 DWORD VersionGet(LPJASS j) {
     API_ALLOC(DWORD, version);
     *version = 0;

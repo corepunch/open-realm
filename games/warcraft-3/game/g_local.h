@@ -396,6 +396,15 @@ typedef enum {
     EVENT_PLAYER_UNIT_CHANGE_OWNER = 270,
     EVENT_UNIT_CHANGE_OWNER = 287,
 
+    /* Shop sell ids retain retail common.j numbers (269/271/286/288). */
+    EVENT_PLAYER_UNIT_SELL = 269,
+    EVENT_PLAYER_UNIT_SELL_ITEM = 271,
+    EVENT_UNIT_SELL = 286,
+    EVENT_UNIT_SELL_ITEM = 288,
+
+    /* Player-unit damaged mirrors EVENT_UNIT_DAMAGED (52) at retail id 308. */
+    EVENT_PLAYER_UNIT_DAMAGED = 308,
+
     EVENT_UNIT_IN_RANGE = 92,
 } EVENTTYPE;
 
@@ -473,6 +482,8 @@ struct client_s {
         BYTE pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
         DWORD pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
         char name[MAX_PATHLEN];
+        DWORD disabled_abilities[64]; /* SetPlayerAbilityAvailable(false) rawcodes */
+        DWORD disabled_ability_count;
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
@@ -1234,6 +1245,9 @@ struct edict_s {
         LONG inventory_slot;
         BOOL in_world;
         DWORD charges;
+        LONG user_data;       /* SetItemUserData script scratch */
+        BOOL pawnable_set;    /* SetItemPawnable overrode ItemData.pawnable */
+        BOOL pawnable;        /* effective pawnable when pawnable_set */
     } item;
     struct edictDestructable_s {
         BOOL initialized;
@@ -1285,6 +1299,8 @@ struct edict_s {
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
     BOOL no_pathing;    // pathfinding disabled when true
+    BOOL timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
+    DWORD script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     struct edictSleep_s {
         BOOL can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
         BOOL sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
@@ -2488,6 +2504,12 @@ FLOAT unit_statusremainingfraction(heroabilitystatus_t const *);
 heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT);
 void unit_learnability(LPEDICT, DWORD);
 DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode);
+DWORD G_UnitSetAbilityLevel(LPEDICT ent, DWORD abilcode, LONG level);
+void G_SetPlayerAbilityAvailable(LPGAMECLIENT client, DWORD abilid, BOOL avail);
+BOOL G_IsPlayerAbilityAvailable(LPCGAMECLIENT client, DWORD abilid);
+LPCSTR G_ObjectName(DWORD objectId);
+extern LPEDICT eventsolditem;
+extern LPEDICT eventsoldunit;
 BOOL G_HeroHasCandidateSkill(LPCEDICT ent, DWORD abilcode);
 void G_HeroInitializeProgression(LPEDICT ent);
 DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode);
