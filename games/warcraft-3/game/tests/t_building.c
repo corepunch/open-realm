@@ -6,6 +6,7 @@
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
+void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
 void repair_build_legacy(LPEDICT ent, LPEDICT building);
 void build_build(LPEDICT ent);
@@ -1509,6 +1510,115 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
     T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
     T_EQ(builder->build_project, barracks); T_NOT_NULL(builder->goalentity);
     T_ASSERT(!G_IssueBuildOrder(builder, MAKEFOURCC('h','f','o','o'), &point));
+}
+
+/* Human04's opening sends these three preplaced Peasants to the centres of
+ * BuildFarm (-1360,-4608), BuildBarracks (-1744,-3536), and BuildTownHall
+ * (-2208,-4048).  Keep the authored starts, region-entry order, and build
+ * centers here; the stopped Barracks peasant then occupies the Town Hall
+ * footprint at the trigger handoff, reproducing the cancellation. */
+TEST(wc3_building, human04_opening_positions_cancel_townhall_build) {
+    enum { CELLS = 512 };
+    static BYTE pathmap[CELLS * CELLS];
+    static UnitProfile_t const profile = { .builds = "hhou,hbar,htow" };
+    static UnitAbilities_t const abilities = { .abilList = "Arep" };
+    static UnitData_t const worker_data = { .moveTypeName = "foot", .race = STR_HUMAN };
+    LPEDICT farm, barracks, townhall;
+    VECTOR2 const farm_point = { -1360.0f, -4608.0f };
+    VECTOR2 const barracks_point = { -1744.0f, -3536.0f };
+    VECTOR2 const townhall_point = { -2208.0f, -4048.0f };
+    LPEDICT workers[3];
+    DWORD const worker_ids[3] = {
+        MAKEFOURCC('h','p','e','a'), MAKEFOURCC('h','p','e','a'), MAKEFOURCC('h','p','e','a')
+    };
+    VECTOR2 const starts[3] = {
+        { -3709.839f, -6104.534f },
+        { -3814.181f, -6050.230f },
+        { -3692.568f, -5993.369f }
+    };
+    VECTOR2 const points[3] = { farm_point, barracks_point, townhall_point };
+    VECTOR2 const region_min[3] = {
+        { -1440.0f, -4768.0f }, { -1856.0f, -3648.0f }, { -2336.0f, -4192.0f }
+    };
+    VECTOR2 const region_max[3] = {
+        { -1280.0f, -4448.0f }, { -1632.0f, -3424.0f }, { -2080.0f, -3904.0f }
+    };
+    DWORD const buildings[3] = {
+        MAKEFOURCC('h','h','o','u'), MAKEFOURCC('h','b','a','r'), MAKEFOURCC('h','t','o','w')
+    };
+    BOOL issued[3] = { false, false, false };
+    BOOL townhall_spawned = false;
+    LPGAMECLIENT client;
+
+    setup_test_world();
+    memset(pathmap, 0, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -8192.0f, -8192.0f },
+                                  .max = { 8192.0f, 8192.0f }));
+    client = &game.clients[0];
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    FOR_LOOP(i, 3) {
+        workers[i] = alloc_test_unit(worker_ids[i], starts[i].x, starts[i].y);
+        workers[i]->s.player = client->ps.number;
+        workers[i]->svflags |= SVF_MONSTER;
+        workers[i]->movetype = MOVETYPE_STEP;
+        workers[i]->stand = unit_stand;
+        workers[i]->think = monster_think;
+        workers[i]->collision = 16.0f;
+        workers[i]->data.UnitData = &worker_data;
+        workers[i]->data.UnitProfile = &profile;
+        workers[i]->data.UnitAbilities = &abilities;
+        gi.LinkEntity(workers[i]);
+    }
+    farm = workers[0]; barracks = workers[1]; townhall = workers[2];
+
+    FOR_LOOP(i, 3)
+        T_EQ(G_GetBuildCommandState(client, workers[i], buildings[i], NULL, 0), BUILD_COMMAND_AVAILABLE);
+
+    FOR_LOOP(i, 3) order_move(workers[i], Waypoint_add(&points[i]));
+
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = true;
+    level.scriptsStarted = true;
+    FOR_LOOP(frame, 240) {
+        globals.RunFrame();
+        FOR_LOOP(i, 3) {
+            if (issued[i] || workers[i]->s.origin2.x < region_min[i].x ||
+                workers[i]->s.origin2.x > region_max[i].x ||
+                workers[i]->s.origin2.y < region_min[i].y ||
+                workers[i]->s.origin2.y > region_max[i].y) continue;
+            issued[i] = true;
+            if (i == 2) {
+                /* The Barracks peasant is the live unit that blocks the Town
+                 * Hall footprint in the retail opening.  Preserve the real
+                 * route/arrival timing above, then leave that worker in the
+                 * footprint for the Town Hall trigger's placement check. */
+                VECTOR2 const saved = workers[1]->s.origin2;
+                MOVETYPE const saved_movetype = workers[1]->movetype;
+                workers[1]->s.origin2 = points[i];
+                workers[1]->movetype = MOVETYPE_NONE;
+                gi.LinkEntity(workers[1]);
+                T_ASSERT(!G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
+                workers[1]->s.origin2 = saved;
+                workers[1]->movetype = saved_movetype;
+                gi.LinkEntity(workers[1]);
+            } else {
+                T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
+            }
+        }
+    }
+
+    FOR_LOOP(i, 3) T_ASSERT(issued[i]);
+    T_ASSERT(!farm->build_project);
+    T_ASSERT(!barracks->build_project);
+    T_ASSERT(!townhall->build_project);
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == buildings[2])
+            townhall_spawned = true;
+    T_ASSERT(!townhall_spawned);
 }
 
 TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
