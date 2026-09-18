@@ -8,20 +8,26 @@
 
 #include "hud_local.h"
 
-#define TIMER_DIALOG_EDGE_INSET 0.006f
-#define TIMER_DIALOG_MIN_WIDTH  0.060f
+#define BZ_WC3_TIMER_DIALOG_EDGE_INSET 0.006f // normalized UI units; keeps measured title/value inside the backdrop
+#define BZ_WC3_TIMER_DIALOG_MIN_WIDTH  0.060f // normalized UI units; preserves a readable stock timer strip
 
-static void TimerDialogSetHorizontalPoint(LPFRAMEDEF frame, uiFramePointPos_t point,
-                                          LPCFRAMEDEF relative, uiFramePointPos_t target,
-                                          FLOAT offset) {
-    if (!frame) return;
-    memset(&frame->Points.x, 0, sizeof(frame->Points.x));
-    frame->Points.x[point].used = true;
-    frame->Points.x[point].relativeTo = relative;
-    frame->Points.x[point].targetPos = target;
-    frame->Points.x[point].offset = offset;
-    frame->Width = 0.0f;
-    frame->AnyPointsSet = true;
+typedef struct {
+    LPFRAMEDEF frame;
+    uiFramePointPos_t point;
+    LPCFRAMEDEF relative;
+    uiFramePointPos_t target;
+    FLOAT offset;
+} timerDialogPointParams_t;
+
+static void TimerDialogSetHorizontalPoint(timerDialogPointParams_t const *params) {
+    if (!params || !params->frame) return;
+    memset(&params->frame->Points.x, 0, sizeof(params->frame->Points.x));
+    params->frame->Points.x[params->point].used = true;
+    params->frame->Points.x[params->point].relativeTo = params->relative;
+    params->frame->Points.x[params->point].targetPos = params->target;
+    params->frame->Points.x[params->point].offset = params->offset;
+    params->frame->Width = 0.0f;
+    params->frame->AnyPointsSet = true;
 }
 
 static DWORD TimerDialogMeasureFont(void) {
@@ -47,10 +53,21 @@ static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD client_num) {
 
 FLOAT UI_TimerDialogLeaderboardOffset(DWORD client_num) {
     if (!UI_VisibleTimerDialog(client_num) || !hud.timer_dialog.TimerDialog) return 0.0f;
-    return hud.timer_dialog.TimerDialog->Height + HUD_TIMER_DIALOG_STACK_GAP;
+    return hud.timer_dialog.TimerDialog->Height + BZ_WC3_HUD_TIMER_DIALOG_STACK_GAP;
 }
 
 void UI_LoadHudTimerDialogs(void) {
+    timerDialogPointParams_t title_params = {
+        .frame = hud.timer_dialog.TimerDialogTitle, .point = FPP_MIN,
+        .relative = hud.timer_dialog.TimerDialog, .target = FPP_MIN,
+        .offset = BZ_WC3_TIMER_DIALOG_EDGE_INSET,
+    };
+    timerDialogPointParams_t value_params = {
+        .frame = hud.timer_dialog.TimerDialogValue, .point = FPP_MAX,
+        .relative = hud.timer_dialog.TimerDialog, .target = FPP_MAX,
+        .offset = -BZ_WC3_TIMER_DIALOG_EDGE_INSET,
+    };
+
     if (!TimerDialog_Load(&hud.timer_dialog)) {
         fprintf(stderr, "WC3 HUD: missing TimerDialog.fdf\n");
         return;
@@ -90,12 +107,12 @@ void UI_LoadHudTimerDialogs(void) {
                     FRAMEPOINT_BOTTOMRIGHT, hud.timer_dialog.TimerDialog, FRAMEPOINT_BOTTOMRIGHT,
                     0.0f, 0.0f);
     }
-    TimerDialogSetHorizontalPoint(hud.timer_dialog.TimerDialogTitle, FPP_MIN,
-                                  hud.timer_dialog.TimerDialog, FPP_MIN,
-                                  TIMER_DIALOG_EDGE_INSET);
-    TimerDialogSetHorizontalPoint(hud.timer_dialog.TimerDialogValue, FPP_MAX,
-                                  hud.timer_dialog.TimerDialog, FPP_MAX,
-                                  -TIMER_DIALOG_EDGE_INSET);
+    title_params.frame = hud.timer_dialog.TimerDialogTitle;
+    title_params.relative = hud.timer_dialog.TimerDialog;
+    value_params.frame = hud.timer_dialog.TimerDialogValue;
+    value_params.relative = hud.timer_dialog.TimerDialog;
+    TimerDialogSetHorizontalPoint(&title_params);
+    TimerDialogSetHorizontalPoint(&value_params);
 
     if (hud.timer_dialog.TimerDialogTitle) {
         strlcpy(hud.timer_dialog_default_title,
@@ -112,6 +129,7 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     LPCSTR title;
     char value[32];
     char measure[MAX_TRIGSTR_LENGTH + sizeof(value) + 8];
+    uiSizeToTextParams_t size_params;
     DWORD client_num;
 
     if (!ent || !ent->client) return;
@@ -137,15 +155,16 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     UI_SetText(hud.timer_dialog.TimerDialogValue, "%s", value);
     snprintf(measure, sizeof(measure), "%s    %s",
              title && *title ? title : " ", value);
+    size_params = (uiSizeToTextParams_t){
+        .frame = hud.timer_dialog.TimerDialog, .parent = &hud.timer_dialog_anchor,
+        .measure_text = measure, .font = TimerDialogMeasureFont(),
+        .padding_x = BZ_WC3_TIMER_DIALOG_EDGE_INSET, .min_width = BZ_WC3_TIMER_DIALOG_MIN_WIDTH,
+    };
 
     UI_SetCurrentClient(ent->client);
     UI_WriteStart(WC3_LAYER_TIMERDIALOG);
     UI_WriteFrame(&hud.timer_dialog_anchor);
-    UI_WriteFrameWithChildrenSizedToText(hud.timer_dialog.TimerDialog,
-                                         &hud.timer_dialog_anchor,
-                                         measure, TimerDialogMeasureFont(),
-                                         TIMER_DIALOG_EDGE_INSET,
-                                         TIMER_DIALOG_MIN_WIDTH);
+    UI_WriteFrameWithChildrenSizedToText(&size_params);
     UI_WriteEnd(ent);
     UI_SetCurrentClient(NULL);
 }

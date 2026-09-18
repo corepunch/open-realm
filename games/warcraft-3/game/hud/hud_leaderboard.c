@@ -5,8 +5,18 @@
 #define LEADERBOARD_BOTTOM_PAD     0.004f
 #define LEADERBOARD_TITLE_GAP      0.002f
 #define LEADERBOARD_TEXT_HEIGHT    0.012f
-#define LEADERBOARD_MIN_CONTENT_WIDTH 0.020f
-#define LEADERBOARD_COLUMN_GAP     "    "
+#define BZ_WC3_LEADERBOARD_MIN_CONTENT_WIDTH 0.020f // normalized UI units; keeps an empty board readable
+#define BZ_WC3_LEADERBOARD_COLUMN_GAP     "    " // spaces; separates measured label and value columns
+
+typedef struct {
+    DWORD parent;
+    FLOAT y;
+    FLOAT h;
+    LPCSTR text;
+    COLOR32 color;
+    uiFontJustificationH_t align;
+    BOOL right_anchored;
+} leaderboardTextParams_t;
 
 static char leaderboard_measure_text[(MAX_TRIGSTR_LENGTH + 48) * (MAX_LEADERBOARD_ITEMS + 1)];
 
@@ -19,27 +29,26 @@ static void LeaderboardItemText(LPCLEADERBOARD board, struct gleaderboarditem_s 
     else snprintf(out, out_size, "%s%s", name, label);
 }
 
-static void WriteLeaderboardText(DWORD parent, FLOAT y, FLOAT h,
-                                 LPCSTR text, COLOR32 color, uiFontJustificationH_t align,
-                                 BOOL right_anchored) {
+static void WriteLeaderboardText(leaderboardTextParams_t const *params) {
     uiFrame_t frame;
     uiLabel_t label;
+    if (!params) return;
     memset(&frame, 0, sizeof(frame));
     memset(&label, 0, sizeof(label));
     frame.flags.type = FT_STRING;
-    frame.parent = parent;
-    frame.text = text;
-    frame.color = color.a ? color : COLOR32_WHITE;
+    frame.parent = params->parent;
+    frame.text = params->text;
+    frame.color = params->color.a ? params->color : COLOR32_WHITE;
     label.font = hud.leaderboard.LeaderboardTitle
         ? UI_LiveFont(hud.leaderboard.LeaderboardTitle->Font.Index)
         : gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
-    label.textalignx = align;
+    label.textalignx = params->align;
     label.textaligny = FONT_JUSTIFYMIDDLE;
-    frame.size.height = h;
-    UI_SetFramePoint(&frame.points.x[right_anchored ? FPP_MAX : FPP_MIN],
-                     right_anchored ? FPP_MAX : FPP_MIN,
+    frame.size.height = params->h;
+    UI_SetFramePoint(&frame.points.x[params->right_anchored ? FPP_MAX : FPP_MIN],
+                     params->right_anchored ? FPP_MAX : FPP_MIN,
                      UI_PARENT, 0.0f, false);
-    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, UI_PARENT, y, true);
+    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, UI_PARENT, params->y, true);
     frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
@@ -58,7 +67,7 @@ static void LeaderboardAppendMeasureLine(LPSTR out, size_t out_size, LPCSTR left
     if (used && used + 1 < out_size) out[used++] = '\n', out[used] = '\0';
     if (left && *left) strlcat(out, left, out_size);
     if (right && *right) {
-        strlcat(out, LEADERBOARD_COLUMN_GAP, out_size);
+        strlcat(out, BZ_WC3_LEADERBOARD_COLUMN_GAP, out_size);
         strlcat(out, right, out_size);
     }
     if (!out[used]) strlcat(out, " ", out_size);
@@ -104,6 +113,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     FLOAT row_height, title_height, total_height, list_top, top_y;
     BOOL has_title;
     DWORD player, rows, visible_rows, parent, measure_font;
+    uiSizeToTextParams_t size_params;
 
     if (!ent || !ent->client) return;
     player = ent->client->ps.number;
@@ -202,11 +212,13 @@ void UI_WriteLeaderboard(LPEDICT ent) {
     UI_SetCurrentClient(ent->client);
     UI_WriteStart(WC3_LAYER_LEADERBOARD);
     UI_WriteFrame(&hud.leaderboard_anchor);
-    UI_WriteFrameWithChildrenSizedToText(root, &hud.leaderboard_anchor,
-                                         leaderboard_measure_text,
-                                         measure_font,
-                                         LEADERBOARD_EDGE_INSET,
-                                         LEADERBOARD_MIN_CONTENT_WIDTH + 2.0f * LEADERBOARD_EDGE_INSET);
+    size_params = (uiSizeToTextParams_t){
+        .frame = root, .parent = &hud.leaderboard_anchor,
+        .measure_text = leaderboard_measure_text, .font = measure_font,
+        .padding_x = LEADERBOARD_EDGE_INSET,
+        .min_width = BZ_WC3_LEADERBOARD_MIN_CONTENT_WIDTH + 2.0f * LEADERBOARD_EDGE_INSET,
+    };
+    UI_WriteFrameWithChildrenSizedToText(&size_params);
     parent = UI_GetWrittenFrameNumber(container);
     FOR_LOOP(i, MIN(board->item_count, rows)) {
         struct gleaderboarditem_s const *item = &board->items[i];
@@ -214,13 +226,21 @@ void UI_WriteLeaderboard(LPEDICT ent) {
         COLOR32 label_color = item->label_color_set ? item->label_color : hud.leaderboard_default_item_color;
         COLOR32 value_color = item->value_color_set ? item->value_color :
             (board->value_color_set ? board->value_color : hud.leaderboard_default_item_color);
+        leaderboardTextParams_t label_params = {
+            .parent = parent, .y = (FLOAT)i * row_height, .h = row_height,
+            .text = NULL, .color = label_color,
+            .align = FONT_JUSTIFYLEFT, .right_anchored = false,
+        };
+        leaderboardTextParams_t value_params = label_params;
         LeaderboardItemText(board, item, text, sizeof(text));
         snprintf(number, sizeof(number), "%ld", (long)item->value);
-        WriteLeaderboardText(parent, (FLOAT)i * row_height, row_height,
-                             text[0] ? text : " ", label_color, FONT_JUSTIFYLEFT, false);
-        WriteLeaderboardText(parent, (FLOAT)i * row_height, row_height,
-                             item->show_value && board->show_values ? number : " ",
-                             value_color, FONT_JUSTIFYRIGHT, true);
+        label_params.text = text[0] ? text : " ";
+        value_params.text = item->show_value && board->show_values ? number : " ";
+        value_params.color = value_color;
+        value_params.align = FONT_JUSTIFYRIGHT;
+        value_params.right_anchored = true;
+        WriteLeaderboardText(&label_params);
+        WriteLeaderboardText(&value_params);
     }
     UI_WriteEnd(ent);
     UI_SetCurrentClient(NULL);
