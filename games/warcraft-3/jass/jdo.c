@@ -2081,6 +2081,11 @@ static void jass_evalprogram(LPJASS j, LPCTOKEN program) {
 }
 
 BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
+    if (!buffer) {
+        /* Missing mapscript used to SIGSEGV in jass_remove_comments(NULL). */
+        jass_setruntimeerror(j, "null buffer");
+        return false;
+    }
     jass_remove_comments(buffer);
     jass_remove_bom(buffer);
     if ((DWORD)mode >= sizeof(jass_syntax) / sizeof(jass_syntax[0])) {

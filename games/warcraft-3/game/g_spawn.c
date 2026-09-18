@@ -726,7 +726,10 @@ void G_SpawnEntities(void) {
     gi.LoadingFrame();
 //    jass_dofilenative(level.vm, "/Users/igor/Desktop/war3map.j");
     G_DumpPrologue02BurrowHandoffSource(level.mapinfo->mapscript);
-    jass_dobuffer(level.vm, level.mapinfo->mapscript);
+    if (level.mapinfo->mapscript)
+        jass_dobuffer(level.vm, level.mapinfo->mapscript);
+    else
+        fprintf(stderr, "G_SpawnEntities: missing mapscript; skipping jass_dobuffer\n");
     gi.LoadingFrame();
 
     UI_Init();

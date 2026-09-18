@@ -39,8 +39,9 @@ compressed+encrypted. One file uses PKWARE implode (`(listfile)`).
 ```text
 loose Maps/*.w3x
   -> CM_LoadMap opens the map as a nested MPQ (not added to the global FS stack)
-  -> CM_ReadMapScript looks only for war3map.j
-  -> G_SpawnEntities -> jass_dobuffer(level.mapinfo->mapscript)
+  -> CM_ReadMapScript tries war3map.j, then scripts\war3map.j (case-insensitive)
+  -> miss logs and leaves mapscript NULL; jass_dobuffer refuses NULL
+  -> G_SpawnEntities skips jass_dobuffer when mapscript is NULL
   -> G_StartScripts calls main()
 ```
 
@@ -131,7 +132,7 @@ Suggested order (GitHub #431 and children):
 
 1. Honor MPQ sector sizes above 64 KiB so protected maps open (#435).
 2. Read `scripts\war3map.j` when `war3map.j` is absent; refuse null mapscripts
-   instead of crashing (#433).
+   instead of crashing (#433) — done in tree; still blocked on #435 for DotA.
 3. Implement the hashtable native family (#437).
 4. Resolve map-archive `Units\*.txt`, `war3mapMisc.txt`, and `war3map.w3a`
    through the existing sheet/object-data path (mount the map as the highest

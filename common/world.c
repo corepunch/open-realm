@@ -957,8 +957,14 @@ void CM_ReadStrings(HANDLE archive) {
 }
 
 void CM_ReadMapScript(HANDLE archive) {
+    /* DotA and some protected maps store only scripts\war3map.j. Prefer the
+     * root name when both exist; never invent an empty buffer on a miss. */
     world.info.mapscript = FS_ReadArchiveFileIntoString(archive, "war3map.j");
-//    SFileExtractFile(archive, "war3map.j", "/Users/igor/Desktop/Human02.j", 0);
+    if (!world.info.mapscript)
+        world.info.mapscript = FS_ReadArchiveFileIntoString(archive, "scripts\\war3map.j");
+    if (!world.info.mapscript)
+        fprintf(stderr, "CM_ReadMapScript: missing war3map.j / scripts\\war3map.j in %s\n",
+                cm_loaded_map[0] ? cm_loaded_map : "(unknown)");
 }
 
 bool CM_LoadMap(LPCSTR mapFilename, cmLoadYield_t yield) {
