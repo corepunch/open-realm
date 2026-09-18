@@ -1657,6 +1657,64 @@ TEST(wc3_building, construction_birth_blocks_after_preview) {
     gi.MemFree(pathtex);
 }
 
+/* A construction can invalidate the old straight route while a second worker
+ * is still travelling to its later build site.  This is the Human04 failure:
+ * the worker is in the reservation/approach lane, not yet overlapping the
+ * Town Hall footprint, and must be displaced without consuming its move order. */
+TEST(wc3_building, construction_displacement_preserves_later_build_route) {
+    enum { CELLS = 128, FOOTPRINT = 9 };
+    static BYTE pathmap[CELLS * CELLS];
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(COLOR32);
+    LPEDICT builder, worker, building, waypoint;
+    pathTex_t *pathtex;
+    VECTOR2 const building_point = { 0.0f, 0.0f };
+    VECTOR2 const worker_start = { 0.0f, -192.0f };
+    VECTOR2 const later_build = { 0.0f, 512.0f };
+    VECTOR2 before_displace;
+
+    setup_test_world();
+    memset(pathmap, 0, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -2048.0f, -2048.0f },
+                                  .max = { 2048.0f, 2048.0f }));
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512.0f, -512.0f);
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), worker_start.x, worker_start.y);
+    building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), building_point.x, building_point.y);
+    builder->s.player = worker->s.player = building->s.player = game.clients[0].ps.number;
+    builder->svflags |= SVF_MONSTER; worker->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER;
+    builder->stand = worker->stand = building->stand = unit_stand;
+    worker->movetype = MOVETYPE_STEP; worker->think = monster_think; worker->collision = 16.0f;
+    building->s.flags |= EF_BUILDING | EF_CONSTRUCTING | EF_NOT_SELECTABLE;
+    pathtex = gi.MemAlloc(pathtex_size);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = pathtex->height = FOOTPRINT;
+    FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
+    building->pathtex = pathtex;
+    gi.LinkEntity(builder); gi.LinkEntity(worker); gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+
+    waypoint = Waypoint_add(&later_build);
+    order_move(worker, waypoint);
+    before_displace = worker->s.origin2;
+    T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
+    T_ASSERT(worker->goalentity == waypoint);
+    T_ASSERT(move_is_active_order_walk(worker));
+
+    building->s.flags &= ~EF_NOT_SELECTABLE;
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    T_ASSERT(!CM_PointIsPathableForRadius(&building_point, 0.0f));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = true;
+    level.scriptsStarted = true;
+    FOR_LOOP(frame, 240) globals.RunFrame();
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);
+    T_ASSERT(worker->goalentity == waypoint || !worker->build_project);
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
 TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT worker, mine;
