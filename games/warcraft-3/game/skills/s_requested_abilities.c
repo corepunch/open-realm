@@ -19,9 +19,8 @@ BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code) {
 }
 
 static LPCSTR spell_buff_fallback(DWORD code) {
-    if (code == MAKEFOURCC('A', 'C', 'm', 'p')) return "Bimp";  /* Impale (creep) */
-    if (code == MAKEFOURCC('A', 'C', 's', 'i')) return "Bsil";  /* Silence (creep) */
-    if (code == MAKEFOURCC('A', 'C', 's', 'l')) return "Bslp";  /* Sleep (creep) */
+    /* ROC omits BuffID; ACsl/AUsl share the TFT token. */
+    if (G_AbilityCode(code) == MAKEFOURCC('A', 'U', 's', 'l')) return "BUsl";
     return NULL;
 }
 

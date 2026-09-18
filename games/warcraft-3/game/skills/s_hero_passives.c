@@ -123,6 +123,49 @@ static auraAbilityRef_t actor_aura_ability(LPEDICT ent, DWORD base_code) {
     return result;
 }
 
+static auraAbilityRef_t unit_ability_with_proc(LPEDICT ent, abilityProc_t proc) {
+    auraAbilityRef_t result = {0};
+    char alias_name[5] = {0};
+    if (!ent || !proc) return result;
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            DWORD alias = 0;
+            abilityitem_t item;
+            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            memcpy(&alias, token, sizeof(alias));
+            item = S_AbilityItem(alias);
+            if (item.ability && item.ability->proc == proc) {
+                result.alias = alias; result.level = 1; return result;
+            }
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        DWORD const alias = ent->abilities.added[i];
+        abilityitem_t item;
+        if (!alias) continue;
+        memcpy(alias_name, &alias, 4);
+        item = S_AbilityItem(alias);
+        if (G_ActorHasSkill(ent, alias_name) && item.ability && item.ability->proc == proc) {
+            result.alias = alias; result.level = 1; return result;
+        }
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *hero = ent->heroabilities + i;
+        abilityitem_t item;
+        if (!hero->level) continue;
+        item = S_AbilityItem(hero->code);
+        if (item.ability && item.ability->proc == proc) {
+            result.alias = hero->code; result.level = hero->level; return result;
+        }
+    }
+    return result;
+}
+
+static auraAbilityRef_t mana_shield_ability(LPEDICT ent) {
+    auraAbilityRef_t ref = actor_aura_ability(ent, ID_MANA_SHIELD);
+    return ref.alias ? ref : unit_ability_with_proc(ent, CAbilityManaShield);
+}
+
 static BOOL aura_target_has_token(LPCSTR targets, LPCSTR full, LPCSTR short_name) {
     char token[32];
     LPCSTR cursor = targets;
@@ -421,8 +464,15 @@ FLOAT S_TrueshotAttackBonus(LPEDICT unit) {
 }
 
 int S_SearingArrowDamage(LPEDICT attacker, int damage) {
-    DWORD level = G_UnitStatusLevel(attacker, ID_SEARING_ARROWS);
-    DWORD code = ID_SEARING_ARROWS;
+    DWORD code = ID_SEARING_ARROWS, level = 0;
+    if (!attacker) return damage;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *st = attacker->abilstatus + i;
+        if (!st->level || (st->timestamp && st->timestamp <= G_Time())) continue;
+        if (st->code == ID_SEARING_ARROWS || G_AbilityCode(st->code) == ID_SEARING_ARROWS) {
+            code = st->code; level = st->level; break;
+        }
+    }
     if (!level) { level = G_UnitStatusLevel(attacker, ID_POISON_ARROWS); code = ID_POISON_ARROWS; }
     return level && attacker->attack1.weapon == WPN_MISSILE ? damage + (int)S_SpellData(code, level, 1) : damage;
 }
@@ -441,9 +491,16 @@ static void mana_shield_remove(LPEDICT unit, DWORD buff) {
 
 /* Mana Shield owns its authored buff so learned-but-inactive abilities never intercept damage. */
 BZ_ABILITY_PROC(CAbilityManaShield) {
-    DWORD code = call && call->item && call->item->code ? call->item->code : ID_MANA_SHIELD;
-    DWORD level = S_SpellLevel(ent, code), buff = mana_shield_buff(code, level);
-    BOOL active = buff && G_UnitStatusLevel(ent, buff);
+    DWORD code = call && call->item && call->item->code ? call->item->code : 0;
+    auraAbilityRef_t ref;
+    DWORD level, buff;
+    BOOL active;
+    if (!code) {
+        ref = mana_shield_ability(ent);
+        code = ref.alias ? ref.alias : ID_MANA_SHIELD;
+    }
+    level = S_SpellLevel(ent, code); buff = mana_shield_buff(code, level);
+    active = buff && G_UnitStatusLevel(ent, buff);
     switch (msg) {
     case A_TOGGLE_ON: return active;
     case A_EXECUTE:
@@ -471,12 +528,14 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
 
 /* Retail DataA is damage absorbed per mana and DataB is the fraction of each hit absorbed. */
 int S_ManaShieldDamage(LPEDICT target, int damage) {
-    DWORD level = G_UnitAbilityLevel(target, ID_MANA_SHIELD);
-    DWORD buff = level ? mana_shield_buff(ID_MANA_SHIELD, level) : 0;
+    auraAbilityRef_t ref = mana_shield_ability(target);
+    DWORD code = ref.alias ? ref.alias : ID_MANA_SHIELD;
+    DWORD level = ref.level ? ref.level : G_UnitAbilityLevel(target, ID_MANA_SHIELD);
+    DWORD buff = level ? mana_shield_buff(code, level) : 0;
     FLOAT ratio, fraction, absorbed;
     if (!buff || !G_UnitStatusLevel(target, buff) || damage <= 0 || target->mana.value <= 0.0f) return damage;
-    ratio = S_SpellData(ID_MANA_SHIELD, level, 1);
-    fraction = MIN(1.0f, MAX(0.0f, S_SpellData(ID_MANA_SHIELD, level, 2)));
+    ratio = S_SpellData(code, level, 1);
+    fraction = MIN(1.0f, MAX(0.0f, S_SpellData(code, level, 2)));
     if (ratio <= 0.0f || fraction <= 0.0f) return damage;
     absorbed = MIN((FLOAT)damage * fraction, target->mana.value * ratio);
     target->mana.value = MAX(0.0f, target->mana.value - absorbed / ratio);

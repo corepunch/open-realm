@@ -3,11 +3,14 @@
 ## Contract
 
 `ANms` is TFT `CAbilityManaShield`, whose extracted parent is `AAsm`
-(`CAbilitySimpleSpell`). It is a no-target toggle, not a passive. Activation adds
-the authored `BuffID` status and deactivation removes it. The stock TFT row uses
-`BNms`, and the stock immediate orders are `manashieldon` (`852589`) and
-`manashieldoff` (`852590`). Those orders are directional: issuing the on order
-twice must leave the shield on rather than toggle it off.
+(`CAbilitySimpleSpell`). Creep `ACmf` is a `code=ANms` alias (stock DataA=2, not
+ANms L1's 1). Both rows share `mana_shield_orders`. It is a no-target toggle, not
+a passive. Activation adds the authored `BuffID` status and deactivation removes
+it. The stock TFT row uses `BNms`, and the stock immediate orders are
+`manashieldon` (`852589`) and `manashieldoff` (`852590`). Those orders are
+directional: issuing the on order twice must leave the shield on rather than
+toggle it off. `S_ManaShieldDamage` and `A_ORDER` resolve the owner's alias
+through `G_AbilityCode` so an `abilList` of `ACmf` is not ignored.
 
 The TFT `AbilityData.slk` row has three levels:
 
@@ -52,4 +55,5 @@ drives partial and complete absorption through `T_Damage()`:
 ```sh
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
   +test wc3_spell.mana_shield_toggle_status_controls_authored_damage_absorption
+make test-wc3-engine WC3_PATTERN='wc3_spell.creep_mana_shield*'
 ```

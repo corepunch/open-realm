@@ -25,7 +25,9 @@ void human_ability_think(LPEDICT thinker);
 
 static LPCSTR human_buff(abilityitem_t const *spell, DWORD level) {
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : NULL;
+    if (buff && strlen(buff) >= 4) return buff;
+    /* ROC omits BuffID; Aply/ACpy share the TFT token. */
+    return G_AbilityCode(spell->code) == BZ_POLYMORPH ? "Bply" : NULL;
 }
 
 static BOOL human_has_status(LPCEDICT ent, DWORD code) { return G_UnitStatusLevel(ent, code) != 0; }
