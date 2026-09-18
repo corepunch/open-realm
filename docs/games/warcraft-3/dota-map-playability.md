@@ -64,6 +64,22 @@ build/bin/openwarcraft3 \
   +com_frame_limit 600
 ```
 
+Same smoke path through the campaign map auditor (`--loose-map` skips the
+`War3.mpq` / `War3x.mpq` campaign walk and still records `SIGSEGV` / timeout):
+
+```sh
+python3 tools/wc3_map_audit.py \
+  --data 'data/Warcraft III' \
+  --binary build/bin/openwarcraft3 \
+  --mpqtool build/bin/mpqtool \
+  --jobs 1 --frames 10 --timeout 60 \
+  --loose-map 'data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x'
+```
+
+```sh
+make audit-wc3-maps WC3_AUDIT_ARGS="--jobs 1 --frames 10 --timeout 60 --loose-map 'data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x'"
+```
+
 Observed on `6f1057f1`:
 
 1. `CM_ReadDoodads: missing war3map.doo` and `CM_ReadUnitDoodads: missing war3mapUnits.doo`.
@@ -79,9 +95,6 @@ Observed on `6f1057f1`:
 
 Hash-known names that `mpqtool cat` cannot open until sector size is honored
 include `scripts\war3map.j`, `war3map.w3e`, `war3map.w3a`, and `war3map.doo`.
-
-Do not use `make audit-wc3-maps` for this file. That enumerator only walks
-retail campaign members inside `War3.mpq` / `War3x.mpq`.
 
 ## JASS Demand (from `scripts\war3map.j`)
 

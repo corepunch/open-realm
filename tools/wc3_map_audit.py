@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run every retail Warcraft III campaign map for a bounded frame budget.
+"""Run retail Warcraft III campaign maps (or selected loose Maps/*.w3x) for a bounded frame budget.
 
 Each map gets an isolated writable home and UDP port. The resulting JSON,
 Markdown matrix, and raw logs are evidence of bounded runtime health only;
@@ -77,6 +77,29 @@ def enumerate_maps(data: Path, mpqtool: Path) -> list[dict[str, str]]:
     return maps
 
 
+def loose_map_spec(path: Path, data: Path) -> dict[str, str]:
+    """Build one audit row for a disk-resident .w3m/.w3x under the data tree."""
+    data = data.expanduser().resolve()
+    candidate = path.expanduser()
+    candidate = candidate.resolve() if candidate.is_absolute() else (Path.cwd() / candidate).resolve()
+    if not candidate.is_file():
+        raise RuntimeError(f"loose map not found: {path}")
+    suffix = candidate.suffix.lower()
+    if suffix not in (".w3m", ".w3x"):
+        raise RuntimeError(f"loose map must be .w3m or .w3x: {candidate}")
+    try:
+        rel = candidate.relative_to(data)
+    except ValueError as error:
+        raise RuntimeError(f"loose map must live under data dir {data}: {candidate}") from error
+    return {
+        "archive": str(candidate),
+        "edition": "TFT" if suffix == ".w3x" else "RoC",
+        "filename": candidate.name,
+        "path": str(rel).replace("\\", "/"),
+        "loose": "1",
+    }
+
+
 def clean_title(text: str) -> str:
     """Remove WC3 color/newline markup from report-facing map titles."""
     text = re.sub(r"\|c[0-9A-Fa-f]{8}|\|r", "", text)
@@ -128,6 +151,14 @@ def parse_w3i_name(info: bytes, wts: str, fallback: str) -> str:
 
 def map_name(item: dict[str, str], mpqtool: Path) -> str:
     """Extract nested W3I/WTS metadata and resolve the report-facing name."""
+    if item.get("loose"):
+        archive = Path(item["archive"])
+        info = run_mpqtool(mpqtool, archive, "cat", "war3map.w3i")
+        try:
+            wts = run_mpqtool(mpqtool, archive, "cat", "war3map.wts").decode(errors="replace")
+        except RuntimeError:
+            wts = ""
+        return parse_w3i_name(info, wts, Path(item["filename"]).stem)
     payload = run_mpqtool(mpqtool, Path(item["archive"]), "cat", item["path"])
     with tempfile.NamedTemporaryFile(prefix="wc3-map-audit-", suffix=Path(item["filename"]).suffix) as nested:
         nested.write(payload)
@@ -297,7 +328,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, default=ROOT / "data/Warcraft III")
     parser.add_argument("--mpqtool", type=Path, default=ROOT / "build/bin/mpqtool")
@@ -308,11 +339,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, default=4, help="concurrent isolated map processes")
     parser.add_argument("--port-base", type=int, default=28100, help="first unique UDP port")
     parser.add_argument("--map", default="*", help="shell-style filename or archive-path filter")
+    parser.add_argument(
+        "--loose-map", action="append", default=[], metavar="PATH",
+        help="audit a disk-resident .w3m/.w3x under --data instead of campaign archives")
     parser.add_argument("--limit", type=int, default=0, help="limit maps after filtering")
     parser.add_argument("--rerun-crashes", action="store_true", help="confirm first-pass crashes serially")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "build/wc3-map-audit")
     parser.add_argument("--fail-on-crash", action="store_true", help="exit nonzero after writing the report")
-    return parser.parse_args()
+    return parser.parse_args(argv)
+
+
+def filter_maps(maps: list[dict[str, str]], pattern: str) -> list[dict[str, str]]:
+    """Keep maps whose filename or +map path matches the shell-style filter."""
+    needle = pattern.lower()
+    return [
+        item for item in maps
+        if fnmatch.fnmatch(item["filename"].lower(), needle)
+        or fnmatch.fnmatch(item["path"].lower(), needle)
+    ]
 
 
 def main() -> int:
@@ -328,13 +372,16 @@ def main() -> int:
             print(f"error: executable not found: {tool}", file=sys.stderr)
             return 2
     try:
-        maps = [item for item in enumerate_maps(args.data, args.mpqtool)
-                if fnmatch.fnmatch(item["filename"].lower(), args.map.lower())
-                or fnmatch.fnmatch(item["path"].lower(), args.map.lower())]
+        if args.loose_map:
+            maps = [loose_map_spec(Path(path), args.data) for path in args.loose_map]
+        else:
+            maps = enumerate_maps(args.data, args.mpqtool)
+        maps = filter_maps(maps, args.map)
         if args.limit:
             maps = maps[:args.limit]
         if not maps:
-            raise RuntimeError(f"no campaign maps matched {args.map!r}")
+            kind = "loose" if args.loose_map else "campaign"
+            raise RuntimeError(f"no {kind} maps matched {args.map!r}")
         args.output_dir.mkdir(parents=True, exist_ok=True)
         started = time.monotonic()
         results: list[dict[str, Any] | None] = [None] * len(maps)

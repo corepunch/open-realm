@@ -1,7 +1,8 @@
 # Warcraft III Campaign Map Audit
 
 `tools/wc3_map_audit.py` runs every retail RoC and TFT campaign map for a
-bounded number of headless server frames. It retains raw logs and produces a
+bounded number of headless server frames, and can smoke-run a loose custom map
+under the data tree with `--loose-map`. It retains raw logs and produces a
 JSON report plus a GitHub-ready Markdown matrix containing the human-readable
 map name, filename, result, and errors observed for every map.
 
@@ -71,6 +72,7 @@ Useful direct options include:
 --timeout N         wall-clock seconds per map
 --jobs N            concurrent isolated map processes
 --map GLOB          filename or archive-path filter
+--loose-map PATH    audit a disk-resident .w3m/.w3x under --data (repeatable)
 --limit N           audit only the first N filtered maps
 --rerun-crashes     rerun first-pass crashes serially
 --fail-on-crash     return nonzero after reports have been written
@@ -112,7 +114,26 @@ mission completion requires scripted milestones or human play.
 
 ## Custom Maps
 
-This enumerator only walks retail campaign members inside `War3.mpq` /
-`War3x.mpq`. Loose custom scenarios such as
-`data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x` must be launched
-directly. See [DotA Custom-Map Playability](dota-map-playability.md).
+Pass `--loose-map` for a disk-resident scenario under the data tree (typically
+`data/Warcraft III/Maps/*.w3x`). The auditor still isolates `XDG_DATA_HOME`,
+assigns a unique `game_port`, enables `com_fast_forward` / `vid_hidden` /
+`+dedicated 1`, and adds `-tft` for `.w3x` (RoC for `.w3m`). Crash and timeout
+outcomes are recorded the same way as campaign maps.
+
+```sh
+python3 tools/wc3_map_audit.py \
+  --data 'data/Warcraft III' \
+  --binary build/bin/openwarcraft3 \
+  --mpqtool build/bin/mpqtool \
+  --jobs 1 --frames 10 --timeout 60 \
+  --loose-map 'data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x'
+```
+
+Equivalent Make form:
+
+```sh
+make audit-wc3-maps WC3_AUDIT_ARGS="--jobs 1 --frames 10 --timeout 60 --loose-map 'data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x'"
+```
+
+Without `--loose-map`, the enumerator only walks retail campaign members inside
+`War3.mpq` / `War3x.mpq`. See [DotA Custom-Map Playability](dota-map-playability.md).
