@@ -12,6 +12,7 @@ static void CM_ReadHeightmap(HANDLE archive);
 static void CM_ReadInfo(HANDLE archive);
 static void CM_ReadWeather(HANDLE archive);
 void CM_ReadUnits(HANDLE archive);
+void CM_ReadItems(HANDLE archive);
 void CM_ReadStrings(HANDLE archive);
 void CM_ReadMapScript(HANDLE archive);
 
@@ -23,6 +24,7 @@ static cmW3Read_t const cm_w3_readers[] = {
     CM_ReadInfo,
     CM_ReadWeather,
     CM_ReadUnits,
+    CM_ReadItems,
     CM_ReadStrings,
     CM_ReadMapScript,
 };
@@ -261,6 +263,8 @@ static void CM_W3FreeDoodadPlacement(LPDOODAD doodad) {
 static void CM_W3ClearMapData(void) {
     CM_W3FreeUnitOverrides(world.info.num_originalUnits, &world.info.originalUnits);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedUnits, &world.info.userCreatedUnits);
+    CM_W3FreeUnitOverrides(world.info.num_originalItems, &world.info.originalItems);
+    CM_W3FreeUnitOverrides(world.info.num_userCreatedItems, &world.info.userCreatedItems);
     CM_ReleaseModel();
     while (world.doodads) {
         LPDOODAD doodad = world.doodads;

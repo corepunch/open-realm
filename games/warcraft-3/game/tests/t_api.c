@@ -4370,6 +4370,30 @@ TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
     T_EQ(created->stock.item_slots, 3); T_EQ(created->stock.unit_slots, 4);
 }
 
+TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
+    static UnitAbilities_t sell_items = { .abilList = "Asid", .heroAbilList = "" };
+    LPEDICT shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
+
+    shop->data.UnitAbilities = &sell_items;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call SetAllItemTypeSlots(11)\n"
+        "call AddItemToAllStock('spro',1,2)\n"
+        "call AddItemToStock(null,'spro',1,2)\n"
+        "call RemoveItemFromStock(null,'spro')\n"
+        "endfunction"));
+    T_EQ(shop->stock.item_count, 1);
+    T_EQ(shop->stock.items[0].id, MAKEFOURCC('s','p','r','o'));
+    T_EQ(shop->stock.items[0].current, 1);
+    T_EQ(shop->stock.items[0].maximum, 2);
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call RemoveItemFromAllStock('spro')\n"
+        "endfunction"));
+    T_EQ(shop->stock.item_count, 0);
+}
+
 TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
     static UnitAbilities_t sell_units = { .abilList = "Asud", .heroAbilList = "" };
     LPEDICT shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);

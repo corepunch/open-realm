@@ -244,6 +244,8 @@ struct mapInfo_s {
     DWORD num_randomItems;
     DWORD num_originalUnits;
     DWORD num_userCreatedUnits;
+    DWORD num_originalItems;
+    DWORD num_userCreatedItems;
     DWORD num_weatherRegions;
     mapPlayer_t players[MAX_PLAYERS];
     mapTeam_t *teams;
@@ -254,6 +256,10 @@ struct mapInfo_s {
     mapTrigStr_t *strings;
     unitData_t *originalUnits;
     unitData_t *userCreatedUnits;
+    /* war3map.w3t uses the same simple object-modification record layout as
+     * war3map.w3u; unitData_t keeps the existing parser-owned representation. */
+    unitData_t *originalItems;
+    unitData_t *userCreatedItems;
     mapWeatherRegion_t *weatherRegions;
     LPSTR mapscript;
 };

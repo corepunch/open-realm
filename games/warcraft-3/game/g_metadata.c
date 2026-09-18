@@ -854,12 +854,19 @@ typedef struct {
     UnitUI_t row;
 } mapUnitUIOverride_t;
 
+typedef struct {
+    DWORD id;
+    ItemData_t row;
+} mapItemDataOverride_t;
+
 static mapUnitBalanceOverride_t *map_unit_balance_overrides;
 static DWORD map_unit_balance_override_count;
 static mapUnitProfileOverride_t *map_unit_profile_overrides;
 static DWORD map_unit_profile_override_count;
 static mapUnitUIOverride_t *map_unit_ui_overrides;
 static DWORD map_unit_ui_override_count;
+static mapItemDataOverride_t *map_item_data_overrides;
+static DWORD map_item_data_override_count;
 
 typedef struct {
     LPCSTR name, path;
@@ -1220,13 +1227,13 @@ unitMeta_t const UnitsMetaData[] = {
 #undef M
 
 /* =========================================================================
- * Map-local unit typed-row overrides.
+ * Map-local object typed-row overrides.
  *
- * war3map.w3u records are owned by CM/mapInfo for the lifetime of a map. A
- * spawned edict keeps immutable typed-row pointers, so overrides must live in
- * stable per-map rows rather than a shared scratch object. UnitBalance,
- * UnitProfile, and UnitUI currently have per-map merges; other typed tables
- * still resolve custom IDs to their base row.
+ * war3map.w3u/w3t records are owned by CM/mapInfo for the lifetime of a map.
+ * A spawned edict keeps immutable typed-row pointers, so overrides must live
+ * in stable per-map rows rather than a shared scratch object. UnitBalance,
+ * UnitProfile, UnitUI, and ItemData currently have per-map merges; other typed
+ * unit tables still resolve custom IDs to their base row.
  * =========================================================================*/
 static UnitBalance_t const *FindMapUnitBalanceOverride(DWORD id) {
     FOR_LOOP(i, map_unit_balance_override_count) {
@@ -1248,6 +1255,14 @@ static UnitUI_t const *FindMapUnitUIOverride(DWORD id) {
     FOR_LOOP(i, map_unit_ui_override_count) {
         if (map_unit_ui_overrides[i].id == id)
             return &map_unit_ui_overrides[i].row;
+    }
+    return NULL;
+}
+
+static ItemData_t const *FindMapItemDataOverride(DWORD id) {
+    FOR_LOOP(i, map_item_data_override_count) {
+        if (map_item_data_overrides[i].id == id)
+            return &map_item_data_overrides[i].row;
     }
     return NULL;
 }
@@ -1277,7 +1292,7 @@ static BOOL UnitModificationString(unitModification_t const *mod) {
     }
 }
 
-static void ApplyMapUnitTypedField(void *row, size_t row_offset, unitModification_t const *mod) {
+static void ApplyMapObjectTypedField(void *row, size_t row_offset, unitModification_t const *mod) {
     unitMeta_t const *metadata = G_FindMetaData(UnitsMetaData, mod->modID);
     BYTE *dest;
 
@@ -1323,7 +1338,7 @@ static void AddMapUnitBalanceOverride(unitData_t const *unit, DWORD target_id, D
     override->row.id = target_id;
 
     FOR_LOOP(i, unit->numbeOfModifications)
-        ApplyMapUnitTypedField(&override->row, offsetof(edict_t, data.UnitBalance), unit->modifications + i);
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitBalance), unit->modifications + i);
 }
 
 static void AddMapUnitProfileOverride(unitData_t const *unit, DWORD target_id, DWORD base_id) {
@@ -1338,7 +1353,7 @@ static void AddMapUnitProfileOverride(unitData_t const *unit, DWORD target_id, D
     override->row.id = target_id;
 
     FOR_LOOP(i, unit->numbeOfModifications)
-        ApplyMapUnitTypedField(&override->row, offsetof(edict_t, data.UnitProfile), unit->modifications + i);
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitProfile), unit->modifications + i);
 }
 
 static void AddMapUnitUIOverride(unitData_t const *unit, DWORD target_id, DWORD base_id) {
@@ -1353,11 +1368,26 @@ static void AddMapUnitUIOverride(unitData_t const *unit, DWORD target_id, DWORD 
     override->row.id = target_id;
 
     FOR_LOOP(i, unit->numbeOfModifications)
-        ApplyMapUnitTypedField(&override->row, offsetof(edict_t, data.UnitUI), unit->modifications + i);
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitUI), unit->modifications + i);
+}
+
+static void AddMapItemDataOverride(unitData_t const *item, DWORD target_id, DWORD base_id) {
+    ItemData_t const *base = FindMapItemDataOverride(base_id);
+    mapItemDataOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&item_idx, base_id);
+    override = map_item_data_overrides + map_item_data_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, item->numbeOfModifications)
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.ItemData), item->modifications + i);
 }
 
 void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
-    DWORD capacity;
+    DWORD unit_capacity, item_capacity;
 
     free(map_unit_balance_overrides);
     map_unit_balance_overrides = NULL;
@@ -1368,17 +1398,27 @@ void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
     free(map_unit_ui_overrides);
     map_unit_ui_overrides = NULL;
     map_unit_ui_override_count = 0;
+    free(map_item_data_overrides);
+    map_item_data_overrides = NULL;
+    map_item_data_override_count = 0;
     if (!mapinfo) return;
 
-    capacity = mapinfo->num_originalUnits + mapinfo->num_userCreatedUnits;
-    if (!capacity) return;
-    map_unit_balance_overrides = calloc(capacity, sizeof(*map_unit_balance_overrides));
-    map_unit_profile_overrides = calloc(capacity, sizeof(*map_unit_profile_overrides));
-    map_unit_ui_overrides = calloc(capacity, sizeof(*map_unit_ui_overrides));
-    if (!map_unit_balance_overrides || !map_unit_profile_overrides || !map_unit_ui_overrides) {
+    unit_capacity = mapinfo->num_originalUnits + mapinfo->num_userCreatedUnits;
+    item_capacity = mapinfo->num_originalItems + mapinfo->num_userCreatedItems;
+    if (!unit_capacity && !item_capacity) return;
+    if (unit_capacity) {
+        map_unit_balance_overrides = calloc(unit_capacity, sizeof(*map_unit_balance_overrides));
+        map_unit_profile_overrides = calloc(unit_capacity, sizeof(*map_unit_profile_overrides));
+        map_unit_ui_overrides = calloc(unit_capacity, sizeof(*map_unit_ui_overrides));
+    }
+    if (item_capacity)
+        map_item_data_overrides = calloc(item_capacity, sizeof(*map_item_data_overrides));
+    if ((unit_capacity && (!map_unit_balance_overrides || !map_unit_profile_overrides || !map_unit_ui_overrides)) ||
+        (item_capacity && !map_item_data_overrides)) {
         free(map_unit_balance_overrides); map_unit_balance_overrides = NULL;
         free(map_unit_profile_overrides); map_unit_profile_overrides = NULL;
         free(map_unit_ui_overrides); map_unit_ui_overrides = NULL;
+        free(map_item_data_overrides); map_item_data_overrides = NULL;
         return;
     }
 
@@ -1395,6 +1435,14 @@ void G_SetMapUnitOverrides(LPCMAPINFO mapinfo) {
         AddMapUnitProfileOverride(unit, unit->newUnitID, unit->originalUnitID);
         AddMapUnitUIOverride(unit, unit->newUnitID, unit->originalUnitID);
     }
+    FOR_LOOP(i, mapinfo->num_originalItems) {
+        unitData_t const *item = mapinfo->originalItems + i;
+        AddMapItemDataOverride(item, item->originalUnitID, item->originalUnitID);
+    }
+    FOR_LOOP(i, mapinfo->num_userCreatedItems) {
+        unitData_t const *item = mapinfo->userCreatedItems + i;
+        AddMapItemDataOverride(item, item->newUnitID, item->originalUnitID);
+    }
 }
 
 /* =========================================================================
@@ -1408,6 +1456,15 @@ static DWORD ResolveUnitID(DWORD id) {
     FOR_LOOP(n, level.mapinfo->num_userCreatedUnits) {
         if (level.mapinfo->userCreatedUnits[n].newUnitID == id)
             return level.mapinfo->userCreatedUnits[n].originalUnitID;
+    }
+    return id;
+}
+
+static DWORD ResolveItemID(DWORD id) {
+    if (!level.mapinfo) return id;
+    FOR_LOOP(n, level.mapinfo->num_userCreatedItems) {
+        if (level.mapinfo->userCreatedItems[n].newUnitID == id)
+            return level.mapinfo->userCreatedItems[n].originalUnitID;
     }
     return id;
 }
@@ -1538,7 +1595,14 @@ MusicData_t const *G_MusicData(LPCSTR name) {
         if (g_MusicData[i].name && !strcasecmp(g_MusicData[i].name, name)) return g_MusicData + i;
     return &zero;
 }
-ItemData_t const *G_ItemData(DWORD id) { static ItemData_t zero; ItemData_t *row = FS_SLKLookup(&item_idx, ResolveUnitID(id)); return row ? row : &zero; }
+ItemData_t const *G_ItemData(DWORD id) {
+    static ItemData_t zero;
+    ItemData_t const *override = FindMapItemDataOverride(id);
+    ItemData_t *row;
+    if (override) return override;
+    row = FS_SLKLookup(&item_idx, ResolveItemID(id));
+    return row ? row : &zero;
+}
 ItemData_t const *G_ItemDataRows(DWORD *count) { *count = g_ItemDataCount; return g_ItemData; }
 DestructableData_t const *G_DestructableData(DWORD id) { static DestructableData_t zero; DestructableData_t *row = FS_SLKLookup(&dest_idx, ResolveUnitID(id)); return row ? row : &zero; }
 

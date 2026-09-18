@@ -478,6 +478,62 @@ TEST(wc3_slk, map_unit_balance_overrides_stock_fields_and_custom_inheritance) {
     T_EQ(G_UnitBalance(base_id)->goldCost, saved_gold);
 }
 
+TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
+    DWORD const base_id = MAKEFOURCC('s','p','r','o');
+    DWORD const custom_id = MAKEFOURCC('x','p','r','o');
+    DWORD stock_max = 1, stock_regen = 7, stock_start = 3, gold = 321;
+    LPCMAPINFO saved_mapinfo;
+    ItemData_t const *base;
+    LONG saved_stock_max, saved_stock_regen, saved_stock_start, saved_gold;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('i','s','t','o'), .type = mod_int, .data = &stock_max },
+        { .modID = MAKEFOURCC('i','s','t','r'), .type = mod_int, .data = &stock_regen },
+        { .modID = MAKEFOURCC('i','s','s','t'), .type = mod_int, .data = &stock_start },
+        { .modID = MAKEFOURCC('i','g','o','l'), .type = mod_int, .data = &gold },
+    };
+    unitData_t original = {
+        .originalUnitID = base_id, .numbeOfModifications = 4, .modifications = mods
+    };
+    unitData_t custom = { .originalUnitID = base_id, .newUnitID = custom_id };
+    MAPINFO mapinfo = {
+        .num_originalItems = 1, .originalItems = &original,
+        .num_userCreatedItems = 1, .userCreatedItems = &custom
+    };
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    base = G_ItemData(base_id);
+    saved_stock_max = base->stockMax;
+    saved_stock_regen = base->stockRegen;
+    saved_stock_start = base->stockStart;
+    saved_gold = base->goldcost;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_EQ(G_ItemData(base_id)->stockMax, 1);
+    T_EQ(G_ItemData(base_id)->stockRegen, 7);
+    T_EQ(G_ItemData(base_id)->stockStart, 3);
+    T_EQ(G_ItemData(base_id)->goldcost, 321);
+    T_EQ(G_ItemData(custom_id)->id, custom_id);
+    T_EQ(G_ItemData(custom_id)->stockMax, 1);
+    T_EQ(G_ItemData(custom_id)->stockRegen, 7);
+    T_EQ(G_ItemData(custom_id)->stockStart, 3);
+    T_EQ(G_ItemData(custom_id)->goldcost, 321);
+    {
+        edict_t item = { .class_id = custom_id };
+        G_BindEntityData(&item);
+        T_ASSERT(item.data.ItemData == G_ItemData(custom_id));
+        T_EQ(item.data.ItemData->stockStart, 3);
+    }
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    T_EQ(G_ItemData(base_id)->stockMax, saved_stock_max);
+    T_EQ(G_ItemData(base_id)->stockRegen, saved_stock_regen);
+    T_EQ(G_ItemData(base_id)->stockStart, saved_stock_start);
+    T_EQ(G_ItemData(base_id)->goldcost, saved_gold);
+}
+
 TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
     static const char slk_ui[] =
         "C;Y1;X1;K\"unitUIID\"\n"

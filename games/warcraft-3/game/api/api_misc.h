@@ -1165,6 +1165,27 @@ DWORD SetUnitTypeSlots(LPJASS j) {
     return 0;
 }
 
+DWORD AddItemToStock(LPJASS j) {
+    G_AddItemStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2),
+                   jass_checkinteger(j, 3), jass_checkinteger(j, 4));
+    return 0;
+}
+
+DWORD AddItemToAllStock(LPJASS j) {
+    G_AddItemStockAll((DWORD)jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkinteger(j, 3));
+    return 0;
+}
+
+DWORD RemoveItemFromStock(LPJASS j) {
+    G_RemoveItemStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2));
+    return 0;
+}
+
+DWORD RemoveItemFromAllStock(LPJASS j) {
+    G_RemoveItemStockAll((DWORD)jass_checkinteger(j, 1));
+    return 0;
+}
+
 DWORD AddUnitToStock(LPJASS j) {
     G_AddUnitStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2),
                    jass_checkinteger(j, 3), jass_checkinteger(j, 4));

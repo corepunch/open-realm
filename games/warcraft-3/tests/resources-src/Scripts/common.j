@@ -231,6 +231,10 @@ native SetAllItemTypeSlots      takes integer slots returns nothing
 native SetAllUnitTypeSlots      takes integer slots returns nothing
 native SetItemTypeSlots         takes unit whichUnit, integer slots returns nothing
 native SetUnitTypeSlots         takes unit whichUnit, integer slots returns nothing
+native AddItemToStock           takes unit whichUnit, integer itemId, integer currentStock, integer stockMax returns nothing
+native AddItemToAllStock        takes integer itemId, integer currentStock, integer stockMax returns nothing
+native RemoveItemFromStock      takes unit whichUnit, integer itemId returns nothing
+native RemoveItemFromAllStock   takes integer itemId returns nothing
 native AddUnitToStock           takes unit whichUnit, integer unitId, integer currentStock, integer stockMax returns nothing
 native AddUnitToAllStock        takes integer unitId, integer currentStock, integer stockMax returns nothing
 native RemoveUnitFromStock      takes unit whichUnit, integer unitId returns nothing

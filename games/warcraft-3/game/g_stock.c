@@ -70,7 +70,7 @@ BOOL G_IsItemShop(LPCEDICT shop) {
 
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((LPEDICT)shop)) return false;
     items = shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
-    return items && *items;
+    return (items && *items) || (shop->stock.items_initialized && shop->stock.item_count);
 }
 
 BOOL G_IsUnitShop(LPCEDICT shop) {
@@ -351,6 +351,66 @@ static void G_StartItemRestock(LPEDICT shop, DWORD index) {
     if (!shop || index >= shop->stock.item_count) return;
     item = G_ItemData(shop->stock.items[index].id);
     if (item) G_StartStockRestock(&shop->stock.items[index], item->stockRegen);
+}
+
+static LONG G_FindItemStockEntry(LPEDICT shop, DWORD item_id) {
+    if (!shop) return -1;
+    FOR_LOOP(i, shop->stock.item_count)
+        if (shop->stock.items[i].id == item_id) return (LONG)i;
+    return -1;
+}
+
+/* Dynamic item stock mirrors Warcraft's neutral-shop natives: supplied
+ * current/max values take effect immediately and authored stockRegen owns
+ * later replenishment. */
+BOOL G_AddItemStock(LPEDICT shop, DWORD item_id, LONG current, LONG maximum) {
+    ItemData_t const *item;
+    LONG index;
+    DWORD limit;
+
+    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asid")) return false;
+    item = G_ItemData(item_id);
+    if (!item || item->id != item_id) return false;
+
+    G_InitItemStock(shop);
+    index = G_FindItemStockEntry(shop, item_id);
+    if (index < 0) {
+        limit = MIN(shop->stock.item_slots, (DWORD)MAX_SHOP_STOCK);
+        if (shop->stock.item_count >= limit) return false;
+        index = (LONG)shop->stock.item_count++;
+    }
+
+    shop->stock.items[index] = (edictShopStockItem_t){
+        .id = item_id,
+        .current = MIN(MAX(0, current), MAX(0, maximum)),
+        .maximum = MAX(0, maximum),
+    };
+    G_StartItemRestock(shop, (DWORD)index);
+    return true;
+}
+
+void G_RemoveItemStock(LPEDICT shop, DWORD item_id) {
+    LONG index;
+
+    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asid")) return;
+    G_InitItemStock(shop);
+    index = G_FindItemStockEntry(shop, item_id);
+    if (index < 0) return;
+    if ((DWORD)index + 1u < shop->stock.item_count)
+        memmove(&shop->stock.items[index], &shop->stock.items[index + 1],
+                (shop->stock.item_count - (DWORD)index - 1u) * sizeof(shop->stock.items[0]));
+    shop->stock.item_count--;
+    memset(&shop->stock.items[shop->stock.item_count], 0, sizeof(shop->stock.items[0]));
+}
+
+void G_AddItemStockAll(DWORD item_id, LONG current, LONG maximum) {
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asid"))
+        G_AddItemStock(shop, item_id, current, maximum);
+}
+
+void G_RemoveItemStockAll(DWORD item_id) {
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asid"))
+        G_RemoveItemStock(shop, item_id);
 }
 
 static void G_InitUnitStock(LPEDICT shop) {

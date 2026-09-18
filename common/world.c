@@ -762,37 +762,50 @@ void CM_ReadModification(HANDLE file, unitModification_t *mod) {
     }
 }
 
-unitData_t *CM_ReadUnitsOverrides(HANDLE file, DWORD *numUnits) {
+static unitData_t *CM_ReadObjectOverrides(HANDLE file, DWORD *numObjects) {
     DWORD unknown;
-    SFileReadFile(file,numUnits, 4, NULL, NULL);
-    unitData_t *units = MemAlloc(*numUnits * sizeof(unitData_t));
-    for (unitData_t *unit = units; unit - units < *numUnits; unit++) {
-        SFileReadFile(file, &unit->originalUnitID, 4, NULL, NULL);
-        SFileReadFile(file, &unit->newUnitID, 4, NULL, NULL);
-        SFileReadFile(file, &unit->numbeOfModifications, 4, NULL, NULL);
-        unit->modifications = MemAlloc(unit->numbeOfModifications * sizeof(unitModification_t));
-        FOR_LOOP(j, unit->numbeOfModifications) {
-            CM_ReadModification(file, &unit->modifications[j]);
+    SFileReadFile(file, numObjects, 4, NULL, NULL);
+    unitData_t *objects = MemAlloc(*numObjects * sizeof(unitData_t));
+    for (unitData_t *object = objects; object - objects < *numObjects; object++) {
+        SFileReadFile(file, &object->originalUnitID, 4, NULL, NULL);
+        SFileReadFile(file, &object->newUnitID, 4, NULL, NULL);
+        SFileReadFile(file, &object->numbeOfModifications, 4, NULL, NULL);
+        object->modifications = MemAlloc(object->numbeOfModifications * sizeof(unitModification_t));
+        FOR_LOOP(j, object->numbeOfModifications) {
+            CM_ReadModification(file, &object->modifications[j]);
             SFileReadFile(file, &unknown, 4, NULL, NULL);
         }
     }
-    return units;
+    return objects;
 }
 
-void CM_ReadUnits(HANDLE archive) {
+static void CM_ReadObjectData(HANDLE archive, LPCSTR filename,
+                              DWORD *num_original, unitData_t **original,
+                              DWORD *num_custom, unitData_t **custom) {
     DWORD version;
     HANDLE file;
-    if (!SFileOpenFileEx(archive, "war3map.w3u", SFILE_OPEN_FROM_MPQ, &file)) {
-        world.info.num_originalUnits = 0;
-        world.info.num_userCreatedUnits = 0;
-        world.info.originalUnits = NULL;
-        world.info.userCreatedUnits = NULL;
+
+    if (!SFileOpenFileEx(archive, filename, SFILE_OPEN_FROM_MPQ, &file)) {
+        *num_original = *num_custom = 0;
+        *original = *custom = NULL;
         return;
     }
     SFileReadFile(file, &version, 4, NULL, NULL);
-    world.info.originalUnits = CM_ReadUnitsOverrides(file, &world.info.num_originalUnits);
-    world.info.userCreatedUnits = CM_ReadUnitsOverrides(file, &world.info.num_userCreatedUnits);
+    *original = CM_ReadObjectOverrides(file, num_original);
+    *custom = CM_ReadObjectOverrides(file, num_custom);
     SFileCloseFile(file);
+}
+
+void CM_ReadUnits(HANDLE archive) {
+    CM_ReadObjectData(archive, "war3map.w3u",
+                      &world.info.num_originalUnits, &world.info.originalUnits,
+                      &world.info.num_userCreatedUnits, &world.info.userCreatedUnits);
+}
+
+void CM_ReadItems(HANDLE archive) {
+    CM_ReadObjectData(archive, "war3map.w3t",
+                      &world.info.num_originalItems, &world.info.originalItems,
+                      &world.info.num_userCreatedItems, &world.info.userCreatedItems);
 }
 
 LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {

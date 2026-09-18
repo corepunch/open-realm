@@ -772,6 +772,42 @@ TEST(wc3_items, neutral_shop_stock_is_shared_and_replenishes_from_item_data) {
     T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
 }
 
+TEST(wc3_items, neutral_item_shop_runtime_stock_override_is_immediate_and_replenishes) {
+    static UnitAbilities_t abilities = { .abilList = "Apit,Asid", .heroAbilList = "" };
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT shop;
+    gameCommandButton_t buttons[12];
+    shopItemButtonsParams_t params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 500;
+    make_item_test_inventory_unit(100, 0)->s.player = 0;
+    shop = make_item_test_shop(0, 0);
+    shop->data.UnitAbilities = &abilities;
+    params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 12 };
+
+    T_ASSERT(G_AddItemStock(shop, MAKEFOURCC('s','p','r','o'), 1, 1));
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.items[0].current, 1);
+    T_EQ(shop->stock.items[0].maximum, 1);
+    T_ASSERT(!buttons[0].disabled);
+
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('s','p','r','o')));
+    T_EQ(shop->stock.items[0].current, 0);
+    level.time += 60000;
+    T_EQ(G_GetShopButtons(&params), 1);
+    T_EQ(shop->stock.items[0].current, 1);
+    T_ASSERT(!buttons[0].disabled);
+
+    G_RemoveItemStock(shop, MAKEFOURCC('s','p','r','o'));
+    T_EQ(G_GetShopButtons(&params), 0);
+}
+
 TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediately) {
     LPEDICT player;
     LPGAMECLIENT client;
