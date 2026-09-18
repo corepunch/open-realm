@@ -49,7 +49,7 @@ Archive precedence and the existing RoC/TFT `War3x*` visibility rule therefore r
 
 W3I format version is a separate compatibility input. `G_IsReignOfChaosMap()` recognizes parsed formats `1..24` as RoC maps; zero is treated as unknown for synthetic/test metadata. This helper is for runtime semantic differences, such as the stock RoC hero-inventory fallback, and must not be confused with `fs_expansion` or `gameDataSet`.
 
-Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback, `Custom_V0`/`Melee_V1` prefix formation, RoC-map detection, prefixed fixture selection, root fallback, and map-archive CampaignUnitFunc / war3mapMisc / w3a overrides. Fixture files live under `games/warcraft-3/tests/resources-src/{Custom_V0,Melee_V1,MapOverlay}/`.
+Tests in `games/warcraft-3/game/tests/t_slk.c` cover W3I data-set fallback, `Custom_V0`/`Melee_V1` prefix formation, RoC-map detection, prefixed fixture selection, root fallback, and map-archive CampaignUnitFunc / war3mapMisc / w3a overrides. Fixture files live under `games/warcraft-3/tests/resources-src/{Custom_V0,Melee_V1,MapOverlay}/`. `make test-assets` packs those overlay members as `Maps/MapOverlay.w3x` inside `tests.mpq`, so `FS_ListMaps` reports five fixture maps (`commands.fixture_maps_are_listed_from_mpq`).
 
 The current overlay is deliberately scoped to sheet/INI object data. Warsmash applies its subdirectory data source more broadly, but extending model/texture/FDF asset resolution would cross the renderer/client asset-scope boundary and is separate work; it is not required to keep TFT-only techtree rows out of RoC command cards.
 

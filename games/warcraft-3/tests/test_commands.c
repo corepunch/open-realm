@@ -502,6 +502,7 @@ typedef struct {
     bool orc01;
     bool twin_w3m;
     bool twin_w3x;
+    bool overlay;
 } mapListState_t;
 
 static void count_fixture_map(LPCSTR path, void *userData) {
@@ -516,20 +517,24 @@ static void count_fixture_map(LPCSTR path, void *userData) {
         state->twin_w3m = true;
     } else if (!strcmp(path, "Maps\\FrozenThrone\\TwinRivers.w3x")) {
         state->twin_w3x = true;
+    } else if (!strcmp(path, "Maps\\MapOverlay.w3x")) {
+        state->overlay = true;
     }
 }
 
+/* tests.mpq packs MapOverlay.w3x under Maps/ as a nested sheet/w3a archive, so FS_ListMaps reports five maps. */
 TEST(commands, fixture_maps_are_listed_from_mpq) {
     mapListState_t state = { 0 };
 
     setup_command_tests();
 
-    T_EQ(FS_ListMaps(count_fixture_map, &state), 4);
-    T_EQ(state.count, 4);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), 5);
+    T_EQ(state.count, 5);
     T_ASSERT(state.human02);
     T_ASSERT(state.orc01);
     T_ASSERT(state.twin_w3m);
     T_ASSERT(state.twin_w3x);
+    T_ASSERT(state.overlay);
 }
 
 TEST(commands, short_map_name_resolves_from_fixture_mpq) {
