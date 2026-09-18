@@ -430,6 +430,42 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
 }
 
+void R_DrawMinimapBorder(LPCRECT screen, COLOR32 color) {
+    VERTEX vertices[5];
+    MATRIX4 ui_matrix;
+    MATRIX4 model_matrix;
+    RECT const scene = R_UISceneRect();
+
+    if (!screen || screen->w <= 0.0f || screen->h <= 0.0f) return;
+    FOR_LOOP(i, 5) {
+        VECTOR2 const points[] = {
+            { screen->x, screen->y },
+            { screen->x + screen->w, screen->y },
+            { screen->x + screen->w, screen->y + screen->h },
+            { screen->x, screen->y + screen->h },
+            { screen->x, screen->y },
+        };
+        vertices[i] = (VERTEX){ .position = { points[i].x, points[i].y, 0 }, .color = color };
+    }
+    Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
+    Matrix4_identity(&model_matrix);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    tr.shader_ui.state.viewProjection = ui_matrix;
+    tr.shader_ui.state.model = model_matrix;
+    R_BindTexture(tr.texture[TEX_WHITE], 0);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    R_StatsDraw(GL_LINE_STRIP, 5, 1);
+    R_ApplyShader(&tr.shader_ui);
+    R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
+    R_Call(glDepthMask, GL_TRUE);
+}
+
 bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen) {
     VECTOR3 point;
 
