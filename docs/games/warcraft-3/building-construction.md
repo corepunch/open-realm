@@ -104,6 +104,8 @@ Player cancellation publishes `EVENT_PLAYER_UNIT_UPGRADE_CANCEL` / `EVENT_UNIT_U
 
 Completion generalizes `G_TransformUnitType()` from mobile->mobile morphs to same-family building->building morphs. Cross-family unit<->building transforms remain rejected. For buildings the helper releases the old pathing texture, binds and spawns the target unit data on the same edict, preserves health/mana ratios and temporary combat modifiers, reapplies food, links the entity, and rebuilds static obstacles so the target footprint becomes authoritative. Selection/JASS references keep the same edict identity; no destroy-and-respawn substitution is used.
 
+This same data-driven path covers defensive structure upgrades such as Ziggurat -> Spirit Tower when the mounted Warcraft data exposes that `uupt` target and its prerequisites. The source building's Food Made contribution remains active during the upgrade; completion replaces it with the target unit's authored Food Made value. Ordinary attacks/idle acquisition are suppressed while `G_BuildingUpgradeActive()` is true, and the completed target receives its authored weapon/target-mask state through the normal unit transform/spawn path. Dynamic Ziggurat/Spirit Tower Blight growth is a separate unresolved terrain mechanic; see [Race Mechanics](race-mechanics.md).
+
 The current implementation intentionally does not attempt a separate target-model construction overlay or retail-specific upgrade dust/effect layer; it drives the source building's authored `Birth` sequence by authoritative progress. Those presentation details should be added only after their exact data/retail contract is established.
 
 ## Status-panel progress transport
