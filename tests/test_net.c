@@ -228,7 +228,8 @@ TEST(client_layout, context_values_follow_hover_snapshot) {
     test_client_stubs_init();
     cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){
-        .model = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 128, [ENT_MANA] = 64 },
+        .model = 1, .flags = EF_HOVER_HEALTH | EF_HOVER_MANA,
+        .stats = { [ENT_HEALTH] = 128, [ENT_MANA] = 64 },
     };
     T_ASSERT(SCR_LayoutContextValue(UI_STAT_CONTEXT_HEALTH, &value));
     T_FEQ(value, 128.0f / 255.0f, 0.0001f);
@@ -2474,6 +2475,22 @@ TEST(net, entity_delta_preserves_hover_health_flag) {
 
     T_EQ(number, 9);
     T_ASSERT(out.flags & EF_HOVER_HEALTH);
+}
+
+TEST(net, entity_delta_preserves_hover_mana_flag) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = EF_HOVER_MANA }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_HOVER_MANA);
 }
 
 /* Neutral hover-ring presentation is also recipient-authored snapshot state. */
