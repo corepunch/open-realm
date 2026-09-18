@@ -2,6 +2,21 @@ DWORD CreateItem(LPJASS j) {
     LONG itemid = jass_checkinteger(j, 1);
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
+    ItemData_t const *data;
+
+    /* Human09 recreates Muradin's inventory after the Frostmourne cinematic.
+     * Empty inventory slots arrive here as item ID 0; do not pass that
+     * sentinel into the generic entity spawner. */
+    if (!itemid) {
+        fprintf(stderr, "CreateItem: refusing empty item ID at (%.1f, %.1f)\n", x, y);
+        return jass_pushnullhandle(j, "item");
+    }
+    data = G_ItemData((DWORD)itemid);
+    if (!data || !data->file) {
+        fprintf(stderr, "CreateItem: unresolved item ID 0x%08x at (%.1f, %.1f)\n",
+                (DWORD)itemid, x, y);
+        return jass_pushnullhandle(j, "item");
+    }
     LPEDICT item = SP_SpawnAtLocation(itemid, 0, &MAKE(VECTOR2, x, y));
     return jass_pushlighthandle(j, item, "item");
 }

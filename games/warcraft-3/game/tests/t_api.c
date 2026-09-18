@@ -4792,6 +4792,14 @@ TEST(wc3_api, enum_items_in_rect_visits_world_items) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_api, create_item_rejects_empty_item_id) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local item i = CreateItem(0, 0.0, 0.0)\n"
+        "  call BJassAssert(i == null, \"empty item ID must return null\")\n"
+        "endfunction\n"));
+}
+
 /* Issue #418: stub natives must execute without crash or AI_STOP. */
 TEST(wc3_api, campaign_stub_natives_accept_calls_without_crash) {
     T_ASSERT(run_test_jass(
