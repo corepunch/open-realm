@@ -763,7 +763,7 @@ static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero
     }
 }
 
-DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key) {
+DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key, BOOL show_queue_slots) {
     LPCSTR name;
 
     if (!ent) return 0;
@@ -775,7 +775,7 @@ DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key) {
     UI_SetHidden(hud.simple.SimpleBuildingDescriptionValue, true);
     UI_SetText(hud.simple.SimpleBuildingActionLabel, "%s", UI_GetString(action_key ? action_key : "TRAINING"));
     UI_SetHidden(hud.simple.SimpleBuildTimeIndicator, false);
-    UI_SetHidden(hud.simple.SimpleBuildQueueBackdrop, false);
+    UI_SetHidden(hud.simple.SimpleBuildQueueBackdrop, !show_queue_slots);
 
     UI_WriteFrame(&hud.bottom);
     UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelBuildingDetail, &hud.bottom);

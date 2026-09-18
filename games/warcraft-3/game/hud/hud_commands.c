@@ -222,6 +222,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     uiFrame_t list;
     BOOL const constructing = ent && ent->currentmove && ent->currentmove->think == ai_birth;
     BOOL const upgrading = G_BuildingUpgradeActive(ent);
+    BOOL const hide_queue_slots = constructing || upgrading;
     FLOAT const active_x = 0.320546875f;
     FLOAT const active_y = 0.526875000f;
     FLOAT const active_size = 0.026718750f;
@@ -238,7 +239,8 @@ void UI_WriteBuildQueue(LPEDICT ent) {
      * repeated queue icons that Warcraft creates in code. */
     buildtimer_number = UI_WriteBuildingQueueShell(
         ent, constructing ? "CONSTRUCTING" : upgrading ? "UPGRADING" :
-             (ent && ent->build && ent->build->research.upgrade != 0 ? "RESEARCHING" : "TRAINING"));
+             (ent && ent->build && ent->build->research.upgrade != 0 ? "RESEARCHING" : "TRAINING"),
+        !hide_queue_slots);
     if (!buildtimer_number) {
         fprintf(stderr, "UI_WriteBuildQueue: SimpleInfoPanel building shell unavailable; using runtime progress fallback\n");
         memset(&buildtimer, 0, sizeof(buildtimer));
@@ -258,26 +260,28 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     UI_SetFrameRect(&firstitem, active_x, active_y, active_size, active_size);
     UI_WriteProxyFrame(&firstitem, NULL, 0);
 
-    size = sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t) * count;
-    buffer = gi.MemAlloc(size);
-    memset(buffer, 0, size);
-    buildqueue = (uiBuildQueue_t *)buffer;
-    buildqueue->firstitem = (USHORT)firstitem.number;
-    buildqueue->buildtimer = (USHORT)buildtimer_number;
-    buildqueue->itemoffset = waiting_step;
-    buildqueue->numitems = count;
-    FOR_LOOP(i, count) {
-        buildqueue->items[i].image = (USHORT)gi.ImageIndex(queue[i].art);
-        buildqueue->items[i].starttime = queue[i].starttime;
-        buildqueue->items[i].endtime = queue[i].endtime;
-    }
+    if (!hide_queue_slots) {
+        size = sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t) * count;
+        buffer = gi.MemAlloc(size);
+        memset(buffer, 0, size);
+        buildqueue = (uiBuildQueue_t *)buffer;
+        buildqueue->firstitem = (USHORT)firstitem.number;
+        buildqueue->buildtimer = (USHORT)buildtimer_number;
+        buildqueue->itemoffset = waiting_step;
+        buildqueue->numitems = count;
+        FOR_LOOP(i, count) {
+            buildqueue->items[i].image = (USHORT)gi.ImageIndex(queue[i].art);
+            buildqueue->items[i].starttime = queue[i].starttime;
+            buildqueue->items[i].endtime = queue[i].endtime;
+        }
 
-    memset(&list, 0, sizeof(list));
-    list.flags.type = FT_BUILDQUEUE;
-    list.color = COLOR32_WHITE;
-    UI_SetFrameRect(&list, waiting_x, waiting_y, waiting_size, waiting_size);
-    UI_WriteProxyFrame(&list, buffer, size);
-    gi.MemFree(buffer);
+        memset(&list, 0, sizeof(list));
+        list.flags.type = FT_BUILDQUEUE;
+        list.color = COLOR32_WHITE;
+        UI_SetFrameRect(&list, waiting_x, waiting_y, waiting_size, waiting_size);
+        UI_WriteProxyFrame(&list, buffer, size);
+        gi.MemFree(buffer);
+    }
 
     /* Match the repeated icon geometry for cancellation hit targets as well as
      * drawing.  Slot 0 is the larger active item beside the progress bar; the
