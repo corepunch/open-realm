@@ -53,6 +53,100 @@ static LPPLAYER test_player(int idx) {
     return &game.clients[idx].ps;
 }
 
+static DWORD selection_native_packet_count;
+static DWORD selection_native_packet_units;
+static int selection_native_packet_stage;
+
+static void selection_native_test_write(pfWriteType_t type, void const *data) {
+    LONG value;
+
+    if (type != PF_BYTE || !data) return;
+    value = *(LONG const *)data;
+    if (selection_native_packet_stage == 0 && value == svc_set_selection) {
+        selection_native_packet_count++;
+        selection_native_packet_stage = 1;
+    } else if (selection_native_packet_stage == 1) {
+        selection_native_packet_units = (DWORD)value;
+        selection_native_packet_stage = 2;
+    }
+}
+
+static void selection_native_test_unicast(LPEDICT ent) { (void)ent; }
+
+TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT first = NULL, second = NULL;
+    DWORD player0_bit = 1u << 0;
+    DWORD player1_bit = 1u << 1;
+
+    reset_entities();
+    setup_test_world();
+    g_edicts[0].client = &game.clients[0];
+    g_edicts[1].client = &game.clients[1];
+    game.clients[0].connected = true;
+    currentplayer = test_player(1);
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "globals\n"
+        "  unit first = null\n"
+        "  unit second = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set first = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  set second = CreateUnit(Player(0), 'hpea', 32.0, 0.0, 0.0)\n"
+        "  call SelectUnit(first, true)\n"
+        "endfunction\n"
+        "function select_for_player0 takes nothing returns nothing\n"
+        "  call SelectUnit(first, true)\n"
+        "  call SelectUnit(second, true)\n"
+        "endfunction\n"
+        "function clear_for_player0 takes nothing returns nothing\n"
+        "  call SelectUnit(first, false)\n"
+        "  call ClearSelection()\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (!g_edicts[i].inuse || g_edicts[i].s.player != 0) continue;
+        if (!first) first = &g_edicts[i];
+        else if (!second) second = &g_edicts[i];
+    }
+    T_NOT_NULL(first);
+    T_NOT_NULL(second);
+    T_ASSERT(first->selected & player1_bit);
+    T_ASSERT(!(first->selected & player0_bit));
+    game.clients[1].selection_dirty = false;
+
+    currentplayer = test_player(0);
+    jass_callbyname(level.vm, "select_for_player0", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT((first->selected & (player0_bit | player1_bit)) == (player0_bit | player1_bit));
+    T_ASSERT((second->selected & player0_bit) != 0);
+    T_ASSERT(game.clients[0].selection_dirty);
+
+    jass_callbyname(level.vm, "clear_for_player0", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(first->selected == player1_bit);
+    T_ASSERT(second->selected == 0);
+    game.clients[1].connected = false;
+
+    selection_native_packet_count = 0;
+    selection_native_packet_units = (DWORD)-1;
+    selection_native_packet_stage = 0;
+    gi.Write = selection_native_test_write;
+    gi.unicast = selection_native_test_unicast;
+    G_UpdateClientSelections();
+    G_UpdateClientSelections();
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(selection_native_packet_count, 1);
+    T_EQ(selection_native_packet_units, 0);
+    T_ASSERT(!game.clients[0].selection_dirty);
+    currentplayer = saved_currentplayer;
+}
+
 static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }

@@ -472,6 +472,7 @@ struct client_s {
     PLAYER ps;
     BOOL connected; /* ClientBegin completed for this reserved player edict. */
     BOOL commands_dirty; /* authoritative command availability changed; rebuild after simulation */
+    BOOL selection_dirty; /* JASS selection changed; synchronize once after simulation */
     BOOL presentation_dirty; /* dialogue/interface/selected-portrait state changed; flush svc_layout after simulation */
     struct {
         DWORD race_pref, controller;

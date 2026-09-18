@@ -749,14 +749,24 @@ DWORD SetBlightLoc(LPJASS j) {
     //BOOL addBlight = jass_checkboolean(j, 4);
     return 0;
 }
+
+static void JassMarkSelectionDirty(LPPLAYER player) {
+    if (player) {
+        PLAYER_CLIENT(player)->selection_dirty = true;
+    } else {
+        FOR_LOOP(i, game.max_clients) game.clients[i].selection_dirty = true;
+    }
+}
+
 DWORD ClearSelection(LPJASS j) {
     FOR_LOOP(i, globals.num_edicts) {
         if (currentplayer) {
-            g_edicts[i].selected &= 1 << PLAYER_NUM(currentplayer);
+            g_edicts[i].selected &= ~(1u << PLAYER_NUM(currentplayer));
         } else {
             g_edicts[i].selected = 0;
         }
     }
+    JassMarkSelectionDirty(currentplayer);
     return 0;
 }
 DWORD SelectUnit(LPJASS j) {
@@ -773,10 +783,11 @@ DWORD SelectUnit(LPJASS j) {
         }
     } else {
         if (currentplayer) {
-            whichUnit->selected &= 1 << PLAYER_NUM(currentplayer);
+            whichUnit->selected &= ~(1u << PLAYER_NUM(currentplayer));
         } else {
             whichUnit->selected = 0;
         }
     }
+    JassMarkSelectionDirty(currentplayer);
     return 0;
 }

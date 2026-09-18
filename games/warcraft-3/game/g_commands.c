@@ -206,6 +206,7 @@ void G_SyncClientSelection(LPGAMECLIENT client) {
     DWORD count = 0;
 
     if (!client) return;
+    client->selection_dirty = false;
     FOR_SELECTED_UNITS(client, ent) {
         if (count >= WC3_SELECTION_LIMIT) break;
         selected[count++] = ent->s.number;
@@ -389,7 +390,7 @@ void G_UpdateClientSelections(void) {
                 changed = true;
             }
         }
-        if (!changed) {
+        if (!changed && !client->selection_dirty) {
             continue;
         }
         G_SyncClientSelection(client);
