@@ -1,5 +1,50 @@
 #include "server.h"
 
+/* Dedicated servers can inspect the exact svc_layout payload before it enters the netchan. */
+static void SV_DebugLayoutMessage(sizeBuf_t const *source) {
+    sizeBuf_t msg = *source;
+    DWORD frames = 0, textured = 0, stats = 0;
+
+    msg.readcount = 0;
+    if (MSG_ReadByte(&msg) != svc_layout) return;
+    DWORD layer = MSG_ReadByte(&msg);
+    while (msg.readcount + sizeof(DWORD) + sizeof(WORD) <= msg.cursize) {
+        UIFRAME frame = { 0 };
+        DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
+        if (!number && !bits) break;
+        MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
+        if (msg.readcount >= msg.cursize) break;
+        DWORD payload = (BYTE)MSG_ReadByte(&msg);
+        if (payload > msg.cursize - msg.readcount) break;
+        msg.readcount += payload;
+        frames++;
+        textured += frame.tex.index != 0;
+        stats += frame.stat != 0;
+    }
+    fprintf(stderr, "SV layout: layer=%u bytes=%u frames=%u textured=%u stats=%u\n",
+            (unsigned)layer, (unsigned)source->cursize, (unsigned)frames,
+            (unsigned)textured, (unsigned)stats);
+}
+
+void PF_Unicast(LPEDICT ent) {
+    if (Cvar_Integer("sv_debug_layout", 0)) SV_DebugLayoutMessage(&sv.multicast);
+    if (!ent) {
+        SZ_Clear(&sv.multicast);
+        return;
+    }
+    /* Only the exact spawned client edict may receive this message. The old
+     * sole-client fallback routed AI/player-slot UI clears to the human client. */
+    LPCLIENT client = SV_ClientForEdictRecipient(ent);
+    if (!client) { SZ_Clear(&sv.multicast); return; }
+    /* Image/font/model indices may have been allocated while authoring this
+     * payload. Publish those configstrings first so a client never parses a
+     * layout that references a resource slot it has not registered yet. */
+    SV_QueuePendingConfigStrings();
+    SZ_Write(&client->netchan.message, sv.multicast.data, sv.multicast.cursize);
+    SZ_Clear(&sv.multicast);
+    Netchan_Transmit(NS_SERVER, &client->netchan);
+}
+
 void SV_WritePayload(LPSIZEBUF msg, BYTE opcode, sizeBuf_t const *payload) {
     if (!msg || !payload) return;
     MSG_WriteByte(msg, opcode);
