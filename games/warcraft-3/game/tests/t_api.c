@@ -210,6 +210,12 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     currentplayer = saved_currentplayer;
 }
 
+static DWORD unit_team_color(LPCEDICT unit) {
+    DWORD const encoded = unit
+        ? (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT : 0;
+    return encoded ? encoded - 1u : 0;
+}
+
 static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
@@ -3266,6 +3272,42 @@ TEST(wc3_api, player_color_max_index) {
     T_EQ((int)p->color, 23);
 }
 
+TEST(wc3_api, set_player_color_recolors_existing_owner_colored_units) {
+    LPEDICT unit = NULL;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u\n"
+        "  call SetPlayerColor(Player(4), PLAYER_COLOR_PURPLE)\n"
+        "  set u = CreateUnit(Player(4), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call SetPlayerColor(Player(4), PLAYER_COLOR_ORANGE)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') && g_edicts[i].s.player == 4) unit = &g_edicts[i];
+    T_NOT_NULL(unit);
+    T_EQ(unit_team_color(unit), 5);
+}
+
+TEST(wc3_api, set_player_color_preserves_different_explicit_unit_color) {
+    LPEDICT unit = NULL;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u\n"
+        "  call SetPlayerColor(Player(4), PLAYER_COLOR_PURPLE)\n"
+        "  set u = CreateUnit(Player(4), 'hfoo', 96.0, 64.0, 0.0)\n"
+        "  call SetUnitColor(u, PLAYER_COLOR_GREEN)\n"
+        "  call SetPlayerColor(Player(4), PLAYER_COLOR_ORANGE)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            g_edicts[i].s.player == 4 && g_edicts[i].s.origin.x == 96.0f) unit = &g_edicts[i];
+    T_NOT_NULL(unit);
+    T_EQ(unit_team_color(unit), 6);
+}
+
 /* =========================================================================
  * Player — start_location
  * ========================================================================= */
@@ -3574,10 +3616,14 @@ TEST(wc3_api, unit_color_default_zero) {
     T_EQ((int)ent->unit_color, 0);
 }
 
-TEST(wc3_api, unit_color_set) {
+TEST(wc3_api, unit_color_override_distinguishes_red_from_default) {
     LPEDICT ent = make_unit_hero();
-    ent->unit_color = 7;
-    T_EQ((int)ent->unit_color, 7);
+    DWORD color = 99;
+
+    G_SetUnitColorOverride(ent, 0);
+    T_ASSERT(ent->unit_color != 0);
+    T_ASSERT(G_GetUnitColorOverride(ent, &color));
+    T_EQ(color, 0);
 }
 
 TEST(wc3_api, set_unit_color_publishes_team_color_without_changing_owner) {
@@ -3595,7 +3641,11 @@ TEST(wc3_api, set_unit_color_publishes_team_color_without_changing_owner) {
     T_NOT_NULL(unit);
     encoded = (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
     T_EQ(unit->s.player, 4);
-    T_EQ(unit->unit_color, 8);
+    {
+        DWORD color = 0;
+        T_ASSERT(G_GetUnitColorOverride(unit, &color));
+        T_EQ(color, 8);
+    }
     T_EQ(encoded, 9);
 }
 
@@ -3615,6 +3665,80 @@ TEST(wc3_api, set_unit_color_can_override_owner_with_red) {
     T_NOT_NULL(unit);
     encoded = (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
     T_EQ(encoded, 1);
+    {
+        DWORD color = 99;
+        T_ASSERT(G_GetUnitColorOverride(unit, &color));
+        T_EQ(color, 0);
+    }
+}
+
+TEST(wc3_api, set_unit_owner_honors_change_color) {
+    LPEDICT recolored = NULL;
+    LPEDICT preserved = NULL;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit a\n"
+        "  local unit b\n"
+        "  call SetPlayerColor(Player(4), PLAYER_COLOR_PURPLE)\n"
+        "  call SetPlayerColor(Player(5), PLAYER_COLOR_YELLOW)\n"
+        "  set a = CreateUnit(Player(4), 'hfoo', 128.0, 64.0, 0.0)\n"
+        "  set b = CreateUnit(Player(4), 'hfoo', 160.0, 64.0, 0.0)\n"
+        "  call SetUnitOwner(a, Player(5), true)\n"
+        "  call SetUnitOwner(b, Player(5), false)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT unit = &g_edicts[i];
+        if (unit->class_id != MAKEFOURCC('h','f','o','o') || unit->s.player != 5) continue;
+        if (unit->s.origin.x == 128.0f) recolored = unit;
+        if (unit->s.origin.x == 160.0f) preserved = unit;
+    }
+    T_NOT_NULL(recolored);
+    T_NOT_NULL(preserved);
+    T_EQ(unit_team_color(recolored), 4);
+    T_EQ(unit_team_color(preserved), 3);
+}
+
+TEST(wc3_api, authored_team_color_precedence_matches_unit_data) {
+    LPEDICT unit = make_unit_hero();
+    UnitUI_t ui = *unit->data.UnitUI;
+    DOODAD placement = { .customTeamColor = (DWORD)-1 };
+
+    unit->data.UnitUI = &ui;
+    unit->s.player = 4;
+    game.clients[4].ps.number = 4;
+    game.clients[4].ps.color = 2;
+    ui.teamColor = -1;
+    ui.customTeamColor = true;
+    G_ApplyMapUnitTeamColor(unit, &placement);
+    T_EQ(unit_team_color(unit), 2);
+
+    ui.teamColor = 5;
+    G_ApplyMapUnitTeamColor(unit, &placement);
+    T_EQ(unit_team_color(unit), 5);
+
+    placement.customTeamColor = 8;
+    G_ApplyMapUnitTeamColor(unit, &placement);
+    T_EQ(unit_team_color(unit), 8);
+
+    ui.customTeamColor = false;
+    G_ApplyMapUnitTeamColor(unit, &placement);
+    T_EQ(unit_team_color(unit), 5);
+}
+
+TEST(wc3_api, missing_unit_type_team_color_uses_owner_color) {
+    LPEDICT unit = make_unit_hero();
+    UnitUI_t ui = *unit->data.UnitUI;
+
+    unit->data.UnitUI = &ui;
+    unit->s.player = 4;
+    game.clients[4].ps.number = 4;
+    game.clients[4].ps.color = 7;
+    ui.teamColor = 0;
+    ui.customTeamColor = false;
+    G_InitializeUnitTeamColor(unit);
+    T_EQ(unit_team_color(unit), 7);
 }
 
 /* =========================================================================
@@ -4569,6 +4693,39 @@ TEST(wc3_api, gamecache_restore_dead_hero_at_quarter_health) {
     T_ASSERT(restored->health.max_value > 0.0f);
     T_FEQ(restored->health.value, restored->health.max_value * 0.25f, 0.01f);
     T_ASSERT(!M_IsDead(restored));
+}
+
+TEST(wc3_api, gamecache_restore_preserves_explicit_red_unit_color) {
+    LPEDICT restored = NULL;
+    DWORD color = 99;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit restoredUnit = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local gamecache c = InitGameCache(\"openrealm-test-color-memory-only.w3v\")\n"
+        "  local unit u = CreateUnit(Player(4), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call FlushGameCache(c)\n"
+        "  call SetUnitColor(u, PLAYER_COLOR_RED)\n"
+        "  call BJassAssert(StoreUnit(c, \"Human01\", \"Guard\", u), \"StoreUnit failed\")\n"
+        "  set restoredUnit = RestoreUnit(c, \"Human01\", \"Guard\", Player(4), 192.0, 64.0, 0.0)\n"
+        "  call BJassAssert(restoredUnit != null, \"RestoreUnit returned null\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') &&
+            fabsf(ent->s.origin2.x - 192.0f) < 0.01f &&
+            fabsf(ent->s.origin2.y - 64.0f) < 0.01f) {
+            restored = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(restored);
+    T_EQ(unit_team_color(restored), 0);
+    T_ASSERT(G_GetUnitColorOverride(restored, &color));
+    T_EQ(color, 0);
 }
 
 /* =========================================================================
