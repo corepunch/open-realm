@@ -490,6 +490,18 @@ void R_ShutdownParticles(void);
 void R_DrawParticles(void);
 cparticle_t *R_SpawnParticle(void);
 void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, COLOR32 color);
+typedef struct {
+    LPCTEXTURE texture;
+    LPCVECTOR3 points;
+    DWORD point_count;
+    FLOAT width;
+    FLOAT texcoord_scale;
+    FLOAT texcoord_phase;
+    COLOR32 color;
+    BLEND_MODE blend_mode;
+    BOOL depth_test;
+} ribbonDraw_t;
+void R_DrawRibbon(ribbonDraw_t const *draw);
 void R_DrawRibbonSprite(LPCTEXTURE texture, LPCVECTOR3 source, LPCVECTOR3 target, float width, COLOR32 color, BLEND_MODE blend_mode, BOOL depth_test);
 
 extern struct render_globals tr;

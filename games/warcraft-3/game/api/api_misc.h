@@ -1860,13 +1860,9 @@ DWORD ConvertPlayerScore(LPJASS j) {
     *playerscore = jass_checkinteger(j, 1);
     return 1;
 }
-/* Minimal lightning/image/ubersplat handles — presentation is partial; scripts need create/destroy/move/color/show. */
-typedef struct {
-    VECTOR3 a, b;
-    FLOAT color[4];
-    BOOL shown;
-    char code[8];
-} jassLightning_t;
+/* Lightning handles are stable pointers into the same game-owned registry
+ * used by ability presentation.  The client therefore renders JASS and spell
+ * lightning through one endpoint/data-row path. */
 typedef struct {
     VECTOR3 pos, size, origin;
     FLOAT color[4];
@@ -1880,66 +1876,74 @@ typedef struct {
     char name[64];
 } jassUbersplat_t;
 
+static DWORD JassLightningCode(LPCSTR code) {
+    return code && strlen(code) >= 4 ? MAKEFOURCC(code[0], code[1], code[2], code[3]) : 0;
+}
+
+static BYTE JassLightningByte(FLOAT value) {
+    value = value < 0.0f ? 0.0f : value > 1.0f ? 1.0f : value;
+    return (BYTE)(value * 255.0f + 0.5f);
+}
+
+static DWORD JassLightningCreate(LPJASS j, LPCSTR code, BOOL check_visibility,
+                                  LPCVECTOR3 source, LPCVECTOR3 target) {
+    LPGLIGHTNING bolt;
+    (void)check_visibility; /* Visibility filtering is a client fog concern, not a global registry property. */
+    bolt = G_LightningAdd(JassLightningCode(code), source, target, COLOR32_WHITE, 0);
+    return bolt ? jass_pushlighthandle(j, bolt, "lightning") : jass_pushnullhandle(j, "lightning");
+}
+
 DWORD AddLightningEx(LPJASS j) {
-    LPCSTR codeName = jass_checkstring(j, 1);
-    jassLightning_t *bolt = jass_newhandle(j, sizeof(*bolt), "lightning");
-    (void)jass_checkboolean(j, 2);
-    if (!bolt) return jass_pushnullhandle(j, "lightning");
-    memset(bolt, 0, sizeof(*bolt));
-    bolt->a = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
-    bolt->b = MAKE(VECTOR3, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
-    bolt->color[0] = bolt->color[1] = bolt->color[2] = bolt->color[3] = 1.0f;
-    bolt->shown = true;
-    if (codeName) strlcpy(bolt->code, codeName, sizeof(bolt->code));
-    return 1;
+    VECTOR3 source = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
+    VECTOR3 target = MAKE(VECTOR3, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
+    return JassLightningCreate(j, jass_checkstring(j, 1), jass_checkboolean(j, 2), &source, &target);
 }
 DWORD AddLightning(LPJASS j) {
-    LPCSTR codeName = jass_checkstring(j, 1);
-    BOOL checkVisibility = jass_checkboolean(j, 2);
-    FLOAT x1 = jass_checknumber(j, 3), y1 = jass_checknumber(j, 4);
-    FLOAT x2 = jass_checknumber(j, 5), y2 = jass_checknumber(j, 6);
-    jassLightning_t *bolt = jass_newhandle(j, sizeof(*bolt), "lightning");
-    (void)checkVisibility;
-    if (!bolt) return jass_pushnullhandle(j, "lightning");
-    memset(bolt, 0, sizeof(*bolt));
-    bolt->a = MAKE(VECTOR3, x1, y1, 0); bolt->b = MAKE(VECTOR3, x2, y2, 0);
-    bolt->color[0] = bolt->color[1] = bolt->color[2] = bolt->color[3] = 1.0f;
-    bolt->shown = true;
-    if (codeName) strlcpy(bolt->code, codeName, sizeof(bolt->code));
-    return 1;
+    VECTOR3 source = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), 0);
+    VECTOR3 target = MAKE(VECTOR3, jass_checknumber(j, 5), jass_checknumber(j, 6), 0);
+    return JassLightningCreate(j, jass_checkstring(j, 1), jass_checkboolean(j, 2), &source, &target);
 }
 DWORD DestroyLightning(LPJASS j) {
-    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
-    if (bolt) bolt->shown = false;
-    return jass_pushboolean(j, bolt != NULL);
+    LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
+    BOOL valid = G_LightningValid(bolt);
+    if (valid) G_LightningRemove(bolt);
+    return jass_pushboolean(j, valid);
 }
 DWORD MoveLightningEx(LPJASS j) {
-    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
+    LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
+    VECTOR3 source, target;
     (void)jass_checkboolean(j, 2);
-    if (!bolt) return jass_pushboolean(j, 0);
-    bolt->a = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
-    bolt->b = MAKE(VECTOR3, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
+    source = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
+    target = MAKE(VECTOR3, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
+    if (!G_LightningValid(bolt)) return jass_pushboolean(j, 0);
+    G_LightningMove(bolt, &source, &target);
     return jass_pushboolean(j, 1);
 }
 DWORD MoveLightning(LPJASS j) {
-    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
+    LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
+    VECTOR3 source, target;
     (void)jass_checkboolean(j, 2);
-    if (!bolt) return jass_pushboolean(j, 0);
-    bolt->a.x = jass_checknumber(j, 3); bolt->a.y = jass_checknumber(j, 4);
-    bolt->b.x = jass_checknumber(j, 5); bolt->b.y = jass_checknumber(j, 6);
+    if (!G_LightningValid(bolt)) return jass_pushboolean(j, 0);
+    source = bolt->state.source; target = bolt->state.target;
+    source.x = jass_checknumber(j, 3); source.y = jass_checknumber(j, 4);
+    target.x = jass_checknumber(j, 5); target.y = jass_checknumber(j, 6);
+    G_LightningMove(bolt, &source, &target);
     return jass_pushboolean(j, 1);
 }
 DWORD SetLightningColor(LPJASS j) {
-    jassLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
-    if (!bolt) return jass_pushboolean(j, 0);
-    bolt->color[0] = jass_checknumber(j, 2); bolt->color[1] = jass_checknumber(j, 3);
-    bolt->color[2] = jass_checknumber(j, 4); bolt->color[3] = jass_checknumber(j, 5);
+    LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
+    FLOAT precise[4] = { jass_checknumber(j, 2), jass_checknumber(j, 3),
+        jass_checknumber(j, 4), jass_checknumber(j, 5) };
+    COLOR32 color = MAKE(COLOR32, JassLightningByte(precise[0]), JassLightningByte(precise[1]),
+        JassLightningByte(precise[2]), JassLightningByte(precise[3]));
+    if (!G_LightningValid(bolt)) return jass_pushboolean(j, 0);
+    G_LightningScriptColor(bolt, color, precise);
     return jass_pushboolean(j, 1);
 }
-DWORD GetLightningColorR(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[0] : 0); }
-DWORD GetLightningColorG(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[1] : 0); }
-DWORD GetLightningColorB(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[2] : 0); }
-DWORD GetLightningColorA(LPJASS j) { jassLightning_t *b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, b ? b->color[3] : 0); }
+DWORD GetLightningColorR(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[0] : 0); }
+DWORD GetLightningColorG(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[1] : 0); }
+DWORD GetLightningColorB(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[2] : 0); }
+DWORD GetLightningColorA(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[3] : 0); }
 
 DWORD CreateImage(LPJASS j) {
     LPCSTR file = jass_checkstring(j, 1);

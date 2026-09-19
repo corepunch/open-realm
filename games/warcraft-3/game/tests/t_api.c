@@ -2002,6 +2002,33 @@ TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
     T_ASSERT(!effect->inuse);
 }
 
+TEST(wc3_api, jass_lightning_natives_use_the_presentation_registry) {
+    LPGLIGHTNING effect;
+    DWORD id = UINT32_MAX;
+
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    level.next_lightning_id = 0;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local lightning bolt = AddLightningEx(\"CLPB\", false, 10.0, 20.0, 30.0, 100.0, 200.0, 40.0)\n"
+        "  call BJassAssert(bolt != null, \"AddLightningEx must create a lightning handle\")\n"
+        "  call BJassAssert(MoveLightningEx(bolt, false, 15.0, 25.0, 35.0, 105.0, 205.0, 45.0), \"MoveLightningEx failed\")\n"
+        "  call BJassAssert(SetLightningColor(bolt, 1.0, 0.5, 0.0, 0.75), \"SetLightningColor failed\")\n"
+        "  call BJassAssert(GetLightningColorG(bolt) > 0.49 and GetLightningColorG(bolt) < 0.51, \"lightning colour did not update\")\n"
+        "endfunction\n"));
+    effect = level.lightning_effects;
+    T_ASSERT(effect->inuse);
+    T_EQ(effect->state.effect_id, MAKEFOURCC('C', 'L', 'P', 'B'));
+    T_FEQ(effect->state.source.x, 15.0f, 0.001f);
+    T_FEQ(effect->state.target.z, 45.0f, 0.001f);
+    T_FEQ(effect->script_color[1], 0.5f, 0.001f);
+    T_EQ(effect->state.color.g, 128);
+    T_EQ(effect->state.color.a, 191);
+    T_ASSERT(G_SaveJassHandle("lightning", effect, &id));
+    T_EQ(G_LoadJassHandle("lightning", id), effect);
+    G_LightningRemove(effect);
+}
+
 TEST(wc3_api, narrator_and_hint_text_share_message_log) {
     LPGAMECLIENT gc = &game.clients[0];
 

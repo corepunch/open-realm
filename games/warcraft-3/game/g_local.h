@@ -883,6 +883,7 @@ typedef gweather_t const *LPCGWEATHER;
 typedef struct {
     BOOL inuse;
     wc3LightningEffect_t state;
+    FLOAT script_color[4];
 } glightning_t;
 typedef glightning_t *LPGLIGHTNING;
 typedef glightning_t const *LPCGLIGHTNING;
@@ -2300,7 +2301,10 @@ LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD
 void G_DestroyEffect(LPEDICT effect);
 DWORD G_AbilityLightningId(DWORD ability_id, DWORD index);
 LPGLIGHTNING G_LightningAdd(DWORD effect_id, LPCVECTOR3 source, LPCVECTOR3 target, COLOR32 color, DWORD duration_ms);
+BOOL G_LightningValid(LPCGLIGHTNING effect);
 void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target);
+void G_LightningColor(LPGLIGHTNING effect, COLOR32 color);
+void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise);
 void G_LightningRemove(LPGLIGHTNING effect);
 LPGLIGHTNING G_SpawnAbilityLightning(DWORD ability_id, DWORD index, LPCEDICT source, LPCEDICT target, DWORD duration_ms);
 LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point);

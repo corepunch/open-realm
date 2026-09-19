@@ -132,9 +132,10 @@ DWORD G_AbilityLightningId(DWORD ability_id, DWORD index) {
     return count ? selected : 0;
 }
 
-static BOOL G_LightningValid(LPCGLIGHTNING effect) {
-    return effect && effect >= level.lightning_effects &&
-        effect < level.lightning_effects + MAX_LIGHTNING_EFFECTS && effect->inuse;
+BOOL G_LightningValid(LPCGLIGHTNING effect) {
+    uintptr_t pointer = (uintptr_t)effect, base = (uintptr_t)level.lightning_effects;
+    return effect && pointer >= base && pointer < base + sizeof(level.lightning_effects) &&
+        (pointer - base) % sizeof(*effect) == 0 && effect->inuse;
 }
 
 LPGLIGHTNING G_LightningAdd(DWORD effect_id, LPCVECTOR3 source, LPCVECTOR3 target,
@@ -149,7 +150,10 @@ LPGLIGHTNING G_LightningAdd(DWORD effect_id, LPCVECTOR3 source, LPCVECTOR3 targe
             break;
         }
     }
-    if (!effect) return NULL;
+    if (!effect) {
+        fprintf(stderr, "WC3 Lightning: presentation registry is full (%u slots)\n", (unsigned)MAX_LIGHTNING_EFFECTS);
+        return NULL;
+    }
     memset(effect, 0, sizeof(*effect));
     effect->inuse = true;
     if (++level.next_lightning_id == 0) level.next_lightning_id = 1;
@@ -159,6 +163,8 @@ LPGLIGHTNING G_LightningAdd(DWORD effect_id, LPCVECTOR3 source, LPCVECTOR3 targe
     effect->state.source = *source;
     effect->state.target = *target;
     effect->state.color = color;
+    effect->script_color[0] = BYTE2FLOAT(color.r); effect->script_color[1] = BYTE2FLOAT(color.g);
+    effect->script_color[2] = BYTE2FLOAT(color.b); effect->script_color[3] = BYTE2FLOAT(color.a);
     effect->state.start_time = now;
     effect->state.end_time = duration_ms ? now + duration_ms : 0;
     return effect;
@@ -168,6 +174,19 @@ void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target) 
     if (!G_LightningValid(effect)) return;
     if (source) effect->state.source = *source;
     if (target) effect->state.target = *target;
+}
+
+void G_LightningColor(LPGLIGHTNING effect, COLOR32 color) {
+    if (!G_LightningValid(effect)) return;
+    effect->state.color = color;
+    effect->script_color[0] = BYTE2FLOAT(color.r); effect->script_color[1] = BYTE2FLOAT(color.g);
+    effect->script_color[2] = BYTE2FLOAT(color.b); effect->script_color[3] = BYTE2FLOAT(color.a);
+}
+
+void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise) {
+    if (!G_LightningValid(effect)) return;
+    effect->state.color = color;
+    if (precise) memcpy(effect->script_color, precise, sizeof(effect->script_color));
 }
 
 void G_LightningRemove(LPGLIGHTNING effect) {

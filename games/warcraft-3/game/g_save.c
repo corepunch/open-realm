@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 33; // format version; persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, reflected missile, and lightning registry state
+static DWORD const save_version = 34; // format version; persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, reflected missile, and lightning registry/identity state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -161,6 +161,7 @@ typedef enum {
     JASS_HANDLE_TEXTTAG,
     JASS_HANDLE_HASHTABLE,
     JASS_HANDLE_WEATHER,
+    JASS_HANDLE_LIGHTNING,
 } jassHandleDomain_t;
 
 static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
@@ -183,6 +184,7 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "texttag", JASS_HANDLE_TEXTTAG },
     { "hashtable", JASS_HANDLE_HASHTABLE },
     { "weathereffect", JASS_HANDLE_WEATHER },
+    { "lightning", JASS_HANDLE_LIGHTNING },
 };
 
 static field_t const timer_dialog_fields[] = {
@@ -221,6 +223,7 @@ static field_t const lightning_state_fields[] = {
 static field_t const lightning_fields[] = {
     TF(glightning_t, inuse, F_INT),
     TF(glightning_t, state, F_STRUCT, 1, lightning_state_fields),
+    TF(glightning_t, script_color, F_FLOAT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -913,6 +916,8 @@ static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
         return EventById(id);
     } else if (domain == JASS_HANDLE_WEATHER) {
         if (id < MAX_WEATHER_EFFECTS && level.weather_effects[id].inuse) return &level.weather_effects[id];
+    } else if (domain == JASS_HANDLE_LIGHTNING) {
+        if (id < MAX_LIGHTNING_EFFECTS && level.lightning_effects[id].inuse) return &level.lightning_effects[id];
     } else if (domain == JASS_HANDLE_TRIGGER && id < level.num_triggers) return &level.triggers[id];
     else if (domain == JASS_HANDLE_TIMER && id < level.num_timers) return &level.timers[id];
     else if (domain == JASS_HANDLE_TIMERDIALOG && id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse)
@@ -1014,6 +1019,14 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         *id = (DWORD)(effect - level.weather_effects);
         return true;
     }
+    if (domain == JASS_HANDLE_LIGHTNING) {
+        LPGLIGHTNING effect = value;
+        uintptr_t pointer = (uintptr_t)effect, base = (uintptr_t)level.lightning_effects;
+        if (!effect || pointer < base || pointer >= base + sizeof(level.lightning_effects) ||
+            (pointer - base) % sizeof(*effect) || !effect->inuse) return false;
+        *id = (DWORD)((pointer - base) / sizeof(*effect));
+        return true;
+    }
     if (domain == JASS_HANDLE_QUEST) {
         if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
             *id = (DWORD)((LPQUEST)value - level.quests); return true;
@@ -1053,6 +1066,8 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
         return id < MAX_TEXTTAGS && level.texttags[id].inuse ? &level.texttags[id] : NULL;
     if (domain == JASS_HANDLE_HASHTABLE)
         return id < MAX_HASHTABLES && level.hashtables[id].inuse ? &level.hashtables[id] : NULL;
+    if (domain == JASS_HANDLE_LIGHTNING)
+        return id < MAX_LIGHTNING_EFFECTS && level.lightning_effects[id].inuse ? &level.lightning_effects[id] : NULL;
     return JassListHandle(domain, id);
 }
 

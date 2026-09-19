@@ -9,7 +9,7 @@ typedef struct particle_vertex {
     COLOR32 color;
     float size;
     VECTOR3 tail;
-    BYTE uv[2];
+    FLOAT uv[2];
     BYTE axis[2];
 } particleVertex_t;
 
@@ -161,6 +161,23 @@ static const shader_desc_t sd_particle = {
 };
 #undef SHADER_TYPE
 
+static particleVertex_t *R_AddParticleUV(particleVertex_t *buffer,
+                                           LPCVECTOR3 point, LPCVECTOR3 tail,
+                                           FLOAT u0, FLOAT v0, FLOAT u1, FLOAT v1,
+                                           COLOR32 color, FLOAT size) {
+    BYTE a = 0x00, b = 0xff;
+    particleVertex_t const data[NUM_PARTICLE_VERTICES] = {
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v0}, .axis = {a,a}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v0}, .axis = {b,a}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v1}, .axis = {b,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v1}, .axis = {b,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v1}, .axis = {a,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v0}, .axis = {a,a}, .color = color, .size = size },
+    };
+    memcpy(buffer, data, sizeof(data));
+    return buffer + NUM_PARTICLE_VERTICES;
+}
+
 particleVertex_t *
 R_AddParticle(particleVertex_t *buffer,
               LPCVECTOR3 point,
@@ -169,18 +186,9 @@ R_AddParticle(particleVertex_t *buffer,
               COLOR32 color,
               float size)
 {
-    BYTE a = 0x00, b = 0xff;
     LPBYTE uv = (LPBYTE)&uvr;
-    particleVertex_t const data[NUM_PARTICLE_VERTICES] = {
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[1]}, .axis = {b,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[3]}, .axis = {a,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
-    };
-    memcpy(buffer, data, sizeof(data));
-    return buffer + NUM_PARTICLE_VERTICES;
+    return R_AddParticleUV(buffer, point, tail, BYTE2FLOAT(uv[0]), BYTE2FLOAT(uv[1]),
+                           BYTE2FLOAT(uv[2]), BYTE2FLOAT(uv[3]), color, size);
 }
 
 void R_UpdateParticles(void) {
@@ -363,28 +371,55 @@ void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, CO
     R_SetAlphaKeyState(false);
 }
 
-/* Generic camera-facing textured ribbon between two world points.  Warcraft
- * lightning is one consumer, but the primitive remains engine-level and has
- * no knowledge of ability/rawcode data. */
-void R_DrawRibbonSprite(LPCTEXTURE texture, LPCVECTOR3 source, LPCVECTOR3 target,
-                        float width, COLOR32 color, BLEND_MODE blend_mode, BOOL depth_test) {
+/* Generic camera-facing textured polyline.  The particle shader expands each
+ * segment into a camera-facing quad, while continuous U coordinates allow
+ * tiled textures to move along the complete strip. */
+void R_DrawRibbon(ribbonDraw_t const *draw) {
     MATRIX4 matrix;
     particleVertex_t *pv = particles_resources.vertices;
-    COLOR32 const uv = { 0, 255, 255, 0 };
-    VECTOR3 tail;
     GLboolean depth_enabled;
+    FLOAT distance = 0.0f;
+    ribbonDraw_t actual;
 
-    if (!source || !target || width <= 0.0f) return;
-    if (!texture) texture = particles_resources.texture;
-    tail = Vector3_sub(target, source);
-    if (Vector3_len(&tail) <= 0.001f) return;
+    if (!draw || !draw->points || draw->point_count < 2 || draw->width <= 0.0f) return;
+    if (!draw->texture) { actual = *draw; actual.texture = particles_resources.texture; draw = &actual; }
     Matrix4_identity(&matrix);
     depth_enabled = glIsEnabled(GL_DEPTH_TEST);
-    if (!depth_test && depth_enabled) R_Call(glDisable, GL_DEPTH_TEST);
-    pv = R_AddParticle(pv, target, &tail, uv, color, width);
-    R_FlushParticles(texture, &matrix, pv, blend_mode);
-    if (!depth_test && depth_enabled) R_Call(glEnable, GL_DEPTH_TEST);
+    if (!draw->depth_test && depth_enabled) R_Call(glDisable, GL_DEPTH_TEST);
+    FOR_LOOP(i, draw->point_count - 1) {
+        VECTOR3 tail = Vector3_sub(draw->points + i + 1, draw->points + i);
+        FLOAT length = Vector3_len(&tail);
+        if (length <= 0.001f) continue;
+        if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;
+        pv = R_AddParticleUV(pv, draw->points + i + 1, &tail,
+            draw->texcoord_phase + distance * draw->texcoord_scale, 1.0f,
+            draw->texcoord_phase + (distance + length) * draw->texcoord_scale, 0.0f,
+            draw->color, draw->width);
+        distance += length;
+    }
+    if (pv != particles_resources.vertices) R_FlushParticles(draw->texture, &matrix, pv, draw->blend_mode);
+    if (!draw->depth_test && depth_enabled) R_Call(glEnable, GL_DEPTH_TEST);
     R_SetAlphaKeyState(false);
+}
+
+/* Generic camera-facing textured ribbon between two world points. */
+void R_DrawRibbonSprite(LPCTEXTURE texture, LPCVECTOR3 source, LPCVECTOR3 target,
+                        float width, COLOR32 color, BLEND_MODE blend_mode, BOOL depth_test) {
+    VECTOR3 points[2];
+    FLOAT length;
+    if (!source || !target) return;
+    points[0] = *source; points[1] = *target;
+    length = Vector3_distance(source, target);
+    R_DrawRibbon(&(ribbonDraw_t){
+        .texture = texture,
+        .points = points,
+        .point_count = 2,
+        .width = width,
+        .texcoord_scale = length > 0.001f ? 1.0f / length : 0.0f,
+        .color = color,
+        .blend_mode = blend_mode,
+        .depth_test = depth_test,
+    });
 }
 
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
@@ -404,7 +439,7 @@ static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
     
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, position));
     R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, color));
-    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
+    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
     R_Call(glVertexAttribPointer, attrib_particleSize, 1, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, size));
     R_Call(glVertexAttribPointer, attrib_particleTail, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, tail));
     R_Call(glVertexAttribPointer, attrib_particleAxis, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, axis));

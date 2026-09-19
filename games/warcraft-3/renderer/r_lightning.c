@@ -48,13 +48,20 @@ static DWORD R_LightningLoadSlk(LPCSTR filename, void **dest) {
 
 static LPCTEXTURE R_LightningTexture(w3LightningArt_t *art) {
     PATHSTR path;
+    static DWORD missing_id;
     if (!art) return NULL;
     if (art->texture) return art->texture;
-    if (!art->file || !*art->file) art->texture = R_LoadTexture("Textures\\white.blp");
-    else {
-        if (art->dir && *art->dir) snprintf(path, sizeof(path), "%s\\%s", art->dir, art->file);
-        else strlcpy(path, art->file, sizeof(path));
-        art->texture = R_LoadTexture(path);
+    if (!art->file || !*art->file) {
+        if (missing_id != art->id) fprintf(stderr, "WC3 Lightning: row %08x has no texture file\n", (unsigned)art->id);
+        missing_id = art->id;
+        return NULL;
+    }
+    if (art->dir && *art->dir) snprintf(path, sizeof(path), "%s\\%s", art->dir, art->file);
+    else strlcpy(path, art->file, sizeof(path));
+    art->texture = R_LoadTexture(path);
+    if (!art->texture && missing_id != art->id) {
+        fprintf(stderr, "WC3 Lightning: row %08x texture '%s' failed to load\n", (unsigned)art->id, path);
+        missing_id = art->id;
     }
     if (art->texture) R_SetTextureWrap(art->texture, true, false);
     return art->texture;
@@ -78,6 +85,7 @@ void R_LightningRegisterMap(void) {
     FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
     lightning_rows = NULL;
     lightning_count = R_LightningLoadSlk("Splats\\LightningData.slk", (void **)&lightning_rows);
+    if (!lightning_count) fprintf(stderr, "WC3 Lightning: Splats\\LightningData.slk has no rows\n");
     FS_SLKBuildIndex(&lightning_index, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
 }
 
@@ -86,22 +94,116 @@ static BYTE R_LightningMulByte(DWORD authored, BYTE tint) {
     return (BYTE)((value + 127u) / 255u);
 }
 
+#define WC3_LIGHTNING_MAX_SEGMENTS 64
+
+static DWORD R_LightningHash(DWORD value) {
+    value ^= value >> 16; value *= 0x7feb352d; value ^= value >> 15;
+    value *= 0x846ca68b; return value ^ (value >> 16);
+}
+
+/* The retail noise function is not public.  Keep the approximation deterministic
+ * per bolt while changing smoothly with render time, so a retransmitted snapshot
+ * does not visibly re-roll the chain. */
+static FLOAT R_LightningNoise(DWORD seed, FLOAT time) {
+    DWORD hash = R_LightningHash(seed);
+    FLOAT phase = (FLOAT)(hash & 0xffffu) * (6.28318530718f / 65536.0f);
+    FLOAT frequency = 11.0f + (FLOAT)((hash >> 16) & 15u);
+    return 0.5f * (sinf(time * frequency + phase) + sinf(time * (frequency + 7.0f) + phase * 1.7f));
+}
+
+static DWORD R_LightningBuildPoints(w3LightningArt_t const *art,
+                                    wc3LightningEffect_t const *state,
+                                    VECTOR3 *points, DWORD point_capacity) {
+    VECTOR3 delta, direction, reference, side, up;
+    FLOAT distance, average, amplitude, time;
+    DWORD segments;
+
+    if (!art || !state || !points || point_capacity < 2) return 0;
+    delta = Vector3_sub(&state->target, &state->source);
+    distance = Vector3_len(&delta);
+    if (distance <= 0.001f) return 0;
+    direction = Vector3_scale(&delta, 1.0f / distance);
+    reference = fabsf(direction.z) < 0.9f ? (VECTOR3){0, 0, 1} : (VECTOR3){0, 1, 0};
+    side = Vector3_cross(&direction, &reference); Vector3_normalize(&side);
+    up = Vector3_cross(&side, &direction); Vector3_normalize(&up);
+    average = art->avg_seg_len > 0.0f ? art->avg_seg_len : distance;
+    segments = (DWORD)ceilf(distance / average);
+    segments = MAX(1u, MIN(segments, MIN(point_capacity - 1, WC3_LIGHTNING_MAX_SEGMENTS)));
+    amplitude = MAX(0.0f, art->noise_scale) * MAX(average, 1.0f);
+    time = (FLOAT)tr.viewDef.time / 1000.0f;
+    FOR_LOOP(i, segments + 1) {
+        FLOAT fraction = (FLOAT)i / (FLOAT)segments;
+        points[i] = Vector3_lerp(&state->source, &state->target, fraction);
+        if (i && i < segments && amplitude > 0.0f) {
+            DWORD seed = state->handle ^ state->effect_id ^ (i * 0x9e3779b9u);
+            FLOAT lateral = R_LightningNoise(seed, time);
+            FLOAT vertical = R_LightningNoise(seed ^ 0x68bc21ebu, time + 0.37f);
+            points[i] = Vector3_mad(&points[i], lateral * amplitude, &side);
+            points[i] = Vector3_mad(&points[i], vertical * amplitude * 0.5f, &up);
+        }
+    }
+    return segments + 1;
+}
+
+static FLOAT R_LightningOpacity(w3LightningArt_t const *art,
+                                wc3LightningEffect_t const *state) {
+    DWORD lifetime, authored;
+    FLOAT elapsed, duration, fade_start;
+
+    if (!state->end_time) return 1.0f; /* JASS AddLightning handles live until DestroyLightning. */
+    if (tr.viewDef.time >= state->end_time) return 0.0f;
+    lifetime = state->end_time - state->start_time;
+    authored = art->duration > 0.0f ? (DWORD)(art->duration * 1000.0f) : 0;
+    if (authored && authored < lifetime) lifetime = authored;
+    elapsed = tr.viewDef.time >= state->start_time ?
+        (FLOAT)(tr.viewDef.time - state->start_time) / 1000.0f : 0.0f;
+    duration = (FLOAT)lifetime / 1000.0f;
+    if (duration <= 0.0f || elapsed >= duration) return 0.0f;
+    fade_start = duration * 0.75f;
+    return elapsed <= fade_start ? 1.0f : 1.0f - (elapsed - fade_start) / (duration - fade_start);
+}
+
 void R_LightningDraw(void) {
     FOR_LOOP(i, tr.viewDef.num_lightning_effects) {
         wc3LightningEffect_t const *state = tr.viewDef.lightning_effects + i;
         w3LightningArt_t *art = FS_SLKLookup(&lightning_index, state->effect_id);
+        VECTOR3 points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
         COLOR32 color;
         LPCTEXTURE texture;
-        FLOAT width;
-        if (!art) continue;
+        FLOAT opacity, average, texture_scale, elapsed;
+        DWORD point_count;
+        if (!art) {
+            static DWORD missing_id;
+            if (missing_id != state->effect_id)
+                fprintf(stderr, "WC3 Lightning: no LightningData row for %08x\n", (unsigned)state->effect_id);
+            missing_id = state->effect_id;
+            continue;
+        }
         texture = R_LightningTexture(art);
         if (!texture) continue;
-        width = art->width > 0.0f ? art->width * 2.0f : 16.0f;
+        opacity = R_LightningOpacity(art, state);
+        if (opacity <= 0.0f) continue;
         color = MAKE(COLOR32,
             R_LightningMulByte(art->r, state->color.r),
             R_LightningMulByte(art->g, state->color.g),
             R_LightningMulByte(art->b, state->color.b),
-            R_LightningMulByte(art->a, state->color.a));
-        R_DrawRibbonSprite(texture, &state->source, &state->target, width, color, BLEND_MODE_ADD, false);
+            (BYTE)(R_LightningMulByte(art->a, state->color.a) * opacity));
+        point_count = R_LightningBuildPoints(art, state, points, sizeof(points) / sizeof(points[0]));
+        if (point_count < 2) continue;
+        average = art->avg_seg_len > 0.0f ? art->avg_seg_len : 1.0f;
+        texture_scale = art->texcoord_scale > 0.0f ? art->texcoord_scale / average : 0.0f;
+        elapsed = state->start_time && tr.viewDef.time >= state->start_time ?
+            (FLOAT)(tr.viewDef.time - state->start_time) / 1000.0f : 0.0f;
+        R_DrawRibbon(&(ribbonDraw_t){
+            .texture = texture,
+            .points = points,
+            .point_count = point_count,
+            .width = art->width,
+            .texcoord_scale = texture_scale,
+            .texcoord_phase = -elapsed * art->texcoord_scale,
+            .color = color,
+            .blend_mode = BLEND_MODE_ADD,
+            .depth_test = false,
+        });
     }
 }
