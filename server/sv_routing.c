@@ -540,9 +540,9 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
 
 static BOOL entity_blocks_static_pathing(edict_t const *ent) {
     if (!ent || !ent->inuse || (ent->s.renderfx & RF_HIDDEN)) return false;
-    /* WC3 accepted placement Birth is a visible reservation, not a building
-     * obstacle. Once construction starts, the real structure blocks movement;
-     * placement validation still sees the live preview separately. */
+    /* A WC3 Construction Site Indicator is a visible reservation, not a
+     * building obstacle. Once construction starts, the real structure blocks
+     * movement; placement validation still sees the live indicator separately. */
     if ((ent->s.flags & (EF_BUILDING | EF_CONSTRUCTING | EF_NOT_SELECTABLE)) ==
         (EF_BUILDING | EF_CONSTRUCTING | EF_NOT_SELECTABLE)) return false;
     /* Unit buildings keep their authored path texture after death for entity

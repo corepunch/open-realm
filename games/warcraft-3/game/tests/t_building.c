@@ -1515,7 +1515,7 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
 /* Human04's opening sends these three preplaced Peasants to the centres of
  * BuildFarm (-1360,-4608), BuildBarracks (-1744,-3536), and BuildTownHall
  * (-2208,-4048).  Keep the authored starts, region-entry order, and build
- * centers here. Retail's pending Birth preview is non-blocking, so the
+ * centers here. Retail's Construction Site Indicator is non-blocking, so the
  * Barracks peasant may occupy the Town Hall footprint without cancelling it. */
 TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     enum { CELLS = 512 };
@@ -1602,13 +1602,21 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 gi.LinkEntity(workers[1]);
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
                 T_NOT_NULL(workers[i]->build_preview);
+                T_ASSERT(workers[i]->build_preview->svflags & SVF_OWNER_ONLY);
+                T_EQ(workers[i]->build_preview->s.player, workers[i]->s.player);
                 T_ASSERT(Vector2_distance(&workers[1]->s.origin2, &before_preview) > 1.0f);
                 T_ASSERT(workers[1]->goalentity == barracks_goal);
                 T_ASSERT(move_is_active_order_walk(workers[1]));
                 T_ASSERT(workers[i]->build_preview->aiflags & AI_HOLD_FRAME);
-                if (workers[i]->build_preview->animation)
-                    T_EQ(workers[i]->build_preview->s.frame,
-                         workers[i]->build_preview->animation->interval[0]);
+                T_ASSERT(workers[i]->build_preview->animation);
+                T_ASSERT(G_AnimationHasPrimary(workers[i]->build_preview->animation, "stand"));
+                T_EQ(workers[i]->build_preview->s.frame,
+                     workers[i]->build_preview->animation->interval[0]);
+                T_ASSERT(workers[i]->build_preview->vertex_color_set);
+                T_EQ(workers[i]->build_preview->vertex_color.r, 255);
+                T_EQ(workers[i]->build_preview->vertex_color.g, 255);
+                T_EQ(workers[i]->build_preview->vertex_color.b, 255);
+                T_EQ(workers[i]->build_preview->vertex_color.a, 128);
             } else {
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
             }
@@ -1629,7 +1637,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     T_ASSERT(townhall_spawned);
 }
 
-TEST(wc3_building, construction_birth_blocks_after_preview) {
+TEST(wc3_building, construction_blocks_after_site_indicator) {
     enum { CELLS = 64 };
     static BYTE pathmap[CELLS * CELLS];
     size_t const pathtex_size = sizeof(pathTex_t) + sizeof(COLOR32);

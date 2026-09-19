@@ -5,15 +5,17 @@
 #define WC3_BUILD_START_LIFE 0.10f
 #define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
 #define WC3_BUILD_DISPLACE_MARGIN_CELLS 4.0f /* retail clears the four-cell construction approach lane */
+#define WC3_BUILD_SITE_INDICATOR_ALPHA 128
 
-/* Retail shows an accepted building's Birth presentation before the worker
- * arrives.  This entity is presentation-only: it has no collision and never
- * bakes static pathing.  Its footprint still displaces friendly mobile units
- * at placement time; the real structure repeats that displacement when
- * construction starts after the worker arrives. */
+/* Construction Site Indicator. RoC and TFT both show a translucent copy of the
+ * normal building model while the worker travels to the accepted site. The
+ * indicator is private order presentation: only its owner receives it in
+ * snapshots. It has no collision and never bakes static pathing. Its footprint
+ * still displaces friendly mobile units at placement time; the real structure
+ * repeats that displacement when construction starts. */
 LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
     LPEDICT preview;
-    LPCANIMATION birth;
+    LPCANIMATION stand;
 
     if (!builder || !location || !G_UnitIsBuilding(building_id)) return NULL;
     preview = G_Spawn();
@@ -28,22 +30,26 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 loca
     preview->s.angle = -M_PI / 2;
     preview->s.player = builder->s.player;
     SP_CallSpawn(preview);
+    /* Pending construction is private player feedback, unlike the real
+     * building that replaces it when construction starts. Keep the normal
+     * entity/model path, but never send this marker to allies or opponents. */
+    preview->svflags |= SVF_OWNER_ONLY;
     preview->s.flags |= EF_CONSTRUCTING;
     preview->collision = 0.0f;
     preview->s.collision = 0.0f;
     preview->s.flags |= EF_NOT_SELECTABLE;
     preview->s.renderfx |= RF_NO_UBERSPLAT;
     gi.LinkEntity(preview);
-    if (preview->birth) preview->birth(preview);
-    /* A pending Birth is a placement marker, not construction progress. Keep
-     * it on the first authored Birth frame until the worker arrives. */
-    birth = preview->animation;
-    if (!G_AnimationHasPrimary(birth, "birth")) birth = G_GetUnitAnimation(preview, "birth");
-    if (birth) {
-        preview->animation = birth;
-        preview->s.frame = birth->interval[0];
-    }
+
+    /* Retail's Construction Site Indicator is the normal building model made
+     * translucent, not the first frame of Birth. Freeze the completed Stand
+     * presentation while the worker is still travelling to the accepted site. */
+    G_SetUnitAnimation(preview, "stand");
+    stand = preview->animation;
+    if (stand) preview->s.frame = stand->interval[0];
     preview->aiflags |= AI_HOLD_FRAME;
+    preview->vertex_color = MAKE(COLOR32, 255, 255, 255, WC3_BUILD_SITE_INDICATOR_ALPHA);
+    preview->vertex_color_set = true;
     if (!G_DisplaceBuildOccupants(builder, preview)) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD preview-displace-incomplete worker=%ld preview=%ld id=%.4s\n",
@@ -1339,8 +1345,8 @@ static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL 
     building->aiflags |= AI_HOLD_FRAME;
     G_SetHealth(building, MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE));
 
-    /* Birth is walk-through only while the accepted placement is a preview.
-     * The construction footprint becomes a route obstacle before the worker
+    /* Only the translucent Construction Site Indicator is walk-through. The
+     * real construction footprint becomes a route obstacle before the worker
      * begins Repair/build work. */
     CM_BakeStaticObstacles();
 
