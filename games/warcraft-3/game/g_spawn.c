@@ -605,6 +605,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->number = playernum;
     ps->team = G_MapPlayerTeam(mapinfo, playernum);
     ps->color = player ? player->color : playernum;
+    if (playernum == PLAYER_NEUTRAL_PASSIVE) ps->color = WC3_PLAYER_COLOR_LIGHT_GRAY;
     ps->race = player ? player->playerRace : kPlayerRaceNone;
     ps->name = (LPSTR)name;
     ps->start_location = player ? (LONG)playernum : -1;
@@ -730,6 +731,7 @@ void G_SpawnEntities(void) {
         SP_CallSpawn(ent);
         if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (DWORD)-1)
             ent->resources = doodad->goldAmount;
+        if (ent->svflags & SVF_MONSTER) G_ApplyMapUnitTeamColor(ent, doodad);
         if (G_IsDestructable(ent)) {
             G_InitializeDestructablePlacement(ent, doodad);
             G_RegisterGroundSurface(ent);
@@ -750,6 +752,13 @@ void G_SpawnEntities(void) {
     else
         fprintf(stderr, "G_SpawnEntities: missing mapscript; skipping jass_dobuffer\n");
     gi.LoadingFrame();
+
+    /* Warcraft executes config before main; this phase owns authored player colors, teams, and slots. */
+    if (!level.scriptsConfigured && level.mapinfo && level.mapinfo->mapscript &&
+        strstr(level.mapinfo->mapscript, "function config")) {
+        jass_callbyname(level.vm, "config", false);
+        if (!jass_rterror_pending(level.vm)) level.scriptsConfigured = true;
+    }
 
     UI_Init();
     CM_BakeStaticObstacles();

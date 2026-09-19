@@ -1051,6 +1051,9 @@ typedef struct {
     DWORD charges;
 } gameCacheItem_t;
 
+#define WC3_UNIT_COLOR_OVERRIDE_FLAG 0x80000000u // bit; distinguishes explicit PLAYER_COLOR_RED from the zero/default owner-color state
+#define WC3_UNIT_COLOR_VALUE_MASK 0x0000001fu // five-bit playercolor payload; effect_flags reserves zero for "no published override"
+
 typedef struct {
     DWORD class_id;
     doodadHero_t hero;
@@ -1360,7 +1363,7 @@ struct edict_s {
         DWORD target_spawn_time; // thinker copy of target identity; rejects reused target slots
         VECTOR2 origin; // position when channel started (movement cancels channel)
     } channel;
-    DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
+    DWORD unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     LONG user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     BOOL uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     VECTOR2 old_origin;
@@ -1788,6 +1791,7 @@ struct level_locals {
     wc3EnvironmentFog_t environment_fog;
     BOX2 camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
     BOOL started;
+    BOOL scriptsConfigured;
     BOOL scriptsStarted;
     BOOL cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
     BOOL campaign_select_on_end; /* ForceCampaignSelectScreen defers campaign selection until EndGame */
@@ -2149,6 +2153,16 @@ void G_ClearTrainingQueueFood(LPEDICT producer);
 BOOL G_CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund);
 void G_CancelTrainingQueue(LPEDICT producer, BOOL refund);
 void G_SetUnitPlayer(LPEDICT unit, DWORD player);
+DWORD G_GetUnitTeamColor(LPCEDICT unit);
+void G_SetEntityTeamColor(LPENTITYSTATE state, DWORD color);
+void G_SetUnitTeamColor(LPEDICT unit, DWORD color);
+void G_InheritUnitTeamColor(LPEDICT entity, LPCEDICT source);
+void G_InitializeUnitTeamColor(LPEDICT unit);
+void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement);
+void G_ChangePlayerTeamColor(LPPLAYER player, DWORD previous_color, DWORD new_color);
+BOOL G_GetUnitColorOverride(LPCEDICT unit, LPDWORD color);
+void G_SetUnitColorOverride(LPEDICT unit, DWORD color);
+void G_ClearUnitColorOverride(LPEDICT unit);
 void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
 LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);
 LONG G_CreditResourceIncome(LPPLAYER player, LPEDICT source, DWORD resource_state, LONG gross_amount);
