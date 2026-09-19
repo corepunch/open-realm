@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 32; // format version; persists hashtables, build previews, map config lifecycle, and mutable Blight/Abli state
+static DWORD const save_version = 33; // format version; persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, and reflected missile state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -616,6 +616,7 @@ field_t edict_fields[] = {
     F(edict_s, autocast_code, F_INT),
     F(edict_s, channel, F_STRUCT, 1, channel_fields),
     F(edict_s, damage, F_INT),
+    F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
     F(edict_s, construction, F_STRUCT, 1, construction_fields),
@@ -647,6 +648,7 @@ field_t edict_fields[] = {
     F(edict_s, raven, F_STRUCT, 1, raven_fields),
     F(edict_s, ensnare, F_STRUCT, 1, ensnare_fields),
     F(edict_s, sleep, F_STRUCT, 1, sleep_fields),
+    F(edict_s, permanent_health_bonus, F_FLOAT),
     F(edict_s, temporary_health_bonus, F_FLOAT),
     F(edict_s, mana_regen_bonus, F_FLOAT),
     F(edict_s, animation_speed, F_FLOAT),

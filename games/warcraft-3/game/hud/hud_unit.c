@@ -294,11 +294,12 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     DWORD rawcode;
 
     if (!S_AbilityHasCommand(ability) || strlen(code) != 4 || *count >= max_buttons) return;
+    memcpy(&rawcode, code, sizeof(rawcode));
+    if (!G_UnitAbilityResearchAvailable(ent, rawcode)) return;
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
     if (ability->proc == CAbilityStandDown && (!S_CargoIsBurrow(ent) || ent->cargo.count == 0)) return;
-    memcpy(&rawcode, code, sizeof(rawcode));
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);

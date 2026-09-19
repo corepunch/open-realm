@@ -360,7 +360,7 @@ static void InitConstants(void) {
         { ATK_MAGIC,  "DamageBonusMagic"  },
         { ATK_HERO,   "DamageBonusHero"   },
     };
-    FLOAT food_ceiling;
+    FLOAT food_ceiling, defend_deflection;
     Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
@@ -396,6 +396,8 @@ static void InitConstants(void) {
     InitMiscValueDefault("StrAttackBonus", &game.constants.strAttackBonus, 1.0f);
     InitMiscValueDefault("AgiDefenseBonus", &game.constants.agiDefenseBonus, 0.3f);
     InitMiscValueDefault("AgiAttackSpeedBonus", &game.constants.agiAttackSpeedBonus, 0.02f);
+    InitMiscValueDefault("DefendDeflection", &defend_deflection, 1.0f);
+    game.constants.defendDeflection = defend_deflection != 0.0f;
     game.constants.combatConstantsLoaded = true;
 
     InitMiscValue("FoodCeiling", &food_ceiling);

@@ -19,9 +19,21 @@ unit object data
   -> `T_Damage`
 ```
 
-Melee resolves the target-facing stages at the damage point. Missile attacks roll at launch but defer `G_AttackDamage()` until projectile impact, so armor/defense changes while the missile is in flight affect the hit. Spell missiles provide their own `currentmove/endfunc` and do not enter this physical-attack mitigation branch.
+Melee resolves the target-facing stages at the damage point. Missile attacks roll at launch but defer `G_AttackDamage()` until projectile impact, so armor/defense changes while the missile is in flight affect the hit. Before that normal impact path, a basic missile may be consumed or retargeted by the Defend projectile reaction. Spell missiles provide their own `currentmove/endfunc` and do not enter this physical-attack/Defend-missile branch.
 
 `T_Damage()` ignores targets whose life is already zero, and `unit_die()` is a one-shot transition once `SVF_DEADMONSTER` is set. This matters for simultaneous or near-simultaneous missile impacts: only the first lethal hit may publish WC3 death events, so map-authored death/loot triggers cannot run twice for the same corpse.
+
+### Defend projectile reaction
+
+An active `Adef` target may react to a basic ranged attack before the ordinary
+hit resolves. Data F is a 0..100 chance and is gated by
+`Misc.DefendDeflection`. Piercing uses Data G as the successful-deflection
+damage-taken factor; Magic/Spells uses Data H. A unit-source success retargets
+the same missile edict to its original owner and sets
+`projectile_reflected`, preventing a second return. A building-source success
+consumes the missile rather than reflecting it into the structure. The flag and
+projectile target/owner references cross save/load, so a return flight remains
+semantically the same after loading.
 
 ## Runtime Attack Fields
 
@@ -76,6 +88,7 @@ Relevant fields:
 - `StrAttackBonus`
 - `AgiDefenseBonus`
 - `AgiAttackSpeedBonus`
+- `DefendDeflection`
 
 The defense-column order is:
 
@@ -125,7 +138,10 @@ clampedBonus = clamp(totalBonus, -0.90, +4.00)
 divisor = 1 + clampedBonus
 ```
 
-Both damage point and cooldown recovery are divided by that divisor. OpenRealm does not yet have the other Warsmash attack-speed modifier sources, so only the Agility contribution is currently present.
+Both damage point and cooldown recovery are divided by that divisor. The same
+shared accumulator also includes implemented status modifiers such as Bloodlust,
+Frenzy, Unholy Frenzy, Cripple, Slow Poison, and Footman Defend Data D before
+the Warcraft `[-90%, +400%]` clamp is applied.
 
 ## Upgrade Effects
 

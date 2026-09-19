@@ -177,6 +177,23 @@ ability list, but its two inventory slots remain covered until Human Backpack
 Undead unit-inventory variants. Plain `AInv` and custom `AInv`-derived inventory
 abilities are not implicitly gated.
 
+Inventory ability Data B through Data E are authoritative runtime permissions:
+
+- `inv2` / Data B (`Drop Items On Death`) releases carried items when the carrier dies;
+- `inv3` / Data C (`Can Use Items`) gates active item commands and carried passive abilities;
+- `inv4` / Data D (`Can Get Items`) gates player-issued pickup orders; and
+- `inv5` / Data E (`Can Drop Items`) gates player-issued drop/handoff/pawn orders.
+
+A carrier with `inv3=0` can still transport items without receiving their
+abilities. A carrier with `inv2=1` releases each carried item into world state at
+its death position without playing a manual-drop response sound. `inv4` and
+`inv5` are deliberately order permissions, not absolute mutation locks: direct
+JASS/native add/remove operations still use the underlying pickup/drop primitive,
+matching Warsmash's distinction between order validation and scripted
+`giveItem`/`dropItem`. The stock Backpack contract uses these fields for ordinary
+carriers, whereas Hero `AInv` enables normal player inventory interaction and
+retains inventory through death.
+
 `UpgradeData.slk` is now normalized for research costs/times and its four
 effect slots, with `ratx`, `ratd`, and `rarm` implemented generically for Blacksmith-style
 stat research. The stock inventory-ability-to-Backpack relationships remain a
@@ -243,10 +260,10 @@ The same patron resolution is used by inventory use/drag/drop commands so the vi
 carrier. Shop purchase, stock, and pawn rules are documented separately in [Neutral Shops And Mercenary Camps](neutral-shops.md).
 
 This slice intentionally does not yet implement Warsmash's held-item cursor
-art, inventory-slot swapping, allied-unit give-item targeting, or `AInv`'s
-`CanDropItems` (`inv5`) rejection/error path. Those need dedicated presentation,
-slot-target, transfer, and ability-field plumbing rather than being folded into
-the ground-drop behavior.
+art, inventory-slot swapping, or allied-unit give-item targeting. Inventory
+Data D/Data E (`CanGetItems` / `CanDropItems`) are enforced on player orders
+while direct script/native insertion and removal continue to bypass those
+order permissions.
 
 Successful transitions and carried-item charge changes refresh the inventory
 layer for clients currently selecting the carrier. Hidden entities are also
@@ -257,14 +274,18 @@ flight.
 
 This slice includes generic item icon/tooltips, ability-defined capacity,
 runtime/displayed charges, and successful synchronous use of the existing
-immediate item ability handlers. Perishable synchronous uses consume one charge
-and destroy the item at zero. Existing passive-effect hooks remain attached to
-inventory entry and exit.
+immediate item ability handlers when Inventory Data C permits item use.
+Perishable synchronous uses consume one charge and destroy the item at zero.
+Passive item effects attach on inventory entry only for carriers whose
+Inventory ability permits item use; held orb/poison attack hooks use the same
+permission. Detach/removal always reverses an effect that was already applied,
+even if `CanUseItems` changed while the item was carried, so permission changes
+cannot leak a permanent stat bonus.
 
 Still missing are automatic `powerup` acquisition/use, asynchronous targeted
 item completion and its charge/event semantics, `cooldownID`/`ignoreCD` item
-cooldowns and disabled icons, held-item cursor art, slot swapping, allied-unit
-giving, `inv5`/`Cantdropitem` enforcement, and death-drop rules.
+cooldowns and disabled icons, held-item cursor art, slot swapping, and
+allied-unit giving.
 
 The implementation is derived from observable behavior and Warcraft III data
 formats described by the clean-room specification. It does not depend on
@@ -283,7 +304,9 @@ initialization/preservation, carried-charge refresh/no-op behavior, perishable
 use decrement/removal, non-perishable decrement-without-removal behavior, JASS charge access,
 and generic `spro` Art/Tip/Ubertip/charge presentation.
 They also cover mixed-selection Smart pickup where a non-inventory unit is the
-first selected entity and a later ROC Hero must still receive the item order.
+first selected entity and a later ROC Hero must still receive the item order,
+Human Backpack carriers refusing active item use, and Data B death policy where
+a non-Hero carrier drops its items while Hero inventory retains them.
 Minimal `AbilityData.slk`, `UnitAbilities.slk`, `ItemData.slk`, `ItemFunc.txt`,
 `ItemStrings.txt`, and `war3skins.txt` fixtures keep these tests data-driven in
 both ROC and TFT test runs. Inventory-panel tests additionally cover the

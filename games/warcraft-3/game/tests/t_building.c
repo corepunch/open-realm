@@ -151,7 +151,7 @@ static LPCSTR const building_renew_stock_targets =
 
 static const char building_upgrade_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X17;Y8;D0\n"
+    "B;X17;Y11;D0\n"
     "C;X1;Y1;K\"upgradeid\"\n"
     "C;X2;K\"class\"\n"
     "C;X3;K\"maxlevel\"\n"
@@ -229,6 +229,25 @@ static const char building_upgrade_slk[] =
     "C;X10;K\"ratx\"\n"
     "C;X11;K2\n"
     "C;X12;K1\n"
+    "C;X1;Y9;K\"Rhri\"\n"
+    "C;X2;K\"range\"\n"
+    "C;X3;K3\n"
+    "C;X10;K\"ratr\"\n"
+    "C;X11;K137\n"
+    "C;X12;K11\n"
+    "C;X1;Y10;K\"Rhan\"\n"
+    "C;X2;K\"health\"\n"
+    "C;X3;K3\n"
+    "C;X10;K\"rhpx\"\n"
+    "C;X11;K73\n"
+    "C;X12;K17\n"
+    "C;X1;Y11;K\"Rhde\"\n"
+    "C;X2;K\"ability\"\n"
+    "C;X3;K1\n"
+    "C;X10;K\"rlev\"\n"
+    "C;X11;K0\n"
+    "C;X12;K0\n"
+    "C;X13;K\"Adef\"\n"
     "E\n";
 
 static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
@@ -958,6 +977,116 @@ TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
     T_EQ(unit->attack2.damageBase, 20);
     T_FEQ(unit->attack1.permanentDamageBonus, 0.0f, 0.001f);
     T_FEQ(unit->attack2.permanentDamageBonus, 0.0f, 0.001f);
+
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_units) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
+    LPEDICT future;
+    UnitBalance_t balance = { .upgrades = "Rhri" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const long_rifles = MAKEFOURCC('R','h','r','i');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    unit->s.player = client->ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->attack1.numberOfDice = 1;
+    unit->attack1.range = 400.0f;
+    unit->attack2.numberOfDice = 1;
+    unit->attack2.range = 250.0f;
+
+    G_SetPlayerTechResearched(client, long_rifles, 1);
+    T_FEQ(unit->attack1.range, 537.0f, 0.001f);
+    T_FEQ(unit->attack2.range, 387.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, long_rifles, 3);
+    T_FEQ(unit->attack1.range, 559.0f, 0.001f);
+    T_FEQ(unit->attack2.range, 409.0f, 0.001f);
+
+    future = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
+    future->s.player = client->ps.number;
+    future->data.UnitBalance = &balance;
+    future->attack1.numberOfDice = 1;
+    future->attack1.range = 400.0f;
+    G_ApplyPlayerUpgradesToUnit(future);
+    T_FEQ(future->attack1.range, 559.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, long_rifles, 0);
+    T_FEQ(unit->attack1.range, 400.0f, 0.001f);
+    T_FEQ(unit->attack2.range, 250.0f, 0.001f);
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 0, 0);
+    LPEDICT future;
+    UnitBalance_t balance = { .upgrades = "Rhan" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const animal_war_training = MAKEFOURCC('R','h','a','n');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    unit->s.player = client->ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->health.max_value = 100.0f;
+    unit->health.value = 50.0f;
+
+    G_SetPlayerTechResearched(client, animal_war_training, 1);
+    T_FEQ(unit->health.max_value, 173.0f, 0.001f);
+    T_FEQ(unit->health.value, 86.5f, 0.001f);
+    T_FEQ(unit->permanent_health_bonus, 73.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, animal_war_training, 2);
+    T_FEQ(unit->health.max_value, 190.0f, 0.001f);
+    T_FEQ(unit->health.value, 95.0f, 0.001f);
+    T_FEQ(unit->permanent_health_bonus, 90.0f, 0.001f);
+
+    future = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 0, 0);
+    future->s.player = client->ps.number;
+    future->data.UnitBalance = &balance;
+    future->health.max_value = 200.0f;
+    future->health.value = 100.0f;
+    G_ApplyPlayerUpgradesToUnit(future);
+    T_FEQ(future->health.max_value, 290.0f, 0.001f);
+    T_FEQ(future->health.value, 145.0f, 0.001f);
+    T_FEQ(future->permanent_health_bonus, 90.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, animal_war_training, 0);
+    T_FEQ(unit->health.max_value, 100.0f, 0.001f);
+    T_FEQ(unit->health.value, 50.0f, 0.001f);
+    T_FEQ(unit->permanent_health_bonus, 0.0f, 0.001f);
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    UnitBalance_t balance = { .upgrades = "Rhde" };
+    UnitAbilities_t abilities = { .abilList = "Adef", .heroAbilList = "" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const defend_research = MAKEFOURCC('R','h','d','e');
+    DWORD const defend = MAKEFOURCC('A','d','e','f');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    unit->s.player = client->ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->data.UnitAbilities = &abilities;
+
+    T_EQ(G_UnitAbilityLevel(unit, defend), 1);
+    T_ASSERT(!G_UnitAbilityResearchAvailable(unit, defend));
+
+    G_SetPlayerTechResearched(client, defend_research, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(unit, defend));
+    T_EQ(G_UnitAbilityLevel(unit, defend), 2);
+
+    G_SetPlayerTechResearched(client, defend_research, 0);
+    T_ASSERT(!G_UnitAbilityResearchAvailable(unit, defend));
+    T_EQ(G_UnitAbilityLevel(unit, defend), 1);
 
     building_restore_upgrade_data(old, rows);
 }

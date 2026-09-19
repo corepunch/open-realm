@@ -481,7 +481,8 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
                           : 0.02f;
     FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
-                      - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self);
+                      - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
+                      - S_DefendAttackReduction(self);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT aura = g_edicts + i;
         DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
@@ -491,8 +492,8 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
             total_bonus += G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].data[1].number * 0.01f;
     }
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
-     * currently has only the Agility contribution, but keeping the clamp here
-     * makes extreme/custom hero data follow the same timing bounds. */
+     * combines authored buffs/debuffs with Agility before applying the same
+     * timing bounds. */
     total_bonus = MAX(-0.9f, MIN(4.0f, total_bonus));
     return 1.0f + total_bonus;
 }

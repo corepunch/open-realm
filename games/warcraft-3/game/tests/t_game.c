@@ -2759,6 +2759,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     indicator->owner = &g_edicts[0];
     game.clients[0].rally_indicator = indicator;
     first->harvested_gold = 37;
+    first->projectile_reflected = true;
     first->sleep.can_sleep = true;
     first->collision = 42.5f;
     first->s.origin.x = 96.0f;
@@ -2848,6 +2849,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
+    first->projectile_reflected = false;
     first->sleep.can_sleep = false;
     first->sleep.sleeping = false;
     first->owner = NULL;
@@ -2885,6 +2887,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
      * edict and is included in the raw world query after save/load. */
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 4);
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
+    T_ASSERT(g_edicts[first - g_edicts].projectile_reflected);
     T_ASSERT(g_edicts[first - g_edicts].sleep.can_sleep);
     T_ASSERT(g_edicts[first - g_edicts].sleep.sleeping);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);

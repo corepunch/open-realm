@@ -96,16 +96,23 @@ static void G_AdvanceProjectilePresentation(LPEDICT ent) {
  * If the distance remaining is less than the per-frame travel distance the
  * projectile hits, deals damage via T_Damage(), and is freed. */
 void SV_Physics_Toss(LPEDICT ent) {
-    FLOAT distance = ent->velocity * FRAMETIME;
-    VECTOR3 target = ent->goalentity->s.origin;
+    FLOAT distance;
+    VECTOR3 target, dir;
+    if (!ent->goalentity || !ent->goalentity->inuse) { G_FreeEdict(ent); return; }
+    distance = ent->velocity * FRAMETIME;
+    target = ent->goalentity->s.origin;
     /* s.origin already contains support surface + current FlyHeight.  ImpactZ
      * is the model-local target point on top of that airborne/ground origin. */
     target.z += G_UnitImpactZ(ent->goalentity->class_id);
-    VECTOR3 dir = Vector3_sub(&target, &ent->s.origin);
+    dir = Vector3_sub(&target, &ent->s.origin);
     if (Vector3_len(&dir) < distance) {
         if (ent->currentmove && ent->currentmove->endfunc) {
             ent->currentmove->endfunc(ent);
         } else {
+            /* Defend reacts at projectile impact, before the normal hit path.
+             * A successful unit-source deflection retargets this same edict to
+             * the attacker and leaves it alive for its return flight. */
+            if (S_DefendProjectileReaction(ent)) return;
             /* Basic attack missiles carry the launch-time raw roll. Resolve
              * target defense/armor on impact, matching Warsmash and allowing
              * in-flight armor/defense changes to affect the hit. Spell

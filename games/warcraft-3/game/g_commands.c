@@ -1449,7 +1449,8 @@ CLIENTCOMMAND(Inventory) {
 
     ent = G_GetInventoryInteractionUnit(client);
     slot = atoi(argv[1]);
-    if (!G_UnitCanControl(client, ent) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(ent)) {
+    if (!G_UnitCanControl(client, ent) || !G_InventoryCanUseItems(ent) ||
+        slot < 0 || (DWORD)slot >= G_InventoryCapacity(ent)) {
         return;
     }
 
@@ -1540,7 +1541,7 @@ static BOOL G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
     LPEDICT carrier = G_IsItem(item) ? item->item.carrier : NULL;
 
     if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
-        G_ShopPawnItem(&(shopPawnItemParams_t){
+        G_InventoryCanDropItems(carrier) && G_ShopPawnItem(&(shopPawnItemParams_t){
             .clent = clent, .shop = target, .carrier = carrier, .item = item })) {
         G_RefreshResourceBar(clent);
         Get_Portrait_f(clent);
@@ -1561,7 +1562,8 @@ static BOOL G_ItemDragSelectLocation(LPEDICT clent, LPCVECTOR2 location) {
     if (!client || !location) return false;
     item = client->menu.dragged_item;
     unit = G_IsItem(item) ? item->item.carrier : NULL;
-    if (!G_UnitCanControl(client, unit) || !G_IsItem(item) || item->item.carrier != unit)
+    if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
+        !G_IsItem(item) || item->item.carrier != unit)
         return false;
     if (!G_OrderDropItemAt(unit, item, location)) return false;
     G_SendPointConfirmation(clent, location, false);
@@ -1577,7 +1579,8 @@ CLIENTCOMMAND(ItemDrag) {
     if (!clent || !(client = clent->client) || argc < 2) return;
     unit = G_GetInventoryInteractionUnit(client);
     slot = atoi(argv[1]);
-    if (!G_UnitCanControl(client, unit) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) return;
+    if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
+        slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) return;
     item = unit->inventory[slot];
     if (!G_IsItem(item) || item->item.carrier != unit || item->item.in_world) return;
 
@@ -1601,7 +1604,8 @@ CLIENTCOMMAND(DropItem) {
     }
     unit = G_GetInventoryInteractionUnit(clent->client);
     slot = atoi(argv[1]);
-    if (!G_UnitCanControl(clent->client, unit) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) {
+    if (!G_UnitCanControl(clent->client, unit) || !G_InventoryCanDropItems(unit) ||
+        slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) {
         return;
     }
     G_DropItem(unit, (DWORD)slot);

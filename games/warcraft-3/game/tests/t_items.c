@@ -549,6 +549,120 @@ TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_res
     FOR_LOOP(i, 4) T_STREQ(inventory_panel_images[i], "ConsoleInventoryNoCapacity");
 }
 
+TEST(wc3_items, human_backpack_carrier_cannot_use_item_abilities) {
+    LPEDICT player, footman, hero, item;
+    LPGAMECLIENT client;
+
+    setup_test_world();
+    player = &g_edicts[0]; client = player->client;
+    footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64, 0);
+    footman->s.player = hero->s.player = client->ps.number;
+    footman->health.value = footman->health.max_value = 100.0f;
+    hero->health.value = hero->health.max_value = 100.0f;
+
+    G_SetPlayerTechResearched(client, MAKEFOURCC('R','h','p','m'), 1);
+    T_EQ(G_InventoryCapacity(footman), 2);
+    T_ASSERT(!G_InventoryCanUseItems(footman));
+    T_ASSERT(G_InventoryCanUseItems(hero));
+
+    item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 0);
+    SP_SpawnItem(item); gi.LinkEntity(item);
+    T_ASSERT(G_AddItemToSlot(footman, item, 0));
+    T_EQ(G_ItemCharges(item), 1);
+    T_ASSERT(!level.timeofday.false_time.active);
+
+    {
+        LPCSTR command[] = { "inventory", "0" };
+        G_ClientCommand(player, 2, command);
+    }
+    T_ASSERT(footman->inventory[0] == item);
+    T_EQ(G_ItemCharges(item), 1);
+
+    G_UseItem(footman, 0);
+
+    T_ASSERT(footman->inventory[0] == item);
+    T_EQ(G_ItemCharges(item), 1);
+    T_ASSERT(!level.timeofday.false_time.active);
+}
+
+TEST(wc3_items, backpack_carrier_drops_items_on_death_but_hero_retains_them) {
+    LPEDICT player, footman, hero, carried, hero_item;
+    LPGAMECLIENT client;
+
+    setup_test_world();
+    player = &g_edicts[0]; client = player->client;
+    footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    footman->s.player = client->ps.number;
+    footman->health.value = footman->health.max_value = 100.0f;
+    G_SetPlayerTechResearched(client, MAKEFOURCC('R','h','p','m'), 1);
+
+    carried = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 0);
+    SP_SpawnItem(carried); gi.LinkEntity(carried);
+    T_ASSERT(G_AddItemToSlot(footman, carried, 0));
+    unit_die(footman, NULL);
+    T_NULL(footman->inventory[0]);
+    T_NULL(carried->item.carrier);
+    T_EQ(carried->item.inventory_slot, -1);
+    T_ASSERT(carried->item.in_world);
+    T_ASSERT(!(carried->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!(carried->svflags & SVF_NOCLIENT));
+
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 128, 0);
+    hero->s.player = client->ps.number;
+    hero->health.value = hero->health.max_value = 100.0f;
+    hero_item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 160, 0);
+    SP_SpawnItem(hero_item); gi.LinkEntity(hero_item);
+    T_ASSERT(G_AddItemToSlot(hero, hero_item, 0));
+    unit_die(hero, NULL);
+    T_ASSERT(hero->inventory[0] == hero_item);
+    T_ASSERT(hero_item->item.carrier == hero);
+    T_ASSERT(!hero_item->item.in_world);
+}
+
+TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mutation) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Agt0\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"2\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"0\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Agt0", .heroAbilList = "" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT unit, item;
+    VECTOR2 destination = { 64.0f, 0.0f };
+
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->data.UnitAbilities = &abilities;
+    unit->health.value = unit->health.max_value = 100.0f;
+    unit->movetype = MOVETYPE_STEP;
+    unit->stand = unit_stand;
+    unit_stand(unit);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+
+    T_EQ(G_InventoryCapacity(unit), 2);
+    T_ASSERT(!G_InventoryCanGetItems(unit));
+    T_ASSERT(!G_InventoryCanDropItems(unit));
+    T_ASSERT(!G_OrderPickupItem(unit, item));
+
+    /* UnitAddItem/UnitAddItemToSlot style script operations call the direct
+     * mutation path and are intentionally not blocked by inv4. */
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(unit->inventory[0] == item);
+
+    /* Player drop orders respect inv5, while UnitRemoveItem-style direct
+     * removal still uses the authoritative direct drop primitive. */
+    T_ASSERT(!G_OrderDropItemAt(unit, item, &destination));
+    T_ASSERT(unit->inventory[0] == item);
+    T_ASSERT(G_DropItem(unit, 0));
+    T_NULL(unit->inventory[0]);
+    T_ASSERT(item->item.in_world);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(LPEDICT) = gi.unicast;

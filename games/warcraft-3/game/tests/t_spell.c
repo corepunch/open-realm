@@ -8,6 +8,7 @@ void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
+void SV_Physics_Toss(LPEDICT ent);
 
 static intptr_t test_ability_message(LPEDICT ent, abilityMsg_t msg, abilityitem_t const *item, spellTarget_t const *target) {
     abilityCall_t call = MAKE(abilityCall_t, .item = item, .target = target);
@@ -1096,22 +1097,112 @@ TEST(wc3_spell, human_attack_passives_and_defend_change_damage) {
 	target->mana.value = target->mana.max_value = 50; attacker->attack1.type = ATK_NORMAL;
 	T_EQ(S_HumanAttackDamage(attacker, target, 10), 30); T_FEQ(target->mana.value, 30.0f, 0.001f);
 	unit_addstatus(target, "Adef", 1); attacker->attack1.type = ATK_PIERCE;
+	T_FEQ(S_HumanMoveFactor(target), 0.7f, 0.001f);
 	T_EQ(S_HumanAttackDamage(attacker, target, 100), 60);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-TEST(wc3_spell, defend_fractional_chance_can_guarantee_reflection) {
+TEST(wc3_spell, defend_data_b_and_e_scale_outgoing_and_magic_attack_damage) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y2;X8\n"
+		"ID;PWXL;N;EBB;Y2;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+		"C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\n"
+		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"0.75\"\n"
+		"C;Y2;X5;K\"0.3\"\nC;Y2;X7;K\"0.6\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+
+	attacker->attack1.type = ATK_NORMAL; unit_addstatus(attacker, "Adef", 1);
+	T_EQ(S_HumanAttackDamage(attacker, target, 100), 75);
+	memset(attacker->abilstatus, 0, sizeof(attacker->abilstatus));
+	attacker->attack1.type = ATK_MAGIC; unit_addstatus(target, "Adef", 1);
+	T_EQ(S_HumanAttackDamage(attacker, target, 100), 60);
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, defend_toggle_reports_state_and_updates_animation_properties) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X5\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\n"
+		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"0.5\"\nC;Y2;X5;K\"0.3\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT footman = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+	abilityitem_t item = S_AbilityItem(FS_SLKKey("Adef"));
+	spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+
+	T_ASSERT(!test_ability_message(footman, A_TOGGLE_ON, &item, &target));
+	T_ASSERT(test_execute_code(footman, "Adef", target));
+	T_ASSERT(test_ability_message(footman, A_TOGGLE_ON, &item, &target));
+	T_ASSERT(S_UnitHasStatus(footman, MAKEFOURCC('A','d','e','f')));
+	T_STREQ(footman->animation_props, "defend");
+	T_FEQ(S_HumanMoveFactor(footman), 0.7f, 0.001f);
+
+	T_ASSERT(test_execute_code(footman, "Adef", target));
+	T_ASSERT(!test_ability_message(footman, A_TOGGLE_ON, &item, &target));
+	T_ASSERT(!S_UnitHasStatus(footman, MAKEFOURCC('A','d','e','f')));
+	T_STREQ(footman->animation_props, "");
+	T_FEQ(S_HumanMoveFactor(footman), 1.0f, 0.001f);
+
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, defend_projectile_retargets_to_unit_source_and_cannot_reflect_twice) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X10\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
 		"C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"DataF1\"\n"
-		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\nC;Y2;X5;K\"0.3\"\nC;Y2;X8;K\"1\"\nE\n";
+		"C;Y1;X9;K\"DataG1\"\nC;Y1;X10;K\"DataH1\"\n"
+		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\n"
+		"C;Y2;X5;K\"0.3\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"100\"\nC;Y2;X9;K\"0\"\nC;Y2;X10;K\"1\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-	LPEDICT attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 100, 0, 0);
-	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
-	attacker->health.value = 200; attacker->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
-	T_EQ(S_HumanAttackDamage(attacker, target, 100), 0); T_FEQ(attacker->health.value, 100.0f, 0.001f);
+	BOOL const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
+	LPEDICT attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 0, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+	LPEDICT missile = G_Spawn();
+	FLOAT const target_hp = target->health.value, attacker_hp = attacker->health.value;
+
+	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
+	attacker->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
+	missile->owner = attacker; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
+	SV_Physics_Toss(missile);
+	T_ASSERT(missile->inuse); T_ASSERT(missile->projectile_reflected); T_ASSERT(missile->goalentity == attacker);
+	T_FEQ(target->health.value, target_hp, 0.001f);
+
+	missile->s.origin = attacker->s.origin;
+	SV_Physics_Toss(missile);
+	T_ASSERT(!missile->inuse); T_ASSERT(attacker->health.value < attacker_hp);
+
+	game.constants.combatConstantsLoaded = old_loaded; game.constants.defendDeflection = old_deflect;
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, defend_consumes_deflected_building_projectile_without_return_damage) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+		"C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"DataF1\"\n"
+		"C;Y1;X9;K\"DataG1\"\nC;Y1;X10;K\"DataH1\"\n"
+		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\n"
+		"C;Y2;X5;K\"0.3\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"100\"\nC;Y2;X9;K\"0\"\nC;Y2;X10;K\"1\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	BOOL const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
+	LPEDICT tower = make_hero(MAKEFOURCC('h','t','o','w'), 500, 0, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+	LPEDICT missile = G_Spawn();
+	FLOAT const tower_hp = tower->health.value, target_hp = target->health.value;
+
+	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
+	tower->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
+	missile->owner = tower; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
+	SV_Physics_Toss(missile);
+	T_ASSERT(!missile->inuse); T_FEQ(target->health.value, target_hp, 0.001f); T_FEQ(tower->health.value, tower_hp, 0.001f);
+
+	game.constants.combatConstantsLoaded = old_loaded; game.constants.defendDeflection = old_deflect;
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -2085,11 +2176,12 @@ TEST(wc3_spell, poison_attacks_share_poison_procedure) {
  * item also carries Aven, so the same poison from both sources applies once. */
 TEST(wc3_spell, poison_on_hit_applies_buff_pair_with_authored_duration) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y4;X6\n"
+		"ID;PWXL;N;EBB;Y4;X7\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
 		"C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataD1\"\n"
+		"C;Y1;X7;K\"DataC1\"\n"
 		"C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"0\"\n"
-		"C;Y2;X4;K\"0\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"0\"\n"
+		"C;Y2;X4;K\"0\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"1\"\n"
 		"C;Y3;X1;K\"Aven\"\nC;Y3;X2;K\"Aven\"\nC;Y3;X3;K\"7\"\n"
 		"C;Y3;X4;K\"2\"\nC;Y3;X5;K\"6\"\nC;Y3;X6;K\"0\"\n"
 		"C;Y4;X1;K\"Apo2\"\nC;Y4;X2;K\"Apo2\"\nC;Y4;X3;K\"6\"\n"

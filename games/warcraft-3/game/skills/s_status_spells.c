@@ -145,6 +145,7 @@ void S_PoisonOnHit(LPEDICT attacker, LPEDICT target) {
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
     FOR_LOOP(o, sizeof(poison_codes) / sizeof(poison_codes[0]))
         if (G_UnitAbilityLevel(attacker, poison_codes[o])) poison_apply(attacker, target, poison_codes[o], seen, &count);
+    if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
         LPEDICT item = attacker->inventory[i];
         LPCSTR abilities;

@@ -318,6 +318,8 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage);
 void S_ReincarnationOnDeath(LPEDICT unit);
 BOOL S_HumanCanAttack(LPCEDICT unit);
 FLOAT S_HumanMoveFactor(LPCEDICT unit);
+FLOAT S_DefendAttackReduction(LPCEDICT unit);
+BOOL S_DefendProjectileReaction(LPEDICT projectile);
 FLOAT S_HumanArmorBonus(LPCEDICT unit);
 int S_HumanAttackDamage(LPEDICT attacker, LPEDICT target, int damage);
 void S_HumanAttackSplash(LPEDICT attacker, LPEDICT target, int damage);
