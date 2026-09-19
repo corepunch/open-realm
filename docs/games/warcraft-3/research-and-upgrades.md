@@ -268,7 +268,7 @@ stock Peasant list, keep those level holders hidden.
 ## Intentionally unresolved
 
 This patch does **not** guess at the remaining Warcraft upgrade effect codes.
-Movement, attack speed, hit-point regeneration, spell-level and other upgrade
+Movement, attack speed, hit-point regeneration and other upgrade
 effect families still need clean data-driven implementations before they should
 mutate runtime units.
 

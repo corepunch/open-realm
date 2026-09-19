@@ -98,7 +98,9 @@ static void reset_inventory_refresh_capture(void) {
 }
 
 static LPEDICT make_item_test_inventory_unit(FLOAT x, FLOAT y) {
+    static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), x, y);
+    unit->data.UnitAbilities = &abilities;
     unit->s.model = 1;
     unit->s.player = PLAYER_NEUTRAL_PASSIVE;
     unit->movetype = MOVETYPE_STEP;

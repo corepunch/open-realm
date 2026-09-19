@@ -158,6 +158,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Quest And Message Log UI](quest-and-message-log-ui.md)
 - [Allies Menu](allies-menu.md)
 - [Building Damage Rendering](building-damage-rendering.md)
+- [Human Barracks Unit Abilities](human-barracks-unit-abilities.md)
 - [Research And Upgrades](research-and-upgrades.md)
 
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.
