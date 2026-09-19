@@ -5239,4 +5239,29 @@ TEST(wc3_api, dota_damage_event_exposes_source_and_amount) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_api, blight_natives_share_authoritative_world_state) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local location l = Location(640.0, 0.0)\n"
+        "  local rect r = Rect(768.0, -64.0, 896.0, 64.0)\n"
+        "  call SetBlightPoint(Player(0), 32.0, 32.0, true)\n"
+        "  call BJassAssert(IsPointBlighted(32.0, 32.0), \"SetBlightPoint add\")\n"
+        "  call SetBlightPoint(Player(0), 32.0, 32.0, false)\n"
+        "  call BJassAssert(not IsPointBlighted(32.0, 32.0), \"SetBlightPoint remove\")\n"
+        "  call SetBlight(Player(0), 256.0, 0.0, 73.0, true)\n"
+        "  call BJassAssert(IsPointBlighted(256.0, 0.0), \"SetBlight add\")\n"
+        "  call SetBlight(Player(0), 256.0, 0.0, 73.0, false)\n"
+        "  call BJassAssert(not IsPointBlighted(256.0, 0.0), \"SetBlight remove\")\n"
+        "  call SetBlightLoc(Player(0), l, 73.0, true)\n"
+        "  call BJassAssert(IsPointBlighted(640.0, 0.0), \"SetBlightLoc\")\n"
+        "  call SetBlightRect(Player(0), r, true)\n"
+        "  call BJassAssert(IsPointBlighted(800.0, 0.0), \"SetBlightRect\")\n"
+        "  call SetBlightRect(Player(0), r, false)\n"
+        "  call BJassAssert(not IsPointBlighted(800.0, 0.0), \"SetBlightRect remove\")\n"
+        "  call RemoveLocation(l)\n"
+        "  call RemoveRect(r)\n"
+        "endfunction\n"));
+}
+
 #endif /* BZ_TESTS */

@@ -1833,6 +1833,84 @@ TEST(wc3_combat, gold_mine_data_remains_authoritative_in_ability_rows) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_combat, blight_growth_is_passive_innate_update_not_command) {
+    ability_t const *ability = FindAbilityByClassname("Abli");
+    T_NOT_NULL(ability);
+    T_ASSERT(ability->flags & AB_PASSIVE);
+    T_ASSERT(ability->flags & AB_UPDATE);
+    T_ASSERT(ability->flags & AB_INNATE);
+    T_ASSERT(!(ability->flags & AB_COMMAND));
+}
+
+
+TEST(wc3_combat, blight_growth_uses_authored_expansion_and_availability) {
+    static const char blight_slk[] =
+        "C;Y1;X1;K\"alias\"\n"
+        "C;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y1;X5;K\"DataB1\"\n"
+        "C;Y1;X6;K\"Area1\"\n"
+        "C;Y2;X1;K\"Abl1\"\n"
+        "C;Y2;X2;K\"Abli\"\n"
+        "C;Y2;X3;K0.2\n"
+        "C;Y2;X4;K1\n"
+        "C;Y2;X5;K73\n"
+        "C;Y2;X6;K219\n"
+        "E\n";
+    DWORD const code = MAKEFOURCC('A','b','l','1');
+    VECTOR2 first_ring = { 48.0f, 0.0f }, second_ring = { 176.0f, 0.0f };
+    slkTestData_t *rows = parse_slk_string(blight_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT unit;
+
+    setup_test_world(); level.time = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    unit->s.player = 0; unit->abilities.added[0] = code; ARRAY_COUNT(unit->abilities.added) = 1;
+    T_ASSERT(S_UnitAbilityEvent(unit, A_UNIT_INIT));
+    T_FEQ(unit->blight_growth.radius, 0.0f, 0.001f);
+    T_ASSERT(!G_IsPointBlighted(&first_ring));
+
+    level.time = 200; S_RunAbilityUpdates(unit);
+    T_FEQ(unit->blight_growth.radius, 73.0f, 0.001f);
+    T_ASSERT(G_IsPointBlighted(&first_ring)); T_ASSERT(!G_IsPointBlighted(&second_ring));
+
+    level.time = 400; S_RunAbilityUpdates(unit);
+    T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
+    T_ASSERT(G_IsPointBlighted(&second_ring));
+
+    G_SetPlayerAbilityAvailable(&game.clients[0], code, false);
+    level.time = 600; S_RunAbilityUpdates(unit);
+    T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
+    G_SetPlayerAbilityAvailable(&game.clients[0], code, true);
+    S_RunAbilityUpdates(unit);
+    T_FEQ(unit->blight_growth.radius, 219.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_combat, blight_regeneration_tracks_world_state_without_movement) {
+    LPEDICT unit;
+    UnitBalance_t balance;
+    VECTOR2 point = { 0.0f, 0.0f };
+
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), point.x, point.y);
+    balance = *unit->data.UnitBalance;
+    balance.healthRegenType = "blight"; balance.healthRegen = 10.0f;
+    unit->data.UnitBalance = &balance;
+    unit->health.max_value = 100.0f; unit->health.value = 50.0f;
+
+    G_RunEntity(unit); T_FEQ(unit->health.value, 50.0f, 0.001f);
+    G_SetBlightPoint(&point, true);
+    G_RunEntity(unit); T_ASSERT(unit->health.value > 50.0f);
+    {
+        FLOAT const healed = unit->health.value;
+        G_SetBlightPoint(&point, false);
+        G_RunEntity(unit); T_FEQ(unit->health.value, healed, 0.001f);
+    }
+}
+
 TEST(wc3_combat, spell_helpers_read_slk_fields) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);

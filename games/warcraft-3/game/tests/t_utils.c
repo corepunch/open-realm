@@ -94,6 +94,7 @@ void setup_test_world(void) {
 	CM_SetupTestWorldBounds(&MAKE(BOX2,
 		.min = {-TEST_PATHMAP_CELLS * 16.0f, -TEST_PATHMAP_CELLS * 16.0f},
 		.max = { TEST_PATHMAP_CELLS * 16.0f,  TEST_PATHMAP_CELLS * 16.0f}));
+	G_BlightInit();
 
 	/* Rebuild the area-node tree so spatial queries don't chase dangling entity
 	 * links left over from previous tests. */
@@ -109,6 +110,7 @@ static void reset_test_state(void) {
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); }
     G_FowShutdown();
+    G_BlightShutdown();
     globals.max_edicts = MAX_ENTITIES;
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = game.max_clients;
