@@ -258,6 +258,16 @@ void CL_UpdateMinimapModel(void);
 DWORD CL_MinimapPingCount(void);
 DWORD CL_MinimapRecentCount(void);
 #endif
+/* World-hover targeting and UI_STAT_CONTEXT_* name/vital bindings share this
+ * snapshot gate so a stale hover cannot keep a name after death or flag loss.
+ * Invulnerable units may publish a name with neither bar flag. */
+static inline BOOL CL_EntityAllowsWorldHover(LPCENTITYSTATE state) {
+    return state && state->model &&
+           state->stats[ENT_HEALTH] > 0 &&
+           !(state->flags & EF_NOT_SELECTABLE) &&
+           (state->name || (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)));
+}
+
 LPCENTITYSTATE SCR_LayoutContextEntity(void);
 BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value);
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root);

@@ -27,7 +27,7 @@ Strings pass through `G_LevelString()` on mutation, so map `TRIGSTR_` strings fo
 
 `UI_LoadHudLeaderboards()` loads the authored `LeaderBoard.fdf` root, backdrop, title, and list container. `LAYER_LEADERBOARD` is a dedicated server-authored layout layer appended after the timer-dialog layer, so leaderboard refreshes do not resend unrelated HUD panels.
 
-The stock title/backdrop/container provide the board chrome. Runtime rows are emitted as text frames parented to `LeaderboardListContainer`: a natural-width left name/label and a natural-width right integer value. The client measures the title and visible row strings with the real rendered font and sizes the board root to the widest line plus the stock edge inset, so the backdrop grows and shrinks with its contents instead of keeping a fixed authored width. Row height still follows the authored title font with a conservative fallback.
+The stock title/backdrop/container provide the board chrome. Runtime rows are emitted as text frames parented to `LeaderboardListContainer`: a natural-width left name/label and a natural-width right integer value. The server does not pick a "widest" row by `strlen`. It sends every visible title and `label    value` line as one newline-separated measurement string; `R_GetTextSize()` returns the widest rendered line in the proportional font, and the client sizes the board root to that width plus the stock edge inset. Row height still follows the authored title font with a conservative fallback.
 
 The common campaign-counter case therefore renders as a stock leaderboard title plus a changing value without rebuilding the leaderboard handle.
 

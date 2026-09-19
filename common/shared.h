@@ -917,7 +917,7 @@ typedef enum {
 } FRAMETYPE;
 
 #define UIFLAG_RADIAL_SHADE      (1 << 9) // FT_COMMANDBUTTON: uiCommandButton_t carries a client-clock radial timer
-#define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; derives a composite frame's size from rendered content
+#define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; uiNameTag_t measured size; ignored on a fully min+max-anchored axis
 #define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
 #define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
@@ -1155,17 +1155,8 @@ typedef struct {
     uiLabel_t text;
     FLOAT padding_x;
     FLOAT padding_y;
-} uiNameTag_t;
-
-/* Client-measured width for structural HUD frames. The server supplies the
- * text that represents the widest visible content; the client measures it
- * with the real renderer/font metrics and adds authored horizontal padding.
- * Height remains controlled by the frame's normal size/anchors. */
-typedef struct {
-    uiLabel_t text;
-    FLOAT padding_x;
     FLOAT min_width;
-} uiSizeToText_t;
+} uiNameTag_t;
 
 typedef struct {
     uiBackdrop_t normal;

@@ -178,7 +178,7 @@ static void selection_test_unicast(LPEDICT ent) { (void)ent; }
 
 static BOOL timer_dialog_size_capture;
 static char timer_dialog_measure_text[128];
-static uiSizeToText_t timer_dialog_size_to_text;
+static uiNameTag_t timer_dialog_size_to_text;
 
 static void timer_dialog_test_write(pfWriteType_t type, void const *data) {
     LPCUIFRAME frame;

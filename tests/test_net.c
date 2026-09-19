@@ -41,6 +41,7 @@ void test_client_stubs_set_existing_file(LPCSTR path);
 void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen);
@@ -252,6 +253,55 @@ TEST(client_layout, context_rejects_entity_without_server_hover_capability) {
     test_client_stubs_init(); cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){ .model = 1, .stats = { [ENT_HEALTH] = 255 } };
     T_ASSERT(!SCR_LayoutContextValue(UI_STAT_CONTEXT_HEALTH, &value));
+}
+
+TEST(client_layout, context_rejects_dead_hover_entity) {
+    FLOAT value;
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .name = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 0 },
+    };
+    T_NULL(SCR_LayoutContextEntity());
+    T_ASSERT(!SCR_LayoutContextValue(UI_STAT_CONTEXT_HEALTH, &value));
+}
+
+TEST(client_layout, context_name_survives_invulnerable_without_bars) {
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .name = 1, .stats = { [ENT_HEALTH] = 255 },
+    };
+    T_NOT_NULL(SCR_LayoutContextEntity());
+}
+
+TEST(client_layout, context_mana_zero_is_still_present) {
+    FLOAT value = -1.0f;
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_MANA, .name = 1,
+        .stats = { [ENT_HEALTH] = 255, [ENT_MANA] = 0 },
+    };
+    T_ASSERT(SCR_LayoutContextValue(UI_STAT_CONTEXT_MANA, &value));
+    T_FEQ(value, 0.0f, 0.0001f);
+    T_ASSERT(!SCR_LayoutContextValue(UI_STAT_CONTEXT_HEALTH, &value));
+}
+
+TEST(client_layout, hover_mana_backdrop_draws_at_empty_pool) {
+    uiFrame_t frame = { .stat = UI_STAT_CONTEXT_MANA, .tex = { .index = 1 } };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.4f, 0.05f);
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_MANA, .name = 1,
+        .stats = { [ENT_HEALTH] = 255, [ENT_MANA] = 0 },
+    };
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    SCR_LayoutDrawTexture(&frame, &screen);
+    T_EQ(test_status_draws, 1);
+    frame.stat = UI_STAT_CONTEXT_HEALTH;
+    SCR_LayoutDrawTexture(&frame, &screen);
+    T_EQ(test_status_draws, 1);
 }
 
 TEST(client_layout, world_hover_root_rejects_point_outside_world_scissor) {
@@ -1371,7 +1421,7 @@ TEST(net, layout_structural_frame_sizes_to_measured_text) {
     BYTE buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, frame = {0};
-    uiSizeToText_t fit = {0};
+    uiNameTag_t fit = {0};
     LPCRECT rect;
 
     frame.number = 1;

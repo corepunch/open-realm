@@ -99,7 +99,7 @@ static COLOR32 SCR_CursorTint(void) {
 
     if (entnum && entnum < MAX_CLIENT_ENTITIES) {
         LPCENTITYSTATE state = &cl.ents[entnum].current;
-        if (state->flags & EF_HOVER_HEALTH) {
+        if (CL_EntityAllowsWorldHover(state)) {
             if (state->flags & EF_HOSTILE) {
                 return MAKE(COLOR32, 255, 0, 0, 255);
             }
@@ -369,10 +369,12 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
-    FLOAT value;
-    if (frame->stat == UI_STAT_CONTEXT_HEALTH || frame->stat == UI_STAT_CONTEXT_MANA) {
-        if (!SCR_LayoutContextValue(frame->stat, &value) || value <= 0.0f) return;
-    } else if (SCR_LayoutContextValue(frame->stat, &value) && value <= 0.0f) return;
+    FLOAT value = 0;
+    BOOL const has = SCR_LayoutContextValue(frame->stat, &value);
+    BOOL const ctx = frame->stat == UI_STAT_CONTEXT_HEALTH || frame->stat == UI_STAT_CONTEXT_MANA;
+    /* Mana hides by flag so an empty pool still draws the bar; health still
+     * drops at value 0 because that snapshot means the unit is dead. */
+    if (has ? (value <= 0.0f && frame->stat != UI_STAT_CONTEXT_MANA) : ctx) return;
     if (!frame->tex.index) return;  /* unresolved texture — skip to avoid drawing cl.pics[0] */
     LPCTEXTURE tex = cl.pics[frame->tex.index];
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < PLAYERTEXT_COUNT) {

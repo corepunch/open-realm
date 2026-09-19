@@ -1307,9 +1307,10 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     if (hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
+        /* Name remains the hover gate for invulnerable units with no mana bar. */
         state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));
-        state->flags |= EF_HOVER_MANA;
         if (!ent->invulnerable) state->flags |= EF_HOVER_HEALTH;
+        if (ent->mana.max_value > 0.0f) state->flags |= EF_HOVER_MANA;
         if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;
         } else if (relation == SELECT_RELATION_NEUTRAL) {

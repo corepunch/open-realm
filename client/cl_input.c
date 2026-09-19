@@ -311,11 +311,7 @@ static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
     if (!entnum || entnum >= MAX_CLIENT_ENTITIES) {
         return false;
     }
-    LPCENTITYSTATE const state = &cl.ents[entnum].current;
-    return state->model &&
-           state->stats[ENT_HEALTH] > 0 &&
-           (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)) &&
-           !(state->flags & EF_NOT_SELECTABLE);
+    return CL_EntityAllowsWorldHover(&cl.ents[entnum].current);
 }
 
 static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
