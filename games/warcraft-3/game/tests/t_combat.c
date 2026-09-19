@@ -107,6 +107,48 @@ static void attach_stub_anim(LPEDICT ent) {
  * Ability presentation effects
  * ========================================================================== */
 
+TEST(wc3_combat, projectile_presentation_selects_stand_sequence) {
+    LPEDICT missile;
+
+    setup_test_world();
+    reset_entities();
+    missile = G_Spawn();
+    missile->s.model = G_RegisterModel("TestUI\\Models\\anim_pulse.mdx");
+
+    G_StartProjectilePresentation(missile);
+
+    T_NOT_NULL(missile->animation);
+    T_STREQ(missile->animation->name, "Stand");
+    T_EQ(missile->s.frame, missile->animation->interval[0]);
+    T_ASSERT(missile->s.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(missile->s.renderfx & RF_NO_SHADOW);
+}
+
+TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
+    animation_t stand = { .name = "Stand", .interval = { 1000, 1300 } };
+    LPEDICT missile;
+    LPEDICT target;
+
+    setup_test_world();
+    reset_entities();
+    missile = G_Spawn();
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 100.0f);
+    target->s.origin.z = 200.0f;
+    missile->s.origin = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    missile->goalentity = target;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->velocity = 0.1f;
+    missile->animation = &stand;
+    missile->s.frame = 1250;
+
+    G_RunEntity(missile);
+
+    T_FEQ(missile->s.angle, (FLOAT)(M_PI / 4.0), 0.001f);
+    T_ASSERT(missile->s.frame >= stand.interval[0]);
+    T_ASSERT(missile->s.frame < stand.interval[1]);
+    T_NE(missile->s.frame, 1250);
+}
+
 TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) {
     DWORD const holy_light = MAKEFOURCC('A','H','h','b');
 
@@ -310,6 +352,113 @@ TEST(wc3_combat, automatic_acquisition_ignores_invulnerable_units) {
     T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == target);
 }
 
+TEST(wc3_combat, attack_target_mask_rejects_air_until_air_is_allowed) {
+    LPEDICT attacker, target;
+
+    setup_test_world();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 400.0f, 64.0f, 0.0f);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->attack1.type = ATK_PIERCE;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_AIR;
+
+    T_ASSERT(!S_OrderAttack(attacker, target));
+    T_NULL(attacker->goalentity);
+
+    attacker->attack1.targetsAllowed |= WC3_TARGET_FLAG_AIR;
+    T_ASSERT(S_OrderAttack(attacker, target));
+    T_ASSERT(attacker->goalentity == target);
+}
+
+TEST(wc3_combat, automatic_acquisition_skips_disallowed_nearer_target) {
+    LPEDICT attacker, air, ground;
+
+    setup_test_world();
+    attacker = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    air = make_combat_unit(MAKEFOURCC('h','f','o','o'), 400.0f, 40.0f, 0.0f);
+    ground = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
+    attacker->s.player = 0; air->s.player = ground->s.player = 1;
+    attacker->attack1.type = ATK_PIERCE;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.damageBase = 10;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    air->targtype = TARG_AIR;
+    ground->targtype = TARG_GROUND;
+    gi.LinkEntity(attacker); gi.LinkEntity(air); gi.LinkEntity(ground);
+
+    T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == ground);
+}
+
+TEST(wc3_combat, automatic_acquisition_includes_attackable_structures) {
+    LPEDICT tower, building;
+
+    setup_test_world();
+    tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
+    building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 80.0f, 0.0f);
+    tower->s.player = 0; building->s.player = 1;
+    tower->attack1.type = ATK_PIERCE;
+    tower->attack1.cooldown = 1.0f;
+    tower->attack1.damageBase = 10;
+    tower->attack1.range = 700.0f;
+    tower->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
+    tower->aiflags |= AI_IMMOBILE;
+    building->targtype = TARG_STRUCTURE;
+    building->runtime.flags |= UNIT_BALANCE_BUILDING;
+    gi.LinkEntity(tower); gi.LinkEntity(building);
+
+    T_ASSERT(G_FindNearestEnemy(tower, 900.0f) == building);
+}
+
+TEST(wc3_combat, immobile_attacker_does_not_acquire_outside_weapon_range) {
+    LPEDICT tower, enemy;
+
+    setup_test_world();
+    tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
+    enemy = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    tower->s.player = 0; enemy->s.player = 1;
+    tower->attack1.type = ATK_PIERCE;
+    tower->attack1.cooldown = 1.0f;
+    tower->attack1.damageBase = 10;
+    tower->attack1.range = 100.0f;
+    tower->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    tower->aiflags |= AI_IMMOBILE;
+    enemy->targtype = TARG_GROUND;
+    gi.LinkEntity(tower); gi.LinkEntity(enemy);
+
+    T_NULL(G_FindNearestEnemy(tower, 300.0f));
+
+    gi.UnlinkEntity(enemy);
+    enemy->s.origin.x = enemy->s.origin2.x = 80.0f;
+    enemy->bounds.min.x = 64.0f; enemy->bounds.max.x = 96.0f;
+    gi.LinkEntity(enemy);
+    T_ASSERT(G_FindNearestEnemy(tower, 300.0f) == enemy);
+}
+
+TEST(wc3_combat, immobile_attacker_cancels_explicit_attack_it_cannot_reach) {
+    LPEDICT tower, enemy;
+
+    setup_test_world();
+    tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
+    enemy = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    tower->s.player = 0; enemy->s.player = 1;
+    tower->attack1.type = ATK_PIERCE;
+    tower->attack1.range = 100.0f;
+    tower->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    tower->aiflags |= AI_IMMOBILE;
+    enemy->targtype = TARG_GROUND;
+
+    order_attack(tower, enemy);
+    T_ASSERT(tower->goalentity == enemy);
+    T_NOT_NULL(tower->currentmove);
+    T_NOT_NULL(tower->currentmove->think);
+
+    tower->currentmove->think(tower);
+
+    T_NULL(tower->goalentity);
+    T_STREQ(tower->currentmove->animation, "stand");
+}
+
 TEST(wc3_combat, tdamage_lethal_calls_die) {
     LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
@@ -327,6 +476,9 @@ TEST(wc3_combat, tdamage_lethal_resets_attacker_to_stand) {
     LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
     T_Damage(target, attacker, 100);
@@ -424,6 +576,9 @@ TEST(wc3_combat, attack_button_accepts_owned_building) {
     clent->s.player = 0;
     attacker->s.player = 0;
     building->s.player = 0;
+    building->targtype = TARG_STRUCTURE;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
     attacker->selected = 1 << clent->client->ps.number;
     building->svflags |= SVF_MONSTER;
     building->health.value = 100.0f;
@@ -441,6 +596,9 @@ TEST(wc3_combat, attack_button_accepts_owned_nonbuilding_unit) {
     clent->s.player = 0;
     attacker->s.player = 0;
     friendly->s.player = 0;
+    friendly->targtype = TARG_GROUND;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->selected = 1 << clent->client->ps.number;
     friendly->svflags |= SVF_MONSTER;
     friendly->health.value = 100.0f;
@@ -458,10 +616,13 @@ TEST(wc3_combat, attack_button_accepts_allied_unit) {
     clent->s.player = 0;
     attacker->s.player = 0;
     friendly->s.player = 1;
+    friendly->targtype = TARG_GROUND;
     /* Allied targeting requires active map slots; the old test set only a raw alliance bit for an inactive owner. */
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->selected = 1 << clent->client->ps.number;
     friendly->svflags |= SVF_MONSTER;
     friendly->health.value = 100.0f;
@@ -504,6 +665,8 @@ TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.weapon = WPN_NORMAL;
     attacker->attack1.range = 90.0f;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
+    building->targtype = TARG_STRUCTURE;
 
     pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(COLOR32));
     T_NOT_NULL(pathtex);
@@ -1088,6 +1251,9 @@ TEST(wc3_combat, attack_completion_resumes_persistent_follow) {
     LPEDICT enemy = make_combat_unit(MAKEFOURCC('h','g','r','u'), 100.0f, 50.0f, 0.0f);
     follower->s.player = leader->s.player = 0;
     enemy->s.player = 1;
+    follower->attack1.type = ATK_HERO;
+    follower->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    enemy->targtype = TARG_GROUND;
 
     order_follow(follower, leader);
     T_ASSERT(follower->movement.follow_target == leader);
@@ -1318,6 +1484,9 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
 
     u->goalentity = target;
+    u->attack1.type = ATK_NORMAL;
+    u->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_GROUND;
     u->attack1.weapon = WPN_MISSILE;
     u->attack1.cooldown = 1.0f;
     u->attack1.damagePoint = 0.1f;

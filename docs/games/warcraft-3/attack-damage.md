@@ -143,6 +143,30 @@ These affect existing owned units and newly spawned units that inherit already-r
 
 `AIde` changes both `temporary_armor_bonus` and the current `armor_value`, so later Hero Agility recomputation preserves the item armor modifier.
 
+## Missile Presentation
+
+Ranged Attack 1 missiles remain ordinary server entities with `MOVETYPE_FLYMISSILE`; the renderer does not own a parallel WC3-only projectile object. `G_StartProjectilePresentation()` therefore initializes presentation state when the missile is spawned: the entity is non-selectable, does not cast a unit shadow, and selects the projectile model's authored `Stand` sequence, falling back to `Birth` only when no `Stand` sequence exists. `SV_Physics_Toss()` advances that sequence while the missile is in flight and updates yaw from the current homing direction every simulation frame. The existing snapshot `model`/`frame`/`angle` fields are sufficient, so this adds no network-only projectile state. Attack and spell missiles also inherit the firing unit's existing `s.player`, allowing the client MDX renderer to resolve replaceable team-colour textures from the correct source player just as it does for ordinary entities.
+
+This is important for Warcraft missile MDX files whose visible geosets/emitters begin in a sequence interval above frame zero. Merely assigning the registered missile model with `frame == 0` can leave a valid projectile simulation entity visually empty. Spell missiles using the same `MOVETYPE_FLYMISSILE` path receive the same initialization rather than maintaining a second animation policy.
+
+The current implementation still moves the simulation entity on a straight three-dimensional line toward the target. Authored projectile arc/pitch and a post-impact `Death` presentation are separate fidelity gaps; they are not approximated here because the current `entityState_t` Warcraft path has only yaw orientation and frees basic attack missiles immediately when damage resolves.
+
+## Weapon Target Legality And Acquisition
+
+Attack 1 target legality is owned by `skills/s_attack.c`, not by the generic AI scanner. `UnitWeapons.slk` `targs1` (or map-object `ua1g`) is decoded to the runtime `attack1.targetsAllowed` Warcraft `targetflag` mask. `G_TargetFlagForType()` is the shared `TARGTYPE` -> targetflag conversion used by ordinary units and destructables.
+
+`S_AttackCanTarget()` applies that authored mask to explicit Attack orders and every later attack recheck. For ordinary units, the target's `UnitData.targetType` supplies the ground/air/structure/etc. category; destructables continue through `G_DestructableCanBeAttackedBy()`. This keeps target legality in the Attack ability instead of teaching generic AI about Spirit Towers, Burrows, or other particular unit rawcodes.
+
+Automatic acquisition adds one policy on top through `S_AttackCanAutoAcquire()`:
+
+- mobile attackers may acquire a legal target anywhere inside their authored acquisition range and chase it normally;
+- structures are ordinary candidates when their weapon target mask allows `structure`; there is no global AI exclusion for buildings;
+- `AI_IMMOBILE` attackers only auto-acquire targets already inside their effective Attack 1 range, because they cannot chase an acquisition-range target; building-target range uses the target pathing footprint when available, matching normal attack-range checks.
+
+This is important for defensive buildings whose acquisition range may exceed weapon range: an idle tower must not enter an attack behavior for a target it cannot approach. If an explicit or previously valid attack target is out of range while `AI_IMMOBILE`, `ai_attack_walk()` finishes that attack behavior instead of leaving the structure stuck in a non-moving walk state. This matches Warsmash's movement-disabled ranged behavior, which drops an out-of-range attack when no move behavior exists.
+
+Relevant regression coverage is in `games/warcraft-3/game/tests/t_combat.c`: ground/air mask rejection, nearest-target filtering, structure acquisition, immobile out-of-range acquisition, and explicit immobile out-of-range attack cancellation.
+
 ## Destructable Attack Targeting
 
 Destructables use their `targType`/Targeted As category together with the
@@ -172,12 +196,7 @@ The current implementation intentionally does not invent the larger Warsmash com
 - target damage-taken and final-damage listeners;
 - generic distinction between attack type and damage type / numeric-armor bypass;
 - `MSPLASH`, `ARTILLERY`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior;
-- combat selection between Attack 1 and Attack 2;
-- full unit weapon target-mask enforcement (`UnitWeapons.targs1` / `targs2`)
-  for ordinary unit-vs-unit combat. Destructable target classes are now checked
-  against Attack 1's runtime `targetsAllowed` mask before Smart or explicit
-  Attack can start, but air/ground/structure/etc. unit selection and Attack 2
-  combat selection still need the broader target-mask implementation;
+- combat selection between Attack 1 and Attack 2 remains Attack-1-only; Attack 1 now enforces its decoded `targs1`/`ua1g` target mask for ordinary unit targets as well as destructables, but Attack 2 selection and its `targs2` mask still need the broader two-weapon implementation;
 - separate Hero base-vs-bonus attributes for Warsmash-exact green primary-stat damage;
 - seeded combat RNG independent from unrelated `rand()` consumers;
 - non-Agility attack-speed buffs/debuffs.

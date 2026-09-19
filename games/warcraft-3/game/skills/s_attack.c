@@ -36,18 +36,18 @@ typedef struct {
  * The entity is given MOVETYPE_FLYMISSILE so that SV_Physics_Toss() in
  * g_phys.c will move it each frame until it reaches the target. */
 void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
-    VECTOR3 dir = Vector3_sub(&desc->target->s.origin, &ent->s.origin);
-    Vector3_normalize(&dir);
     LPEDICT rocket = G_Spawn();
     rocket->s.origin = desc->start;
-    rocket->s.angle = atan2f(dir.y, dir.x);
+    rocket->s.angle = atan2f(desc->target->s.origin.y - desc->start.y,
+                             desc->target->s.origin.x - desc->start.x);
     rocket->s.model = desc->model;
+    rocket->s.player = ent->s.player;
     rocket->velocity = desc->speed / 1000.f;
     rocket->damage = desc->damage;
     rocket->goalentity = desc->target;
     rocket->owner = ent;
     rocket->movetype = MOVETYPE_FLYMISSILE;
-    rocket->s.renderfx |= 64;
+    G_StartProjectilePresentation(rocket);
 //    rocket->clipmask = MASK_SHOT;
 //    rocket->solid = SOLID_BBOX;
 //    rocket->s.effects |= EF_ROCKET;
@@ -101,16 +101,23 @@ static BOOL can_attack(LPCEDICT ent) {
     return false;
 }
 
-/* Building recovery must pass the attacker too, so every recheck applies the weapon target mask. */
-static BOOL attack_target_is_valid(LPCEDICT attacker, LPCEDICT target) {
-    if (!target || !target->inuse) {
+/* Weapon target masks are authoritative for ordinary unit targets as well as
+ * destructables.  UnitData.targetType supplies the target category while
+ * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
+BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
+    DWORD flag;
+
+    if (!attacker || !target || !target->inuse || attacker == target ||
+        attacker->attack1.type == ATK_NONE || S_UnitIsCycloned(target)) {
         return false;
     }
-    if (S_UnitIsCycloned(target)) return false;
     if (target->destructable.initialized) {
         return G_DestructableCanBeAttackedBy(attacker, target);
     }
-    return !M_IsDead((LPEDICT)target);
+    if (M_IsDead((LPEDICT)target)) return false;
+
+    flag = G_TargetFlagForType(target->targtype);
+    return flag && (attacker->attack1.targetsAllowed & flag) != 0;
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
@@ -131,7 +138,7 @@ static void attack_finish_after_combat(LPEDICT attacker, LPCEDICT target) {
 }
 
 static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
-    if (attack_target_is_valid(attacker, attacker ? attacker->goalentity : NULL)) {
+    if (S_AttackCanTarget(attacker, attacker ? attacker->goalentity : NULL)) {
         return false;
     }
     if (attacker) attack_finish_after_combat(attacker, attacker->goalentity);
@@ -305,7 +312,7 @@ static void damage_target(LPEDICT ent) {
      * that transition. A lethal hit may already have resumed Follow or the next
      * queued order, so only the unchanged attack may enter this recovery. */
     if (ent->currentmove == move && ent->goalentity == target &&
-        attack_target_is_valid(ent, target) && !attack_animation_can_finish(ent))
+        S_AttackCanTarget(ent, target) && !attack_animation_can_finish(ent))
         attack_melee_cooldown(ent);
 }
 
@@ -330,7 +337,7 @@ static void throw_missile(LPEDICT ent) {
     /* See damage_target(): if the model has no finite attack sequence there
      * will be no animation-end callback to start recovery, so do it at the
      * projectile launch point instead. */
-    if (attack_target_is_valid(ent, ent->goalentity) && !attack_animation_can_finish(ent))
+    if (S_AttackCanTarget(ent, ent->goalentity) && !attack_animation_can_finish(ent))
         attack_ranged_cooldown(ent);
 //    gi.WriteByte (svc_temp_entity);
 //    gi.WriteByte(TE_MISSILE);
@@ -358,13 +365,11 @@ static void ai_ranged(LPEDICT ent) {
     unit_runwait(ent, throw_missile);
 }
 
-static BOOL attack_target_out_of_range(LPEDICT ent) {
-    LPEDICT target;
+static BOOL attack_target_out_of_range_for(LPCEDICT ent, LPCEDICT target) {
     FLOAT footprint, range, ensnare_range;
 
-    if (!ent || !(target = ent->goalentity)) {
-        return true;
-    }
+    if (!ent || !target) return true;
+
     /* Ensnare DataC forces the bound unit's own attacks to melee range. */
     ensnare_range = S_EnsnareMeleeRange(ent);
     range = ensnare_range > 0.0f ? ensnare_range : ent->attack1.range;
@@ -374,7 +379,22 @@ static BOOL attack_target_out_of_range(LPEDICT ent) {
             return footprint > ent->collision + range;
         }
     }
-    return M_DistanceToGoal(ent) > range;
+    return Vector2_distance(&target->s.origin2, &ent->s.origin2) > range;
+}
+
+static BOOL attack_target_out_of_range(LPEDICT ent) {
+    return !ent || attack_target_out_of_range_for(ent, ent->goalentity);
+}
+
+/* Movement-disabled attackers (ordinary towers/buildings) must not auto-acquire
+ * something they can see but can never approach.  Mobile units still acquire
+ * throughout uacq and chase normally; Hold Position keeps its separate
+ * disable-chase lifecycle. */
+BOOL S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target) {
+    if (!S_AttackCanTarget(attacker, target)) return false;
+    if ((attacker->aiflags & AI_IMMOBILE) && attack_target_out_of_range_for(attacker, target))
+        return false;
+    return true;
 }
 
 static void ai_melee_cooldown(LPEDICT ent) {
@@ -404,8 +424,10 @@ static void ai_attack_walk(LPEDICT ent) {
         return;
     }
     if (attack_target_out_of_range(ent)) {
-        /* Hold still acquires at sight range, but must return to its stationary scan instead of chasing. */
-        if (ent->movement.holding_position) {
+        /* Hold Position and movement-disabled structures cannot chase an
+         * out-of-range target.  Finish the attack behavior instead of leaving
+         * an immobile tower stuck forever in attack_walk. */
+        if (ent->movement.holding_position || (ent->aiflags & AI_IMMOBILE)) {
             attack_finish_after_combat(ent, ent->goalentity);
             return;
         }
@@ -430,7 +452,8 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
-    if (!self || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target)) {
+    if (!self || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
+        !S_AttackCanTarget(self, target)) {
         return;
     }
     unit_entercombat(self, target);
@@ -440,7 +463,8 @@ void order_attack(LPEDICT self, LPEDICT target) {
 
 /* Player orders replace retained movement; automatic acquisition keeps it so combat can resume Follow/Patrol. */
 BOOL S_OrderAttack(LPEDICT self, LPEDICT target) {
-    if (!self || M_IsDead(self) || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target))
+    if (!self || M_IsDead(self) || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
+        !S_AttackCanTarget(self, target))
         return false;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = self->movement.patrol_b = self->movement.patrol_target = NULL;

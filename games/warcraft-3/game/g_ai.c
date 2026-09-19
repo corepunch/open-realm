@@ -103,6 +103,8 @@ void order_attack(LPEDICT self, LPEDICT target);
 static LPEDICT ai_current_entity = NULL;
 static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];
 
+static BOOL unit_has_attack(LPCEDICT self);
+
 static BOOL filter_sight(LPCEDICT ent) {
     if (!(ent->svflags & SVF_MONSTER) || !ai_current_entity ||
         ai_current_entity->s.player >= MAX_PLAYERS || ent->s.player >= MAX_PLAYERS ||
@@ -120,8 +122,19 @@ static BOOL filter_sight(LPCEDICT ent) {
         return false;
     if (S_UnitAbilityEvent((LPEDICT)ent, A_NO_ACQUIRE))
         return false;
-    if (ent->runtime.flags & UNIT_BALANCE_BUILDING)
+    /* Attack-capable units filter acquisition through the Attack ability's
+     * authored target mask.  Structures are ordinary unit targets here; the
+     * attack data decides whether they are legal instead of AI excluding every
+     * building globally. */
+    if (unit_has_attack(ai_current_entity)) {
+        if (!S_AttackCanAutoAcquire(ai_current_entity, ent))
+            return false;
+    } else if (ent->runtime.flags & UNIT_BALANCE_BUILDING) {
+        /* Preserve the old non-combat sight behavior: callers without an
+         * ordinary weapon do not gain building candidates merely because
+         * armed units may now attack structures. */
         return false;
+    }
     return true;
 }
 

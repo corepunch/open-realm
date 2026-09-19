@@ -23,9 +23,12 @@ static LPEDICT review_order_unit(FLOAT x, DWORD owner) {
     ent->stand = unit_stand;
     ent->die = unit_die;
     ent->unitinfo.MoveSpeed = 300;
+    ent->attack1.type = ATK_NORMAL;
     ent->attack1.range = 30;
     ent->attack1.cooldown = 1;
     ent->attack1.damageBase = 10;
+    ent->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    ent->targtype = TARG_GROUND;
     ent->runtime.acquisition_range = 600;
     unit_stand(ent);
     gi.LinkEntity(ent);
