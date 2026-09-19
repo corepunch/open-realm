@@ -1266,8 +1266,13 @@ void G_InvalidateUnitInfoPanel(LPEDICT unit) {
     if (!unit) return;
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients + i;
-        if (client->connected && G_IsEntitySelected(client, unit))
+        if (client->connected && G_IsEntitySelected(client, unit)) {
             client->infopanel.entity = 0;
+            /* -1 means the queue layer was already serialized. Preserve the
+             * existing cache representation, but make that queue panel dirty
+             * so an upgrade/construction state change is sent next frame. */
+            if (client->infopanel.hp == -1) client->infopanel.hp = 0;
+        }
     }
 }
 
@@ -1370,7 +1375,13 @@ void G_RefreshInfoPanel(LPEDICT ent) {
 
     queue_panel = UI_UsesBuildingQueuePanel(ent->client, selected[0]);
     if (queue_panel) {
-        ent->client->infopanel.entity = 0;
+        /* A selected building can enter construction or an in-place upgrade
+         * without a new selection event. The queue-panel cache is 0/-1 only
+         * after its layer has actually been serialized; any other cache state
+         * needs the transition payload before the live queue timer can update. */
+        if (ent->client->infopanel.entity != 0 || ent->client->infopanel.hp != -1) {
+            UI_SendInfoPanel(ent, selected, count);
+        }
         return;
     }
     /* HP/mana/timed-status progress are live player-state bindings, so changing
