@@ -46,6 +46,7 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
     missile->s.angle = caster->s.angle;
     missile->s.model = art ? G_RegisterModel(art) : 0;
     missile->s.player = caster->s.player;
+    G_InheritUnitTeamColor(missile, caster);
     missile->goalentity = target;
     missile->owner = caster;
     missile->velocity = speed / 1000.0f;

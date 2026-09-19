@@ -1030,6 +1030,7 @@ static void WritePortraitFrame(LPEDICT ent) {
     frame.flags.type = FT_PORTRAIT;
     frame.color = COLOR32_WHITE;
     frame.tex.index = ent->s.model;
+    frame.stat = G_GetUnitTeamColor(ent);
     snprintf(command, sizeof(command), "+portraitcamera %u", (unsigned)ent->s.number);
     frame.onclick = command;
     UI_SetFrameRect(&frame, 0.211f, 0.4865f, 0.0835f, 0.085f);

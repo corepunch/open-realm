@@ -513,6 +513,7 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
 
     FillUnitData(&cursor, building_id, "stand");
     cursor.player = worker->s.player;
+    G_SetEntityTeamColor(&cursor, owner->ps.color);
     cursor.pathing_preview = EntityPathingPreviewPack(
         worker->s.number,
         EntityPathingPreviewPrevented(cursor.pathing_preview),
