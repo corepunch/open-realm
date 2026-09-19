@@ -86,6 +86,7 @@ static gameSetupState_t setup;
 static DWORD GameSetup_CountPlayers(LPCMAPINFO info);
 static void GameSetup_PublishLobby(void);
 static void GameSetup_AppendText(LPSTR out, size_t out_size, size_t *used, LPCSTR text);
+static BOOL GameSetup_FixedPlayerSettings(void);
 
 static BOOL GameSetup_LoadScreen(void) {
     BOOL ok = true;
@@ -197,14 +198,15 @@ static void GameSetup_UpdateStartButton(void) {
 
 static void GameSetup_UpdateSlotControlState(gameSetupSlotRow_t *row) {
     BOOL const host = GameSetup_IsHost();
+    BOOL const fixed = GameSetup_FixedPlayerSettings();
 
     if (!row || !row->frames.PlayerSlot) {
         return;
     }
     UI_SetEnabled(row->frames.NameMenu, host);
     UI_SetEnabled(row->frames.RaceMenu, host);
-    UI_SetEnabled(row->frames.TeamButton, host);
-    UI_SetEnabled(row->frames.ColorButton, host);
+    UI_SetEnabled(row->frames.TeamButton, host && !fixed);
+    UI_SetEnabled(row->frames.ColorButton, host && !fixed);
 }
 
 static LPFRAMEDEF GameSetup_EnsureChatText(void) {
@@ -1016,10 +1018,10 @@ void GameSetup_CycleSlotTeam(DWORD slot) {
 }
 
 void GameSetup_CycleSlotColor(DWORD slot) {
-    if (!GameSetup_IsHost()) {
-        return;
-    }
-    if (slot >= MAX_PLAYERS || !setup.configs[slot].visible) {
+    if (!GameSetup_IsHost() ||
+        slot >= MAX_PLAYERS ||
+        !setup.configs[slot].visible ||
+        GameSetup_FixedPlayerSettings()) {
         return;
     }
     setup.configs[slot].color = (setup.configs[slot].color + 1) % 16;
