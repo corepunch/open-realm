@@ -58,6 +58,7 @@ static LPEDICT trymove_colliders[MAX_MOVE_COLLIDERS];
 
 static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir, moveAvoidPolicy_t policy);
 static BOOL move_fallback_steer(LPEDICT self, moveAvoidPolicy_t policy);
+static BOOL move_displacement_steer(LPEDICT self, moveAvoidPolicy_t policy);
 
 /* Keep a failed exceptional route search from monopolizing the frame while
  * the same goal remains unreachable; order changes clear this state below. */
@@ -477,12 +478,24 @@ static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir, moveAvoidPolicy_t p
     unit_turn_toward(self, desired);
 }
 
+static BOOL move_displacement_steer(LPEDICT self, moveAvoidPolicy_t policy) {
+    VECTOR2 dir;
+
+    if (!self || !self->movement.displacement_active) return false;
+    if (move_displacement_reached(self)) return false;
+    dir = Vector2_sub(&self->movement.displacement_target, &self->s.origin2);
+    self->movement.flow_direct = true;
+    unit_apply_heading(self, &dir, policy);
+    return true;
+}
+
 static void unit_changeangle_towards_point_policy(LPEDICT self, LPCVECTOR2 point,
                                                    moveAvoidPolicy_t policy) {
     VECTOR2 dir;
 
     if (!self || !point || (self->aiflags & AI_IMMOBILE))
         return;
+    if (move_displacement_steer(self, policy)) return;
     self->movement.heading = self->s.angle;
     self->movement.flow_generation = 0;
     self->movement.flow_goal_reached = false;
@@ -545,6 +558,8 @@ BOOL unit_changeangle_towards_point_ignore_units(LPEDICT self, LPCVECTOR2 point)
 
 static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
     if (self->aiflags & AI_IMMOBILE)
+        return;
+    if (move_displacement_steer(self, policy))
         return;
     if (move_fallback_steer(self, policy))
         return;
@@ -1023,6 +1038,39 @@ void move_reset_progress(LPEDICT self) {
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
 }
 
+void move_cancel_displacement(LPEDICT self) {
+    if (!self) return;
+    self->movement.displacement_active = false;
+}
+
+BOOL move_displacement_active(LPCEDICT self) {
+    return self && self->movement.displacement_active;
+}
+
+BOOL move_displacement_reached(LPEDICT self) {
+    if (!self || !self->movement.displacement_active) return false;
+    if (Vector2_distance(&self->s.origin2, &self->movement.displacement_target) >
+        unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE)
+        return false;
+    if (M_MoveIsValid(self, &self->movement.displacement_target)) {
+        self->s.origin2 = self->movement.displacement_target;
+        self->s.origin.x = self->s.origin2.x;
+        self->s.origin.y = self->s.origin2.y;
+        self->s.origin.z = CM_GetHeightAtPoint(self->s.origin2.x, self->s.origin2.y);
+        gi.LinkEntity(self);
+    }
+    move_cancel_displacement(self);
+    return true;
+}
+
+void move_start_displacement(LPEDICT self, LPCVECTOR2 target) {
+    if (!self || !target) return;
+    move_reset_progress(self);
+    self->movement.displacement_target = *target;
+    self->movement.displacement_active = true;
+    unit_setanimation(self, "walk");
+}
+
 /* Effective current move speed of a unit (runtime override, else data table). */
 static FLOAT unit_effective_speed(LPEDICT ent) {
     FLOAT speed = ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
@@ -1315,6 +1363,13 @@ static void ai_move_walk(LPEDICT ent) {
         return;
     }
 
+    if (move_displacement_active(ent) && !move_displacement_reached(ent)) {
+        unit_setanimation(ent, "walk");
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
+        return;
+    }
+
     if (move_should_arrive(ent, move_distance)) {
 #ifdef WC3_DEBUG_BUILD
         if (ent->class_id == MAKEFOURCC('h','p','e','a'))
@@ -1423,6 +1478,7 @@ void order_move(LPEDICT self, LPEDICT target) {
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
         return;
+    move_cancel_displacement(self);
     self->goalentity = target;
     self->movement.attackmove_waypoint = NULL;
     self->movement.patrol_a = NULL;

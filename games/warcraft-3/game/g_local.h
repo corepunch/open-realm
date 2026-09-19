@@ -1358,6 +1358,8 @@ struct edict_s {
         BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
         BOOL flow_unreachable;  /* field exists but current cell has no route */
         BOOL flow_direct;       /* static path from mover to requested goal is clear */
+        BOOL displacement_active; /* temporary construction exit is being walked */
+        VECTOR2 displacement_target;
         VECTOR2 flow_fallback_target; /* last unreachable fallback request */
         VECTOR2 flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
         FLOAT flow_fallback_radius;
@@ -2604,6 +2606,10 @@ void order_attack(LPEDICT, LPEDICT);
 BOOL S_OrderAttack(LPEDICT self, LPEDICT target);
 void order_move(LPEDICT, LPEDICT);
 BOOL move_is_active_order_walk(LPCEDICT);
+void move_start_displacement(LPEDICT, LPCVECTOR2);
+void move_cancel_displacement(LPEDICT);
+BOOL move_displacement_active(LPCEDICT);
+BOOL move_displacement_reached(LPEDICT);
 void order_stop(LPEDICT);
 void order_attackmove(LPEDICT, LPEDICT);
 void order_patrol(LPEDICT, LPEDICT);
