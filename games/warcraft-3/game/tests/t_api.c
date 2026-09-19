@@ -2686,6 +2686,7 @@ TEST(wc3_api, model_effects_are_rendered_but_not_world_selectable) {
     T_ASSERT(point_effect->s.flags & EF_NOT_SELECTABLE);
 
     target = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128.0f, 128.0f);
+    target->svflags |= SVF_MONSTER;
     G_SetUnitColorOverride(target, 6);
     target_effect = G_SpawnModelEffect("TestUI\\Models\\anim_pulse.mdx", NULL, target, "overhead", false);
     T_NOT_NULL(target_effect);
