@@ -144,6 +144,29 @@ The shared particle renderer predates the MDX path and its `BLEND_MODE_ADD`/`BLE
 
 This matters directly for building-damage effects: their fire model can contain both emissive/additive flame particles and ordinary blended smoke. Treating every PRE2 emitter as additive causes grey smoke textures to brighten the framebuffer and appear pale or white.
 
+## Ribbon Emitters (`RIBB`)
+
+`RIBB` is not a geoset and not PRE2 tails. GhostWolf: *emitters that emit lines, which are all connected together to form a ribbon of quads* ([Hive MDX spec](https://www.hiveworkshop.com/threads/mdx-specifications.240487/)). Magos: the strip has length 0 until the node moves.
+
+Each emitter is a node plus:
+
+| Field | Meaning |
+|---|---|
+| `heightAbove` / `heightBelow` | Edge half-width along the node's local Y (`KRHA` / `KRHB`) |
+| `alpha`, `color` | Vertex tint (`KRAL`, `KRCO`) |
+| `lifespan` | Edge lifetime in seconds |
+| `emissionRate` | Edges per second |
+| `rows` / `columns` / `textureSlot` | Material UV cell (`KRTX`) |
+| `materialId` | `MTLS` index (filter mode, unshaded, texture) |
+| `gravity` | World −Z pull on live edges |
+| `KRVS` | Visibility; default **1** when the current sequence has no keys |
+
+ZigguratMissile (`uzg1`) authors three `BlizRibbon*` emitters parented to waving helpers, material 0 = `Textures\Ghost2.blp` Add Alpha. That is the decorated in-flight trail. PRE2 `BlizParticle02` is a Death squirt, not the trail.
+
+Loader: `MDLX_ReadRIBB` in `r_mdx_load.c`. Trails are per `renderEntity_t.number` so concurrent missiles do not share one strip. `MDLX_GetModelKeytrackValue` already ignores keys outside the current sequence, so a lone `KRVS` key at Death frame 0 hides the ribbon in Death and leaves Stand/Birth at the default 1.
+
+Draw uses the MDX material layer (not the particle billboard shader) so Ghost2 unwraps along the strip. Tests: `renderer_model.mdx_ribbon_*` and `renderer_model.mdx_ribb_loader_*`. `mdxtool --dump-all` prints `RIBB` rows.
+
 ## Animation Sequences
 
 Each entry in `SEQS` describes one named clip:
@@ -168,3 +191,6 @@ Standard sequence names are: `Stand`, `Walk`, `Attack`, `Attack Slam`, `Attack 2
 | `games/warcraft-3/renderer/mdx/r_mdx_load.c` | Chunk parser and model loader |
 | `games/warcraft-3/renderer/mdx/r_mdx_render.c` | Per-frame skinning and draw calls |
 | `games/warcraft-3/renderer/mdx/r_mdx_interpolation.c` | Keyframe track evaluation |
+| `games/warcraft-3/renderer/mdx/r_mdx_particles.c` | PRE2 particle emitters |
+| `games/warcraft-3/renderer/mdx/r_mdx_ribbons.c` | RIBB trail update and strip build |
+| `games/warcraft-3/renderer/mdx/r_mdx_geoset.c` | Geoset draw and ribbon material pass |

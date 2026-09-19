@@ -24,7 +24,7 @@ LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
     }
 }
 
-static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
+BOOL MDLX_SetLayerBlend(mdxMaterialLayer_t const *layer, DWORD layerID) {
     R_SetAlphaKeyState(false);
 #ifdef USE_SHADOWMAPS
     switch (tr.render_phase == RENDER_PHASE_LIGHTS ? (int)layer->blendMode : -1) {
@@ -84,7 +84,7 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     return true;
 }
 
-static void MDLX_ApplyLayerFlags(const mdxMaterialLayer_t *layer) {
+void MDLX_ApplyLayerFlags(mdxMaterialLayer_t const *layer) {
     if (layer->flags & MODEL_GEO_TWOSIDED) {
         R_Call(glDisable, GL_CULL_FACE);
     }
@@ -363,7 +363,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
             R_Call(glCullFace, GL_BACK);
         }
         R_Call(glDepthMask, GL_TRUE);
-        if (!MDLX_SetBlendMode(layer, layerID))
+        if (!MDLX_SetLayerBlend(layer, layerID))
             continue;
         /* Instance tint alpha is presentation opacity, not authored material
          * alpha. Opaque and alpha-key layers therefore need a real blend path
@@ -671,6 +671,104 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
     return MIN(count, maxLights);
 }
 
+static BUFFER ribbon_buf;
+static BOOL ribbon_buf_ready;
+static VERTEX ribbon_verts[BZ_MDX_RIBBON_EDGES * 6];
+
+static mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, DWORD id) {
+    mdxMaterial_t *material = model->materials;
+    for (; material && id > 0; id--)
+        material = material->next;
+    return material;
+}
+
+static void MDLX_EnsureRibbonBuffer(void) {
+    static const struct { GLuint attr; GLint size; GLenum type; GLboolean norm; size_t ofs; } attrs[] = {
+        { attrib_position, 3, GL_FLOAT, GL_FALSE, offsetof(VERTEX, position) },
+        { attrib_texcoord, 2, GL_FLOAT, GL_FALSE, offsetof(VERTEX, texcoord) },
+        { attrib_normal, 3, GL_FLOAT, GL_FALSE, offsetof(VERTEX, normal) },
+        { attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(VERTEX, color) },
+        { attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, offsetof(VERTEX, skin) },
+        { attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(VERTEX, boneWeight) },
+    };
+    if (ribbon_buf_ready) return;
+    R_Call(glGenVertexArrays, 1, &ribbon_buf.vao);
+    R_Call(glGenBuffers, 1, &ribbon_buf.vbo);
+    R_Call(glBindVertexArray, ribbon_buf.vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ribbon_buf.vbo);
+    FOR_LOOP(i, sizeof(attrs) / sizeof(*attrs)) {
+        R_Call(glEnableVertexAttribArray, attrs[i].attr);
+        R_Call(glVertexAttribPointer, attrs[i].attr, attrs[i].size, attrs[i].type, attrs[i].norm,
+               sizeof(VERTEX), (void *)attrs[i].ofs);
+    }
+    ribbon_buf_ready = true;
+}
+
+void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *model, LPCMATRIX4 model_matrix) {
+    MODELPROG *shader;
+    MATRIX4 saved_model, identity;
+    int saved_unshaded, saved_fog;
+
+    if (!entity || !model || !model->ribbons || !model_matrix) return;
+    if ((entity->flags & RF_NOT_SELECTABLE) && entity->oldframe == entity->frame) return;
+    shader = mdlx.shader;
+    if (!shader) return;
+    MDLX_EnsureRibbonBuffer();
+    Matrix4_identity(&identity);
+    saved_model = shader->state.model;
+    saved_unshaded = shader->state.unshaded;
+    saved_fog = shader->state.fogEnable;
+    FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons) {
+        DWORD nverts = MDLX_EmitRibbonVertices((mdxModel_t *)model, entity, model_matrix, ribbon,
+                                               ribbon_verts, BZ_MDX_RIBBON_EDGES * 6);
+        mdxMaterial_t *material = MDLX_MaterialAt(model, ribbon->materialId);
+        if (!nverts || !material) continue;
+        shader->state.model = identity;
+        shader->state.bones[0] = identity;
+        shader->state.boneCount = 1;
+        shader->state.geosetColor = (VECTOR4){ 1, 1, 1, 1 };
+        shader->state.layerAlpha = 1.0f;
+        R_Call(glBindVertexArray, ribbon_buf.vao);
+        R_Call(glBindBuffer, GL_ARRAY_BUFFER, ribbon_buf.vbo);
+        R_Call(glBufferData, GL_ARRAY_BUFFER, nverts * sizeof(VERTEX), ribbon_verts, GL_STREAM_DRAW);
+        FOR_LOOP(layerID, material->num_layers) {
+            mdxMaterialLayer_t const *layer = &material->layers[layerID];
+            DWORD textureId = layer->textureId;
+            mdxTexture_t const *modeltex;
+            LPCTEXTURE texture;
+            BOOL layerFog;
+
+            if (textureId >= (DWORD)model->num_textures) continue;
+            R_Call(glEnable, GL_DEPTH_TEST);
+            R_Call(glDisable, GL_CULL_FACE);
+            shader->state.alphaKey = 0;
+            if (!MDLX_SetLayerBlend(layer, layerID)) continue;
+            MDLX_ApplyLayerFlags(layer);
+            shader->state.unshaded = (layer->flags & MODEL_GEO_UNSHADED) ? 1 : 0;
+            layerFog = tr.viewDef.fogEnable &&
+                !(layer->flags & MODEL_GEO_UNFOGGED) &&
+                (layer->blendMode == BLEND_MODE_NONE ||
+                 layer->blendMode == BLEND_MODE_ALPHAKEY ||
+                 layer->blendMode == BLEND_MODE_BLEND);
+            shader->state.fogEnable = layerFog ? 1 : 0;
+            modeltex = &model->textures[textureId];
+            texture = MDLX_GetTexture(model, entity->team & TEAM_MASK, textureId, modeltex->replaceableID, NULL);
+            R_BindTexture(texture, 0);
+            R_StatsDraw(GL_TRIANGLES, nverts, 1);
+            R_ApplyShader(shader);
+            R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)nverts);
+        }
+    }
+    shader->state.model = saved_model;
+    shader->state.unshaded = saved_unshaded;
+    shader->state.fogEnable = saved_fog;
+    shader->state.layerAlpha = 1.0f;
+    shader->state.geosetColor = (VECTOR4){ 1, 1, 1, 1 };
+    R_Call(glEnable, GL_CULL_FACE);
+    R_Call(glDepthMask, GL_TRUE);
+    R_SetAlphaKeyState(false);
+}
+
 void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
                      LPCMATRIX4 transform)
@@ -795,6 +893,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
     MDLX_RenderGeosets(entity, model);
     
     MDLX_RenderParticleEmitters(entity, model, transform);
+    MDLX_RenderRibbonEmitters(entity, model, transform);
 
     if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
         R_Call(glActiveTexture, GL_TEXTURE2);
