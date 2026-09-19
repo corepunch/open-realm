@@ -236,6 +236,7 @@ LPCSTR targs[] = {
     "deco", // DECORATION
 };
 
+/* Convert an internal target category to the authored UnitWeapons targetflag bit. */
 DWORD G_TargetFlagForType(TARGTYPE type) {
     switch (type) {
     case TARG_GROUND:     return WC3_TARGET_FLAG_GROUND;

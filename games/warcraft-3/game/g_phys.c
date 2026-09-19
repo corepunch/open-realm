@@ -59,6 +59,8 @@ void G_StartProjectilePresentation(LPEDICT ent) {
     if (!ent->s.model) return;
 
     anim = G_GetAnimation(ent->s.model, "Stand");
+    /* TODO: Some authored missile models omit Stand; Birth is the only
+     * available travel sequence until a data-driven sequence selector exists. */
     if (!anim) anim = G_GetAnimation(ent->s.model, "Birth");
     ent->animation = anim;
     if (anim) ent->s.frame = anim->interval[0];
