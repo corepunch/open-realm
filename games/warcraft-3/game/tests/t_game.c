@@ -2812,6 +2812,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
         .defaults_valid = true,
     };
     level.started = true;
+    level.scriptsConfigured = true;
     level.scriptsStarted = true;
     game.clients[0].jass.race_pref = 2;
     game.clients[0].jass.controller = 1;
@@ -2913,7 +2914,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.environment_fog.defaults.color.y, 0.5f, 0.001f);
     T_FEQ(level.environment_fog.defaults.color.z, 0.6f, 0.001f);
     T_ASSERT(level.environment_fog.defaults_valid);
-    T_ASSERT(level.started && level.scriptsStarted);
+    T_ASSERT(level.started && level.scriptsConfigured && level.scriptsStarted);
     T_EQ(game.clients[0].jass.race_pref, 2);
     T_EQ(game.clients[0].jass.controller, 1);
     T_EQ(game.clients[0].ping, 77);
