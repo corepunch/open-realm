@@ -673,7 +673,7 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
 
 static BUFFER ribbon_buf;
 static BOOL ribbon_buf_ready;
-static VERTEX ribbon_verts[BZ_MDX_RIBBON_EDGES * 6];
+static VERTEX ribbon_verts[TRAIL_MAX_EDGES * 6];
 
 static mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, DWORD id) {
     mdxMaterial_t *material = model->materials;
@@ -720,7 +720,7 @@ void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *m
     saved_fog = shader->state.fogEnable;
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons) {
         DWORD nverts = MDLX_EmitRibbonVertices((mdxModel_t *)model, entity, model_matrix, ribbon,
-                                               ribbon_verts, BZ_MDX_RIBBON_EDGES * 6);
+                                               ribbon_verts, TRAIL_MAX_EDGES * 6);
         mdxMaterial_t *material = MDLX_MaterialAt(model, ribbon->materialId);
         if (!nverts || !material) continue;
         shader->state.model = identity;
