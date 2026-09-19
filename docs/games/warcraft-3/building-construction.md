@@ -127,6 +127,14 @@ build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
   +test 'wc3_building.construction_and_upgrade_keep_progress_queue_transport'
 ```
 
+The info-panel cache treats the queue sentinel as serialized-state cache, not
+as proof that the layer can never change. Invalidating a selected building
+marks that sentinel dirty, and the next refresh rebuilds the panel when
+construction or an in-place upgrade starts or changes state. This keeps the
+selected building's status panel present without reserializing it on every
+timer tick. The transition coverage is
+`wc3_building.selected_building_rebuilds_info_panel_for_construction_and_upgrade`.
+
 Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards. The same invalidation reaches connected shared-control viewers whose selected unit belongs to the changed owner; those viewers also evaluate build state against the owner's resources and technology.
 
 ## Melee visibility versus campaign restrictions

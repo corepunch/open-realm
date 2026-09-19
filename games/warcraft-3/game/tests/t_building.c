@@ -88,6 +88,8 @@ static void building_queue_capture_write(pfWriteType_t type, void const *value) 
     building_queue_endtime = queue->items[0].endtime;
 }
 
+static void building_test_unicast(LPEDICT ent) { (void)ent; }
+
 static LPCSTR building_all_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_build_all") ? "1" : fallback;
 }
@@ -385,6 +387,65 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     T_ASSERT(building_queue_endtime > building_queue_starttime);
 
     gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_upgrade) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT building;
+    UnitBalance_t balance;
+    umove_t birth = { .animation = "birth", .think = ai_birth };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0, 0);
+    balance = *building->data.UnitBalance;
+    balance.isBuilding = true;
+    balance.buildTime = 100;
+    building->data.UnitBalance = &balance;
+    building->s.player = client->ps.number;
+    G_SelectEntity(client, building);
+
+    /* This is the cache state of an ordinary selected-unit panel immediately
+     * before the selected building enters construction. */
+    client->infopanel.entity = building->s.number;
+    client->infopanel.hp = (LONG)building->health.value;
+    client->infopanel.xp = 0;
+    building->build = building;
+    building->construction.active = true;
+    building->currentmove = &birth;
+    G_InvalidateUnitInfoPanel(building);
+    T_ASSERT(G_GetMainSelectedUnit(client) == building);
+    T_ASSERT(UI_TestUsesBuildingQueuePanel(client, building));
+
+    building_queue_frame_count = 0;
+    gi.Write = building_queue_capture_write;
+    gi.unicast = building_test_unicast;
+    gi.ImageIndex = building_test_image_index;
+    G_RefreshInfoPanel(player);
+    T_EQ(building_queue_frame_count, 1);
+
+    building->build = NULL;
+    building->construction.active = false;
+    building->currentmove = NULL;
+    building->research.upgrade = building->class_id;
+    building->research.duration = 100.0f;
+    building->research.progress = 50.0f;
+    G_InvalidateUnitInfoPanel(building);
+
+    building_queue_frame_count = 0;
+    G_RefreshInfoPanel(player);
+    T_EQ(building_queue_frame_count, 1);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
     gi.ImageIndex = old_image_index;
 }
 
