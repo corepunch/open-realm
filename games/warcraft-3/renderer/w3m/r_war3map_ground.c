@@ -276,6 +276,7 @@ typedef struct {
 static blightTileCache_t blight_tiles;
 static MAPLAYER blight_layer;
 static BOOL blight_layer_valid;
+static DWORD blight_layer_generation = ~0u;
 
 static BOOL R_BlightTileCacheUpdate(viewDef_t const *view);
 
@@ -283,6 +284,7 @@ void R_ResetBlightLayer(void) {
     if (blight_layer.buffer) R_ReleaseVertexArrayObject((LPBUFFER)blight_layer.buffer);
     memset(&blight_layer, 0, sizeof(blight_layer));
     blight_layer_valid = false;
+    blight_layer_generation = ~0u;
 }
 
 void R_ResetBlightCache(void) {
@@ -302,7 +304,7 @@ void R_UpdateBlightLayer(void) {
         return;
     }
     if (blight_layer_valid && blight_layer.texture == R_BlightTexture() &&
-        blight_layer.num_vertices && blight_tiles.generation == tr.viewDef.terrain_mask_generation)
+        blight_layer.num_vertices && blight_layer_generation == tr.viewDef.terrain_mask_generation)
         return;
     capacity = (tr.world->width - 1) * (tr.world->height - 1) * 6;
     vertices = ri.MemAlloc(sizeof(*vertices) * capacity);
@@ -344,6 +346,7 @@ void R_UpdateBlightLayer(void) {
         blight_layer.num_vertices = count;
         blight_layer.buffer = R_MakeVertexArrayObject(vertices, count);
         blight_layer_valid = blight_layer.buffer != NULL;
+        blight_layer_generation = tr.viewDef.terrain_mask_generation;
     }
     ri.MemFree(vertices);
     ground_current_vertex = NULL;
