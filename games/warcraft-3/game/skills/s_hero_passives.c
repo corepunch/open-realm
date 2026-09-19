@@ -232,6 +232,22 @@ typedef struct {
 
 static regenerationAuraInfo_t regen_value_cache[MAX_ENTITIES][REGEN_FAMILY_COUNT][REGEN_VALUE_COUNT];
 
+void G_ResetHeroPassiveCaches(void) {
+    memset(regen_sources, 0, sizeof(regen_sources));
+    regen_source_count = 0;
+    regen_cache_frame = UINT_MAX;
+    regen_cache_ability_data = NULL;
+    memset(regen_overlays, 0, sizeof(regen_overlays));
+    memset(regen_value_cache, 0, sizeof(regen_value_cache));
+    memset(regen_value_next_update, 0, sizeof(regen_value_next_update));
+    memset(regen_visual_next_update, 0, sizeof(regen_visual_next_update));
+    memset(regen_value_ability_data, 0, sizeof(regen_value_ability_data));
+    memset(aura_cache, 0, sizeof(aura_cache));
+    memset(aura_cache_next_update, 0, sizeof(aura_cache_next_update));
+    memset(aura_cache_ability_data, 0, sizeof(aura_cache_ability_data));
+    aura_cache_last_time = UINT_MAX;
+}
+
 static DWORD aura_buff_code(LPCSTR buff_id) {
     DWORD code = 0;
     if (buff_id && strlen(buff_id) >= 4) memcpy(&code, buff_id, 4);

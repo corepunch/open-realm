@@ -48,6 +48,9 @@ after edicts (not after groups). Nested `unit`/`item` slots call `G_LoadJassHand
 slot stores the JASS type name; nested types without a host domain (`location`, `lightning`, `image`, `ubersplat`, …) restore as
 null with a one-shot stderr diagnostic. JSVM snapshot format remains version 4 — hashtable globals relocate through the host codec,
 not an owned-payload allowlist entry. See [DotA Custom-Map Playability](dota-map-playability.md#hashtable-saveload).
+Version 31 also persists the Human construction `build_preview` edict reference, so an accepted build order's owner-only
+Construction Site Indicator survives save/load as an entity-index fixup rather than a process pointer. Older saves are rejected
+by the exact-version guard.
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 

@@ -2498,6 +2498,7 @@ void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 //  s_skills.c
 FLOAT AB_Data(LPCSTR, DWORD, DWORD);
 DWORD GetAbilityIndex(abilityProc_t);
+void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c
 int G_AttackDamage(LPEDICT, LPEDICT, int);

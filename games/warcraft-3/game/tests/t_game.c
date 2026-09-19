@@ -3346,6 +3346,7 @@ SAVE_PTR_FIELD_TEST(field_combat_entity_round_trip, "combatentity", combatentity
 SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "secondarygoal", secondarygoal, 0)
 SAVE_PTR_FIELD_TEST(field_owner_round_trip, "owner", owner, 0)
 SAVE_PTR_FIELD_TEST(field_build_round_trip, "build", build, 0)
+SAVE_PTR_FIELD_TEST(field_build_preview_round_trip, "build_preview", build_preview, 0)
 
 #undef SAVE_PTR_FIELD_TEST
 #undef SAVE_INT_FIELD_TEST

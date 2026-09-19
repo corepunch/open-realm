@@ -1653,7 +1653,7 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -1024.0f, -1024.0f },
                                   .max = { 1024.0f, 1024.0f }));
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), point.x, point.y);
-    building->s.flags |= EF_BUILDING | EF_CONSTRUCTING | EF_NOT_SELECTABLE;
+    building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
     pathtex = gi.MemAlloc(pathtex_size);
     memset(pathtex, 0, pathtex_size);
     pathtex->width = pathtex->height = 1;
@@ -1664,6 +1664,7 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     T_ASSERT(CM_PointIsPathableForRadius(&point, 0.0f));
 
     building->s.flags &= ~EF_NOT_SELECTABLE;
+    building->construction.active = true;
     CM_BakeStaticObstacles();
     T_ASSERT(!CM_PointIsPathableForRadius(&point, 0.0f));
     building->pathtex = NULL;
@@ -1698,7 +1699,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     builder->svflags |= SVF_MONSTER; worker->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER;
     builder->stand = worker->stand = building->stand = unit_stand;
     worker->movetype = MOVETYPE_STEP; worker->think = monster_think; worker->collision = 16.0f;
-    building->s.flags |= EF_BUILDING | EF_CONSTRUCTING | EF_NOT_SELECTABLE;
+    building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
     pathtex = gi.MemAlloc(pathtex_size);
     memset(pathtex, 0, pathtex_size);
     pathtex->width = pathtex->height = FOOTPRINT;
