@@ -98,6 +98,7 @@ static DWORD selection_sync_entity_index;
 static int selection_sync_stage;
 static DWORD portrait_capture_root;
 static DWORD portrait_capture_model;
+static DWORD portrait_capture_team;
 static DWORD portrait_capture_parent;
 static DWORD portrait_capture_count;
 static DWORD portrait_capture_text_count;
@@ -117,6 +118,7 @@ static void portrait_test_write(pfWriteType_t type, void const *data) {
     } else if (frame->flags.type == FT_PORTRAIT) {
         portrait_capture_count++;
         portrait_capture_model = frame->tex.index;
+        portrait_capture_team = frame->stat;
         portrait_capture_parent = frame->parent;
         portrait_capture_child_relative =
             frame->parent == 0 &&
@@ -1129,6 +1131,7 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
     first->svflags |= SVF_MONSTER;
     second->svflags |= SVF_MONSTER;
     first->s.player = second->s.player = 0;
+    G_SetUnitColorOverride(second, 6);
     first->s.model = 11;
     second->s.model = 22;
     G_SelectEntity(client, first);
@@ -1137,6 +1140,7 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
 
     portrait_capture_root = 0;
     portrait_capture_model = 0;
+    portrait_capture_team = 0;
     portrait_capture_parent = 0;
     portrait_capture_count = 0;
     portrait_capture_text_count = 0;
@@ -1155,6 +1159,7 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
     T_EQ(portrait_capture_root, 0);
     T_EQ(portrait_capture_count, 1);
     T_EQ(portrait_capture_model, 22);
+    T_EQ(portrait_capture_team, 6);
     T_EQ(portrait_capture_parent, 0);
     T_ASSERT(portrait_capture_child_relative);
     T_EQ(portrait_capture_text_count, 2);

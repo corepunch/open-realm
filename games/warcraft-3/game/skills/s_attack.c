@@ -42,6 +42,7 @@ void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
     rocket->s.origin = desc->start;
     rocket->s.angle = atan2f(dir.y, dir.x);
     rocket->s.model = desc->model;
+    G_InheritUnitTeamColor(rocket, ent);
     rocket->velocity = desc->speed / 1000.f;
     rocket->damage = desc->damage;
     rocket->goalentity = desc->target;

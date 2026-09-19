@@ -209,7 +209,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     setup_test_world();
     clent = &g_edicts[0]; client = &game.clients[0];
     clent->inuse = true; clent->client = client;
-    client->connected = true; client->ps.number = 0;
+    client->connected = true; client->ps.number = 0; client->ps.color = 6;
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 64, 96);
     producer->data.UnitProfile = &rally_train_profile;
     producer->s.player = 0; producer->selected = 1;
@@ -221,6 +221,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     T_ASSERT(indicator->rally_indicator);
     T_ASSERT(indicator->svflags & SVF_OWNER_ONLY);
     T_EQ(indicator->s.player, 0);
+    T_EQ((indicator->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
     T_ASSERT(indicator->s.flags & EF_NOT_SELECTABLE);
     T_ASSERT(indicator->s.flags & EF_GROUND_ANCHOR);
     T_NULL(indicator->goalentity);
