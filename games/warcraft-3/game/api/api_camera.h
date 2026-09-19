@@ -26,6 +26,7 @@ static FLOAT G_CameraVerticalToHorizontalFov(FLOAT vertical) {
 
 static FLOAT G_CameraDegreesToRadians(FLOAT value) { return value * (FLOAT)M_PI / 180.0f; }
 
+/* Sample all interpolated camera fields so a new transition can rebase from the in-flight state. */
 static CAMERASETUP G_CameraStateAtTime(LPGAMECLIENT gc, DWORD now) {
     CAMERASETUP current;
     DWORD duration;
@@ -86,8 +87,7 @@ static FLOAT G_CameraYawToAuthored(FLOAT value, FLOAT pitch) { return pitch < 0 
 /* Convert the client Euler yaw back to Warcraft's authored rotation field. */
 static FLOAT G_CameraRotation(LPCPLAYER p) { return G_CameraYawToAuthored(p->viewangles.z, p->viewangles.x); }
 
-/* Camera setters use Warcraft's authored units. GetCameraField separately
- * preserves the retail runtime-getter contract for angular/FOV radians. */
+/* Read one sampled camera field in the authored units consumed by camera setters. */
 static FLOAT G_GetCameraStateField(LPCCAMERASETUP camera, CAMERAFIELD field) {
     if (!camera) {
         return 0.0f;
@@ -109,6 +109,7 @@ static FLOAT G_GetCameraStateField(LPCCAMERASETUP camera, CAMERAFIELD field) {
     return 0.0f;
 }
 
+/* Write one authored camera field while preserving the setup's shared angle convention. */
 static BOOL G_SetCameraStateField(LPCAMERASETUP camera, CAMERAFIELD field, FLOAT value) {
     if (!camera) {
         return false;
@@ -130,13 +131,19 @@ static BOOL G_SetCameraStateField(LPCAMERASETUP camera, CAMERAFIELD field, FLOAT
         case CAMERA_FIELD_LOCAL_PITCH:
         case CAMERA_FIELD_LOCAL_YAW:
         case CAMERA_FIELD_LOCAL_ROLL:
+            /* TODO: Implement local fields once client-local camera state has an owner. */
+            fprintf(stderr, "WC3: unsupported camera field %d\n", field);
+            return false;
+        default:
+            fprintf(stderr, "WC3: unsupported camera field %d\n", field);
             return false;
     }
     return true;
 }
 
-static void G_SetCameraFieldForCurrentPlayer(LPCSTR func, CAMERAFIELD field, FLOAT value, FLOAT duration) {
-    LPGAMECLIENT gc = G_CurrentCameraClient(func);
+/* Start a scalar field transition from the current in-flight setup for the current JASS player. */
+static void G_SetCameraFieldForCurrentPlayer(CAMERAFIELD field, FLOAT value, FLOAT duration) {
+    LPGAMECLIENT gc = G_CurrentCameraClient("G_SetCameraFieldForCurrentPlayer");
     CAMERASETUP current, target;
     DWORD now;
 
@@ -318,6 +325,7 @@ DWORD SetCameraBounds(LPJASS j) {
     G_SetCameraBounds(bounds);
     return 0;
 }
+/* Freeze the current timed camera transition at its sampled state. */
 DWORD StopCamera(LPJASS j) {
     LPGAMECLIENT gc = G_CurrentCameraClient("StopCamera");
     DWORD now;
@@ -395,7 +403,7 @@ DWORD SetCameraField(LPJASS j) {
     FLOAT duration = jass_checknumber(j, 3);
 
     if (whichField) {
-        G_SetCameraFieldForCurrentPlayer("SetCameraField", *whichField, value, duration);
+        G_SetCameraFieldForCurrentPlayer(*whichField, value, duration);
     }
     return 0;
 }
@@ -407,8 +415,7 @@ DWORD AdjustCameraField(LPJASS j) {
 
     if (gc && whichField) {
         CAMERASETUP current = G_CameraStateAtTime(gc, G_Time());
-        G_SetCameraFieldForCurrentPlayer("AdjustCameraField", *whichField,
-                                         G_GetCameraStateField(&current, *whichField) + offset, duration);
+        G_SetCameraFieldForCurrentPlayer(*whichField, G_GetCameraStateField(&current, *whichField) + offset, duration);
     }
     return 0;
 }
