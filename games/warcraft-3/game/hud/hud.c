@@ -707,7 +707,7 @@ static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_val
     if (fit && fit->measure_text) {
         if (tmp.points.x[FPP_MIN].used && tmp.points.x[FPP_MAX].used)
             fprintf(stderr, "UI_WriteBuiltFrame: UIFLAG_SIZE_TO_CONTENT ignored when both x anchors are set (%s)\n",
-                    frame->Name ? frame->Name : "?");
+                    frame->Name[0] ? frame->Name : "?");
         sized = (uiNameTag_t){
             .text = {
                 .font = fit->font,
