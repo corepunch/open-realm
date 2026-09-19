@@ -10,7 +10,6 @@
 #define PLAYER_NEUTRAL_VICTIM 13 // player slot; Warcraft III neutral victim owner
 #define PLAYER_NEUTRAL_EXTRA 14 // player slot; Warcraft III extra neutral owner
 #define PLAYER_NEUTRAL_PASSIVE 15 // player slot; Warcraft III passive neutral owner
-#define WC3_PLAYER_COLOR_LIGHT_GRAY 8 // playercolor index; canonical Neutral Passive presentation color
 
 typedef struct {
     float bounds[8];

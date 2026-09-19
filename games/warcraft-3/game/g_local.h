@@ -1053,6 +1053,7 @@ typedef struct {
 
 #define WC3_UNIT_COLOR_OVERRIDE_FLAG 0x80000000u // bit; distinguishes explicit PLAYER_COLOR_RED from the zero/default owner-color state
 #define WC3_UNIT_COLOR_VALUE_MASK 0x0000001fu // five-bit playercolor payload; effect_flags reserves zero for "no published override"
+#define WC3_PLAYER_COLOR_LIGHT_GRAY 8 // playercolor index; canonical Neutral Passive presentation color
 
 typedef struct {
     DWORD class_id;
