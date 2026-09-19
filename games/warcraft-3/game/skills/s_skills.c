@@ -382,7 +382,7 @@ static ability_t abilitylist[] = {
     { "ANhs", CAbilityHealingSpray, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Healing Spray */
     // TODO: ANcr CAbilityCriticalStrike  /* Chemical Rage */
     { "ANtm", CAbilityTransmute, AB_SPELL, SPELL_TARGET_UNIT },  /* Transmute */
-    // TODO: Aasl CAbilitySlow  /* Slow Aura */
+    { "Aasl", CAbilityPassive, AB_PASSIVE },  /* Slow Aura */
     // TODO: Atdg CAbilityStampede  /* Building Damage Aura */
     // TODO: Atsp a_aura  /* Tornado Spin */
     // TODO: Atwa CAbilityStomp  /* Tornado Wander */
@@ -406,8 +406,8 @@ static ability_t abilitylist[] = {
     // TODO: Apig a_harvest_return  /* Permanent Immolation */
     // TODO: Andt a_evil_eye  /* Reveal */
     { "ANin", CAbilityInferno, AB_SPELL, SPELL_TARGET_POINT },  /* Inferno */
-    // TODO: Anhe CAbilityHeal  /* Heal */
-    // TODO: ACtc a_creep_thunder_clap  /* Slam */
+    { "Anhe", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (creep) */
+    { "ACtc", CAbilityThunderClap, AB_SPELL },  /* Slam */
     { "ACtb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Hurl Boulder */
     { "Afzy", CAbilityFrenzy, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frenzy */
     // TODO: ACdv a_creep_devour  /* Devour */
@@ -416,8 +416,8 @@ static ability_t abilitylist[] = {
     // TODO: Assp a_simple_spell  /* Spawn Spiderlings */
     // TODO: Aspd a_simple_spell  /* Spawn Spiders */
     // TODO: AOac a_unknown  /* Command Aura */
-    // TODO: ACad a_revenge  /* Animate Dead */
-    // TODO: ACrn a_creep_reincarnation  /* Reincarnation */
+    { "ACad", CAbilityAnimateDead, AB_SPELL },  /* Animate Dead (creep) */
+    { "ACrn", CAbilityPassive, AB_PASSIVE },  /* Reincarnation (creep) */
     // TODO: Adda CAbilityOnFireHuman  /* AOE damage upon death */
     // TODO: Agho a_ghost  /* Ghost */
     // TODO: Aeth a_ghost  /* Ghost */
@@ -486,7 +486,7 @@ static ability_t abilitylist[] = {
     // TODO: Apo2 a_item_invul  /* Poison Sting */
     // TODO: Aspi a_spiked  /* Spiked Barricades */
     // TODO: Asal a_button  /* Pillage */
-    // TODO: Aakb a_aura_command  /* War Drums */
+    { "Aakb", CAbilityPassive, AB_PASSIVE },  /* War Drums */
 
     /* UndeadAbilityStrings.txt */
     { "Arpb", CAbilityReplenish, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Replenish */

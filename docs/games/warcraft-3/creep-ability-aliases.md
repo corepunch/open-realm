@@ -25,6 +25,12 @@ owner's alias the same way regen auras do for `ACnr`→`Aoar`.
 | `ACpy` | `Aply` | `CAbilityPolymorph` (ROC empty BuffID → `Bply` in `human_buff`) |
 | `ACsl` | `AUsl` | `CAbilitySleep` (ROC empty BuffID → `BUsl`) |
 | `Ane2` | `Aneu` | shop select (`CAbilityPassive`), not Inventory |
+| `Anhe` | `Anhe` (self; `code=` parent of `Anh1`/`Anh2`) | `CAbilityHeal` (autocast; DataA via alias) |
+| `ACtc` | `ACtc` (self; `code=` parent of `ACt2`) | `CAbilityThunderClap` (radial; no slow when ROC BuffID empty) |
+| `ACad` | `ACad` (self) | `CAbilityAnimateDead` (count/area/duration via alias) |
+| `ACrn` | `ACrn` (self) | `CAbilityPassive` (same as `AOre`/`ANrn`) |
+| `Aasl` | `Aasl` (self) | `CAbilityPassive` (Slow Aura placeholder, like other creep auras) |
+| `Aakb` | `Aakb` (self) | `CAbilityPassive` (War Drums placeholder, like other creep auras) |
 
 Do not register as the parent until that procedure exists:
 
