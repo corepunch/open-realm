@@ -69,7 +69,7 @@ void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement) {
     LONG custom_color;
 
     if (!unit || !placement) return;
-    custom_color = (LONG)placement->customTeamColor;
+    custom_color = (LONG)placement->color;
     if (unit->data.UnitUI && unit->data.UnitUI->customTeamColor && custom_color >= 0)
         G_SetUnitTeamColor(unit, (DWORD)custom_color);
     else

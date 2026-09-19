@@ -3706,7 +3706,7 @@ TEST(wc3_api, set_unit_owner_honors_change_color) {
 TEST(wc3_api, authored_team_color_precedence_matches_unit_data) {
     LPEDICT unit = make_unit_hero();
     UnitUI_t ui = *unit->data.UnitUI;
-    DOODAD placement = { .customTeamColor = (DWORD)-1 };
+    DOODAD placement = { .color = (DWORD)-1 };
 
     unit->data.UnitUI = &ui;
     unit->s.player = 4;
@@ -3721,7 +3721,7 @@ TEST(wc3_api, authored_team_color_precedence_matches_unit_data) {
     G_ApplyMapUnitTeamColor(unit, &placement);
     T_EQ(unit_team_color(unit), 5);
 
-    placement.customTeamColor = 8;
+    placement.color = 8;
     G_ApplyMapUnitTeamColor(unit, &placement);
     T_EQ(unit_team_color(unit), 8);
 
