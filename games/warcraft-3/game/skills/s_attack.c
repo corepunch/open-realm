@@ -277,7 +277,8 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     S_BlackArrowDeath(attacker, target);
     S_MoonGlaiveAttack(attacker, target, damage);
     S_SlowPoisonOnHit(attacker, target);
-    S_OrbOnHit(attacker, target);
+<    S_OrbOnHit(attacker, target);
+    S_PoisonOnHit(attacker, target);
     G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
     if (target->inuse) {
         FLOAT thorns = S_ThornsDamageReturn(target, attacker, damage);
