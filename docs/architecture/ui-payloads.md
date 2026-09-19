@@ -204,12 +204,15 @@ there is no ALT-driven show-all mode because one `LAYER_WORLD_HOVER` instance ha
 
 ## Client-Measured Structural Widths
 
-`UIFLAG_SIZE_TO_CONTENT` can also size an `FT_FRAME`/`FT_SIMPLEFRAME` horizontally from text without making the server guess glyph
-advances. The sender supplies `uiSizeToText_t` plus a representative measurement string; `SCR_LayoutRect()` measures that string
-with the actual client font, adds the declared horizontal padding, applies the minimum width, and leaves the authored height and
-anchors unchanged. WC3 TimerDialog and Leaderboard use this path so their top-right edge stays fixed while the backdrop expands or
-contracts with the visible text. Keep the measurement string presentation-only: gameplay state remains authoritative on the server,
-and the client only resolves renderer-dependent geometry.
+`UIFLAG_SIZE_TO_CONTENT` sizes `FT_NAMETAG`, `FT_FRAME`, and `FT_SIMPLEFRAME` from one `uiNameTag_t` payload. The sender supplies
+the text to measure; `SCR_LayoutRect()` uses `SCR_MeasureSizeToContent()` to measure that string with the actual client font, add
+`padding_x`/`padding_y`, and apply `min_width`. `FT_NAMETAG` still measures even without the flag (padding is flag-only). Frames
+with both min and max anchors on an axis ignore the measured size on that axis and stretch instead.
+
+WC3 TimerDialog and Leaderboard use this path so their top-right edge stays fixed while the backdrop expands or contracts with the
+visible text. Keep the measurement string presentation-only: gameplay state remains authoritative on the server, and the client
+only resolves renderer-dependent geometry. A newline-separated block is the right measurement shape for several visible lines:
+`R_GetTextSize()` returns the widest rendered line, not `strlen`.
 
 ## Key Files
 

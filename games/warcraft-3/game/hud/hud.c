@@ -692,15 +692,37 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
     return true;
 }
 
-static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_value) {
+_Static_assert(sizeof(uiNameTag_t) <= UINT8_MAX, "uiNameTag_t exceeds the one-byte layout payload size");
+
+static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_value, uiSizeToTextParams_t const *fit) {
     UINAME textbuf;
     uiFrame_t tmp;
     BYTE typedata[256] = { 0 };
+    uiNameTag_t sized;
 
     if (!UI_BuildFrameForWrite(frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
         return;
     }
     if (override_value) tmp.value = value;
+    if (fit && fit->measure_text) {
+        if (tmp.points.x[FPP_MIN].used && tmp.points.x[FPP_MAX].used)
+            fprintf(stderr, "UI_WriteBuiltFrame: UIFLAG_SIZE_TO_CONTENT ignored when both x anchors are set (%s)\n",
+                    frame->Name ? frame->Name : "?");
+        sized = (uiNameTag_t){
+            .text = {
+                .font = fit->font,
+                .textalignx = FONT_JUSTIFYLEFT,
+                .textaligny = FONT_JUSTIFYTOP,
+            },
+            .padding_x = fit->padding_x,
+            .min_width = fit->min_width,
+        };
+        tmp.flagsvalue |= UIFLAG_SIZE_TO_CONTENT;
+        tmp.size.width = 0.0f;
+        tmp.text = *fit->measure_text ? fit->measure_text : " ";
+        tmp.buffer.data = &sized;
+        tmp.buffer.size = sizeof(sized);
+    }
     if (ui_window_writing) {
         tmp.text = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.text);
         tmp.tooltip = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.tooltip);
@@ -712,70 +734,16 @@ static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_val
     gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, &tmp);
 }
 
-static void UI_WriteBuiltFrameSizedToText(uiSizeToTextParams_t const *params) {
-    UINAME textbuf;
-    uiFrame_t tmp;
-    BYTE typedata[256] = { 0 };
-    uiSizeToText_t fit = {
-        .text = {
-            .font = params ? params->font : 0,
-            .textalignx = FONT_JUSTIFYLEFT,
-            .textaligny = FONT_JUSTIFYTOP,
-        },
-        .padding_x = params ? params->padding_x : 0.0f,
-        .min_width = params ? params->min_width : 0.0f,
-    };
-
-    if (!params || !params->frame ||
-        !UI_BuildFrameForWrite(params->frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
-        return;
-    }
-
-    /* The normal frame remains the visual/layout parent. Only its horizontal
-     * size is deferred to the client so proportional font metrics stay exact. */
-    tmp.flagsvalue |= UIFLAG_SIZE_TO_CONTENT;
-    tmp.size.width = 0.0f;
-    tmp.text = params->measure_text && *params->measure_text ? params->measure_text : " ";
-    tmp.buffer.data = &fit;
-    tmp.buffer.size = sizeof(fit);
-    if (ui_window_writing) {
-        tmp.text = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.text);
-        tmp.tooltip = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.tooltip);
-        tmp.onclick = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.onclick);
-    }
-    ui_next_frame_number = UI_NextProxyFrameNumber(ui_next_frame_number, tmp.number);
-    gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, &tmp);
-}
-
 void UI_WriteFrame(LPCFRAMEDEF frame) {
-    UI_WriteBuiltFrame(frame, 0.0f, false);
+    UI_WriteBuiltFrame(frame, 0.0f, false, NULL);
 }
 
 void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value) {
-    UI_WriteBuiltFrame(frame, MAX(0.0f, MIN(value, 1.0f)), true);
+    UI_WriteBuiltFrame(frame, MAX(0.0f, MIN(value, 1.0f)), true, NULL);
 }
 
 DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame) {
     return FindFrameNumber(frame, 0);
-}
-
-void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
-    UI_PrepareScrollBar(frame);
-    if (parent) {
-        LPCFRAMEDEF oldparent = frame->Parent;
-        ((LPFRAMEDEF)frame)->Parent = parent;
-        UI_WriteFrame(frame);
-        ((LPFRAMEDEF)frame)->Parent = oldparent;
-    } else {
-        UI_WriteFrame(frame);
-    }
-    FOR_LOOP(i, MAX_UI_CLASSES) {
-        LPCFRAMEDEF it = frames + i;
-        if (it->Parent == frame && !it->hidden &&
-            !UI_IsEmbeddedControlArtPart(frame, it)) {
-            UI_WriteFrameWithChildren(it, NULL);
-        }
-    }
 }
 
 void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params) {
@@ -788,7 +756,7 @@ void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params) {
         oldparent = frame->Parent;
         ((LPFRAMEDEF)frame)->Parent = params->parent;
     }
-    UI_WriteBuiltFrameSizedToText(params);
+    UI_WriteBuiltFrame(frame, 0.0f, false, params->measure_text ? params : NULL);
     if (params->parent) ((LPFRAMEDEF)frame)->Parent = oldparent;
 
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -798,6 +766,10 @@ void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params) {
             UI_WriteFrameWithChildren(it, NULL);
         }
     }
+}
+
+void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {
+    UI_WriteFrameWithChildrenSizedToText(&(uiSizeToTextParams_t){ .frame = frame, .parent = parent });
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {

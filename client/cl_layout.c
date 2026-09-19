@@ -135,13 +135,20 @@ VECTOR2 get_position(LPCUIFRAME frame,
     return SCR_SolveAxisPosition(frame, p, width, get == get_x, assigned_size);
 }
 
+static VECTOR2 SCR_MeasureSizeToContent(LPCUIFRAME f, FLOAT avl) {
+    uiNameTag_t const *t = f->buffer.data;
+    drawText_t d = SCR_GetDrawText(f, avl, SCR_GetStringValue(f), &t->text);
+    VECTOR2 s = re.GetTextSize(&d);
+    return (VECTOR2){ MAX(t->min_width, s.x + t->padding_x * 2), s.y + t->padding_y * 2 };
+}
+
 /* Context bindings read only recipient-filtered snapshot state already present on the client. */
 LPCENTITYSTATE SCR_LayoutContextEntity(void) {
     LPCENTITYSTATE ent;
 
     if (!cl.hover_entity || cl.hover_entity >= MAX_CLIENT_ENTITIES) return NULL;
     ent = &cl.ents[cl.hover_entity].current;
-    if (!ent->model) return NULL;
+    if (!CL_EntityAllowsWorldHover(ent)) return NULL;
     return ent;
 }
 
@@ -324,16 +331,11 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     drawText_t drawtext = {0};
     switch (frame->flags.type) {
         case FT_FRAME:
-        case FT_SIMPLEFRAME: {
+        case FT_SIMPLEFRAME:
             if ((frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT) &&
-                frame->buffer.data && frame->buffer.size >= sizeof(uiSizeToText_t)) {
-                uiSizeToText_t const *fit = frame->buffer.data;
-                drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), &fit->text);
-                elemsize = re.GetTextSize(&drawtext);
-                elemsize.x = MAX(fit->min_width, elemsize.x + fit->padding_x * 2.0f);
-            }
+                frame->buffer.data && frame->buffer.size >= sizeof(uiNameTag_t))
+                elemsize = SCR_MeasureSizeToContent(frame, avl_space);
             break;
-        }
         case FT_STRING:
         case FT_TEXT: {
             uiLabel_t const *label = frame->buffer.data;
@@ -351,10 +353,11 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         }
         case FT_NAMETAG: {
             uiNameTag_t const *tag = frame->buffer.data;
-            drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), &tag->text);
-            elemsize = re.GetTextSize(&drawtext);
-            if (frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT) {
-                elemsize.x += tag->padding_x * 2; elemsize.y += tag->padding_y * 2;
+            if (frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT)
+                elemsize = SCR_MeasureSizeToContent(frame, avl_space);
+            else {
+                drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), &tag->text);
+                elemsize = re.GetTextSize(&drawtext);
             }
             break;
         }
@@ -385,6 +388,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         default:
             break;
     }
+    /* Measured size is ignored on a fully min+max-anchored axis; the frame stretches. */
     if (frame->size.width == 0 && !(frame->points.x[FPP_MIN].used && frame->points.x[FPP_MAX].used)) {
         ((LPUIFRAME )frame)->size.width = elemsize.x;
     }
