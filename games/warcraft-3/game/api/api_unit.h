@@ -205,21 +205,24 @@ DWORD GetUnitDefaultFlyHeight(LPJASS j) {
 DWORD SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-//    BOOL changeColor = jass_checkboolean(j, 3);
+    BOOL change_color = jass_checkboolean(j, 3);
     if (whichUnit && whichPlayer) {
+        DWORD const previous_player = whichUnit->s.player;
+        DWORD const previous_color = G_GetUnitTeamColor(whichUnit);
         G_SetUnitPlayer(whichUnit, PLAYER_NUM(whichPlayer));
+        if (change_color) {
+            G_ClearUnitColorOverride(whichUnit);
+            G_SetUnitTeamColor(whichUnit, whichPlayer->color);
+        } else if (previous_player != PLAYER_NUM(whichPlayer)) {
+            G_SetUnitColorOverride(whichUnit, previous_color);
+        }
     }
     return 0;
 }
 DWORD SetUnitColor(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD *pColor = jass_checkhandle(j, 2, "playercolor");
-    if (whichUnit && pColor) {
-        DWORD const encoded = MIN(*pColor, 30u) + 1u;
-        whichUnit->unit_color = *pColor;
-        whichUnit->s.effect_flags = (whichUnit->s.effect_flags & ~EFX_TEAM_COLOR_MASK) |
-            (USHORT)(encoded << EFX_TEAM_COLOR_SHIFT);
-    }
+    if (whichUnit && pColor) G_SetUnitColorOverride(whichUnit, *pColor);
     return 0;
 }
 DWORD SetUnitScale(LPJASS j) {

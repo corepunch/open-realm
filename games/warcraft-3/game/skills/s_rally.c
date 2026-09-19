@@ -143,6 +143,7 @@ void G_UpdateRallyIndicator(LPGAMECLIENT client) {
     indicator->s.scale = 1.0f;
     indicator->s.player = client->ps.number;
     indicator->s.model = model;
+    G_SetEntityTeamColor(&indicator->s, client->ps.color);
     animation = G_GetAnimation(model, "stand");
     indicator->s.frame = animation ? animation->interval[0] : 0;
     indicator->s.renderfx = RF_NO_FOGOFWAR;
