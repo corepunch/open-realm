@@ -645,6 +645,7 @@ void G_SpawnEntities(void) {
     G_ClearHashtableRegistry();
     G_FowShutdown();
     memset(&level, 0, sizeof(level));
+    G_ResetHeroPassiveCaches();
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();
     level.time = gi.GetTime();

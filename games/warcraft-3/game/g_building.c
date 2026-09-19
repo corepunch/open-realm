@@ -34,7 +34,6 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 loca
      * building that replaces it when construction starts. Keep the normal
      * entity/model path, but never send this marker to allies or opponents. */
     preview->svflags |= SVF_OWNER_ONLY;
-    preview->s.flags |= EF_CONSTRUCTING;
     preview->collision = 0.0f;
     preview->s.collision = 0.0f;
     preview->s.flags |= EF_NOT_SELECTABLE;
@@ -1319,7 +1318,6 @@ static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL 
     if (!building || !G_UnitIsBuilding(building->class_id)) return false;
     hp = &building->health;
     building->construction.active = true;
-    building->s.flags |= EF_CONSTRUCTING;
     building->construction.paused = paused;
     building->construction.type = type;
     building->construction.primary_builder = NULL;
@@ -1522,7 +1520,6 @@ void G_StopConstruction(LPEDICT building) {
      * Clear it before unit_die() walks production/revival ownership. */
     if (building->build == building) building->build = NULL;
     building->construction.active = false;
-    building->s.flags &= ~EF_CONSTRUCTING;
     building->construction.paused = false;
     building->construction.type = CONSTRUCTION_NONE;
     building->construction.primary_builder = NULL;
@@ -1609,7 +1606,6 @@ void G_CompleteConstruction(LPEDICT building) {
     if (client && client->ps.number != building->s.player) client = NULL;
     G_ReleaseConstructionWorker(building, true);
     building->construction.active = false;
-    building->s.flags &= ~EF_CONSTRUCTING;
     building->construction.paused = false;
     building->construction.type = CONSTRUCTION_NONE;
     building->construction.primary_builder = NULL;

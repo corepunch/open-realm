@@ -35,6 +35,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
 void reset_entities(void) {
     DWORD cap = globals.max_edicts;
     G_ResetDeferredFrees();
+    G_ResetHeroPassiveCaches();
     G_JassSoundRuntimeReset();
     /* Wipe only the live cap, then restore MAX_ENTITIES. Pocket Factory's alloc-failure
      * test shrinks max_edicts to num_edicts+1 (26 in the full suite); walking 16000

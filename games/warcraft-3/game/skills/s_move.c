@@ -86,8 +86,7 @@ static BOOL move_has_active_construction(void) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &g_edicts[i];
         if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
-            (ent->s.flags & (EF_BUILDING | EF_CONSTRUCTING)) ==
-                (EF_BUILDING | EF_CONSTRUCTING))
+            (ent->s.flags & EF_BUILDING) && ent->construction.active)
             return true;
     }
     return false;
