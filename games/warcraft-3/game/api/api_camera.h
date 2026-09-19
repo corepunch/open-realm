@@ -26,6 +26,37 @@ static FLOAT G_CameraVerticalToHorizontalFov(FLOAT vertical) {
 
 static FLOAT G_CameraDegreesToRadians(FLOAT value) { return value * (FLOAT)M_PI / 180.0f; }
 
+static CAMERASETUP G_CameraStateAtTime(LPGAMECLIENT gc, DWORD now) {
+    CAMERASETUP current;
+    DWORD duration;
+    FLOAT k;
+
+    if (!gc) {
+        return (CAMERASETUP){ 0 };
+    }
+    duration = gc->camera.end_time - gc->camera.start_time;
+    if (!duration || now >= gc->camera.end_time) {
+        return gc->camera.state;
+    }
+    if (now <= gc->camera.start_time) {
+        return gc->camera.old_state;
+    }
+
+    k = (now - gc->camera.start_time) / (FLOAT)duration;
+    current.position = Vector2_lerp(&gc->camera.old_state.position, &gc->camera.state.position, k);
+    current.viewangles = (VECTOR3){
+        CL_GameLerpDegrees(gc->camera.old_state.viewangles.x, gc->camera.state.viewangles.x, k),
+        CL_GameLerpDegrees(gc->camera.old_state.viewangles.y, gc->camera.state.viewangles.y, k),
+        CL_GameLerpDegrees(gc->camera.old_state.viewangles.z, gc->camera.state.viewangles.z, k),
+    };
+    current.target_distance = LerpNumber(gc->camera.old_state.target_distance, gc->camera.state.target_distance, k);
+    current.fov = LerpNumber(gc->camera.old_state.fov, gc->camera.state.fov, k);
+    current.z_offset = LerpNumber(gc->camera.old_state.z_offset, gc->camera.state.z_offset, k);
+    current.near_z = LerpNumber(gc->camera.old_state.near_z, gc->camera.state.near_z, k);
+    current.far_z = LerpNumber(gc->camera.old_state.far_z, gc->camera.state.far_z, k);
+    return current;
+}
+
 /* Reconstruct the rendered orbit eye from the same target, orientation, and distance sent to the client. */
 static VECTOR3 G_CameraEyePositionFromState(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance) {
     QUATERNION quat;
@@ -54,6 +85,79 @@ static FLOAT G_CameraAuthoredToYaw(FLOAT value, FLOAT pitch) { return pitch < 0 
 static FLOAT G_CameraYawToAuthored(FLOAT value, FLOAT pitch) { return pitch < 0 ? 450 - value : 270 - value; }
 /* Convert the client Euler yaw back to Warcraft's authored rotation field. */
 static FLOAT G_CameraRotation(LPCPLAYER p) { return G_CameraYawToAuthored(p->viewangles.z, p->viewangles.x); }
+
+/* Camera setters use Warcraft's authored units. GetCameraField separately
+ * preserves the retail runtime-getter contract for angular/FOV radians. */
+static FLOAT G_GetCameraStateField(LPCCAMERASETUP camera, CAMERAFIELD field) {
+    if (!camera) {
+        return 0.0f;
+    }
+    switch (field) {
+        case CAMERA_FIELD_TARGET_DISTANCE: return camera->target_distance;
+        case CAMERA_FIELD_FARZ: return camera->far_z;
+        case CAMERA_FIELD_NEARZ: return camera->near_z;
+        case CAMERA_FIELD_ANGLE_OF_ATTACK: return G_CameraPitchToAuthored(camera->viewangles.x);
+        case CAMERA_FIELD_FIELD_OF_VIEW: return G_CameraVerticalToHorizontalFov(camera->fov);
+        case CAMERA_FIELD_ROLL: return camera->viewangles.y;
+        case CAMERA_FIELD_ROTATION: return G_CameraYawToAuthored(camera->viewangles.z, camera->viewangles.x);
+        case CAMERA_FIELD_ZOFFSET: return camera->z_offset;
+        case CAMERA_FIELD_LOCAL_PITCH:
+        case CAMERA_FIELD_LOCAL_YAW:
+        case CAMERA_FIELD_LOCAL_ROLL:
+            return 0.0f;
+    }
+    return 0.0f;
+}
+
+static BOOL G_SetCameraStateField(LPCAMERASETUP camera, CAMERAFIELD field, FLOAT value) {
+    if (!camera) {
+        return false;
+    }
+    switch (field) {
+        case CAMERA_FIELD_TARGET_DISTANCE: camera->target_distance = value; break;
+        case CAMERA_FIELD_FARZ: camera->far_z = value; break;
+        case CAMERA_FIELD_NEARZ: camera->near_z = value; break;
+        case CAMERA_FIELD_ANGLE_OF_ATTACK: {
+            FLOAT rotation = G_CameraYawToAuthored(camera->viewangles.z, camera->viewangles.x);
+            camera->viewangles.x = G_CameraAuthoredToPitch(value);
+            camera->viewangles.z = G_CameraAuthoredToYaw(rotation, camera->viewangles.x);
+            break;
+        }
+        case CAMERA_FIELD_FIELD_OF_VIEW: camera->fov = G_CameraHorizontalToVerticalFov(value); break;
+        case CAMERA_FIELD_ROLL: camera->viewangles.y = value; break;
+        case CAMERA_FIELD_ROTATION: camera->viewangles.z = G_CameraAuthoredToYaw(value, camera->viewangles.x); break;
+        case CAMERA_FIELD_ZOFFSET: camera->z_offset = value; break;
+        case CAMERA_FIELD_LOCAL_PITCH:
+        case CAMERA_FIELD_LOCAL_YAW:
+        case CAMERA_FIELD_LOCAL_ROLL:
+            return false;
+    }
+    return true;
+}
+
+static void G_SetCameraFieldForCurrentPlayer(LPCSTR func, CAMERAFIELD field, FLOAT value, FLOAT duration) {
+    LPGAMECLIENT gc = G_CurrentCameraClient(func);
+    CAMERASETUP current, target;
+    DWORD now;
+
+    if (!gc) {
+        return;
+    }
+    if (G_SkipCutscene()) {
+        duration = 0.0f;
+    }
+    now = G_Time();
+    current = G_CameraStateAtTime(gc, now);
+    target = current;
+    if (!G_SetCameraStateField(&target, field, value)) {
+        return;
+    }
+    gc->camera.old_state = current;
+    gc->camera.state = target;
+    gc->camera.start_time = now;
+    gc->camera.end_time = now + (DWORD)(MAX(0.0f, duration) * 1000.0f);
+}
+
 /* Recover the authored target offset from the terrain-composed runtime target height. */
 static FLOAT G_CameraZOffset(LPCPLAYER p) {
     LPGAMECLIENT gc = G_CurrentCameraClient("G_CameraZOffset");
@@ -215,6 +319,17 @@ DWORD SetCameraBounds(LPJASS j) {
     return 0;
 }
 DWORD StopCamera(LPJASS j) {
+    LPGAMECLIENT gc = G_CurrentCameraClient("StopCamera");
+    DWORD now;
+
+    (void)j;
+    if (!gc) {
+        return 0;
+    }
+    now = G_Time();
+    gc->camera.state = G_CameraStateAtTime(gc, now);
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.start_time = gc->camera.end_time = now;
     return 0;
 }
 DWORD ResetToGameCamera(LPJASS j) {
@@ -275,15 +390,26 @@ DWORD SetCinematicCamera(LPJASS j) {
     return 0;
 }
 DWORD SetCameraField(LPJASS j) {
-    //HANDLE whichField = jass_checkhandle(j, 1, "camerafield");
-    //FLOAT value = jass_checknumber(j, 2);
-    //FLOAT duration = jass_checknumber(j, 3);
+    CAMERAFIELD *whichField = jass_checkhandle(j, 1, "camerafield");
+    FLOAT value = jass_checknumber(j, 2);
+    FLOAT duration = jass_checknumber(j, 3);
+
+    if (whichField) {
+        G_SetCameraFieldForCurrentPlayer("SetCameraField", *whichField, value, duration);
+    }
     return 0;
 }
 DWORD AdjustCameraField(LPJASS j) {
-    //HANDLE whichField = jass_checkhandle(j, 1, "camerafield");
-    //FLOAT offset = jass_checknumber(j, 2);
-    //FLOAT duration = jass_checknumber(j, 3);
+    CAMERAFIELD *whichField = jass_checkhandle(j, 1, "camerafield");
+    FLOAT offset = jass_checknumber(j, 2);
+    FLOAT duration = jass_checknumber(j, 3);
+    LPGAMECLIENT gc = G_CurrentCameraClient("AdjustCameraField");
+
+    if (gc && whichField) {
+        CAMERASETUP current = G_CameraStateAtTime(gc, G_Time());
+        G_SetCameraFieldForCurrentPlayer("AdjustCameraField", *whichField,
+                                         G_GetCameraStateField(&current, *whichField) + offset, duration);
+    }
     return 0;
 }
 DWORD CreateCameraSetup(LPJASS j) {

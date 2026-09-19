@@ -915,6 +915,81 @@ TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, camera_field_set_adjust_and_stop_sample_current_transition) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.target_distance = 900.0f;
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.start_time = gc->camera.end_time = 100;
+    level.time = 100;
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, 1500.0, 2.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.old_state.target_distance, 900.0f, 0.001f);
+    T_FEQ(gc->camera.state.target_distance, 1500.0f, 0.001f);
+    T_EQ(gc->camera.start_time, 100);
+    T_EQ(gc->camera.end_time, 2100);
+
+    level.time = 1100;
+    G_RunClients();
+    T_FEQ(gc->ps.distance, 1200.0f, 0.001f);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call AdjustCameraField(CAMERA_FIELD_TARGET_DISTANCE, 300.0, 1.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.old_state.target_distance, 1200.0f, 0.001f);
+    T_FEQ(gc->camera.state.target_distance, 1500.0f, 0.001f);
+    T_EQ(gc->camera.start_time, 1100);
+    T_EQ(gc->camera.end_time, 2100);
+
+    level.time = 1600;
+    G_RunClients();
+    T_FEQ(gc->ps.distance, 1350.0f, 0.001f);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call StopCamera()\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.old_state.target_distance, 1350.0f, 0.001f);
+    T_FEQ(gc->camera.state.target_distance, 1350.0f, 0.001f);
+    T_EQ(gc->camera.start_time, 1600);
+    T_EQ(gc->camera.end_time, 1600);
+
+    level.time = 2100;
+    G_RunClients();
+    T_FEQ(gc->ps.distance, 1350.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, camera_field_setters_preserve_authored_angle_mapping) {
+    LPGAMECLIENT gc = &game.clients[0];
+    FLOAT pitch = G_CameraAuthoredToPitch(304.0f);
+
+    gc->ps.number = 0;
+    gc->camera.state.viewangles = (VECTOR3){ pitch, 0.0f, G_CameraAuthoredToYaw(90.0f, pitch) };
+    gc->camera.state.fov = G_CameraHorizontalToVerticalFov(70.0f);
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.start_time = gc->camera.end_time = 100;
+    level.time = 100;
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraField(CAMERA_FIELD_ANGLE_OF_ATTACK, 270.0, 0.0)\n"
+        "  call AdjustCameraField(CAMERA_FIELD_ROTATION, 15.0, 0.0)\n"
+        "  call SetCameraField(CAMERA_FIELD_FIELD_OF_VIEW, 80.0, 0.0)\n"
+        "endfunction\n"));
+
+    pitch = G_CameraAuthoredToPitch(270.0f);
+    T_FEQ(gc->camera.state.viewangles.x, pitch, 0.001f);
+    T_FEQ(gc->camera.state.viewangles.z, G_CameraAuthoredToYaw(105.0f, pitch), 0.001f);
+    T_FEQ(gc->camera.state.fov, G_CameraHorizontalToVerticalFov(80.0f), 0.001f);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     LPGAMECLIENT gc = &game.clients[0];
 
