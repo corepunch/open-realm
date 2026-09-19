@@ -128,7 +128,7 @@ This does **not** complete the Undead tower contract by itself: Ziggurat/Spirit 
 
 ## Remaining race-specific gaps
 
-Dynamic Blight simulation is now implemented through a WC3-owned mutable field seeded from the shared WPM pathing flags: map-authored WPM Blight initializes it, `Abli` expands/removes it from authored data, the five JASS Blight natives share it, `requirePlace=blighted` reports `Offblight`, `uhrt=blight` reads it, and save format 32 persists it. See [Blight](blight.md). Runtime client terrain rendering/preview synchronization and Blighted-tree presentation remain separate gaps.
+Dynamic Blight simulation is now implemented through a WC3-owned mutable field seeded from the shared WPM pathing flags: map-authored WPM Blight initializes it, `Abli` expands/removes it from authored data, the five JASS Blight natives share it, `requirePlace=blighted` reports `Offblight`, `uhrt=blight` reads it, and save format 32 persists it. Client terrain rendering/preview synchronization and one-way Blighted-tree presentation are also implemented through the generic terrain-mask, image, and vertex-colour channels. See [Blight](blight.md); retail visual verification remains separate.
 
 The following items remain outside this patch's high-confidence isolated scope:
 

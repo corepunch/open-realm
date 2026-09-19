@@ -7,6 +7,7 @@
 
 #include "common/common.h"
 #include "common/weather.h"
+#include "games/warcraft-3/common/terrain.h"
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
 #include "server/game.h"
@@ -137,8 +138,6 @@ typedef enum {
     PLACE_OUT_OF_BOUNDS,
     PLACE_REQUIRED_PARENT_MISSING,
 } buildPlacementResult_t;
-
-#define WC3_PATH_BLIGHTED 0x20
 
 typedef enum {
     CONSTRUCTION_NONE,

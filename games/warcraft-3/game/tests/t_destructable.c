@@ -166,10 +166,13 @@ TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
     T_ASSERT(G_IsDestructable(tree));
     G_BlightInitializeDestructable(tree);
     T_ASSERT(tree->destructable.blighted);
-    T_ASSERT(tree->s.blighted);
+    T_ASSERT(tree->vertex_color_set);
+    T_EQ(tree->vertex_color.r, 120);
+    T_EQ(tree->vertex_color.g, 185);
+    T_EQ(tree->vertex_color.b, 72);
+    T_EQ(tree->vertex_color.a, 255);
     G_SetBlightPoint(&point, false);
     T_ASSERT(tree->destructable.blighted);
-    T_ASSERT(tree->s.blighted);
 }
 
 static LPEDICT make_destructable_test_attacker(FLOAT x, FLOAT y) {

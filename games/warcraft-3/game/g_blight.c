@@ -1,7 +1,7 @@
 #include "g_local.h"
 
-#define WC3_BLIGHT_PATH_CELL 32.0f
-#define WC3_BLIGHT_TERRAIN_CELL 128.0f
+#define WC3_BLIGHT_PATH_CELL 32.0f // world units; authoritative Blight cell width; used by simulation and network mask
+#define WC3_BLIGHT_TERRAIN_CELL 128.0f // world units; authored terrain-corner spacing; used by Blight rasterization
 
 static DWORD G_BlightCellCount(void) { return level.blight.width * level.blight.height; }
 
@@ -86,7 +86,8 @@ void G_BlightMarkDestructable(LPEDICT ent) {
 
     if (!ent || !G_IsDestructable(ent) || ent->destructable.blighted) return;
     ent->destructable.blighted = true;
-    ent->s.blighted = true;
+    ent->vertex_color = MAKE(COLOR32, 120, 185, 72, 255);
+    ent->vertex_color_set = true;
     data = ent->data.DestructableData;
     if (!data || !data->textureFile || !*data->textureFile || !strcmp(data->textureFile, "_")) return;
     dot = strrchr(data->textureFile, '.');
@@ -135,8 +136,9 @@ void G_BlightShutdown(void) {
 
 void G_BlightInit(void) {
     DWORD cells;
+    DWORD unavailable = 0;
 #ifdef WC3_DEBUG_BLIGHT
-    DWORD seeded = 0, unavailable = 0;
+    DWORD seeded = 0;
 #endif
     VECTOR2 sample;
 
@@ -168,11 +170,7 @@ void G_BlightInit(void) {
         sample.x = level.blight.bounds.min.x + ((FLOAT)x + 0.5f) * WC3_BLIGHT_PATH_CELL;
         sample.y = level.blight.bounds.min.y + ((FLOAT)y + 0.5f) * WC3_BLIGHT_PATH_CELL;
         if (!CM_GetPathingFlagsAt(&sample, &flags)) {
-#ifdef WC3_DEBUG_BLIGHT
             unavailable++;
-#endif
-            fprintf(stderr, "WC3 Blight: pathing flags unavailable at (%.1f,%.1f); leaving cell clear\n",
-                    sample.x, sample.y);
             continue;
         }
         level.blight.cells[index] = (flags & WC3_PATH_BLIGHTED) != 0;
@@ -187,6 +185,9 @@ void G_BlightInit(void) {
             (unsigned)level.blight.width, (unsigned)level.blight.height,
             (unsigned)cells, (unsigned)seeded, (unsigned)unavailable);
 #endif
+    if (unavailable)
+        fprintf(stderr, "G_BlightInit: pathing flags unavailable for %u Blight cells; leaving them clear\n",
+                (unsigned)unavailable);
 }
 
 BOOL G_IsPointBlighted(LPCVECTOR2 point) {
@@ -314,7 +315,7 @@ static DWORD G_BlightPackRows(LPBYTE out, DWORD capacity, DWORD first_row, DWORD
 
 DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     DWORD player, first = 0, rows, max_rows, available, payload_bytes;
-    wc3BlightChunk_t chunk;
+    terrainMaskChunk_t chunk;
     BYTE *payload;
 
     if (!data || !G_BlightDatagramPending(ent) || size < sizeof(chunk) + 1) return 0;
@@ -329,7 +330,7 @@ DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     payload = data + sizeof(chunk);
     while (rows && !(payload_bytes = G_BlightPackRows(payload, available, first, rows))) rows--;
     if (!rows) return 0;
-    chunk = (wc3BlightChunk_t){
+    chunk = (terrainMaskChunk_t){
         .width = (USHORT)level.blight.width, .height = (USHORT)level.blight.height,
         .first_row = (USHORT)first, .row_count = (USHORT)rows,
         .payload_bytes = (USHORT)payload_bytes,

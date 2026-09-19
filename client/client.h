@@ -112,7 +112,7 @@ struct client_state {
         DWORD generation;
         DWORD dirty_first_row;
         DWORD dirty_row_count;
-    } blight;
+    } terrain_mask;
     LPENTITYSTATE cursorEntity;
     struct {
         DWORD image;

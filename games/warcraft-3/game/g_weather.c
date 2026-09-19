@@ -66,20 +66,20 @@ static BOOL G_ClientReceivesVertexColor(LPEDICT client_ent, LPCEDICT unit) {
 
 /* Serialize authoritative weather and vertex-colour state so dropped frames converge without widening entityState_t. */
 DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
-    DWORD weather_count = 0, tint_count = 0, blight_size = 0;
+    DWORD weather_count = 0, tint_count = 0, terrain_mask_size = 0;
     DWORD const tint_wire_size = sizeof(USHORT) + sizeof(COLOR32);
     BYTE *out = data;
     USHORT wire_count;
-    BOOL emit_tints, emit_blight;
+    BOOL emit_tints, emit_terrain_mask;
 
     if (!data || size < sizeof(wire_count)) return 0;
     FOR_LOOP(i, MAX_WEATHER_EFFECTS) if (level.weather_effects[i].inuse) weather_count++;
     FOR_LOOP(i, globals.num_edicts) if (G_ClientReceivesVertexColor(ent, &g_edicts[i])) tint_count++;
-    emit_blight = G_BlightDatagramPending(ent) && level.blight.width &&
+    emit_terrain_mask = G_BlightDatagramPending(ent) && level.blight.width &&
         size >= sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t) +
-            sizeof(wc3BlightChunk_t) + (level.blight.width + 7) / 8;
+            sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;
     emit_tints = sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t) +
-        sizeof(USHORT) + tint_count * tint_wire_size <= size - (emit_blight ? sizeof(wc3BlightChunk_t) + (level.blight.width + 7) / 8 : 0);
+        sizeof(USHORT) + tint_count * tint_wire_size <= size - (emit_terrain_mask ? sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8 : 0);
     if (!emit_tints && tint_count) {
         fprintf(stderr, "G_WriteClientDatagram: tint snapshot needs %u bytes, buffer has %u; omitting tints\n",
             (unsigned)(sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t) + sizeof(USHORT) +
@@ -87,7 +87,7 @@ DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     }
     wire_count = (USHORT)weather_count |
         (emit_tints ? BZ_GAME_DATAGRAM_ENTITY_TINTS : 0) |
-        (emit_blight ? BZ_GAME_DATAGRAM_BLIGHT : 0);
+        (emit_terrain_mask ? BZ_GAME_DATAGRAM_TERRAIN_MASK : 0);
     memcpy(out, &wire_count, sizeof(wire_count));
     out += sizeof(wire_count);
     FOR_LOOP(i, MAX_WEATHER_EFFECTS) {
@@ -113,14 +113,14 @@ DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
             memcpy(out, &unit->vertex_color, sizeof(unit->vertex_color)); out += sizeof(unit->vertex_color);
         }
     }
-    if (emit_blight) {
-        blight_size = G_BlightWriteDatagram(ent, out, size - (DWORD)(out - data));
-        if (!blight_size) {
-            emit_blight = false;
-            wire_count &= ~BZ_GAME_DATAGRAM_BLIGHT;
+    if (emit_terrain_mask) {
+        terrain_mask_size = G_BlightWriteDatagram(ent, out, size - (DWORD)(out - data));
+        if (!terrain_mask_size) {
+            emit_terrain_mask = false;
+            wire_count &= ~BZ_GAME_DATAGRAM_TERRAIN_MASK;
             memcpy(data, &wire_count, sizeof(wire_count));
         } else {
-            out += blight_size;
+            out += terrain_mask_size;
         }
     }
     return (DWORD)(out - data);

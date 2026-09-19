@@ -7,7 +7,7 @@
 #include "net.h"
 #include "mpq.h"
 #include "mapinfo.h"
-#include "blight.h"
+#include "terrain_mask.h"
 
 #define MAP_VERTEX_FILE_SIZE 7
 #define MAX_SHEET_LINE 1024
@@ -317,6 +317,7 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera);
 BOOL CL_GameCameraUsesWorldUp(void);
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);
 BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin);
+void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags);
 typedef struct {
     DWORD anchor;
     DWORD const *visible;

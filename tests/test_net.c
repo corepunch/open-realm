@@ -1683,30 +1683,30 @@ static void reset_fow_client_state(void) {
     test_client_stubs_init();
 }
 
-TEST(net, blight_game_datagram_reconstructs_client_mask) {
+TEST(net, terrain_mask_datagram_reconstructs_client_mask) {
     BYTE buf[128];
     BYTE payload[] = { 0x01, 0x80 }; /* 16 cells: cell 0 and cell 15 are Blight. */
-    wc3BlightChunk_t chunk = {
+    terrainMaskChunk_t chunk = {
         .width = 8, .height = 2, .first_row = 0, .row_count = 2, .payload_bytes = sizeof(payload),
         .min_x = -128.0f, .min_y = 64.0f, .cell_size = 32.0f,
     };
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
 
-    SAFE_DELETE(cl.blight.cells, MemFree);
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
     MSG_WriteByte(&sb, svc_frame);
     MSG_WriteLong(&sb, 1); MSG_WriteLong(&sb, 100); MSG_WriteLong(&sb, 0);
-    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_BLIGHT);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_TERRAIN_MASK);
     MSG_Write(&sb, &chunk, sizeof(chunk)); MSG_Write(&sb, payload, sizeof(payload));
     CL_ParseServerMessage(&sb);
 
-    T_EQ(cl.blight.width, 8); T_EQ(cl.blight.height, 2);
-    T_FEQ(cl.blight.origin.x, -128.0f, 0.001f);
-    T_FEQ(cl.blight.cell_size, 32.0f, 0.001f);
-    T_ASSERT(cl.blight.cells[0]);
-    T_ASSERT(cl.blight.cells[15]);
-    T_ASSERT(!cl.blight.cells[1]);
-    T_ASSERT(cl.blight.generation);
-    SAFE_DELETE(cl.blight.cells, MemFree);
+    T_EQ(cl.terrain_mask.width, 8); T_EQ(cl.terrain_mask.height, 2);
+    T_FEQ(cl.terrain_mask.origin.x, -128.0f, 0.001f);
+    T_FEQ(cl.terrain_mask.cell_size, 32.0f, 0.001f);
+    T_ASSERT(cl.terrain_mask.cells[0]);
+    T_ASSERT(cl.terrain_mask.cells[15]);
+    T_ASSERT(!cl.terrain_mask.cells[1]);
+    T_ASSERT(cl.terrain_mask.generation);
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
 }
 
 static void write_fow_message(sizeBuf_t *sb,
@@ -2505,10 +2505,10 @@ TEST(net, entity_delta_preserves_build_preview_fields) {
     T_FEQ(out.origin.y, 0.0f, 0.001f);
 }
 
-TEST(net, entity_delta_preserves_blighted_destructable_state) {
+TEST(net, entity_delta_preserves_destructable_presentation_image) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .blighted = 1 }, out = { 0 };
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .image = 7 }, out = { 0 };
     DWORD bits = 0;
     int number;
 
@@ -2517,7 +2517,7 @@ TEST(net, entity_delta_preserves_blighted_destructable_state) {
     number = MSG_ReadEntityBits(&sb, &bits);
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
     T_EQ(number, 9);
-    T_EQ(out.blighted, 1);
+    T_EQ(out.image, 7);
 }
 
 /* Dead destructable remains rely on EF_NOT_SELECTABLE surviving snapshots, so

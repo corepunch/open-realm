@@ -47,17 +47,17 @@ Save format 32 writes the final game-owned Blight plane after the level field st
 
 ## Client presentation
 
-The server publishes the authoritative Blight plane through the existing Warcraft III per-frame game datagram. A client receives the initial map plane after `G_ClientBegin`; later point/radius/rect changes dirty only affected rows for connected clients. Each chunk carries the grid origin, dimensions, 32-unit cell size, and a bit-packed contiguous row range, so a large initial plane can span frames without widening `entityState_t` or starving the existing weather/tint payload.
+The server publishes the authoritative Blight plane through the existing generic terrain-mask section of the Warcraft III per-frame game datagram. A client receives the initial map plane after `G_ClientBegin`; later point/radius/rect changes dirty only affected rows for connected clients. Each chunk carries the grid origin, dimensions, 32-unit cell size, and a bit-packed contiguous row range, so a large initial plane can span frames without widening `entityState_t` or starving the existing weather/tint payload.
 
-- `CL_ParseFrame()` assembles chunks into a persistent client mask and exposes it through the generic terrain-mask fields in `viewDef_t`;
+- `CL_ParseFrame()` assembles chunks into a persistent generic client terrain mask and exposes it through the terrain-mask fields in `viewDef_t`; WC3 contributes its Blight interpretation through `CL_GameModifyBuildPathing()`;
 - the WC3 terrain renderer derives a 128-unit corner mask from the synchronized 32-unit plane, builds a dedicated Blight terrain layer with the normal terrain shader, and draws it after normal ground layers but before cliffs; solid tiles use the atlas's opaque variation and partial tiles use its authored alpha edge masks. The layer rebuilds only when the synchronized mask generation changes, and the W3E tileset resolves through `UI\\WorldEditData.txt` to the corresponding `TerrainArt\\Blight\\*_Blight.blp` atlas;
-- the placement preview overlays the synchronized Blight bit on each footprint sample before applying required/prevented flags; the server remains authoritative when the order arrives;
-- destructables carry a persistent one-way Blight presentation state, initialized from their footprint, updated by added Blight, and set by successful Undead lumber hits. The state is delta-serialized to clients and uses the authored texture stem plus `Blight` when available;
+- the placement preview lets WC3 overlay the synchronized Blight bit on each footprint sample before applying required/prevented flags; the server remains authoritative when the order arrives;
+- destructables carry a persistent one-way Blight presentation state, initialized from their footprint, updated by added Blight, and set by successful Undead lumber hits. The server presents it through the existing image delta and generic vertex-colour snapshot channels, using the authored texture stem plus `Blight` when available;
 - retail verification of the buildable-ground raster edge cases where Warsmash consults ground-texture metadata rather than only WPM pathing.
 
 ## Verification
 
-Regression tests cover WPM-seeded Blight, runtime add/remove, survival across `CM_BakeStaticObstacles()`, Blight-mask snapshot restore, runtime building placement, Blight-only regeneration, all five JASS natives, authored non-stock `Abli` expansion/availability from both TFT `DataA1`/`DataB1` and ROC `Data11`/`Data12` columns, save/load of world, source, and destructable state, destructable one-way presentation, and entity-delta preservation of the client presentation bit.
+Regression tests cover WPM-seeded Blight, runtime add/remove, survival across `CM_BakeStaticObstacles()`, Blight-mask snapshot restore, runtime building placement, Blight-only regeneration, all five JASS natives, authored non-stock `Abli` expansion/availability from both TFT `DataA1`/`DataB1` and ROC `Data11`/`Data12` columns, save/load of world, source, and destructable state, destructable one-way presentation, and preservation of the existing image/tint presentation channels.
 
 After building, run at least:
 
@@ -72,6 +72,8 @@ make test-wc3-engine WC3_PATTERN='wc3_pathfinding.blight_*'
 make test
 ```
 
-For one runtime trace of the server-to-renderer path, build/run with `WC3_DEBUG_BLIGHT=1`. The log should show `growth init`, either `growth tick` or a `growth blocked` reason, `radius` operations with changed-cell counts, a server `datagram` row range, a client `chunk`, and a renderer `render mask generation` line. A `client_mask=absent` line indicates that the initial snapshot has not arrived yet or that the map is being rendered before the first server frame.
+For one runtime trace of the server-to-renderer path, build/run with `WC3_DEBUG_BLIGHT=1`. The log should show `growth init`, either `growth tick` or a `growth blocked` reason, `radius` operations with changed-cell counts, a server `datagram` row range, and a renderer `cache generation` line. A `client_mask=absent` line indicates that the initial snapshot has not arrived yet or that the map is being rendered before the first server frame.
+
+The rendering implementation details are recorded in [Blight Rendering Plan](blight-rendering-plan.md).
 
 Manual campaign/custom-map verification should also exercise `SetBlight*`/`IsPointBlighted`, an Undead building crossing a Blight boundary, a damaged `uhrt=blight` unit walking on/off Blight, and stock `Abli` expansion timing.

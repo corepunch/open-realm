@@ -19,6 +19,7 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 BOOL CL_GameCameraUsesWorldUp(void) { return false; }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return a + (b - a) * fraction; }
 BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) { (void)origin; return false; }
+void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags) { (void)point; (void)flags; }
 BOOL CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     (void)selection;
     return false;

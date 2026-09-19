@@ -342,7 +342,9 @@ static void _W3M_SetSceneFog(void) {
 }
 
 void _W3M_DrawWorld(void) {
+#ifdef WC3_DEBUG_BLIGHT
     static LPCWAR3MAP debug_world;
+#endif
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 

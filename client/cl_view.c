@@ -289,10 +289,6 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.ground_offset = ent->current.ground_offset;
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
-    if (ent->current.blighted) {
-        re.tint_valid = true;
-        re.tint = (COLOR32){ 120, 185, 72, 255 };
-    }
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
@@ -358,19 +354,6 @@ static BOOL CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t c
     return dx * dx + dy * dy < state->collision * state->collision;
 }
 
-/* The server's WC3 Blight plane is a 32-unit grid.  Keep the preview query
- * deliberately identical to the simulation query: the preview is advisory,
- * but it must not invent a second coordinate system for require/prevent. */
-static BOOL CL_IsPointBlighted(LPCVECTOR2 point) {
-    LONG x, y;
-
-    if (!point || !cl.blight.cells || cl.blight.cell_size <= 0.0f) return false;
-    x = (LONG)floorf((point->x - cl.blight.origin.x) / cl.blight.cell_size);
-    y = (LONG)floorf((point->y - cl.blight.origin.y) / cl.blight.cell_size);
-    return x >= 0 && y >= 0 && (DWORD)x < cl.blight.width &&
-        (DWORD)y < cl.blight.height && cl.blight.cells[x + y * cl.blight.width] != 0;
-}
-
 static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
     DWORD const width = cl.cursorEntity->pathing_width;
     DWORD const height = cl.cursorEntity->pathing_height;
@@ -408,8 +391,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
                 (rect.mins.y + rect.maxs.y) * 0.5f,
             };
             blocked = !CM_GetPathingFlagsAt(&sample, &pathing);
-            if (CL_IsPointBlighted(&sample)) pathing |= 0x20;
-            else pathing &= ~0x20;
+            CL_GameModifyBuildPathing(&sample, &pathing);
             blocked = blocked || (pathing & prevented) != 0 ||
                       (pathing & required) != required;
             rect.color = blocked || mine_blocked
@@ -632,14 +614,14 @@ void V_RenderView(void) {
     cl.viewDef.fow_height = cl.fow.height;
     cl.viewDef.fow_data = cl.fow.texture;
     cl.viewDef.fow_generation = cl.fow.generation;
-    cl.viewDef.terrain_mask_width = cl.blight.width;
-    cl.viewDef.terrain_mask_height = cl.blight.height;
-    cl.viewDef.terrain_mask_origin = cl.blight.origin;
-    cl.viewDef.terrain_mask_cell_size = cl.blight.cell_size;
-    cl.viewDef.terrain_mask_data = cl.blight.cells;
-    cl.viewDef.terrain_mask_generation = cl.blight.generation;
-    cl.viewDef.terrain_mask_dirty_first_row = cl.blight.dirty_first_row;
-    cl.viewDef.terrain_mask_dirty_row_count = cl.blight.dirty_row_count;
+    cl.viewDef.terrain_mask_width = cl.terrain_mask.width;
+    cl.viewDef.terrain_mask_height = cl.terrain_mask.height;
+    cl.viewDef.terrain_mask_origin = cl.terrain_mask.origin;
+    cl.viewDef.terrain_mask_cell_size = cl.terrain_mask.cell_size;
+    cl.viewDef.terrain_mask_data = cl.terrain_mask.cells;
+    cl.viewDef.terrain_mask_generation = cl.terrain_mask.generation;
+    cl.viewDef.terrain_mask_dirty_first_row = cl.terrain_mask.dirty_first_row;
+    cl.viewDef.terrain_mask_dirty_row_count = cl.terrain_mask.dirty_row_count;
     if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
         DWORD const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;

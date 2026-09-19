@@ -1,11 +1,11 @@
-#ifndef common_blight_h
-#define common_blight_h
+#ifndef common_terrain_mask_h
+#define common_terrain_mask_h
 
 #include "common/shared.h"
 
 /* Game-owned per-frame datagram flags.  The low 14 bits remain the weather
  * count so older weather-only snapshots keep their existing wire shape. */
-#define BZ_GAME_DATAGRAM_BLIGHT 0x4000u
+#define BZ_GAME_DATAGRAM_TERRAIN_MASK 0x4000u // bit mask; reserves the next weather-count bit for a synchronized terrain mask
 
 typedef struct {
     USHORT width;
@@ -16,8 +16,8 @@ typedef struct {
     FLOAT min_x;
     FLOAT min_y;
     FLOAT cell_size;
-} wc3BlightChunk_t;
+} terrainMaskChunk_t;
 
-_Static_assert(sizeof(wc3BlightChunk_t) == 24, "Blight datagram header must remain a compact wire record");
+_Static_assert(sizeof(terrainMaskChunk_t) == 24, "Terrain-mask datagram header must remain a compact wire record");
 
 #endif

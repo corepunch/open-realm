@@ -3203,7 +3203,6 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
     unit->blight_growth.radius = 146.0f;
     unit->blight_growth.next_update = 12345;
     unit->destructable.blighted = true;
-    unit->s.blighted = true;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(WriteGame(filename));
@@ -3211,14 +3210,12 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
     G_SetBlightPoint(&point, false);
     memset(&unit->blight_growth, 0, sizeof(unit->blight_growth));
     unit->destructable.blighted = false;
-    unit->s.blighted = false;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(G_IsPointBlighted(&point));
     T_EQ(unit->blight_growth.ability, ability);
     T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
     T_EQ(unit->blight_growth.next_update, 12345u);
     T_ASSERT(unit->destructable.blighted);
-    T_ASSERT(unit->s.blighted);
     remove(filename);
 }
 
