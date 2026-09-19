@@ -146,13 +146,7 @@ void PF_Unicast(edict_t *ent) {
         SZ_Clear(&sv.multicast);
         return;
     }
-    DWORD p = NUM_FOR_EDICT(ent);
-    LPCLIENT client = NULL;
-    FOR_LOOP(i, svs.num_clients)
-        if (svs.clients[i].edict == ent) { client = &svs.clients[i]; break; }
-    if (!client && p >= 1 && p <= ge->max_clients && p <= svs.num_clients)
-        client = svs.clients + (p - 1);
-    if (!client && svs.num_clients == 1) client = svs.clients;
+    LPCLIENT client = SV_ClientForEdictRecipient(ent);
     if (!client) { SZ_Clear(&sv.multicast); return; }
     /* Image/font/model indices may have been allocated while authoring this
      * payload. Publish those configstrings first so a client never parses a

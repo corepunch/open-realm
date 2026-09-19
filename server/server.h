@@ -155,6 +155,7 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
 LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent);
+LPCLIENT SV_ClientForEdictRecipient(LPEDICT ent);
 void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation,
                    FLOAT timeofs);
 void SV_MinimapPing(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags);
