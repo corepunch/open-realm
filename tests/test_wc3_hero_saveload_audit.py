@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.dont_write_bytecode = True  # exec_module below must not leave tools/__pycache__ behind
 SPEC = importlib.util.spec_from_file_location(
     "wc3_hero_saveload_audit", ROOT / "tools/wc3_hero_saveload_audit.py")
 AUDIT = importlib.util.module_from_spec(SPEC)

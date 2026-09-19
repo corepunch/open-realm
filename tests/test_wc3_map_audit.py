@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import struct
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOTA_LOOSE = ROOT / "data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x"
+sys.dont_write_bytecode = True  # exec_module below must not leave tools/__pycache__ behind
 SPEC = importlib.util.spec_from_file_location("wc3_map_audit", ROOT / "tools/wc3_map_audit.py")
 AUDIT = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader

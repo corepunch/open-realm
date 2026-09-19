@@ -17,3 +17,5 @@ War3.mpq
 screenshots/
 site/
 .idea/
+__pycache__/
+*.pyc
