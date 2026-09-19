@@ -1151,7 +1151,7 @@ struct edict_s {
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
-    LPEDICT build_preview; /* non-blocking Birth presentation for an accepted build order */
+    LPEDICT build_preview; /* translucent Construction Site Indicator for an accepted build order */
     BOOL rally_indicator;
     struct edictConstruction_s {
         BOOL active;
