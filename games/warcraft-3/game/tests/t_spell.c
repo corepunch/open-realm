@@ -2531,9 +2531,9 @@ TEST(wc3_spell, chain_lightning_delays_each_jump_and_never_rehits_previous_targe
     T_FEQ(second->health.value + third->health.value, 925.0f, 0.001f);
     T_ASSERT(!thinker->inuse);
 
-    /* The two delayed hits are 50 then 25 in either deterministic-random order. */
-    T_ASSERT((second->health.value == 450.0f && third->health.value == 475.0f) ||
-             (second->health.value == 475.0f && third->health.value == 450.0f));
+    /* The nearest unvisited unit is second at 250 ms, then third at 500 ms. */
+    T_FEQ(second->health.value, 450.0f, 0.001f);
+    T_FEQ(third->health.value, 475.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

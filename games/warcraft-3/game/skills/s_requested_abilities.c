@@ -245,9 +245,8 @@ static void chain_lightning_finish(LPEDICT thinker) {
 }
 
 void chain_lightning_think(LPEDICT thinker) {
-    LPEDICT candidates[MAX_GROUP_SIZE];
-    DWORD candidate_count = 0;
-    LPEDICT caster, next;
+    LPEDICT caster, next = NULL;
+    FLOAT nearest_distance = 0.0f;
 
     if (!thinker || !thinker->inuse) return;
     caster = thinker->owner;
@@ -260,15 +259,21 @@ void chain_lightning_think(LPEDICT thinker) {
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   S_SpellAllowsTarget(thinker->class_id, caster, target) &&
                   Vector2_distance(&target->s.origin2, &thinker->s.origin2) <= thinker->collision) {
-        if (!chain_lightning_visited(thinker, target) && candidate_count < MAX_GROUP_SIZE)
-            candidates[candidate_count++] = target;
+        FLOAT distance;
+        if (chain_lightning_visited(thinker, target)) continue;
+        distance = Vector2_distance(&target->s.origin2, &thinker->s.origin2);
+        /* Warcraft Chain Lightning follows the nearest eligible unvisited unit.
+         * FILTER_EDICTS' stable scan order is the deterministic tie breaker. */
+        if (!next || distance < nearest_distance) {
+            next = target;
+            nearest_distance = distance;
+        }
     }
-    if (!candidate_count) {
+    if (!next) {
         chain_lightning_finish(thinker);
         return;
     }
 
-    next = candidates[rand() % candidate_count];
     if (thinker->goalentity && thinker->goalentity->inuse && thinker->goalentity->spawn_time == thinker->damage) {
         G_SpawnAbilityLightning(thinker->class_id, 1, thinker->goalentity, next, CHAIN_LIGHTNING_BOLT_MS);
     } else {

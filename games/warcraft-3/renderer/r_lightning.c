@@ -101,22 +101,17 @@ static DWORD R_LightningHash(DWORD value) {
     value *= 0x846ca68b; return value ^ (value >> 16);
 }
 
-/* The retail noise function is not public.  Keep the approximation deterministic
- * per bolt while changing smoothly with render time, so a retransmitted snapshot
- * does not visibly re-roll the chain. */
-static FLOAT R_LightningNoise(DWORD seed, FLOAT time) {
+static FLOAT R_LightningHashSigned(DWORD seed) {
     DWORD hash = R_LightningHash(seed);
-    FLOAT phase = (FLOAT)(hash & 0xffffu) * (6.28318530718f / 65536.0f);
-    FLOAT frequency = 11.0f + (FLOAT)((hash >> 16) & 15u);
-    return 0.5f * (sinf(time * frequency + phase) + sinf(time * (frequency + 7.0f) + phase * 1.7f));
+    return ((FLOAT)(hash & 0x00ffffffu) / 8388607.5f) - 1.0f;
 }
 
 static DWORD R_LightningBuildPoints(w3LightningArt_t const *art,
                                     wc3LightningEffect_t const *state,
                                     VECTOR3 *points, DWORD point_capacity) {
-    VECTOR3 delta, direction, reference, side, up;
-    FLOAT distance, average, amplitude, time;
-    DWORD segments;
+    VECTOR3 delta, direction, reference, side;
+    FLOAT distance, average, noise_ratio, lateral_scale;
+    DWORD segments, crackle_frame;
 
     if (!art || !state || !points || point_capacity < 2) return 0;
     delta = Vector3_sub(&state->target, &state->source);
@@ -125,21 +120,27 @@ static DWORD R_LightningBuildPoints(w3LightningArt_t const *art,
     direction = Vector3_scale(&delta, 1.0f / distance);
     reference = fabsf(direction.z) < 0.9f ? (VECTOR3){0, 0, 1} : (VECTOR3){0, 1, 0};
     side = Vector3_cross(&direction, &reference); Vector3_normalize(&side);
-    up = Vector3_cross(&side, &direction); Vector3_normalize(&up);
     average = art->avg_seg_len > 0.0f ? art->avg_seg_len : distance;
     segments = (DWORD)ceilf(distance / average);
     segments = MAX(1u, MIN(segments, MIN(point_capacity - 1, WC3_LIGHTNING_MAX_SEGMENTS)));
-    amplitude = MAX(0.0f, art->noise_scale) * MAX(average, 1.0f);
-    time = (FLOAT)tr.viewDef.time / 1000.0f;
+    /* Stock Chain Lightning uses NoiseScale 0.05. Keep that authored value as
+     * the baseline and scale custom LightningData rows proportionally. */
+    noise_ratio = MAX(0.0f, art->noise_scale) / 0.05f;
+    lateral_scale = MAX(0.0f, art->width) * 1.05f * noise_ratio;
+    /* The browser reference and observed WC3 presentation crackle between
+     * discrete shapes instead of continuously waving like a rope. */
+    crackle_frame = tr.viewDef.time / 55u;
     FOR_LOOP(i, segments + 1) {
         FLOAT fraction = (FLOAT)i / (FLOAT)segments;
         points[i] = Vector3_lerp(&state->source, &state->target, fraction);
-        if (i && i < segments && amplitude > 0.0f) {
-            DWORD seed = state->handle ^ state->effect_id ^ (i * 0x9e3779b9u);
-            FLOAT lateral = R_LightningNoise(seed, time);
-            FLOAT vertical = R_LightningNoise(seed ^ 0x68bc21ebu, time + 0.37f);
-            points[i] = Vector3_mad(&points[i], lateral * amplitude, &side);
-            points[i] = Vector3_mad(&points[i], vertical * amplitude * 0.5f, &up);
+        if (i && i < segments && lateral_scale > 0.0f) {
+            DWORD seed = state->handle ^ state->effect_id ^ (i * 0x9e3779b9u) ^
+                (crackle_frame * 0x85ebca6bu);
+            FLOAT edge = sinf(3.14159265359f * fraction);
+            FLOAT lateral = R_LightningHashSigned(seed) * lateral_scale * edge;
+            FLOAT longitudinal = R_LightningHashSigned(seed ^ 0x68bc21ebu) * average * 0.12f;
+            points[i] = Vector3_mad(&points[i], lateral, &side);
+            points[i] = Vector3_mad(&points[i], longitudinal, &direction);
         }
     }
     return segments + 1;
@@ -159,7 +160,7 @@ static FLOAT R_LightningOpacity(w3LightningArt_t const *art,
         (FLOAT)(tr.viewDef.time - state->start_time) / 1000.0f : 0.0f;
     duration = (FLOAT)lifetime / 1000.0f;
     if (duration <= 0.0f || elapsed >= duration) return 0.0f;
-    fade_start = duration * 0.75f;
+    fade_start = duration * 0.72f;
     return elapsed <= fade_start ? 1.0f : 1.0f - (elapsed - fade_start) / (duration - fade_start);
 }
 
@@ -200,7 +201,7 @@ void R_LightningDraw(void) {
             .point_count = point_count,
             .width = art->width,
             .texcoord_scale = texture_scale,
-            .texcoord_phase = -elapsed * art->texcoord_scale,
+            .texcoord_phase = -elapsed * art->texcoord_scale * 3.2f,
             .color = color,
             .blend_mode = BLEND_MODE_ADD,
             .depth_test = false,
