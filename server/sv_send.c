@@ -19,7 +19,7 @@ void SV_Multicast(LPCVECTOR3 origin, multicast_t to) {
  * player number is identical to the engine connection slot.  UI/game APIs
  * often pass the connected client's own edict as the recipient; gameplay
  * sounds instead pass a world entity and use its player ownership. */
-LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
+LPCLIENT SV_ClientForEdictRecipient(LPEDICT ent) {
     if (!ent) return NULL;
 
     FOR_LOOP(i, svs.num_clients) {
@@ -27,6 +27,14 @@ LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
         if (client->state == cs_spawned && client->edict == ent)
             return client;
     }
+    return NULL;
+}
+
+LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
+    LPCLIENT client = SV_ClientForEdictRecipient(ent);
+
+    if (client) return client;
+    if (!ent) return NULL;
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
         if (client->state == cs_spawned && client->playernum == ent->s.player)
