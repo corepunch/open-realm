@@ -310,12 +310,12 @@ static ability_t abilitylist[] = {
     // TODO: AIrm a_item_regen_mana  /* Item Mana Regeneration */
     // TODO: AIil a_item_illusion  /* Item Illusions */
     // TODO: AIdi a_item_dispel_aoe  /* Item Dispel */
-    // TODO: AIfb CAbilityOnFireHuman  /* Item Attack Fire Bonus */
-    // TODO: AIlb a_bounce  /* Item Attack Lightning Bonus */
+    { "AIfb", CAbilityAttackBonus, 0 },  /* Item Attack Fire Bonus (orb) */
+    { "AIlb", CAbilityAttackBonus, 0 },  /* Item Attack Lightning Bonus (orb) */
+    { "AIob", CAbilityAttackBonus, 0 },  /* Item Attack Frost Bonus (orb) */
     { "AIlp", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Purge */
-    // TODO: AIob CAbilityFrostNova  /* Item Attack Frost Bonus */
-    // TODO: AIpb a_item_mana_restore  /* Item Attack Poison Bonus */
-    // TODO: AIcb a_button  /* Item Attack Corruption Bonus */
+    { "AIpb", CAbilityAttackBonus, 0 },  /* Item Attack Poison Bonus (orb) */
+    { "AIcb", CAbilityAttackBonus, 0 },  /* Item Attack Corruption Bonus (orb) */
     // TODO: AIsi a_sight_bonus  /* Item Sight Range Bonus */
     // TODO: AIso a_simple_spell  /* Item Soul Theft */
     // TODO: Asou a_simple_spell  /* Item Soul Possession */
@@ -326,7 +326,7 @@ static ability_t abilitylist[] = {
     // TODO: AIaa a_damage_bonus_base  /* Item Permanent Damage Gain */
     // TODO: AIva a_attack_mod  /* Item Life Steal */
     // TODO: AIcf CAbilityImmolation  /* Item Immolation */
-    // TODO: AIzb CAbilityFrostNova  /* Item Freeze Damage Bonus */
+    { "AIzb", CAbilityAttackBonus, 0 },  /* Item Freeze Damage Bonus (orb) */
     // TODO: Arel a_aura_regen_life  /* Item Life Regeneration */
     { "Aami", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-Magic Shell Instant */
     // TODO: AIas a_unknown  /* Item Attack Speed Bonus */
