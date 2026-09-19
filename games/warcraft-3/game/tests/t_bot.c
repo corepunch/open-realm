@@ -33,6 +33,9 @@ static LPEDICT make_bot_harvest_unit(DWORD class_id, FLOAT x, FLOAT y, DWORD pla
     LPEDICT unit = alloc_test_unit(class_id, x, y);
     unit->s.player = player; unit->data.UnitAbilities = abilities;
     unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand;
+    unit->attack1.type = ATK_NORMAL;
+    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    unit->targtype = TARG_GROUND;
     return unit;
 }
 

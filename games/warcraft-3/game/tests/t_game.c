@@ -658,6 +658,9 @@ static LPEDICT make_test_unit(void) {
     ent->health.max_value = 250.0f;
     ent->stand            = unit_stand;
     ent->movetype         = MOVETYPE_STEP;
+    ent->attack1.type     = ATK_NORMAL;
+    ent->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    ent->targtype         = TARG_GROUND;
     unit_stand(ent);
     return ent;
 }
@@ -2219,6 +2222,7 @@ TEST(wc3_game, runwait_small_wait_triggers_callback) {
 TEST(wc3_game, issuetargetorder_attack_returns_true) {
     LPEDICT unit   = make_test_unit();
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f);
+    target->targtype = TARG_GROUND;
     /* order_attack is the real implementation from s_attack.c — just verify return value. */
     BOOL result = unit_issuetargetorder(unit, "attack", target);
     T_ASSERT(result);
@@ -2471,6 +2475,9 @@ TEST(wc3_game, hold_position_acquires_within_uacq_not_attack_range) {
     enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 200.0f, 0.0f);
     guard->s.player = 0; enemy->s.player = 1;
     guard->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
+    guard->attack1.type = ATK_NORMAL;
+    guard->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    enemy->targtype = TARG_GROUND;
     guard->attack1.cooldown = 1.0f; guard->attack1.damageBase = 1;
     guard->attack1.range = 64.0f; guard->runtime.acquisition_range = 300.0f;
     guard->currentmove = &holdpos_move_stand;

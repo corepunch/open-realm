@@ -213,6 +213,8 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     wp = Waypoint_add(&(VECTOR2){220, 0});
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity == wp);
+    fix.caster->attack1.type = ATK_NORMAL;
+    fix.caster->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     T_ASSERT(S_OrderAttack(fix.caster, fix.enemy));
     fix.enemy->health.value = 500;
     S_ResolveAttackHit(fix.caster, fix.enemy, 40);

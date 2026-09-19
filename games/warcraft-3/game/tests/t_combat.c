@@ -132,7 +132,8 @@ TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
     setup_test_world();
     reset_entities();
     missile = G_Spawn();
-    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 200.0f, 200.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 100.0f);
+    target->s.origin.z = 200.0f;
     missile->s.origin = (VECTOR3){ 0.0f, 0.0f, 0.0f };
     missile->goalentity = target;
     missile->movetype = MOVETYPE_FLYMISSILE;
@@ -1483,6 +1484,9 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
 
     u->goalentity = target;
+    u->attack1.type = ATK_NORMAL;
+    u->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_GROUND;
     u->attack1.weapon = WPN_MISSILE;
     u->attack1.cooldown = 1.0f;
     u->attack1.damagePoint = 0.1f;
