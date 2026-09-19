@@ -481,9 +481,9 @@ static ability_t abilitylist[] = {
     { "Asta", CAbilityStasisTrap, AB_SPELL, SPELL_TARGET_POINT },  /* Stasis Trap */
     { "Ahwd", CAbilityHealingWard, AB_SPELL, SPELL_TARGET_POINT },  /* Healing Ward */
     { "Aoar", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE },  /* Healing Ward Aura */
-    // TODO: Aven a_venom_spear  /* Envenomed Spears */
-    // TODO: Apoi a_poison_attack  /* Poison Sting */
-    // TODO: Apo2 a_item_invul  /* Poison Sting */
+    { "Aven", CAbilityPoisonAttack, AB_PASSIVE },  /* Envenomed Spears */
+    { "Apoi", CAbilityPoisonAttack, AB_PASSIVE },  /* Poison Sting */
+    { "Apo2", CAbilityPoisonAttack, AB_PASSIVE },  /* Orb of Venom (Poison Attack) */
     // TODO: Aspi a_spiked  /* Spiked Barricades */
     // TODO: Asal a_button  /* Pillage */
     { "Aakb", CAbilityPassive, AB_PASSIVE },  /* War Drums */

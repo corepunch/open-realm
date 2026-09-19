@@ -89,3 +89,72 @@ BZ_SIMPLE_SPELL_PROC(AbilityTaunt) {
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
         order_attack(target, caster);
 }
+
+/* ---- Poison attacks (Aven/Apoi/Apo2) ---------------------------------------
+ * Name=Envenomed Spears / Poison Sting / Orb of Venom (Poison Attack)
+ * Ubertip="Deals <Aven,DataA1> poison damage per second. |nLasts <Aven,Dur1> seconds."
+ * Passive on-hit poison like Slow Poison. ROC omits BuffID; TFT authors the
+ * "Bpoi,Bpsd" pair (Aven/Apoi) or "BIpb,BIpd" (Apo2 item orb).
+ * TODO(1:1): DataA poison DPS needs the status-system periodic-damage tick
+ * first, the same gap Shadow Strike documents for BEsh. This slice applies
+ * the buff state with authored durations; no consumer reads Bpoi/Bpsd/BIpb/BIpd yet.
+ */
+#define ID_VENOM_SPEARS MAKEFOURCC('A', 'v', 'e', 'n')
+#define ID_POISON_ATTACK MAKEFOURCC('A', 'p', 'o', 'i')
+#define ID_POISON_ORB MAKEFOURCC('A', 'p', 'o', '2')
+
+BZ_ABILITY_PROC(CAbilityPoisonAttack) { return CAbilityPassive(ent, msg, call); }
+
+static DWORD const poison_codes[] = { ID_VENOM_SPEARS, ID_POISON_ATTACK, ID_POISON_ORB };
+
+static LPCSTR poison_buffs(DWORD code) {
+    static struct { DWORD code; LPCSTR buffs; } const fallback[] = {
+        { ID_VENOM_SPEARS, "Bpoi,Bpsd" },
+        { ID_POISON_ATTACK, "Bpoi,Bpsd" },
+        { ID_POISON_ORB, "BIpb,BIpd" },
+    };
+    LPCSTR buffs = G_AbilityLevel(code, 1)->buffID;
+    if (buffs && strlen(buffs) >= 4) return buffs;
+    FOR_LOOP(i, sizeof(fallback) / sizeof(fallback[0]))
+        if (fallback[i].code == code) return fallback[i].buffs;
+    return NULL;
+}
+
+static void poison_apply(LPEDICT attacker, LPEDICT target, DWORD code, DWORD *seen, DWORD *count) {
+    LPCSTR buffs;
+    DWORD level;
+    FOR_LOOP(i, *count)
+        if (seen[i] == code) return;
+    buffs = poison_buffs(code);
+    if (!buffs) return;
+    level = MAX(1, G_UnitAbilityLevel(attacker, code));
+    seen[(*count)++] = code;
+    while (strlen(buffs) >= 4) {
+        unit_addtimedstatus(target, buffs, level, S_SpellDuration(code, level, G_UnitIsHero(target)));
+        buffs = strchr(buffs, ',');
+        if (!buffs) break;
+        buffs++;
+    }
+}
+
+/* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
+ * poison ownership and held poison-orb items; the same poison from both applies once. */
+void S_PoisonOnHit(LPEDICT attacker, LPEDICT target) {
+    DWORD seen[sizeof(poison_codes) / sizeof(poison_codes[0])];
+    DWORD count = 0;
+    if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
+    FOR_LOOP(o, sizeof(poison_codes) / sizeof(poison_codes[0]))
+        if (G_UnitAbilityLevel(attacker, poison_codes[o])) poison_apply(attacker, target, poison_codes[o], seen, &count);
+    FOR_LOOP(i, MAX_INVENTORY) {
+        LPEDICT item = attacker->inventory[i];
+        LPCSTR abilities;
+        if (!item) continue;
+        abilities = G_ItemAbilityList(item);
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            DWORD code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+            FOR_LOOP(o, sizeof(poison_codes) / sizeof(poison_codes[0]))
+                if (code && code == poison_codes[o]) poison_apply(attacker, target, code, seen, &count);
+        }
+    }
+}

@@ -2065,6 +2065,76 @@ TEST(wc3_spell, slow_poison_uses_herodur_and_fraction_data) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* ACvs shares code=Aven, so the Aven row repairs its dispatch like Anhe/ACtc repair Anh1/ACt2. */
+TEST(wc3_spell, poison_attacks_share_poison_procedure) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y3;X2\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+		"C;Y2;X1;K\"Aven\"\nC;Y2;X2;K\"Aven\"\n"
+		"C;Y3;X1;K\"ACvs\"\nC;Y3;X2;K\"Aven\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	T_EQ(S_AbilityItem(MAKEFOURCC('A','v','e','n')).ability->proc, CAbilityPoisonAttack);
+	T_EQ(S_AbilityItem(MAKEFOURCC('A','p','o','i')).ability->proc, CAbilityPoisonAttack);
+	T_EQ(S_AbilityItem(MAKEFOURCC('A','p','o','2')).ability->proc, CAbilityPoisonAttack);
+	T_EQ(S_AbilityItem(MAKEFOURCC('A','C','v','s')).ability->proc, CAbilityPoisonAttack);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* ROC omits poison BuffID; fallbacks apply the Bpoi/Bpsd and BIpb/BIpd pairs
+ * with authored durations. Covers native ownership and a held Apo2 item; the
+ * item also carries Aven, so the same poison from both sources applies once. */
+TEST(wc3_spell, poison_on_hit_applies_buff_pair_with_authored_duration) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y4;X6\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+		"C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataD1\"\n"
+		"C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"0\"\n"
+		"C;Y2;X4;K\"0\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"0\"\n"
+		"C;Y3;X1;K\"Aven\"\nC;Y3;X2;K\"Aven\"\nC;Y3;X3;K\"7\"\n"
+		"C;Y3;X4;K\"2\"\nC;Y3;X5;K\"6\"\nC;Y3;X6;K\"0\"\n"
+		"C;Y4;X1;K\"Apo2\"\nC;Y4;X2;K\"Apo2\"\nC;Y4;X3;K\"6\"\n"
+		"C;Y4;X4;K\"6\"\nC;Y4;X5;K\"9\"\nC;Y4;X6;K\"1\"\nE\n";
+	const char items[] =
+		"ID;PWXL;N;EBB;Y2;X2\n"
+		"C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+		"C;Y2;X1;K\"orpv\"\nC;Y2;X2;K\"Aven,Apo2\"\nE\n";
+	UnitAbilities_t abilities = { .abilList = "AInv,Aven" };
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
+	LPEDICT attacker = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 300, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	LPEDICT hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 90, 0);
+	LPEDICT item = alloc_test_unit(MAKEFOURCC('o','r','p','v'), 32, 0);
+	level.time = 0;
+	attacker->data.UnitAbilities = &abilities; attacker->s.player = 0;
+	attacker->svflags |= SVF_MONSTER;
+	target->s.player = 1; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+	hero->s.player = 1; hero->svflags |= SVF_MONSTER;
+	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	memset(level.alliances, 0, sizeof(level.alliances));
+	item->targtype = TARG_ITEM;
+	item->item.in_world = true;
+	item->item.inventory_slot = -1;
+	T_ASSERT(G_AddItemToSlot(attacker, item, 0));
+	S_PoisonOnHit(attacker, target);
+	S_PoisonOnHit(attacker, hero);
+	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','p','o','i')));
+	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','p','s','d')));
+	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','p','b')));
+	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','p','d')));
+	T_ASSERT(S_UnitHasStatus(hero, MAKEFOURCC('B','p','o','i')));
+	level.time += 3000; unit_updatestatuses(target); unit_updatestatuses(hero);
+	T_ASSERT(!S_UnitHasStatus(hero, MAKEFOURCC('B','p','o','i')));
+	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','p','o','i')));
+	T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','p','b')));
+	level.time += 5000; unit_updatestatuses(target);
+	T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','p','o','i')));
+	T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','I','p','b')));
+	G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, moon_glaive_bounces_attack_to_nearby_enemy) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X4\n"
