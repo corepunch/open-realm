@@ -35,7 +35,11 @@ void PF_Unicast(LPEDICT ent) {
     /* Only the exact spawned client edict may receive this message. The old
      * sole-client fallback routed AI/player-slot UI clears to the human client. */
     LPCLIENT client = SV_ClientForEdictRecipient(ent);
-    if (!client) { SZ_Clear(&sv.multicast); return; }
+    if (!client) {
+        fprintf(stderr, "PF_Unicast: recipient unavailable payload=%u\n", (unsigned)sv.multicast.cursize);
+        SZ_Clear(&sv.multicast);
+        return;
+    }
     /* Image/font/model indices may have been allocated while authoring this
      * payload. Publish those configstrings first so a client never parses a
      * layout that references a resource slot it has not registered yet. */

@@ -231,7 +231,7 @@ TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
 TEST(server_net, edict_recipient_rejects_unowned_edict) {
     LPCLIENT client;
     BYTE data[16];
-    sizeBuf_t msg = { data, sizeof(data), 0, 0 };
+    sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
 
     reset_server_state(1);
@@ -249,6 +249,36 @@ TEST(server_net, edict_recipient_rejects_unowned_edict) {
     PF_Unicast(&test_edicts[5]);
     T_NULL(SV_ClientForEdictRecipient(&test_edicts[5]));
     T_EQ(client->netchan.message.cursize, 0);
+    T_EQ(NET_GetPacket(NS_CLIENT, &from, &msg), 0);
+}
+
+TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
+    BYTE data[16];
+    sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
+    netadr_t from;
+    LPCLIENT target, other;
+
+    reset_server_state(2);
+    svs.num_clients = 2;
+    target = &svs.clients[0];
+    target->state = cs_spawned;
+    target->edict = &test_edicts[0];
+    target->netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&target->netchan.message, target->netchan.message_buf, MAX_MSGLEN);
+    other = &svs.clients[1];
+    other->state = cs_spawned;
+    other->edict = &test_edicts[1];
+    SZ_Init(&other->netchan.message, other->netchan.message_buf, MAX_MSGLEN);
+
+    /* The valid path must transmit the layout to the exact client edict. */
+    MSG_WriteByte(&sv.multicast, svc_layout);
+    MSG_WriteByte(&sv.multicast, LAYER_INFOPANEL);
+    PF_Unicast(target->edict);
+    T_EQ(target->netchan.message.cursize, 0);
+    T_EQ(other->netchan.message.cursize, 0);
+    T_EQ(NET_GetPacket(NS_CLIENT, &from, &msg), 2);
+    T_EQ(MSG_ReadByte(&msg), svc_layout);
+    T_EQ(MSG_ReadByte(&msg), LAYER_INFOPANEL);
     T_EQ(NET_GetPacket(NS_CLIENT, &from, &msg), 0);
 }
 
