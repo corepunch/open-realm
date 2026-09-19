@@ -1608,10 +1608,12 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 T_ASSERT(workers[1]->goalentity == barracks_goal);
                 T_ASSERT(move_is_active_order_walk(workers[1]));
                 T_ASSERT(workers[i]->build_preview->aiflags & AI_HOLD_FRAME);
-                T_ASSERT(workers[i]->build_preview->animation);
-                T_ASSERT(G_AnimationHasPrimary(workers[i]->build_preview->animation, "stand"));
-                T_EQ(workers[i]->build_preview->s.frame,
-                     workers[i]->build_preview->animation->interval[0]);
+                T_STREQ(workers[i]->build_preview->animation_request, "stand");
+                if (workers[i]->build_preview->animation) {
+                    T_ASSERT(G_AnimationHasPrimary(workers[i]->build_preview->animation, "stand"));
+                    T_EQ(workers[i]->build_preview->s.frame,
+                         workers[i]->build_preview->animation->interval[0]);
+                }
                 T_ASSERT(workers[i]->build_preview->vertex_color_set);
                 T_EQ(workers[i]->build_preview->vertex_color.r, 255);
                 T_EQ(workers[i]->build_preview->vertex_color.g, 255);
@@ -1681,7 +1683,8 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     VECTOR2 const building_point = { 0.0f, 0.0f };
     VECTOR2 const worker_start = { 0.0f, -192.0f };
     VECTOR2 const later_build = { 0.0f, 512.0f };
-    VECTOR2 before_displace;
+    VECTOR2 before_displace, after_first_step;
+    FLOAT normal_step;
 
     setup_test_world();
     memset(pathmap, 0, sizeof(pathmap));
@@ -1701,6 +1704,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     pathtex->width = pathtex->height = FOOTPRINT;
     FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
     building->pathtex = pathtex;
+    normal_step = unit_movedistance(worker);
     gi.LinkEntity(builder); gi.LinkEntity(worker); gi.LinkEntity(building);
     CM_BakeStaticObstacles();
 
@@ -1708,7 +1712,10 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     order_move(worker, waypoint);
     before_displace = worker->s.origin2;
     T_ASSERT(G_DisplaceBuildOccupants(builder, building));
-    T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
+    T_FEQ(worker->s.origin2.x, before_displace.x, 0.001f);
+    T_FEQ(worker->s.origin2.y, before_displace.y, 0.001f);
+    T_ASSERT(move_displacement_active(worker));
+    T_STREQ(worker->animation_request, "walk");
     T_ASSERT(worker->goalentity == waypoint);
     T_ASSERT(move_is_active_order_walk(worker));
 
@@ -1720,8 +1727,16 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     level.started = true;
     level.scriptsStarted = true;
+    globals.RunFrame();
+    after_first_step = worker->s.origin2;
+    T_FEQ(Vector2_distance(&after_first_step, &before_displace), normal_step, 0.001f);
+    FOR_LOOP(frame, 7) globals.RunFrame();
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
+    T_ASSERT(move_displacement_active(worker));
+    T_STREQ(worker->animation_request, "walk");
     FOR_LOOP(frame, 240) globals.RunFrame();
     T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);
+    T_ASSERT(!move_displacement_active(worker));
     T_ASSERT(worker->goalentity == waypoint);
     T_FEQ(waypoint->s.origin2.x, later_build.x, 0.001f);
     T_FEQ(waypoint->s.origin2.y, later_build.y, 0.001f);

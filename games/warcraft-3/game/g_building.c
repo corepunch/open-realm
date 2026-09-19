@@ -1099,16 +1099,13 @@ static BOOL G_BuildTooCloseToGoldMine(DWORD building_id, LPCVECTOR2 point) {
 BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     LPEDICT *units;
     VECTOR2 *positions;
-    FLOAT *angles;
     DWORD count = 0;
 
     if (!builder || !building || !globals.num_edicts) return false;
     units = gi.MemAlloc(sizeof(*units) * globals.num_edicts);
     positions = gi.MemAlloc(sizeof(*positions) * globals.num_edicts);
-    angles = gi.MemAlloc(sizeof(*angles) * globals.num_edicts);
-    if (!units || !positions || !angles) {
+    if (!units || !positions) {
         fprintf(stderr, "WC3: unable to allocate construction occupant displacement buffers\n");
-        if (angles) gi.MemFree(angles);
         if (positions) gi.MemFree(positions);
         if (units) gi.MemFree(units);
         return false;
@@ -1126,19 +1123,21 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
                 ent->build ? (long)(ent->build - g_edicts) : -1L,
                 ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
 #endif
-        if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angles[count])) {
+        FLOAT angle;
+        if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angle)) {
 #ifdef WC3_DEBUG_BUILD
             fprintf(stderr, "WC3_BUILD displace-failed builder=%ld building=%ld unit=%ld reason=no-exit\n",
                     (long)(builder - g_edicts), (long)(building - g_edicts), (long)(ent - g_edicts));
 #endif
-            gi.MemFree(angles); gi.MemFree(positions); gi.MemFree(units); return false;
+            gi.MemFree(positions); gi.MemFree(units); return false;
         }
+        (void)angle;
         units[count++] = ent;
     }
     FOR_LOOP(i, count) {
         FOR_LOOP(j, i) {
             if (Vector2_distance(&positions[i], &positions[j]) < units[i]->collision + units[j]->collision) {
-                gi.MemFree(angles); gi.MemFree(positions); gi.MemFree(units); return false;
+                gi.MemFree(positions); gi.MemFree(units); return false;
             }
         }
     }
@@ -1151,14 +1150,9 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
                 units[i]->build_project ? (LPCSTR)&units[i]->build_project : "----",
                 units[i]->goalentity ? (long)(units[i]->goalentity - g_edicts) : -1L);
 #endif
-        units[i]->s.origin2 = positions[i];
-        units[i]->s.origin.x = positions[i].x; units[i]->s.origin.y = positions[i].y;
-        units[i]->s.origin.z = CM_GetHeightAtPoint(positions[i].x, positions[i].y);
-        units[i]->s.angle = angles[i];
-        gi.LinkEntity(units[i]);
-        move_reset_progress(units[i]);
+        move_start_displacement(units[i], &positions[i]);
     }
-    gi.MemFree(angles); gi.MemFree(positions); gi.MemFree(units);
+    gi.MemFree(positions); gi.MemFree(units);
     return true;
 }
 

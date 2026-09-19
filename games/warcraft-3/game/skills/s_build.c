@@ -47,6 +47,12 @@ static void ai_build_walk(LPEDICT ent) {
 
     distance = M_DistanceToGoal(ent);
     step = unit_movedistance(ent);
+    if (move_displacement_active(ent) && !move_displacement_reached(ent)) {
+        unit_setanimation(ent, "walk");
+        unit_changeangle_towards_point(ent, &goal->s.origin2);
+        unit_moveindirection(ent);
+        return;
+    }
     approach_range = G_BuildApproachDistance(ent->build_project) + ent->collision;
     reach = approach_range + step;
     if (distance <= reach) {
