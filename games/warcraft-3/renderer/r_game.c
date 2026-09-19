@@ -98,6 +98,11 @@ void R_LoadBlightTexture(BYTE tileset) {
     g_blight_texture = R_LoadTexture(path);
     if (!g_blight_texture || g_blight_texture == tr.texture[TEX_PLACEHOLDER])
         fprintf(stderr, "WC3 renderer: failed to load Blight texture %s for tileset %c\n", path, tileset);
+#ifdef WC3_DEBUG_BLIGHT
+    else fprintf(stderr, "WC3_BLIGHT texture tileset=%c path=%s id=%u size=%ux%u\n", tileset, path,
+                 (unsigned)g_blight_texture->texid, (unsigned)g_blight_texture->width,
+                 (unsigned)g_blight_texture->height);
+#endif
 }
 
 LPCTEXTURE R_BlightTexture(void) {
