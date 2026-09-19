@@ -455,59 +455,61 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
 }
 
 TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
-    mdxRibbonTrail_t trail = { 0 };
+    trail_t trail = { 0 };
     VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
-    VERTEX verts[32];
+    COLOR32 white = { 255, 255, 255, 180 };
+    trailVert_t verts[32];
     DWORD nverts;
 
-    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 10.0f, 0.0f, 0.1f), 1);
+    T_EQ(R_TrailAdvance(&trail, above, below, white, 0.5f, 10.0f, 0.0f, 100, 100), 1);
     above.x = 5; below.x = 5;
-    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 10.0f, 0.0f, 0.1f), 2);
-    nverts = MDLX_RibbonStripVertices(&trail, 0.5f, 1, 1, 0, (COLOR32){ 255, 255, 255, 180 }, verts, 32);
+    T_EQ(R_TrailAdvance(&trail, above, below, white, 0.5f, 10.0f, 0.0f, 200, 100), 2);
+    nverts = R_TrailStripVerts(&trail, 0.5f, 1, 1, 0, verts, 32);
     T_EQ(nverts, 6);
     T_FEQ(verts[0].position.y, 10.0f, 0.001f);
     T_FEQ(verts[1].position.y, -10.0f, 0.001f);
     T_FEQ(verts[2].position.x, 5.0f, 0.001f);
-    T_FEQ(verts[0].texcoord.x, 0.2f, 0.001f); /* age-based U: oldest edge age 0.1 of 0.5s lifespan */
-    T_FEQ(verts[5].texcoord.x, 0.0f, 0.001f);
-    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 0.0f, 0.0f, 0.6f), 0);
+    T_FEQ(verts[0].uv.x, 0.2f, 0.001f); /* age-based U: oldest edge age 0.1 of 0.5s lifespan */
+    T_FEQ(verts[5].uv.x, 0.0f, 0.001f);
+    T_EQ(R_TrailAdvance(&trail, above, below, white, 0.5f, 0.0f, 0.0f, 400, 600), 0);
 }
 
 TEST(renderer_model, mdx_ribbon_strip_u_survives_adding_an_edge) {
-    mdxRibbonTrail_t trail = { .head = 2, .count = 2 };
-    VERTEX before[12], after[18];
+    trail_t trail = { .head = 2, .count = 2 };
+    trailVert_t before[12], after[18];
     DWORD nbefore, nafter;
     COLOR32 white = { 255, 255, 255, 255 };
 
-    trail.edges[0] = (mdxRibbonEdge_t){ .above = { 0, 10, 0 }, .below = { 0, -10, 0 }, .age = 0.2f };
-    trail.edges[1] = (mdxRibbonEdge_t){ .above = { 5, 10, 0 }, .below = { 5, -10, 0 }, .age = 0.1f };
-    nbefore = MDLX_RibbonStripVertices(&trail, 0.5f, 1, 1, 0, white, before, 12);
+    trail.edges[0] = (trailEdge_t){ .above = { 0, 10, 0 }, .below = { 0, -10, 0 }, .color = white, .age = 0.2f };
+    trail.edges[1] = (trailEdge_t){ .above = { 5, 10, 0 }, .below = { 5, -10, 0 }, .color = white, .age = 0.1f };
+    nbefore = R_TrailStripVerts(&trail, 0.5f, 1, 1, 0, before, 12);
     T_EQ(nbefore, 6);
-    trail.edges[2] = (mdxRibbonEdge_t){ .above = { 10, 10, 0 }, .below = { 10, -10, 0 }, .age = 0.0f };
+    trail.edges[2] = (trailEdge_t){ .above = { 10, 10, 0 }, .below = { 10, -10, 0 }, .color = white, .age = 0.0f };
     trail.head = 3; trail.count = 3;
-    nafter = MDLX_RibbonStripVertices(&trail, 0.5f, 1, 1, 0, white, after, 18);
+    nafter = R_TrailStripVerts(&trail, 0.5f, 1, 1, 0, after, 18);
     T_EQ(nafter, 12);
     FOR_LOOP(i, 6) { /* the old quad keeps its exact UVs; only the new quad is appended */
-        T_FEQ(after[i].texcoord.x, before[i].texcoord.x, 0.000001f);
-        T_FEQ(after[i].texcoord.y, before[i].texcoord.y, 0.000001f);
+        T_FEQ(after[i].uv.x, before[i].uv.x, 0.000001f);
+        T_FEQ(after[i].uv.y, before[i].uv.y, 0.000001f);
     }
     T_FEQ(after[6].position.x, 5.0f, 0.001f);
     T_FEQ(after[11].position.x, 10.0f, 0.001f);
 }
 
 TEST(renderer_model, mdx_ribbon_hitch_does_not_stack_coincident_edges) {
-    mdxRibbonTrail_t trail = { 0 };
+    trail_t trail = { 0 };
     VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    COLOR32 white = { 255, 255, 255, 255 };
     float xmin, xmax;
     int e, alive;
 
-    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 30.0f, 20.0f, 0.0f, 0.05f), 1);
+    T_EQ(R_TrailAdvance(&trail, above, below, white, 30.0f, 20.0f, 0.0f, 1000, 50), 1);
     above.x = below.x = 100.0f;
-    alive = MDLX_UpdateRibbonTrail(&trail, above, below, 30.0f, 20.0f, 0.0f, 10.0f);
+    alive = R_TrailAdvance(&trail, above, below, white, 30.0f, 20.0f, 0.0f, 1050, 10000);
     T_ASSERT(alive <= 3); /* accumulator clamps at 2: at most 2 edges per call, the seed survives */
     xmin = xmax = trail.edges[0].above.x;
     for (e = 0; e < trail.count; e++) {
-        int idx = (trail.head - trail.count + e + BZ_MDX_RIBBON_EDGES) % BZ_MDX_RIBBON_EDGES;
+        int idx = (trail.head - trail.count + e + TRAIL_MAX_EDGES) % TRAIL_MAX_EDGES;
         xmin = MIN(xmin, trail.edges[idx].above.x);
         xmax = MAX(xmax, trail.edges[idx].above.x);
     }
@@ -515,19 +517,33 @@ TEST(renderer_model, mdx_ribbon_hitch_does_not_stack_coincident_edges) {
 }
 
 TEST(renderer_model, mdx_ribbon_edges_match_spawn_time_positions) {
-    mdxRibbonTrail_t trail = { 0 };
+    trail_t trail = { 0 };
     VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    COLOR32 white = { 255, 255, 255, 255 };
     int e;
 
     FOR_LOOP(i, 5) { /* linear motion, 1 edge per 100 ms at 10/s */
         above.x = below.x = (float)i * 2.0f;
-        MDLX_UpdateRibbonTrail(&trail, above, below, 10.0f, 10.0f, 0.0f, 0.1f);
+        R_TrailAdvance(&trail, above, below, white, 10.0f, 10.0f, 0.0f, 1000 + i * 100, 100);
     }
     T_EQ(trail.count, 5);
     for (e = 0; e < 5; e++) {
-        int idx = (trail.head - trail.count + e + BZ_MDX_RIBBON_EDGES) % BZ_MDX_RIBBON_EDGES;
+        int idx = (trail.head - trail.count + e + TRAIL_MAX_EDGES) % TRAIL_MAX_EDGES;
         T_FEQ(trail.edges[idx].above.x, (float)e * 2.0f, 0.001f);
     }
+}
+
+TEST(renderer_model, mdx_ribbon_edge_colors_stay_historic) {
+    trail_t trail = { 0 };
+    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    COLOR32 red = { 255, 0, 0, 255 }, white = { 255, 255, 255, 255 };
+    trailVert_t verts[12];
+
+    R_TrailAdvance(&trail, above, below, red, 10.0f, 10.0f, 0.0f, 1000, 100);
+    R_TrailAdvance(&trail, above, below, white, 10.0f, 10.0f, 0.0f, 1100, 100);
+    T_EQ(R_TrailStripVerts(&trail, 10.0f, 1, 1, 0, verts, 12), 6);
+    T_EQ(verts[0].color.r, 255); T_EQ(verts[0].color.g, 0); /* oldest edge keeps its red */
+    T_EQ(verts[5].color.r, 255); T_EQ(verts[5].color.g, 255); /* newest edge is white */
 }
 
 TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
@@ -639,6 +655,82 @@ TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
         test_free(model.ribbon_states);
         model.ribbon_states = NULL;
     }
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_detached_ribbon_waits_one_frame_then_fades_out) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10,
+        .color = { 1, 1, 1 }, .lifespan = 0.5f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    mdxModel_t model = { .ribbons = &ribbon };
+    renderEntity_t entity = { .number = 31 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef = (viewDef_t){ .time = 1000, .deltaTime = 100 };
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    MDLX_TickDetachedRibbons(); /* the owner drew in this frame: no orphan yet */
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    tr.viewDef.time = 1100;
+    MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    tr.viewDef.time = 1600;
+    MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    MDLX_ForgetRibbonModel(&model);
+    if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_detached_ribbon_reattach_cancels_orphan) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10,
+        .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    mdxModel_t model = { .ribbons = &ribbon };
+    renderEntity_t entity = { .number = 32 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef = (viewDef_t){ .time = 2000, .deltaTime = 100 };
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    tr.viewDef.time = 2100; MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    tr.viewDef.time = 2200; MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    MDLX_ForgetRibbonModel(&model);
+    if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10,
+        .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    mdxModel_t model = { .ribbons = &ribbon };
+    renderEntity_t entity = { .number = 33 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef = (viewDef_t){ .time = 3000, .deltaTime = 100 };
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    tr.viewDef.time = 3100; MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    tr.viewDef.time = 4000; Matrix4_translate(&matrix, &(VECTOR3){10000, 0, 0});
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    T_ASSERT(model.ribbon_states->trails[0].count >= 1);
+    FOR_LOOP(i, model.ribbon_states->trails[0].count) {
+        int edge = (model.ribbon_states->trails[0].head - model.ribbon_states->trails[0].count + i + TRAIL_MAX_EDGES) % TRAIL_MAX_EDGES;
+        T_FEQ(model.ribbon_states->trails[0].edges[edge].above.x, 10000.0f, 0.001f);
+    }
+    MDLX_ForgetRibbonModel(&model);
+    if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
     tr.viewDef = saved;
 }
 
