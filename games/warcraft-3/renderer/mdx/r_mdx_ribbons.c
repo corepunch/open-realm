@@ -31,7 +31,7 @@ int MDLX_UpdateRibbonTrail(mdxRibbonTrail_t *trail, VECTOR3 above, VECTOR3 below
         alive--;
     }
     if (rate > 0.0f && dt > 0.0f) {
-        trail->acc += rate * dt;
+        trail->acc = MIN(trail->acc + rate * dt, 2.0f); /* clamp before emitting: a hitch must not stack coincident edges */
         while (trail->acc >= 1.0f) {
             mdxRibbonEdge_t *edge;
             trail->acc -= 1.0f;
@@ -43,7 +43,6 @@ int MDLX_UpdateRibbonTrail(mdxRibbonTrail_t *trail, VECTOR3 above, VECTOR3 below
             write = (write + 1) % BZ_MDX_RIBBON_EDGES;
             alive++;
         }
-        if (trail->acc > 2.0f) trail->acc = 0.0f;
     }
     trail->head = write;
     trail->count = alive;
@@ -67,27 +66,28 @@ static void MDLX_RibbonQuad(VERTEX *out, VECTOR3 a, VECTOR3 b, VECTOR3 c, VECTOR
     memcpy(out, v, sizeof(v));
 }
 
-/* One quad per consecutive edge pair. U unwraps along the chain so Ghost2-style textures decorate the strip. */
-DWORD MDLX_RibbonStripVertices(mdxRibbonTrail_t const *trail, DWORD columns, DWORD rows, DWORD slot,
+/* One quad per consecutive edge pair. U is age-based (oldest edges flow toward
+ * the end of the unwrap) so adding or expiring an edge never rescales the rest. */
+DWORD MDLX_RibbonStripVertices(mdxRibbonTrail_t const *trail, float lifespan, DWORD columns, DWORD rows, DWORD slot,
                                COLOR32 color, VERTEX *out, DWORD max)
 {
     int alive, i, write;
-    float chain, cols, rows_f, cell_u, cell_v;
+    float cols, rows_f, cell_u, cell_v;
     DWORD used = 0;
 
-    if (!trail || !out || trail->count < 2) return 0;
+    if (!trail || !out || trail->count < 2 || lifespan <= 0.0f) return 0;
     alive = trail->count;
     write = trail->head;
     cols = (float)MAX(1, columns);
     rows_f = (float)MAX(1, rows);
     cell_u = (float)(slot % MAX(1, columns)) / cols;
     cell_v = (float)(slot / MAX(1, columns)) / rows_f;
-    chain = 1.0f / (float)(alive - 1);
     for (i = 0; i < alive - 1 && used + 6 <= max; i++) {
         int a = (write - alive + i + BZ_MDX_RIBBON_EDGES) % BZ_MDX_RIBBON_EDGES;
         int b = (write - alive + i + 1 + BZ_MDX_RIBBON_EDGES) % BZ_MDX_RIBBON_EDGES;
-        float u0 = cell_u + (1.0f - (float)i * chain - chain) / cols;
-        float u1 = u0 + chain / cols;
+        float t_old = MIN(1.0f, trail->edges[a].age / lifespan);
+        float t_new = MIN(1.0f, trail->edges[b].age / lifespan);
+        float u0 = cell_u + t_new / cols, u1 = cell_u + t_old / cols;
         VECTOR2 uv_above0 = { u1, cell_v };
         VECTOR2 uv_below0 = { u1, cell_v + 1.0f / rows_f };
         VECTOR2 uv_below1 = { u0, cell_v + 1.0f / rows_f };
@@ -158,7 +158,8 @@ DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, L
                               mdxRibbonEmitter_t *ribbon, VERTEX *out, DWORD max)
 {
     mdxRibbonInstance_t *state;
-    DWORD idx, slot, frame;
+    mdxRibbonTrail_t *trail;
+    DWORD idx, slot, frame, gap;
     float visibility = 1.0f, heightAbove, heightBelow, alpha, rate, dt;
     VECTOR3 color, above, below;
     COLOR32 rgba;
@@ -167,9 +168,12 @@ DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, L
     idx = MDLX_RibbonIndex(model, ribbon);
     state = MDLX_RibbonInstance(model, entity->number);
     if (!state || idx >= state->ntrails) return 0;
-    state->stamp = tr.viewDef.time;
+    trail = &state->trails[idx];
+    gap = tr.viewDef.time - trail->stamp;
+    if (trail->stamp && gap > 250) memset(trail, 0, sizeof(*trail)); /* stale trail: edict reused or long-culled */
+    dt = gap ? tr.viewDef.deltaTime / 1000.0f : 0.0f; /* second draw in this frame must not advance again */
+    trail->stamp = state->stamp = tr.viewDef.time;
     frame = entity->frame;
-    dt = tr.viewDef.deltaTime / 1000.f;
     heightAbove = ribbon->heightAbove;
     heightBelow = ribbon->heightBelow;
     alpha = ribbon->alpha;
@@ -190,12 +194,12 @@ DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, L
         MDLX_GetModelKeytrackValue(model, ribbon->keytracks.TextureSlot, frame, &slot);
     MDLX_RibbonWorldEdge(model, ribbon, model_matrix, heightAbove, heightBelow, &above, &below);
     if (visibility < EPSILON) rate = 0.0f;
-    MDLX_UpdateRibbonTrail(&state->trails[idx], above, below, ribbon->lifespan, rate, ribbon->gravity, dt);
+    MDLX_UpdateRibbonTrail(trail, above, below, ribbon->lifespan, rate, ribbon->gravity, dt);
     rgba = (COLOR32){
         (BYTE)MIN(255, MAX(0, color.x * 255.0f + 0.5f)),
         (BYTE)MIN(255, MAX(0, color.y * 255.0f + 0.5f)),
         (BYTE)MIN(255, MAX(0, color.z * 255.0f + 0.5f)),
         (BYTE)MIN(255, MAX(0, alpha * 255.0f + 0.5f)),
     };
-    return MDLX_RibbonStripVertices(&state->trails[idx], ribbon->columns, ribbon->rows, slot, rgba, out, max);
+    return MDLX_RibbonStripVertices(trail, ribbon->lifespan, ribbon->columns, ribbon->rows, slot, rgba, out, max);
 }

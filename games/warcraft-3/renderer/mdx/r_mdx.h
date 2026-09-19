@@ -344,6 +344,7 @@ typedef struct {
     mdxRibbonEdge_t edges[BZ_MDX_RIBBON_EDGES];
     int head, count;
     float acc;
+    DWORD stamp; /* last tr.viewDef.time this trail advanced; guards double-draws and detects edict reuse */
 } mdxRibbonTrail_t;
 
 typedef struct mdxRibbonEmitter_s {
@@ -489,7 +490,7 @@ void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, LPC
 void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, LPCMATRIX4);
 int MDLX_UpdateRibbonTrail(mdxRibbonTrail_t *trail, VECTOR3 above, VECTOR3 below,
                            float lifespan, float rate, float gravity, float dt);
-DWORD MDLX_RibbonStripVertices(mdxRibbonTrail_t const *trail, DWORD columns, DWORD rows, DWORD slot,
+DWORD MDLX_RibbonStripVertices(mdxRibbonTrail_t const *trail, float lifespan, DWORD columns, DWORD rows, DWORD slot,
                                COLOR32 color, VERTEX *out, DWORD max);
 DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix,
                               mdxRibbonEmitter_t *ribbon, VERTEX *out, DWORD max);

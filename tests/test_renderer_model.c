@@ -463,14 +463,71 @@ TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
     T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 10.0f, 0.0f, 0.1f), 1);
     above.x = 5; below.x = 5;
     T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 10.0f, 0.0f, 0.1f), 2);
-    nverts = MDLX_RibbonStripVertices(&trail, 1, 1, 0, (COLOR32){ 255, 255, 255, 180 }, verts, 32);
+    nverts = MDLX_RibbonStripVertices(&trail, 0.5f, 1, 1, 0, (COLOR32){ 255, 255, 255, 180 }, verts, 32);
     T_EQ(nverts, 6);
     T_FEQ(verts[0].position.y, 10.0f, 0.001f);
     T_FEQ(verts[1].position.y, -10.0f, 0.001f);
     T_FEQ(verts[2].position.x, 5.0f, 0.001f);
-    T_FEQ(verts[0].texcoord.x, 1.0f, 0.001f);
+    T_FEQ(verts[0].texcoord.x, 0.2f, 0.001f); /* age-based U: oldest edge age 0.1 of 0.5s lifespan */
     T_FEQ(verts[5].texcoord.x, 0.0f, 0.001f);
     T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 0.0f, 0.0f, 0.6f), 0);
+}
+
+TEST(renderer_model, mdx_ribbon_strip_u_survives_adding_an_edge) {
+    mdxRibbonTrail_t trail = { .head = 2, .count = 2 };
+    VERTEX before[12], after[18];
+    DWORD nbefore, nafter;
+    COLOR32 white = { 255, 255, 255, 255 };
+
+    trail.edges[0] = (mdxRibbonEdge_t){ .above = { 0, 10, 0 }, .below = { 0, -10, 0 }, .age = 0.2f };
+    trail.edges[1] = (mdxRibbonEdge_t){ .above = { 5, 10, 0 }, .below = { 5, -10, 0 }, .age = 0.1f };
+    nbefore = MDLX_RibbonStripVertices(&trail, 0.5f, 1, 1, 0, white, before, 12);
+    T_EQ(nbefore, 6);
+    trail.edges[2] = (mdxRibbonEdge_t){ .above = { 10, 10, 0 }, .below = { 10, -10, 0 }, .age = 0.0f };
+    trail.head = 3; trail.count = 3;
+    nafter = MDLX_RibbonStripVertices(&trail, 0.5f, 1, 1, 0, white, after, 18);
+    T_EQ(nafter, 12);
+    FOR_LOOP(i, 6) { /* the old quad keeps its exact UVs; only the new quad is appended */
+        T_FEQ(after[i].texcoord.x, before[i].texcoord.x, 0.000001f);
+        T_FEQ(after[i].texcoord.y, before[i].texcoord.y, 0.000001f);
+    }
+    T_FEQ(after[6].position.x, 5.0f, 0.001f);
+    T_FEQ(after[11].position.x, 10.0f, 0.001f);
+}
+
+TEST(renderer_model, mdx_ribbon_hitch_does_not_stack_coincident_edges) {
+    mdxRibbonTrail_t trail = { 0 };
+    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    float xmin, xmax;
+    int e, alive;
+
+    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 30.0f, 20.0f, 0.0f, 0.05f), 1);
+    above.x = below.x = 100.0f;
+    alive = MDLX_UpdateRibbonTrail(&trail, above, below, 30.0f, 20.0f, 0.0f, 10.0f);
+    T_ASSERT(alive <= 3); /* accumulator clamps at 2: at most 2 edges per call, the seed survives */
+    xmin = xmax = trail.edges[0].above.x;
+    for (e = 0; e < trail.count; e++) {
+        int idx = (trail.head - trail.count + e + BZ_MDX_RIBBON_EDGES) % BZ_MDX_RIBBON_EDGES;
+        xmin = MIN(xmin, trail.edges[idx].above.x);
+        xmax = MAX(xmax, trail.edges[idx].above.x);
+    }
+    T_ASSERT(xmax - xmin > 50.0f);
+}
+
+TEST(renderer_model, mdx_ribbon_edges_match_spawn_time_positions) {
+    mdxRibbonTrail_t trail = { 0 };
+    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    int e;
+
+    FOR_LOOP(i, 5) { /* linear motion, 1 edge per 100 ms at 10/s */
+        above.x = below.x = (float)i * 2.0f;
+        MDLX_UpdateRibbonTrail(&trail, above, below, 10.0f, 10.0f, 0.0f, 0.1f);
+    }
+    T_EQ(trail.count, 5);
+    for (e = 0; e < 5; e++) {
+        int idx = (trail.head - trail.count + e + BZ_MDX_RIBBON_EDGES) % BZ_MDX_RIBBON_EDGES;
+        T_FEQ(trail.edges[idx].above.x, (float)e * 2.0f, 0.001f);
+    }
 }
 
 TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
@@ -509,10 +566,74 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
     nverts = MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(nverts, 0);
     entity.frame = 2500;
+    tr.viewDef.time += tr.viewDef.deltaTime; /* next frame: the same timestamp must not advance twice */
     nverts = MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(nverts, 6);
     T_FEQ(verts[0].position.y, 20.0f, 0.001f);
     T_FEQ(verts[1].position.y, -20.0f, 0.001f);
+    if (model.ribbon_states) {
+        test_free(model.ribbon_states->trails);
+        test_free(model.ribbon_states);
+        model.ribbon_states = NULL;
+    }
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_ribbon_second_emit_same_frame_does_not_advance) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 20, .heightBelow = 20, .alpha = 1.0f,
+        .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    VECTOR3 pivot = { 0, 0, 0 };
+    mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1 };
+    renderEntity_t entity = { .number = 9, .frame = 0 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0;
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef.deltaTime = 50; tr.viewDef.time = 1000;
+    T_EQ(MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64), 0);
+    T_EQ(model.ribbon_states->trails[0].count, 1);
+    T_EQ(MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64), 0);
+    T_EQ(model.ribbon_states->trails[0].count, 1); /* shadow/lights redraw in the same frame emits nothing new */
+    tr.viewDef.time = 1050;
+    T_EQ(MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64), 6);
+    T_EQ(model.ribbon_states->trails[0].count, 2);
+    if (model.ribbon_states) {
+        test_free(model.ribbon_states->trails);
+        test_free(model.ribbon_states);
+        model.ribbon_states = NULL;
+    }
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10, .alpha = 1.0f,
+        .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    VECTOR3 pivot = { 0, 0, 0 };
+    mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1 };
+    renderEntity_t entity = { .number = 11, .frame = 0 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    DWORD nverts;
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0;
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef.deltaTime = 50; tr.viewDef.time = 1000;
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(model.ribbon_states->trails[0].count, 1);
+    Matrix4_translate(&matrix, &(VECTOR3){ 10000.0f, 0.0f, 0.0f }); /* edict reused far away a second later */
+    tr.viewDef.time = 2000;
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(model.ribbon_states->trails[0].count, 1);
+    tr.viewDef.time = 2050;
+    nverts = MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(nverts, 6);
+    FOR_LOOP(i, nverts) /* no streak back to the old impact point */
+        T_ASSERT(fabsf(verts[i].position.x - 10000.0f) < 1.0f);
     if (model.ribbon_states) {
         test_free(model.ribbon_states->trails);
         test_free(model.ribbon_states);
