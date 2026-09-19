@@ -44,6 +44,7 @@ void _W3M_ClearMap(void) {
     R_FreeMapLayers(&g_groundLayers);
     R_ResetGroundTextures();
     R_ResetCliffCache();
+    R_ResetBlightCache();
     R_FreeCameraHeightMap(&w3_camera_height);
     R_ShutdownFogOfWar();
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);

@@ -62,6 +62,71 @@ static FLOAT G_SnapBlightCorner(FLOAT value, FLOAT minimum) {
     return minimum + floorf((value - minimum) / WC3_BLIGHT_TERRAIN_CELL) * WC3_BLIGHT_TERRAIN_CELL;
 }
 
+static BOOL G_BlightDestructableFootprintBlighted(LPCEDICT ent) {
+    pathTex_t const *pathtex;
+
+    if (!ent || !G_IsDestructable(ent) || ent->destructable.dead) return false;
+    pathtex = ent->destructable.alive_pathtex;
+    if (!pathtex || !pathtex->width || !pathtex->height)
+        return G_IsPointBlighted(&ent->s.origin2);
+    FOR_LOOP(y, pathtex->height) FOR_LOOP(x, pathtex->width) {
+        VECTOR2 sample;
+        if (!pathtex->map[x + y * pathtex->width].b) continue;
+        sample.x = ent->s.origin2.x + ((FLOAT)x + 0.5f - (FLOAT)pathtex->width * 0.5f) * WC3_BLIGHT_PATH_CELL;
+        sample.y = ent->s.origin2.y + ((FLOAT)y + 0.5f - (FLOAT)pathtex->height * 0.5f) * WC3_BLIGHT_PATH_CELL;
+        if (!G_IsPointBlighted(&sample)) return false;
+    }
+    return true;
+}
+
+void G_BlightMarkDestructable(LPEDICT ent) {
+    DestructableData_t const *data;
+    PATHSTR blight_texture;
+    LPCSTR dot;
+
+    if (!ent || !G_IsDestructable(ent) || ent->destructable.blighted) return;
+    ent->destructable.blighted = true;
+    ent->s.blighted = true;
+    data = ent->data.DestructableData;
+    if (!data || !data->textureFile || !*data->textureFile || !strcmp(data->textureFile, "_")) return;
+    dot = strrchr(data->textureFile, '.');
+    if (dot && dot - data->textureFile >= 6 && !strncasecmp(dot - 6, "Blight", 6)) return;
+    if (!dot && strlen(data->textureFile) >= 6 && !strcasecmp(data->textureFile + strlen(data->textureFile) - 6, "Blight")) return;
+    if (dot)
+        snprintf(blight_texture, sizeof(blight_texture), "%.*sBlight%s",
+                 (int)(dot - data->textureFile), data->textureFile, dot);
+    else
+        snprintf(blight_texture, sizeof(blight_texture), "%sBlight", data->textureFile);
+    ent->s.image = gi.ImageIndex(blight_texture);
+    if (!ent->s.image)
+        fprintf(stderr, "G_BlightMarkDestructable: unresolved Blight texture '%s' for %.4s\n",
+                blight_texture, (LPCSTR)&ent->class_id);
+#ifdef WC3_DEBUG_BLIGHT
+    fprintf(stderr, "WC3_BLIGHT tree ent=%ld class=%.4s texture=%s image=%u\n",
+            (long)(ent - g_edicts), (LPCSTR)&ent->class_id, blight_texture,
+            (unsigned)ent->s.image);
+#endif
+}
+
+void G_BlightInitializeDestructable(LPEDICT ent) {
+    if (G_BlightDestructableFootprintBlighted(ent)) G_BlightMarkDestructable(ent);
+}
+
+void G_BlightUpdateDestructables(LPCBOX2 region) {
+    BOX2 expanded;
+
+    if (!region) return;
+    expanded = *region;
+    expanded.min.x -= WC3_BLIGHT_TERRAIN_CELL;
+    expanded.min.y -= WC3_BLIGHT_TERRAIN_CELL;
+    expanded.max.x += WC3_BLIGHT_TERRAIN_CELL;
+    expanded.max.y += WC3_BLIGHT_TERRAIN_CELL;
+    FILTER_EDICTS(ent, ent->inuse && G_IsDestructable(ent) &&
+        !ent->destructable.blighted && Box2_containsPoint(&expanded, &ent->s.origin2)) {
+        if (G_BlightDestructableFootprintBlighted(ent)) G_BlightMarkDestructable(ent);
+    }
+}
+
 void G_BlightShutdown(void) {
     SAFE_DELETE(level.blight.cells, gi.MemFree);
     SAFE_DELETE(level.blight.dirty_rows, gi.MemFree);
@@ -142,6 +207,11 @@ void G_SetBlightPoint(LPCVECTOR2 point, BOOL add) {
 #else
     G_SetBlightCorner(x, y, add);
 #endif
+    if (add) {
+        BOX2 region = { { x - WC3_BLIGHT_TERRAIN_CELL, y - WC3_BLIGHT_TERRAIN_CELL },
+                        { x + WC3_BLIGHT_TERRAIN_CELL, y + WC3_BLIGHT_TERRAIN_CELL } };
+        G_BlightUpdateDestructables(&region);
+    }
 }
 
 void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add) {
@@ -163,6 +233,11 @@ void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add) {
             add ? "add" : "remove", point->x, point->y, radius,
             (unsigned)corners, (unsigned)changed, (unsigned)G_BlightSetCellCount());
 #endif
+    if (add) {
+        BOX2 region = { { point->x - radius, point->y - radius },
+                        { point->x + radius, point->y + radius } };
+        G_BlightUpdateDestructables(&region);
+    }
 }
 
 void G_SetBlightRect(LPCBOX2 rect, BOOL add) {
@@ -181,6 +256,7 @@ void G_SetBlightRect(LPCBOX2 rect, BOOL add) {
             add ? "add" : "remove", rect->min.x, rect->min.y, rect->max.x, rect->max.y,
             (unsigned)corners, (unsigned)changed, (unsigned)G_BlightSetCellCount());
 #endif
+    if (add) G_BlightUpdateDestructables(rect);
 }
 
 DWORD G_GetBlightStateSize(void) { return level.blight.cells ? G_BlightCellCount() : 0; }

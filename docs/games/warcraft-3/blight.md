@@ -33,6 +33,8 @@ The unit stores the concrete alias, current radius, and next expansion deadline 
 
 The implementation intentionally does not erase Blight when the source dies or disappears. `Abli` paints world state; removal is an explicit Blight operation, not reference-counted aura teardown.
 
+Growth is suspended while `construction.active` is true. If authored `Area` data is reduced while a source is alive, its stored progress is clamped for future growth; previously painted world cells are not removed.
+
 ## Placement and regeneration
 
 Building placement already evaluates every used authored pathing-texture cell. Missing the `blighted` required bit now returns `PLACE_REQUIRES_BLIGHT`, and construction feedback uses the Warcraft `Offblight` key with a fallback message. Arrival-time build revalidation uses the same evaluator, so Blight removed while a worker travels can invalidate the order before payment/spawn.
@@ -48,14 +50,14 @@ Save format 32 writes the final game-owned Blight plane after the level field st
 The server publishes the authoritative Blight plane through the existing Warcraft III per-frame game datagram. A client receives the initial map plane after `G_ClientBegin`; later point/radius/rect changes dirty only affected rows for connected clients. Each chunk carries the grid origin, dimensions, 32-unit cell size, and a bit-packed contiguous row range, so a large initial plane can span frames without widening `entityState_t` or starving the existing weather/tint payload.
 
 - `CL_ParseFrame()` assembles chunks into a persistent client mask and exposes it through the generic terrain-mask fields in `viewDef_t`;
-- the WC3 terrain renderer collapses each 4x4 pathing block to a terrain tile, merges horizontal runs, conforms the overlay to terrain height, and draws a translucent purple Blight tint after ground/cliff geometry;
-- the placement preview still uses its existing client pathing data; server placement remains authoritative when the order arrives;
-- Blighted destructable/tree presentation, including Ghoul-triggered tree Blight, remains separate work;
+- the WC3 terrain renderer collapses each 4x4 pathing block to a terrain tile, caches the result, and rebuilds only tiles intersecting changed network rows before drawing merged terrain runs;
+- the placement preview overlays the synchronized Blight bit on each footprint sample before applying required/prevented flags; the server remains authoritative when the order arrives;
+- destructables carry a persistent one-way Blight presentation state, initialized from their footprint, updated by added Blight, and set by successful Undead lumber hits. The state is delta-serialized to clients and uses the authored texture stem plus `Blight` when available;
 - retail verification of the buildable-ground raster edge cases where Warsmash consults ground-texture metadata rather than only WPM pathing.
 
 ## Verification
 
-Regression tests cover WPM-seeded Blight, runtime add/remove, survival across `CM_BakeStaticObstacles()`, Blight-mask snapshot restore, runtime building placement, Blight-only regeneration, all five JASS natives, authored non-stock `Abli` expansion/availability from both TFT `DataA1`/`DataB1` and ROC `Data11`/`Data12` columns, and save/load of both world and per-source growth state.
+Regression tests cover WPM-seeded Blight, runtime add/remove, survival across `CM_BakeStaticObstacles()`, Blight-mask snapshot restore, runtime building placement, Blight-only regeneration, all five JASS natives, authored non-stock `Abli` expansion/availability from both TFT `DataA1`/`DataB1` and ROC `Data11`/`Data12` columns, save/load of world, source, and destructable state, destructable one-way presentation, and entity-delta preservation of the client presentation bit.
 
 After building, run at least:
 

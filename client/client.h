@@ -110,6 +110,8 @@ struct client_state {
         FLOAT cell_size;
         BYTE *cells;
         DWORD generation;
+        DWORD dirty_first_row;
+        DWORD dirty_row_count;
     } blight;
     LPENTITYSTATE cursorEntity;
     struct {

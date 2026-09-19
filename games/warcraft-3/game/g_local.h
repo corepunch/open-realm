@@ -1323,6 +1323,7 @@ struct edict_s {
         BOOL script_bound;
 
         BOOL dead;
+        BOOL blighted; /* one-way destructable presentation state */
         BOOL pathing_active;
         BOOL placement_solid;
         BOOL loot_processed;
@@ -1951,6 +1952,9 @@ BOOL G_IsPointBlighted(LPCVECTOR2 point);
 void G_SetBlightPoint(LPCVECTOR2 point, BOOL add);
 void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add);
 void G_SetBlightRect(LPCBOX2 rect, BOOL add);
+void G_BlightInitializeDestructable(LPEDICT ent);
+void G_BlightUpdateDestructables(LPCBOX2 region);
+void G_BlightMarkDestructable(LPEDICT ent);
 DWORD G_GetBlightStateSize(void);
 BOOL G_GetBlightState(LPBYTE out, DWORD size);
 BOOL G_SetBlightState(BYTE const *data, DWORD size);

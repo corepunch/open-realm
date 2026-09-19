@@ -2505,6 +2505,21 @@ TEST(net, entity_delta_preserves_build_preview_fields) {
     T_FEQ(out.origin.y, 0.0f, 0.001f);
 }
 
+TEST(net, entity_delta_preserves_blighted_destructable_state) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .blighted = 1 }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+    T_EQ(number, 9);
+    T_EQ(out.blighted, 1);
+}
+
 /* Dead destructable remains rely on EF_NOT_SELECTABLE surviving snapshots, so
  * guard its round trip explicitly. */
 TEST(net, entity_delta_preserves_not_selectable_flag) {

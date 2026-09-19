@@ -86,6 +86,9 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
     }
 
     if (!ent->inuse || M_IsDead(ent) || !(code = ent->blight_growth.ability)) return false;
+    /* Construction owns the building's incomplete lifecycle.  Passive Abli
+     * ticks resume only after the structure is complete. */
+    if (ent->construction.active) return false;
     owner = G_GetPlayerClientByNumber(ent->s.player);
     if (owner && !G_IsPlayerAbilityAvailable(owner, code)) {
 #ifdef WC3_DEBUG_BLIGHT
@@ -114,6 +117,8 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
 #endif
         return false;
     }
+    /* Data changes affect future growth, not already-painted world state. */
+    ent->blight_growth.radius = MIN(ent->blight_growth.radius, max_radius);
     if (now < ent->blight_growth.next_update) return false;
 
     if (ent->blight_growth.radius < max_radius) {

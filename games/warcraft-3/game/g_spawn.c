@@ -446,6 +446,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     }
     edict->movetype = MOVETYPE_NONE;
     edict->svflags |= SVF_STATIC_SCENERY;
+    G_BlightInitializeDestructable(edict);
 }
 
 /* The destructable currently being visited by EnumDestructablesInRect, read

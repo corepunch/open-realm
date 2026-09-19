@@ -691,6 +691,7 @@ typedef struct entityState_s {
     DWORD frame;
     BYTE event;
     USHORT flags;
+    BYTE blighted; /* WC3 destructable presentation state */
     BYTE renderfx;
     BYTE ability;
     USHORT pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */

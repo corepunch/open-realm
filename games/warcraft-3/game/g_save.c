@@ -476,6 +476,7 @@ static field_t const item_fields[] = {
 };
 
 static field_t const destructable_fields[] = {
+    TF(edictDestructable_s, blighted, F_INT),
     TF(edictDestructable_s, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, drop_sets, F_IGNORE, 0, FIELD_RUNTIME),

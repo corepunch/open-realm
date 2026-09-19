@@ -620,6 +620,8 @@ static void ai_chop(LPEDICT ent) {
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_CHOP, tree);
     if (valid_hit) {
+        if (ent->data.UnitData && WC3_RaceFromString(ent->data.UnitData->race) == RACE_UNDEAD)
+            G_BlightMarkDestructable(tree);
         FLOAT const carried = MIN((FLOAT)ent->harvested_lumber + tuning.tree_damage,
                                   tuning.lumber_capacity);
 

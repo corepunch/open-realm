@@ -258,6 +258,8 @@ static BOOL CL_EnsureBlightSize(DWORD width, DWORD height, VECTOR2 origin, FLOAT
     memset(cl.blight.cells, 0, cells);
     cl.blight.width = width; cl.blight.height = height;
     cl.blight.origin = origin; cl.blight.cell_size = cell_size;
+    cl.blight.dirty_first_row = 0;
+    cl.blight.dirty_row_count = height;
     cl.blight.generation++;
     return true;
 }
@@ -291,6 +293,8 @@ static BOOL CL_ParseBlightChunk(LPSIZEBUF msg) {
         cl.blight.cells[chunk.first_row * cl.blight.width + index] =
             (payload[index >> 3] >> (index & 7)) & 1;
     msg->readcount += chunk.payload_bytes;
+    cl.blight.dirty_first_row = chunk.first_row;
+    cl.blight.dirty_row_count = chunk.row_count;
     cl.blight.generation++;
 #ifdef WC3_DEBUG_BLIGHT
     fprintf(stderr, "WC3_BLIGHT client chunk rows=%u..%u payload=%u generation=%u\n",

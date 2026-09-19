@@ -255,9 +255,77 @@ void R_EndSplatBatch(void) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
+typedef struct {
+    BYTE *active;
+    DWORD width, height;
+    DWORD generation;
+    VECTOR2 origin;
+    FLOAT cell_size;
+} blightTileCache_t;
+
+static blightTileCache_t blight_tiles;
+
+void R_ResetBlightCache(void) {
+    SAFE_DELETE(blight_tiles.active, ri.MemFree);
+    memset(&blight_tiles, 0, sizeof(blight_tiles));
+}
+
+static BOOL R_BlightTileCacheUpdate(viewDef_t const *view) {
+    DWORD cells_per_tile, first_row, row_count, y0, y1;
+    DWORD old_width = blight_tiles.width, old_height = blight_tiles.height;
+    DWORD new_width, new_height;
+
+    if (!view || !view->terrain_mask_data || !view->terrain_mask_width ||
+        !view->terrain_mask_height || view->terrain_mask_cell_size <= 0.0f)
+        return false;
+    cells_per_tile = (DWORD)floorf(TILE_SIZE / view->terrain_mask_cell_size + 0.5f);
+    if (!cells_per_tile || fabsf(cells_per_tile * view->terrain_mask_cell_size - TILE_SIZE) > 0.01f)
+        return false;
+    new_width = (view->terrain_mask_width + cells_per_tile - 1) / cells_per_tile;
+    new_height = (view->terrain_mask_height + cells_per_tile - 1) / cells_per_tile;
+    if (!blight_tiles.active || old_width != new_width || old_height != new_height ||
+        blight_tiles.origin.x != view->terrain_mask_origin.x ||
+        blight_tiles.origin.y != view->terrain_mask_origin.y ||
+        blight_tiles.cell_size != view->terrain_mask_cell_size) {
+        blight_tiles.width = new_width;
+        blight_tiles.height = new_height;
+        SAFE_DELETE(blight_tiles.active, ri.MemFree);
+        blight_tiles.active = ri.MemAlloc(blight_tiles.width * blight_tiles.height);
+        if (!blight_tiles.active) {
+            fprintf(stderr, "R_RenderBlightMask: failed to allocate %ux%u tile cache\n",
+                    (unsigned)blight_tiles.width, (unsigned)blight_tiles.height);
+            blight_tiles.width = blight_tiles.height = 0;
+            return false;
+        }
+        memset(blight_tiles.active, 0, blight_tiles.width * blight_tiles.height);
+        blight_tiles.origin = view->terrain_mask_origin;
+        blight_tiles.cell_size = view->terrain_mask_cell_size;
+        blight_tiles.generation = ~0u;
+    }
+    if (blight_tiles.generation == view->terrain_mask_generation) return true;
+    first_row = view->terrain_mask_dirty_first_row;
+    row_count = view->terrain_mask_dirty_row_count;
+    if (!row_count) { first_row = 0; row_count = view->terrain_mask_height; }
+    y0 = first_row / cells_per_tile;
+    y1 = MIN(blight_tiles.height, (first_row + row_count + cells_per_tile - 1) / cells_per_tile);
+    for (DWORD ty = y0; ty < y1; ty++) for (DWORD tx = 0; tx < blight_tiles.width; tx++) {
+        DWORD const x0 = tx * cells_per_tile, y_start = ty * cells_per_tile;
+        DWORD const x1 = MIN(view->terrain_mask_width, x0 + cells_per_tile);
+        DWORD const y_end = MIN(view->terrain_mask_height, y_start + cells_per_tile);
+        BYTE active = 0;
+        for (DWORD y = y_start; y < y_end && !active; y++)
+            for (DWORD x = x0; x < x1; x++)
+                if (view->terrain_mask_data[x + y * view->terrain_mask_width]) { active = 1; break; }
+        blight_tiles.active[tx + ty * blight_tiles.width] = active;
+    }
+    blight_tiles.generation = view->terrain_mask_generation;
+    return true;
+}
+
 /* Blight is authored on 32-unit pathing cells while the terrain renderer
- * conforms overlays to 128-unit terrain tiles.  Collapse each 4x4 pathing
- * block to one terrain tile and merge horizontal runs before submitting. */
+ * conforms overlays to 128-unit terrain tiles.  The tile cache is rebuilt
+ * only for rows changed by the network snapshot; rendering never scans the
+ * full pathing mask every frame. */
 void R_RenderBlightMask(void) {
     DWORD const width = tr.viewDef.terrain_mask_width;
     DWORD const height = tr.viewDef.terrain_mask_height;
@@ -274,21 +342,15 @@ void R_RenderBlightMask(void) {
                 cell_size, (unsigned)TILE_SIZE);
         return;
     }
-    terrain_width = (width + cells_per_tile - 1) / cells_per_tile;
-    terrain_height = (height + cells_per_tile - 1) / cells_per_tile;
+    if (!R_BlightTileCacheUpdate(&tr.viewDef)) return;
+    terrain_width = blight_tiles.width;
+    terrain_height = blight_tiles.height;
     R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_splat));
     FOR_LOOP(ty, terrain_height) {
         DWORD run_start = terrain_width;
         FOR_LOOP(tx, terrain_width + 1) {
             BOOL active = false;
-            if (tx < terrain_width) {
-                DWORD const x0 = tx * cells_per_tile, y0 = ty * cells_per_tile;
-                DWORD const x1 = MIN(width, x0 + cells_per_tile), y1 = MIN(height, y0 + cells_per_tile);
-                for (DWORD y = y0; y < y1 && !active; y++)
-                    for (DWORD x = x0; x < x1; x++)
-                        if (tr.viewDef.terrain_mask_data[x + y * width]) { active = true; break; }
-                if (active) active_tiles++;
-            }
+            if (tx < terrain_width) { active = blight_tiles.active[tx + ty * terrain_width] != 0; if (active) active_tiles++; }
             if (active && run_start == terrain_width) run_start = tx;
             if (!active && run_start != terrain_width) {
                 VECTOR2 mins = {
