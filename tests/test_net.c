@@ -401,7 +401,10 @@ TEST(client_screen, cursor_tint_follows_wc3_hover_relationship) {
     re.BeginFrame = capture_begin_frame; re.EndFrame = capture_end_frame;
 
     cl.hover_entity = 7;
-    cl.ents[7].current.flags = EF_HOVER_HEALTH | EF_HOSTILE;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .name = 1, .flags = EF_HOVER_HEALTH | EF_HOSTILE,
+        .stats = { [ENT_HEALTH] = 255 },
+    };
     SCR_UpdateScreen(16);
     T_EQ(test_cursor_draw_calls, 1);
     T_EQ(test_cursor_tint.r, 255);
@@ -417,9 +420,17 @@ TEST(client_screen, cursor_tint_follows_wc3_hover_relationship) {
     T_EQ(test_cursor_tint.b, 80);
     T_EQ(test_cursor_tint.a, 255);
 
-    cl.hover_entity = 0;
+    /* Invulnerable units keep a name with neither bar flag. */
+    cl.ents[7].current.flags = EF_HOSTILE;
     SCR_UpdateScreen(16);
     T_EQ(test_cursor_draw_calls, 3);
+    T_EQ(test_cursor_tint.r, 255);
+    T_EQ(test_cursor_tint.g, 0);
+    T_EQ(test_cursor_tint.b, 0);
+
+    cl.hover_entity = 0;
+    SCR_UpdateScreen(16);
+    T_EQ(test_cursor_draw_calls, 4);
     T_EQ(test_cursor_tint.r, 255);
     T_EQ(test_cursor_tint.g, 255);
     T_EQ(test_cursor_tint.b, 255);
