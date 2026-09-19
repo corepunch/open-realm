@@ -286,6 +286,7 @@ void _W3M_RegisterMap(char const *mapFilename) {
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
     tr.world = map;
+    R_LoadBlightTexture(map->tileset);
     R_BuildCameraHeightMap(&(cameraHeightBuild_t){ .map = &w3_camera_height, .data = map,
         .width = map->width, .height_count = map->height, .radius = WC3_CAMERA_HEIGHT_RADIUS,
         .samples = BZ_BROAD_HEIGHT_SAMPLES, .origin = map->center, .cell_size = TILE_SIZE,

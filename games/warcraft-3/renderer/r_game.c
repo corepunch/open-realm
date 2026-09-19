@@ -57,6 +57,52 @@ static BOOL cursor_load_attempted;
 
 static w3TerrainArt_t *g_terrain_rows; static DWORD g_terrain_count; static slkIndex_t g_terrain_idx;
 static w3CliffType_t *g_cliff_rows;   static DWORD g_cliff_count;   static slkIndex_t g_cliff_idx;
+static LPCTEXTURE g_blight_texture;
+
+/* WorldEditData is the authoritative tileset-to-Blight-art mapping.  Keep the
+ * lookup data-driven because custom/expansion tilesets can add rows there. */
+void R_LoadBlightTexture(BYTE tileset) {
+    LPBYTE data;
+    DWORD size;
+    PATHSTR path = { 0 };
+    char const *cursor;
+    BOOL in_tilesets = false;
+
+    g_blight_texture = NULL;
+    size = (DWORD)ri.FS_ReadFile("UI\\WorldEditData.txt", (void **)&data);
+    if (!data) {
+        fprintf(stderr, "WC3 renderer: failed to load UI\\WorldEditData.txt for Blight tileset %c\n", tileset);
+        return;
+    }
+    cursor = (char const *)data;
+    while ((DWORD)(cursor - (char const *)data) < size) {
+        char line[sizeof(PATHSTR) + 128];
+        char key = 0;
+        int consumed = 0;
+        size_t remaining = size - (DWORD)(cursor - (char const *)data);
+        char const *end = memchr(cursor, '\n', remaining);
+        size_t length = end ? (size_t)(end - cursor) : remaining;
+        length = MIN(length, sizeof(line) - 1);
+        memcpy(line, cursor, length); line[length] = 0;
+        if (line[0] == '[') in_tilesets = !strncasecmp(line, "[TileSets]", 10);
+        else if (in_tilesets && sscanf(line, " %c = %*[^,] , %511[^\r\n] %n", &key, path, &consumed) >= 2 && key == tileset)
+            break;
+        cursor += end ? length + 1 : length;
+    }
+    ri.FS_FreeFile(data);
+    if (!path[0]) {
+        fprintf(stderr, "WC3 renderer: no Blight texture mapping for tileset %c\n", tileset);
+        return;
+    }
+    strlcat(path, ".blp", sizeof(path));
+    g_blight_texture = R_LoadTexture(path);
+    if (!g_blight_texture || g_blight_texture == tr.texture[TEX_PLACEHOLDER])
+        fprintf(stderr, "WC3 renderer: failed to load Blight texture %s for tileset %c\n", path, tileset);
+}
+
+LPCTEXTURE R_BlightTexture(void) {
+    return g_blight_texture;
+}
 
 typedef struct {
     LPMODEL model;

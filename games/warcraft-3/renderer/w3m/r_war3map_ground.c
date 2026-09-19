@@ -134,6 +134,7 @@ static void R_MakeSplatTile(LPCWAR3MAP map,
                             LPCVECTOR2 mins,
                             FLOAT width,
                             FLOAT height,
+                            LPCTEXTURE texture,
                             COLOR32 color) {
     VECTOR3 const p[] = {
         R_GetVertexPosition(map, x, y, true),
@@ -148,7 +149,7 @@ static void R_MakeSplatTile(LPCWAR3MAP map,
         { (p[3].x - mins->x) / width, 1 - (p[3].y - mins->y) / height },
     };
     VECTOR3 const normal = { 0, 0, 1 };
-    VERTEX const geom[] = {
+    VERTEX geom[] = {
         { .position = p[0], .texcoord = uv[0], .normal = normal, .color = color },
         { .position = p[1], .texcoord = uv[1], .normal = normal, .color = color },
         { .position = p[2], .texcoord = uv[2], .normal = normal, .color = color },
@@ -157,6 +158,12 @@ static void R_MakeSplatTile(LPCWAR3MAP map,
         { .position = p[3], .texcoord = uv[3], .normal = normal, .color = color },
     };
 
+    if (texture == R_BlightTexture()) {
+        /* Blight art is a normal WC3 extended terrain atlas.  Tile 15 selects
+         * its right-hand variation strip; SetTileUV then applies the authored
+         * ground variation exactly as the normal terrain baker does. */
+        SetTileUV(GetWar3MapVertex(map, x, y), 15, geom, texture);
+    }
     memcpy(ground_current_vertex, geom, sizeof(geom));
     ground_current_vertex += sizeof(geom) / sizeof(VERTEX);
 }
@@ -228,7 +235,7 @@ static void R_GenerateSplatTiles(LPCVECTOR2 mins, LPCVECTOR2 maxs, COLOR32 color
             if ((ground_current_vertex - ground_vertex_buffer) + 6 > GROUND_VERTEX_BUFFER_CAPACITY) {
                 R_FlushSplatBatch();
             }
-            R_MakeSplatTile(tr.world, (DWORD)x, (DWORD)y, mins, width, height, color);
+            R_MakeSplatTile(tr.world, (DWORD)x, (DWORD)y, mins, width, height, g_splat_texture, color);
         }
     }
 }
@@ -332,10 +339,11 @@ void R_RenderBlightMask(void) {
     FLOAT const cell_size = tr.viewDef.terrain_mask_cell_size;
     DWORD cells_per_tile;
     DWORD terrain_width, terrain_height, terrain_rects = 0, active_tiles = 0;
-    COLOR32 const color = { 42, 12, 58, 135 };
+    LPCTEXTURE const blight_texture = R_BlightTexture();
+    COLOR32 const color = COLOR32_WHITE;
 
     if (tr.render_phase != RENDER_PHASE_SOLID || !tr.world || !tr.viewDef.terrain_mask_data ||
-        !width || !height || cell_size <= 0.0f) return;
+        !width || !height || cell_size <= 0.0f || !blight_texture) return;
     cells_per_tile = (DWORD)floorf(TILE_SIZE / cell_size + 0.5f);
     if (!cells_per_tile || fabsf(cells_per_tile * cell_size - TILE_SIZE) > 0.01f) {
         fprintf(stderr, "R_RenderBlightMask: unsupported mask cell size %.3f for %u-unit terrain\n",
@@ -361,7 +369,7 @@ void R_RenderBlightMask(void) {
                     tr.viewDef.terrain_mask_origin.x + tx * TILE_SIZE,
                     tr.viewDef.terrain_mask_origin.y + (ty + 1) * TILE_SIZE,
                 };
-                R_AddRectSplat(&mins, &maxs, tr.texture[TEX_WHITE], color);
+                R_AddRectSplat(&mins, &maxs, blight_texture, color);
                 terrain_rects++; run_start = terrain_width;
             }
         }
