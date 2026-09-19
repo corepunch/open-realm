@@ -17,6 +17,16 @@
 #define BZ_ANE2 MAKEFOURCC('A', 'n', 'e', '2')
 #define BZ_AHFA MAKEFOURCC('A', 'H', 'f', 'a')
 #define BZ_ANEU MAKEFOURCC('A', 'n', 'e', 'u')
+#define BZ_ANHE MAKEFOURCC('A', 'n', 'h', 'e')
+#define BZ_ANH1 MAKEFOURCC('A', 'n', 'h', '1')
+#define BZ_ANH2 MAKEFOURCC('A', 'n', 'h', '2')
+#define BZ_ACTC MAKEFOURCC('A', 'C', 't', 'c')
+#define BZ_ACT2 MAKEFOURCC('A', 'C', 't', '2')
+#define BZ_ACAD MAKEFOURCC('A', 'C', 'a', 'd')
+#define BZ_ACRN MAKEFOURCC('A', 'C', 'r', 'n')
+#define BZ_AASL MAKEFOURCC('A', 'a', 's', 'l')
+#define BZ_AAKB MAKEFOURCC('A', 'a', 'k', 'b')
+#define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F')
 #define BZ_BNMS MAKEFOURCC('B', 'N', 'm', 's')
 #define BZ_BPLY MAKEFOURCC('B', 'p', 'l', 'y')
 #define BZ_BUSL MAKEFOURCC('B', 'U', 's', 'l')
@@ -185,6 +195,76 @@ TEST(wc3_spell, creep_sleep_roc_empty_buffid_applies_busl) {
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ACSL, target));
     T_EQ(G_UnitStatusLevel(target, BZ_BUSL), 1);
     T_EQ(G_UnitStatusLevel(target, BZ_BSLP), 0);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Anhe/ACtc are the code= parents of the already-registered Anh1/Anh2/ACt2
+ * rows; without these rows S_AbilityItem resolves to NULL through G_AbilityCode. */
+TEST(wc3_spell, creep_code_parents_share_hero_procedures) {
+    T_EQ(S_AbilityItem(BZ_ANHE).ability->proc, CAbilityHeal);
+    T_EQ(S_AbilityItem(BZ_ANH1).ability->proc, CAbilityHeal);
+    T_EQ(S_AbilityItem(BZ_ANH2).ability->proc, CAbilityHeal);
+    T_EQ(S_AbilityItem(BZ_ACTC).ability->proc, CAbilityThunderClap);
+    T_EQ(S_AbilityItem(BZ_ACT2).ability->proc, CAbilityThunderClap);
+    T_EQ(S_AbilityItem(BZ_ACAD).ability->proc, CAbilityAnimateDead);
+    T_EQ(S_AbilityItem(BZ_ACRN).ability->proc, CAbilityPassive);
+    T_EQ(S_AbilityItem(BZ_AASL).ability->proc, CAbilityPassive);
+    T_EQ(S_AbilityItem(BZ_AAKB).ability->proc, CAbilityPassive);
+}
+
+/* Anhe DataA=37 (not Ahea's 25), ACtc DataA=77 (not AHtc's 70) and
+ * ACad DataA=2 (not AUan's 6) prove each alias reads its own row. */
+TEST(wc3_spell, creep_heal_slam_animate_dead_use_alias_data) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y7;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Ahea\"\nC;Y2;X2;K\"Ahea\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"500\"\n"
+        "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"25\"\n"
+        "C;Y3;X1;K\"Anhe\"\nC;Y3;X2;K\"Anhe\"\nC;Y3;X3;K\"air,ground,friend\"\n"
+        "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"500\"\n"
+        "C;Y3;X7;K\"0\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"37\"\n"
+        "C;Y4;X1;K\"AHtc\"\nC;Y4;X2;K\"AHtc\"\nC;Y4;X3;K\"ground,neutral\"\n"
+        "C;Y4;X4;K\"0\"\nC;Y4;X5;K\"0\"\nC;Y4;X6;K\"0\"\n"
+        "C;Y4;X7;K\"250\"\nC;Y4;X8;K\"4\"\nC;Y4;X9;K\"70\"\n"
+        "C;Y5;X1;K\"ACtc\"\nC;Y5;X2;K\"ACtc\"\nC;Y5;X3;K\"ground,neutral\"\n"
+        "C;Y5;X4;K\"0\"\nC;Y5;X5;K\"0\"\nC;Y5;X6;K\"0\"\n"
+        "C;Y5;X7;K\"900\"\nC;Y5;X8;K\"4\"\nC;Y5;X9;K\"77\"\n"
+        "C;Y6;X1;K\"AUan\"\nC;Y6;X2;K\"AUan\"\nC;Y6;X3;K\"air,ground,dead\"\n"
+        "C;Y6;X4;K\"0\"\nC;Y6;X5;K\"0\"\nC;Y6;X6;K\"400\"\n"
+        "C;Y6;X7;K\"900\"\nC;Y6;X8;K\"120\"\nC;Y6;X9;K\"6\"\n"
+        "C;Y7;X1;K\"ACad\"\nC;Y7;X2;K\"ACad\"\nC;Y7;X3;K\"air,ground,dead\"\n"
+        "C;Y7;X4;K\"0\"\nC;Y7;X5;K\"0\"\nC;Y7;X6;K\"400\"\n"
+        "C;Y7;X7;K\"900\"\nC;Y7;X8;K\"120\"\nC;Y7;X9;K\"2\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Anhe,ACtc,ACad" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster, ally, enemy, corpse;
+
+    creep_alias_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('n', 'd', 'r', 's'), 0, 0);
+    ally = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
+    enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 64);
+    corpse = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
+    caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+    caster->mana.value = caster->mana.max_value = 500.0f;
+    caster->svflags |= SVF_MONSTER;
+    ally->s.player = 0; ally->svflags |= SVF_MONSTER; ally->targtype = TARG_GROUND;
+    ally->health.value = 50.0f; ally->health.max_value = 100.0f;
+    enemy->s.player = 1; enemy->svflags |= SVF_MONSTER; enemy->targtype = TARG_GROUND;
+    enemy->health.value = enemy->health.max_value = 500.0f;
+    corpse->health.value = 0.0f; corpse->health.max_value = 100.0f;
+    corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ANHE, ally));
+    T_EQ((int)ally->health.value, 87);
+    T_ASSERT(S_CastNoTargetSpell(caster, BZ_ACTC));
+    T_EQ((int)enemy->health.value, 423);
+    T_ASSERT(S_CastNoTargetSpell(caster, BZ_ACAD));
+    T_ASSERT(!M_IsDead(corpse));
+    T_EQ(corpse->s.player, 0);
+    T_EQ(G_UnitStatusLevel(corpse, BZ_BTLF), 1);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 #endif
