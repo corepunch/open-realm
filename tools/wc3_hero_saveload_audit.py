@@ -28,6 +28,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 STATUS_RE = re.compile(r"^HERO_SAVELOAD status=(\S+)(?:\s+(.*))?$")
 SNAPSHOT_RE = re.compile(r"^HERO_SAVELOAD snapshot=(before|after|dump)\s+(.*)$")
+sys.dont_write_bytecode = True  # exec_module below must not leave tools/__pycache__ behind
 SPEC = importlib.util.spec_from_file_location("wc3_map_audit", ROOT / "tools/wc3_map_audit.py")
 MAP_AUDIT = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader
