@@ -46,6 +46,7 @@ typedef struct {
     DWORD num_geosets;
     DWORD num_lights;
     DWORD num_emitters;
+    DWORD num_ribbons;
     DWORD num_attachments;
     DWORD num_helpers;
     DWORD num_bones;
@@ -330,6 +331,15 @@ static DWORD CountEmitters(mdxModel_t const *mdx) {
     DWORD count = 0;
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, mdx->emitters) {
         (void)emitter;
+        count++;
+    }
+    return count;
+}
+
+static DWORD CountRibbons(mdxModel_t const *mdx) {
+    DWORD count = 0;
+    FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, mdx->ribbons) {
+        (void)ribbon;
         count++;
     }
     return count;
@@ -652,6 +662,9 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
             case MAKEFOURCC('P', 'R', 'E', '2'):
                 fprintf(stderr, "  PRE2: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
                 break;
+            case MAKEFOURCC('R', 'I', 'B', 'B'):
+                fprintf(stderr, "  RIBB: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
+                break;
             case MAKEFOURCC('A', 'T', 'C', 'H'):
                 fprintf(stderr, "  ATCH: count=%u\n", (unsigned)CountVariableSizeEntries(chunk, chunkSize));
                 break;
@@ -957,6 +970,28 @@ static void DumpLoadedModel(mdxModel_t const *mdx, DWORD sample_frame) {
         }
     }
 
+    FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, mdx->ribbons) {
+        fprintf(stderr,
+                "  RIBB: node_id=%u parent=%u flags=0x%x height=(%.3f %.3f) alpha=%.3f color=(%.3f %.3f %.3f) life=%.3f rate=%u rows=%u cols=%u mat=%u gravity=%.3f vis=%p name=%s\n",
+                (unsigned)ribbon->node.node_id,
+                (unsigned)ribbon->node.parent_id,
+                (unsigned)ribbon->node.flags,
+                ribbon->heightAbove,
+                ribbon->heightBelow,
+                ribbon->alpha,
+                ribbon->color.x,
+                ribbon->color.y,
+                ribbon->color.z,
+                ribbon->lifespan,
+                (unsigned)ribbon->emissionRate,
+                (unsigned)ribbon->rows,
+                (unsigned)ribbon->columns,
+                (unsigned)ribbon->materialId,
+                ribbon->gravity,
+                (void *)ribbon->keytracks.Visibility,
+                ribbon->node.name);
+    }
+
     FOR_EACH_LIST(mdxMaterial_t, material, mdx->materials) {
         fprintf(stderr,
                 "  MATS[%d]: priority=%d flags=0x%x layers=%d\n",
@@ -1208,7 +1243,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         Tool_DrawString(re, line, left_x, y0 + dy * 3);
         snprintf(line, sizeof(line), "LITE %u", (unsigned)g_overlay.num_lights);
         Tool_DrawString(re, line, left_x, y0 + dy * 4);
-        snprintf(line, sizeof(line), "PRE2 %u", (unsigned)g_overlay.num_emitters);
+        snprintf(line, sizeof(line), "PRE2 %u RIBB %u", (unsigned)g_overlay.num_emitters, (unsigned)g_overlay.num_ribbons);
         Tool_DrawString(re, line, left_x, y0 + dy * 5);
         snprintf(line, sizeof(line), "ATCH %u", (unsigned)g_overlay.num_attachments);
         Tool_DrawString(re, line, left_x, y0 + dy * 6);
@@ -1414,6 +1449,7 @@ int main(int argc, char **argv) {
         g_overlay.num_geosets = CountGeosets(model->mdx);
         g_overlay.num_lights = CountLights(model->mdx);
         g_overlay.num_emitters = CountEmitters(model->mdx);
+        g_overlay.num_ribbons = CountRibbons(model->mdx);
         g_overlay.num_attachments = CountAttachments(model->mdx);
         g_overlay.num_helpers = CountHelpers(model->mdx);
         g_overlay.num_bones = CountBones(model->mdx);
@@ -1462,6 +1498,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  geosets: %u\n", g_overlay.num_geosets);
         fprintf(stderr, "  lights: %u\n", g_overlay.num_lights);
         fprintf(stderr, "  emitters: %u\n", g_overlay.num_emitters);
+        fprintf(stderr, "  ribbons: %u\n", g_overlay.num_ribbons);
         fprintf(stderr, "  attachments: %u\n", g_overlay.num_attachments);
         fprintf(stderr, "  helpers: %u\n", g_overlay.num_helpers);
         fprintf(stderr, "  bones: %u\n", g_overlay.num_bones);

@@ -19,6 +19,7 @@ cparticle_t *R_SpawnParticle(void) {
 LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model, DWORD team, DWORD tex, DWORD repl, LPCTEXTURE over) {
     (void)model; (void)team; (void)tex; (void)repl; (void)over; return NULL;
 }
+void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
 static char shader_src[16384];
 static RECT backdrop_uv;
@@ -451,6 +452,122 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
     T_FEQ(emitted[0].size[0] * emitted[0].size_value_scale, 0.01f, 0.0001f);
     T_FEQ(emitted[1].tail.z, 0.006f, 0.00001f);
     tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
+    mdxRibbonTrail_t trail = { 0 };
+    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    VERTEX verts[32];
+    DWORD nverts;
+
+    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 10.0f, 0.0f, 0.1f), 1);
+    above.x = 5; below.x = 5;
+    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 10.0f, 0.0f, 0.1f), 2);
+    nverts = MDLX_RibbonStripVertices(&trail, 1, 1, 0, (COLOR32){ 255, 255, 255, 180 }, verts, 32);
+    T_EQ(nverts, 6);
+    T_FEQ(verts[0].position.y, 10.0f, 0.001f);
+    T_FEQ(verts[1].position.y, -10.0f, 0.001f);
+    T_FEQ(verts[2].position.x, 5.0f, 0.001f);
+    T_FEQ(verts[0].texcoord.x, 1.0f, 0.001f);
+    T_FEQ(verts[5].texcoord.x, 0.0f, 0.001f);
+    T_EQ(MDLX_UpdateRibbonTrail(&trail, above, below, 0.5f, 0.0f, 0.0f, 0.6f), 0);
+}
+
+TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
+    BYTE vis_store[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(float)] = { 0 };
+    mdxKeyTrack_t *vis = (mdxKeyTrack_t *)vis_store;
+    mdxKeyFrame_t *key = (mdxKeyFrame_t *)vis->values;
+    mdxSequence_t seqs[2] = { { .interval = { 0, 1000 } }, { .interval = { 2000, 3000 } } };
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 20, .heightBelow = 20, .alpha = 0.7f,
+        .color = { 1, 1, 1 }, .lifespan = 0.5f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    VECTOR3 pivot = { 0, 0, 0 };
+    mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1,
+        .sequences = seqs, .num_sequences = 2 };
+    renderEntity_t entity = { .number = 7, .frame = 0 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    DWORD nverts;
+    float visibility = 1.0f;
+    viewDef_t saved = tr.viewDef;
+
+    vis->keyframeCount = 1; vis->datatype = TDATA_FLOAT1;
+    vis->linetype = TRACK_NO_INTERP; vis->globalSeqId = (DWORD)-1;
+    key->time = 0; *(float *)key->data = 0.0f;
+    ribbon.keytracks.Visibility = vis;
+    ribbon.node.node_id = 0; ribbon.node.parent_id = (DWORD)-1;
+    model.nodes[0] = &ribbon.node; model.node_list[0] = &ribbon.node; model.num_nodes = 1;
+    Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef.deltaTime = 100; tr.viewDef.time = 1;
+
+    MDLX_GetModelKeytrackValue(&model, vis, 0, &visibility);
+    T_FEQ(visibility, 0.0f, 0.001f);
+    visibility = 1.0f;
+    MDLX_GetModelKeytrackValue(&model, vis, 2500, &visibility);
+    T_FEQ(visibility, 1.0f, 0.001f);
+
+    nverts = MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(nverts, 0);
+    entity.frame = 2500;
+    nverts = MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(nverts, 6);
+    T_FEQ(verts[0].position.y, 20.0f, 0.001f);
+    T_FEQ(verts[1].position.y, -20.0f, 0.001f);
+    if (model.ribbon_states) {
+        test_free(model.ribbon_states->trails);
+        test_free(model.ribbon_states);
+        model.ribbon_states = NULL;
+    }
+    tr.viewDef = saved;
+}
+
+static void mdx_put_u32(BYTE **p, DWORD v) { memcpy(*p, &v, 4); *p += 4; }
+static void mdx_put_f32(BYTE **p, float v) { memcpy(*p, &v, 4); *p += 4; }
+static void mdx_put_fourcc(BYTE **p, LPCSTR tag) { memcpy(*p, tag, 4); *p += 4; }
+
+TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
+    BYTE blob[1024] = { 0 };
+    BYTE *p = blob;
+    mdxModel_t *model;
+    mdxRibbonEmitter_t *ribbon;
+    DWORD node_inc = 96, static_bytes = 52, krvs_bytes = 24, emitter_inc;
+
+    emitter_inc = 4 + node_inc + static_bytes + krvs_bytes;
+    mdx_put_fourcc(&p, "MDLX");
+    mdx_put_fourcc(&p, "VERS"); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
+    mdx_put_fourcc(&p, "SEQS"); mdx_put_u32(&p, 132);
+    memset(p, 0, 132); memcpy(p, "Stand", 5);
+    ((DWORD *)(p + 80))[0] = 2000; ((DWORD *)(p + 80))[1] = 3000;
+    p += 132;
+    mdx_put_fourcc(&p, "PIVT"); mdx_put_u32(&p, 12);
+    mdx_put_f32(&p, 1.0f); mdx_put_f32(&p, 2.0f); mdx_put_f32(&p, 3.0f);
+    mdx_put_fourcc(&p, "RIBB"); mdx_put_u32(&p, emitter_inc);
+    mdx_put_u32(&p, emitter_inc);
+    mdx_put_u32(&p, node_inc);
+    memset(p, 0, 80); memcpy(p, "BlizRibbon02", 12); p += 80;
+    mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF); mdx_put_u32(&p, MDLXNODE_RibbonEmitter);
+    mdx_put_f32(&p, 20.0f); mdx_put_f32(&p, 20.0f); mdx_put_f32(&p, 0.7f);
+    mdx_put_f32(&p, 1.0f); mdx_put_f32(&p, 1.0f); mdx_put_f32(&p, 1.0f);
+    mdx_put_f32(&p, 0.5f);
+    mdx_put_u32(&p, 0); mdx_put_u32(&p, 15); mdx_put_u32(&p, 1); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0);
+    mdx_put_f32(&p, 0.0f);
+    mdx_put_fourcc(&p, "KRVS"); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
+    mdx_put_u32(&p, 0); mdx_put_f32(&p, 0.0f);
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
+    model = R_LoadModelMDLX(blob, (DWORD)(p - blob));
+    T_NOT_NULL(model);
+    ribbon = model->ribbons;
+    T_NOT_NULL(ribbon);
+    T_STREQ(ribbon->node.name, "BlizRibbon02");
+    T_EQ(ribbon->node.flags, MDLXNODE_RibbonEmitter);
+    T_FEQ(ribbon->heightAbove, 20.0f, 0.001f);
+    T_FEQ(ribbon->alpha, 0.7f, 0.001f);
+    T_EQ(ribbon->emissionRate, 15);
+    T_NOT_NULL(ribbon->keytracks.Visibility);
+    T_EQ(model->num_pivots, 1);
+    T_EQ(model->nodes[0], &ribbon->node);
+    MDLX_Release(model);
 }
 
 TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
