@@ -540,11 +540,7 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
 
 static BOOL entity_blocks_static_pathing(edict_t const *ent) {
     if (!ent || !ent->inuse || (ent->s.renderfx & RF_HIDDEN)) return false;
-    /* A WC3 Construction Site Indicator is a visible reservation, not a
-     * building obstacle. Once construction starts, the real structure blocks
-     * movement; placement validation still sees the live indicator separately. */
-    if ((ent->s.flags & (EF_BUILDING | EF_NOT_SELECTABLE)) ==
-        (EF_BUILDING | EF_NOT_SELECTABLE) && !ent->construction.active) return false;
+    if (ge->PathingEntityIsIgnored(ent)) return false;
     /* Unit buildings keep their authored path texture after death for entity
      * presentation/save state, but that alive footprint must no longer block.
      * Dead destructables may deliberately swap to a death path texture, so

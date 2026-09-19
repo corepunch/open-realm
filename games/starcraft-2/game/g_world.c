@@ -3,6 +3,7 @@
 /* SC2 edicts have no dynamic walkable surfaces; the shared router must not inspect WC3-only fields. */
 static BOOL entity_is_live_walkable_surface(edict_t const *ent) { (void)ent; return false; }
 static BYTE entity_dynamic_pathing_flags(edict_t const *ent) { (void)ent; return CM_PATHING_UNWALKABLE; }
+static BOOL entity_is_pathing_ignored(edict_t const *ent) { (void)ent; return false; }
 /* SC2 has no bridges; identity transform. */
 static void entity_pathtex_transform(pathTexTransformParams_t const *params, pathTexTransform_t *transform) {
     if (params && params->pathtex && transform) *transform = MAKE(pathTexTransform_t,

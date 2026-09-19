@@ -10,6 +10,12 @@ static BOOL entity_is_live_walkable_surface(edict_t const *ent) {
 static BYTE entity_dynamic_pathing_flags(edict_t const *ent) {
     return M_UnitStaticPathingFlags(ent);
 }
+static BOOL entity_is_pathing_ignored(edict_t const *ent) {
+    /* A construction-site indicator is a visible reservation, not a building
+     * obstacle. Once construction starts, the real structure blocks movement. */
+    return ent && (ent->s.flags & (EF_BUILDING | EF_NOT_SELECTABLE)) ==
+        (EF_BUILDING | EF_NOT_SELECTABLE) && !ent->construction.active;
+}
 
 /* WC3 pathing TGAs are transposed relative to model/world axes.  Only bridge
  * targets use the authored angle to select a quarter-turn; ordinary footprints
