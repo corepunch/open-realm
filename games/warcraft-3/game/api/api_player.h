@@ -34,6 +34,8 @@ DWORD SetPlayerColor(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     DWORD *pColor = jass_checkhandle(j, 2, "playercolor");
     if (whichPlayer && pColor) {
+        DWORD const previous_color = whichPlayer->color;
+        G_ChangePlayerTeamColor(whichPlayer, previous_color, *pColor);
         whichPlayer->color = *pColor;
     }
     return 0;
