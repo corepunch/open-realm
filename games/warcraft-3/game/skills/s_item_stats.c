@@ -69,3 +69,67 @@ BZ_ABILITY_PROC(CAbilityAttributeBonus) {
     apply_stat(ent, call->item->code, sign);
     return true;
 }
+
+/* Item orb family (AIfb/AIlb/AIob/AIpb/AIcb/AIzb, retail parent AIDB).
+ * Bonus damage rides CAbilityAttackBonus pickup handling via DataA; this owns
+ * the on-hit BuffID state next to S_SlowPoisonOnHit. ROC omits BuffID, so the
+ * three buffed orbs fall back to their TFT tokens. AIfb/AIlb/AIpb author no
+ * buff in either version. Buffs are state-only like Frost Nova's Bfro: no
+ * movement/armor consumer reads Bfro/BIcb/Bfre yet. */
+#define ID_ORB_FIRE MAKEFOURCC('A', 'I', 'f', 'b')
+#define ID_ORB_LIGHTNING MAKEFOURCC('A', 'I', 'l', 'b')
+#define ID_ORB_FROST MAKEFOURCC('A', 'I', 'o', 'b')
+#define ID_ORB_POISON MAKEFOURCC('A', 'I', 'p', 'b')
+#define ID_ORB_CORRUPTION MAKEFOURCC('A', 'I', 'c', 'b')
+#define ID_ORB_FREEZE MAKEFOURCC('A', 'I', 'z', 'b')
+
+static DWORD const orb_codes[] = {
+    ID_ORB_FIRE, ID_ORB_LIGHTNING, ID_ORB_FROST, ID_ORB_POISON, ID_ORB_CORRUPTION, ID_ORB_FREEZE,
+};
+
+static LPCSTR orb_buff(DWORD code) {
+    static struct { DWORD code; LPCSTR buff; } const fallback[] = {
+        { ID_ORB_FROST, "Bfro" },
+        { ID_ORB_CORRUPTION, "BIcb" },
+        { ID_ORB_FREEZE, "Bfre" },
+    };
+    LPCSTR buff = G_AbilityLevel(code, 1)->buffID;
+    if (buff && strlen(buff) >= 4) return buff;
+    FOR_LOOP(i, sizeof(fallback) / sizeof(fallback[0]))
+        if (fallback[i].code == code) return fallback[i].buff;
+    return NULL;
+}
+
+static void orb_apply(LPEDICT attacker, LPEDICT target, DWORD orb, DWORD *seen, DWORD *count) {
+    LPCSTR buff;
+    DWORD level;
+    FOR_LOOP(i, *count)
+        if (seen[i] == orb) return;
+    buff = orb_buff(orb);
+    if (!buff) return;
+    level = MAX(1, G_UnitAbilityLevel(attacker, orb));
+    seen[(*count)++] = orb;
+    unit_addtimedstatus(target, buff, level, S_SpellDuration(orb, level, G_UnitIsHero(target)));
+}
+
+/* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
+ * orb ownership and held orb items; the same orb from both sources applies once. */
+void S_OrbOnHit(LPEDICT attacker, LPEDICT target) {
+    DWORD seen[sizeof(orb_codes) / sizeof(orb_codes[0])];
+    DWORD count = 0;
+    if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
+    FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
+        if (G_UnitAbilityLevel(attacker, orb_codes[o])) orb_apply(attacker, target, orb_codes[o], seen, &count);
+    FOR_LOOP(i, MAX_INVENTORY) {
+        LPEDICT item = attacker->inventory[i];
+        LPCSTR abilities;
+        if (!item) continue;
+        abilities = G_ItemAbilityList(item);
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            DWORD code = strlen(name) == 4 ? FS_SLKKey(name) : 0;
+            FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
+                if (code && code == orb_codes[o]) orb_apply(attacker, target, code, seen, &count);
+        }
+    }
+}

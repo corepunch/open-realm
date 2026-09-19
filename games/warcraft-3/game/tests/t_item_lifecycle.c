@@ -106,6 +106,99 @@ TEST(wc3_item_lifecycle, strength_tome_modifies_strength) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Orb data is non-stock (ROC AIfb DataA=12, AIob DataA=6); pickup must apply the
+ * item's own row and drop must reverse it, like CAbilityAttackBonus aliases. */
+TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIfb\"\nC;Y2;X2;K\"AIfb\"\nC;Y2;X3;K\"11\"\n"
+        "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"13\"\n"
+        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\nE\n";
+    const char items[] =
+        "ID;PWXL;N;EBB;Y3;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"orbf\"\nC;Y2;X2;K\"AIfb\"\n"
+        "C;Y3;X1;K\"orbr\"\nC;Y3;X2;K\"AIob\"\nE\n";
+    DWORD codes[] = { MAKEFOURCC('o','r','b','f'), MAKEFOURCC('o','r','b','r') };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
+    setup_test_world();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
+    FOR_LOOP(i, 2) {
+        LPEDICT item = alloc_test_unit(codes[i], 32, 0);
+        item->targtype = TARG_ITEM;
+        item->item.in_world = true;
+        item->item.inventory_slot = -1;
+        T_ASSERT(G_AddItemToSlot(unit, item, i));
+    }
+    T_FEQ(unit->attack1.temporaryDamageBonus, 24, 0.001f);
+    T_FEQ(unit->attack2.temporaryDamageBonus, 24, 0.001f);
+    T_ASSERT(G_DropItem(unit, 0));
+    T_FEQ(unit->attack1.temporaryDamageBonus, 13, 0.001f);
+    T_ASSERT(G_DropItem(unit, 1));
+    T_FEQ(unit->attack1.temporaryDamageBonus, 0, 0.001f);
+    T_FEQ(unit->attack2.temporaryDamageBonus, 0, 0.001f);
+    G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* ROC omits orb BuffID; AIob/AIcb/AIzb must apply Bfro/BIcb/Bfre with authored
+ * durations while AIfb/AIlb/AIpb stay damage-only. Covers native ownership and
+ * held orb items; the same orb from both sources applies once. */
+TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y7;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"0\"\n"
+        "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"3\"\n"
+        "C;Y3;X4;K\"1\"\nC;Y3;X5;K\"6\"\nC;Y3;X6;K\"0\"\n"
+        "C;Y4;X1;K\"AIcb\"\nC;Y4;X2;K\"AIcb\"\nC;Y4;X3;K\"5\"\n"
+        "C;Y4;X4;K\"5\"\nC;Y4;X5;K\"5\"\nC;Y4;X6;K\"5\"\n"
+        "C;Y5;X1;K\"AIzb\"\nC;Y5;X2;K\"AIzb\"\nC;Y5;X3;K\"0\"\n"
+        "C;Y5;X4;K\"0\"\nC;Y5;X5;K\"9\"\nC;Y5;X6;K\"0\"\n"
+        "C;Y6;X1;K\"AIfb\"\nC;Y6;X2;K\"AIfb\"\nC;Y6;X3;K\"0\"\n"
+        "C;Y6;X4;K\"0\"\nC;Y6;X5;K\"12\"\nC;Y6;X6;K\"0\"\n"
+        "C;Y7;X1;K\"AIpb\"\nC;Y7;X2;K\"AIpb\"\nC;Y7;X3;K\"0\"\n"
+        "C;Y7;X4;K\"0\"\nC;Y7;X5;K\"5\"\nC;Y7;X6;K\"0\"\nE\n";
+    const char items[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"orbc\"\nC;Y2;X2;K\"AIob,AIcb\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AInv,AIob,AIfb" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
+    setup_test_world();
+    level.time = 0;
+    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 300, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    LPEDICT item = alloc_test_unit(MAKEFOURCC('o','r','b','c'), 32, 0);
+    attacker->data.UnitAbilities = &abilities; attacker->s.player = 0;
+    attacker->svflags |= SVF_MONSTER;
+    target->s.player = 1; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 200.0f;
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    item->targtype = TARG_ITEM;
+    item->item.in_world = true;
+    item->item.inventory_slot = -1;
+    T_ASSERT(G_AddItemToSlot(attacker, item, 0));
+    T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','f','r','o')));
+    S_OrbOnHit(attacker, target);
+    T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','f','r','o')));
+    T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','c','b')));
+    T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','f','r','e')));
+    level.time += 4000; unit_updatestatuses(target);
+    T_ASSERT(!S_UnitHasStatus(target, MAKEFOURCC('B','f','r','o')));
+    T_ASSERT(S_UnitHasStatus(target, MAKEFOURCC('B','I','c','b')));
+    G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* A regeneration aura uses owner+goalentity too; natural sleep must remove only its own art. */
 TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
     setup_test_world();

@@ -350,6 +350,7 @@ void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage);
 void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target);
 FLOAT S_SlowPoisonMoveReduction(LPCEDICT unit);
 FLOAT S_SlowPoisonAttackReduction(LPCEDICT unit);
+void S_OrbOnHit(LPEDICT attacker, LPEDICT target);
 FLOAT S_BarkskinArmorBonus(LPCEDICT unit);
 FLOAT S_ManaFlareArmorBonus(LPCEDICT unit);
 
