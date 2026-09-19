@@ -51,8 +51,8 @@ not an owned-payload allowlist entry. See [DotA Custom-Map Playability](dota-map
 Version 31 also persists the Human construction `build_preview` edict reference, so an accepted build order's owner-only
 Construction Site Indicator survives save/load as an entity-index fixup rather than a process pointer. Older saves are rejected
 by the exact-version guard.
-Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
-or lose the lifecycle state that gates authored player/team/color initialization. Version 31 saves are rejected by the exact-version guard.
+<Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
+or lose the lifecycle state that gates authored player/team/color initialization. It also adds the WC3-owned mutable Blight cell plane immediately after the level-field stream and adds each unit's `blight_growth` alias/current-radius/next-update state to the raw `edict_t` contract. Load requires the saved Blight byte count to exactly match the freshly initialized map Blight grid and restores it before edicts/JASS state, so `SetBlight*` changes and `Abli` expansion progress survive without being reconstructed from nearby buildings. See [Blight](blight.md). Version 31 saves are rejected by the exact-version guard.
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 
