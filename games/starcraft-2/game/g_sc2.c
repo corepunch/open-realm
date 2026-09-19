@@ -15,6 +15,7 @@ sc2Level_t sc2_level;
 
 struct game_import gi;
 struct game_export globals;
+static BOOL entity_is_pathing_ignored(edict_t const *ent);
 
 static DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     (void)ent;
@@ -892,6 +893,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.GetThemeValue         = SC2_GetThemeValue;
     globals.LoadMap               = SC2_LoadMap;
     globals.GetWorldBounds        = CM_GetWorldBounds;
+    globals.PathingEntityIsIgnored = entity_is_pathing_ignored;
     globals.edict_size            = sizeof(edict_t);
     globals.max_clients           = SC2_MAX_CLIENTS;
     globals.max_edicts            = SC2_MAX_EDICTS;

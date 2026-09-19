@@ -156,6 +156,7 @@ struct game_export {
     BOOL (*LoadGame)(LPCSTR filename);
     BOOL (*GetSaveMap)(LPCSTR filename, LPSTR map, DWORD map_size);
     BOX2 (*GetWorldBounds)(void);
+    BOOL (*PathingEntityIsIgnored)(LPCEDICT ent);
     
     edict_t *edicts;
     int num_edicts;

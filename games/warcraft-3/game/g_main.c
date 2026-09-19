@@ -34,6 +34,7 @@ struct game_import gi;
 struct game_locals game;
 struct level_locals level;
 struct edict_s *g_edicts;
+static BOOL entity_is_pathing_ignored(edict_t const *ent);
 
 extern JASSMODULE jass_funcs[];
 
@@ -1347,6 +1348,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.LoadGame = ReadGame;
     globals.GetSaveMap = G_GetSaveMap;
     globals.GetWorldBounds = CM_GetWorldBounds;
+    globals.PathingEntityIsIgnored = entity_is_pathing_ignored;
     globals.edict_size = sizeof(struct edict_s);
     return &globals;
 }
