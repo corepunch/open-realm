@@ -106,6 +106,27 @@ Completion generalizes `G_TransformUnitType()` from mobile->mobile morphs to sam
 
 The current implementation intentionally does not attempt a separate target-model construction overlay or retail-specific upgrade dust/effect layer; it drives the source building's authored `Birth` sequence by authoritative progress. Those presentation details should be added only after their exact data/retail contract is established.
 
+## Status-panel progress transport
+
+The selected building's `SimpleBuildTimeIndicator` is driven by the client-side
+`FT_BUILDQUEUE` updater, not by the FDF panel shell alone. The server's
+`UI_WriteBuildQueue()` therefore always emits one `FT_BUILDQUEUE` payload for
+an active construction, an in-place structure upgrade, or ordinary training.
+That payload references the serialized build-timer frame and carries the
+active item's `starttime`/`endtime`; `client/cl_scrn.c` converts the elapsed
+time into the bar value each frame.
+
+Construction and in-place upgrades hide the authored waiting-queue backdrop
+and repeated queue slots, but this is only a presentation choice. Suppressing
+the entire `FT_BUILDQUEUE` frame also suppresses the progress update and makes
+the status-panel bar disappear. The regression is covered by
+`wc3_building.construction_and_upgrade_keep_progress_queue_transport`:
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test 'wc3_building.construction_and_upgrade_keep_progress_queue_transport'
+```
+
 Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards. The same invalidation reaches connected shared-control viewers whose selected unit belongs to the changed owner; those viewers also evaluate build state against the owner's resources and technology.
 
 ## Melee visibility versus campaign restrictions

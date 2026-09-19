@@ -26,6 +26,11 @@ static BOOL building_command_number_seen;
 static BOOL building_cursor_opcode_seen;
 static BOOL building_cursor_clear_seen;
 static PATHSTR building_image_path;
+static DWORD building_queue_frame_count;
+static USHORT building_queue_buildtimer;
+static BYTE building_queue_numitems;
+static DWORD building_queue_starttime;
+static DWORD building_queue_endtime;
 
 static void building_test_stand(LPEDICT ent) {
     (void)ent;
@@ -65,6 +70,22 @@ static void building_capture_write(pfWriteType_t type, void const *value) {
         building_cursor_clear_seen = cursor->model == 0;
         building_cursor_opcode_seen = false;
     }
+}
+
+static void building_queue_capture_write(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame;
+    uiBuildQueue_t const *queue;
+
+    if (type != PF_UIFRAME || !value) return;
+    frame = value;
+    if (frame->flags.type != FT_BUILDQUEUE || !frame->buffer.data ||
+        frame->buffer.size < sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t)) return;
+    queue = frame->buffer.data;
+    building_queue_frame_count++;
+    building_queue_buildtimer = queue->buildtimer;
+    building_queue_numitems = queue->numitems;
+    building_queue_starttime = queue->items[0].starttime;
+    building_queue_endtime = queue->items[0].endtime;
 }
 
 static LPCSTR building_all_cvar(LPCSTR name, LPCSTR fallback) {
@@ -313,6 +334,58 @@ TEST(wc3_building, hud_texture_paths_are_authored_per_recipient) {
     T_STREQ(UI_ThemeImagePath("UI\\Textures\\fixed.blp"), "UI\\Textures\\fixed.blp");
     strcpy(hud.image_key[1], old_key); strcpy(hud.image_name[1], old_name); hud.image_decorated[1] = old_dec;
     UI_SetCurrentClient(previous); gi.ImageIndex = old_index; game.config.theme = old; Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT building;
+    UnitBalance_t balance;
+    umove_t birth = { .animation = "birth", .think = ai_birth };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+
+    setup_test_world();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 100;
+    building->data.UnitBalance = &balance;
+    building->s.player = client->ps.number;
+    building->build = building;
+    building->construction.active = true;
+    building->currentmove = &birth;
+    building->health.value = building->health.max_value * 0.5f;
+    gi.Write = building_queue_capture_write;
+    gi.ImageIndex = building_test_image_index;
+
+    /* The active construction hides queue slots but must still publish the
+     * FT_BUILDQUEUE payload that drives the client progress bar. */
+    building_queue_frame_count = 0;
+    UI_WriteStart(LAYER_INFOPANEL);
+    UI_WriteBuildQueue(building);
+    T_EQ(building_queue_frame_count, 1);
+    T_EQ(building_queue_numitems, 1);
+    T_ASSERT(building_queue_buildtimer != 0);
+    T_ASSERT(building_queue_endtime > building_queue_starttime);
+
+    building->build = NULL;
+    building->construction.active = false;
+    building->currentmove = NULL;
+    building->research.upgrade = building->class_id;
+    building->research.duration = 100.0f;
+    building->research.progress = 50.0f;
+
+    /* In-place upgrades use the same transport even though their waiting
+     * queue backdrop is hidden. */
+    building_queue_frame_count = 0;
+    UI_WriteStart(LAYER_INFOPANEL);
+    UI_WriteBuildQueue(building);
+    T_EQ(building_queue_frame_count, 1);
+    T_EQ(building_queue_numitems, 1);
+    T_ASSERT(building_queue_buildtimer != 0);
+    T_ASSERT(building_queue_endtime > building_queue_starttime);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
 }
 
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
