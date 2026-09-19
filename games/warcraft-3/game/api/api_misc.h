@@ -891,7 +891,10 @@ DWORD CopySaveGame(LPJASS j) {
 }
 DWORD GetTerrainType(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
 DWORD GetTerrainVariance(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
-DWORD IsPointBlighted(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushboolean(j, false); }
+DWORD IsPointBlighted(LPJASS j) {
+    VECTOR2 point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    return jass_pushboolean(j, G_IsPointBlighted(&point));
+}
 DWORD IsTerrainPathable(LPJASS j) {
     (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
     return jass_pushboolean(j, true);

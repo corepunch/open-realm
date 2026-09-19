@@ -518,6 +518,7 @@ static void G_ShutdownGame(void) {
     G_JassSoundRuntimeReset();
     G_ClearJassGroupRegistry();
     G_FowShutdown();
+    G_BlightShutdown();
     G_FreeModels();
     gi.MemFree(g_edicts);
     g_edicts = NULL;

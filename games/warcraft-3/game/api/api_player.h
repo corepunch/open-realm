@@ -724,31 +724,37 @@ DWORD RemoveAllGuardPositions(LPJASS j) {
     return 0;
 }
 DWORD SetBlight(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT radius = jass_checknumber(j, 4);
-    //BOOL addBlight = jass_checkboolean(j, 5);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    VECTOR2 point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    FLOAT radius = jass_checknumber(j, 4);
+    BOOL addBlight = jass_checkboolean(j, 5);
+    (void)whichPlayer; /* Blight is global terrain state; player is API-compatible ownership context. */
+    G_SetBlightRadius(&point, radius, addBlight);
     return 0;
 }
 DWORD SetBlightRect(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE r = jass_checkhandle(j, 2, "rect");
-    //BOOL addBlight = jass_checkboolean(j, 3);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPCBOX2 r = jass_checkhandle(j, 2, "rect");
+    BOOL addBlight = jass_checkboolean(j, 3);
+    (void)whichPlayer;
+    if (r) G_SetBlightRect(r, addBlight);
     return 0;
 }
 DWORD SetBlightPoint(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //BOOL addBlight = jass_checkboolean(j, 4);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    VECTOR2 point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    BOOL addBlight = jass_checkboolean(j, 4);
+    (void)whichPlayer;
+    G_SetBlightPoint(&point, addBlight);
     return 0;
 }
 DWORD SetBlightLoc(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    //FLOAT radius = jass_checknumber(j, 3);
-    //BOOL addBlight = jass_checkboolean(j, 4);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
+    FLOAT radius = jass_checknumber(j, 3);
+    BOOL addBlight = jass_checkboolean(j, 4);
+    (void)whichPlayer;
+    if (whichLocation) G_SetBlightRadius(whichLocation, radius, addBlight);
     return 0;
 }
 

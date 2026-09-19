@@ -132,6 +132,7 @@ typedef enum {
     PLACE_TERRAIN_BLOCKED,
     PLACE_UNIT_BLOCKED,
     PLACE_REQUIRED_PATHING_MISSING,
+    PLACE_REQUIRES_BLIGHT,
     PLACE_TOO_CLOSE_TO_GOLD_MINE,
     PLACE_OUT_OF_BOUNDS,
     PLACE_REQUIRED_PARENT_MISSING,
@@ -1256,6 +1257,11 @@ struct edict_s {
         FLOAT rise_duration;
         ravenRiseState_t rise_state;
     } raven;
+    struct edictBlightGrowth_s {
+        DWORD ability;      /* concrete Abli-derived alias owning this state */
+        FLOAT radius;       /* current expanded radius */
+        DWORD next_update;  /* next authored expansion deadline */
+    } blight_growth;
     struct edictEnsnare_s {
         FLOAT adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
         FLOAT height; /* DataB land start, or authored moveHeight while rising */
@@ -1604,6 +1610,12 @@ typedef struct {
     fowPlayerGrid_t players[MAX_PLAYERS];
 } fowGrid_t;
 
+typedef struct {
+    DWORD width, height;
+    BOX2 bounds;
+    BYTE *cells; /* mutable current Blight, one byte per 32-unit pathing cell */
+} blightGrid_t;
+
 /* A fog modifier continuously applies one of the three JASS fog states while started. */
 typedef struct fogmodifier_s {
     DWORD player;
@@ -1782,6 +1794,7 @@ struct level_locals {
     QUEST quests[MAX_QUESTS];
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
+    blightGrid_t blight;
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
@@ -1931,6 +1944,15 @@ BOOL G_BotMergeUnits(LPPLAYER, LONG, DWORD, DWORD, DWORD);
 // g_fow.c
 void G_FowInit(void);
 void G_FowShutdown(void);
+void G_BlightInit(void);
+void G_BlightShutdown(void);
+BOOL G_IsPointBlighted(LPCVECTOR2 point);
+void G_SetBlightPoint(LPCVECTOR2 point, BOOL add);
+void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add);
+void G_SetBlightRect(LPCBOX2 rect, BOOL add);
+DWORD G_GetBlightStateSize(void);
+BOOL G_GetBlightState(LPBYTE out, DWORD size);
+BOOL G_SetBlightState(BYTE const *data, DWORD size);
 void G_FowConnectPlayer(DWORD player);
 void G_FowUpdate(void);
 void G_FowMarkBlockersDirty(void);

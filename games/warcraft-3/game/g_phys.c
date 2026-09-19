@@ -146,7 +146,7 @@ static BOOL G_UnitRegeneratesHP(LPCEDICT ent) {
         return G_IsNight();
     }
     if (!strcmp(type, "blight")) {
-        return false; /* no blight system yet: treat as off-blight (no regen) */
+        return G_IsPointBlighted(&ent->s.origin2);
     }
     return true; /* "always" */
 }
@@ -188,8 +188,8 @@ void G_RunEntity(LPEDICT ent) {
     /* Hit-point regeneration (WC3 'uhpr', HP/second), plus a hero's Strength
      * regen bonus (MiscGame StrRegenBonus = 0.05 HP/sec per Strength).  Gated by
      * the unit's 'uhrt' regenType: "always" any time, "night" only at night
-     * (night elves), "blight" only on blight (no blight system yet -> off-blight
-     * = no regen), "none" never.  Living, wounded units only. */
+     * (night elves), "blight" only on the authoritative Blight pathing field,
+     * "none" never.  Living, wounded units only. */
     if (ent->health.max_value > 0 && ent->health.value > 0 && ent->health.value < ent->health.max_value) {
         FLOAT const aura = S_RegenerationHealthAura(ent);
         FLOAT const rejuv = S_RejuvHealRate(ent);

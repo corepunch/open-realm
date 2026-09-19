@@ -1222,6 +1222,8 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
  #endif
                     return PLACE_OUT_OF_BOUNDS;
                 }
+                if (G_IsPointBlighted(&sample)) flags |= WC3_PATH_BLIGHTED;
+                else flags &= ~WC3_PATH_BLIGHTED;
                 if (flags & prevented) {
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
@@ -1231,12 +1233,16 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
                     return PLACE_TERRAIN_BLOCKED;
                 }
                 if ((flags & required) != required) {
+                    buildPlacementResult_t const result =
+                        (required & WC3_PATH_BLIGHTED) && !(flags & WC3_PATH_BLIGHTED)
+                            ? PLACE_REQUIRES_BLIGHT
+                            : PLACE_REQUIRED_PATHING_MISSING;
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=required-pathing building=%.4s sample=(%.1f,%.1f) flags=0x%x required=0x%x\n",
-                            PLACE_REQUIRED_PATHING_MISSING, (LPCSTR)&building_id, sample.x, sample.y, flags, required);
+                            result, (LPCSTR)&building_id, sample.x, sample.y, flags, required);
  #endif
-                    return PLACE_REQUIRED_PATHING_MISSING;
+                    return result;
                 }
             }
         }
