@@ -397,6 +397,7 @@ static field_t const level_fields[] = {
     F(level_locals, environment_fog.defaults_valid, F_INT),
     F(level_locals, camera_bounds, F_VECTOR),
     F(level_locals, started, F_INT),
+    F(level_locals, scriptsConfigured, F_INT),
     F(level_locals, scriptsStarted, F_INT),
     F(level_locals, waypoints.base, F_INT),
     F(level_locals, waypoints.cursor, F_INT),
