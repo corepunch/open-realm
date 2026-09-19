@@ -837,6 +837,7 @@ void MDLX_ReleaseRibbonStates(mdxRibbonInstance_t *state) {
 
 void MDLX_Release(mdxModel_t *model) {
     MDLX_ReleaseSprites(model);
+    MDLX_ForgetRibbonModel(model); /* drop registry entry and entity-less orphans before their model dies */
     SAFE_DELETE(model->ribbon_states, MDLX_ReleaseRibbonStates);
     SAFE_DELETE(model->ribbons, MDLX_ReleaseModelRibbon);
     SAFE_DELETE(model->geosets, MDLX_ReleaseModelGeoset);

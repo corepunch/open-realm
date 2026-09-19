@@ -675,7 +675,7 @@ static BUFFER ribbon_buf;
 static BOOL ribbon_buf_ready;
 static VERTEX ribbon_verts[TRAIL_MAX_EDGES * 6];
 
-static mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, DWORD id) {
+mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, DWORD id) {
     mdxMaterial_t *material = model->materials;
     for (; material && id > 0; id--)
         material = material->next;
@@ -704,60 +704,71 @@ static void MDLX_EnsureRibbonBuffer(void) {
     ribbon_buf_ready = true;
 }
 
+/* Upload one strip and run it through the material's layer stack. Shared by live
+ * trails and detached (entity-less) orphans so both execute identical GL. */
+void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, DWORD nverts,
+                          mdxMaterial_t const *material, DWORD team)
+{
+    MODELPROG *shader = mdlx.shader;
+    MATRIX4 identity;
+
+    if (!shader || !model || !verts || !nverts || !material) return;
+    MDLX_EnsureRibbonBuffer();
+    Matrix4_identity(&identity);
+    shader->state.model = identity;
+    shader->state.bones[0] = identity;
+    shader->state.boneCount = 1;
+    shader->state.geosetColor = (VECTOR4){ 1, 1, 1, 1 };
+    shader->state.layerAlpha = 1.0f;
+    R_Call(glBindVertexArray, ribbon_buf.vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ribbon_buf.vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, nverts * sizeof(VERTEX), verts, GL_STREAM_DRAW);
+    FOR_LOOP(layerID, material->num_layers) {
+        mdxMaterialLayer_t const *layer = &material->layers[layerID];
+        DWORD textureId = layer->textureId;
+        mdxTexture_t const *modeltex;
+        LPCTEXTURE texture;
+        BOOL layerFog;
+
+        if (textureId >= (DWORD)model->num_textures) continue;
+        R_Call(glEnable, GL_DEPTH_TEST);
+        R_Call(glDisable, GL_CULL_FACE);
+        shader->state.alphaKey = 0;
+        if (!MDLX_SetLayerBlend(layer, layerID)) continue;
+        MDLX_ApplyLayerFlags(layer);
+        shader->state.unshaded = (layer->flags & MODEL_GEO_UNSHADED) ? 1 : 0;
+        layerFog = tr.viewDef.fogEnable &&
+            !(layer->flags & MODEL_GEO_UNFOGGED) &&
+            (layer->blendMode == BLEND_MODE_NONE ||
+             layer->blendMode == BLEND_MODE_ALPHAKEY ||
+             layer->blendMode == BLEND_MODE_BLEND);
+        shader->state.fogEnable = layerFog ? 1 : 0;
+        modeltex = &model->textures[textureId];
+        texture = MDLX_GetTexture(model, team & TEAM_MASK, textureId, modeltex->replaceableID, NULL);
+        R_BindTexture(texture, 0);
+        R_StatsDraw(GL_TRIANGLES, nverts, 1);
+        R_ApplyShader(shader);
+        R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)nverts);
+    }
+}
+
 void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *model, LPCMATRIX4 model_matrix) {
     MODELPROG *shader;
-    MATRIX4 saved_model, identity;
+    MATRIX4 saved_model;
     int saved_unshaded, saved_fog;
 
     if (!entity || !model || !model->ribbons || !model_matrix) return;
     if ((entity->flags & RF_NOT_SELECTABLE) && entity->oldframe == entity->frame) return;
     shader = mdlx.shader;
     if (!shader) return;
-    MDLX_EnsureRibbonBuffer();
-    Matrix4_identity(&identity);
     saved_model = shader->state.model;
     saved_unshaded = shader->state.unshaded;
     saved_fog = shader->state.fogEnable;
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons) {
         DWORD nverts = MDLX_EmitRibbonVertices((mdxModel_t *)model, entity, model_matrix, ribbon,
                                                ribbon_verts, TRAIL_MAX_EDGES * 6);
-        mdxMaterial_t *material = MDLX_MaterialAt(model, ribbon->materialId);
-        if (!nverts || !material) continue;
-        shader->state.model = identity;
-        shader->state.bones[0] = identity;
-        shader->state.boneCount = 1;
-        shader->state.geosetColor = (VECTOR4){ 1, 1, 1, 1 };
-        shader->state.layerAlpha = 1.0f;
-        R_Call(glBindVertexArray, ribbon_buf.vao);
-        R_Call(glBindBuffer, GL_ARRAY_BUFFER, ribbon_buf.vbo);
-        R_Call(glBufferData, GL_ARRAY_BUFFER, nverts * sizeof(VERTEX), ribbon_verts, GL_STREAM_DRAW);
-        FOR_LOOP(layerID, material->num_layers) {
-            mdxMaterialLayer_t const *layer = &material->layers[layerID];
-            DWORD textureId = layer->textureId;
-            mdxTexture_t const *modeltex;
-            LPCTEXTURE texture;
-            BOOL layerFog;
-
-            if (textureId >= (DWORD)model->num_textures) continue;
-            R_Call(glEnable, GL_DEPTH_TEST);
-            R_Call(glDisable, GL_CULL_FACE);
-            shader->state.alphaKey = 0;
-            if (!MDLX_SetLayerBlend(layer, layerID)) continue;
-            MDLX_ApplyLayerFlags(layer);
-            shader->state.unshaded = (layer->flags & MODEL_GEO_UNSHADED) ? 1 : 0;
-            layerFog = tr.viewDef.fogEnable &&
-                !(layer->flags & MODEL_GEO_UNFOGGED) &&
-                (layer->blendMode == BLEND_MODE_NONE ||
-                 layer->blendMode == BLEND_MODE_ALPHAKEY ||
-                 layer->blendMode == BLEND_MODE_BLEND);
-            shader->state.fogEnable = layerFog ? 1 : 0;
-            modeltex = &model->textures[textureId];
-            texture = MDLX_GetTexture(model, entity->team & TEAM_MASK, textureId, modeltex->replaceableID, NULL);
-            R_BindTexture(texture, 0);
-            R_StatsDraw(GL_TRIANGLES, nverts, 1);
-            R_ApplyShader(shader);
-            R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)nverts);
-        }
+        MDLX_DrawRibbonVerts(model, ribbon_verts, nverts,
+                             MDLX_MaterialAt(model, ribbon->materialId), entity->team);
     }
     shader->state.model = saved_model;
     shader->state.unshaded = saved_unshaded;

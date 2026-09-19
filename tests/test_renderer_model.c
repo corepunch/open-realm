@@ -658,6 +658,82 @@ TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     tr.viewDef = saved;
 }
 
+TEST(renderer_model, mdx_detached_ribbon_waits_one_frame_then_fades_out) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10,
+        .color = { 1, 1, 1 }, .lifespan = 0.5f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    mdxModel_t model = { .ribbons = &ribbon };
+    renderEntity_t entity = { .number = 31 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef = (viewDef_t){ .time = 1000, .deltaTime = 100 };
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    MDLX_TickDetachedRibbons(); /* the owner drew in this frame: no orphan yet */
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    tr.viewDef.time = 1100;
+    MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    tr.viewDef.time = 1600;
+    MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    MDLX_ForgetRibbonModel(&model);
+    if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_detached_ribbon_reattach_cancels_orphan) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10,
+        .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    mdxModel_t model = { .ribbons = &ribbon };
+    renderEntity_t entity = { .number = 32 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef = (viewDef_t){ .time = 2000, .deltaTime = 100 };
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    tr.viewDef.time = 2100; MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    tr.viewDef.time = 2200; MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    MDLX_ForgetRibbonModel(&model);
+    if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
+    tr.viewDef = saved;
+}
+
+TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
+    mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10,
+        .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
+    mdxModel_t model = { .ribbons = &ribbon };
+    renderEntity_t entity = { .number = 33 };
+    MATRIX4 matrix;
+    VERTEX verts[64];
+    viewDef_t saved = tr.viewDef;
+
+    ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.viewDef = (viewDef_t){ .time = 3000, .deltaTime = 100 };
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    tr.viewDef.time = 3100; MDLX_TickDetachedRibbons();
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    tr.viewDef.time = 4000; Matrix4_translate(&matrix, &(VECTOR3){10000, 0, 0});
+    MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
+    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    T_ASSERT(model.ribbon_states->trails[0].count >= 1);
+    FOR_LOOP(i, model.ribbon_states->trails[0].count) {
+        int edge = (model.ribbon_states->trails[0].head - model.ribbon_states->trails[0].count + i + TRAIL_MAX_EDGES) % TRAIL_MAX_EDGES;
+        T_FEQ(model.ribbon_states->trails[0].edges[edge].above.x, 10000.0f, 0.001f);
+    }
+    MDLX_ForgetRibbonModel(&model);
+    if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
+    tr.viewDef = saved;
+}
+
 static void mdx_put_u32(BYTE **p, DWORD v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_f32(BYTE **p, float v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_fourcc(BYTE **p, LPCSTR tag) { memcpy(*p, tag, 4); *p += 4; }

@@ -81,6 +81,26 @@ Calls into the renderer API:
 4. Console overlay draws debug text.
 5. `R_EndFrame` — present the frame.
 
+### WC3 transient ribbon lifetime
+
+MDX ribbon geometry is authored by a model emitter, but its live edge history is
+renderer-owned (`trail_t`) and keyed by render-entity number. This follows the
+Quake 3 temporary-effect boundary: the game supplies the emitter/material data;
+the renderer owns the transient presentation pool and advances it once per view.
+
+When an entity disappears without a death/decay render (for example, an impact
+immediately frees its edict), `games/warcraft-3/renderer/mdx/r_mdx_ribbons.c`
+copies each live trail into the global detached-ribbon list. The next view ages
+and draws those copies through the normal MDX material path, fading edge alpha by
+age until the authored ribbon lifespan expires. If the same entity number is
+drawn again, its detached copies are discarded before live emission resumes.
+
+The list is presentation-only: it does not keep an edict alive, alter server
+state, or own model assets. `MDLX_ForgetRibbonModel` removes both the model's
+live ribbon registry entry and detached copies before model release. The
+headless renderer tests cover the one-frame detach delay, expiry, reattachment,
+and entity-number reuse paths.
+
 ## Camera samples
 
 `playerState.viewangles` is the only view orientation on the wire: Euler degrees in `ROTATE_ZYX` order `{pitch, roll, yaw}`. Do not send a parallel quaternion — Euler→quat is lossless, quat→Euler is not.
