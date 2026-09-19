@@ -621,7 +621,7 @@ static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, cmPlacementHeader_t co
                     context);
             return false;
     }
-    SFileReadFile(file, &unit->color, sizeof(COLOR32), NULL, NULL);
+    SFileReadFile(file, &unit->customTeamColor, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->waygate, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &unit->unitID, sizeof(DWORD), NULL, NULL);
     return true;

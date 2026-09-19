@@ -1260,7 +1260,7 @@ struct Doodad {
     DWORD randomUnitPositionNumber; //    DWORD: position number (which column of this group)
     DWORD num_diffAvailUnits;
     droppableItem_t *diffAvailUnits;
-    COLOR32 color;
+    DWORD customTeamColor; // war3mapUnits.doo player-color index; -1 uses the unit type/owner colour
     DWORD waygate;
     DWORD unitID;
     struct Doodad *next;
