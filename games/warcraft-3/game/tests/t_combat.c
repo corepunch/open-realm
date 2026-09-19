@@ -39,6 +39,7 @@ void free_slk_rows(slkTestData_t *rows);
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void G_RunEntities(void);
 
 
 #include "../game/skills/s_skills.h"
@@ -1866,24 +1867,25 @@ TEST(wc3_combat, blight_growth_uses_authored_expansion_and_availability) {
 
     setup_test_world(); level.time = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    unit->s.player = 0; unit->abilities.added[0] = code; ARRAY_COUNT(unit->abilities.added) = 1;
+    unit->s.player = 0; unit->think = monster_think;
+    unit->abilities.added[0] = code; ARRAY_COUNT(unit->abilities.added) = 1;
     T_ASSERT(S_UnitAbilityEvent(unit, A_UNIT_INIT));
     T_FEQ(unit->blight_growth.radius, 0.0f, 0.001f);
     T_ASSERT(!G_IsPointBlighted(&first_ring));
 
-    level.time = 200; S_RunAbilityUpdates(unit);
+    level.time = 200; G_RunEntities();
     T_FEQ(unit->blight_growth.radius, 73.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&first_ring)); T_ASSERT(!G_IsPointBlighted(&second_ring));
 
-    level.time = 400; S_RunAbilityUpdates(unit);
+    level.time = 400; G_RunEntities();
     T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
     T_ASSERT(G_IsPointBlighted(&second_ring));
 
     G_SetPlayerAbilityAvailable(&game.clients[0], code, false);
-    level.time = 600; S_RunAbilityUpdates(unit);
+    level.time = 600; G_RunEntities();
     T_FEQ(unit->blight_growth.radius, 146.0f, 0.001f);
     G_SetPlayerAbilityAvailable(&game.clients[0], code, true);
-    S_RunAbilityUpdates(unit);
+    G_RunEntities();
     T_FEQ(unit->blight_growth.radius, 219.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);

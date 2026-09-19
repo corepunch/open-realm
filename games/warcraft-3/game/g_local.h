@@ -138,6 +138,8 @@ typedef enum {
     PLACE_REQUIRED_PARENT_MISSING,
 } buildPlacementResult_t;
 
+#define WC3_PATH_BLIGHTED 0x20
+
 typedef enum {
     CONSTRUCTION_NONE,
     CONSTRUCTION_HUMAN,

@@ -77,7 +77,6 @@ void G_ClearBuildPreview(LPEDICT builder) {
 #define WC3_UNDEAD_BUILD_WORK_MS 2267 // milliseconds; Warsmash CBehaviorUndeadBuild summon-work window
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
-#define WC3_PATH_BLIGHTED 0x20
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')

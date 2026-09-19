@@ -2,7 +2,6 @@
 
 #define WC3_BLIGHT_PATH_CELL 32.0f
 #define WC3_BLIGHT_TERRAIN_CELL 128.0f
-#define WC3_PATH_BLIGHTED 0x20
 
 static DWORD G_BlightCellCount(void) { return level.blight.width * level.blight.height; }
 
@@ -64,7 +63,11 @@ void G_BlightInit(void) {
         DWORD const index = x + y * level.blight.width;
         sample.x = level.blight.bounds.min.x + ((FLOAT)x + 0.5f) * WC3_BLIGHT_PATH_CELL;
         sample.y = level.blight.bounds.min.y + ((FLOAT)y + 0.5f) * WC3_BLIGHT_PATH_CELL;
-        if (!CM_GetPathingFlagsAt(&sample, &flags)) continue;
+        if (!CM_GetPathingFlagsAt(&sample, &flags)) {
+            fprintf(stderr, "WC3 Blight: pathing flags unavailable at (%.1f,%.1f); leaving cell clear\n",
+                    sample.x, sample.y);
+            continue;
+        }
         level.blight.cells[index] = (flags & WC3_PATH_BLIGHTED) != 0;
     }
 }
