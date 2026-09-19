@@ -43,6 +43,12 @@ static void blight_growth_reset(LPEDICT ent, DWORD code, DWORD now) {
     ent->blight_growth.ability = code;
     ent->blight_growth.radius = 0.0f;
     ent->blight_growth.next_update = code ? now + (DWORD)(MAX(0.0f, interval) * 1000.0f) : 0;
+#ifdef WC3_DEBUG_BLIGHT
+    fprintf(stderr, "WC3_BLIGHT growth init ent=%ld unit=%.4s code=%.4s level=%u interval=%.3f next=%u origin=(%.1f,%.1f)\n",
+            (long)(ent - g_edicts), (LPCSTR)&ent->class_id, (LPCSTR)&code,
+            (unsigned)level, interval, (unsigned)ent->blight_growth.next_update,
+            ent->s.origin2.x, ent->s.origin2.y);
+#endif
 }
 
 /* Warsmash CAbilityBlight semantics: DataA selects create/remove, DataB is the
@@ -81,7 +87,14 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
 
     if (!ent->inuse || M_IsDead(ent) || !(code = ent->blight_growth.ability)) return false;
     owner = G_GetPlayerClientByNumber(ent->s.player);
-    if (owner && !G_IsPlayerAbilityAvailable(owner, code)) return false;
+    if (owner && !G_IsPlayerAbilityAvailable(owner, code)) {
+#ifdef WC3_DEBUG_BLIGHT
+        if (G_Time() >= ent->blight_growth.next_update)
+            fprintf(stderr, "WC3_BLIGHT growth blocked ent=%ld code=%.4s reason=unavailable player=%u now=%u\n",
+                    (long)(ent - g_edicts), (LPCSTR)&code, (unsigned)ent->s.player, (unsigned)G_Time());
+#endif
+        return false;
+    }
     level = G_UnitAbilityLevel(ent, code);
     if (!level) {
         memset(&ent->blight_growth, 0, sizeof(ent->blight_growth));
@@ -92,13 +105,32 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
     max_radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
     now = G_Time();
 
-    if (interval <= 0.0f || expansion <= 0.0f || max_radius <= 0.0f) return false;
+    if (interval <= 0.0f || expansion <= 0.0f || max_radius <= 0.0f) {
+#ifdef WC3_DEBUG_BLIGHT
+        if (G_Time() == ent->blight_growth.next_update)
+            fprintf(stderr, "WC3_BLIGHT growth blocked ent=%ld code=%.4s reason=invalid-data interval=%.3f expansion=%.3f max_radius=%.3f dataA=%.3f\n",
+                    (long)(ent - g_edicts), (LPCSTR)&code, interval, expansion, max_radius,
+                    S_SpellData(code, level, 1));
+#endif
+        return false;
+    }
     if (now < ent->blight_growth.next_update) return false;
 
     if (ent->blight_growth.radius < max_radius) {
         BOOL const creates = S_SpellData(code, level, 1) != 0.0f;
+#ifdef WC3_DEBUG_BLIGHT
+        FLOAT const old_radius = ent->blight_growth.radius;
+#endif
         ent->blight_growth.radius = MIN(max_radius, ent->blight_growth.radius + expansion);
         G_SetBlightRadius(&ent->s.origin2, ent->blight_growth.radius, creates);
+#ifdef WC3_DEBUG_BLIGHT
+        fprintf(stderr, "WC3_BLIGHT growth tick ent=%ld code=%.4s now=%u radius=%.3f->%.3f expansion=%.3f max=%.3f creates=%u next=%u point=(%.1f,%.1f) blighted=%u\n",
+                (long)(ent - g_edicts), (LPCSTR)&code, (unsigned)now,
+                old_radius, ent->blight_growth.radius, expansion, max_radius,
+                (unsigned)creates, (unsigned)(now + (DWORD)(interval * 1000.0f)),
+                ent->s.origin2.x, ent->s.origin2.y,
+                (unsigned)G_IsPointBlighted(&ent->s.origin2));
+#endif
     }
     ent->blight_growth.next_update = now + (DWORD)(interval * 1000.0f);
     return true;

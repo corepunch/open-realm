@@ -239,6 +239,67 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     }
 }
 
+static BOOL CL_EnsureBlightSize(DWORD width, DWORD height, VECTOR2 origin, FLOAT cell_size) {
+    DWORD cells;
+
+    if (!width || !height || !cell_size || height > UINT_MAX / width) return false;
+    if (cl.blight.width == width && cl.blight.height == height &&
+        cl.blight.origin.x == origin.x && cl.blight.origin.y == origin.y &&
+        cl.blight.cell_size == cell_size && cl.blight.cells)
+        return true;
+    cells = width * height;
+    SAFE_DELETE(cl.blight.cells, MemFree);
+    cl.blight.cells = MemAlloc(cells);
+    if (!cl.blight.cells) {
+        cl.blight.width = cl.blight.height = 0;
+        fprintf(stderr, "CL_ParseFrame: failed to allocate %u-cell Blight mask\n", (unsigned)cells);
+        return false;
+    }
+    memset(cl.blight.cells, 0, cells);
+    cl.blight.width = width; cl.blight.height = height;
+    cl.blight.origin = origin; cl.blight.cell_size = cell_size;
+    cl.blight.generation++;
+    return true;
+}
+
+static BOOL CL_ParseBlightChunk(LPSIZEBUF msg) {
+    wc3BlightChunk_t chunk;
+    BYTE const *payload;
+    DWORD cells, row_cells;
+
+    if (msg->cursize - msg->readcount < sizeof(chunk)) return false;
+    MSG_Read(msg, &chunk, sizeof(chunk));
+    row_cells = (DWORD)chunk.width * chunk.row_count;
+    if (!chunk.width || !chunk.height || !chunk.row_count ||
+        chunk.first_row >= chunk.height || chunk.row_count > chunk.height - chunk.first_row ||
+        chunk.cell_size <= 0.0f || chunk.payload_bytes != (row_cells + 7) / 8 ||
+        chunk.payload_bytes > msg->cursize - msg->readcount) {
+        fprintf(stderr, "CL_ParseFrame: invalid Blight chunk %ux%u first=%u rows=%u payload=%u\n",
+            (unsigned)chunk.width, (unsigned)chunk.height, (unsigned)chunk.first_row,
+            (unsigned)chunk.row_count, (unsigned)chunk.payload_bytes);
+        msg->readcount = MIN(msg->cursize, msg->readcount + chunk.payload_bytes);
+        return false;
+    }
+    payload = msg->data + msg->readcount;
+    cells = row_cells;
+    if (!CL_EnsureBlightSize(chunk.width, chunk.height,
+            (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) {
+        msg->readcount += chunk.payload_bytes;
+        return false;
+    }
+    FOR_LOOP(index, cells)
+        cl.blight.cells[chunk.first_row * cl.blight.width + index] =
+            (payload[index >> 3] >> (index & 7)) & 1;
+    msg->readcount += chunk.payload_bytes;
+    cl.blight.generation++;
+#ifdef WC3_DEBUG_BLIGHT
+    fprintf(stderr, "WC3_BLIGHT client chunk rows=%u..%u payload=%u generation=%u\n",
+        (unsigned)chunk.first_row, (unsigned)(chunk.first_row + chunk.row_count - 1),
+        (unsigned)chunk.payload_bytes, (unsigned)cl.blight.generation);
+#endif
+    return true;
+}
+
 /* Handle the svc_frame header and its game-owned datagram, then snapshot entity
  * states into "prev" so the renderer can interpolate the current scene. */
 void CL_ParseFrame(LPSIZEBUF msg) {
@@ -264,7 +325,8 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     }
     DWORD header = (USHORT)MSG_ReadShort(msg);
     BOOL const has_entity_tints = (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) != 0;
-    DWORD count = header & ~BZ_GAME_DATAGRAM_ENTITY_TINTS;
+    BOOL const has_blight = (header & BZ_GAME_DATAGRAM_BLIGHT) != 0;
+    DWORD count = header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_BLIGHT);
     if (count > MAX_WEATHER_EFFECTS || msg->readcount + count * sizeof(wc3WeatherEffect_t) > msg->cursize) {
         fprintf(stderr, "CL_ParseFrame: invalid weather snapshot count=%u\n", (unsigned)count);
         msg->readcount = msg->cursize;
@@ -290,6 +352,10 @@ void CL_ParseFrame(LPSIZEBUF msg) {
             cl.ents[number].tint = color;
             cl.ents[number].tint_valid = true;
         }
+    }
+    if (has_blight && !CL_ParseBlightChunk(msg)) {
+        msg->readcount = msg->cursize;
+        return;
     }
 }
 

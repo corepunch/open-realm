@@ -18,6 +18,7 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
 LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy);
 void R_ResetGroundTextures(void);
 void R_ResetCliffCache(void);
+void R_RenderBlightMask(void);
 void _W3M_ClearMap(void);
 FLOAT R_W3CameraHeightAtPoint(FLOAT x, FLOAT y);
 FLOAT R_W3TerrainHeightAtPoint(FLOAT x, FLOAT y);

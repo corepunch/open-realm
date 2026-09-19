@@ -43,16 +43,15 @@ Natural HP regeneration with `uhrt=blight` queries the current Blight field at t
 
 Save format 32 writes the final game-owned Blight plane after the level field stream and restores it before entity records. Each unit's `blight_growth` scalar state is part of the raw versioned `edict_t` record. This preserves both script mutations and the expansion progress/deadline of `Abli` sources. The saved byte count must exactly match the Blight grid initialized for the freshly loaded map.
 
-## Known presentation gaps
+## Client presentation
 
-This implementation is deliberately simulation-first. The following remain separate work:
+The server publishes the authoritative Blight plane through the existing Warcraft III per-frame game datagram. A client receives the initial map plane after `G_ClientBegin`; later point/radius/rect changes dirty only affected rows for connected clients. Each chunk carries the grid origin, dimensions, 32-unit cell size, and a bit-packed contiguous row range, so a large initial plane can span frames without widening `entityState_t` or starving the existing weather/tint payload.
 
-- runtime server-to-client Blight synchronization for the placement preview;
-- visible terrain Blight rendering/dirty-chunk updates;
-- Blighted destructable/tree presentation, including Ghoul-triggered tree Blight;
+- `CL_ParseFrame()` assembles chunks into a persistent client mask and exposes it through the generic terrain-mask fields in `viewDef_t`;
+- the WC3 terrain renderer collapses each 4x4 pathing block to a terrain tile, merges horizontal runs, conforms the overlay to terrain height, and draws a translucent purple Blight tint after ground/cliff geometry;
+- the placement preview still uses its existing client pathing data; server placement remains authoritative when the order arrives;
+- Blighted destructable/tree presentation, including Ghoul-triggered tree Blight, remains separate work;
 - retail verification of the buildable-ground raster edge cases where Warsmash consults ground-texture metadata rather than only WPM pathing.
-
-Until runtime client synchronization exists, the server is authoritative when a build click arrives, but the client's per-cell green/red preview only knows the map's initial WPM Blight.
 
 ## Verification
 
@@ -70,5 +69,7 @@ make test-wc3-engine WC3_PATTERN='wc3_save.blight_*'
 make test-wc3-engine WC3_PATTERN='wc3_pathfinding.blight_*'
 make test
 ```
+
+For one runtime trace of the server-to-renderer path, build/run with `WC3_DEBUG_BLIGHT=1`. The log should show `growth init`, either `growth tick` or a `growth blocked` reason, `radius` operations with changed-cell counts, a server `datagram` row range, a client `chunk`, and a renderer `render mask generation` line. A `client_mask=absent` line indicates that the initial snapshot has not arrived yet or that the map is being rendered before the first server frame.
 
 Manual campaign/custom-map verification should also exercise `SetBlight*`/`IsPointBlighted`, an Undead building crossing a Blight boundary, a damaged `uhrt=blight` unit walking on/off Blight, and stock `Abli` expansion timing.

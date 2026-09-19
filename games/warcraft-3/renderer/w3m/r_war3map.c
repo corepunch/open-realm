@@ -340,8 +340,20 @@ static void _W3M_SetSceneFog(void) {
 }
 
 void _W3M_DrawWorld(void) {
+    static LPCWAR3MAP debug_world;
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
+
+#ifdef WC3_DEBUG_BLIGHT
+    if (debug_world != tr.world) {
+        debug_world = tr.world;
+        fprintf(stderr, "WC3_BLIGHT render world=%p ground_layers=%s client_mask=%s dimensions=%ux%u splat_rects=%u\n",
+                (void *)tr.world, g_groundLayers ? "present" : "absent",
+                tr.viewDef.terrain_mask_data ? "present" : "absent",
+                (unsigned)tr.viewDef.terrain_mask_width, (unsigned)tr.viewDef.terrain_mask_height,
+                (unsigned)tr.viewDef.num_splat_rects);
+    }
+#endif
 
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
@@ -372,6 +384,7 @@ void _W3M_DrawWorld(void) {
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_CLIFF));
     }
+    R_RenderBlightMask();
 }
 
 void _W3M_DrawAlphaSurfaces(void) {

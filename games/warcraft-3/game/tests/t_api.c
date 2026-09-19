@@ -1946,7 +1946,7 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     T_ASSERT(size >= sizeof(header) + sizeof(count));
     memcpy(&header, data, sizeof(header));
     T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
-    offset = sizeof(header) + (header & ~BZ_GAME_DATAGRAM_ENTITY_TINTS) * sizeof(wc3WeatherEffect_t);
+    offset = sizeof(header) + (header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_BLIGHT)) * sizeof(wc3WeatherEffect_t);
     memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
     FOR_LOOP(i, count) {
         USHORT number; COLOR32 color;
@@ -5262,6 +5262,41 @@ TEST(wc3_api, blight_natives_share_authoritative_world_state) {
         "  call RemoveLocation(l)\n"
         "  call RemoveRect(r)\n"
         "endfunction\n"));
+}
+
+TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
+    BYTE data[8192];
+    USHORT header;
+    wc3BlightChunk_t chunk;
+    VECTOR2 point = { 32.0f, 32.0f };
+    LPEDICT client_ent;
+    DWORD size, offset, bit;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    G_BlightMarkClientFull(client_ent);
+    G_SetBlightPoint(&point, true);
+
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_BLIGHT);
+    offset = sizeof(header) + (header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_BLIGHT)) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
+    T_EQ(chunk.width, 64); T_EQ(chunk.height, 64); T_EQ(chunk.row_count, 64);
+    bit = 33 + 33 * chunk.width;
+    T_ASSERT(data[offset + (bit >> 3)] & (1u << (bit & 7)));
+
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_BLIGHT));
+    T_EQ(size, sizeof(USHORT) * 2);
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
 }
 
 #endif /* BZ_TESTS */

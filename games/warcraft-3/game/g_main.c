@@ -1230,6 +1230,7 @@ static void G_ClientBegin(LPEDICT edict) {
     G_FowConnectPlayer(client->ps.number);
     G_FowUpdate();
     G_FowSendFull(edict);
+    G_BlightMarkClientFull(edict);
 
 #ifdef BZ_TESTS
     if (atoi(gi.CvarString("wc3_quest_layout_test", "0"))) {

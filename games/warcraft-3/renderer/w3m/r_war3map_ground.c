@@ -255,6 +255,66 @@ void R_EndSplatBatch(void) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
+/* Blight is authored on 32-unit pathing cells while the terrain renderer
+ * conforms overlays to 128-unit terrain tiles.  Collapse each 4x4 pathing
+ * block to one terrain tile and merge horizontal runs before submitting. */
+void R_RenderBlightMask(void) {
+    DWORD const width = tr.viewDef.terrain_mask_width;
+    DWORD const height = tr.viewDef.terrain_mask_height;
+    FLOAT const cell_size = tr.viewDef.terrain_mask_cell_size;
+    DWORD cells_per_tile;
+    DWORD terrain_width, terrain_height, terrain_rects = 0, active_tiles = 0;
+    COLOR32 const color = { 42, 12, 58, 135 };
+
+    if (tr.render_phase != RENDER_PHASE_SOLID || !tr.world || !tr.viewDef.terrain_mask_data ||
+        !width || !height || cell_size <= 0.0f) return;
+    cells_per_tile = (DWORD)floorf(TILE_SIZE / cell_size + 0.5f);
+    if (!cells_per_tile || fabsf(cells_per_tile * cell_size - TILE_SIZE) > 0.01f) {
+        fprintf(stderr, "R_RenderBlightMask: unsupported mask cell size %.3f for %u-unit terrain\n",
+                cell_size, (unsigned)TILE_SIZE);
+        return;
+    }
+    terrain_width = (width + cells_per_tile - 1) / cells_per_tile;
+    terrain_height = (height + cells_per_tile - 1) / cells_per_tile;
+    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_splat));
+    FOR_LOOP(ty, terrain_height) {
+        DWORD run_start = terrain_width;
+        FOR_LOOP(tx, terrain_width + 1) {
+            BOOL active = false;
+            if (tx < terrain_width) {
+                DWORD const x0 = tx * cells_per_tile, y0 = ty * cells_per_tile;
+                DWORD const x1 = MIN(width, x0 + cells_per_tile), y1 = MIN(height, y0 + cells_per_tile);
+                for (DWORD y = y0; y < y1 && !active; y++)
+                    for (DWORD x = x0; x < x1; x++)
+                        if (tr.viewDef.terrain_mask_data[x + y * width]) { active = true; break; }
+                if (active) active_tiles++;
+            }
+            if (active && run_start == terrain_width) run_start = tx;
+            if (!active && run_start != terrain_width) {
+                VECTOR2 mins = {
+                    tr.viewDef.terrain_mask_origin.x + run_start * TILE_SIZE,
+                    tr.viewDef.terrain_mask_origin.y + ty * TILE_SIZE,
+                };
+                VECTOR2 maxs = {
+                    tr.viewDef.terrain_mask_origin.x + tx * TILE_SIZE,
+                    tr.viewDef.terrain_mask_origin.y + (ty + 1) * TILE_SIZE,
+                };
+                R_AddRectSplat(&mins, &maxs, tr.texture[TEX_WHITE], color);
+                terrain_rects++; run_start = terrain_width;
+            }
+        }
+    }
+    R_EndSplatBatch();
+#ifdef WC3_DEBUG_BLIGHT
+    static DWORD logged_generation = ~0u;
+    if (logged_generation != tr.viewDef.terrain_mask_generation) {
+        logged_generation = tr.viewDef.terrain_mask_generation;
+        fprintf(stderr, "WC3_BLIGHT render mask generation=%u active_tiles=%u terrain_rects=%u\n",
+                (unsigned)logged_generation, (unsigned)active_tiles, (unsigned)terrain_rects);
+    }
+#endif
+}
+
 void R_RenderRectSplat(LPCVECTOR2 mins,
                        LPCVECTOR2 maxs,
                        LPCTEXTURE texture,

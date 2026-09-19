@@ -1616,6 +1616,7 @@ typedef struct {
     DWORD width, height;
     BOX2 bounds;
     BYTE *cells; /* mutable current Blight, one byte per 32-unit pathing cell */
+    DWORD *dirty_rows; /* one client bit per row; changed rows are sent once per client */
 } blightGrid_t;
 
 /* A fog modifier continuously applies one of the three JASS fog states while started. */
@@ -2048,6 +2049,9 @@ void G_WeatherEnable(LPGWEATHER effect, BOOL enabled);
 void G_WeatherRemove(LPGWEATHER effect);
 void G_WeatherInitMap(void);
 DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size);
+void G_BlightMarkClientFull(LPEDICT ent);
+BOOL G_BlightDatagramPending(LPEDICT ent);
+DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size);
 LPTRIGGER G_AllocJassTrigger(void);
 LPGTIMER G_AllocJassTimer(void);
 LPTIMERDIALOG G_AllocTimerDialog(LPGTIMER timer);

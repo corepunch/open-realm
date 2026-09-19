@@ -7,6 +7,7 @@
 #include "net.h"
 #include "mpq.h"
 #include "mapinfo.h"
+#include "blight.h"
 
 #define MAP_VERTEX_FILE_SIZE 7
 #define MAX_SHEET_LINE 1024

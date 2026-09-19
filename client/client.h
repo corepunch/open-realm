@@ -103,6 +103,14 @@ struct client_state {
         BYTE *texture;
         DWORD generation;
     } fow;
+    struct {
+        DWORD width;
+        DWORD height;
+        VECTOR2 origin;
+        FLOAT cell_size;
+        BYTE *cells;
+        DWORD generation;
+    } blight;
     LPENTITYSTATE cursorEntity;
     struct {
         DWORD image;

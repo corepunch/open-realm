@@ -1683,6 +1683,32 @@ static void reset_fow_client_state(void) {
     test_client_stubs_init();
 }
 
+TEST(net, blight_game_datagram_reconstructs_client_mask) {
+    BYTE buf[128];
+    BYTE payload[] = { 0x01, 0x80 }; /* 16 cells: cell 0 and cell 15 are Blight. */
+    wc3BlightChunk_t chunk = {
+        .width = 8, .height = 2, .first_row = 0, .row_count = 2, .payload_bytes = sizeof(payload),
+        .min_x = -128.0f, .min_y = 64.0f, .cell_size = 32.0f,
+    };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    SAFE_DELETE(cl.blight.cells, MemFree);
+    MSG_WriteByte(&sb, svc_frame);
+    MSG_WriteLong(&sb, 1); MSG_WriteLong(&sb, 100); MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_BLIGHT);
+    MSG_Write(&sb, &chunk, sizeof(chunk)); MSG_Write(&sb, payload, sizeof(payload));
+    CL_ParseServerMessage(&sb);
+
+    T_EQ(cl.blight.width, 8); T_EQ(cl.blight.height, 2);
+    T_FEQ(cl.blight.origin.x, -128.0f, 0.001f);
+    T_FEQ(cl.blight.cell_size, 32.0f, 0.001f);
+    T_ASSERT(cl.blight.cells[0]);
+    T_ASSERT(cl.blight.cells[15]);
+    T_ASSERT(!cl.blight.cells[1]);
+    T_ASSERT(cl.blight.generation);
+    SAFE_DELETE(cl.blight.cells, MemFree);
+}
+
 static void write_fow_message(sizeBuf_t *sb,
                               DWORD flags,
                               DWORD width,
