@@ -149,7 +149,7 @@ make test-wc3-engine WC3_PATTERN='wc3_save.*construction*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.*mine*'
 make test-wc3-engine WC3_PATTERN='wc3_save.racial_gold_mine*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.moon_well_*'
-make test-wc3-engine WC3_PATTERN='wc3_pathfinding.*blight*'
+make test-wc3-engine WC3_PATTERN='wc3_pathfinding.blight_*'
 make test
 ```
 

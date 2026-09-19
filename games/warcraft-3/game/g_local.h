@@ -1943,9 +1943,7 @@ BOOL G_BotSuicideUnits(LPPLAYER, LONG, DWORD, LONG);
 BOOL G_BotSuicidePlayer(LPPLAYER, DWORD, BOOL);
 BOOL G_BotMergeUnits(LPPLAYER, LONG, DWORD, DWORD, DWORD);
 
-// g_fow.c
-void G_FowInit(void);
-void G_FowShutdown(void);
+// g_blight.c
 void G_BlightInit(void);
 void G_BlightShutdown(void);
 BOOL G_IsPointBlighted(LPCVECTOR2 point);
@@ -1955,6 +1953,10 @@ void G_SetBlightRect(LPCBOX2 rect, BOOL add);
 DWORD G_GetBlightStateSize(void);
 BOOL G_GetBlightState(LPBYTE out, DWORD size);
 BOOL G_SetBlightState(BYTE const *data, DWORD size);
+
+// g_fow.c
+void G_FowInit(void);
+void G_FowShutdown(void);
 void G_FowConnectPlayer(DWORD player);
 void G_FowUpdate(void);
 void G_FowMarkBlockersDirty(void);

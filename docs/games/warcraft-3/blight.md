@@ -56,14 +56,18 @@ Until runtime client synchronization exists, the server is authoritative when a 
 
 ## Verification
 
-Regression tests cover WPM-seeded Blight, runtime add/remove, survival across `CM_BakeStaticObstacles()`, Blight-mask snapshot restore, runtime building placement, Blight-only regeneration, all five JASS natives, authored non-stock `Abli` expansion/availability, and save/load of both world and per-source growth state.
+Regression tests cover WPM-seeded Blight, runtime add/remove, survival across `CM_BakeStaticObstacles()`, Blight-mask snapshot restore, runtime building placement, Blight-only regeneration, all five JASS natives, authored non-stock `Abli` expansion/availability from both TFT `DataA1`/`DataB1` and ROC `Data11`/`Data12` columns, and save/load of both world and per-source growth state.
 
 After building, run at least:
 
+The test runner treats a trailing `*` as a prefix matcher, so use the suite-specific prefixes below rather than a substring glob.
+
 ```sh
-make test-wc3-engine WC3_PATTERN='*blight*'
+make test-wc3-engine WC3_PATTERN='wc3_building.blight_*'
+make test-wc3-engine WC3_PATTERN='wc3_combat.blight_*'
 make test-wc3-engine WC3_PATTERN='wc3_api.blight_*'
 make test-wc3-engine WC3_PATTERN='wc3_save.blight_*'
+make test-wc3-engine WC3_PATTERN='wc3_pathfinding.blight_*'
 make test
 ```
 
