@@ -381,12 +381,14 @@ void _W3M_DrawWorld(void) {
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
 
+    R_UpdateBlightLayer();
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_DrawBlightLayer();
+
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_CLIFF));
     }
-    R_RenderBlightMask();
 }
 
 void _W3M_DrawAlphaSurfaces(void) {

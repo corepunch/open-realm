@@ -267,7 +267,6 @@ void R_EndSplatBatch(void) {
 typedef struct {
     BYTE *active;
     BYTE *corners;
-    BYTE *authored;
     DWORD width, height;
     DWORD generation;
     VECTOR2 origin;
@@ -275,12 +274,86 @@ typedef struct {
 } blightTileCache_t;
 
 static blightTileCache_t blight_tiles;
+static MAPLAYER blight_layer;
+static BOOL blight_layer_valid;
+
+static BOOL R_BlightTileCacheUpdate(viewDef_t const *view);
+
+void R_ResetBlightLayer(void) {
+    if (blight_layer.buffer) R_ReleaseVertexArrayObject((LPBUFFER)blight_layer.buffer);
+    memset(&blight_layer, 0, sizeof(blight_layer));
+    blight_layer_valid = false;
+}
 
 void R_ResetBlightCache(void) {
+    R_ResetBlightLayer();
     SAFE_DELETE(blight_tiles.active, ri.MemFree);
     SAFE_DELETE(blight_tiles.corners, ri.MemFree);
-    SAFE_DELETE(blight_tiles.authored, ri.MemFree);
     memset(&blight_tiles, 0, sizeof(blight_tiles));
+}
+
+void R_UpdateBlightLayer(void) {
+    LPVERTEX vertices;
+    DWORD count = 0, capacity;
+    DWORD stride = blight_tiles.width + 1;
+
+    if (!R_BlightTileCacheUpdate(&tr.viewDef) || !R_BlightTexture()) {
+        R_ResetBlightLayer();
+        return;
+    }
+    if (blight_layer_valid && blight_layer.texture == R_BlightTexture() &&
+        blight_layer.num_vertices && blight_tiles.generation == tr.viewDef.terrain_mask_generation)
+        return;
+    capacity = (tr.world->width - 1) * (tr.world->height - 1) * 6;
+    vertices = ri.MemAlloc(sizeof(*vertices) * capacity);
+    if (!vertices) {
+        fprintf(stderr, "R_UpdateBlightLayer: failed to allocate %ux%u terrain layer\n",
+                (unsigned)(tr.world->width - 1), (unsigned)(tr.world->height - 1));
+        R_ResetBlightLayer();
+        return;
+    }
+    ground_current_vertex = vertices;
+    FOR_LOOP(ty, blight_tiles.height) FOR_LOOP(tx, blight_tiles.width) {
+        BYTE const *corners = &blight_tiles.corners[tx + ty * stride];
+        DWORD const blight_tile = (corners[1] ? 1u : 0u) |
+            (corners[0] ? 2u : 0u) |
+            (corners[stride + 1] ? 4u : 0u) |
+            (corners[stride] ? 8u : 0u);
+        VECTOR2 mins = {
+            tr.viewDef.terrain_mask_origin.x + tx * TILE_SIZE,
+            tr.viewDef.terrain_mask_origin.y + ty * TILE_SIZE,
+        };
+        int const map_x = (int)floorf((mins.x - tr.world->center.x) / TILE_SIZE);
+        int const map_y = (int)floorf((mins.y - tr.world->center.y) / TILE_SIZE);
+        if (!blight_tiles.active[tx + ty * blight_tiles.width] || !blight_tile ||
+            map_x < 0 || map_y < 0 || map_x >= (int)tr.world->width - 1 ||
+            map_y >= (int)tr.world->height - 1 ||
+            !R_TileAcceptsSplat(tr.world, (DWORD)map_x, (DWORD)map_y)) continue;
+        if ((ground_current_vertex - vertices) + 6 > capacity) {
+            fprintf(stderr, "R_UpdateBlightLayer: terrain vertex capacity exceeded\n");
+            ri.MemFree(vertices); ground_current_vertex = NULL; R_ResetBlightLayer(); return;
+        }
+        R_MakeSplatTile(tr.world, (DWORD)map_x, (DWORD)map_y, &mins, TILE_SIZE, TILE_SIZE,
+                        R_BlightTexture(), COLOR32_WHITE, blight_tile);
+    }
+    count = (DWORD)(ground_current_vertex - vertices);
+    R_ResetBlightLayer();
+    if (count) {
+        blight_layer.texture = R_BlightTexture();
+        blight_layer.type = MAPLAYERTYPE_GROUND;
+        blight_layer.num_vertices = count;
+        blight_layer.buffer = R_MakeVertexArrayObject(vertices, count);
+        blight_layer_valid = blight_layer.buffer != NULL;
+    }
+    ri.MemFree(vertices);
+    ground_current_vertex = NULL;
+}
+
+void R_DrawBlightLayer(void) {
+    if (!blight_layer_valid || !blight_layer.buffer) return;
+    R_BindTexture(blight_layer.texture, 0);
+    R_ApplyShader(&tr.shader_default);
+    R_DrawBuffer(blight_layer.buffer, blight_layer.num_vertices);
 }
 
 static BOOL R_BlightTileCacheUpdate(viewDef_t const *view) {
@@ -304,22 +377,18 @@ static BOOL R_BlightTileCacheUpdate(viewDef_t const *view) {
         blight_tiles.height = new_height;
         SAFE_DELETE(blight_tiles.active, ri.MemFree);
         SAFE_DELETE(blight_tiles.corners, ri.MemFree);
-        SAFE_DELETE(blight_tiles.authored, ri.MemFree);
         blight_tiles.active = ri.MemAlloc(blight_tiles.width * blight_tiles.height);
         blight_tiles.corners = ri.MemAlloc((blight_tiles.width + 1) * (blight_tiles.height + 1));
-        blight_tiles.authored = ri.MemAlloc((blight_tiles.width + 1) * (blight_tiles.height + 1));
-        if (!blight_tiles.active || !blight_tiles.corners || !blight_tiles.authored) {
+        if (!blight_tiles.active || !blight_tiles.corners) {
             fprintf(stderr, "R_RenderBlightMask: failed to allocate %ux%u tile cache\n",
                     (unsigned)blight_tiles.width, (unsigned)blight_tiles.height);
             SAFE_DELETE(blight_tiles.active, ri.MemFree);
             SAFE_DELETE(blight_tiles.corners, ri.MemFree);
-            SAFE_DELETE(blight_tiles.authored, ri.MemFree);
             blight_tiles.width = blight_tiles.height = 0;
             return false;
         }
         memset(blight_tiles.active, 0, blight_tiles.width * blight_tiles.height);
         memset(blight_tiles.corners, 0, (blight_tiles.width + 1) * (blight_tiles.height + 1));
-        memset(blight_tiles.authored, 0, (blight_tiles.width + 1) * (blight_tiles.height + 1));
         blight_tiles.origin = view->terrain_mask_origin;
         blight_tiles.cell_size = view->terrain_mask_cell_size;
         blight_tiles.generation = ~0u;
@@ -342,13 +411,8 @@ static BOOL R_BlightTileCacheUpdate(viewDef_t const *view) {
     for (DWORD cy = y0; cy <= y1; cy++) for (DWORD cx = 0; cx <= blight_tiles.width; cx++) {
         DWORD const mx = MIN(view->terrain_mask_width - 1, cx * cells_per_tile);
         DWORD const my = MIN(view->terrain_mask_height - 1, cy * cells_per_tile);
-        int const map_x = (int)floorf((blight_tiles.origin.x - tr.world->center.x) / TILE_SIZE) + (int)cx;
-        int const map_y = (int)floorf((blight_tiles.origin.y - tr.world->center.y) / TILE_SIZE) + (int)cy;
         blight_tiles.corners[cx + cy * (blight_tiles.width + 1)] =
             view->terrain_mask_data[mx + my * view->terrain_mask_width] != 0;
-        blight_tiles.authored[cx + cy * (blight_tiles.width + 1)] =
-            map_x >= 0 && map_y >= 0 && map_x < (int)tr.world->width && map_y < (int)tr.world->height &&
-            GetWar3MapVertex(tr.world, (DWORD)map_x, (DWORD)map_y)->blight;
 #ifdef WC3_DEBUG_BLIGHT
         if (cx < 4 && cy < 4)
             fprintf(stderr, "WC3_BLIGHT corner tile=(%u,%u) mask=(%u,%u) value=%u\n",
@@ -363,67 +427,12 @@ static BOOL R_BlightTileCacheUpdate(viewDef_t const *view) {
     y1 = MIN(blight_tiles.height, y1 + 1);
     for (DWORD ty = y0; ty < y1; ty++) for (DWORD tx = 0; tx < blight_tiles.width; tx++) {
         BYTE const *corners = &blight_tiles.corners[tx + ty * (blight_tiles.width + 1)];
-        BYTE const *authored = &blight_tiles.authored[tx + ty * (blight_tiles.width + 1)];
         blight_tiles.active[tx + ty * blight_tiles.width] =
-            (corners[0] && !authored[0]) || (corners[1] && !authored[1]) ||
-            (corners[blight_tiles.width + 1] && !authored[blight_tiles.width + 1]) ||
-            (corners[blight_tiles.width + 2] && !authored[blight_tiles.width + 2]);
+            corners[0] || corners[1] || corners[blight_tiles.width + 1] ||
+            corners[blight_tiles.width + 2];
     }
     blight_tiles.generation = view->terrain_mask_generation;
     return true;
-}
-
-static void R_RenderBlightTiles(void) {
-    DWORD const stride = blight_tiles.width + 1;
-#ifdef WC3_DEBUG_BLIGHT
-    static DWORD logged_generation = ~0u;
-    BOOL const log_tiles = logged_generation != tr.viewDef.terrain_mask_generation;
-    DWORD logged_tiles = 0;
-#endif
-    FOR_LOOP(ty, blight_tiles.height) FOR_LOOP(tx, blight_tiles.width) {
-        BYTE const *corners = &blight_tiles.corners[tx + ty * stride];
-        VECTOR2 mins = {
-            tr.viewDef.terrain_mask_origin.x + tx * TILE_SIZE,
-            tr.viewDef.terrain_mask_origin.y + ty * TILE_SIZE,
-        };
-#ifdef WC3_DEBUG_BLIGHT
-        VECTOR2 const maxs = { mins.x + TILE_SIZE, mins.y + TILE_SIZE };
-#endif
-        int const map_x = (int)floorf((mins.x - tr.world->center.x) / TILE_SIZE);
-        int const map_y = (int)floorf((mins.y - tr.world->center.y) / TILE_SIZE);
-        BYTE const *authored = &blight_tiles.authored[tx + ty * stride];
-        DWORD const blight_tile = ((corners[1] && !authored[1]) ? 1u : 0u) |
-            ((corners[0] && !authored[0]) ? 2u : 0u) |
-            ((corners[stride + 1] && !authored[stride + 1]) ? 4u : 0u) |
-            ((corners[stride] && !authored[stride]) ? 8u : 0u);
-        if (!blight_tiles.active[tx + ty * blight_tiles.width]) continue;
-        if (map_x < 0 || map_y < 0 || map_x >= (int)tr.world->width - 1 || map_y >= (int)tr.world->height - 1)
-            continue;
-        if (!R_TileAcceptsSplat(tr.world, (DWORD)map_x, (DWORD)map_y)) continue;
-#ifdef WC3_DEBUG_BLIGHT
-        if (log_tiles && logged_tiles < 32) {
-            fprintf(stderr, "WC3_BLIGHT emit tile=(%u,%u) map=(%d,%d) added=%u%u%u%u current=%u%u%u%u authored=%u%u%u%u atlas_tile=%u atlas=%s world=(%.1f,%.1f)-(%.1f,%.1f)\n",
-                    (unsigned)tx, (unsigned)ty, map_x, map_y,
-                    (unsigned)((blight_tile & 2) != 0), (unsigned)((blight_tile & 1) != 0),
-                    (unsigned)((blight_tile & 8) != 0), (unsigned)((blight_tile & 4) != 0),
-                    (unsigned)corners[0], (unsigned)corners[1],
-                    (unsigned)corners[stride], (unsigned)corners[stride + 1],
-                    (unsigned)authored[0], (unsigned)authored[1],
-                    (unsigned)authored[stride], (unsigned)authored[stride + 1],
-                    (unsigned)blight_tile, blight_tile == 15 ? "solid" : "edge",
-                    mins.x, mins.y,
-                    maxs.x, maxs.y);
-            logged_tiles++;
-        }
-#endif
-        if ((ground_current_vertex - ground_vertex_buffer) + 6 > GROUND_VERTEX_BUFFER_CAPACITY)
-            R_FlushSplatBatch();
-        R_MakeSplatTile(tr.world, (DWORD)map_x, (DWORD)map_y, &mins, TILE_SIZE, TILE_SIZE,
-                        R_BlightTexture(), COLOR32_WHITE, blight_tile);
-    }
-#ifdef WC3_DEBUG_BLIGHT
-    if (log_tiles) logged_generation = tr.viewDef.terrain_mask_generation;
-#endif
 }
 
 /* Blight is authored on 32-unit pathing cells while the terrain renderer
@@ -431,36 +440,7 @@ static void R_RenderBlightTiles(void) {
  * only for rows changed by the network snapshot; rendering never scans the
  * full pathing mask every frame. */
 void R_RenderBlightMask(void) {
-    DWORD const width = tr.viewDef.terrain_mask_width;
-    DWORD const height = tr.viewDef.terrain_mask_height;
-    FLOAT const cell_size = tr.viewDef.terrain_mask_cell_size;
-    DWORD cells_per_tile;
-    DWORD terrain_width, terrain_height, active_tiles = 0;
-    LPCTEXTURE const blight_texture = R_BlightTexture();
-
-    if (tr.render_phase != RENDER_PHASE_SOLID || !tr.world || !tr.viewDef.terrain_mask_data ||
-        !width || !height || cell_size <= 0.0f || !blight_texture) return;
-    cells_per_tile = (DWORD)floorf(TILE_SIZE / cell_size + 0.5f);
-    if (!cells_per_tile || fabsf(cells_per_tile * cell_size - TILE_SIZE) > 0.01f) {
-        fprintf(stderr, "R_RenderBlightMask: unsupported mask cell size %.3f for %u-unit terrain\n",
-                cell_size, (unsigned)TILE_SIZE);
-        return;
-    }
-    if (!R_BlightTileCacheUpdate(&tr.viewDef)) return;
-    terrain_width = blight_tiles.width;
-    terrain_height = blight_tiles.height;
-    FOR_LOOP(i, terrain_width * terrain_height) active_tiles += blight_tiles.active[i] != 0;
-    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_splat));
-    R_RenderBlightTiles();
-    R_EndSplatBatch();
-#ifdef WC3_DEBUG_BLIGHT
-    static DWORD logged_generation = ~0u;
-    if (logged_generation != tr.viewDef.terrain_mask_generation) {
-        logged_generation = tr.viewDef.terrain_mask_generation;
-        fprintf(stderr, "WC3_BLIGHT render mask generation=%u active_tiles=%u\n",
-                (unsigned)logged_generation, (unsigned)active_tiles);
-    }
-#endif
+    R_UpdateBlightLayer();
 }
 
 void R_RenderRectSplat(LPCVECTOR2 mins,
