@@ -88,15 +88,127 @@ static BOOL ward_is_sentry(LPCEDICT ward) {
 	return ward && ward->inuse && G_AbilityCode(ward->summon_ability) == ID_AEYE;
 }
 
-/* True when an RF_HIDDEN unit sits inside an opposing living sentry ward's Adt1 Rng. */
-BOOL S_UnitIsDetected(LPCEDICT unit) {
-	FLOAT range;
-	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
-	FILTER_EDICTS(ward, ward_is_sentry(ward) && S_SpellIsEnemy(ward, (LPEDICT)unit)) {
-		range = ward->wait;
-		if (range <= 0.0f) continue;
-		if (Vector2_distance(&ward->s.origin2, &unit->s.origin2) <= range) return true;
+#define ID_APIV MAKEFOURCC('A', 'p', 'i', 'v')
+#define ID_BINV MAKEFOURCC('B', 'i', 'n', 'v')
+#define ID_BOWK MAKEFOURCC('B', 'O', 'w', 'k')
+#define ID_ASTA MAKEFOURCC('A', 's', 't', 'a')
+
+/* Passive detectors all expose their authored true-sight radius through Rng.
+ * Keep this list data-driven rather than keying detection to unit rawcodes. */
+static FLOAT unit_detector_range(LPCEDICT detector) {
+	static DWORD const abilities[] = {
+		MAKEFOURCC('A', 'd', 'e', 't'), /* Detector */
+		MAKEFOURCC('A', 'g', 'y', 'v'), /* True Sight */
+		MAKEFOURCC('A', 'd', 't', 's'), /* Magic Sentry */
+		MAKEFOURCC('A', 'b', 'd', 't'), /* Burrow Detection */
+		ID_ADT1,                         /* Detect (Sentry Ward) */
+	};
+	FLOAT range = 0.0f;
+	FOR_LOOP(i, sizeof(abilities) / sizeof(*abilities)) {
+		DWORD level = G_UnitAbilityLevel(detector, abilities[i]);
+		if (level) range = MAX(range, S_SpellRange(abilities[i], level));
 	}
+	return range;
+}
+
+static FLOAT permanent_invisibility_transition(LPCEDICT unit) {
+	DWORD level = unit ? G_UnitAbilityLevel(unit, ID_APIV) : 0;
+	return level ? S_SpellDuration(ID_APIV, level, false) : -1.0f;
+}
+
+BOOL S_PermanentInvisibilityActive(LPCEDICT unit) {
+	return unit && unit->inuse && (unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE) &&
+		G_Time() >= unit->permanent_invisibility_reveal_until;
+}
+
+void S_PermanentInvisibilityInitialize(LPEDICT unit) {
+	FLOAT transition;
+	if (!unit || !G_UnitAbilityLevel(unit, ID_APIV)) {
+		if (unit) unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+		return;
+	}
+	transition = permanent_invisibility_transition(unit);
+	/* Negative transition is the authored opt-out: this unit never enters invisibility. */
+	if (transition < 0.0f) {
+		unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+		unit->permanent_invisibility_reveal_until = 0;
+		return;
+	}
+	unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+	unit->permanent_invisibility_reveal_until =
+		G_Time() + (DWORD)(MAX(0.0f, transition) * 1000.0f);
+}
+
+void S_PermanentInvisibilityReveal(LPEDICT unit) {
+	FLOAT transition;
+	if (!unit || !(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE)) return;
+	transition = permanent_invisibility_transition(unit);
+	if (transition < 0.0f) {
+		unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+		unit->permanent_invisibility_reveal_until = 0;
+		return;
+	}
+	unit->permanent_invisibility_reveal_until =
+		G_Time() + (DWORD)(MAX(0.0f, transition) * 1000.0f);
+}
+
+/* RF_HIDDEN is also used for cargo, mines, training and revival.  This narrow
+ * predicate identifies only states that true sight is allowed to reveal in a
+ * per-client snapshot. */
+BOOL S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit) {
+	DWORD summon;
+	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
+	if (G_UnitStatusLevel(unit, ID_BINV) || G_UnitStatusLevel(unit, ID_BOWK)) return true;
+	summon = G_AbilityCode(unit->summon_ability);
+	return summon == ID_AEYE || summon == ID_ASTA;
+}
+
+static BOOL detector_shared_with_player(LPCEDICT detector, DWORD player) {
+	return detector && detector->s.player < MAX_PLAYERS &&
+		G_FowPlayersShareVision(player, detector->s.player);
+}
+
+/* Player-local true sight.  Detector ownership/shared vision determines who
+ * receives the reveal; the hidden entity itself is never globally unhidden. */
+BOOL S_UnitIsDetectedByPlayer(LPCEDICT unit, DWORD player) {
+	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
+
+	/* Far Sight owns an independent timed thinker after the caster is gone. */
+	FILTER_EDICTS(sight, sight->inuse && sight->think == far_sight_think &&
+	              sight->s.player < MAX_PLAYERS && G_Time() < sight->spawn_time &&
+	              sight->collision > 0.0f && detector_shared_with_player(sight, player)) {
+		if (Vector2_distance(&sight->s.origin2, &unit->s.origin2) <= sight->collision) return true;
+	}
+
+	/* Sentry wards are active hidden detectors whose fixture/unit data may not
+	 * carry authored monster health; their summon lifecycle is authoritative. */
+	FILTER_EDICTS(detector, detector != unit &&
+	              (ward_is_sentry(detector) || S_SpellIsAliveTarget(detector)) &&
+	              detector_shared_with_player(detector, player) &&
+	              S_SpellIsEnemy(detector, (LPEDICT)unit)) {
+		FLOAT range = ward_is_sentry(detector) ? detector->wait : unit_detector_range(detector);
+		if (range > 0.0f && Vector2_distance(&detector->s.origin2, &unit->s.origin2) <= range) return true;
+	}
+	return false;
+}
+
+/* Gameplay invisibility is viewer-specific. Owners and players receiving the
+ * owner's shared vision keep access to their invisible units; hostile viewers
+ * need a detector covering the target. Non-invisibility RF_HIDDEN states are
+ * deliberately outside this predicate. */
+BOOL S_UnitIsInvisibleToPlayer(LPCEDICT unit, DWORD player) {
+	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
+	if (unit->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, unit->s.player)) return false;
+	if (!S_PermanentInvisibilityActive(unit) && !S_UnitUsesInvisibilityRenderFlag(unit)) return false;
+	return !S_UnitIsDetectedByPlayer(unit, player);
+}
+
+/* Legacy aggregate query retained for ability/tests that only need to know
+ * whether any player's detector currently covers the unit. */
+BOOL S_UnitIsDetected(LPCEDICT unit) {
+	if (!unit || !unit->inuse) return false;
+	FOR_LOOP(player, MAX_PLAYERS)
+		if (S_UnitIsDetectedByPlayer(unit, player)) return true;
 	return false;
 }
 

@@ -18,7 +18,7 @@ The game-side effect selector is `wc3EffectType_t` in `games/warcraft-3/game/g_l
 | `WC3_EFFECT_SPECIAL` | `SpecialArt` / `Specialart` |
 | `WC3_EFFECT_AREA_EFFECT` | `AreaEffectArt` / `Areaeffectart` |
 | `WC3_EFFECT_MISSILE` | `MissileArt` / `Missileart` |
-| `WC3_EFFECT_LIGHTNING` | reserved; dedicated lightning rendering is not implemented |
+| `WC3_EFFECT_LIGHTNING` | dedicated `LightningData.slk` ribbon path; ability code selects authored lightning rawcodes and shared rendering consumes resolved endpoints |
 
 `games/warcraft-3/game/g_effects.c` is the common WC3 presentation entry point. It keeps content selection in the game module: it resolves an art path, registers that model, and exposes the result as an ordinary game edict. No spell rawcode or WC3 effect category is added to shared engine state.
 
@@ -106,7 +106,7 @@ These migrations are deliberately presentation-only. They do not change damage/h
 
 `AddSpecialEffect*` takes an explicit model path and does not consult ability data. `AddSpellEffect*` takes an ability rawcode/string plus a converted effect type and resolves the corresponding ability presentation field. A returned JASS `effect` handle points at the independent effect edict, not at the target unit. Destroying the effect therefore cannot overwrite or clear the target unit's `model2` state.
 
-Weather effects now use a separate map-lifetime handle/renderer path rather than effect edicts: W3I/W3R/JASS weather is keyed by `TerrainArt\Weather.slk`, carried in the per-frame game datagram, and emitted through the shared particle pool. See [Weather](weather.md) for the implemented fields and deliberate compatibility gaps. `LIGHTNING` remains unsupported by the model-effect resolver because Warcraft lightning requires a dedicated endpoint/colour/movement lifecycle rather than an MDX model path.
+Weather effects use a separate map-lifetime handle/renderer path rather than effect edicts: W3I/W3R/JASS weather is keyed by `TerrainArt\Weather.slk`, carried in the per-frame game datagram, and emitted through the shared particle pool. See [Weather](weather.md) for the implemented fields and deliberate compatibility gaps. Warcraft lightning now uses the same ownership principle with a distinct endpoint registry: game code resolves `LightningEffect` rawcodes and endpoints, the datagram carries presentation-only `wc3LightningEffect_t` records, and `r_lightning.c` resolves `Splats\LightningData.slk` into a generic camera-facing textured ribbon. Lightning remains separate from the MDX model-effect resolver because it has two moving endpoints rather than one model transform.
 
 ## Item Use And Charges
 
@@ -145,11 +145,15 @@ as Holy Light (`AHhb`) fail or succeed depending on unrelated stack contents.
 
 ## Farseer Ability Notes
 
-The uploaded Warsmash reference implements `AOcl` Chain Lightning and `AOsf` Feral Spirit, but does not register implementations for `AOfs` Far Sight or `AOeq` Earthquake. OpenRealm therefore treats the latter two as provisional/data-derived behavior rather than claiming Warsmash parity.
+The uploaded Warsmash reference implements `AOcl` Chain Lightning and `AOsf` Feral Spirit, but does not register implementations for `AOfs` Far Sight or `AOeq` Earthquake. OpenRealm therefore uses Warsmash as the mechanical reference where it exists and keeps the latter two data-driven rather than claiming Warsmash parity.
 
-Chain Lightning reads damage from Data A, target count from Data B, per-jump damage reduction from Data C, and jump radius from Area. OpenRealm applies target art for each struck unit and selects each subsequent unvisited valid target from the candidates in range rather than always taking entity iteration order. Dedicated Warcraft lightning rendering and Warsmash's 0.25-second inter-jump timing remain gaps. Unit-target spell clicks are accepted before the caster is in range: the caster follows the selected unit with the normal movement path and commits the spell once the authored cast range is reached, matching Warsmash's ranged target-spell behavior. Replacing that movement order cancels the pending cast.
+Chain Lightning reads damage from Data A, target count from Data B, per-jump damage reduction from Data C, and jump radius from Area. The first target is struck at spell effect time; subsequent targets are selected and damaged on a save-safe 250 ms server cadence matching Warsmash's `SECONDS_BETWEEN_JUMPS = 0.25`. Internal no-client marker edicts retain pointer plus spawn-generation identity for every previously struck target, so delayed selection cannot jump back to an earlier unit or confuse a reused edict slot with that earlier unit. The chain remains capped at 32 targets. Every delayed jump rechecks the authored target mask as well as enemy/alive/range/visited state. OpenRealm applies target art for each struck unit, plays the authored one-shot `Effectsound`, and now emits the ability's authored `LightningEffect` entries: index 0 for caster-to-primary-target and index 1 for later jumps, each with the Warsmash Chain Lightning two-second visual lifetime. The game-owned lightning registry is save-safe and published through the presentation datagram; the renderer resolves `Splats\LightningData.slk` texture, width and RGBA into an additive camera-facing ribbon. The current ribbon intentionally matches Warsmash's practical straight-strip renderer and does not synthesize the currently-unused `NoiseScale` segmentation fields. Unit-target spell clicks are accepted before the caster is in range: the caster follows the selected unit with the normal movement path and commits the spell once the authored cast range is reached. Replacing that movement order cancels the pending cast.
 
-Feral Spirit reads its summoned unit from UnitID, count from Data B, lifetime from the normal duration field, and spawn distance from Area. Recasting kills surviving summons created by the caster's previous `AOsf` cast, then creates the new summons at the point in front of the caster and requests SpecialArt on each summon. Summons retain their source ability rawcode so replacement does not accidentally kill unrelated summons of the same unit type.
+Far Sight snapshots the casting player, target point, authored Area, and normal duration into an independent thinker. The thinker owns expiration, while `G_FowUpdate` reapplies the active reveal after rebuilding ordinary unit sight and before script fog modifiers, so frame ordering cannot reduce Far Sight to a one-frame reveal. The reveal uses the existing shared-vision propagation in `G_FowSetStateRadius` and no longer depends on the caster remaining alive after the cast. The same live Far Sight thinker is a player-aware true-sight source: the casting player and players receiving that player's shared vision can detect invisible units inside its authored Area for the same saved lifetime. Known gameplay invisibility (`Apiv`, `Binv`, `BOwk`, Sentry Ward, or Stasis Trap) is evaluated per viewer for networking, selection, automatic acquisition, attack continuation, and spell target checks; owners/shared-vision allies retain access and hostile viewers require true sight. `RF_HIDDEN` is cleared only in an eligible viewer's outgoing snapshot, so detection cannot accidentally expose cargo, mine workers, training/revival placeholders, or other non-invisibility users of that broad render flag. The thinker now also owns the authored persistent `Areaeffectart` (falling back to `EffectArt`) plus one-shot/looped ability sound presentation and destroys that presentation on expiry.
+
+Feral Spirit reads its summoned unit from UnitID, count from Data B, lifetime from the normal duration field, and spawn distance from Area. Recasting kills surviving summons created by the caster's previous `AOsf` cast, then creates the new summons at the same authored point in front of the caster, matching the Warsmash reference, and requests SpecialArt on each summon. Summons retain their source ability rawcode so replacement does not accidentally kill unrelated summons of the same unit type. The generic attack path consumes stock creep Critical Strike (`ACct`), which makes the authored Dire/Shadow Wolf critical-strike ability functional. Stock Permanent Invisibility (`Apiv`) is registered as a passive and represented by a dedicated per-unit reveal deadline instead of `RF_HIDDEN`: after the authored transition time on spawn the unit is invisible to hostile viewers unless detected, while starting an attack or committing a spell restarts that authored reveal/transition window. Undetected units are excluded from hostile automatic acquisition, ongoing hostile attack validity, unit-target spell validation, networking, and selection; owners/shared-vision allies retain access, and Far Sight/passive detectors expose the unit only to the corresponding viewer. A zero authored transition keeps the unit continuously invisible across attacks/casts, while a negative transition disables entry into permanent invisibility. The reveal deadline is authoritative saved state, so save/load cannot make a revealed Shadow Wolf vanish early or reset its transition.
+
+Earthquake remains a fixed-point channel. Data A supplies the initial effect delay, Data B supplies the per-second structure/destructable damage, Data C supplies the movement-speed reduction, Area supplies the affected radius, and the normal duration controls channel lifetime. After the authored delay, each one-second tick damages enemy structures and tree/debris destructables in the area and refreshes the Earthquake buff only on enemy ground units; air units are not slowed. The movement path consumes the active `BOeq` reduction for both ordinary and group-speed calculations and preserves Warcraft's 140 minimum speed for units that were authored faster than that threshold. The channel thinker now owns persistent authored `Areaeffectart` (falling back to `EffectArt`), plays `Effectsound`, attaches `Effectsoundlooped` through generic snapshot-synchronised looping audio, and tears those resources down on interruption or natural completion. Data D's specialized final-area terrain deformation/presentation and broader destructable target-mask nuances remain gaps.
 
 ## Known Gaps
 
@@ -159,7 +163,10 @@ The following are deliberately outside this implementation slice:
 - generic binding of buff lifetime to persistent world-art ownership and non-stacking FX
   beyond explicitly owned lifecycles such as natural creep sleep;
 - ability/buff `EffectSound` and `EffectSoundLooped`;
-- Warcraft lightning effects;
+- generic JASS lightning natives still need to be routed onto the new lightning registry; ability-driven Chain Lightning now uses it directly;
+- the lightning renderer currently uses Warsmash's practical straight camera-facing strip and does not animate `NoiseScale`/segment jitter;
+- broader invisibility families such as Ghost/Ghost Visible and Shadow Meld remain separate from the `Apiv`/`Binv`/`BOwk`/ward visibility paths covered here;
+- Earthquake Data D/final-area specialized terrain presentation remains separate from the now-implemented persistent area-art/looped-sound ownership;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
 - automatic `powerup` acquisition/use;
 - asynchronous targeted-item success/charge completion;
@@ -181,5 +188,21 @@ Relevant in-engine tests are:
 - `wc3_items.nonperishable_use_decrements_charges_but_keeps_item_at_zero`
 - `wc3_items.inventory_click_uses_itemdata_ability_list_and_applies_scroll`
 - `wc3_spell.holy_light_rawcode_lookup_is_nul_safe`
+- `wc3_spell.chain_lightning_bounces_respect_authored_target_mask`
+- `wc3_spell.chain_lightning_delays_each_jump_and_never_rehits_previous_targets`
+- `wc3_spell.chain_lightning_stops_if_caster_slot_is_reused`
+- `wc3_spell.far_sight_reapplies_visibility_until_authored_duration_expires`
+- `wc3_spell.far_sight_detects_permanent_invisibility_only_for_its_viewers`
+- `wc3_spell.permanent_invisibility_uses_authored_transition_after_spawn_and_reveal`
+- `wc3_spell.active_spell_commit_restarts_permanent_invisibility_transition`
+- `wc3_spell.sentry_true_sight_makes_known_rf_hidden_invisibility_selectable_for_viewer`
+- `wc3_spell.true_sight_snapshot_and_selection_are_viewer_local`
+- `wc3_spell.permanent_invisibility_blocks_hostile_acquisition_and_spell_targets_until_detected`
+- `wc3_spell.true_sight_only_reveals_rf_hidden_states_known_to_be_invisibility`
+- `wc3_spell.earthquake_waits_for_effect_delay_slows_ground_and_damages_structures_and_trees`
+- `wc3_spell.hero_passives_use_authored_data_and_runtime_consumers` (includes stock `ACct`)
+- `wc3_save.round_trip_entity_c_callbacks` (includes live Far Sight/delayed Chain Lightning thinker state, visited-target marker identity, and the Permanent Invisibility reveal deadline)
+- `wc3_api.game_datagram_carries_and_expires_lightning_snapshot`
+- `wc3_save.lightning_registry_round_trip`
 
-The requested workflow for this patch deliberately did not compile or execute tests. When validating manually, cover at least Holy Light, Blink, Thunder Bolt, a healing consumable with more than one charge, its final-charge removal, and a JASS map that creates/destroys point and target special effects.
+The requested workflow for this patch deliberately did not compile or execute tests. When validating manually, cover Chain Lightning against mixed air/ground candidates, verify its quarter-second jump cadence, primary/secondary authored lightning textures, and two-second bolt lifetime; Far Sight for its full authored duration, persistent area art, sound, true sight of an invisible enemy, and shared-vision locality; Earthquake against ground/air units plus structures and trees, persistent area art/looped audio, and interruption cleanup; level-2/3 Feral Spirit critical strikes; Shadow Wolf visibility before/during/after attacks and spell casts, including detection; and save/load while Far Sight, delayed Chain Lightning/lightning presentation, or a revealed `Apiv` unit is active.

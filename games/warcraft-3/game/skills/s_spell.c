@@ -376,6 +376,8 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
         return false;
     }
     if (S_UnitSpellImmune(target)) return false;
+    if (caster && caster->s.player < MAX_PLAYERS &&
+        S_UnitIsInvisibleToPlayer(target, caster->s.player)) return false;
     targets = G_AbilityLevel(code, 1)->targs;
     if (!targets) {
         return true;
@@ -546,6 +548,7 @@ static void spell_begin_channel(LPEDICT caster, DWORD code) {
 static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
+    S_PermanentInvisibilityReveal(caster);
     S_SpellSpendMana(caster, code, level);
     S_SpellStartCooldown(caster, code, level);
     S_ManaFlareOnCast(caster, code, level);

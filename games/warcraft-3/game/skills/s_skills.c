@@ -422,7 +422,7 @@ static ability_t abilitylist[] = {
     // TODO: Agho a_ghost  /* Ghost */
     // TODO: Aeth a_ghost  /* Ghost */
     // TODO: Amin a_button  /* Mine - exploding */
-    // TODO: Apiv a_perm_invis  /* Permanent Invisibility */
+    { "Apiv", CAbilityPassive, AB_PASSIVE },  /* Permanent Invisibility */
     // TODO: Awan a_wander  /* Wander */
     // TODO: Aarm a_unknown  /* Mana Regeneration Aura */
     // TODO: Asid a_button  /* Sell Items */
@@ -796,6 +796,8 @@ void S_EnableAbility(LPEDICT ent, DWORD code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_ENABLE, &call);
+    if (ent && G_AbilityCode(code) == MAKEFOURCC('A', 'p', 'i', 'v'))
+        S_PermanentInvisibilityInitialize(ent);
 }
 
 void S_DisableAbility(LPEDICT ent, DWORD code) {
@@ -803,6 +805,10 @@ void S_DisableAbility(LPEDICT ent, DWORD code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_DISABLE, &call);
+    if (ent && G_AbilityCode(code) == MAKEFOURCC('A', 'p', 'i', 'v')) {
+        ent->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+        ent->permanent_invisibility_reveal_until = 0;
+    }
 }
 
 void S_RefreshAbilityLevel(LPEDICT ent, ability_t const *ability) {

@@ -69,6 +69,8 @@ do not substitute a per-game preprocessor guard or a hardcoded command branch in
 
 Presentation state that is neither an entity snapshot nor generic client state may use a game-owned per-frame datagram. Warcraft III weather is carried in that datagram, cached by the client, and exposed through `viewDef`; `games/warcraft-3/renderer/r_weather.c` consumes the view state. See [WC3 Weather](../games/warcraft-3/weather.md).
 
+Warcraft III lightning uses the same boundary for two-endpoint transient presentation. The game resolves the ability/JASS lightning rawcode, endpoint positions, colour and lifetime into `wc3LightningEffect_t`; the client only caches that generic record. `games/warcraft-3/renderer/r_lightning.c` then resolves `Splats\LightningData.slk`, while the shared renderer supplies only a textured camera-facing ribbon primitive. Do not put ability rawcodes, `LightningData.slk` aliases, or WC3 spell selection in `renderer/`. The lightning registry is authoritative/save-safe so dropped snapshots converge to the current active set instead of depending on a one-shot temporary event.
+
 ## Selection-scoped world indicators
 
 Persistent local markers such as Warcraft III's Rally destination are ordinary game-owned edicts. The game resolves and registers the model, sets `SVF_OWNER_ONLY`, and stores the recipient in `entityState_t.player`; `SV_BuildClientFrame` excludes the edict from every other client's snapshot. Point markers use an authoritative world origin, while widget markers use the normal linked-edict movement path to follow their target.

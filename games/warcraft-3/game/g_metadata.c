@@ -835,6 +835,7 @@ UberSplatData_t *g_UberSplatData; DWORD g_UberSplatDataCount; static slkIndex_t 
 UnitAckSounds_t *g_UnitAckSounds; DWORD g_UnitAckSoundsCount;
 UnitAckSounds_t *g_UnitCombatSounds; DWORD g_UnitCombatSoundsCount;
 UnitAckSounds_t *g_UISounds; DWORD g_UISoundsCount;
+UnitAckSounds_t *g_AbilitySounds; DWORD g_AbilitySoundsCount;
 MusicData_t *g_MusicData; DWORD g_MusicDataCount;
 ItemData_t *g_ItemData; DWORD g_ItemDataCount; static slkIndex_t item_idx;
 DestructableData_t *g_DestructableData; DWORD g_DestructableDataCount; static slkIndex_t dest_idx;
@@ -900,6 +901,8 @@ static slkStore_t slk_stores[] = {
     { "UnitAckSounds",    "UI\\SoundInfo\\UnitAckSounds.slk",    sound_schema, sizeof(*g_UnitAckSounds),    (void **)&g_UnitAckSounds,    &g_UnitAckSoundsCount,    NULL },
     { "UnitCombatSounds", "UI\\SoundInfo\\UnitCombatSounds.slk", sound_schema, sizeof(*g_UnitCombatSounds), (void **)&g_UnitCombatSounds, &g_UnitCombatSoundsCount, NULL },
     { "UISounds",         "UI\\SoundInfo\\UISounds.slk",         sound_schema, sizeof(*g_UISounds),         (void **)&g_UISounds,         &g_UISoundsCount,         NULL },
+    /* Ability sound aliases referenced by AbilityFunc presentation metadata. */
+    { "AbilitySounds",    "UI\\SoundInfo\\AbilitySounds.slk",    sound_schema, sizeof(*g_AbilitySounds),    (void **)&g_AbilitySounds,    &g_AbilitySoundsCount,    NULL, true },
     /* Music.slk never shipped in retail MPQs; Warsmash loads it optionally and readers fall back to the raw token. */
     { "Music",            "UI\\SoundInfo\\Music.slk",            music_schema, sizeof(*g_MusicData),        (void **)&g_MusicData,        &g_MusicDataCount,        NULL, true },
     { "ItemData", "Units\\ItemData.slk", item_schema, sizeof(*g_ItemData), (void **)&g_ItemData, &g_ItemDataCount, &item_idx },
@@ -1709,6 +1712,14 @@ UnitAckSounds_t const *G_UnitCombatSound(LPCSTR name) {
 UnitAckSounds_t const *G_UISound(LPCSTR name) {
     static UnitAckSounds_t zero;
     FOR_LOOP(i, g_UISoundsCount) if (!strcmp(g_UISounds[i].name, name)) return g_UISounds + i;
+    return &zero;
+}
+
+UnitAckSounds_t const *G_AbilitySound(LPCSTR name) {
+    static UnitAckSounds_t zero;
+    if (!name) return &zero;
+    FOR_LOOP(i, g_AbilitySoundsCount)
+        if (g_AbilitySounds[i].name && !strcmp(g_AbilitySounds[i].name, name)) return g_AbilitySounds + i;
     return &zero;
 }
 MusicData_t const *G_MusicData(LPCSTR name) {

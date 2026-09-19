@@ -1946,7 +1946,12 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     T_ASSERT(size >= sizeof(header) + sizeof(count));
     memcpy(&header, data, sizeof(header));
     T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
-    offset = sizeof(header) + (header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_TERRAIN_MASK)) * sizeof(wc3WeatherEffect_t);
+    offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
+        USHORT lightning_count = 0;
+        memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
+        offset += lightning_count * sizeof(wc3LightningEffect_t);
+    }
     memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
     FOR_LOOP(i, count) {
         USHORT number; COLOR32 color;
@@ -1957,6 +1962,44 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
         found = true;
     }
     T_ASSERT(found);
+}
+
+
+TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
+    BYTE data[1024];
+    VECTOR3 source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
+    COLOR32 tint = MAKE(COLOR32, 200, 150, 100, 255);
+    LPGLIGHTNING effect;
+    DWORD size, offset;
+    USHORT header, count;
+    wc3LightningEffect_t wire;
+
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    level.next_lightning_id = 0;
+    level.time = 1000;
+    effect = G_LightningAdd(MAKEFOURCC('C', 'L', 'P', 'B'), &source, &target, tint, 2000);
+    T_NOT_NULL(effect);
+
+    size = G_WriteClientDatagram(NULL, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_LIGHTNING);
+    offset = sizeof(header) + (header & ~BZ_GAME_DATAGRAM_FLAGS) * sizeof(wc3WeatherEffect_t);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1);
+    memcpy(&wire, data + offset, sizeof(wire));
+    T_EQ(wire.handle, effect->state.handle);
+    T_EQ(wire.effect_id, MAKEFOURCC('C', 'L', 'P', 'B'));
+    T_FEQ(wire.source.x, 10.0f, 0.001f); T_FEQ(wire.source.z, 30.0f, 0.001f);
+    T_FEQ(wire.target.y, 200.0f, 0.001f); T_EQ(wire.color.g, 150);
+    T_EQ(wire.start_time, 1000); T_EQ(wire.end_time, 3000);
+
+    level.time = 3000;
+    size = G_WriteClientDatagram(NULL, data, sizeof(data));
+    T_ASSERT(size >= sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_LIGHTNING));
+    T_ASSERT(!effect->inuse);
 }
 
 TEST(wc3_api, narrator_and_hint_text_share_message_log) {
@@ -5284,7 +5327,12 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     T_ASSERT(size > sizeof(header));
     memcpy(&header, data, sizeof(header));
     T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
-    offset = sizeof(header) + (header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_TERRAIN_MASK)) * sizeof(wc3WeatherEffect_t);
+    offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
+        USHORT lightning_count = 0;
+        memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
+        offset += lightning_count * sizeof(wc3LightningEffect_t);
+    }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
     T_EQ(chunk.width, 64); T_EQ(chunk.height, 64); T_EQ(chunk.row_count, 64);
@@ -5329,6 +5377,11 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
     memcpy(&header, data, sizeof(header));
     T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
     offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
+        USHORT lightning_count = 0;
+        memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
+        offset += lightning_count * sizeof(wc3LightningEffect_t);
+    }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
     T_EQ(chunk.width, 64); T_EQ(chunk.height, 64);
@@ -5361,6 +5414,11 @@ TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
     memcpy(&header, data, sizeof(header));
     T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
     offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
+        USHORT lightning_count = 0;
+        memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
+        offset += lightning_count * sizeof(wc3LightningEffect_t);
+    }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk));
     T_ASSERT(chunk.first_row > 0);

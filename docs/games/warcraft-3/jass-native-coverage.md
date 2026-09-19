@@ -154,7 +154,7 @@ DotA 6.83d's compiled map script references 525 natives, 137 of them unregistere
 The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, typed
 `Save*`/`Load*`/`HaveSaved*`/`RemoveSaved*`/`Flush*`) is registered in
 `api_hashtable.h` with a host-owned `level.hashtables[]` registry and typed nested-handle
-save/load (current format version 33). Multiboard/texttag DotA surfaces are registered as
+save/load (current format version 33; hashtable payload introduced in format version 31). Multiboard/texttag DotA surfaces are registered as
 server-owned state ([multiboard-and-texttag.md](multiboard-and-texttag.md)); HUD/client
 draw remains deferred. Remaining DotA holes are shop events and hero attributes. See
 [DotA Custom-Map Playability](dota-map-playability.md) and [Save/Load](save-load.md).

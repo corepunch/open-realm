@@ -42,7 +42,7 @@ static BOOL G_FowReady(void) {
     return level.fow.width > 0 && level.fow.height > 0;
 }
 
-static BOOL G_FowSharedVision(DWORD viewer, DWORD owner) {
+BOOL G_FowPlayersShareVision(DWORD viewer, DWORD owner) {
     if (viewer >= MAX_PLAYERS || owner >= MAX_PLAYERS) {
         return false;
     }
@@ -764,7 +764,7 @@ static void G_FowApplyModifierImmediately(LPCFOGMODIFIER mod) {
     }
     FOR_LOOP(viewer, MAX_PLAYERS) {
         if (viewer != mod->player &&
-            (!mod->use_shared_vision || !G_FowSharedVision(viewer, mod->player))) {
+            (!mod->use_shared_vision || !G_FowPlayersShareVision(viewer, mod->player))) {
             continue;
         }
         G_FowApplyModifierForPlayer(viewer, mod);
@@ -828,7 +828,7 @@ void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box) {
         !G_FowReady() || !G_FowStateValid(fog->state))
         return;
     FOR_LOOP(viewer, MAX_PLAYERS) {
-        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player)))
+        if (viewer != fog->player && (!fog->shared || !G_FowPlayersShareVision(viewer, fog->player)))
             continue;
         G_FowSetBoxState(&level.fow.players[viewer], box, fog->state);
     }
@@ -848,7 +848,7 @@ void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius) {
     cells = G_FowRadiusCells(radius);
     FOGDISK disk = { cx, cy, fog->state, cells };
     FOR_LOOP(viewer, MAX_PLAYERS) {
-        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player)))
+        if (viewer != fog->player && (!fog->shared || !G_FowPlayersShareVision(viewer, fog->player)))
             continue;
         G_FowSetDiskState(&level.fow.players[viewer], &disk);
     }
@@ -882,7 +882,7 @@ static void G_FowApplyModifiers(DWORD viewers) {
         }
         FOR_LOOP(viewer, MAX_PLAYERS)
             if ((viewers & (1u << viewer)) &&
-                (viewer == mod->player || (mod->use_shared_vision && G_FowSharedVision(viewer, mod->player))))
+                (viewer == mod->player || (mod->use_shared_vision && G_FowPlayersShareVision(viewer, mod->player))))
                 G_FowApplyModifierForPlayer(viewer, mod);
     }
 }
@@ -991,7 +991,7 @@ void G_FowUpdate(void) {
 #endif
     FOR_LOOP(owner, MAX_PLAYERS)
         FOR_LOOP(viewer, MAX_PLAYERS)
-            if ((viewers & (1u << viewer)) && G_FowSharedVision(viewer, owner))
+            if ((viewers & (1u << viewer)) && G_FowPlayersShareVision(viewer, owner))
                 owner_viewers[owner] |= 1u << viewer;
 
     if (G_FowBlockersChanged()) {
@@ -1016,14 +1016,29 @@ void G_FowUpdate(void) {
         G_FowRevealForViewers(ent, radius, owner_viewers[ent->s.player]);
     }
 
+    /* Timed spell reveals are not ordinary sight sources: Far Sight ignores
+     * terrain line-of-sight blockers and must survive this frame's visible-grid
+     * rebuild. Its save-safe thinker owns only lifetime/state; apply the disk
+     * here, after unit sight and before script fog modifiers. */
+    FOR_LOOP(i, globals.num_edicts) {
+        LPCEDICT ent = &g_edicts[i];
+        if (!ent->inuse || ent->think != far_sight_think || ent->s.player >= MAX_PLAYERS ||
+            G_Time() >= ent->spawn_time || ent->collision <= 0.0f) {
+            continue;
+        }
+        G_FowSetStateRadius(&(FOGWRITE){ ent->s.player, WC3_FOG_STATE_VISIBLE, true },
+                            &ent->s.origin2, ent->collision);
+    }
+
     G_FowApplyModifiers(viewers);
 }
 
-/* FogEnable(false) reveals the whole map for this player, units included
-   (matches WC3 cinematic behavior). RDF_NOFOG is the client-visual flag set by
-   the FogEnable native; honor it for server-side unit visibility too, otherwise
-   units in the (still-fogged) cinematic area are never networked and the scene
-   renders without its actors. */
+/* FogEnable(false) reveals the whole map for this player, ordinary units
+   included (matches WC3 cinematic behavior). Gameplay invisibility remains
+   detector-gated. RDF_NOFOG is the client-visual flag set by the FogEnable
+   native; honor it for server-side unit visibility too, otherwise units in the
+   (still-fogged) cinematic area are never networked and the scene renders
+   without its actors. */
 static BOOL G_FowPlayerFogDisabled(DWORD player) {
     LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
     return client && (client->ps.rdflags & RDF_NOFOG);
@@ -1038,8 +1053,11 @@ BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent) {
     if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
         return true;
     }
-    if (ent->s.player < MAX_PLAYERS && G_FowSharedVision(player, ent->s.player)) {
+    if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
+    }
+    if (S_UnitIsInvisibleToPlayer(ent, player)) {
+        return false;
     }
     if (G_FowPlayerFogDisabled(player)) {
         return true;
@@ -1065,8 +1083,11 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
         return true;
     }
-    if (ent->s.player < MAX_PLAYERS && G_FowSharedVision(player, ent->s.player)) {
+    if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
+    }
+    if (S_UnitIsInvisibleToPlayer(ent, player)) {
+        return false;
     }
     if (G_FowPlayerFogDisabled(player)) {
         return true;

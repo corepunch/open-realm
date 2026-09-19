@@ -1300,6 +1300,13 @@ static USHORT G_UnitNameConfigstring(LPCSTR name) {
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+    /* RF_HIDDEN also represents cargo/mines/revival placeholders. Only known
+     * gameplay invisibility may be cleared in a client snapshot. Owners/shared
+     * viewers see their invisible units; hostile viewers need true sight. */
+    if ((state->renderfx & RF_HIDDEN) && S_UnitUsesInvisibilityRenderFlag(ent) &&
+        !S_UnitIsInvisibleToPlayer(ent, player)) {
+        state->renderfx &= ~RF_HIDDEN;
+    }
     BOOL const hoverable = (ent->svflags & SVF_MONSTER) &&
         !(ent->svflags & SVF_DEADMONSTER) &&
         ent->health.value > 0.0f &&

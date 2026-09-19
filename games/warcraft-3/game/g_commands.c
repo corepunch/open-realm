@@ -345,7 +345,12 @@ BOOL G_UnitCanBeSelected(LPGAMECLIENT client, LPCEDICT ent) {
         return false;
     }
     if ((ent->svflags & SVF_DEADMONSTER) || ent->health.value <= 0.0f ||
-        (ent->s.flags & EF_NOT_SELECTABLE) || (ent->s.renderfx & RF_HIDDEN)) {
+        (ent->s.flags & EF_NOT_SELECTABLE)) {
+        return false;
+    }
+    if ((ent->s.renderfx & RF_HIDDEN) &&
+        (!S_UnitUsesInvisibilityRenderFlag(ent) ||
+         S_UnitIsInvisibleToPlayer(ent, client->ps.number))) {
         return false;
     }
     return G_FowPlayerCanHoverEntity(client->ps.number, ent);

@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 33; // format version; persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, and reflected missile state
+static DWORD const save_version = 33; // format version; persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, reflected missile, and lightning registry state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -126,6 +126,8 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(cannibalize_think),
     SAVE_CFUNCTION(possession_two_think),
     SAVE_CFUNCTION(lsh_think),
+    SAVE_CFUNCTION(far_sight_think),
+    SAVE_CFUNCTION(chain_lightning_think),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -202,6 +204,23 @@ static field_t const weather_fields[] = {
     TF(gweather_t, handle_id, F_INT),
     TF(gweather_t, effect_id, F_INT),
     TF(gweather_t, bounds, F_VECTOR),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const lightning_state_fields[] = {
+    TF(wc3LightningEffect_t, handle, F_INT),
+    TF(wc3LightningEffect_t, effect_id, F_INT),
+    TF(wc3LightningEffect_t, source, F_VECTOR),
+    TF(wc3LightningEffect_t, target, F_VECTOR),
+    TF(wc3LightningEffect_t, color, F_INT),
+    TF(wc3LightningEffect_t, start_time, F_INT),
+    TF(wc3LightningEffect_t, end_time, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const lightning_fields[] = {
+    TF(glightning_t, inuse, F_INT),
+    TF(glightning_t, state, F_STRUCT, 1, lightning_state_fields),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -404,6 +423,8 @@ static field_t const level_fields[] = {
     F(level_locals, waypoints.count, F_INT),
     F(level_locals, next_weather_id, F_INT),
     F(level_locals, weather_effects, F_STRUCT, MAX_WEATHER_EFFECTS, weather_fields),
+    F(level_locals, next_lightning_id, F_INT),
+    F(level_locals, lightning_effects, F_STRUCT, MAX_LIGHTNING_EFFECTS, lightning_fields),
     F(level_locals, quests, F_STRUCT, MAX_QUESTS, quest_fields),
     FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
     FC(level_locals, timers, F_STRUCT, MAX_TIMERS, timer_fields, num_timers),
@@ -608,6 +629,7 @@ field_t edict_fields[] = {
     F(edict_s, build_preview, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spawn_time, F_INT),
     F(edict_s, summon_ability, F_INT),
+    F(edict_s, permanent_invisibility_reveal_until, F_INT),
     F(edict_s, harvested_lumber, F_INT),
     F(edict_s, harvested_gold, F_INT),
     F(edict_s, heatmap2, F_INT),

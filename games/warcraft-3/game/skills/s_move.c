@@ -24,6 +24,7 @@
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
 #define MOVE_ARRIVE_TOLERANCE 4.0f
+#define EARTHQUAKE_MIN_MOVE_SPEED 140.0f
 #define BZ_MOVE_FALLBACK_RETRY_MS 500 // milliseconds; bounds repeated unreachable floods; used as the retry interval
 
 typedef struct {
@@ -122,10 +123,19 @@ static BOOL unit_routes_to_location(LPCEDICT ent) {
  * stringing out (WC3); the cap is gated on the move state so it never leaks
  * into a later attack/harvest order that reuses this.  Using the *capped*
  * speed means members of one group compare equal (no give-way within a group). */
+static FLOAT unit_apply_earthquake_speed(LPCEDICT unit, FLOAT speed) {
+    FLOAT reduction = S_EarthquakeMoveReduction(unit);
+    if (reduction <= 0.0f) return speed;
+    /* Stock Earthquake cannot force a normally faster unit below 140, and it
+     * must never speed up a custom unit whose authored speed is already lower. */
+    return MIN(speed, MAX(EARTHQUAKE_MIN_MOVE_SPEED, speed * (1.0f - reduction)));
+}
+
 static FLOAT unit_current_speed(LPCEDICT self) {
     FLOAT speed = self->unitinfo.MoveSpeed > 0
         ? self->unitinfo.MoveSpeed
         : self->data.UnitBalance->speed;
+    speed = unit_apply_earthquake_speed(self, speed);
     if (self->movement.group_speed > 0 && self->movement.group_speed < speed && unit_is_walking(self)) {
         speed = self->movement.group_speed;
     }
@@ -1079,6 +1089,7 @@ static FLOAT unit_effective_speed(LPEDICT ent) {
     speed *= 1.0f + S_BloodlustMoveBonus(ent);
     speed *= S_HumanMoveFactor(ent);
     speed *= 1.0f - S_CrippleMoveReduction(ent);
+    speed = unit_apply_earthquake_speed(ent, speed);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
     speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
     FOR_LOOP(i, globals.num_edicts) {

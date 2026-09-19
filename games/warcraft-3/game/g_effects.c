@@ -97,6 +97,102 @@ static LPCSTR G_EffectConfigValue(DWORD ability_id, wc3EffectType_t type) {
     return G_BuffEffectValue(ability_id, type);
 }
 
+
+static LPCSTR G_AbilityPresentationValue(DWORD ability_id, LPCSTR field) {
+    char classname[5];
+    LPCSTR value;
+    AbilityData_t const *row;
+
+    if (!field) return NULL;
+    memcpy(classname, &ability_id, 4);
+    classname[4] = '\0';
+    value = FindConfigValue(classname, field);
+    if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+
+    row = G_AbilityData(ability_id);
+    if (row->code && row->code != ability_id) {
+        memcpy(classname, &row->code, 4);
+        classname[4] = '\0';
+        value = FindConfigValue(classname, field);
+        if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+    }
+    return NULL;
+}
+
+DWORD G_AbilityLightningId(DWORD ability_id, DWORD index) {
+    LPCSTR list = G_AbilityPresentationValue(ability_id, "LightningEffect");
+    DWORD selected = 0, count = 0;
+
+    if (!list || !*list) return 0;
+    PARSE_LIST(list, lightning, parse_segment) {
+        if (!lightning || strlen(lightning) < 4 || !strcmp(lightning, "-") || !strcmp(lightning, "_")) continue;
+        selected = MAKEFOURCC(lightning[0], lightning[1], lightning[2], lightning[3]);
+        if (count++ == index) return selected;
+    }
+    return count ? selected : 0;
+}
+
+static BOOL G_LightningValid(LPCGLIGHTNING effect) {
+    return effect && effect >= level.lightning_effects &&
+        effect < level.lightning_effects + MAX_LIGHTNING_EFFECTS && effect->inuse;
+}
+
+LPGLIGHTNING G_LightningAdd(DWORD effect_id, LPCVECTOR3 source, LPCVECTOR3 target,
+                            COLOR32 color, DWORD duration_ms) {
+    LPGLIGHTNING effect = NULL;
+    DWORD now;
+
+    if (!effect_id || !source || !target) return NULL;
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+        if (!level.lightning_effects[i].inuse) {
+            effect = level.lightning_effects + i;
+            break;
+        }
+    }
+    if (!effect) return NULL;
+    memset(effect, 0, sizeof(*effect));
+    effect->inuse = true;
+    if (++level.next_lightning_id == 0) level.next_lightning_id = 1;
+    now = G_Time();
+    effect->state.handle = level.next_lightning_id;
+    effect->state.effect_id = effect_id;
+    effect->state.source = *source;
+    effect->state.target = *target;
+    effect->state.color = color;
+    effect->state.start_time = now;
+    effect->state.end_time = duration_ms ? now + duration_ms : 0;
+    return effect;
+}
+
+void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target) {
+    if (!G_LightningValid(effect)) return;
+    if (source) effect->state.source = *source;
+    if (target) effect->state.target = *target;
+}
+
+void G_LightningRemove(LPGLIGHTNING effect) {
+    if (!G_LightningValid(effect)) return;
+    memset(effect, 0, sizeof(*effect));
+}
+
+LPGLIGHTNING G_SpawnAbilityLightning(DWORD ability_id, DWORD index, LPCEDICT source,
+                                     LPCEDICT target, DWORD duration_ms) {
+    VECTOR3 from, to;
+    DWORD effect_id;
+
+    if (!source || !target) return NULL;
+    effect_id = G_AbilityLightningId(ability_id, index);
+    if (!effect_id) return NULL;
+    from = source->s.origin;
+    to = target->s.origin;
+    /* Ability lightning connects unit bodies, not terrain.  A half-radius lift
+     * keeps the generic ribbon near the model centre without renderer-side WC3
+     * attachment knowledge. */
+    from.z += source->s.radius * 0.5f;
+    to.z += target->s.radius * 0.5f;
+    return G_LightningAdd(effect_id, &from, &to, COLOR32_WHITE, duration_ms);
+}
+
 LPCSTR G_AbilityEffectArt(DWORD ability_id, wc3EffectType_t type, DWORD index) {
     static char selected[4][MAX_PATHLEN];
     static DWORD cursor;
@@ -223,9 +319,34 @@ LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), NULL, target, attach_point, temporary);
 }
 
+
+LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id,
+                                         wc3EffectType_t type, DWORD index,
+                                         LPCVECTOR2 point) {
+    LPEDICT effect = G_SpawnAbilityEffectAtPoint(ability_id, type, index, point, false);
+    if (effect) effect->owner = owner;
+    return effect;
+}
+
+void G_DestroyOwnedEffects(LPEDICT owner) {
+    LPEDICT owned[32];
+    DWORD count = 0;
+    if (!owner) return;
+    FILTER_EDICTS(effect, effect->owner == owner && (effect->s.flags & EF_NOT_SELECTABLE) &&
+                  (effect->s.model || effect->s.sound)) {
+        if (count < sizeof(owned) / sizeof(owned[0])) owned[count++] = effect;
+    }
+    FOR_LOOP(i, count) {
+        owned[i]->s.sound = 0;
+        if (owned[i]->s.model) G_DestroyEffect(owned[i]);
+        else G_FreeEdict(owned[i]);
+    }
+}
+
 void G_DestroyEffect(LPEDICT effect) {
     if (!effect || !effect->inuse) return;
     effect->prethink = NULL;
+    effect->s.sound = 0;
     effect->goalentity = NULL;
     effect->movetype = MOVETYPE_NONE;
     effect->wait = 0.0f;

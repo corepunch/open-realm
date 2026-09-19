@@ -67,6 +67,11 @@ by the exact-version guard.
 Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
 or lose the lifecycle state that gates authored player/team/color initialization. It also adds the WC3-owned mutable Blight cell plane immediately after the level-field stream and adds each unit's `blight_growth` alias/current-radius/next-update state to the raw `edict_t` contract. Load requires the saved Blight byte count to exactly match the freshly initialized map Blight grid and restores it before edicts/JASS state, so `SetBlight*` changes and `Abli` expansion progress survive without being reconstructed from nearby buildings. See [Blight](blight.md). Version 31 saves are rejected by the exact-version guard.
 
+Version 32 adds `edict_s.permanent_invisibility_reveal_until`, the authoritative server-time deadline used by `Apiv` Permanent Invisibility after spawn, attack, or spell-cast reveal. The field is serialized explicitly in `edict_fields[]`; the expanded `edict_t` size and version reject older layouts rather than interpreting shifted entity state.
+
+Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `wc3LightningEffect_t` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
+
+
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 
 Groups, timers, triggers, and event handlers may grow after `main()`. The header accepts a save that has *at least* as many of those objects as the freshly initialized map, then `RestoreRegistrySlots()` allocates the extras. A live count higher than the save still rejects. Quests remain an exact match because they are restored in place.

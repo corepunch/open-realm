@@ -112,6 +112,7 @@ BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
         attacker->attack1.type == ATK_NONE || S_UnitIsCycloned(target)) {
         return false;
     }
+    if (attacker->s.player < MAX_PLAYERS && S_UnitIsInvisibleToPlayer(target, attacker->s.player)) return false;
     if (target->destructable.initialized) {
         return G_DestructableCanBeAttackedBy(attacker, target);
     }
@@ -252,6 +253,7 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     if (S_EvasionRoll(target)) return;
     { FLOAT const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (FLOAT)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
+    S_PermanentInvisibilityReveal(attacker);
     damage = S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage)));
     damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_RoarDamageBonus(attacker)
                                          - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
@@ -511,6 +513,7 @@ void attack_melee_cooldown(LPEDICT self) {
 
 void attack_melee(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
+    S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint / divisor;
     if (self->sound.attack) gi.Sound(self, CHAN_WEAPON, self->sound.attack, 1.0f, 1.0f, 0.0f);
@@ -525,6 +528,7 @@ void attack_ranged_cooldown(LPEDICT self) {
 
 void attack_ranged(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
+    S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_ranged);
     self->wait = self->attack1.damagePoint / divisor;
     if (self->sound.attack) gi.Sound(self, CHAN_WEAPON, self->sound.attack, 1.0f, 1.0f, 0.0f);

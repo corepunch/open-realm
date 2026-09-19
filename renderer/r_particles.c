@@ -363,6 +363,30 @@ void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, CO
     R_SetAlphaKeyState(false);
 }
 
+/* Generic camera-facing textured ribbon between two world points.  Warcraft
+ * lightning is one consumer, but the primitive remains engine-level and has
+ * no knowledge of ability/rawcode data. */
+void R_DrawRibbonSprite(LPCTEXTURE texture, LPCVECTOR3 source, LPCVECTOR3 target,
+                        float width, COLOR32 color, BLEND_MODE blend_mode, BOOL depth_test) {
+    MATRIX4 matrix;
+    particleVertex_t *pv = particles_resources.vertices;
+    COLOR32 const uv = { 0, 255, 255, 0 };
+    VECTOR3 tail;
+    GLboolean depth_enabled;
+
+    if (!source || !target || width <= 0.0f) return;
+    if (!texture) texture = particles_resources.texture;
+    tail = Vector3_sub(target, source);
+    if (Vector3_len(&tail) <= 0.001f) return;
+    Matrix4_identity(&matrix);
+    depth_enabled = glIsEnabled(GL_DEPTH_TEST);
+    if (!depth_test && depth_enabled) R_Call(glDisable, GL_DEPTH_TEST);
+    pv = R_AddParticle(pv, target, &tail, uv, color, width);
+    R_FlushParticles(texture, &matrix, pv, blend_mode);
+    if (!depth_test && depth_enabled) R_Call(glEnable, GL_DEPTH_TEST);
+    R_SetAlphaKeyState(false);
+}
+
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 

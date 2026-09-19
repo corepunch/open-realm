@@ -880,6 +880,13 @@ typedef struct {
 typedef gweather_t *LPGWEATHER;
 typedef gweather_t const *LPCGWEATHER;
 
+typedef struct {
+    BOOL inuse;
+    wc3LightningEffect_t state;
+} glightning_t;
+typedef glightning_t *LPGLIGHTNING;
+typedef glightning_t const *LPCGLIGHTNING;
+
 typedef struct gtriggeraction_s {
     struct jass_function const *func;
     struct gtriggeraction_s *next;
@@ -1031,6 +1038,7 @@ typedef struct {
 } unitbalance_t;
 
 #define UNIT_BALANCE_BUILDING 0x1 // bit; immutable building classification; used by hot AI/FOW paths
+#define UNIT_BALANCE_PERMANENT_INVISIBLE 0x2 // bit; cached Apiv classification for hot per-viewer FOW checks
 #define WC3_UNIT_TYPE_STRUCTURE 2 // handle value; Warcraft structure type; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
 #define WC3_ORDER_ID_POLYMORPH 852074 // order ID; Warcraft Polymorph command; used by order dispatch
@@ -1231,6 +1239,7 @@ struct edict_s {
     } revival;
     DWORD spawn_time;
     DWORD summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
+    DWORD permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
     DWORD harvested_lumber;
     DWORD harvested_gold;
     struct edictMilitia_s {
@@ -1779,6 +1788,8 @@ struct level_locals {
     LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
     gweather_t weather_effects[MAX_WEATHER_EFFECTS];
     DWORD next_weather_id;
+    glightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
+    DWORD next_lightning_id;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
     PATHSTR map_path;
@@ -1975,6 +1986,13 @@ void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
 BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent);
+BOOL G_FowPlayersShareVision(DWORD viewer, DWORD owner);
+BOOL S_UnitIsDetectedByPlayer(LPCEDICT unit, DWORD player);
+BOOL S_UnitIsInvisibleToPlayer(LPCEDICT unit, DWORD player);
+BOOL S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit);
+BOOL S_PermanentInvisibilityActive(LPCEDICT unit);
+void S_PermanentInvisibilityInitialize(LPEDICT unit);
+void S_PermanentInvisibilityReveal(LPEDICT unit);
 void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box);
 void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius);
 void G_FogModifierStart(LPFOGMODIFIER mod);
@@ -2280,6 +2298,13 @@ LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target, LPCST
 LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point, BOOL temporary);
 LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index, LPEDICT target, LPCSTR attach_point, BOOL temporary);
 void G_DestroyEffect(LPEDICT effect);
+DWORD G_AbilityLightningId(DWORD ability_id, DWORD index);
+LPGLIGHTNING G_LightningAdd(DWORD effect_id, LPCVECTOR3 source, LPCVECTOR3 target, COLOR32 color, DWORD duration_ms);
+void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target);
+void G_LightningRemove(LPGLIGHTNING effect);
+LPGLIGHTNING G_SpawnAbilityLightning(DWORD ability_id, DWORD index, LPCEDICT source, LPCEDICT target, DWORD duration_ms);
+LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point);
+void G_DestroyOwnedEffects(LPEDICT owner);
 void G_EffectThink(LPEDICT);
 void G_EffectValidateTarget(LPEDICT);
 
@@ -2505,6 +2530,8 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *);
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
+int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped);
+void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point);
 
 typedef struct {
     FLOAT volume;
@@ -2756,6 +2783,8 @@ void starfall_think(LPEDICT);
 void death_and_decay_think(LPEDICT);
 void tranquility_think(LPEDICT);
 void earthquake_think(LPEDICT);
+void far_sight_think(LPEDICT);
+void chain_lightning_think(LPEDICT);
 void whirlwind_think(LPEDICT);
 void volcano_think(LPEDICT);
 void pocket_factory_think(LPEDICT);

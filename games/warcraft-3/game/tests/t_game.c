@@ -3276,6 +3276,34 @@ TEST(wc3_save, field_vertex_tint_round_trip) {
     remove(filename);
 }
 
+
+TEST(wc3_save, lightning_registry_round_trip) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-lightning.bin";
+    LPGLIGHTNING effect;
+    VECTOR3 source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
+
+    reset_entities();
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    level.next_lightning_id = 40;
+    level.time = 500;
+    effect = G_LightningAdd(MAKEFOURCC('C', 'L', 'S', 'B'), &source, &target,
+                            MAKE(COLOR32, 10, 20, 30, 40), 2000);
+    T_NOT_NULL(effect);
+    T_ASSERT(WriteGame(filename));
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    level.next_lightning_id = 0;
+    T_ASSERT(ReadGame(filename));
+    effect = NULL;
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) if (level.lightning_effects[i].inuse) { effect = level.lightning_effects + i; break; }
+    T_NOT_NULL(effect);
+    T_EQ(level.next_lightning_id, 41);
+    T_EQ(effect->state.handle, 41); T_EQ(effect->state.effect_id, MAKEFOURCC('C', 'L', 'S', 'B'));
+    T_FEQ(effect->state.source.z, 3.0f, 0.001f); T_FEQ(effect->state.target.y, 5.0f, 0.001f);
+    T_EQ(effect->state.color.r, 10); T_EQ(effect->state.color.a, 40);
+    T_EQ(effect->state.start_time, 500); T_EQ(effect->state.end_time, 2500);
+    remove(filename);
+}
+
 TEST(wc3_save, construction_payment_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-construction-payment.bin";
     LPEDICT unit, worker;
@@ -3461,6 +3489,9 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     LPEDICT can = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 8.0f, 0.0f);
     LPEDICT pos = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 9.0f, 0.0f);
     LPEDICT lsh = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 10.0f, 0.0f);
+    LPEDICT far_sight = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 11.0f, 0.0f);
+    LPEDICT chain = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 0.0f);
+    LPEDICT chain_marker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 13.0f, 0.0f);
     unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
     mine->stand = unit_stand; mine->think = blight_mine_think;
     idle->stand = unit_stand; idle->think = NULL;
@@ -3469,13 +3500,33 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     human->think = human_ability_think;
     portal->think = dark_portal_think; spray->think = healing_spray_think;
     can->think = cannibalize_think; pos->think = possession_two_think; lsh->think = lsh_think;
+    far_sight->think = far_sight_think; far_sight->s.player = 3;
+    far_sight->s.origin2 = (VECTOR2){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
+    unit->spawn_time = 2468; mine->spawn_time = 369; chain->spawn_time = 1357;
+    unit->permanent_invisibility_reveal_until = 97531;
+    unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
+    chain->channel.owner_spawn_time = unit->spawn_time;
+    chain->s.origin2 = (VECTOR2){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
+    chain->velocity = 0.9f; chain->resources = 3; chain->freetime = 4321;
+    chain_marker->class_id = MAKEFOURCC('C', 'L', 'v', 's'); chain_marker->svflags |= SVF_NOCLIENT;
+    chain_marker->owner = chain; chain_marker->channel.owner_spawn_time = chain->spawn_time;
+    chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
-    portal->think = spray->think = can->think = pos->think = lsh->think = monster_think;
+    portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
+    far_sight->s.player = 0; far_sight->s.origin2 = (VECTOR2){ 0 }; far_sight->collision = 0; far_sight->spawn_time = 0;
+    chain->owner = NULL; chain->class_id = 0; chain->channel.owner_spawn_time = 0; chain->s.origin2 = (VECTOR2){ 0 }; chain->collision = chain->wait = chain->velocity = 0;
+    chain->resources = chain->freetime = 0;
+    chain_marker->class_id = chain_marker->svflags = chain_marker->channel.owner_spawn_time = chain_marker->resources = 0;
+    chain_marker->owner = chain_marker->goalentity = NULL;
+    unit->permanent_invisibility_reveal_until = 0; unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
     unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(unit->stand == unit_stand && unit->birth == unit_birth && unit->die == unit_die && unit->think == monster_think);
+    T_EQ(unit->permanent_invisibility_reveal_until, 97531);
+    T_ASSERT(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE);
     T_ASSERT(mine->think == blight_mine_think && mine->stand == unit_stand);
     T_ASSERT(!idle->think && idle->stand == unit_stand);
     T_ASSERT(effect->think == G_EffectThink && effect->prethink == G_EffectValidateTarget);
@@ -3484,6 +3535,19 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(human->think == human_ability_think);
     T_ASSERT(portal->think == dark_portal_think && spray->think == healing_spray_think);
     T_ASSERT(can->think == cannibalize_think && pos->think == possession_two_think && lsh->think == lsh_think);
+    T_ASSERT(far_sight->think == far_sight_think);
+    T_EQ(far_sight->s.player, 3); T_FEQ(far_sight->s.origin2.x, 123.0f, 0.001f);
+    T_FEQ(far_sight->s.origin2.y, 456.0f, 0.001f); T_FEQ(far_sight->collision, 777.0f, 0.001f);
+    T_EQ(far_sight->spawn_time, 9876);
+    T_ASSERT(chain->think == chain_lightning_think && chain->owner == unit);
+    T_EQ(chain->class_id, MAKEFOURCC('A', 'O', 'c', 'l'));
+    T_EQ(chain->channel.owner_spawn_time, unit->spawn_time);
+    T_FEQ(chain->s.origin2.x, 321.0f, 0.001f); T_FEQ(chain->s.origin2.y, 654.0f, 0.001f);
+    T_FEQ(chain->collision, 500.0f, 0.001f); T_FEQ(chain->wait, 45.0f, 0.001f);
+    T_FEQ(chain->velocity, 0.9f, 0.001f); T_EQ(chain->resources, 3); T_EQ(chain->freetime, 4321);
+    T_EQ(chain_marker->class_id, MAKEFOURCC('C', 'L', 'v', 's')); T_ASSERT(chain_marker->svflags & SVF_NOCLIENT);
+    T_ASSERT(chain_marker->owner == chain && chain_marker->goalentity == mine);
+    T_EQ(chain_marker->channel.owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
     remove(filename);
 }
 
