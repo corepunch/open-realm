@@ -135,6 +135,15 @@ selected building's status panel present without reserializing it on every
 timer tick. The transition coverage is
 `wc3_building.selected_building_rebuilds_info_panel_for_construction_and_upgrade`.
 
+The server must also deliver the serialized layer only to the network client
+whose exact player edict was passed to `PF_Unicast()`. AI/player slots have
+edicts but no network connection. Falling back from such an edict to the sole
+connected client caused an AI's empty info-panel layer to clear the human
+player's selected-building panel. `SV_ClientForEntityRecipient()` retains its
+player-owner fallback for gameplay messages such as owner-only sounds; only
+the unicast UI path requires exact edict ownership. The regression is covered
+by `server_net.edict_recipient_rejects_unowned_edict`.
+
 Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards. The same invalidation reaches connected shared-control viewers whose selected unit belongs to the changed owner; those viewers also evaluate build state against the owner's resources and technology.
 
 ## Melee visibility versus campaign restrictions

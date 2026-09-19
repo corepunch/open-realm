@@ -230,16 +230,26 @@ TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
 
 TEST(server_net, edict_recipient_rejects_unowned_edict) {
     LPCLIENT client;
+    BYTE data[16];
+    sizeBuf_t msg = { data, sizeof(data), 0, 0 };
+    netadr_t from;
 
     reset_server_state(1);
     svs.num_clients = 1;
     client = &svs.clients[0];
     client->state = cs_spawned;
     client->edict = &test_edicts[0];
+    client->netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
+    NET_Config(false);
 
     /* AI/player-slot UI can target an edict with no network client. The
      * unicast path must not fall through to the sole human connection. */
+    MSG_WriteByte(&sv.multicast, svc_layout);
+    PF_Unicast(&test_edicts[5]);
     T_NULL(SV_ClientForEdictRecipient(&test_edicts[5]));
+    T_EQ(client->netchan.message.cursize, 0);
+    T_EQ(NET_GetPacket(NS_CLIENT, &from, &msg), 0);
 }
 
 TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
