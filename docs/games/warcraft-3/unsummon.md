@@ -63,6 +63,13 @@ does not stop it. HP already removed and resources already returned remain; the
 building continues ticking until it dies or the effect reaches another valid
 terminal state.
 
+While `Buns` is active, the building cannot attack and its training, research,
+and in-place upgrade progress is paused. Its command card hides action and
+cancel buttons; a rally button remains available for producers that support
+rally points. Queued training work is still owned by the building, so if the
+building is destroyed, the normal producer-death cleanup refunds the queued
+unit's costs and releases its reserved food.
+
 The approach phase is owned by the Unsummon ability and reuses the worker
 movement contract used by Repair and construction interactions. For buildings
 with authored pathing, the distance is measured from the Acolyte to the

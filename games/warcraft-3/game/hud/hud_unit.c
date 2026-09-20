@@ -380,6 +380,14 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     is_burrow = S_CargoIsBurrow(ent);
     burrow_occupied = is_burrow && ent->cargo.count > 0;
 
+    /* Unsummon owns the building until destruction. Rally metadata remains
+     * editable, but actions and cancellation are hidden. */
+    if (G_BuildingIsUnsummoning(ent)) {
+        if (G_UnitHasRally(ent))
+            G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdRally, false, 0);
+        return count;
+    }
+
     /* In-place structure upgrades expose only Cancel while the existing edict
      * is in its Birth/progress state, matching the construction-style command
      * lock without treating the building as newly constructed. */

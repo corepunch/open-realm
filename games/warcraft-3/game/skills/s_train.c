@@ -383,6 +383,7 @@ static BOOL CompleteResearch(LPEDICT producer, LPEDICT item) {
 }
 
 void ai_train_build(LPEDICT ent) {
+    if (G_BuildingIsUnsummoning(ent)) return;
     if (!ent || !ent->build) {
         if (ent && ent->stand) ent->stand(ent);
         return;

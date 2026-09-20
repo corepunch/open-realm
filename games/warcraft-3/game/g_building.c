@@ -530,6 +530,11 @@ BOOL G_BuildingUpgradeActive(LPCEDICT building) {
         G_UnitIsBuilding(building->research.upgrade);
 }
 
+BOOL G_BuildingIsUnsummoning(LPCEDICT building) {
+    return building && building->inuse &&
+        G_UnitStatusLevel(building, MAKEFOURCC('B', 'u', 'n', 's')) != 0;
+}
+
 static BOOL G_RelativeBuildingUpgradeCosts(void) {
     LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", "RelativeUpgradeCost");
     /* Warsmash treats zero as the relative-cost mode. Missing Misc data follows
@@ -779,6 +784,7 @@ buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_ProducerCanTrain(producer, unit_id)) return BUILD_COMMAND_ABSENT;
+    if (G_BuildingIsUnsummoning(producer)) return BUILD_COMMAND_DISABLED;
     if (!G_BuildAllEnabled()) {
         maximum = G_GetPlayerTechMaxAllowed(client, unit_id);
         if (maximum >= 0 && G_GetPlayerTechCountValue(client, unit_id) >= maximum) {
@@ -805,6 +811,7 @@ buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT produ
     if (reason && reason_size) reason[0] = '\0';
     if (next_level) *next_level = 0;
     if (!client || !G_ProducerCanResearch(producer, upgrade_id)) return BUILD_COMMAND_ABSENT;
+    if (G_BuildingIsUnsummoning(producer)) return BUILD_COMMAND_DISABLED;
     upgrade = G_UpgradeData(upgrade_id);
     if (!upgrade || upgrade->id != upgrade_id || upgrade->maxLevel <= 0) return BUILD_COMMAND_ABSENT;
 
@@ -845,6 +852,7 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParam
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_ProducerCanUpgrade(producer, unit_id)) return BUILD_COMMAND_ABSENT;
+    if (G_BuildingIsUnsummoning(producer)) return BUILD_COMMAND_DISABLED;
     target = G_UnitBalance(unit_id);
     if (!target || target->id != unit_id || !G_UnitUI(unit_id) || !G_UnitUI(unit_id)->modelFile)
         return BUILD_COMMAND_ABSENT;
@@ -1058,6 +1066,7 @@ static BOOL G_CompleteBuildingUpgrade(LPEDICT building) {
 
 void G_RunBuildingUpgradeFrame(LPEDICT building) {
     if (!G_BuildingUpgradeActive(building)) return;
+    if (G_BuildingIsUnsummoning(building)) return;
     if (M_IsDead(building) || (building->svflags & SVF_DEADMONSTER)) {
         G_StopBuildingUpgrade(building, false);
         return;

@@ -278,6 +278,33 @@ TEST(wc3_spell, unsummon_cancel_after_start_keeps_demolition_active) {
     uns_done(&fix);
 }
 
+TEST(wc3_spell, unsummon_building_destruction_refunds_queued_training) {
+    UNSFIX fix;
+    UnitBalance_t training_bal = MAKE(UnitBalance_t, .maxHealth = 100,
+        .goldCost = 100, .lumberCost = 20, .foodUsed = 3);
+
+    uns_setup(&fix);
+    fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
+    fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    fix.client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    fix.unit->data.UnitBalance = &training_bal;
+    fix.unit->training = true;
+    fix.building->build = fix.unit;
+    T_ASSERT(G_ReserveTrainingFood(fix.unit));
+    T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 3);
+
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    unit_die(fix.building, NULL);
+
+    T_NULL(fix.building->build);
+    T_ASSERT(!fix.unit->inuse);
+    T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 0);
+    T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 20);
+    uns_done(&fix);
+}
+
 TEST(wc3_spell, unsummon_rejects_invalid_targets_without_mana_spend) {
     UNSFIX fix;
     FLOAT mana;

@@ -92,7 +92,7 @@ void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
 }
 
 static BOOL can_attack(LPCEDICT ent) {
-    if (S_UnitIsCycloned(ent)) return false;
+    if (S_UnitIsCycloned(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
     if (ent->attack1.type == ATK_NONE)
@@ -108,7 +108,7 @@ static BOOL can_attack(LPCEDICT ent) {
 BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     DWORD flag;
 
-    if (!attacker || !target || !target->inuse || attacker == target ||
+    if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
         attacker->attack1.type == ATK_NONE || S_UnitIsCycloned(target)) {
         return false;
     }
@@ -128,6 +128,12 @@ static void attack_finish_after_combat(LPEDICT attacker, LPCEDICT target) {
         attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
     unit_leavecombat(attacker);
     attacker->goalentity = NULL;
+    if (G_BuildingIsUnsummoning(attacker)) {
+        attacker->currentmove = NULL;
+        attacker->animation = NULL;
+        attacker->wait = 0;
+        return;
+    }
     if (attacker->movement.patrol_a) {
         order_patrol_resume(attacker);
     } else if (attacker->movement.attackmove_waypoint) {
