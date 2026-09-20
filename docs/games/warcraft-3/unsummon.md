@@ -2,7 +2,9 @@
 
 ## Contract
 
-`Auns` is ROC/TFT `CAbilityUnsummon` (parent `AAsm`). No `AbilityData` aliases
+`Auns` is ROC/TFT `CAbilityUnsummon` (parent `AAsm`). The command is authored
+by `Auns`, while stock `Units\\UndeadAbilityFunc.txt` places the target art and
+looped effect presentation on its `Buns` buff row. No `AbilityData` aliases
 share `code=Auns` in stock data.
 
 | Field | Stock | OE label | Runtime |
@@ -96,8 +98,9 @@ type transform, so exact upgraded-town-hall refund parity remains separate work.
 
 ## Remaining fidelity gaps
 
-- Exact Acolyte work animation / Unsummon target presentation is not yet
-  modelled beyond the authored target effect and `Buns` state.
+- Exact Acolyte work animation and the stock looped Unsummon sound remain
+  separate presentation work; the authored `Buns.Targetart` is spawned on the
+  building when demolition starts.
 - ROC's `debris` target token is not implemented as a separate target class.
 - Patch-1.17 upgraded-building accumulated-cost recovery needs persistent
   upgrade ancestry/cost accounting; current refunds use the completed unit row.
