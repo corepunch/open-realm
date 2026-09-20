@@ -43,8 +43,17 @@ typedef struct {
 } clMapMusic_t;
 
 typedef struct {
+    clMusicPlaylist_t playlist;
+    clMusicSource_t source;
+    BOOL paused;
+    BOOL valid;
+} clMusicRestore_t;
+
+typedef struct {
     clMapMusic_t map;
     clMusicPlaylist_t current;
+    clMusicRestore_t thematic_restore;
+    BOOL map_pending;
     clMusicSource_t source;
     LONG music_volume;
     LONG thematic_volume;
@@ -370,9 +379,85 @@ static void CL_MusicStartPlaylist(LPCSTR value, BOOL random, LONG index, clMusic
     CL_MusicStartAvailableTrack(CL_MusicInitialIndex(&cl_music.current), MAX(0, start_ms));
 }
 
+static void CL_MusicRememberThematicRestore(void) {
+    if (cl_music.source == CL_MUSIC_SOURCE_NONE || cl_music.source == CL_MUSIC_SOURCE_THEMATIC ||
+        !cl_music.current.count) {
+        memset(&cl_music.thematic_restore, 0, sizeof(cl_music.thematic_restore));
+        return;
+    }
+    cl_music.thematic_restore.playlist = cl_music.current;
+    cl_music.thematic_restore.source = cl_music.source;
+    cl_music.thematic_restore.paused = cl_music.paused;
+    cl_music.thematic_restore.valid = true;
+}
+
+static void CL_MusicFinishThematic(BOOL notify_server) {
+    clMusicRestore_t restore;
+
+    if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) return;
+    restore = cl_music.thematic_restore;
+    memset(&cl_music.thematic_restore, 0, sizeof(cl_music.thematic_restore));
+
+    if (restore.valid && restore.source != CL_MUSIC_SOURCE_NONE && restore.playlist.count) {
+        CL_MusicCloseDecoder();
+        cl_music.current = restore.playlist;
+        cl_music.source = restore.source;
+        cl_music.paused = false;
+        cl_music.fade_active = false;
+        cl_music.fade_duration_ms = 0;
+        if (CL_MusicStartAvailableTrack(cl_music.current.index, 0)) {
+            cl_music.paused = restore.paused;
+            S_StreamSetPaused(S_STREAM_MUSIC, cl_music.paused || cl_music.suspended);
+            if (notify_server && cls.state > ca_connected) {
+                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                SZ_Printf(&cls.netchan.message, "music_theme_end");
+            }
+            return;
+        }
+    }
+
+    if (cl_music.map.playlist[0]) {
+        cl_music.map_pending = false;
+        CL_MusicStartPlaylist(cl_music.map.playlist, cl_music.map.random, cl_music.map.index,
+                              CL_MUSIC_SOURCE_MAP, 0, 0);
+    } else {
+        CL_MusicCloseDecoder();
+        memset(&cl_music.current, 0, sizeof(cl_music.current));
+        cl_music.source = CL_MUSIC_SOURCE_NONE;
+        cl_music.paused = false;
+        cl_music.map_pending = false;
+    }
+    if (notify_server && cls.state > ca_connected) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "music_theme_end");
+    }
+}
+
 static void CL_MusicAdvancePlaylist(void) {
     DWORD preferred;
 
+    if (cl_music.source == CL_MUSIC_SOURCE_THEMATIC) {
+        /* Warcraft thematic music is one-shot: natural EOF restores the
+         * ordinary session just like EndThematicMusic(). */
+        CL_MusicFinishThematic(true);
+        return;
+    }
+    if (cl_music.source == CL_MUSIC_SOURCE_MAP && cl_music.map_pending) {
+        cl_music.map_pending = false;
+        if (cl_music.map.playlist[0]) {
+            CL_MusicStartPlaylist(cl_music.map.playlist, cl_music.map.random, cl_music.map.index,
+                                  CL_MUSIC_SOURCE_MAP, 0, 0);
+        } else {
+            CL_MusicCloseDecoder();
+            memset(&cl_music.current, 0, sizeof(cl_music.current));
+            cl_music.source = CL_MUSIC_SOURCE_NONE;
+        }
+        if (cls.state > ca_connected) {
+            MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+            SZ_Printf(&cls.netchan.message, "music_map_commit");
+        }
+        return;
+    }
     if (!cl_music.current.count) { CL_MusicCloseDecoder(); return; }
     preferred = cl_music.current.random
         ? (DWORD)(rand() % cl_music.current.count)
@@ -408,21 +493,47 @@ void CL_MusicShutdown(void) {
 }
 
 void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index) {
+    BOOL changed;
+
     if (!playlist) playlist = "";
+    index = MAX(0, index);
+    changed = strcmp(cl_music.map.playlist, playlist) ||
+        cl_music.map.random != random || cl_music.map.index != index;
     strlcpy(cl_music.map.playlist, playlist, sizeof(cl_music.map.playlist));
     cl_music.map.random = random;
-    cl_music.map.index = MAX(0, index);
-    if (cl_music.source == CL_MUSIC_SOURCE_NONE || cl_music.source == CL_MUSIC_SOURCE_MAP) {
+    cl_music.map.index = index;
+
+    if (cl_music.source == CL_MUSIC_SOURCE_NONE) {
+        cl_music.map_pending = false;
         CL_MusicStartPlaylist(cl_music.map.playlist, cl_music.map.random, cl_music.map.index,
                               CL_MUSIC_SOURCE_MAP, 0, 0);
+    } else if (changed &&
+               (cl_music.source == CL_MUSIC_SOURCE_MAP ||
+                (cl_music.source == CL_MUSIC_SOURCE_THEMATIC &&
+                 cl_music.thematic_restore.valid &&
+                 cl_music.thematic_restore.source == CL_MUSIC_SOURCE_MAP))) {
+        /* SetMapMusic changes what follows the current map track; it does not
+         * cut that track off mid-playback. */
+        cl_music.map_pending = true;
     }
 }
 
 void CL_MusicClearMap(void) {
+    BOOL had_map = cl_music.map.playlist[0] != '\0';
     memset(&cl_music.map, 0, sizeof(cl_music.map));
+    if (had_map &&
+        (cl_music.source == CL_MUSIC_SOURCE_MAP ||
+         (cl_music.source == CL_MUSIC_SOURCE_THEMATIC &&
+          cl_music.thematic_restore.valid &&
+          cl_music.thematic_restore.source == CL_MUSIC_SOURCE_MAP))) {
+        /* The audible track is allowed to finish; EOF then becomes silence. */
+        cl_music.map_pending = true;
+    }
 }
 
 void CL_MusicPlay(LPCSTR playlist, LONG start_ms, LONG fade_ms) {
+    memset(&cl_music.thematic_restore, 0, sizeof(cl_music.thematic_restore));
+    cl_music.map_pending = false;
     CL_MusicStartPlaylist(playlist, true, 0, CL_MUSIC_SOURCE_EXPLICIT, start_ms, fade_ms);
 }
 
@@ -440,18 +551,12 @@ void CL_MusicResume(void) {
 }
 
 void CL_MusicPlayThematic(LPCSTR playlist, LONG start_ms) {
+    if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) CL_MusicRememberThematicRestore();
     CL_MusicStartPlaylist(playlist, false, 0, CL_MUSIC_SOURCE_THEMATIC, start_ms, 0);
 }
 
 void CL_MusicEndThematic(void) {
-    if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) return;
-    if (cl_music.map.playlist[0]) {
-        CL_MusicStartPlaylist(cl_music.map.playlist, cl_music.map.random, cl_music.map.index,
-                              CL_MUSIC_SOURCE_MAP, 0, 0);
-    } else {
-        CL_MusicCloseDecoder();
-        cl_music.source = CL_MUSIC_SOURCE_NONE;
-    }
+    CL_MusicFinishThematic(false);
 }
 
 void CL_MusicSetVolume(LONG volume) {

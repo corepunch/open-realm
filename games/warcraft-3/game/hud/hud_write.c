@@ -345,8 +345,11 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL decorate) {
 
 BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
     LPCSTR value = NULL;
-    if (key && !strstr(key, "\\") && game.config.theme.source) {
-        value = Stb_IniCacheFind(&game.config.theme, "Default", key);
+    if (key && !strstr(key, "\\")) {
+        if (game.config.map_skin.source)
+            value = Stb_IniCacheFind(&game.config.map_skin, "CustomSkin", key);
+        if (!value && game.config.theme.source)
+            value = Stb_IniCacheFind(&game.config.theme, "Default", key);
     }
     return value ? value : def;
 }
@@ -374,13 +377,24 @@ LPCSTR Theme_PlayerString(LPGAMECLIENT client, LPCSTR key, LPCSTR def) {
     LPCSTR category, value;
     char versioned[128];
 
-    if (!key || strstr(key, "\\") || !game.config.theme.source) return def;
+    if (!key || strstr(key, "\\")) return def;
+    snprintf(versioned, sizeof(versioned), "%s_V%u", key, (unsigned)Theme_GameVersion());
+
+    /* war3mapSkin.txt is a map-authored Game Interface override and therefore
+     * wins over the stock race skin, including edition-specific Music_V0/V1
+     * aliases. */
+    if (game.config.map_skin.source) {
+        value = Stb_IniCacheFind(&game.config.map_skin, "CustomSkin", key);
+        if (!value) value = Stb_IniCacheFind(&game.config.map_skin, "CustomSkin", versioned);
+        if (value) return value;
+    }
+
+    if (!game.config.theme.source) return def;
     category = Theme_PlayerRaceCategory(client ? client->ps.race : kPlayerRaceNone);
     value = Stb_IniCacheFind(&game.config.theme, category, key);
     if (!value && strcmp(category, "Default")) value = Stb_IniCacheFind(&game.config.theme, "Default", key);
     if (value) return value;
 
-    snprintf(versioned, sizeof(versioned), "%s_V%u", key, (unsigned)Theme_GameVersion());
     value = Stb_IniCacheFind(&game.config.theme, category, versioned);
     if (!value && strcmp(category, "Default")) value = Stb_IniCacheFind(&game.config.theme, "Default", versioned);
     return value ? value : def;

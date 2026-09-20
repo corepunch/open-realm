@@ -56,12 +56,13 @@ call SetMapMusic("Music", true, 0)
 
 `Theme_PlayerString()` resolves that value for the represented local player:
 
-1. race section (`Human`, `Orc`, `Undead`, `NightElf`);
-2. `Default` section fallback;
-3. if the unversioned field is absent, `<field>_V0` for RoC or `<field>_V1` for TFT;
-4. original JASS string as fallback.
+1. map-authored `war3mapSkin.txt` `[CustomSkin]` override;
+2. race section (`Human`, `Orc`, `Undead`, `NightElf`);
+3. `Default` section fallback;
+4. versioned `<field>_V0` for RoC or `<field>_V1` for TFT at the same override/base layer;
+5. original JASS string as fallback.
 
-This version fallback now matches the existing menu theme resolver instead of making gameplay music invent a second skin policy.
+The map skin is loaded after the map archive is mounted, so Game Interface overrides such as `Music_V0` / `Music_V1` win over stock `war3skins.txt`. This version fallback matches the existing menu theme resolver instead of making gameplay music invent a second skin policy.
 
 Direct Warcraft paths containing `\\` bypass skin lookup and remain paths.
 
@@ -69,7 +70,7 @@ Direct Warcraft paths containing `\\` bypass skin lookup and remain paths.
 
 Retail never shipped `Music.slk` in either MPQ, so the typed loader marks it optional: a missing file stays silent with zero rows, and `G_MusicData` keeps returning its static zero row. `G_MusicResolvePlaylist` (`g_music.c:30-54`) then falls back to the raw skin token as a direct path. The fixture MPQ ships a `Music.slk` with a `TestMusic` row so playlist alias expansion stays covered.
 
-The real per-edition playlist comes from `war3skins.txt`, not the SLK. `Theme_PlayerString` resolves the JASS token through the recipient's race section, then `Default`, then the versioned `<field>_V0` (RoC) / `<field>_V1` (TFT) key. Only the resolved token is checked against `Music.slk` row names before `FileNames` expansion.
+The real per-edition playlist comes from the skin layer, not the SLK. `Theme_PlayerString` first checks map `war3mapSkin.txt` `[CustomSkin]`, then the recipient's stock race/`Default` sections and their versioned `<field>_V0` (RoC) / `<field>_V1` (TFT) aliases. Only the resolved token is checked against `Music.slk` row names before `FileNames` expansion.
 
 `Music.slk` is loaded as typed Warcraft metadata. Only two fields are needed by the current playback contract:
 
@@ -104,13 +105,13 @@ This is the same general rule used by other server-authored presentation state: 
 SetMapMusic(name, random, index)
 ```
 
-Stores the default map playlist. If no explicit/thematic music currently supersedes it, it also becomes the active source. This makes generated map startup music audible after `ClientBegin`.
+Stores the default map playlist. If no music is currently active, it also becomes the active source, which makes generated map startup music audible after `ClientBegin`. If a map-music track is already audible, changing the map list does **not** cut that track off: the client retains the current list until that track reaches EOF, then starts the newly configured map list using its requested random/index policy.
 
 ```text
 ClearMapMusic()
 ```
 
-Clears the stored default playlist. It does not forcibly destroy an already audible current track.
+Clears the stored default playlist. It does not forcibly destroy an already audible current map track; that track is allowed to finish, then EOF becomes silence instead of advancing the old list.
 
 ### Explicit music
 
@@ -156,19 +157,26 @@ SetThematicMusicVolume(0..127)
 SetThematicMusicPlayPosition(milliseconds)
 ```
 
-Thematic music uses the one physical music stream but separate logical source/volume state. Beginning thematic music replaces the audible track while retaining map-default configuration. `EndThematicMusic()` restarts the stored map playlist, matching the current Warsmash high-level behavior. It does not yet restore the exact pre-theme decoder position.
+Thematic music uses the one physical music stream but separate logical source/volume state. It is a temporary **one-shot** overlay:
+
+- beginning thematic music snapshots the ordinary map/explicit session that it interrupts;
+- thematic EOF automatically restores that session instead of advancing/looping the thematic playlist;
+- `EndThematicMusic()` performs the same restoration early;
+- a `SetMapMusic` / `ClearMapMusic` change made while an interrupted map track is underneath the theme remains pending and takes effect when that restored map track later reaches EOF.
+
+The retained game state also preserves the interrupted session across save/load and client synchronization. Exact live decoder position is still not sampled continuously, so restoration reopens the interrupted selected track rather than promising sample-accurate continuation from the instant the theme began.
 
 ## Playlist Behavior
 
 The generic client stores at most 32 resolved paths for one active playlist.
 
-Sequential mode:
+Sequential map/explicit mode:
 
 ```text
 A -> B -> C -> A -> ...
 ```
 
-Random mode independently chooses a track each time, so the same track may be chosen twice consecutively. This matches current Warsmash behavior; retail random/shuffle semantics remain a verification item.
+Random mode independently chooses a track each time, so the same track may be chosen twice consecutively. This matches current Warsmash behavior; retail random/shuffle semantics after the initial selection remain a verification item. Thematic music is different: it is one-shot and restores the interrupted ordinary session at EOF rather than advancing its playlist.
 
 When a selected path cannot be opened/decoded, the client scans the remaining playlist entries. An all-invalid playlist becomes silent rather than indexing an empty array or terminating the map. No per-track debug logging is part of this path.
 
@@ -228,16 +236,17 @@ Current payloads:
 | `MUSIC_CMD_SET_THEMATIC_VOLUME` | `long 0..127` |
 | `MUSIC_CMD_SET_THEMATIC_POSITION` | `long milliseconds` |
 
-The Warcraft game module resolves each recipient's skin before serialization. `GetLocalPlayer()`-scoped JASS uses `currentplayer`; global calls update/send each game-client slot independently.
+The Warcraft game module resolves each recipient's skin before serialization. `GetLocalPlayer()`-scoped JASS uses `currentplayer`; global calls update/send each game-client slot independently. When a one-shot thematic track reaches natural EOF, the client sends the internal `music_theme_end` string command so the retained server-side presentation state restores the same ordinary session and save/reconnect synchronization does not resurrect an already-finished theme. When a deferred `SetMapMusic` or `ClearMapMusic` finally takes effect after the old map track reaches EOF, the client likewise sends `music_map_commit` so retained state advances to the new map list (or silence) at the same moment.
 
 ## Important Files
 
 | File | Role |
 |---|---|
 | `games/warcraft-3/game/g_music.c` | Warcraft JASS music state, skin/SLK resolution, per-recipient sync |
+| `games/warcraft-3/game/g_commands.c` | internal client acknowledgements for natural music state transitions |
 | `games/warcraft-3/game/api/api_sound.h` | Music native implementations |
 | `games/warcraft-3/game/g_metadata.c` | Typed `Music.slk` loading |
-| `games/warcraft-3/game/hud/hud_write.c` | race/default/versioned skin lookup |
+| `games/warcraft-3/game/hud/hud_write.c` | map override plus race/default/versioned skin lookup |
 | `common/shared.h` | generic `musicCommand_t` presentation commands |
 | `common/common.h` | `svc_music` network opcode |
 | `client/cl_parse.c` | `svc_music` decode |
@@ -250,12 +259,12 @@ The Warcraft game module resolves each recipient's skin before serialization. `G
 The current implementation deliberately leaves these unresolved rather than assigning unverified Warcraft semantics:
 
 - `GetSoundFileDuration` still returns `0`; a synchronous JASS query cannot safely depend on a client-only decoder without a different ownership design.
-- `StopMusic(true)` does not fade because the exact retail fade duration has not been established.
-- `EndThematicMusic()` restarts map music instead of restoring an exact saved decoder position; retail behavior should be measured before adding that state.
-- exact retail interpretation of `SetMapMusic`'s `index` and random-vs-shuffle behavior still needs observation.
-- `war3mapSkin.txt` is not yet merged into the gameplay skin cache, so map-provided skin overrides remain a broader skin-system gap.
+- `StopMusic(true)` still pauses immediately because the exact retail fade duration has not been established.
+- `SetMapMusic`'s index is treated as a zero-based initial-song index; exact retail random-vs-shuffle behavior *after* the initial selection still needs observation.
+- thematic restoration preserves the interrupted logical session and JASS-known selection/seek state, but not the continuously advancing decoder timestamp or a client-randomized track choice that was never reported to the server.
+- whether ordinary `PlayMusic` should itself be one-shot and fall back to map music after its supplied list finishes still needs direct retail verification.
 - menu `GlueMusic` / `ChatMusic` and the options music checkbox/slider are not yet wired to this gameplay music controller.
-- semantic per-client music fields are part of the existing raw `GAMECLIENT` save snapshot and are re-sent to clients after load, but the continuously advancing decoder playback head is not synchronized back to the server; a restored save can only reuse the last JASS-requested start/seek position.
+- semantic per-client music fields are part of the raw `GAMECLIENT` save snapshot and are re-sent to clients after load, but the continuously advancing decoder playback head is not synchronized back to the server; a restored save can only reuse the last JASS-requested start/seek position.
 - builds without `FFMPEG=1` have no fallback MP3 decoder.
 
 ## Verification
@@ -273,8 +282,10 @@ Useful behavioral cases:
 1. Start a Human campaign map whose generated script calls `SetMapMusic("Music", true, 0)`; music should begin after connection without requiring a later trigger.
 2. Repeat with another race and confirm the playlist follows that player's `war3skins.txt` section.
 3. Exercise sequential `SetMapMusic(..., false, index)` and let at least one track reach EOF.
-4. Exercise `PlayMusicEx` with a nonzero start position and fade-in.
-5. `StopMusic(false)` then `ResumeMusic()`; the same track should continue rather than select the next track.
-6. Start thematic music and call `EndThematicMusic()`; map music should return.
-7. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
-8. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency.
+4. While a map track is playing, call `SetMapMusic` with a different list; the audible track should finish before the new list starts. Repeat with `ClearMapMusic`; the audible track should finish and then stop.
+5. Start explicit or map music, play a thematic track, and let it reach EOF without calling `EndThematicMusic`; the interrupted ordinary session should return automatically.
+6. Repeat the thematic test with an early `EndThematicMusic()` and with a `war3mapSkin.txt` `[CustomSkin]` music override.
+7. Exercise `PlayMusicEx` with a nonzero start position and fade-in.
+8. `StopMusic(false)` then `ResumeMusic()`; the same track should continue rather than select the next track.
+9. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
+10. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency.
