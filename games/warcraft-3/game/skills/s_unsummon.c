@@ -102,9 +102,15 @@ static umove_t unsummon_move_channel = { "stand channel", ai_idle, NULL, CAbilit
 static BOOL unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT building = st.entity;
     (void)spell;
-    return caster && building && S_SpellIsAliveTarget(building) &&
-        building->s.player == caster->s.player && G_UnitIsBuilding(building->class_id) &&
-        !G_UnitStatusLevel(building, ID_UNSUMMON_BUFF);
+    if (!caster || !building || !S_SpellIsAliveTarget(building) ||
+        building->s.player != caster->s.player || !G_UnitIsBuilding(building->class_id) ||
+        G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return false;
+    if (building->construction.active) {
+        G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
+                              "UnderConstruction", "That building is currently under construction.");
+        return false;
+    }
+    return true;
 }
 
 static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_health) {

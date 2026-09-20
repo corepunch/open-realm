@@ -85,6 +85,10 @@ caster death cancels only the pending approach. Once the channel starts, the
 ability-owned thinker remains active without requiring the Acolyte's live order
 or channel state.
 
+An incomplete structure is not a valid Unsummon target. The command is
+rejected before mana is spent and reports the data-driven `UnderConstruction`
+command error from `Units\\CommandStrings.txt`.
+
 The active thinker owns the demolition state (`owner`, `goalentity`, target
 generation, level, fractional refund accumulators); the caster retains the
 pending target and approach state until the channel starts. `unsummon_think`

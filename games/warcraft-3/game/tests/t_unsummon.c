@@ -351,6 +351,22 @@ TEST(wc3_spell, unsummon_rejects_invalid_targets_without_mana_spend) {
     uns_done(&fix);
 }
 
+TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
+    UNSFIX fix;
+    FLOAT mana;
+
+    uns_setup(&fix);
+    g_edicts[0].client = fix.client;
+    fix.client->connected = true;
+    T_ASSERT(G_StartUndeadConstruction(fix.caster, fix.building));
+    mana = fix.caster->mana.value;
+    T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    T_FEQ(fix.caster->mana.value, mana, 0.001f);
+    T_STREQ(fix.client->message.text, "That building is currently under construction.");
+    G_StopConstruction(fix.building);
+    uns_done(&fix);
+}
+
 TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
     LPCSTR filename = "/tmp/openwarcraft3-unsummon-live.bin";
     UNSFIX fix;
