@@ -117,11 +117,19 @@ The manual `Ambt` replenish cast follows Warsmash's `CAbilityMoonWell` ordering 
 
 The fields are ratios, not per-cast caps. A full-health friendly target with missing mana is therefore still a valid replenish target. Autocast selection, `DataE` night-only regeneration gating, and `DataD` water-height presentation remain separate gaps.
 
+## Undead defensive tower upgrades
+
+Ziggurat -> Spirit Tower/Nerubian Tower does not require a dedicated race-specific morph path. The shared `UnitProfile.Upgrade` / `uupt` building-upgrade lifecycle preserves the existing edict, source Food Made contribution during progress, owner/position/health ratio, and then binds the completed target's authored unit/weapon data. See [Building Construction](building-construction.md).
+
+The ordinary Attack ability now enforces Attack 1's authored target mask for unit targets as well as destructables, allows enemy structures to participate in acquisition when the weapon permits them, and prevents `AI_IMMOBILE` defensive buildings from automatically locking onto targets outside actual weapon range that they cannot chase. See [Attack Damage](attack-damage.md).
+
+This does **not** complete the Undead tower contract by itself: dynamic Blight growth/removal remains unimplemented, so Ziggurat/Spirit Tower terrain Blight cannot yet be treated as retail-compatible.
+
 ## Remaining race-specific gaps
 
 The following items were reviewed but are intentionally **not** implemented by this patch because the current OpenRealm seams do not support a high-confidence isolated change without broader world/economy/pathing work:
 
-- dynamic Blight creation/removal and Blight-dependent placement/regeneration;
+- dynamic Blight creation/removal and Blight-dependent placement/regeneration, including building `Abgs`/`Abgl` Blight growth used by Ziggurats/Spirit Towers. The server path map has a Blight bit, but OpenRealm does not yet have authoritative dynamic-Blight ownership/lifetime plus terrain-render synchronization;
 - Wisp periodic lumber harvesting and per-tree Wisp reservation;
 - full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions;
 - Moon Well autocast, night-only mana regeneration, and water-level presentation. Manual replenish now restores life first and then mana using the authored DataB/DataA ratios.
@@ -134,6 +142,7 @@ After building, focused automated coverage should include:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_building.*'
+make test-wc3-engine WC3_PATTERN='wc3_combat.*acquisition*'
 make test-wc3-engine WC3_PATTERN='wc3_save.*construction*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.*mine*'
 make test-wc3-engine WC3_PATTERN='wc3_save.racial_gold_mine*'

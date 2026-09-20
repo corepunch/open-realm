@@ -3341,10 +3341,13 @@ TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
     enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
+    worker->attack1.type = ATK_NORMAL;
     worker->attack1.cooldown = 1.0f;
     worker->attack1.damageBase = 1;
+    worker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     enemy->s.player = 1;
     enemy->svflags |= SVF_MONSTER;
+    enemy->targtype = TARG_GROUND;
     gi.LinkEntity(worker);
     gi.LinkEntity(enemy);
 

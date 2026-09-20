@@ -57,6 +57,9 @@ static LPEDICT make_unit(FLOAT x, FLOAT y) {
     ent->health.value   = G_UnitBalance(ent->class_id)->maxHealth;
     ent->health.max_value = G_UnitBalance(ent->class_id)->maxHealth;
     ent->unitinfo.MoveSpeed = G_UnitBalance(ent->class_id)->speed;
+    ent->attack1.type = ATK_NORMAL;
+    ent->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    ent->targtype = TARG_GROUND;
     unit_stand(ent);
     return ent;
 }
