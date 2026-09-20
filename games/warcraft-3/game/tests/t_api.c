@@ -1950,7 +1950,7 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(lightningEffect_t);
+        offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
     memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
     FOR_LOOP(i, count) {
@@ -5401,7 +5401,7 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(lightningEffect_t);
+        offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
@@ -5450,7 +5450,7 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(lightningEffect_t);
+        offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
@@ -5487,7 +5487,7 @@ TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(lightningEffect_t);
+        offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk));
