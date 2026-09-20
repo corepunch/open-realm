@@ -197,7 +197,7 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
     FLOAT range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
     LPEDICT corpse = NULL;
     /* Dead Heroes and mechanical units retain distinct lifecycles and cannot fund Cannibalize. */
-    FILTER_EDICTS(unit, unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit) && unit->targtype != TARG_MECHANICAL) {
+    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) && unit->targtype != TARG_MECHANICAL) {
         FLOAT distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
         if (distance <= range && distance < best) { corpse = unit; best = distance; }
     }
@@ -241,7 +241,7 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
  * DataA = count of skeletons, UnitID = skeleton type, BuffID = Brai.
  */
 static BOOL raise_dead_has_corpse(LPEDICT caster, FLOAT range) {
-    FILTER_EDICTS(unit, unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit) &&
+    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) &&
                   Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= range) return true;
     return false;
 }
@@ -258,7 +258,7 @@ static void raise_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t c
     LPEDICT corpse = NULL;
     FLOAT best = FLT_MAX;
     (void)st;
-    FILTER_EDICTS(unit, unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit)) {
+    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit)) {
         FLOAT d = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
         if (d <= range && d < best) { corpse = unit; best = d; }
     }

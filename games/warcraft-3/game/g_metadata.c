@@ -518,6 +518,8 @@ static slkField_t const ability_buff_schema[] = {
     { "SpecialArt",  offsetof(AbilityBuffData_t, specialArt),  STB_SLK_STR    },
     { "EffectArt",   offsetof(AbilityBuffData_t, effectArt),   STB_SLK_STR    },
     { "Missileart",  offsetof(AbilityBuffData_t, missileArt),  STB_SLK_STR    },
+    { "Effectsound", offsetof(AbilityBuffData_t, effectSound), STB_SLK_STR    },
+    { "Effectsoundlooped", offsetof(AbilityBuffData_t, effectSoundLooped), STB_SLK_STR },
     { NULL, 0, 0 }
 };
 
@@ -875,6 +877,7 @@ static mapItemDataOverride_t *map_item_data_overrides;
 static DWORD map_item_data_override_count;
 static mapAbilityOverride_t *map_ability_overrides;
 static DWORD map_ability_override_count;
+static DWORD ability_data_generation;
 
 typedef struct {
     LPCSTR name, path;
@@ -934,6 +937,7 @@ slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
             if (!strcmp(store->name, "UnitWeapons"))
                 NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
             if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
+            if (!strcmp(store->name, "AbilityData")) ability_data_generation++;
             data->rows = NULL; data->count = 0;
             return old;
         }
@@ -1547,6 +1551,7 @@ void G_SetMapAbilityOverrides(LPCMAPINFO mapinfo) {
     free(map_ability_overrides);
     map_ability_overrides = NULL;
     map_ability_override_count = 0;
+    ability_data_generation++;
     if (!mapinfo) return;
 
     capacity = mapinfo->num_originalAbilities + mapinfo->num_userCreatedAbilities;
@@ -1717,9 +1722,15 @@ UnitAckSounds_t const *G_UISound(LPCSTR name) {
 
 UnitAckSounds_t const *G_AbilitySound(LPCSTR name) {
     static UnitAckSounds_t zero;
-    if (!name) return &zero;
+    if (!name || !*name) return &zero;
     FOR_LOOP(i, g_AbilitySoundsCount)
         if (g_AbilitySounds[i].name && !strcmp(g_AbilitySounds[i].name, name)) return g_AbilitySounds + i;
+    /* Warsmash merges the UI/ability sound tables into one keyed lookup.
+     * Preserve that useful alias fallback while keeping the typed stores separate. */
+    {
+        UnitAckSounds_t const *ui = G_UISound(name);
+        if (ui->name && ui->name[0]) return ui;
+    }
     return &zero;
 }
 MusicData_t const *G_MusicData(LPCSTR name) {
@@ -1879,7 +1890,10 @@ void InitUnitData(void) {
             NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
         if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
     }
+    ability_data_generation++;
 }
+
+DWORD G_AbilityDataGeneration(void) { return ability_data_generation; }
 
 void ShutdownUnitData(void) {
     G_SetMapUnitOverrides(NULL);

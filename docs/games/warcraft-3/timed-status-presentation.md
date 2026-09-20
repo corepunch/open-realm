@@ -9,9 +9,12 @@ OpenRealm currently opts these statuses into the timed bar:
 | Buff | Producer | Expiry behavior |
 | --- | --- | --- |
 | `Bmil` | Human `Amil` Call to Arms transform | `S_MilitiaExpire()` restores Peasant form |
-| `BTLF` | summoned-unit timed life | unit dies when the status expires |
+| `BTLF` | summoned-unit timed life | unit dies when the status expires; Dispel/Purge/Devour Magic cannot remove this lifecycle status |
 
-Other timed statuses such as `Bstu` remain ordinary simulation statuses and do not claim the selected-unit countdown bar. Extend `unit_statusshowstimedbar()` only when the corresponding Warcraft/Warsmash buff is known to use the timed-life presentation.
+Other timed statuses such as `Bstu` remain ordinary simulation statuses and do not claim the selected-unit countdown bar. `BTLF` is also
+classified as undispellable by `S_StatusIsUndispellable()`: removing it early would erase the simulation-owned expiration and turn a
+temporary unit into a permanent one. Extend `unit_statusshowstimedbar()` only when the corresponding Warcraft/Warsmash buff is known to
+use the timed-life presentation.
 
 The presentation matches Warsmash's important policy rules:
 

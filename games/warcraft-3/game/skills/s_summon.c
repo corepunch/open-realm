@@ -3,13 +3,13 @@
 #define ID_TIMED_LIFE "BTLF"
 #define ID_STUN_BUFF "Bstu"
 
-static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count, FLOAT duration) {
+static LPEDICT summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count, FLOAT duration) {
     VECTOR2 loc;
     FLOAT angle;
     LPEDICT summon;
 
     if (!caster || !unit_id)
-        return;
+        return NULL;
 
     angle = count > 0 ? (2.0f * (FLOAT)M_PI * (FLOAT)index) / (FLOAT)count : 0.0f;
     loc = caster->s.origin2;
@@ -19,7 +19,7 @@ static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count,
 
     summon = SP_SpawnAtLocation(unit_id, caster->s.player, &loc);
     if (!summon)
-        return;
+        return NULL;
     summon->owner = caster;
     G_ActivateUnitFood(summon);
     if (summon->stand)
@@ -27,11 +27,12 @@ static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count,
     if (duration > 0)
         unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
     G_PublishSummonEvents(caster, summon);
+    return summon;
 }
 
 void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration) {
     if (!count) count = 1;
-    FOR_LOOP(i, count) summon_unit(caster, unit_id, i, count, duration);
+    FOR_LOOP(i, count) (void)summon_unit(caster, unit_id, i, count, duration);
 }
 
 LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration) {
@@ -139,17 +140,58 @@ BZ_SIMPLE_SPELL_PROC(AbilityRainOfChaos) {
 static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD unit_id = S_SpellUnitId(spell->code, level);
-    DWORD count = (DWORD)S_SpellData(spell->code, level, 2);
+    DWORD count = (DWORD)S_SpellData(spell->code, level, 1);
     FLOAT duration = S_SpellDuration(spell->code, level, false);
 
-    if (!caster || !unit_id) return;
-    S_SummonUnits(caster, unit_id, count, duration);
+    if (!caster || !unit_id || !count) return;
+    FOR_LOOP(i, count) {
+        LPEDICT summon = summon_unit(caster, unit_id, i, count, duration);
+        if (!summon) continue;
+        summon->summon_ability = spell->code;
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
+    }
 }
 
 /* Name=Summon Water Elemental
  * Ubertip="Summons a Water Elemental to fight for the caster."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) { summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    DWORD unit_id = S_SpellUnitId(spell->code, level);
+    DWORD count = (DWORD)S_SpellData(spell->code, level, 1);
+    FLOAT duration = S_SpellDuration(spell->code, level, false);
+    FLOAT distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
+    VECTOR2 loc = caster->s.origin2;
+
+    if (!caster || !unit_id || !count) return;
+    loc.x += cosf(caster->s.angle) * distance;
+    loc.y += sinf(caster->s.angle) * distance;
+    FOR_LOOP(i, count) {
+        FLOAT const angle = caster->s.angle + 2.0f * (FLOAT)M_PI * (FLOAT)i / (FLOAT)count;
+        VECTOR2 spawn = { loc.x + cosf(angle) * MAX(32.0f, caster->collision),
+                          loc.y + sinf(angle) * MAX(32.0f, caster->collision) };
+        LPEDICT summon = S_SummonAt(caster, unit_id, &spawn, duration);
+        if (!summon) continue;
+        if (G_FindUnitUnstuckPosition(summon, &spawn, &summon->s.origin2)) {
+            summon->s.origin.x = summon->s.origin2.x;
+            summon->s.origin.y = summon->s.origin2.y;
+        }
+        /* Warsmash creates the Elemental using the caster's facing. Relink
+         * after collision-safe displacement so the server broad phase follows
+         * the authoritative position rather than the original spawn point. */
+        summon->s.angle = caster->s.angle;
+        gi.LinkEntity(summon);
+        summon->summon_ability = spell->code;
+        /* Warsmash's CBuffTimedLife uses the ability's authored BuffID.
+         * OpenRealm keeps BTLF as the authoritative timed-life clock (needed
+         * by UnitPauseTimedLife/the timed-life bar), while this persistent
+         * authored status supplies the correct buff identity/presentation for
+         * Water Elemental without creating a second expiry clock. */
+        if (buff && strlen(buff) >= 4) unit_addstatus(summon, buff, level);
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
+    }
+}
 
 /* Name=Feral Spirit
  * Ubertip="Summons Spirit Wolf companions."

@@ -6,6 +6,7 @@
 #define BZ_APG2 MAKEFOURCC('A', 'p', 'g', '2') // rawcode; TFT melee Purge with pause
 #define BZ_AILP MAKEFOURCC('A', 'I', 'l', 'p') // rawcode; Item Purge alias
 #define BZ_BPRG MAKEFOURCC('B', 'p', 'r', 'g') // rawcode; Purge slow/pause buff
+#define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
@@ -154,6 +155,22 @@ TEST(wc3_spell, purge_apg2_damages_summoned_with_datac) {
 	summon->stand = unit_stand; unit_stand(summon);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, summon));
 	T_ASSERT(summon->health.value < 500);
+	T_ASSERT(S_PurgeIsImmobilized(summon));
+	purge_done(fix);
+}
+
+/* Purge may still apply its authored slow/pause, but its summoned-unit damage
+ * does not destroy an Animated Dead unit. */
+TEST(wc3_spell, purge_does_not_deal_summon_damage_to_animated_dead) {
+	PURGEFIX fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+	LPEDICT summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
+	summon->s.player = 1; summon->svflags |= SVF_MONSTER; summon->targtype = TARG_GROUND;
+	summon->health.value = summon->health.max_value = 500;
+	summon->owner = fix.caster; summon->summon_ability = BZ_AUAN;
+	summon->stand = unit_stand; unit_stand(summon);
+	T_ASSERT(S_SummonIsDispelImmune(summon));
+	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, summon));
+	T_FEQ(summon->health.value, 500, 0.001f);
 	T_ASSERT(S_PurgeIsImmobilized(summon));
 	purge_done(fix);
 }

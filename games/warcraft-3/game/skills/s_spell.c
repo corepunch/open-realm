@@ -371,20 +371,26 @@ BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
 
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     LPCSTR targets;
+    DWORD ability_level;
+    BOOL structure;
 
-    if (!S_SpellIsAliveTarget(target) || S_UnitIsCycloned(target)) {
+    if (!target || !target->inuse || M_IsDead(target) || S_UnitIsCycloned(target)) {
         return false;
     }
     if (S_UnitSpellImmune(target)) return false;
     if (caster && caster->s.player < MAX_PLAYERS &&
         S_UnitIsInvisibleToPlayer(target, caster->s.player)) return false;
-    targets = G_AbilityLevel(code, 1)->targs;
+    ability_level = S_SpellLevel(caster, code);
+    targets = G_AbilityLevel(code, ability_level)->targs;
     if (!targets) {
         return true;
     }
-    if ((strstr(targets, "air") || strstr(targets, "ground")) &&
+    structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+    if (strstr(targets, "notself") && target == caster) return false;
+    if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
         !(strstr(targets, "air") && target->targtype == TARG_AIR) &&
-        !(strstr(targets, "ground") && target->targtype == TARG_GROUND)) {
+        !(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
+        !(strstr(targets, "structure") && structure)) {
         return false;
     }
     /* organic/mechanical are targtype tokens, not air/ground; TFT Cyclone authors organic. */
@@ -429,6 +435,16 @@ void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {
 
 BOOL S_SpellIsChanneling(LPEDICT caster) {
     return caster && caster->channel.code != 0;
+}
+
+/* Some temporary summons own a timed lifecycle but are not destroyable by
+ * dispel-style summoned-unit damage. Resolve this by the concrete ability
+ * procedure so AbilityData aliases inherit the same Animate Dead behavior. */
+BOOL S_SummonIsDispelImmune(LPCEDICT unit) {
+    abilityitem_t item;
+    if (!unit || !unit->summon_ability) return false;
+    item = S_AbilityItem(unit->summon_ability);
+    return item.ability && item.ability->proc == CAbilityAnimateDead;
 }
 
 void S_SpellCancelChannel(LPEDICT caster) {

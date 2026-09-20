@@ -494,7 +494,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
             }
         }
         unit_refreshstatusflags(target);
-        if (dispel_is_summoned(target) && summon_dmg > 0.0f)
+        if (dispel_is_summoned(target) && !S_SummonIsDispelImmune(target) && summon_dmg > 0.0f)
             S_SpellDamage(target, caster, (int)summon_dmg);
     }
     if (removed && heal_hp > 0.0f) S_SpellHeal(caster, heal_hp * (FLOAT)removed);

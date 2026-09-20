@@ -1,5 +1,14 @@
 #include "s_skills.h"
 
+#define BLIZZARD_DAMAGE_PHASE 0x80000000u
+#define BLIZZARD_LEVEL_MASK   0x7fffffffu
+#define BLIZZARD_SHARD_DELAY_MS 800u
+
+static DWORD blizzard_level(LPCEDICT ent) {
+    DWORD const level = ent ? ent->variation & BLIZZARD_LEVEL_MASK : 0;
+    return level ? level : 1;
+}
+
 typedef struct {
     LPEDICT caster;
     VECTOR2 direction;
@@ -34,13 +43,78 @@ static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
 #undef AREA_HITS
 }
 
+static BOOL blizzard_hits(LPEDICT ent, LPEDICT target) {
+    LPEDICT caster = ent->owner;
+    return target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
+           S_SpellAllowsTarget(ent->class_id, caster, target) &&
+           Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision;
+}
+
+/* Blizzard counts every eligible target against DataF's per-wave cap, then
+ * applies DataD only to structures.  Keep this separate from generic area
+ * spells because the building multiplier is specific to Blizzard's fields. */
+static void blizzard_wave_damage(LPEDICT ent) {
+    LPEDICT caster = ent->owner;
+    DWORD level = blizzard_level(ent), ntargets = 0;
+    FLOAT damage = (FLOAT)ent->damage;
+    FLOAT maxtotal = ent->velocity;
+    FLOAT building_scale = S_SpellData(ent->class_id, level, 4);
+
+    FILTER_EDICTS(target, blizzard_hits(ent, target)) ntargets++;
+    if (maxtotal > 0.0f && ntargets && damage * (FLOAT)ntargets > maxtotal)
+        damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
+
+    FILTER_EDICTS(target, blizzard_hits(ent, target)) {
+        FLOAT amount = damage;
+        if (target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id))
+            amount *= building_scale;
+        if (amount > 0.0f) S_SpellDamage(target, caster, (DWORD)amount);
+    }
+}
+
+/* Shard art is presentation only.  Use the authored DataC count and the
+ * server RNG so visual placement cannot change which units receive damage. */
+static void blizzard_spawn_shards(LPEDICT ent) {
+    DWORD level = blizzard_level(ent);
+    DWORD shards = (DWORD)MAX(0.0f, S_SpellData(ent->class_id, level, 3));
+    LPCSTR effect_id = G_AbilityLevel(ent->class_id, level)->efctID;
+    DWORD effect_code = effect_id && strlen(effect_id) >= 4 ? FS_SLKKey(effect_id) : ent->class_id;
+
+    FOR_LOOP(i, shards) {
+        FLOAT angle = ((FLOAT)rand() / (FLOAT)RAND_MAX) * 2.0f * (FLOAT)M_PI;
+        FLOAT distance = ((FLOAT)rand() / (FLOAT)RAND_MAX) * ent->collision;
+        VECTOR2 point = ent->s.origin2;
+        point.x += cosf(angle) * distance;
+        point.y += sinf(angle) * distance;
+        /* Blizzard's shard EffectArt belongs to its authored EfctID object
+         * (XHbz in stock data), not to the casting ability alias itself. */
+        G_SpawnAbilityEffectAtPoint(effect_code, WC3_EFFECT_EFFECT, 0, &point, true);
+        /* Warsmash emits the EfctID object's Effectsound once per shard.
+         * Keep audio presentation on the same authored object as EffectArt. */
+        G_PlayAbilityEffectSound(effect_code, &point);
+    }
+}
+
 void blizzard_think(LPEDICT ent) {
     DWORD now = G_Time();
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime)
         return;
-    area_spell_damage(ent, ent->velocity); /* velocity reused: max damage per wave */
+
+    /* Warsmash splits each Blizzard wave into presentation and impact: the
+     * authored shards appear first, then their gameplay damage lands 0.8s
+     * later.  Keep the phase on the already-serialized variation field so a
+     * live channel needs no new save-field or callback-table entry. */
+    if (!(ent->variation & BLIZZARD_DAMAGE_PHASE)) {
+        blizzard_spawn_shards(ent);
+        ent->variation |= BLIZZARD_DAMAGE_PHASE;
+        ent->freetime = now + BLIZZARD_SHARD_DELAY_MS;
+        return;
+    }
+
+    blizzard_wave_damage(ent);
+    ent->variation &= BLIZZARD_LEVEL_MASK;
     if (ent->resources > 0)
         ent->resources--;
     if (ent->resources == 0) {
@@ -112,10 +186,15 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
     thinker->collision = area > 0 ? area : 200.0f;
     thinker->damage = damage ? damage : 1;
     thinker->resources = waves ? waves : 1;
+    thinker->variation = level;
     thinker->velocity = S_SpellData(spell->code, level, 6); /* DataF = Max Damage per Wave */
     thinker->wait = S_SpellNumber(spell->code, ABILITY_NUMBER_CAST, level);
     thinker->think = blizzard_think;
-    blizzard_think(thinker); /* first wave immediately */
+    /* Cast is Blizzard's authored delay before the first shard wave.  A zero
+     * delay still begins the shard phase immediately, but damage never lands
+     * until the fixed shard-to-impact delay has elapsed. */
+    thinker->freetime = G_Time() + (DWORD)MAX(0.0f, thinker->wait * 1000.0f);
+    blizzard_think(thinker);
 }
 
 /* Name=Carrion Swarm

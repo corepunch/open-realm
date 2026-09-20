@@ -9,6 +9,7 @@
 
 #include "hud_local.h"
 #include "hud_utils.h"
+#include "../skills/s_skills.h"
 
 #define INVENTORY_CHARGE_FONT_SIZE 10
 /* Warsmash anchors its 0.180 x 0.120 simple info panel at the bottom-centre
@@ -527,6 +528,29 @@ static LPCSTR StatusBuffArt(DWORD code) {
     return art;
 }
 
+static void WriteVirtualBuffStatusFrame(DWORD buff_code, DWORD shown[MAX_UNIT_STATUSES], DWORD *slot) {
+    BOOL duplicate = false;
+    LPCSTR art;
+    LPCSTR tip;
+    LPCSTR ubertip;
+    LPFRAMEDEF icon;
+
+    if (!buff_code || !slot || *slot >= MAX_UNIT_STATUSES) return;
+    FOR_LOOP(i, *slot) if (shown[i] == buff_code) { duplicate = true; break; }
+    if (duplicate || !(art = StatusBuffArt(buff_code))) return;
+
+    icon = &hud.buff_icon[*slot];
+    UI_SetTexture(&hud.buff_tex[*slot], art, false);
+    tip = StatusBuffField(buff_code, "Bufftip");
+    ubertip = StatusBuffField(buff_code, "Buffubertip");
+    icon->Tip = tip && *tip ? UI_GetString(tip) : NULL;
+    icon->Ubertip = ubertip && *ubertip ? UI_GetString(ubertip) : NULL;
+    UI_WriteFrame(icon);
+    UI_WriteFrame(&hud.buff_tex[*slot]);
+    shown[*slot] = buff_code;
+    (*slot)++;
+}
+
 static void WriteBuffStatusFrames(LPEDICT ent) {
     DWORD slot = 0;
     DWORD shown[MAX_UNIT_STATUSES] = { 0 };
@@ -578,6 +602,12 @@ static void WriteBuffStatusFrames(LPEDICT ent) {
         shown[slot] = buff_code;
         slot++;
     }
+
+    /* Passive auras do not own gameplay status slots. Devotion and Unholy
+     * Aura recipient presentation is reconciled by the shared aura cadence;
+     * render the authored BuffID virtually without fabricating abilstatus[]. */
+    WriteVirtualBuffStatusFrame(S_DevotionAuraBuff(ent), shown, &slot);
+    WriteVirtualBuffStatusFrame(S_UnholyAuraBuff(ent), shown, &slot);
 }
 
 static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weapons,

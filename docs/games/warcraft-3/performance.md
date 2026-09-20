@@ -2,6 +2,25 @@
 
 For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
 
+## Hero aura presentation cache
+
+The full profile in `build/perf-full.txt` assigns 41.62% of sampled CPU cycles to
+`S_UpdateHeroAuraEffects`, with `hero_aura_presentation` scanning the entire edict
+list and reparsing each source's ability list for every recipient. The existing
+per-frame aura provider cache now resolves Devotion and Unholy providers alongside
+the regeneration families; presentation still evaluates live range, alliance, and
+target rules per recipient, but iterates only cached providers. Cache validity uses
+the `UINT_MAX` reset sentinel, so frame zero does not rebuild the provider list for
+every entity.
+
+The in-engine 1,900-unit benchmark measured `G_RunEntities` at 2,394.48 ms/call
+while frame-zero cache invalidation rebuilt the list per entity. After the generation
+invalidation and provider reuse it measured 2.27 ms/call in the same debug test
+binary. This benchmark is a regression signal for cache invalidation and scaling;
+it is not an end-to-end frame-rate claim. Aura presentation tests drive
+`G_RunEntities` at frame zero and after a timed range change so the scheduler path
+and cache reset contract remain covered.
+
 Profile-driven optimizations across the renderer, client, and server. The five sampled hot spots and the fixes applied to each are listed below so a future reader understands *why* each path is shaped the way it is.
 
 ## Client frame-rate limiter

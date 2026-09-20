@@ -49,7 +49,7 @@ WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When gam
 | File | Role |
 |------|------|
 | `games/warcraft-3/game/g_monster.c` | `G_RegisterUnitSounds` — sound index registration at spawn |
-| `games/warcraft-3/game/g_sound.c` | WC3 `UISounds.slk`, owner-only sounds, and command-error sound dispatch |
+| `games/warcraft-3/game/g_sound.c` | WC3 `UISounds.slk` / `AbilitySounds.slk`, owner-only UI sounds, ability/effect sounds, and command-error dispatch |
 | `client/cl_view.c` | reconciles persistent snapshot `entityState_t.sound` loops by entity number |
 | `sound/s_sound.c` | one-shot packet playback plus generic persistent loop mixing |
 | `client/cl_fx.c` | `CL_EntityEvent` — fires sounds on event |

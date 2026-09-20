@@ -59,9 +59,12 @@ CAbilityDispelMagic
 S_SpellDamage / S_SpellHeal
 ```
 
-Cyclone `DataA==0` (ROC) is undispellable via `S_StatusIsUndispellable` owned by
-`s_cyclone.c`. Skipped slots do not increment Advm's per-buff heal count. See
-[Cyclone](cyclone.md).
+`S_StatusIsUndispellable` also protects `BTLF`: timed life is an authoritative unit-lifecycle marker, not a removable magical buff,
+so Dispel/Purge/Devour Magic cannot accidentally make a temporary summon permanent. `S_SummonIsDispelImmune` separately recognizes
+Animate Dead aliases by their registered ability procedure and suppresses only the summoned-unit damage portion of Dispel/Purge; ordinary
+statuses on an Animated Dead unit are still processed normally. Cyclone `DataA==0` (ROC) uses the status helper
+for its authored undispellable case. Skipped slots do not increment Advm's per-buff heal count. See [Cyclone](cyclone.md) and
+[Timed Status Presentation](timed-status-presentation.md).
 
 ## Diagnostic Workflow
 

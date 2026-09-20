@@ -175,6 +175,8 @@ enum {
     AI_AUTOCAST_ACTIVE = 1 << 4, /* fast unit-wide marker: some autocast ability is enabled */
     AI_ILLUSION    = 1 << 5,  /* summoned copy created by illusion abilities */
     AI_SLEEPING    = 1 << 6,  /* neutral creep is dormant; wakes on enemy proximity */
+    AI_CORPSE_UNRAISABLE = 1 << 7, /* corpse lifecycle; sacrifice or temporary summon cannot be raised */
+    AI_CORPSE_NO_DECAY = 1 << 8, /* corpse lifecycle; remove after death animation instead of corpse window */
 };
 
 typedef enum {
@@ -2748,6 +2750,7 @@ void G_HeroApplyLevel(LPEDICT, DWORD level);
 void G_HeroSetXP(LPEDICT, DWORD xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
 void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
+BOOL G_UnitIsRaisableCorpse(LPCEDICT);
 void G_ReviveCorpse(LPEDICT, FLOAT life_fraction);
 BOOL G_UnitIsHero(LPCEDICT ent);
 FLOAT G_UnitArmorValue(LPCEDICT ent);
@@ -2850,6 +2853,8 @@ void pocket_factory_think(LPEDICT);
 void stasis_trap_think(LPEDICT);
 void rain_of_chaos_think(LPEDICT);
 void inferno_think(LPEDICT);
+void mass_teleport_think(LPEDICT);
+void divine_shield_think(LPEDICT);
 void dark_portal_think(LPEDICT);
 void exhume_think(LPEDICT);
 void healing_spray_think(LPEDICT);

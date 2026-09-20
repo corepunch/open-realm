@@ -126,7 +126,13 @@ TEST(wc3_spell, custom_spells_keep_identity_in_validation_and_channel_completion
     T_FEQ(caster->s.origin2.x, 0, 0.001f);
     T_ASSERT(S_CastPointTargetSpell(caster, MAKEFOURCC('A','0','0','4'), &point));
     T_FEQ(caster->mana.value, 180, 0.001f);
-    T_EQ(caster->channel.code, 0); /* Its only wave has completed. */
+    LPEDICT thinker = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].owner == caster && g_edicts[i].think) { thinker = g_edicts + i; break; }
+    T_NOT_NULL(thinker);
+    level.time = thinker->freetime; G_RunEntity(thinker);
+    level.time = thinker->freetime; G_RunEntity(thinker);
+    T_EQ(caster->channel.code, 0);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -368,7 +374,7 @@ TEST(wc3_spell, generic_data_id_keeps_rawcode_view) {
 
 TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y8;X6\n"
+		"ID;PWXL;N;EBB;Y9;X6\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
 		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\n"
 		"C;Y2;X1;K\"AHab\"\nC;Y2;X2;K\"AHab\"\nC;Y2;X3;K\"900\"\nC;Y2;X4;K\"0.75\"\n"
@@ -377,7 +383,8 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 		"C;Y5;X1;K\"AOcr\"\nC;Y5;X2;K\"AOcr\"\nC;Y5;X4;K\"100\"\nC;Y5;X5;K\"2\"\n"
 		"C;Y6;X1;K\"AEev\"\nC;Y6;X2;K\"AEev\"\nC;Y6;X4;K\"1\"\n"
 		"C;Y7;X1;K\"AUts\"\nC;Y7;X2;K\"AUts\"\nC;Y7;X4;K\"0.15\"\nC;Y7;X5;K\"1\"\nC;Y7;X6;K\"3\"\n"
-		"C;Y8;X1;K\"ACct\"\nC;Y8;X2;K\"ACct\"\nC;Y8;X4;K\"100\"\nC;Y8;X5;K\"2\"\nE\n";
+		"C;Y8;X1;K\"ACct\"\nC;Y8;X2;K\"ACct\"\nC;Y8;X4;K\"100\"\nC;Y8;X5;K\"2\"\n"
+		"C;Y9;X1;K\"AHad\"\nC;Y9;X2;K\"AHad\"\nC;Y9;X3;K\"900\"\nC;Y9;X4;K\"3\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	LPEDICT source = make_hero(MAKEFOURCC('H','a','m','g'), 500, 300, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
@@ -386,7 +393,10 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','b'), .level = 1);
 	source->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 1);
 	source->heroabilities[2] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','v'), .level = 1);
+	source->heroabilities[3] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','d'), .level = 1);
+	target->armor_value = 2.0f;
 	T_FEQ(S_BrillianceManaRegen(target), 0.75f, 0.001f);
+	T_FEQ(G_UnitArmorValue(target), 5.0f, 0.001f);
 	T_FEQ(S_UnholyMoveBonus(target), 0.1f, 0.001f);
 	T_FEQ(S_UnholyHealthRegen(target), 0.5f, 0.001f);
 	T_FEQ(S_VampiricLifeSteal(target), 0.2f, 0.001f);
@@ -396,11 +406,11 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	level.time = AURA_UPDATE_MS;
 	T_FEQ(S_BrillianceManaRegen(target), 0.0f, 0.001f);
 	T_FEQ(S_UnholyMoveBonus(target), 0.0f, 0.001f);
+	T_FEQ(G_UnitArmorValue(target), 2.0f, 0.001f);
 
 	target->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','c','r'), .level = 1);
 	target->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','E','e','v'), .level = 1);
 	target->heroabilities[2] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','t','s'), .level = 1);
-	target->armor_value = 2.0f;
 	T_EQ(S_CriticalStrikeDamage(target, 10), 20);
 	T_ASSERT(S_EvasionRoll(target));
 	T_FEQ(G_UnitArmorValue(target), 5.0f, 0.001f);
@@ -419,6 +429,154 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
+}
+
+TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"900\"\nC;Y2;X5;K\"4\"\nC;Y2;X6;K\"Biml\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"Biml\"\nC;Y3;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+
+    level.time = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    target->armor_value = 2.0f;
+
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+    T_FEQ(G_UnitArmorValue(target), 6.0f, 0.001f);
+    target->targtype = TARG_MECHANICAL;
+    level.time = AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    T_FEQ(G_UnitArmorValue(target), 2.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, devotion_aura_percent_bonus_uses_authored_base_defense) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend\"\n"
+        "C;Y2;X4;K\"900\"\nC;Y2;X5;K\"0.4\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y2;X7;K\"Biml\"\nC;Y2;X8;K\"1\"\nE\n";
+    static UnitBalance_t const target_balance = { .baseArmor = 5 };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+
+    level.time = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    target->data.UnitBalance = &target_balance;
+    target->armor_value = 12.0f; /* runtime/real armor deliberately differs from authored def */
+
+    T_FEQ(S_DevotionArmorBonus(target), 2.0f, 0.001f);
+    T_FEQ(G_UnitArmorValue(target), 14.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, devotion_aura_recipient_presents_authored_buff_and_target_art) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"Biml\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"Biml\"\nC;Y3;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    LPEDICT overlay = NULL;
+
+    level.time = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    target->think = monster_think;
+
+    level.framenum = 0; G_RunEntities();
+    T_EQ(S_DevotionAuraBuff(target), MAKEFOURCC('B','i','m','l'));
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        if (effect->inuse && effect->owner == target && effect->goalentity == target &&
+            effect->summon_ability == MAKEFOURCC('A','H','a','d')) {
+            overlay = effect;
+            break;
+        }
+    }
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay->s.model != 0);
+
+    target->s.origin2.x = 501.0f;
+    level.time = AURA_UPDATE_MS;
+    level.framenum++; G_RunEntities();
+    T_EQ(S_DevotionAuraBuff(target), 0);
+    T_NULL(overlay->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y1;X7;K\"DataC1\"\nC;Y1;X8;K\"BuffID1\"\nC;Y1;X9;K\"levels\"\n"
+        "C;Y2;X1;K\"XUau\"\nC;Y2;X2;K\"AUau\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.1\"\nC;Y2;X6;K\"0.01\"\n"
+        "C;Y2;X7;K\"1\"\nC;Y2;X8;K\"Biml\"\nC;Y2;X9;K\"1\"\n"
+        "C;Y3;X1;K\"AUau\"\nC;Y3;X2;K\"AUau\"\nC;Y3;X8;K\"Biml\"\nC;Y3;X9;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('U','d','e','a'), 500, 200, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 100, 0);
+    LPEDICT overlay = NULL;
+
+    level.time = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','U','a','u'), .level = 1);
+    target->health.max_value = 1000.0f; target->health.value = 500.0f;
+    target->think = monster_think;
+
+    T_FEQ(S_UnholyMoveBonus(target), 0.1f, 0.001f);
+    T_FEQ(S_UnholyHealthRegen(target), 10.0f, 0.001f);
+    level.framenum = 0; G_RunEntities();
+    T_EQ(S_UnholyAuraBuff(target), MAKEFOURCC('B','i','m','l'));
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        if (effect->inuse && effect->owner == target && effect->goalentity == target &&
+            effect->summon_ability == MAKEFOURCC('A','U','a','u')) {
+            overlay = effect;
+            break;
+        }
+    }
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay->s.model != 0);
+
+    target->s.origin2.x = 501.0f;
+    level.time = AURA_UPDATE_MS;
+    level.framenum++; G_RunEntities();
+    T_FEQ(S_UnholyMoveBonus(target), 0.0f, 0.001f);
+    T_FEQ(S_UnholyHealthRegen(target), 0.0f, 0.001f);
+    T_EQ(S_UnholyAuraBuff(target), 0);
+    T_NULL(overlay->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) {
@@ -935,6 +1093,8 @@ TEST(wc3_spell, first_new_ability_handlers_are_real_spells) {
 	ability_t const *frost_armor_variant = frost_armor_variant_item.ability;
 	abilityitem_t divine_shield_item = S_AbilityItem(FS_SLKKey("AHds"));
 	ability_t const *divine_shield = divine_shield_item.ability;
+	abilityitem_t devotion_aura_item = S_AbilityItem(FS_SLKKey("AHad"));
+	ability_t const *devotion_aura = devotion_aura_item.ability;
 	abilityitem_t death_and_decay_item = S_AbilityItem(FS_SLKKey("AUdd"));
 	ability_t const *death_and_decay = death_and_decay_item.ability;
 	abilityitem_t frost_nova_item = S_AbilityItem(FS_SLKKey("AUfn"));
@@ -974,6 +1134,10 @@ TEST(wc3_spell, first_new_ability_handlers_are_real_spells) {
 	T_ASSERT(divine_shield->flags & AB_SPELL);
 	T_EQ((int)divine_shield_item.code, (int)MAKEFOURCC('A', 'H', 'd', 's'));
 	T_EQ((int)divine_shield->target_type, (int)SPELL_TARGET_NONE);
+	T_NOT_NULL(devotion_aura);
+	T_ASSERT(devotion_aura->flags & AB_PASSIVE);
+	T_ASSERT(!(devotion_aura->flags & AB_SPELL));
+	T_EQ((int)devotion_aura_item.code, (int)MAKEFOURCC('A', 'H', 'a', 'd'));
 	T_NOT_NULL(death_and_decay);
 	T_ASSERT(death_and_decay->flags & AB_SPELL);
 	T_EQ((int)death_and_decay_item.code, (int)MAKEFOURCC('A', 'U', 'd', 'd'));
@@ -1433,6 +1597,306 @@ TEST(wc3_spell, cold_arrows_has_autocast_flag) {
 	T_ASSERT(abil->flags & AB_SPELL);
 	T_ASSERT(abil->flags & AB_AUTOCAST);
 	T_ASSERT(abil->flags & AB_TOGGLE);
+}
+
+
+/* Holy Light must not commit mana/cooldown when the friendly target cannot be healed. */
+TEST(wc3_spell, holy_light_rejects_full_health_friendly_target) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend,self\"\n"
+        "C;Y2;X4;K\"65\"\nC;Y2;X5;K\"5\"\nC;Y2;X6;K\"600\"\nC;Y2;X7;K\"200\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AHhb" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 500;
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("AHhb"), target));
+    T_FEQ(caster->mana.value, 200, 0.001f);
+    T_ASSERT(S_SpellCooldownReady(caster, FS_SLKKey("AHhb")));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Death Coil is a homing spell missile; healing/damage occurs on impact, not cast commitment. */
+TEST(wc3_spell, death_coil_uses_projectile_and_rejects_self_or_full_health_ally) {
+    static UnitData_t undead_data = { .race = STR_UNDEAD };
+    static UnitData_t human_data = { .race = STR_HUMAN };
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AUdc\"\nC;Y2;X2;K\"AUdc\"\nC;Y2;X3;K\"air,ground,friend,enemy\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"800\"\nC;Y2;X7;K\"200\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AUdc" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('U','d','e','a'), 500, 200, 0, 0);
+    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    LPEDICT ally = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 120, 0);
+    LPEDICT missile = NULL;
+
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities; caster->data.UnitData = &undead_data; caster->s.player = 0;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    enemy->data.UnitData = &human_data; enemy->s.player = 1; enemy->svflags |= SVF_MONSTER; enemy->targtype = TARG_GROUND;
+    enemy->health.value = enemy->health.max_value = 500;
+    ally->data.UnitData = &undead_data; ally->s.player = 0; ally->svflags |= SVF_MONSTER; ally->targtype = TARG_GROUND;
+    ally->health.value = ally->health.max_value = 500;
+
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), caster));
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), ally));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), enemy));
+    T_FEQ(enemy->health.value, 500, 0.001f);
+    FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (missile) missile->currentmove->endfunc(missile);
+    T_FEQ(enemy->health.value, 400, 0.001f);
+
+    /* A reused target edict must not let an in-flight coil affect a new incarnation. */
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), enemy)); missile = NULL;
+    FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (missile) { enemy->spawn_time++; missile->currentmove->endfunc(missile); T_ASSERT(!missile->inuse); }
+    T_FEQ(enemy->health.value, 400, 0.001f);
+
+    ally->health.value = 250; missile = NULL;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), ally));
+    T_FEQ(ally->health.value, 250, 0.001f);
+    FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (missile) missile->currentmove->endfunc(missile);
+    T_FEQ(ally->health.value, 450, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Divine Shield exposes the authored buff while the same timer owns invulnerability. */
+TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AHds\"\nC;Y2;X2;K\"AHds\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"2\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"BHds\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AHds" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT thinker = NULL;
+
+    old = G_SetSLKRows("AbilityData", rows); caster->data.UnitAbilities = &abilities;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHds")));
+    T_ASSERT(caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 1);
+    FILTER_EDICTS(ent, ent->owner == caster && ent->think) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
+    T_ASSERT(WriteGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    caster->channel.code = 0; if (thinker) thinker->think = NULL;
+    T_ASSERT(ReadGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
+    if (thinker) { level.time = thinker->spawn_time; G_RunEntity(thinker); }
+    unit_updatestatuses(caster);
+    T_ASSERT(!caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 0);
+    remove("/tmp/openwarcraft3-divine-shield-save.bin");
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Animate Dead rejects an empty cast, prefers the higher-level corpse, and
+ * consumes that corpse into non-raisable temporary summon state. */
+TEST(wc3_spell, animate_dead_prefers_higher_level_corpse_and_restores_temporary_state) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"DataA1\"\nC;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"targs\"\n"
+        "C;Y2;X1;K\"AUan\"\nC;Y2;X2;K\"AUan\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"40\"\nC;Y2;X5;K\"900\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"ground,dead\"\nE\n";
+    static UnitBalance_t const low_balance = { .level = 1 }, high_balance = { .level = 5 };
+    UnitAbilities_t abilities = { .abilList = "AUan" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('U','d','e','a'), 500, 200, 0, 0);
+    LPEDICT low = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    LPEDICT high = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 120, 0);
+
+    old = G_SetSLKRows("AbilityData", rows); caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+    low->data.UnitBalance = &low_balance; high->data.UnitBalance = &high_balance;
+    high->abilities.added[0] = MAKEFOURCC('A','I','n','v'); ARRAY_COUNT(high->abilities.added) = 1;
+    LPEDICT corpses[] = { low, high };
+    FOR_LOOP(i, 2) {
+        corpses[i]->s.player = 1; corpses[i]->svflags |= SVF_MONSTER;
+        corpses[i]->stand = unit_stand; corpses[i]->die = unit_die;
+        corpses[i]->health.value = corpses[i]->health.max_value = 500;
+    }
+    T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("AUan")));
+    unit_die(low, caster); unit_die(high, caster); high->aiflags |= AI_HOLD_FRAME;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AUan")));
+    T_ASSERT(M_IsDead(low)); T_ASSERT(!M_IsDead(high)); T_EQ(high->s.player, 0); T_ASSERT(high->owner == caster);
+    T_ASSERT(!(high->aiflags & AI_HOLD_FRAME)); T_EQ(G_UnitStatusLevel(high, FS_SLKKey("BTLF")), 1);
+    T_EQ(high->food.used, 0); T_EQ(high->summon_ability, FS_SLKKey("AUan"));
+    T_ASSERT(high->aiflags & AI_CORPSE_UNRAISABLE); T_ASSERT(high->aiflags & AI_CORPSE_NO_DECAY); T_ASSERT(high->invulnerable);
+    T_EQ(ARRAY_COUNT(high->abilities.added), 1); T_EQ(high->abilities.added[0], MAKEFOURCC('A','I','n','v'));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Resurrection uses the same high-level-first corpse preference while retaining
+ * the original owner and ordinary permanent corpse revival contract. */
+TEST(wc3_spell, resurrection_prefers_higher_level_friendly_corpse) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"targs\"\n"
+        "C;Y2;X1;K\"AHre\"\nC;Y2;X2;K\"AHre\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"900\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"ground,friend,dead\"\nE\n";
+    static UnitBalance_t const low_balance = { .level = 1 }, high_balance = { .level = 5 };
+    UnitAbilities_t abilities = { .abilList = "AHre" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT low = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    LPEDICT high_far = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 300, 0);
+    LPEDICT high_near = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 120, 0);
+
+    old = G_SetSLKRows("AbilityData", rows); caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+    low->data.UnitBalance = &low_balance;
+    high_far->data.UnitBalance = high_near->data.UnitBalance = &high_balance;
+    LPEDICT corpses[] = { low, high_far, high_near };
+    FOR_LOOP(i, 3) {
+        corpses[i]->s.player = 0; corpses[i]->svflags |= SVF_MONSTER;
+        corpses[i]->stand = unit_stand; corpses[i]->die = unit_die;
+        corpses[i]->health.value = corpses[i]->health.max_value = 500;
+        unit_die(corpses[i], caster);
+    }
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHre")));
+    T_ASSERT(M_IsDead(low)); T_ASSERT(M_IsDead(high_far)); T_ASSERT(!M_IsDead(high_near));
+    T_EQ(high_near->s.player, 0); T_ASSERT(high_near->owner != caster);
+    T_ASSERT(!(high_near->aiflags & AI_CORPSE_UNRAISABLE)); T_ASSERT(!(high_near->aiflags & AI_CORPSE_NO_DECAY)); T_ASSERT(high_near->invulnerable);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Warcraft III 2.0.3 added AUa2 as the ability-preserving Animate Dead rawcode. */
+TEST(wc3_spell, animate_dead_modern_aua2_registration) {
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("AUa2"));
+    T_NOT_NULL(item.ability);
+    T_EQ(item.ability->proc, CAbilityAnimateDead);
+}
+
+/* Stock-style Death Pact requires a friendly non-Hero Undead victim and useful restoration. */
+TEST(wc3_spell, death_pact_validates_undead_nonhero_and_full_resources) {
+    static UnitData_t undead_data = { .race = STR_UNDEAD };
+    static UnitData_t human_data = { .race = STR_HUMAN };
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\n"
+        "C;Y2;X1;K\"AUdp\"\nC;Y2;X2;K\"AUdp\"\nC;Y2;X3;K\"air,ground,friend,invu\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"800\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"2\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AUdp" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('U','d','e','a'), 500, 200, 0, 0);
+    LPEDICT victim = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 100, 0);
+    LPEDICT living = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities; caster->data.UnitData = &undead_data; caster->s.player = 0;
+    victim->data.UnitData = &undead_data; victim->s.player = 0; victim->svflags |= SVF_MONSTER; victim->targtype = TARG_GROUND;
+    victim->health.value = victim->health.max_value = 100; victim->die = unit_die;
+    living->data.UnitData = &human_data; living->s.player = 0; living->svflags |= SVF_MONSTER; living->targtype = TARG_GROUND;
+    living->health.value = living->health.max_value = 100;
+
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("AUdp"), victim));
+    caster->health.value = 100;
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("AUdp"), living));
+    victim->invulnerable = true;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdp"), victim));
+    T_FEQ(caster->health.value, 300, 0.001f);
+    T_ASSERT(M_IsDead(victim)); T_ASSERT(victim->aiflags & AI_CORPSE_UNRAISABLE); T_ASSERT(victim->aiflags & AI_CORPSE_NO_DECAY);
+    T_ASSERT(!G_UnitIsRaisableCorpse(victim));
+    /* Death animation completion must skip the ordinary 90-second corpse window. */
+    T_NOT_NULL(victim->currentmove);
+    if (victim->currentmove && victim->currentmove->endfunc) victim->currentmove->endfunc(victim);
+    T_ASSERT(victim->inuse);
+    level.time += FRAMETIME;
+    if (victim->currentmove && victim->currentmove->think) victim->currentmove->think(victim);
+    T_ASSERT(!victim->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, death_pact_datae_can_leave_target_alive) {
+    static UnitData_t undead_data = { .race = STR_UNDEAD };
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y1;X10;K\"DataD1\"\nC;Y1;X11;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AUdp\"\nC;Y2;X2;K\"AUdp\"\nC;Y2;X3;K\"air,ground,friend,invu\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"800\"\n"
+        "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"0\"\nC;Y2;X10;K\"0\"\nC;Y2;X11;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AUdp" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT caster = make_hero(MAKEFOURCC('U','d','e','a'), 500, 200, 0, 0);
+    LPEDICT victim = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 100, 0);
+
+    caster->data.UnitAbilities = &abilities; caster->data.UnitData = &undead_data; caster->s.player = 0;
+    caster->health.value = 100;
+    victim->data.UnitData = &undead_data; victim->s.player = 0; victim->svflags |= SVF_MONSTER;
+    victim->targtype = TARG_GROUND; victim->health.value = victim->health.max_value = 100; victim->die = unit_die;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdp"), victim));
+    T_FEQ(caster->health.value, 200.0f, 0.001f);
+    T_FEQ(victim->health.value, 100.0f, 0.001f);
+    T_ASSERT(!M_IsDead(victim));
+    T_ASSERT(!(victim->aiflags & AI_CORPSE_UNRAISABLE));
+    T_ASSERT(!(victim->aiflags & AI_CORPSE_NO_DECAY));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+
+/* DataC/DataD switch Death Pact from current-life percentages to Warsmash's
+ * authored fixed-value conversion mode. The fixed values are removed from the
+ * caster resources and their sum is removed from the victim's life. */
+TEST(wc3_spell, death_pact_datac_datad_fixed_value_conversion) {
+    static UnitData_t undead_data = { .race = STR_UNDEAD };
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X11\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y1;X10;K\"DataD1\"\nC;Y1;X11;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AUdp\"\nC;Y2;X2;K\"AUdp\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"800\"\n"
+        "C;Y2;X7;K\"25\"\nC;Y2;X8;K\"40\"\nC;Y2;X9;K\"1\"\n"
+        "C;Y2;X10;K\"1\"\nC;Y2;X11;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AUdp" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT caster = make_hero(MAKEFOURCC('U','d','e','a'), 500, 200, 0, 0);
+    LPEDICT victim = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 100, 0);
+
+    caster->data.UnitAbilities = &abilities; caster->data.UnitData = &undead_data; caster->s.player = 0;
+    caster->health.value = 300.0f; caster->mana.value = 150.0f;
+    victim->data.UnitData = &undead_data; victim->s.player = 0; victim->svflags |= SVF_MONSTER;
+    victim->targtype = TARG_GROUND; victim->health.value = victim->health.max_value = 200.0f;
+    victim->mana.value = victim->mana.max_value = 100.0f; victim->die = unit_die;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdp"), victim));
+    T_FEQ(caster->health.value, 260.0f, 0.001f);
+    T_FEQ(caster->mana.value, 125.0f, 0.001f);
+    T_FEQ(victim->health.value, 135.0f, 0.001f);
+    T_ASSERT(!M_IsDead(victim));
+
+    /* DataC value-mode has the Warcraft/Warsmash unit-with-mana target gate. */
+    victim->mana.value = 0.0f;
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("AUdp"), victim));
+    T_FEQ(caster->health.value, 260.0f, 0.001f);
+    T_FEQ(caster->mana.value, 125.0f, 0.001f);
+    T_FEQ(victim->health.value, 135.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_spell, non_spell_ability_uses_explicit_command) {
@@ -2372,7 +2836,7 @@ TEST(wc3_spell, raise_dead_summons_from_nearest_corpse_and_frees_it) {
 	abilityitem_t rai = S_AbilityItem(FS_SLKKey("Arai"));
 	caster->s.player = 0;
 	corpse->health.value = 0; corpse->health.max_value = 100;
-	corpse->svflags |= SVF_DEADMONSTER;
+    corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
 	summon_num = globals.num_edicts;
 	T_EQ(rai.ability->proc, CAbilityRaiseDead); T_ASSERT(rai.ability->flags & AB_AUTOCAST);
 	T_ASSERT(corpse->inuse); T_ASSERT(M_IsDead(corpse));

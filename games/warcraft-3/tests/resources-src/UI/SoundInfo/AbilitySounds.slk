@@ -1,0 +1,11 @@
+ID;PWXL;N;E
+B;X4;Y2;D0
+C;Y1;X1;K"SoundLabel"
+C;Y1;X2;K"FileNames"
+C;Y1;X3;K"DirectoryBase"
+C;Y1;X4;K"Volume"
+C;Y2;X1;K"TestAbilitySound"
+C;Y2;X2;K"Ability.wav"
+C;Y2;X3;K"TestUI\Sounds\"
+C;Y2;X4;K"127"
+E
