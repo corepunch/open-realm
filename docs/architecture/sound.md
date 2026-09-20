@@ -9,7 +9,7 @@ dedicated `svc_sound` packets.
 
 ## Long-Form PCM Streams
 
-Movies and background music use client-owned stereo S16 / 44.1-kHz ring buffers rather than one-shot `sfx_t` channels. `sound/s_local.h` defines generic `S_STREAM_MOVIE` and `S_STREAM_MUSIC` slots; each has independent active, pause, volume, and buffer state. The SDL callback mixes both streams before ordinary SFX.
+Movies and background music use client-owned stereo S16 / 44.1-kHz ring buffers rather than one-shot `sfx_t` channels. `sound/s_local.h` defines generic `S_STREAM_MOVIE` and `S_STREAM_MUSIC` slots; each has independent active, pause, volume, buffer state, and a consumed-frame counter reset by `S_StreamStart()`. `S_StreamPlayedFrames()` exposes that counter under the audio-device lock so presentation code can snapshot the amount actually heard without treating decoded-but-buffered PCM as elapsed playback. The SDL callback mixes both streams before ordinary SFX.
 
 WC3 music is transported separately with reliable `svc_music`: game-specific code resolves `war3skins.txt` and `Music.slk`, while `client/cl_music.c` owns playlist and optional FFmpeg decoding. Movies use `S_STREAM_MOVIE` and temporarily suspend `S_STREAM_MUSIC` without resetting its decoder/buffer. Keep new long-form sources generic at the `client/`/`sound/` boundary; game-specific aliases and metadata stay under `games/<game>/`.
 

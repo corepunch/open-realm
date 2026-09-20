@@ -1016,18 +1016,23 @@ static void CL_ParseMusic(LPSIZEBUF msg) {
         case MUSIC_CMD_SET_MAP: {
             BOOL random = MSG_ReadByte(msg) != 0;
             LONG index = MSG_ReadLong(msg);
+            DWORD session_id = (DWORD)MSG_ReadLong(msg);
             MSG_ReadStringN(msg, playlist, sizeof(playlist));
-            CL_MusicSetMap(playlist, random, index);
+            CL_MusicSetMap(playlist, random, index, session_id);
             break;
         }
         case MUSIC_CMD_CLEAR_MAP:
             CL_MusicClearMap();
             break;
         case MUSIC_CMD_PLAY: {
+            BOOL random = MSG_ReadByte(msg) != 0;
+            LONG index = MSG_ReadLong(msg);
             LONG start_ms = MSG_ReadLong(msg);
             LONG fade_ms = MSG_ReadLong(msg);
+            DWORD played_mask = (DWORD)MSG_ReadLong(msg);
+            DWORD session_id = (DWORD)MSG_ReadLong(msg);
             MSG_ReadStringN(msg, playlist, sizeof(playlist));
-            CL_MusicPlay(playlist, start_ms, fade_ms);
+            CL_MusicPlay(playlist, random, index, start_ms, fade_ms, played_mask, session_id);
             break;
         }
         case MUSIC_CMD_STOP:
@@ -1037,9 +1042,11 @@ static void CL_ParseMusic(LPSIZEBUF msg) {
             CL_MusicResume();
             break;
         case MUSIC_CMD_PLAY_THEMATIC: {
+            LONG index = MSG_ReadLong(msg);
             LONG start_ms = MSG_ReadLong(msg);
+            DWORD session_id = (DWORD)MSG_ReadLong(msg);
             MSG_ReadStringN(msg, playlist, sizeof(playlist));
-            CL_MusicPlayThematic(playlist, start_ms);
+            CL_MusicPlayThematic(playlist, index, start_ms, session_id);
             break;
         }
         case MUSIC_CMD_END_THEMATIC:

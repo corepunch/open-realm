@@ -29,6 +29,7 @@ typedef struct {
     DWORD read_pos;
     DWORD write_pos;
     DWORD count;
+    uint64_t played_frames; /* frames consumed by the device since S_StreamStart */
     FLOAT volume;
     BOOL active;
     BOOL paused;
@@ -136,6 +137,7 @@ void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right);
 void S_StreamStart(sStreamId_t stream);
 DWORD S_StreamSamples(sStreamId_t stream, SHORT const *samples, DWORD frames);
 DWORD S_StreamBufferedFrames(sStreamId_t stream);
+uint64_t S_StreamPlayedFrames(sStreamId_t stream);
 void S_StreamSetVolume(sStreamId_t stream, FLOAT volume);
 void S_StreamSetPaused(sStreamId_t stream, BOOL paused);
 void S_StreamStop(sStreamId_t stream);

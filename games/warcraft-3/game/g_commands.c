@@ -2499,14 +2499,42 @@ typedef struct {
 } clientCommand_t;
 
 static void CMD_MusicFinished(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    DWORD source, token;
+    DWORD session_id;
+    wc3MusicSource_t source;
 
-    if (!ent || !ent->client || argc < 3) return;
-    source = (DWORD)strtoul(argv[1], NULL, 10);
-    token = (DWORD)strtoul(argv[2], NULL, 10);
-    if (!G_MusicAcceptFinished(ent->client, source, token)) return;
+    if (!ent || !ent->client || argc < 2) return;
+    session_id = (DWORD)strtoul(argv[1], NULL, 10);
+    if (!G_MusicAcceptFinished(ent->client, session_id)) return;
+    source = ent->client->music.current_source;
     if (source == WC3_MUSIC_SOURCE_MAP) G_MusicMapTransitionFinished(ent->client);
+    else if (source == WC3_MUSIC_SOURCE_EXPLICIT) G_MusicExplicitFinished(ent->client);
     else if (source == WC3_MUSIC_SOURCE_THEMATIC) G_MusicThematicFinished(ent->client);
+}
+
+static void CMD_MusicSelected(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    DWORD session_id, played_mask;
+    LONG index, position_ms;
+
+    if (!ent || !ent->client || argc < 5) return;
+    session_id = (DWORD)strtoul(argv[1], NULL, 10);
+    index = (LONG)strtol(argv[2], NULL, 10);
+    position_ms = (LONG)strtol(argv[3], NULL, 10);
+    played_mask = (DWORD)strtoul(argv[4], NULL, 10);
+    G_MusicTrackSelected(ent->client, session_id, index, position_ms, played_mask);
+}
+
+static void CMD_MusicSnapshot(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    DWORD thematic_session_id, restore_session_id, played_mask;
+    LONG index, position_ms;
+
+    if (!ent || !ent->client || argc < 6) return;
+    thematic_session_id = (DWORD)strtoul(argv[1], NULL, 10);
+    restore_session_id = (DWORD)strtoul(argv[2], NULL, 10);
+    index = (LONG)strtol(argv[3], NULL, 10);
+    position_ms = (LONG)strtol(argv[4], NULL, 10);
+    played_mask = (DWORD)strtoul(argv[5], NULL, 10);
+    G_MusicThematicSnapshot(ent->client, thematic_session_id, restore_session_id,
+                            index, position_ms, played_mask);
 }
 
 clientCommand_t clientCommands[] = {
@@ -2552,6 +2580,8 @@ clientCommand_t clientCommands[] = {
     { "log", CMD_Log },
     { "hidegameresult", CMD_HideGameResult },
     { "music_finished", CMD_MusicFinished },
+    { "music_selected", CMD_MusicSelected },
+    { "music_snapshot", CMD_MusicSnapshot },
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },
