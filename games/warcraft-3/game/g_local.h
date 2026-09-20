@@ -2393,6 +2393,7 @@ BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id);
 BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id);
 BOOL G_ProducerCanUpgrade(LPEDICT producer, DWORD unit_id);
 BOOL G_BuildingUpgradeActive(LPCEDICT building);
+BOOL G_BuildingIsUnsummoning(LPCEDICT building);
 void G_GetBuildingUpgradeCosts(buildingUpgradeCostParams_t const *params);
 buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id, LPSTR reason, DWORD reason_size);
 buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);

@@ -222,6 +222,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     uiFrame_t list;
     BOOL const constructing = ent && ent->currentmove && ent->currentmove->think == ai_birth;
     BOOL const upgrading = G_BuildingUpgradeActive(ent);
+    BOOL const unsummoning = G_BuildingIsUnsummoning(ent);
     BOOL const hide_queue_slots = constructing || upgrading;
     BYTE const visible_count = hide_queue_slots ? 1 : count;
     FLOAT const active_x = 0.320546875f;
@@ -288,7 +289,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     /* Match the repeated icon geometry for cancellation hit targets as well as
      * drawing.  Slot 0 is the larger active item beside the progress bar; the
      * remaining slots are the smaller row along the panel bottom. */
-    if (constructing || upgrading || (ent->build && ent->build->training)) {
+    if (!unsummoning && (constructing || upgrading || (ent->build && ent->build->training))) {
         DWORD const cancel_count = (constructing || upgrading) ? 1 : count;
         FOR_LOOP(i, cancel_count) {
             uiFrame_t cancel;
