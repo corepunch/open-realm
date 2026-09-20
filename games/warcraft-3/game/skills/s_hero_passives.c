@@ -177,6 +177,15 @@ static auraAbilityRef_t mana_shield_ability(LPEDICT ent) {
     return ref.alias ? ref : unit_ability_with_proc(ent, CAbilityManaShield);
 }
 
+/* Hidden and gameplay-invisible units do not participate in Warcraft III auras.
+ * RF_HIDDEN covers ShowUnit-style hidden state and temporary invisibility such as
+ * Invisibility/Wind Walk; Permanent Invisibility is tracked independently. Fog
+ * visibility and detector state are deliberately irrelevant here. */
+BOOL S_AuraUnitActive(LPCEDICT unit) {
+    return unit && unit->inuse && !M_IsDead(unit) &&
+           !(unit->s.renderfx & RF_HIDDEN) && !S_PermanentInvisibilityActive(unit);
+}
+
 static BOOL aura_target_has_token(LPCSTR targets, LPCSTR full, LPCSTR short_name) {
     char token[32];
     LPCSTR cursor = targets;
@@ -198,7 +207,7 @@ static BOOL aura_allows_target(LPEDICT source, LPEDICT target, LPCSTR targets) {
     BOOL const wants_vulnerability = aura_target_has_token(targets, "vulnerable", "vuln") ||
         aura_target_has_token(targets, "invulnerable", "invu");
 
-    if (!source || !target || !target->inuse || M_IsDead(target)) return false;
+    if (!S_AuraUnitActive(source) || !S_AuraUnitActive(target)) return false;
     is_self = source == target;
     is_friend = S_SpellIsFriend(source, target);
     is_enemy = S_SpellIsEnemy(source, target);
@@ -342,7 +351,7 @@ static regenerationAuraInfo_t regen_aura_info_uncached(LPEDICT unit, DWORD base_
         abilityLevel_t const *row;
         FLOAT amount;
 
-        if (!source->inuse || !ability.alias || !S_SpellIsAliveTarget(source)) continue;
+        if (!ability.alias || !S_AuraUnitActive(source) || !S_SpellIsAliveTarget(source)) continue;
         row = G_AbilityLevel(ability.alias, ability.level);
         FLOAT const distance = Vector2_distance(&source->s.origin2, &unit->s.origin2);
         if (distance > row->area) continue;
@@ -496,7 +505,7 @@ static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
         memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
         FOR_LOOP(i, globals.num_edicts) {
             LPEDICT aura = g_edicts + i;
-            if (!aura->inuse || M_IsDead(aura) || !S_SpellIsFriend(aura, unit)) continue;
+            if (!S_AuraUnitActive(aura) || !S_SpellIsFriend(aura, unit)) continue;
             FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
                 auraAbilityRef_t const ability = actor_aura_ability(aura, aura_cache_keys[j].code);
                 abilityLevel_t const *row;
@@ -548,7 +557,7 @@ static heroAuraPresentation_t hero_aura_presentation(LPEDICT unit, DWORD base_co
         FLOAT amount;
         LPCSTR buff_id;
 
-        if (!source->inuse || M_IsDead(source) || !S_SpellIsFriend(source, unit)) continue;
+        if (!S_AuraUnitActive(source) || !S_SpellIsFriend(source, unit)) continue;
         if (!ability.alias) continue;
         row = G_AbilityLevel(ability.alias, ability.level);
         if (Vector2_distance(&source->s.origin2, &unit->s.origin2) > row->area ||

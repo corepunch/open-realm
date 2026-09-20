@@ -1527,6 +1527,49 @@ TEST(wc3_combat, attack_speed_scales_with_agility) {
     T_FEQ(h->wait, 0.3f / 1.4f, 0.001f);            /* windup scaled */
 }
 
+TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
+        "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source, target;
+
+    reset_entities();
+    setup_test_world();
+    source = make_combat_unit(MAKEFOURCC('O','b','l','m'), 725.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('o','g','r','u'), 700.0f, 100.0f, 0.0f);
+    source->s.player = target->s.player = 0;
+    source->abilities.added[0] = MAKEFOURCC('A','O','a','e');
+    ARRAY_COUNT(source->abilities.added) = 1;
+    target->attack1.cooldown = 1.0f;
+    target->attack1.damagePoint = 0.2f;
+    target->hero.agi = 0;
+
+    attack_melee_cooldown(target);
+    T_FEQ(target->wait, 0.8f / 1.2f, 0.001f);
+
+    source->s.renderfx |= RF_HIDDEN;
+    attack_melee_cooldown(target);
+    T_FEQ(target->wait, 0.8f, 0.001f);
+    source->s.renderfx &= ~RF_HIDDEN;
+
+    target->s.renderfx |= RF_HIDDEN;
+    attack_melee_cooldown(target);
+    T_FEQ(target->wait, 0.8f, 0.001f);
+    target->s.renderfx &= ~RF_HIDDEN;
+
+    source->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    source->permanent_invisibility_reveal_until = 0;
+    attack_melee_cooldown(target);
+    T_FEQ(target->wait, 0.8f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
     LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.agi = 1000;
