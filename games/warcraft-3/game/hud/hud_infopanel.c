@@ -1410,7 +1410,11 @@ void G_RefreshInfoPanel(LPEDICT ent) {
          * without a new selection event. The queue-panel cache is 0/-1 only
          * after its layer has actually been serialized; any other cache state
          * needs the transition payload before the live queue timer can update. */
-        if (ent->client->infopanel.entity != 0 || ent->client->infopanel.hp != -1) {
+        /* The client-side queue timer advances from its serialized timestamps.
+         * Rebuild them while Unsummon owns the building so a paused training
+         * queue remains visually paused instead of continuing on the client. */
+        if (G_BuildingIsUnsummoning(selected[0]) ||
+            ent->client->infopanel.entity != 0 || ent->client->infopanel.hp != -1) {
             UI_SendInfoPanel(ent, selected, count);
         }
         return;

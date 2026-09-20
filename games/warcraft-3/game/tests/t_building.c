@@ -477,6 +477,49 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     gi.ImageIndex = old_image_index;
 }
 
+TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT building;
+    LPEDICT trainee;
+    UnitBalance_t balance;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    trainee = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    balance = *building->data.UnitBalance;
+    balance.isBuilding = true;
+    balance.buildTime = 100;
+    building->data.UnitBalance = &balance;
+    building->s.player = trainee->s.player = client->ps.number;
+    building->build = trainee;
+    trainee->training = true;
+    trainee->health.max_value = 100.0f;
+    trainee->health.value = 50.0f;
+    building->abilstatus[0] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','u','n','s'), .level = 1 };
+    G_SelectEntity(client, building);
+    client->infopanel.entity = 0;
+    client->infopanel.hp = -1;
+
+    building_queue_frame_count = 0;
+    gi.Write = building_queue_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    G_RefreshInfoPanel(player);
+    T_EQ(building_queue_frame_count, 1);
+    G_RefreshInfoPanel(player);
+    T_EQ(building_queue_frame_count, 2);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
     LPGAMECLIENT client = &game.clients[0];
     DWORD const barracks = MAKEFOURCC('h','b','a','r');
