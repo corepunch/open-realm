@@ -5377,8 +5377,22 @@ TEST(wc3_api, blight_natives_share_authoritative_world_state) {
         "endfunction\n"));
 }
 
+typedef struct { LPBYTE out; DWORD count; } blightBitDst_t;
+static void blight_test_write(DWORD index, BYTE value, DWORD count, void *ctx) {
+    blightBitDst_t *c = ctx;
+    FOR_LOOP(i, count) if (index + i < c->count) c->out[index + i] = value;
+}
+
+/* Decode one RLE terrain-mask payload into a flat 0/1 array; returns decoded bits. */
+static DWORD blight_test_decode(BYTE const *payload, terrainMaskChunk_t const *chunk, LPBYTE out, DWORD count) {
+    DWORD bits = (DWORD)chunk->width * chunk->row_count;
+    if (!MSG_ValidateRLE(payload, chunk->payload_bytes, bits)) return 0;
+    memset(out, 0, count);
+    return MSG_DecodeRLE(payload, chunk->payload_bytes, bits, blight_test_write, &(blightBitDst_t){ out, count });
+}
+
 TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
-    BYTE data[8192];
+    BYTE data[8192], bits[4096];
     USHORT header;
     terrainMaskChunk_t chunk;
     VECTOR2 point = { 32.0f, 32.0f };
@@ -5407,7 +5421,8 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
     T_EQ(chunk.width, 64); T_EQ(chunk.height, 64); T_EQ(chunk.row_count, 64);
     bit = 33 + 33 * chunk.width;
-    T_ASSERT(data[offset + (bit >> 3)] & (1u << (bit & 7)));
+    T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), (DWORD)chunk.width * chunk.row_count);
+    T_ASSERT(bits[bit]);
 
     size = G_WriteClientDatagram(client_ent, data, sizeof(data));
     memcpy(&header, data, sizeof(header));
@@ -5418,7 +5433,7 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
 }
 
 TEST(wc3_api, blight_sweep_resends_dropped_rows) {
-    BYTE data[8192];
+    BYTE data[8192], bits[4096];
     USHORT header;
     terrainMaskChunk_t chunk;
     VECTOR2 point = { 32.0f, 32.0f };
@@ -5457,7 +5472,8 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
     T_EQ(chunk.width, 64); T_EQ(chunk.height, 64);
     bit = 33 + 33 * chunk.width;
     T_ASSERT(chunk.first_row <= 33 && 33 < chunk.first_row + chunk.row_count);
-    T_ASSERT(data[offset + ((bit - chunk.first_row * chunk.width) >> 3)] & (1u << ((bit - chunk.first_row * chunk.width) & 7)));
+    T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), (DWORD)chunk.width * chunk.row_count);
+    T_ASSERT(bits[bit - chunk.first_row * chunk.width]);
     client_ent->client = NULL;
     game.clients[0].connected = false;
     level.framenum = 0;

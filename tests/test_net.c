@@ -1686,7 +1686,7 @@ static void reset_fow_client_state(void) {
 
 TEST(net, terrain_mask_datagram_reconstructs_client_mask) {
     BYTE buf[128];
-    BYTE payload[] = { 0x01, 0x80 }; /* 16 cells: cell 0 and cell 15 are Blight. */
+    BYTE payload[] = { 1, 1, 14, 1 }; /* RLE: 16 cells, cell 0 and cell 15 are Blight. */
     terrainMaskChunk_t chunk = {
         .width = 8, .height = 2, .first_row = 0, .row_count = 2, .payload_bytes = sizeof(payload),
         .min_x = -128.0f, .min_y = 64.0f, .cell_size = 32.0f,
@@ -1712,8 +1712,8 @@ TEST(net, terrain_mask_datagram_reconstructs_client_mask) {
 
 TEST(net, terrain_mask_two_chunks_preserve_both_ranges) {
     BYTE buf[256];
-    BYTE payload0[] = { 0x01 };
-    BYTE payload1[] = { 0x80 };
+    BYTE payload0[] = { 1, 1, 7 }; /* RLE: row 0 cell 0 is Blight. */
+    BYTE payload1[] = { 0, 7, 1 }; /* RLE: row 1 cell 7 is Blight. */
     terrainMaskChunk_t chunk0 = {
         .width = 8, .height = 2, .first_row = 0, .row_count = 1, .payload_bytes = sizeof(payload0),
         .min_x = 0.0f, .min_y = 0.0f, .cell_size = 32.0f,
@@ -1749,7 +1749,7 @@ TEST(net, terrain_mask_two_chunks_preserve_both_ranges) {
 
 TEST(net, terrain_mask_same_bits_do_not_bump_generation) {
     BYTE buf[128];
-    BYTE payload[] = { 0x01 };
+    BYTE payload[] = { 1, 1, 7 }; /* RLE: 8 cells, cell 0 is Blight. */
     terrainMaskChunk_t chunk = {
         .width = 8, .height = 1, .first_row = 0, .row_count = 1, .payload_bytes = sizeof(payload),
         .min_x = 0.0f, .min_y = 0.0f, .cell_size = 32.0f,
@@ -1764,6 +1764,7 @@ TEST(net, terrain_mask_same_bits_do_not_bump_generation) {
     MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_TERRAIN_MASK);
     MSG_Write(&sb, &chunk, sizeof(chunk)); MSG_Write(&sb, payload, sizeof(payload));
     CL_ParseServerMessage(&sb);
+    T_ASSERT(cl.terrain_mask.cells[0]);
     generation = cl.terrain_mask.generation;
     SZ_Clear(&sb); sb.readcount = 0;
     MSG_WriteByte(&sb, svc_frame);
@@ -2509,6 +2510,63 @@ TEST(net, fow_malformed_payload_does_not_overread) {
     T_EQ(sb.readcount, sb.cursize);
     T_EQ(cl.fow.width, 0);
     reset_fow_client_state();
+}
+
+typedef struct { BYTE const *bits; DWORD count; } rleTestSrc_t;
+static BYTE rle_test_read(DWORD index, void *ctx) { rleTestSrc_t *c = ctx; return index < c->count ? c->bits[index] : 0; }
+typedef struct { BYTE *out; DWORD count; } rleTestDst_t;
+static void rle_test_write(DWORD index, BYTE value, DWORD count, void *ctx) {
+    rleTestDst_t *c = ctx;
+    FOR_LOOP(i, count) if (index + i < c->count) c->out[index + i] = value;
+}
+
+TEST(net, rle_roundtrip_sparse_and_dense) {
+    BYTE sparse[] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+    BYTE dense[] = { 1, 1, 1, 1, 1, 1, 1, 1 };
+    BYTE out[16], back[16];
+    rleTestSrc_t src = { sparse, sizeof(sparse) };
+    rleTestDst_t dst = { back, sizeof(back) };
+    DWORD n = MSG_EncodeRLE(out, sizeof(out), sizeof(sparse), rle_test_read, &src);
+    T_EQ(n, 4); T_EQ(out[0], 1); T_EQ(out[1], 1); T_EQ(out[2], 14); T_EQ(out[3], 1);
+    T_ASSERT(MSG_ValidateRLE(out, n, sizeof(sparse)));
+    memset(back, 0xFF, sizeof(back));
+    T_EQ(MSG_DecodeRLE(out, n, sizeof(sparse), rle_test_write, &dst), sizeof(sparse));
+    T_ASSERT(!memcmp(back, sparse, sizeof(sparse)));
+    src.bits = dense; src.count = sizeof(dense); dst.count = sizeof(dense);
+    n = MSG_EncodeRLE(out, sizeof(out), sizeof(dense), rle_test_read, &src);
+    T_EQ(n, 2); T_EQ(out[0], 1); T_EQ(out[1], 8);
+    T_ASSERT(MSG_ValidateRLE(out, n, sizeof(dense)));
+    memset(back, 0, sizeof(back));
+    T_EQ(MSG_DecodeRLE(out, n, sizeof(dense), rle_test_write, &dst), sizeof(dense));
+    T_ASSERT(!memcmp(back, dense, sizeof(dense)));
+}
+
+TEST(net, rle_255_run_boundary_roundtrips) {
+    static BYTE bits[305];
+    BYTE out[8], back[sizeof(bits)];
+    rleTestSrc_t src = { bits, sizeof(bits) };
+    rleTestDst_t dst = { back, sizeof(back) };
+    DWORD n;
+    memset(bits, 1, 300); memset(bits + 300, 0, 5);
+    memset(out, 0, sizeof(out)); memset(back, 0xFF, sizeof(back));
+    n = MSG_EncodeRLE(out, sizeof(out), sizeof(bits), rle_test_read, &src);
+    T_EQ(n, 4); T_EQ(out[0], 1); T_EQ(out[1], 255); T_EQ(out[2], 45); T_EQ(out[3], 5);
+    T_ASSERT(MSG_ValidateRLE(out, n, sizeof(bits)));
+    T_EQ(MSG_DecodeRLE(out, n, sizeof(bits), rle_test_write, &dst), sizeof(bits));
+    T_ASSERT(!memcmp(back, bits, sizeof(bits)));
+}
+
+TEST(net, rle_rejects_truncated_overlong_and_overflow) {
+    BYTE truncated[] = { 1, 1 }, overlong[] = { 1, 16, 1 }, bad_init[] = { 2, 5 };
+    BYTE alt[] = { 0, 1, 0, 1, 0, 1, 0, 1 }, tiny[2], back[16];
+    rleTestSrc_t src = { alt, sizeof(alt) };
+    rleTestDst_t dst = { back, sizeof(back) };
+    T_ASSERT(!MSG_ValidateRLE(truncated, sizeof(truncated), 16));
+    T_ASSERT(!MSG_ValidateRLE(overlong, sizeof(overlong), 16));
+    T_ASSERT(!MSG_ValidateRLE(bad_init, sizeof(bad_init), 5));
+    T_EQ(MSG_DecodeRLE(truncated, sizeof(truncated), 16, rle_test_write, &dst), 0);
+    T_EQ(MSG_EncodeRLE(tiny, sizeof(tiny), sizeof(alt), rle_test_read, &src), 0); // 9-byte worst case
+    T_EQ(MSG_EncodeRLE(NULL, 0, 0, NULL, NULL), 0);
 }
 
 /* Static entities must not consume snapshot bandwidth when their state is unchanged. */

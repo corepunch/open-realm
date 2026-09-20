@@ -1,6 +1,8 @@
 #ifndef net_h
 #define net_h
 
+#include "common/rle.h"
+
 #define MAX_MSGLEN 256 * 1024
 
 #define BZ_LOADING_HEADER_SIZE 13 // bytes; opcode and three 32-bit lengths; bounds loading-screen chunks

@@ -1124,6 +1124,19 @@ static BYTE *G_FowPlaneForFlags(fowPlayerGrid_t *grid, DWORD flags, DWORD plane)
     return NULL;
 }
 
+typedef struct { fowPlayerGrid_t *grid; BYTE *planes[2]; DWORD plane_count, width, first_row, plane_bits; } fowPackCtx_t;
+
+static BYTE G_FowPackBit(DWORD index, void *ctx) {
+    fowPackCtx_t *c = ctx;
+    BYTE *plane = c->planes[index / c->plane_bits];
+    DWORD bit = index % c->plane_bits, x = bit % c->width, y = c->first_row + bit / c->width;
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast && plane == c->grid->visible) return G_FowPackedAt(c->grid->packed_visible, c->grid, x, y);
+    if (g_fow_fast && plane == c->grid->explored) return G_FowPackedAt(c->grid->packed_explored, c->grid, x, y);
+#endif
+    return plane[y * level.fow.width + x] ? 1 : 0;
+}
+
 static DWORD G_FowPackRows(fowPlayerGrid_t *grid,
                            DWORD flags,
                            DWORD first_row,
@@ -1131,75 +1144,17 @@ static DWORD G_FowPackRows(fowPlayerGrid_t *grid,
                            BYTE *payload,
                            DWORD payload_size)
 {
-    DWORD out = 0;
     DWORD planes[] = { FOW_MSG_VISIBLE_PLANE, FOW_MSG_EXPLORED_PLANE };
-    BOOL started = false;
-    BYTE current = 0;
-    BYTE run = 0;
-
-    if (!payload || payload_size < 2) {
-        return 0;
-    }
-
+    fowPackCtx_t c;
+    if (!payload || payload_size < 2) return 0;
+    c.grid = grid; c.plane_count = 0; c.width = level.fow.width; c.first_row = first_row;
+    c.plane_bits = level.fow.width * row_count;
     FOR_LOOP(plane_index, sizeof(planes) / sizeof(planes[0])) {
         BYTE *plane = G_FowPlaneForFlags(grid, flags, planes[plane_index]);
-        if (!plane) {
-            continue;
-        }
-        FOR_LOOP(row, row_count) {
-            DWORD y = first_row + row;
-            FOR_LOOP(x, level.fow.width) {
-                BYTE value;
-#ifdef WC3_FOW_PACKED_MASK
-                if (g_fow_fast && plane == grid->visible)
-                    value = G_FowPackedAt(grid->packed_visible, grid, x, y);
-                else if (g_fow_fast && plane == grid->explored)
-                    value = G_FowPackedAt(grid->packed_explored, grid, x, y);
-                else
-#endif
-                    value = plane[y * level.fow.width + x] ? 1 : 0;
-
-                if (!started) {
-                    payload[out++] = value;
-                    current = value;
-                    run = 1;
-                    started = true;
-                    continue;
-                }
-
-                if (value == current) {
-                    if (run == 255) {
-                        if (out >= payload_size) {
-                            return 0;
-                        }
-                        payload[out++] = 255;
-                        run = 0;
-                    }
-                    run++;
-                    continue;
-                }
-
-                if (out >= payload_size) {
-                    return 0;
-                }
-                payload[out++] = run;
-                if (run == 255) {
-                    if (out >= payload_size) {
-                        return 0;
-                    }
-                    payload[out++] = 0;
-                }
-                current = value;
-                run = 1;
-            }
-        }
+        if (plane) c.planes[c.plane_count++] = plane;
     }
-
-    if (!started || out >= payload_size) {
-        return 0;
-    }
-    payload[out++] = run;
-    return out;
+    if (!c.plane_count || !c.plane_bits) return 0;
+    return MSG_EncodeRLE(payload, payload_size, c.plane_bits * c.plane_count, G_FowPackBit, &c);
 }
 
 static void G_FowWriteRows(LPEDICT ent, DWORD player, DWORD flags, DWORD first_row, DWORD row_count) {
