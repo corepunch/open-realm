@@ -71,9 +71,9 @@ Frame "FRAME" "OptionsMenu" {
             }
             Frame "SLIDER" "MusicVolumeSlider" {
                 SliderMinValue 0,
-                SliderMaxValue 100,
-                SliderInitialValue 100,
-                SliderStepSize 1,
+                SliderMaxValue 10,
+                SliderInitialValue 10,
+                SliderStepSize 0.5,
                 SliderLayoutHorizontal,
             }
         }

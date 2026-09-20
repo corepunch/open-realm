@@ -235,13 +235,23 @@ TEST(wc3_music, sound_file_duration_reads_wav_metadata_without_decoder) {
 }
 
 TEST(wc3_music, sound_file_duration_scans_variable_rate_mp3_frames) {
-    BYTE mp3[834] = { 0 };
+    BYTE mp3[625] = { 0 };
 
     /* MPEG-1 Layer III, 128 kbps, 44.1 kHz: 417-byte frame, 1152 samples. */
     mp3[0] = 0xff; mp3[1] = 0xfb; mp3[2] = 0x90; mp3[3] = 0x00;
-    mp3[417] = 0xff; mp3[418] = 0xfb; mp3[419] = 0x90; mp3[420] = 0x00;
+    /* The second frame is 64 kbps (208 bytes), so duration cannot use one bitrate. */
+    mp3[417] = 0xff; mp3[418] = 0xfb; mp3[419] = 0x50; mp3[420] = 0x00;
 
     T_EQ(G_AudioDurationFromMemory("test.mp3", mp3, sizeof(mp3)), 52);
+}
+
+TEST(wc3_music, sound_file_duration_rejects_truncated_or_unknown_data) {
+    BYTE truncated_wav[12] = { 0 };
+    BYTE unknown[8] = { 0xde, 0xad, 0xbe, 0xef };
+
+    memcpy(truncated_wav, "RIFFWAVE", 8);
+    T_EQ(G_AudioDurationFromMemory("truncated.wav", truncated_wav, sizeof(truncated_wav)), 0);
+    T_EQ(G_AudioDurationFromMemory("unknown.bin", unknown, sizeof(unknown)), 0);
 }
 
 TEST(wc3_music, sound_file_duration_reads_ogg_vorbis_granule) {

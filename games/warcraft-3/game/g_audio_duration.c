@@ -8,6 +8,14 @@
  */
 #include "g_local.h"
 
+static DWORD const audio_tag_data = MAKEFOURCC('d', 'a', 't', 'a');
+static DWORD const audio_tag_fact = MAKEFOURCC('f', 'a', 'c', 't');
+static DWORD const audio_tag_flac = MAKEFOURCC('f', 'L', 'a', 'C');
+static DWORD const audio_tag_fmt = MAKEFOURCC('f', 'm', 't', ' ');
+static DWORD const audio_tag_ogg = MAKEFOURCC('O', 'g', 'g', 'S');
+static DWORD const audio_tag_riff = MAKEFOURCC('R', 'I', 'F', 'F');
+static DWORD const audio_tag_wave = MAKEFOURCC('W', 'A', 'V', 'E');
+
 static DWORD Audio_ReadLE32(BYTE const *p) {
     return (DWORD)p[0] | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
 }
@@ -33,19 +41,21 @@ static LONG Audio_WavDuration(BYTE const *data, DWORD size) {
     DWORD fact_samples = 0;
     uint64_t data_bytes = 0;
 
-    if (!data || size < 12 || memcmp(data, "RIFF", 4) || memcmp(data + 8, "WAVE", 4)) return 0;
+    if (!data || size < 12 || Audio_ReadLE32(data) != audio_tag_riff ||
+        Audio_ReadLE32(data + 8) != audio_tag_wave) return 0;
     while (offset + 8 <= size) {
+        DWORD tag = Audio_ReadLE32(data + offset);
         DWORD chunk_size = Audio_ReadLE32(data + offset + 4);
         DWORD payload = offset + 8;
         uint64_t next = (uint64_t)payload + chunk_size + (chunk_size & 1u);
 
         if ((uint64_t)payload + chunk_size > size) break;
-        if (!memcmp(data + offset, "fmt ", 4) && chunk_size >= 12) {
+        if (tag == audio_tag_fmt && chunk_size >= 12) {
             sample_rate = Audio_ReadLE32(data + payload + 4);
             byte_rate = Audio_ReadLE32(data + payload + 8);
-        } else if (!memcmp(data + offset, "fact", 4) && chunk_size >= 4) {
+        } else if (tag == audio_tag_fact && chunk_size >= 4) {
             fact_samples = Audio_ReadLE32(data + payload);
-        } else if (!memcmp(data + offset, "data", 4)) {
+        } else if (tag == audio_tag_data) {
             data_bytes += chunk_size;
         }
         if (next > size || next <= offset) break;
@@ -153,7 +163,7 @@ static LONG Audio_OggVorbisDuration(BYTE const *data, DWORD size) {
     uint64_t last_granule = 0;
     DWORD offset = 0;
 
-    if (!data || size < 27 || memcmp(data, "OggS", 4)) return 0;
+    if (!data || size < 27 || Audio_ReadLE32(data) != audio_tag_ogg) return 0;
     /* The Vorbis identification packet is the first packet and is normally
      * wholly contained in the first page.  Parse the page lacing rather than
      * scanning arbitrary payload bytes for the signature. */
@@ -178,7 +188,7 @@ static LONG Audio_OggVorbisDuration(BYTE const *data, DWORD size) {
         DWORD segments, payload_size = 0, page_size;
         uint64_t granule;
 
-        if (memcmp(data + offset, "OggS", 4)) { offset++; continue; }
+        if (Audio_ReadLE32(data + offset) != audio_tag_ogg) { offset++; continue; }
         segments = data[offset + 26];
         if ((uint64_t)offset + 27u + segments > size) break;
         FOR_LOOP(i, segments) payload_size += data[offset + 27 + i];
@@ -195,7 +205,7 @@ static LONG Audio_FlacDuration(BYTE const *data, DWORD size) {
     DWORD sample_rate;
     uint64_t total_samples;
 
-    if (!data || size < 42 || memcmp(data, "fLaC", 4)) return 0;
+    if (!data || size < 42 || Audio_ReadLE32(data) != audio_tag_flac) return 0;
     if ((data[4] & 0x7f) != 0 || (((DWORD)data[5] << 16) | ((DWORD)data[6] << 8) | data[7]) < 34)
         return 0;
     sample_rate = ((DWORD)data[18] << 12) | ((DWORD)data[19] << 4) | (data[20] >> 4);
@@ -210,11 +220,11 @@ LONG G_AudioDurationFromMemory(LPCSTR filename, BYTE const *data, DWORD size) {
 
     (void)filename;
     if (!data || !size) return 0;
-    if (size >= 12 && !memcmp(data, "RIFF", 4) && !memcmp(data + 8, "WAVE", 4))
+    if (size >= 12 && Audio_ReadLE32(data) == audio_tag_riff && Audio_ReadLE32(data + 8) == audio_tag_wave)
         duration = Audio_WavDuration(data, size);
-    else if (size >= 4 && !memcmp(data, "OggS", 4))
+    else if (size >= 4 && Audio_ReadLE32(data) == audio_tag_ogg)
         duration = Audio_OggVorbisDuration(data, size);
-    else if (size >= 4 && !memcmp(data, "fLaC", 4))
+    else if (size >= 4 && Audio_ReadLE32(data) == audio_tag_flac)
         duration = Audio_FlacDuration(data, size);
     else
         duration = Audio_Mp3Duration(data, size);

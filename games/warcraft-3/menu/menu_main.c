@@ -129,10 +129,9 @@ static void UI_UpdateMenuMusic(uiScreen_t *screen) {
     LPCSTR key, music;
 
     if (!screen) {
-        if (mi.StopMusic) mi.StopMusic();
+        mi.StopMusic();
         return;
     }
-    if (!mi.PlayMusic) return;
     key = screen == &gameSetupScreen ? "ChatMusic" : "GlueMusic";
     music = Theme_String(key, "Default");
     if (!music || !*music || !strcmp(music, key)) {
@@ -140,7 +139,7 @@ static void UI_UpdateMenuMusic(uiScreen_t *screen) {
         music = Theme_String(key, "Default");
     }
     if (music && *music && strcmp(music, key)) mi.PlayMusic(music);
-    else if (mi.StopMusic) mi.StopMusic();
+    else mi.StopMusic();
 }
 
 /* Installation never requests chrome: it also runs from animation callbacks. */

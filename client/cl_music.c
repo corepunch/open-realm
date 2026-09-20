@@ -75,6 +75,7 @@ typedef struct {
     BOOL suspended;
     BOOL decoder_active;
     DWORD fade_start_ticks;
+    DWORD fade_clock_ticks;
     DWORD fade_duration_ms;
     FLOAT fade_start_factor;
     clMusicFade_t fade;
@@ -130,6 +131,15 @@ static FLOAT CL_MusicFadeFactor(void) {
     if (cl_music.fade == CL_MUSIC_FADE_OUT)
         return MAX(0.0f, cl_music.fade_start_factor * (1.0f - fraction));
     return fraction;
+}
+
+/* Keep wall-clock fade time from advancing while movie suspension or the user music toggle pauses the stream. */
+static void CL_MusicFreezeFade(void) {
+    DWORD now = SDL_GetTicks();
+
+    if (cl_music.fade != CL_MUSIC_FADE_NONE)
+        cl_music.fade_start_ticks += now - cl_music.fade_clock_ticks;
+    cl_music.fade_clock_ticks = now;
 }
 
 static void CL_MusicApplyVolume(void) {
@@ -384,7 +394,10 @@ static BOOL CL_MusicOpenTrack(LPCSTR path, LONG start_ms) {
     S_StreamStart(S_STREAM_MUSIC);
     cl_music.position_base_ms = 0;
     cl_music.decoder_active = true;
-    if (cl_music.fade != CL_MUSIC_FADE_NONE) cl_music.fade_start_ticks = SDL_GetTicks();
+    if (cl_music.fade != CL_MUSIC_FADE_NONE) {
+        cl_music.fade_start_ticks = SDL_GetTicks();
+        cl_music.fade_clock_ticks = cl_music.fade_start_ticks;
+    }
     CL_MusicApplyVolume();
     S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
     if (start_ms > 0 && !CL_MusicSeekDecoder(start_ms)) { CL_MusicCloseDecoder(); return false; }
@@ -439,6 +452,7 @@ static BOOL CL_MusicStartPlaylist(LPCSTR value, BOOL random, LONG index, clMusic
     cl_music.paused = false;
     cl_music.fade = fade_ms > 0 ? CL_MUSIC_FADE_IN : CL_MUSIC_FADE_NONE;
     cl_music.fade_start_ticks = SDL_GetTicks();
+    cl_music.fade_clock_ticks = cl_music.fade_start_ticks;
     cl_music.fade_duration_ms = (DWORD)MAX(0, fade_ms);
     cl_music.fade_start_factor = 1.0f;
     if (!CL_MusicParsePlaylist(value, &cl_music.current)) return false;
@@ -739,6 +753,7 @@ void CL_MusicStop(BOOL fade_out) {
     cl_music.fade = CL_MUSIC_FADE_OUT;
     cl_music.fade_start_factor = start_factor;
     cl_music.fade_start_ticks = SDL_GetTicks();
+    cl_music.fade_clock_ticks = cl_music.fade_start_ticks;
     cl_music.fade_duration_ms = CL_MUSIC_STOP_FADE_MS;
     CL_MusicApplyVolume();
 }
@@ -788,6 +803,7 @@ void CL_MusicSetThematicPosition(LONG millisecs) {
 
 void CL_MusicSuspend(void) {
     if (cl_music.source == CL_MUSIC_SOURCE_NONE || cl_music.suspended) return;
+    CL_MusicFreezeFade();
     cl_music.suspended = true;
     S_StreamSetPaused(S_STREAM_MUSIC, true);
 }
@@ -800,10 +816,15 @@ void CL_MusicResumeFromSuspend(void) {
 }
 
 void CL_MusicUpdate(void) {
+    BOOL paused;
+
     if (cl_music.source == CL_MUSIC_SOURCE_NONE) return;
+    paused = CL_MusicShouldPause();
+    if (paused) CL_MusicFreezeFade();
+    else cl_music.fade_clock_ticks = SDL_GetTicks();
     CL_MusicApplyVolume();
-    S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
-    if (CL_MusicShouldPause()) return;
+    S_StreamSetPaused(S_STREAM_MUSIC, paused);
+    if (paused) return;
     if (!CL_MusicPumpDecoder()) {
         if (cl_music.fade != CL_MUSIC_FADE_OUT) CL_MusicAdvancePlaylist();
         return;

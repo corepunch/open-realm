@@ -52,6 +52,9 @@ static LPCSTR test_map = "";
 static DWORD map_reads, texture_releases;
 static char forwarded_command[1024];
 
+static void test_play_music(LPCSTR playlist) { (void)playlist; }
+static void test_stop_music(void) {}
+
 /* Host boundaries only: tests link the real command buffer, tokenizer, registration, and cvars. */
 void Key_Init(void) {}
 void Key_WriteBindings(FILE *file) { (void)file; }
@@ -74,6 +77,8 @@ static void test_command_imports(void) {
     mi.Cmd_Argc = Cmd_Argc;
     mi.Cmd_Argv = Cmd_Argv;
     mi.Cmd_ArgsFrom = Cmd_ArgsFrom;
+    mi.PlayMusic = test_play_music;
+    mi.StopMusic = test_stop_music;
 }
 
 static int fake_image_index(LPCSTR name) {
@@ -1791,7 +1796,10 @@ TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
         return;
     }
     T_ASSERT((checkbox->ui_flags & UIFLAG_CHECKED) != 0);
-    T_FEQ(slider->Slider.InitialValue, 100.0f, 0.001f);
+    T_FEQ(slider->Slider.MinValue, 0.0f, 0.001f);
+    T_FEQ(slider->Slider.MaxValue, 10.0f, 0.001f);
+    T_FEQ(slider->Slider.StepSize, 0.5f, 0.001f);
+    T_FEQ(slider->Slider.InitialValue, 10.0f, 0.001f);
 
     captured_cvar_name[0] = captured_cvar_value[0] = '\0';
     checkbox->ui_flags &= ~UIFLAG_CHECKED;
@@ -1801,7 +1809,7 @@ TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
     T_STREQ(captured_cvar_value, "0");
 
     captured_cvar_name[0] = captured_cvar_value[0] = '\0';
-    slider->Slider.InitialValue = 35.0f;
+    slider->Slider.InitialValue = 3.5f;
     optionsMenuScreen.refresh(0);
     T_STREQ(captured_cvar_name, "s_musicvolume");
     T_STREQ(captured_cvar_value, "0.35");
