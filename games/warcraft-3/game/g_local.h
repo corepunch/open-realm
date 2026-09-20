@@ -1293,6 +1293,10 @@ struct edict_s {
         BOOL restore_hidden;
     } sacrifice;
     struct edictUnsummon_s {
+        LPEDICT target;
+        DWORD target_spawn_time;
+        DWORD ability, level;
+        BOOL approaching, starting;
         FLOAT removed_health;
         LONG gold_paid, lumber_paid;
     } unsummon;

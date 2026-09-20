@@ -9,6 +9,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
+void CM_ProcessPathJobs(DWORD work_budget);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -39,7 +40,7 @@ static void uns_setup(UNSFIX *fix) {
     fix->client = &game.clients[0];
     fix->bldg_bal = MAKE(UnitBalance_t, .maxHealth = 100, .isBuilding = true, .goldCost = 200, .lumberCost = 120);
     fix->unit_bal = MAKE(UnitBalance_t, .maxHealth = 100, .goldCost = 200, .lumberCost = 120);
-    fix->caster = alloc_test_unit(MAKEFOURCC('u', 'a', 'c', 'o'), 0, 0);
+    fix->caster = alloc_test_unit(MAKEFOURCC('u', 'a', 'c', 'o'), 48, 0);
     fix->building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
     fix->enemy_bldg = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 96, 0);
     fix->unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
@@ -58,6 +59,10 @@ static void uns_setup(UNSFIX *fix) {
     fix->enemy_bldg->health.value = fix->enemy_bldg->health.max_value = 100;
     fix->unit->health.value = fix->unit->health.max_value = 100;
     fix->building->die = unit_die; fix->enemy_bldg->die = unit_die; fix->unit->die = unit_die;
+    fix->caster->collision = fix->building->collision = 16.0f;
+    fix->caster->unitinfo.MoveSpeed = 190.0f;
+    fix->caster->movetype = MOVETYPE_STEP;
+    fix->caster->think = monster_think;
     fix->building->stand = unit_stand; fix->caster->stand = unit_stand;
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10;
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 5;
@@ -79,6 +84,7 @@ static void uns_tick(LPEDICT caster, DWORD count) {
         if (!thinker) return;
         level.time += FRAMETIME;
         G_RunEntities();
+        CM_ProcessPathJobs(65536);
     }
 }
 
@@ -113,6 +119,75 @@ TEST(wc3_spell, unsummon_uses_datab_dps_progressive_refund_and_temporary_magic_i
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 35);
     T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
     T_NULL(uns_thinker(fix.caster));
+    uns_done(&fix);
+}
+
+TEST(wc3_spell, unsummon_approaches_before_starting_demolition) {
+    UNSFIX fix;
+    uns_setup(&fix);
+    fix.caster->s.origin2.x = fix.caster->s.origin.x = 0;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    T_FEQ(fix.building->health.value, 100.0f, 0.001f);
+    FOR_LOOP(i, 40) {
+        uns_tick(fix.caster, 1);
+        if (G_UnitStatusLevel(fix.building, BZ_BUNS)) break;
+    }
+    T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    T_ASSERT(fix.building->health.value < 100.0f);
+    uns_done(&fix);
+}
+
+TEST(wc3_spell, unsummon_start_at_interaction_range_applies_buns_immediately) {
+    UNSFIX fix;
+    uns_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    uns_tick(fix.caster, 1);
+    T_FEQ(fix.building->health.value, 92.0f, 0.001f);
+    uns_done(&fix);
+}
+
+TEST(wc3_spell, unsummon_interruption_while_approaching_preserves_target) {
+    UNSFIX fix;
+    uns_setup(&fix);
+    fix.caster->s.origin2.x = fix.caster->s.origin.x = 0;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    unit_issueimmediateorder(fix.caster, "stop");
+    uns_tick(fix.caster, 1);
+    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    T_FEQ(fix.building->health.value, 100.0f, 0.001f);
+    T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
+    T_NULL(uns_thinker(fix.caster));
+    uns_done(&fix);
+}
+
+TEST(wc3_spell, unsummon_order_interruption_after_start_keeps_earned_refund) {
+    UNSFIX fix;
+    USHORT gold;
+    uns_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    uns_tick(fix.caster, 2);
+    T_FEQ(fix.building->health.value, 84.0f, 0.001f);
+    gold = fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+    unit_issueimmediateorder(fix.caster, "stop");
+    uns_tick(fix.caster, 1);
+    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    T_FEQ(fix.building->health.value, 84.0f, 0.001f);
+    T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], gold);
+    uns_done(&fix);
+}
+
+TEST(wc3_spell, unsummon_moving_away_after_start_stops_demolition) {
+    UNSFIX fix;
+    uns_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    uns_tick(fix.caster, 2);
+    T_FEQ(fix.building->health.value, 84.0f, 0.001f);
+    fix.caster->s.origin2.x = fix.caster->s.origin.x = 0;
+    uns_tick(fix.caster, 1);
+    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    T_FEQ(fix.building->health.value, 84.0f, 0.001f);
     uns_done(&fix);
 }
 

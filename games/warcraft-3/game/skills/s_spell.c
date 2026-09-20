@@ -502,8 +502,9 @@ void spell_run_frame(LPEDICT ent) {
     }
 
     /* Movement cancel: caster moved from the position where channel began. */
-    if (fabsf(ent->s.origin.x - ent->channel.origin.x) > 0.5f ||
-        fabsf(ent->s.origin.y - ent->channel.origin.y) > 0.5f) {
+    if (!ent->unsummon.approaching &&
+        (fabsf(ent->s.origin.x - ent->channel.origin.x) > 0.5f ||
+        fabsf(ent->s.origin.y - ent->channel.origin.y) > 0.5f)) {
         S_SpellCancelChannel(ent);
         return;
     }
