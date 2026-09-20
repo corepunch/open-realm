@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 34; // format version; persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, reflected missile, and lightning registry/identity state
+static DWORD const save_version = 35; // format version; persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, reflected/attached missile and lightning state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -223,6 +223,10 @@ static field_t const lightning_state_fields[] = {
 static field_t const lightning_fields[] = {
     TF(glightning_t, inuse, F_INT),
     TF(glightning_t, state, F_STRUCT, 1, lightning_state_fields),
+    TF(glightning_t, source_entity, F_EDICT, 0, FIELD_NONE),
+    TF(glightning_t, source_spawn_time, F_INT),
+    TF(glightning_t, target_entity, F_EDICT, 0, FIELD_NONE),
+    TF(glightning_t, target_spawn_time, F_INT),
     TF(glightning_t, script_color, F_FLOAT),
     { NULL, 0, 0, 0, 0, 0 }
 };

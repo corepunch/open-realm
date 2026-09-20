@@ -2002,6 +2002,44 @@ TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
     T_ASSERT(!effect->inuse);
 }
 
+TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
+    BYTE data[1024];
+    VECTOR3 source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
+    LPEDICT source_unit, target_unit;
+    LPGLIGHTNING effect;
+    DWORD size, offset;
+    USHORT header, count;
+    wc3LightningEffect_t wire;
+
+    reset_entities();
+    memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
+    level.next_lightning_id = 0;
+    level.time = 1000;
+    source_unit = alloc_test_unit(MAKEFOURCC('O', 'h', 't', 'r'), source.x, source.y);
+    target_unit = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), target.x, target.y);
+    source_unit->s.origin.z = source.z; source_unit->s.radius = 8.0f;
+    target_unit->s.origin.z = target.z; target_unit->s.radius = 12.0f;
+    effect = G_LightningAdd(MAKEFOURCC('C', 'L', 'P', 'B'), &source, &target,
+                            COLOR32_WHITE, 2000);
+    G_LightningAttach(effect, source_unit, target_unit);
+    T_NOT_NULL(effect);
+
+    source_unit->s.origin.x = 30.0f; source_unit->s.origin.y = 40.0f;
+    target_unit->s.origin.x = 300.0f; target_unit->s.origin.y = 400.0f;
+    size = G_WriteClientDatagram(NULL, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_LIGHTNING);
+    offset = sizeof(header) + (header & ~BZ_GAME_DATAGRAM_FLAGS) * sizeof(wc3WeatherEffect_t);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    T_EQ(count, 1);
+    memcpy(&wire, data + offset, sizeof(wire));
+    T_FEQ(wire.source.x, 30.0f, 0.001f); T_FEQ(wire.source.y, 40.0f, 0.001f);
+    T_FEQ(wire.target.x, 300.0f, 0.001f); T_FEQ(wire.target.y, 400.0f, 0.001f);
+    T_FEQ(wire.source.z, source.z + 4.0f, 0.001f);
+    T_FEQ(wire.target.z, target.z + 6.0f, 0.001f);
+}
+
 TEST(wc3_api, jass_lightning_natives_use_the_presentation_registry) {
     LPGLIGHTNING effect;
     DWORD id = UINT32_MAX;

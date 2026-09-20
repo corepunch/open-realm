@@ -80,6 +80,7 @@ DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
         LPGLIGHTNING effect = level.lightning_effects + i;
         if (!effect->inuse) continue;
+        G_LightningUpdateAttached(effect);
         if (effect->state.end_time && now >= effect->state.end_time) {
             G_LightningRemove(effect);
             continue;

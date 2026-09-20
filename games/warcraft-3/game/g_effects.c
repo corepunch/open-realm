@@ -176,6 +176,34 @@ void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target) 
     if (target) effect->state.target = *target;
 }
 
+static BOOL G_LightningEntityValid(LPEDICT entity, DWORD spawn_time) {
+    return entity && entity->inuse && entity->spawn_time == spawn_time;
+}
+
+static void G_LightningEndpoint(LPEDICT *entity, DWORD *spawn_time, LPVECTOR3 position) {
+    if (!G_LightningEntityValid(*entity, *spawn_time)) {
+        *entity = NULL; *spawn_time = 0;
+        return;
+    }
+    *position = (*entity)->s.origin;
+    position->z += (*entity)->s.radius * 0.5f;
+}
+
+void G_LightningAttach(LPGLIGHTNING effect, LPCEDICT source, LPCEDICT target) {
+    if (!G_LightningValid(effect)) return;
+    effect->source_entity = (LPEDICT)source;
+    effect->source_spawn_time = source ? source->spawn_time : 0;
+    effect->target_entity = (LPEDICT)target;
+    effect->target_spawn_time = target ? target->spawn_time : 0;
+    G_LightningUpdateAttached(effect);
+}
+
+void G_LightningUpdateAttached(LPGLIGHTNING effect) {
+    if (!G_LightningValid(effect)) return;
+    G_LightningEndpoint(&effect->source_entity, &effect->source_spawn_time, &effect->state.source);
+    G_LightningEndpoint(&effect->target_entity, &effect->target_spawn_time, &effect->state.target);
+}
+
 void G_LightningColor(LPGLIGHTNING effect, COLOR32 color) {
     if (!G_LightningValid(effect)) return;
     effect->state.color = color;
@@ -209,7 +237,11 @@ LPGLIGHTNING G_SpawnAbilityLightning(DWORD ability_id, DWORD index, LPCEDICT sou
      * attachment knowledge. */
     from.z += source->s.radius * 0.5f;
     to.z += target->s.radius * 0.5f;
-    return G_LightningAdd(effect_id, &from, &to, COLOR32_WHITE, duration_ms);
+    {
+        LPGLIGHTNING effect = G_LightningAdd(effect_id, &from, &to, COLOR32_WHITE, duration_ms);
+        G_LightningAttach(effect, source, target);
+        return effect;
+    }
 }
 
 LPCSTR G_AbilityEffectArt(DWORD ability_id, wc3EffectType_t type, DWORD index) {
