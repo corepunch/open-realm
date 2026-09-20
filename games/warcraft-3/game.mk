@@ -252,6 +252,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_RES_DIR)/Maps/MapOverlay.w3x pack \
 		$(TESTS_SRC_DIR)/MapOverlay/Units/CampaignUnitFunc.txt "Units\\CampaignUnitFunc.txt" \
 		$(TESTS_SRC_DIR)/MapOverlay/war3mapMisc.txt war3mapMisc.txt \
+		$(TESTS_SRC_DIR)/MapOverlay/war3mapSkin.txt war3mapSkin.txt \
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a
 	@echo "[test-assets] packing tests.mpq"
 	@set --; \

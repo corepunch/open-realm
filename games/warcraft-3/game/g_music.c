@@ -3,6 +3,20 @@
 
 extern LPPLAYER currentplayer;
 
+typedef struct {
+    char name[WC3_MUSIC_NAME_MAX];
+    wc3MusicSource_t source;
+    BOOL random, paused, valid;
+    LONG index, position_ms, fade_ms;
+} wc3MusicRestore_t;
+
+static wc3MusicRestore_t music_restore[MAX_CLIENTS];
+
+static wc3MusicRestore_t *G_MusicRestore(LPGAMECLIENT client) {
+    if (!client || client->ps.number >= MAX_CLIENTS) return NULL;
+    return music_restore + client->ps.number;
+}
+
 static void G_MusicTrimToken(LPCSTR start, size_t length, LPSTR out, size_t out_size) {
     LPCSTR end = start + length;
 
@@ -135,44 +149,41 @@ static void G_MusicSetCurrent(LPGAMECLIENT client, wc3MusicSource_t source, LPCS
     state->paused = false;
 }
 
-static void G_MusicClearThematicPrevious(wc3MusicState_t *state) {
-    if (!state) return;
-    state->thematic_previous_name[0] = '\0';
-    state->thematic_previous_source = WC3_MUSIC_SOURCE_NONE;
-    state->thematic_previous_random = false;
-    state->thematic_previous_index = 0;
-    state->thematic_previous_position_ms = 0;
-    state->thematic_previous_fade_ms = 0;
-    state->thematic_previous_paused = false;
-    state->thematic_previous_valid = false;
+static void G_MusicClearThematicPrevious(LPGAMECLIENT client) {
+    wc3MusicRestore_t *restore = G_MusicRestore(client);
+    if (restore) memset(restore, 0, sizeof(*restore));
 }
 
-static void G_MusicRememberThematicPrevious(wc3MusicState_t *state) {
-    if (!state || state->current_source == WC3_MUSIC_SOURCE_NONE ||
+static void G_MusicRememberThematicPrevious(LPGAMECLIENT client) {
+    wc3MusicState_t *state = client ? &client->music : NULL;
+    wc3MusicRestore_t *restore = G_MusicRestore(client);
+    if (!restore || !state || state->current_source == WC3_MUSIC_SOURCE_NONE ||
         state->current_source == WC3_MUSIC_SOURCE_THEMATIC || !state->current_name[0]) {
-        G_MusicClearThematicPrevious(state);
+        G_MusicClearThematicPrevious(client);
         return;
     }
-    strlcpy(state->thematic_previous_name, state->current_name, sizeof(state->thematic_previous_name));
-    state->thematic_previous_source = state->current_source;
-    state->thematic_previous_random = state->current_random;
-    state->thematic_previous_index = state->current_index;
-    state->thematic_previous_position_ms = state->current_position_ms;
-    state->thematic_previous_fade_ms = state->current_fade_ms;
-    state->thematic_previous_paused = state->paused;
-    state->thematic_previous_valid = true;
+    strlcpy(restore->name, state->current_name, sizeof(restore->name));
+    restore->source = state->current_source;
+    restore->random = state->current_random;
+    restore->index = state->current_index;
+    restore->position_ms = state->current_position_ms;
+    restore->fade_ms = state->current_fade_ms;
+    restore->paused = state->paused;
+    restore->valid = true;
 }
 
-static BOOL G_MusicRestoreThematicPrevious(wc3MusicState_t *state) {
-    if (!state || !state->thematic_previous_valid || !state->thematic_previous_name[0]) return false;
-    strlcpy(state->current_name, state->thematic_previous_name, sizeof(state->current_name));
-    state->current_source = state->thematic_previous_source;
-    state->current_random = state->thematic_previous_random;
-    state->current_index = state->thematic_previous_index;
-    state->current_position_ms = state->thematic_previous_position_ms;
-    state->current_fade_ms = state->thematic_previous_fade_ms;
-    state->paused = state->thematic_previous_paused;
-    G_MusicClearThematicPrevious(state);
+static BOOL G_MusicRestoreThematicPrevious(LPGAMECLIENT client) {
+    wc3MusicState_t *state = client ? &client->music : NULL;
+    wc3MusicRestore_t *restore = G_MusicRestore(client);
+    if (!restore || !state || !restore->valid || !restore->name[0]) return false;
+    strlcpy(state->current_name, restore->name, sizeof(state->current_name));
+    state->current_source = restore->source;
+    state->current_random = restore->random;
+    state->current_index = restore->index;
+    state->current_position_ms = restore->position_ms;
+    state->current_fade_ms = restore->fade_ms;
+    state->paused = restore->paused;
+    G_MusicClearThematicPrevious(client);
     return true;
 }
 
@@ -181,6 +192,16 @@ static BOOL G_MusicMapMatchesCurrent(wc3MusicState_t const *state) {
         !strcmp(state->current_name, state->map_name) &&
         state->current_random == state->map_random &&
         state->current_index == state->map_index;
+}
+
+BOOL G_MusicAcceptFinished(LPGAMECLIENT client, DWORD source, DWORD token) {
+    wc3MusicState_t const *state;
+    char playlist[WC3_MUSIC_NAME_MAX];
+
+    if (!client || source != (DWORD)client->music.current_source) return false;
+    state = &client->music;
+    G_MusicResolvePlaylist(client, state->current_name, playlist, sizeof(playlist));
+    return token == BZ_MusicSessionToken(playlist, source, state->current_index);
 }
 
 static void G_MusicForRecipients(void (*callback)(LPGAMECLIENT client, void *context), void *context) {
@@ -193,6 +214,7 @@ static void G_MusicForRecipients(void (*callback)(LPGAMECLIENT client, void *con
 }
 
 void G_MusicResetState(void) {
+    memset(music_restore, 0, sizeof(music_restore));
     FOR_LOOP(i, game.max_clients) {
         memset(&game.clients[i].music, 0, sizeof(game.clients[i].music));
         game.clients[i].music.volume = 127;
@@ -245,36 +267,33 @@ void G_MusicSyncClient(LPGAMECLIENT client) {
             /* Thematic music temporarily overlays the previous ordinary
              * session.  Rebuild that session first so the client can restore
              * it automatically when the one-shot theme reaches EOF. */
-            if (state->thematic_previous_valid &&
-                state->thematic_previous_source == WC3_MUSIC_SOURCE_MAP &&
-                state->thematic_previous_name[0]) {
-                G_MusicWriteNamed(client, MUSIC_CMD_SET_MAP, state->thematic_previous_name,
-                                  state->thematic_previous_random, state->thematic_previous_index, 0, 0);
-                if (strcmp(state->thematic_previous_name, state->map_name) ||
-                    state->thematic_previous_random != state->map_random ||
-                    state->thematic_previous_index != state->map_index) {
+            {
+                wc3MusicRestore_t *restore = G_MusicRestore(client);
+                if (restore && restore->valid && restore->source == WC3_MUSIC_SOURCE_MAP && restore->name[0]) {
+                    G_MusicWriteNamed(client, MUSIC_CMD_SET_MAP, restore->name,
+                                      restore->random, restore->index, 0, 0);
+                    if (strcmp(restore->name, state->map_name) || restore->random != state->map_random ||
+                        restore->index != state->map_index) {
+                        if (state->map_name[0])
+                            G_MusicWriteNamed(client, MUSIC_CMD_SET_MAP, state->map_name,
+                                              state->map_random, state->map_index, 0, 0);
+                        else
+                            G_MusicWriteSimple(client, MUSIC_CMD_CLEAR_MAP, 0);
+                    }
+                    if (restore->position_ms > 0)
+                        G_MusicWriteSimple(client, MUSIC_CMD_SET_POSITION, restore->position_ms);
+                    if (restore->paused)
+                        G_MusicWriteSimple(client, MUSIC_CMD_STOP, 0);
+                } else {
                     if (state->map_name[0])
                         G_MusicWriteNamed(client, MUSIC_CMD_SET_MAP, state->map_name,
                                           state->map_random, state->map_index, 0, 0);
-                    else
-                        G_MusicWriteSimple(client, MUSIC_CMD_CLEAR_MAP, 0);
-                }
-                if (state->thematic_previous_position_ms > 0)
-                    G_MusicWriteSimple(client, MUSIC_CMD_SET_POSITION,
-                                       state->thematic_previous_position_ms);
-                if (state->thematic_previous_paused)
-                    G_MusicWriteSimple(client, MUSIC_CMD_STOP, 0);
-            } else {
-                if (state->map_name[0])
-                    G_MusicWriteNamed(client, MUSIC_CMD_SET_MAP, state->map_name,
-                                      state->map_random, state->map_index, 0, 0);
-                if (state->thematic_previous_valid &&
-                    state->thematic_previous_source == WC3_MUSIC_SOURCE_EXPLICIT &&
-                    state->thematic_previous_name[0]) {
-                    G_MusicWriteNamed(client, MUSIC_CMD_PLAY, state->thematic_previous_name,
-                                      true, 0, state->thematic_previous_position_ms, 0);
-                    if (state->thematic_previous_paused)
-                        G_MusicWriteSimple(client, MUSIC_CMD_STOP, 0);
+                    if (restore && restore->valid && restore->source == WC3_MUSIC_SOURCE_EXPLICIT && restore->name[0]) {
+                        G_MusicWriteNamed(client, MUSIC_CMD_PLAY, restore->name, true, 0,
+                                          restore->position_ms, 0);
+                        if (restore->paused)
+                            G_MusicWriteSimple(client, MUSIC_CMD_STOP, 0);
+                    }
                 }
             }
             G_MusicWriteNamed(client, MUSIC_CMD_PLAY_THEMATIC, state->current_name,
@@ -311,7 +330,7 @@ static void G_MusicSetMapClient(LPGAMECLIENT client, void *context) {
     if (state->current_source == WC3_MUSIC_SOURCE_NONE) {
         G_MusicSetCurrent(client, WC3_MUSIC_SOURCE_MAP, state->map_name,
                           state->map_random, state->map_index, 0, 0);
-        G_MusicClearThematicPrevious(state);
+        G_MusicClearThematicPrevious(client);
     }
     G_MusicWriteNamed(client, MUSIC_CMD_SET_MAP, state->map_name,
                       state->map_random, state->map_index, 0, 0);
@@ -342,7 +361,7 @@ typedef struct {
 
 static void G_MusicPlayClient(LPGAMECLIENT client, void *context) {
     musicPlayContext_t const *ctx = context;
-    G_MusicClearThematicPrevious(&client->music);
+        G_MusicClearThematicPrevious(client);
     G_MusicSetCurrent(client, WC3_MUSIC_SOURCE_EXPLICIT, ctx->name, true, 0, ctx->start_ms, ctx->fade_ms);
     G_MusicWriteNamed(client, MUSIC_CMD_PLAY, ctx->name, true, 0, ctx->start_ms, ctx->fade_ms);
 }
@@ -375,7 +394,7 @@ void G_MusicResume(void) {
 static void G_MusicPlayThematicClient(LPGAMECLIENT client, void *context) {
     musicPlayContext_t const *ctx = context;
     if (client->music.current_source != WC3_MUSIC_SOURCE_THEMATIC)
-        G_MusicRememberThematicPrevious(&client->music);
+        G_MusicRememberThematicPrevious(client);
     G_MusicSetCurrent(client, WC3_MUSIC_SOURCE_THEMATIC, ctx->name, false, 0, ctx->start_ms, 0);
     G_MusicWriteNamed(client, MUSIC_CMD_PLAY_THEMATIC, ctx->name, false, 0, ctx->start_ms, 0);
 }
@@ -405,14 +424,14 @@ void G_MusicThematicFinished(LPGAMECLIENT client) {
     if (!client) return;
     state = &client->music;
     if (state->current_source != WC3_MUSIC_SOURCE_THEMATIC) return;
-    if (!G_MusicRestoreThematicPrevious(state)) {
+    if (!G_MusicRestoreThematicPrevious(client)) {
         if (state->map_name[0]) {
             G_MusicSetCurrent(client, WC3_MUSIC_SOURCE_MAP, state->map_name,
                               state->map_random, state->map_index, 0, 0);
         } else {
             G_MusicSetCurrent(client, WC3_MUSIC_SOURCE_NONE, "", false, 0, 0, 0);
         }
-        G_MusicClearThematicPrevious(state);
+        G_MusicClearThematicPrevious(client);
     }
 }
 
