@@ -178,6 +178,25 @@ static particleVertex_t *R_AddParticleUV(particleVertex_t *buffer,
     return buffer + NUM_PARTICLE_VERTICES;
 }
 
+/* Ribbon geometry uses axis.y for its length and axis.x for its width, so the
+ * authored texture's U axis must follow axis.y rather than axis.x. */
+static particleVertex_t *R_AddRibbonUV(particleVertex_t *buffer,
+                                        LPCVECTOR3 point, LPCVECTOR3 tail,
+                                        FLOAT u0, FLOAT u1, FLOAT v0, FLOAT v1,
+                                        COLOR32 color, FLOAT size) {
+    BYTE a = 0x00, b = 0xff;
+    particleVertex_t const data[NUM_PARTICLE_VERTICES] = {
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v1}, .axis = {a,a}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v0}, .axis = {b,a}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v0}, .axis = {b,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v0}, .axis = {b,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v1}, .axis = {a,b}, .color = color, .size = size },
+        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v1}, .axis = {a,a}, .color = color, .size = size },
+    };
+    memcpy(buffer, data, sizeof(data));
+    return buffer + NUM_PARTICLE_VERTICES;
+}
+
 particleVertex_t *
 R_AddParticle(particleVertex_t *buffer,
               LPCVECTOR3 point,
@@ -391,9 +410,10 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
         FLOAT length = Vector3_len(&tail);
         if (length <= 0.001f) continue;
         if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;
-        pv = R_AddParticleUV(pv, draw->points + i + 1, &tail,
-            draw->texcoord_phase + distance * draw->texcoord_scale, 1.0f,
-            draw->texcoord_phase + (distance + length) * draw->texcoord_scale, 0.0f,
+        pv = R_AddRibbonUV(pv, draw->points + i + 1, &tail,
+            draw->texcoord_phase + distance * draw->texcoord_scale,
+            draw->texcoord_phase + (distance + length) * draw->texcoord_scale,
+            0.0f, 1.0f,
             draw->color, draw->width);
         distance += length;
     }
