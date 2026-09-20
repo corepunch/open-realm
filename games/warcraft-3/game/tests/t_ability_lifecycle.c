@@ -320,10 +320,13 @@ TEST(wc3_ability_lifecycle, cannibalize_rejects_invalid_corpses_and_stops_when_c
 /* A launched bolt must not stun a target which becomes spell immune before impact. */
 TEST(wc3_ability_lifecycle, avatar_blocks_storm_bolt_stun_at_impact) {
     LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    G_SetUnitColorOverride(caster, 6);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     BOOL cast = S_CastUnitTargetSpell(caster, FS_SLKKey("AHtb"), enemy);
     LPEDICT missile = NULL;
     FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    T_EQ((missile->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
     unit_addtimedstatus(enemy, "BHav", 1, 10);
     if (missile) missile->currentmove->endfunc(missile);
     DWORD stun = G_UnitStatusLevel(enemy, FS_SLKKey("Bstu"));

@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 31; // format version; persists hashtables and accepted-build preview edict references
+static DWORD const save_version = 32; // format version; persists map config lifecycle state after hashtables and build previews
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -397,6 +397,7 @@ static field_t const level_fields[] = {
     F(level_locals, environment_fog.defaults_valid, F_INT),
     F(level_locals, camera_bounds, F_VECTOR),
     F(level_locals, started, F_INT),
+    F(level_locals, scriptsConfigured, F_INT),
     F(level_locals, scriptsStarted, F_INT),
     F(level_locals, waypoints.base, F_INT),
     F(level_locals, waypoints.cursor, F_INT),

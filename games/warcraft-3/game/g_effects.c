@@ -188,6 +188,7 @@ LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target,
     }
 
     if (target) {
+        if (target->svflags & SVF_MONSTER) G_InheritUnitTeamColor(effect, target);
         effect->s.origin = target->s.origin;
         effect->s.origin2 = target->s.origin2;
         effect->s.angle = target->s.angle;

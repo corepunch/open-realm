@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 31, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 32, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -51,6 +51,8 @@ not an owned-payload allowlist entry. See [DotA Custom-Map Playability](dota-map
 Version 31 also persists the Human construction `build_preview` edict reference, so an accepted build order's owner-only
 Construction Site Indicator survives save/load as an entity-index fixup rather than a process pointer. Older saves are rejected
 by the exact-version guard.
+Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
+or lose the lifecycle state that gates authored player/team/color initialization. Version 31 saves are rejected by the exact-version guard.
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 

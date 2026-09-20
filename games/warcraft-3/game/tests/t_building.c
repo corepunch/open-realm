@@ -11,6 +11,7 @@ void repair_build_primary(LPEDICT ent, LPEDICT building);
 void repair_build_legacy(LPEDICT ent, LPEDICT building);
 void build_build(LPEDICT ent);
 BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
+void build_menu_selectlocation(LPEDICT ent, DWORD building_id);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 BOOL run_test_jass(LPCSTR src);
@@ -25,6 +26,9 @@ static char building_command_number_text[16];
 static BOOL building_command_number_seen;
 static BOOL building_cursor_opcode_seen;
 static BOOL building_cursor_clear_seen;
+static BOOL building_cursor_entity_seen;
+static DWORD building_cursor_player;
+static USHORT building_cursor_effect_flags;
 static PATHSTR building_image_path;
 static DWORD building_queue_frame_count;
 static USHORT building_queue_buildtimer;
@@ -68,6 +72,11 @@ static void building_capture_write(pfWriteType_t type, void const *value) {
     if (type == PF_ENTITY && building_cursor_opcode_seen) {
         entityState_t const *cursor = value;
         building_cursor_clear_seen = cursor->model == 0;
+        if (cursor->model != 0) {
+            building_cursor_entity_seen = true;
+            building_cursor_player = cursor->player;
+            building_cursor_effect_flags = cursor->effect_flags;
+        }
         building_cursor_opcode_seen = false;
     }
 }
@@ -3504,6 +3513,45 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
     building_restore_repair_data(old_abilities, rows);
 }
 
+TEST(wc3_building, placement_cursor_uses_configured_player_color) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPGAMECLIENT client;
+    LPEDICT worker;
+    UnitProfile_t worker_profile = { .builds = "hbar" };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    reset_entities();
+    setup_test_world();
+    clent = &g_edicts[0];
+    client = &game.clients[0];
+    clent->inuse = true;
+    clent->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    client->ps.color = 6;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    worker->data.UnitProfile = &worker_profile;
+    worker->s.player = 0;
+    worker->svflags |= SVF_MONSTER;
+    G_SelectEntity(client, worker);
+
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    building_cursor_entity_seen = false;
+    building_cursor_player = MAX_PLAYERS;
+    building_cursor_effect_flags = 0;
+    gi.Write = building_capture_write;
+    build_menu_selectlocation(clent, barracks);
+    gi.Write = old_write;
+
+    T_ASSERT(building_cursor_entity_seen);
+    T_EQ(building_cursor_player, 0);
+    T_EQ((building_cursor_effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
+}
 
 TEST(wc3_building, cancel_command_clears_active_build_placement_cursor) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;

@@ -104,6 +104,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Timed Status Presentation](timed-status-presentation.md)
 - [Unit Vertex Color](unit-vertex-color.md)
 - [Unit Selection And Control](selection-and-control.md)
+- [Team Colors](team-colors.md)
 - [Shift Order Queue](order-queue.md)
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
