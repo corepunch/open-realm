@@ -39,16 +39,16 @@ static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_hea
     /* Track demolition attributable to Unsummon rather than the building's
      * current HP.  Enemy damage therefore reduces the eventual refund, while
      * cumulative totals avoid losing the last resource to per-tick float
-     * rounding.  wait/velocity store whole resources already paid. */
-    thinker->collision += removed_health;
+     * rounding. */
+    thinker->unsummon.removed_health += removed_health;
     rate = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 1));
-    fraction = MIN(1.0f, thinker->collision / building->health.max_value);
+    fraction = MIN(1.0f, thinker->unsummon.removed_health / building->health.max_value);
     gold_total = (LONG)floorf(MAX(0, bal->goldCost) * rate * fraction + 0.0001f);
     lumber_total = (LONG)floorf(MAX(0, bal->lumberCost) * rate * fraction + 0.0001f);
-    gold = MAX(0, gold_total - (LONG)thinker->wait);
-    lumber = MAX(0, lumber_total - (LONG)thinker->velocity);
-    thinker->wait = (FLOAT)gold_total;
-    thinker->velocity = (FLOAT)lumber_total;
+    gold = MAX(0, gold_total - thinker->unsummon.gold_paid);
+    lumber = MAX(0, lumber_total - thinker->unsummon.lumber_paid);
+    thinker->unsummon.gold_paid = gold_total;
+    thinker->unsummon.lumber_paid = lumber_total;
     if (gold <= 0 && lumber <= 0) return;
 
     client = G_GetPlayerClientByNumber(building->s.player);

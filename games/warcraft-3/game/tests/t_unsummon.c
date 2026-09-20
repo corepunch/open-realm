@@ -8,6 +8,7 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void G_RunEntities(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -77,7 +78,7 @@ static void uns_tick(LPEDICT caster, DWORD count) {
         LPEDICT thinker = uns_thinker(caster);
         if (!thinker) return;
         level.time += FRAMETIME;
-        thinker->think(thinker);
+        G_RunEntities();
     }
 }
 

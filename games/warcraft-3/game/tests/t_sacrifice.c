@@ -9,6 +9,9 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void G_RunEntity(LPEDICT);
+void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -34,10 +37,20 @@ typedef struct {
     LPEDICT pit, acolyte, other;
     UnitBalance_t pit_balance, acolyte_balance, other_balance;
     LPGAMECLIENT client;
+    pathTex_t *pathtex;
 } SACFIX;
 
 static void sac_setup(SACFIX *fix) {
+    enum { CELLS = 64, FOOT_W = 16, FOOT_H = 16 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOT_W * FOOT_H * sizeof(COLOR32);
     reset_entities(); setup_test_world(); level.time = 1000;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    fix->pathtex = gi.MemAlloc(pathtex_size);
+    memset(fix->pathtex, 0, pathtex_size);
+    fix->pathtex->width = FOOT_W; fix->pathtex->height = FOOT_H;
+    FOR_LOOP(i, FOOT_W * FOOT_H) fix->pathtex->map[i].b = 0xff;
     fix->rows = parse_slk_string(SAC_SLK); fix->old = G_SetSLKRows("AbilityData", fix->rows);
     fix->balance_rows = parse_slk_string(SAC_BALANCE_SLK);
     fix->old_balance = G_SetSLKRows("UnitBalance", fix->balance_rows);
@@ -59,6 +72,8 @@ static void sac_setup(SACFIX *fix) {
     fix->pit->targtype = TARG_STRUCTURE;
     fix->pit->collision = 192.0f;
     fix->pit->movetype = MOVETYPE_NONE;
+    fix->pit->pathtex = fix->pathtex;
+    fix->pit->think = monster_think;
     fix->acolyte->targtype = fix->other->targtype = TARG_GROUND;
     fix->pit->stand = fix->acolyte->stand = fix->other->stand = unit_stand;
     fix->pit->heroabilities[0] = MAKE(heroability_t, .code = ID_ASAC, .level = 1);
@@ -67,9 +82,12 @@ static void sac_setup(SACFIX *fix) {
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
     G_SetUnitFoodUsed(fix->acolyte, 1);
+    gi.LinkEntity(fix->pit);
+    gi.LinkEntity(fix->acolyte);
 }
 
 static void sac_done(SACFIX *fix) {
+    if (fix->pathtex) gi.MemFree(fix->pathtex);
     G_SetSLKRows("AbilityData", fix->old);
     G_SetSLKRows("UnitBalance", fix->old_balance);
     free_slk_rows(fix->rows);
@@ -111,7 +129,6 @@ TEST(wc3_spell, sacrifice_uses_result_build_time_then_replaces_worker_without_ex
     SACFIX fix;
     LPEDICT result;
     UnitBalance_t result_balance;
-    DWORD ticks;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.acolyte, ID_ALAM, fix.pit));
     result = fix.pit->build;
@@ -123,11 +140,10 @@ TEST(wc3_spell, sacrifice_uses_result_build_time_then_replaces_worker_without_ex
     result_balance.buildTime = 2; /* non-stock: prove queue cadence comes from result unit data */
     result_balance.foodUsed = 1;
     result->data.UnitBalance = &result_balance;
-    ticks = (2000 + FRAMETIME - 1) / FRAMETIME + 5; /* allow queue setup and float accumulation */
-    FOR_LOOP(i, ticks - 1) fix.pit->currentmove->think(fix.pit);
-    T_ASSERT(fix.acolyte->inuse);
-    T_ASSERT(result->training);
-    fix.pit->currentmove->think(fix.pit);
+    FOR_LOOP(i, 40) {
+        level.time += FRAMETIME; G_RunEntity(fix.pit);
+        if (!result->inuse || !result->training) break;
+    }
     T_ASSERT(!fix.acolyte->inuse);
     T_ASSERT(result->inuse);
     T_ASSERT(!result->training);

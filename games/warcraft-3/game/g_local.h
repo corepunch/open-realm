@@ -1292,6 +1292,10 @@ struct edict_s {
         BOOL restore_paused;
         BOOL restore_hidden;
     } sacrifice;
+    struct edictUnsummon_s {
+        FLOAT removed_health;
+        LONG gold_paid, lumber_paid;
+    } unsummon;
     DWORD spawn_time;
     DWORD summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     DWORD permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
@@ -1547,6 +1551,7 @@ typedef struct edictConstruction_s edictConstruction_s;
 typedef struct edictRally_s edictRally_s;
 typedef struct edictRevival_s edictRevival_s;
 typedef struct edictSacrifice_s edictSacrifice_s;
+typedef struct edictUnsummon_s edictUnsummon_s;
 typedef struct edictMilitia_s edictMilitia_s;
 typedef struct edictGoldMine_s edictGoldMine_s;
 typedef struct edictMineOverlay_s edictMineOverlay_s;
