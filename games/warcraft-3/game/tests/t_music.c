@@ -215,4 +215,60 @@ TEST(wc3_music, map_skin_overrides_stock_music_skin_fields) {
     SFileCloseArchive(archive);
     gi.MemFree(bytes);
 }
+TEST(wc3_music, sound_file_duration_reads_wav_metadata_without_decoder) {
+    BYTE wav[144] = { 0 };
+
+    memcpy(wav, "RIFF", 4);
+    wav[4] = 136;
+    memcpy(wav + 8, "WAVEfmt ", 8);
+    wav[16] = 16;
+    wav[20] = 1; /* PCM */
+    wav[22] = 1; /* mono */
+    wav[24] = 100; /* 100 Hz */
+    wav[28] = 100; /* 100 bytes/sec */
+    wav[32] = 1; /* block align */
+    wav[34] = 8; /* bits/sample */
+    memcpy(wav + 36, "data", 4);
+    wav[40] = 100;
+
+    T_EQ(G_AudioDurationFromMemory("test.wav", wav, sizeof(wav)), 1000);
+}
+
+TEST(wc3_music, sound_file_duration_scans_variable_rate_mp3_frames) {
+    BYTE mp3[834] = { 0 };
+
+    /* MPEG-1 Layer III, 128 kbps, 44.1 kHz: 417-byte frame, 1152 samples. */
+    mp3[0] = 0xff; mp3[1] = 0xfb; mp3[2] = 0x90; mp3[3] = 0x00;
+    mp3[417] = 0xff; mp3[418] = 0xfb; mp3[419] = 0x90; mp3[420] = 0x00;
+
+    T_EQ(G_AudioDurationFromMemory("test.mp3", mp3, sizeof(mp3)), 52);
+}
+
+TEST(wc3_music, sound_file_duration_reads_ogg_vorbis_granule) {
+    BYTE ogg[58] = { 0 };
+    BYTE *packet = ogg + 28;
+
+    memcpy(ogg, "OggS", 4);
+    ogg[6] = 0x44; ogg[7] = 0xac; /* granule = 44100 samples */
+    ogg[26] = 1;
+    ogg[27] = 30;
+    packet[0] = 1;
+    memcpy(packet + 1, "vorbis", 6);
+    packet[12] = 0x44; packet[13] = 0xac; /* sample rate = 44100 Hz */
+
+    T_EQ(G_AudioDurationFromMemory("test.ogg", ogg, sizeof(ogg)), 1000);
+}
+
+TEST(wc3_music, sound_file_duration_reads_flac_streaminfo) {
+    BYTE flac[42] = { 0 };
+
+    memcpy(flac, "fLaC", 4);
+    flac[4] = 0x80; /* final STREAMINFO block */
+    flac[7] = 34;
+    flac[18] = 0x0a; flac[19] = 0xc4; flac[20] = 0x40; /* 44100 Hz */
+    flac[24] = 0xac; flac[25] = 0x44; /* 44100 total samples */
+
+    T_EQ(G_AudioDurationFromMemory("test.flac", flac, sizeof(flac)), 1000);
+}
+
 #endif

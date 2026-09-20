@@ -97,6 +97,23 @@ Music semantics are retained per Warcraft `GAMECLIENT` in `wc3MusicState_t` even
 
 This is the same general rule used by other server-authored presentation state: JASS may mutate state before a client can receive layout/presentation packets, so the state must not exist only in the outgoing message buffer.
 
+## Glue Music And User Music Options
+
+The standalone Warcraft glue UI uses the same generic client music stream without routing menu state through the game DLL. `games/warcraft-3/menu/menu_main.c` resolves the stock skin fields and calls narrow menu-import callbacks:
+
+- ordinary glue screens use `GlueMusic`;
+- the game-setup/chat screen uses `ChatMusic`, falling back to `GlueMusic` if the chat field is absent;
+- clearing the menu screen stops only the client `CL_MUSIC_SOURCE_MENU` session.
+
+`client/cl_music.c` owns two archived user preferences:
+
+```text
+s_music        0/1, default 1
+s_musicvolume  0.0..1.0, default 1.0
+```
+
+The main-menu Options/Sound `MusicCheckBox` and `MusicVolumeSlider` update those cvars immediately. The user gain multiplies, rather than replaces, Warcraft's JASS music/thematic `0..127` volumes. Disabling music pauses the long-form stream so re-enabling it resumes the same decoder/playlist position instead of silently advancing the soundtrack. The server-authored in-game F10 Options button is still disabled as part of the broader in-game options-panel gap; that does not change the global cvars or music controller contract.
+
 ## JASS Semantics Implemented
 
 ### Map music
@@ -165,6 +182,21 @@ Thematic music uses the one physical music stream but separate logical source/vo
 - a `SetMapMusic` / `ClearMapMusic` change made while an interrupted map track is underneath the theme remains pending and takes effect when that restored map track later reaches EOF.
 
 The client snapshots the interrupted track index and the audible playback position before replacing its decoder. The generic PCM stream counts frames actually consumed by the audio device, so the snapshot excludes decoded-but-not-yet-heard buffered PCM. A `music_snapshot` acknowledgement writes that position and selected track back into the persisted `GAMECLIENT` restore descriptor; `EndThematicMusic()`, natural thematic EOF, reconnect, and save/load therefore restore the same ordinary session at the best available audible position. Exact sample-level retail behavior is not claimed, because FFmpeg seeks may land on an earlier codec key/frame boundary.
+
+### Sound-file duration query
+
+```text
+GetSoundFileDuration(path) -> milliseconds
+```
+
+`GetSoundFileDuration` is synchronous JASS/server state, so it deliberately does **not** call the optional client FFmpeg decoder. `games/warcraft-3/game/g_audio_duration.c` reads the mounted VFS asset once and extracts duration from container/frame metadata without decoding PCM:
+
+- RIFF/WAVE: prefers a `fact` sample count when present (for compressed WAV), otherwise uses `fmt ` byte rate plus accumulated `data` chunk sizes;
+- MP3: skips ID3v2 and scans MPEG 1/2/2.5 Layer I/II/III frame headers, summing samples at each frame's sample rate so VBR files do not assume one bitrate;
+- Ogg Vorbis: reads the identification-header sample rate and final page granule position;
+- FLAC: reads STREAMINFO sample rate and total-sample count.
+
+Missing, malformed, or unsupported files return `0`, matching the safe native fallback. This metadata path is available in both default and `FFMPEG=1` builds and keeps game/JASS ownership independent of client decoder availability.
 
 ## Playlist Behavior
 
@@ -260,6 +292,7 @@ The Warcraft game module resolves each recipient's skin before serialization. `G
 | File | Role |
 |---|---|
 | `games/warcraft-3/game/g_music.c` | Warcraft JASS music state, skin/SLK resolution, per-recipient sync |
+| `games/warcraft-3/game/g_audio_duration.c` | synchronous WAV/MP3/Ogg/FLAC metadata duration for `GetSoundFileDuration` |
 | `games/warcraft-3/game/g_commands.c` | internal client acknowledgements for natural music state transitions |
 | `games/warcraft-3/game/api/api_sound.h` | Music native implementations |
 | `games/warcraft-3/game/g_metadata.c` | Typed `Music.slk` loading |
@@ -267,7 +300,9 @@ The Warcraft game module resolves each recipient's skin before serialization. `G
 | `common/shared.h` | generic `musicCommand_t` presentation commands |
 | `common/common.h` | `svc_music` network opcode |
 | `client/cl_parse.c` | `svc_music` decode |
-| `client/cl_music.c` | playlist, optional FFmpeg decode, seek/fade/EOF handling |
+| `client/cl_music.c` | playlist, menu source, user gain/enable, optional FFmpeg decode, seek/fade/EOF handling |
+| `games/warcraft-3/menu/menu_main.c` | `GlueMusic` / `ChatMusic` skin selection and menu-source lifecycle |
+| `games/warcraft-3/menu/screens/options_menu.c` | Music checkbox/slider -> archived client cvars |
 | `sound/s_local.h`, `sound/s_sound.c` | independent long-form PCM stream mixer |
 | `client/cl_movie.c` | movie/music suspend interaction |
 
@@ -277,12 +312,11 @@ OpenRealm now implements three behaviors as explicit **best-evidence compatibili
 
 The remaining unresolved areas are:
 
-- `GetSoundFileDuration` still returns `0`; a synchronous JASS query cannot safely depend on a client-only decoder without a different ownership design.
 - `StopMusic(true)` uses a **2000 ms** linear fade as an educated compatibility estimate; the exact retail duration still needs direct measurement.
 - codec seeking is millisecond/stream-time based rather than sample-exact; the consumed-frame snapshot identifies what the mixer heard, but FFmpeg may decode from an earlier seek boundary.
-- the continuously advancing ordinary playback head is reported when tracks are selected and when thematic music snapshots it, not every frame; a save taken during ordinary music can therefore resume from the last reported start/seek rather than the exact current millisecond.
-- menu `GlueMusic` / `ChatMusic` and the options music checkbox/slider are not yet wired to this gameplay music controller.
-- builds without `FFMPEG=1` have no fallback MP3 decoder.
+- the continuously advancing ordinary playback head is reported when tracks are selected and when thematic music snapshots it, not every frame; a save taken during ordinary music can therefore resume from the last reported start/seek rather than the exact current millisecond. A synchronous save-time client query would require an explicit prepare/acknowledge phase and is intentionally not faked.
+- the server-authored in-game F10 Options panel remains disabled; the working glue Options/Sound controls and archived `s_music`/`s_musicvolume` cvars already govern menu and gameplay music.
+- builds without `FFMPEG=1` have no compressed **playback** decoder. `GetSoundFileDuration` does not share that limitation because it reads metadata in the game module.
 
 ## Verification
 
@@ -306,5 +340,8 @@ Useful behavioral cases:
 8. Exercise `PlayMusicEx` with a nonzero start position and fade-in.
 9. `StopMusic(false)` then `ResumeMusic()`; the same track should continue rather than select the next track.
 10. Call `StopMusic(true)` during steady playback and during a `PlayMusicEx` fade-in; volume should ramp smoothly to silence over approximately two seconds, then `ResumeMusic()` should continue the same track without a playlist advance.
-11. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
-12. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency.
+11. Call `GetSoundFileDuration` for representative retail WAV and MP3 assets and compare the returned milliseconds with an external media-info tool; malformed/missing files should return `0`.
+12. Enter the main menu/options/game-setup screens: `GlueMusic` should persist across ordinary glue navigation, `ChatMusic` should replace it in game setup when authored, and starting gameplay should clear menu music before map music takes ownership.
+13. In Options -> Sound, disable Music and move the Music Volume slider; `s_music` / `s_musicvolume` should update immediately, disabling should pause rather than advance the current menu/game track, and re-enabling should resume it.
+14. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
+15. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency, and `GetSoundFileDuration` metadata queries should still work even though compressed playback is silent.

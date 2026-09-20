@@ -3,6 +3,7 @@
  */
 
 #include <stdlib.h>
+#include <math.h>
 
 #include "common/video_modes.h"
 #include "../menu_local.h"
@@ -40,6 +41,9 @@ static LPCSTR const opts_lft[] = {
 
 static OptionsMenu_t options_menu;
 static optionsPanel_t current_panel = OPTIONS_PANEL_GAMEPLAY;
+static BOOL music_controls_initialized;
+static BOOL music_enabled_value;
+static int music_volume_percent;
 
 static BOOL OptionsMenu_LoadScreen(void) {
     return OptionsMenu_Load(&options_menu);
@@ -142,6 +146,62 @@ static int OptionsMenu_CvarInteger(LPCSTR name, int fallback) {
     LPCSTR value = mi.Cvar_String(name, NULL);
 
     return value && *value ? atoi(value) : fallback;
+}
+
+static FLOAT OptionsMenu_CvarFloat(LPCSTR name, FLOAT fallback) {
+    LPCSTR value = mi.Cvar_String(name, NULL);
+
+    return value && *value ? (FLOAT)atof(value) : fallback;
+}
+
+static void OptionsMenu_SetCheckBox(LPFRAMEDEF frame, BOOL checked) {
+    if (!frame) return;
+    frame->CheckBox.Checked = checked;
+    if (checked) frame->ui_flags |= UIFLAG_CHECKED;
+    else frame->ui_flags &= ~UIFLAG_CHECKED;
+}
+
+static BOOL OptionsMenu_CheckBoxValue(LPCFRAMEDEF frame, BOOL fallback) {
+    if (!frame) return fallback;
+    return (frame->ui_flags & UIFLAG_CHECKED) != 0;
+}
+
+static int OptionsMenu_MusicSliderPercent(void) {
+    if (!options_menu.MusicVolumeSlider) return music_volume_percent;
+    return MAX(0, MIN(100, (int)floorf(options_menu.MusicVolumeSlider->Slider.InitialValue + 0.5f)));
+}
+
+static void OptionsMenu_InitMusicControls(void) {
+    music_enabled_value = OptionsMenu_CvarInteger("s_music", 1) != 0;
+    music_volume_percent = MAX(0, MIN(100,
+        (int)floorf(OptionsMenu_CvarFloat("s_musicvolume", 1.0f) * 100.0f + 0.5f)));
+    OptionsMenu_SetCheckBox(options_menu.MusicCheckBox, music_enabled_value);
+    if (options_menu.MusicVolumeSlider) {
+        options_menu.MusicVolumeSlider->Slider.MinValue = 0.0f;
+        options_menu.MusicVolumeSlider->Slider.MaxValue = 100.0f;
+        options_menu.MusicVolumeSlider->Slider.StepSize = 1.0f;
+        options_menu.MusicVolumeSlider->Slider.InitialValue = (FLOAT)music_volume_percent;
+    }
+    music_controls_initialized = true;
+}
+
+static void OptionsMenu_RefreshMusicControls(void) {
+    BOOL enabled;
+    int percent;
+    char value[32];
+
+    if (!music_controls_initialized || !mi.Cvar_Set) return;
+    enabled = OptionsMenu_CheckBoxValue(options_menu.MusicCheckBox, music_enabled_value);
+    percent = OptionsMenu_MusicSliderPercent();
+    if (enabled != music_enabled_value) {
+        music_enabled_value = enabled;
+        mi.Cvar_Set("s_music", enabled ? "1" : "0");
+    }
+    if (percent != music_volume_percent) {
+        music_volume_percent = percent;
+        snprintf(value, sizeof(value), "%.2f", (double)percent / 100.0);
+        mi.Cvar_Set("s_musicvolume", value);
+    }
 }
 
 static DWORD OptionsMenu_CvarSelection(LPCSTR name, DWORD fallback, DWORD count) {
@@ -309,6 +369,7 @@ static void OptionsMenu_InitSoundMenus(void) {
                               OPTIONS_ARRAY_COUNT(provider_items),
                               OptionsMenu_CvarSelection("s_provider", 1, OPTIONS_ARRAY_COUNT(provider_items)));
     OptionsMenu_SetPopupCvar(options_menu.ProviderPopupMenuMenu, "s_provider");
+    OptionsMenu_InitMusicControls();
 }
 
 static void OptionsMenu_InitPopupMenus(void) {
@@ -328,6 +389,7 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
 static void OptionsMenu_Init(void) {
     mi.Printf("OptionsMenu_Init\n");
     current_panel = OPTIONS_PANEL_GAMEPLAY;
+    music_controls_initialized = false;
 
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");
     UI_SetOnClick(options_menu.VideoButton, "menu_video");
@@ -347,6 +409,7 @@ static void OptionsMenu_Shutdown(void) {
 
 static void OptionsMenu_Refresh(int msec) {
     (void)msec;
+    OptionsMenu_RefreshMusicControls();
 }
 
 static void OptionsMenu_Draw(void) {
