@@ -6,6 +6,7 @@
 #define BZ_AEYE MAKEFOURCC('A', 'e', 'y', 'e') // Sentry Ward
 #define BZ_AISW MAKEFOURCC('A', 'I', 's', 'w') // item Sentry Ward alias
 #define BZ_APIV MAKEFOURCC('A', 'p', 'i', 'v') // Permanent Invisibility
+#define BZ_ATRU MAKEFOURCC('A', 't', 'r', 'u') // Undead True Sight
 #define BZ_BINV MAKEFOURCC('B', 'i', 'n', 'v') // Invisibility buff
 #define BZ_BSTA MAKEFOURCC('B', 's', 't', 'a') // Stasis Trap stun buff
 #define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F') // timed life
@@ -24,7 +25,7 @@ void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
 static char const wards_slk[] =
-	"ID;PWXL;N;EBB;Y6;X16\n"
+	"ID;PWXL;N;EBB;Y7;X16\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
@@ -48,7 +49,9 @@ static char const wards_slk[] =
 	"C;Y5;X4;K\"vuln,invu\"\nC;Y5;X5;K\"0\"\nC;Y5;X6;K\"0\"\n"
 	"C;Y5;X7;K\"350\"\nC;Y5;X10;K\"3\"\n"
 	"C;Y6;X1;K\"Apiv\"\nC;Y6;X2;K\"Apiv\"\nC;Y6;X3;K\"1\"\n"
-	"C;Y6;X8;K\"2\"\nE\n";
+	"C;Y6;X8;K\"2\"\n"
+	"C;Y7;X1;K\"Atru\"\nC;Y7;X2;K\"Atru\"\nC;Y7;X3;K\"1\"\n"
+	"C;Y7;X7;K\"275\"\nE\n";
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -213,6 +216,22 @@ TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
 }
 
 
+
+TEST(wc3_spell, undead_true_sight_uses_authored_range) {
+	WARDFIX fix;
+	abilityitem_t item = S_AbilityItem(BZ_ATRU);
+	ward_setup(&fix);
+	T_NOT_NULL(item.ability);
+	T_EQ(item.ability->proc, CAbilityPassive);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ATRU, .level = 1);
+	fix.enemy->s.origin2 = (VECTOR2){ 250, 0 };
+	fix.enemy->s.renderfx |= RF_HIDDEN;
+	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
+	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	fix.enemy->s.origin2 = (VECTOR2){ 300, 0 };
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	ward_done(&fix);
+}
 
 TEST(wc3_spell, sentry_true_sight_makes_known_rf_hidden_invisibility_selectable_for_viewer) {
 	WARDFIX fix; VECTOR2 point = { 128, 128 };

@@ -70,8 +70,8 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format 36 expands the raw GAMECLIENT music state with stable session ids and persisted thematic restore state. */
-static DWORD const save_version = 36;
+/* Format 37 additionally persists the Undead Sacrifice worker relationship; format 36 expanded the raw GAMECLIENT music state. */
+static DWORD const save_version = 37;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -131,6 +131,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(chain_lightning_think),
     SAVE_CFUNCTION(mass_teleport_think),
     SAVE_CFUNCTION(divine_shield_think),
+    SAVE_CFUNCTION(unsummon_think),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -478,6 +479,11 @@ static field_t const revival_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const sacrifice_fields[] = {
+    TF(edictSacrifice_s, worker, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const militia_fields[] = {
     TF(edictMilitia_s, partner, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMilitia_s, partner_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
@@ -654,6 +660,7 @@ field_t edict_fields[] = {
     F(edict_s, construction, F_STRUCT, 1, construction_fields),
     F(edict_s, rally, F_STRUCT, 1, rally_fields),
     F(edict_s, revival, F_STRUCT, 1, revival_fields),
+    F(edict_s, sacrifice, F_STRUCT, 1, sacrifice_fields),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, goldmine, F_STRUCT, 1, goldmine_fields),
     F(edict_s, mineoverlay, F_STRUCT, 1, mineoverlay_fields),

@@ -98,7 +98,8 @@ static BOOL ward_is_sentry(LPCEDICT ward) {
 static FLOAT unit_detector_range(LPCEDICT detector) {
 	static DWORD const abilities[] = {
 		MAKEFOURCC('A', 'd', 'e', 't'), /* Detector */
-		MAKEFOURCC('A', 'g', 'y', 'v'), /* True Sight */
+		MAKEFOURCC('A', 'g', 'y', 'v'), /* True Sight (Flying Machine) */
+		MAKEFOURCC('A', 't', 'r', 'u'), /* True Sight (Undead Shade) */
 		MAKEFOURCC('A', 'd', 't', 's'), /* Magic Sentry */
 		MAKEFOURCC('A', 'b', 'd', 't'), /* Burrow Detection */
 		ID_ADT1,                         /* Detect (Sentry Ward) */

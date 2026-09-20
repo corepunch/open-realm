@@ -119,7 +119,8 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Possession Apos/ACps instant and Aps2 channel, caster consume, DataB amp | [docs/games/warcraft-3/possession.md](docs/games/warcraft-3/possession.md) |
 | WC3 Unstable Concoction Auco air suicide blast, DataB/C/D splash, caster dies | [docs/games/warcraft-3/unstable-concoction.md](docs/games/warcraft-3/unstable-concoction.md) |
 | WC3 Exhume Corpses Aexh Dur interval, DataA cap, UnitID corpse, cargo deferred | [docs/games/warcraft-3/exhume-corpses.md](docs/games/warcraft-3/exhume-corpses.md) |
-| WC3 Unsummon Building Auns DataA refund of UnitBalance gold/lumber | [docs/games/warcraft-3/unsummon.md](docs/games/warcraft-3/unsummon.md) |
+| WC3 Unsummon Building Auns timed DataB demolition, progressive DataA refund, Buns immunity | [docs/games/warcraft-3/unsummon.md](docs/games/warcraft-3/unsummon.md) |
+| WC3 Undead Sacrifice Asac/Alam Acolyte-to-Shade production lifecycle | [docs/games/warcraft-3/sacrifice.md](docs/games/warcraft-3/sacrifice.md) |
 | WC3 Hippogryph couple Acoa/Acoh mount and Adec dismount, UnitID ehpr | [docs/games/warcraft-3/hippogryph-couple.md](docs/games/warcraft-3/hippogryph-couple.md) |
 | WC3 Spirit Link Aspl DataA share / DataB cap, Bspl redirect via T_Damage | [docs/games/warcraft-3/spirit-link.md](docs/games/warcraft-3/spirit-link.md) |
 | WC3 Mana Flare Amfl channel, Bmfl armor/DataE, enemy-cast flare hook | [docs/games/warcraft-3/mana-flare.md](docs/games/warcraft-3/mana-flare.md) |

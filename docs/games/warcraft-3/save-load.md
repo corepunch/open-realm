@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 36, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 37, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -77,7 +77,10 @@ Version 35 adds entity attachment and spawn-generation fields to each lightning 
 
 Version 36 expands the raw `GAMECLIENT` Warcraft music state with per-client session serials/IDs and the thematic restore descriptor. The session ID is the authoritative lifecycle identity echoed by client `music_selected` / `music_finished` acknowledgements, replacing playlist-text/index hashes that could disagree after random initial selection, missing-track fallback, or comma/semicolon normalization. The restore descriptor persists the interrupted source, selected track, pause state, and the client-observed audible millisecond snapshot reported when thematic music begins, so a save taken during a theme can restore the underlying ordinary music session after reload. Version 35 saves are rejected by the exact-version guard because the raw client record grew.
 
+Version 37 adds the Undead Sacrifice queue relationship. A queued Shade carries `edict_s.sacrifice` and `sacrifice.worker` is relocated through an `F_EDICT` fixup; the saved worker generation and hidden/paused restoration scalars remain in the raw edict record. This lets a save taken while an Acolyte is hidden inside a Sacrificial Pit resume the same production item and cancel/complete safely instead of retaining a process pointer. See [Undead Sacrifice](sacrifice.md). Version 36 saves are rejected by the exact-version guard because the raw edict record grew.
+
 Corpse lifecycle (`AI_CORPSE_UNRAISABLE`, `AI_CORPSE_NO_DECAY`) rides in the already-persisted `aiflags` edict field, so Death Pact sacrifices and consumed Animated Dead corpses keep their non-raisable/no-decay state across save/load without a format change.
+
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 

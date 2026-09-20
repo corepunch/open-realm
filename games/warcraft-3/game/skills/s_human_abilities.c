@@ -63,7 +63,7 @@ static void human_toggle_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
 /* Retail timed immunity buffs block spell targeting and impacts, independently of physical damage. */
 BOOL S_UnitSpellImmune(LPCEDICT unit) {
     return unit && (G_UnitStatusLevel(unit, BZ_AVATAR_BUFF) || G_UnitStatusLevel(unit, BZ_ANTI_MAGIC_SHELL_BUFF) ||
-                    S_PossessionSpellImmune(unit));
+                    G_UnitStatusLevel(unit, MAKEFOURCC('B','u','n','s')) || S_PossessionSpellImmune(unit));
 }
 
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.

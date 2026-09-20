@@ -501,11 +501,11 @@ static ability_t abilitylist[] = {
     // TODO: Aabs a_aura  /* Absorb Mana */
     // TODO: Abur a_creep_sleep  /* Burrow */
     // TODO: Amtc a_unknown  /* Cargo Hold */
-    // TODO: Atru a_true_sight  /* True Sight */
-    { "Auns", CAbilityUnsummon, AB_SPELL, SPELL_TARGET_UNIT },  /* Unsummon Building */
+    { "Atru", CAbilityPassive, AB_PASSIVE },  /* True Sight */
+    { "Auns", CAbilityUnsummon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Unsummon Building */
     // TODO: Agyd a_simple_spell  /* Create Corpse */
-    // TODO: Alam a_spell  /* Sacrifice */
-    // TODO: Asac a_spell  /* Sacrifice */
+    { "Alam", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Acolyte) */
+    { "Asac", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Sacrificial Pit) */
     { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
     // TODO: Aspa CAbilityAttack  /* Spider Attack */
     // TODO: Aweb a_auto_target_spell  /* Web */

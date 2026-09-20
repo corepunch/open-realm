@@ -1,40 +1,142 @@
 #include "s_skills.h"
 
+#define ID_UNSUMMON_BUFF MAKEFOURCC('B','u','n','s')
+
+static void unsummon_remove_status(LPEDICT building) {
+    if (!building) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        if (building->abilstatus[i].level && building->abilstatus[i].code == ID_UNSUMMON_BUFF)
+            memset(building->abilstatus + i, 0, sizeof(building->abilstatus[i]));
+    }
+    G_InvalidateUnitInfoPanel(building);
+}
+
+static void unsummon_add_status(LPEDICT building) {
+    if (!building || G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return;
+    unit_addstatus(building, "Buns", 1);
+}
+
 /* Owned living structure only; S_SpellAllowsTarget ignores structure/player tokens. */
 static BOOL unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT building = st.entity;
     (void)spell;
     if (!caster || !building || !S_SpellIsAliveTarget(building)) return false;
     if (building->s.player != caster->s.player) return false;
-    return G_UnitIsBuilding(building->class_id);
+    return G_UnitIsBuilding(building->class_id) && !G_UnitStatusLevel(building, ID_UNSUMMON_BUFF);
 }
 
-/* Refund DataA of UnitBalance gold/lumber (same cost source as cancel-build payment), then kill. */
-static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT building = st.entity;
+static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_health) {
     UnitBalance_t const *bal;
     LPGAMECLIENT client;
-    DWORD level;
-    FLOAT rate;
-    LONG gold, lumber;
+    FLOAT rate, fraction;
+    LONG gold_total, lumber_total, gold, lumber;
 
-    if (!unsummon_validate(caster, st, spell)) return;
+    if (!thinker || !building || removed_health <= 0.0f || building->health.max_value <= 0.0f) return;
     bal = building->data.UnitBalance;
     if (!bal) bal = G_UnitBalance(building->class_id);
     if (!bal) return;
-    level = S_SpellLevel(caster, spell->code);
-    rate = S_SpellData(spell->code, level, 1);
-    if (rate < 0.0f) rate = 0.0f;
-    gold = (LONG)(MAX(0, bal->goldCost) * rate);
-    lumber = (LONG)(MAX(0, bal->lumberCost) * rate);
+
+    /* Track demolition attributable to Unsummon rather than the building's
+     * current HP.  Enemy damage therefore reduces the eventual refund, while
+     * cumulative totals avoid losing the last resource to per-tick float
+     * rounding.  wait/velocity store whole resources already paid. */
+    thinker->collision += removed_health;
+    rate = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 1));
+    fraction = MIN(1.0f, thinker->collision / building->health.max_value);
+    gold_total = (LONG)floorf(MAX(0, bal->goldCost) * rate * fraction + 0.0001f);
+    lumber_total = (LONG)floorf(MAX(0, bal->lumberCost) * rate * fraction + 0.0001f);
+    gold = MAX(0, gold_total - (LONG)thinker->wait);
+    lumber = MAX(0, lumber_total - (LONG)thinker->velocity);
+    thinker->wait = (FLOAT)gold_total;
+    thinker->velocity = (FLOAT)lumber_total;
+    if (gold <= 0 && lumber <= 0) return;
+
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number == building->s.player) {
-        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += gold;
-        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += lumber;
+        LONG value;
+        value = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + gold;
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(value, USHRT_MAX);
+        value = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + lumber;
+        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(value, USHRT_MAX);
         G_RefreshResourceBar(G_GetPlayerEntityByNumber(building->s.player));
     }
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, building, NULL, true);
-    unit_die(building, caster);
 }
 
-BZ_VALIDATED_SPELL_PROC(AbilityUnsummon, unsummon_validate, unsummon_execute)
+void unsummon_think(LPEDICT thinker) {
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+    LPEDICT building = thinker ? thinker->goalentity : NULL;
+    FLOAT damage, removed;
+
+    if (!thinker) return;
+    if (!building || !building->inuse || building->spawn_time != thinker->channel.target_spawn_time ||
+        M_IsDead(building) || building->s.player != (caster ? caster->s.player : MAX_PLAYERS) ||
+        !S_SpellChannelActive(thinker)) {
+        if (building && building->inuse && building->spawn_time == thinker->channel.target_spawn_time)
+            unsummon_remove_status(building);
+        S_SpellEndChannel(thinker);
+        return;
+    }
+
+    damage = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 2)) * ((FLOAT)FRAMETIME / 1000.0f);
+    if (damage <= 0.0f) {
+        unsummon_remove_status(building);
+        S_SpellEndChannel(thinker);
+        return;
+    }
+    removed = MIN(building->health.value, damage);
+    unsummon_credit(thinker, building, removed);
+    G_AddHealth(building, -removed);
+    if (building->health.value <= 0.0f) {
+        unsummon_remove_status(building);
+        unit_die(building, caster);
+        S_SpellEndChannel(thinker);
+    }
+}
+
+static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    LPEDICT thinker;
+    DWORD level;
+
+    if (!unsummon_validate(caster, st, spell)) return;
+    level = S_SpellLevel(caster, spell->code);
+    if (S_SpellData(spell->code, level, 2) <= 0.0f) {
+        S_SpellCancelChannel(caster);
+        return;
+    }
+    thinker = S_SpellChannelThinker(caster, spell->code);
+    thinker->goalentity = st.entity;
+    thinker->channel.target_spawn_time = st.entity->spawn_time;
+    thinker->resources = level;
+    thinker->think = unsummon_think;
+    unsummon_add_status(st.entity);
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+}
+
+static void unsummon_cancel_owned(LPEDICT caster, DWORD code) {
+    if (!caster || !code) return;
+    for (DWORD i = 1; i < globals.num_edicts; i++) {
+        LPEDICT thinker = g_edicts + i;
+        if (!thinker->inuse || thinker->think != unsummon_think || thinker->owner != caster ||
+            thinker->class_id != code) continue;
+        if (thinker->goalentity && thinker->goalentity->inuse &&
+            thinker->goalentity->spawn_time == thinker->channel.target_spawn_time)
+            unsummon_remove_status(thinker->goalentity);
+    }
+}
+
+BZ_ABILITY_PROC(CAbilityUnsummon) {
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    switch (msg) {
+    case A_VALIDATE:
+        return unsummon_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE:
+        unsummon_execute(ent, target, call ? call->item : NULL);
+        return true;
+    case A_CANCEL:
+        unsummon_cancel_owned(ent, call && call->item ? call->item->code : MAKEFOURCC('A','u','n','s'));
+        return true;
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
