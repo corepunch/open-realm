@@ -274,7 +274,6 @@ BZ_ABILITY_PROC(CAbilityInferno);
 BZ_ABILITY_PROC(CAbilityDarkPortal);
 BZ_ABILITY_PROC(CAbilityVolcano);
 BZ_ABILITY_PROC(CAbilityUnsummon);
-void S_UnsummonDebugCast(LPEDICT, DWORD, LPEDICT, LPCSTR, LPCSTR);
 BZ_ABILITY_PROC(CAbilitySacrifice);
 BZ_ABILITY_PROC(CAbilityHealingSpray);
 BZ_ABILITY_PROC(CAbilityTransmute);
