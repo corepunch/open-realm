@@ -129,8 +129,8 @@ typedef struct {
     BOOL    isBuildOn;               /* TFT-only                           */
     LONG    cargoSize;
     /* death -----------------------------------------------------------------*/
-    FLOAT   death;                   /* corpse decay time                  */
-    LONG    deathType;
+    FLOAT   death;                   /* authored death animation time      */
+    LONG    deathType;               /* bit 0 raise, bit 1 decay            */
     /* line-of-sight / formation ---------------------------------------------*/
     BOOL    useExtendedLineOfSight;
     LONG    formationRank;

@@ -63,6 +63,11 @@ does not stop it. HP already removed and resources already returned remain; the
 building continues ticking until it dies or the effect reaches another valid
 terminal state.
 
+Building removal after the demolition death animation follows the authored
+`UnitData.deathType` contract. Buildings without the decay bit are removed
+after their death animation; the generic unit corpse timer is reserved for
+rows that explicitly author decay.
+
 While `Buns` is active, the building cannot attack and its training, research,
 and in-place upgrade progress is paused. Its command card hides action and
 cancel buttons; a rally button remains available for producers that support

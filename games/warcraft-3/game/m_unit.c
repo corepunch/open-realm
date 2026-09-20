@@ -12,6 +12,7 @@ BOOL G_UnitIsHero(LPCEDICT ent);
 /* WC3 corpse lifetime: DecayTime (flesh, 2s) + BoneDecayTime (bone, 88s) = 90s
  * after the death animation, then the corpse is removed (MiscData.txt). */
 #define UNIT_DECAY_SECONDS 90.0f
+#define UNIT_DEATH_TYPE_DECAY (1 << 1)
 
 void ai_birth2(LPEDICT self) {
     unit_runwait(self, unit_stand);
@@ -49,7 +50,10 @@ static void hero_become_revivable(LPEDICT self) {
  * enter the decay owner only long enough for its normal think callback to free them;
  * ordinary deaths keep the authored corpse window below. */
 void unit_begin_decay(LPEDICT self) {
-    BOOL const no_decay = self->aiflags & AI_CORPSE_NO_DECAY && !G_UnitIsHero(self);
+    UnitData_t const *data = self && self->data.UnitData ? self->data.UnitData :
+        (self ? G_UnitData(self->class_id) : NULL);
+    BOOL const no_decay = !G_UnitIsHero(self) &&
+        ((self->aiflags & AI_CORPSE_NO_DECAY) || !data || !(data->deathType & UNIT_DEATH_TYPE_DECAY));
     unit_setmove(self, &unit_move_decay);
     self->aiflags |= AI_HOLD_FRAME;
     if (no_decay) { self->wait = FRAMETIME / 1000.0f; return; }
