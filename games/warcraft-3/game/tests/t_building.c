@@ -2355,6 +2355,96 @@ TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) 
     T_FEQ(building->construction.progress, (FLOAT)FRAMETIME, 0.001f);
 }
 
+TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
+    static char const ziggurat_balance_slk[] =
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"goldcost\"\nC;Y1;X3;K\"lumbercost\"\n"
+        "C;Y1;X4;K\"realHP\"\nC;Y1;X5;K\"bldtm\"\n"
+        "C;Y1;X6;K\"fused\"\nC;Y1;X7;K\"fmade\"\n"
+        "C;Y1;X8;K\"isbldg\"\n"
+        "C;Y2;X1;K\"uzig\"\nC;Y2;X2;K100\nC;Y2;X3;K50\n"
+        "C;Y2;X4;K1000\nC;Y2;X5;K60\nC;Y2;X6;K0\n"
+        "C;Y2;X7;K0\nC;Y2;X8;K1\nE\n";
+    LPGAMECLIENT client;
+    UnitData_t acolyte_data;
+    UnitProfile_t acolyte_profile = { .builds = "uzig" };
+    UnitBalance_t ziggurat_balance;
+    LPEDICT acolyte, ziggurat = NULL;
+    slkTestData_t *balance_rows, *old_balance;
+    VECTOR2 const build_point = { 64.0f, 0.0f };
+    VECTOR2 const move_point = { -128.0f, 0.0f };
+    DWORD const acolyte_id = MAKEFOURCC('u', 'a', 'c', 'o');
+    DWORD const ziggurat_id = MAKEFOURCC('u', 'z', 'i', 'g');
+
+    setup_test_world();
+    client = &game.clients[0];
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    acolyte = alloc_test_unit(acolyte_id, 0.0f, 0.0f);
+    balance_rows = parse_slk_string(ziggurat_balance_slk);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    acolyte_data = *acolyte->data.UnitData;
+    acolyte_data.race = STR_UNDEAD;
+    acolyte->data.UnitData = &acolyte_data;
+    acolyte->data.UnitProfile = &acolyte_profile;
+    T_ASSERT(G_UnitIsBuilding(ziggurat_id));
+    T_ASSERT(G_WorkerCanBuild(acolyte, ziggurat_id));
+    acolyte->s.player = client->ps.number;
+    acolyte->svflags |= SVF_MONSTER;
+    acolyte->movetype = MOVETYPE_STEP;
+    acolyte->stand = unit_stand;
+    acolyte->think = monster_think;
+    acolyte->collision = 16.0f;
+    acolyte->unitinfo.MoveSpeed = 190.0f;
+    gi.LinkEntity(acolyte);
+
+    T_ASSERT(G_IssueBuildOrder(acolyte, ziggurat_id, &build_point));
+    FOR_LOOP(i, 120) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+        CM_ProcessPathJobs(65536);
+        if (!ziggurat) FILTER_EDICTS(ent, ent->inuse && ent->class_id == ziggurat_id) {
+            ziggurat = ent;
+            ziggurat_balance = *ent->data.UnitBalance;
+            ziggurat_balance.buildTime = 1;
+            ent->data.UnitBalance = &ziggurat_balance;
+            break;
+        }
+    }
+    T_NOT_NULL(ziggurat);
+    if (!ziggurat) {
+        G_SetSLKRows("UnitBalance", old_balance);
+        free_slk_rows(balance_rows);
+        return;
+    }
+    FOR_LOOP(i, 20) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+        CM_ProcessPathJobs(65536);
+        if (!ziggurat->construction.active) break;
+    }
+    T_ASSERT(!ziggurat->construction.active);
+    T_ASSERT(acolyte->inuse);
+    T_NULL(acolyte->build);
+    T_NULL(acolyte->goalentity);
+    T_ASSERT(!(acolyte->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!acolyte->paused);
+    T_ASSERT(!acolyte->invulnerable);
+
+    order_move(acolyte, Waypoint_add(&move_point));
+    FOR_LOOP(i, 20) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+        CM_ProcessPathJobs(65536);
+        if (acolyte->s.origin2.x < -64.0f) break;
+    }
+    T_ASSERT(acolyte->s.origin2.x < -64.0f);
+    T_ASSERT(acolyte->goalentity == NULL || acolyte->goalentity->s.origin2.x < -64.0f);
+    G_SetSLKRows("UnitBalance", old_balance);
+    free_slk_rows(balance_rows);
+}
+
 TEST(wc3_building, cancelling_undead_construction_releases_summoner) {
     LPEDICT worker;
     LPEDICT building;
