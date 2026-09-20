@@ -51,6 +51,16 @@ static void unsummon_add_status(LPEDICT building) {
     unit_addstatus(building, "Buns", 1);
 }
 
+static void unsummon_end_effect(LPEDICT thinker) {
+    if (!thinker) return;
+    FILTER_EDICTS(effect, effect->inuse && effect->owner == thinker &&
+                  effect->goalentity == thinker->unsummon.target &&
+                  (effect->s.flags & EF_NOT_SELECTABLE)) {
+        effect->owner = NULL;
+        G_DestroyEffect(effect);
+    }
+}
+
 static BOOL unsummon_in_range(LPEDICT worker, LPEDICT building) {
     FLOAT footprint;
 
@@ -209,6 +219,7 @@ void unsummon_think(LPEDICT thinker) {
     if (!unsummon_thinker_target_valid(thinker, building) || M_IsDead(building)) {
         if (building && building->inuse && building->spawn_time == thinker->channel.target_spawn_time)
             unsummon_remove_status(building);
+        unsummon_end_effect(thinker);
         S_SpellEndChannel(thinker);
         return;
     }
@@ -216,6 +227,7 @@ void unsummon_think(LPEDICT thinker) {
     damage = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 2)) * ((FLOAT)FRAMETIME / 1000.0f);
     if (damage <= 0.0f) {
         unsummon_remove_status(building);
+        unsummon_end_effect(thinker);
         S_SpellEndChannel(thinker);
         return;
     }
@@ -224,6 +236,7 @@ void unsummon_think(LPEDICT thinker) {
     G_AddHealth(building, -removed);
     if (building->health.value <= 0.0f) {
         unsummon_remove_status(building);
+        unsummon_end_effect(thinker);
         unit_die(building, caster && caster->inuse ? caster : NULL);
         S_SpellEndChannel(thinker);
     }
@@ -251,7 +264,10 @@ static void unsummon_start(LPEDICT worker, LPEDICT thinker) {
     unit_setmove(worker, &unsummon_move_channel);
     worker->unsummon.starting = false;
     unsummon_add_status(building);
-    G_SpawnAbilityEffectTarget(ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL, true);
+    {
+        LPEDICT effect = G_SpawnAbilityEffectTarget(ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL, false);
+        if (effect) effect->owner = thinker;
+    }
 }
 
 static void ai_unsummon_walk(LPEDICT worker) {

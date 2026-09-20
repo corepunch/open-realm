@@ -46,11 +46,13 @@ cast accepted
   -> once the worker reaches collision-sized interaction range, start channel
   -> apply Buns status to target
   -> target becomes spell immune
+  -> spawn Buns.Targetart on the building and keep it active
   -> ability-owned thinker ticks every simulation frame
      -> subtract DataB * dt HP directly (armor-independent demolition)
      -> credit proportional DataA refund
   -> target reaches 0 HP
-     -> ordinary unit_die
+  -> end the target art
+  -> ordinary unit_die
      -> remove Buns
      -> end channel
 ```
