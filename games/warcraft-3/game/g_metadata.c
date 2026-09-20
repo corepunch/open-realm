@@ -877,6 +877,7 @@ static mapItemDataOverride_t *map_item_data_overrides;
 static DWORD map_item_data_override_count;
 static mapAbilityOverride_t *map_ability_overrides;
 static DWORD map_ability_override_count;
+static DWORD ability_data_generation;
 
 typedef struct {
     LPCSTR name, path;
@@ -936,6 +937,7 @@ slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
             if (!strcmp(store->name, "UnitWeapons"))
                 NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
             if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
+            if (!strcmp(store->name, "AbilityData")) ability_data_generation++;
             data->rows = NULL; data->count = 0;
             return old;
         }
@@ -1549,6 +1551,7 @@ void G_SetMapAbilityOverrides(LPCMAPINFO mapinfo) {
     free(map_ability_overrides);
     map_ability_overrides = NULL;
     map_ability_override_count = 0;
+    ability_data_generation++;
     if (!mapinfo) return;
 
     capacity = mapinfo->num_originalAbilities + mapinfo->num_userCreatedAbilities;
@@ -1887,7 +1890,10 @@ void InitUnitData(void) {
             NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
         if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
     }
+    ability_data_generation++;
 }
+
+DWORD G_AbilityDataGeneration(void) { return ability_data_generation; }
 
 void ShutdownUnitData(void) {
     G_SetMapUnitOverrides(NULL);

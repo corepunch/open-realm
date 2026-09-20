@@ -738,6 +738,7 @@ ability_t const *FindAbilityByOrder(LPCSTR order) {
 void S_RunAbilityUpdates(LPEDICT ent) {
     FOR_LOOP(i, num_updates)
         ability_updates[i](ent, A_UPDATE, NULL);
+    S_UpdateUnitPassiveEffects(ent);
 }
 
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;

@@ -14,10 +14,12 @@ the `UINT_MAX` reset sentinel, so frame zero does not rebuild the provider list 
 every entity.
 
 The in-engine 1,900-unit benchmark measured `G_RunEntities` at 2,394.48 ms/call
-while frame-zero cache invalidation rebuilt the list per entity. After the sentinel
-fix and provider reuse it measured 2.27 ms/call in the same debug test binary. This
-benchmark is a regression signal for cache invalidation and scaling; it is not an
-end-to-end frame-rate claim.
+while frame-zero cache invalidation rebuilt the list per entity. After the generation
+invalidation and provider reuse it measured 2.27 ms/call in the same debug test
+binary. This benchmark is a regression signal for cache invalidation and scaling;
+it is not an end-to-end frame-rate claim. Aura presentation tests drive
+`G_RunEntities` at frame zero and after a timed range change so the scheduler path
+and cache reset contract remain covered.
 
 Profile-driven optimizations across the renderer, client, and server. The five sampled hot spots and the fixes applied to each are listed below so a future reader understands *why* each path is shaped the way it is.
 

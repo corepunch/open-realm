@@ -49,7 +49,7 @@ typedef enum {
 static regenAuraSource_t regen_sources[MAX_ENTITIES];
 static DWORD regen_source_count;
 static DWORD regen_cache_frame = UINT_MAX;
-static LPCVOID regen_cache_ability_data;
+static DWORD regen_cache_generation = UINT_MAX;
 static LPEDICT regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
 static LPEDICT devotion_overlays[MAX_ENTITIES];
 static LPEDICT unholy_overlays[MAX_ENTITIES];
@@ -247,7 +247,7 @@ void G_ResetHeroPassiveCaches(void) {
     memset(regen_sources, 0, sizeof(regen_sources));
     regen_source_count = 0;
     regen_cache_frame = UINT_MAX;
-    regen_cache_ability_data = NULL;
+    regen_cache_generation = UINT_MAX;
     memset(regen_overlays, 0, sizeof(regen_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
@@ -272,8 +272,8 @@ static DWORD aura_buff_code(LPCSTR buff_id) {
 /* Discover aura providers once per simulation frame; target checks still run
  * per unit because range, alliances, and invulnerability are live. */
 static void regen_aura_cache_update(void) {
-    LPCVOID ability_data = G_AbilityData(ID_REGEN_LIFE_ORC);
-    if (regen_cache_frame == level.framenum && regen_cache_ability_data == ability_data)
+    DWORD const ability_generation = G_AbilityDataGeneration();
+    if (regen_cache_frame == level.framenum && regen_cache_generation == ability_generation)
         return;
     regen_source_count = 0;
     FOR_LOOP(i, globals.num_edicts) {
@@ -289,7 +289,7 @@ static void regen_aura_cache_update(void) {
             entry->devotion.alias || entry->unholy.alias) regen_source_count++;
     }
     regen_cache_frame = level.framenum;
-    regen_cache_ability_data = ability_data;
+    regen_cache_generation = ability_generation;
     memset(regen_overlays, 0, sizeof(regen_overlays));
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
@@ -470,6 +470,14 @@ BOOL S_RegenerationAuraUpdateDue(LPEDICT unit) {
         level.time < regen_visual_next_update[unit->s.number]) return false;
     regen_visual_next_update[unit->s.number] = level.time + AURA_UPDATE_MS;
     return true;
+}
+
+/* Aura presentation is an ability-owned periodic update, reached through the
+ * shared ability dispatcher rather than the physics implementation. */
+void S_UpdateUnitPassiveEffects(LPEDICT unit) {
+    if (!unit || !unit->inuse || !unit->data.UnitBalance || !S_RegenerationAuraUpdateDue(unit)) return;
+    S_UpdateRegenerationAuraEffects(unit);
+    S_UpdateHeroAuraEffects(unit);
 }
 
 /* Refresh all combat aura families together so one recipient scan serves every consumer. */

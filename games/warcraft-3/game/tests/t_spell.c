@@ -505,9 +505,9 @@ TEST(wc3_spell, devotion_aura_recipient_presents_authored_buff_and_target_art) {
     source->s.player = target->s.player = 0;
     source->targtype = target->targtype = TARG_GROUND;
     source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    target->think = monster_think;
 
-    S_UpdateRegenerationAuraEffects(target); /* rebuild persistent-effect ownership after load/reset */
-    S_UpdateHeroAuraEffects(target);
+    level.framenum = 0; G_RunEntities();
     T_EQ(S_DevotionAuraBuff(target), MAKEFOURCC('B','i','m','l'));
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT effect = g_edicts + i;
@@ -522,8 +522,7 @@ TEST(wc3_spell, devotion_aura_recipient_presents_authored_buff_and_target_art) {
 
     target->s.origin2.x = 501.0f;
     level.time = AURA_UPDATE_MS;
-    S_UpdateRegenerationAuraEffects(target);
-    S_UpdateHeroAuraEffects(target);
+    level.framenum++; G_RunEntities();
     T_EQ(S_DevotionAuraBuff(target), 0);
     T_NULL(overlay->goalentity);
 
@@ -551,11 +550,11 @@ TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
     source->targtype = target->targtype = TARG_GROUND;
     source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','U','a','u'), .level = 1);
     target->health.max_value = 1000.0f; target->health.value = 500.0f;
+    target->think = monster_think;
 
     T_FEQ(S_UnholyMoveBonus(target), 0.1f, 0.001f);
     T_FEQ(S_UnholyHealthRegen(target), 10.0f, 0.001f);
-    S_UpdateRegenerationAuraEffects(target); /* rebuild persistent-effect ownership after load/reset */
-    S_UpdateHeroAuraEffects(target);
+    level.framenum = 0; G_RunEntities();
     T_EQ(S_UnholyAuraBuff(target), MAKEFOURCC('B','i','m','l'));
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT effect = g_edicts + i;
@@ -570,8 +569,7 @@ TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
 
     target->s.origin2.x = 501.0f;
     level.time = AURA_UPDATE_MS;
-    S_UpdateRegenerationAuraEffects(target);
-    S_UpdateHeroAuraEffects(target);
+    level.framenum++; G_RunEntities();
     T_FEQ(S_UnholyMoveBonus(target), 0.0f, 0.001f);
     T_FEQ(S_UnholyHealthRegen(target), 0.0f, 0.001f);
     T_EQ(S_UnholyAuraBuff(target), 0);

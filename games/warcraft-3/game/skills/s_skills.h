@@ -303,6 +303,7 @@ FLOAT S_RegenerationHealthAura(LPEDICT unit);
 FLOAT S_RegenerationManaAura(LPEDICT unit);
 void S_UpdateRegenerationAuraEffects(LPEDICT unit);
 void S_UpdateHeroAuraEffects(LPEDICT unit);
+void S_UpdateUnitPassiveEffects(LPEDICT unit);
 DWORD S_DevotionAuraBuff(LPEDICT unit);
 DWORD S_UnholyAuraBuff(LPEDICT unit);
 BOOL S_RegenerationAuraUpdateDue(LPEDICT unit);

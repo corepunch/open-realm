@@ -472,6 +472,7 @@ UnitUI_t      const *G_UnitUI(DWORD id);
 UnitWeapons_t const *G_UnitWeapons(DWORD id);
 UnitAbilities_t    const *G_UnitAbil(DWORD id);
 AbilityData_t const *G_AbilityData(DWORD id);
+DWORD G_AbilityDataGeneration(void);
 AbilityData_t const *G_AbilityDataName(LPCSTR name);
 abilityLevel_t const *G_AbilityLevel(DWORD id, DWORD level);
 AbilityBuffData_t const *G_AbilityBuffData(DWORD id);
