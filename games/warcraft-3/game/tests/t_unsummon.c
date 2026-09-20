@@ -278,6 +278,36 @@ TEST(wc3_spell, unsummon_cancel_after_start_keeps_demolition_active) {
     uns_done(&fix);
 }
 
+TEST(wc3_spell, unsummon_approach_uses_matching_channel_and_target) {
+    UNSFIX fix;
+    LPEDICT first;
+
+    uns_setup(&fix);
+    fix.enemy_bldg->s.player = 0;
+    fix.enemy_bldg->s.origin2.x = fix.enemy_bldg->s.origin.x = 160;
+    fix.building->health.value = fix.building->health.max_value = 1000;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    uns_tick(fix.caster, 2);
+    first = uns_thinker(fix.caster);
+    T_NOT_NULL(first);
+    T_ASSERT(!first->unsummon.approaching);
+    unit_issueimmediateorder(fix.caster, "stop");
+
+    /* Leave the first demolition alive, then approach a second structure. */
+    fix.caster->s.origin2.x = fix.caster->s.origin.x = 96;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.enemy_bldg));
+    T_EQ(G_UnitStatusLevel(fix.enemy_bldg, BZ_BUNS), 0);
+    FOR_LOOP(i, 20) {
+        uns_tick(fix.caster, 1);
+        if (G_UnitStatusLevel(fix.enemy_bldg, BZ_BUNS)) break;
+    }
+    T_ASSERT(G_UnitStatusLevel(fix.enemy_bldg, BZ_BUNS));
+    T_ASSERT(fix.enemy_bldg->health.value < 100.0f);
+    T_ASSERT(first->inuse);
+    T_ASSERT(fix.building->health.value < 1000.0f);
+    uns_done(&fix);
+}
+
 TEST(wc3_spell, unsummon_building_destruction_refunds_queued_training) {
     UNSFIX fix;
     UnitBalance_t training_bal = MAKE(UnitBalance_t, .maxHealth = 100,

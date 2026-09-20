@@ -500,6 +500,7 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     building->s.player = trainee->s.player = client->ps.number;
     building->build = trainee;
     trainee->training = true;
+    trainee->food.used = 1;
     trainee->health.max_value = 100.0f;
     trainee->health.value = 50.0f;
     building->abilstatus[0] = (heroabilitystatus_t){
@@ -513,8 +514,10 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     gi.ImageIndex = building_test_image_index;
     G_RefreshInfoPanel(player);
     T_EQ(building_queue_frame_count, 1);
+    level.time += 1000;
     G_RefreshInfoPanel(player);
     T_EQ(building_queue_frame_count, 2);
+    T_ASSERT(building_queue_endtime > building_queue_starttime);
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;
