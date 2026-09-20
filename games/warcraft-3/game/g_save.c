@@ -486,6 +486,7 @@ static field_t const sacrifice_fields[] = {
 };
 
 static field_t const unsummon_fields[] = {
+    TF(edictUnsummon_s, target, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 

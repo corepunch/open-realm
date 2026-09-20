@@ -16,6 +16,55 @@ static void unsummon_add_status(LPEDICT building) {
     unit_addstatus(building, "Buns", 1);
 }
 
+static BOOL unsummon_in_range(LPEDICT worker, LPEDICT building) {
+    FLOAT footprint;
+
+    if (!worker || !building) return false;
+    footprint = CM_DistanceToPathingFootprint(building, &worker->s.origin2);
+    if (footprint < FLT_MAX) return footprint <= worker->collision;
+    return Vector2_distance(&worker->s.origin2, &building->s.origin2) <=
+        worker->collision + building->collision;
+}
+
+static BOOL unsummon_prepare_approach(LPEDICT worker, LPEDICT building) {
+    VECTOR2 approach;
+
+    if (!worker || !building) return false;
+    if (CM_FindApproachPointToFootprintForRadius(
+            building, &worker->s.origin2, worker->collision, worker->collision, &approach)) {
+        worker->goalentity = Waypoint_add(&approach);
+        move_reset_progress(worker);
+        return worker->goalentity != NULL;
+    }
+    if (!building->pathtex) {
+        worker->goalentity = building;
+        move_reset_progress(worker);
+        return true;
+    }
+    return false;
+}
+
+static BOOL unsummon_target_valid(LPEDICT worker, LPEDICT building) {
+    return worker && building && building->inuse &&
+        building->spawn_time == worker->unsummon.target_spawn_time &&
+        S_SpellIsAliveTarget(building) && building->s.player == worker->s.player &&
+        G_UnitIsBuilding(building->class_id);
+}
+
+static void unsummon_cancel_approach(LPEDICT worker) {
+    if (!worker) return;
+    worker->unsummon.target = NULL;
+    worker->unsummon.target_spawn_time = 0;
+    worker->unsummon.ability = worker->unsummon.level = 0;
+    worker->unsummon.approaching = worker->unsummon.starting = false;
+    if (worker->goalentity) worker->goalentity = NULL;
+    move_reset_progress(worker);
+}
+
+static void ai_unsummon_walk(LPEDICT worker);
+static umove_t unsummon_move_walk = { "walk", ai_unsummon_walk, NULL, CAbilityUnsummon };
+static umove_t unsummon_move_channel = { "stand channel", ai_idle, NULL, CAbilityUnsummon };
+
 /* Owned living structure only; S_SpellAllowsTarget ignores structure/player tokens. */
 static BOOL unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT building = st.entity;
@@ -68,6 +117,7 @@ void unsummon_think(LPEDICT thinker) {
     FLOAT damage, removed;
 
     if (!thinker) return;
+    if (caster && caster->unsummon.approaching) return;
     if (!building || !building->inuse || building->spawn_time != thinker->channel.target_spawn_time ||
         M_IsDead(building) || building->s.player != (caster ? caster->s.player : MAX_PLAYERS) ||
         !S_SpellChannelActive(thinker)) {
@@ -93,6 +143,56 @@ void unsummon_think(LPEDICT thinker) {
     }
 }
 
+static void unsummon_start(LPEDICT worker, LPEDICT thinker) {
+    LPEDICT building = worker ? worker->unsummon.target : NULL;
+
+    if (!worker || !thinker || !unsummon_target_valid(worker, building)) {
+        if (worker) S_SpellCancelChannel(worker);
+        return;
+    }
+    worker->unsummon.starting = true;
+    worker->unsummon.approaching = false;
+    worker->channel.origin = worker->s.origin2;
+    worker->goalentity = NULL;
+    unit_setmove(worker, &unsummon_move_channel);
+    worker->unsummon.starting = false;
+    unsummon_add_status(building);
+    G_SpawnAbilityEffectTarget(thinker->class_id, WC3_EFFECT_TARGET, 0, building, NULL, true);
+}
+
+static void ai_unsummon_walk(LPEDICT worker) {
+    LPEDICT building = worker ? worker->unsummon.target : NULL;
+    FLOAT distance, step;
+    LPEDICT thinker = NULL;
+
+    if (!worker || !worker->unsummon.approaching || !unsummon_target_valid(worker, building)) {
+        if (worker && worker->channel.code) S_SpellCancelChannel(worker);
+        return;
+    }
+    if (unsummon_in_range(worker, building)) {
+        FILTER_EDICTS(ent, ent->inuse && ent->think == unsummon_think &&
+            ent->owner == worker && ent->class_id == worker->unsummon.ability) {
+            thinker = ent;
+            break;
+        }
+        if (thinker) unsummon_start(worker, thinker);
+        return;
+    }
+    if (!worker->goalentity && !unsummon_prepare_approach(worker, building)) {
+        S_SpellCancelChannel(worker);
+        return;
+    }
+    distance = M_DistanceToGoal(worker);
+    step = unit_movedistance(worker);
+    if (move_is_blocked(worker, distance, step) || worker->movement.flow_unreachable ||
+        (worker->movement.flow_goal_reached && !unsummon_in_range(worker, building))) {
+        S_SpellCancelChannel(worker);
+        return;
+    }
+    unit_changeangle_for_radius_worker(worker, worker->collision);
+    unit_moveindirection(worker);
+}
+
 static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT thinker;
     DWORD level;
@@ -108,8 +208,22 @@ static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     thinker->channel.target_spawn_time = st.entity->spawn_time;
     thinker->resources = level;
     thinker->think = unsummon_think;
-    unsummon_add_status(st.entity);
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    thinker->unsummon.target = st.entity;
+    thinker->unsummon.target_spawn_time = st.entity->spawn_time;
+    thinker->unsummon.ability = spell->code;
+    thinker->unsummon.level = level;
+    caster->unsummon.target = st.entity;
+    caster->unsummon.target_spawn_time = st.entity->spawn_time;
+    caster->unsummon.ability = spell->code;
+    caster->unsummon.level = level;
+    caster->unsummon.approaching = true;
+    if (unsummon_in_range(caster, st.entity)) unsummon_start(caster, thinker);
+    else if (unsummon_prepare_approach(caster, st.entity)) {
+        caster->unsummon.starting = true;
+        unit_setmove(caster, &unsummon_move_walk);
+        caster->unsummon.starting = false;
+    }
+    else S_SpellCancelChannel(caster);
 }
 
 static void unsummon_cancel_owned(LPEDICT caster, DWORD code) {
@@ -121,6 +235,7 @@ static void unsummon_cancel_owned(LPEDICT caster, DWORD code) {
         if (thinker->goalentity && thinker->goalentity->inuse &&
             thinker->goalentity->spawn_time == thinker->channel.target_spawn_time)
             unsummon_remove_status(thinker->goalentity);
+        if (thinker->owner == caster) unsummon_cancel_approach(caster);
     }
 }
 
@@ -135,6 +250,10 @@ BZ_ABILITY_PROC(CAbilityUnsummon) {
         return true;
     case A_CANCEL:
         unsummon_cancel_owned(ent, call && call->item ? call->item->code : MAKEFOURCC('A','u','n','s'));
+        return true;
+    case A_MOVE_LEAVE:
+        if (ent && ent->unsummon.starting) return true;
+        if (ent && ent->channel.code) S_SpellCancelChannel(ent);
         return true;
     default:
         return CAbilitySimpleSpell(ent, msg, call);

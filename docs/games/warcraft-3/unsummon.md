@@ -10,7 +10,7 @@ share `code=Auns` in stock data.
 | `DataA` | 0.5 | `recoveredResources` | maximum fraction of building gold/lumber cost recoverable by Unsummon |
 | `DataB` | 50 | `acumulationStep` | demolition damage per second |
 | `targs` | ROC `structure,debris,player`; TFT `structure,player` | — | owned living structure |
-| `Cost` / `Cool` / `Rng` | 0 / 0 / 0 | — | free, no cooldown; `Rng<=0` is always in range |
+| `Cost` / `Cool` / `Rng` | 0 / 0 / 0 | — | free, no cooldown; `Rng=0` does not bypass worker interaction range |
 
 Retail/Classic documentation describes Unsummon as destroying the building over
 a short period, returning 50% of its resources when the demolition itself
@@ -40,7 +40,8 @@ it naturally reduces the maximum final refund.
 
 ```text
 cast accepted
-  -> start channel
+  -> Acolyte approaches the building's pathing footprint
+  -> once the worker reaches collision-sized interaction range, start channel
   -> apply Buns status to target
   -> target becomes spell immune
   -> ability-owned thinker ticks every simulation frame
@@ -57,10 +58,20 @@ cancellation stops future demolition. HP already removed and resources already
 returned remain; the target's `Buns` immunity is removed immediately by the
 ability's `A_CANCEL` path.
 
-The thinker owns only ability state (`owner`, `goalentity`, target generation,
-level, fractional refund accumulators). `unsummon_think` is appended to the
-save callback roster so a save taken mid-Unsummon resumes the live channel
-rather than serializing a process address.
+The approach phase is owned by the Unsummon ability and reuses the worker
+movement contract used by Repair and construction interactions. For buildings
+with authored pathing, the distance is measured from the Acolyte to the
+building footprint; otherwise the worker and building collision radii are used
+as the explicit fallback. `Rng=0` is never treated as infinite spell range.
+Issuing another order, stopping, moving away after the channel starts, an
+unreachable approach, or caster death cancels the pending/active operation
+without undoing already-earned demolition or refund.
+
+The active thinker owns the demolition state (`owner`, `goalentity`, target
+generation, level, fractional refund accumulators); the caster retains the
+pending target and approach state until the channel starts. `unsummon_think`
+is appended to the save callback roster so a save taken mid-Unsummon resumes
+the live channel rather than serializing a process address.
 
 ## Temporary spell immunity
 
@@ -97,6 +108,7 @@ make test-wc3-engine WC3_PATTERN='wc3_save.unsummon*'
 ```
 
 Focused tests use non-stock `DataA=.25`, `DataB=80`, and `Cost=15` so a stock
-constant cannot pass. They cover progressive demolition/refund, enemy damage
-reducing the result, cancellation and temporary spell immunity, invalid target
-rejection, and live-thinker save/load.
+constant cannot pass. They cover approach-before-start, start-at-range,
+progressive demolition/refund, enemy damage reducing the result, interruption
+before and after channel start, invalid target rejection, and live-thinker
+save/load.
