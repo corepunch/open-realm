@@ -688,7 +688,7 @@ static void animate_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
         selected->aiflags &= ~AI_HOLD_FRAME; selected->s.renderfx &= ~RF_HIDDEN;
         selected->combatentity = selected->goalentity = selected->secondarygoal = NULL;
         selected->wait = 0; G_ClearUnitOrderQueue(selected);
-        selected->corpse_unraisable = true; selected->corpse_no_decay = true;
+        selected->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
         G_SetHealth(selected, selected->health.max_value);
         /* Hre2 / ABILITY_BLF_RAISED_UNITS_ARE_INVULNERABLE is authored
          * per Resurrection-family ability. Grant it when requested without
@@ -788,8 +788,7 @@ static void death_pact_execute(LPEDICT caster, spellTarget_t st, abilityitem_t c
      * corpse policy before applying that life loss so the death callback
      * cannot briefly create a raisable/decaying corpse. */
     if (!leave_target_alive) {
-        st.entity->corpse_unraisable = true;
-        st.entity->corpse_no_decay = true;
+        st.entity->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
     }
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
     death_pact_lose_life(st.entity, target_life_loss);

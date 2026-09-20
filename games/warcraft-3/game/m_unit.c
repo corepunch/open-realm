@@ -49,7 +49,7 @@ static void hero_become_revivable(LPEDICT self) {
  * enter the decay owner only long enough for its normal think callback to free them;
  * ordinary deaths keep the authored corpse window below. */
 void unit_begin_decay(LPEDICT self) {
-    BOOL const no_decay = self->corpse_no_decay && !G_UnitIsHero(self);
+    BOOL const no_decay = self->aiflags & AI_CORPSE_NO_DECAY && !G_UnitIsHero(self);
     unit_setmove(self, &unit_move_decay);
     self->aiflags |= AI_HOLD_FRAME;
     if (no_decay) { self->wait = FRAMETIME / 1000.0f; return; }
@@ -131,7 +131,7 @@ void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.ma
 
 BOOL G_UnitIsRaisableCorpse(LPCEDICT ent) {
     return ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
-        (ent->svflags & SVF_DEADMONSTER) && M_IsDead(ent) && !ent->corpse_unraisable;
+        (ent->svflags & SVF_DEADMONSTER) && M_IsDead(ent) && !(ent->aiflags & AI_CORPSE_UNRAISABLE);
 }
 
 /* Ordinary corpse revival keeps handle identity while retiring every death-state owner before returning to idle. */
@@ -140,7 +140,7 @@ void G_ReviveCorpse(LPEDICT ent, FLOAT life_fraction) {
     ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
     ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
-    ent->corpse_unraisable = false; ent->corpse_no_decay = false;
+    ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY);
     G_SetHealth(ent, ent->health.max_value * MAX(0.0f, MIN(1.0f, life_fraction)));
     G_ActivateUnitFood(ent); unit_stand(ent); gi.LinkEntity(ent);
 }

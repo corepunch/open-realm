@@ -130,6 +130,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 <- [Item Orbs](item-orbs.md): `AIDB` orb DataA damage via `CAbilityAttackBonus`, `S_OrbOnHit` BuffID state.
 - [Poison Attacks](poison-attacks.md): `Aven`/`Apoi`/`Apo2` on-hit buff state, DPS deferred to the status tick.
 - [Implemented Ability Verification Review](ability-verification-review.md): reproduced failures, lifecycle fixes, and permanent regression coverage.
+- [Ability Commit Review and Fix Plan](ability-commit-review-plan.md): compliance findings and proposed fixes for `b0177a83` and `106c0f55`.
 - [Campaign Map Audit](map-audit.md): bounded bulk runtime sweeps with per-map errors and retained logs.
 - [Save/Load](save-load.md): versioned game serializer, Hero walk/save/load campaign diagnostic.
 - [DotA Custom-Map Playability](dota-map-playability.md): protected-MPQ load, hashtable demand, and map-imported object data for DotA 6.83d.

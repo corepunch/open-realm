@@ -278,6 +278,7 @@ BZ_ABILITY_PROC(CAbilityHealingSpray);
 BZ_ABILITY_PROC(CAbilityTransmute);
 
 void human_ability_think(LPEDICT thinker);
+void divine_shield_think(LPEDICT thinker);
 void rain_of_chaos_think(LPEDICT thinker);
 void inferno_think(LPEDICT thinker);
 void dark_portal_think(LPEDICT thinker);

@@ -112,7 +112,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
 }
 
-static void divine_shield_think(LPEDICT ent) {
+void divine_shield_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
 
     if (!caster || !caster->inuse) {

@@ -1695,9 +1695,15 @@ TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
     T_ASSERT(caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 1);
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
+    T_ASSERT(WriteGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    caster->channel.code = 0; if (thinker) thinker->think = NULL;
+    T_ASSERT(ReadGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
     if (thinker) { level.time = thinker->spawn_time; G_RunEntity(thinker); }
     unit_updatestatuses(caster);
     T_ASSERT(!caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 0);
+    remove("/tmp/openwarcraft3-divine-shield-save.bin");
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -1732,7 +1738,7 @@ TEST(wc3_spell, animate_dead_prefers_higher_level_corpse_and_restores_temporary_
     T_ASSERT(M_IsDead(low)); T_ASSERT(!M_IsDead(high)); T_EQ(high->s.player, 0); T_ASSERT(high->owner == caster);
     T_ASSERT(!(high->aiflags & AI_HOLD_FRAME)); T_EQ(G_UnitStatusLevel(high, FS_SLKKey("BTLF")), 1);
     T_EQ(high->food.used, 0); T_EQ(high->summon_ability, FS_SLKKey("AUan"));
-    T_ASSERT(high->corpse_unraisable); T_ASSERT(high->corpse_no_decay); T_ASSERT(high->invulnerable);
+    T_ASSERT(high->aiflags & AI_CORPSE_UNRAISABLE); T_ASSERT(high->aiflags & AI_CORPSE_NO_DECAY); T_ASSERT(high->invulnerable);
     T_EQ(ARRAY_COUNT(high->abilities.added), 1); T_EQ(high->abilities.added[0], MAKEFOURCC('A','I','n','v'));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -1767,7 +1773,7 @@ TEST(wc3_spell, resurrection_prefers_higher_level_friendly_corpse) {
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHre")));
     T_ASSERT(M_IsDead(low)); T_ASSERT(M_IsDead(high_far)); T_ASSERT(!M_IsDead(high_near));
     T_EQ(high_near->s.player, 0); T_ASSERT(high_near->owner != caster);
-    T_ASSERT(!high_near->corpse_unraisable); T_ASSERT(!high_near->corpse_no_decay); T_ASSERT(high_near->invulnerable);
+    T_ASSERT(!(high_near->aiflags & AI_CORPSE_UNRAISABLE)); T_ASSERT(!(high_near->aiflags & AI_CORPSE_NO_DECAY)); T_ASSERT(high_near->invulnerable);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -1807,7 +1813,7 @@ TEST(wc3_spell, death_pact_validates_undead_nonhero_and_full_resources) {
     victim->invulnerable = true;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdp"), victim));
     T_FEQ(caster->health.value, 300, 0.001f);
-    T_ASSERT(M_IsDead(victim)); T_ASSERT(victim->corpse_unraisable); T_ASSERT(victim->corpse_no_decay);
+    T_ASSERT(M_IsDead(victim)); T_ASSERT(victim->aiflags & AI_CORPSE_UNRAISABLE); T_ASSERT(victim->aiflags & AI_CORPSE_NO_DECAY);
     T_ASSERT(!G_UnitIsRaisableCorpse(victim));
     /* Death animation completion must skip the ordinary 90-second corpse window. */
     T_NOT_NULL(victim->currentmove);
@@ -1844,8 +1850,8 @@ TEST(wc3_spell, death_pact_datae_can_leave_target_alive) {
     T_FEQ(caster->health.value, 200.0f, 0.001f);
     T_FEQ(victim->health.value, 100.0f, 0.001f);
     T_ASSERT(!M_IsDead(victim));
-    T_ASSERT(!victim->corpse_unraisable);
-    T_ASSERT(!victim->corpse_no_decay);
+    T_ASSERT(!(victim->aiflags & AI_CORPSE_UNRAISABLE));
+    T_ASSERT(!(victim->aiflags & AI_CORPSE_NO_DECAY));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
