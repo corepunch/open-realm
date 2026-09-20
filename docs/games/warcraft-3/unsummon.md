@@ -53,19 +53,21 @@ cast accepted
      -> end channel
 ```
 
-Movement, a replacement order, caster death, or other ordinary channel
-cancellation stops future demolition. HP already removed and resources already
-returned remain; the target's `Buns` immunity is removed immediately by the
-ability's `A_CANCEL` path.
+Once `Buns` is applied, the building owns the ongoing demolition. Movement, a
+replacement order, caster death, or other ordinary interruption of the Acolyte
+does not stop it. HP already removed and resources already returned remain; the
+building continues ticking until it dies or the effect reaches another valid
+terminal state.
 
 The approach phase is owned by the Unsummon ability and reuses the worker
 movement contract used by Repair and construction interactions. For buildings
 with authored pathing, the distance is measured from the Acolyte to the
 building footprint; otherwise the worker and building collision radii are used
 as the explicit fallback. `Rng=0` is never treated as infinite spell range.
-Issuing another order, stopping, moving away after the channel starts, an
-unreachable approach, or caster death cancels the pending/active operation
-without undoing already-earned demolition or refund.
+Issuing another order, stopping, moving away, an unreachable approach, or
+caster death cancels only the pending approach. Once the channel starts, the
+ability-owned thinker remains active without requiring the Acolyte's live order
+or channel state.
 
 The active thinker owns the demolition state (`owner`, `goalentity`, target
 generation, level, fractional refund accumulators); the caster retains the

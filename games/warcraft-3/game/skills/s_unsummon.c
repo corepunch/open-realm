@@ -51,6 +51,13 @@ static BOOL unsummon_target_valid(LPEDICT worker, LPEDICT building) {
         G_UnitIsBuilding(building->class_id);
 }
 
+static BOOL unsummon_thinker_target_valid(LPEDICT thinker, LPEDICT building) {
+    return thinker && building && building->inuse &&
+        building->spawn_time == thinker->channel.target_spawn_time &&
+        S_SpellIsAliveTarget(building) && building->s.player == thinker->s.player &&
+        G_UnitIsBuilding(building->class_id);
+}
+
 static void unsummon_cancel_approach(LPEDICT worker) {
     if (!worker) return;
     worker->unsummon.target = NULL;
@@ -113,14 +120,12 @@ static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_hea
 
 void unsummon_think(LPEDICT thinker) {
     LPEDICT caster = thinker ? thinker->owner : NULL;
-    LPEDICT building = thinker ? thinker->goalentity : NULL;
+    LPEDICT building = thinker ? thinker->unsummon.target : NULL;
     FLOAT damage, removed;
 
     if (!thinker) return;
-    if (caster && caster->unsummon.approaching) return;
-    if (!building || !building->inuse || building->spawn_time != thinker->channel.target_spawn_time ||
-        M_IsDead(building) || building->s.player != (caster ? caster->s.player : MAX_PLAYERS) ||
-        !S_SpellChannelActive(thinker)) {
+    if (thinker->unsummon.approaching) return;
+    if (!unsummon_thinker_target_valid(thinker, building) || M_IsDead(building)) {
         if (building && building->inuse && building->spawn_time == thinker->channel.target_spawn_time)
             unsummon_remove_status(building);
         S_SpellEndChannel(thinker);
@@ -138,7 +143,7 @@ void unsummon_think(LPEDICT thinker) {
     G_AddHealth(building, -removed);
     if (building->health.value <= 0.0f) {
         unsummon_remove_status(building);
-        unit_die(building, caster);
+        unit_die(building, caster && caster->inuse ? caster : NULL);
         S_SpellEndChannel(thinker);
     }
 }
@@ -152,6 +157,7 @@ static void unsummon_start(LPEDICT worker, LPEDICT thinker) {
     }
     worker->unsummon.starting = true;
     worker->unsummon.approaching = false;
+    thinker->unsummon.approaching = false;
     worker->channel.origin = worker->s.origin2;
     worker->goalentity = NULL;
     unit_setmove(worker, &unsummon_move_channel);
@@ -206,12 +212,14 @@ static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->goalentity = st.entity;
     thinker->channel.target_spawn_time = st.entity->spawn_time;
+    thinker->s.player = st.entity->s.player;
     thinker->resources = level;
     thinker->think = unsummon_think;
     thinker->unsummon.target = st.entity;
     thinker->unsummon.target_spawn_time = st.entity->spawn_time;
     thinker->unsummon.ability = spell->code;
     thinker->unsummon.level = level;
+    thinker->unsummon.approaching = true;
     caster->unsummon.target = st.entity;
     caster->unsummon.target_spawn_time = st.entity->spawn_time;
     caster->unsummon.ability = spell->code;
@@ -232,9 +240,13 @@ static void unsummon_cancel_owned(LPEDICT caster, DWORD code) {
         LPEDICT thinker = g_edicts + i;
         if (!thinker->inuse || thinker->think != unsummon_think || thinker->owner != caster ||
             thinker->class_id != code) continue;
+        if (!thinker->unsummon.approaching) continue;
         if (thinker->goalentity && thinker->goalentity->inuse &&
             thinker->goalentity->spawn_time == thinker->channel.target_spawn_time)
             unsummon_remove_status(thinker->goalentity);
+        thinker->unsummon.target = NULL;
+        thinker->unsummon.approaching = false;
+        thinker->goalentity = NULL;
         if (thinker->owner == caster) unsummon_cancel_approach(caster);
     }
 }
