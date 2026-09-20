@@ -3,6 +3,7 @@
 
 #include "renderer/r_local.h"
 #include "renderer/r_shader.h"
+#include "renderer/r_trail.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 #define MDX_TEXTURE_PATH_LENGTH 260
@@ -332,20 +333,7 @@ typedef struct mdxParticleEmitter_s {
     float accumulator;          /* emission rate accumulator for R_EmitParticles */
 } mdxParticleEmitter_t;
 
-#define BZ_MDX_RIBBON_EDGES 48 // max live edges; 20/s * 0.6s * 4 headroom covers stock missile ribbons
 #define BZ_MDX_RIBBON_INSTANCES 32 // concurrent instances of one ribboned model; missiles share one MDX
-
-typedef struct {
-    VECTOR3 above, below;
-    float age;
-} mdxRibbonEdge_t;
-
-typedef struct {
-    mdxRibbonEdge_t edges[BZ_MDX_RIBBON_EDGES];
-    int head, count;
-    float acc;
-    DWORD stamp; /* last tr.viewDef.time this trail advanced; guards double-draws and detects edict reuse */
-} mdxRibbonTrail_t;
 
 typedef struct mdxRibbonEmitter_s {
     mdxNode_t node;
@@ -366,11 +354,24 @@ typedef struct mdxRibbonEmitter_s {
 } mdxRibbonEmitter_t;
 
 typedef struct mdxRibbonInstance_s {
-    DWORD number, stamp;
-    mdxRibbonTrail_t *trails;
+    DWORD number, stamp, team;
+    trail_t *trails; /* engine trails, one per emitter; game owns the per-model store */
     DWORD ntrails;
     struct mdxRibbonInstance_s *next;
 } mdxRibbonInstance_t;
+
+/* Entity-less trail copy: the entity stopped being drawn (freed, culled, out
+ * of PVS) while edges were still live. Advances with no new emission and draws
+ * through the same material path until empty, so missile trails fade over
+ * their lifespan instead of popping with the edict. */
+typedef struct mdxDetachedRibbon_s {
+    struct mdxModel_s *model;
+    DWORD number; /* origin entity; dropped if that entity draws again */
+    DWORD emitter, materialId, columns, rows, slot, team;
+    float lifespan, gravity;
+    trail_t trail;
+    struct mdxDetachedRibbon_s *next;
+} mdxDetachedRibbon_t;
 
 typedef struct mdxGeoset_s {
     VECTOR3 *vertices;
@@ -435,6 +436,7 @@ typedef struct mdxModel_s {
     mdxParticleEmitter_t *emitters;
     mdxRibbonEmitter_t *ribbons;
     mdxRibbonInstance_t *ribbon_states;
+    DWORD ribbon_tick; /* last frame the orphan sweep ran for this model */
     mdxSprite_t *sprites;
     mdxAttachment_t *attachments;
     mdxLight_t *lights;
@@ -488,12 +490,14 @@ void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR3
 LPCTEXTURE MDLX_GetTexture(mdxModel_t const *, DWORD, DWORD, DWORD, LPCTEXTURE);
 void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, LPCMATRIX4);
 void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, LPCMATRIX4);
-int MDLX_UpdateRibbonTrail(mdxRibbonTrail_t *trail, VECTOR3 above, VECTOR3 below,
-                           float lifespan, float rate, float gravity, float dt);
-DWORD MDLX_RibbonStripVertices(mdxRibbonTrail_t const *trail, float lifespan, DWORD columns, DWORD rows, DWORD slot,
-                               COLOR32 color, VERTEX *out, DWORD max);
+void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, DWORD nverts,
+                          mdxMaterial_t const *material, DWORD team);
+mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, DWORD id);
 DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix,
-                              mdxRibbonEmitter_t *ribbon, VERTEX *out, DWORD max);
+                               mdxRibbonEmitter_t *ribbon, VERTEX *out, DWORD max);
+void MDLX_TickDetachedRibbons(void); /* once per frame from R_RenderModel: fade entity-less trails */
+void MDLX_ForgetRibbonModel(mdxModel_t *model); /* model release: drop registry entry and its orphans */
+DWORD MDLX_DetachedRibbonCount(void); /* headless lifecycle diagnostic; no material or GL state */
 BOOL MDLX_SetLayerBlend(mdxMaterialLayer_t const *layer, DWORD layerID);
 void MDLX_ApplyLayerFlags(mdxMaterialLayer_t const *layer);
 

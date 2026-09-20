@@ -495,6 +495,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
         return;
     }
+    MDLX_TickDetachedRibbons(); /* fade trails whose entity stopped drawing before this model draws */
     R_GetEntityMatrix(entity, &transform);
     MDX_RenderModel(entity, entity->model->mdx, &transform);
     R_W3RenderAttachmentModels(entity, &transform);
