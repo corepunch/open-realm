@@ -387,6 +387,25 @@ TEST(wc3_unit, die_releases_held_frame_before_death_animation) {
     T_STREQ(ent->currentmove->animation, "death");
 }
 
+TEST(wc3_unit, nondecaying_building_uses_authored_death_type) {
+    static UnitBalance_t building_balance = { .isBuilding = true, .maxHealth = 100.0f };
+    static UnitData_t building_data = { .death = 1.25f, .deathType = 0 };
+    LPEDICT ent;
+
+    reset_test_entities();
+    ent = make_unit(0, 0);
+    ent->class_id = MAKEFOURCC('h', 'b', 'a', 'r');
+    ent->data.UnitBalance = &building_balance;
+    ent->data.UnitData = &building_data;
+    unit_die(ent, NULL);
+    unit_begin_decay(ent);
+
+    T_ASSERT(ent->aiflags & AI_HOLD_FRAME);
+    T_FEQ(ent->wait, FRAMETIME / 1000.0f, 0.001f);
+    unit_decay_think(ent);
+    T_ASSERT(!ent->inuse);
+}
+
 TEST(wc3_unit, dead_unit_rejects_orders_that_would_replace_death_animation) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);
