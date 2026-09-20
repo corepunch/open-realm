@@ -79,7 +79,14 @@ LPCSTR G_ItemAbilityList(LPCEDICT item) {
 /* ItemData stores passive effects as an ability list; the item rawcode itself
  * is not an ability code. */
 static void G_ApplyItemStats(LPEDICT unit, LPCEDICT item, BOOL apply) {
-    LPCSTR abilities = G_ItemAbilityList(item);
+    LPCSTR abilities;
+
+    /* Item-use permission gates gaining passive item effects, but removal must
+     * always reverse effects that were already applied. The permission can
+     * change while an item is carried (custom abilities/tech/scripted data),
+     * and blocking A_ITEM_REMOVE would leak the old stat bonus after a drop. */
+    if (apply && !G_InventoryCanUseItems(unit)) return;
+    abilities = G_ItemAbilityList(item);
     if (!abilities || !*abilities) return;
     PARSE_LIST(abilities, ability, parse_segment) {
         abilityitem_t entry = S_AbilityItem(FS_SLKKey(ability));
@@ -182,6 +189,60 @@ static DWORD roc_inventory_cap(void) {
         }
     }
     return cap > 0 ? (DWORD)MIN(cap, MAX_INVENTORY) : 0;
+}
+
+static BOOL G_InventoryAbilityFlag(LPCEDICT unit, DWORD data_index, BOOL roc_hero_default) {
+    LPCSTR abilities = NULL;
+    BOOL has_inventory_ability = false;
+
+    if (!unit || !unit->inuse) return false;
+    if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
+    if (abilities) {
+        PARSE_LIST(abilities, abil, parse_segment) {
+            abilityLevel_t const *ability_level;
+            DWORD const code = G_AbilityCodeName(abil);
+
+            if (code != MAKEFOURCC('A','I','n','v') && code != MAKEFOURCC('A','I','a','b')) continue;
+            has_inventory_ability = true;
+            if (!G_InventoryAbilityAvailable(unit, abil)) continue;
+            ability_level = G_AbilityLevel(FS_SLKKey(abil), 1);
+            return ability_level &&
+                   data_index < sizeof(ability_level->data) / sizeof(ability_level->data[0]) &&
+                   ability_level->data[data_index].number != 0.0f;
+        }
+    }
+
+    /* Reign of Chaos synthesizes the normal hero inventory when no inventory
+     * ability is authored. That stock hero inventory can use items and does
+     * not drop them on death; callers supply the appropriate default. */
+    if (!has_inventory_ability && G_IsReignOfChaosMap(level.mapinfo) && G_UnitIsHero(unit))
+        return roc_hero_default;
+    return false;
+}
+
+BOOL G_InventoryCanUseItems(LPCEDICT unit) {
+    /* inv3 / DataC: heroes may use/equip item abilities; Backpack carriers
+     * such as Aihn have this disabled and therefore only transport items. */
+    return G_InventoryAbilityFlag(unit, 2, true);
+}
+
+BOOL G_InventoryCanGetItems(LPCEDICT unit) {
+    /* inv4 / DataD gates player-issued pickup orders. Scripted/native item
+     * insertion deliberately uses G_PickupItem/G_AddItemToSlot directly,
+     * matching Warsmash's giveItem path which bypasses canGetItems. */
+    return G_InventoryAbilityFlag(unit, 3, true);
+}
+
+BOOL G_InventoryCanDropItems(LPCEDICT unit) {
+    /* inv5 / DataE gates player-issued drop/handoff orders. Direct native
+     * removal remains available through G_DropItem/G_DropItemAt. */
+    return G_InventoryAbilityFlag(unit, 4, true);
+}
+
+static BOOL G_InventoryDropsItemsOnDeath(LPCEDICT unit) {
+    /* inv2 / DataB: ordinary Backpack carriers drop their contents, while the
+     * stock hero inventory retains items across death/revival. */
+    return G_InventoryAbilityFlag(unit, 1, false);
 }
 
 static DWORD G_InventoryAbilityCapacity(LPCEDICT unit, LPCSTR ability) {
@@ -344,7 +405,8 @@ static void G_PickupItemThink(LPEDICT unit) {
 static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, CAbilityInventory };
 
 BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
-    if (!G_CanPickupItem(unit, item) || (unit->aiflags & AI_IMMOBILE)) {
+    if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item) ||
+        (unit->aiflags & AI_IMMOBILE)) {
         return false;
     }
     if (G_FindFreeInventorySlot(unit) < 0) {
@@ -358,7 +420,7 @@ BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
     return true;
 }
 
-BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
+static BOOL G_DropItemAtInternal(LPEDICT unit, DWORD slot, LPCVECTOR2 position, BOOL play_sound) {
     LPEDICT item;
     VECTOR2 drop_position;
 
@@ -391,8 +453,12 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
     item->svflags &= ~SVF_NOCLIENT;
     gi.LinkEntity(item);
     G_RefreshInventoryUI(unit);
-    G_QueueOwnerSoundAlias(unit, "ItemDrop");
+    if (play_sound) G_QueueOwnerSoundAlias(unit, "ItemDrop");
     return true;
+}
+
+BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
+    return G_DropItemAtInternal(unit, slot, position, true);
 }
 
 BOOL G_DropItem(LPEDICT unit, DWORD slot) {
@@ -400,6 +466,17 @@ BOOL G_DropItem(LPEDICT unit, DWORD slot) {
         return false;
     }
     return G_DropItemAt(unit, slot, &unit->s.origin2);
+}
+
+void G_DropInventoryOnDeath(LPEDICT unit) {
+    DWORD capacity;
+
+    if (!unit || !G_InventoryDropsItemsOnDeath(unit)) return;
+    capacity = G_InventoryCapacity(unit);
+    FOR_LOOP(slot, capacity) {
+        if (unit->inventory[slot])
+            G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
+    }
 }
 
 static void G_StopDropItemOrder(LPEDICT unit) {
@@ -449,7 +526,8 @@ static umove_t item_move_drop = {
 };
 
 BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {
-    if (!unit || !item || !position || (unit->aiflags & AI_IMMOBILE) ||
+    if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
+        (unit->aiflags & AI_IMMOBILE) ||
         !G_IsItem(item) || item->item.carrier != unit || item->item.in_world ||
         item->item.inventory_slot < 0 || item->item.inventory_slot >= MAX_INVENTORY ||
         unit->inventory[item->item.inventory_slot] != item) {
@@ -502,7 +580,8 @@ void G_UseItem(LPEDICT unit, DWORD slot) {
     LPEDICT clent;
     LPCSTR abilities;
 
-    if (!unit || slot >= G_InventoryCapacity(unit) || unit->s.player >= MAX_PLAYERS) {
+    if (!unit || !G_InventoryCanUseItems(unit) ||
+        slot >= G_InventoryCapacity(unit) || unit->s.player >= MAX_PLAYERS) {
         return;
     }
     item = unit->inventory[slot];

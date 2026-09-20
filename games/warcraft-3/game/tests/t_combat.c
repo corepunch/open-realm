@@ -1539,6 +1539,34 @@ TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
     T_FEQ(h->wait, 0.3f / 5.0f, 0.001f);
 }
 
+/* Defend DataD is a fractional attack-speed reduction.  Use a non-stock 25%
+ * value so the test cannot pass from a hard-coded retail constant. */
+TEST(wc3_combat, defend_data_d_reduces_attack_speed_while_active) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataD1\"\n"
+        "C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.25\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT footman = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+
+    footman->attack1.cooldown = 1.5f;
+    footman->attack1.damagePoint = 0.3f;
+    footman->hero.agi = 0;
+
+    attack_melee_cooldown(footman);
+    T_FEQ(footman->wait, 1.2f, 0.001f);
+
+    unit_addstatus(footman, "Adef", 1);
+    attack_melee_cooldown(footman);
+    T_FEQ(footman->wait, 1.2f / 0.75f, 0.001f);
+
+    attack_melee(footman);
+    T_FEQ(footman->wait, 0.3f / 0.75f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* ==========================================================================
  * G_AttackDamage — attack×defense table and armor reduction
  *

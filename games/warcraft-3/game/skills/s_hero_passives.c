@@ -2,6 +2,7 @@
 
 #define ID_BRILLIANCE MAKEFOURCC('A', 'H', 'a', 'b')
 #define ID_CRITICAL_STRIKE MAKEFOURCC('A', 'O', 'c', 'r')
+#define ID_CREEP_CRITICAL_STRIKE MAKEFOURCC('A', 'C', 'c', 't')
 #define ID_SPIKED_CARAPACE MAKEFOURCC('A', 'U', 't', 's')
 #define ID_UNHOLY_AURA MAKEFOURCC('A', 'U', 'a', 'u')
 #define ID_EVASION MAKEFOURCC('A', 'E', 'e', 'v')
@@ -575,6 +576,7 @@ BOOL S_EvasionRoll(LPEDICT target) {
 int S_CriticalStrikeDamage(LPEDICT attacker, int damage) {
     DWORD level = G_UnitAbilityLevel(attacker, ID_CRITICAL_STRIKE);
     DWORD code = ID_CRITICAL_STRIKE;
+    if (!level) { level = G_UnitAbilityLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
     if (!level) { level = G_UnitAbilityLevel(attacker, ID_DRUNKEN_BRAWLER); code = ID_DRUNKEN_BRAWLER; }
     if (!level || (FLOAT)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
     return (int)((FLOAT)damage * MAX(1.0f, S_SpellData(code, level, 2)));

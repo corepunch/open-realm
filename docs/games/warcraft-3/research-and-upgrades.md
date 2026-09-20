@@ -10,8 +10,10 @@ The implementation here was checked against a WarsmashModEngine `main` snapshot
 dated 2026-08-31. The relevant Warsmash paths are
 `CAbilityQueue` / `CUnit` / `CPlayer` for research ownership and queueing,
 `CUpgradeData` / `CUpgradeType` / `CUpgradeEffectAttackDice` /
-`CUpgradeEffectDefenseUpgradeBonus` for `UpgradeData.slk` and the implemented
-effects, and `MeleeUI` for attack/armor status-icon family selection.
+`CUpgradeEffectDefenseUpgradeBonus` / `CUpgradeEffectAttackRange` /
+`CUpgradeEffectHitPoints` / `CUpgradeEffectSpellLevel` for `UpgradeData.slk` and
+the implemented effects,
+and `MeleeUI` for attack/armor status-icon family selection.
 
 The effect and status-icon behavior documented below is Warsmash-specific where
 stated; remaining retail-parity gaps stay listed under **Intentionally unresolved**
@@ -148,10 +150,13 @@ The Prologue02 tutorial depends on this contract at the War Mill lesson: its
 `EVENT_PLAYER_UNIT_RESEARCH_START` and advances only when clicking an upgrade
 produces the research-start callback.
 
-## Blacksmith stat effects
+## Runtime stat effects
 
 This implementation intentionally enables only the upgrade effect codes whose
-current Warsmash behavior is sufficiently unambiguous for the stock Blacksmith:
+current Warsmash behavior is sufficiently unambiguous. Effects remain driven by
+`UpgradeData.slk` plus each unit type's `Upgrades Used` list; Human Barracks
+research such as Long Rifles and Animal War Training does not use unit-rawcode
+special cases.
 
 ### `ratx` — flat attack damage
 
@@ -161,7 +166,9 @@ For an affected runtime attack, each level's effect value is:
 base + mod * (level - 1)
 ```
 
-Changing level applies only the old/new delta to `damageBase` and records the same delta in `permanentDamageBonus`. The ledger keeps the research bonus intact when Hero primary-attribute recomputation rebuilds the base attack range.
+Changing level applies only the old/new delta to `damageBase` and records the
+same delta in `permanentDamageBonus`. The ledger keeps the research bonus intact
+when Hero primary-attribute recomputation rebuilds base attack damage.
 
 ### `ratd` — attack dice
 
@@ -185,6 +192,55 @@ upgrade armor = armorPerUpgrade * researched level
 
 Changing level applies the delta between old and new levels to both
 `edict_t.permanent_armor_bonus` and `edict_t.armor_value`. Hero Agility recomputation rebuilds base armor plus this persistent ledger, so researched armor is not lost when attributes change.
+
+### `ratr` — attack range
+
+For each authored runtime attack, the level value is:
+
+```text
+base + mod * (level - 1)
+```
+
+Changing level applies only the old/new delta to `unitAttack_t.range`. Both
+Attack 1 and Attack 2 receive the effect when that runtime attack exists. This
+matches Warsmash's `CUpgradeEffectAttackRange` contract and lets upgrades such
+as Human Long Rifles (`Rhri`) flow through the ordinary player-tech path. The
+combat behavior already queries the mutable runtime range, so existing and
+newly trained affected units use the researched distance without replacing the
+unit type.
+
+### `rhpx` — maximum hit points
+
+The authored level value uses the same `base + mod * (level - 1)` rule and is
+added to maximum life. When the maximum changes, current life keeps the same
+percentage of maximum life, matching Warsmash's relative max-life adjustment.
+
+`edict_t.permanent_health_bonus` records the research-owned contribution so a
+later Hero primary-attribute recomputation cannot discard it. Existing owned
+units and future units use the same generic upgrade application path. Human
+Animal War Training (`Rhan`) therefore works for every affected unit type that
+lists that upgrade in `Upgrades Used`, rather than through a Knight-only table.
+
+### `rlev` — ability/spell level
+
+`rlev` uses the effect `code` as the affected ability rawcode. Matching
+Warsmash, researched level `N` sets that ability to level `N + 1`; removing the
+research returns it to level 1. The `base` and `mod` numeric columns are not used
+by this effect.
+
+Some Warcraft units author a research-granted command in their normal ability
+list before the research completes. For those units, OpenRealm correlates the
+unit's `Upgrades Used` list with any `rlev` effect targeting that command. The
+command is omitted from the command card and direct execution is rejected until
+the owning player has researched the matching upgrade. Human Footman Defend
+(`Rhde` targeting `Adef`) uses this path; custom unit/upgrade pairs using the
+same data contract inherit it without rawcode-specific code.
+
+### `rmnx` / `rmnr` — mana capacity and regeneration
+
+`rmnx` changes maximum mana by the authored old/new level delta and moves
+current mana by that same absolute delta, clamped to the new maximum. `rmnr`
+records the authored regeneration delta in `mana_regen_bonus`.
 
 Existing owned units whose `Upgrades Used` list contains the upgrade are updated
 when player tech changes. Newly spawned/trained units run the same application
@@ -212,9 +268,9 @@ stock Peasant list, keep those level holders hidden.
 ## Intentionally unresolved
 
 This patch does **not** guess at the remaining Warcraft upgrade effect codes.
-HP, mana, movement, regeneration, attack range/speed, spell-level and other
-upgrade effect families still need clean data-driven implementations before
-they should mutate runtime units.
+Movement, attack speed, hit-point regeneration and other upgrade
+effect families still need clean data-driven implementations before they should
+mutate runtime units.
 
 The following compatibility work also remains:
 

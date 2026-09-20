@@ -139,6 +139,11 @@ LUA_SRCS   := $(filter-out $(LUA_DIR)/lua.c $(LUA_DIR)/luac.c, $(wildcard $(LUA_
 LUA_OBJ    := $(LIB_DIR)/lua.o
 LUA_LIB    := $(LIB_DIR)/liblua.a
 LUA_CFLAGS := -I$(LUA_DIR)
+ifeq ($(UNAME_S),Linux)
+LUA_CFLAGS += -DLUA_USE_LINUX
+else ifeq ($(UNAME_S),Darwin)
+LUA_CFLAGS += -DLUA_USE_MACOSX
+endif
 
 $(LUA_LIB): $(LUA_SRCS) $(wildcard $(LUA_DIR)/*.h) | $(LIB_DIR)
 	@echo "[lua]"

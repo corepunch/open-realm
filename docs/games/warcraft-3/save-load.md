@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 32, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 35, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -20,6 +20,19 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines.
+
+Version 32 adds `edict_t.permanent_health_bonus`, the persistent ledger for
+research-owned maximum-life effects such as `UpgradeData.slk` `rhpx`. The field
+is serialized explicitly and the version/`sizeof(edict_t)` guard rejects older
+records rather than allowing shifted edict state. Hero stat recomputation uses
+the restored ledger so a later Strength change cannot erase an upgrade-owned
+maximum-health bonus.
+
+Version 33 adds `edict_t.projectile_reflected` for basic attack missiles. A
+Defend-returned projectile can therefore be saved while travelling back to its
+source without becoming eligible for a second reflection after load. The field
+is part of the normal edict schema and follows the existing `goalentity` /
+`owner` entity-index relocation contract.
 
 The version 3 layout expands the fixed-size `GAMECLIENT` cinematic camera state with target Z offset, near/far clipping planes, and target-controller orientation inheritance. Version 2 saves are rejected because the raw client record layout changed; this prevents older saves from being misread with shifted fields.
 
@@ -51,8 +64,17 @@ not an owned-payload allowlist entry. See [DotA Custom-Map Playability](dota-map
 Version 31 also persists the Human construction `build_preview` edict reference, so an accepted build order's owner-only
 Construction Site Indicator survives save/load as an entity-index fixup rather than a process pointer. Older saves are rejected
 by the exact-version guard.
-<Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
+Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
 or lose the lifecycle state that gates authored player/team/color initialization. It also adds the WC3-owned mutable Blight cell plane immediately after the level-field stream and adds each unit's `blight_growth` alias/current-radius/next-update state to the raw `edict_t` contract. Load requires the saved Blight byte count to exactly match the freshly initialized map Blight grid and restores it before edicts/JASS state, so `SetBlight*` changes and `Abli` expansion progress survive without being reconstructed from nearby buildings. See [Blight](blight.md). Version 31 saves are rejected by the exact-version guard.
+
+Version 32 adds `edict_s.permanent_invisibility_reveal_until`, the authoritative server-time deadline used by `Apiv` Permanent Invisibility after spawn, attack, or spell-cast reveal. The field is serialized explicitly in `edict_fields[]`; the expanded `edict_t` size and version reject older layouts rather than interpreting shifted entity state.
+
+Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `LIGHTNINGEFFECT` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
+
+Version 34 adds the `lightning` JASS handle domain. `AddLightning` and `AddLightningEx` handles now point at the same stable lightning registry slots used by ability presentation, so movement, colour, destruction, hashtable entries, and active script globals preserve their identity across save/load.
+
+Version 35 adds entity attachment and spawn-generation fields to each lightning registry slot. Ability bolts save their source/target edict indexes and spawn times, then restore those references through the normal `F_EDICT` fixup path. Each outgoing datagram refreshes attached endpoints from the current unit origins; if an edict was freed or its spawn generation changed, that endpoint is detached instead of following a reused slot. The saved coordinates remain available for explicitly positioned JASS lightning.
+
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 

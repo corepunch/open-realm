@@ -360,7 +360,7 @@ static void InitConstants(void) {
         { ATK_MAGIC,  "DamageBonusMagic"  },
         { ATK_HERO,   "DamageBonusHero"   },
     };
-    FLOAT food_ceiling;
+    FLOAT food_ceiling, defend_deflection;
     Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
@@ -396,6 +396,8 @@ static void InitConstants(void) {
     InitMiscValueDefault("StrAttackBonus", &game.constants.strAttackBonus, 1.0f);
     InitMiscValueDefault("AgiDefenseBonus", &game.constants.agiDefenseBonus, 0.3f);
     InitMiscValueDefault("AgiAttackSpeedBonus", &game.constants.agiAttackSpeedBonus, 0.02f);
+    InitMiscValueDefault("DefendDeflection", &defend_deflection, 1.0f);
+    game.constants.defendDeflection = defend_deflection != 0.0f;
     game.constants.combatConstantsLoaded = true;
 
     InitMiscValue("FoodCeiling", &food_ceiling);
@@ -1298,6 +1300,13 @@ static USHORT G_UnitNameConfigstring(LPCSTR name) {
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+    /* RF_HIDDEN also represents cargo/mines/revival placeholders. Only known
+     * gameplay invisibility may be cleared in a client snapshot. Owners/shared
+     * viewers see their invisible units; hostile viewers need true sight. */
+    if ((state->renderfx & RF_HIDDEN) && S_UnitUsesInvisibilityRenderFlag(ent) &&
+        !S_UnitIsInvisibleToPlayer(ent, player)) {
+        state->renderfx &= ~RF_HIDDEN;
+    }
     BOOL const hoverable = (ent->svflags & SVF_MONSTER) &&
         !(ent->svflags & SVF_DEADMONSTER) &&
         ent->health.value > 0.0f &&

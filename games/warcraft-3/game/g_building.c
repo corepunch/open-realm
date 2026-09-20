@@ -79,7 +79,10 @@ void G_ClearBuildPreview(LPEDICT builder) {
 #define WC3_PATH_UNBUILDABLE 0x08
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
+#define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
+#define ID_UPGRADE_EFFECT_HIT_POINTS    MAKEFOURCC('r', 'h', 'p', 'x')
+#define ID_UPGRADE_EFFECT_SPELL_LEVEL   MAKEFOURCC('r', 'l', 'e', 'v')
 #define ID_UPGRADE_EFFECT_MAX_MANA      MAKEFOURCC('r', 'm', 'n', 'x') // fourcc; maximum-mana upgrade effect
 #define ID_UPGRADE_EFFECT_MANA_REGEN    MAKEFOURCC('r', 'm', 'n', 'r') // fourcc; mana-regeneration upgrade effect
 
@@ -204,6 +207,41 @@ static FLOAT G_UpgradeEffectValue(UpgradeData_t const *upgrade, DWORD effect, LO
     return upgrade->effectBase[effect] + upgrade->effectMod[effect] * (FLOAT)(level_value - 1);
 }
 
+/* Command abilities such as Footman Defend are authored on the unit before
+ * their research completes.  UpgradeData rlev names the ability that the
+ * research unlocks/levels.  Keep this data-driven so custom units/upgrades
+ * inherit the same command-card and execution gate without rawcode checks. */
+BOOL G_UnitAbilityResearchAvailable(LPCEDICT unit, DWORD ability_id) {
+    LPGAMECLIENT owner;
+    LPCSTR upgrades;
+    char token[64];
+    BOOL gated = false;
+
+    if (!unit || !ability_id || !unit->data.UnitBalance) return true;
+    upgrades = unit->data.UnitBalance->upgrades;
+    if (!upgrades || !*upgrades) return true;
+    owner = G_GetPlayerClientByNumber(unit->s.player);
+
+    for (DWORD u = 0; G_CsvToken(upgrades, u, token, sizeof(token)); u++) {
+        DWORD upgrade_id;
+        UpgradeData_t const *upgrade;
+
+        if (strlen(token) != 4) continue;
+        memcpy(&upgrade_id, token, sizeof(upgrade_id));
+        upgrade = G_UpgradeData(upgrade_id);
+        if (!upgrade || upgrade->id != upgrade_id) continue;
+
+        FOR_LOOP(i, 4) {
+            if (upgrade->effect[i] != ID_UPGRADE_EFFECT_SPELL_LEVEL ||
+                upgrade->effectCode[i] != ability_id) continue;
+            gated = true;
+            if (owner && owner->ps.number == unit->s.player &&
+                G_GetPlayerTechResearchedLevel(owner, upgrade_id) > 0) return true;
+        }
+    }
+    return !gated;
+}
+
 static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
                                      LONG old_level, LONG new_level) {
     BOOL changed = false;
@@ -241,11 +279,44 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
                 unit->attack2.numberOfDice = MAX(0, (LONG)unit->attack2.numberOfDice + delta);
                 changed = true;
             }
+        } else if (effect == ID_UPGRADE_EFFECT_ATTACK_RANGE) {
+            FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
+                                G_UpgradeEffectValue(upgrade, i, old_level);
+            if (delta != 0.0f && unit->attack1.numberOfDice) {
+                unit->attack1.range = MAX(0.0f, unit->attack1.range + delta);
+                changed = true;
+            }
+            if (delta != 0.0f && unit->attack2.numberOfDice) {
+                unit->attack2.range = MAX(0.0f, unit->attack2.range + delta);
+                changed = true;
+            }
         } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
             FLOAT const delta = unit->data.UnitBalance->armorPerUpgrade * (FLOAT)(new_level - old_level);
             if (delta != 0.0f) {
                 unit->permanent_armor_bonus += delta;
                 unit->armor_value += delta;
+                changed = true;
+            }
+        } else if (effect == ID_UPGRADE_EFFECT_HIT_POINTS) {
+            FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
+                                G_UpgradeEffectValue(upgrade, i, old_level);
+            if (delta != 0.0f) {
+                FLOAT const old_max = unit->health.max_value;
+                FLOAT const health_ratio = old_max > 0.0f ? unit->health.value / old_max : 0.0f;
+                FLOAT const new_max = MAX(1.0f, old_max + delta);
+
+                unit->permanent_health_bonus += delta;
+                unit->health.max_value = new_max;
+                unit->health.value = MAX(0.0f, MIN(new_max, new_max * health_ratio));
+                changed = true;
+            }
+        } else if (effect == ID_UPGRADE_EFFECT_SPELL_LEVEL) {
+            DWORD const ability_id = upgrade->effectCode[i];
+            /* Warsmash's rlev contract sets the affected ability to
+             * researched-level + 1; removing the tech returns it to level 1.
+             * The base/mod numeric columns are not part of this effect. */
+            if (ability_id && G_UnitAbilityLevel(unit, ability_id) &&
+                G_UnitSetAbilityLevel(unit, ability_id, new_level > 0 ? new_level + 1 : 1)) {
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_MAX_MANA) {

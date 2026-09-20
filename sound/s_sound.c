@@ -401,8 +401,12 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
 
         for (int i = skip; i < frames; i++) {
             if (pos >= sc->length) {
-                s.channels[ch].active = FALSE;
-                break;
+                if (s.channels[ch].looping && sc->length > 0) {
+                    pos = sc->loopstart >= 0 && sc->loopstart < sc->length ? sc->loopstart : 0;
+                } else {
+                    s.channels[ch].active = FALSE;
+                    break;
+                }
             }
             int samp = (int)sc->data[pos++];
             int l = (int)out[i * 2]     + (int)(samp * lvol);
@@ -476,6 +480,9 @@ static void S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL i
             s.channels[ch].attenuation  = attenuation;
             s.channels[ch].channel      = channel;
             s.channels[ch].delay        = (int)(timeofs * 44100.0f);
+            s.channels[ch].entity       = 0;
+            s.channels[ch].loop_generation = 0;
+            s.channels[ch].looping      = FALSE;
             s.channels[ch].is_positional = is_positional;
             s.channels[ch].active       = TRUE;
             SDL_UnlockAudioDevice(s.device);
@@ -539,6 +546,68 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
     sfx->registration_sequence = s.registration_sequence;
     S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL, positioned,
                  channel, attenuation, timeofs);
+}
+
+void S_BeginLoopingSounds(void) {
+    if (!s.initialized) return;
+    if (++s.loop_generation == 0) ++s.loop_generation;
+}
+
+void S_UpdateLoopingSound(DWORD entity, LPCSTR path, LPCVECTOR2 origin, FLOAT volume, FLOAT attenuation) {
+    sfx_t *sfx;
+    sfxcache_t *sc;
+    int free_channel = -1;
+
+    if (!s.initialized || !entity || !path || !*path) return;
+    sfx = S_FindSfx(path, TRUE);
+    if (!sfx) return;
+    sfx->registration_sequence = s.registration_sequence;
+    sc = S_LoadSfx(sfx);
+    if (!sc) return;
+
+    SDL_LockAudioDevice(s.device);
+    FOR_LOOP(ch, S_MAX_CHANNELS) {
+        if (s.channels[ch].active && s.channels[ch].looping && s.channels[ch].entity == entity) {
+            if (s.channels[ch].sc != sc) {
+                s.channels[ch].sc = sc;
+                s.channels[ch].pos = 0;
+            }
+            s.channels[ch].origin = origin ? *origin : (VECTOR2){0};
+            s.channels[ch].master_vol = volume;
+            s.channels[ch].attenuation = attenuation;
+            s.channels[ch].is_positional = origin != NULL;
+            s.channels[ch].loop_generation = s.loop_generation;
+            SDL_UnlockAudioDevice(s.device);
+            return;
+        }
+        if (!s.channels[ch].active && free_channel < 0) free_channel = ch;
+    }
+    if (free_channel >= 0) {
+        int ch = free_channel;
+        memset(&s.channels[ch], 0, sizeof(s.channels[ch]));
+        s.channels[ch].sc = sc;
+        s.channels[ch].master_vol = volume;
+        s.channels[ch].leftvol = s.channels[ch].rightvol = volume;
+        s.channels[ch].origin = origin ? *origin : (VECTOR2){0};
+        s.channels[ch].attenuation = attenuation;
+        s.channels[ch].entity = entity;
+        s.channels[ch].loop_generation = s.loop_generation;
+        s.channels[ch].looping = TRUE;
+        s.channels[ch].is_positional = origin != NULL;
+        s.channels[ch].active = TRUE;
+    }
+    SDL_UnlockAudioDevice(s.device);
+}
+
+void S_EndLoopingSounds(void) {
+    if (!s.initialized) return;
+    SDL_LockAudioDevice(s.device);
+    FOR_LOOP(ch, S_MAX_CHANNELS) {
+        if (s.channels[ch].active && s.channels[ch].looping &&
+            s.channels[ch].loop_generation != s.loop_generation)
+            memset(&s.channels[ch], 0, sizeof(s.channels[ch]));
+    }
+    SDL_UnlockAudioDevice(s.device);
 }
 
 /* Client-owned long-form PCM streams (movie/music), stereo S16 at 44.1 kHz. */

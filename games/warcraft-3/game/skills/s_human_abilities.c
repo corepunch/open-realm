@@ -38,6 +38,8 @@ static void human_remove_status(LPEDICT ent, DWORD code) {
             memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
 }
 
+static BOOL defend_projectile_reaction(LPEDICT projectile);
+
 static void human_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = human_buff(spell, level);
@@ -54,6 +56,8 @@ static void human_toggle_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
         human_remove_status(caster, spell->code); S_HumanStatusExpired(caster, spell->code, level); return;
     }
     unit_addtimedstatus(caster, GetClassName(spell->code), level, duration);
+    if (G_AbilityCode(spell->code) == MAKEFOURCC('A','d','e','f'))
+        G_AddUnitAnimationProperties(caster, "defend", true);
 }
 
 /* Retail timed immunity buffs block spell targeting and impacts, independently of physical damage. */
@@ -443,7 +447,20 @@ BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, true, spell_steal_execute, false, fal
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
 /* Name=Defend; Untip=Stop Defend */
-BZ_SIMPLE_SPELL_PROC(AbilityDefend) { human_toggle_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityDefend) {
+    spellTarget_t target = msg == A_EXECUTE && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    DWORD const code = call && call->item ? call->item->code : 0;
+    switch (msg) {
+    case A_TOGGLE_ON: return ent && human_has_status(ent, code);
+    case A_EXECUTE:
+        if (!call || !call->item || !G_UnitAbilityResearchAvailable(ent, code)) return false;
+        human_toggle_execute(ent, target, call->item);
+        return true;
+    case A_PROJECTILE_HIT: return defend_projectile_reaction(call ? call->projectile : NULL);
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 /* Name=Flare; Ubertip="Launches a Dwarven flare above a target point, which reveals that area for <Afla,Dur1> seconds." */
 BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     DWORD level = S_SpellLevel(caster, spell->code);
@@ -513,10 +530,17 @@ FLOAT S_HumanMoveFactor(LPCEDICT unit) {
     DWORD level;
     FLOAT factor = 1.0f;
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','s','l','o'), level, 1);
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
+    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
+    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
     if (human_has_status(unit, MAKEFOURCC('B','m','l','t'))) return 0.0f;
     return factor;
+}
+
+FLOAT S_DefendAttackReduction(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f'));
+    /* Adef DataD is an attack-speed reduction fraction. Warsmash installs it
+     * as a negative ATKSPD non-stacking stat buff while Defend is active. */
+    return level ? S_SpellData(MAKEFOURCC('A','d','e','f'), level, 4) : 0.0f;
 }
 
 FLOAT S_HumanArmorBonus(LPCEDICT unit) {
@@ -524,6 +548,73 @@ FLOAT S_HumanArmorBonus(LPCEDICT unit) {
     FLOAT bonus = 0.0f;
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','i','n','f')))) bonus += S_SpellData(MAKEFOURCC('A','i','n','f'), level, 2);
     return bonus;
+}
+
+static int defend_damage_taken(LPEDICT target, DWORD attack_type, int damage) {
+    DWORD const level = G_UnitStatusLevel(target, MAKEFOURCC('A','d','e','f'));
+    FLOAT factor = 1.0f;
+    if (!level || damage <= 0) return damage;
+    if (attack_type == ATK_PIERCE)
+        factor = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 1);
+    else if (attack_type == ATK_MAGIC || attack_type == ATK_SPELLS)
+        factor = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 5);
+    return (int)((FLOAT)damage * MAX(0.0f, factor));
+}
+
+/* Reflect a basic attack missile while the target's Defend ability owns the reaction. */
+static BOOL defend_projectile_reaction(LPEDICT projectile) {
+    DWORD level, attack_type;
+    FLOAT chance, deflect_factor;
+    LPEDICT attacker, target;
+    VECTOR3 dir;
+
+    /* Spell missiles install their own move/end callback; Defend reacts only
+     * to the shared basic-attack projectile contract. A returned missile may
+     * hit its source, but cannot be reflected recursively. */
+    if (!projectile || projectile->movetype != MOVETYPE_FLYMISSILE || projectile->currentmove ||
+        projectile->projectile_reflected || !(attacker = projectile->owner) || !attacker->inuse ||
+        !(target = projectile->goalentity) || !target->inuse ||
+        !(level = G_UnitStatusLevel(target, MAKEFOURCC('A','d','e','f')))) return false;
+    if (game.constants.combatConstantsLoaded && !game.constants.defendDeflection) return false;
+
+    attack_type = attacker->attack1.type;
+    if (attack_type == ATK_PIERCE)
+        deflect_factor = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 7);
+    else if (attack_type == ATK_MAGIC || attack_type == ATK_SPELLS)
+        deflect_factor = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 8);
+    else
+        return false;
+
+    /* Warsmash/WC3 stores Defend Data F on a 0..100 scale, unlike normal
+     * percentage multipliers. Data G/H >= 1 disables deflection for the
+     * corresponding attack class. */
+    if (deflect_factor >= 1.0f) return false;
+    chance = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 6);
+    if (chance <= 0.0f || (chance < 100.0f && ((FLOAT)rand() / (FLOAT)RAND_MAX) * 100.0f >= chance))
+        return false;
+
+    /* A deflected hit can still leak authored damage through Data G/H. It is
+     * ordinary non-attack damage with the original attack type, so apply the
+     * target's Defend damage-taken multiplier and armor/type table but do not
+     * replay attack on-hit passives. Stock Footman Defend has Data G=0. */
+    if (deflect_factor > 0.0f) {
+        int damage = G_AttackDamage(attacker, target, (int)((FLOAT)projectile->damage * deflect_factor));
+        damage = defend_damage_taken(target, attack_type, damage);
+        if (damage > 0) T_Damage(target, attacker, damage);
+    }
+
+    projectile->projectile_reflected = true;
+    if (G_UnitIsBuilding(attacker->class_id)) {
+        /* Retail Defend may block a tower's shot but does not send the missile
+         * back into the structure. The successful reaction consumes the shot. */
+        G_FreeEdict(projectile);
+        return true;
+    }
+
+    projectile->goalentity = attacker;
+    dir = Vector3_sub(&attacker->s.origin, &projectile->s.origin);
+    if (Vector3_len(&dir) > 0.0f) projectile->s.angle = atan2f(dir.y, dir.x);
+    return true;
 }
 
 int S_HumanAttackDamage(LPEDICT attacker, LPEDICT target, int damage) {
@@ -537,14 +628,13 @@ int S_HumanAttackDamage(LPEDICT attacker, LPEDICT target, int damage) {
     }
     if ((level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','s','h'))) && target->defense_type <= 2)
         damage += (int)S_SpellData(MAKEFOURCC('A','f','s','h'), level, 3 + target->defense_type);
-    if (attacker->attack1.type == ATK_PIERCE && (level = G_UnitStatusLevel(target, MAKEFOURCC('A','d','e','f')))) {
-        /* Def6 is a 0..1 probability; the previous integer-percent roll made 0.30 behave as 0.3%. */
-        if ((FLOAT)rand() / (FLOAT)RAND_MAX < S_SpellData(MAKEFOURCC('A','d','e','f'), level, 6)) {
-            T_Damage(attacker, target, (int)(damage * S_SpellData(MAKEFOURCC('A','d','e','f'), level, 2))); return 0;
-        }
-        damage = (int)(damage * S_SpellData(MAKEFOURCC('A','d','e','f'), level, 1));
-    }
-    return damage;
+    /* Defend Data B scales the defender's own attacks while the stance is
+     * active. Data A reduces non-deflected Piercing hits; Data E does the same
+     * for Magic/Spells. Projectile deflection itself happens in g_phys.c so a
+     * successful shot can keep travelling back to its source. */
+    if ((level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','d','e','f'))))
+        damage = (int)((FLOAT)damage * MAX(0.0f, S_SpellData(MAKEFOURCC('A','d','e','f'), level, 2)));
+    return defend_damage_taken(target, attacker->attack1.type, damage);
 }
 
 void S_HumanAttackSplash(LPEDICT attacker, LPEDICT target, int damage) {
@@ -575,6 +665,7 @@ void S_HumanBreakInvisibility(LPEDICT unit) {
 void S_HumanStatusExpired(LPEDICT unit, DWORD code, DWORD level) {
     (void)level;
     if (!unit) return;
+    if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) G_AddUnitAnimationProperties(unit, "defend", false);
     if (code == MAKEFOURCC('B','i','n','v')) unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
     if (unit->polymorph.active && code == unit->polymorph.buff) S_PolymorphRemove(unit);

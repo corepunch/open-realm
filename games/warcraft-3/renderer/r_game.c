@@ -1,4 +1,5 @@
 #include "renderer/r_game.h"
+#include "r_lightning.h"
 #include "mdx/r_mdx.h"
 #include "w3m/r_war3map.h"
 #include "r_weather.h"
@@ -240,6 +241,7 @@ void R_LoadAssets(void) {
 void R_Init(void) {
     cursor_model = NULL; cursor_load_attempted = false;
     R_WeatherInit();
+    R_LightningInit();
     MDLX_Init();
 }
 
@@ -258,6 +260,7 @@ void R_Shutdown(void) {
     FS_SLKFreeRows(cliff_schema, g_cliff_rows, g_cliff_count, sizeof(w3CliffType_t));
     g_cliff_rows = NULL; g_cliff_count = 0;
     R_WeatherShutdown();
+    R_LightningShutdown();
     MDLX_Shutdown();
 }
 
@@ -383,6 +386,7 @@ void R_RegisterMap(LPCSTR mapFileName) {
     R_SetMapAssetScope(mapFileName);
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
     R_WeatherRegisterMap();
+    R_LightningRegisterMap();
     _W3M_RegisterMap(mapFileName);
 }
 
@@ -406,6 +410,7 @@ void R_DrawTerrainShadows(void) {
 
 void R_DrawAlphaSurfaces(void) {
     _W3M_DrawAlphaSurfaces();
+    R_LightningDraw();
     R_WeatherEmit();
 }
 

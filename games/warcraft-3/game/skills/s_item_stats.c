@@ -120,6 +120,7 @@ void S_OrbOnHit(LPEDICT attacker, LPEDICT target) {
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
     FOR_LOOP(o, sizeof(orb_codes) / sizeof(orb_codes[0]))
         if (G_UnitAbilityLevel(attacker, orb_codes[o])) orb_apply(attacker, target, orb_codes[o], seen, &count);
+    if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
         LPEDICT item = attacker->inventory[i];
         LPCSTR abilities;

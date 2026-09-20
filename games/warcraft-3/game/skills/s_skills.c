@@ -422,7 +422,7 @@ static ability_t abilitylist[] = {
     // TODO: Agho a_ghost  /* Ghost */
     // TODO: Aeth a_ghost  /* Ghost */
     // TODO: Amin a_button  /* Mine - exploding */
-    // TODO: Apiv a_perm_invis  /* Permanent Invisibility */
+    { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE },  /* Permanent Invisibility */
     // TODO: Awan a_wander  /* Wander */
     // TODO: Aarm a_unknown  /* Mana Regeneration Aura */
     // TODO: Asid a_button  /* Sell Items */
@@ -754,6 +754,25 @@ BOOL S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE)) break;
     }
     return handled;
+}
+
+/* Dispatch projectile impact to the target's authored abilities before damage is applied. */
+BOOL S_UnitProjectileHit(LPEDICT projectile) {
+    LPEDICT target = projectile ? projectile->goalentity : NULL;
+    if (!target || !target->inuse) return false;
+    FOR_LOOP(i, game.num_abilities) {
+        ability_t const *ability = abilitylist + i;
+        abilityitem_t item;
+        abilityCall_t call;
+        DWORD code;
+        if (!ability->classname || strlen(ability->classname) != 4) continue;
+        code = FS_SLKKey(ability->classname);
+        if (!G_UnitAbilityLevel(target, code)) continue;
+        item = MAKE(abilityitem_t, .code = code, .ability = ability);
+        call = MAKE(abilityCall_t, .item = &item, .projectile = projectile);
+        if (S_AbilityMessage(target, A_PROJECTILE_HIT, &call)) return true;
+    }
+    return false;
 }
 
 ability_t const *FindAbilityByClassname(LPCSTR classname) {

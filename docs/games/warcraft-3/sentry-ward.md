@@ -29,8 +29,7 @@ from `Aeye` Data cells (`Aeye` has no DataA–I).
 ROC omits `UnitID` / `BuffID` on both rows.
 
 `oeye` UnitAbilities: `Adt1,Aeth`. Stock `Adt1` TFT: `Rng=1100`, `DataA=3`
-(detectionType). OpenWarcraft exposes detection as `S_UnitIsDetected` for a
-`RF_HIDDEN` unit inside a living friendly sentry ward's detect radius.
+(detectionType). OpenWarcraft exposes a player-aware `S_UnitIsDetectedByPlayer` query. A Sentry Ward contributes its stored `Adt1` range only to its owner and viewers receiving that owner's shared vision; the legacy `S_UnitIsDetected` helper remains as an aggregate compatibility query.
 
 ## Data Flow
 
@@ -41,13 +40,14 @@ CAbilityEvilEye
   -> S_SummonAt(caster, UnitID, point, Dur)
   -> ward.summon_ability = cast rawcode; RF_HIDDEN
   -> ward.wait = Adt1 Rng (detect radius)
-S_UnitIsDetected(unit)
-  -> unit RF_HIDDEN and enemy-to-unit Aeye/AIsw ward within ward.wait
+S_UnitIsDetectedByPlayer(unit, viewer)
+  -> viewer owns/shares vision with detector
+  -> target is enemy to detector and inside authored detection radius
+  -> viewer-specific visibility/selection/targeting may reveal known gameplay invisibility
+  -> outgoing snapshot clears RF_HIDDEN locally without changing authoritative entity state
 ```
 
-FOW reveal while the ward itself is `RF_HIDDEN` is a known gap (invisible wards
-should still grant owner vision). Detection of other invisible units is the
-contract covered here. `Adt1` / `Atru` remain separate passive TODOs.
+FOW reveal while the ward itself is `RF_HIDDEN` is still a separate gap (invisible wards should still grant owner vision). Detection itself is no longer a global hidden-state toggle: Far Sight and passive detector abilities share the viewer-specific path, and non-invisibility `RF_HIDDEN` states remain hidden.
 
 ## Diagnostic Workflow
 

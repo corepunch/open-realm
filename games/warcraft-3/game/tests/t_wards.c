@@ -5,6 +5,8 @@
 #define BZ_ASTA MAKEFOURCC('A', 's', 't', 'a') // Stasis Trap
 #define BZ_AEYE MAKEFOURCC('A', 'e', 'y', 'e') // Sentry Ward
 #define BZ_AISW MAKEFOURCC('A', 'I', 's', 'w') // item Sentry Ward alias
+#define BZ_APIV MAKEFOURCC('A', 'p', 'i', 'v') // Permanent Invisibility
+#define BZ_BINV MAKEFOURCC('B', 'i', 'n', 'v') // Invisibility buff
 #define BZ_BSTA MAKEFOURCC('B', 's', 't', 'a') // Stasis Trap stun buff
 #define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F') // timed life
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // fixture stasis UnitID (non-stock otot)
@@ -22,7 +24,7 @@ void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
 static char const wards_slk[] =
-	"ID;PWXL;N;EBB;Y5;X16\n"
+	"ID;PWXL;N;EBB;Y6;X16\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
 	"C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
@@ -44,7 +46,9 @@ static char const wards_slk[] =
 	"C;Y4;X14;K\"ogru\"\nC;Y4;X15;K\"Beye\"\n"
 	"C;Y5;X1;K\"Adt1\"\nC;Y5;X2;K\"Adet\"\nC;Y5;X3;K\"1\"\n"
 	"C;Y5;X4;K\"vuln,invu\"\nC;Y5;X5;K\"0\"\nC;Y5;X6;K\"0\"\n"
-	"C;Y5;X7;K\"350\"\nC;Y5;X10;K\"3\"\nE\n";
+	"C;Y5;X7;K\"350\"\nC;Y5;X10;K\"3\"\n"
+	"C;Y6;X1;K\"Apiv\"\nC;Y6;X2;K\"Apiv\"\nC;Y6;X3;K\"1\"\n"
+	"C;Y6;X8;K\"2\"\nE\n";
 
 typedef struct {
 	slkTestData_t *rows, *old;
@@ -182,6 +186,7 @@ TEST(wc3_spell, sentry_ward_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_AEYE).ability->proc, CAbilityEvilEye);
 	T_EQ(S_AbilityItem(BZ_AISW).ability->proc, CAbilityEvilEye);
 	T_EQ(S_AbilityItem(BZ_AEYE).ability->target_type, SPELL_TARGET_POINT);
+	T_EQ(S_AbilityItem(BZ_APIV).ability->proc, CAbilityPermanentInvisibility);
 }
 
 TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
@@ -201,7 +206,142 @@ TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
 	T_EQ(G_UnitStatusLevel(ward, BZ_BTLF), 1);
 	T_FEQ(ward->wait, BZ_SIGHT, .001f);
 	T_ASSERT(S_UnitIsDetected(fix.enemy));
+	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
 	T_ASSERT(!S_UnitIsDetected(fix.far));
+	ward_done(&fix);
+}
+
+
+
+TEST(wc3_spell, sentry_true_sight_makes_known_rf_hidden_invisibility_selectable_for_viewer) {
+	WARDFIX fix; VECTOR2 point = { 128, 128 };
+	ward_setup(&fix);
+	game.clients[0].ps.number = 0;
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
+	fix.enemy->s.origin2 = (VECTOR2){ 200, 128 };
+	fix.enemy->s.renderfx |= RF_HIDDEN;
+	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
+	T_ASSERT(!G_UnitCanBeSelected(&game.clients[0], fix.enemy));
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AEYE, &point));
+	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(G_UnitCanBeSelected(&game.clients[0], fix.enemy));
+	ward_done(&fix);
+}
+
+
+TEST(wc3_spell, true_sight_snapshot_and_selection_are_viewer_local) {
+	WARDFIX fix; VECTOR2 point = { 128, 128 }; entityState_t state;
+	ward_setup(&fix);
+	game.clients[0].ps.number = 0; game.clients[1].ps.number = 1; game.clients[2].ps.number = 2;
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
+	fix.enemy->s.origin2 = (VECTOR2){ 200, 128 };
+	fix.enemy->s.renderfx |= RF_HIDDEN;
+	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
+	T_NOT_NULL(globals.CustomizeEntity);
+	if (!globals.CustomizeEntity) { ward_done(&fix); return; }
+
+	state = fix.enemy->s; globals.CustomizeEntity(1, fix.enemy, &state);
+	T_ASSERT(!(state.renderfx & RF_HIDDEN));
+	T_ASSERT(G_UnitCanBeSelected(&game.clients[1], fix.enemy));
+	state = fix.enemy->s; globals.CustomizeEntity(0, fix.enemy, &state);
+	T_ASSERT(state.renderfx & RF_HIDDEN);
+	T_ASSERT(!G_UnitCanBeSelected(&game.clients[0], fix.enemy));
+
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AEYE, &point));
+	state = fix.enemy->s; globals.CustomizeEntity(0, fix.enemy, &state);
+	T_ASSERT(!(state.renderfx & RF_HIDDEN));
+	T_ASSERT(G_UnitCanBeSelected(&game.clients[0], fix.enemy));
+	state = fix.enemy->s; globals.CustomizeEntity(2, fix.enemy, &state);
+	T_ASSERT(state.renderfx & RF_HIDDEN);
+	T_ASSERT(fix.enemy->s.renderfx & RF_HIDDEN); /* snapshot customization is local only */
+	ward_done(&fix);
+}
+
+TEST(wc3_spell, permanent_invisibility_blocks_hostile_acquisition_and_spell_targets_until_detected) {
+	WARDFIX fix; VECTOR2 point = { 64, 0 };
+	ward_setup(&fix);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
+	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
+	level.time = 3000;
+	gi.LinkEntity(fix.caster); gi.LinkEntity(fix.enemy);
+	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
+	T_ASSERT(S_UnitIsInvisibleToPlayer(fix.enemy, 0));
+	T_NULL(G_FindNearestEnemy(fix.caster, 128.0f));
+	T_ASSERT(!S_SpellAllowsTarget(BZ_AEYE, fix.caster, fix.enemy));
+
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AEYE, &point));
+	T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.enemy, 0));
+	T_ASSERT(G_FindNearestEnemy(fix.caster, 128.0f) == fix.enemy);
+	T_ASSERT(S_SpellAllowsTarget(BZ_AEYE, fix.caster, fix.enemy));
+	ward_done(&fix);
+}
+
+TEST(wc3_spell, permanent_invisibility_uses_authored_transition_after_spawn_and_reveal) {
+	WARDFIX fix;
+	ward_setup(&fix);
+	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000;
+	S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
+	T_EQ(fix.enemy->permanent_invisibility_reveal_until, 3000);
+	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
+	level.time = 3000;
+	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
+	S_PermanentInvisibilityReveal(fix.enemy);
+	T_EQ(fix.enemy->permanent_invisibility_reveal_until, 5000);
+	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
+	level.time = 5000;
+	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
+	ward_done(&fix);
+}
+
+
+TEST(wc3_spell, active_spell_commit_restarts_permanent_invisibility_transition) {
+	WARDFIX fix; VECTOR2 point = { 128, 96 };
+	ward_setup(&fix);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	fix.caster->heroabilities[1] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000; S_UnitAbilityEvent(fix.caster, A_UNIT_INIT);
+	level.time = 3000;
+	T_ASSERT(S_PermanentInvisibilityActive(fix.caster));
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
+	T_EQ(fix.caster->permanent_invisibility_reveal_until, 5000);
+	T_ASSERT(!S_PermanentInvisibilityActive(fix.caster));
+	ward_done(&fix);
+}
+
+TEST(wc3_spell, far_sight_detects_permanent_invisibility_only_for_its_viewers) {
+	WARDFIX fix; LPEDICT sight;
+	ward_setup(&fix);
+	G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowConnectPlayer(2);
+	fix.caster->runtime.sight_radius.day = 256.0f;
+	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
+	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
+	level.time = 3000;
+	G_FowUpdate();
+	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
+	T_ASSERT(!G_FowPlayerCanSeeEntity(0, fix.enemy));
+	T_ASSERT(G_FowPlayerCanSeeEntity(1, fix.enemy));
+
+	sight = G_Spawn(); T_NOT_NULL(sight);
+	sight->svflags |= SVF_NOCLIENT; sight->think = far_sight_think; sight->s.player = 0;
+	sight->s.origin2 = fix.enemy->s.origin2; sight->collision = 128.0f; sight->spawn_time = 5000;
+	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
+	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 2));
+	T_ASSERT(G_FowPlayerCanSeeEntity(0, fix.enemy));
+
+	G_FowShutdown(); ward_done(&fix);
+}
+
+TEST(wc3_spell, true_sight_only_reveals_rf_hidden_states_known_to_be_invisibility) {
+	WARDFIX fix;
+	ward_setup(&fix);
+	fix.enemy->s.renderfx |= RF_HIDDEN;
+	T_ASSERT(!S_UnitUsesInvisibilityRenderFlag(fix.enemy));
+	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
+	T_ASSERT(S_UnitUsesInvisibilityRenderFlag(fix.enemy));
+	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BINV), 1);
 	ward_done(&fix);
 }
 

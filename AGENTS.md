@@ -83,6 +83,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
 | WC3 race-specific construction strategies and remaining Human/Orc/Undead/Night Elf mechanic gaps | [docs/games/warcraft-3/race-mechanics.md](docs/games/warcraft-3/race-mechanics.md) |
 | WC3 research queues, upgrade costs/requirements, player tech state, Blacksmith attack/armor effects | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
+| WC3 Human Barracks unit abilities: Defend toggle/animation, Long Rifles range, Animal War Training max life, remaining fidelity gaps | [docs/games/warcraft-3/human-barracks-unit-abilities.md](docs/games/warcraft-3/human-barracks-unit-abilities.md) |
 | WC3 building damage fire thresholds, MDX Sprite attachments, race-specific effect families | [docs/games/warcraft-3/building-damage-rendering.md](docs/games/warcraft-3/building-damage-rendering.md) |
 | WC3 area-based JASS doodad animation, show/hide, looping and non-looping sequence lifecycle | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |
 | WC3 Build/Repair blocked-footprint approach routing | [docs/games/warcraft-3/build-repair-routing.md](docs/games/warcraft-3/build-repair-routing.md) |

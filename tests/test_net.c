@@ -39,6 +39,7 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void test_client_stubs_set_world_bounds(BOX2 bounds);
 void test_client_stubs_set_existing_file(LPCSTR path);
 void CL_ParseLayout(LPSIZEBUF msg);
+void CL_ParseFrame(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen);
@@ -3218,6 +3219,47 @@ TEST(net, active_entity_list_frame_copy_and_map_reset) {
     /* Loading a new map drops the list so fresh baselines repopulate it. */
     CL_BeginLoadingMap("Maps\\Test.w3m");
     T_EQ(cl.num_active, 0);
+}
+
+/* The game-owned datagram must decode attached lightning and clear stale records on the next frame. */
+TEST(net, lightning_datagram_round_trip_and_clear) {
+    BYTE buf[1024];
+    sizeBuf_t sb;
+    LIGHTNINGEFFECT bolt = MAKE(LIGHTNINGEFFECT,
+        .handle = 7, .effect_id = MAKEFOURCC('C', 'L', 'P', 'B'),
+        .source = { 1.0f, 2.0f, 3.0f }, .target = { 4.0f, 5.0f, 6.0f },
+        .color = COLOR32_WHITE, .start_time = 100, .end_time = 2000);
+
+    test_client_stubs_init();
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteLong(&sb, 1); MSG_WriteLong(&sb, 100); MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_LIGHTNING); MSG_WriteShort(&sb, 1);
+    MSG_Write(&sb, &bolt, sizeof(bolt));
+    sb.readcount = 0; CL_ParseFrame(&sb);
+    T_EQ(cl.num_lightning_effects, 1);
+    T_EQ(cl.lightning_effects[0].handle, 7);
+    T_FEQ(cl.lightning_effects[0].target.z, 6.0f, 0.001f);
+
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteLong(&sb, 2); MSG_WriteLong(&sb, 200); MSG_WriteLong(&sb, 1);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0; CL_ParseFrame(&sb);
+    T_EQ(cl.num_lightning_effects, 0);
+    T_EQ(cl.viewDef.num_lightning_effects, 0);
+}
+
+/* Malformed lightning counts must consume the frame without exposing partial client state. */
+TEST(net, lightning_datagram_rejects_oversized_count) {
+    BYTE buf[64];
+    sizeBuf_t sb;
+
+    test_client_stubs_init();
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteLong(&sb, 1); MSG_WriteLong(&sb, 100); MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_LIGHTNING); MSG_WriteShort(&sb, MAX_LIGHTNING_EFFECTS + 1);
+    sb.readcount = 0; CL_ParseFrame(&sb);
+    T_EQ(cl.num_lightning_effects, 0);
+    T_EQ(sb.readcount, sb.cursize);
 }
 
 TEST(net, console_print_message_is_consumed) {

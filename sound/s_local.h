@@ -100,10 +100,13 @@ typedef struct {
         FLOAT       attenuation;
         int         channel;
         int         delay;
+        DWORD       entity;
+        DWORD       loop_generation;
+        BOOL        looping;
         BOOL        is_positional;
         BOOL        active;
     } channels[S_MAX_CHANNELS];
-
+    DWORD loop_generation;
 
     /* Client-owned long-form PCM streams: stereo S16 at the mixer rate.
      * Keep movie and music lifetime independent so one presentation source
@@ -126,6 +129,9 @@ void S_PlaySoundFile(LPCSTR path);
 void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin);
 void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation,
                        FLOAT timeofs);
+void S_BeginLoopingSounds(void);
+void S_UpdateLoopingSound(DWORD entity, LPCSTR path, LPCVECTOR2 origin, FLOAT volume, FLOAT attenuation);
+void S_EndLoopingSounds(void);
 void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right);
 void S_StreamStart(sStreamId_t stream);
 DWORD S_StreamSamples(sStreamId_t stream, SHORT const *samples, DWORD frames);

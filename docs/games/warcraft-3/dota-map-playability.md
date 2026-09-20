@@ -207,7 +207,7 @@ Each `HT_HANDLE` entry stores the JASS type string (`unit`, `item`, `player`,
 domain (`location`, `lightning`, `image`, `ubersplat`, and other VM-owned
 payloads) log once to stderr and restore as null rather than writing a raw
 address. Stale/removed units become null, matching the group/unit handle
-rule. Save format version **31** adds the registry `inuse` bits to the level
+rule. Save format version **31** introduced the registry `inuse` bits to the level
 field stream plus a per-slot entry payload **after edicts**, so nested unit/item
 handles resolve against restored `inuse` bits (production `SV_Map` runs `main()`
 before `ReadGame`). See [Save/Load](save-load.md).

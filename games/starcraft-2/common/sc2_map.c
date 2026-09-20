@@ -1930,7 +1930,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
         if (!sc2_xml_attr(node, "id", group, sizeof(group))) continue;
         for (xmlNodePtr idx = node->children; idx; idx = idx->next) {
             SC2CONVERSATION row = {0};
-            char key[128], val[256];
+            char key[256], val[256];
             if (idx->type != XML_ELEMENT_NODE || strcmp((LPCSTR)idx->name, "Indices")) continue;
             FOR_LOOP(i, SC2_ARRAY_LEN(sc2_conv_fields)) {
                 LPCSTR field = sc2_conv_fields[i].name;

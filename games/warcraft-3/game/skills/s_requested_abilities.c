@@ -1,5 +1,11 @@
 #include "s_skills.h"
 
+#define ID_EARTHQUAKE MAKEFOURCC('A', 'O', 'e', 'q')
+#define ID_EARTHQUAKE_BUFF MAKEFOURCC('B', 'O', 'e', 'q')
+#define ID_CHAIN_LIGHTNING_VISIT MAKEFOURCC('C', 'L', 'v', 's')
+#define CHAIN_LIGHTNING_JUMP_MS 250
+#define CHAIN_LIGHTNING_BOLT_MS 2000
+
 void whirlwind_think(LPEDICT ent);
 
 typedef struct {
@@ -57,20 +63,64 @@ static void radial_damage_status(LPEDICT caster, VECTOR2 point, abilityitem_t co
     }
 }
 
+static BOOL earthquake_hits_destructable(LPEDICT target, FLOAT radius, LPCVECTOR2 origin) {
+    if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
+    if (!G_IsDestructable(target) || target->destructable.dead) return false;
+    return Vector2_distance(&target->s.origin2, origin) <= radius;
+}
+
+FLOAT S_EarthquakeMoveReduction(LPCEDICT unit) {
+    DWORD level = G_UnitStatusLevel(unit, ID_EARTHQUAKE_BUFF);
+    if (!level) return 0.0f;
+    return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
+}
+
+static LPEDICT spell_begin_area_presentation(LPEDICT owner, DWORD code, LPCVECTOR2 point) {
+    LPEDICT effect;
+    int loop_sound;
+    G_PlayAbilityEffectSound(code, point);
+    effect = G_SpawnOwnedAbilityEffectAtPoint(owner, code, WC3_EFFECT_AREA_EFFECT, 0, point);
+    if (!effect) effect = G_SpawnOwnedAbilityEffectAtPoint(owner, code, WC3_EFFECT_EFFECT, 0, point);
+    loop_sound = G_AbilityEffectSoundIndex(code, true);
+    if (effect && loop_sound) effect->s.sound = (USHORT)loop_sound;
+    return effect;
+}
+
+static void spell_end_area_presentation(LPEDICT owner) {
+    G_DestroyOwnedEffects(owner);
+}
+
 void earthquake_think(LPEDICT ent) {
-    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
+    if (!S_SpellChannelActive(ent)) { spell_end_area_presentation(ent); S_SpellEndChannel(ent); return; }
     DWORD level = S_SpellLevel(ent->owner, ent->class_id), now = G_Time();
     abilityitem_t item = S_AbilityItem(ent->class_id);
     abilityitem_t const *spell = &item;
     LPCSTR buff = spell_buff(spell, level);
-    if (now >= ent->spawn_time) { S_SpellEndChannel(ent); return; }
+    FLOAT radius = S_SpellNumber(ent->class_id, ABILITY_NUMBER_AREA, level);
+    FLOAT damage = S_SpellData(ent->class_id, level, 2);
+    if (now >= ent->spawn_time) { spell_end_area_presentation(ent); S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent->owner, target) &&
-                  Vector2_distance(&target->s.origin2, &ent->s.origin2) <= S_SpellNumber(ent->class_id, ABILITY_NUMBER_AREA, level)) {
-        if (G_UnitIsBuilding(target->class_id)) S_SpellDamage(target, ent->owner, (int)S_SpellData(ent->class_id, level, 2));
-        else if (buff) unit_addtimedstatus(target, buff, level, 1.5f);
+                  Vector2_distance(&target->s.origin2, &ent->s.origin2) <= radius) {
+        if (G_UnitIsBuilding(target->class_id) || target->targtype == TARG_STRUCTURE) {
+            S_SpellDamage(target, ent->owner, (int)damage);
+        } else if (target->targtype == TARG_GROUND && buff) {
+            unit_addtimedstatus(target, buff, level, 1.5f);
+        }
     }
+    FILTER_EDICTS(target, earthquake_hits_destructable(target, radius, &ent->s.origin2))
+        G_DestructableApplyDamage(target, ent->owner, damage);
     ent->freetime = now + 1000;
+}
+
+void far_sight_think(LPEDICT thinker) {
+    if (G_Time() >= thinker->spawn_time || thinker->s.player >= MAX_PLAYERS) {
+        spell_end_area_presentation(thinker);
+        G_FreeEdict(thinker);
+        return;
+    }
+    G_FowSetStateRadius(&(FOGWRITE){ thinker->s.player, WC3_FOG_STATE_VISIBLE, true },
+                        &thinker->s.origin2, thinker->collision);
 }
 
 void whirlwind_think(LPEDICT ent) {
@@ -149,6 +199,7 @@ static void bounce_execute(bounceParams_t const *params) {
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, current, NULL, true);
         visited[nvisited++] = current; damage *= scale;
         FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                      S_SpellAllowsTarget(spell->code, caster, target) &&
                       Vector2_distance(&target->s.origin2, &current->s.origin2) <= S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) {
             BOOL seen = false;
             FOR_LOOP(j, nvisited) seen |= target == visited[j];
@@ -156,6 +207,137 @@ static void bounce_execute(bounceParams_t const *params) {
         }
         current = candidate_count ? candidates[random_jumps ? rand() % candidate_count : 0] : NULL;
     }
+}
+
+/* Chain Lightning is asynchronous in Warcraft/Warsmash: the first target is
+ * struck immediately and each subsequent jump occurs 0.25 seconds later.
+ * Keep the delayed cast entirely in ordinary save-safe edicts. The main
+ * thinker owns the next damage/radius/jump count, while small no-client marker
+ * edicts remember target identity (pointer + spawn generation) so simultaneous
+ * or delayed jumps cannot revisit an earlier unit. */
+static BOOL chain_lightning_visited(LPEDICT thinker, LPCEDICT target) {
+    FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
+                  marker->channel.owner_spawn_time == thinker->spawn_time &&
+                  marker->goalentity == target && marker->resources == target->spawn_time)
+        return true;
+    return false;
+}
+
+static void chain_lightning_mark_visited(LPEDICT thinker, LPEDICT target) {
+    LPEDICT marker = G_Spawn();
+    if (!marker) return;
+    marker->class_id = ID_CHAIN_LIGHTNING_VISIT;
+    marker->svflags |= SVF_NOCLIENT;
+    marker->owner = thinker;
+    marker->channel.owner_spawn_time = thinker->spawn_time;
+    marker->goalentity = target;
+    marker->resources = target->spawn_time;
+}
+
+static void chain_lightning_finish(LPEDICT thinker) {
+    LPEDICT markers[32];
+    DWORD count = 0;
+    FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
+                  marker->channel.owner_spawn_time == thinker->spawn_time)
+        if (count < 32) markers[count++] = marker;
+    FOR_LOOP(i, count) G_FreeEdict(markers[i]);
+    G_FreeEdict(thinker);
+}
+
+void chain_lightning_think(LPEDICT thinker) {
+    LPEDICT caster, next = NULL;
+    FLOAT nearest_distance = 0.0f;
+
+    if (!thinker || !thinker->inuse) return;
+    caster = thinker->owner;
+    if (!caster || !caster->inuse || caster->spawn_time != thinker->channel.owner_spawn_time || !thinker->resources) {
+        chain_lightning_finish(thinker);
+        return;
+    }
+    if (G_Time() < thinker->freetime) return;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                  S_SpellAllowsTarget(thinker->class_id, caster, target) &&
+                  Vector2_distance(&target->s.origin2, &thinker->s.origin2) <= thinker->collision) {
+        FLOAT distance;
+        if (chain_lightning_visited(thinker, target)) continue;
+        distance = Vector2_distance(&target->s.origin2, &thinker->s.origin2);
+        /* Warcraft Chain Lightning follows the nearest eligible unvisited unit.
+         * FILTER_EDICTS' stable scan order is the deterministic tie breaker. */
+        if (!next || distance < nearest_distance) {
+            next = target;
+            nearest_distance = distance;
+        }
+    }
+    if (!next) {
+        chain_lightning_finish(thinker);
+        return;
+    }
+
+    if (thinker->goalentity && thinker->goalentity->inuse && thinker->goalentity->spawn_time == thinker->damage) {
+        G_SpawnAbilityLightning(&(ABILITYLIGHTNINGPARAMS){
+            .ability_id = thinker->class_id, .index = 1,
+            .source = thinker->goalentity, .target = next,
+            .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+        });
+    } else {
+        VECTOR3 from = { thinker->s.origin2.x, thinker->s.origin2.y,
+            CM_GetHeightAtPoint(thinker->s.origin2.x, thinker->s.origin2.y) + next->s.radius * 0.5f };
+        VECTOR3 to = next->s.origin;
+        DWORD lightning = G_AbilityLightningId(thinker->class_id, 1);
+        to.z += next->s.radius * 0.5f;
+        if (lightning) G_LightningAdd(&(LIGHTNINGADDPARAMS){
+            .effect_id = lightning, .source = &from, .target = &to,
+            .color = COLOR32_WHITE, .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+        });
+    }
+    S_SpellDamage(next, caster, (int)MAX(1.0f, thinker->wait));
+    G_SpawnAbilityEffectTarget(thinker->class_id, WC3_EFFECT_TARGET, 0, next, NULL, true);
+    chain_lightning_mark_visited(thinker, next);
+    thinker->goalentity = next;
+    thinker->damage = next->spawn_time;
+    thinker->s.origin2 = next->s.origin2;
+    thinker->wait *= thinker->velocity;
+    thinker->resources--;
+    if (!thinker->resources) {
+        chain_lightning_finish(thinker);
+        return;
+    }
+    thinker->freetime = G_Time() + CHAIN_LIGHTNING_JUMP_MS;
+}
+
+static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    DWORD hits = MIN(32, (DWORD)MAX(0.0f, S_SpellData(spell->code, level, 2)));
+    FLOAT damage = S_SpellData(spell->code, level, 1);
+    LPEDICT thinker;
+
+    if (!st.entity || !hits) return;
+    G_PlayAbilityEffectSound(spell->code, &st.entity->s.origin2);
+    G_SpawnAbilityLightning(&(ABILITYLIGHTNINGPARAMS){
+        .ability_id = spell->code, .source = caster, .target = st.entity,
+        .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+    });
+    S_SpellDamage(st.entity, caster, (int)MAX(1.0f, damage));
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    if (hits <= 1) return;
+
+    thinker = G_Spawn();
+    if (!thinker) return;
+    thinker->class_id = spell->code;
+    thinker->svflags |= SVF_NOCLIENT;
+    thinker->owner = caster;
+    thinker->channel.owner_spawn_time = caster->spawn_time;
+    thinker->s.origin2 = st.entity->s.origin2;
+    thinker->goalentity = st.entity;
+    thinker->damage = st.entity->spawn_time;
+    thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    thinker->wait = damage * (1.0f - S_SpellData(spell->code, level, 3));
+    thinker->velocity = 1.0f - S_SpellData(spell->code, level, 3);
+    thinker->resources = hits - 1;
+    thinker->freetime = G_Time() + CHAIN_LIGHTNING_JUMP_MS;
+    thinker->think = chain_lightning_think;
+    chain_lightning_mark_visited(thinker, st.entity);
 }
 
 static void reincarnation_think(LPEDICT thinker) {
@@ -344,10 +526,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDreadLordInferno) {
  * Ubertip="Hurls a bolt of lightning that jumps between enemy units."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityChainLightning) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    bounceParams_t params = { .caster = caster, .target = st, .spell = spell,
-        .scale = 1.0f - S_SpellData(spell->code, level, 3), .random_jumps = true };
-    bounce_execute(&params);
+    chain_lightning_execute(caster, st, spell);
 }
 /* Name=Forked Lightning
  * Ubertip="Strikes multiple enemy units with lightning."
@@ -363,16 +542,26 @@ BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning) {
 BZ_SIMPLE_SPELL_PROC(AbilityEarthquake) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
-    thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, true) * 1000.0f);
-    thinker->think = earthquake_think; earthquake_think(thinker);
+    thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f);
+    thinker->freetime = G_Time() + (DWORD)(MAX(0.0f, S_SpellData(spell->code, level, 1)) * 1000.0f);
+    thinker->think = earthquake_think;
+    spell_begin_area_presentation(thinker, spell->code, &st.point);
+    earthquake_think(thinker);
 }
 /* Name=Far Sight
  * Ubertip="Reveals a specified area of the map."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    G_FowSetStateRadius(&(FOGWRITE){ caster->s.player, WC3_FOG_STATE_VISIBLE, true }, &st.point,
-                        S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
+    LPEDICT thinker = G_Spawn();
+    thinker->class_id = spell->code;
+    thinker->s.player = caster->s.player;
+    thinker->s.origin2 = st.point;
+    thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f);
+    thinker->think = far_sight_think;
+    spell_begin_area_presentation(thinker, spell->code, &st.point);
+    far_sight_think(thinker);
 }
 /* Resurrection operates on nearby ordinary corpses; Heroes retain their separate altar revival lifecycle. */
 static BOOL resurrection_target(LPEDICT caster, LPEDICT target, abilityitem_t const *spell) {

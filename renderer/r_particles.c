@@ -9,9 +9,23 @@ typedef struct particle_vertex {
     COLOR32 color;
     float size;
     VECTOR3 tail;
-    BYTE uv[2];
+    FLOAT uv[2];
     BYTE axis[2];
 } particleVertex_t;
+
+typedef enum {
+    PARTICLE_UV_BILLBOARD,
+    PARTICLE_UV_RIBBON,
+} PARTICLEUVORDER;
+
+typedef struct PARTICLEQUAD {
+    LPCVECTOR3 point, tail;
+    FLOAT u0, v0, u1, v1;
+    COLOR32 color;
+    FLOAT size;
+} PARTICLEQUAD;
+typedef PARTICLEQUAD *LPPARTICLEQUAD;
+typedef PARTICLEQUAD const *LPCPARTICLEQUAD;
 
 typedef struct PARTICLESTATE {
     MATRIX4 viewProjection;
@@ -161,6 +175,31 @@ static const shader_desc_t sd_particle = {
 };
 #undef SHADER_TYPE
 
+/* Emit one billboard or ribbon quad from a shared vertex-order table. */
+static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
+                                           LPCPARTICLEQUAD quad, PARTICLEUVORDER order) {
+    static BYTE const axis[NUM_PARTICLE_VERTICES][2] = {{0,0}, {255,0}, {255,255}, {255,255}, {0,255}, {0,0}};
+    static BYTE const uv_index[2][NUM_PARTICLE_VERTICES][2] = {
+        {{0,1}, {2,1}, {2,3}, {2,3}, {0,3}, {0,1}},
+        {{0,3}, {0,1}, {2,1}, {2,1}, {2,3}, {0,3}},
+    };
+    FLOAT const uv[4] = {quad->u0, quad->v0, quad->u1, quad->v1};
+    VECTOR3 const tail = quad->tail ? *quad->tail : (VECTOR3){0};
+
+    FOR_LOOP(i, NUM_PARTICLE_VERTICES) {
+        particleVertex_t const vertex = {
+            .position = *quad->point,
+            .color = quad->color,
+            .size = quad->size,
+            .tail = tail,
+            .uv = {uv[uv_index[order][i][0]], uv[uv_index[order][i][1]]},
+            .axis = {axis[i][0], axis[i][1]},
+        };
+        *buffer++ = vertex;
+    }
+    return buffer;
+}
+
 particleVertex_t *
 R_AddParticle(particleVertex_t *buffer,
               LPCVECTOR3 point,
@@ -169,18 +208,14 @@ R_AddParticle(particleVertex_t *buffer,
               COLOR32 color,
               float size)
 {
-    BYTE a = 0x00, b = 0xff;
     LPBYTE uv = (LPBYTE)&uvr;
-    particleVertex_t const data[NUM_PARTICLE_VERTICES] = {
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[1]}, .axis = {b,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[2],uv[3]}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[3]}, .axis = {a,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {uv[0],uv[1]}, .axis = {a,a}, .color = color, .size = size },
+    PARTICLEQUAD const quad = {
+        .point = point, .tail = tail,
+        .u0 = BYTE2FLOAT(uv[0]), .v0 = BYTE2FLOAT(uv[1]),
+        .u1 = BYTE2FLOAT(uv[2]), .v1 = BYTE2FLOAT(uv[3]),
+        .color = color, .size = size,
     };
-    memcpy(buffer, data, sizeof(data));
-    return buffer + NUM_PARTICLE_VERTICES;
+    return R_AddParticleQuad(buffer, &quad, PARTICLE_UV_BILLBOARD);
 }
 
 void R_UpdateParticles(void) {
@@ -363,6 +398,42 @@ void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, CO
     R_SetAlphaKeyState(false);
 }
 
+/* Generic camera-facing textured polyline.  The particle shader expands each
+ * segment into a camera-facing quad, while continuous U coordinates allow
+ * tiled textures to move along the complete strip. */
+void R_DrawRibbon(ribbonDraw_t const *draw) {
+    MATRIX4 matrix;
+    particleVertex_t *pv = particles_resources.vertices;
+    GLboolean depth_enabled;
+    FLOAT distance = 0.0f;
+    ribbonDraw_t actual;
+
+    if (!draw || !draw->points || draw->point_count < 2 || draw->width <= 0.0f) return;
+    if (!draw->texture) { actual = *draw; actual.texture = particles_resources.texture; draw = &actual; }
+    Matrix4_identity(&matrix);
+    depth_enabled = glIsEnabled(GL_DEPTH_TEST);
+    if (!draw->depth_test && depth_enabled) R_Call(glDisable, GL_DEPTH_TEST);
+    FOR_LOOP(i, draw->point_count - 1) {
+        VECTOR3 tail = Vector3_sub(draw->points + i + 1, draw->points + i);
+        FLOAT length = Vector3_len(&tail);
+        if (length <= 0.001f) continue;
+        if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;
+        PARTICLEQUAD const quad = {
+            .point = draw->points + i + 1, .tail = &tail,
+            .u0 = draw->texcoord_phase + distance * draw->texcoord_scale,
+            .v0 = 0.0f,
+            .u1 = draw->texcoord_phase + (distance + length) * draw->texcoord_scale,
+            .v1 = 1.0f,
+            .color = draw->color, .size = draw->width,
+        };
+        pv = R_AddParticleQuad(pv, &quad, PARTICLE_UV_RIBBON);
+        distance += length;
+    }
+    if (pv != particles_resources.vertices) R_FlushParticles(draw->texture, &matrix, pv, draw->blend_mode);
+    if (!draw->depth_test && depth_enabled) R_Call(glEnable, GL_DEPTH_TEST);
+    R_SetAlphaKeyState(false);
+}
+
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 
@@ -380,7 +451,7 @@ static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
     
     R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, position));
     R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, color));
-    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
+    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, uv));
     R_Call(glVertexAttribPointer, attrib_particleSize, 1, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, size));
     R_Call(glVertexAttribPointer, attrib_particleTail, 3, GL_FLOAT, GL_FALSE, sizeof(struct particle_vertex), FOFS(particle_vertex, tail));
     R_Call(glVertexAttribPointer, attrib_particleAxis, 2, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct particle_vertex), FOFS(particle_vertex, axis));

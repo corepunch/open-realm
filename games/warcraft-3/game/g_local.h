@@ -680,6 +680,7 @@ typedef enum {
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
+    A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
@@ -695,6 +696,7 @@ struct ability_call_s {
     union {
         spellTarget_t const *target;
         LPEDICT client;
+        LPEDICT projectile;
         LPCSTR order;
         LPCSTR classname;
         DWORD level;
@@ -880,6 +882,35 @@ typedef struct {
 typedef gweather_t *LPGWEATHER;
 typedef gweather_t const *LPCGWEATHER;
 
+typedef struct GLIGHTNING {
+    BOOL inuse;
+    LIGHTNINGEFFECT state;
+    LPEDICT source_entity;
+    DWORD source_spawn_time;
+    LPEDICT target_entity;
+    DWORD target_spawn_time;
+    FLOAT script_color[4];
+} GLIGHTNING;
+typedef GLIGHTNING *LPGLIGHTNING;
+typedef GLIGHTNING const *LPCGLIGHTNING;
+
+typedef struct LIGHTNINGADDPARAMS {
+    DWORD effect_id;
+    LPCVECTOR3 source, target;
+    COLOR32 color;
+    DWORD duration_ms;
+} LIGHTNINGADDPARAMS;
+typedef LIGHTNINGADDPARAMS *LPLIGHTNINGADDPARAMS;
+typedef LIGHTNINGADDPARAMS const *LPCLIGHTNINGADDPARAMS;
+
+typedef struct ABILITYLIGHTNINGPARAMS {
+    DWORD ability_id, index;
+    LPCEDICT source, target;
+    DWORD duration_ms;
+} ABILITYLIGHTNINGPARAMS;
+typedef ABILITYLIGHTNINGPARAMS *LPABILITYLIGHTNINGPARAMS;
+typedef ABILITYLIGHTNINGPARAMS const *LPCABILITYLIGHTNINGPARAMS;
+
 typedef struct gtriggeraction_s {
     struct jass_function const *func;
     struct gtriggeraction_s *next;
@@ -1031,6 +1062,7 @@ typedef struct {
 } unitbalance_t;
 
 #define UNIT_BALANCE_BUILDING 0x1 // bit; immutable building classification; used by hot AI/FOW paths
+#define UNIT_BALANCE_PERMANENT_INVISIBLE 0x2 // bit; cached Apiv classification for hot per-viewer FOW checks
 #define WC3_UNIT_TYPE_STRUCTURE 2 // handle value; Warcraft structure type; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
 #define WC3_ORDER_ID_POLYMORPH 852074 // order ID; Warcraft Polymorph command; used by order dispatch
@@ -1231,6 +1263,7 @@ struct edict_s {
     } revival;
     DWORD spawn_time;
     DWORD summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
+    DWORD permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
     DWORD harvested_lumber;
     DWORD harvested_gold;
     struct edictMilitia_s {
@@ -1408,6 +1441,7 @@ struct edict_s {
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
+    BOOL projectile_reflected; /* basic attack missile has already been returned by Defend */
     TARGTYPE targtype;
     LPEDICT goalentity;
     LPEDICT item_drop; /* inventory item owned by an active point-drop behavior */
@@ -1436,6 +1470,7 @@ struct edict_s {
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
     FLOAT permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
     FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
+    FLOAT permanent_health_bonus; /* research/permanent maximum-health modifiers preserved across hero recompute */
     FLOAT temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
     FLOAT mana_regen_bonus; /* research/permanent mana regeneration modifiers */
     struct {
@@ -1534,6 +1569,7 @@ struct game_locals {
         FLOAT agiDefenseBonus;
         FLOAT agiAttackSpeedBonus;
         FLOAT damageBonus[8][8];
+        BOOL defendDeflection; /* Misc.DefendDeflection: permits Defend/Elune projectile returns */
         BOOL combatConstantsLoaded;
         LONG foodCeiling;
         DWORD upkeepUsageCount;
@@ -1776,6 +1812,8 @@ struct level_locals {
     LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
     gweather_t weather_effects[MAX_WEATHER_EFFECTS];
     DWORD next_weather_id;
+    GLIGHTNING lightning_effects[MAX_LIGHTNING_EFFECTS];
+    DWORD next_lightning_id;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
     PATHSTR map_path;
@@ -1972,6 +2010,13 @@ void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
 BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent);
+BOOL G_FowPlayersShareVision(DWORD viewer, DWORD owner);
+BOOL S_UnitIsDetectedByPlayer(LPCEDICT unit, DWORD player);
+BOOL S_UnitIsInvisibleToPlayer(LPCEDICT unit, DWORD player);
+BOOL S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit);
+BOOL S_PermanentInvisibilityActive(LPCEDICT unit);
+void S_PermanentInvisibilityInitialize(LPEDICT unit);
+void S_PermanentInvisibilityReveal(LPEDICT unit);
 void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box);
 void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius);
 void G_FogModifierStart(LPFOGMODIFIER mod);
@@ -2251,6 +2296,7 @@ void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
 // g_abilities.c
 void S_RunAbilityUpdates(LPEDICT);
 BOOL S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
+BOOL S_UnitProjectileHit(LPEDICT);
 ability_t const *FindAbilityByOrder(LPCSTR);
 ability_t const *FindAbilityByClassname(LPCSTR);
 ability_t const *FindAbilityForCommand(LPCSTR);
@@ -2277,6 +2323,18 @@ LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target, LPCST
 LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point, BOOL temporary);
 LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index, LPEDICT target, LPCSTR attach_point, BOOL temporary);
 void G_DestroyEffect(LPEDICT effect);
+DWORD G_AbilityLightningId(DWORD ability_id, DWORD index);
+LPGLIGHTNING G_LightningAdd(LPCLIGHTNINGADDPARAMS params);
+BOOL G_LightningValid(LPCGLIGHTNING effect);
+void G_LightningAttach(LPGLIGHTNING effect, LPCEDICT source, LPCEDICT target);
+void G_LightningUpdateAttached(LPGLIGHTNING effect);
+void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target);
+void G_LightningColor(LPGLIGHTNING effect, COLOR32 color);
+void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise);
+void G_LightningRemove(LPGLIGHTNING effect);
+LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params);
+LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point);
+void G_DestroyOwnedEffects(LPEDICT owner);
 void G_EffectThink(LPEDICT);
 void G_EffectValidateTarget(LPEDICT);
 
@@ -2307,6 +2365,7 @@ void G_StopBuildingUpgrade(LPEDICT building, BOOL refund);
 void G_RunBuildingUpgradeFrame(LPEDICT building);
 void G_UpdateBuildingUpgradeAnimation(LPEDICT building);
 void G_ApplyPlayerUpgradesToUnit(LPEDICT unit);
+BOOL G_UnitAbilityResearchAvailable(LPCEDICT unit, DWORD ability_id);
 DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class);
 BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
@@ -2501,6 +2560,8 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *);
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
+int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped);
+void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point);
 
 typedef struct {
     FLOAT volume;
@@ -2752,6 +2813,8 @@ void starfall_think(LPEDICT);
 void death_and_decay_think(LPEDICT);
 void tranquility_think(LPEDICT);
 void earthquake_think(LPEDICT);
+void far_sight_think(LPEDICT);
+void chain_lightning_think(LPEDICT);
 void whirlwind_think(LPEDICT);
 void volcano_think(LPEDICT);
 void pocket_factory_think(LPEDICT);
@@ -2795,6 +2858,10 @@ void G_DrainPausedResultEvents(void);
 void SP_SpawnItem(LPEDICT);
 BOOL G_IsItem(LPCEDICT item);
 DWORD G_InventoryCapacity(LPCEDICT unit);
+BOOL G_InventoryCanUseItems(LPCEDICT unit);
+BOOL G_InventoryCanGetItems(LPCEDICT unit);
+BOOL G_InventoryCanDropItems(LPCEDICT unit);
+void G_DropInventoryOnDeath(LPEDICT unit);
 BOOL G_UnitHasInventory(LPEDICT unit);
 DWORD G_ItemCharges(LPCEDICT item);
 void G_SetItemCharges(LPEDICT item, DWORD charges);

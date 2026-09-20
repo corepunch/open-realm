@@ -189,6 +189,9 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     if (self->cargo.count > 0) {
         cargo_drop_all(self);
     }
+    /* Inventory abilities own their death policy. Non-Hero Backpack carriers
+     * use inv2/Drop Items On Death; Hero inventory normally leaves this off. */
+    G_DropInventoryOnDeath(self);
     /* EVENT_UNIT_DEATH matches widget-specific death triggers
      * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
      * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.
@@ -786,6 +789,7 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     memset(&unit->attack1, 0, sizeof(unit->attack1));
     memset(&unit->attack2, 0, sizeof(unit->attack2));
     unit->permanent_armor_bonus = 0.0f;
+    unit->permanent_health_bonus = 0.0f;
     unit->temporary_armor_bonus = 0.0f;
     SP_SpawnUnit(unit);
     G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
@@ -1386,7 +1390,8 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
         return;
     }
-    FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f + ent->temporary_health_bonus;
+    FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f +
+                           ent->permanent_health_bonus + ent->temporary_health_bonus;
     FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f;
     FLOAT const agiDefenseBonus = game.constants.combatConstantsLoaded
                                 ? game.constants.agiDefenseBonus

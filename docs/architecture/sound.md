@@ -40,7 +40,7 @@ source are non-positional and are still delivered by the server packet path.
 
 ### WC3 Sound Registration
 
-At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and registers authored `What`, `Yes`, `Ready`, `YesAttack`, and death assets. WC3 also loads `UnitCombatSounds.slk` and `UISounds.slk`; construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields into `UISounds.slk`. See `docs/games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
+At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and registers authored `What`, `Yes`, `Ready`, `YesAttack`, and death assets. WC3 also loads `UnitCombatSounds.slk`, `UISounds.slk`, and optional `AbilitySounds.slk`; construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields into `UISounds.slk`, while ability `Effectsound`/`Effectsoundlooped` aliases resolve through `AbilitySounds.slk`. See `docs/games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
 
 WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When game code passes the connected client's own edict (for example local UI, dialogue, or minimap presentation), the server resolves that exact edict to the connection first; it must not assume the game's Warcraft player number equals the engine client slot. For ordinary unit-source owner sounds, it falls back to the entity's player ownership. World events such as attacks, death, and tree impacts use ordinary entity-relative `gi.Sound` calls.
 
@@ -50,10 +50,20 @@ WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When gam
 |------|------|
 | `games/warcraft-3/game/g_monster.c` | `G_RegisterUnitSounds` — sound index registration at spawn |
 | `games/warcraft-3/game/g_sound.c` | WC3 `UISounds.slk`, owner-only sounds, and command-error sound dispatch |
-| `games/warcraft-3/game/g_events.c` | `G_RunEntities` — clears `s.event`/`s.sound` each frame |
+| `client/cl_view.c` | reconciles persistent snapshot `entityState_t.sound` loops by entity number |
+| `sound/s_sound.c` | one-shot packet playback plus generic persistent loop mixing |
 | `client/cl_fx.c` | `CL_EntityEvent` — fires sounds on event |
 | `sound/s_sound.c` | `S_PlaySoundFile` — raw MPQ path playback |
 
+
+
+## Snapshot-Synchronised Looping Entity Sounds
+
+Persistent world effects use ordinary `entityState_t.sound` rather than repeatedly emitting `svc_sound`. During scene construction, `CL_AddEntities` begins a loop-generation pass, reconciles every active entity carrying a sound configstring through `S_UpdateLoopingSound`, then retires loop channels that were not seen in the current snapshot. This makes start, movement, sound-alias replacement, entity removal, channel interruption, and save/load convergence follow authoritative snapshots without WC3-specific state in the mixer.
+
+The generic mixer owns only the resolved sound path, source entity number, current XY origin, attenuation, and generation. When the sample reaches its end, a persistent channel returns to the WAV cue `loopstart` when valid and otherwise loops from frame zero. Game-specific code remains responsible for resolving authored aliases such as WC3 `Effectsoundlooped` into a server sound configstring and putting that index on the presenting entity.
+
+This path is intentionally separate from one-shot `svc_sound`: an ability may play `Effectsound` once at cast/effect start while a persistent area-effect entity carries `Effectsoundlooped` until that entity disappears or clears `s.sound`.
 
 
 ## Assets

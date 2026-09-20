@@ -11,11 +11,12 @@ void free_slk_rows(slkTestData_t *rows);
 /* Distinct stock aliases stack and reverse after reload without depending on a family-wide cache. */
 TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y6;X3\n"
+        "ID;PWXL;N;EBB;Y6;X4\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataC1\"\n"
         "C;Y2;X1;K\"AIat\"\nC;Y2;X2;K\"AIat\"\nC;Y2;X3;K\"3\"\n"
         "C;Y3;X1;K\"AItg\"\nC;Y3;X2;K\"AIat\"\nC;Y3;X3;K\"1\"\n"
-        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\n"
+        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\nC;Y4;X4;K\"1\"\n"
         "C;Y5;X1;K\"AIt6\"\nC;Y5;X2;K\"AIat\"\nC;Y5;X3;K\"6\"\n"
         "C;Y6;X1;K\"AId1\"\nC;Y6;X2;K\"AIde\"\nC;Y6;X3;K\"1\"\nE\n";
     const char items[] =
@@ -59,6 +60,63 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     remove(path);
     G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Losing item-use permission while carrying an already-applied passive must
+ * not make that bonus permanent when the item leaves inventory. */
+TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission) {
+    const char enabled_slk[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"1\"\n"
+        "C;Y3;X1;K\"AIat\"\nC;Y3;X2;K\"AIat\"\nC;Y3;X3;K\"3\"\nE\n";
+    const char disabled_slk[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"0\"\n"
+        "C;Y3;X1;K\"AIat\"\nC;Y3;X2;K\"AIat\"\nC;Y3;X3;K\"3\"\nE\n";
+    const char items[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AIat\"\nE\n";
+    slkTestData_t *enabled = parse_slk_string(enabled_slk);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", enabled);
+    slkTestData_t *idata = parse_slk_string(items);
+    slkTestData_t *old_items = G_SetSLKRows("ItemData", idata);
+    LPEDICT unit, item;
+
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
+    item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 0);
+    item->targtype = TARG_ITEM;
+    item->item.in_world = true;
+    item->item.inventory_slot = -1;
+
+    T_ASSERT(G_InventoryCanUseItems(unit));
+    T_ASSERT(G_AddItemToSlot(unit, item, 0));
+    T_FEQ(unit->attack1.temporaryDamageBonus, 3, 0.001f);
+    T_FEQ(unit->attack2.temporaryDamageBonus, 3, 0.001f);
+
+    {
+        slkTestData_t *disabled = parse_slk_string(disabled_slk);
+        slkTestData_t *replaced = G_SetSLKRows("AbilityData", disabled);
+        T_ASSERT(!G_InventoryCanUseItems(unit));
+        T_ASSERT(G_DropItem(unit, 0));
+        T_FEQ(unit->attack1.temporaryDamageBonus, 0, 0.001f);
+        T_FEQ(unit->attack2.temporaryDamageBonus, 0, 0.001f);
+        free_slk_rows(disabled);
+        free_slk_rows(replaced);
+    }
+
+    {
+        slkTestData_t *current_items = G_SetSLKRows("ItemData", old_items);
+        slkTestData_t *current_abilities = G_SetSLKRows("AbilityData", old_abilities);
+        free_slk_rows(current_items);
+        free_slk_rows(current_abilities);
+    }
+    free_slk_rows(old_items); free_slk_rows(idata);
+    free_slk_rows(old_abilities); free_slk_rows(enabled);
 }
 
 /* All three tomes and their passive equivalents use Agility/Intelligence/Strength data order. */
@@ -110,11 +168,12 @@ TEST(wc3_item_lifecycle, strength_tome_modifies_strength) {
  * item's own row and drop must reverse it, like CAbilityAttackBonus aliases. */
 TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y4;X3\n"
+        "ID;PWXL;N;EBB;Y4;X4\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataC1\"\n"
         "C;Y2;X1;K\"AIfb\"\nC;Y2;X2;K\"AIfb\"\nC;Y2;X3;K\"11\"\n"
         "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"13\"\n"
-        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\nE\n";
+        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\nC;Y4;X4;K\"1\"\nE\n";
     const char items[] =
         "ID;PWXL;N;EBB;Y3;X2\n"
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
@@ -149,11 +208,12 @@ TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
  * held orb items; the same orb from both sources applies once. */
 TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y7;X6\n"
+        "ID;PWXL;N;EBB;Y7;X7\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
         "C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y1;X7;K\"DataC1\"\n"
         "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"0\"\n"
-        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"0\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"1\"\n"
         "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"3\"\n"
         "C;Y3;X4;K\"1\"\nC;Y3;X5;K\"6\"\nC;Y3;X6;K\"0\"\n"
         "C;Y4;X1;K\"AIcb\"\nC;Y4;X2;K\"AIcb\"\nC;Y4;X3;K\"5\"\n"

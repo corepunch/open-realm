@@ -505,9 +505,17 @@ static void CL_AddCursorSplat(void) {
 }
 
 static void CL_AddEntities(void) {
+    S_BeginLoopingSounds();
     FOR_LOOP(i, cl.num_active) {
-        V_AddClientEntity(&cl.ents[cl.active_entities[i]]);
+        centity_t *cent = &cl.ents[cl.active_entities[i]];
+        entityState_t const *state = &cent->current;
+        if (state->sound && !state->event && state->sound < MAX_SOUNDS &&
+            cl.configstrings[CS_SOUNDS + state->sound][0])
+            S_UpdateLoopingSound(state->number, cl.configstrings[CS_SOUNDS + state->sound],
+                                 &state->origin2, 1.0f, DEFAULT_SOUND_PACKET_ATTENUATION);
+        V_AddClientEntity(cent);
     }
+    S_EndLoopingSounds();
     
     CL_AddTEnts();
     

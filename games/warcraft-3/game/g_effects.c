@@ -97,6 +97,167 @@ static LPCSTR G_EffectConfigValue(DWORD ability_id, wc3EffectType_t type) {
     return G_BuffEffectValue(ability_id, type);
 }
 
+
+/* Resolve an optional presentation override before reading the authored ability row. */
+static LPCSTR G_AbilityPresentationValue(DWORD ability_id, LPCSTR field) {
+    char classname[5];
+    LPCSTR value;
+    AbilityData_t const *row;
+
+    if (!field) return NULL;
+    memcpy(classname, &ability_id, 4);
+    classname[4] = '\0';
+    value = FindConfigValue(classname, field);
+    if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+
+    row = G_AbilityData(ability_id);
+    if (row->code && row->code != ability_id) {
+        memcpy(classname, &row->code, 4);
+        classname[4] = '\0';
+        value = FindConfigValue(classname, field);
+        if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+    }
+    return NULL;
+}
+
+/* Select the indexed LightningEffect rawcode while preserving the last authored fallback. */
+DWORD G_AbilityLightningId(DWORD ability_id, DWORD index) {
+    LPCSTR list = G_AbilityPresentationValue(ability_id, "LightningEffect");
+    DWORD selected = 0, count = 0;
+
+    if (!list || !*list) return 0;
+    PARSE_LIST(list, lightning, parse_segment) {
+        if (!lightning || strlen(lightning) < 4 || !strcmp(lightning, "-") || !strcmp(lightning, "_")) continue;
+        selected = MAKEFOURCC(lightning[0], lightning[1], lightning[2], lightning[3]);
+        if (count++ == index) return selected;
+    }
+    return count ? selected : 0;
+}
+
+/* Reject pointers outside the stable level registry before any native mutates a handle. */
+BOOL G_LightningValid(LPCGLIGHTNING effect) {
+    uintptr_t pointer = (uintptr_t)effect, base = (uintptr_t)level.lightning_effects;
+    return effect && pointer >= base && pointer < base + sizeof(level.lightning_effects) &&
+        (pointer - base) % sizeof(*effect) == 0 && effect->inuse;
+}
+
+/* Allocate one save-stable lightning slot and initialize its presentation state. */
+LPGLIGHTNING G_LightningAdd(LPCLIGHTNINGADDPARAMS params) {
+    LPGLIGHTNING effect = NULL;
+    DWORD now;
+
+    if (!params || !params->effect_id || !params->source || !params->target) return NULL;
+    FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
+        if (!level.lightning_effects[i].inuse) {
+            effect = level.lightning_effects + i;
+            break;
+        }
+    }
+    if (!effect) {
+        fprintf(stderr, "WC3 Lightning: presentation registry is full (%u slots)\n", (unsigned)MAX_LIGHTNING_EFFECTS);
+        return NULL;
+    }
+    memset(effect, 0, sizeof(*effect));
+    effect->inuse = true;
+    if (++level.next_lightning_id == 0) level.next_lightning_id = 1;
+    now = G_Time();
+    effect->state.handle = level.next_lightning_id;
+    effect->state.effect_id = params->effect_id;
+    effect->state.source = *params->source;
+    effect->state.target = *params->target;
+    effect->state.color = params->color;
+    effect->script_color[0] = BYTE2FLOAT(params->color.r); effect->script_color[1] = BYTE2FLOAT(params->color.g);
+    effect->script_color[2] = BYTE2FLOAT(params->color.b); effect->script_color[3] = BYTE2FLOAT(params->color.a);
+    effect->state.start_time = now;
+    effect->state.end_time = params->duration_ms ? now + params->duration_ms : 0;
+    return effect;
+}
+
+/* Replace explicit coordinates without changing an attached endpoint contract. */
+void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target) {
+    if (!G_LightningValid(effect)) return;
+    if (source) effect->state.source = *source;
+    if (target) effect->state.target = *target;
+}
+
+/* Validate an endpoint's spawn generation before copying its current origin. */
+static BOOL G_LightningEntityValid(LPEDICT entity, DWORD spawn_time) {
+    return entity && entity->inuse && entity->spawn_time == spawn_time;
+}
+
+/* Refresh one endpoint or clear it when its edict was freed or reused. */
+static void G_LightningEndpoint(LPEDICT *entity, DWORD *spawn_time, LPVECTOR3 position) {
+    if (!G_LightningEntityValid(*entity, *spawn_time)) {
+        *entity = NULL; *spawn_time = 0;
+        return;
+    }
+    *position = (*entity)->s.origin;
+    position->z += (*entity)->s.radius * 0.5f;
+}
+
+/* Attach a spell bolt to the units that own its two moving endpoints. */
+void G_LightningAttach(LPGLIGHTNING effect, LPCEDICT source, LPCEDICT target) {
+    if (!G_LightningValid(effect)) return;
+    effect->source_entity = (LPEDICT)source;
+    effect->source_spawn_time = source ? source->spawn_time : 0;
+    effect->target_entity = (LPEDICT)target;
+    effect->target_spawn_time = target ? target->spawn_time : 0;
+    G_LightningUpdateAttached(effect);
+}
+
+/* Refresh both attached endpoints before the next client datagram is emitted. */
+void G_LightningUpdateAttached(LPGLIGHTNING effect) {
+    if (!G_LightningValid(effect)) return;
+    G_LightningEndpoint(&effect->source_entity, &effect->source_spawn_time, &effect->state.source);
+    G_LightningEndpoint(&effect->target_entity, &effect->target_spawn_time, &effect->state.target);
+}
+
+/* Update the byte colour used by the renderer and the precise JASS colour cache. */
+void G_LightningColor(LPGLIGHTNING effect, COLOR32 color) {
+    if (!G_LightningValid(effect)) return;
+    effect->state.color = color;
+    effect->script_color[0] = BYTE2FLOAT(color.r); effect->script_color[1] = BYTE2FLOAT(color.g);
+    effect->script_color[2] = BYTE2FLOAT(color.b); effect->script_color[3] = BYTE2FLOAT(color.a);
+}
+
+/* Store JASS's unclamped colour values alongside the wire-compatible bytes. */
+void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise) {
+    if (!G_LightningValid(effect)) return;
+    effect->state.color = color;
+    if (precise) memcpy(effect->script_color, precise, sizeof(effect->script_color));
+}
+
+/* Release a lightning slot so its stable registry ordinal can be reused. */
+void G_LightningRemove(LPGLIGHTNING effect) {
+    if (!G_LightningValid(effect)) return;
+    memset(effect, 0, sizeof(*effect));
+}
+
+/* Resolve and attach one ability-selected bolt to its caster and target. */
+LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params) {
+    VECTOR3 from, to;
+    DWORD effect_id;
+
+    if (!params || !params->source || !params->target) return NULL;
+    effect_id = G_AbilityLightningId(params->ability_id, params->index);
+    if (!effect_id) return NULL;
+    from = params->source->s.origin;
+    to = params->target->s.origin;
+    /* Ability lightning connects unit bodies, not terrain.  A half-radius lift
+     * keeps the generic ribbon near the model centre without renderer-side WC3
+     * attachment knowledge. */
+    from.z += params->source->s.radius * 0.5f;
+    to.z += params->target->s.radius * 0.5f;
+    {
+        LPGLIGHTNING effect = G_LightningAdd(&(LIGHTNINGADDPARAMS){
+            .effect_id = effect_id, .source = &from, .target = &to,
+            .color = COLOR32_WHITE, .duration_ms = params->duration_ms,
+        });
+        G_LightningAttach(effect, params->source, params->target);
+        return effect;
+    }
+}
+
 LPCSTR G_AbilityEffectArt(DWORD ability_id, wc3EffectType_t type, DWORD index) {
     static char selected[4][MAX_PATHLEN];
     static DWORD cursor;
@@ -223,9 +384,34 @@ LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), NULL, target, attach_point, temporary);
 }
 
+
+LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id,
+                                         wc3EffectType_t type, DWORD index,
+                                         LPCVECTOR2 point) {
+    LPEDICT effect = G_SpawnAbilityEffectAtPoint(ability_id, type, index, point, false);
+    if (effect) effect->owner = owner;
+    return effect;
+}
+
+void G_DestroyOwnedEffects(LPEDICT owner) {
+    LPEDICT owned[32];
+    DWORD count = 0;
+    if (!owner) return;
+    FILTER_EDICTS(effect, effect->owner == owner && (effect->s.flags & EF_NOT_SELECTABLE) &&
+                  (effect->s.model || effect->s.sound)) {
+        if (count < sizeof(owned) / sizeof(owned[0])) owned[count++] = effect;
+    }
+    FOR_LOOP(i, count) {
+        owned[i]->s.sound = 0;
+        if (owned[i]->s.model) G_DestroyEffect(owned[i]);
+        else G_FreeEdict(owned[i]);
+    }
+}
+
 void G_DestroyEffect(LPEDICT effect) {
     if (!effect || !effect->inuse) return;
     effect->prethink = NULL;
+    effect->s.sound = 0;
     effect->goalentity = NULL;
     effect->movetype = MOVETYPE_NONE;
     effect->wait = 0.0f;

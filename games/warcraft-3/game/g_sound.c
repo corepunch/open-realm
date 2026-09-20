@@ -153,6 +153,39 @@ static int G_RegisterUISound(LPCSTR alias) {
     return G_RegisterSoundRow(row);
 }
 
+static LPCSTR G_AbilitySoundAlias(DWORD ability_id, BOOL looped) {
+    char classname[5];
+    LPCSTR field = looped ? "Effectsoundlooped" : "Effectsound";
+    LPCSTR value;
+    AbilityData_t const *row;
+
+    memcpy(classname, &ability_id, 4);
+    classname[4] = '\0';
+    value = FindConfigValue(classname, field);
+    if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+    row = G_AbilityData(ability_id);
+    if (row->code && row->code != ability_id) {
+        memcpy(classname, &row->code, 4);
+        classname[4] = '\0';
+        value = FindConfigValue(classname, field);
+        if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+    }
+    return NULL;
+}
+
+int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped) {
+    LPCSTR alias = G_AbilitySoundAlias(ability_id, looped);
+    return alias ? G_RegisterSoundRow(G_AbilitySound(alias)) : 0;
+}
+
+void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point) {
+    int sound = G_AbilityEffectSoundIndex(ability_id, false);
+    if (sound && point) {
+        VECTOR3 origin = { point->x, point->y, CM_GetHeightAtPoint(point->x, point->y) };
+        gi.PositionedSound(&origin, NULL, CHAN_RELIABLE, sound, 1.0f, 1.0f, 0.0f);
+    }
+}
+
 void G_PlayUISoundForPlayer(LPEDICT clent, LPCSTR alias) {
     int sound;
 
