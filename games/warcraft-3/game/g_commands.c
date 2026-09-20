@@ -2497,6 +2497,20 @@ typedef struct {
     void (*func)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
 } clientCommand_t;
 
+static void CMD_MusicMapCommit(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    (void)argc;
+    (void)argv;
+    if (!ent || !ent->client) return;
+    G_MusicMapTransitionFinished(ent->client);
+}
+
+static void CMD_MusicThemeEnd(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    (void)argc;
+    (void)argv;
+    if (!ent || !ent->client) return;
+    G_MusicThematicFinished(ent->client);
+}
+
 clientCommand_t clientCommands[] = {
     { "give", CMD_Give },
     { "god", CMD_God },
@@ -2539,6 +2553,8 @@ clientCommand_t clientCommands[] = {
     { "jass", CMD_Jass },
     { "log", CMD_Log },
     { "hidegameresult", CMD_HideGameResult },
+    { "music_map_commit", CMD_MusicMapCommit },
+    { "music_theme_end", CMD_MusicThemeEnd },
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },

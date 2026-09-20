@@ -1,0 +1,4 @@
+[CustomSkin]
+Music=MapMusicOverride
+VersionedMusic_V0=MapMusicROC
+VersionedMusic_V1=MapMusicTFT

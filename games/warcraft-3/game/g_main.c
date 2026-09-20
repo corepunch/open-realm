@@ -430,9 +430,15 @@ static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo) {
      * that the previous InitUnitData never saw. */
     ShutdownUnitData();
     Stb_IniCacheFree(&game.config.theme);
+    Stb_IniCacheFree(&game.config.map_skin);
     Stb_IniCacheFree(&game.config.misc);
     strlcpy(game.data_prefix, prefix, sizeof(game.data_prefix));
     Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
+    /* The mounted map may override Game Interface skin fields.  Keep this
+     * separate from war3skins.txt because the map file stores overrides in
+     * [CustomSkin] rather than the race/Default sections used by the stock
+     * skin table. */
+    Stb_IniCacheLoad(&game.config.map_skin, "war3mapSkin.txt");
     InitConstants();
     InitUnitData();
     InitAbilities();
@@ -528,7 +534,9 @@ static void G_ShutdownGame(void) {
     globals.num_edicts = 0;
 
     ShutdownUnitData();
-    Stb_IniCacheFree(&game.config.theme); Stb_IniCacheFree(&game.config.misc);
+    Stb_IniCacheFree(&game.config.theme);
+    Stb_IniCacheFree(&game.config.map_skin);
+    Stb_IniCacheFree(&game.config.misc);
     game.data_prefix[0] = '\0';
     SAFE_DELETE(game.clients, gi.MemFree);
 }

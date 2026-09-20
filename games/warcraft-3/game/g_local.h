@@ -482,6 +482,18 @@ typedef struct {
     LONG current_fade_ms;
     BOOL paused;
 
+    /* Thematic music is a temporary overlay.  Preserve the ordinary session
+     * so EndThematicMusic and natural thematic EOF can return to the music
+     * that was actually playing, rather than always restarting map defaults. */
+    char thematic_previous_name[WC3_MUSIC_NAME_MAX];
+    wc3MusicSource_t thematic_previous_source;
+    BOOL thematic_previous_random;
+    LONG thematic_previous_index;
+    LONG thematic_previous_position_ms;
+    LONG thematic_previous_fade_ms;
+    BOOL thematic_previous_paused;
+    BOOL thematic_previous_valid;
+
     LONG volume;
     LONG thematic_volume;
 } wc3MusicState_t;
@@ -1538,6 +1550,7 @@ struct game_locals {
     LPGAMECLIENT clients;
     struct {
         stbIniCache_t theme;
+        stbIniCache_t map_skin;
         stbIniCache_t misc;
     } config;
     /* W3I gameDataSet selects a Warsmash-style Custom_V0/V1 or
@@ -2582,6 +2595,8 @@ void G_MusicPlay(LPCSTR music_name, LONG start_ms, LONG fade_ms);
 void G_MusicStop(BOOL fade_out);
 void G_MusicResume(void);
 void G_MusicPlayThematic(LPCSTR music_name, LONG start_ms);
+void G_MusicMapTransitionFinished(LPGAMECLIENT client);
+void G_MusicThematicFinished(LPGAMECLIENT client);
 void G_MusicEndThematic(void);
 void G_MusicSetVolume(LONG volume);
 void G_MusicSetPosition(LONG millisecs);

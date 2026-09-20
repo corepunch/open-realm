@@ -70,8 +70,8 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format 35 persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, reflected/attached missile and lightning state, and JASS lightning identity. */
-static DWORD const save_version = 35;
+/* Format 36 persists hashtables, build previews, map config lifecycle, mutable Blight/Abli, reflected/attached missile, lightning state, JASS lightning identity, and thematic music restoration. */
+static DWORD const save_version = 36;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
