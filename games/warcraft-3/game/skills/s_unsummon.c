@@ -105,6 +105,8 @@ static BOOL unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t co
     if (!caster || !building || !S_SpellIsAliveTarget(building) ||
         building->s.player != caster->s.player || !G_UnitIsBuilding(building->class_id) ||
         G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return false;
+    /* Retail rejects incomplete structures before mana spend; the old path
+     * treated every allied building as a valid Unsummon target. */
     if (building->construction.active) {
         G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
                               "UnderConstruction", "That building is currently under construction.");

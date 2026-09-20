@@ -912,6 +912,8 @@ static void haunted_mine_ensure_effects(LPEDICT mine) {
         effect->owner = mine;
         effect->summon_ability = alias;
         effect->resources = i + 1;
+        /* Entity angles are radians; the old degree conversion rotated each
+         * authored ring effect away from the Acolyte's radial slot. */
         effect->s.angle = (FLOAT)angle;
         gi.LinkEntity(effect);
     }
