@@ -466,7 +466,11 @@ static void CL_AddBuilding(void) {
     ent.origin.z = CM_GetHeightAtPoint(ent.origin.x, ent.origin.y);
     ent.scale = cl.cursorEntity->scale;
     ent.angle = cl.cursorEntity->angle;
-    ent.team = cl.cursorEntity->player;
+    {
+        DWORD const encoded_color =
+            (cl.cursorEntity->effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
+        ent.team = encoded_color ? encoded_color - 1u : cl.cursorEntity->player;
+    }
     ent.frame = cl.cursorEntity->frame;
     ent.oldframe = cl.cursorEntity->frame;
     ent.model = cl.models[cl.cursorEntity->model];

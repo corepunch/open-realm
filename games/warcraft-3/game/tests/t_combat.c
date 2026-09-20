@@ -1491,6 +1491,7 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     u->attack1.cooldown = 1.0f;
     u->attack1.damagePoint = 0.1f;
     u->attack1.projectile.speed = 900;
+    G_SetUnitColorOverride(u, 6);
     u->animation = NULL;
 
     attack_ranged(u);
@@ -1501,6 +1502,10 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     u->wait = 0.01f;
     u->currentmove->think(u);
 
+    LPEDICT missile = NULL;
+    FILTER_EDICTS(ent, ent->owner == u && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    T_EQ((missile->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
     T_STREQ(u->currentmove->animation, "stand ready");
     T_ASSERT(u->wait > 0.0f);
     T_ASSERT(u->goalentity == target);

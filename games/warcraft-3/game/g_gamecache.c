@@ -671,10 +671,10 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
     }
     unit->mana = saved->mana;
     unit->unit_color = saved->unit_color;
-    if (saved->unit_color) {
-        DWORD const encoded = MIN(saved->unit_color, 30u) + 1u;
-        unit->s.effect_flags = (unit->s.effect_flags & ~EFX_TEAM_COLOR_MASK) |
-            (USHORT)(encoded << EFX_TEAM_COLOR_SHIFT);
+    {
+        DWORD color;
+        if (G_GetUnitColorOverride(unit, &color)) G_SetUnitTeamColor(unit, color);
+        else G_InitializeUnitTeamColor(unit);
     }
 
     FOR_LOOP(i, MAX_INVENTORY) {

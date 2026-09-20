@@ -604,6 +604,9 @@ void SP_SpawnUnit(LPEDICT self) {
     /* The client building-placement preview needs the gameplay collision radius,
      * not the selection-circle radius in s.radius, to paint live-unit blockers. */
     self->s.collision = self->collision;
+    /* Resolve WC3's authored team-color precedence in the game module and
+     * publish it through the generic entity effect bits consumed by MDX. */
+    G_InitializeUnitTeamColor(self);
     /* Establish the authored altitude immediately; MOVETYPE_STEP will refresh
      * the same support-surface calculation each simulation frame. */
     M_CheckGround(self);
