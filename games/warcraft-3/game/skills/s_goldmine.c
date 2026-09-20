@@ -912,7 +912,7 @@ static void haunted_mine_ensure_effects(LPEDICT mine) {
         effect->owner = mine;
         effect->summon_ability = alias;
         effect->resources = i + 1;
-        effect->s.angle = (FLOAT)(angle * (180.0 / M_PI));
+        effect->s.angle = (FLOAT)angle;
         gi.LinkEntity(effect);
     }
 }

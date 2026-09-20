@@ -78,7 +78,7 @@ cargo teardown restores them. DataA is gold per payout and DataB the interval. E
 cargo count. This reproduces Warsmash's proportional five-slot cadence without a second worker list. Parent depletion kills the
 Entangled overlay; ordinary death teardown unloads its Wisps and restores the original depleted mine.
 
-Haunted Mines now create the Warsmash-style persistent ability `EffectArt` at each authored Acolyte ring slot, using the same radial angle as the slot itself; teardown removes those components through the normal effect death path. Acolyte targeting/full-ring failures use the Warcraft `Targetblightedmine`, `Nototherplayersmine`, and `Blightringfull` command-error keys so mounted `CommandStrings` and race-skin sound data own their presentation. Remaining mine gaps are primarily Entangle cast/icon polish and broader retail visual verification. Wisp lumber (`Awha`) is still a separate gap.
+Haunted Mines now create the Warsmash-style persistent ability `EffectArt` at each authored Acolyte ring slot, using the same radial angle as the slot itself in the engine's radians-based entity-angle contract; teardown removes those components through the normal effect death path. Acolyte targeting/full-ring failures use the Warcraft `Targetblightedmine`, `Nototherplayersmine`, and `Blightringfull` command-error keys so mounted `CommandStrings` and race-skin sound data own their presentation. Remaining mine gaps are primarily Entangle cast/icon polish and broader retail visual verification. Wisp lumber (`Awha`) is still a separate gap.
 
 ### Resource Return Drop-Offs
 
