@@ -134,9 +134,9 @@ StopMusic(fadeOut)
 ResumeMusic()
 ```
 
-`StopMusic` currently pauses the stream immediately while preserving decoder position and buffered data. `ResumeMusic` resumes the same track rather than advancing the playlist.
+`StopMusic(false)` pauses the stream immediately while preserving decoder position and buffered data. `StopMusic(true)` applies a linear two-second fade from the music's current effective gain to silence, then pauses the same decoder; `ResumeMusic()` cancels any in-progress stop fade and resumes the same track at the configured music volume rather than advancing the playlist.
 
-The `fadeOut` boolean is intentionally accepted but not assigned a guessed duration. The JASS API provides no fade duration, current Warsmash ignores the flag, and exact retail timing has not yet been measured.
+Warcraft exposes only the fade/no-fade boolean, not a duration. The **2000 ms** stop-fade constant is therefore an educated compatibility estimate based on mapper-era observations rather than a measured retail constant. Keep the duration isolated in `CL_MUSIC_STOP_FADE_MS` so a direct retail measurement can replace it without changing the lifecycle contract. If a fade-out begins during a `PlayMusicEx` fade-in, it starts from the current effective fade factor rather than jumping up to full volume first.
 
 ### Position and volume
 
@@ -278,7 +278,7 @@ OpenRealm now implements three behaviors as explicit **best-evidence compatibili
 The remaining unresolved areas are:
 
 - `GetSoundFileDuration` still returns `0`; a synchronous JASS query cannot safely depend on a client-only decoder without a different ownership design.
-- `StopMusic(true)` still pauses immediately because the exact retail fade duration has not been established. The low-confidence two-second estimate is deliberately **not** encoded as a constant.
+- `StopMusic(true)` uses a **2000 ms** linear fade as an educated compatibility estimate; the exact retail duration still needs direct measurement.
 - codec seeking is millisecond/stream-time based rather than sample-exact; the consumed-frame snapshot identifies what the mixer heard, but FFmpeg may decode from an earlier seek boundary.
 - the continuously advancing ordinary playback head is reported when tracks are selected and when thematic music snapshots it, not every frame; a save taken during ordinary music can therefore resume from the last reported start/seek rather than the exact current millisecond.
 - menu `GlueMusic` / `ChatMusic` and the options music checkbox/slider are not yet wired to this gameplay music controller.
@@ -305,5 +305,6 @@ Useful behavioral cases:
 7. Repeat the thematic test with an early `EndThematicMusic()` and with a `war3mapSkin.txt` `[CustomSkin]` music override.
 8. Exercise `PlayMusicEx` with a nonzero start position and fade-in.
 9. `StopMusic(false)` then `ResumeMusic()`; the same track should continue rather than select the next track.
-10. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
-11. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency.
+10. Call `StopMusic(true)` during steady playback and during a `PlayMusicEx` fade-in; volume should ramp smoothly to silence over approximately two seconds, then `ResumeMusic()` should continue the same track without a playlist advance.
+11. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
+12. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency.
