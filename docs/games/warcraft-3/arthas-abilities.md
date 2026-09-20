@@ -26,7 +26,9 @@ art lookup provide amounts, ranges, durations, buffs, and effects rather than Pa
 
 The Hero-aura cache refreshes combat aura values on the existing `AURA_UPDATE_MS` cadence. It resolves the actual learned alias for
 Devotion, Brilliance, Unholy, Vampiric, Trueshot, and Thorns Aura, then applies that alias's authored Area and Targets Allowed before
-selecting the strongest contribution. Devotion and Unholy Aura recipient presentation use the same cadence: the winning BuffID is cached for HUD-only status presentation and each
+selecting the strongest contribution. Hidden and gameplay-invisible units are excluded on both sides of aura membership: they neither
+provide nor receive these auras. This includes `RF_HIDDEN` states such as temporary Invisibility/Wind Walk and the independently tracked
+Permanent Invisibility state; fog-of-war visibility and true-sight detection do not make an invisible unit aura-active. Devotion and Unholy Aura recipient presentation use the same cadence: the winning BuffID is cached for HUD-only status presentation and each
 persistent target-art overlay is replaced or removed as aura membership changes. No fake `abilstatus[]` entry is created. Unholy DataC additionally selects whether DataB is flat HP/sec or a fraction of each recipient's maximum life per second.
 
 ## Data Flow
@@ -78,6 +80,7 @@ Synthetic production-path coverage is in `games/warcraft-3/game/tests/t_spell.c`
 
 - `wc3_spell.hero_passives_use_authored_data_and_runtime_consumers` verifies authored Devotion Area/DataA affects armor and expires
   from the shared aura cache when the target leaves range.
+- `wc3_spell.auras_ignore_hidden_and_invisible_sources_and_recipients` verifies hidden and Permanent Invisible sources/recipients are excluded from the shared Hero-aura cache.
 - `wc3_spell.hero_aura_aliases_honor_authored_target_masks` verifies a custom Devotion alias uses its own authored Area/DataA/Targets
   Allowed instead of silently falling back to the base `AHad` row.
 - `wc3_spell.devotion_aura_percent_bonus_uses_authored_base_defense` verifies authored `Had2` percentage mode uses the recipient's raw

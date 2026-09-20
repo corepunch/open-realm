@@ -292,6 +292,7 @@ void lsh_think(LPEDICT thinker);
 BOOL S_UnitIsDetected(LPCEDICT unit);
 BOOL S_UnitIsDetectedByPlayer(LPCEDICT unit, DWORD player);
 BOOL S_UnitIsInvisibleToPlayer(LPCEDICT unit, DWORD player);
+BOOL S_AuraUnitActive(LPCEDICT unit);
 BOOL S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit);
 BOOL S_PermanentInvisibilityActive(LPCEDICT unit);
 void S_PermanentInvisibilityInitialize(LPEDICT unit);

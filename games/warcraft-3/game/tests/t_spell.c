@@ -460,6 +460,56 @@ TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"900\"\nC;Y2;X5;K\"4\"\nC;Y2;X6;K\"Biml\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"Biml\"\nC;Y3;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+
+    level.time = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    source->s.renderfx |= RF_HIDDEN;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    source->s.renderfx &= ~RF_HIDDEN;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    target->s.renderfx |= RF_HIDDEN;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    target->s.renderfx &= ~RF_HIDDEN;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    source->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    source->permanent_invisibility_reveal_until = 0;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    source->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    target->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
+    target->permanent_invisibility_reveal_until = 0;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, devotion_aura_percent_bonus_uses_authored_base_defense) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X8\n"

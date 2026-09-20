@@ -485,13 +485,15 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
                       - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
                       - S_DefendAttackReduction(self);
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT aura = g_edicts + i;
-        DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
-        if (aura->inuse && level && S_SpellIsFriend(aura, self) &&
-            Vector2_distance(&aura->s.origin2, &self->s.origin2) <=
-            G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].area)
-            total_bonus += G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].data[1].number * 0.01f;
+    if (S_AuraUnitActive(self)) {
+        FOR_LOOP(i, globals.num_edicts) {
+            LPEDICT aura = g_edicts + i;
+            DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
+            if (S_AuraUnitActive(aura) && level && S_SpellIsFriend(aura, self) &&
+                Vector2_distance(&aura->s.origin2, &self->s.origin2) <=
+                G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].area)
+                total_bonus += G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].data[1].number * 0.01f;
+        }
     }
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
      * combines authored buffs/debuffs with Agility before applying the same

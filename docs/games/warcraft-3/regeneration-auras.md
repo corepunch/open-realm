@@ -57,6 +57,17 @@ categories needed by the stock regeneration family and nearby custom variants:
 - `vulnerable`, `invulnerable`;
 - living targets only.
 
+Aura participation also requires both the source and recipient to be active rather than
+hidden or gameplay-invisible. `RF_HIDDEN` covers explicit hidden state and temporary
+invisibility such as Invisibility/Wind Walk; Permanent Invisibility uses its separate
+runtime state. Fog-of-war visibility and true-sight detection do not alter this rule: an
+invisible unit does not provide or receive an aura merely because a viewer can detect it.
+Eligibility changes in cached aura families are observed on the normal two-second aura
+refresh cadence.
+The same `S_AuraUnitActive` predicate is also used by Endurance Aura's direct movement-
+and attack-speed scans, keeping its source/recipient visibility rule aligned with the cached
+aura families.
+
 OpenRealm currently represents these classifications with its existing unit target type,
 Hero predicate, alliance state, and invulnerability flag. This is not a general replacement
 for the broader WC3 target-mask system; keep future target-category work centralized rather
@@ -110,6 +121,7 @@ is verified; they are not required for the regeneration calculation itself.
 
 Tests in `games/warcraft-3/game/tests/t_spell.c` cover alias-to-base resolution,
 percentage-of-maximum HP/mana regeneration, flat health regeneration, strongest-source
-selection, mechanical exclusion, range, and passive registrations. `t_combat.c` verifies
-that an external health-regeneration aura still heals a unit whose natural `uhrt` mode is
-`none`.
+selection, mechanical exclusion, range, passive registrations, and shared hidden/invisible
+source and recipient rejection. `t_combat.c` verifies that an external health-regeneration
+aura still heals a unit whose natural `uhrt` mode is `none`, and that Endurance Aura's
+attack-speed consumer follows the same hidden/invisible eligibility rule.

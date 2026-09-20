@@ -1092,13 +1092,15 @@ static FLOAT unit_effective_speed(LPEDICT ent) {
     speed = unit_apply_earthquake_speed(ent, speed);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
     speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT aura = g_edicts + i;
-        DWORD aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
-        if (aura->inuse && aura_level && S_SpellIsFriend(aura, ent) &&
-            Vector2_distance(&aura->s.origin2, &ent->s.origin2) <=
-            G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->area)
-            speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->data[0].number * 0.01f;
+    if (S_AuraUnitActive(ent)) {
+        FOR_LOOP(i, globals.num_edicts) {
+            LPEDICT aura = g_edicts + i;
+            DWORD aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
+            if (S_AuraUnitActive(aura) && aura_level && S_SpellIsFriend(aura, ent) &&
+                Vector2_distance(&aura->s.origin2, &ent->s.origin2) <=
+                G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->area)
+                speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->data[0].number * 0.01f;
+        }
     }
     return speed;
 }
