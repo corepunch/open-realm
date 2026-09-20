@@ -26,6 +26,7 @@ static commandErrorText_t const command_error_texts[] = {
     { "Spell is not ready yet", "Cooldown" },
     { "Unable to build there", "Cantplace" },
     { "Unable to build so close to the gold mine", "Tooclosetomine" },
+    { "That building is currently under construction", "UnderConstruction" },
     { "Inventory is full", "Inventoryfull" },
 };
 
