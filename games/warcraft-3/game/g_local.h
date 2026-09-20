@@ -1282,6 +1282,16 @@ struct edict_s {
         LONG gold, lumber;
         FLOAT progress;
     } revival;
+    /* A sacrifice queue item is the hidden result unit.  Keep the consumed
+     * worker relationship on that item so cancellation/save-load do not need
+     * Sacrificial-Pit-specific state in generic unit AI. */
+    struct edictSacrifice_s {
+        BOOL active;
+        LPEDICT worker;
+        DWORD worker_spawn_time;
+        BOOL restore_paused;
+        BOOL restore_hidden;
+    } sacrifice;
     DWORD spawn_time;
     DWORD summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     DWORD permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
@@ -1536,6 +1546,7 @@ struct edict_s {
 typedef struct edictConstruction_s edictConstruction_s;
 typedef struct edictRally_s edictRally_s;
 typedef struct edictRevival_s edictRevival_s;
+typedef struct edictSacrifice_s edictSacrifice_s;
 typedef struct edictMilitia_s edictMilitia_s;
 typedef struct edictGoldMine_s edictGoldMine_s;
 typedef struct edictMineOverlay_s edictMineOverlay_s;
@@ -2257,6 +2268,7 @@ void G_ClearUnitFood(LPEDICT unit);
 void G_ClearTrainingQueueFood(LPEDICT producer);
 BOOL G_CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund);
 void G_CancelTrainingQueue(LPEDICT producer, BOOL refund);
+BOOL G_QueueSacrifice(LPEDICT producer, LPEDICT worker, DWORD result_id);
 void G_SetUnitPlayer(LPEDICT unit, DWORD player);
 DWORD G_GetUnitTeamColor(LPCEDICT unit);
 void G_SetEntityTeamColor(LPENTITYSTATE state, DWORD color);
@@ -2847,6 +2859,7 @@ void tranquility_think(LPEDICT);
 void earthquake_think(LPEDICT);
 void far_sight_think(LPEDICT);
 void chain_lightning_think(LPEDICT);
+void unsummon_think(LPEDICT);
 void whirlwind_think(LPEDICT);
 void volcano_think(LPEDICT);
 void pocket_factory_think(LPEDICT);

@@ -3417,6 +3417,7 @@ SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction.worker",
 SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally.entity", rally.entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival.producer", revival.producer, 0)
 SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival.queue_next", revival.queue_next, 0)
+SAVE_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, "sacrifice.worker", sacrifice.worker, 0)
 SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine.mine", goldmine.mine, 0)
 SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay.parent", mineoverlay.parent, 0)
 SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine.mine", acolyte_mine.mine, 0)

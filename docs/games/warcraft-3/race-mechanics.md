@@ -130,6 +130,8 @@ This does **not** complete the Undead tower contract by itself: Ziggurat/Spirit 
 
 Dynamic Blight simulation is now implemented through a WC3-owned mutable field seeded from the shared WPM pathing flags: map-authored WPM Blight initializes it, `Abli` expands/removes it from authored data, the five JASS Blight natives share it, `requirePlace=blighted` reports `Offblight`, `uhrt=blight` reads it, and save format 32 persists it. Client terrain rendering/preview synchronization and one-way Blighted-tree presentation are also implemented through the generic terrain-mask, image, and vertex-colour channels. See [Blight](blight.md); retail visual verification remains separate.
 
+Undead worker conversion/destruction mechanics are also implemented at the broad-race level: `Auns` now channels authored `DataB` demolition damage, grants temporary `Buns` spell immunity, and returns the `DataA` resource pool progressively only for HP removed by Unsummon; `Asac`/`Alam` now queue the fixed Shade result at a Sacrificial Pit using the Shade's authored build time while hiding the Acolyte and preserving its food slot. See [Unsummon](unsummon.md) and [Undead Sacrifice](sacrifice.md). Remaining work in these two mechanics is presentation/command-error polish plus upgraded-building accumulated-cost parity for Unsummon.
+
 The following items remain outside this patch's high-confidence isolated scope:
 
 - Wisp periodic lumber harvesting and per-tree Wisp reservation;
