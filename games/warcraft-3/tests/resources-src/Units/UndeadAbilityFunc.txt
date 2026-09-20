@@ -1,2 +1,5 @@
 [Abgm]
 EffectArt=TestUI\Models\anim_pulse.mdx
+
+[Buns]
+Targetart=TestUI\Models\anim_pulse.mdx

@@ -251,7 +251,7 @@ static void unsummon_start(LPEDICT worker, LPEDICT thinker) {
     unit_setmove(worker, &unsummon_move_channel);
     worker->unsummon.starting = false;
     unsummon_add_status(building);
-    G_SpawnAbilityEffectTarget(thinker->class_id, WC3_EFFECT_TARGET, 0, building, NULL, true);
+    G_SpawnAbilityEffectTarget(ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL, true);
 }
 
 static void ai_unsummon_walk(LPEDICT worker) {

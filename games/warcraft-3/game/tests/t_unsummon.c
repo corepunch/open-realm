@@ -79,6 +79,12 @@ static LPEDICT uns_thinker(LPEDICT caster) {
     return NULL;
 }
 
+static LPEDICT uns_effect(LPEDICT building) {
+    FILTER_EDICTS(ent, ent->inuse && ent->goalentity == building &&
+        (ent->s.flags & EF_NOT_SELECTABLE)) return ent;
+    return NULL;
+}
+
 static void uns_tick(LPEDICT caster, DWORD count) {
     FOR_LOOP(i, count) {
         LPEDICT thinker = uns_thinker(caster);
@@ -104,6 +110,7 @@ TEST(wc3_spell, unsummon_uses_datab_dps_progressive_refund_and_temporary_magic_i
     T_FEQ(fix.caster->mana.value, 85, 0.001f);
     T_NOT_NULL(uns_thinker(fix.caster));
     T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    T_NOT_NULL(uns_effect(fix.building));
     T_ASSERT(S_UnitSpellImmune(fix.building));
 
     /* DataB=80 DPS: five 100 ms frames remove 40/100 HP.  DataA=.25 then
