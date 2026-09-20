@@ -857,6 +857,19 @@ TEST(wc3_combat, sethealth_updates_ability_level_only_when_health_byte_changes) 
     T_EQ(ent->s.effect_flags, EFX_MODEL);
 }
 
+TEST(wc3_combat, sethealth_zero_clears_building_fire_when_already_zero) {
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','b','a','r'), 420.0f, 0.0f, 0.0f);
+
+    ent->s.flags |= EF_BUILDING;
+    ent->health.value = 0.0f;
+    ent->s.effect = 77;
+    ent->s.effect_flags = EFX_MODEL;
+    G_SetHealth(ent, 0.0f);
+
+    T_EQ(ent->s.effect, 0);
+    T_EQ(ent->s.effect_flags, 0);
+}
+
 TEST(wc3_combat, runentity_ability_index_from_currentmove) {
     /* Use order_move to place the entity into the walk state.  The walk
      * umove_t has ability == CAbilityMove, whose index in abilitylist[] is

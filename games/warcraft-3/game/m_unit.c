@@ -126,8 +126,10 @@ void unit_stand(LPEDICT self) {
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
 void G_SetHealth(LPEDICT ent, FLOAT value) {
     BYTE const old = compress_stat(&ent->health);
+    BYTE next;
     ent->health.value = value;
-    if ((ent->s.flags & EF_BUILDING) && old != compress_stat(&ent->health))
+    next = compress_stat(&ent->health);
+    if ((ent->s.flags & EF_BUILDING) && (old != next || value <= 0.0f))
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
 }
 
