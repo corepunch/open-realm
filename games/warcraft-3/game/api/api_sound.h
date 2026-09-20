@@ -226,8 +226,7 @@ DWORD GetSoundDuration(LPJASS j) {
     return jass_pushinteger(j, soundHandle->duration);
 }
 DWORD GetSoundFileDuration(LPJASS j) {
-    //LPCSTR musicFileName = jass_checkstring(j, 1);
-    return jass_pushinteger(j, 0);
+    return jass_pushinteger(j, G_SoundFileDuration(jass_checkstring(j, 1)));
 }
 DWORD VolumeGroupSetVolume(LPJASS j) {
     //HANDLE vgroup = jass_checkhandle(j, 1, "volumegroup");

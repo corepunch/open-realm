@@ -27,7 +27,8 @@ typedef enum {
     CL_MUSIC_SOURCE_NONE,
     CL_MUSIC_SOURCE_MAP,
     CL_MUSIC_SOURCE_EXPLICIT,
-    CL_MUSIC_SOURCE_THEMATIC
+    CL_MUSIC_SOURCE_THEMATIC,
+    CL_MUSIC_SOURCE_MENU
 } clMusicSource_t;
 
 typedef enum {
@@ -100,11 +101,23 @@ static void CL_MusicSendFinished(DWORD session_id);
 static void CL_MusicSendSelected(DWORD session_id, DWORD index, LONG position_ms);
 static void CL_MusicSendThematicSnapshot(DWORD thematic_session_id);
 
+static BOOL CL_MusicUserEnabled(void) {
+    return Cvar_Integer("s_music", 1) != 0;
+}
+
+static FLOAT CL_MusicUserVolume(void) {
+    return MAX(0.0f, MIN(Cvar_Value("s_musicvolume", 1.0f), 1.0f));
+}
+
+static BOOL CL_MusicShouldPause(void) {
+    return cl_music.paused || cl_music.suspended || !CL_MusicUserEnabled();
+}
+
 static FLOAT CL_MusicTargetVolume(void) {
     LONG volume = cl_music.source == CL_MUSIC_SOURCE_THEMATIC
         ? cl_music.thematic_volume
         : cl_music.music_volume;
-    return (FLOAT)MAX(0, MIN(volume, 127)) / 127.0f;
+    return ((FLOAT)MAX(0, MIN(volume, 127)) / 127.0f) * CL_MusicUserVolume();
 }
 
 static FLOAT CL_MusicFadeFactor(void) {
@@ -346,7 +359,7 @@ static BOOL CL_MusicSeekDecoder(LONG millisecs) {
     S_StreamStart(S_STREAM_MUSIC);
     cl_music.position_base_ms = MAX(0, millisecs);
     CL_MusicApplyVolume();
-    S_StreamSetPaused(S_STREAM_MUSIC, cl_music.paused || cl_music.suspended);
+    S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
     return true;
 }
 
@@ -373,7 +386,7 @@ static BOOL CL_MusicOpenTrack(LPCSTR path, LONG start_ms) {
     cl_music.decoder_active = true;
     if (cl_music.fade != CL_MUSIC_FADE_NONE) cl_music.fade_start_ticks = SDL_GetTicks();
     CL_MusicApplyVolume();
-    S_StreamSetPaused(S_STREAM_MUSIC, cl_music.paused || cl_music.suspended);
+    S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
     if (start_ms > 0 && !CL_MusicSeekDecoder(start_ms)) { CL_MusicCloseDecoder(); return false; }
     if (!CL_MusicPumpDecoder()) { CL_MusicCloseDecoder(); return false; }
     return true;
@@ -474,7 +487,7 @@ static void CL_MusicFinishThematic(BOOL notify_server) {
         cl_music.fade_duration_ms = 0;
         restored = CL_MusicStartAvailableTrack(cl_music.current.index, restore.position_ms, false, false);
         if (restored)
-            S_StreamSetPaused(S_STREAM_MUSIC, cl_music.paused || cl_music.suspended);
+            S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
     }
 
     if (!restored) {
@@ -585,6 +598,8 @@ static void CL_MusicSendThematicSnapshot(DWORD thematic_session_id) {
 }
 
 void CL_MusicInit(void) {
+    Cvar_Get("s_music", "1", CVAR_ARCHIVE);
+    Cvar_Get("s_musicvolume", "1", CVAR_ARCHIVE);
     memset(&cl_music, 0, sizeof(cl_music));
     cl_music.music_volume = 127;
     cl_music.thematic_volume = 127;
@@ -610,6 +625,33 @@ void CL_MusicShutdown(void) {
     memset(&cl_music, 0, sizeof(cl_music));
 }
 
+void CL_MusicPlayMenu(LPCSTR playlist) {
+    clMusicPlaylist_t parsed;
+
+    if (!playlist || !*playlist) { CL_MusicStopMenu(); return; }
+    if (cl_music.source == CL_MUSIC_SOURCE_MENU &&
+        CL_MusicParsePlaylist(playlist, &parsed) && parsed.count == cl_music.current.count) {
+        BOOL same = true;
+        FOR_LOOP(i, parsed.count)
+            if (strcmp(parsed.paths[i], cl_music.current.paths[i])) { same = false; break; }
+        if (same) return;
+    }
+    memset(&cl_music.thematic_restore, 0, sizeof(cl_music.thematic_restore));
+    cl_music.map_pending = false;
+    CL_MusicStartPlaylist(playlist, false, 0, CL_MUSIC_SOURCE_MENU, 0, 0, 0, 0, false);
+}
+
+void CL_MusicStopMenu(void) {
+    if (cl_music.source != CL_MUSIC_SOURCE_MENU) return;
+    CL_MusicCloseDecoder();
+    memset(&cl_music.current, 0, sizeof(cl_music.current));
+    cl_music.source = CL_MUSIC_SOURCE_NONE;
+    cl_music.current_session_id = 0;
+    cl_music.paused = false;
+    cl_music.fade = CL_MUSIC_FADE_NONE;
+    cl_music.fade_duration_ms = 0;
+}
+
 void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id) {
     DWORD previous_session_id = cl_music.map.session_id;
 
@@ -620,8 +662,9 @@ void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id) 
     cl_music.map.index = index;
     cl_music.map.session_id = session_id;
 
-    if (cl_music.source == CL_MUSIC_SOURCE_NONE) {
-        BOOL replacing_silent = previous_session_id && previous_session_id != session_id;
+    if (cl_music.source == CL_MUSIC_SOURCE_NONE || cl_music.source == CL_MUSIC_SOURCE_MENU) {
+        BOOL replacing_silent = cl_music.source == CL_MUSIC_SOURCE_NONE &&
+                                previous_session_id && previous_session_id != session_id;
 
         cl_music.map_pending = false;
         if (!CL_MusicStartPlaylist(cl_music.map.playlist, cl_music.map.random, cl_music.map.index,
@@ -706,7 +749,7 @@ void CL_MusicResume(void) {
     cl_music.fade_duration_ms = 0;
     cl_music.paused = false;
     CL_MusicApplyVolume();
-    S_StreamSetPaused(S_STREAM_MUSIC, cl_music.suspended);
+    S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
 }
 
 void CL_MusicPlayThematic(LPCSTR playlist, LONG index, LONG start_ms, DWORD session_id) {
@@ -753,13 +796,14 @@ void CL_MusicResumeFromSuspend(void) {
     if (!cl_music.suspended) return;
     cl_music.suspended = false;
     if (!cl_music.paused) CL_MusicApplyVolume();
-    S_StreamSetPaused(S_STREAM_MUSIC, cl_music.paused);
+    S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
 }
 
 void CL_MusicUpdate(void) {
-    if (cl_music.source == CL_MUSIC_SOURCE_NONE || cl_music.paused || cl_music.suspended) return;
+    if (cl_music.source == CL_MUSIC_SOURCE_NONE) return;
     CL_MusicApplyVolume();
-    if (cl_music.paused || cl_music.suspended) return;
+    S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
+    if (CL_MusicShouldPause()) return;
     if (!CL_MusicPumpDecoder()) {
         if (cl_music.fade != CL_MUSIC_FADE_OUT) CL_MusicAdvancePlaylist();
         return;

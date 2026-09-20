@@ -1761,6 +1761,54 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
     mi = saved;
 }
 
+TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+        "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
+    };
+    menuImport_t saved = mi;
+    LPFRAMEDEF checkbox;
+    LPFRAMEDEF slider;
+
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    memset(&mi, 0, sizeof(mi));
+    mi.Printf = test_ui_printf;
+    test_command_imports();
+    mi.GetRenderer = test_get_renderer;
+    mi.Cmd_ExecuteText = test_cmd_execute_text;
+    mi.Cvar_String = test_cvar_string;
+    mi.Cvar_Set = test_cvar_set;
+    mi.MemAlloc = test_ui_mem_alloc;
+    mi.MemFree = test_ui_mem_free;
+
+    T_ASSERT(optionsMenuScreen.load());
+    optionsMenuScreen.init();
+    checkbox = UI_FindFrame("MusicCheckBox");
+    slider = UI_FindFrame("MusicVolumeSlider");
+    if (!require_not_null(checkbox) || !require_not_null(slider)) {
+        mi = saved;
+        return;
+    }
+    T_ASSERT((checkbox->ui_flags & UIFLAG_CHECKED) != 0);
+    T_FEQ(slider->Slider.InitialValue, 100.0f, 0.001f);
+
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    checkbox->ui_flags &= ~UIFLAG_CHECKED;
+    checkbox->CheckBox.Checked = false;
+    optionsMenuScreen.refresh(0);
+    T_STREQ(captured_cvar_name, "s_music");
+    T_STREQ(captured_cvar_value, "0");
+
+    captured_cvar_name[0] = captured_cvar_value[0] = '\0';
+    slider->Slider.InitialValue = 35.0f;
+    optionsMenuScreen.refresh(0);
+    T_STREQ(captured_cvar_name, "s_musicvolume");
+    T_STREQ(captured_cvar_value, "0.35");
+
+    mi = saved;
+}
+
 TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",

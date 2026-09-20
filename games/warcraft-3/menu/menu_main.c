@@ -125,12 +125,31 @@ static BOOL UI_LoadScreen(uiScreen_t *screen) {
     return false;
 }
 
+static void UI_UpdateMenuMusic(uiScreen_t *screen) {
+    LPCSTR key, music;
+
+    if (!screen) {
+        if (mi.StopMusic) mi.StopMusic();
+        return;
+    }
+    if (!mi.PlayMusic) return;
+    key = screen == &gameSetupScreen ? "ChatMusic" : "GlueMusic";
+    music = Theme_String(key, "Default");
+    if (!music || !*music || !strcmp(music, key)) {
+        key = "GlueMusic";
+        music = Theme_String(key, "Default");
+    }
+    if (music && *music && strcmp(music, key)) mi.PlayMusic(music);
+    else if (mi.StopMusic) mi.StopMusic();
+}
+
 /* Installation never requests chrome: it also runs from animation callbacks. */
 static void UI_InstallScreen(uiScreen_t *screen) {
     if (ui_current_screen == screen) return;
     fprintf(stderr, "UI_SetScreen: %s -> %s\n", ui_current_screen ? ui_current_screen->name : "(null)", screen ? screen->name : "(null)");
     if (ui_current_screen && ui_current_screen->shutdown) ui_current_screen->shutdown();
     ui_current_screen = screen;
+    UI_UpdateMenuMusic(screen);
 }
 
 static void UI_FinishScreenTransition(void) { ui_state.transition_screen = NULL; }

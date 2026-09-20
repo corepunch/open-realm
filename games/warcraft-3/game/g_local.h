@@ -2614,6 +2614,8 @@ void G_MusicSetVolume(LONG volume);
 void G_MusicSetPosition(LONG millisecs);
 void G_MusicSetThematicVolume(LONG volume);
 void G_MusicSetThematicPosition(LONG millisecs);
+LONG G_AudioDurationFromMemory(LPCSTR filename, BYTE const *data, DWORD size);
+LONG G_SoundFileDuration(LPCSTR filename);
 void G_JassSoundRuntimeInit(HANDLE sound);
 void G_JassSoundSetVolume(HANDLE sound, FLOAT volume);
 void G_JassSoundSetPosition(HANDLE sound, LPCVECTOR3 position);

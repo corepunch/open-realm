@@ -67,6 +67,15 @@ Frame "FRAME" "OptionsMenu" {
         }
 
         Frame "FRAME" "SoundPanel" {
+            Frame "CHECKBOX" "MusicCheckBox" {
+            }
+            Frame "SLIDER" "MusicVolumeSlider" {
+                SliderMinValue 0,
+                SliderMaxValue 100,
+                SliderInitialValue 100,
+                SliderStepSize 1,
+                SliderLayoutHorizontal,
+            }
         }
     }
 }

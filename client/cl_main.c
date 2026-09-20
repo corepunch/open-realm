@@ -923,6 +923,8 @@ void CL_Init(void) {
         .Printf = CON_printf,
         .PlaySound = S_PlaySound,
         .PlaySoundByName = S_PlaySoundByName,
+        .PlayMusic = CL_MusicPlayMenu,
+        .StopMusic = CL_MusicStopMenu,
         .PlayMovie = CL_PlayMovie,
     });
     

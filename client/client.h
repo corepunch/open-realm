@@ -156,6 +156,8 @@ void CL_SetLoadingProgress(FLOAT progress);
 void CL_MusicInit(void);
 void CL_MusicReset(void);
 void CL_MusicShutdown(void);
+void CL_MusicPlayMenu(LPCSTR playlist);
+void CL_MusicStopMenu(void);
 void CL_MusicUpdate(void);
 void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id);
 void CL_MusicClearMap(void);
