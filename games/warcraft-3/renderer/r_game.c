@@ -78,15 +78,17 @@ void R_LoadBlightTexture(BYTE tileset) {
     while ((DWORD)(cursor - (char const *)data) < size) {
         char line[sizeof(PATHSTR) + 128];
         char key = 0;
-        int consumed = 0;
+        PATHSTR value = { 0 };
         size_t remaining = size - (DWORD)(cursor - (char const *)data);
         char const *end = memchr(cursor, '\n', remaining);
         size_t length = end ? (size_t)(end - cursor) : remaining;
         length = MIN(length, sizeof(line) - 1);
         memcpy(line, cursor, length); line[length] = 0;
         if (line[0] == '[') in_tilesets = !strncasecmp(line, "[TileSets]", 10);
-        else if (in_tilesets && sscanf(line, " %c = %*[^,] , %511[^\r\n] %n", &key, path, &consumed) >= 2 && key == tileset)
+        else if (in_tilesets && WC3_ParseBlightTilesetLine(line, &key, value) && key == tileset) {
+            snprintf(path, sizeof(path), "%s", value);
             break;
+        }
         cursor += end ? length + 1 : length;
     }
     ri.FS_FreeFile(data);
@@ -98,11 +100,9 @@ void R_LoadBlightTexture(BYTE tileset) {
     g_blight_texture = R_LoadTexture(path);
     if (!g_blight_texture || g_blight_texture == tr.texture[TEX_PLACEHOLDER])
         fprintf(stderr, "WC3 renderer: failed to load Blight texture %s for tileset %c\n", path, tileset);
-#ifdef WC3_DEBUG_BLIGHT
-    else fprintf(stderr, "WC3_BLIGHT texture tileset=%c path=%s id=%u size=%ux%u\n", tileset, path,
+    else BLIGHT_LOG("texture tileset=%c path=%s id=%u size=%ux%u\n", tileset, path,
                  (unsigned)g_blight_texture->texid, (unsigned)g_blight_texture->width,
                  (unsigned)g_blight_texture->height);
-#endif
 }
 
 LPCTEXTURE R_BlightTexture(void) {

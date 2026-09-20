@@ -103,16 +103,7 @@ struct client_state {
         BYTE *texture;
         DWORD generation;
     } fow;
-    struct {
-        DWORD width;
-        DWORD height;
-        VECTOR2 origin;
-        FLOAT cell_size;
-        BYTE *cells;
-        DWORD generation;
-        DWORD dirty_first_row;
-        DWORD dirty_row_count;
-    } terrain_mask;
+    terrainMask_t terrain_mask;
     LPENTITYSTATE cursorEntity;
     struct {
         DWORD image;

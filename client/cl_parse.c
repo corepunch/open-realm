@@ -259,8 +259,6 @@ static BOOL CL_EnsureTerrainMaskSize(DWORD width, DWORD height, VECTOR2 origin, 
     memset(cl.terrain_mask.cells, 0, cells);
     cl.terrain_mask.width = width; cl.terrain_mask.height = height;
     cl.terrain_mask.origin = origin; cl.terrain_mask.cell_size = cell_size;
-    cl.terrain_mask.dirty_first_row = 0;
-    cl.terrain_mask.dirty_row_count = height;
     cl.terrain_mask.generation++;
     return true;
 }
@@ -293,8 +291,6 @@ static BOOL CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
         if (*cell != bit) { *cell = bit; changed = true; }
     }
     msg->readcount += chunk.payload_bytes;
-    cl.terrain_mask.dirty_first_row = chunk.first_row;
-    cl.terrain_mask.dirty_row_count = chunk.row_count;
     if (changed) cl.terrain_mask.generation++;
     return true;
 }

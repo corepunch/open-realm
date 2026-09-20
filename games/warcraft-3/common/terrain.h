@@ -15,4 +15,13 @@
 #define BLIGHT_LOG(...) ((void)0)
 #endif
 
+static inline BOOL WC3_ParseBlightTilesetLine(LPCSTR line, char *key_out, LPSTR path_out) {
+    char key = 0;
+    if (!line || !key_out || !path_out) return false;
+    /* 255 is MAX_PATHLEN-1; keeps WorldEditData values inside a PATHSTR. */
+    if (sscanf(line, " %c = %*[^,] , %255[^\r\n]", &key, path_out) < 2) return false;
+    *key_out = key;
+    return true;
+}
+
 #endif

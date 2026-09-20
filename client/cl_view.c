@@ -614,14 +614,7 @@ void V_RenderView(void) {
     cl.viewDef.fow_height = cl.fow.height;
     cl.viewDef.fow_data = cl.fow.texture;
     cl.viewDef.fow_generation = cl.fow.generation;
-    cl.viewDef.terrain_mask_width = cl.terrain_mask.width;
-    cl.viewDef.terrain_mask_height = cl.terrain_mask.height;
-    cl.viewDef.terrain_mask_origin = cl.terrain_mask.origin;
-    cl.viewDef.terrain_mask_cell_size = cl.terrain_mask.cell_size;
-    cl.viewDef.terrain_mask_data = cl.terrain_mask.cells;
-    cl.viewDef.terrain_mask_generation = cl.terrain_mask.generation;
-    cl.viewDef.terrain_mask_dirty_first_row = cl.terrain_mask.dirty_first_row;
-    cl.viewDef.terrain_mask_dirty_row_count = cl.terrain_mask.dirty_row_count;
+    cl.viewDef.terrain_mask = cl.terrain_mask;
     if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
         DWORD const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;

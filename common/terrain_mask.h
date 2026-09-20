@@ -36,4 +36,18 @@ static inline BOOL TerrainMask_CellForPoint(VECTOR2 origin, FLOAT cell_size, DWO
     return true;
 }
 
+static inline BYTE TerrainMask_CornerValue(BYTE const *cells, DWORD width, DWORD height, DWORD cells_per_tile, DWORD cx, DWORD cy) {
+    DWORD mx, my;
+    if (!cells || !width || !height || !cells_per_tile) return 0;
+    mx = MIN(width - 1, cx * cells_per_tile); my = MIN(height - 1, cy * cells_per_tile);
+    return cells[mx + my * width] != 0;
+}
+
+static inline DWORD TerrainMask_TileMask(BYTE const *corners, DWORD stride, DWORD tx, DWORD ty) {
+    BYTE const *c;
+    if (!corners || !stride) return 0;
+    c = &corners[tx + ty * stride];
+    return (c[1] ? 1u : 0u) | (c[0] ? 2u : 0u) | (c[stride + 1] ? 4u : 0u) | (c[stride] ? 8u : 0u);
+}
+
 #endif

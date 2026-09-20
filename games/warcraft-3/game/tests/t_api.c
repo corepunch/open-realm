@@ -5385,4 +5385,22 @@ TEST(wc3_api, blight_mark_client_full_resets_sweep_cursor) {
     game.clients[0].connected = false;
 }
 
+TEST(wc3_api, blight_tileset_line_parse_truncates_long_value) {
+    char line[512];
+    char key = 0;
+    BYTE raw[sizeof(PATHSTR) + 1];
+    char sentinel = (char)0xA5;
+
+    memset(line, 'A', sizeof(line) - 2);
+    memcpy(line, "A = foo , ", 10);
+    line[sizeof(line) - 2] = 0; line[sizeof(line) - 1] = 0;
+    memset(raw, 0, sizeof(raw));
+    raw[sizeof(raw) - 1] = (BYTE)sentinel;
+    T_ASSERT(WC3_ParseBlightTilesetLine(line, &key, (LPSTR)raw));
+    T_EQ(key, 'A');
+    T_EQ(raw[sizeof(raw) - 1], (BYTE)sentinel);
+    T_EQ(strlen((LPCSTR)raw), (size_t)(MAX_PATHLEN - 1));
+    T_ASSERT(!WC3_ParseBlightTilesetLine("[TileSets]", &key, (LPSTR)raw));
+}
+
 #endif /* BZ_TESTS */
