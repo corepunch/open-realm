@@ -63,6 +63,7 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-SDL2
             mingw-w64-x86_64-libepoxy
+            mingw-w64-x86_64-zlib
             make
             zip
 
@@ -96,6 +97,12 @@ jobs:
           cp build/bin/openwarcraft3.exe release/
           cp -r build/lib/. release/
           cp -r build/share release/
+          # Bundle the MinGW runtime closure (SDL2, zlib, libepoxy plus
+          # transitive deps like libgcc/libwinpthread) beside the exe: a
+          # clean Windows install has no MSYS2. Fails the job when a
+          # dependency is unresolved or a required DLL is absent (issue #462).
+          bash dist-scripts/windows/bundle_mingw_dlls.sh release \
+            build/bin/openwarcraft3.exe build/lib/*.dll
           cd release && zip -r ../${{ matrix.archive }} .
 
       - name: Determine release tag

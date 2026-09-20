@@ -11,7 +11,6 @@ if (-not $PackageDir) {
     $PackageDir = Join-Path $repoRoot 'dist\windows'
 }
 $bash = Join-Path $MsysRoot 'usr\bin\bash.exe'
-$ucrtBin = Join-Path $MsysRoot 'ucrt64\bin'
 
 if (-not (Test-Path -LiteralPath $bash -PathType Leaf)) {
     throw "MSYS2 bash was not found at $bash"
@@ -39,10 +38,19 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'build-windows\bin\openwarcraft3.exe
 Get-ChildItem -LiteralPath (Join-Path $repoRoot 'build-windows\lib') -Filter '*.dll' |
     Copy-Item -Destination $PackageDir -Force
 
-foreach ($runtime in 'SDL2.dll', 'zlib1.dll', 'libepoxy-0.dll') {
-    Copy-Item -LiteralPath (Join-Path $ucrtBin $runtime) -Destination $PackageDir -Force
+# Bundle the full MinGW runtime closure (SDL2, zlib, libepoxy plus transitive
+# deps like libgcc/libwinpthread) beside the exe: a clean Windows install has
+# no MSYS2. The shared script fails loudly on unresolved or missing required
+# DLLs instead of producing a package that cannot start (issue #462).
+$bashRepo = $repoRoot -replace '\\','/'
+$bashPkg = ([System.IO.Path]::GetFullPath($PackageDir)) -replace '\\','/'
+& $bash -lc "bash '$bashRepo/dist-scripts/windows/bundle_mingw_dlls.sh' '$bashPkg' '$bashRepo/build-windows/bin/openwarcraft3.exe' '$bashRepo'/build-windows/lib/*.dll"
+if ($LASTEXITCODE -ne 0) {
+    throw "Windows DLL bundling failed with exit code $LASTEXITCODE"
 }
 
-Copy-Item -LiteralPath (Join-Path $repoRoot 'share') -Destination $PackageDir -Recurse -Force
+# install-share (an order-only step of the exe build) stages engine fonts plus
+# per-game defaults into build/share; ship that tree, not the raw share/ dir.
+Copy-Item -LiteralPath (Join-Path $repoRoot 'build\share') -Destination $PackageDir -Recurse -Force
 
 Write-Host "Windows package created at $PackageDir"
