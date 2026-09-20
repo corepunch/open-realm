@@ -256,16 +256,18 @@ BOOL G_BlightDatagramPending(LPEDICT ent) {
     return G_BlightSweepDue(player);
 }
 
-static DWORD G_BlightPackRows(LPBYTE out, DWORD capacity, DWORD first_row, DWORD row_count) {
-    DWORD const cells = level.blight.width * row_count;
-    DWORD const bytes = (cells + 7) / 8;
+typedef struct { DWORD first_row, width; } blightPackCtx_t;
 
-    if (!out || !cells) return 0;
-    if (bytes > capacity) return 0;
-    memset(out, 0, bytes);
-    FOR_LOOP(index, cells)
-        if (level.blight.cells[first_row * level.blight.width + index]) out[index >> 3] |= 1u << (index & 7);
-    return bytes;
+static BYTE G_BlightPackBit(DWORD index, void *ctx) {
+    blightPackCtx_t *c = ctx;
+    return level.blight.cells[c->first_row * c->width + index] ? 1 : 0;
+}
+
+static DWORD G_BlightPackRows(LPBYTE out, DWORD capacity, DWORD first_row, DWORD row_count) {
+    blightPackCtx_t c = { first_row, level.blight.width };
+    DWORD const bits = level.blight.width * row_count;
+    if (!out || !bits) return 0;
+    return MSG_EncodeRLE(out, capacity, bits, G_BlightPackBit, &c);
 }
 
 DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
@@ -274,11 +276,13 @@ DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     BYTE *payload;
     BOOL sweep = false;
 
-    if (!data || !G_BlightDatagramPending(ent) || size < sizeof(chunk) + 1) return 0;
+    /* Smallest RLE payload is [init][run]. */
+    if (!data || !G_BlightDatagramPending(ent) || size < sizeof(chunk) + 2) return 0;
     player = ent->client->ps.number;
     while (first < level.blight.height && !(level.blight.dirty_rows[first] & (1u << player))) first++;
     if (first < level.blight.height) {
         available = size - sizeof(chunk);
+        /* Bitpack-scale row guess; the RLE shrink loop below absorbs overflow. */
         max_rows = MIN(level.blight.height - first, (available * 8) / level.blight.width);
         if (!max_rows) return 0;
         rows = 1;
@@ -287,9 +291,11 @@ DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
         if (!G_BlightSweepDue(player)) return 0;
         first = level.blight.sweep_row[player] % level.blight.height;
         available = MIN(size - sizeof(chunk), BLIGHT_SWEEP_BYTES);
+        /* Bitpack-scale row guess; the RLE shrink loop below absorbs overflow. */
         max_rows = MIN(level.blight.height - first, (available * 8) / level.blight.width);
         if (!max_rows) { level.blight.sweep_row[player] = 0; return 0; }
         rows = max_rows;
+        /* Sweep-band row cap at bitpack density. */
         sweep_cap = (BLIGHT_SWEEP_BYTES * 8) / level.blight.width;
         if (sweep_cap && rows > sweep_cap) rows = sweep_cap;
         sweep = true;

@@ -263,33 +263,42 @@ static BOOL CL_EnsureTerrainMaskSize(DWORD width, DWORD height, VECTOR2 origin, 
     return true;
 }
 
+typedef struct { DWORD first_row, width; BOOL *changed; } maskUnpackCtx_t;
+
+static void CL_MaskUnpackRun(DWORD index, BYTE value, DWORD count, void *ctx) {
+    maskUnpackCtx_t *c = ctx;
+    LPBYTE dst = cl.terrain_mask.cells + c->first_row * c->width + index;
+    FOR_LOOP(i, count) if (dst[i] != value) { dst[i] = value; *c->changed = true; }
+}
+
 static BOOL CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
     terrainMaskChunk_t chunk;
     BYTE const *payload;
-    DWORD cells, row_cells;
+    DWORD row_cells;
     BOOL changed = false;
+    maskUnpackCtx_t ctx;
 
     if (msg->cursize - msg->readcount < sizeof(chunk)) return false;
     MSG_Read(msg, &chunk, sizeof(chunk));
     row_cells = (DWORD)chunk.width * chunk.row_count;
     if (!chunk.width || !chunk.height || !chunk.row_count ||
         chunk.first_row >= chunk.height || chunk.row_count > chunk.height - chunk.first_row ||
-        chunk.cell_size <= 0.0f || chunk.payload_bytes != (row_cells + 7) / 8 ||
-        chunk.payload_bytes > msg->cursize - msg->readcount) {
+        chunk.cell_size <= 0.0f || chunk.payload_bytes > msg->cursize - msg->readcount) {
         fprintf(stderr, "CL_ParseFrame: invalid terrain-mask chunk %ux%u first=%u rows=%u payload=%u\n",
             (unsigned)chunk.width, (unsigned)chunk.height, (unsigned)chunk.first_row,
             (unsigned)chunk.row_count, (unsigned)chunk.payload_bytes);
         return false;
     }
     payload = msg->data + msg->readcount;
-    cells = row_cells;
     if (!CL_EnsureTerrainMaskSize(chunk.width, chunk.height,
             (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
-    FOR_LOOP(index, cells) {
-        BYTE bit = (payload[index >> 3] >> (index & 7)) & 1;
-        BYTE *cell = &cl.terrain_mask.cells[chunk.first_row * cl.terrain_mask.width + index];
-        if (*cell != bit) { *cell = bit; changed = true; }
+    if (!MSG_ValidateRLE(payload, chunk.payload_bytes, row_cells)) {
+        fprintf(stderr, "CL_ParseFrame: invalid terrain-mask RLE first=%u rows=%u payload=%u\n",
+            (unsigned)chunk.first_row, (unsigned)chunk.row_count, (unsigned)chunk.payload_bytes);
+        return false;
     }
+    ctx = (maskUnpackCtx_t){ chunk.first_row, cl.terrain_mask.width, &changed };
+    MSG_DecodeRLE(payload, chunk.payload_bytes, row_cells, CL_MaskUnpackRun, &ctx);
     msg->readcount += chunk.payload_bytes;
     if (changed) cl.terrain_mask.generation++;
     return true;
@@ -655,46 +664,17 @@ static BYTE *CL_FogPlaneForStreamIndex(DWORD flags, DWORD stream_index) {
     return NULL;
 }
 
-static BOOL CL_ValidateFogRLE(BYTE const *payload, DWORD payload_bytes, DWORD expected_bits) {
-    DWORD bits = 0;
-
-    if (!payload || payload_bytes < 2 || expected_bits == 0 ||
-        (payload[0] != 0 && payload[0] != 1))
-    {
-        return false;
-    }
-
-    for (DWORD i = 1; i < payload_bytes; i++) {
-        DWORD len = payload[i];
-        if (bits == expected_bits) {
-            return false;
-        }
-        bits += len;
-        if (bits > expected_bits) {
-            return false;
-        }
-    }
-    return bits == expected_bits;
-}
-
 /* Decode whole contiguous runs; the stream concatenates compact row ranges for each requested plane. */
-static void CL_UnpackFogRLE(BYTE const *payload, DWORD payload_bytes, DWORD flags, DWORD first_row, DWORD row_count) {
-    DWORD plane_bits = cl.fow.width * row_count;
-    DWORD decoded = 0;
-    BYTE value = payload[0] ? 1 : 0;
+typedef struct { DWORD flags, first_row, plane_bits; } fogUnpackCtx_t;
 
-    for (DWORD i = 1; i < payload_bytes; i++) {
-        DWORD remaining = payload[i];
-        while (remaining) {
-            DWORD plane_index = decoded / plane_bits;
-            DWORD bit_index = decoded % plane_bits;
-            DWORD count = MIN(remaining, plane_bits - bit_index);
-            BYTE *plane = CL_FogPlaneForStreamIndex(flags, plane_index);
-            if (plane) memset(plane + first_row * cl.fow.width + bit_index, value, count);
-            decoded += count;
-            remaining -= count;
-        }
-        if (payload[i] != 255) value = !value;
+static void CL_FogUnpackRun(DWORD index, BYTE value, DWORD count, void *ctx) {
+    fogUnpackCtx_t *c = ctx;
+    DWORD off = index;
+    while (count) {
+        DWORD n = MIN(count, c->plane_bits - off % c->plane_bits);
+        BYTE *plane = CL_FogPlaneForStreamIndex(c->flags, off / c->plane_bits);
+        if (plane) memset(plane + c->first_row * cl.fow.width + off % c->plane_bits, value, n);
+        off += n; count -= n;
     }
 }
 
@@ -725,7 +705,7 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
         return false;
     }
     payload = msg->data + msg->readcount;
-    if (!CL_ValidateFogRLE(payload, payload_bytes, expected_bits)) {
+    if (!MSG_ValidateRLE(payload, payload_bytes, expected_bits)) {
         msg->readcount = MIN(msg->cursize, msg->readcount + payload_bytes);
         return false;
     }
@@ -738,7 +718,8 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
         CL_ClearFogRows(cl.fow.visible, first_row, row_count);
         CL_ClearFogRows(cl.fow.explored, first_row, row_count);
     }
-    CL_UnpackFogRLE(payload, payload_bytes, flags, first_row, row_count);
+    MSG_DecodeRLE(payload, payload_bytes, expected_bits, CL_FogUnpackRun,
+        &(fogUnpackCtx_t){ flags, first_row, cl.fow.width * row_count });
     msg->readcount += payload_bytes;
     CL_UpdateFogTextureRows(first_row, row_count);
     cl.fow.generation++;
