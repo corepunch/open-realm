@@ -15,6 +15,7 @@ Reference behavior was compared against the bundled Warsmash sources:
 - `CUnit.java`
 - `CAbilityOverlayedMine.java`
 - `CAbilityBlightedGoldMine.java`
+- `CAbilityBlight.java` / `CAbilityTypeDefinitionBlight.java`
 - `CAbilityAcolyteHarvest.java` / `CBehaviorAcolyteHarvest.java`
 - `CAbilityEntangleGoldMine.java` / `CAbilityEntangledMine.java`
 - `CAbilityCargoHoldEntangledMine.java`
@@ -123,13 +124,14 @@ Ziggurat -> Spirit Tower/Nerubian Tower does not require a dedicated race-specif
 
 The ordinary Attack ability now enforces Attack 1's authored target mask for unit targets as well as destructables, allows enemy structures to participate in acquisition when the weapon permits them, and prevents `AI_IMMOBILE` defensive buildings from automatically locking onto targets outside actual weapon range that they cannot chase. See [Attack Damage](attack-damage.md).
 
-This does **not** complete the Undead tower contract by itself: dynamic Blight growth/removal remains unimplemented, so Ziggurat/Spirit Tower terrain Blight cannot yet be treated as retail-compatible.
+This does **not** complete the Undead tower contract by itself: Ziggurat/Spirit Tower terrain Blight now rides on the shared dynamic-Blight field, but retail verification remains separate.
 
 ## Remaining race-specific gaps
 
-The following items were reviewed but are intentionally **not** implemented by this patch because the current OpenRealm seams do not support a high-confidence isolated change without broader world/economy/pathing work:
+Dynamic Blight simulation is now implemented through a WC3-owned mutable field seeded from the shared WPM pathing flags: map-authored WPM Blight initializes it, `Abli` expands/removes it from authored data, the five JASS Blight natives share it, `requirePlace=blighted` reports `Offblight`, `uhrt=blight` reads it, and save format 32 persists it. Client terrain rendering/preview synchronization and one-way Blighted-tree presentation are also implemented through the generic terrain-mask, image, and vertex-colour channels. See [Blight](blight.md); retail visual verification remains separate.
 
-- dynamic Blight creation/removal and Blight-dependent placement/regeneration, including building `Abgs`/`Abgl` Blight growth used by Ziggurats/Spirit Towers. The server path map has a Blight bit, but OpenRealm does not yet have authoritative dynamic-Blight ownership/lifetime plus terrain-render synchronization;
+The following items remain outside this patch's high-confidence isolated scope:
+
 - Wisp periodic lumber harvesting and per-tree Wisp reservation;
 - full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions;
 - Moon Well autocast, night-only mana regeneration, and water-level presentation. Manual replenish now restores life first and then mana using the authored DataB/DataA ratios.
@@ -147,6 +149,7 @@ make test-wc3-engine WC3_PATTERN='wc3_save.*construction*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.*mine*'
 make test-wc3-engine WC3_PATTERN='wc3_save.racial_gold_mine*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.moon_well_*'
+make test-wc3-engine WC3_PATTERN='wc3_pathfinding.blight_*'
 make test
 ```
 

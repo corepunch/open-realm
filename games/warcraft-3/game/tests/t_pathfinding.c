@@ -42,6 +42,7 @@ void setup_test_world(void);
 
 /* Defined in routing.c, only compiled for test builds. */
 void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 
 struct routePerfStats_s;
 void CM_ResetTestPathPerfStats(void);
@@ -1249,5 +1250,34 @@ TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
+
+TEST(wc3_pathfinding, blight_world_state_uses_wpm_seed_and_survives_static_rebuild) {
+    BYTE cells[10 * 10] = { 0 };
+    VECTOR2 authored = { 16.0f, 16.0f };
+    VECTOR2 runtime = { 144.0f, 144.0f };
+    BYTE saved[100];
+
+    cells[0] = 0x20;
+    CM_SetupTestPathmap(10, 10, cells);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {320, 320}));
+    G_BlightInit();
+    T_ASSERT(G_IsPointBlighted(&authored));
+    T_ASSERT(!G_IsPointBlighted(&runtime));
+
+    G_SetBlightPoint(&runtime, true);
+    T_ASSERT(G_IsPointBlighted(&runtime));
+    CM_BakeStaticObstacles();
+    T_ASSERT(G_IsPointBlighted(&runtime));
+
+    T_EQ(G_GetBlightStateSize(), sizeof(saved));
+    T_ASSERT(G_GetBlightState(saved, sizeof(saved)));
+    G_SetBlightPoint(&runtime, false);
+    T_ASSERT(!G_IsPointBlighted(&runtime));
+    T_ASSERT(G_SetBlightState(saved, sizeof(saved)));
+    T_ASSERT(G_IsPointBlighted(&runtime));
+
+    G_BlightShutdown();
+    setup_test_world();
+}
 
 #endif /* BZ_TESTS */

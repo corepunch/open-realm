@@ -390,8 +390,9 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
                 (rect.mins.x + rect.maxs.x) * 0.5f,
                 (rect.mins.y + rect.maxs.y) * 0.5f,
             };
-            blocked = !CM_GetPathingFlagsAt(&sample, &pathing) ||
-                      (pathing & prevented) != 0 ||
+            blocked = !CM_GetPathingFlagsAt(&sample, &pathing);
+            if (!blocked) CL_GameModifyBuildPathing(&sample, &pathing);
+            blocked = blocked || (pathing & prevented) != 0 ||
                       (pathing & required) != required;
             rect.color = blocked || mine_blocked
                 ? (COLOR32){ 255, 0, 0, 166 }
@@ -613,6 +614,7 @@ void V_RenderView(void) {
     cl.viewDef.fow_height = cl.fow.height;
     cl.viewDef.fow_data = cl.fow.texture;
     cl.viewDef.fow_generation = cl.fow.generation;
+    cl.viewDef.terrain_mask = cl.terrain_mask;
     if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
         DWORD const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;

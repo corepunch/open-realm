@@ -11,6 +11,10 @@ static void G_BuildError(LPEDICT clent, LPCSTR text) {
 }
 
 static void G_BuildPlacementError(LPEDICT clent, buildPlacementResult_t placement) {
+    if (placement == PLACE_REQUIRES_BLIGHT) {
+        G_ShowCommandErrorKey(clent, "Offblight", "Must summon structures upon Blight.");
+        return;
+    }
     if (placement == PLACE_TOO_CLOSE_TO_GOLD_MINE) {
         G_BuildError(clent, "Unable to build so close to the gold mine.");
         return;

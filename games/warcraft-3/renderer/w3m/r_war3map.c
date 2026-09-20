@@ -44,6 +44,7 @@ void _W3M_ClearMap(void) {
     R_FreeMapLayers(&g_groundLayers);
     R_ResetGroundTextures();
     R_ResetCliffCache();
+    R_ResetBlightCache();
     R_FreeCameraHeightMap(&w3_camera_height);
     R_ShutdownFogOfWar();
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
@@ -285,6 +286,7 @@ void _W3M_RegisterMap(char const *mapFilename) {
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
     tr.world = map;
+    R_LoadBlightTexture(map->tileset);
     R_BuildCameraHeightMap(&(cameraHeightBuild_t){ .map = &w3_camera_height, .data = map,
         .width = map->width, .height_count = map->height, .radius = WC3_CAMERA_HEIGHT_RADIUS,
         .samples = BZ_BROAD_HEIGHT_SAMPLES, .origin = map->center, .cell_size = TILE_SIZE,
@@ -367,8 +369,11 @@ void _W3M_DrawWorld(void) {
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
 
+    R_UpdateBlightLayer();
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_DrawBlightLayer();
+
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_CLIFF));
     }

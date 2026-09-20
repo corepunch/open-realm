@@ -1683,6 +1683,123 @@ static void reset_fow_client_state(void) {
     test_client_stubs_init();
 }
 
+TEST(net, terrain_mask_datagram_reconstructs_client_mask) {
+    BYTE buf[128];
+    BYTE payload[] = { 0x01, 0x80 }; /* 16 cells: cell 0 and cell 15 are Blight. */
+    terrainMaskChunk_t chunk = {
+        .width = 8, .height = 2, .first_row = 0, .row_count = 2, .payload_bytes = sizeof(payload),
+        .min_x = -128.0f, .min_y = 64.0f, .cell_size = 32.0f,
+    };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
+    MSG_WriteByte(&sb, svc_frame);
+    MSG_WriteLong(&sb, 1); MSG_WriteLong(&sb, 100); MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    MSG_Write(&sb, &chunk, sizeof(chunk)); MSG_Write(&sb, payload, sizeof(payload));
+    CL_ParseServerMessage(&sb);
+
+    T_EQ(cl.terrain_mask.width, 8); T_EQ(cl.terrain_mask.height, 2);
+    T_FEQ(cl.terrain_mask.origin.x, -128.0f, 0.001f);
+    T_FEQ(cl.terrain_mask.cell_size, 32.0f, 0.001f);
+    T_ASSERT(cl.terrain_mask.cells[0]);
+    T_ASSERT(cl.terrain_mask.cells[15]);
+    T_ASSERT(!cl.terrain_mask.cells[1]);
+    T_ASSERT(cl.terrain_mask.generation);
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
+}
+
+TEST(net, terrain_mask_two_chunks_preserve_both_ranges) {
+    BYTE buf[256];
+    BYTE payload0[] = { 0x01 };
+    BYTE payload1[] = { 0x80 };
+    terrainMaskChunk_t chunk0 = {
+        .width = 8, .height = 2, .first_row = 0, .row_count = 1, .payload_bytes = sizeof(payload0),
+        .min_x = 0.0f, .min_y = 0.0f, .cell_size = 32.0f,
+    };
+    terrainMaskChunk_t chunk1 = {
+        .width = 8, .height = 2, .first_row = 1, .row_count = 1, .payload_bytes = sizeof(payload1),
+        .min_x = 0.0f, .min_y = 0.0f, .cell_size = 32.0f,
+    };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    DWORD generation;
+
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
+    memset(&cl.terrain_mask, 0, sizeof(cl.terrain_mask));
+    MSG_WriteByte(&sb, svc_frame);
+    MSG_WriteLong(&sb, 1); MSG_WriteLong(&sb, 100); MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    MSG_Write(&sb, &chunk0, sizeof(chunk0)); MSG_Write(&sb, payload0, sizeof(payload0));
+    CL_ParseServerMessage(&sb);
+    generation = cl.terrain_mask.generation;
+    T_ASSERT(generation);
+    SZ_Clear(&sb); sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_frame);
+    MSG_WriteLong(&sb, 2); MSG_WriteLong(&sb, 200); MSG_WriteLong(&sb, 1);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    MSG_Write(&sb, &chunk1, sizeof(chunk1)); MSG_Write(&sb, payload1, sizeof(payload1));
+    CL_ParseServerMessage(&sb);
+    T_ASSERT(cl.terrain_mask.cells[0]);
+    T_ASSERT(cl.terrain_mask.cells[15]);
+    T_ASSERT(cl.terrain_mask.generation > generation);
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
+    memset(&cl.terrain_mask, 0, sizeof(cl.terrain_mask));
+}
+
+TEST(net, terrain_mask_same_bits_do_not_bump_generation) {
+    BYTE buf[128];
+    BYTE payload[] = { 0x01 };
+    terrainMaskChunk_t chunk = {
+        .width = 8, .height = 1, .first_row = 0, .row_count = 1, .payload_bytes = sizeof(payload),
+        .min_x = 0.0f, .min_y = 0.0f, .cell_size = 32.0f,
+    };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    DWORD generation;
+
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
+    memset(&cl.terrain_mask, 0, sizeof(cl.terrain_mask));
+    MSG_WriteByte(&sb, svc_frame);
+    MSG_WriteLong(&sb, 1); MSG_WriteLong(&sb, 100); MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    MSG_Write(&sb, &chunk, sizeof(chunk)); MSG_Write(&sb, payload, sizeof(payload));
+    CL_ParseServerMessage(&sb);
+    generation = cl.terrain_mask.generation;
+    SZ_Clear(&sb); sb.readcount = 0;
+    MSG_WriteByte(&sb, svc_frame);
+    MSG_WriteLong(&sb, 2); MSG_WriteLong(&sb, 200); MSG_WriteLong(&sb, 1);
+    MSG_WriteShort(&sb, BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    MSG_Write(&sb, &chunk, sizeof(chunk)); MSG_Write(&sb, payload, sizeof(payload));
+    CL_ParseServerMessage(&sb);
+    T_EQ(cl.terrain_mask.generation, generation);
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
+    memset(&cl.terrain_mask, 0, sizeof(cl.terrain_mask));
+}
+
+TEST(net, terrain_mask_corner_and_tile_mask) {
+    BYTE cells[16] = { 0 };
+    BYTE corners[9] = { 0 };
+    cells[0] = 1;
+    T_EQ(TerrainMask_CornerValue(cells, 4, 4, 1, 0, 0), 1);
+    T_EQ(TerrainMask_CornerValue(cells, 4, 4, 1, 3, 3), 0);
+    T_EQ(TerrainMask_CornerValue(cells, 4, 4, 1, 99, 99), 0);
+    corners[0] = 1;
+    T_EQ(TerrainMask_TileMask(corners, 3, 0, 0), 2u);
+    corners[0] = corners[1] = corners[3] = corners[4] = 1;
+    T_EQ(TerrainMask_TileMask(corners, 3, 0, 0), 15u);
+}
+
+TEST(net, terrain_mask_cell_lookup_agrees_at_edges) {
+    VECTOR2 origin = { 0.0f, 0.0f };
+    DWORD x = 99, y = 99;
+    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 0.0f, 0.0f }, &x, &y));
+    T_EQ(x, 0); T_EQ(y, 0);
+    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 255.9f, 255.9f }, &x, &y));
+    T_EQ(x, 7); T_EQ(y, 7);
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 256.0f, 0.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ -0.1f, 0.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 0.0f, 256.0f }, &x, &y));
+}
+
 static void write_fow_message(sizeBuf_t *sb,
                               DWORD flags,
                               DWORD width,
@@ -2477,6 +2594,21 @@ TEST(net, entity_delta_preserves_build_preview_fields) {
     T_EQ(EntityPathingPreviewRequired(out.pathing_preview), 0x20);
     T_FEQ(out.origin.x, 0.0f, 0.001f);
     T_FEQ(out.origin.y, 0.0f, 0.001f);
+}
+
+TEST(net, entity_delta_preserves_destructable_presentation_image) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .image = 7 }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+    T_EQ(number, 9);
+    T_EQ(out.image, 7);
 }
 
 /* Dead destructable remains rely on EF_NOT_SELECTABLE surviving snapshots, so

@@ -446,6 +446,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     }
     edict->movetype = MOVETYPE_NONE;
     edict->svflags |= SVF_STATIC_SCENERY;
+    G_BlightInitializeDestructable(edict);
 }
 
 /* The destructable currently being visited by EnumDestructablesInRect, read
@@ -662,6 +663,7 @@ void G_SpawnEntities(void) {
     G_ClearJassGroupRegistry();
     G_ClearHashtableRegistry();
     G_FowShutdown();
+    G_BlightShutdown();
     memset(&level, 0, sizeof(level));
     G_ResetHeroPassiveCaches();
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
@@ -669,6 +671,7 @@ void G_SpawnEntities(void) {
     level.time = gi.GetTime();
 
     level.mapinfo = mapinfo;
+    G_BlightInit();
     G_EnvironmentFogInitMap();
     G_InitPlayerAlliances(mapinfo);
     level.setup.teams = mapinfo ? mapinfo->num_teams : 0;

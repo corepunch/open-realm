@@ -103,6 +103,7 @@ struct client_state {
         BYTE *texture;
         DWORD generation;
     } fow;
+    terrainMask_t terrain_mask;
     LPENTITYSTATE cursorEntity;
     struct {
         DWORD image;

@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 32; // format version; persists map config lifecycle state after hashtables and build previews
+static DWORD const save_version = 32; // format version; persists hashtables, build previews, map config lifecycle, and mutable Blight/Abli state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -476,6 +476,7 @@ static field_t const item_fields[] = {
 };
 
 static field_t const destructable_fields[] = {
+    TF(edictDestructable_s, blighted, F_INT),
     TF(edictDestructable_s, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictDestructable_s, drop_sets, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1505,6 +1506,36 @@ static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
     return true;
 }
 
+static BOOL WriteBlight(FILE *f) {
+    DWORD const size = G_GetBlightStateSize();
+    LPBYTE data = NULL;
+    BOOL ok;
+
+    if (!SaveBytes(f, &size, sizeof(size))) return false;
+    if (!size) return true;
+    data = gi.MemAlloc(size);
+    if (!data) return false;
+    ok = G_GetBlightState(data, size) && SaveBytes(f, data, size);
+    gi.MemFree(data);
+    return ok;
+}
+
+static BOOL ReadBlight(FILE *f) {
+    DWORD size, expected;
+    LPBYTE data = NULL;
+    BOOL ok;
+
+    if (!LoadBytes(f, &size, sizeof(size))) return false;
+    expected = G_GetBlightStateSize();
+    if (size != expected) return false;
+    if (!size) return true;
+    data = gi.MemAlloc(size);
+    if (!data) return false;
+    ok = LoadBytes(f, data, size) && G_SetBlightState(data, size);
+    gi.MemFree(data);
+    return ok;
+}
+
 static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     field_t const *field;
 
@@ -1543,6 +1574,7 @@ BOOL WriteGame(LPCSTR filename) {
     if (!WriteMappedFields(f, level_fields, (BYTE *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
+    if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
     if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
@@ -1616,6 +1648,7 @@ BOOL ReadGame(LPCSTR filename) {
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
+    if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */

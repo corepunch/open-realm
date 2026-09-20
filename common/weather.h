@@ -4,8 +4,8 @@
 #include "common/shared.h"
 
 #define MAX_WEATHER_EFFECTS 256 // effects; bounds the per-client weather snapshot and stable server registry
-#define BZ_GAME_DATAGRAM_ENTITY_TINTS 0x8000u // bit mask; reserves the first weather-count bit for entity RGBA data
-_Static_assert(MAX_WEATHER_EFFECTS < BZ_GAME_DATAGRAM_ENTITY_TINTS, "weather count must leave the extension bit free");
+
+#include "common/game_datagram.h"
 
 typedef struct {
     DWORD handle;

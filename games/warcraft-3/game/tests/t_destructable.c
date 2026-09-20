@@ -155,6 +155,26 @@ static LPEDICT make_test_destructable(FLOAT life, FLOAT x, FLOAT y) {
     return ent;
 }
 
+TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
+    VECTOR2 point = { 32.0f, 32.0f };
+    LPEDICT tree;
+
+    setup_test_world();
+    tree = make_test_destructable(100.0f, 32.0f, 32.0f);
+    G_SetBlightPoint(&point, true);
+    T_ASSERT(G_IsPointBlighted(&point));
+    T_ASSERT(G_IsDestructable(tree));
+    G_BlightInitializeDestructable(tree);
+    T_ASSERT(tree->destructable.blighted);
+    T_ASSERT(tree->vertex_color_set);
+    T_EQ(tree->vertex_color.r, 120);
+    T_EQ(tree->vertex_color.g, 185);
+    T_EQ(tree->vertex_color.b, 72);
+    T_EQ(tree->vertex_color.a, 255);
+    G_SetBlightPoint(&point, false);
+    T_ASSERT(tree->destructable.blighted);
+}
+
 static LPEDICT make_destructable_test_attacker(FLOAT x, FLOAT y) {
     LPEDICT ent = G_Spawn();
 

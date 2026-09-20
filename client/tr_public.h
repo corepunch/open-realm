@@ -208,6 +208,7 @@ typedef struct {
     DWORD hover_entity;     /* entity under mouse cursor (0 = none) */
     DWORD fow_width, fow_height, fow_generation;
     BYTE const *fow_data;
+    terrainMask_t terrain_mask;
     FRUSTUM3 frustum;
     /* Generic linear scene-distance fog. Game renderers decide which world
      * surfaces consume it; producers that carry richer style/density state

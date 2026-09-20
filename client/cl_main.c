@@ -86,6 +86,7 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.visible, MemFree);
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
     SAFE_DELETE(cl.minimap_model, re.ReleaseModel);
     SAFE_DELETE(cl.moveConfirmation, re.ReleaseModel);
     FOR_LOOP(model, MAX_MODELS) {

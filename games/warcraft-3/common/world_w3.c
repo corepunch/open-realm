@@ -2,6 +2,7 @@
 #include "games/warcraft-3/common/terrain.h"
 #include "common/ui_constants.h"
 #include <float.h>
+#include <math.h>
 
 typedef void (*cmW3Read_t)(HANDLE archive);
 
@@ -81,6 +82,18 @@ BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
         if (dx * dx + dy * dy < min_dist_sq) return true;
     }
     return false;
+}
+
+void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags) {
+    DWORD x, y;
+
+    if (!point || !flags || !cl.terrain_mask.cells) return;
+    if (!TerrainMask_CellForPoint(cl.terrain_mask.origin, cl.terrain_mask.cell_size, cl.terrain_mask.width, cl.terrain_mask.height, point, &x, &y)) {
+        *flags &= ~WC3_PATH_BLIGHTED;
+        return;
+    }
+    if (cl.terrain_mask.cells[x + y * cl.terrain_mask.width]) *flags |= WC3_PATH_BLIGHTED;
+    else *flags &= ~WC3_PATH_BLIGHTED;
 }
 
 BOOL CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {

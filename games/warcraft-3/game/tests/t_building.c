@@ -1612,6 +1612,42 @@ TEST(wc3_building, placement_flags_treat_slk_sentinel_as_empty) {
     T_ASSERT(G_PlacementFlags("unwalkable") & WC3_PATH_UNWALKABLE);
 }
 
+TEST(wc3_building, blight_required_placement_tracks_runtime_blight) {
+    static const char balance_slk[] =
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"isbldg\"\n"
+        "C;Y1;X3;K\"requirePlace\"\n"
+        "C;Y1;X4;K\"preventPlace\"\n"
+        "C;Y2;X1;K\"uBlt\"\n"
+        "C;Y2;X2;K1\n"
+        "C;Y2;X3;K\"blighted\"\n"
+        "C;Y2;X4;K\"_\"\n"
+        "C;Y3;X1;K\"uNoB\"\n"
+        "C;Y3;X2;K1\n"
+        "C;Y3;X3;K\"_\"\n"
+        "C;Y3;X4;K\"blighted\"\n"
+        "E\n";
+    DWORD const building = MAKEFOURCC('u','B','l','t');
+    DWORD const anti_blight = MAKEFOURCC('u','N','o','B');
+    VECTOR2 requested = { 32.0f, 32.0f }, snapped;
+    slkTestData_t *rows;
+    slkTestData_t *old;
+    LPEDICT builder;
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('u','a','c','o'), -128.0f, -128.0f);
+    rows = parse_slk_string(balance_slk); old = G_SetSLKRows("UnitBalance", rows);
+    T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, &snapped), PLACE_REQUIRES_BLIGHT);
+    T_EQ(G_EvaluateBuildPlacement(builder, anti_blight, &requested, &snapped), PLACE_OK);
+    G_SetBlightPoint(&requested, true);
+    T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, &snapped), PLACE_OK);
+    T_EQ(G_EvaluateBuildPlacement(builder, anti_blight, &requested, &snapped), PLACE_TERRAIN_BLOCKED);
+    G_SetBlightPoint(&requested, false);
+    T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, &snapped), PLACE_REQUIRES_BLIGHT);
+
+    G_SetSLKRows("UnitBalance", old); free_slk_rows(rows);
+}
+
 TEST(wc3_building, placement_preview_uses_authoritative_pathing_flags) {
     BYTE prevented = 0, required = 0;
     DWORD const barracks = MAKEFOURCC('h','b','a','r');

@@ -9,6 +9,7 @@
  * are applied on top of the previous frame's state.  Player state, UI layout,
  * config strings and temporary effects each have their own message types.
  */
+#include <limits.h>
 #include <stdlib.h>
 #include <zlib.h>
 
@@ -239,6 +240,61 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     }
 }
 
+static BOOL CL_EnsureTerrainMaskSize(DWORD width, DWORD height, VECTOR2 origin, FLOAT cell_size) {
+    DWORD cells;
+
+    if (!width || !height || !cell_size || height > UINT_MAX / width) return false;
+    if (cl.terrain_mask.width == width && cl.terrain_mask.height == height &&
+        cl.terrain_mask.origin.x == origin.x && cl.terrain_mask.origin.y == origin.y &&
+        cl.terrain_mask.cell_size == cell_size && cl.terrain_mask.cells)
+        return true;
+    cells = width * height;
+    SAFE_DELETE(cl.terrain_mask.cells, MemFree);
+    cl.terrain_mask.cells = MemAlloc(cells);
+    if (!cl.terrain_mask.cells) {
+        cl.terrain_mask.width = cl.terrain_mask.height = 0;
+        fprintf(stderr, "CL_ParseFrame: failed to allocate %u-cell terrain mask\n", (unsigned)cells);
+        return false;
+    }
+    memset(cl.terrain_mask.cells, 0, cells);
+    cl.terrain_mask.width = width; cl.terrain_mask.height = height;
+    cl.terrain_mask.origin = origin; cl.terrain_mask.cell_size = cell_size;
+    cl.terrain_mask.generation++;
+    return true;
+}
+
+static BOOL CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
+    terrainMaskChunk_t chunk;
+    BYTE const *payload;
+    DWORD cells, row_cells;
+    BOOL changed = false;
+
+    if (msg->cursize - msg->readcount < sizeof(chunk)) return false;
+    MSG_Read(msg, &chunk, sizeof(chunk));
+    row_cells = (DWORD)chunk.width * chunk.row_count;
+    if (!chunk.width || !chunk.height || !chunk.row_count ||
+        chunk.first_row >= chunk.height || chunk.row_count > chunk.height - chunk.first_row ||
+        chunk.cell_size <= 0.0f || chunk.payload_bytes != (row_cells + 7) / 8 ||
+        chunk.payload_bytes > msg->cursize - msg->readcount) {
+        fprintf(stderr, "CL_ParseFrame: invalid terrain-mask chunk %ux%u first=%u rows=%u payload=%u\n",
+            (unsigned)chunk.width, (unsigned)chunk.height, (unsigned)chunk.first_row,
+            (unsigned)chunk.row_count, (unsigned)chunk.payload_bytes);
+        return false;
+    }
+    payload = msg->data + msg->readcount;
+    cells = row_cells;
+    if (!CL_EnsureTerrainMaskSize(chunk.width, chunk.height,
+            (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
+    FOR_LOOP(index, cells) {
+        BYTE bit = (payload[index >> 3] >> (index & 7)) & 1;
+        BYTE *cell = &cl.terrain_mask.cells[chunk.first_row * cl.terrain_mask.width + index];
+        if (*cell != bit) { *cell = bit; changed = true; }
+    }
+    msg->readcount += chunk.payload_bytes;
+    if (changed) cl.terrain_mask.generation++;
+    return true;
+}
+
 /* Handle the svc_frame header and its game-owned datagram, then snapshot entity
  * states into "prev" so the renderer can interpolate the current scene. */
 void CL_ParseFrame(LPSIZEBUF msg) {
@@ -264,7 +320,8 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     }
     DWORD header = (USHORT)MSG_ReadShort(msg);
     BOOL const has_entity_tints = (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) != 0;
-    DWORD count = header & ~BZ_GAME_DATAGRAM_ENTITY_TINTS;
+    BOOL const has_terrain_mask = (header & BZ_GAME_DATAGRAM_TERRAIN_MASK) != 0;
+    DWORD count = header & BZ_GAME_DATAGRAM_COUNT_MASK;
     if (count > MAX_WEATHER_EFFECTS || msg->readcount + count * sizeof(wc3WeatherEffect_t) > msg->cursize) {
         fprintf(stderr, "CL_ParseFrame: invalid weather snapshot count=%u\n", (unsigned)count);
         msg->readcount = msg->cursize;
@@ -290,6 +347,10 @@ void CL_ParseFrame(LPSIZEBUF msg) {
             cl.ents[number].tint = color;
             cl.ents[number].tint_valid = true;
         }
+    }
+    if (has_terrain_mask && !CL_ParseTerrainMaskChunk(msg)) {
+        msg->readcount = msg->cursize;
+        return;
     }
 }
 

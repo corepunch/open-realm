@@ -128,13 +128,7 @@ static BOOL R_TileAcceptsSplat(LPCWAR3MAP map, DWORD x, DWORD y) {
     return true;
 }
 
-static void R_MakeSplatTile(LPCWAR3MAP map,
-                            DWORD x,
-                            DWORD y,
-                            LPCVECTOR2 mins,
-                            FLOAT width,
-                            FLOAT height,
-                            COLOR32 color) {
+static void R_BuildSplatQuad(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, FLOAT width, FLOAT height, COLOR32 color, LPVERTEX geom) {
     VECTOR3 const p[] = {
         R_GetVertexPosition(map, x, y, true),
         R_GetVertexPosition(map, x + 1, y, true),
@@ -148,7 +142,7 @@ static void R_MakeSplatTile(LPCWAR3MAP map,
         { (p[3].x - mins->x) / width, 1 - (p[3].y - mins->y) / height },
     };
     VECTOR3 const normal = { 0, 0, 1 };
-    VERTEX const geom[] = {
+    VERTEX const quad[] = {
         { .position = p[0], .texcoord = uv[0], .normal = normal, .color = color },
         { .position = p[1], .texcoord = uv[1], .normal = normal, .color = color },
         { .position = p[2], .texcoord = uv[2], .normal = normal, .color = color },
@@ -156,7 +150,24 @@ static void R_MakeSplatTile(LPCWAR3MAP map,
         { .position = p[2], .texcoord = uv[2], .normal = normal, .color = color },
         { .position = p[3], .texcoord = uv[3], .normal = normal, .color = color },
     };
+    memcpy(geom, quad, sizeof(quad));
+}
 
+static void R_MakeSplatTile(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, FLOAT width, FLOAT height, COLOR32 color) {
+    VERTEX geom[6];
+    R_BuildSplatQuad(map, x, y, mins, width, height, color, geom);
+    memcpy(ground_current_vertex, geom, sizeof(geom));
+    ground_current_vertex += sizeof(geom) / sizeof(VERTEX);
+}
+
+static void R_MakeBlightTile(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, FLOAT width, FLOAT height, DWORD blight_tile) {
+    VERTEX geom[6];
+    R_BuildSplatQuad(map, x, y, mins, width, height, COLOR32_WHITE, geom);
+    /* Mixed tiles use the atlas's left-hand alpha mask selected by the
+     * four-corner bitmask.  Tile 15 is special in SetTileUV: it selects
+     * the right-hand opaque variation, which is correct only when every
+     * corner is Blighted. */
+    SetTileUV(GetWar3MapVertex(map, x, y), blight_tile, geom, R_BlightTexture());
     memcpy(ground_current_vertex, geom, sizeof(geom));
     ground_current_vertex += sizeof(geom) / sizeof(VERTEX);
 }
@@ -253,6 +264,160 @@ void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR3
 void R_EndSplatBatch(void) {
     R_FlushSplatBatch();
     R_Call(glDepthMask, GL_TRUE);
+}
+
+typedef struct {
+    BYTE *active;
+    BYTE *corners;
+    DWORD width, height;
+    DWORD generation;
+    VECTOR2 origin;
+    FLOAT cell_size;
+} blightTileCache_t;
+
+static blightTileCache_t blight_tiles;
+static MAPLAYER blight_layer;
+static BOOL blight_layer_valid;
+static DWORD blight_layer_generation = ~0u;
+
+static BOOL R_BlightTileCacheUpdate(viewDef_t const *view);
+
+static void R_ResetBlightLayer(void) {
+    if (blight_layer.buffer) R_ReleaseVertexArrayObject((LPBUFFER)blight_layer.buffer);
+    memset(&blight_layer, 0, sizeof(blight_layer));
+    blight_layer_valid = false;
+    blight_layer_generation = ~0u;
+}
+
+void R_ResetBlightCache(void) {
+    R_ResetBlightLayer();
+    SAFE_DELETE(blight_tiles.active, ri.MemFree);
+    SAFE_DELETE(blight_tiles.corners, ri.MemFree);
+    memset(&blight_tiles, 0, sizeof(blight_tiles));
+}
+
+static DWORD R_BlightEmittedTiles(void) {
+    DWORD count = 0, stride = blight_tiles.width + 1;
+    FOR_LOOP(ty, blight_tiles.height) FOR_LOOP(tx, blight_tiles.width) {
+        DWORD const blight_tile = TerrainMask_TileMask(blight_tiles.corners, stride, tx, ty);
+        VECTOR2 mins = { blight_tiles.origin.x + tx * TILE_SIZE, blight_tiles.origin.y + ty * TILE_SIZE };
+        int const map_x = (int)floorf((mins.x - tr.world->center.x) / TILE_SIZE);
+        int const map_y = (int)floorf((mins.y - tr.world->center.y) / TILE_SIZE);
+        if (!blight_tiles.active[tx + ty * blight_tiles.width] || !blight_tile ||
+            map_x < 0 || map_y < 0 || map_x >= (int)tr.world->width - 1 ||
+            map_y >= (int)tr.world->height - 1 ||
+            !R_TileAcceptsSplat(tr.world, (DWORD)map_x, (DWORD)map_y)) continue;
+        count++;
+    }
+    return count;
+}
+
+void R_UpdateBlightLayer(void) {
+    LPVERTEX vertices;
+    DWORD count = 0, tiles;
+    DWORD stride = blight_tiles.width + 1;
+
+    if (!R_BlightTileCacheUpdate(&tr.viewDef) || !R_BlightTexture()) {
+        R_ResetBlightLayer();
+        return;
+    }
+    if (blight_layer_valid && blight_layer.texture == R_BlightTexture() &&
+        blight_layer.num_vertices && blight_layer_generation == tr.viewDef.terrain_mask.generation)
+        return;
+    tiles = R_BlightEmittedTiles();
+    if (!tiles) { R_ResetBlightLayer(); return; }
+    vertices = ri.MemAlloc(sizeof(*vertices) * tiles * 6);
+    if (!vertices) {
+        fprintf(stderr, "R_UpdateBlightLayer: failed to allocate %u-tile Blight layer\n", (unsigned)tiles);
+        R_ResetBlightLayer();
+        return;
+    }
+    ground_current_vertex = vertices;
+    FOR_LOOP(ty, blight_tiles.height) FOR_LOOP(tx, blight_tiles.width) {
+        DWORD const blight_tile = TerrainMask_TileMask(blight_tiles.corners, stride, tx, ty);
+        VECTOR2 mins = { blight_tiles.origin.x + tx * TILE_SIZE, blight_tiles.origin.y + ty * TILE_SIZE };
+        int const map_x = (int)floorf((mins.x - tr.world->center.x) / TILE_SIZE);
+        int const map_y = (int)floorf((mins.y - tr.world->center.y) / TILE_SIZE);
+        if (!blight_tiles.active[tx + ty * blight_tiles.width] || !blight_tile ||
+            map_x < 0 || map_y < 0 || map_x >= (int)tr.world->width - 1 ||
+            map_y >= (int)tr.world->height - 1 ||
+            !R_TileAcceptsSplat(tr.world, (DWORD)map_x, (DWORD)map_y)) continue;
+        R_MakeBlightTile(tr.world, (DWORD)map_x, (DWORD)map_y, &mins, TILE_SIZE, TILE_SIZE, blight_tile);
+    }
+    count = (DWORD)(ground_current_vertex - vertices);
+    R_ResetBlightLayer();
+    if (count) {
+        blight_layer.texture = R_BlightTexture();
+        blight_layer.type = MAPLAYERTYPE_GROUND;
+        blight_layer.num_vertices = count;
+        blight_layer.buffer = R_MakeVertexArrayObject(vertices, count);
+        blight_layer_valid = blight_layer.buffer != NULL;
+        blight_layer_generation = tr.viewDef.terrain_mask.generation;
+    }
+    ri.MemFree(vertices);
+    ground_current_vertex = NULL;
+}
+
+void R_DrawBlightLayer(void) {
+    if (!blight_layer_valid || !blight_layer.buffer) return;
+    R_BindTexture(blight_layer.texture, 0);
+    R_ApplyShader(&tr.shader_default);
+    R_DrawBuffer(blight_layer.buffer, blight_layer.num_vertices);
+}
+
+static BOOL R_BlightTileCacheUpdate(viewDef_t const *view) {
+    DWORD cells_per_tile;
+    DWORD old_width = blight_tiles.width, old_height = blight_tiles.height;
+    DWORD new_width, new_height;
+
+    if (!view || !view->terrain_mask.cells || !view->terrain_mask.width ||
+        !view->terrain_mask.height || view->terrain_mask.cell_size <= 0.0f)
+        return false;
+    cells_per_tile = (DWORD)floorf(TILE_SIZE / view->terrain_mask.cell_size + 0.5f);
+    if (!cells_per_tile || fabsf(cells_per_tile * view->terrain_mask.cell_size - TILE_SIZE) > 0.01f)
+        return false;
+    new_width = (view->terrain_mask.width + cells_per_tile - 1) / cells_per_tile;
+    new_height = (view->terrain_mask.height + cells_per_tile - 1) / cells_per_tile;
+    if (!blight_tiles.active || old_width != new_width || old_height != new_height ||
+        blight_tiles.origin.x != view->terrain_mask.origin.x ||
+        blight_tiles.origin.y != view->terrain_mask.origin.y ||
+        blight_tiles.cell_size != view->terrain_mask.cell_size) {
+        blight_tiles.width = new_width;
+        blight_tiles.height = new_height;
+        SAFE_DELETE(blight_tiles.active, ri.MemFree);
+        SAFE_DELETE(blight_tiles.corners, ri.MemFree);
+        blight_tiles.active = ri.MemAlloc(blight_tiles.width * blight_tiles.height);
+        blight_tiles.corners = ri.MemAlloc((blight_tiles.width + 1) * (blight_tiles.height + 1));
+        if (!blight_tiles.active || !blight_tiles.corners) {
+            fprintf(stderr, "R_UpdateBlightLayer: failed to allocate %ux%u tile cache\n",
+                    (unsigned)blight_tiles.width, (unsigned)blight_tiles.height);
+            SAFE_DELETE(blight_tiles.active, ri.MemFree);
+            SAFE_DELETE(blight_tiles.corners, ri.MemFree);
+            blight_tiles.width = blight_tiles.height = 0;
+            return false;
+        }
+        memset(blight_tiles.active, 0, blight_tiles.width * blight_tiles.height);
+        memset(blight_tiles.corners, 0, (blight_tiles.width + 1) * (blight_tiles.height + 1));
+        blight_tiles.origin = view->terrain_mask.origin;
+        blight_tiles.cell_size = view->terrain_mask.cell_size;
+        blight_tiles.generation = ~0u;
+    }
+    if (blight_tiles.generation == view->terrain_mask.generation) return true;
+    BLIGHT_LOG("cache generation=%u tiles=%ux%u\n",
+            (unsigned)view->terrain_mask.generation,
+            (unsigned)blight_tiles.width, (unsigned)blight_tiles.height);
+    FOR_LOOP(cy, blight_tiles.height + 1) FOR_LOOP(cx, blight_tiles.width + 1)
+        blight_tiles.corners[cx + cy * (blight_tiles.width + 1)] =
+            TerrainMask_CornerValue(view->terrain_mask.cells, view->terrain_mask.width,
+                view->terrain_mask.height, cells_per_tile, cx, cy);
+    FOR_LOOP(ty, blight_tiles.height) FOR_LOOP(tx, blight_tiles.width) {
+        BYTE const *corners = &blight_tiles.corners[tx + ty * (blight_tiles.width + 1)];
+        blight_tiles.active[tx + ty * blight_tiles.width] =
+            corners[0] || corners[1] || corners[blight_tiles.width + 1] ||
+            corners[blight_tiles.width + 2];
+    }
+    blight_tiles.generation = view->terrain_mask.generation;
+    return true;
 }
 
 void R_RenderRectSplat(LPCVECTOR2 mins,

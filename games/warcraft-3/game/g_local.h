@@ -7,6 +7,7 @@
 
 #include "common/common.h"
 #include "common/weather.h"
+#include "games/warcraft-3/common/terrain.h"
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
 #include "server/game.h"
@@ -132,6 +133,7 @@ typedef enum {
     PLACE_TERRAIN_BLOCKED,
     PLACE_UNIT_BLOCKED,
     PLACE_REQUIRED_PATHING_MISSING,
+    PLACE_REQUIRES_BLIGHT,
     PLACE_TOO_CLOSE_TO_GOLD_MINE,
     PLACE_OUT_OF_BOUNDS,
     PLACE_REQUIRED_PARENT_MISSING,
@@ -1256,6 +1258,11 @@ struct edict_s {
         FLOAT rise_duration;
         ravenRiseState_t rise_state;
     } raven;
+    struct edictBlightGrowth_s {
+        DWORD ability;      /* concrete Abli-derived alias owning this state */
+        FLOAT radius;       /* current expanded radius */
+        DWORD next_update;  /* next authored expansion deadline */
+    } blight_growth;
     struct edictEnsnare_s {
         FLOAT adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
         FLOAT height; /* DataB land start, or authored moveHeight while rising */
@@ -1315,6 +1322,7 @@ struct edict_s {
         BOOL script_bound;
 
         BOOL dead;
+        BOOL blighted; /* one-way destructable presentation state */
         BOOL pathing_active;
         BOOL placement_solid;
         BOOL loot_processed;
@@ -1604,6 +1612,17 @@ typedef struct {
     fowPlayerGrid_t players[MAX_PLAYERS];
 } fowGrid_t;
 
+#define BLIGHT_SWEEP_INTERVAL 100 // frames; resync cadence for undelivered rows; used by background sweep
+#define BLIGHT_SWEEP_BYTES 512 // bytes; caps one sweep band payload; used by background resync
+
+typedef struct {
+    DWORD width, height;
+    BOX2 bounds;
+    BYTE *cells; /* mutable current Blight, one byte per 32-unit pathing cell */
+    DWORD *dirty_rows; /* one client bit per row; changed rows are sent once per client */
+    DWORD sweep_row[MAX_PLAYERS]; /* per-client background resync cursor; next row to sweep */
+} blightGrid_t;
+
 /* A fog modifier continuously applies one of the three JASS fog states while started. */
 typedef struct fogmodifier_s {
     DWORD player;
@@ -1782,6 +1801,7 @@ struct level_locals {
     QUEST quests[MAX_QUESTS];
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
+    blightGrid_t blight;
     CINEFILTER cinefilter;
     DWORD framenum;
     DWORD time;
@@ -1928,6 +1948,20 @@ BOOL G_BotSuicideUnits(LPPLAYER, LONG, DWORD, LONG);
 BOOL G_BotSuicidePlayer(LPPLAYER, DWORD, BOOL);
 BOOL G_BotMergeUnits(LPPLAYER, LONG, DWORD, DWORD, DWORD);
 
+// g_blight.c
+void G_BlightInit(void);
+void G_BlightShutdown(void);
+BOOL G_IsPointBlighted(LPCVECTOR2 point);
+void G_SetBlightPoint(LPCVECTOR2 point, BOOL add);
+void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add);
+void G_SetBlightRect(LPCBOX2 rect, BOOL add);
+void G_BlightInitializeDestructable(LPEDICT ent);
+void G_BlightUpdateDestructables(LPCBOX2 region);
+void G_BlightMarkDestructable(LPEDICT ent);
+DWORD G_GetBlightStateSize(void);
+BOOL G_GetBlightState(LPBYTE out, DWORD size);
+BOOL G_SetBlightState(BYTE const *data, DWORD size);
+
 // g_fow.c
 void G_FowInit(void);
 void G_FowShutdown(void);
@@ -2022,6 +2056,9 @@ void G_WeatherEnable(LPGWEATHER effect, BOOL enabled);
 void G_WeatherRemove(LPGWEATHER effect);
 void G_WeatherInitMap(void);
 DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size);
+void G_BlightMarkClientFull(LPEDICT ent);
+BOOL G_BlightDatagramPending(LPEDICT ent);
+DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size);
 LPTRIGGER G_AllocJassTrigger(void);
 LPGTIMER G_AllocJassTimer(void);
 LPTIMERDIALOG G_AllocTimerDialog(LPGTIMER timer);

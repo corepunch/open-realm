@@ -202,7 +202,7 @@ static ability_t abilitylist[] = {
     { "Agld", CAbilityGoldMine, 0 },  /* Gold Mine ability */
     { "Artn", CAbilityReturn, AB_COMMAND },  /* Return */
     { "Avul", CAbilityPassive, AB_PASSIVE },  /* Invulnerable */
-    { "Abli", CAbilityBlightGrowth, AB_COMMAND },  /* Blight */
+    { "Abli", CAbilityBlightGrowth, AB_PASSIVE | AB_UPDATE | AB_INNATE },  /* Blight */
     { "ANfl", CAbilityForkedLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Forked Lightning */
 
     /* NightElfAbilityStrings.txt */

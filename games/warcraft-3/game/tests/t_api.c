@@ -1946,7 +1946,7 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     T_ASSERT(size >= sizeof(header) + sizeof(count));
     memcpy(&header, data, sizeof(header));
     T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
-    offset = sizeof(header) + (header & ~BZ_GAME_DATAGRAM_ENTITY_TINTS) * sizeof(wc3WeatherEffect_t);
+    offset = sizeof(header) + (header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_TERRAIN_MASK)) * sizeof(wc3WeatherEffect_t);
     memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
     FOR_LOOP(i, count) {
         USHORT number; COLOR32 color;
@@ -5237,6 +5237,170 @@ TEST(wc3_api, dota_damage_event_exposes_source_and_amount) {
     jass_callbyname(level.vm, "verify_damage", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, blight_natives_share_authoritative_world_state) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local location l = Location(640.0, 0.0)\n"
+        "  local rect r = Rect(768.0, -64.0, 896.0, 64.0)\n"
+        "  call SetBlightPoint(Player(0), 32.0, 32.0, true)\n"
+        "  call BJassAssert(IsPointBlighted(32.0, 32.0), \"SetBlightPoint add\")\n"
+        "  call SetBlightPoint(Player(0), 32.0, 32.0, false)\n"
+        "  call BJassAssert(not IsPointBlighted(32.0, 32.0), \"SetBlightPoint remove\")\n"
+        "  call SetBlight(Player(0), 256.0, 0.0, 73.0, true)\n"
+        "  call BJassAssert(IsPointBlighted(256.0, 0.0), \"SetBlight add\")\n"
+        "  call SetBlight(Player(0), 256.0, 0.0, 73.0, false)\n"
+        "  call BJassAssert(not IsPointBlighted(256.0, 0.0), \"SetBlight remove\")\n"
+        "  call SetBlightLoc(Player(0), l, 73.0, true)\n"
+        "  call BJassAssert(IsPointBlighted(640.0, 0.0), \"SetBlightLoc\")\n"
+        "  call SetBlightRect(Player(0), r, true)\n"
+        "  call BJassAssert(IsPointBlighted(800.0, 0.0), \"SetBlightRect\")\n"
+        "  call SetBlightRect(Player(0), r, false)\n"
+        "  call BJassAssert(not IsPointBlighted(800.0, 0.0), \"SetBlightRect remove\")\n"
+        "  call RemoveLocation(l)\n"
+        "  call RemoveRect(r)\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
+    BYTE data[8192];
+    USHORT header;
+    terrainMaskChunk_t chunk;
+    VECTOR2 point = { 32.0f, 32.0f };
+    LPEDICT client_ent;
+    DWORD size, offset, bit;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    G_BlightMarkClientFull(client_ent);
+    G_SetBlightPoint(&point, true);
+
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    offset = sizeof(header) + (header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_TERRAIN_MASK)) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
+    T_EQ(chunk.width, 64); T_EQ(chunk.height, 64); T_EQ(chunk.row_count, 64);
+    bit = 33 + 33 * chunk.width;
+    T_ASSERT(data[offset + (bit >> 3)] & (1u << (bit & 7)));
+
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_TERRAIN_MASK));
+    T_EQ(size, sizeof(USHORT) * 2);
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+}
+
+TEST(wc3_api, blight_sweep_resends_dropped_rows) {
+    BYTE data[8192];
+    USHORT header;
+    terrainMaskChunk_t chunk;
+    VECTOR2 point = { 32.0f, 32.0f };
+    LPEDICT client_ent;
+    DWORD size, offset, bit;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    G_BlightMarkClientFull(client_ent);
+    G_SetBlightPoint(&point, true);
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    /* Simulate a dropped packet: the server cleared dirty rows on write. */
+    level.framenum = 0;
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_TERRAIN_MASK));
+    level.framenum = BLIGHT_SWEEP_INTERVAL;
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
+    T_EQ(chunk.width, 64); T_EQ(chunk.height, 64);
+    bit = 33 + 33 * chunk.width;
+    T_ASSERT(chunk.first_row <= 33 && 33 < chunk.first_row + chunk.row_count);
+    T_ASSERT(data[offset + ((bit - chunk.first_row * chunk.width) >> 3)] & (1u << ((bit - chunk.first_row * chunk.width) & 7)));
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+    level.framenum = 0;
+}
+
+TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
+    BYTE data[8192];
+    USHORT header;
+    terrainMaskChunk_t chunk;
+    VECTOR2 point = { 32.0f, 32.0f };
+    LPEDICT client_ent;
+    DWORD size, offset;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.framenum = BLIGHT_SWEEP_INTERVAL;
+    level.blight.sweep_row[0] = 0;
+    G_SetBlightPoint(&point, true);
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    memcpy(&chunk, data + offset, sizeof(chunk));
+    T_ASSERT(chunk.first_row > 0);
+    T_EQ(level.blight.sweep_row[0], 0);
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+    level.framenum = 0;
+}
+
+TEST(wc3_api, blight_mark_client_full_resets_sweep_cursor) {
+    LPEDICT client_ent;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.blight.sweep_row[0] = 17;
+    G_BlightMarkClientFull(client_ent);
+    T_EQ(level.blight.sweep_row[0], 0);
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+}
+
+TEST(wc3_api, blight_tileset_line_parse_truncates_long_value) {
+    char line[512];
+    char key = 0;
+    BYTE raw[sizeof(PATHSTR) + 1];
+    char sentinel = (char)0xA5;
+
+    memset(line, 'A', sizeof(line) - 2);
+    memcpy(line, "A = foo , ", 10);
+    line[sizeof(line) - 2] = 0; line[sizeof(line) - 1] = 0;
+    memset(raw, 0, sizeof(raw));
+    raw[sizeof(raw) - 1] = (BYTE)sentinel;
+    T_ASSERT(WC3_ParseBlightTilesetLine(line, &key, (LPSTR)raw));
+    T_EQ(key, 'A');
+    T_EQ(raw[sizeof(raw) - 1], (BYTE)sentinel);
+    T_EQ(strlen((LPCSTR)raw), (size_t)(MAX_PATHLEN - 1));
+    T_ASSERT(!WC3_ParseBlightTilesetLine("[TileSets]", &key, (LPSTR)raw));
 }
 
 #endif /* BZ_TESTS */
