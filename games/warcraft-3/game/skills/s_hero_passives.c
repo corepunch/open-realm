@@ -54,15 +54,23 @@ static LPCVOID regen_value_ability_data[MAX_ENTITIES];
 
 typedef struct {
     DWORD code, data;
+    BYTE mode;
 } aura_cache_key_t;
 
+enum {
+    AURA_CACHE_ANY,
+    AURA_CACHE_FLAT,
+    AURA_CACHE_PERCENT
+};
+
 static aura_cache_key_t const aura_cache_keys[] = {
-    { ID_BRILLIANCE, 1 },
-    { ID_UNHOLY_AURA, 1 },
-    { ID_UNHOLY_AURA, 2 },
-    { ID_VAMPIRIC_AURA, 1 },
-    { ID_TRUESHOT_AURA, 1 },
-    { ID_THORNS_AURA, 1 }
+    { ID_BRILLIANCE, 1, AURA_CACHE_FLAT },
+    { ID_BRILLIANCE, 1, AURA_CACHE_PERCENT },
+    { ID_UNHOLY_AURA, 1, AURA_CACHE_ANY },
+    { ID_UNHOLY_AURA, 2, AURA_CACHE_ANY },
+    { ID_VAMPIRIC_AURA, 1, AURA_CACHE_ANY },
+    { ID_TRUESHOT_AURA, 1, AURA_CACHE_ANY },
+    { ID_THORNS_AURA, 1, AURA_CACHE_ANY }
 };
 static FLOAT aura_cache[MAX_ENTITIES][sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)];
 static DWORD aura_cache_next_update[MAX_ENTITIES];
@@ -188,7 +196,7 @@ static BOOL aura_allows_target(LPEDICT source, LPEDICT target, LPCSTR targets) {
     BOOL const wants_vulnerability = aura_target_has_token(targets, "vulnerable", "vuln") ||
         aura_target_has_token(targets, "invulnerable", "invu");
 
-    if (!source || !target || !target->inuse || !S_SpellIsAliveTarget(target)) return false;
+    if (!source || !target || !target->inuse || M_IsDead(target)) return false;
     is_self = source == target;
     is_friend = S_SpellIsFriend(source, target);
     is_enemy = S_SpellIsEnemy(source, target);
@@ -441,12 +449,13 @@ BOOL S_RegenerationAuraUpdateDue(LPEDICT unit) {
 }
 
 /* Refresh all combat aura families together so one recipient scan serves every consumer. */
-static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
+static FLOAT hero_aura_bonus_mode(LPEDICT unit, DWORD code, DWORD data, BYTE mode) {
     DWORD slot = sizeof(aura_cache_keys) / sizeof(*aura_cache_keys);
     LPCVOID ability_data;
 
     FOR_LOOP(i, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys))
-        if (aura_cache_keys[i].code == code && aura_cache_keys[i].data == data) { slot = i; break; }
+        if (aura_cache_keys[i].code == code && aura_cache_keys[i].data == data &&
+            aura_cache_keys[i].mode == mode) { slot = i; break; }
     if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
         return 0.0f;
     aura_cache_update_time();
@@ -456,13 +465,25 @@ static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
         memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
         FOR_LOOP(i, globals.num_edicts) {
             LPEDICT aura = g_edicts + i;
-            if (!aura->inuse || !S_SpellIsAliveTarget(aura) || !S_SpellIsFriend(aura, unit)) continue;
+            if (!aura->inuse || M_IsDead(aura)) continue;
             FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
-                DWORD const aura_level = G_UnitAbilityLevel(aura, aura_cache_keys[j].code);
-                if (!aura_level || Vector2_distance(&aura->s.origin2, &unit->s.origin2) >
-                    S_SpellNumber(aura_cache_keys[j].code, ABILITY_NUMBER_AREA, aura_level)) continue;
+                auraAbilityRef_t const ability = actor_aura_ability(aura, aura_cache_keys[j].code);
+                abilityLevel_t const *row;
+                if (!ability.alias) continue;
+                row = G_AbilityLevel(ability.alias, ability.level);
+                if (!row || Vector2_distance(&aura->s.origin2, &unit->s.origin2) > row->area) continue;
+                if (aura_cache_keys[j].mode == AURA_CACHE_FLAT && row->data[1].number != 0.0f) continue;
+                if (aura_cache_keys[j].mode == AURA_CACHE_PERCENT && row->data[1].number == 0.0f) continue;
+                /* Stock combat auras author their eligible physical/relation
+                 * classes in targs. Sparse legacy/custom rows with no mask
+                 * retain the historical friendly-recipient fallback. */
+                if (row->targs && *row->targs) {
+                    if (!aura_allows_target(aura, unit, row->targs)) continue;
+                } else if (!S_SpellIsFriend(aura, unit)) {
+                    continue;
+                }
                 aura_cache[unit->s.number][j] = MAX(aura_cache[unit->s.number][j],
-                    S_SpellData(aura_cache_keys[j].code, aura_level, aura_cache_keys[j].data));
+                    row->data[aura_cache_keys[j].data - 1].number);
             }
         }
         aura_cache_next_update[unit->s.number] = level.time + AURA_UPDATE_MS;
@@ -471,7 +492,22 @@ static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
     return aura_cache[unit->s.number][slot];
 }
 
-FLOAT S_BrillianceManaRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_BRILLIANCE, 1); }
+static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
+    return hero_aura_bonus_mode(unit, code, data, AURA_CACHE_ANY);
+}
+
+FLOAT S_BrillianceManaRegen(LPEDICT unit) {
+    FLOAT const flat = hero_aura_bonus_mode(unit, ID_BRILLIANCE, 1, AURA_CACHE_FLAT);
+    FLOAT const percent = hero_aura_bonus_mode(unit, ID_BRILLIANCE, 1, AURA_CACHE_PERCENT);
+    FLOAT intrinsic = 0.0f;
+
+    if (!unit || percent == 0.0f) return flat;
+    if (unit->data.UnitBalance) intrinsic += unit->data.UnitBalance->manaRegen;
+    intrinsic += unit->mana_regen_bonus;
+    /* Keep this in lockstep with g_phys.c's current MiscGame IntRegenBonus. */
+    intrinsic += (FLOAT)unit->hero.intel * 0.05f;
+    return flat + percent * intrinsic;
+}
 FLOAT S_UnholyHealthRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 2); }
 FLOAT S_UnholyMoveBonus(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 1); }
 FLOAT S_VampiricLifeSteal(LPEDICT unit) { return hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1); }

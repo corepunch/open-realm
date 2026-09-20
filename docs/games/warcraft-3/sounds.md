@@ -11,6 +11,7 @@ Warcraft III sound mappings are primarily driven by SLK tables shipped in `War3.
 | `UI/SoundInfo/UnitAckSounds.slk` | Acknowledgement (what/yes/attack/pissed/ready/warcry) sounds per unit |
 | `UI/SoundInfo/UnitCombatSounds.slk` | Combat impact/swing sounds by weapon/armor type |
 | `UI/SoundInfo/UISounds.slk` | Interface sounds (button clicks, etc.) |
+| `UI/SoundInfo/AbilitySounds.slk` | Ability/effect sounds referenced by `Effectsound` aliases |
 | `UI/SoundInfo/AnimSounds.slk` | Sounds triggered from MDX animation events |
 
 ## SLK Column Layout
@@ -84,11 +85,12 @@ The typed WC3 metadata registry loads these sound tables at `InitUnitData` time:
 UI\SoundInfo\UnitAckSounds.slk
 UI\SoundInfo\UnitCombatSounds.slk
 UI\SoundInfo\UISounds.slk
+UI\SoundInfo\AbilitySounds.slk
 ```
 
-All three use `UnitAckSounds_t` because they share the `FileNames` /
-`DirectoryBase` sound-row schema. `G_UnitAckSound`, `G_UnitCombatSound`, and
-`G_UISound` perform exact row-name lookup.
+All four use `UnitAckSounds_t` because they share the `FileNames` /
+`DirectoryBase` sound-row schema. `G_UnitAckSound`, `G_UnitCombatSound`,
+`G_UISound`, and `G_AbilitySound` perform exact row-name lookup.
 
 ### Unit acknowledgement and completion sounds
 
@@ -165,6 +167,22 @@ For targeted spells, mana/cooldown validation stays at the actual cast attempt
 target-selection lifecycle while still emitting `Nomana` / `Cooldown` feedback
 when the player attempts to commit the spell. No-target spells validate and emit
 the same feedback immediately because the button click is the cast attempt.
+
+### Ability/effect sounds
+
+Ability and buff/effect UI objects may author an `Effectsound` alias. OpenRealm
+resolves that alias from the requested rawcode (falling back to its base
+ability/buff object), then resolves the sound row through `AbilitySounds.slk`
+with `UISounds.slk` as the same keyed-table fallback used by Warsmash. One-shot
+ability sounds are emitted at the authored world/effect point using the sound
+row's 0-127 volume.
+
+Blizzard uses this shared path for each DataC shard: the level's authored
+`EfctID` supplies both `EffectArt` and `Effectsound`, matching Warsmash's
+Archmage implementation. The server deliberately selects the first authored
+file variant rather than consuming simulation `rand()`; client-side variant
+randomization and authored pitch/pitch-variance remain future audio presentation
+work.
 
 ### Other implemented UI aliases
 

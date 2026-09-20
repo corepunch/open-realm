@@ -134,7 +134,7 @@ static ability_t abilitylist[] = {
     { "AHbz", CAbilityBlizzard, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Blizzard */
     { "AHwe", CAbilityWaterElemental, AB_SPELL },  /* Summon Water Elemental */
     { "AHab", CAbilityPassive, AB_PASSIVE },  /* Brilliance Aura */
-    { "AHmt", CAbilityMassTeleport, AB_SPELL, SPELL_TARGET_UNIT },  /* Mass Teleport */
+    { "AHmt", CAbilityMassTeleport, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Mass Teleport */
     { "AHtb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Storm Bolt */
     { "AHtc", CAbilityThunderClap, AB_SPELL },  /* Thunder Clap */
     { "AHbh", CAbilityPassive, AB_PASSIVE },  /* Bash */

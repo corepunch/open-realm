@@ -285,6 +285,8 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		grep -q "ConsoleInventoryCoverTexture" && echo "  cat skin UI OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat UI/SoundInfo/UISounds.slk | \
 		grep -q "InterfaceError" && echo "  cat UI sound SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat UI/SoundInfo/AbilitySounds.slk | \
+		grep -q "TestAbilitySound" && echo "  cat ability sound SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat UI/SoundInfo/Music.slk | \
 		grep -q "TestMusic" && echo "  cat music SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat unit SLK OK"

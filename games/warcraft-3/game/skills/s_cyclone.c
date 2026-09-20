@@ -10,7 +10,12 @@ BOOL S_UnitIsCycloned(LPCEDICT unit) {
 /* DataA==0 on the applying Cyclone rawcode (status.data) means Dispel/Purge/Devour must leave the buff. */
 BOOL S_StatusIsUndispellable(heroabilitystatus_t const *status) {
     abilityitem_t item;
-    if (!status || !status->level || !status->data) return false;
+    if (!status || !status->level) return false;
+    /* BTLF is lifecycle state, not an ordinary magic buff.  Removing it via
+     * Dispel/Purge would let a surviving summoned unit live forever.  Those
+     * spells already apply their authored summoned-unit damage separately. */
+    if (status->code == MAKEFOURCC('B', 'T', 'L', 'F')) return true;
+    if (!status->data) return false;
     item = S_AbilityItem(status->data);
     if (!item.ability || item.ability->proc != CAbilityCyclone) return false;
     return S_SpellData(status->data, status->level, 1) == 0.0f;

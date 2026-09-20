@@ -9,9 +9,35 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
-static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe,Acan" };
+static UnitAbilities_t review_abilities = { .abilList = "AHfs,AHbz,AHdr,ANdr,AEtq,AHtb,AHre,AUfn,AHwe,Acan,AHmt" };
+static char blizzard_effect_model[MAX_PATHLEN];
+
+static int review_capture_model(LPCSTR model) {
+    strlcpy(blizzard_effect_model, model ? model : "", sizeof(blizzard_effect_model));
+    return 77;
+}
+
+static char blizzard_sound_path[MAX_PATHLEN];
+static DWORD blizzard_sound_calls;
+static int blizzard_sound_index;
+static LPEDICT blizzard_sound_emitter;
+static FLOAT blizzard_sound_volume;
+
+static int review_capture_sound_index(LPCSTR path) {
+    strlcpy(blizzard_sound_path, path ? path : "", sizeof(blizzard_sound_path));
+    return 91;
+}
+
+static void review_capture_positioned_sound(LPCVECTOR3 origin, LPEDICT emitter, int channel, int sound, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
+    (void)origin; (void)channel; (void)attenuation; (void)timeofs;
+    blizzard_sound_calls++;
+    blizzard_sound_index = sound;
+    blizzard_sound_emitter = emitter;
+    blizzard_sound_volume = volume;
+}
+
 static char const review_slk[] =
-    "ID;PWXL;N;EBB;Y11;X15\n"
+    "ID;PWXL;N;EBB;Y12;X17\n"
     "C;Y1;X1;K\"alias\"\n"
     "C;Y1;X2;K\"code\"\n"
     "C;Y1;X3;K\"targs\"\n"
@@ -26,6 +52,8 @@ static char const review_slk[] =
     "C;Y1;X12;K\"DataD1\"\n"
     "C;Y1;X13;K\"DataE1\"\n"
     "C;Y1;X14;K\"BuffID1\"\n"
+    "C;Y1;X15;K\"UnitID1\"\n"
+    "C;Y1;X17;K\"EfctID1\"\n"
     "C;Y2;X1;K\"AHfs\"\n"
     "C;Y2;X2;K\"AHfs\"\n"
     "C;Y2;X3;K\"ground,enemy\"\n"
@@ -42,7 +70,7 @@ static char const review_slk[] =
     "C;Y2;X14;K\"BHfs\"\n"
     "C;Y3;X1;K\"AHbz\"\n"
     "C;Y3;X2;K\"AHbz\"\n"
-    "C;Y3;X3;K\"ground,enemy\"\n"
+    "C;Y3;X3;K\"ground,structure,enemy\"\n"
     "C;Y3;X4;K\"0\"\n"
     "C;Y3;X5;K\"800\"\n"
     "C;Y3;X6;K\"0\"\n"
@@ -54,6 +82,7 @@ static char const review_slk[] =
     "C;Y3;X12;K\"0.5\"\n"
     "C;Y3;X13;K\"0\"\n"
     "C;Y3;X14;K\"BHbd,BHbz\"\n"
+    "C;Y3;X17;K\"Biml\"\n"
     "C;Y4;X1;K\"AHdr\"\n"
     "C;Y4;X2;K\"AHdr\"\n"
     "C;Y4;X3;K\"air,ground,enemy,friend\"\n"
@@ -146,12 +175,13 @@ static char const review_slk[] =
     "C;Y10;X6;K\"30\"\n"
     "C;Y10;X7;K\"30\"\n"
     "C;Y10;X8;K\"200\"\n"
-    "C;Y10;X9;K\"1\"\n"
-    "C;Y10;X10;K\"0\"\n"
+    "C;Y10;X9;K\"2\"\n"
+    "C;Y10;X10;K\"7\"\n"
     "C;Y10;X11;K\"0\"\n"
     "C;Y10;X12;K\"0\"\n"
     "C;Y10;X13;K\"0\"\n"
-    "C;Y10;X14;K\"\"\n"
+    "C;Y10;X14;K\"BHwe\"\n"
+    "C;Y10;X15;K\"hfoo\"\n"
     "C;Y11;X1;K\"Acan\"\n"
     "C;Y11;X2;K\"Acan\"\n"
     "C;Y11;X3;K\"ground,dead,organic\"\n"
@@ -166,9 +196,23 @@ static char const review_slk[] =
     "C;Y11;X12;K\"0\"\n"
     "C;Y11;X13;K\"0\"\n"
     "C;Y11;X14;K\"\"\n"
-    "C;Y1;X15;K\"Cast1\"\n"
-    "C;Y2;X15;K1.33\n"
-    "C;Y3;X15;K1\n"
+    "C;Y12;X1;K\"AHmt\"\n"
+    "C;Y12;X2;K\"AHmt\"\n"
+    "C;Y12;X3;K\"ground,structure,friend\"\n"
+    "C;Y12;X4;K\"0\"\n"
+    "C;Y12;X5;K\"5000\"\n"
+    "C;Y12;X6;K\"0\"\n"
+    "C;Y12;X7;K\"0\"\n"
+    "C;Y12;X8;K\"800\"\n"
+    "C;Y12;X9;K\"3\"\n"
+    "C;Y12;X10;K\"3\"\n"
+    "C;Y12;X11;K\"1\"\n"
+    "C;Y12;X12;K\"0\"\n"
+    "C;Y12;X13;K\"0\"\n"
+    "C;Y12;X14;K\"\"\n"
+    "C;Y1;X16;K\"Cast1\"\n"
+    "C;Y2;X16;K1.33\n"
+    "C;Y3;X16;K1\n"
     "E\n"
 ;
 
@@ -231,10 +275,246 @@ TEST(wc3_ability_lifecycle, blizzard_stock_zero_duration_keeps_all_six_waves) {
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     BOOL cast = S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2);
     LPEDICT thinker = review_thinker(caster);
-    FOR_LOOP(i, 5) { level.time += 1000; if (thinker && thinker->inuse) G_RunEntity(thinker); }
+    /* Six authored waves now have two deadlines each: shard presentation,
+     * then the fixed 0.8-second damage phase. */
+    FOR_LOOP(i, 12) {
+        if (!thinker || !thinker->inuse) break;
+        level.time = thinker->freetime;
+        G_RunEntity(thinker);
+    }
     FLOAT hp = enemy->health.value;
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
-    T_ASSERT(cast); T_FEQ(hp, 820, .001f);
+    T_ASSERT(cast); T_FEQ(hp, 820, .001f); T_ASSERT(!thinker->inuse);
+}
+
+/* Blizzard resolves shard presentation through the authored EfctID object,
+ * not through AHbz's own Func art.  Biml's fixture EffectArt is distinctive. */
+TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_effect_object) {
+    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    int (*old_model_index)(LPCSTR) = gi.ModelIndex;
+    blizzard_effect_model[0] = '\0';
+    gi.ModelIndex = review_capture_model;
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
+    LPEDICT thinker = review_thinker(caster);
+    level.time = thinker->freetime; G_RunEntity(thinker);
+    T_STREQ(blizzard_effect_model, "TestUI\\Models\\quad_sprite.mdx");
+    gi.ModelIndex = old_model_index;
+    S_SpellCancelChannel(caster);
+    if (thinker && thinker->inuse) G_RunEntity(thinker);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Blizzard's authored EfctID also owns Effectsound.  AbilitySounds.slk is
+ * a separate retail table, and Warsmash emits that sound once per shard. */
+TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_ability_sound) {
+    static char const buff_slk[] =
+        "ID;PWXL;N;E\n"
+        "B;X2;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\n"
+        "C;Y1;X2;K\"Effectsound\"\n"
+        "C;Y2;X1;K\"Biml\"\n"
+        "C;Y2;X2;K\"BlizzardTest\"\n"
+        "E\n";
+    static char const sound_slk[] =
+        "ID;PWXL;N;E\n"
+        "B;X4;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y1;X4;K\"Volume\"\n"
+        "C;Y2;X1;K\"BlizzardTest\"\n"
+        "C;Y2;X2;K\"blizzard.wav\"\n"
+        "C;Y2;X3;K\"TestUI\\Sounds\\\"\n"
+        "C;Y2;X4;K\"63.5\"\n"
+        "E\n";
+    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    slkTestData_t *ability_rows = parse_slk_string(review_slk), *old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    slkTestData_t *sound_rows = parse_slk_string(sound_slk), *old_sound_rows = G_SetSLKRows("AbilitySounds", sound_rows);
+    int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
+    void (*old_positioned_sound)(LPCVECTOR3, LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.PositionedSound;
+
+    blizzard_sound_path[0] = '\0'; blizzard_sound_calls = 0; blizzard_sound_index = 0;
+    blizzard_sound_emitter = NULL; blizzard_sound_volume = 0.0f;
+    gi.SoundIndex = review_capture_sound_index; gi.PositionedSound = review_capture_positioned_sound;
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
+    LPEDICT thinker = review_thinker(caster);
+    level.time = thinker->freetime; G_RunEntity(thinker);
+    T_EQ(blizzard_sound_calls, 6); T_EQ(blizzard_sound_index, 91);
+    T_NULL(blizzard_sound_emitter);
+    T_STREQ(blizzard_sound_path, "TestUI\\Sounds\\blizzard.wav");
+    T_FEQ(blizzard_sound_volume, 0.5f, .001f);
+
+    gi.SoundIndex = old_sound_index; gi.PositionedSound = old_positioned_sound;
+    S_SpellCancelChannel(caster);
+    if (thinker && thinker->inuse) G_RunEntity(thinker);
+    G_SetSLKRows("AbilitySounds", old_sound_rows); free_slk_rows(sound_rows);
+    G_SetSLKRows("AbilityBuffData", old_buff); free_slk_rows(buff_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
+}
+
+/* Warsmash shows a Blizzard shard wave first and resolves that wave's damage
+ * 0.8 seconds later; Cast owns the delay before the first shard wave. */
+TEST(wc3_ability_lifecycle, blizzard_shards_precede_damage_by_eight_tenths) {
+    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
+    LPEDICT thinker = review_thinker(caster);
+    T_NOT_NULL(thinker); T_FEQ(enemy->health.value, 1000, .001f);
+    T_EQ(thinker->freetime, 2000);
+
+    level.time = thinker->freetime; G_RunEntity(thinker);
+    T_FEQ(enemy->health.value, 1000, .001f);
+    T_EQ(thinker->freetime, 2800);
+    level.time = 2799; G_RunEntity(thinker);
+    T_FEQ(enemy->health.value, 1000, .001f);
+    level.time = 2800; G_RunEntity(thinker);
+    T_FEQ(enemy->health.value, 970, .001f);
+
+    S_SpellCancelChannel(caster);
+    if (thinker->inuse) G_RunEntity(thinker);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* The shard/damage phase bit lives on the serialized thinker state, so a save
+ * between presentation and impact must resume with damage rather than replaying
+ * another shard phase. */
+TEST(wc3_ability_lifecycle, blizzard_damage_phase_survives_save_load) {
+    LPCSTR path = "/tmp/openwarcraft3-blizzard-phase-save.bin";
+    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
+    LPEDICT thinker = review_thinker(caster);
+    level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
+    T_FEQ(enemy->health.value, 1000, .001f);
+    T_ASSERT(WriteGame(path));
+    caster->channel.code = 0; thinker->think = NULL; thinker->variation = 1;
+    T_ASSERT(ReadGame(path));
+    T_ASSERT(thinker->think == blizzard_think);
+    level.time = thinker->freetime; G_RunEntity(thinker);
+    T_FEQ(enemy->health.value, 970, .001f);
+    S_SpellCancelChannel(caster);
+    if (thinker->inuse) G_RunEntity(thinker);
+    remove(path); G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Blizzard DataD scales structures after ordinary per-target wave damage. */
+TEST(wc3_ability_lifecycle, blizzard_applies_authored_building_reduction) {
+    LPEDICT caster = review_setup(), enemy = review_unit(1, 100), building = review_unit(1, 120);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    building->targtype = TARG_STRUCTURE;
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
+    LPEDICT thinker = review_thinker(caster);
+    level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
+    level.time = thinker->freetime; G_RunEntity(thinker); /* damage */
+    T_FEQ(enemy->health.value, 970, .001f);
+    T_FEQ(building->health.value, 985, .001f);
+    S_SpellCancelChannel(caster);
+    if (thinker && thinker->inuse) G_RunEntity(thinker);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Summon Water Elemental owns DataA as its summon count and marks each result
+ * as an ability-created summon for dispel/JASS classification. */
+TEST(wc3_ability_lifecycle, water_elemental_uses_dataa_count_and_marks_summons) {
+    LPEDICT caster = review_setup();
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    DWORD count = 0;
+    VECTOR2 first = {0};
+    BOOL separated = false;
+    caster->s.angle = 0.35f;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHwe")));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster &&
+                  unit->summon_ability == FS_SLKKey("AHwe")) {
+        T_FEQ(unit->s.angle, caster->s.angle, .001f);
+        T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','H','w','e')), 1);
+        T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','T','L','F')), 1);
+        if (!count) first = unit->s.origin2;
+        else if (Vector2_distance(&first, &unit->s.origin2) > .001f) separated = true;
+        count++;
+    }
+    T_EQ(count, 2); T_ASSERT(separated);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Mass Teleport is a real channel: DataB delays the relocation, the caster
+ * counts against DataA, and only the caster player's mobile units are moved. */
+TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_structures) {
+    LPEDICT caster = review_setup(), own1 = review_unit(0, 100), ally = review_unit(1, 150);
+    LPEDICT building = review_unit(0, 200), own2 = review_unit(0, 250), own3 = review_unit(0, 300);
+    LPEDICT target = review_unit(0, 2000);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    DWORD moved = 0;
+    level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
+    building->targtype = TARG_STRUCTURE;
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
+    LPEDICT thinker = review_thinker(caster);
+    T_NOT_NULL(thinker); T_ASSERT(target->paused); T_FEQ(caster->s.origin2.x, 0, .001f);
+    level.time = thinker->freetime - 1; G_RunEntity(thinker);
+    T_FEQ(caster->s.origin2.x, 0, .001f);
+    level.time = thinker->freetime; G_RunEntity(thinker);
+
+    moved += own1->s.origin2.x > 1000;
+    moved += own2->s.origin2.x > 1000;
+    moved += own3->s.origin2.x > 1000;
+    T_EQ(moved, 2);
+    T_ASSERT(caster->s.origin2.x > 1000);
+    T_ASSERT(ally->s.origin2.x < 1000);
+    T_ASSERT(building->s.origin2.x < 1000);
+    /* Relocation must also update the server broad phase: the caster vacated
+     * x=0, so an unmoved unit can legally occupy that point after completion. */
+    T_ASSERT(G_CanRepositionUnitAt(own3, &MAKE(VECTOR2, 0, 0)));
+    T_ASSERT(!target->paused); T_EQ(caster->channel.code, 0); T_ASSERT(!thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Structure is a first-class target-mask token; cancelling the channel must
+ * also undo Mass Teleport's temporary destination pause. */
+TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_cancel) {
+    LPEDICT caster = review_setup(), target = review_unit(0, 2000);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    target->targtype = TARG_STRUCTURE;
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
+    LPEDICT thinker = review_thinker(caster);
+    T_NOT_NULL(thinker); T_ASSERT(target->paused);
+    S_SpellCancelChannel(caster);
+    T_ASSERT(!target->paused); T_EQ(caster->channel.code, 0);
+    if (thinker && thinker->inuse) G_RunEntity(thinker);
+    T_ASSERT(!thinker || !thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* The destination entity stays authoritative until completion; losing it
+ * cancels the channel instead of teleporting to a stale cached coordinate. */
+TEST(wc3_ability_lifecycle, mass_teleport_target_death_cancels) {
+    LPEDICT caster = review_setup(), target = review_unit(0, 2000);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
+    LPEDICT thinker = review_thinker(caster);
+    target->health.value = 0;
+    G_RunEntity(thinker);
+    T_FEQ(caster->s.origin2.x, 0, .001f);
+    T_ASSERT(!target->paused); T_EQ(caster->channel.code, 0); T_ASSERT(!thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A live Mass Teleport thinker must retain its callback, target incarnation,
+ * pause ownership and deadline across the production save/load path. */
+TEST(wc3_ability_lifecycle, mass_teleport_continues_after_save_load) {
+    LPCSTR path = "/tmp/openwarcraft3-mass-teleport-save.bin";
+    LPEDICT caster = review_setup(), target = review_unit(0, 2000);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
+    LPEDICT thinker = review_thinker(caster);
+    T_NOT_NULL(thinker); T_ASSERT(target->paused); T_ASSERT(WriteGame(path));
+    caster->channel.code = 0; thinker->think = NULL; target->paused = false;
+    T_ASSERT(ReadGame(path));
+    T_ASSERT(thinker->think == mass_teleport_think); T_ASSERT(target->paused);
+    level.time = thinker->freetime; G_RunEntity(thinker);
+    T_ASSERT(caster->s.origin2.x > 1000); T_ASSERT(!target->paused); T_ASSERT(!thinker->inuse);
+    remove(path); G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* Cancelling the caster's channel must retire its pending resource transfer too. */
@@ -380,7 +660,10 @@ TEST(wc3_ability_lifecycle, stun_interrupts_blizzard_before_next_wave) {
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
     LPEDICT thinker = review_thinker(caster);
-    unit_addtimedstatus(caster, "Bstu", 1, 5); level.time += 1000; G_RunEntity(thinker);
+    level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
+    level.time = thinker->freetime; G_RunEntity(thinker); /* first damage */
+    unit_addtimedstatus(caster, "Bstu", 1, 5);
+    level.time = thinker->freetime; G_RunEntity(thinker);
     T_FEQ(enemy->health.value, 970, .001f); T_ASSERT(!thinker->inuse); T_EQ(caster->channel.code, 0);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -498,7 +781,10 @@ TEST(wc3_ability_lifecycle, blizzard_roc_data_columns_keep_all_authored_waves) {
     T_FEQ(S_SpellData(FS_SLKKey("AHbz"), 1, 1), 6, .001f);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
     LPEDICT thinker = review_thinker(caster);
-    FOR_LOOP(i, 5) { level.time += 1000; G_RunEntity(thinker); }
+    FOR_LOOP(i, 12) {
+        if (!thinker->inuse) break;
+        level.time = thinker->freetime; G_RunEntity(thinker);
+    }
     T_FEQ(enemy->health.value, 820, .001f); T_ASSERT(!thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

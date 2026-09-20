@@ -364,25 +364,138 @@ static void acid_bomb_think(LPEDICT thinker) {
     }
 }
 
+/* Mass Teleport keeps its channel-owned area effects on the thinker so cancel,
+ * target death, save/load continuation and successful completion all use the
+ * same cleanup path. */
+static void mass_teleport_cleanup(LPEDICT thinker) {
+    LPEDICT target = thinker ? thinker->goalentity : NULL;
+
+    if (!thinker) return;
+    if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time &&
+        thinker->wait < 0.5f)
+        target->paused = false;
+    FILTER_EDICTS(effect, effect->inuse && effect->owner == thinker &&
+                  effect->summon_ability == thinker->class_id) {
+        effect->owner = NULL;
+        effect->summon_ability = 0;
+        G_DestroyEffect(effect);
+    }
+}
+
+static void mass_teleport_track_effect(LPEDICT thinker, LPEDICT effect) {
+    if (!thinker || !effect) return;
+    effect->owner = thinker;
+    effect->summon_ability = thinker->class_id;
+}
+
+static void mass_teleport_move_unit(LPEDICT unit, DWORD code, LPCVECTOR2 requested) {
+    VECTOR2 source, position;
+
+    if (!unit || !requested) return;
+    source = unit->s.origin2;
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
+    /* SetUnitPosition keeps the requested point as a fallback when no spiral
+     * candidate is open.  Mass Teleport uses the same relocation contract. */
+    (void)G_FindUnitUnstuckPosition(unit, requested, &position);
+    unit->s.origin2 = position;
+    unit->s.origin.x = position.x;
+    unit->s.origin.y = position.y;
+    if (unit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    gi.LinkEntity(unit);
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
+}
+
+void mass_teleport_think(LPEDICT thinker) {
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+    LPEDICT target = thinker ? thinker->goalentity : NULL;
+    DWORD now = G_Time(), level, limit, count = 1;
+    FLOAT area;
+    BOOL cluster;
+    VECTOR2 src, dst;
+
+    if (!thinker) return;
+    if (!S_SpellChannelActive(thinker)) {
+        mass_teleport_cleanup(thinker);
+        S_SpellEndChannel(thinker);
+        return;
+    }
+    if (!target || !target->inuse || target->spawn_time != thinker->channel.target_spawn_time ||
+        !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
+        mass_teleport_cleanup(thinker);
+        S_SpellEndChannel(thinker);
+        return;
+    }
+    if (thinker->freetime && now < thinker->freetime) return;
+
+    level = thinker->variation ? thinker->variation : 1;
+    area = S_SpellNumber(thinker->class_id, ABILITY_NUMBER_AREA, level);
+    limit = (DWORD)S_SpellData(thinker->class_id, level, 1);
+    cluster = S_SpellData(thinker->class_id, level, 3) != 0.0f;
+    src = caster->s.origin2;
+    dst = target->s.origin2;
+
+    /* The caster relocates first, matching SetUnitPosition-based Mass
+     * Teleport behavior; payload units then find collision-safe positions
+     * around that authoritative destination. */
+    mass_teleport_move_unit(caster, thinker->class_id, &dst);
+
+    /* The gameplay description owns nearby units of the caster's player. Do
+     * not drag allied-player armies or structures merely because the target
+     * relation for the destination is friendly. */
+    FILTER_EDICTS(unit, count < limit && unit != caster && S_SpellIsAliveTarget(unit) &&
+                  unit->s.player == caster->s.player && unit->targtype != TARG_STRUCTURE &&
+                  !G_UnitIsBuilding(unit->class_id) &&
+                  Vector2_distance(&unit->s.origin2, &src) <= area) {
+        VECTOR2 offset = Vector2_sub(&unit->s.origin2, &src);
+        VECTOR2 requested = cluster ? dst : Vector2_add(&dst, &offset);
+        mass_teleport_move_unit(unit, thinker->class_id, &requested);
+        count++;
+    }
+    mass_teleport_cleanup(thinker);
+    S_SpellEndChannel(thinker);
+}
+
 /* Name=Mass Teleport
  * Ubertip="Teleports the caster and nearby friendly units to a target location."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityMassTeleport) {
-    DWORD level = S_SpellLevel(caster, spell->code), count = 1;
-    VECTOR2 src = caster->s.origin2, dst = st.entity ? st.entity->s.origin2 : st.point;
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    DWORD limit = (DWORD)S_SpellData(spell->code, level, 1);
-    FILTER_EDICTS(unit, count < limit && unit != caster && S_SpellIsAliveTarget(unit) && S_SpellIsFriend(caster, unit) &&
-                  Vector2_distance(&unit->s.origin2, &src) <= area) {
-        VECTOR2 offset = Vector2_sub(&unit->s.origin2, &src);
-        VECTOR2 requested = S_SpellData(spell->code, level, 3) ? dst : Vector2_add(&dst, &offset);
-        if (G_FindUnitUnstuckPosition(unit, &requested, &unit->s.origin2)) {
-            unit->s.origin.x = unit->s.origin2.x; unit->s.origin.y = unit->s.origin2.y; count++;
-        }
+BZ_ABILITY_PROC(CAbilityMassTeleport) {
+    abilityitem_t const *spell = call ? call->item : NULL;
+
+    if (msg == A_CANCEL) {
+        DWORD code = spell ? spell->code : 0;
+        FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == ent && thinker->class_id == code &&
+                      thinker->think == mass_teleport_think &&
+                      thinker->channel.owner_spawn_time == ent->spawn_time)
+            mass_teleport_cleanup(thinker);
+        return true;
     }
-    if (G_FindUnitUnstuckPosition(caster, &dst, &caster->s.origin2)) {
-        caster->s.origin.x = caster->s.origin2.x; caster->s.origin.y = caster->s.origin2.y;
+    if (msg == A_EXECUTE) {
+        spellTarget_t st = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+        LPEDICT target = st.entity, thinker, effect;
+        DWORD level;
+        FLOAT delay;
+
+        if (!spell || !target) return false;
+        level = S_SpellLevel(ent, spell->code);
+        delay = MAX(0.0f, S_SpellData(spell->code, level, 2));
+        thinker = S_SpellChannelThinker(ent, spell->code);
+        thinker->goalentity = target;
+        thinker->channel.target_spawn_time = target->spawn_time;
+        thinker->variation = level;
+        thinker->wait = target->paused ? 1.0f : 0.0f;
+        thinker->freetime = G_Time() + (DWORD)(delay * 1000.0f);
+        thinker->think = mass_teleport_think;
+
+        effect = G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_AREA_EFFECT, 0, &ent->s.origin2, false);
+        mass_teleport_track_effect(thinker, effect);
+        effect = G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_AREA_EFFECT, 0, &target->s.origin2, false);
+        mass_teleport_track_effect(thinker, effect);
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, ent, NULL, true);
+        target->paused = true;
+        mass_teleport_think(thinker);
+        return true;
     }
+    return CAbilitySimpleSpell(ent, msg, call);
 }
 /* Name=Stampede
  * Ubertip="Calls down hordes of rampaging thunder lizards to explode upon the Beastmaster's enemies."

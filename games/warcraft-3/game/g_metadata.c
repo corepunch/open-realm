@@ -518,6 +518,8 @@ static slkField_t const ability_buff_schema[] = {
     { "SpecialArt",  offsetof(AbilityBuffData_t, specialArt),  STB_SLK_STR    },
     { "EffectArt",   offsetof(AbilityBuffData_t, effectArt),   STB_SLK_STR    },
     { "Missileart",  offsetof(AbilityBuffData_t, missileArt),  STB_SLK_STR    },
+    { "Effectsound", offsetof(AbilityBuffData_t, effectSound), STB_SLK_STR    },
+    { "Effectsoundlooped", offsetof(AbilityBuffData_t, effectSoundLooped), STB_SLK_STR },
     { NULL, 0, 0 }
 };
 
@@ -1717,9 +1719,15 @@ UnitAckSounds_t const *G_UISound(LPCSTR name) {
 
 UnitAckSounds_t const *G_AbilitySound(LPCSTR name) {
     static UnitAckSounds_t zero;
-    if (!name) return &zero;
+    if (!name || !*name) return &zero;
     FOR_LOOP(i, g_AbilitySoundsCount)
         if (g_AbilitySounds[i].name && !strcmp(g_AbilitySounds[i].name, name)) return g_AbilitySounds + i;
+    /* Warsmash merges the UI/ability sound tables into one keyed lookup.
+     * Preserve that useful alias fallback while keeping the typed stores separate. */
+    {
+        UnitAckSounds_t const *ui = G_UISound(name);
+        if (ui->name && ui->name[0]) return ui;
+    }
     return &zero;
 }
 MusicData_t const *G_MusicData(LPCSTR name) {

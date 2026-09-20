@@ -2850,6 +2850,7 @@ void pocket_factory_think(LPEDICT);
 void stasis_trap_think(LPEDICT);
 void rain_of_chaos_think(LPEDICT);
 void inferno_think(LPEDICT);
+void mass_teleport_think(LPEDICT);
 void dark_portal_think(LPEDICT);
 void exhume_think(LPEDICT);
 void healing_spray_think(LPEDICT);

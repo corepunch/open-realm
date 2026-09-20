@@ -126,7 +126,13 @@ TEST(wc3_spell, custom_spells_keep_identity_in_validation_and_channel_completion
     T_FEQ(caster->s.origin2.x, 0, 0.001f);
     T_ASSERT(S_CastPointTargetSpell(caster, MAKEFOURCC('A','0','0','4'), &point));
     T_FEQ(caster->mana.value, 180, 0.001f);
-    T_EQ(caster->channel.code, 0); /* Its only wave has completed. */
+    LPEDICT thinker = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].owner == caster && g_edicts[i].think) { thinker = g_edicts + i; break; }
+    T_NOT_NULL(thinker);
+    level.time = thinker->freetime; G_RunEntity(thinker); /* shard phase */
+    level.time = thinker->freetime; G_RunEntity(thinker); /* the only wave */
+    T_EQ(caster->channel.code, 0);
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -419,6 +425,110 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
+}
+
+/* Brilliance uses the authored air/ground/friend/self target mask rather than
+ * granting mana regeneration to every friendly entity in range. */
+TEST(wc3_spell, brilliance_aura_honors_authored_target_mask) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AHab\"\nC;Y2;X2;K\"AHab\"\n"
+        "C;Y2;X3;K\"air,ground,friend,self\"\n"
+        "C;Y2;X4;K\"900\"\nC;Y2;X5;K\"0.75\"\nC;Y2;X6;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    reset_entities(); setup_test_world(); level.time = 0;
+    LPEDICT source = make_hero(MAKEFOURCC('H','a','m','g'), 500, 300, 0, 0);
+    LPEDICT ground = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    LPEDICT air = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 150, 0);
+    LPEDICT structure = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 200, 0);
+    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 250, 0);
+
+    source->s.player = ground->s.player = air->s.player = structure->s.player = 0;
+    enemy->s.player = 1;
+    source->targtype = ground->targtype = enemy->targtype = TARG_GROUND;
+    air->targtype = TARG_AIR;
+    structure->targtype = TARG_STRUCTURE;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','b'), .level = 1);
+
+    T_FEQ(S_BrillianceManaRegen(source), 0.75f, 0.001f);
+    T_FEQ(S_BrillianceManaRegen(ground), 0.75f, 0.001f);
+    T_FEQ(S_BrillianceManaRegen(air), 0.75f, 0.001f);
+    T_FEQ(S_BrillianceManaRegen(structure), 0.0f, 0.001f);
+    T_FEQ(S_BrillianceManaRegen(enemy), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Brilliance DataB switches DataA from a flat MP/sec bonus to a percentage of
+ * the recipient's intrinsic mana regeneration.  Flat and percent variants
+ * use separate non-stacking families, and custom aliases must retain their
+ * own DataA/DataB rather than falling back to AHAB's row. */
+TEST(wc3_spell, brilliance_aura_honors_percentage_mode_and_alias_data) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y1;X7;K\"levels\"\nC;Y1;X8;K\"hero\"\n"
+        "C;Y2;X1;K\"AHab\"\nC;Y2;X2;K\"AHab\"\nC;Y2;X3;K\"ground,friend,self\"\n"
+        "C;Y2;X4;K\"900\"\nC;Y2;X5;K\"0.25\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"1\"\n"
+        "C;Y3;X1;K\"A001\"\nC;Y3;X2;K\"AHab\"\nC;Y3;X3;K\"ground,friend,self\"\n"
+        "C;Y3;X4;K\"900\"\nC;Y3;X5;K\"0.5\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\nC;Y3;X8;K\"1\"\nE\n";
+    static UnitBalance_t const recipient_balance = { .manaRegen = 1.2f, .maxHealth = 100.0f };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT flat_source = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
+    LPEDICT percent_source = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+
+    level.time = 0;
+    flat_source->s.player = percent_source->s.player = target->s.player = 0;
+    flat_source->targtype = percent_source->targtype = target->targtype = TARG_GROUND;
+    flat_source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','b'), .level = 1);
+    percent_source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','0','0','1'), .level = 1);
+    target->data.UnitBalance = &recipient_balance;
+    target->mana_regen_bonus = 0.3f;
+    target->hero.intel = 10;
+
+    /* Intrinsic regen = 1.2 + 0.3 + (10 * 0.05) = 2.0.  Percentage
+     * Brilliance contributes 1.0 and the separate flat family adds 0.25. */
+    T_FEQ(S_BrillianceManaRegen(target), 1.25f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Per-level target masks are valid AbilityData fields.  Validation must use
+ * the caster's current rank rather than permanently reading level 1. */
+TEST(wc3_spell, spell_target_mask_uses_current_hero_level) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs1\"\nC;Y1;X5;K\"targs2\"\nC;Y1;X6;K\"hero\"\n"
+        "C;Y2;X1;K\"A004\"\nC;Y2;X2;K\"AHbz\"\nC;Y2;X3;K\"2\"\n"
+        "C;Y2;X4;K\"ground,enemy\"\nC;Y2;X5;K\"ground,friend\"\nC;Y2;X6;K\"1\"\nE\n";
+    DWORD const code = MAKEFOURCC('A','0','0','4');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
+    LPEDICT friendly = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+
+    caster->s.player = friendly->s.player = 0;
+    enemy->s.player = 1;
+    caster->targtype = friendly->targtype = enemy->targtype = TARG_GROUND;
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 2);
+
+    T_ASSERT(S_SpellAllowsTarget(code, caster, friendly));
+    T_ASSERT(!S_SpellAllowsTarget(code, caster, enemy));
+    caster->heroabilities[0].level = 1;
+    T_ASSERT(!S_SpellAllowsTarget(code, caster, friendly));
+    T_ASSERT(S_SpellAllowsTarget(code, caster, enemy));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) {

@@ -89,6 +89,19 @@ TEST(wc3_spell, dispel_adis_damages_summoned_with_datab) {
 	dispel_done(fix);
 }
 
+/* Timed life is summon lifecycle state, not a normal dispellable status.
+ * Dispel still deals its authored summon damage without making survivors permanent. */
+TEST(wc3_spell, dispel_preserves_summon_timed_life) {
+    DISPELFIX fix = dispel_setup(BZ_ADIS);
+    VECTOR2 point = fix.summon->s.origin2;
+    unit_addtimedstatus(fix.summon, "BTLF", 1, 30.0f);
+    T_ASSERT(S_UnitHasStatus(fix.summon, MAKEFOURCC('B','T','L','F')));
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
+    T_FEQ(fix.summon->health.value, 389, 0.001f);
+    T_ASSERT(S_UnitHasStatus(fix.summon, MAKEFOURCC('B','T','L','F')));
+    dispel_done(fix);
+}
+
 /* Adch is not an Adis alias; it must still damage summons from its DataB row. */
 TEST(wc3_spell, dispel_adch_damages_summoned_with_datab) {
 	DISPELFIX fix = dispel_setup(BZ_ADCH);

@@ -129,6 +129,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(lsh_think),
     SAVE_CFUNCTION(far_sight_think),
     SAVE_CFUNCTION(chain_lightning_think),
+    SAVE_CFUNCTION(mass_teleport_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

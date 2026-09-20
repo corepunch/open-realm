@@ -145,6 +145,29 @@ static int G_RegisterSoundRow(UnitAckSounds_t const *row) {
     return gi.SoundIndex(path);
 }
 
+
+/* Ability sounds are simulation-triggered presentation. Pick the first authored
+ * variant on the server rather than consuming gameplay rand(); presentation
+ * variant randomization can move client-side without perturbing simulation RNG. */
+static int G_RegisterAbilitySoundRow(UnitAckSounds_t const *row) {
+    LPCSTR comma;
+    char file[256], path[512];
+
+    if (!row || !row->FileNames || !row->FileNames[0]) return 0;
+    comma = strchr(row->FileNames, ',');
+    snprintf(file, sizeof(file), "%.*s",
+             comma ? (int)(comma - row->FileNames) : (int)strlen(row->FileNames), row->FileNames);
+    if (row->DirectoryBase && row->DirectoryBase[0]) {
+        size_t n = strlen(row->DirectoryBase);
+        snprintf(path, sizeof(path), "%s%s%s", row->DirectoryBase,
+                 row->DirectoryBase[n - 1] == '\\' || row->DirectoryBase[n - 1] == '/' ? "" : "\\",
+                 file);
+    } else {
+        snprintf(path, sizeof(path), "%s", file);
+    }
+    return gi.SoundIndex(path);
+}
+
 static int G_RegisterUISound(LPCSTR alias) {
     UnitAckSounds_t const *row;
 
@@ -157,32 +180,52 @@ static LPCSTR G_AbilitySoundAlias(DWORD ability_id, BOOL looped) {
     char classname[5];
     LPCSTR field = looped ? "Effectsoundlooped" : "Effectsound";
     LPCSTR value;
-    AbilityData_t const *row;
+    AbilityData_t const *ability;
+    AbilityBuffData_t const *buff;
 
+    if (!ability_id) return NULL;
     memcpy(classname, &ability_id, 4);
     classname[4] = '\0';
     value = FindConfigValue(classname, field);
     if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
-    row = G_AbilityData(ability_id);
-    if (row->code && row->code != ability_id) {
-        memcpy(classname, &row->code, 4);
+
+    ability = G_AbilityData(ability_id);
+    if (ability->code && ability->code != ability_id) {
+        memcpy(classname, &ability->code, 4);
         classname[4] = '\0';
         value = FindConfigValue(classname, field);
         if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+    }
+
+    /* Effect objects such as Blizzard's EfctID live in AbilityBuffData.slk. */
+    buff = G_AbilityBuffData(ability_id);
+    if (buff->id == ability_id) {
+        value = looped ? buff->effectSoundLooped : buff->effectSound;
+        if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+        if (buff->code && buff->code != ability_id) {
+            AbilityBuffData_t const *base = G_AbilityBuffData(buff->code);
+            if (base->id == buff->code) {
+                value = looped ? base->effectSoundLooped : base->effectSound;
+                if (value && *value && strcmp(value, "-") && strcmp(value, "_")) return value;
+            }
+        }
     }
     return NULL;
 }
 
 int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped) {
     LPCSTR alias = G_AbilitySoundAlias(ability_id, looped);
-    return alias ? G_RegisterSoundRow(G_AbilitySound(alias)) : 0;
+    return alias ? G_RegisterAbilitySoundRow(G_AbilitySound(alias)) : 0;
 }
 
 void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point) {
-    int sound = G_AbilityEffectSoundIndex(ability_id, false);
+    LPCSTR alias = G_AbilitySoundAlias(ability_id, false);
+    UnitAckSounds_t const *row = alias ? G_AbilitySound(alias) : NULL;
+    int sound = row ? G_RegisterAbilitySoundRow(row) : 0;
     if (sound && point) {
         VECTOR3 origin = { point->x, point->y, CM_GetHeightAtPoint(point->x, point->y) };
-        gi.PositionedSound(&origin, NULL, CHAN_RELIABLE, sound, 1.0f, 1.0f, 0.0f);
+        FLOAT volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
+        gi.PositionedSound(&origin, NULL, CHAN_RELIABLE, sound, volume, 1.0f, 0.0f);
     }
 }
 

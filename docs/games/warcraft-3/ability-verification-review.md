@@ -124,3 +124,131 @@ than only testing procedure lookup.
 See [ability coverage](architecture/ability-coverage.md),
 [ability implementation](ability-implementation-plan.md),
 [save/load](save-load.md), and [autocast](autocast.md).
+
+## Jaina / Archmage follow-up (September 19, 2026)
+
+The Archmage review tightened three abilities without adding Hero-specific
+branches. `AHwe` now treats DataA as the authored summon count, records the
+creating ability on each summon, and emits TargetArt while retaining the shared
+timed-life/event path. `AHbz` now evaluates its own authored target mask, applies
+DataD to structures after the DataF per-wave cap, and emits DataC EffectArt
+shards without using the visual positions for hit detection.
+
+`AHmt` now participates in the shared channel lifecycle instead of relocating
+immediately. DataB owns the completion delay; a thinker retains the destination
+entity incarnation, temporarily pauses that destination, owns persistent area
+effects, and cleans all of those resources on success or cancellation. Completion
+uses the current destination position, keeps the caster inside the DataA total,
+excludes allied-player armies and structures from the payload, honors DataC
+clustering, and uses ordinary unstuck placement. The thinker callback is appended
+to the save callback roster, and regression coverage includes delayed completion,
+unit-cap/ownership filtering, structure destinations, destination death,
+cancellation cleanup, Water Elemental DataA ownership, Blizzard structure
+scaling, and production save/load continuation.
+
+Brilliance Aura remains on the existing cached Hero-aura path. This follow-up
+does not replace that path with the newer generic target-token helper because the
+current unit `targtype` representation conflates movement class and
+organic/mechanical classification; doing so here could regress stock mechanical
+recipients. That broader target-model cleanup remains separate work.
+
+### Jaina / Archmage remaining-fidelity follow-up (September 19, 2026)
+
+A second conservative pass closes behavior that the bundled Warsmash source
+makes explicit without broadening the shared damage/type model. Blizzard now
+waits for its authored `Cast` interval before the first shard wave, then splits
+each wave into shard presentation followed by damage 0.8 seconds later. The
+phase is stored on the already-serialized thinker state, so saving between the
+shards and impact resumes the pending damage phase rather than replaying art.
+The existing target mask, DataD building multiplier and DataF aggregate cap
+remain authoritative. Cold/spell damage typing and spell-sound parity are still
+separate shared-system work.
+
+Brilliance Aura now consumes the stock `air,ground,friend,self` target mask in
+the cached Hero-aura path rather than treating every friendly entity in range as
+a recipient. Rows that omit `targs` keep the historical friendly fallback for
+sparse ROC/custom fixtures. This deliberately does not rewrite the engine-wide
+organic/mechanical classification model; that broader cleanup is still separate.
+
+Water Elemental keeps its existing DataA/UnitID/timed-life path but now preserves
+the caster facing and relinks collision-displaced summons. Mass Teleport likewise
+relinks every relocated unit (and dirties FOW blocker state where relevant), so
+the server broad phase no longer retains the source position after the visual and
+simulation coordinates have moved. Regression coverage documents Blizzard's
+0.8-second phase timing and save/load continuation, Brilliance target filtering,
+Water Elemental separation/facing, and Mass Teleport vacated-space relinking.
+
+### Jaina / Archmage data-driven aura and targeting follow-up (September 19, 2026)
+
+A third conservative pass closes two data-driven gaps that are explicit in the
+bundled Warsmash implementation. Brilliance Aura now treats DataB as its
+flat-versus-percentage switch: flat DataA remains MP/sec, while percentage DataA
+scales the recipient's intrinsic mana regeneration (base unit regeneration,
+ordinary mana-regeneration bonuses, and the current Intelligence regeneration
+term). Flat and percentage Brilliance providers keep separate strongest-copy
+slots, matching the separate non-stacking stat families used by Warsmash. The
+Hero-aura cache also resolves the actual authored alias and rank before reading
+Area, `targs`, DataA, and DataB, so custom Brilliance-derived abilities no longer
+silently fall back to the stock `AHab` row.
+
+The shared unit-target validator now reads `targs` from the caster's current
+ability rank instead of always using level 1. This matters to Blizzard and Mass
+Teleport when custom object data changes target classes across ranks, and it
+preserves the requested alias as the data source. Focused regressions cover
+rank-specific target masks and a custom percentage-mode Brilliance alias mixed
+with a stock flat provider.
+
+This pass still does not invent cold/spell damage typing, per-shard sound
+semantics, or an engine-wide organic/mechanical target-class rewrite. Those
+remain shared-system fidelity work because the current OpenRealm representations
+do not model them cleanly enough for a low-risk Jaina-specific change.
+
+### Jaina / Archmage summon identity and Blizzard effect-object follow-up (September 19, 2026)
+
+A fourth conservative pass closes two presentation/lifecycle details that the
+bundled Warsmash implementation makes explicit without extending OpenRealm's
+shared damage model. Summon Water Elemental now also applies the ability's
+authored BuffID to each created Elemental. OpenRealm deliberately keeps `BTLF`
+as the authoritative timed-life clock because the existing timed-life bar and
+`UnitPauseTimedLife` native are built around that status; the authored Water
+Elemental buff supplies the WC3 ability-specific status/presentation identity
+without introducing a second expiration timer. `BTLF` is now treated as
+non-dispellable lifecycle state by the shared Dispel/Purge filter, so dispel
+still deals its authored damage to summoned units but cannot accidentally turn
+a surviving timed summon into a permanent unit.
+
+Blizzard now resolves each shard's EffectArt through the level's authored
+`EfctID` object, matching Warsmash's `effectId` path, instead of resolving the
+visual directly from the casting ability alias. Focused regressions cover the
+Water Elemental BuffID plus retained `BTLF`, preservation of timed life after
+Dispel Magic, and the Blizzard EfctID art lookup.
+
+That fourth pass intentionally left cold/spell damage typing and per-shard
+ability sound alone because both required shared-system support. The following
+pass adds the sound-data path; typed SPELLS/COLD damage still remains separate.
+
+### Jaina / Archmage ability-sound follow-up (September 19, 2026)
+
+A fifth conservative pass closes Blizzard's remaining high-confidence sound-data
+gap without changing spell damage semantics. The typed metadata registry now loads
+`UI\SoundInfo\AbilitySounds.slk` with the same sound-row schema already used for
+unit/UI sounds, and ability/buff presentation exposes authored `Effectsound` /
+`Effectsoundlooped` fields. `G_PlayAbilityEffectSound` resolves an alias from the
+requested object or its base object and emits a positional world sound at the
+requested effect point using the authored volume.
+
+Blizzard now uses the level `EfctID` for both shard art and shard sound, matching
+the bundled Warsmash implementation's `spawnSpellEffectOnPoint(effectId)` plus
+`unitSoundEffectEvent(caster, effectId)` sequence. The sound fires once for each
+DataC shard during the presentation phase, never during the delayed damage phase.
+Regression coverage injects a synthetic `AbilitySounds.slk` row and verifies six
+shard sounds, alias/path resolution, positioned playback, and 0-127 volume scaling.
+The test MPQ also carries a minimal AbilitySounds fixture and verifies it is packed.
+
+The server intentionally selects the first authored ability-sound file rather than
+calling `rand()`: Warsmash performs variant selection in rendering/audio code, while
+using OpenRealm's simulation RNG for presentation would perturb deterministic game
+state. Client-side random variant selection plus authored pitch/pitch-variance are
+still presentation refinements. SPELLS/COLD Blizzard damage typing, the broader
+organic/mechanical target model, and finer Mass Teleport placement/order parity
+remain separate shared-system work.
