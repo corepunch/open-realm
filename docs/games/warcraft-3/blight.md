@@ -47,13 +47,15 @@ Save format 32 writes the final game-owned Blight plane after the level field st
 
 ## Client presentation
 
-The server publishes the authoritative Blight plane through the existing generic terrain-mask section of the Warcraft III per-frame game datagram. A client receives the initial map plane after `G_ClientBegin`; later point/radius/rect changes dirty only affected rows for connected clients. Each chunk carries the grid origin, dimensions, 32-unit cell size, and a bit-packed contiguous row range, so a large initial plane can span frames without widening `entityState_t` or starving the existing weather/tint payload.
+The server publishes the authoritative Blight plane through the existing generic terrain-mask section of the Warcraft III per-frame game datagram. A client receives the initial map plane after `G_ClientBegin`; later point/radius/rect changes dirty affected rows first, then a per-client background sweep resends the next band every `BLIGHT_SWEEP_INTERVAL` frames with at most `BLIGHT_SWEEP_BYTES` of payload, wrapping at the last row, so a dropped unreliable datagram still converges. Each chunk carries the grid origin, dimensions, 32-unit cell size, and a bit-packed contiguous row range, so a large initial plane can span frames without widening `entityState_t` or starving the existing weather/tint payload.
 
-- `CL_ParseFrame()` assembles chunks into a persistent generic client terrain mask and exposes it through the terrain-mask fields in `viewDef_t`; WC3 contributes its Blight interpretation through `CL_GameModifyBuildPathing()`;
-- the WC3 terrain renderer derives a 128-unit corner mask from the synchronized 32-unit plane, builds a dedicated Blight terrain layer with the normal terrain shader, and draws it after normal ground layers but before cliffs; solid tiles use the atlas's opaque variation and partial tiles use its authored alpha edge masks. The layer rebuilds only when the synchronized mask generation changes, and the W3E tileset resolves through `UI\\WorldEditData.txt` to the corresponding `TerrainArt\\Blight\\*_Blight.blp` atlas;
+The target model renders Blight as terrain texture selection rather than as a square decal, preserving irregular transitions: the map tileset resolves through `UI\\WorldEditData.txt` to the tileset-specific `TerrainArt\\Blight\\*_Blight.blp` atlas; each 128-unit terrain corner selects Blight, cliff-associated, or normal ground texture; four effective corners drive normal atlas transition selection. Constraints: gameplay Blight stays a 32-unit authoritative state, visual composition stays renderer-owned with no second pathing representation, and missing textures are reported rather than silently replaced.
+
+- `CL_ParseFrame()` assembles chunks into a persistent generic client `terrainMask_t` and exposes it through `viewDef_t.terrain_mask` with one assignment; incoming bits are compared against existing cells and bump generation only on change; WC3 contributes its Blight interpretation through `CL_GameModifyBuildPathing()`;
+- the WC3 terrain renderer recomputes all 128-unit corners and active flags from the full synchronized 32-unit plane on generation change, counts emitted tiles and allocates exactly six vertices each, builds a dedicated Blight terrain layer with the normal terrain shader, and draws it after normal ground layers but before cliffs; solid tiles use the atlas's opaque variation and partial tiles use its authored alpha edge masks via `SetTileUV()`. Authored W3E Blight remains visible without falling back to normal ground;
 - the placement preview lets WC3 overlay the synchronized Blight bit on each footprint sample before applying required/prevented flags; the server remains authoritative when the order arrives;
 - destructables carry a persistent one-way Blight presentation state, initialized from their footprint, updated by added Blight, and set by successful Undead lumber hits. The server presents it through the existing image delta and generic vertex-colour snapshot channels, using the authored texture stem plus `Blight` when available;
-- retail verification of the buildable-ground raster edge cases where Warsmash consults ground-texture metadata rather than only WPM pathing.
+- remaining: retail verification of the buildable-ground raster edge cases where Warsmash consults ground-texture metadata rather than only WPM pathing.
 
 ## Verification
 
@@ -72,8 +74,6 @@ make test-wc3-engine WC3_PATTERN='wc3_pathfinding.blight_*'
 make test
 ```
 
-For one runtime trace of the server-to-renderer path, build/run with `WC3_DEBUG_BLIGHT=1`. The log should show `growth init`, either `growth tick` or a `growth blocked` reason, `radius` operations with changed-cell counts, a server `datagram` row range, and a renderer `cache generation` line. A `client_mask=absent` line indicates that the initial snapshot has not arrived yet or that the map is being rendered before the first server frame.
-
-The rendering implementation details are recorded in [Blight Rendering Plan](blight-rendering-plan.md).
+For one runtime trace of the server-to-renderer path, build/run with `WC3_DEBUG_BLIGHT=1`. The log should show a `growth tick` line, a server `datagram` row range with its sweep flag, and a renderer `cache generation` line.
 
 Manual campaign/custom-map verification should also exercise `SetBlight*`/`IsPointBlighted`, an Undead building crossing a Blight boundary, a damaged `uhrt=blight` unit walking on/off Blight, and stock `Abli` expansion timing.
