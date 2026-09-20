@@ -2,6 +2,41 @@
 
 #define ID_UNSUMMON_BUFF MAKEFOURCC('B','u','n','s')
 
+#ifdef WC3_DEBUG_UNSUMMON
+static int unsummon_debug_level(void) {
+    LPCSTR value = gi.CvarString("wc3_unsummon_debug", "1");
+    return value ? atoi(value) : 0;
+}
+#define UNSUMMON_LOG(LEVEL, ...) do { \
+    if (unsummon_debug_level() >= (LEVEL)) \
+        fprintf(stderr, "WC3_UNSUMMON " __VA_ARGS__); \
+} while (0)
+#else
+#define UNSUMMON_LOG(...) ((void)0)
+#endif
+
+void S_UnsummonDebugCast(LPEDICT caster, DWORD code, LPEDICT target, LPCSTR stage, LPCSTR reason) {
+    if (code != MAKEFOURCC('A','u','n','s')) return;
+    UNSUMMON_LOG(1, "cast stage=%s reason=%s caster=%ld caster-id=%.4s target=%ld target-id=%.4s "
+        "caster-state=(inuse=%d dead=%d player=%u mana=%.1f build=%ld goal=%ld channel=%.4s) "
+        "target-state=(inuse=%d dead=%d svflags=0x%x player=%u health=%.1f/%.1f targtype=%d buns=%d) "
+        "ability-level=%u range=%.1f distance=%.1f canpay=%d cooldown=%d\n",
+        stage ? stage : "?", reason ? reason : "?", caster ? (long)(caster - g_edicts) : -1L,
+        caster ? (LPCSTR)&caster->class_id : "----", target ? (long)(target - g_edicts) : -1L,
+        target ? (LPCSTR)&target->class_id : "----", caster ? caster->inuse : 0,
+        caster ? M_IsDead(caster) : 0, caster ? caster->s.player : 0, caster ? caster->mana.value : 0.0f,
+        caster && caster->build ? (long)(caster->build - g_edicts) : -1L,
+        caster && caster->goalentity ? (long)(caster->goalentity - g_edicts) : -1L,
+        caster ? (LPCSTR)&caster->channel.code : "----", target ? target->inuse : 0,
+        target ? M_IsDead(target) : 0, target ? target->svflags : 0, target ? target->s.player : 0,
+        target ? target->health.value : 0.0f, target ? target->health.max_value : 0.0f,
+        target ? target->targtype : 0, target ? G_UnitStatusLevel(target, ID_UNSUMMON_BUFF) : 0,
+        caster ? G_UnitAbilityLevel(caster, code) : 0, caster ? S_SpellRange(code, S_SpellLevel(caster, code)) : 0.0f,
+        caster && target ? Vector2_distance(&caster->s.origin2, &target->s.origin2) : 0.0f,
+        caster ? S_SpellCanPay(caster, code, S_SpellLevel(caster, code)) : 0,
+        caster ? S_SpellCooldownReady(caster, code) : 0);
+}
+
 static void unsummon_remove_status(LPEDICT building) {
     if (!building) return;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -28,19 +63,47 @@ static BOOL unsummon_in_range(LPEDICT worker, LPEDICT building) {
 
 static BOOL unsummon_prepare_approach(LPEDICT worker, LPEDICT building) {
     VECTOR2 approach;
+    FLOAT footprint;
+    FLOAT const route_band = worker ?
+        worker->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
     if (!worker || !building) return false;
     if (CM_FindApproachPointToFootprintForRadius(
-            building, &worker->s.origin2, worker->collision, worker->collision, &approach)) {
+            building, &worker->s.origin2, route_band, worker->collision, &approach) &&
+        CM_DistanceToPathingFootprint(building, &approach) <= worker->collision) {
         worker->goalentity = Waypoint_add(&approach);
         move_reset_progress(worker);
+        UNSUMMON_LOG(1, "approach goal worker=%ld building=%ld goal=%ld point=(%.1f,%.1f) created=%d\n",
+            (long)(worker - g_edicts), (long)(building - g_edicts),
+            worker->goalentity ? (long)(worker->goalentity - g_edicts) : -1L,
+        approach.x, approach.y, worker->goalentity != NULL);
+        return worker->goalentity != NULL;
+    }
+    /* Static path cells are 32 units wide on retail maps.  A 16-unit Acolyte
+     * radius rounds to one whole cell in the generic query, rejecting the
+     * legal edge cell beside a completed footprint.  The inner query selects
+     * the nearest legal ring; the exact footprint check keeps the route from
+     * stopping at a merely nearby grid cell. */
+    if (CM_FindInnerApproachPointToFootprintForRadius(
+            building, &worker->s.origin2, worker->collision, 0.0f, &approach) &&
+        (footprint = CM_DistanceToPathingFootprint(building, &approach)) <= worker->collision) {
+        worker->goalentity = Waypoint_add(&approach);
+        move_reset_progress(worker);
+        UNSUMMON_LOG(1, "approach goal-inner worker=%ld building=%ld goal=%ld point=(%.1f,%.1f) footprint=%.1f created=%d\n",
+            (long)(worker - g_edicts), (long)(building - g_edicts),
+            worker->goalentity ? (long)(worker->goalentity - g_edicts) : -1L,
+            approach.x, approach.y, footprint, worker->goalentity != NULL);
         return worker->goalentity != NULL;
     }
     if (!building->pathtex) {
         worker->goalentity = building;
         move_reset_progress(worker);
+        UNSUMMON_LOG(1, "approach goal-fallback worker=%ld building=%ld reason=no-pathtex\n",
+            (long)(worker - g_edicts), (long)(building - g_edicts));
         return true;
     }
+    UNSUMMON_LOG(1, "approach-fail worker=%ld building=%ld reason=no-footprint-point\n",
+        (long)(worker - g_edicts), (long)(building - g_edicts));
     return false;
 }
 
@@ -76,9 +139,27 @@ static umove_t unsummon_move_channel = { "stand channel", ai_idle, NULL, CAbilit
 static BOOL unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT building = st.entity;
     (void)spell;
-    if (!caster || !building || !S_SpellIsAliveTarget(building)) return false;
-    if (building->s.player != caster->s.player) return false;
-    return G_UnitIsBuilding(building->class_id) && !G_UnitStatusLevel(building, ID_UNSUMMON_BUFF);
+    if (!caster) { UNSUMMON_LOG(1, "validate-fail reason=no-caster\n"); return false; }
+    if (!building) { UNSUMMON_LOG(1, "validate-fail reason=no-target caster=%ld\n", (long)(caster - g_edicts)); return false; }
+    if (!S_SpellIsAliveTarget(building)) {
+        UNSUMMON_LOG(1, "validate-fail reason=target-not-alive target=%ld\n", (long)(building - g_edicts));
+        return false;
+    }
+    if (building->s.player != caster->s.player) {
+        UNSUMMON_LOG(1, "validate-fail reason=target-owner caster=%u target=%u\n", caster->s.player, building->s.player);
+        return false;
+    }
+    if (!G_UnitIsBuilding(building->class_id)) {
+        UNSUMMON_LOG(1, "validate-fail reason=target-not-building target=%ld id=%.4s\n",
+            (long)(building - g_edicts), (LPCSTR)&building->class_id);
+        return false;
+    }
+    if (G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) {
+        UNSUMMON_LOG(1, "validate-fail reason=already-unsummoning target=%ld\n", (long)(building - g_edicts));
+        return false;
+    }
+    UNSUMMON_LOG(2, "validate-ok caster=%ld target=%ld\n", (long)(caster - g_edicts), (long)(building - g_edicts));
+    return true;
 }
 
 static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_health) {
@@ -152,9 +233,16 @@ static void unsummon_start(LPEDICT worker, LPEDICT thinker) {
     LPEDICT building = worker ? worker->unsummon.target : NULL;
 
     if (!worker || !thinker || !unsummon_target_valid(worker, building)) {
+        UNSUMMON_LOG(1, "start-fail worker=%ld thinker=%ld building=%ld reason=target-invalid\n",
+            worker ? (long)(worker - g_edicts) : -1L,
+            thinker ? (long)(thinker - g_edicts) : -1L,
+            building ? (long)(building - g_edicts) : -1L);
         if (worker) S_SpellCancelChannel(worker);
         return;
     }
+    UNSUMMON_LOG(1, "start worker=%ld thinker=%ld building=%ld origin=(%.1f,%.1f)\n",
+        (long)(worker - g_edicts), (long)(thinker - g_edicts), (long)(building - g_edicts),
+        worker->s.origin2.x, worker->s.origin2.y);
     worker->unsummon.starting = true;
     worker->unsummon.approaching = false;
     thinker->unsummon.approaching = false;
@@ -168,35 +256,58 @@ static void unsummon_start(LPEDICT worker, LPEDICT thinker) {
 
 static void ai_unsummon_walk(LPEDICT worker) {
     LPEDICT building = worker ? worker->unsummon.target : NULL;
-    FLOAT distance, step;
+    FLOAT distance, footprint, step;
+    BOOL in_range, ready, blocked;
     LPEDICT thinker = NULL;
 
     if (!worker || !worker->unsummon.approaching || !unsummon_target_valid(worker, building)) {
+        UNSUMMON_LOG(1, "walk-cancel worker=%ld building=%ld reason=state-invalid\n",
+            worker ? (long)(worker - g_edicts) : -1L, building ? (long)(building - g_edicts) : -1L);
         if (worker && worker->channel.code) S_SpellCancelChannel(worker);
         return;
     }
-    if (unsummon_in_range(worker, building)) {
+    in_range = unsummon_in_range(worker, building);
+    distance = M_DistanceToGoal(worker);
+    step = unit_movedistance(worker);
+    footprint = CM_DistanceToPathingFootprint(building, &worker->s.origin2);
+    ready = in_range || (footprint < FLT_MAX &&
+        footprint <= worker->collision + CM_PathCellWorldSize() * 1.41421356237f);
+    UNSUMMON_LOG(2, "walk worker=%ld building=%ld origin=(%.1f,%.1f) goal=%ld distance=%.1f step=%.1f footprint=%.1f inrange=%d ready=%d flow=(reached=%d unreachable=%d)\n",
+        (long)(worker - g_edicts), (long)(building - g_edicts), worker->s.origin2.x, worker->s.origin2.y,
+        worker->goalentity ? (long)(worker->goalentity - g_edicts) : -1L, distance, step, footprint, in_range, ready,
+        worker->movement.flow_goal_reached, worker->movement.flow_unreachable);
+    if (ready) {
+        if (!in_range) UNSUMMON_LOG(1, "walk-arrive worker=%ld building=%ld reason=pathing-cell-clearance footprint=%.1f step=%.1f\n",
+            (long)(worker - g_edicts), (long)(building - g_edicts), footprint, step);
         FILTER_EDICTS(ent, ent->inuse && ent->think == unsummon_think &&
             ent->owner == worker && ent->class_id == worker->unsummon.ability) {
             thinker = ent;
             break;
         }
         if (thinker) unsummon_start(worker, thinker);
+        else UNSUMMON_LOG(1, "walk-wait worker=%ld building=%ld reason=thinker-not-found ability=%.4s\n",
+            (long)(worker - g_edicts), (long)(building - g_edicts), (LPCSTR)&worker->unsummon.ability);
         return;
     }
     if (!worker->goalentity && !unsummon_prepare_approach(worker, building)) {
+        UNSUMMON_LOG(1, "walk-cancel worker=%ld building=%ld reason=approach-unavailable\n",
+            (long)(worker - g_edicts), (long)(building - g_edicts));
         S_SpellCancelChannel(worker);
         return;
     }
-    distance = M_DistanceToGoal(worker);
-    step = unit_movedistance(worker);
-    if (move_is_blocked(worker, distance, step) || worker->movement.flow_unreachable ||
+    blocked = move_is_blocked(worker, distance, step);
+    if (blocked || worker->movement.flow_unreachable ||
         (worker->movement.flow_goal_reached && !unsummon_in_range(worker, building))) {
+        UNSUMMON_LOG(1, "walk-cancel worker=%ld building=%ld reason=route-failure blocked=%d unreachable=%d reached=%d\n",
+            (long)(worker - g_edicts), (long)(building - g_edicts), blocked,
+            worker->movement.flow_unreachable, worker->movement.flow_goal_reached);
         S_SpellCancelChannel(worker);
         return;
     }
     unit_changeangle_for_radius_worker(worker, worker->collision);
     unit_moveindirection(worker);
+    UNSUMMON_LOG(2, "walk-moved worker=%ld building=%ld origin=(%.1f,%.1f)\n",
+        (long)(worker - g_edicts), (long)(building - g_edicts), worker->s.origin2.x, worker->s.origin2.y);
 }
 
 static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -206,6 +317,8 @@ static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     if (!unsummon_validate(caster, st, spell)) return;
     level = S_SpellLevel(caster, spell->code);
     if (S_SpellData(spell->code, level, 2) <= 0.0f) {
+        UNSUMMON_LOG(1, "execute-fail caster=%ld target=%ld reason=no-damage-data level=%u\n",
+            (long)(caster - g_edicts), (long)(st.entity - g_edicts), level);
         S_SpellCancelChannel(caster);
         return;
     }
@@ -225,22 +338,44 @@ static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     caster->unsummon.ability = spell->code;
     caster->unsummon.level = level;
     caster->unsummon.approaching = true;
-    if (unsummon_in_range(caster, st.entity)) unsummon_start(caster, thinker);
-    else if (unsummon_prepare_approach(caster, st.entity)) {
+    UNSUMMON_LOG(1, "execute caster=%ld target=%ld origin=(%.1f,%.1f) target-origin=(%.1f,%.1f) inrange=%d collision=%.1f\n",
+        (long)(caster - g_edicts), (long)(st.entity - g_edicts), caster->s.origin2.x, caster->s.origin2.y,
+        st.entity->s.origin2.x, st.entity->s.origin2.y, unsummon_in_range(caster, st.entity), caster->collision);
+    if (unsummon_in_range(caster, st.entity)) {
+        UNSUMMON_LOG(1, "execute-branch caster=%ld target=%ld branch=immediate-start\n",
+            (long)(caster - g_edicts), (long)(st.entity - g_edicts));
+        unsummon_start(caster, thinker);
+    } else if (unsummon_prepare_approach(caster, st.entity)) {
+        UNSUMMON_LOG(1, "execute-branch caster=%ld target=%ld branch=approach goal=%ld\n",
+            (long)(caster - g_edicts), (long)(st.entity - g_edicts),
+            caster->goalentity ? (long)(caster->goalentity - g_edicts) : -1L);
         caster->unsummon.starting = true;
         unit_setmove(caster, &unsummon_move_walk);
         caster->unsummon.starting = false;
+    } else {
+        UNSUMMON_LOG(1, "execute-fail caster=%ld target=%ld reason=approach-unavailable\n",
+            (long)(caster - g_edicts), (long)(st.entity - g_edicts));
+        S_SpellCancelChannel(caster);
     }
-    else S_SpellCancelChannel(caster);
 }
 
 static void unsummon_cancel_owned(LPEDICT caster, DWORD code) {
     if (!caster || !code) return;
+    UNSUMMON_LOG(1, "cancel caster=%ld ability=%.4s state=(approaching=%d starting=%d channel=%.4s target=%ld)\n",
+        (long)(caster - g_edicts), (LPCSTR)&code, caster->unsummon.approaching, caster->unsummon.starting,
+        (LPCSTR)&caster->channel.code, caster->unsummon.target ? (long)(caster->unsummon.target - g_edicts) : -1L);
     for (DWORD i = 1; i < globals.num_edicts; i++) {
         LPEDICT thinker = g_edicts + i;
         if (!thinker->inuse || thinker->think != unsummon_think || thinker->owner != caster ||
             thinker->class_id != code) continue;
-        if (!thinker->unsummon.approaching) continue;
+        if (!thinker->unsummon.approaching) {
+            UNSUMMON_LOG(1, "cancel-ignore caster=%ld thinker=%ld reason=demolition-owned-by-thinker\n",
+                (long)(caster - g_edicts), (long)(thinker - g_edicts));
+            continue;
+        }
+        UNSUMMON_LOG(1, "cancel-approach caster=%ld thinker=%ld target=%ld\n",
+            (long)(caster - g_edicts), (long)(thinker - g_edicts),
+            thinker->unsummon.target ? (long)(thinker->unsummon.target - g_edicts) : -1L);
         if (thinker->goalentity && thinker->goalentity->inuse &&
             thinker->goalentity->spawn_time == thinker->channel.target_spawn_time)
             unsummon_remove_status(thinker->goalentity);

@@ -10,6 +10,7 @@ void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
 void CM_ProcessPathJobs(DWORD work_budget);
+void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -135,6 +136,43 @@ TEST(wc3_spell, unsummon_approaches_before_starting_demolition) {
     }
     T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
     T_ASSERT(fix.building->health.value < 100.0f);
+    uns_done(&fix);
+}
+
+/* A completed building owns a blocking pathing footprint.  If every route
+ * through the surrounding cells is blocked, Unsummon must cancel cleanly. */
+TEST(wc3_spell, unsummon_built_building_without_walkable_approach_cancels) {
+    enum { UNS_MAP_W = 64, UNS_MAP_H = 64, UNS_FOOT_W = 8, UNS_FOOT_H = 8 };
+    static BYTE cells[UNS_MAP_W * UNS_MAP_H];
+    UNSFIX fix;
+    pathTex_t *pathtex;
+
+    memset(cells, 0, sizeof(cells));
+    for (int y = 20; y <= 44; y++)
+        for (int x = 20; x <= 44; x++)
+            cells[x + y * UNS_MAP_W] = CM_PATHING_UNWALKABLE;
+    uns_setup(&fix);
+    setup_test_pathmap(UNS_MAP_W, UNS_MAP_H, cells);
+    fix.caster->s.origin2 = (VECTOR2){ 0.0f, 32.0f };
+    fix.caster->s.origin = MAKE(VECTOR3, 0.0f, 32.0f, 0.0f);
+    fix.building->s.origin2 = (VECTOR2){ 32.0f, 32.0f };
+    fix.building->s.origin = MAKE(VECTOR3, 32.0f, 32.0f, 0.0f);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + UNS_FOOT_W * UNS_FOOT_H * sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = UNS_FOOT_W;
+    pathtex->height = UNS_FOOT_H;
+    FOR_LOOP(i, UNS_FOOT_W * UNS_FOOT_H) pathtex->map[i] = (COLOR32){ 0, 0, 255, 255 };
+    fix.building->pathtex = pathtex;
+
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    T_FEQ(fix.building->health.value, 100.0f, 0.001f);
+    uns_tick(fix.caster, 1);
+    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    T_FEQ(fix.building->health.value, 100.0f, 0.001f);
+
+    fix.building->pathtex = NULL;
+    gi.MemFree(pathtex);
     uns_done(&fix);
 }
 

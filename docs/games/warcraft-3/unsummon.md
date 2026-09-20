@@ -109,6 +109,16 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.unsummon*'
 make test-wc3-engine WC3_PATTERN='wc3_save.unsummon*'
 ```
 
+To diagnose a failed cast after construction, build with
+`WC3_DEBUG_UNSUMMON=1` and set `wc3_unsummon_debug 2`. The trace records every
+shared spell gate plus the Acolyte's build/goal/channel state and the target's
+ownership, liveness, health, building classification, `Buns` state, ability
+level, range, mana, and cooldown:
+
+```text
+set wc3_unsummon_debug 2
+```
+
 Focused tests use non-stock `DataA=.25`, `DataB=80`, and `Cost=15` so a stock
 constant cannot pass. They cover approach-before-start, start-at-range,
 progressive demolition/refund, enemy damage reducing the result, interruption

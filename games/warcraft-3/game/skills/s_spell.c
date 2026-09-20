@@ -811,15 +811,28 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
-    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
+    if (!caster) { S_UnsummonDebugCast(caster, code, unit, "entry", "no-caster"); return false; }
+    if (!unit) { S_UnsummonDebugCast(caster, code, unit, "entry", "no-target"); return false; }
+    if (!code) { S_UnsummonDebugCast(caster, code, unit, "entry", "no-code"); return false; }
+    if (!G_UnitAbilityLevel(caster, code)) { S_UnsummonDebugCast(caster, code, unit, "entry", "ability-not-owned"); return false; }
+    if (S_UnitPolymorphed(caster)) { S_UnsummonDebugCast(caster, code, unit, "entry", "polymorphed"); return false; }
     spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    if (!spell || spell->target_type != SPELL_TARGET_UNIT || !S_AbilityHasCommand(spell)) return false;
+    if (!spell) { S_UnsummonDebugCast(caster, code, unit, "entry", "no-spell-registration"); return false; }
+    if (spell->target_type != SPELL_TARGET_UNIT) { S_UnsummonDebugCast(caster, code, unit, "entry", "wrong-target-type"); return false; }
+    if (!S_AbilityHasCommand(spell)) { S_UnsummonDebugCast(caster, code, unit, "entry", "no-command"); return false; }
     level = S_SpellLevel(caster, code);
-    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level)) ||
-        !S_SpellAllowsTarget(code, caster, unit)) return false;
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
+    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level))) {
+        S_UnsummonDebugCast(caster, code, unit, "entry", "shared-validation"); return false;
+    }
+    if (!S_SpellAllowsTarget(code, caster, unit)) {
+        S_UnsummonDebugCast(caster, code, unit, "entry", "target-filter"); return false;
+    }
+    if (!spell_message(caster, A_VALIDATE, &item, &target)) {
+        S_UnsummonDebugCast(caster, code, unit, "ability", "ability-validation"); return false;
+    }
 
+    S_UnsummonDebugCast(caster, code, unit, "entry", "accepted");
     spell_commit(caster, code, level);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
