@@ -397,6 +397,18 @@ typedef enum {
     MUSIC_CMD_SET_THEMATIC_POSITION
 } musicCommand_t;
 
+/* Stable token for client EOF acknowledgements; prevents an old completion
+ * packet from committing a newer playlist/session. */
+static inline DWORD BZ_MusicSessionToken(LPCSTR playlist, DWORD source, DWORD index) {
+    DWORD hash = 2166136261u;
+    BYTE const *p = (BYTE const *)(playlist ? playlist : "");
+
+    hash ^= source; hash *= 16777619u;
+    hash ^= index; hash *= 16777619u;
+    while (*p) { hash ^= *p++; hash *= 16777619u; }
+    return hash;
+}
+
 /* Transient minimap attention-marker flags. */
 #define MINIMAP_PING_REMEMBER      0x01 // bit; add position to recent-alert history; used by svc_minimap_ping
 #define MINIMAP_PING_EXTRA_EFFECTS 0x02 // bit; draw an additional pulse; used by PingMinimapEx

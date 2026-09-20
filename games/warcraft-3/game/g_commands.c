@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 #include "g_local.h"
 
@@ -2497,18 +2498,15 @@ typedef struct {
     void (*func)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
 } clientCommand_t;
 
-static void CMD_MusicMapCommit(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    (void)argc;
-    (void)argv;
-    if (!ent || !ent->client) return;
-    G_MusicMapTransitionFinished(ent->client);
-}
+static void CMD_MusicFinished(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    DWORD source, token;
 
-static void CMD_MusicThemeEnd(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    (void)argc;
-    (void)argv;
-    if (!ent || !ent->client) return;
-    G_MusicThematicFinished(ent->client);
+    if (!ent || !ent->client || argc < 3) return;
+    source = (DWORD)strtoul(argv[1], NULL, 10);
+    token = (DWORD)strtoul(argv[2], NULL, 10);
+    if (!G_MusicAcceptFinished(ent->client, source, token)) return;
+    if (source == WC3_MUSIC_SOURCE_MAP) G_MusicMapTransitionFinished(ent->client);
+    else if (source == WC3_MUSIC_SOURCE_THEMATIC) G_MusicThematicFinished(ent->client);
 }
 
 clientCommand_t clientCommands[] = {
@@ -2553,8 +2551,7 @@ clientCommand_t clientCommands[] = {
     { "jass", CMD_Jass },
     { "log", CMD_Log },
     { "hidegameresult", CMD_HideGameResult },
-    { "music_map_commit", CMD_MusicMapCommit },
-    { "music_theme_end", CMD_MusicThemeEnd },
+    { "music_finished", CMD_MusicFinished },
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_load", CMD_GameResultLoad },
     { "gameresult_quit", CMD_GameResultQuit },

@@ -164,7 +164,7 @@ Thematic music uses the one physical music stream but separate logical source/vo
 - `EndThematicMusic()` performs the same restoration early;
 - a `SetMapMusic` / `ClearMapMusic` change made while an interrupted map track is underneath the theme remains pending and takes effect when that restored map track later reaches EOF.
 
-The retained game state also preserves the interrupted session across save/load and client synchronization. Exact live decoder position is still not sampled continuously, so restoration reopens the interrupted selected track rather than promising sample-accurate continuation from the instant the theme began.
+The retained live game state preserves the interrupted session across client synchronization. The decoder head is client-owned and thematic restoration is presentation state, so save/load resumes the current theme or map state and does not promise restoration of the interrupted session after a process restart.
 
 ## Playlist Behavior
 
@@ -236,7 +236,7 @@ Current payloads:
 | `MUSIC_CMD_SET_THEMATIC_VOLUME` | `long 0..127` |
 | `MUSIC_CMD_SET_THEMATIC_POSITION` | `long milliseconds` |
 
-The Warcraft game module resolves each recipient's skin before serialization. `GetLocalPlayer()`-scoped JASS uses `currentplayer`; global calls update/send each game-client slot independently. When a one-shot thematic track reaches natural EOF, the client sends the internal `music_theme_end` string command so the retained server-side presentation state restores the same ordinary session and save/reconnect synchronization does not resurrect an already-finished theme. When a deferred `SetMapMusic` or `ClearMapMusic` finally takes effect after the old map track reaches EOF, the client likewise sends `music_map_commit` so retained state advances to the new map list (or silence) at the same moment.
+The Warcraft game module resolves each recipient's skin before serialization. `GetLocalPlayer()`-scoped JASS uses `currentplayer`; global calls update/send each game-client slot independently. When a one-shot thematic track reaches natural EOF, the client sends the generic `music_finished` acknowledgement with the completed session token so the retained server-side presentation state restores the same ordinary session. Acknowledgements for an older theme or map track are discarded after a newer session replaces it. When a deferred `SetMapMusic` or `ClearMapMusic` finally takes effect after the old map track reaches EOF, the client sends the same acknowledgement for the old map session before starting the replacement.
 
 ## Important Files
 

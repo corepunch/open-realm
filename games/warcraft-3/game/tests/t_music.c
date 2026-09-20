@@ -65,16 +65,10 @@ TEST(wc3_music, thematic_music_restores_explicit_session) {
     G_MusicPlayThematic("StoryTheme", 3000);
 
     T_EQ(client->music.current_source, WC3_MUSIC_SOURCE_THEMATIC);
-    T_ASSERT(client->music.thematic_previous_valid);
-    T_EQ(client->music.thematic_previous_source, WC3_MUSIC_SOURCE_EXPLICIT);
-    T_STREQ(client->music.thematic_previous_name, "ExplicitMusic");
-    T_EQ(client->music.thematic_previous_position_ms, 12000);
-
     G_MusicEndThematic();
     T_EQ(client->music.current_source, WC3_MUSIC_SOURCE_EXPLICIT);
     T_STREQ(client->music.current_name, "ExplicitMusic");
     T_EQ(client->music.current_position_ms, 12000);
-    T_ASSERT(!client->music.thematic_previous_valid);
     client->music = saved;
     currentplayer = previous;
 }
@@ -99,14 +93,41 @@ TEST(wc3_music, map_change_during_theme_preserves_interrupted_map_session) {
     currentplayer = previous;
 }
 
+TEST(wc3_music, stale_client_completion_cannot_commit_new_session) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPPLAYER previous = currentplayer;
+    wc3MusicState_t saved = client->music;
+    DWORD old_token;
+
+    currentplayer = &client->ps;
+    memset(&client->music, 0, sizeof(client->music));
+    G_MusicSetMap("OldMapMusic", false, 0);
+    old_token = BZ_MusicSessionToken("OldMapMusic", WC3_MUSIC_SOURCE_MAP, 0);
+    G_MusicSetMap("NewMapMusic", false, 0);
+    T_ASSERT(G_MusicAcceptFinished(client, WC3_MUSIC_SOURCE_MAP, old_token));
+    G_MusicMapTransitionFinished(client);
+    T_ASSERT(!G_MusicAcceptFinished(client, WC3_MUSIC_SOURCE_MAP, old_token));
+
+    G_MusicPlayThematic("ThemeA", 0);
+    old_token = BZ_MusicSessionToken("ThemeA", WC3_MUSIC_SOURCE_THEMATIC, 0);
+    G_MusicPlayThematic("ThemeB", 0);
+    T_ASSERT(!G_MusicAcceptFinished(client, WC3_MUSIC_SOURCE_THEMATIC, old_token));
+    client->music = saved;
+    currentplayer = previous;
+}
+
 TEST(wc3_music, map_skin_overrides_stock_music_skin_fields) {
-    stbIniCache_t previous = game.config.map_skin;
-    stbIniCache_t custom = { 0 };
+    HANDLE archive = NULL;
+    DWORD size = 0;
+    HANDLE bytes;
     GAMECLIENT client = { .ps.race = kPlayerRaceHuman };
     LPCSTR expected_versioned;
 
-    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\MapSkin.txt"));
-    game.config.map_skin = custom;
+    bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);
+    T_NOT_NULL(bytes);
+    T_ASSERT(SFileOpenArchiveFromMemory(bytes, size, 0, &archive));
+    gi.SetPriorityArchive(archive);
+    T_ASSERT(Stb_IniCacheLoad(&game.config.map_skin, "war3mapSkin.txt"));
     T_STREQ(Theme_PlayerString(&client, "Music", "fallback"), "MapMusicOverride");
 
     expected_versioned = atoi(gi.CvarString("fs_expansion", "0")) != 0
@@ -114,7 +135,9 @@ TEST(wc3_music, map_skin_overrides_stock_music_skin_fields) {
         : "MapMusicROC";
     T_STREQ(Theme_PlayerString(&client, "VersionedMusic", "fallback"), expected_versioned);
 
-    game.config.map_skin = previous;
-    Stb_IniCacheFree(&custom);
+    Stb_IniCacheFree(&game.config.map_skin);
+    gi.SetPriorityArchive(NULL);
+    SFileCloseArchive(archive);
+    gi.MemFree(bytes);
 }
 #endif

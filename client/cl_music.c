@@ -82,6 +82,8 @@ typedef struct {
 } clMusicState_t;
 
 static clMusicState_t cl_music;
+static DWORD CL_MusicSessionToken(void);
+static void CL_MusicSendFinished(DWORD source, DWORD token);
 
 static FLOAT CL_MusicTargetVolume(void) {
     LONG volume = cl_music.source == CL_MUSIC_SOURCE_THEMATIC
@@ -393,6 +395,8 @@ static void CL_MusicRememberThematicRestore(void) {
 
 static void CL_MusicFinishThematic(BOOL notify_server) {
     clMusicRestore_t restore;
+    DWORD const token = CL_MusicSessionToken();
+    DWORD const source = cl_music.source;
 
     if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) return;
     restore = cl_music.thematic_restore;
@@ -408,10 +412,7 @@ static void CL_MusicFinishThematic(BOOL notify_server) {
         if (CL_MusicStartAvailableTrack(cl_music.current.index, 0)) {
             cl_music.paused = restore.paused;
             S_StreamSetPaused(S_STREAM_MUSIC, cl_music.paused || cl_music.suspended);
-            if (notify_server && cls.state > ca_connected) {
-                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-                SZ_Printf(&cls.netchan.message, "music_theme_end");
-            }
+            if (notify_server) CL_MusicSendFinished(source, token);
             return;
         }
     }
@@ -427,10 +428,7 @@ static void CL_MusicFinishThematic(BOOL notify_server) {
         cl_music.paused = false;
         cl_music.map_pending = false;
     }
-    if (notify_server && cls.state > ca_connected) {
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, "music_theme_end");
-    }
+    if (notify_server) CL_MusicSendFinished(source, token);
 }
 
 static void CL_MusicAdvancePlaylist(void) {
@@ -443,6 +441,8 @@ static void CL_MusicAdvancePlaylist(void) {
         return;
     }
     if (cl_music.source == CL_MUSIC_SOURCE_MAP && cl_music.map_pending) {
+        DWORD const token = CL_MusicSessionToken();
+        DWORD const source = cl_music.source;
         cl_music.map_pending = false;
         if (cl_music.map.playlist[0]) {
             CL_MusicStartPlaylist(cl_music.map.playlist, cl_music.map.random, cl_music.map.index,
@@ -452,10 +452,7 @@ static void CL_MusicAdvancePlaylist(void) {
             memset(&cl_music.current, 0, sizeof(cl_music.current));
             cl_music.source = CL_MUSIC_SOURCE_NONE;
         }
-        if (cls.state > ca_connected) {
-            MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, "music_map_commit");
-        }
+        CL_MusicSendFinished(source, token);
         return;
     }
     if (!cl_music.current.count) { CL_MusicCloseDecoder(); return; }
@@ -464,6 +461,27 @@ static void CL_MusicAdvancePlaylist(void) {
         : (cl_music.current.index + 1) % cl_music.current.count;
     cl_music.fade_active = false;
     CL_MusicStartAvailableTrack(preferred, 0);
+}
+
+static DWORD CL_MusicSessionToken(void) {
+    char playlist[CL_MUSIC_PLAYLIST_MAX];
+    size_t used = 0;
+
+    playlist[0] = '\0';
+    FOR_LOOP(i, cl_music.current.count) {
+        size_t length = strlen(cl_music.current.paths[i]);
+        if (used && used + 1 < sizeof(playlist)) playlist[used++] = ';';
+        if (used + length >= sizeof(playlist)) length = sizeof(playlist) - used - 1;
+        memcpy(playlist + used, cl_music.current.paths[i], length);
+        used += length; playlist[used] = '\0';
+    }
+    return BZ_MusicSessionToken(playlist, cl_music.source, cl_music.current.index);
+}
+
+static void CL_MusicSendFinished(DWORD source, DWORD token) {
+    if (cls.state <= ca_connected) return;
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "music_finished %u %u", (unsigned)source, (unsigned)token);
 }
 
 void CL_MusicInit(void) {
