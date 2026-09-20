@@ -470,9 +470,23 @@ typedef enum {
 } wc3MusicSource_t;
 
 typedef struct {
+    char name[WC3_MUSIC_NAME_MAX];
+    wc3MusicSource_t source;
+    BOOL random;
+    LONG index;
+    LONG position_ms;
+    LONG fade_ms;
+    DWORD played_mask;
+    BOOL paused;
+    DWORD session_id;
+    BOOL valid;
+} wc3MusicRestore_t;
+
+typedef struct {
     char map_name[WC3_MUSIC_NAME_MAX];
     BOOL map_random;
     LONG map_index;
+    DWORD map_session_id;
 
     char current_name[WC3_MUSIC_NAME_MAX];
     wc3MusicSource_t current_source;
@@ -480,7 +494,12 @@ typedef struct {
     LONG current_index;
     LONG current_position_ms;
     LONG current_fade_ms;
+    DWORD current_played_mask;
     BOOL paused;
+    DWORD current_session_id;
+    DWORD session_serial;
+
+    wc3MusicRestore_t thematic_restore;
 
     LONG volume;
     LONG thematic_volume;
@@ -2583,8 +2602,12 @@ void G_MusicPlay(LPCSTR music_name, LONG start_ms, LONG fade_ms);
 void G_MusicStop(BOOL fade_out);
 void G_MusicResume(void);
 void G_MusicPlayThematic(LPCSTR music_name, LONG start_ms);
-BOOL G_MusicAcceptFinished(LPGAMECLIENT client, DWORD source, DWORD token);
+BOOL G_MusicAcceptFinished(LPGAMECLIENT client, DWORD session_id);
+void G_MusicTrackSelected(LPGAMECLIENT client, DWORD session_id, LONG index, LONG position_ms, DWORD played_mask);
+void G_MusicThematicSnapshot(LPGAMECLIENT client, DWORD thematic_session_id, DWORD restore_session_id,
+                             LONG index, LONG position_ms, DWORD played_mask);
 void G_MusicMapTransitionFinished(LPGAMECLIENT client);
+void G_MusicExplicitFinished(LPGAMECLIENT client);
 void G_MusicThematicFinished(LPGAMECLIENT client);
 void G_MusicEndThematic(void);
 void G_MusicSetVolume(LONG volume);

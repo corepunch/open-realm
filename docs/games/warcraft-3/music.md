@@ -119,13 +119,13 @@ Clears the stored default playlist. It does not forcibly destroy an already audi
 PlayMusic(name)
 ```
 
-Starts an explicit playlist and currently uses random selection for a multi-track value, matching the Warsmash reference implementation.
+Starts a temporary explicit playlist. OpenRealm treats Warcraft's random flag as **random initial song only**: the first playable entry is chosen randomly, then the remaining entries advance sequentially from that point. The explicit list is one-pass; after every playable entry in that pass has completed, map music is started again from the stored map-list policy. This is a compatibility policy inferred from Blizzard's "random initial song" terminology plus mapper observations; direct retail measurement can still revise it.
 
 ```text
 PlayMusicEx(name, frommsecs, fadeinmsecs)
 ```
 
-Starts from `frommsecs` and applies a linear fade from zero to the configured music volume over `fadeinmsecs`.
+Uses the same one-pass lifecycle, starts the initial track from `frommsecs`, and applies a linear fade from zero to the configured music volume over `fadeinmsecs`.
 
 ### Stop / resume
 
@@ -164,21 +164,27 @@ Thematic music uses the one physical music stream but separate logical source/vo
 - `EndThematicMusic()` performs the same restoration early;
 - a `SetMapMusic` / `ClearMapMusic` change made while an interrupted map track is underneath the theme remains pending and takes effect when that restored map track later reaches EOF.
 
-The retained live game state preserves the interrupted session across client synchronization. The decoder head is client-owned and thematic restoration is presentation state, so save/load resumes the current theme or map state and does not promise restoration of the interrupted session after a process restart.
+The client snapshots the interrupted track index and the audible playback position before replacing its decoder. The generic PCM stream counts frames actually consumed by the audio device, so the snapshot excludes decoded-but-not-yet-heard buffered PCM. A `music_snapshot` acknowledgement writes that position and selected track back into the persisted `GAMECLIENT` restore descriptor; `EndThematicMusic()`, natural thematic EOF, reconnect, and save/load therefore restore the same ordinary session at the best available audible position. Exact sample-level retail behavior is not claimed, because FFmpeg seeks may land on an earlier codec key/frame boundary.
 
 ## Playlist Behavior
 
-The generic client stores at most 32 resolved paths for one active playlist.
+The generic client stores at most 32 resolved paths for one active playlist. `random=true` affects only the initial selection. After the client reports the chosen track with `music_selected`, retained server state records that exact index and marks the current session sequential while leaving the stored map policy unchanged.
 
-Sequential map/explicit mode:
+Persistent map music loops sequentially from that selected start point:
 
 ```text
-A -> B -> C -> A -> ...
+playlist A B C D
+random initial = C
+C -> D -> A -> B -> C -> ...
 ```
 
-Random mode independently chooses a track each time, so the same track may be chosen twice consecutively. This matches current Warsmash behavior; retail random/shuffle semantics after the initial selection remain a verification item. Thematic music is different: it is one-shot and restores the interrupted ordinary session at EOF rather than advancing its playlist.
+Explicit `PlayMusic` / `PlayMusicEx` uses the same random-initial-then-sequential order but tracks which entries have already played. It does not replay a successful entry during the current pass; after the final playable entry, it restores map music. Missing/undecodable entries are skipped without consuming a successful-entry slot, so an `A(valid), B(missing), C(valid)` pass plays A/C once each rather than replaying A to compensate for B.
 
-When a selected path cannot be opened/decoded, the client scans the remaining playlist entries. An all-invalid playlist becomes silent rather than indexing an empty array or terminating the map. No per-track debug logging is part of this path.
+Thematic music is one-shot regardless of playlist length: the selected theme track restores the interrupted ordinary session at EOF rather than advancing.
+
+These random-initial and explicit-one-pass rules are deliberate compatibility assumptions based on the strongest available Warcraft editor/community evidence, not a claim of direct retail instrumentation. They should be revised if a bounded retail test demonstrates different post-initial ordering.
+
+When a selected path cannot be opened/decoded, the client scans the remaining playlist entries. An all-invalid map playlist becomes silent rather than indexing an empty array or terminating the map; later map replacement/clear acknowledges that silent session immediately because no EOF can arrive. An all-invalid explicit/theme request immediately completes its temporary lifecycle and restores the appropriate underlying/map state. No per-track debug logging is part of this path.
 
 ## Optional FFmpeg Decoder
 
@@ -210,7 +216,10 @@ Each stream independently owns:
 - ring buffer;
 - active flag;
 - pause flag;
-- volume.
+- volume;
+- a monotonic consumed-frame counter reset by `S_StreamStart()`.
+
+`S_StreamPlayedFrames()` is presentation timing, not simulation time. Music combines it with the last explicit seek/start millisecond to snapshot the position the audio device has actually consumed before thematic replacement.
 
 The SDL callback mixes both streams before one-shot sound channels. Starting/stopping a movie stream therefore no longer resets music-buffer state.
 
@@ -224,19 +233,27 @@ Current payloads:
 
 | Command | Payload after command byte |
 |---|---|
-| `MUSIC_CMD_SET_MAP` | `byte random`, `long index`, `string playlist` |
+| `MUSIC_CMD_SET_MAP` | `byte random`, `long index`, `long session_id`, `string playlist` |
 | `MUSIC_CMD_CLEAR_MAP` | none |
-| `MUSIC_CMD_PLAY` | `long start_ms`, `long fade_ms`, `string playlist` |
+| `MUSIC_CMD_PLAY` | `byte random`, `long index`, `long start_ms`, `long fade_ms`, `long played_mask`, `long session_id`, `string playlist` |
 | `MUSIC_CMD_STOP` | `byte fade_out` |
 | `MUSIC_CMD_RESUME` | none |
-| `MUSIC_CMD_PLAY_THEMATIC` | `long start_ms`, `string playlist` |
+| `MUSIC_CMD_PLAY_THEMATIC` | `long index`, `long start_ms`, `long session_id`, `string playlist` |
 | `MUSIC_CMD_END_THEMATIC` | none |
 | `MUSIC_CMD_SET_VOLUME` | `long 0..127` |
 | `MUSIC_CMD_SET_POSITION` | `long milliseconds` |
 | `MUSIC_CMD_SET_THEMATIC_VOLUME` | `long 0..127` |
 | `MUSIC_CMD_SET_THEMATIC_POSITION` | `long milliseconds` |
 
-The Warcraft game module resolves each recipient's skin before serialization. `GetLocalPlayer()`-scoped JASS uses `currentplayer`; global calls update/send each game-client slot independently. When a one-shot thematic track reaches natural EOF, the client sends the generic `music_finished` acknowledgement with the completed session token so the retained server-side presentation state restores the same ordinary session. Acknowledgements for an older theme or map track are discarded after a newer session replaces it. When a deferred `SetMapMusic` or `ClearMapMusic` finally takes effect after the old map track reaches EOF, the client sends the same acknowledgement for the old map session before starting the replacement.
+Each new map/explicit/thematic session receives a per-client nonzero `session_id`. Client lifecycle acknowledgements echo this opaque id instead of reconstructing identity from playlist text or selected indexes; this avoids false rejection when `Music.slk` comma lists normalize differently, a random initial song is not index 0, or an undecodable entry falls through to a later path. Reliable client commands are:
+
+| Client command | Meaning |
+|---|---|
+| `music_selected <session> <index> <position_ms> <played_mask>` | selected/advanced to a playable track; updates retained exact index, one-pass progress, and start/seek position |
+| `music_snapshot <theme_session> <restore_session> <index> <position_ms> <played_mask>` | theme has suspended an ordinary session at this audible position and one-pass progress |
+| `music_finished <session>` | one-pass/theme/deferred-map session reached its lifecycle boundary |
+
+The Warcraft game module resolves each recipient's skin before serialization. `GetLocalPlayer()`-scoped JASS uses `currentplayer`; global calls update/send each game-client slot independently. Reliable command ordering lets the client finish an old session, start the replacement locally, send `music_finished` for the old id, then `music_selected` for the replacement; the server commits the lifecycle transition before accepting the new selection. Stale ids are ignored after a newer session supersedes them.
 
 ## Important Files
 
@@ -254,17 +271,17 @@ The Warcraft game module resolves each recipient's skin before serialization. `G
 | `sound/s_local.h`, `sound/s_sound.c` | independent long-form PCM stream mixer |
 | `client/cl_movie.c` | movie/music suspend interaction |
 
-## Known Gaps / Do Not Guess
+## Compatibility Assumptions And Remaining Gaps
 
-The current implementation deliberately leaves these unresolved rather than assigning unverified Warcraft semantics:
+OpenRealm now implements three behaviors as explicit **best-evidence compatibility assumptions**, rather than leaving internally inconsistent placeholder behavior: `random=true` randomizes the initial song only and then proceeds sequentially; explicit `PlayMusic` is a one-pass override that returns to map music; and thematic music restores the interrupted track at its client-observed audible position. These choices are documented hypotheses and should change if direct retail measurement contradicts them.
+
+The remaining unresolved areas are:
 
 - `GetSoundFileDuration` still returns `0`; a synchronous JASS query cannot safely depend on a client-only decoder without a different ownership design.
-- `StopMusic(true)` still pauses immediately because the exact retail fade duration has not been established.
-- `SetMapMusic`'s index is treated as a zero-based initial-song index; exact retail random-vs-shuffle behavior *after* the initial selection still needs observation.
-- thematic restoration preserves the interrupted logical session and JASS-known selection/seek state, but not the continuously advancing decoder timestamp or a client-randomized track choice that was never reported to the server.
-- whether ordinary `PlayMusic` should itself be one-shot and fall back to map music after its supplied list finishes still needs direct retail verification.
+- `StopMusic(true)` still pauses immediately because the exact retail fade duration has not been established. The low-confidence two-second estimate is deliberately **not** encoded as a constant.
+- codec seeking is millisecond/stream-time based rather than sample-exact; the consumed-frame snapshot identifies what the mixer heard, but FFmpeg may decode from an earlier seek boundary.
+- the continuously advancing ordinary playback head is reported when tracks are selected and when thematic music snapshots it, not every frame; a save taken during ordinary music can therefore resume from the last reported start/seek rather than the exact current millisecond.
 - menu `GlueMusic` / `ChatMusic` and the options music checkbox/slider are not yet wired to this gameplay music controller.
-- semantic per-client music fields are part of the raw `GAMECLIENT` save snapshot and are re-sent to clients after load, but the continuously advancing decoder playback head is not synchronized back to the server; a restored save can only reuse the last JASS-requested start/seek position.
 - builds without `FFMPEG=1` have no fallback MP3 decoder.
 
 ## Verification
@@ -281,11 +298,12 @@ Useful behavioral cases:
 
 1. Start a Human campaign map whose generated script calls `SetMapMusic("Music", true, 0)`; music should begin after connection without requiring a later trigger.
 2. Repeat with another race and confirm the playlist follows that player's `war3skins.txt` section.
-3. Exercise sequential `SetMapMusic(..., false, index)` and let at least one track reach EOF.
+3. Exercise `SetMapMusic(..., true, 0)` with at least four tracks; note the random initial entry, then confirm subsequent EOF transitions advance sequentially and wrap.
 4. While a map track is playing, call `SetMapMusic` with a different list; the audible track should finish before the new list starts. Repeat with `ClearMapMusic`; the audible track should finish and then stop.
-5. Start explicit or map music, play a thematic track, and let it reach EOF without calling `EndThematicMusic`; the interrupted ordinary session should return automatically.
-6. Repeat the thematic test with an early `EndThematicMusic()` and with a `war3mapSkin.txt` `[CustomSkin]` music override.
-7. Exercise `PlayMusicEx` with a nonzero start position and fade-in.
-8. `StopMusic(false)` then `ResumeMusic()`; the same track should continue rather than select the next track.
-9. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
-10. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency.
+5. Start map music, call `PlayMusic` with a multi-track list, and let the explicit list complete; each playable explicit track should occur once in sequential order from the random initial entry, then map music should return.
+6. Start explicit or map music, note the audible timestamp, play a thematic track, and let it reach EOF without calling `EndThematicMusic`; the interrupted track should return at approximately the same audible position.
+7. Repeat the thematic test with an early `EndThematicMusic()` and with a `war3mapSkin.txt` `[CustomSkin]` music override.
+8. Exercise `PlayMusicEx` with a nonzero start position and fade-in.
+9. `StopMusic(false)` then `ResumeMusic()`; the same track should continue rather than select the next track.
+10. Play a pre-rendered movie while music is active; movie audio should play alone and music should resume afterward.
+11. Build without `FFMPEG=1`; maps should still run without a music-decoder/link dependency.

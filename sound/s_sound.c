@@ -386,6 +386,7 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
             stream_state->read_pos = (stream_state->read_pos + 1) % stream_state->capacity;
         }
         stream_state->count -= take;
+        stream_state->played_frames += take;
     }
 
     for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
@@ -623,6 +624,7 @@ void S_StreamStart(sStreamId_t stream) {
         s.streams[stream].data = calloc((size_t)s.streams[stream].capacity * 2, sizeof(short));
     }
     s.streams[stream].read_pos = s.streams[stream].write_pos = s.streams[stream].count = 0;
+    s.streams[stream].played_frames = 0;
     s.streams[stream].volume = 1.0f;
     s.streams[stream].paused = false;
     s.streams[stream].active = s.streams[stream].data != NULL;
@@ -656,6 +658,15 @@ DWORD S_StreamBufferedFrames(sStreamId_t stream) {
     return count;
 }
 
+uint64_t S_StreamPlayedFrames(sStreamId_t stream) {
+    uint64_t frames = 0;
+    if (!s.initialized || !S_ValidStream(stream) || !s.streams[stream].active) return 0;
+    SDL_LockAudioDevice(s.device);
+    frames = s.streams[stream].played_frames;
+    SDL_UnlockAudioDevice(s.device);
+    return frames;
+}
+
 void S_StreamSetVolume(sStreamId_t stream, FLOAT volume) {
     if (!s.initialized || !S_ValidStream(stream)) return;
     SDL_LockAudioDevice(s.device);
@@ -676,6 +687,7 @@ void S_StreamStop(sStreamId_t stream) {
     s.streams[stream].active = false;
     s.streams[stream].paused = false;
     s.streams[stream].read_pos = s.streams[stream].write_pos = s.streams[stream].count = 0;
+    s.streams[stream].played_frames = 0;
     SDL_UnlockAudioDevice(s.device);
 }
 

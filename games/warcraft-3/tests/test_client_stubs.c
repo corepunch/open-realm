@@ -147,12 +147,12 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
 void CL_QueueMovie(LPCSTR path) { (void)path; }
 BOOL CL_MovieActive(void) { return false; }
 void CL_MovieDraw(void) {}
-void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index) { (void)playlist; (void)random; (void)index; }
+void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id) { (void)playlist; (void)random; (void)index; (void)session_id; }
 void CL_MusicClearMap(void) {}
-void CL_MusicPlay(LPCSTR playlist, LONG start_ms, LONG fade_ms) { (void)playlist; (void)start_ms; (void)fade_ms; }
+void CL_MusicPlay(LPCSTR playlist, BOOL random, LONG index, LONG start_ms, LONG fade_ms, DWORD played_mask, DWORD session_id) { (void)playlist; (void)random; (void)index; (void)start_ms; (void)fade_ms; (void)played_mask; (void)session_id; }
 void CL_MusicStop(BOOL fade_out) { (void)fade_out; }
 void CL_MusicResume(void) {}
-void CL_MusicPlayThematic(LPCSTR playlist, LONG start_ms) { (void)playlist; (void)start_ms; }
+void CL_MusicPlayThematic(LPCSTR playlist, LONG index, LONG start_ms, DWORD session_id) { (void)playlist; (void)index; (void)start_ms; (void)session_id; }
 void CL_MusicEndThematic(void) {}
 void CL_MusicSetVolume(LONG volume) { (void)volume; }
 void CL_MusicSetPosition(LONG millisecs) { (void)millisecs; }

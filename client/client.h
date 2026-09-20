@@ -157,12 +157,13 @@ void CL_MusicInit(void);
 void CL_MusicReset(void);
 void CL_MusicShutdown(void);
 void CL_MusicUpdate(void);
-void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index);
+void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id);
 void CL_MusicClearMap(void);
-void CL_MusicPlay(LPCSTR playlist, LONG start_ms, LONG fade_ms);
+void CL_MusicPlay(LPCSTR playlist, BOOL random, LONG index, LONG start_ms, LONG fade_ms,
+                  DWORD played_mask, DWORD session_id);
 void CL_MusicStop(BOOL fade_out);
 void CL_MusicResume(void);
-void CL_MusicPlayThematic(LPCSTR playlist, LONG start_ms);
+void CL_MusicPlayThematic(LPCSTR playlist, LONG index, LONG start_ms, DWORD session_id);
 void CL_MusicEndThematic(void);
 void CL_MusicSetVolume(LONG volume);
 void CL_MusicSetPosition(LONG millisecs);
