@@ -126,6 +126,7 @@ TEST(wc3_spell, unsummon_uses_datab_dps_progressive_refund_and_temporary_magic_i
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 60);
     T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 35);
     T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    T_NULL(uns_effect(fix.building));
     T_NULL(uns_thinker(fix.caster));
     uns_done(&fix);
 }
