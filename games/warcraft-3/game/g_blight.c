@@ -14,37 +14,22 @@ static DWORD G_BlightConnectedMask(void) {
     return mask;
 }
 
-#ifdef WC3_DEBUG_BLIGHT
-static DWORD G_BlightSetCellCount(void) {
-    DWORD count = 0;
-    if (!level.blight.cells) return 0;
-    FOR_LOOP(i, G_BlightCellCount()) count += level.blight.cells[i] != 0;
-    return count;
-}
-#endif
-
 static BOOL G_BlightCell(LPCVECTOR2 point, LPDWORD x, LPDWORD y) {
-    FLOAT fx, fy;
-    if (!point || !level.blight.cells || !level.blight.width || !level.blight.height) return false;
-    if (point->x < level.blight.bounds.min.x || point->y < level.blight.bounds.min.y ||
-        point->x >= level.blight.bounds.max.x || point->y >= level.blight.bounds.max.y) return false;
-    fx = (point->x - level.blight.bounds.min.x) / WC3_BLIGHT_PATH_CELL;
-    fy = (point->y - level.blight.bounds.min.y) / WC3_BLIGHT_PATH_CELL;
-    *x = MIN((DWORD)fx, level.blight.width - 1); *y = MIN((DWORD)fy, level.blight.height - 1);
-    return true;
+    if (!point || !level.blight.cells) return false;
+    return TerrainMask_CellForPoint(level.blight.bounds.min, WC3_BLIGHT_PATH_CELL, level.blight.width, level.blight.height, point, x, y);
 }
 
-static BOOL G_SetBlightCell(LONG x, LONG y, BOOL add) {
+static BOOL G_SetBlightCell(LONG x, LONG y, BOOL add, DWORD mask) {
     DWORD index;
     if (x < 0 || y < 0 || x >= (LONG)level.blight.width || y >= (LONG)level.blight.height) return false;
     index = (DWORD)x + (DWORD)y * level.blight.width;
     if (level.blight.cells[index] == (BYTE)(add != 0)) return false;
     level.blight.cells[index] = add ? 1 : 0;
-    if (level.blight.dirty_rows) level.blight.dirty_rows[y] |= G_BlightConnectedMask();
+    if (level.blight.dirty_rows) level.blight.dirty_rows[y] |= mask;
     return true;
 }
 
-static DWORD G_SetBlightCorner(FLOAT x, FLOAT y, BOOL add) {
+static DWORD G_SetBlightCorner(FLOAT x, FLOAT y, BOOL add, DWORD mask) {
     VECTOR2 sample;
     DWORD ux, uy;
     LONG cx, cy;
@@ -54,7 +39,7 @@ static DWORD G_SetBlightCorner(FLOAT x, FLOAT y, BOOL add) {
     /* One 128-unit terrain corner owns the surrounding 4x4 32-unit pathing cells. */
     cx = (LONG)ux - 2; cy = (LONG)uy - 2;
     FOR_LOOP(ix, 4) FOR_LOOP(iy, 4)
-        changed += G_SetBlightCell(cx + (LONG)ix, cy + (LONG)iy, add);
+        changed += G_SetBlightCell(cx + (LONG)ix, cy + (LONG)iy, add, mask);
     return changed;
 }
 
@@ -102,11 +87,6 @@ void G_BlightMarkDestructable(LPEDICT ent) {
     if (!ent->s.image)
         fprintf(stderr, "G_BlightMarkDestructable: unresolved Blight texture '%s' for %.4s\n",
                 blight_texture, (LPCSTR)&ent->class_id);
-#ifdef WC3_DEBUG_BLIGHT
-    fprintf(stderr, "WC3_BLIGHT tree ent=%ld class=%.4s texture=%s image=%u\n",
-            (long)(ent - g_edicts), (LPCSTR)&ent->class_id, blight_texture,
-            (unsigned)ent->s.image);
-#endif
 }
 
 void G_BlightInitializeDestructable(LPEDICT ent) {
@@ -137,9 +117,6 @@ void G_BlightShutdown(void) {
 void G_BlightInit(void) {
     DWORD cells;
     DWORD unavailable = 0;
-#ifdef WC3_DEBUG_BLIGHT
-    DWORD seeded = 0;
-#endif
     VECTOR2 sample;
 
     G_BlightShutdown();
@@ -174,17 +151,10 @@ void G_BlightInit(void) {
             continue;
         }
         level.blight.cells[index] = (flags & WC3_PATH_BLIGHTED) != 0;
-#ifdef WC3_DEBUG_BLIGHT
-        seeded += level.blight.cells[index] != 0;
-#endif
     }
-#ifdef WC3_DEBUG_BLIGHT
-    fprintf(stderr, "WC3_BLIGHT grid init bounds=(%.1f,%.1f)-(%.1f,%.1f) dimensions=%ux%u cells=%u seeded=%u unavailable=%u\n",
-            level.blight.bounds.min.x, level.blight.bounds.min.y,
-            level.blight.bounds.max.x, level.blight.bounds.max.y,
+    BLIGHT_LOG("grid init dimensions=%ux%u cells=%u unavailable=%u\n",
             (unsigned)level.blight.width, (unsigned)level.blight.height,
-            (unsigned)cells, (unsigned)seeded, (unsigned)unavailable);
-#endif
+            (unsigned)cells, (unsigned)unavailable);
     if (unavailable)
         fprintf(stderr, "G_BlightInit: pathing flags unavailable for %u Blight cells; leaving them clear\n",
                 (unsigned)unavailable);
@@ -197,17 +167,12 @@ BOOL G_IsPointBlighted(LPCVECTOR2 point) {
 
 void G_SetBlightPoint(LPCVECTOR2 point, BOOL add) {
     FLOAT x, y;
+    DWORD mask;
     if (!point || !level.blight.cells) return;
+    mask = G_BlightConnectedMask();
     x = G_SnapBlightCorner(point->x, level.blight.bounds.min.x);
     y = G_SnapBlightCorner(point->y, level.blight.bounds.min.y);
-#ifdef WC3_DEBUG_BLIGHT
-    DWORD const changed = G_SetBlightCorner(x, y, add);
-    fprintf(stderr, "WC3_BLIGHT point op=%s requested=(%.1f,%.1f) snapped=(%.1f,%.1f) changed=%u total=%u\n",
-            add ? "add" : "remove", point->x, point->y, x, y,
-            (unsigned)changed, (unsigned)G_BlightSetCellCount());
-#else
-    G_SetBlightCorner(x, y, add);
-#endif
+    G_SetBlightCorner(x, y, add, mask);
     if (add) {
         BOX2 region = { { x - WC3_BLIGHT_TERRAIN_CELL, y - WC3_BLIGHT_TERRAIN_CELL },
                         { x + WC3_BLIGHT_TERRAIN_CELL, y + WC3_BLIGHT_TERRAIN_CELL } };
@@ -217,23 +182,17 @@ void G_SetBlightPoint(LPCVECTOR2 point, BOOL add) {
 
 void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add) {
     FLOAT min_x, min_y, max_x, max_y;
-    DWORD changed = 0, corners = 0;
+    DWORD mask;
     if (!point || !level.blight.cells || radius < 0.0f) return;
+    mask = G_BlightConnectedMask();
     min_x = G_SnapBlightCorner(point->x - radius, level.blight.bounds.min.x);
     min_y = G_SnapBlightCorner(point->y - radius, level.blight.bounds.min.y);
     max_x = point->x + radius; max_y = point->y + radius;
     for (FLOAT y = min_y; y <= max_y; y += WC3_BLIGHT_TERRAIN_CELL)
         for (FLOAT x = min_x; x <= max_x; x += WC3_BLIGHT_TERRAIN_CELL) {
             FLOAT const dx = x - point->x, dy = y - point->y;
-            if (dx * dx + dy * dy <= radius * radius) {
-                corners++; changed += G_SetBlightCorner(x, y, add);
-            }
+            if (dx * dx + dy * dy <= radius * radius) G_SetBlightCorner(x, y, add, mask);
         }
-#ifdef WC3_DEBUG_BLIGHT
-    fprintf(stderr, "WC3_BLIGHT radius op=%s origin=(%.1f,%.1f) radius=%.1f corners=%u changed=%u total=%u\n",
-            add ? "add" : "remove", point->x, point->y, radius,
-            (unsigned)corners, (unsigned)changed, (unsigned)G_BlightSetCellCount());
-#endif
     if (add) {
         BOX2 region = { { point->x - radius, point->y - radius },
                         { point->x + radius, point->y + radius } };
@@ -243,20 +202,14 @@ void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add) {
 
 void G_SetBlightRect(LPCBOX2 rect, BOOL add) {
     FLOAT min_x, min_y;
-    DWORD changed = 0, corners = 0;
+    DWORD mask;
     if (!rect || !level.blight.cells) return;
+    mask = G_BlightConnectedMask();
     min_x = G_SnapBlightCorner(rect->min.x, level.blight.bounds.min.x);
     min_y = G_SnapBlightCorner(rect->min.y, level.blight.bounds.min.y);
     for (FLOAT y = min_y; y <= rect->max.y; y += WC3_BLIGHT_TERRAIN_CELL)
         for (FLOAT x = min_x; x <= rect->max.x; x += WC3_BLIGHT_TERRAIN_CELL)
-            if (x >= rect->min.x && y >= rect->min.y) {
-                corners++; changed += G_SetBlightCorner(x, y, add);
-            }
-#ifdef WC3_DEBUG_BLIGHT
-    fprintf(stderr, "WC3_BLIGHT rect op=%s bounds=(%.1f,%.1f)-(%.1f,%.1f) corners=%u changed=%u total=%u\n",
-            add ? "add" : "remove", rect->min.x, rect->min.y, rect->max.x, rect->max.y,
-            (unsigned)corners, (unsigned)changed, (unsigned)G_BlightSetCellCount());
-#endif
+            if (x >= rect->min.x && y >= rect->min.y) G_SetBlightCorner(x, y, add, mask);
     if (add) G_BlightUpdateDestructables(rect);
 }
 
@@ -271,16 +224,10 @@ BOOL G_GetBlightState(LPBYTE out, DWORD size) {
 
 BOOL G_SetBlightState(BYTE const *data, DWORD size) {
     DWORD const expected = G_GetBlightStateSize();
+    DWORD const mask = G_BlightConnectedMask();
     if (size != expected || (size && !data)) return false;
     if (size) memcpy(level.blight.cells, data, size);
-    if (level.blight.dirty_rows) {
-        DWORD const mask = G_BlightConnectedMask();
-        FOR_LOOP(y, level.blight.height) level.blight.dirty_rows[y] |= mask;
-    }
-#ifdef WC3_DEBUG_BLIGHT
-    fprintf(stderr, "WC3_BLIGHT state restore bytes=%u active=%u\n",
-            (unsigned)size, (unsigned)G_BlightSetCellCount());
-#endif
+    if (level.blight.dirty_rows) FOR_LOOP(y, level.blight.height) level.blight.dirty_rows[y] |= mask;
     return true;
 }
 
@@ -290,6 +237,14 @@ void G_BlightMarkClientFull(LPEDICT ent) {
     player = ent->client->ps.number;
     if (player >= MAX_PLAYERS) return;
     FOR_LOOP(y, level.blight.height) level.blight.dirty_rows[y] |= 1u << player;
+    level.blight.sweep_row[player] = 0;
+}
+
+static BOOL G_BlightSweepDue(DWORD player) {
+    (void)player;
+    if (!level.blight.width || !level.blight.height) return false;
+    if (level.framenum == 0 || level.framenum % BLIGHT_SWEEP_INTERVAL) return false;
+    return true;
 }
 
 BOOL G_BlightDatagramPending(LPEDICT ent) {
@@ -298,7 +253,7 @@ BOOL G_BlightDatagramPending(LPEDICT ent) {
     player = ent->client->ps.number;
     if (player >= MAX_PLAYERS) return false;
     FOR_LOOP(y, level.blight.height) if (level.blight.dirty_rows[y] & (1u << player)) return true;
-    return false;
+    return G_BlightSweepDue(player);
 }
 
 static DWORD G_BlightPackRows(LPBYTE out, DWORD capacity, DWORD first_row, DWORD row_count) {
@@ -314,35 +269,46 @@ static DWORD G_BlightPackRows(LPBYTE out, DWORD capacity, DWORD first_row, DWORD
 }
 
 DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
-    DWORD player, first = 0, rows, max_rows, available, payload_bytes;
+    DWORD player, first = 0, rows, max_rows, available, payload_bytes, sweep_cap;
     terrainMaskChunk_t chunk;
     BYTE *payload;
+    BOOL sweep = false;
 
     if (!data || !G_BlightDatagramPending(ent) || size < sizeof(chunk) + 1) return 0;
     player = ent->client->ps.number;
     while (first < level.blight.height && !(level.blight.dirty_rows[first] & (1u << player))) first++;
-    if (first == level.blight.height) return 0;
-    available = size - sizeof(chunk);
-    max_rows = MIN(level.blight.height - first, (available * 8) / level.blight.width);
-    if (!max_rows) return 0;
-    rows = 1;
-    while (rows < max_rows && (level.blight.dirty_rows[first + rows] & (1u << player))) rows++;
+    if (first < level.blight.height) {
+        available = size - sizeof(chunk);
+        max_rows = MIN(level.blight.height - first, (available * 8) / level.blight.width);
+        if (!max_rows) return 0;
+        rows = 1;
+        while (rows < max_rows && (level.blight.dirty_rows[first + rows] & (1u << player))) rows++;
+    } else {
+        if (!G_BlightSweepDue(player)) return 0;
+        first = level.blight.sweep_row[player] % level.blight.height;
+        available = MIN(size - sizeof(chunk), BLIGHT_SWEEP_BYTES);
+        max_rows = MIN(level.blight.height - first, (available * 8) / level.blight.width);
+        if (!max_rows) { level.blight.sweep_row[player] = 0; return 0; }
+        rows = max_rows;
+        sweep_cap = (BLIGHT_SWEEP_BYTES * 8) / level.blight.width;
+        if (sweep_cap && rows > sweep_cap) rows = sweep_cap;
+        sweep = true;
+    }
     payload = data + sizeof(chunk);
     while (rows && !(payload_bytes = G_BlightPackRows(payload, available, first, rows))) rows--;
     if (!rows) return 0;
     chunk = (terrainMaskChunk_t){
         .width = (USHORT)level.blight.width, .height = (USHORT)level.blight.height,
         .first_row = (USHORT)first, .row_count = (USHORT)rows,
-        .payload_bytes = (USHORT)payload_bytes,
+        .payload_bytes = (USHORT)payload_bytes, .reserved = 0,
         .min_x = level.blight.bounds.min.x, .min_y = level.blight.bounds.min.y,
         .cell_size = WC3_BLIGHT_PATH_CELL,
     };
     memcpy(data, &chunk, sizeof(chunk));
-    FOR_LOOP(y, rows) level.blight.dirty_rows[first + y] &= ~(1u << player);
-#ifdef WC3_DEBUG_BLIGHT
-    fprintf(stderr, "WC3_BLIGHT datagram player=%u rows=%u..%u payload=%u active=%u\n",
+    if (sweep) level.blight.sweep_row[player] = (first + rows) % level.blight.height;
+    else FOR_LOOP(y, rows) level.blight.dirty_rows[first + y] &= ~(1u << player);
+    BLIGHT_LOG("datagram player=%u rows=%u..%u payload=%u sweep=%u\n",
             (unsigned)player, (unsigned)first, (unsigned)(first + rows - 1),
-            (unsigned)payload_bytes, (unsigned)G_BlightSetCellCount());
-#endif
+            (unsigned)payload_bytes, (unsigned)sweep);
     return sizeof(chunk) + payload_bytes;
 }

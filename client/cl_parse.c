@@ -9,6 +9,7 @@
  * are applied on top of the previous frame's state.  Player state, UI layout,
  * config strings and temporary effects each have their own message types.
  */
+#include <limits.h>
 #include <stdlib.h>
 #include <zlib.h>
 
@@ -268,6 +269,7 @@ static BOOL CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
     terrainMaskChunk_t chunk;
     BYTE const *payload;
     DWORD cells, row_cells;
+    BOOL changed = false;
 
     if (msg->cursize - msg->readcount < sizeof(chunk)) return false;
     MSG_Read(msg, &chunk, sizeof(chunk));
@@ -279,23 +281,21 @@ static BOOL CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
         fprintf(stderr, "CL_ParseFrame: invalid terrain-mask chunk %ux%u first=%u rows=%u payload=%u\n",
             (unsigned)chunk.width, (unsigned)chunk.height, (unsigned)chunk.first_row,
             (unsigned)chunk.row_count, (unsigned)chunk.payload_bytes);
-        msg->readcount = MIN(msg->cursize, msg->readcount + chunk.payload_bytes);
         return false;
     }
     payload = msg->data + msg->readcount;
     cells = row_cells;
     if (!CL_EnsureTerrainMaskSize(chunk.width, chunk.height,
-            (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) {
-        msg->readcount += chunk.payload_bytes;
-        return false;
+            (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
+    FOR_LOOP(index, cells) {
+        BYTE bit = (payload[index >> 3] >> (index & 7)) & 1;
+        BYTE *cell = &cl.terrain_mask.cells[chunk.first_row * cl.terrain_mask.width + index];
+        if (*cell != bit) { *cell = bit; changed = true; }
     }
-    FOR_LOOP(index, cells)
-        cl.terrain_mask.cells[chunk.first_row * cl.terrain_mask.width + index] =
-            (payload[index >> 3] >> (index & 7)) & 1;
     msg->readcount += chunk.payload_bytes;
     cl.terrain_mask.dirty_first_row = chunk.first_row;
     cl.terrain_mask.dirty_row_count = chunk.row_count;
-    cl.terrain_mask.generation++;
+    if (changed) cl.terrain_mask.generation++;
     return true;
 }
 
@@ -325,7 +325,7 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     DWORD header = (USHORT)MSG_ReadShort(msg);
     BOOL const has_entity_tints = (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) != 0;
     BOOL const has_terrain_mask = (header & BZ_GAME_DATAGRAM_TERRAIN_MASK) != 0;
-    DWORD count = header & ~(BZ_GAME_DATAGRAM_ENTITY_TINTS | BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    DWORD count = header & BZ_GAME_DATAGRAM_COUNT_MASK;
     if (count > MAX_WEATHER_EFFECTS || msg->readcount + count * sizeof(wc3WeatherEffect_t) > msg->cursize) {
         fprintf(stderr, "CL_ParseFrame: invalid weather snapshot count=%u\n", (unsigned)count);
         msg->readcount = msg->cursize;

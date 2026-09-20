@@ -5299,4 +5299,90 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     game.clients[0].connected = false;
 }
 
+TEST(wc3_api, blight_sweep_resends_dropped_rows) {
+    BYTE data[8192];
+    USHORT header;
+    terrainMaskChunk_t chunk;
+    VECTOR2 point = { 32.0f, 32.0f };
+    LPEDICT client_ent;
+    DWORD size, offset, bit;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    G_BlightMarkClientFull(client_ent);
+    G_SetBlightPoint(&point, true);
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    /* Simulate a dropped packet: the server cleared dirty rows on write. */
+    level.framenum = 0;
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(!(header & BZ_GAME_DATAGRAM_TERRAIN_MASK));
+    level.framenum = BLIGHT_SWEEP_INTERVAL;
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
+    T_EQ(chunk.width, 64); T_EQ(chunk.height, 64);
+    bit = 33 + 33 * chunk.width;
+    T_ASSERT(chunk.first_row <= 33 && 33 < chunk.first_row + chunk.row_count);
+    T_ASSERT(data[offset + ((bit - chunk.first_row * chunk.width) >> 3)] & (1u << ((bit - chunk.first_row * chunk.width) & 7)));
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+    level.framenum = 0;
+}
+
+TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
+    BYTE data[8192];
+    USHORT header;
+    terrainMaskChunk_t chunk;
+    VECTOR2 point = { 32.0f, 32.0f };
+    LPEDICT client_ent;
+    DWORD size, offset;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.framenum = BLIGHT_SWEEP_INTERVAL;
+    level.blight.sweep_row[0] = 0;
+    G_SetBlightPoint(&point, true);
+    size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    T_ASSERT(size > sizeof(header));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
+    offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    memcpy(&chunk, data + offset, sizeof(chunk));
+    T_ASSERT(chunk.first_row > 0);
+    T_EQ(level.blight.sweep_row[0], 0);
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+    level.framenum = 0;
+}
+
+TEST(wc3_api, blight_mark_client_full_resets_sweep_cursor) {
+    LPEDICT client_ent;
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    level.blight.sweep_row[0] = 17;
+    G_BlightMarkClientFull(client_ent);
+    T_EQ(level.blight.sweep_row[0], 0);
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+}
+
 #endif /* BZ_TESTS */

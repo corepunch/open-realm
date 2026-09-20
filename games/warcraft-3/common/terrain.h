@@ -9,4 +9,10 @@
 #define DECODE_HEIGHT(x) (((x) - 0x2000) / 4) // raw W3E units; removes encoded bias and scales terrain height
 #define WC3_PATH_BLIGHTED 0x20 // pathing flags; authored/runtime Undead Blight; used by WC3 placement and terrain queries
 
+#ifdef WC3_DEBUG_BLIGHT
+#define BLIGHT_LOG(...) do { fprintf(stderr, "WC3_BLIGHT "); fprintf(stderr, __VA_ARGS__); } while (0)
+#else
+#define BLIGHT_LOG(...) ((void)0)
+#endif
+
 #endif

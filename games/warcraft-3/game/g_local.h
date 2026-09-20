@@ -1612,11 +1612,15 @@ typedef struct {
     fowPlayerGrid_t players[MAX_PLAYERS];
 } fowGrid_t;
 
+#define BLIGHT_SWEEP_INTERVAL 100 // frames; resync cadence for undelivered rows; used by background sweep
+#define BLIGHT_SWEEP_BYTES 512 // bytes; caps one sweep band payload; used by background resync
+
 typedef struct {
     DWORD width, height;
     BOX2 bounds;
     BYTE *cells; /* mutable current Blight, one byte per 32-unit pathing cell */
     DWORD *dirty_rows; /* one client bit per row; changed rows are sent once per client */
+    DWORD sweep_row[MAX_PLAYERS]; /* per-client background resync cursor; next row to sweep */
 } blightGrid_t;
 
 /* A fog modifier continuously applies one of the three JASS fog states while started. */

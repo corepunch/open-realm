@@ -391,7 +391,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
                 (rect.mins.y + rect.maxs.y) * 0.5f,
             };
             blocked = !CM_GetPathingFlagsAt(&sample, &pathing);
-            CL_GameModifyBuildPathing(&sample, &pathing);
+            if (!blocked) CL_GameModifyBuildPathing(&sample, &pathing);
             blocked = blocked || (pathing & prevented) != 0 ||
                       (pathing & required) != required;
             rect.color = blocked || mine_blocked
