@@ -411,6 +411,15 @@ static DWORD count_haunted_ring_effects(LPCEDICT mine) {
     return count;
 }
 
+static LPEDICT haunted_ring_effect_slot(LPEDICT mine, DWORD slot) {
+    FILTER_EDICTS(effect, effect->inuse && effect->owner == mine &&
+                  effect->summon_ability == MAKEFOURCC('A','b','g','m') &&
+                  effect->resources == slot + 1 && (effect->s.flags & EF_NOT_SELECTABLE)) {
+        return effect;
+    }
+    return NULL;
+}
+
 static slkTestData_t *install_goldmine_test_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(slk_goldmine_test_data);
     *rows_out = rows;
@@ -3683,6 +3692,12 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     level.time = 1999;
     blight_mine_think(haunted);
     T_EQ(count_haunted_ring_effects(haunted), 5);
+    FOR_LOOP(slot, 5) {
+        LPEDICT effect = haunted_ring_effect_slot(haunted, slot);
+        FLOAT const angle = (FLOAT)(M_PI / 2.0 + (M_PI * 2.0 / 5.0) * slot);
+        T_NOT_NULL(effect);
+        T_FEQ(effect->s.angle, angle, 0.001f);
+    }
     T_EQ(parent->resources, 100);
     level.time = 2000;
     blight_mine_think(haunted);
