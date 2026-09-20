@@ -1950,7 +1950,7 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(wc3LightningEffect_t);
+        offset += lightning_count * sizeof(lightningEffect_t);
     }
     memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
     FOR_LOOP(i, count) {
@@ -1972,12 +1972,15 @@ TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
     LPGLIGHTNING effect;
     DWORD size, offset;
     USHORT header, count;
-    wc3LightningEffect_t wire;
+    lightningEffect_t wire;
 
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
     level.next_lightning_id = 0;
     level.time = 1000;
-    effect = G_LightningAdd(MAKEFOURCC('C', 'L', 'P', 'B'), &source, &target, tint, 2000);
+    effect = G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = MAKEFOURCC('C', 'L', 'P', 'B'), .source = &source, .target = &target,
+        .color = tint, .duration_ms = 2000,
+    });
     T_NOT_NULL(effect);
 
     size = G_WriteClientDatagram(NULL, data, sizeof(data));
@@ -2009,7 +2012,7 @@ TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
     LPGLIGHTNING effect;
     DWORD size, offset;
     USHORT header, count;
-    wc3LightningEffect_t wire;
+    lightningEffect_t wire;
 
     reset_entities();
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
@@ -2019,8 +2022,10 @@ TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
     target_unit = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), target.x, target.y);
     source_unit->s.origin.z = source.z; source_unit->s.radius = 8.0f;
     target_unit->s.origin.z = target.z; target_unit->s.radius = 12.0f;
-    effect = G_LightningAdd(MAKEFOURCC('C', 'L', 'P', 'B'), &source, &target,
-                            COLOR32_WHITE, 2000);
+    effect = G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = MAKEFOURCC('C', 'L', 'P', 'B'), .source = &source, .target = &target,
+        .color = COLOR32_WHITE, .duration_ms = 2000,
+    });
     G_LightningAttach(effect, source_unit, target_unit);
     T_NOT_NULL(effect);
 
@@ -5396,7 +5401,7 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(wc3LightningEffect_t);
+        offset += lightning_count * sizeof(lightningEffect_t);
     }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
@@ -5445,7 +5450,7 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(wc3LightningEffect_t);
+        offset += lightning_count * sizeof(lightningEffect_t);
     }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
@@ -5482,7 +5487,7 @@ TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
         USHORT lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
-        offset += lightning_count * sizeof(wc3LightningEffect_t);
+        offset += lightning_count * sizeof(lightningEffect_t);
     }
     if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
     memcpy(&chunk, data + offset, sizeof(chunk));

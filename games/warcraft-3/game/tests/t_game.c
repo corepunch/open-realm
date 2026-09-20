@@ -3279,6 +3279,7 @@ TEST(wc3_save, field_vertex_tint_round_trip) {
 
 TEST(wc3_save, lightning_registry_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-lightning.bin";
+    LPEDICT source_unit, target_unit;
     LPGLIGHTNING effect;
     VECTOR3 source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
 
@@ -3286,9 +3287,16 @@ TEST(wc3_save, lightning_registry_round_trip) {
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
     level.next_lightning_id = 40;
     level.time = 500;
-    effect = G_LightningAdd(MAKEFOURCC('C', 'L', 'S', 'B'), &source, &target,
-                            MAKE(COLOR32, 10, 20, 30, 40), 2000);
+    source_unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), source.x, source.y);
+    target_unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), target.x, target.y);
+    source_unit->s.origin.z = source.z; source_unit->s.radius = 8.0f; source_unit->spawn_time = 101;
+    target_unit->s.origin.z = target.z; target_unit->s.radius = 12.0f; target_unit->spawn_time = 202;
+    effect = G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = MAKEFOURCC('C', 'L', 'S', 'B'), .source = &source, .target = &target,
+        .color = MAKE(COLOR32, 10, 20, 30, 40), .duration_ms = 2000,
+    });
     T_NOT_NULL(effect);
+    G_LightningAttach(effect, source_unit, target_unit);
     T_ASSERT(WriteGame(filename));
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
     level.next_lightning_id = 0;
@@ -3298,9 +3306,16 @@ TEST(wc3_save, lightning_registry_round_trip) {
     T_NOT_NULL(effect);
     T_EQ(level.next_lightning_id, 41);
     T_EQ(effect->state.handle, 41); T_EQ(effect->state.effect_id, MAKEFOURCC('C', 'L', 'S', 'B'));
-    T_FEQ(effect->state.source.z, 3.0f, 0.001f); T_FEQ(effect->state.target.y, 5.0f, 0.001f);
+    T_FEQ(effect->state.source.z, 7.0f, 0.001f); T_FEQ(effect->state.target.y, 5.0f, 0.001f);
     T_EQ(effect->state.color.r, 10); T_EQ(effect->state.color.a, 40);
     T_EQ(effect->state.start_time, 500); T_EQ(effect->state.end_time, 2500);
+    T_EQ(effect->source_entity, g_edicts + (source_unit - g_edicts));
+    T_EQ(effect->target_entity, g_edicts + (target_unit - g_edicts));
+    T_EQ(effect->source_spawn_time, 101); T_EQ(effect->target_spawn_time, 202);
+    effect->source_entity->spawn_time++;
+    G_LightningUpdateAttached(effect);
+    T_NULL(effect->source_entity); T_EQ(effect->source_spawn_time, 0);
+    T_ASSERT(effect->target_entity);
     remove(filename);
 }
 

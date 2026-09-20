@@ -37,6 +37,7 @@ static w3LightningArt_t *lightning_rows;
 static DWORD lightning_count;
 static slkIndex_t lightning_index;
 
+/* Resolve a map-scoped LightningData table before falling back to the base archive. */
 static DWORD R_LightningLoadSlk(LPCSTR filename, void **dest) {
     PATHSTR scoped;
     DWORD count = 0;
@@ -46,6 +47,7 @@ static DWORD R_LightningLoadSlk(LPCSTR filename, void **dest) {
     return count;
 }
 
+/* Cache the authored ribbon texture; malformed rows are logged once and skipped by the caller. */
 static LPCTEXTURE R_LightningTexture(w3LightningArt_t *art) {
     PATHSTR path;
     static DWORD missing_id;
@@ -59,20 +61,18 @@ static LPCTEXTURE R_LightningTexture(w3LightningArt_t *art) {
     if (art->dir && *art->dir) snprintf(path, sizeof(path), "%s\\%s", art->dir, art->file);
     else strlcpy(path, art->file, sizeof(path));
     art->texture = R_LoadTexture(path);
-    if (!art->texture && missing_id != art->id) {
-        fprintf(stderr, "WC3 Lightning: row %08x texture '%s' failed to load\n", (unsigned)art->id, path);
-        missing_id = art->id;
-    }
-    if (art->texture) R_SetTextureWrap(art->texture, true, false);
+    R_SetTextureWrap(art->texture, true, false);
     return art->texture;
 }
 
+/* Reset map-independent renderer state before the first map is registered. */
 void R_LightningInit(void) {
     lightning_rows = NULL;
     lightning_count = 0;
     memset(&lightning_index, 0, sizeof(lightning_index));
 }
 
+/* Release the table and texture references owned by the current map. */
 void R_LightningShutdown(void) {
     FS_SLKFreeIndex(&lightning_index);
     FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
@@ -80,6 +80,7 @@ void R_LightningShutdown(void) {
     lightning_count = 0;
 }
 
+/* Rebuild the authored LightningData lookup whenever the map asset scope changes. */
 void R_LightningRegisterMap(void) {
     FS_SLKFreeIndex(&lightning_index);
     FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
@@ -89,25 +90,29 @@ void R_LightningRegisterMap(void) {
     FS_SLKBuildIndex(&lightning_index, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
 }
 
+/* Apply the authored channel multiplier without overflowing the byte product. */
 static BYTE R_LightningMulByte(DWORD authored, BYTE tint) {
     DWORD value = MIN(authored, 255u) * (DWORD)tint;
     return (BYTE)((value + 127u) / 255u);
 }
 
-#define WC3_LIGHTNING_MAX_SEGMENTS 64
+#define WC3_LIGHTNING_MAX_SEGMENTS 64 // points; bounds procedural crackle work for one lightning bolt
 
+/* Produce a deterministic integer hash for stable crackle phase selection. */
 static DWORD R_LightningHash(DWORD value) {
     value ^= value >> 16; value *= 0x7feb352d; value ^= value >> 15;
     value *= 0x846ca68b; return value ^ (value >> 16);
 }
 
+/* Convert a hash to a symmetric unit interval for lateral and longitudinal offsets. */
 static FLOAT R_LightningHashSigned(DWORD seed) {
     DWORD hash = R_LightningHash(seed);
     return ((FLOAT)(hash & 0x00ffffffu) / 8388607.5f) - 1.0f;
 }
 
+/* Build the camera-independent polyline that the shared ribbon renderer expands. */
 static DWORD R_LightningBuildPoints(w3LightningArt_t const *art,
-                                    wc3LightningEffect_t const *state,
+                                    lightningEffect_t const *state,
                                     VECTOR3 *points, DWORD point_capacity) {
     VECTOR3 delta, direction, reference, side;
     FLOAT distance, average, noise_ratio, lateral_scale;
@@ -146,8 +151,9 @@ static DWORD R_LightningBuildPoints(w3LightningArt_t const *art,
     return segments + 1;
 }
 
+/* Fade finite bolts while leaving persistent JASS lightning fully opaque. */
 static FLOAT R_LightningOpacity(w3LightningArt_t const *art,
-                                wc3LightningEffect_t const *state) {
+                                lightningEffect_t const *state) {
     DWORD lifetime, authored;
     FLOAT elapsed, duration, fade_start;
 
@@ -164,9 +170,10 @@ static FLOAT R_LightningOpacity(w3LightningArt_t const *art,
     return elapsed <= fade_start ? 1.0f : 1.0f - (elapsed - fade_start) / (duration - fade_start);
 }
 
+/* Draw the current endpoint snapshot through the shared ribbon particle pass. */
 void R_LightningDraw(void) {
     FOR_LOOP(i, tr.viewDef.num_lightning_effects) {
-        wc3LightningEffect_t const *state = tr.viewDef.lightning_effects + i;
+        lightningEffect_t const *state = tr.viewDef.lightning_effects + i;
         w3LightningArt_t *art = FS_SLKLookup(&lightning_index, state->effect_id);
         VECTOR3 points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
         COLOR32 color;
@@ -180,8 +187,11 @@ void R_LightningDraw(void) {
             missing_id = state->effect_id;
             continue;
         }
+        if (!art->file || !*art->file) {
+            R_LightningTexture(art);
+            continue;
+        }
         texture = R_LightningTexture(art);
-        if (!texture) continue;
         opacity = R_LightningOpacity(art, state);
         if (opacity <= 0.0f) continue;
         color = MAKE(COLOR32,

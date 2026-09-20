@@ -13,6 +13,18 @@ typedef struct particle_vertex {
     BYTE axis[2];
 } particleVertex_t;
 
+typedef enum {
+    PARTICLE_UV_BILLBOARD,
+    PARTICLE_UV_RIBBON,
+} particleUVOrder_t;
+
+typedef struct {
+    LPCVECTOR3 point, tail;
+    FLOAT u0, v0, u1, v1;
+    COLOR32 color;
+    FLOAT size;
+} particleQuad_t;
+
 typedef struct PARTICLESTATE {
     MATRIX4 viewProjection;
     MATRIX4 textureMatrix;
@@ -161,40 +173,29 @@ static const shader_desc_t sd_particle = {
 };
 #undef SHADER_TYPE
 
-static particleVertex_t *R_AddParticleUV(particleVertex_t *buffer,
-                                           LPCVECTOR3 point, LPCVECTOR3 tail,
-                                           FLOAT u0, FLOAT v0, FLOAT u1, FLOAT v1,
-                                           COLOR32 color, FLOAT size) {
-    BYTE a = 0x00, b = 0xff;
-    particleVertex_t const data[NUM_PARTICLE_VERTICES] = {
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v0}, .axis = {a,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v0}, .axis = {b,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v1}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v1}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v1}, .axis = {a,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v0}, .axis = {a,a}, .color = color, .size = size },
+/* Emit one billboard or ribbon quad from a shared vertex-order table. */
+static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
+                                           particleQuad_t const *quad, particleUVOrder_t order) {
+    static BYTE const axis[NUM_PARTICLE_VERTICES][2] = {{0,0}, {255,0}, {255,255}, {255,255}, {0,255}, {0,0}};
+    static BYTE const uv_index[2][NUM_PARTICLE_VERTICES][2] = {
+        {{0,1}, {2,1}, {2,3}, {2,3}, {0,3}, {0,1}},
+        {{0,3}, {0,1}, {2,1}, {2,1}, {2,3}, {0,3}},
     };
-    memcpy(buffer, data, sizeof(data));
-    return buffer + NUM_PARTICLE_VERTICES;
-}
+    FLOAT const uv[4] = {quad->u0, quad->v0, quad->u1, quad->v1};
+    VECTOR3 const tail = quad->tail ? *quad->tail : (VECTOR3){0};
 
-/* Ribbon geometry uses axis.y for its length and axis.x for its width, so the
- * authored texture's U axis must follow axis.y rather than axis.x. */
-static particleVertex_t *R_AddRibbonUV(particleVertex_t *buffer,
-                                        LPCVECTOR3 point, LPCVECTOR3 tail,
-                                        FLOAT u0, FLOAT u1, FLOAT v0, FLOAT v1,
-                                        COLOR32 color, FLOAT size) {
-    BYTE a = 0x00, b = 0xff;
-    particleVertex_t const data[NUM_PARTICLE_VERTICES] = {
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v1}, .axis = {a,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v0}, .axis = {b,a}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v0}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v0}, .axis = {b,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u1,v1}, .axis = {a,b}, .color = color, .size = size },
-        { .position = *point, .tail = tail ? *tail : (VECTOR3){0}, .uv = {u0,v1}, .axis = {a,a}, .color = color, .size = size },
-    };
-    memcpy(buffer, data, sizeof(data));
-    return buffer + NUM_PARTICLE_VERTICES;
+    FOR_LOOP(i, NUM_PARTICLE_VERTICES) {
+        particleVertex_t const vertex = {
+            .position = *quad->point,
+            .color = quad->color,
+            .size = quad->size,
+            .tail = tail,
+            .uv = {uv[uv_index[order][i][0]], uv[uv_index[order][i][1]]},
+            .axis = {axis[i][0], axis[i][1]},
+        };
+        *buffer++ = vertex;
+    }
+    return buffer;
 }
 
 particleVertex_t *
@@ -206,8 +207,13 @@ R_AddParticle(particleVertex_t *buffer,
               float size)
 {
     LPBYTE uv = (LPBYTE)&uvr;
-    return R_AddParticleUV(buffer, point, tail, BYTE2FLOAT(uv[0]), BYTE2FLOAT(uv[1]),
-                           BYTE2FLOAT(uv[2]), BYTE2FLOAT(uv[3]), color, size);
+    particleQuad_t const quad = {
+        .point = point, .tail = tail,
+        .u0 = BYTE2FLOAT(uv[0]), .v0 = BYTE2FLOAT(uv[1]),
+        .u1 = BYTE2FLOAT(uv[2]), .v1 = BYTE2FLOAT(uv[3]),
+        .color = color, .size = size,
+    };
+    return R_AddParticleQuad(buffer, &quad, PARTICLE_UV_BILLBOARD);
 }
 
 void R_UpdateParticles(void) {
@@ -410,36 +416,20 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
         FLOAT length = Vector3_len(&tail);
         if (length <= 0.001f) continue;
         if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;
-        pv = R_AddRibbonUV(pv, draw->points + i + 1, &tail,
-            draw->texcoord_phase + distance * draw->texcoord_scale,
-            draw->texcoord_phase + (distance + length) * draw->texcoord_scale,
-            0.0f, 1.0f,
-            draw->color, draw->width);
+        particleQuad_t const quad = {
+            .point = draw->points + i + 1, .tail = &tail,
+            .u0 = draw->texcoord_phase + distance * draw->texcoord_scale,
+            .v0 = 0.0f,
+            .u1 = draw->texcoord_phase + (distance + length) * draw->texcoord_scale,
+            .v1 = 1.0f,
+            .color = draw->color, .size = draw->width,
+        };
+        pv = R_AddParticleQuad(pv, &quad, PARTICLE_UV_RIBBON);
         distance += length;
     }
     if (pv != particles_resources.vertices) R_FlushParticles(draw->texture, &matrix, pv, draw->blend_mode);
     if (!draw->depth_test && depth_enabled) R_Call(glEnable, GL_DEPTH_TEST);
     R_SetAlphaKeyState(false);
-}
-
-/* Generic camera-facing textured ribbon between two world points. */
-void R_DrawRibbonSprite(LPCTEXTURE texture, LPCVECTOR3 source, LPCVECTOR3 target,
-                        float width, COLOR32 color, BLEND_MODE blend_mode, BOOL depth_test) {
-    VECTOR3 points[2];
-    FLOAT length;
-    if (!source || !target) return;
-    points[0] = *source; points[1] = *target;
-    length = Vector3_distance(source, target);
-    R_DrawRibbon(&(ribbonDraw_t){
-        .texture = texture,
-        .points = points,
-        .point_count = 2,
-        .width = width,
-        .texcoord_scale = length > 0.001f ? 1.0f / length : 0.0f,
-        .color = color,
-        .blend_mode = blend_mode,
-        .depth_test = depth_test,
-    });
 }
 
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {

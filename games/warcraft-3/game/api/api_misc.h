@@ -1889,7 +1889,10 @@ static DWORD JassLightningCreate(LPJASS j, LPCSTR code, BOOL check_visibility,
                                   LPCVECTOR3 source, LPCVECTOR3 target) {
     LPGLIGHTNING bolt;
     (void)check_visibility; /* Visibility filtering is a client fog concern, not a global registry property. */
-    bolt = G_LightningAdd(JassLightningCode(code), source, target, COLOR32_WHITE, 0);
+    bolt = G_LightningAdd(&(lightningAddParams_t){
+        .effect_id = JassLightningCode(code), .source = source, .target = target,
+        .color = COLOR32_WHITE,
+    });
     return bolt ? jass_pushlighthandle(j, bolt, "lightning") : jass_pushnullhandle(j, "lightning");
 }
 
@@ -1940,10 +1943,15 @@ DWORD SetLightningColor(LPJASS j) {
     G_LightningScriptColor(bolt, color, precise);
     return jass_pushboolean(j, 1);
 }
-DWORD GetLightningColorR(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[0] : 0); }
-DWORD GetLightningColorG(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[1] : 0); }
-DWORD GetLightningColorB(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[2] : 0); }
-DWORD GetLightningColorA(LPJASS j) { LPGLIGHTNING b = jass_checkhandle(j, 1, "lightning"); return jass_pushnumber(j, G_LightningValid(b) ? b->script_color[3] : 0); }
+/* Read the precise script colour while invalid handles retain JASS's zero result. */
+static DWORD JassGetLightningColor(LPJASS j, DWORD channel) {
+    LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
+    return jass_pushnumber(j, G_LightningValid(bolt) ? bolt->script_color[channel] : 0);
+}
+DWORD GetLightningColorR(LPJASS j) { return JassGetLightningColor(j, 0); }
+DWORD GetLightningColorG(LPJASS j) { return JassGetLightningColor(j, 1); }
+DWORD GetLightningColorB(LPJASS j) { return JassGetLightningColor(j, 2); }
+DWORD GetLightningColorA(LPJASS j) { return JassGetLightningColor(j, 3); }
 
 DWORD CreateImage(LPJASS j) {
     LPCSTR file = jass_checkstring(j, 1);

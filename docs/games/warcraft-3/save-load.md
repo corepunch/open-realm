@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 34, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 35, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -69,9 +69,11 @@ or lose the lifecycle state that gates authored player/team/color initialization
 
 Version 32 adds `edict_s.permanent_invisibility_reveal_until`, the authoritative server-time deadline used by `Apiv` Permanent Invisibility after spawn, attack, or spell-cast reveal. The field is serialized explicitly in `edict_fields[]`; the expanded `edict_t` size and version reject older layouts rather than interpreting shifted entity state.
 
-Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `wc3LightningEffect_t` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
+Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `lightningEffect_t` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
 
 Version 34 adds the `lightning` JASS handle domain. `AddLightning` and `AddLightningEx` handles now point at the same stable lightning registry slots used by ability presentation, so movement, colour, destruction, hashtable entries, and active script globals preserve their identity across save/load.
+
+Version 35 adds entity attachment and spawn-generation fields to each lightning registry slot. Ability bolts save their source/target edict indexes and spawn times, then restore those references through the normal `F_EDICT` fixup path. Each outgoing datagram refreshes attached endpoints from the current unit origins; if an edict was freed or its spawn generation changed, that endpoint is detached instead of following a reused slot. The saved coordinates remain available for explicitly positioned JASS lightning.
 
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).

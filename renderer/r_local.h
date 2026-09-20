@@ -502,7 +502,6 @@ typedef struct {
     BOOL depth_test;
 } ribbonDraw_t;
 void R_DrawRibbon(ribbonDraw_t const *draw);
-void R_DrawRibbonSprite(LPCTEXTURE texture, LPCVECTOR3 source, LPCVECTOR3 target, float width, COLOR32 color, BLEND_MODE blend_mode, BOOL depth_test);
 
 extern struct render_globals tr;
 

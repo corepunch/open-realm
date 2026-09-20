@@ -882,7 +882,7 @@ typedef gweather_t const *LPCGWEATHER;
 
 typedef struct {
     BOOL inuse;
-    wc3LightningEffect_t state;
+    lightningEffect_t state;
     LPEDICT source_entity;
     DWORD source_spawn_time;
     LPEDICT target_entity;
@@ -891,6 +891,19 @@ typedef struct {
 } glightning_t;
 typedef glightning_t *LPGLIGHTNING;
 typedef glightning_t const *LPCGLIGHTNING;
+
+typedef struct {
+    DWORD effect_id;
+    LPCVECTOR3 source, target;
+    COLOR32 color;
+    DWORD duration_ms;
+} lightningAddParams_t;
+
+typedef struct {
+    DWORD ability_id, index;
+    LPCEDICT source, target;
+    DWORD duration_ms;
+} abilityLightningParams_t;
 
 typedef struct gtriggeraction_s {
     struct jass_function const *func;
@@ -2304,7 +2317,7 @@ LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWOR
 LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index, LPEDICT target, LPCSTR attach_point, BOOL temporary);
 void G_DestroyEffect(LPEDICT effect);
 DWORD G_AbilityLightningId(DWORD ability_id, DWORD index);
-LPGLIGHTNING G_LightningAdd(DWORD effect_id, LPCVECTOR3 source, LPCVECTOR3 target, COLOR32 color, DWORD duration_ms);
+LPGLIGHTNING G_LightningAdd(lightningAddParams_t const *params);
 BOOL G_LightningValid(LPCGLIGHTNING effect);
 void G_LightningAttach(LPGLIGHTNING effect, LPCEDICT source, LPCEDICT target);
 void G_LightningUpdateAttached(LPGLIGHTNING effect);
@@ -2312,7 +2325,7 @@ void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target);
 void G_LightningColor(LPGLIGHTNING effect, COLOR32 color);
 void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise);
 void G_LightningRemove(LPGLIGHTNING effect);
-LPGLIGHTNING G_SpawnAbilityLightning(DWORD ability_id, DWORD index, LPCEDICT source, LPCEDICT target, DWORD duration_ms);
+LPGLIGHTNING G_SpawnAbilityLightning(abilityLightningParams_t const *params);
 LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point);
 void G_DestroyOwnedEffects(LPEDICT owner);
 void G_EffectThink(LPEDICT);

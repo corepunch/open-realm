@@ -18,12 +18,12 @@ typedef struct {
 
 typedef struct {
     DWORD handle;
-    DWORD effect_id; /* LightningData.slk fourcc, e.g. CLPB/CLSB */
+    DWORD effect_id; /* producer-defined presentation record ID */
     VECTOR3 source;
     VECTOR3 target;
-    COLOR32 color;   /* multiplicative RGBA; white preserves LightningData colour */
+    COLOR32 color;   /* multiplicative RGBA tint */
     DWORD start_time;
     DWORD end_time;  /* 0 = persistent until removed */
-} wc3LightningEffect_t;
+} lightningEffect_t;
 
 #endif

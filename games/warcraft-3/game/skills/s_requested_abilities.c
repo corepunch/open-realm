@@ -275,14 +275,21 @@ void chain_lightning_think(LPEDICT thinker) {
     }
 
     if (thinker->goalentity && thinker->goalentity->inuse && thinker->goalentity->spawn_time == thinker->damage) {
-        G_SpawnAbilityLightning(thinker->class_id, 1, thinker->goalentity, next, CHAIN_LIGHTNING_BOLT_MS);
+        G_SpawnAbilityLightning(&(abilityLightningParams_t){
+            .ability_id = thinker->class_id, .index = 1,
+            .source = thinker->goalentity, .target = next,
+            .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+        });
     } else {
         VECTOR3 from = { thinker->s.origin2.x, thinker->s.origin2.y,
             CM_GetHeightAtPoint(thinker->s.origin2.x, thinker->s.origin2.y) + next->s.radius * 0.5f };
         VECTOR3 to = next->s.origin;
         DWORD lightning = G_AbilityLightningId(thinker->class_id, 1);
         to.z += next->s.radius * 0.5f;
-        if (lightning) G_LightningAdd(lightning, &from, &to, COLOR32_WHITE, CHAIN_LIGHTNING_BOLT_MS);
+        if (lightning) G_LightningAdd(&(lightningAddParams_t){
+            .effect_id = lightning, .source = &from, .target = &to,
+            .color = COLOR32_WHITE, .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+        });
     }
     S_SpellDamage(next, caster, (int)MAX(1.0f, thinker->wait));
     G_SpawnAbilityEffectTarget(thinker->class_id, WC3_EFFECT_TARGET, 0, next, NULL, true);
@@ -307,7 +314,10 @@ static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, abilityite
 
     if (!st.entity || !hits) return;
     G_PlayAbilityEffectSound(spell->code, &st.entity->s.origin2);
-    G_SpawnAbilityLightning(spell->code, 0, caster, st.entity, CHAIN_LIGHTNING_BOLT_MS);
+    G_SpawnAbilityLightning(&(abilityLightningParams_t){
+        .ability_id = spell->code, .source = caster, .target = st.entity,
+        .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
+    });
     S_SpellDamage(st.entity, caster, (int)MAX(1.0f, damage));
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
     if (hits <= 1) return;
