@@ -167,21 +167,32 @@ static BOOL OptionsMenu_CheckBoxValue(LPCFRAMEDEF frame, BOOL fallback) {
 }
 
 static int OptionsMenu_MusicSliderPercent(void) {
+    FLOAT min_value, max_value, value;
+
     if (!options_menu.MusicVolumeSlider) return music_volume_percent;
-    return MAX(0, MIN(100, (int)floorf(options_menu.MusicVolumeSlider->Slider.InitialValue + 0.5f)));
+    min_value = options_menu.MusicVolumeSlider->Slider.MinValue;
+    max_value = options_menu.MusicVolumeSlider->Slider.MaxValue;
+    value = options_menu.MusicVolumeSlider->Slider.InitialValue;
+    if (max_value <= min_value) return music_volume_percent;
+    return MAX(0, MIN(100, (int)floorf((value - min_value) * 100.0f /
+        (max_value - min_value) + 0.5f)));
 }
 
 static void OptionsMenu_InitMusicControls(void) {
+    FLOAT slider_value = 100.0f;
+
     music_enabled_value = OptionsMenu_CvarInteger("s_music", 1) != 0;
-    music_volume_percent = MAX(0, MIN(100,
-        (int)floorf(OptionsMenu_CvarFloat("s_musicvolume", 1.0f) * 100.0f + 0.5f)));
+    if (options_menu.MusicVolumeSlider &&
+        options_menu.MusicVolumeSlider->Slider.MaxValue > options_menu.MusicVolumeSlider->Slider.MinValue) {
+        FLOAT min_value = options_menu.MusicVolumeSlider->Slider.MinValue;
+        FLOAT max_value = options_menu.MusicVolumeSlider->Slider.MaxValue;
+        slider_value = min_value + OptionsMenu_CvarFloat("s_musicvolume", 1.0f) * (max_value - min_value);
+        music_volume_percent = MAX(0, MIN(100, (int)floorf(
+            (slider_value - min_value) * 100.0f / (max_value - min_value) + 0.5f)));
+    } else music_volume_percent = 100;
     OptionsMenu_SetCheckBox(options_menu.MusicCheckBox, music_enabled_value);
-    if (options_menu.MusicVolumeSlider) {
-        options_menu.MusicVolumeSlider->Slider.MinValue = 0.0f;
-        options_menu.MusicVolumeSlider->Slider.MaxValue = 100.0f;
-        options_menu.MusicVolumeSlider->Slider.StepSize = 1.0f;
-        options_menu.MusicVolumeSlider->Slider.InitialValue = (FLOAT)music_volume_percent;
-    }
+    if (options_menu.MusicVolumeSlider)
+        options_menu.MusicVolumeSlider->Slider.InitialValue = slider_value;
     music_controls_initialized = true;
 }
 
@@ -190,7 +201,7 @@ static void OptionsMenu_RefreshMusicControls(void) {
     int percent;
     char value[32];
 
-    if (!music_controls_initialized || !mi.Cvar_Set) return;
+    if (!music_controls_initialized) return;
     enabled = OptionsMenu_CheckBoxValue(options_menu.MusicCheckBox, music_enabled_value);
     percent = OptionsMenu_MusicSliderPercent();
     if (enabled != music_enabled_value) {

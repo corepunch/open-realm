@@ -112,7 +112,7 @@ s_music        0/1, default 1
 s_musicvolume  0.0..1.0, default 1.0
 ```
 
-The main-menu Options/Sound `MusicCheckBox` and `MusicVolumeSlider` update those cvars immediately. The user gain multiplies, rather than replaces, Warcraft's JASS music/thematic `0..127` volumes. Disabling music pauses the long-form stream so re-enabling it resumes the same decoder/playlist position instead of silently advancing the soundtrack. The server-authored in-game F10 Options button is still disabled as part of the broader in-game options-panel gap; that does not change the global cvars or music controller contract.
+The main-menu Options/Sound `MusicCheckBox` and `MusicVolumeSlider` update those cvars immediately. The slider uses the min/max/step authored by its FDF instead of replacing them with a code-defined range, then maps that authored range to the archived `0.0..1.0` preference. The user gain multiplies, rather than replaces, Warcraft's JASS music/thematic `0..127` volumes. Disabling music pauses the long-form stream and its fade clock so re-enabling it resumes the same decoder/playlist position instead of silently advancing the soundtrack. The server-authored in-game F10 Options button is still disabled as part of the broader in-game options-panel gap; that does not change the global cvars or music controller contract.
 
 ## JASS Semantics Implemented
 
@@ -260,6 +260,8 @@ Movies suspend music while they own full-screen presentation, then restore the p
 ## Network Contract
 
 `svc_music` is a reliable server-to-client presentation message. `musicCommand_t` is game-neutral and contains no Warcraft race/unit/spell identifiers.
+
+The session synchronization fields are part of the current `svc_music` payloads, and the raw `GAMECLIENT` music record is persisted by the versioned save format. This is a deliberate compatibility boundary: clients and saves from before the session-state change are rejected by their existing exact-version checks rather than being decoded with the wrong field layout. Any future compatibility work must add an explicit version or negotiation path before changing these records again.
 
 Current payloads:
 
