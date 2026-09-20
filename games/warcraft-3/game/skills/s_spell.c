@@ -437,6 +437,16 @@ BOOL S_SpellIsChanneling(LPEDICT caster) {
     return caster && caster->channel.code != 0;
 }
 
+/* Some temporary summons own a timed lifecycle but are not destroyable by
+ * dispel-style summoned-unit damage. Resolve this by the concrete ability
+ * procedure so AbilityData aliases inherit the same Animate Dead behavior. */
+BOOL S_SummonIsDispelImmune(LPCEDICT unit) {
+    abilityitem_t item;
+    if (!unit || !unit->summon_ability) return false;
+    item = S_AbilityItem(unit->summon_ability);
+    return item.ability && item.ability->proc == CAbilityAnimateDead;
+}
+
 void S_SpellCancelChannel(LPEDICT caster) {
     DWORD code;
     if (!caster || !caster->channel.code) return;

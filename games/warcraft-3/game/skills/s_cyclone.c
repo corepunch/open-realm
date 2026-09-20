@@ -2,19 +2,18 @@
 
 #define BZ_CYCLONE_BUFF MAKEFOURCC('B','c','y','c') // rawcode; primary Cyclone status; locks actions and targeting
 #define BZ_CYCLONE_BUFF_EXTRA MAKEFOURCC('B','c','y','2') // rawcode; extra Cyclone status; locks actions and targeting
+#define BZ_TIMED_LIFE_BUFF MAKEFOURCC('B','T','L','F') // lifecycle marker; dispel must not make a temporary unit permanent
 
 BOOL S_UnitIsCycloned(LPCEDICT unit) {
     return unit && (G_UnitStatusLevel(unit, BZ_CYCLONE_BUFF) || G_UnitStatusLevel(unit, BZ_CYCLONE_BUFF_EXTRA));
 }
 
-/* DataA==0 on the applying Cyclone rawcode (status.data) means Dispel/Purge/Devour must leave the buff. */
+/* BTLF owns temporary-unit lifetime and is never dispellable. Cyclone additionally
+ * uses DataA==0 on its applying rawcode (status.data) for an authored undispellable buff. */
 BOOL S_StatusIsUndispellable(heroabilitystatus_t const *status) {
     abilityitem_t item;
     if (!status || !status->level) return false;
-    /* BTLF is lifecycle state, not an ordinary magic buff.  Removing it via
-     * Dispel/Purge would let a surviving summoned unit live forever.  Those
-     * spells already apply their authored summoned-unit damage separately. */
-    if (status->code == MAKEFOURCC('B', 'T', 'L', 'F')) return true;
+    if (status->code == BZ_TIMED_LIFE_BUFF) return true;
     if (!status->data) return false;
     item = S_AbilityItem(status->data);
     if (!item.ability || item.ability->proc != CAbilityCyclone) return false;

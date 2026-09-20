@@ -211,8 +211,10 @@ void G_RunEntity(LPEDICT ent) {
     { FLOAT const rate = S_SoulBurnDamageRate(ent); if (rate > 0.0f && ent->health.value > 0) G_AddHealth(ent, -rate * (FRAMETIME / 1000.0f)); }
     /* Retail refreshes aura recipients on a two-second cadence; keep the first
      * update immediate while avoiding a full recipient scan every simulation tick. */
-    if (ent->data.UnitBalance && S_RegenerationAuraUpdateDue(ent))
+    if (ent->data.UnitBalance && S_RegenerationAuraUpdateDue(ent)) {
         S_UpdateRegenerationAuraEffects(ent);
+        S_UpdateHeroAuraEffects(ent);
+    }
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
     if (ent->currentmove) {

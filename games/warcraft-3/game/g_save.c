@@ -70,8 +70,8 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format 36 expands the raw GAMECLIENT music state with stable session ids and persisted thematic restore state. */
-static DWORD const save_version = 36;
+/* Format 36 expands the raw GAMECLIENT music state with stable session ids and persisted thematic restore state. Format 37 adds the per-unit corpse_unraisable and corpse_no_decay lifecycle flags. */
+static DWORD const save_version = 37;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -639,6 +639,8 @@ field_t edict_fields[] = {
     F(edict_s, spawn_time, F_INT),
     F(edict_s, summon_ability, F_INT),
     F(edict_s, permanent_invisibility_reveal_until, F_INT),
+    F(edict_s, corpse_unraisable, F_INT),
+    F(edict_s, corpse_no_decay, F_INT),
     F(edict_s, harvested_lumber, F_INT),
     F(edict_s, harvested_gold, F_INT),
     F(edict_s, heatmap2, F_INT),

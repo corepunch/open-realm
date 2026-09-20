@@ -124,5 +124,6 @@ make test-wc3-engine WC3_PATTERN="wc3_api.hero_skill_points_*"
 
 ## See Also
 
+- [Arthas Hero Abilities](arthas-abilities.md)
 - [Ability Cooldowns](ability-cooldowns.md)
 - [JASS Native Coverage](jass-native-coverage.md)

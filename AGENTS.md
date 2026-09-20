@@ -65,6 +65,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 in-game Menu/F10 overlay, EscMenu panel flow, modal pause/input, leave/exit actions | [docs/games/warcraft-3/in-game-menu.md](docs/games/warcraft-3/in-game-menu.md) |
 | WC3 Allies/F11 dialog, directional alliances, shared vision/control, draft/Accept semantics | [docs/games/warcraft-3/allies-menu.md](docs/games/warcraft-3/allies-menu.md) |
 | WC3 Hero skill tree, skill points, rank requirements, learning UI, JASS progression | [docs/games/warcraft-3/hero-abilities.md](docs/games/warcraft-3/hero-abilities.md) |
+| WC3 Arthas Paladin/Death Knight abilities, hero aura presentation, corpse revival/sacrifice contracts | [docs/games/warcraft-3/arthas-abilities.md](docs/games/warcraft-3/arthas-abilities.md) |
 | WC3 gathering, immobile units, construction HUD, overhead bars | [docs/games/warcraft-3/economy-and-unit-presentation.md](docs/games/warcraft-3/economy-and-unit-presentation.md) |
 | WC3 neutral shops, patrons, item/mercenary stock and purchase/pawn flow | [docs/games/warcraft-3/neutral-shops.md](docs/games/warcraft-3/neutral-shops.md) |
 | WC3 Orc Burrow cargo, Load/Stand Down, occupant state, Burrow attack gating/scaling | [docs/games/warcraft-3/orc-burrows.md](docs/games/warcraft-3/orc-burrows.md) |

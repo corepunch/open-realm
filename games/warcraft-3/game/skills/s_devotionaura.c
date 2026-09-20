@@ -1,10 +1,8 @@
 #include "s_skills.h"
 
-#define ID_DEVOTION_AURA "AHad"
-
-BZ_SIMPLE_SPELL_PROC(AbilityAuraDevotion) {
-    (void)st;
-    unit_addstatus(caster, ID_DEVOTION_AURA, 1);
-
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, caster, NULL, false);
+/* Devotion Aura is a learned passive.  The shared Hero-aura cache in
+ * s_hero_passives.c reads its authored Area/DataA and G_UnitArmorValue()
+ * consumes the strongest in-range contribution. */
+BZ_ABILITY_PROC(CAbilityAuraDevotion) {
+    return CAbilityPassive(ent, msg, call);
 }

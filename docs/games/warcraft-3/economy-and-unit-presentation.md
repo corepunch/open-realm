@@ -449,10 +449,12 @@ does not change the Peasant's own selected-unit panel. The unused building-descr
 The runtime inventory heading uses the localized `INVENTORY` StringList entry and is emitted only when the selected unit has inventory
 capacity. Selecting a unit without inventory replaces that layer with the race-specific inventory cover and no heading.
 
-Ability state and visible buff state are different namespaces. `abilstatus[]` may carry an ability rawcode such as `AHad`; status UI
-resolves that ability's level-specific `AbilityData.slk` `BuffID*` to the corresponding buff rawcode (for example `BHad`) before
-reading `AbilityBuffData.slk` art and tooltip fields. This prevents a learned/cooldown ability ID from being drawn as a fake status icon
-and lets aura buffs use their actual Warcraft buff artwork.
+Ability state and visible buff state are different namespaces. If a runtime status path carries an ability rawcode rather than its
+authored buff rawcode, status UI resolves that ability's level-specific `AbilityData.slk` `BuffID*` before reading
+`AbilityBuffData.slk` art and tooltip fields. Learned passive rawcodes such as `AHad` are not themselves used as recipient icons.
+Devotion and Unholy Aura's periodic recipient reconciliation resolves the winning learned alias's authored `BuffID` and owns a
+corresponding persistent target-art overlay. The info panel renders each reconciled BuffID as a virtual status icon rather than inserting
+fake `abilstatus[]` records; leaving range drops the cached BuffID and overlay on the next aura refresh.
 
 The retained client solver preserves authored FDF dimensions when both opposing anchors are present; for vertical `SetAllPoints`
 children the bottom edge stays attached to the runtime wrapper and authored height extends upward. Single-line stat labels also use

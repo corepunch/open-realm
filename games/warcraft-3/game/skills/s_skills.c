@@ -141,7 +141,7 @@ static ability_t abilitylist[] = {
     { "AHav", CAbilityAvatar, AB_SPELL },  /* Avatar */
     { "AHhb", CAbilityHolyBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Holy Light */
     { "AHds", CAbilityDivineShield, AB_SPELL },  /* Divine Shield */
-    { "AHad", CAbilityAuraDevotion, AB_SPELL },  /* Devotion Aura */
+    { "AHad", CAbilityAuraDevotion, AB_PASSIVE },  /* Devotion Aura */
     { "AHre", CAbilityResurrection, AB_SPELL, SPELL_TARGET_NONE },  /* Resurrection */
     { "Amil", CAbilityMilitia, AB_COMMAND },  /* Call to Arms */
     { "Amic", CAbilityMilitiaConvert, AB_COMMAND | AB_SEPARATE_OFF },  /* Call To Arms */
@@ -265,6 +265,7 @@ static ability_t abilitylist[] = {
     { "AUau", CAbilityPassive, AB_PASSIVE },  /* Unholy Aura */
     { "AUdp", CAbilityDeathPact, AB_SPELL, SPELL_TARGET_UNIT },  /* Death Pact */
     { "AUan", CAbilityAnimateDead, AB_SPELL },  /* Animate Dead */
+    { "AUa2", CAbilityAnimateDead, AB_SPELL },  /* Animate Dead (2.0.3 ability-preserving variant) */
     { "AUcs", CAbilityCarrionSwarm, AB_SPELL, SPELL_TARGET_POINT },  /* Carrion Swarm */
     { "ACca", CAbilityCarrionSwarm, AB_SPELL, SPELL_TARGET_POINT },  /* Carrion Swarm (creep) */
     { "ACcv", CAbilityCarrionSwarm, AB_SPELL, SPELL_TARGET_POINT },  /* Crushing Wave */

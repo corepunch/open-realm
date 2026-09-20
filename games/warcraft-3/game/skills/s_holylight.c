@@ -22,7 +22,7 @@ BZ_ABILITY_PROC(CAbilityHolyBolt) {
             LPCSTR race = target->data.UnitData->race;
             return race && !strcmp(race, STR_UNDEAD);
         }
-        return S_SpellIsFriend(ent, target);
+        return S_SpellIsFriend(ent, target) && target->health.value < target->health.max_value;
     }
     case A_EXECUTE: {
         abilityitem_t const *spell = call ? call->item : NULL;

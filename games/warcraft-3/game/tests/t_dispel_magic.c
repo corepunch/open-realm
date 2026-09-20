@@ -8,6 +8,8 @@
 #define BZ_AENS MAKEFOURCC('A', 'e', 'n', 's') // rawcode; Raider Ensnare
 #define BZ_BSLO MAKEFOURCC('B', 's', 'l', 'o') // rawcode; Slow timed status probe
 #define BZ_BINF MAKEFOURCC('B', 'i', 'n', 'f') // rawcode; Inner Fire timed status probe
+#define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F') // rawcode; timed-life lifecycle status
+#define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
@@ -89,17 +91,18 @@ TEST(wc3_spell, dispel_adis_damages_summoned_with_datab) {
 	dispel_done(fix);
 }
 
-/* Timed life is summon lifecycle state, not a normal dispellable status.
- * Dispel still deals its authored summon damage without making survivors permanent. */
-TEST(wc3_spell, dispel_preserves_summon_timed_life) {
-    DISPELFIX fix = dispel_setup(BZ_ADIS);
-    VECTOR2 point = fix.summon->s.origin2;
-    unit_addtimedstatus(fix.summon, "BTLF", 1, 30.0f);
-    T_ASSERT(S_UnitHasStatus(fix.summon, MAKEFOURCC('B','T','L','F')));
-    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
-    T_FEQ(fix.summon->health.value, 389, 0.001f);
-    T_ASSERT(S_UnitHasStatus(fix.summon, MAKEFOURCC('B','T','L','F')));
-    dispel_done(fix);
+/* Animated Dead is temporary but not destroyable by dispel summoned-unit damage.
+ * Its BTLF marker must likewise survive so the unit still expires normally. */
+TEST(wc3_spell, dispel_does_not_damage_animated_dead) {
+	DISPELFIX fix = dispel_setup(BZ_ADIS);
+	VECTOR2 point = fix.summon->s.origin2;
+	fix.summon->summon_ability = BZ_AUAN;
+	unit_addtimedstatus(fix.summon, "BTLF", 1, 30.0f);
+	T_ASSERT(S_SummonIsDispelImmune(fix.summon));
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
+	T_FEQ(fix.summon->health.value, 500, 0.001f);
+	T_ASSERT(S_UnitHasStatus(fix.summon, BZ_BTLF));
+	dispel_done(fix);
 }
 
 /* Adch is not an Adis alias; it must still damage summons from its DataB row. */
@@ -123,6 +126,20 @@ TEST(wc3_spell, dispel_removes_timed_statuses_in_area) {
 	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BSLO));
 	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BINF));
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
+	dispel_done(fix);
+}
+
+/* Timed life is lifecycle ownership, not a dispellable magic buff: clearing BTLF
+ * would accidentally turn a temporary summon into a permanent unit. */
+TEST(wc3_spell, dispel_preserves_timed_life_status) {
+	DISPELFIX fix = dispel_setup(BZ_ADIS);
+	VECTOR2 point = fix.enemy->s.origin2;
+	unit_addtimedstatus(fix.enemy, "BTLF", 1, 30.0f);
+	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
+	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BTLF));
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
+	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BTLF));
+	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BSLO));
 	dispel_done(fix);
 }
 

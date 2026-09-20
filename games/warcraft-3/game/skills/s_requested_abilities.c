@@ -166,18 +166,61 @@ void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target) {
                    S_SpellData(MAKEFOURCC('A','N','b','a'), level, 3));
 }
 
+static void death_coil_projectile_hit(LPEDICT missile);
+static umove_t death_coil_projectile_move = { "stand", NULL, death_coil_projectile_hit, CAbilityDeathCoil };
+
 static BOOL death_coil_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
     LPCSTR race = st.entity && st.entity->data.UnitData ? st.entity->data.UnitData->race : NULL;
-    return S_SpellIsAliveTarget(st.entity) && race && ((!strcmp(race, STR_UNDEAD) && S_SpellIsFriend(caster, st.entity)) ||
-           (strcmp(race, STR_UNDEAD) && S_SpellIsEnemy(caster, st.entity)));
+    (void)spell;
+    if (!S_SpellIsAliveTarget(st.entity) || st.entity == caster || !race) return false;
+    if (!strcmp(race, STR_UNDEAD) && S_SpellIsFriend(caster, st.entity))
+        return st.entity->health.value < st.entity->health.max_value;
+    return strcmp(race, STR_UNDEAD) && S_SpellIsEnemy(caster, st.entity);
+}
+
+static FLOAT death_coil_missile_speed(DWORD code) {
+    LPCSTR value = S_SpellString(code, "Missilespeed", 0);
+    FLOAT speed;
+
+    if (!value && G_AbilityCode(code) != code) value = S_SpellString(G_AbilityCode(code), "Missilespeed", 0);
+    speed = value ? atof(value) : 0.0f;
+    return speed > 0.0f ? speed : 1000.0f;
+}
+
+static void death_coil_projectile_hit(LPEDICT missile) {
+    LPEDICT target = missile->goalentity, caster = missile->owner;
+    LPCSTR race = target && target->data.UnitData ? target->data.UnitData->race : NULL;
+    BOOL applied = false;
+
+    if (caster && caster->inuse && S_SpellIsAliveTarget(target) && race &&
+        target->spawn_time == missile->channel.target_spawn_time) {
+        if (!strcmp(race, STR_UNDEAD) && S_SpellIsFriend(caster, target)) {
+            S_SpellHeal(target, missile->damage);
+            applied = true;
+        } else if (strcmp(race, STR_UNDEAD) && S_SpellIsEnemy(caster, target)) {
+            applied = S_SpellDamage(target, caster, (int)(missile->damage * 0.5f));
+        }
+        if (applied) G_SpawnAbilityEffectTarget(missile->class_id, WC3_EFFECT_SPECIAL, 0, target, NULL, true);
+    }
+    G_FreeEdict(missile);
 }
 
 static void death_coil_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT amount = S_SpellData(spell->code, level, 1);
-    if (!strcmp(st.entity->data.UnitData->race, STR_UNDEAD)) S_SpellHeal(st.entity, amount);
-    else S_SpellDamage(st.entity, caster, (int)(amount * 0.5f));
+    LPCSTR art = G_AbilityEffectArt(spell->code, WC3_EFFECT_MISSILE, 0);
+    LPEDICT missile = G_Spawn();
+
+    missile->class_id = spell->code;
+    missile->s.origin = caster->s.origin;
+    missile->s.angle = caster->s.angle;
+    missile->s.model = art ? G_RegisterModel(art) : 0;
+    missile->goalentity = st.entity;
+    missile->channel.target_spawn_time = st.entity->spawn_time;
+    missile->owner = caster;
+    missile->velocity = death_coil_missile_speed(spell->code) / 1000.0f;
+    missile->damage = (DWORD)MAX(0.0f, S_SpellData(spell->code, level, 1));
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->currentmove = &death_coil_projectile_move;
 }
 
 /* Resolve chained damage jumps while keeping target selection separate from spell metadata. */
@@ -529,7 +572,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionScarabs) {
     DWORD level = S_SpellLevel(caster, spell->code), count = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FLOAT range = S_SpellRange(spell->code, level);
     LPEDICT corpse = NULL;
-    FILTER_EDICTS(unit, unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit) &&
+    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) &&
                   Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= range) { corpse = unit; break; }
     if (!corpse) return;
     FOR_LOOP(i, count) S_SummonAt(caster, S_SpellDataId(spell->code, level, 3), &corpse->s.origin2,
@@ -586,32 +629,179 @@ BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
         if (buff) unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(target)));
     }
 }
+/* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
+ * ties retain the stable entity-enumeration order until a stricter retail tie-break
+ * is established. */
+static LONG corpse_unit_level(LPCEDICT unit) {
+    UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
+    if (!balance && unit) balance = G_UnitBalance(unit->class_id);
+    return balance ? balance->level : 0;
+}
+
+static BOOL corpse_preferred(LPCEDICT candidate, LPCEDICT current, LPCEDICT caster, BOOL nearest_tie) {
+    LONG candidate_level, current_level;
+
+    if (!current) return true;
+    candidate_level = corpse_unit_level(candidate); current_level = corpse_unit_level(current);
+    if (candidate_level != current_level) return candidate_level > current_level;
+    return nearest_tie && caster &&
+        Vector2_distance(&candidate->s.origin2, &caster->s.origin2) <
+        Vector2_distance(&current->s.origin2, &caster->s.origin2);
+}
+
 /* Name=Animate Dead
  * Ubertip="Raises a number of corpses to serve the caster for a limited time."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityAnimateDead) {
-    DWORD level = S_SpellLevel(caster, spell->code), count = 0, limit = (DWORD)S_SpellData(spell->code, level, 1);
+static BOOL animate_dead_target(LPEDICT caster, LPEDICT unit, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FILTER_EDICTS(unit, count < limit && unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit) &&
-                  Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= area) {
-        G_SetHealth(unit, unit->health.max_value); unit->svflags &= ~SVF_DEADMONSTER; unit->s.flags &= ~EF_NOT_SELECTABLE;
-        unit->s.player = caster->s.player; unit->owner = caster;
-        unit_addtimedstatus(unit, "BTLF", level, S_SpellDuration(spell->code, level, false));
-        if (unit->stand) unit->stand(unit);
-        count++; /* Keep the revived-unit limit independent of the optional animation callback. */
+    return G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) && !G_UnitIsBuilding(unit->class_id) &&
+        Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= area;
+}
+
+static BOOL animate_dead_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)st;
+    FILTER_EDICTS(unit, animate_dead_target(caster, unit, spell)) return true;
+    return false;
+}
+
+static void animate_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code), count = 0;
+    DWORD limit = (DWORD)S_SpellData(spell->code, level, 1);
+    BOOL raised_invulnerable = S_SpellData(spell->code, level, 2) != 0.0f;
+    FLOAT duration = S_SpellDuration(spell->code, level, false);
+    (void)st;
+
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+    while (count < limit) {
+        LPEDICT selected = NULL;
+        FILTER_EDICTS(unit, animate_dead_target(caster, unit, spell))
+            if (corpse_preferred(unit, selected, caster, false)) selected = unit;
+        if (!selected) break;
+
+        /* Animated Dead reuses the corpse handle but does not reactivate food.
+         * Retire the same death-state owners as ordinary resurrection first so
+         * the old decay callback/order state cannot remove or drive the raised unit.
+         * Its original corpse is consumed: when the temporary unit later dies or
+         * times out it must not create another raisable corpse. */
+        selected->svflags &= ~SVF_DEADMONSTER; selected->s.flags &= ~EF_NOT_SELECTABLE;
+        selected->aiflags &= ~AI_HOLD_FRAME; selected->s.renderfx &= ~RF_HIDDEN;
+        selected->combatentity = selected->goalentity = selected->secondarygoal = NULL;
+        selected->wait = 0; G_ClearUnitOrderQueue(selected);
+        selected->corpse_unraisable = true; selected->corpse_no_decay = true;
+        G_SetHealth(selected, selected->health.max_value);
+        /* Hre2 / ABILITY_BLF_RAISED_UNITS_ARE_INVULNERABLE is authored
+         * per Resurrection-family ability. Grant it when requested without
+         * forcibly clearing other invulnerability sources when it is false. */
+        if (raised_invulnerable) selected->invulnerable = true;
+        selected->s.player = caster->s.player; selected->owner = caster;
+        selected->summon_ability = spell->code;
+        unit_addtimedstatus(selected, "BTLF", level, duration);
+        if (selected->stand) selected->stand(selected);
+        gi.LinkEntity(selected);
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
+        count++;
     }
 }
+BZ_VALIDATED_SPELL_PROC(AbilityAnimateDead, animate_dead_validate, animate_dead_execute)
 BZ_VALIDATED_SPELL_PROC(AbilityDeathCoil, death_coil_validate, death_coil_execute)
 /* Name=Death Pact
  * Ubertip="Sacrifices a friendly undead unit to restore the Death Knight's life and mana."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityDeathPact) {
+static BOOL death_pact_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT life = st.entity->health.value;
-    S_SpellHeal(caster, S_SpellData(spell->code, level, 2) * life);
-    caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + S_SpellData(spell->code, level, 1) * life);
-    S_SpellDamage(st.entity, caster, (int)MAX(1.0f, st.entity->health.value));
+    LPCSTR race = st.entity && st.entity->data.UnitData ? st.entity->data.UnitData->race : NULL;
+    FLOAT mana_value = S_SpellData(spell->code, level, 1);
+    FLOAT life_value = S_SpellData(spell->code, level, 2);
+    BOOL mana_as_value = S_SpellData(spell->code, level, 3) != 0.0f;
+    BOOL leave_target_alive = S_SpellData(spell->code, level, 5) != 0.0f;
+    BOOL full_mana = caster->mana.value >= caster->mana.max_value;
+    BOOL full_health = caster->health.value >= caster->health.max_value;
+
+    if (!S_SpellIsAliveTarget(st.entity) || st.entity == caster || !race || strcmp(race, STR_UNDEAD) ||
+        !S_SpellIsFriend(caster, st.entity) || G_UnitIsHero(st.entity)) return false;
+
+    /* Warcraft's DataC value-mode has a deliberately odd target requirement:
+     * a nonzero mana conversion may only target an Undead unit that currently
+     * has mana. Preserve it so custom Death Pact-derived abilities match the
+     * authored field contract rather than treating DataC as presentation-only. */
+    if (mana_as_value && mana_value != 0.0f && st.entity->mana.value <= 0.0f) return false;
+
+    /* Mirror the stock activation/resource gate. DataC/DataD change how the
+     * conversion executes below, but the authored DataA/DataB fields still
+     * decide which caster resources make the cast useful. */
+    if (leave_target_alive) {
+        if (mana_value != 0.0f && full_mana) {
+            if (life_value != 0.0f) return !full_health;
+            return false;
+        }
+        return mana_value != 0.0f || life_value != 0.0f;
+    }
+    if (life_value != 0.0f) {
+        if (mana_value != 0.0f) return !(full_mana && full_health);
+        return !full_health;
+    }
+    return mana_value != 0.0f && !full_mana;
 }
+
+static void death_pact_lose_life(LPEDICT unit, FLOAT amount) {
+    if (!unit || amount <= 0.0f || M_IsDead(unit)) return;
+    G_SetHealth(unit, MAX(0.0f, unit->health.value - amount));
+    /* Warsmash's negative-heal/value path goes through setLife(), which kills
+     * a unit that reaches zero without attributing ordinary combat damage. */
+    if (M_IsDead(unit) && !(unit->svflags & SVF_DEADMONSTER)) {
+        if (unit->die) unit->die(unit, NULL);
+        else unit_die(unit, NULL);
+    }
+}
+
+static void death_pact_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT target_life = st.entity->health.value;
+    FLOAT mana_value = S_SpellData(spell->code, level, 1);
+    FLOAT life_value = S_SpellData(spell->code, level, 2);
+    BOOL mana_as_value = S_SpellData(spell->code, level, 3) != 0.0f;
+    BOOL life_as_value = S_SpellData(spell->code, level, 4) != 0.0f;
+    BOOL leave_target_alive = S_SpellData(spell->code, level, 5) != 0.0f;
+    FLOAT target_life_loss = 0.0f;
+
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+    if (life_value != 0.0f) {
+        if (life_as_value) {
+            target_life_loss += life_value;
+            death_pact_lose_life(caster, life_value);
+        } else {
+            S_SpellHeal(caster, life_value * target_life);
+        }
+    }
+    if (mana_value != 0.0f) {
+        if (mana_as_value) {
+            target_life_loss += mana_value;
+            caster->mana.value = MAX(0.0f, caster->mana.value - mana_value);
+        } else {
+            caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + mana_value * target_life);
+        }
+    }
+
+    /* A non-leave-target-alive Death Pact is a sacrifice even when a fixed
+     * DataC/DataD drain happens to reduce the victim to zero first. Mark the
+     * corpse policy before applying that life loss so the death callback
+     * cannot briefly create a raisable/decaying corpse. */
+    if (!leave_target_alive) {
+        st.entity->corpse_unraisable = true;
+        st.entity->corpse_no_decay = true;
+    }
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    death_pact_lose_life(st.entity, target_life_loss);
+    if (leave_target_alive || (st.entity->svflags & SVF_DEADMONSTER)) return;
+
+    /* Death Pact is a sacrifice, not damage. It therefore bypasses damage
+     * immunity/invulnerability and consumes the victim without leaving a corpse
+     * for Resurrection, Animate Dead, Raise Dead, Cannibalize, etc. */
+    if (st.entity->die) st.entity->die(st.entity, caster);
+    else unit_die(st.entity, caster);
+}
+BZ_VALIDATED_SPELL_PROC(AbilityDeathPact, death_pact_validate, death_pact_execute)
 /* Name=Metamorphosis
  * Ubertip="Transforms the Demon Hunter into a powerful demon."
  */
@@ -679,9 +869,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
 /* Resurrection operates on nearby ordinary corpses; Heroes retain their separate altar revival lifecycle. */
 static BOOL resurrection_target(LPEDICT caster, LPEDICT target, abilityitem_t const *spell) {
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, spell->code));
-    return target->inuse && (target->svflags & SVF_MONSTER) &&
-        (target->svflags & SVF_DEADMONSTER) && M_IsDead(target) &&
-        !G_UnitIsHero(target) && !G_UnitIsBuilding(target->class_id) && S_SpellIsFriend(caster, target) &&
+    return G_UnitIsRaisableCorpse(target) && !G_UnitIsHero(target) &&
+        !G_UnitIsBuilding(target->class_id) && S_SpellIsFriend(caster, target) &&
         Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius;
 }
 
@@ -695,9 +884,17 @@ static BOOL resurrection_validate(LPEDICT caster, spellTarget_t st, abilityitem_
 static void resurrection_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD rank = S_SpellLevel(caster, spell->code), count = 0;
     DWORD limit = (DWORD)S_SpellData(spell->code, rank, 1);
-    FILTER_EDICTS(target, count < limit && resurrection_target(caster, target, spell)) {
-        G_ReviveCorpse(target, 1.0f);
-        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    BOOL raised_invulnerable = S_SpellData(spell->code, rank, 2) != 0.0f;
+    (void)st;
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
+    while (count < limit) {
+        LPEDICT selected = NULL;
+        FILTER_EDICTS(target, resurrection_target(caster, target, spell))
+            if (corpse_preferred(target, selected, caster, true)) selected = target;
+        if (!selected) break;
+        G_ReviveCorpse(selected, 1.0f);
+        if (raised_invulnerable) selected->invulnerable = true;
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
         count++;
     }
 }

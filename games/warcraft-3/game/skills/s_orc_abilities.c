@@ -5,8 +5,7 @@ static LPEDICT ancestral_spirit_target(LPEDICT caster, abilityitem_t const *spel
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT range = S_SpellRange(spell->code, level), nearest = 0.0f;
     LPEDICT selected = NULL;
-    FILTER_EDICTS(target, target->inuse && (target->svflags & SVF_MONSTER) &&
-                  (target->svflags & SVF_DEADMONSTER) && M_IsDead(target) &&
+    FILTER_EDICTS(target, G_UnitIsRaisableCorpse(target) &&
                   target->class_id == MAKEFOURCC('o','t','a','u') && !G_UnitIsHero(target) &&
                   target->s.player == caster->s.player) {
         FLOAT distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
@@ -80,7 +79,7 @@ static void purge_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const 
         slot = st.entity->abilstatus + i;
         if (slot->level && slot->code == *((DWORD const *)buff)) { slot->data = spell->code; break; }
     }
-    if (st.entity->owner)
+    if (st.entity->owner && !S_SummonIsDispelImmune(st.entity))
         S_SpellDamage(st.entity, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 3)));
     if (S_PurgeIsImmobilized(st.entity) && st.entity->stand) st.entity->stand(st.entity);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);

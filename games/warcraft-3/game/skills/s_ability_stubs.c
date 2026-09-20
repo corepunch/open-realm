@@ -115,7 +115,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
 static void divine_shield_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
 
-    if (!caster || !caster->inuse || G_Time() < ent->spawn_time) return;
+    if (!caster || !caster->inuse) {
+        G_FreeEdict(ent);
+        return;
+    }
+    if (G_Time() < ent->spawn_time) return;
     caster->invulnerable = ent->resources;
     G_FreeEdict(ent);
 }
@@ -125,14 +129,17 @@ static void divine_shield_think(LPEDICT ent) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
+    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
     LPEDICT thinker = G_Spawn();
 
     if (!thinker) return;
     thinker->owner = caster;
     thinker->resources = caster->invulnerable;
-    thinker->spawn_time = G_Time() + (DWORD)(MAX(0.1f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
+    thinker->spawn_time = G_Time() + (DWORD)(duration * 1000.0f);
     caster->invulnerable = true;
     thinker->think = divine_shield_think;
+    if (buff && strlen(buff) >= 4) unit_addtimedstatus(caster, buff, level, duration);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
 }
 

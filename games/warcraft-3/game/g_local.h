@@ -1283,6 +1283,10 @@ struct edict_s {
     DWORD spawn_time;
     DWORD summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     DWORD permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
+    /* Corpse lifecycle state is explicit because sacrifice/timed summons may die
+     * without becoming legal inputs to corpse-consuming Warcraft abilities. */
+    BOOL corpse_unraisable;
+    BOOL corpse_no_decay;
     DWORD harvested_lumber;
     DWORD harvested_gold;
     struct edictMilitia_s {
@@ -2748,6 +2752,7 @@ void G_HeroApplyLevel(LPEDICT, DWORD level);
 void G_HeroSetXP(LPEDICT, DWORD xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
 void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
+BOOL G_UnitIsRaisableCorpse(LPCEDICT);
 void G_ReviveCorpse(LPEDICT, FLOAT life_fraction);
 BOOL G_UnitIsHero(LPCEDICT ent);
 FLOAT G_UnitArmorValue(LPCEDICT ent);
