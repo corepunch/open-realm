@@ -29,6 +29,8 @@ typedef struct {
     auraAbilityRef_t life_orc;
     auraAbilityRef_t life_blight;
     auraAbilityRef_t mana;
+    auraAbilityRef_t devotion;
+    auraAbilityRef_t unholy;
 } regenAuraSource_t;
 
 typedef enum {
@@ -267,11 +269,11 @@ static DWORD aura_buff_code(LPCSTR buff_id) {
     return code;
 }
 
-/* Discover regeneration providers once per simulation frame; target checks
- * still run per unit because range, alliances, and invulnerability are live. */
+/* Discover aura providers once per simulation frame; target checks still run
+ * per unit because range, alliances, and invulnerability are live. */
 static void regen_aura_cache_update(void) {
     LPCVOID ability_data = G_AbilityData(ID_REGEN_LIFE_ORC);
-    if (level.framenum && regen_cache_frame == level.framenum && regen_cache_ability_data == ability_data)
+    if (regen_cache_frame == level.framenum && regen_cache_ability_data == ability_data)
         return;
     regen_source_count = 0;
     FOR_LOOP(i, globals.num_edicts) {
@@ -281,7 +283,10 @@ static void regen_aura_cache_update(void) {
         entry->life_orc = actor_aura_ability(entry->source, ID_REGEN_LIFE_ORC);
         entry->life_blight = actor_aura_ability(entry->source, ID_REGEN_LIFE_BLIGHT);
         entry->mana = actor_aura_ability(entry->source, ID_REGEN_MANA);
-        if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias) regen_source_count++;
+        entry->devotion = actor_aura_ability(entry->source, ID_DEVOTION_AURA);
+        entry->unholy = actor_aura_ability(entry->source, ID_UNHOLY_AURA);
+        if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
+            entry->devotion.alias || entry->unholy.alias) regen_source_count++;
     }
     regen_cache_frame = level.framenum;
     regen_cache_ability_data = ability_data;
@@ -314,7 +319,10 @@ static void regen_aura_cache_update(void) {
 static auraAbilityRef_t regen_aura_ref(regenAuraSource_t const *entry, DWORD base_code) {
     if (base_code == ID_REGEN_LIFE_ORC) return entry->life_orc;
     if (base_code == ID_REGEN_LIFE_BLIGHT) return entry->life_blight;
-    return entry->mana;
+    if (base_code == ID_REGEN_MANA) return entry->mana;
+    if (base_code == ID_DEVOTION_AURA) return entry->devotion;
+    if (base_code == ID_UNHOLY_AURA) return entry->unholy;
+    return (auraAbilityRef_t){0};
 }
 
 static regenFamily_t regen_family(DWORD base_code) {
@@ -524,15 +532,15 @@ typedef struct {
 static heroAuraPresentation_t hero_aura_presentation(LPEDICT unit, DWORD base_code) {
     heroAuraPresentation_t result = {0};
 
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT source = g_edicts + i;
-        auraAbilityRef_t ability;
+    regen_aura_cache_update();
+    FOR_LOOP(i, regen_source_count) {
+        LPEDICT source = regen_sources[i].source;
+        auraAbilityRef_t const ability = regen_aura_ref(regen_sources + i, base_code);
         abilityLevel_t const *row;
         FLOAT amount;
         LPCSTR buff_id;
 
         if (!source->inuse || M_IsDead(source) || !S_SpellIsFriend(source, unit)) continue;
-        ability = actor_aura_ability(source, base_code);
         if (!ability.alias) continue;
         row = G_AbilityLevel(ability.alias, ability.level);
         if (Vector2_distance(&source->s.origin2, &unit->s.origin2) > row->area ||
