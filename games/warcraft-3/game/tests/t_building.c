@@ -2356,6 +2356,13 @@ TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) 
 }
 
 TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
+    static char const unsummon_ability_slk[] =
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"DataA1\"\nC;Y1;X9;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Auns\"\nC;Y2;X2;K\"Auns\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"structure,player\"\nC;Y2;X5;K\"15\"\nC;Y2;X6;K\"0\"\n"
+        "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"0.25\"\nC;Y2;X9;K\"80\"\nE\n";
     static char const ziggurat_balance_slk[] =
         "C;Y1;X1;K\"unitBalanceID\"\n"
         "C;Y1;X2;K\"goldcost\"\nC;Y1;X3;K\"lumbercost\"\n"
@@ -2370,7 +2377,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     UnitProfile_t acolyte_profile = { .builds = "uzig" };
     UnitBalance_t ziggurat_balance;
     LPEDICT acolyte, ziggurat = NULL;
-    slkTestData_t *balance_rows, *old_balance;
+    slkTestData_t *ability_rows, *old_ability, *balance_rows, *old_balance;
     VECTOR2 const build_point = { 64.0f, 0.0f };
     VECTOR2 const move_point = { -128.0f, 0.0f };
     DWORD const acolyte_id = MAKEFOURCC('u', 'a', 'c', 'o');
@@ -2382,6 +2389,8 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
     acolyte = alloc_test_unit(acolyte_id, 0.0f, 0.0f);
+    ability_rows = parse_slk_string(unsummon_ability_slk);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
     balance_rows = parse_slk_string(ziggurat_balance_slk);
     old_balance = G_SetSLKRows("UnitBalance", balance_rows);
     acolyte_data = *acolyte->data.UnitData;
@@ -2409,11 +2418,16 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
             ziggurat_balance = *ent->data.UnitBalance;
             ziggurat_balance.buildTime = 1;
             ent->data.UnitBalance = &ziggurat_balance;
+            ent->svflags |= SVF_MONSTER;
+            ent->health.max_value = 1000.0f;
+            ent->health.value = ent->health.max_value;
             break;
         }
     }
     T_NOT_NULL(ziggurat);
     if (!ziggurat) {
+        G_SetSLKRows("AbilityData", old_ability);
+        free_slk_rows(ability_rows);
         G_SetSLKRows("UnitBalance", old_balance);
         free_slk_rows(balance_rows);
         return;
@@ -2441,6 +2455,30 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     }
     T_ASSERT(acolyte->s.origin2.x < -64.0f);
     T_ASSERT(acolyte->goalentity == NULL || acolyte->goalentity->s.origin2.x < -64.0f);
+
+    acolyte->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','u','n','s'), .level = 1);
+    acolyte->mana.value = acolyte->mana.max_value = 100.0f;
+    ziggurat->s.player = client->ps.number;
+    ziggurat->svflags |= SVF_MONSTER;
+    ziggurat->targtype = TARG_STRUCTURE;
+    ziggurat->die = unit_die;
+    T_EQ(G_UnitAbilityLevel(acolyte, MAKEFOURCC('A','u','n','s')), 1);
+    T_ASSERT(ziggurat->inuse);
+    T_ASSERT(!M_IsDead(ziggurat));
+    T_ASSERT(!S_UnitSpellImmune(ziggurat));
+    T_ASSERT(S_SpellIsFriend(acolyte, ziggurat));
+    T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','u','n','s'), acolyte, ziggurat));
+    T_ASSERT(S_CastUnitTargetSpell(acolyte, MAKEFOURCC('A','u','n','s'), ziggurat));
+    FOR_LOOP(i, 40) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+        CM_ProcessPathJobs(65536);
+        if (G_UnitStatusLevel(ziggurat, MAKEFOURCC('B','u','n','s'))) break;
+    }
+    T_ASSERT(G_UnitStatusLevel(ziggurat, MAKEFOURCC('B','u','n','s')));
+    T_ASSERT(ziggurat->health.value < ziggurat->health.max_value);
+    G_SetSLKRows("AbilityData", old_ability);
+    free_slk_rows(ability_rows);
     G_SetSLKRows("UnitBalance", old_balance);
     free_slk_rows(balance_rows);
 }

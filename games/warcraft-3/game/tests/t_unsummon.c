@@ -171,23 +171,36 @@ TEST(wc3_spell, unsummon_order_interruption_after_start_keeps_earned_refund) {
     T_FEQ(fix.building->health.value, 84.0f, 0.001f);
     gold = fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
     unit_issueimmediateorder(fix.caster, "stop");
-    uns_tick(fix.caster, 1);
-    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
-    T_FEQ(fix.building->health.value, 84.0f, 0.001f);
-    T_EQ(fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], gold);
+    uns_tick(fix.caster, 2);
+    T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    T_FEQ(fix.building->health.value, 68.0f, 0.001f);
+    T_ASSERT(fix.client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] > gold);
     uns_done(&fix);
 }
 
-TEST(wc3_spell, unsummon_moving_away_after_start_stops_demolition) {
+TEST(wc3_spell, unsummon_moving_away_after_start_keeps_demolition) {
     UNSFIX fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     uns_tick(fix.caster, 2);
     T_FEQ(fix.building->health.value, 84.0f, 0.001f);
     fix.caster->s.origin2.x = fix.caster->s.origin.x = 0;
-    uns_tick(fix.caster, 1);
-    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
+    uns_tick(fix.caster, 2);
+    T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    T_FEQ(fix.building->health.value, 68.0f, 0.001f);
+    uns_done(&fix);
+}
+
+TEST(wc3_spell, unsummon_caster_death_after_start_keeps_demolition) {
+    UNSFIX fix;
+    uns_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
+    uns_tick(fix.caster, 2);
     T_FEQ(fix.building->health.value, 84.0f, 0.001f);
+    unit_die(fix.caster, NULL);
+    uns_tick(fix.caster, 2);
+    T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    T_FEQ(fix.building->health.value, 68.0f, 0.001f);
     uns_done(&fix);
 }
 
@@ -204,19 +217,18 @@ TEST(wc3_spell, unsummon_enemy_damage_reduces_recovered_resources) {
     uns_done(&fix);
 }
 
-TEST(wc3_spell, unsummon_cancel_keeps_partial_damage_and_refund_but_removes_immunity) {
+TEST(wc3_spell, unsummon_cancel_after_start_keeps_demolition_active) {
     UNSFIX fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     uns_tick(fix.caster, 2);
     T_FEQ(fix.building->health.value, 84.0f, 0.001f);
     S_SpellCancelChannel(fix.caster);
-    T_EQ(G_UnitStatusLevel(fix.building, BZ_BUNS), 0);
-    T_ASSERT(!S_UnitSpellImmune(fix.building));
+    T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
+    T_ASSERT(S_UnitSpellImmune(fix.building));
     T_ASSERT(!M_IsDead(fix.building));
-    uns_tick(fix.caster, 1); /* retired thinker self-cleans */
-    T_NULL(uns_thinker(fix.caster));
-    T_FEQ(fix.building->health.value, 84.0f, 0.001f);
+    uns_tick(fix.caster, 2);
+    T_FEQ(fix.building->health.value, 68.0f, 0.001f);
     uns_done(&fix);
 }
 
