@@ -38,6 +38,8 @@ static void human_remove_status(LPEDICT ent, DWORD code) {
             memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
 }
 
+static BOOL defend_projectile_reaction(LPEDICT projectile);
+
 static void human_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = human_buff(spell, level);
@@ -455,6 +457,7 @@ BZ_ABILITY_PROC(CAbilityDefend) {
         if (!call || !call->item || !G_UnitAbilityResearchAvailable(ent, code)) return false;
         human_toggle_execute(ent, target, call->item);
         return true;
+    case A_PROJECTILE_HIT: return defend_projectile_reaction(call ? call->projectile : NULL);
     default: return CAbilitySimpleSpell(ent, msg, call);
     }
 }
@@ -558,7 +561,8 @@ static int defend_damage_taken(LPEDICT target, DWORD attack_type, int damage) {
     return (int)((FLOAT)damage * MAX(0.0f, factor));
 }
 
-BOOL S_DefendProjectileReaction(LPEDICT projectile) {
+/* Reflect a basic attack missile while the target's Defend ability owns the reaction. */
+static BOOL defend_projectile_reaction(LPEDICT projectile) {
     DWORD level, attack_type;
     FLOAT chance, deflect_factor;
     LPEDICT attacker, target;

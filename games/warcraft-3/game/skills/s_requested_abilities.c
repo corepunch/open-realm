@@ -275,7 +275,7 @@ void chain_lightning_think(LPEDICT thinker) {
     }
 
     if (thinker->goalentity && thinker->goalentity->inuse && thinker->goalentity->spawn_time == thinker->damage) {
-        G_SpawnAbilityLightning(&(abilityLightningParams_t){
+        G_SpawnAbilityLightning(&(ABILITYLIGHTNINGPARAMS){
             .ability_id = thinker->class_id, .index = 1,
             .source = thinker->goalentity, .target = next,
             .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
@@ -286,7 +286,7 @@ void chain_lightning_think(LPEDICT thinker) {
         VECTOR3 to = next->s.origin;
         DWORD lightning = G_AbilityLightningId(thinker->class_id, 1);
         to.z += next->s.radius * 0.5f;
-        if (lightning) G_LightningAdd(&(lightningAddParams_t){
+        if (lightning) G_LightningAdd(&(LIGHTNINGADDPARAMS){
             .effect_id = lightning, .source = &from, .target = &to,
             .color = COLOR32_WHITE, .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
         });
@@ -314,7 +314,7 @@ static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, abilityite
 
     if (!st.entity || !hits) return;
     G_PlayAbilityEffectSound(spell->code, &st.entity->s.origin2);
-    G_SpawnAbilityLightning(&(abilityLightningParams_t){
+    G_SpawnAbilityLightning(&(ABILITYLIGHTNINGPARAMS){
         .ability_id = spell->code, .source = caster, .target = st.entity,
         .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
     });

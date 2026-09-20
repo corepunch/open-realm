@@ -424,7 +424,6 @@ DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? A
 
 /* Apply static ability traits after ordinary collision and vulnerability state. */
 void G_ApplyUnitAbilityTraits(LPEDICT ent) {
-    S_PermanentInvisibilityInitialize(ent);
     if (!G_ActorHasSkill(ent, "Aloc")) return;
     ent->s.flags |= EF_NOT_SELECTABLE;
     ent->invulnerable = true;

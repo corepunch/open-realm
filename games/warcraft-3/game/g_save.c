@@ -211,24 +211,24 @@ static field_t const weather_fields[] = {
 };
 
 static field_t const lightning_state_fields[] = {
-    TF(lightningEffect_t, handle, F_INT),
-    TF(lightningEffect_t, effect_id, F_INT),
-    TF(lightningEffect_t, source, F_VECTOR),
-    TF(lightningEffect_t, target, F_VECTOR),
-    TF(lightningEffect_t, color, F_INT),
-    TF(lightningEffect_t, start_time, F_INT),
-    TF(lightningEffect_t, end_time, F_INT),
+    TF(LIGHTNINGEFFECT, handle, F_INT),
+    TF(LIGHTNINGEFFECT, effect_id, F_INT),
+    TF(LIGHTNINGEFFECT, source, F_VECTOR),
+    TF(LIGHTNINGEFFECT, target, F_VECTOR),
+    TF(LIGHTNINGEFFECT, color, F_INT),
+    TF(LIGHTNINGEFFECT, start_time, F_INT),
+    TF(LIGHTNINGEFFECT, end_time, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const lightning_fields[] = {
-    TF(glightning_t, inuse, F_INT),
-    TF(glightning_t, state, F_STRUCT, 1, lightning_state_fields),
-    TF(glightning_t, source_entity, F_EDICT, 0, FIELD_NONE),
-    TF(glightning_t, source_spawn_time, F_INT),
-    TF(glightning_t, target_entity, F_EDICT, 0, FIELD_NONE),
-    TF(glightning_t, target_spawn_time, F_INT),
-    TF(glightning_t, script_color, F_FLOAT),
+    TF(GLIGHTNING, inuse, F_INT),
+    TF(GLIGHTNING, state, F_STRUCT, 1, lightning_state_fields),
+    TF(GLIGHTNING, source_entity, F_EDICT, 0, FIELD_NONE),
+    TF(GLIGHTNING, source_spawn_time, F_INT),
+    TF(GLIGHTNING, target_entity, F_EDICT, 0, FIELD_NONE),
+    TF(GLIGHTNING, target_spawn_time, F_INT),
+    TF(GLIGHTNING, script_color, F_FLOAT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 

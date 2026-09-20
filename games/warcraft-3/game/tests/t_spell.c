@@ -2515,18 +2515,18 @@ TEST(wc3_spell, chain_lightning_delays_each_jump_and_never_rehits_previous_targe
     FILTER_EDICTS(ent, ent->think == chain_lightning_think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
 
-    level.time = 249; chain_lightning_think(thinker);
+    level.time = 249; G_RunEntities();
     T_FEQ(second->health.value, 500.0f, 0.001f);
     T_FEQ(third->health.value, 500.0f, 0.001f);
 
-    level.time = 250; chain_lightning_think(thinker);
+    level.time = 250; G_RunEntities();
     T_FEQ(first->health.value, 400.0f, 0.001f);
     T_FEQ(second->health.value + third->health.value, 950.0f, 0.001f);
     T_ASSERT(thinker->inuse);
 
-    level.time = 499; chain_lightning_think(thinker);
+    level.time = 499; G_RunEntities();
     T_FEQ(second->health.value + third->health.value, 950.0f, 0.001f);
-    level.time = 500; chain_lightning_think(thinker);
+    level.time = 500; G_RunEntities();
     T_FEQ(first->health.value, 400.0f, 0.001f);
     T_FEQ(second->health.value + third->health.value, 925.0f, 0.001f);
     T_ASSERT(!thinker->inuse);

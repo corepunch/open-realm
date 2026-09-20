@@ -89,7 +89,7 @@ DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     }
     FOR_LOOP(i, globals.num_edicts) if (G_ClientReceivesVertexColor(ent, &g_edicts[i])) tint_count++;
     base = sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t);
-    lightning_need = lightning_header_size + lightning_count * sizeof(lightningEffect_t);
+    lightning_need = lightning_header_size + lightning_count * sizeof(LIGHTNINGEFFECT);
     mask_min = 0;
     if (G_BlightDatagramPending(ent) && level.blight.width)
         mask_min = sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;

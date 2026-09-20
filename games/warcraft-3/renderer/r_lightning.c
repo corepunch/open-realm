@@ -14,48 +14,85 @@ typedef struct {
     FLOAT duration;
     DWORD version;
     LPCTEXTURE texture;
-} w3LightningArt_t;
+} W3LIGHTNINGART;
+typedef W3LIGHTNINGART *LPW3LIGHTNINGART;
+typedef W3LIGHTNINGART const *LPCW3LIGHTNINGART;
 
 static slkField_t const lightning_schema[] = {
-    { "", offsetof(w3LightningArt_t, id), STB_SLK_FOURCC },
-    { "Dir", offsetof(w3LightningArt_t, dir), STB_SLK_STR },
-    { "file", offsetof(w3LightningArt_t, file), STB_SLK_STR },
-    { "AvgSegLen", offsetof(w3LightningArt_t, avg_seg_len), STB_SLK_FLOAT },
-    { "Width", offsetof(w3LightningArt_t, width), STB_SLK_FLOAT },
-    { "R", offsetof(w3LightningArt_t, r), STB_SLK_INT },
-    { "G", offsetof(w3LightningArt_t, g), STB_SLK_INT },
-    { "B", offsetof(w3LightningArt_t, b), STB_SLK_INT },
-    { "A", offsetof(w3LightningArt_t, a), STB_SLK_INT },
-    { "NoiseScale", offsetof(w3LightningArt_t, noise_scale), STB_SLK_FLOAT },
-    { "TexCoordScale", offsetof(w3LightningArt_t, texcoord_scale), STB_SLK_FLOAT },
-    { "Duration", offsetof(w3LightningArt_t, duration), STB_SLK_FLOAT },
-    { "version", offsetof(w3LightningArt_t, version), STB_SLK_INT },
+    { "", offsetof(W3LIGHTNINGART, id), STB_SLK_FOURCC },
+    { "Dir", offsetof(W3LIGHTNINGART, dir), STB_SLK_STR },
+    { "file", offsetof(W3LIGHTNINGART, file), STB_SLK_STR },
+    { "AvgSegLen", offsetof(W3LIGHTNINGART, avg_seg_len), STB_SLK_FLOAT },
+    { "Width", offsetof(W3LIGHTNINGART, width), STB_SLK_FLOAT },
+    { "R", offsetof(W3LIGHTNINGART, r), STB_SLK_INT },
+    { "G", offsetof(W3LIGHTNINGART, g), STB_SLK_INT },
+    { "B", offsetof(W3LIGHTNINGART, b), STB_SLK_INT },
+    { "A", offsetof(W3LIGHTNINGART, a), STB_SLK_INT },
+    { "NoiseScale", offsetof(W3LIGHTNINGART, noise_scale), STB_SLK_FLOAT },
+    { "TexCoordScale", offsetof(W3LIGHTNINGART, texcoord_scale), STB_SLK_FLOAT },
+    { "Duration", offsetof(W3LIGHTNINGART, duration), STB_SLK_FLOAT },
+    { "version", offsetof(W3LIGHTNINGART, version), STB_SLK_INT },
     { NULL, 0, 0 },
 };
 
-static w3LightningArt_t *lightning_rows;
+static W3LIGHTNINGART *lightning_rows;
 static DWORD lightning_count;
 static slkIndex_t lightning_index;
+static struct {
+    ARRAY(DWORD, ids);
+    DWORD capacity;
+} lightning_missing;
+
+/* Remember every unresolved row for the current map so alternating effects do not warn per draw. */
+static BOOL R_LightningMissing(DWORD id) {
+    DWORD *ids;
+    DWORD capacity;
+
+    FOR_LOOP(i, ARRAY_COUNT(lightning_missing.ids))
+        if (lightning_missing.ids[i] == id) return true;
+    if (ARRAY_COUNT(lightning_missing.ids) == lightning_missing.capacity) {
+        capacity = lightning_missing.capacity ? lightning_missing.capacity * 2 : 16;
+        ids = ri.MemAlloc(sizeof(*ids) * capacity);
+        if (!ids) {
+            fprintf(stderr, "WC3 Lightning: unable to cache missing row %08x\n", (unsigned)id);
+            return false;
+        }
+        if (lightning_missing.ids) {
+            memcpy(ids, lightning_missing.ids, sizeof(*ids) * ARRAY_COUNT(lightning_missing.ids));
+            ri.MemFree(lightning_missing.ids);
+        }
+        lightning_missing.ids = ids;
+        lightning_missing.capacity = capacity;
+    }
+    lightning_missing.ids[ARRAY_COUNT(lightning_missing.ids)++] = id;
+    return false;
+}
+
+/* Release the per-map missing-row cache before the next asset scope is loaded. */
+static void R_LightningClearMissing(void) {
+    if (lightning_missing.ids) ri.MemFree(lightning_missing.ids);
+    lightning_missing.ids = NULL;
+    ARRAY_COUNT(lightning_missing.ids) = lightning_missing.capacity = 0;
+}
 
 /* Resolve a map-scoped LightningData table before falling back to the base archive. */
 static DWORD R_LightningLoadSlk(LPCSTR filename, void **dest) {
     PATHSTR scoped;
     DWORD count = 0;
     if (R_MapAssetCandidate(filename, scoped, sizeof(scoped)))
-        count = ri.LoadSlk(scoped, lightning_schema, dest, sizeof(w3LightningArt_t));
-    if (!count) count = ri.LoadSlk(filename, lightning_schema, dest, sizeof(w3LightningArt_t));
+        count = ri.LoadSlk(scoped, lightning_schema, dest, sizeof(W3LIGHTNINGART));
+    if (!count) count = ri.LoadSlk(filename, lightning_schema, dest, sizeof(W3LIGHTNINGART));
     return count;
 }
 
 /* Cache the authored ribbon texture; malformed rows are logged once and skipped by the caller. */
-static LPCTEXTURE R_LightningTexture(w3LightningArt_t *art) {
+static LPCTEXTURE R_LightningTexture(W3LIGHTNINGART *art) {
     PATHSTR path;
-    static DWORD missing_id;
     if (!art) return NULL;
     if (art->texture) return art->texture;
     if (!art->file || !*art->file) {
-        if (missing_id != art->id) fprintf(stderr, "WC3 Lightning: row %08x has no texture file\n", (unsigned)art->id);
-        missing_id = art->id;
+        if (!R_LightningMissing(art->id))
+            fprintf(stderr, "WC3 Lightning: row %08x has no texture file\n", (unsigned)art->id);
         return NULL;
     }
     if (art->dir && *art->dir) snprintf(path, sizeof(path), "%s\\%s", art->dir, art->file);
@@ -70,24 +107,27 @@ void R_LightningInit(void) {
     lightning_rows = NULL;
     lightning_count = 0;
     memset(&lightning_index, 0, sizeof(lightning_index));
+    R_LightningClearMissing();
 }
 
 /* Release the table and texture references owned by the current map. */
 void R_LightningShutdown(void) {
     FS_SLKFreeIndex(&lightning_index);
-    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
+    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(W3LIGHTNINGART));
     lightning_rows = NULL;
     lightning_count = 0;
+    R_LightningClearMissing();
 }
 
 /* Rebuild the authored LightningData lookup whenever the map asset scope changes. */
 void R_LightningRegisterMap(void) {
     FS_SLKFreeIndex(&lightning_index);
-    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
+    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(W3LIGHTNINGART));
     lightning_rows = NULL;
+    R_LightningClearMissing();
     lightning_count = R_LightningLoadSlk("Splats\\LightningData.slk", (void **)&lightning_rows);
     if (!lightning_count) fprintf(stderr, "WC3 Lightning: Splats\\LightningData.slk has no rows\n");
-    FS_SLKBuildIndex(&lightning_index, lightning_rows, lightning_count, sizeof(w3LightningArt_t));
+    FS_SLKBuildIndex(&lightning_index, lightning_rows, lightning_count, sizeof(W3LIGHTNINGART));
 }
 
 /* Apply the authored channel multiplier without overflowing the byte product. */
@@ -111,8 +151,8 @@ static FLOAT R_LightningHashSigned(DWORD seed) {
 }
 
 /* Build the camera-independent polyline that the shared ribbon renderer expands. */
-static DWORD R_LightningBuildPoints(w3LightningArt_t const *art,
-                                    lightningEffect_t const *state,
+static DWORD R_LightningBuildPoints(W3LIGHTNINGART const *art,
+                                    LPCLIGHTNINGEFFECT state,
                                     VECTOR3 *points, DWORD point_capacity) {
     VECTOR3 delta, direction, reference, side;
     FLOAT distance, average, noise_ratio, lateral_scale;
@@ -152,8 +192,8 @@ static DWORD R_LightningBuildPoints(w3LightningArt_t const *art,
 }
 
 /* Fade finite bolts while leaving persistent JASS lightning fully opaque. */
-static FLOAT R_LightningOpacity(w3LightningArt_t const *art,
-                                lightningEffect_t const *state) {
+static FLOAT R_LightningOpacity(W3LIGHTNINGART const *art,
+                                LPCLIGHTNINGEFFECT state) {
     DWORD lifetime, authored;
     FLOAT elapsed, duration, fade_start;
 
@@ -173,18 +213,16 @@ static FLOAT R_LightningOpacity(w3LightningArt_t const *art,
 /* Draw the current endpoint snapshot through the shared ribbon particle pass. */
 void R_LightningDraw(void) {
     FOR_LOOP(i, tr.viewDef.num_lightning_effects) {
-        lightningEffect_t const *state = tr.viewDef.lightning_effects + i;
-        w3LightningArt_t *art = FS_SLKLookup(&lightning_index, state->effect_id);
+        LPCLIGHTNINGEFFECT state = tr.viewDef.lightning_effects + i;
+        W3LIGHTNINGART *art = FS_SLKLookup(&lightning_index, state->effect_id);
         VECTOR3 points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
         COLOR32 color;
         LPCTEXTURE texture;
         FLOAT opacity, average, texture_scale, elapsed;
         DWORD point_count;
         if (!art) {
-            static DWORD missing_id;
-            if (missing_id != state->effect_id)
+            if (!R_LightningMissing(state->effect_id))
                 fprintf(stderr, "WC3 Lightning: no LightningData row for %08x\n", (unsigned)state->effect_id);
-            missing_id = state->effect_id;
             continue;
         }
         if (!art->file || !*art->file) {

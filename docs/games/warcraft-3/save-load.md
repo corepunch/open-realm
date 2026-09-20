@@ -69,7 +69,7 @@ or lose the lifecycle state that gates authored player/team/color initialization
 
 Version 32 adds `edict_s.permanent_invisibility_reveal_until`, the authoritative server-time deadline used by `Apiv` Permanent Invisibility after spawn, attack, or spell-cast reveal. The field is serialized explicitly in `edict_fields[]`; the expanded `edict_t` size and version reject older layouts rather than interpreting shifted entity state.
 
-Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `lightningEffect_t` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
+Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `LIGHTNINGEFFECT` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
 
 Version 34 adds the `lightning` JASS handle domain. `AddLightning` and `AddLightningEx` handles now point at the same stable lightning registry slots used by ability presentation, so movement, colour, destruction, hashtable entries, and active script globals preserve their identity across save/load.
 

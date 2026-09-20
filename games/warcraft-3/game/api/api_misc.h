@@ -1889,7 +1889,7 @@ static DWORD JassLightningCreate(LPJASS j, LPCSTR code, BOOL check_visibility,
                                   LPCVECTOR3 source, LPCVECTOR3 target) {
     LPGLIGHTNING bolt;
     (void)check_visibility; /* Visibility filtering is a client fog concern, not a global registry property. */
-    bolt = G_LightningAdd(&(lightningAddParams_t){
+    bolt = G_LightningAdd(&(LIGHTNINGADDPARAMS){
         .effect_id = JassLightningCode(code), .source = source, .target = target,
         .color = COLOR32_WHITE,
     });

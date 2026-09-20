@@ -1972,12 +1972,12 @@ TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
     LPGLIGHTNING effect;
     DWORD size, offset;
     USHORT header, count;
-    lightningEffect_t wire;
+    LIGHTNINGEFFECT wire;
 
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
     level.next_lightning_id = 0;
     level.time = 1000;
-    effect = G_LightningAdd(&(lightningAddParams_t){
+    effect = G_LightningAdd(&(LIGHTNINGADDPARAMS){
         .effect_id = MAKEFOURCC('C', 'L', 'P', 'B'), .source = &source, .target = &target,
         .color = tint, .duration_ms = 2000,
     });
@@ -2012,7 +2012,7 @@ TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
     LPGLIGHTNING effect;
     DWORD size, offset;
     USHORT header, count;
-    lightningEffect_t wire;
+    LIGHTNINGEFFECT wire;
 
     reset_entities();
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
@@ -2022,7 +2022,7 @@ TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
     target_unit = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), target.x, target.y);
     source_unit->s.origin.z = source.z; source_unit->s.radius = 8.0f;
     target_unit->s.origin.z = target.z; target_unit->s.radius = 12.0f;
-    effect = G_LightningAdd(&(lightningAddParams_t){
+    effect = G_LightningAdd(&(LIGHTNINGADDPARAMS){
         .effect_id = MAKEFOURCC('C', 'L', 'P', 'B'), .source = &source, .target = &target,
         .color = COLOR32_WHITE, .duration_ms = 2000,
     });

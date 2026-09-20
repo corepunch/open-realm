@@ -680,6 +680,7 @@ typedef enum {
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
+    A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
@@ -695,6 +696,7 @@ struct ability_call_s {
     union {
         spellTarget_t const *target;
         LPEDICT client;
+        LPEDICT projectile;
         LPCSTR order;
         LPCSTR classname;
         DWORD level;
@@ -880,30 +882,34 @@ typedef struct {
 typedef gweather_t *LPGWEATHER;
 typedef gweather_t const *LPCGWEATHER;
 
-typedef struct {
+typedef struct GLIGHTNING {
     BOOL inuse;
-    lightningEffect_t state;
+    LIGHTNINGEFFECT state;
     LPEDICT source_entity;
     DWORD source_spawn_time;
     LPEDICT target_entity;
     DWORD target_spawn_time;
     FLOAT script_color[4];
-} glightning_t;
-typedef glightning_t *LPGLIGHTNING;
-typedef glightning_t const *LPCGLIGHTNING;
+} GLIGHTNING;
+typedef GLIGHTNING *LPGLIGHTNING;
+typedef GLIGHTNING const *LPCGLIGHTNING;
 
-typedef struct {
+typedef struct LIGHTNINGADDPARAMS {
     DWORD effect_id;
     LPCVECTOR3 source, target;
     COLOR32 color;
     DWORD duration_ms;
-} lightningAddParams_t;
+} LIGHTNINGADDPARAMS;
+typedef LIGHTNINGADDPARAMS *LPLIGHTNINGADDPARAMS;
+typedef LIGHTNINGADDPARAMS const *LPCLIGHTNINGADDPARAMS;
 
-typedef struct {
+typedef struct ABILITYLIGHTNINGPARAMS {
     DWORD ability_id, index;
     LPCEDICT source, target;
     DWORD duration_ms;
-} abilityLightningParams_t;
+} ABILITYLIGHTNINGPARAMS;
+typedef ABILITYLIGHTNINGPARAMS *LPABILITYLIGHTNINGPARAMS;
+typedef ABILITYLIGHTNINGPARAMS const *LPCABILITYLIGHTNINGPARAMS;
 
 typedef struct gtriggeraction_s {
     struct jass_function const *func;
@@ -1806,7 +1812,7 @@ struct level_locals {
     LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
     gweather_t weather_effects[MAX_WEATHER_EFFECTS];
     DWORD next_weather_id;
-    glightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
+    GLIGHTNING lightning_effects[MAX_LIGHTNING_EFFECTS];
     DWORD next_lightning_id;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
@@ -2290,6 +2296,7 @@ void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
 // g_abilities.c
 void S_RunAbilityUpdates(LPEDICT);
 BOOL S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
+BOOL S_UnitProjectileHit(LPEDICT);
 ability_t const *FindAbilityByOrder(LPCSTR);
 ability_t const *FindAbilityByClassname(LPCSTR);
 ability_t const *FindAbilityForCommand(LPCSTR);
@@ -2317,7 +2324,7 @@ LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWOR
 LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index, LPEDICT target, LPCSTR attach_point, BOOL temporary);
 void G_DestroyEffect(LPEDICT effect);
 DWORD G_AbilityLightningId(DWORD ability_id, DWORD index);
-LPGLIGHTNING G_LightningAdd(lightningAddParams_t const *params);
+LPGLIGHTNING G_LightningAdd(LPCLIGHTNINGADDPARAMS params);
 BOOL G_LightningValid(LPCGLIGHTNING effect);
 void G_LightningAttach(LPGLIGHTNING effect, LPCEDICT source, LPCEDICT target);
 void G_LightningUpdateAttached(LPGLIGHTNING effect);
@@ -2325,7 +2332,7 @@ void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target);
 void G_LightningColor(LPGLIGHTNING effect, COLOR32 color);
 void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise);
 void G_LightningRemove(LPGLIGHTNING effect);
-LPGLIGHTNING G_SpawnAbilityLightning(abilityLightningParams_t const *params);
+LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params);
 LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point);
 void G_DestroyOwnedEffects(LPEDICT owner);
 void G_EffectThink(LPEDICT);

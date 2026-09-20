@@ -186,7 +186,7 @@ TEST(wc3_spell, sentry_ward_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_AEYE).ability->proc, CAbilityEvilEye);
 	T_EQ(S_AbilityItem(BZ_AISW).ability->proc, CAbilityEvilEye);
 	T_EQ(S_AbilityItem(BZ_AEYE).ability->target_type, SPELL_TARGET_POINT);
-	T_EQ(S_AbilityItem(BZ_APIV).ability->proc, CAbilityPassive);
+	T_EQ(S_AbilityItem(BZ_APIV).ability->proc, CAbilityPermanentInvisibility);
 }
 
 TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
@@ -263,7 +263,7 @@ TEST(wc3_spell, permanent_invisibility_blocks_hostile_acquisition_and_spell_targ
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
 	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_PermanentInvisibilityInitialize(fix.enemy);
+	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
 	level.time = 3000;
 	gi.LinkEntity(fix.caster); gi.LinkEntity(fix.enemy);
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
@@ -283,7 +283,7 @@ TEST(wc3_spell, permanent_invisibility_uses_authored_transition_after_spawn_and_
 	ward_setup(&fix);
 	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
 	level.time = 1000;
-	S_PermanentInvisibilityInitialize(fix.enemy);
+	S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
 	T_EQ(fix.enemy->permanent_invisibility_reveal_until, 3000);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
 	level.time = 3000;
@@ -302,7 +302,7 @@ TEST(wc3_spell, active_spell_commit_restarts_permanent_invisibility_transition) 
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.caster->heroabilities[1] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_PermanentInvisibilityInitialize(fix.caster);
+	level.time = 1000; S_UnitAbilityEvent(fix.caster, A_UNIT_INIT);
 	level.time = 3000;
 	T_ASSERT(S_PermanentInvisibilityActive(fix.caster));
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
@@ -317,7 +317,7 @@ TEST(wc3_spell, far_sight_detects_permanent_invisibility_only_for_its_viewers) {
 	G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowConnectPlayer(2);
 	fix.caster->runtime.sight_radius.day = 256.0f;
 	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_PermanentInvisibilityInitialize(fix.enemy);
+	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
 	level.time = 3000;
 	G_FowUpdate();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));

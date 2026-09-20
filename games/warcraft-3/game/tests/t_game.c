@@ -3291,7 +3291,7 @@ TEST(wc3_save, lightning_registry_round_trip) {
     target_unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), target.x, target.y);
     source_unit->s.origin.z = source.z; source_unit->s.radius = 8.0f; source_unit->spawn_time = 101;
     target_unit->s.origin.z = target.z; target_unit->s.radius = 12.0f; target_unit->spawn_time = 202;
-    effect = G_LightningAdd(&(lightningAddParams_t){
+    effect = G_LightningAdd(&(LIGHTNINGADDPARAMS){
         .effect_id = MAKEFOURCC('C', 'L', 'S', 'B'), .source = &source, .target = &target,
         .color = MAKE(COLOR32, 10, 20, 30, 40), .duration_ms = 2000,
     });

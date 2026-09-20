@@ -142,7 +142,7 @@ BOOL G_LightningValid(LPCGLIGHTNING effect) {
 }
 
 /* Allocate one save-stable lightning slot and initialize its presentation state. */
-LPGLIGHTNING G_LightningAdd(lightningAddParams_t const *params) {
+LPGLIGHTNING G_LightningAdd(LPCLIGHTNINGADDPARAMS params) {
     LPGLIGHTNING effect = NULL;
     DWORD now;
 
@@ -234,7 +234,7 @@ void G_LightningRemove(LPGLIGHTNING effect) {
 }
 
 /* Resolve and attach one ability-selected bolt to its caster and target. */
-LPGLIGHTNING G_SpawnAbilityLightning(abilityLightningParams_t const *params) {
+LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params) {
     VECTOR3 from, to;
     DWORD effect_id;
 
@@ -249,7 +249,7 @@ LPGLIGHTNING G_SpawnAbilityLightning(abilityLightningParams_t const *params) {
     from.z += params->source->s.radius * 0.5f;
     to.z += params->target->s.radius * 0.5f;
     {
-        LPGLIGHTNING effect = G_LightningAdd(&(lightningAddParams_t){
+        LPGLIGHTNING effect = G_LightningAdd(&(LIGHTNINGADDPARAMS){
             .effect_id = effect_id, .source = &from, .target = &to,
             .color = COLOR32_WHITE, .duration_ms = params->duration_ms,
         });

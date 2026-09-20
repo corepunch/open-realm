@@ -122,10 +122,13 @@ BOOL S_PermanentInvisibilityActive(LPCEDICT unit) {
 }
 
 void S_PermanentInvisibilityInitialize(LPEDICT unit) {
-	FLOAT transition;
-	if (!unit || !G_UnitAbilityLevel(unit, ID_APIV)) {
-		if (unit) unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
-		return;
+    FLOAT transition;
+    if (!unit || !G_UnitAbilityLevel(unit, ID_APIV)) {
+        if (unit) {
+            unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+            unit->permanent_invisibility_reveal_until = 0;
+        }
+        return;
 	}
 	transition = permanent_invisibility_transition(unit);
 	/* Negative transition is the authored opt-out: this unit never enters invisibility. */
@@ -135,8 +138,26 @@ void S_PermanentInvisibilityInitialize(LPEDICT unit) {
 		return;
 	}
 	unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-	unit->permanent_invisibility_reveal_until =
-		G_Time() + (DWORD)(MAX(0.0f, transition) * 1000.0f);
+    unit->permanent_invisibility_reveal_until =
+        G_Time() + (DWORD)(MAX(0.0f, transition) * 1000.0f);
+}
+
+/* Own Permanent Invisibility's spawn, add, remove, and level-change lifecycle. */
+BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
+    switch (msg) {
+    case A_UNIT_INIT:
+    case A_ENABLE:
+    case A_LEVEL_CHANGED:
+        S_PermanentInvisibilityInitialize(ent); return true;
+    case A_DISABLE:
+    case A_UNIT_REMOVE:
+        if (ent) {
+            ent->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+            ent->permanent_invisibility_reveal_until = 0;
+        }
+        return true;
+    default: return CAbilityPassive(ent, msg, call);
+    }
 }
 
 void S_PermanentInvisibilityReveal(LPEDICT unit) {

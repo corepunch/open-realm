@@ -422,7 +422,7 @@ static ability_t abilitylist[] = {
     // TODO: Agho a_ghost  /* Ghost */
     // TODO: Aeth a_ghost  /* Ghost */
     // TODO: Amin a_button  /* Mine - exploding */
-    { "Apiv", CAbilityPassive, AB_PASSIVE },  /* Permanent Invisibility */
+    { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE },  /* Permanent Invisibility */
     // TODO: Awan a_wander  /* Wander */
     // TODO: Aarm a_unknown  /* Mana Regeneration Aura */
     // TODO: Asid a_button  /* Sell Items */
@@ -756,6 +756,25 @@ BOOL S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
     return handled;
 }
 
+/* Dispatch projectile impact to the target's authored abilities before damage is applied. */
+BOOL S_UnitProjectileHit(LPEDICT projectile) {
+    LPEDICT target = projectile ? projectile->goalentity : NULL;
+    if (!target || !target->inuse) return false;
+    FOR_LOOP(i, game.num_abilities) {
+        ability_t const *ability = abilitylist + i;
+        abilityitem_t item;
+        abilityCall_t call;
+        DWORD code;
+        if (!ability->classname || strlen(ability->classname) != 4) continue;
+        code = FS_SLKKey(ability->classname);
+        if (!G_UnitAbilityLevel(target, code)) continue;
+        item = MAKE(abilityitem_t, .code = code, .ability = ability);
+        call = MAKE(abilityCall_t, .item = &item, .projectile = projectile);
+        if (S_AbilityMessage(target, A_PROJECTILE_HIT, &call)) return true;
+    }
+    return false;
+}
+
 ability_t const *FindAbilityByClassname(LPCSTR classname) {
     FOR_LOOP(i, game.num_abilities) {
         if (!abilitylist[i].classname)
@@ -796,8 +815,6 @@ void S_EnableAbility(LPEDICT ent, DWORD code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_ENABLE, &call);
-    if (ent && G_AbilityCode(code) == MAKEFOURCC('A', 'p', 'i', 'v'))
-        S_PermanentInvisibilityInitialize(ent);
 }
 
 void S_DisableAbility(LPEDICT ent, DWORD code) {
@@ -805,10 +822,6 @@ void S_DisableAbility(LPEDICT ent, DWORD code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_DISABLE, &call);
-    if (ent && G_AbilityCode(code) == MAKEFOURCC('A', 'p', 'i', 'v')) {
-        ent->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
-        ent->permanent_invisibility_reveal_until = 0;
-    }
 }
 
 void S_RefreshAbilityLevel(LPEDICT ent, ability_t const *ability) {

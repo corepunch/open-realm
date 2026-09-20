@@ -16,7 +16,7 @@ typedef struct {
     DWORD enabled;
 } wc3WeatherEffect_t;
 
-typedef struct {
+typedef struct LIGHTNINGEFFECT {
     DWORD handle;
     DWORD effect_id; /* producer-defined presentation record ID */
     VECTOR3 source;
@@ -24,6 +24,8 @@ typedef struct {
     COLOR32 color;   /* multiplicative RGBA tint */
     DWORD start_time;
     DWORD end_time;  /* 0 = persistent until removed */
-} lightningEffect_t;
+} LIGHTNINGEFFECT;
+typedef LIGHTNINGEFFECT *LPLIGHTNINGEFFECT;
+typedef LIGHTNINGEFFECT const *LPCLIGHTNINGEFFECT;
 
 #endif

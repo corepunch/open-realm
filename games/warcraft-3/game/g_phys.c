@@ -109,10 +109,8 @@ void SV_Physics_Toss(LPEDICT ent) {
         if (ent->currentmove && ent->currentmove->endfunc) {
             ent->currentmove->endfunc(ent);
         } else {
-            /* Defend reacts at projectile impact, before the normal hit path.
-             * A successful unit-source deflection retargets this same edict to
-             * the attacker and leaves it alive for its return flight. */
-            if (S_DefendProjectileReaction(ent)) return;
+            /* Abilities own projectile-impact reactions before the normal hit path. */
+            if (S_UnitProjectileHit(ent)) return;
             /* Basic attack missiles carry the launch-time raw roll. Resolve
              * target defense/armor on impact, matching Warsmash and allowing
              * in-flight armor/defense changes to affect the hit. Spell

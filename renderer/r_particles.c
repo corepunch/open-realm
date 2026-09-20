@@ -16,14 +16,16 @@ typedef struct particle_vertex {
 typedef enum {
     PARTICLE_UV_BILLBOARD,
     PARTICLE_UV_RIBBON,
-} particleUVOrder_t;
+} PARTICLEUVORDER;
 
-typedef struct {
+typedef struct PARTICLEQUAD {
     LPCVECTOR3 point, tail;
     FLOAT u0, v0, u1, v1;
     COLOR32 color;
     FLOAT size;
-} particleQuad_t;
+} PARTICLEQUAD;
+typedef PARTICLEQUAD *LPPARTICLEQUAD;
+typedef PARTICLEQUAD const *LPCPARTICLEQUAD;
 
 typedef struct PARTICLESTATE {
     MATRIX4 viewProjection;
@@ -175,7 +177,7 @@ static const shader_desc_t sd_particle = {
 
 /* Emit one billboard or ribbon quad from a shared vertex-order table. */
 static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
-                                           particleQuad_t const *quad, particleUVOrder_t order) {
+                                           LPCPARTICLEQUAD quad, PARTICLEUVORDER order) {
     static BYTE const axis[NUM_PARTICLE_VERTICES][2] = {{0,0}, {255,0}, {255,255}, {255,255}, {0,255}, {0,0}};
     static BYTE const uv_index[2][NUM_PARTICLE_VERTICES][2] = {
         {{0,1}, {2,1}, {2,3}, {2,3}, {0,3}, {0,1}},
@@ -207,7 +209,7 @@ R_AddParticle(particleVertex_t *buffer,
               float size)
 {
     LPBYTE uv = (LPBYTE)&uvr;
-    particleQuad_t const quad = {
+    PARTICLEQUAD const quad = {
         .point = point, .tail = tail,
         .u0 = BYTE2FLOAT(uv[0]), .v0 = BYTE2FLOAT(uv[1]),
         .u1 = BYTE2FLOAT(uv[2]), .v1 = BYTE2FLOAT(uv[3]),
@@ -416,7 +418,7 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
         FLOAT length = Vector3_len(&tail);
         if (length <= 0.001f) continue;
         if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;
-        particleQuad_t const quad = {
+        PARTICLEQUAD const quad = {
             .point = draw->points + i + 1, .tail = &tail,
             .u0 = draw->texcoord_phase + distance * draw->texcoord_scale,
             .v0 = 0.0f,

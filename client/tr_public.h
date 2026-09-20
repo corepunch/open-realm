@@ -195,7 +195,7 @@ typedef struct {
     DWORD num_weather_effects;
     wc3WeatherEffect_t const *weather_effects;
     DWORD num_lightning_effects;
-    lightningEffect_t const *lightning_effects;
+    LPCLIGHTNINGEFFECT lightning_effects;
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;

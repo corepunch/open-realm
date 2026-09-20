@@ -343,13 +343,13 @@ void CL_ParseFrame(LPSIZEBUF msg) {
         }
         lightning_count = (USHORT)MSG_ReadShort(msg);
         if (lightning_count > MAX_LIGHTNING_EFFECTS ||
-            msg->readcount + lightning_count * sizeof(lightningEffect_t) > msg->cursize) {
+            msg->readcount + lightning_count * sizeof(LIGHTNINGEFFECT) > msg->cursize) {
             msg->readcount = msg->cursize;
             return;
         }
         cl.viewDef.num_lightning_effects = lightning_count;
         cl.num_lightning_effects = lightning_count;
-        FOR_LOOP(i, lightning_count) MSG_Read(msg, &cl.lightning_effects[i], sizeof(lightningEffect_t));
+        FOR_LOOP(i, lightning_count) MSG_Read(msg, &cl.lightning_effects[i], sizeof(LIGHTNINGEFFECT));
     }
     if (has_entity_tints) {
         DWORD tint_count = (USHORT)MSG_ReadShort(msg);

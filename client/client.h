@@ -84,7 +84,7 @@ struct client_state {
     viewDef_t viewDef;
     wc3WeatherEffect_t weather_effects[MAX_WEATHER_EFFECTS];
     DWORD num_weather_effects;
-    lightningEffect_t lightning_effects[MAX_LIGHTNING_EFFECTS];
+    LIGHTNINGEFFECT lightning_effects[MAX_LIGHTNING_EFFECTS];
     DWORD num_lightning_effects;
     struct frame frame;
     VECTOR2 startingPosition;
