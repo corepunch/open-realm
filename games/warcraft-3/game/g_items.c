@@ -123,6 +123,7 @@ void SP_SpawnItem(LPEDICT self) {
     self->item.carrier = NULL;
     self->item.inventory_slot = -1;
     self->item.in_world = true;
+    self->item.drop_id = 0;
     self->item.charges = (DWORD)MAX(0, (LONG)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
 }
 

@@ -1246,6 +1246,26 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
         "endfunction\n"));
 }
 
+TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
+    LPEDICT item = NULL;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local item i = CreateItem('spro', 64.0, 64.0)\n"
+        "  call SetItemDropID(i, 'hfoo')\n"
+        "  call SetItemDropID(null, 'hpea')\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('s','p','r','o')) {
+            item = g_edicts + i;
+            break;
+        }
+    }
+    T_NOT_NULL(item);
+    T_EQ(item->item.drop_id, MAKEFOURCC('h','f','o','o'));
+}
+
 TEST(wc3_items, drop_restores_same_item_to_world) {
     setup_test_world();
     LPEDICT unit = make_item_test_inventory_unit(128, 256);

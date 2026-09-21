@@ -76,7 +76,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     LPCSTR path = "/tmp/openwarcraft3-wc3-hero-saveload.bin";
     LPEDICT hero, item0, item1;
     VECTOR3 saved_origin;
-    DWORD saved_holy, saved_shield, saved_added, saved_item0, saved_item1, saved_charges0, saved_charges1, index;
+    DWORD saved_holy, saved_shield, saved_added, saved_item0, saved_item1, saved_charges0, saved_charges1, saved_drop_id, index;
     char saved_move[32], snap[512];
     VECTOR2 dest = { 80.0f, 0.0f };
 
@@ -107,6 +107,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     saved_item1 = item1->class_id;
     saved_charges0 = item0->item.charges;
     saved_charges1 = item1->item.charges;
+    item0->item.drop_id = saved_drop_id = MAKEFOURCC('h','f','o','o');
     strlcpy(saved_move, hero->currentmove->animation, sizeof(saved_move));
     index = hero->s.number;
     G_FormatHeroSaveSnap(hero, snap, sizeof(snap));
@@ -134,6 +135,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_EQ(hero->inventory[1]->class_id, saved_item1);
     T_EQ(hero->inventory[0]->item.charges, saved_charges0);
     T_EQ(hero->inventory[1]->item.charges, saved_charges1);
+    T_EQ(hero->inventory[0]->item.drop_id, saved_drop_id);
     T_NOT_NULL(hero->currentmove);
     T_STREQ(hero->currentmove->animation, saved_move);
     T_EQ(hero->think, monster_think);

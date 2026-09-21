@@ -1384,6 +1384,7 @@ struct edict_s {
         LONG inventory_slot;
         BOOL in_world;
         DWORD charges;
+        DWORD drop_id;        /* SetItemDropID unit rawcode metadata */
         LONG user_data;       /* SetItemUserData script scratch */
         BOOL pawnable_set;    /* SetItemPawnable overrode ItemData.pawnable */
         BOOL pawnable;        /* effective pawnable when pawnable_set */

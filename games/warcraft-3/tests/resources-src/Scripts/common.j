@@ -283,6 +283,7 @@ native Player                   takes integer number returns player
 native CreateItem               takes integer itemid, real x, real y returns item
 native GetItemCharges           takes item whichItem returns integer
 native SetItemCharges           takes item whichItem, integer charges returns nothing
+native SetItemDropID            takes item whichItem, integer unitId returns nothing
 native GetItemName              takes item whichItem returns string
 native GetItemUserData          takes item whichItem returns integer
 native SetItemUserData          takes item whichItem, integer data returns nothing

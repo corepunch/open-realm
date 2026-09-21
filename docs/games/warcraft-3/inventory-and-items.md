@@ -242,6 +242,7 @@ The existing JASS natives route through this lifecycle:
 - `SetItemPosition` for items already in world state
 - `GetItemCharges`
 - `SetItemCharges`
+- `SetItemDropID`
 
 The client command `dropitem <slot>` remains a direct zero-based drop-at-feet
 path for the main selected unit. Inventory buttons now also use the existing
