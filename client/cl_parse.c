@@ -274,7 +274,7 @@ static void CL_MaskUnpackRun(DWORD index, BYTE value, DWORD count, void *ctx) {
 static BOOL CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
     terrainMaskChunk_t chunk;
     BYTE const *payload;
-    DWORD row_cells;
+    DWORD row_cells, decoded;
     BOOL changed = false;
     maskUnpackCtx_t ctx;
 
@@ -290,15 +290,20 @@ static BOOL CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
         return false;
     }
     payload = msg->data + msg->readcount;
-    if (!CL_EnsureTerrainMaskSize(chunk.width, chunk.height,
-            (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
-    if (!MSG_ValidateRLE(payload, chunk.payload_bytes, row_cells)) {
-        fprintf(stderr, "CL_ParseFrame: invalid terrain-mask RLE first=%u rows=%u payload=%u\n",
-            (unsigned)chunk.first_row, (unsigned)chunk.row_count, (unsigned)chunk.payload_bytes);
+    /* Validate before touching client state: a good header with a bad payload must not resize the mask.
+     * RLE payload size no longer implies row_cells, so the header alone sizes the allocation. */
+    if ((DWORD)chunk.width * chunk.height > TERRAIN_MASK_MAX_CELLS ||
+        !MSG_ValidateRLE(payload, chunk.payload_bytes, row_cells)) {
+        fprintf(stderr, "CL_ParseFrame: invalid terrain-mask RLE %ux%u first=%u rows=%u payload=%u\n",
+            (unsigned)chunk.width, (unsigned)chunk.height, (unsigned)chunk.first_row,
+            (unsigned)chunk.row_count, (unsigned)chunk.payload_bytes);
         return false;
     }
+    if (!CL_EnsureTerrainMaskSize(chunk.width, chunk.height,
+            (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
     ctx = (maskUnpackCtx_t){ chunk.first_row, cl.terrain_mask.width, &changed };
-    MSG_DecodeRLE(payload, chunk.payload_bytes, row_cells, CL_MaskUnpackRun, &ctx);
+    decoded = MSG_DecodeRLE(payload, chunk.payload_bytes, row_cells, CL_MaskUnpackRun, &ctx);
+    assert(decoded == row_cells); /* validated above, so the decode cannot fail */
     msg->readcount += chunk.payload_bytes;
     if (changed) cl.terrain_mask.generation++;
     return true;
@@ -688,6 +693,7 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
     DWORD payload_bytes = MSG_ReadShort(msg);
     DWORD plane_count = 0;
     DWORD expected_bits;
+    DWORD decoded;
     BYTE const *payload;
 
     if (flags & FOW_MSG_VISIBLE_PLANE) {
@@ -718,8 +724,10 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
         CL_ClearFogRows(cl.fow.visible, first_row, row_count);
         CL_ClearFogRows(cl.fow.explored, first_row, row_count);
     }
-    MSG_DecodeRLE(payload, payload_bytes, expected_bits, CL_FogUnpackRun,
+    /* Validated above, so the decode cannot fail; the assert documents the contract. */
+    decoded = MSG_DecodeRLE(payload, payload_bytes, expected_bits, CL_FogUnpackRun,
         &(fogUnpackCtx_t){ flags, first_row, cl.fow.width * row_count });
+    assert(decoded == expected_bits);
     msg->readcount += payload_bytes;
     CL_UpdateFogTextureRows(first_row, row_count);
     cl.fow.generation++;

@@ -266,12 +266,17 @@ static BYTE G_BlightPackBit(DWORD index, void *ctx) {
 static DWORD G_BlightPackRows(LPBYTE out, DWORD capacity, DWORD first_row, DWORD row_count) {
     blightPackCtx_t c = { first_row, level.blight.width };
     DWORD const bits = level.blight.width * row_count;
+    DWORD n;
     if (!out || !bits) return 0;
-    return MSG_EncodeRLE(out, capacity, bits, G_BlightPackBit, &c);
+    n = MSG_EncodeRLE(out, capacity, bits, G_BlightPackBit, &c);
+    if (n) return n;
+    /* RLE has no worst-case bound (an alternating row costs ~1 byte per bit); the bitpack escape
+     * always fits one row inside the datagram reservation, so dirty/sweep progress never stalls. */
+    return MSG_EncodeBitpack(out, capacity, bits, G_BlightPackBit, &c);
 }
 
 DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
-    DWORD player, first = 0, rows, max_rows, available, payload_bytes, sweep_cap;
+    DWORD player, first = 0, rows, max_rows, available, payload_bytes;
     terrainMaskChunk_t chunk;
     BYTE *payload;
     BOOL sweep = false;
@@ -282,8 +287,9 @@ DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     while (first < level.blight.height && !(level.blight.dirty_rows[first] & (1u << player))) first++;
     if (first < level.blight.height) {
         available = size - sizeof(chunk);
-        /* Bitpack-scale row guess; the RLE shrink loop below absorbs overflow. */
-        max_rows = MIN(level.blight.height - first, (available * 8) / level.blight.width);
+        /* Start from the whole contiguous dirty run; RLE usually compresses coherent Blight far below
+         * bitpack density, and the shrink loop below absorbs overflow one row at a time. */
+        max_rows = level.blight.height - first;
         if (!max_rows) return 0;
         rows = 1;
         while (rows < max_rows && (level.blight.dirty_rows[first + rows] & (1u << player))) rows++;
@@ -291,13 +297,10 @@ DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
         if (!G_BlightSweepDue(player)) return 0;
         first = level.blight.sweep_row[player] % level.blight.height;
         available = MIN(size - sizeof(chunk), BLIGHT_SWEEP_BYTES);
-        /* Bitpack-scale row guess; the RLE shrink loop below absorbs overflow. */
-        max_rows = MIN(level.blight.height - first, (available * 8) / level.blight.width);
+        /* Same optimistic start: one coherent sweep band can now cover far more rows per BLIGHT_SWEEP_BYTES. */
+        max_rows = level.blight.height - first;
         if (!max_rows) { level.blight.sweep_row[player] = 0; return 0; }
         rows = max_rows;
-        /* Sweep-band row cap at bitpack density. */
-        sweep_cap = (BLIGHT_SWEEP_BYTES * 8) / level.blight.width;
-        if (sweep_cap && rows > sweep_cap) rows = sweep_cap;
         sweep = true;
     }
     payload = data + sizeof(chunk);

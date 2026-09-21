@@ -1124,17 +1124,26 @@ static BYTE *G_FowPlaneForFlags(fowPlayerGrid_t *grid, DWORD flags, DWORD plane)
     return NULL;
 }
 
-typedef struct { fowPlayerGrid_t *grid; BYTE *planes[2]; DWORD plane_count, width, first_row, plane_bits; } fowPackCtx_t;
+typedef struct { fowPlayerGrid_t *grid; BYTE *planes[2]; DWORD plane_count, width, first_row, row_count, plane_bits, x, y, plane_index; BYTE *plane; } fowPackCtx_t;
 
 static BYTE G_FowPackBit(DWORD index, void *ctx) {
     fowPackCtx_t *c = ctx;
-    BYTE *plane = c->planes[index / c->plane_bits];
-    DWORD bit = index % c->plane_bits, x = bit % c->width, y = c->first_row + bit / c->width;
+    BYTE v;
+    (void)index; /* MSG_EncodeRLE reads sequentially, so x/y/plane track the position with no division. */
 #ifdef WC3_FOW_PACKED_MASK
-    if (g_fow_fast && plane == c->grid->visible) return G_FowPackedAt(c->grid->packed_visible, c->grid, x, y);
-    if (g_fow_fast && plane == c->grid->explored) return G_FowPackedAt(c->grid->packed_explored, c->grid, x, y);
+    if (g_fow_fast && c->plane == c->grid->visible) v = G_FowPackedAt(c->grid->packed_visible, c->grid, c->x, c->y);
+    else if (g_fow_fast && c->plane == c->grid->explored) v = G_FowPackedAt(c->grid->packed_explored, c->grid, c->x, c->y);
+    else
 #endif
-    return plane[y * level.fow.width + x] ? 1 : 0;
+        v = c->plane[c->y * level.fow.width + c->x] ? 1 : 0;
+    if (++c->x == c->width) {
+        c->x = 0;
+        if (++c->y == c->first_row + c->row_count) {
+            c->y = c->first_row;
+            if (c->plane_index + 1 < c->plane_count) c->plane = c->planes[++c->plane_index];
+        }
+    }
+    return v;
 }
 
 static DWORD G_FowPackRows(fowPlayerGrid_t *grid,
@@ -1148,12 +1157,14 @@ static DWORD G_FowPackRows(fowPlayerGrid_t *grid,
     fowPackCtx_t c;
     if (!payload || payload_size < 2) return 0;
     c.grid = grid; c.plane_count = 0; c.width = level.fow.width; c.first_row = first_row;
-    c.plane_bits = level.fow.width * row_count;
+    c.row_count = row_count; c.plane_bits = level.fow.width * row_count;
+    c.x = 0; c.y = first_row; c.plane_index = 0; c.plane = NULL;
     FOR_LOOP(plane_index, sizeof(planes) / sizeof(planes[0])) {
         BYTE *plane = G_FowPlaneForFlags(grid, flags, planes[plane_index]);
         if (plane) c.planes[c.plane_count++] = plane;
     }
     if (!c.plane_count || !c.plane_bits) return 0;
+    c.plane = c.planes[0];
     return MSG_EncodeRLE(payload, payload_size, c.plane_bits * c.plane_count, G_FowPackBit, &c);
 }
 

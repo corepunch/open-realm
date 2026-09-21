@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 6 // version; UI flags retain all 32 bits, including sprite overlay ordering
+#define BZ_PROTOCOL_VERSION 7 // version; Blight terrain-mask chunks are RLE/bitpack-escape (v6 kept all 32 UI flag bits)
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;
