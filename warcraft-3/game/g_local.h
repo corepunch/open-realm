@@ -2911,6 +2911,8 @@ void divine_shield_think(LPEDICT);
 void dark_portal_think(LPEDICT);
 void exhume_think(LPEDICT);
 void graveyard_think(LPEDICT);
+void corpse_cargo_approach_think(LPEDICT);
+void cannibalize_approach_think(LPEDICT);
 void healing_spray_think(LPEDICT);
 void cannibalize_think(LPEDICT);
 void possession_two_think(LPEDICT);

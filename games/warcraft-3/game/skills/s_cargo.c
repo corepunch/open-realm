@@ -336,7 +336,7 @@ static void corpse_cargo_approach_cancel(LPEDICT thinker) {
     if (thinker) G_FreeEdict(thinker);
 }
 
-static void corpse_cargo_approach_think(LPEDICT thinker) {
+void corpse_cargo_approach_think(LPEDICT thinker) {
     LPEDICT transport = thinker ? thinker->owner : NULL;
     LPEDICT corpse = thinker ? thinker->goalentity : NULL;
 

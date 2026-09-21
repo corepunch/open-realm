@@ -355,6 +355,12 @@ static BOOL cannibalize_corpse_allowed(LPEDICT caster, DWORD code, LPEDICT corps
         : S_SpellAllowsCorpseTarget(code, caster, corpse);
 }
 
+static BOOL cannibalize_can_approach(LPEDICT caster) {
+    return caster && !S_GoldMineWorkerIsInside(caster) && !(caster->aiflags & AI_IMMOBILE) &&
+        !S_UnitIsCycloned(caster) && !G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')) &&
+        !S_UnitIsEnsnared(caster) && !S_PurgeIsImmobilized(caster);
+}
+
 static BOOL cannibalize_in_range(LPEDICT caster, LPEDICT corpse) {
     VECTOR2 position;
     LPEDICT target;
@@ -364,7 +370,15 @@ static BOOL cannibalize_in_range(LPEDICT caster, LPEDICT corpse) {
     return Vector2_distance(&caster->s.origin2, &position) <= caster->collision + target->collision;
 }
 
-static void cannibalize_approach_think(LPEDICT thinker) {
+static void cannibalize_approach_cancel(LPEDICT thinker) {
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+
+    if (caster && caster->inuse && caster->currentmove == &cannibalize_approach_move)
+        unit_stand(caster);
+    if (thinker) G_FreeEdict(thinker);
+}
+
+void cannibalize_approach_think(LPEDICT thinker) {
     LPEDICT caster = thinker ? thinker->owner : NULL;
     LPEDICT corpse = thinker ? thinker->goalentity : NULL;
     LPEDICT approach = cannibalize_approach_target(corpse);
@@ -372,7 +386,7 @@ static void cannibalize_approach_think(LPEDICT thinker) {
     if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
         corpse->spawn_time != thinker->channel.target_spawn_time || !approach ||
         !cannibalize_corpse_allowed(caster, thinker->class_id, corpse)) {
-        if (thinker) G_FreeEdict(thinker);
+        cannibalize_approach_cancel(thinker);
         return;
     }
     if (caster->goalentity != approach || caster->currentmove != &cannibalize_approach_move) {
@@ -404,7 +418,7 @@ static BOOL cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t con
     }
     {
         LPEDICT approach = cannibalize_approach_target(corpse);
-        if (!approach) return false;
+        if (!approach || !cannibalize_can_approach(caster)) return false;
         order_move(caster, approach);
         unit_setmove(caster, &cannibalize_approach_move);
         if (caster->goalentity != approach || caster->currentmove != &cannibalize_approach_move) return false;
