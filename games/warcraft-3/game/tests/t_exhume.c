@@ -73,6 +73,11 @@ static LPEDICT exh_thinker(LPEDICT wagon) {
 	return NULL;
 }
 
+static LPEDICT corpse_cargo_thinker(LPEDICT wagon) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == wagon && ent->class_id == BZ_AMEL && ent->think) return ent;
+    return NULL;
+}
+
 
 TEST(wc3_spell, exhume_registers_passive_update_procedure) {
 	abilityitem_t item = S_AbilityItem(BZ_AEXH);
@@ -121,6 +126,40 @@ TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
         T_ASSERT(S_CorpseCargoPosition(corpse, &effective));
         T_FEQ(effective.x, 420.0f, 0.001f); T_FEQ(effective.y, 315.0f, 0.001f);
     }
+    exh_done(&fix);
+}
+
+/* Get Corpse acquires the nearest valid corpse, rolls to it, then loads it at
+ * the authored Amel interaction range without requiring a corpse click. */
+TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
+    EXHFIX fix; LPEDICT corpse, thinker, clent = &g_edicts[0];
+    abilityitem_t item;
+    abilityCall_t call;
+
+    exh_setup(&fix);
+    corpse = alloc_test_unit(BZ_HFOO, 300, 100);
+    corpse->s.player = fix.wagon->s.player;
+    corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    corpse->targtype = TARG_GROUND;
+    corpse->health.value = 0.0f;
+    T_ASSERT(G_UnitIsRaisableCorpse(corpse));
+    clent->client = &game.clients[0]; clent->client->ps.number = 0;
+    clent->client->menu.ability_code = BZ_AMEL;
+    G_SelectEntity(clent->client, fix.wagon);
+    item = S_AbilityItem(BZ_AMEL);
+    call = MAKE(abilityCall_t, .item = &item, .client = clent);
+
+    T_ASSERT(S_AbilityMessage(fix.wagon, A_COMMAND, &call));
+    T_ASSERT(fix.wagon->goalentity == corpse);
+    T_ASSERT(move_is_active_order_walk(fix.wagon));
+    thinker = corpse_cargo_thinker(fix.wagon);
+    T_NOT_NULL(thinker);
+    fix.wagon->s.origin2.x = 220.0f; fix.wagon->s.origin.x = 220.0f;
+    if (thinker) thinker->think(thinker);
+    T_EQ(fix.wagon->cargo.count, 1);
+    T_ASSERT(S_CorpseCargoIsStored(corpse));
+    T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
+    T_ASSERT(!thinker->inuse);
     exh_done(&fix);
 }
 
