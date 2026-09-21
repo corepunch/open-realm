@@ -108,6 +108,7 @@ typedef struct {
     void (*MemFree)(HANDLE);
     DWORD (*LoadSlk)(LPCSTR filename, slkField_t const *schema, void **dest, DWORD row_stride);
     LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
+    void (*PlaySoundAt)(LPCSTR path, LPCVECTOR3 origin, FLOAT volume);
     void (*error)(LPCSTR fmt, ...);
 } refImport_t;
 

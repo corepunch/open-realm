@@ -13,7 +13,7 @@ Warcraft III sound mappings are primarily driven by SLK tables shipped in `War3.
 | `UI/SoundInfo/UISounds.slk` | Interface sounds (button clicks, etc.) |
 | `UI/SoundInfo/AbilitySounds.slk` | Ability/effect sounds referenced by `Effectsound` aliases |
 | `UI/SoundInfo/AmbienceSounds.slk` | Ambient/keyed sound aliases also addressable by JASS labels |
-| `UI/SoundInfo/AnimSounds.slk` | Animation-event sound labels; MDX event playback is still separate |
+| `UI/SoundInfo/AnimSounds.slk` | Animation-event sound labels resolved by MDX `SND` event objects |
 | `UI/SoundInfo/DialogSounds.slk` | Dialogue/voice sound labels used by JASS label constructors |
 
 ## SLK Column Layout
@@ -117,6 +117,13 @@ small presentation-only counter per player/unit: the first three responses use
 `What`, then the authored `Pissed` variants are walked in order. Changing the
 selection or issuing an order resets that sequence. Selecting an active
 construction site uses the owner's `ConstructingBuilding` skin alias instead.
+
+Each registered Warcraft response also caches its decoded-file duration. A unit
+with an accepted response still inside that duration rejects another
+selection/order acknowledgement, matching Warsmash's per-unit response lock.
+The focused selected unit uses `Portrait Talk` for the same lifetime and returns
+to `Portrait` when the response expires. This timing is presentation-only state
+and does not extend the saved/networked unit contract.
 
 Attack commands resolve a random `{label}YesAttack` response. They no longer
 reuse that voice line as a weapon-swing sound; ordinary `Yes` remains the
@@ -239,8 +246,26 @@ armor-type integer used by object-data overrides and runtime lookup.
 Lumber harvesting continues to use `{weaponSound}Wood` (for example
 `MetalLightChopWood`), with a lethal chop replacing it with one of
 `Sound\Destructibles\TreeFall{1,2,3}.wav`. `YesAttack` is now reserved for
-attack-order acknowledgement rather than attack-swing playback. Model-authored
-MDX SND events remain the missing source for swing/animation sounds.
+attack-order acknowledgement rather than attack-swing playback.
+
+### MDX animation sound events
+
+The WC3 renderer consumes model `EVTS` objects whose names begin with `SND`.
+Classic event IDs resolve through `UI\SoundInfo\AnimLookups.slk` to a
+`SoundLabel`, then through `AnimSounds.slk`; direct `AnimSounds` lookup remains
+a fallback for data that already names the sound row. When an entity animation
+crosses an authored event key, the renderer chooses an authored file variant
+with presentation-local hashing and plays it once at the animated event node's
+world position. Event nodes participate in the same MDX node hierarchy used by
+attachments and particles, and global-sequence event tracks use the render
+clock rather than the entity animation frame.
+
+This renderer path intentionally does not consume gameplay `rand()`, does not
+emit a network sound packet, and processes off-screen (but client-visible)
+entities before frustum culling. The generic renderer import currently carries
+the resolved path, world position, and authored volume. `Pitch`,
+`PitchVariance`, `MinDistance`, `MaxDistance`, and `DistanceCutoff` are parsed
+from `AnimSounds.slk` but remain mixer/API fidelity work.
 
 ### JASS sound handles
 
@@ -266,8 +291,7 @@ The following remain separate follow-up work:
 
 - `{label}Warcry`;
 - movement sound-label playback (`MovementSoundLabel`) and exact construction loop fade/volume semantics;
-- ability/buff `EffectSoundLooped` lifetime/stop wiring (one-shot `EffectSound` is implemented);
-- MDX `EVTS` -> `AnimLookups.slk` -> `AnimSounds.slk` playback;
+- broader ability/buff `EffectSoundLooped` ownership beyond the existing owned area/channel-effect lifecycle (one-shot `EffectSound` is implemented and current owned effects clear their snapshot loop on destruction);
 - remaining JASS sound-handle controls such as stop/fade, pitch, channel, cone, and distance parameters;
 - volume-group mixing and music/thematic-music natives;
 - MP3 decoding for campaign speech/music assets;

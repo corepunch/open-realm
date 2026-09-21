@@ -65,6 +65,12 @@ The generic mixer owns only the resolved sound path, source entity number, curre
 
 This path is intentionally separate from one-shot `svc_sound`: an ability may play `Effectsound` once at cast/effect start while a persistent area-effect entity carries `Effectsoundlooped` until that entity disappears or clears `s.sound`.
 
+## Renderer-authored one-shot sounds
+
+Model animation sounds are client presentation, not server simulation state. The shared renderer contract exposes a generic positional one-shot callback (`refImport_t.PlaySoundAt`); the Warcraft III renderer resolves MDX `SND` events through `AnimLookups.slk` / `AnimSounds.slk` and invokes that callback when an animation crosses the authored event key. The shared client and mixer do not know WC3 event names or SLK keys.
+
+WC3 evaluates these event tracks before frustum culling so a client-visible model may still be audible while off-screen. The renderer owns event-key de-duplication per entity/model and resolves the animated event node to world space through the existing MDX node matrices. This local path currently passes authored volume; pitch variance and authored panner distances require a future generic mixer/API extension rather than WC3-specific client branches.
+
 
 ## Assets
 

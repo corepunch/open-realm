@@ -173,6 +173,25 @@ TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
     T_EQ(ent->sound.pending, 0);
 }
 
+TEST(wc3_unit, unit_response_suppresses_overlap_until_authored_duration_expires) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+
+    G_ResetSelectionSoundState();
+    level.time = 1000;
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11, 500));
+    T_EQ(ent->sound.pending, 11);
+    T_ASSERT(G_UnitResponseTalking(ent));
+
+    ent->sound.pending = 0;
+    T_ASSERT(!G_QueueUnitResponseSound(ent, 12, 500));
+    T_EQ(ent->sound.pending, 0);
+
+    level.time = 1500;
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    T_ASSERT(G_QueueUnitResponseSound(ent, 12, 250));
+    T_EQ(ent->sound.pending, 12);
+}
+
 TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines) {
     static LPCSTR const slk =
         "ID;PWXL;N;E\n"

@@ -105,6 +105,7 @@ static DWORD portrait_capture_text_count;
 static BOOL portrait_capture_root_widescreen;
 static BOOL portrait_capture_child_relative;
 static BOOL portrait_capture_text_relative;
+static char portrait_capture_animation[32];
 
 static void portrait_test_write(pfWriteType_t type, void const *data) {
     LPCUIFRAME frame;
@@ -120,6 +121,7 @@ static void portrait_test_write(pfWriteType_t type, void const *data) {
         portrait_capture_model = frame->tex.index;
         portrait_capture_team = frame->stat;
         portrait_capture_parent = frame->parent;
+        snprintf(portrait_capture_animation, sizeof(portrait_capture_animation), "%s", frame->text ? frame->text : "");
         portrait_capture_child_relative =
             frame->parent == 0 &&
             frame->points.x[FPP_MIN].relativeTo == 0 &&
@@ -1207,6 +1209,43 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
     T_ASSERT(!portrait_capture_root_widescreen);
     T_EQ(portrait_capture_root, 0);
     T_EQ(portrait_capture_count, 0);
+}
+
+TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_expires) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT unit;
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->svflags |= SVF_MONSTER;
+    unit->s.player = 0;
+    unit->s.model = 11;
+    G_SelectEntity(client, unit);
+
+    level.time = 1000;
+    T_ASSERT(G_QueueUnitResponseSound(unit, 77, 500));
+    portrait_capture_animation[0] = '\0';
+    gi.Write = portrait_test_write;
+    gi.unicast = selection_test_unicast;
+    gi.FontIndex = portrait_test_font;
+    UI_WriteSelectedPortraitLayer(player);
+    T_STREQ(portrait_capture_animation, "Portrait Talk");
+
+    level.time = 1500;
+    G_UpdateUnitResponsePresentation(client);
+    portrait_capture_animation[0] = '\0';
+    UI_WriteSelectedPortraitLayer(player);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    T_STREQ(portrait_capture_animation, "Portrait");
 }
 
 TEST(wc3_game, multiselect_portrait_live_stats_follow_focus) {

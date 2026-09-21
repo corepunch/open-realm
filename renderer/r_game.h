@@ -41,6 +41,7 @@ VECTOR2 R_WorldSize(void);
 
 LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
+void R_UpdateEntityPresentation(renderEntity_t const *entity);
 void R_RenderModel(renderEntity_t const *entity);
 void R_RenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, DWORD flags);
 bool R_ModelCanStaticInstance(LPCMODEL model);

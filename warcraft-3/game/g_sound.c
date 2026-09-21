@@ -13,7 +13,9 @@ typedef struct jassSoundRuntime_s {
 
 static jassSoundRuntime_t *jass_sound_runtime;
 static FLOAT sound_index_volume[MAX_SOUNDS];
+static DWORD sound_index_duration[MAX_SOUNDS];
 static BYTE sound_index_volume_valid[MAX_SOUNDS];
+static BYTE sound_index_duration_valid[MAX_SOUNDS];
 
 typedef struct {
     LPCSTR text;
@@ -60,13 +62,21 @@ void G_JassSoundRuntimeReset(void) {
 
 void G_ResetSoundPresentationState(void) {
     memset(sound_index_volume, 0, sizeof(sound_index_volume));
+    memset(sound_index_duration, 0, sizeof(sound_index_duration));
     memset(sound_index_volume_valid, 0, sizeof(sound_index_volume_valid));
+    memset(sound_index_duration_valid, 0, sizeof(sound_index_duration_valid));
 }
 
 FLOAT G_SoundIndexVolume(int sound_index) {
     if (sound_index > 0 && sound_index < MAX_SOUNDS && sound_index_volume_valid[sound_index])
         return sound_index_volume[sound_index];
     return 1.0f;
+}
+
+DWORD G_SoundIndexDuration(int sound_index) {
+    if (sound_index > 0 && sound_index < MAX_SOUNDS && sound_index_duration_valid[sound_index])
+        return sound_index_duration[sound_index];
+    return 0;
 }
 
 void G_JassSoundRuntimeInit(HANDLE handle) {
@@ -173,6 +183,10 @@ static int G_RegisterSoundRowVariant(UnitAckSounds_t const *row, DWORD variant) 
     if (sound > 0 && sound < MAX_SOUNDS) {
         sound_index_volume[sound] = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
         sound_index_volume_valid[sound] = true;
+        if (!sound_index_duration_valid[sound]) {
+            sound_index_duration[sound] = (DWORD)MAX(0, G_SoundFileDuration(path));
+            sound_index_duration_valid[sound] = true;
+        }
     }
     return sound;
 }
@@ -252,6 +266,10 @@ static int G_RegisterUISound(LPCSTR alias) {
     if (!alias || !alias[0]) return 0;
     row = G_UISound(alias);
     return G_RegisterSoundRow(row);
+}
+
+int G_UISoundIndex(LPCSTR alias) {
+    return G_RegisterUISound(alias);
 }
 
 static LPCSTR G_AbilitySoundAlias(DWORD ability_id, BOOL looped) {

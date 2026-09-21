@@ -25,6 +25,31 @@ mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
     return NULL;
 }
 
+BOOL MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, DWORD key,
+                          DWORD previous_frame, DWORD current_frame,
+                          DWORD previous_time, DWORD current_time) {
+    mdxSequence_t const *previous_seq, *current_seq;
+
+    if (!model || !event) return false;
+    if (event->globalSeqId != (DWORD)-1) {
+        DWORD duration, previous, current;
+        if (event->globalSeqId >= (DWORD)model->num_globalSequences || !model->globalSequences) return false;
+        duration = model->globalSequences[event->globalSeqId].value;
+        if (!duration) return false;
+        previous = previous_time % duration;
+        current = current_time % duration;
+        return current >= previous ? (key > previous && key <= current)
+                                   : (key > previous || key <= current);
+    }
+
+    previous_seq = R_FindSequenceAtTime(model, previous_frame);
+    current_seq = R_FindSequenceAtTime(model, current_frame);
+    if (!current_seq || key < current_seq->interval[0] || key > current_seq->interval[1]) return false;
+    if (previous_seq != current_seq) return key >= current_seq->interval[0] && key <= current_frame;
+    if (current_frame >= previous_frame) return key > previous_frame && key <= current_frame;
+    return key > previous_frame || key <= current_frame;
+}
+
 static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, DWORD index) {
     DWORD stride = GetModelKeyFrameSize(track->datatype, track->linetype);
     return (mdxKeyFrame_t *)((LPSTR)track->values + stride * index);

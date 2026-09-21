@@ -729,6 +729,7 @@ static void G_RunClients(void) {
                 .zfar = client->camera.state.far_z });
         }
         if (client_ent) client_ent->s.origin = client->ps.vieworigin;
+        G_UpdateUnitResponsePresentation(client);
         /* Transmission scene and voice lifetimes are independent. Blizzard.j
          * keeps the portrait scene alive past the voice, so Portrait Talk must
          * fall back to Portrait before the entire transmission disappears. */

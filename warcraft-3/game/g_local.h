@@ -2605,6 +2605,8 @@ void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_ResetSoundPresentationState(void);
 FLOAT G_SoundIndexVolume(int);
+DWORD G_SoundIndexDuration(int);
+int G_UISoundIndex(LPCSTR);
 void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
 int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped);
 void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point);
@@ -2683,6 +2685,9 @@ LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
 void G_UpdateClientSelections(void);
 void G_SyncClientSelection(LPGAMECLIENT);
 void G_ResetSelectionSoundState(void);
+BOOL G_QueueUnitResponseSound(LPEDICT, int, DWORD);
+BOOL G_UnitResponseTalking(LPCEDICT);
+void G_UpdateUnitResponsePresentation(LPGAMECLIENT);
 void G_QueueSelectionSound(LPEDICT, BOOL);
 void G_QueueAttackOrderSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);

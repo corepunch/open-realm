@@ -410,24 +410,87 @@ typedef struct {
     BOOL valid;
 } selectionSoundState_t;
 
+typedef struct {
+    DWORD spawn_time;
+    DWORD end_time;
+    BOOL talking;
+} unitResponseState_t;
+
 static selectionSoundState_t selection_sound_state[MAX_PLAYERS];
+static unitResponseState_t unit_response_state[MAX_ENTITIES];
 
 void G_ResetSelectionSoundState(void) {
     memset(selection_sound_state, 0, sizeof(selection_sound_state));
+    memset(unit_response_state, 0, sizeof(unit_response_state));
+}
+
+static unitResponseState_t *G_UnitResponseState(LPCEDICT ent) {
+    unitResponseState_t *state;
+    DWORD number;
+
+    if (!ent) return NULL;
+    number = (DWORD)ent->s.number;
+    if (number >= MAX_ENTITIES) return NULL;
+    state = unit_response_state + number;
+    if (state->spawn_time != ent->spawn_time) {
+        *state = (unitResponseState_t){ .spawn_time = ent->spawn_time };
+    }
+    return state;
+}
+
+BOOL G_UnitResponseTalking(LPCEDICT ent) {
+    unitResponseState_t *state = G_UnitResponseState(ent);
+    return state && state->talking && state->end_time > G_Time();
+}
+
+static void G_DirtyResponsePortrait(LPCEDICT ent) {
+    LPGAMECLIENT client;
+    if (!ent || ent->s.player >= MAX_PLAYERS) return;
+    client = G_GetPlayerClientByNumber(ent->s.player);
+    if (client && G_GetMainControllableUnit(client) == ent)
+        client->presentation_dirty = true;
+}
+
+BOOL G_QueueUnitResponseSound(LPEDICT ent, int sound, DWORD duration) {
+    unitResponseState_t *state;
+
+    if (!ent || !sound || !(state = G_UnitResponseState(ent))) return false;
+    if (state->talking && state->end_time > G_Time()) return false;
+    ent->sound.pending = sound;
+    state->talking = duration > 0;
+    state->end_time = duration ? G_Time() + duration : 0;
+    G_DirtyResponsePortrait(ent);
+    return true;
+}
+
+void G_UpdateUnitResponsePresentation(LPGAMECLIENT client) {
+    LPEDICT ent;
+    unitResponseState_t *state;
+
+    if (!client || !(ent = G_GetMainControllableUnit(client)) || !(state = G_UnitResponseState(ent))) return;
+    if (state->talking && state->end_time <= G_Time()) {
+        state->talking = false;
+        state->end_time = 0;
+        client->presentation_dirty = true;
+    }
 }
 
 static selectionSoundState_t *G_SelectionSoundState(LPEDICT ent, BOOL reset) {
     selectionSoundState_t *state;
+    BOOL changed;
 
     if (!ent || ent->s.player >= MAX_PLAYERS) return NULL;
     state = selection_sound_state + ent->s.player;
-    if (reset || !state->valid || state->entity != (LONG)ent->s.number ||
-        state->spawn_time != ent->spawn_time) {
+    changed = !state->valid || state->entity != (LONG)ent->s.number ||
+              state->spawn_time != ent->spawn_time;
+    if (changed) {
         *state = (selectionSoundState_t){
             .entity = (LONG)ent->s.number,
             .spawn_time = ent->spawn_time,
             .valid = true,
         };
+    } else if (reset) {
+        state->selected_sound_count = 0;
     }
     return state;
 }
@@ -448,7 +511,10 @@ void G_QueueSelectionSound(LPEDICT ent, BOOL reset_sequence) {
 
     if (!ent || !(state = G_SelectionSoundState(ent, reset_sequence))) return;
     if (ent->construction.active) {
-        G_QueueOwnerUISound(ent, "ConstructingBuilding");
+        LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+        LPCSTR alias = client ? Theme_PlayerString(client, "ConstructingBuilding", NULL) : NULL;
+        int sound_index = G_UISoundIndex(alias);
+        if (sound_index) G_QueueUnitResponseSound(ent, sound_index, G_SoundIndexDuration(sound_index));
         state->selected_sound_count = 0;
         return;
     }
@@ -465,10 +531,8 @@ void G_QueueSelectionSound(LPEDICT ent, BOOL reset_sequence) {
     }
     if (!sound && ent->sound.num_select)
         sound = ent->sound.select[rand() % ent->sound.num_select];
-    if (sound) {
-        ent->sound.pending = sound;
+    if (sound && G_QueueUnitResponseSound(ent, sound, G_SoundIndexDuration(sound)))
         state->selected_sound_count++;
-    }
 }
 
 void G_QueueAttackOrderSound(LPEDICT ent) {
@@ -481,18 +545,21 @@ void G_QueueAttackOrderSound(LPEDICT ent) {
     label = ent->data.UnitUI ? ent->data.UnitUI->soundLabel : NULL;
     count = G_UnitAckSoundVariantCount(label, "YesAttack");
     sound = count ? G_UnitAckSoundVariantIndex(label, "YesAttack", (DWORD)(rand() % count)) : 0;
-    if (sound) ent->sound.pending = sound;
-    else if (ent->sound.num_yes) ent->sound.pending = ent->sound.yes[rand() % ent->sound.num_yes];
+    if (!sound && ent->sound.num_yes) sound = ent->sound.yes[rand() % ent->sound.num_yes];
+    if (sound) G_QueueUnitResponseSound(ent, sound, G_SoundIndexDuration(sound));
 }
 
 static void G_QueueOrderSound(LPEDICT ent) {
+    int sound;
     if (!ent) return;
     if (ent->currentmove && ent->currentmove->proc == CAbilityAttack) {
         G_QueueAttackOrderSound(ent);
         return;
     }
     G_ResetSelectionResponseForUnit(ent);
-    if (ent->sound.num_yes) ent->sound.pending = ent->sound.yes[rand() % ent->sound.num_yes];
+    if (!ent->sound.num_yes) return;
+    sound = ent->sound.yes[rand() % ent->sound.num_yes];
+    G_QueueUnitResponseSound(ent, sound, G_SoundIndexDuration(sound));
 }
 
 /* select/point are left-click completion paths for targeted commands.  A
