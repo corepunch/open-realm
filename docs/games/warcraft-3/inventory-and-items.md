@@ -242,7 +242,10 @@ The existing JASS natives route through this lifecycle:
 - `SetItemPosition` for items already in world state
 - `GetItemCharges`
 - `SetItemCharges`
-- `SetItemDropID`
+
+`SetItemDropID` is a metadata-only native. It stores the unit rawcode used by
+later item-drop logic on the item instance; it does not move the item, change
+inventory ownership, or refresh the inventory layer.
 
 The client command `dropitem <slot>` remains a direct zero-based drop-at-feet
 path for the main selected unit. Inventory buttons now also use the existing
@@ -304,6 +307,8 @@ visibility flags, carried-item removal, connection-state refresh gating, charge
 initialization/preservation, carried-charge refresh/no-op behavior, perishable
 use decrement/removal, non-perishable decrement-without-removal behavior, JASS charge access,
 and generic `spro` Art/Tip/Ubertip/charge presentation.
+`SetItemDropID` coverage includes rawcode overwrite, null-handle tolerance,
+inventory/drop preservation, and setter-to-save/load round trips.
 They also cover mixed-selection Smart pickup where a non-inventory unit is the
 first selected entity and a later ROC Hero must still receive the item order,
 Human Backpack carriers refusing active item use, and Data B death policy where

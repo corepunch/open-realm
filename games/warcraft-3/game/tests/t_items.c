@@ -1248,11 +1248,13 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
 
 TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
     LPEDICT item = NULL;
+    LPEDICT unit;
 
     setup_test_world();
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  local item i = CreateItem('spro', 64.0, 64.0)\n"
+        "  call SetItemDropID(i, 'hpea')\n"
         "  call SetItemDropID(i, 'hfoo')\n"
         "  call SetItemDropID(null, 'hpea')\n"
         "endfunction\n"));
@@ -1264,6 +1266,37 @@ TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
     }
     T_NOT_NULL(item);
     T_EQ(item->item.drop_id, MAKEFOURCC('h','f','o','o'));
+    unit = make_item_test_inventory_unit(64, 64);
+    T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(unit->inventory[0], item);
+    T_ASSERT(G_DropItem(unit, 0));
+    T_EQ(item->item.drop_id, MAKEFOURCC('h','f','o','o'));
+}
+
+TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
+    LPCSTR path = "/tmp/openwarcraft3-wc3-item-drop-id.bin";
+    LPEDICT item = NULL;
+    DWORD index;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetItemDropID(CreateItem('spro', 64.0, 64.0), 'hfoo')\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('s','p','r','o')) {
+            item = g_edicts + i;
+            break;
+        }
+    }
+    T_NOT_NULL(item);
+    T_EQ(item->item.drop_id, MAKEFOURCC('h','f','o','o'));
+    index = item->s.number;
+    T_ASSERT(WriteGame(path));
+    item->item.drop_id = 0;
+    T_ASSERT(ReadGame(path));
+    T_EQ(g_edicts[index].item.drop_id, MAKEFOURCC('h','f','o','o'));
+    remove(path);
 }
 
 TEST(wc3_items, drop_restores_same_item_to_world) {
