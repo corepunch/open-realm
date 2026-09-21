@@ -589,7 +589,7 @@ TEST(wc3_ability_lifecycle, cannibalize_command_approaches_nearby_corpse) {
     corpse->data.UnitData = &corpse_data; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
     clent->client = &game.clients[0]; clent->client->ps.number = 0; G_SelectEntity(clent->client, caster);
     T_ASSERT(S_AbilityMessage(caster, A_COMMAND, &call));
-    T_ASSERT(caster->goalentity == corpse); T_ASSERT(move_is_active_order_walk(caster));
+    T_ASSERT(caster->goalentity == corpse); T_STREQ(caster->currentmove->animation, "walk");
     T_NOT_NULL(review_thinker(caster));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

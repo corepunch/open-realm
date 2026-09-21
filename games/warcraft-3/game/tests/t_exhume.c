@@ -223,8 +223,12 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     caster = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 800.0f, 100.0f);
     caster->s.player = 0; caster->svflags |= SVF_MONSTER; caster->targtype = TARG_GROUND;
     caster->health.max_value = 1000.0f; caster->health.value = 500.0f;
+    caster->unitinfo.MoveSpeed = 270.0f;
+    caster->collision = 16.0f;
+    fix.wagon->collision = 32.0f;
     caster->data.UnitAbilities = &abilities;
     caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','c','a','n'), .level = 1);
+    caster->think = monster_think;
     unit_stand(caster);
 
     clent->client = &game.clients[0]; clent->client->ps.number = 0; G_SelectEntity(clent->client, caster);
@@ -232,12 +236,31 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     call = MAKE(abilityCall_t, .item = &item, .client = clent);
     T_ASSERT(S_AbilityMessage(caster, A_COMMAND, &call));
     T_ASSERT(caster->goalentity == fix.wagon);
-    T_ASSERT(move_is_active_order_walk(caster));
+    T_STREQ(caster->currentmove->animation, "walk");
     {
         LPEDICT thinker = NULL;
         FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->goalentity == corpse && ent->think) { thinker = ent; break; }
         T_NOT_NULL(thinker);
     }
+    FOR_LOOP(frame, 120) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+        if (!(frame % 10)) {
+            fprintf(stderr, "TEST cannibalize ghoul=%u (%.1f,%.1f) wagon=%u (%.1f,%.1f) "
+                            "distance=%.1f angle=%.2f heading=%.2f goal=%u move=%s "
+                            "flow_direct=%d flow_generation=%u path_valid=%d\n",
+                    caster->s.number, caster->s.origin2.x, caster->s.origin2.y,
+                    fix.wagon->s.number, fix.wagon->s.origin2.x, fix.wagon->s.origin2.y,
+                    Vector2_distance(&caster->s.origin2, &fix.wagon->s.origin2),
+                    caster->s.angle, caster->movement.heading,
+                    caster->goalentity ? caster->goalentity->s.number : 0,
+                    caster->currentmove ? caster->currentmove->animation : "<none>",
+                    caster->movement.flow_direct, caster->movement.flow_generation,
+                    caster->movement.path.valid);
+        }
+    }
+    T_EQ(caster->channel.code, MAKEFOURCC('A', 'c', 'a', 'n'));
+    T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
     exh_done(&fix);
 }
 

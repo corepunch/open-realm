@@ -336,6 +336,18 @@ static LPEDICT cannibalize_approach_target(LPEDICT corpse) {
     return holder && holder->inuse ? holder : NULL;
 }
 
+/* Cannibalize approaches the holder as an interaction, not as a free-space
+ * destination.  The wagon remains a live collision entity, but it is the
+ * interaction target; treating it as a blocker leaves the Ghoul rotating at
+ * the wagon's edge instead of reaching the channel boundary. */
+static void cannibalize_approach_walk(LPEDICT caster) {
+    if (!caster || !caster->goalentity) return;
+    unit_changeangle_interaction_ignore_units(caster);
+    unit_moveindirection_ignore_units(caster);
+}
+
+static umove_t cannibalize_approach_move = { "walk", cannibalize_approach_walk, NULL, CAbilityMove };
+
 static BOOL cannibalize_corpse_allowed(LPEDICT caster, DWORD code, LPEDICT corpse) {
     if (!caster || !corpse) return false;
     return S_CorpseCargoIsStored(corpse)
@@ -363,7 +375,7 @@ static void cannibalize_approach_think(LPEDICT thinker) {
         if (thinker) G_FreeEdict(thinker);
         return;
     }
-    if (caster->goalentity != approach || !move_is_active_order_walk(caster)) {
+    if (caster->goalentity != approach || caster->currentmove != &cannibalize_approach_move) {
         G_FreeEdict(thinker);
         return;
     }
@@ -394,7 +406,8 @@ static BOOL cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t con
         LPEDICT approach = cannibalize_approach_target(corpse);
         if (!approach) return false;
         order_move(caster, approach);
-        if (caster->goalentity != approach || !move_is_active_order_walk(caster)) return false;
+        unit_setmove(caster, &cannibalize_approach_move);
+        if (caster->goalentity != approach || caster->currentmove != &cannibalize_approach_move) return false;
     }
     thinker = G_Spawn();
     if (!thinker) return false;
