@@ -691,6 +691,49 @@ TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
     gi.MemFree(pathtex);
 }
 
+TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
+    enum { W = 8, H = 8 };
+    LPEDICT attacker;
+    LPEDICT gate;
+    pathTex_t *pathtex;
+
+    setup_test_world();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
+    gate = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 400.0f, 0.0f);
+    gate->svflags &= ~SVF_MONSTER;
+    gate->targtype = TARG_DEBRIS;
+    gate->health.value = gate->health.max_value = 500.0f;
+    gate->collision = 50.0f;
+    gate->destructable.initialized = true;
+    gate->destructable.placement_solid = true;
+    gate->destructable.pathing_active = true;
+    attacker->s.player = 0;
+    attacker->collision = 16.0f;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.range = 90.0f;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_DEBRIS;
+
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = W;
+    pathtex->height = H;
+    FOR_LOOP(i, W * H)
+        pathtex->map[i] = (COLOR32){ 0, 0, 255, 255 };
+    gate->pathtex = pathtex;
+
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &gate->s.origin2) > attacker->attack1.range);
+    T_ASSERT(CM_DistanceToPathingFootprint(gate, &attacker->s.origin2) <=
+             attacker->collision + attacker->attack1.range);
+
+    order_attack(attacker, gate);
+    T_STREQ(attacker->currentmove->animation, "walk");
+    attacker->currentmove->think(attacker);
+
+    T_STREQ(attacker->currentmove->animation, "attack");
+    gi.MemFree(pathtex);
+}
+
 /* ==========================================================================
  * M_MoveFrame
  * ========================================================================== */
