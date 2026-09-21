@@ -148,6 +148,25 @@ TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     T_STREQ(SCR_GetStringValue(&frame), "Footman");
 }
 
+TEST(client_layout, context_name_appends_live_hover_value) {
+    uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME, .text = "Gold:" };
+    DWORD const entnum = 7, name = 3;
+    DWORD const ni = name - 1;
+
+    test_client_stubs_init();
+    cl.hover_entity = entnum;
+    cl.ents[entnum].current = (entityState_t){
+        .model = 1, .name = name, .hover_value = 12500,
+        .stats = { [ENT_HEALTH] = 255 },
+    };
+    memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
+    snprintf(cl.configstrings[CS_GENERAL] + (ni & 0xF) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Gold Mine");
+
+    T_STREQ(SCR_GetStringValue(&frame), "Gold Mine\nGold: 12500");
+    cl.ents[entnum].current.hover_value = 12490;
+    T_STREQ(SCR_GetStringValue(&frame), "Gold Mine\nGold: 12490");
+}
+
 TEST(client_layout, unknown_high_stat_binding_resolves_empty) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME - 1 };
 
@@ -2780,6 +2799,22 @@ TEST(net, entity_delta_preserves_build_preview_fields) {
     T_EQ(EntityPathingPreviewRequired(out.pathing_preview), 0x20);
     T_FEQ(out.origin.x, 0.0f, 0.001f);
     T_FEQ(out.origin.y, 0.0f, 0.001f);
+}
+
+TEST(net, entity_delta_preserves_hover_value) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .hover_value = 12500 }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_EQ(out.hover_value, 12500);
 }
 
 TEST(net, entity_delta_preserves_destructable_presentation_image) {

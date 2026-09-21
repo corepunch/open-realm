@@ -2946,6 +2946,41 @@ TEST(wc3_api, customize_entity_marks_live_unit_hoverable) {
     T_ASSERT(!(state.flags & EF_NEUTRAL));
 }
 
+TEST(wc3_api, customize_entity_publishes_gold_mine_hover_value) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = {
+        .svflags = SVF_MONSTER,
+        .s = { .player = 3, .flags = EF_RESOURCE_SOURCE },
+        .resources = 12500,
+        .invulnerable = true,
+    };
+    ent.health.value = 100.0f;
+
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(state.hover_value, 12500);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+}
+
+TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t parent = {
+        .inuse = true,
+        .spawn_time = 91,
+        .s = { .flags = EF_RESOURCE_SOURCE },
+        .resources = 4500,
+    };
+    edict_t overlay = {
+        .svflags = SVF_MONSTER,
+        .s = { .player = 3 },
+        .mineoverlay = { .parent = &parent, .parent_spawn_time = 91 },
+    };
+    parent.health.value = 100.0f;
+    overlay.health.value = 100.0f;
+
+    globals.CustomizeEntity(3, &overlay, &state);
+    T_EQ(state.hover_value, 4500);
+}
+
 TEST(wc3_api, customize_entity_hides_invulnerable_health_but_keeps_mana) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
@@ -3356,7 +3391,7 @@ TEST(wc3_api, customize_entity_rejects_dead_or_unselectable_unit_hover_health) {
 }
 
 TEST(wc3_api, customize_entity_rejects_hidden_unit_hover_health) {
-    entityState_t state = { .number = 7, .model = 11, .renderfx = RF_HIDDEN,
+    entityState_t state = { .number = 7, .model = 11, .renderfx = RF_HIDDEN, .hover_value = 12500,
         .flags = EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
     ent.health.value = 100.0f;
@@ -3365,6 +3400,7 @@ TEST(wc3_api, customize_entity_rejects_hidden_unit_hover_health) {
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
     T_ASSERT(!(state.flags & EF_HOSTILE));
     T_ASSERT(!(state.flags & EF_NEUTRAL));
+    T_EQ(state.hover_value, 0);
 }
 
 /* =========================================================================

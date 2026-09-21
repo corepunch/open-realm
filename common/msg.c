@@ -49,6 +49,7 @@ netField_t entityStateFields[] = {
 #endif
     { NETF(entityState_t, image), NFT_SHORT },
     { NETF(entityState_t, name), NFT_SHORT },
+    { NETF(entityState_t, hover_value), NFT_LONG },
     { NETF(entityState_t, player), NFT_BYTE },
     { NETF(entityState_t, flags), NFT_SHORT },
     { NETF(entityState_t, renderfx), NFT_BYTE },

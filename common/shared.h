@@ -687,6 +687,7 @@ typedef struct entityState_s {
     USHORT effect_flags; /* EFX_* presentation contract for effect/splat effects */
     USHORT image;
     USHORT name;        /* packed name: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
+    DWORD hover_value;   /* recipient-filtered numeric world-hover detail; 0 = absent */
     USHORT sound;
     DWORD frame;
     BYTE event;

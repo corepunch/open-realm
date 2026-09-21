@@ -142,6 +142,11 @@ presentation relationships; when neither is set, game-specific renderers may tre
 packed value in `entityState_t` requires
 a `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity` round-trip test in `tests/test_net.c`.
 
+`entityState_t.hover_value` is an optional recipient-filtered `DWORD` for a live numeric detail attached to a server-authored
+world-hover name frame; zero means absent. Game modules own when it is populated and the frame owns its label. WC3 uses the
+generic field for Gold Mine reserves, including the authoritative hidden parent reservoir behind Haunted/Entangled mine
+overlays.
+
 ## Key files
 
 | File | Purpose |

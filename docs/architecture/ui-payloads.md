@@ -179,10 +179,13 @@ Relevant regressions:
 Keep new special bindings at or below 255; `common/shared.h` asserts the high end of this range so an enum append cannot silently
 truncate through the `NFT_BYTE` UI-frame codec.
 
-`LAYER_WORLD_HOVER` uses `cl.hover_entity` as that context only when the recipient's snapshot carries `EF_HOVER_HEALTH`, a live
-model, and nonzero health. The generic client resolves the pooled name from `entityState_t.name`/`CS_GENERAL`, reads compressed health
-and mana from `entityState_t.stats`, and projects `re.GetEntityOverheadPosition` through the current view matrix. The layer is skipped
-when the point is behind the camera or outside the world scissor.
+`LAYER_WORLD_HOVER` uses `cl.hover_entity` as that context only when the recipient's snapshot exposes a live hoverable model. The
+generic client resolves the pooled name from `entityState_t.name`/`CS_GENERAL`, reads compressed health and mana from
+`entityState_t.stats`, and may append the optional recipient-filtered `entityState_t.hover_value` using the label authored on
+the context-name frame. A zero `hover_value` means no secondary numeric line. WC3 uses this generic slot for live Gold Mine
+reserves, including the hidden parent reservoir of a racial mine overlay. The client then projects
+`re.GetEntityOverheadPosition` through the current view matrix; the layer is skipped when the point is behind the camera or
+outside the world scissor.
 
 This is not a per-hover network protocol. The server sends the static frame tree, art/font indexes, geometry, and binding declarations
 once; mouse picking, projection, and evaluation of already-replicated values happen locally each render frame. Do not revive

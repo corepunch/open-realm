@@ -1305,6 +1305,21 @@ static USHORT G_UnitNameConfigstring(LPCSTR name) {
     return 0;
 }
 
+/* World-hover secondary values are recipient-filtered snapshot presentation.
+ * Ordinary Agld mines own the reservoir directly; racial mine overlays expose
+ * the live reservoir of their still-bound hidden parent. */
+static DWORD G_HoverResourceValue(LPCEDICT ent) {
+    LPCEDICT parent;
+
+    if (!ent) return 0;
+    if (S_GoldMineIsOverlay(ent) && (parent = ent->mineoverlay.parent)) {
+        if (!parent->inuse || parent->spawn_time != ent->mineoverlay.parent_spawn_time ||
+            M_IsDead(parent) || !(parent->s.flags & EF_RESOURCE_SOURCE)) return 0;
+        return parent->resources;
+    }
+    return (ent->s.flags & EF_RESOURCE_SOURCE) ? ent->resources : 0;
+}
+
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
@@ -1324,11 +1339,13 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
 
     state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL);
     state->name = 0;
+    state->hover_value = 0;
     if (hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */
         state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));
+        state->hover_value = G_HoverResourceValue(ent);
         if (!ent->invulnerable) state->flags |= EF_HOVER_HEALTH;
         if (ent->mana.max_value > 0.0f) state->flags |= EF_HOVER_MANA;
         if (relation == SELECT_RELATION_ENEMY) {
