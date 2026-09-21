@@ -88,6 +88,12 @@ special cases. Each result:
 - also receives the ability-authored first `BuffID` for Warcraft buff identity/presentation;
 - emits the authored ability `Effect` presentation at the created unit.
 
+The installed TFT upgrade table identifies `Rusl` (Skeletal Longevity) as effect
+`rrai`, base `15`, with the description “undead skeleton life span.” Raise Dead adds
+that authored researched effect to its summon duration through the generic player-tech
+lookup. `Rusm` (Skeletal Mastery) remains on the existing generic `rlev` path, which
+raises `Arai` to its authored second level.
+
 The corpse is removed after the summon groups are created. If no valid corpse exists,
 the cast rejects before cost/cooldown commitment with `Cantfindcorpse`.
 
@@ -112,10 +118,17 @@ gravestones remains presentation/placement fidelity work.
 This patch intentionally does not guess behavior where the current evidence or engine
 infrastructure is incomplete:
 
-- Meat Wagon `Amel`/`Amed` real corpse cargo remains deferred; Blizzard confirms stored
-  corpses do not decay and are directly visible to Cannibalize/Raise Dead without unloading.
-  `Aexh` still creates its temporary ground-corpse representation until shared corpse cargo
-  exists.
+- Meat Wagon cargo now uses the actual corpse edicts in the shared cargo slots. Installed
+  TFT data identifies hidden `Sch2`/`Amtc` as the Cargo Hold with `DataA=8`; `Amel` is the
+  authored corpse-load command (`ground,dead,nonhero`, range 100) and `Amed` drops all
+  stored corpses. Loading hides and pauses the corpse while retaining its decay move/timer;
+  unloading uses the existing generic unstuck placement. Raise Dead and Cannibalize can
+  consume stored corpses directly, and Exhume creates directly into these slots.
+- The installed data does not establish whether retail restarts or resumes a partially
+  elapsed decay phase after unloading, the exact unload facing/placement rule, or the
+  outcome when a Meat Wagon is removed while carrying corpses. OpenRealm currently
+  preserves the saved decay state, uses shared unstuck placement, and follows existing
+  cargo-removal ejection behavior for those unresolved cases.
 - Blizzard's classic documentation confirms that a group Cannibalize order assigns
   corpses to the most injured units first and that ordinary group orders do not interrupt
   units already Cannibalizing. OpenRealm still needs a shared multi-selection/group-order

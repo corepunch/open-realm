@@ -207,6 +207,26 @@ static FLOAT G_UpgradeEffectValue(UpgradeData_t const *upgrade, DWORD effect, LO
     return upgrade->effectBase[effect] + upgrade->effectMod[effect] * (FLOAT)(level_value - 1);
 }
 
+FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect) {
+    LPGAMECLIENT owner;
+    char token[64];
+    FLOAT bonus = 0.0f;
+
+    if (!unit || !unit->data.UnitBalance || !effect || !(owner = G_GetPlayerClientByNumber(unit->s.player))) return 0.0f;
+    for (DWORD u = 0; G_CsvToken(unit->data.UnitBalance->upgrades, u, token, sizeof(token)); u++) {
+        DWORD upgrade_id;
+        UpgradeData_t const *upgrade;
+        LONG level;
+        if (strlen(token) != 4) continue;
+        memcpy(&upgrade_id, token, sizeof(upgrade_id)); upgrade = G_UpgradeData(upgrade_id);
+        level = G_GetPlayerTechResearchedLevel(owner, upgrade_id);
+        if (!upgrade || upgrade->id != upgrade_id || level <= 0) continue;
+        FOR_LOOP(i, 4) if (upgrade->effect[i] == effect)
+            bonus += G_UpgradeEffectValue(upgrade, i, level);
+    }
+    return bonus;
+}
+
 /* Command abilities such as Footman Defend are authored on the unit before
  * their research completes.  UpgradeData rlev names the ability that the
  * research unlocks/levels.  Keep this data-driven so custom units/upgrades

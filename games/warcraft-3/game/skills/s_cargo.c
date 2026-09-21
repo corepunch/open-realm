@@ -2,6 +2,10 @@
 
 #include "s_skills.h"
 
+#define BZ_AMEL MAKEFOURCC('A','m','e','l')
+#define BZ_AMED MAKEFOURCC('A','m','e','d')
+#define BZ_AMTC MAKEFOURCC('A','m','t','c')
+
 /* Cargo abilities are data-driven per holder. Do not cache one global
  * capacity: Acar/Abun/Aenc and custom aliases can coexist in one map. */
 static DWORD cargo_actor_ability_alias(LPEDICT ent, DWORD base_code) {
@@ -30,6 +34,7 @@ static DWORD cargo_hold_alias(LPEDICT transport) {
         MAKEFOURCC('A','b','u','n'),
         MAKEFOURCC('A','c','a','r'),
         MAKEFOURCC('A','e','n','c'),
+        BZ_AMTC,
     };
 
     FOR_LOOP(i, sizeof(bases) / sizeof(bases[0])) {
@@ -57,6 +62,14 @@ static BOOL cargo_has_capacity(LPEDICT transport, DWORD needed) {
 
 BOOL S_CargoIsBurrow(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','u','n')) != 0;
+}
+
+BOOL S_CargoIsCorpseHolder(LPEDICT transport) {
+    return cargo_actor_ability_alias(transport, BZ_AMTC) != 0;
+}
+
+BOOL S_CorpseCargoIsStored(LPCEDICT unit) {
+    return unit && (unit->aiflags & AI_CORPSE_IN_CARGO) != 0;
 }
 
 /* Identify Entangled Mines so their cargo count can drive the authored model animation. */
@@ -160,6 +173,7 @@ static LPEDICT cargo_drop_unit(LPEDICT transport, DWORD index) {
     cargo_place_unloaded_unit(transport, unit);
     unit->s.renderfx &= ~RF_HIDDEN;
     unit->paused = false;
+    unit->aiflags &= ~AI_CORPSE_IN_CARGO;
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
     cargo_update_entangled_animation(transport, old_count);
@@ -258,8 +272,33 @@ BOOL S_CargoTryLoad(LPEDICT transport, LPEDICT target) {
     return S_CargoTransportForUnit(target) == transport;
 }
 
+BOOL S_CorpseCargoTryLoad(LPEDICT transport, LPEDICT target) {
+    DWORD alias;
+    umove_t *move;
+    FLOAT wait;
+
+    if (!transport || !target || !S_CargoIsCorpseHolder(transport) ||
+        M_IsDead(transport) || !G_UnitIsRaisableCorpse(target) ||
+        target->s.player != transport->s.player || S_CorpseCargoIsStored(target) ||
+        (target->s.renderfx & RF_HIDDEN) || S_CargoTransportForUnit(target) ||
+        !cargo_has_capacity(transport, 1)) return false;
+    alias = cargo_actor_ability_alias(transport, BZ_AMEL);
+    if (!alias || !S_SpellAllowsCorpseTarget(alias, transport, target) ||
+        Vector2_distance(&transport->s.origin2, &target->s.origin2) >
+        MAX(0.0f, G_AbilityLevel(alias, 1)->range) + transport->collision + target->collision) return false;
+    move = target->currentmove;
+    wait = target->wait;
+    cargo_add_unit(transport, target);
+    target->currentmove = move;
+    target->wait = wait;
+    target->aiflags |= AI_CORPSE_IN_CARGO;
+    return S_CargoTransportForUnit(target) == transport;
+}
+
 static BOOL load_selecttarget(LPEDICT clent, LPEDICT target) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    if (clent->client->menu.ability_code == BZ_AMEL)
+        return S_CorpseCargoTryLoad(caster, target);
     return S_CargoTryLoad(caster, target);
 }
 
@@ -421,6 +460,13 @@ static BOOL drop_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     (void)point;
 
     if (!caster || caster->cargo.count == 0) return false;
+    if (clent->client->menu.ability_code == BZ_AMED) {
+        BOOL dropped = false;
+        while (caster->cargo.count > 0 &&
+               S_CorpseCargoIsStored(S_CargoUnitAt(caster, caster->cargo.count - 1)))
+            dropped |= S_CargoUnloadAt(caster, caster->cargo.count - 1);
+        return dropped;
+    }
     return cargo_drop_unit(caster, caster->cargo.count - 1) != NULL;
 }
 

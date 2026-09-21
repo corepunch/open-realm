@@ -1,5 +1,7 @@
 #include "s_skills.h"
 
+#define BZ_UPGRADE_RAISE_DEAD_LIFE MAKEFOURCC('r','r','a','i')
+
 #define UNDEAD_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AMS_SHIELD MAKEFOURCC('B', 'a', 'm', '2') // rawcode; Bam2 DataC spell-damage absorption
 
@@ -303,6 +305,18 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
         FLOAT const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
         if (distance <= range && distance < best) { corpse = unit; best = distance; }
     }
+    FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
+                  transport->s.player == caster->s.player) {
+        FOR_LOOP(i, transport->cargo.count) {
+            LPEDICT unit = S_CargoUnitAt(transport, i);
+            FLOAT distance;
+            if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
+                !S_SpellAllowsStoredCorpseTarget(spell->code, caster, unit) ||
+                G_UnitStatusLevel(unit, spell->code)) continue;
+            distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+            if (distance <= range && distance < best) { corpse = unit; best = distance; }
+        }
+    }
     return corpse;
 }
 
@@ -406,6 +420,22 @@ static LPEDICT raise_dead_corpse(LPEDICT caster, DWORD code, FLOAT range) {
             corpse = unit; best_rank = rank; best_distance = distance;
         }
     }
+    FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
+                  transport->s.player == caster->s.player) {
+        FOR_LOOP(i, transport->cargo.count) {
+            LPEDICT unit = S_CargoUnitAt(transport, i);
+            FLOAT distance;
+            LONG rank;
+            if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
+                !S_SpellAllowsStoredCorpseTarget(code, caster, unit)) continue;
+            distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+            rank = raise_dead_corpse_rank(unit);
+            if (distance > range) continue;
+            if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
+                corpse = unit; best_rank = rank; best_distance = distance;
+            }
+        }
+    }
     return corpse;
 }
 
@@ -458,7 +488,8 @@ static void raise_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t c
     count_b = (DWORD)MAX(0.0f, S_SpellData(spell->code, level, 2));
     unit_a = S_SpellDataId(spell->code, level, 3);
     unit_b = S_SpellDataId(spell->code, level, 4);
-    duration = S_SpellDuration(spell->code, level, false);
+    duration = S_SpellDuration(spell->code, level, false) +
+        G_UnitUpgradeEffectBonus(caster, BZ_UPGRADE_RAISE_DEAD_LIFE);
     buff = G_AbilityLevel(spell->code, level)->buffID;
 
     raise_dead_spawn_group(caster, spell, corpse, level, unit_a, count_a, duration, buff);

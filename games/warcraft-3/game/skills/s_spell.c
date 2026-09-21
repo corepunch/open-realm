@@ -409,12 +409,13 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
-BOOL S_SpellAllowsCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+static BOOL spell_allows_corpse_target(DWORD code, LPEDICT caster, LPEDICT target, BOOL stored) {
     LPCSTR targets;
     DWORD ability_level;
     BOOL structure;
 
-    if (!caster || !G_UnitIsRaisableCorpse(target)) return false;
+    if (!caster || (stored ? !G_UnitIsRaisableStoredCorpse(target) :
+                    !G_UnitIsRaisableCorpse(target))) return false;
     ability_level = S_SpellLevel(caster, code);
     targets = G_AbilityLevel(code, ability_level)->targs;
     if (!targets) return true;
@@ -434,6 +435,14 @@ BOOL S_SpellAllowsCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
         level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
     return !strstr(targets, "player") && !strstr(targets, "friend") &&
         !strstr(targets, "enemy") && !strstr(targets, "neutral");
+}
+
+BOOL S_SpellAllowsCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+    return spell_allows_corpse_target(code, caster, target, false);
+}
+
+BOOL S_SpellAllowsStoredCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+    return spell_allows_corpse_target(code, caster, target, true);
 }
 
 void S_SpellHeal(LPEDICT target, FLOAT amount) {

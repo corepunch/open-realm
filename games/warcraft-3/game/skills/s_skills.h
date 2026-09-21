@@ -434,6 +434,7 @@ BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target);
 BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target);
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target);
 BOOL S_SpellAllowsCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target);
+BOOL S_SpellAllowsStoredCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target);
 void S_SpellHeal(LPEDICT target, FLOAT amount);
 void S_SpellCursorSplat(LPEDICT clent, FLOAT radius);
 void S_SpellCodeString(DWORD code, LPSTR out);

@@ -65,7 +65,7 @@ static void unit_begin_bone_decay(LPEDICT self) {
 static void unit_decay_flesh_think(LPEDICT self) {
     /* An active corpse consumer owns the remains.  Freeze ordinary decay until
      * that reservation is released or, for Cannibalize, the corpse is consumed. */
-    if (self->aiflags & AI_CORPSE_RESERVED) return;
+    if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
     unit_runwait(self, unit_begin_bone_decay);
 }
 
@@ -103,7 +103,7 @@ void unit_begin_decay(LPEDICT self) {
 /* Ordinary corpses are removed. Heroes instead finish their dissipation timer,
  * become hidden/awaiting-revive, and keep the same authoritative edict. */
 void unit_decay_think(LPEDICT self) {
-    if (self->aiflags & AI_CORPSE_RESERVED) return;
+    if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
     if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
         if (!self->revival.awaiting) unit_runwait(self, hero_become_revivable);
         return;
@@ -173,14 +173,18 @@ void G_SetHealth(LPEDICT ent, FLOAT value) {
 
 void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
 
-BOOL G_UnitIsRaisableCorpse(LPCEDICT ent) {
+static BOOL unit_is_raisable_corpse(LPCEDICT ent, BOOL stored) {
     UnitData_t const *data;
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
         !(ent->svflags & SVF_DEADMONSTER) || !M_IsDead(ent) ||
         (ent->aiflags & (AI_CORPSE_UNRAISABLE | AI_CORPSE_RESERVED))) return false;
+    if (!!(ent->aiflags & AI_CORPSE_IN_CARGO) != stored) return false;
     data = ent->data.UnitData ? ent->data.UnitData : G_UnitData(ent->class_id);
     return data && (data->deathType & UNIT_DEATH_TYPE_RAISE) != 0;
 }
+
+BOOL G_UnitIsRaisableCorpse(LPCEDICT ent) { return unit_is_raisable_corpse(ent, false); }
+BOOL G_UnitIsRaisableStoredCorpse(LPCEDICT ent) { return unit_is_raisable_corpse(ent, true); }
 
 /* Ordinary corpse revival keeps handle identity while retiring every death-state owner before returning to idle. */
 void G_ReviveCorpse(LPEDICT ent, FLOAT life_fraction) {
@@ -188,7 +192,7 @@ void G_ReviveCorpse(LPEDICT ent, FLOAT life_fraction) {
     ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
     ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
-    ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED);
+    ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO);
     G_SetHealth(ent, ent->health.max_value * MAX(0.0f, MIN(1.0f, life_fraction)));
     G_ActivateUnitFood(ent); unit_stand(ent); gi.LinkEntity(ent);
 }

@@ -178,6 +178,7 @@ enum {
     AI_CORPSE_UNRAISABLE = 1 << 7, /* corpse lifecycle; sacrifice or temporary summon cannot be raised */
     AI_CORPSE_NO_DECAY = 1 << 8, /* corpse lifecycle; remove after death animation instead of corpse window */
     AI_CORPSE_RESERVED = 1 << 9, /* corpse lifecycle; an active consuming ability owns this corpse */
+    AI_CORPSE_IN_CARGO = 1 << 10, /* corpse lifecycle; stored in a Meat Wagon cargo slot */
 };
 
 typedef enum {
@@ -2441,6 +2442,7 @@ LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid);
 void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value);
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid);
+FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect);
 LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid);
 void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid);
@@ -2790,6 +2792,7 @@ void G_HeroSetXP(LPEDICT, DWORD xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
 void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
 BOOL G_UnitIsRaisableCorpse(LPCEDICT);
+BOOL G_UnitIsRaisableStoredCorpse(LPCEDICT);
 void G_ReviveCorpse(LPEDICT, FLOAT life_fraction);
 BOOL G_UnitIsHero(LPCEDICT ent);
 FLOAT G_UnitArmorValue(LPCEDICT ent);
@@ -2866,11 +2869,14 @@ BOOL harvest_gold_return_to(LPEDICT, LPEDICT);
 void cargo_drop_all(LPEDICT);
 void S_CargoInitUnit(LPEDICT);
 BOOL S_CargoTryLoad(LPEDICT, LPEDICT);
+BOOL S_CorpseCargoTryLoad(LPEDICT, LPEDICT);
 BOOL S_CargoOrderBoard(LPEDICT, LPEDICT);
 BOOL S_CargoAttacksEnabled(LPCEDICT);
 LPEDICT S_CargoTransportForUnit(LPCEDICT);
 void S_CargoReleaseUnit(LPEDICT);
 BOOL S_CargoIsBurrow(LPEDICT);
+BOOL S_CargoIsCorpseHolder(LPEDICT);
+BOOL S_CorpseCargoIsStored(LPCEDICT);
 DWORD S_CargoCapacity(LPEDICT);
 LPEDICT S_CargoUnitAt(LPCEDICT, DWORD);
 BOOL S_CargoUnloadAt(LPEDICT, DWORD);

@@ -28,13 +28,15 @@ as its interval; `DataC`/`Gyd3` supplies the nearby-corpse radius. OpenRealm now
 implements that Graveyard producer through the shared corpse lifecycle. Exhume stores
 its interval in `Dur` instead.
 
-## Cargo is out of scope
+## Meat Wagon cargo
 
 Retail places exhumed corpses inside Meat Wagon cargo (`Amel` / `Amed` / `Amtc`).
-Those load/drop abilities are not implemented here. This procedure spawns an
-ordinary dead edict near the wagon (`owner = wagon`) so Raise Dead / Cannibalize
-can consume it through the shared corpse contract until cargo lands. See
-[Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
+OpenRealm now stores the actual dead edict in the authored eight-slot `Sch2` cargo
+hold, suspending its decay state. The `DataA=5` Exhume limit remains independent of
+the eight-slot transport capacity, so Exhume stops at the authored five matching
+corpses. Raise Dead and Cannibalize consume the stored edict directly; Amed unloads
+it through the shared cargo placement path. See [Corpse Lifecycle, Cannibalize, and
+Raise Dead](corpse-mechanics.md).
 
 ## Runtime Ownership
 
@@ -44,7 +46,7 @@ AbilityData.slk (Aexh)
 CAbilityExhumeCorpses (AB_PASSIVE | AB_UPDATE)
   -> A_UPDATE arms a classless thinker on units that have Aexh
 exhume_think / G_RunEntities
-  -> if under DataA cap: SP_SpawnAtLocationNoBirth(UnitID) then mark dead
+  -> if under DataA cap: SP_SpawnAtLocationNoBirth(UnitID), mark dead, load into Sch2
   -> next pulse after Dur seconds
 ```
 
