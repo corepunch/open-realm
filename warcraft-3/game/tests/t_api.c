@@ -2863,7 +2863,6 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     T_ASSERT(!playback.positioned);
     T_NULL(playback.emitter);
 
-    G_JassSoundRuntimeReset();
 }
 
 TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {

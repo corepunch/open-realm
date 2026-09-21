@@ -2625,7 +2625,6 @@ typedef struct {
     BOOL positioned;
 } jassSoundPlayback_t;
 
-void G_JassSoundRuntimeReset(void);
 
 /* Client-owned background music presentation.  The game resolves Warcraft
  * skin/Music.SLK data per recipient and emits reliable svc_music commands. */

@@ -56,6 +56,11 @@ typedef struct {
     LONG fadeOutRate;
     DWORD duration;
     int soundIndex; /* CS_SOUNDS configstring index; populated by CreateSound */
+    FLOAT volume;
+    VECTOR3 position;
+    LONG attached_entity;
+    DWORD attached_spawn_time;
+    BOOL has_position;
 } gsound_t;
 
 struct vm_program {

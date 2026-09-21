@@ -1,17 +1,6 @@
 #include "g_local.h"
 #include "g_unitrow.h"
 
-typedef struct jassSoundRuntime_s {
-    struct jassSoundRuntime_s *next;
-    HANDLE handle;
-    FLOAT volume;
-    VECTOR3 position;
-    LONG attached_entity;
-    DWORD attached_spawn_time;
-    BOOL has_position;
-} jassSoundRuntime_t;
-
-static jassSoundRuntime_t *jass_sound_runtime;
 static FLOAT sound_index_volume[MAX_SOUNDS];
 static DWORD sound_index_duration[MAX_SOUNDS];
 static BYTE sound_index_volume_valid[MAX_SOUNDS];
@@ -34,32 +23,6 @@ static commandErrorText_t const command_error_texts[] = {
     { "Inventory is full", "Inventoryfull" },
 };
 
-static jassSoundRuntime_t *G_FindJassSoundRuntime(HANDLE handle, BOOL create) {
-    jassSoundRuntime_t *state;
-
-    if (!handle) return NULL;
-    FOR_EACH_LIST(jassSoundRuntime_t, item, jass_sound_runtime)
-        if (item->handle == handle) return item;
-    if (!create || !gi.MemAlloc) return NULL;
-
-    state = gi.MemAlloc(sizeof(*state));
-    if (!state) return NULL;
-    memset(state, 0, sizeof(*state));
-    state->handle = handle;
-    state->volume = 1.0f;
-    state->attached_entity = -1;
-    ADD_TO_LIST(state, jass_sound_runtime);
-    return state;
-}
-
-void G_JassSoundRuntimeReset(void) {
-    while (jass_sound_runtime) {
-        jassSoundRuntime_t *state = jass_sound_runtime;
-        jass_sound_runtime = state->next;
-        if (gi.MemFree) gi.MemFree(state);
-    }
-}
-
 void G_ResetSoundPresentationState(void) {
     memset(sound_index_volume, 0, sizeof(sound_index_volume));
     memset(sound_index_duration, 0, sizeof(sound_index_duration));
@@ -80,7 +43,7 @@ DWORD G_SoundIndexDuration(int sound_index) {
 }
 
 void G_JassSoundRuntimeInit(HANDLE handle) {
-    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    gsound_t *state = handle;
     if (!state) return;
     state->volume = 1.0f;
     state->position = (VECTOR3){ 0 };
@@ -90,12 +53,12 @@ void G_JassSoundRuntimeInit(HANDLE handle) {
 }
 
 void G_JassSoundSetVolume(HANDLE handle, FLOAT volume) {
-    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    gsound_t *state = handle;
     if (state) state->volume = MAX(0.0f, MIN(volume, 1.0f));
 }
 
 void G_JassSoundSetPosition(HANDLE handle, LPCVECTOR3 position) {
-    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    gsound_t *state = handle;
     if (!state || !position) return;
     state->position = *position;
     state->attached_entity = -1;
@@ -104,7 +67,7 @@ void G_JassSoundSetPosition(HANDLE handle, LPCVECTOR3 position) {
 }
 
 void G_JassSoundAttach(HANDLE handle, LPEDICT unit) {
-    jassSoundRuntime_t *state = G_FindJassSoundRuntime(handle, true);
+    gsound_t *state = handle;
     if (!state) return;
     state->attached_entity = unit ? (LONG)unit->s.number : -1;
     state->attached_spawn_time = unit ? unit->spawn_time : 0;
@@ -112,11 +75,10 @@ void G_JassSoundAttach(HANDLE handle, LPEDICT unit) {
 }
 
 void G_JassSoundPlayback(HANDLE handle, jassSoundPlayback_t *playback) {
-    jassSoundRuntime_t *state;
+    gsound_t *state = handle;
 
     if (!playback) return;
     *playback = (jassSoundPlayback_t){ .volume = 1.0f };
-    state = G_FindJassSoundRuntime(handle, false);
     if (!state) return;
     playback->volume = state->volume;
     if (state->attached_entity >= 0 && (DWORD)state->attached_entity < globals.num_edicts) {

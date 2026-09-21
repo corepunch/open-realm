@@ -525,7 +525,6 @@ static void G_ShutdownGame(void) {
     gi.SetPaused(false);
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
-    G_JassSoundRuntimeReset();
     G_ClearJassGroupRegistry();
     G_FowShutdown();
     G_BlightShutdown();

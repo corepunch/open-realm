@@ -701,8 +701,7 @@ static void R_W3UpdateModelSoundEvents(renderEntity_t const *entity) {
     model = entity->model->mdx;
     if (!model->events) return;
     state = event_sound_state + entity->number;
-    if (!state->valid || state->model != entity->model ||
-        (state->frame != entity->frame && state->frame != entity->oldframe)) {
+    if (!state->valid || state->model != entity->model) {
         *state = (wc3EventSoundState_t){ .model = entity->model, .frame = entity->frame,
                                         .render_time = tr.viewDef.time, .valid = true };
         return;

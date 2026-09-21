@@ -658,13 +658,13 @@ void G_SpawnEntities(void) {
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
-    G_JassSoundRuntimeReset();
     G_ClearSaveRegistries();
     G_ClearJassGroupRegistry();
     G_ClearHashtableRegistry();
     G_FowShutdown();
     G_BlightShutdown();
     memset(&level, 0, sizeof(level));
+    G_ResetSelectionSoundState();
     G_ResetHeroPassiveCaches();
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();

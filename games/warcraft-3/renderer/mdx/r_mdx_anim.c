@@ -36,6 +36,7 @@ BOOL MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, DWOR
         if (event->globalSeqId >= (DWORD)model->num_globalSequences || !model->globalSequences) return false;
         duration = model->globalSequences[event->globalSeqId].value;
         if (!duration) return false;
+        if (current_time >= previous_time && current_time - previous_time >= duration) return true;
         previous = previous_time % duration;
         current = current_time % duration;
         return current >= previous ? (key > previous && key <= current)

@@ -36,7 +36,6 @@ void reset_entities(void) {
     DWORD cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_ResetHeroPassiveCaches();
-    G_JassSoundRuntimeReset();
     G_ResetSelectionSoundState();
     G_ResetSoundPresentationState();
     /* Wipe only the live cap, then restore MAX_ENTITIES. Pocket Factory's alloc-failure
@@ -108,7 +107,6 @@ void setup_test_world(void) {
 static void reset_test_state(void) {
     G_ResetDeferredFrees();
     UI_TestResetInfoPanelIconCache();
-    G_JassSoundRuntimeReset();
     G_ResetSelectionSoundState();
     G_ResetSoundPresentationState();
     G_BotShutdown();

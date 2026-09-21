@@ -803,6 +803,7 @@ TEST(renderer_model, mdx_sound_event_keys_follow_sequence_and_global_sequence_ti
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 100, 0, 0, 50, 150));
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 25, 0, 0, 950, 1050));
     T_ASSERT(!MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 950, 1050));
+    T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 50, 1050));
 }
 
 TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
