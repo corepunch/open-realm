@@ -31,6 +31,7 @@ BOOL run_test_jass(LPCSTR src);
 extern LPPLAYER currentplayer;
 void unit_die(LPEDICT self, LPEDICT attacker);
 void unit_build(LPEDICT self, DWORD class_id);
+static LPEDICT find_test_unit(DWORD class_id);
 
 
 
@@ -2548,6 +2549,41 @@ TEST(wc3_api, client_selection_publishes_selection_events_once_per_delta) {
     jass_runevents(level.vm);
     T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 2);
     T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 1);
+}
+
+TEST(wc3_api, immediate_order_publishes_order_event_context) {
+    LPEDICT unit;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  integer orderEvents = 0\n"
+        "endglobals\n"
+        "function onOrder takes nothing returns nothing\n"
+        "  set orderEvents = orderEvents + 1\n"
+        "  call BJassAssert(GetOrderedUnit() == testUnit, \"ordered unit must be the immediate-order unit\")\n"
+        "endfunction\n"
+        "function verifyOrder takes nothing returns nothing\n"
+        "  call BJassAssert(orderEvents == 1, \"immediate order must publish one player order event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_ORDER, null)\n"
+        "  call TriggerAddAction(t, function onOrder)\n"
+        "endfunction\n"));
+
+    unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100.0f;
+    T_ASSERT(unit_issueimmediateorder(unit, "holdposition"));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyOrder", true);
+    jass_runevents(level.vm);
+    T_EQ(G_GetIssuedOrderId(unit), G_OrderId("holdposition"));
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 TEST(wc3_api, build_placement_publishes_point_order_event_context) {
