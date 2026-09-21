@@ -131,6 +131,7 @@ TEST(wc3_spell, unloading_bone_phase_corpse_restarts_bone_decay_time) {
     game.constants.boneDecayTime = 2.75f;
     corpse = alloc_test_unit(BZ_HFOO, fix.wagon->s.origin2.x, fix.wagon->s.origin2.y);
     corpse->s.player = fix.wagon->s.player; corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    corpse->targtype = TARG_GROUND;
     corpse->health.value = 0.0f;
     unit_begin_decay(corpse);
     T_NOT_NULL(corpse->currentmove);
