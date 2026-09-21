@@ -2983,6 +2983,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
 }
 
 TEST(wc3_building, legacy_construction_death_clears_snapshot_loop) {
+    setup_test_world();
     LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
 
     building->build = building;
