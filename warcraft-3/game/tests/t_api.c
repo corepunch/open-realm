@@ -1968,6 +1968,16 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     T_ASSERT(found);
 }
 
+TEST(wc3_api, authored_unit_ui_tint_initializes_vertex_color) {
+    UnitUI_t ui = { .tintRed = 224, .tintGreen = 232, .tintBlue = 255 };
+    edict_t unit = { .data.UnitUI = &ui };
+
+    G_InitializeUnitVertexColor(&unit);
+    T_ASSERT(unit.vertex_color_set);
+    T_EQ(unit.vertex_color.r, 224); T_EQ(unit.vertex_color.g, 232);
+    T_EQ(unit.vertex_color.b, 255); T_EQ(unit.vertex_color.a, 255);
+}
+
 
 TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
     BYTE data[1024];

@@ -64,6 +64,20 @@ void G_InitializeUnitTeamColor(LPEDICT unit) {
     G_SetUnitTeamColor(unit, color);
 }
 
+/* UnitUI.slk red/green/blue is the authored default vertex tint. Keep the
+ * normal white case unset so this presentation extension is only sent for
+ * units that actually differ from the renderer's white default. */
+void G_InitializeUnitVertexColor(LPEDICT unit) {
+    UnitUI_t const *ui;
+
+    if (!unit || !(ui = unit->data.UnitUI)) return;
+    if (ui->tintRed == 255 && ui->tintGreen == 255 && ui->tintBlue == 255) return;
+    unit->vertex_color = MAKE(COLOR32,
+        BZ_CLAMP_U8(ui->tintRed), BZ_CLAMP_U8(ui->tintGreen),
+        BZ_CLAMP_U8(ui->tintBlue), 255);
+    unit->vertex_color_set = true;
+}
+
 /* Apply the map placement custom color when the unit type permits authored colors. */
 void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement) {
     LONG custom_color;

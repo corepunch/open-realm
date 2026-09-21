@@ -2291,6 +2291,7 @@ void G_SetEntityTeamColor(LPENTITYSTATE state, DWORD color);
 void G_SetUnitTeamColor(LPEDICT unit, DWORD color);
 void G_InheritUnitTeamColor(LPEDICT entity, LPCEDICT source);
 void G_InitializeUnitTeamColor(LPEDICT unit);
+void G_InitializeUnitVertexColor(LPEDICT unit);
 void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement);
 void G_ChangePlayerTeamColor(LPPLAYER player, DWORD previous_color, DWORD new_color);
 BOOL G_GetUnitColorOverride(LPCEDICT unit, LPDWORD color);
