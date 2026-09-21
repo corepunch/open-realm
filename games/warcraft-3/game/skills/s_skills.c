@@ -709,6 +709,9 @@ static abilityProc_t ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0]
 static DWORD num_updates;
 static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static DWORD num_innate;
+static abilityProc_t ability_index_procs[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static DWORD ability_index_values[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static DWORD num_ability_index_procs;
 
 /* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
@@ -910,8 +913,10 @@ void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
     num_updates = 0;
     num_innate = 0;
+    num_ability_index_procs = 0;
     FOR_LOOP(i, game.num_abilities) {
         ability_t *entry = &abilitylist[i];
+        DWORD n;
         abilityitem_t item = MAKE(abilityitem_t, .code = strlen(entry->classname) == 4 ? FS_SLKKey(entry->classname) : 0,
                                   .ability = entry);
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .classname = entry->classname);
@@ -919,9 +924,13 @@ void InitAbilities(void) {
         entry->proc(NULL, A_INIT, &call);
         if (entry->flags & AB_INNATE) innate_items[num_innate++] = item;
         if (entry->flags & AB_UPDATE) {
-            DWORD n;
             for (n = 0; n < num_updates && ability_updates[n] != entry->proc; n++) {}
             if (n == num_updates) ability_updates[num_updates++] = entry->proc;
+        }
+        for (n = 0; n < num_ability_index_procs && ability_index_procs[n] != entry->proc; n++) {}
+        if (n == num_ability_index_procs) {
+            ability_index_procs[num_ability_index_procs] = entry->proc;
+            ability_index_values[num_ability_index_procs++] = i;
         }
     }
 }
@@ -933,20 +942,8 @@ ability_t const *GetAbilityByIndex(DWORD index) {
 }
 
 DWORD GetAbilityIndex(abilityProc_t proc) {
-    static abilityProc_t cached_proc[8];
-    static BYTE cached_index[8];
-    static BYTE next_cache;
-    BYTE slot;
-
     if (!proc) return 255;
-    FOR_LOOP(slot, 8) if (cached_proc[slot] == proc) return cached_index[slot];
-    FOR_LOOP(i, game.num_abilities) {
-        if (abilitylist[i].proc == proc) {
-            slot = next_cache++ & 7;
-            cached_proc[slot] = proc;
-            cached_index[slot] = (BYTE)i;
-            return i;
-        }
-    }
+    FOR_LOOP(i, num_ability_index_procs)
+        if (ability_index_procs[i] == proc) return ability_index_values[i];
     return 255;
 }
