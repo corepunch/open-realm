@@ -125,11 +125,10 @@ BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
 }
 
 BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target) {
-    /* Retail Smart/right-click only treats ordinary breakable debris as an
-     * implicit attack target. Trees retain harvest semantics for workers and
-     * tree/wall/bridge/decoration classes require the explicit Attack command. */
+    /* Retail Smart/right-click treats attackable walls like gates as attack
+     * targets. Bridges retain walk-to behavior unless explicitly attackable. */
     return G_DestructableCanBeAttackedBy(attacker, target) &&
-        target->targtype == TARG_DEBRIS;
+        (target->targtype == TARG_DEBRIS || target->targtype == TARG_WALL);
 }
 
 /* Resolve one 0..99 roll against cumulative percentages. Any unused remainder

@@ -2003,6 +2003,40 @@ TEST(wc3_movement, smart_nonwalkable_destructable_does_not_fall_back_to_move) {
     gi.unicast = old_unicast;
 }
 
+TEST(wc3_movement, smart_attackable_wall_targets_gate) {
+    static DestructableData_t const gate_data = {
+        .file = "Doodads/TestGate.mdx",
+        .walkable = false,
+    };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT attacker, gate;
+    char gate_number[16];
+    LPCSTR command[] = { "smart", gate_number };
+
+    setup_test_world();
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    attacker->stand = unit_stand;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_WALL;
+    unit_stand(attacker);
+    gate = make_smart_destructable(256.0f, 64.0f, &gate_data, TARG_WALL);
+    G_SelectEntity(client, attacker);
+    snprintf(gate_number, sizeof(gate_number), "%u", (unsigned)gate->s.number);
+
+    G_ClientCommand(clent, 2, command);
+
+    T_ASSERT(attacker->goalentity == gate);
+    T_EQ(G_UnitQueuedOrderCount(attacker), 0);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
 TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
     static DestructableData_t const bridge_data = {
         .file = "Doodads/Terrain/WoodBridgeLarge45/WoodBridgeLarge45.mdx",
