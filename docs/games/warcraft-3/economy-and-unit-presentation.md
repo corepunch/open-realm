@@ -147,6 +147,17 @@ worker+mine collision contact, movement step, distance to the mine's authored pa
 flow generation. Entry/deposit logs identify `via=footprint`, `circle`, `route_goal`, or `settled`. Gold return uses the same cvar and emits `WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions so a Town Hall return failure can be distinguished from a mine-entry failure. If the worker remains outside all completion modes, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge the authored mine footprint to hide a routing/crowding problem.
 Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
 
+### Gold Mine world hover
+
+World hover follows Warsmash's Gold Mine presentation: a live Gold Mine nameplate adds a second localized `COLON_GOLD`
+line containing the mine's current remaining gold, for example `Gold Mine` followed by `Gold: 12500`. The server publishes
+that changing amount through the generic recipient-filtered `entityState_t.hover_value` (wire value is amount plus one so depleted
+mines can display zero); the already-authored
+`LAYER_WORLD_HOVER` name frame supplies the localized label and the client combines both values without a hover RPC or
+`svc_layout` resend. Ordinary `Agld` mines publish their own `resources` reservoir. Haunted/Entangled overlay units publish
+the remaining gold from their still-bound hidden parent mine, so replacing the visible mine model does not create a second
+reservoir. Invulnerable mines continue to omit the health bar while retaining the name/gold hover frame.
+
 ### Mine hover/model/pathing mismatch diagnostics
 
 A Gold Mine has three independent pieces of geometry that can disagree on custom maps:
@@ -407,6 +418,13 @@ label's right edge at `+0.001` and later icons chained at the same gap. Icon, ti
 remaining fraction is published through player-state snapshots to the retail `SimpleProgressIndicator`; see
 [Timed Status Presentation](timed-status-presentation.md). Adding, replacing, removing, or expiring a status invalidates the selected-unit
 info layer so labels/eligibility refresh without rebuilding the FDF layer for every timer tick.
+
+Each visible status icon is a passive `FT_SIMPLEFRAME` hover target. Its `Tip` and `Ubertip` are populated from the resolved
+`Bufftip` / `Buffubertip` strings and serialize through the generic `uiFrame_t.tooltip` contract as heading plus body. The
+icon has no click command and does not synthesize resource costs, remaining duration, caster identity, or other status metadata.
+`LAYER_INFOPANEL` carries the shared `FT_TOOLTIPTEXT` presenter whenever a single-selection info panel is authored; the client
+therefore renders the standard Warcraft tooltip only in the same layer that owns the hovered status icon. Timed-bar statuses remain
+excluded from this icon path, so they do not gain a duplicate hover target.
 
 Upgrade-level text is the small `InfoPanelIconLevel` overlay attached to the bottom-right of a damage/armor icon. It is not a buff
 slot. Resolve the selected unit's `UnitBalance.upgrades` rawcodes through `UpgradeData.slk` and show the player's researched level only

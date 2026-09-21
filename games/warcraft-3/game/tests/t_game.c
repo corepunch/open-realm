@@ -667,7 +667,9 @@ static LPEDICT make_test_unit(void) {
     return ent;
 }
 
-static BOOL hover_layout_pending, hover_layer_seen, hover_name_seen, hover_hp_seen, hover_mana_seen, hover_name_sized, hover_name_centered, hover_name_short;
+static BOOL hover_layout_pending, hover_layer_seen, hover_infopanel_layer_seen, hover_name_seen, hover_hp_seen,
+            hover_mana_seen, hover_name_sized, hover_name_centered, hover_name_short, hover_resource_label_seen,
+            hover_infopanel_tooltip_seen;
 static DWORD hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count;
 static LPEDICT hover_unicast_target;
 static pfWriteType_t window_frame_type;
@@ -681,13 +683,19 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
     if (!value) return;
     if (type == PF_BYTE) {
         LONG byte = *(LONG const *)value;
-        if (hover_layout_pending) { hover_layer_seen = byte == LAYER_WORLD_HOVER; hover_layout_pending = false; }
+        if (hover_layout_pending) {
+            hover_layer_seen = byte == LAYER_WORLD_HOVER;
+            hover_infopanel_layer_seen = byte == LAYER_INFOPANEL;
+            hover_layout_pending = false;
+        }
         else hover_layout_pending = byte == svc_layout;
     } else if (type == PF_UIFRAME) {
         LPCUIFRAME frame = value;
         hover_frame_count++;
         hover_name_seen |= frame->flags.type == FT_NAMETAG && frame->stat == UI_STAT_CONTEXT_NAME;
         hover_name_sized |= frame->flags.type == FT_NAMETAG && (frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT);
+        hover_resource_label_seen |= frame->flags.type == FT_NAMETAG && frame->text &&
+            *frame->text && strcmp(frame->text, "COLON_GOLD");
         if (frame->flags.type == FT_NAMETAG && frame->buffer.size == sizeof(uiNameTag_t)) {
             uiNameTag_t const *tag = frame->buffer.data;
             hover_name_centered = frame->points.x[FPP_MID].used;
@@ -695,9 +703,24 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
         }
         hover_hp_seen |= frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
         hover_mana_seen |= frame->stat == UI_STAT_CONTEXT_MANA;
+        hover_infopanel_tooltip_seen |= frame->flags.type == FT_TOOLTIPTEXT;
     }
 }
 static void hover_test_unicast(LPEDICT ent) { hover_unicast_count++; hover_unicast_target = ent; }
+static void infopanel_test_write(pfWriteType_t type, void const *value) {
+    if (!value) return;
+    if (type == PF_BYTE) {
+        LONG byte = *(LONG const *)value;
+        if (hover_layout_pending) {
+            hover_infopanel_layer_seen = byte == LAYER_INFOPANEL;
+            hover_layout_pending = false;
+        } else if (byte == svc_layout) {
+            hover_layout_pending = true;
+        }
+    } else if (type == PF_UIFRAME && ((LPCUIFRAME)value)->flags.type == FT_TOOLTIPTEXT) {
+        hover_infopanel_tooltip_seen = true;
+    }
+}
 static void window_test_write(pfWriteType_t type, void const *value) {
     if (type != PF_UIWINDOWFRAME) return;
     window_frame_type = type;
@@ -1426,6 +1449,22 @@ TEST(wc3_game, hud_passive_string_serializes_tooltip) {
     T_ASSERT(!wire.onclick || !*wire.onclick);
 }
 
+TEST(wc3_game, hud_passive_simpleframe_serializes_status_tooltip) {
+    FRAMEDEF frame = { .Type = FT_SIMPLEFRAME };
+    uiFrame_t wire = { 0 };
+    BYTE typedata[128] = { 0 };
+    char textbuf[128] = { 0 };
+
+    frame.Tip = "Bloodlust";
+    frame.Ubertip = "Increases attack rate and movement speed.";
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_EQ(wire.flags.type, FT_SIMPLEFRAME);
+    T_STREQ(wire.tooltip, "Bloodlust\nIncreases attack rate and movement speed.");
+    T_ASSERT(!wire.onclick || !*wire.onclick);
+}
+
 TEST(wc3_game, hud_checkbox_serializes_authored_states_and_checked_value) {
     BYTE typedata[256];
     char textbuf[128];
@@ -2028,7 +2067,7 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
     player->mana.max_value = 100.0f; player->mana.value = 50.0f;
     hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_name_sized = false;
-    hover_name_centered = hover_name_short = false;
+    hover_name_centered = hover_name_short = hover_resource_label_seen = false;
     hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0; hover_unicast_target = NULL;
     gi.Write = hover_test_write; gi.unicast = hover_test_unicast;
     gi.ImageIndex = hover_test_image; gi.FontIndex = hover_test_font;
@@ -2037,9 +2076,28 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
 
     T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 5);
     T_ASSERT(hover_name_seen); T_ASSERT(hover_name_sized); T_ASSERT(hover_name_centered); T_ASSERT(hover_name_short);
+    T_ASSERT(hover_resource_label_seen);
     T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen);
     T_EQ(hover_image_count, 6); T_EQ(hover_font_count, 1);
     T_EQ(hover_unicast_count, 1); T_ASSERT(hover_unicast_target == player);
+}
+
+TEST(wc3_game, single_info_panel_serializes_tooltip_presenter) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT selected[1];
+
+    setup_test_world(); selected[0] = make_test_unit();
+    player->client = client; client->connected = true; client->ps.number = 0;
+    selected[0]->svflags |= SVF_MONSTER; selected[0]->s.player = 0;
+    hover_layout_pending = hover_infopanel_layer_seen = hover_infopanel_tooltip_seen = false;
+    gi.Write = infopanel_test_write;
+    UI_SendInfoPanel(player, selected, 1);
+    gi.Write = old_write;
+
+    T_ASSERT(hover_infopanel_layer_seen);
+    T_ASSERT(hover_infopanel_tooltip_seen);
 }
 
 /* =========================================================================

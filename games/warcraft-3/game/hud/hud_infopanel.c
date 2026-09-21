@@ -910,7 +910,6 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
                     UI_WriteProxyFrame(&frame, NULL, 0);
                 }
             }
-            UI_WriteTooltipFrame();
             return;
         }
     } else {
@@ -1004,6 +1003,11 @@ void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
         } else {
             UI_WriteSingleInfo(selected[0], ent->client);
         }
+        /* Tooltip-bearing status icons and cargo buttons live in the info-panel
+         * layer.  The client draws FT_TOOLTIPTEXT only from the layer that owns
+         * the hovered source, so keep one shared presenter in this layer rather
+         * than special-casing individual info-panel modes. */
+        UI_WriteTooltipFrame();
     } else if (count > 1) {
         UI_WriteMultiselect(selected, count, ent->client);
     }

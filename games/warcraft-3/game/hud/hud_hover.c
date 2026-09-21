@@ -25,6 +25,18 @@ static void UI_WriteHoverBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWO
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
+static LPCSTR UI_HoverResourceLabel(void) {
+    static BOOL warned;
+    LPCSTR label = UI_GetString("COLON_GOLD");
+
+    if (label && strcmp(label, "COLON_GOLD")) return label;
+    if (!warned) {
+        fprintf(stderr, "UI_WC3: missing GlobalStrings entry COLON_GOLD; using Gold: fallback\n");
+        warned = true;
+    }
+    return "Gold:";
+}
+
 /* The server owns the complete widget; only its declared context changes at draw time. */
 void UI_WriteHoverLayout(LPEDICT ent) {
     uiFrame_t frame = { 0 };
@@ -37,6 +49,7 @@ void UI_WriteHoverLayout(LPEDICT ent) {
 
     frame.flags.type = FT_NAMETAG; frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT; frame.stat = UI_STAT_CONTEXT_NAME;
     frame.color = COLOR32_WHITE;
+    frame.text = UI_HoverResourceLabel();
     uiNameTag_t data = MAKE(uiNameTag_t,
         .background = MAKE(uiBackdrop_t,
             .Background = gi.ImageIndex("ToolTipBackground"),

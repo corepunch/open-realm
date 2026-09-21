@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 7 // version; Blight terrain-mask chunks are RLE/bitpack-escape (v6 kept all 32 UI flag bits)
+#define BZ_PROTOCOL_VERSION 8 // version; entity deltas include the WC3 world-hover value field (v7 had no hover value)
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;

@@ -28,6 +28,11 @@ proxy, with its coordinates kept in parity with the reference runtime layout.
 
 For the WC3 resource bar, `ResourceBarGoldText`, `ResourceBarLumberText`, `ResourceBarSupplyText`, and `ResourceBarUpkeepText` are the stable named anchors. The retail resource icon textures are unnamed, so bind passive resource help to the named FDF value frames rather than creating project-owned icon geometry. Gold/Lumber/Food resource `Tip` headings use the generic `{value}` marker; `SCR_GetTooltipText()` expands it from the hovered frame's current `Stat` display value, preventing a server-authored layout packet from freezing an older amount while replicated playerstate continues to change. The descriptive `Ubertip` remains driven by Warcraft `GlobalStrings.fdf`. Upkeep prefers split `RESOURCE_UBERTIP_UPKEEP_INFO[_WOOD]` rows, preserves a base body that already contains tier ranges, and generates a gameplay-data-backed fallback legend if neither representation supplies one. See [WC3 food and upkeep](games/warcraft-3/food-and-upkeep.md).
 
+The same passive-frame contract applies to the WC3 selected-unit status strip. Runtime `FT_SIMPLEFRAME` status icons carry
+`Bufftip` / `Buffubertip` text but no click command, and `LAYER_INFOPANEL` must serialize an `FT_TOOLTIPTEXT` presenter so the
+client can draw that tooltip in the layer that owns the hovered icon. Do not make buff icons fake command buttons just to obtain
+hover behavior. See [WC3 economy and unit presentation](games/warcraft-3/economy-and-unit-presentation.md).
+
 ### TextLength semantics
 
 WC3 FDF `TextLength` is layout geometry, not merely a character limit. When a text frame has no explicit `Width`, its implicit width
