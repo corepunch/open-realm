@@ -5,6 +5,7 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "jass/jass.h"
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
@@ -1244,6 +1245,53 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
         "  call SetItemCharges(i, -1)\n"
         "  call BJassAssert(GetItemCharges(i) == 0, \"negative charges clamp\")\n"
         "endfunction\n"));
+}
+
+TEST(wc3_items, pickup_event_detects_arthas_urn) {
+    static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
+    LPEDICT arthas = NULL;
+    LPEDICT urn;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit arthas = null\n"
+        "  quest urnQuest = null\n"
+        "endglobals\n"
+        "function on_pickup takes nothing returns nothing\n"
+        "  if GetItemTypeId(GetManipulatedItem()) == 'ktrm' and GetManipulatingUnit() == arthas then\n"
+        "    call QuestSetCompleted(urnQuest, true)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function verify_pickup takes nothing returns nothing\n"
+        "  call BJassAssert(IsQuestCompleted(urnQuest), \"Arthas urn pickup did not complete the quest\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set arthas = CreateUnit(Player(3), 'Hpal', 64.0, 64.0, 0.0)\n"
+        "  set urnQuest = CreateQuest()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(3), EVENT_PLAYER_UNIT_PICKUP_ITEM, null)\n"
+        "  call TriggerAddAction(t, function on_pickup)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('H','p','a','l')) {
+            arthas = g_edicts + i;
+            break;
+        }
+    }
+    T_NOT_NULL(arthas);
+    arthas->data.UnitAbilities = &abilities;
+    arthas->s.model = 1;
+    arthas->movetype = MOVETYPE_STEP;
+    arthas->collision = 16.0f;
+    arthas->health.value = arthas->health.max_value = 100.0f;
+    urn = make_item_test_world_item(MAKEFOURCC('k','t','r','m'), 64, 64);
+    T_ASSERT(G_PickupItem(arthas, urn));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_pickup", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {

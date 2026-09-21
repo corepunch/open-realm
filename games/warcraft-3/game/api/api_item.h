@@ -112,7 +112,8 @@ DWORD IsItemInvulnerable(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetManipulatedItem(LPJASS j) {
-    return jass_pushnullhandle(j, "item");
+    LPEDICT item = jass_getcontext(j)->source;
+    return item && G_IsItem(item) ? jass_pushlighthandle(j, item, "item") : jass_pushnullhandle(j, "item");
 }
 DWORD GetOrderTargetItem(LPJASS j) {
     return jass_pushnullhandle(j, "item");

@@ -346,6 +346,8 @@ BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
     unit->inventory[slot] = item;
     G_ApplyItemStats(unit, item, true);
     G_RefreshInventoryUI(unit);
+    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
     return true;
 }
 

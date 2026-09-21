@@ -1,3 +1,6 @@
 [spro]
 Art=TestUI\Textures\solid_white.blp
 Hotkey=S
+[ktrm]
+Art=TestUI\Textures\solid_white.blp
+Hotkey=U
