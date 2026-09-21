@@ -896,14 +896,6 @@ void spell_cmd(LPEDICT clent) {
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
 
-    if (spell && spell->classname && (!strcmp(spell->classname, "Acan") ||
-                                      !strcmp(spell->classname, "ACcn") ||
-                                      !strcmp(spell->classname, "Acn2")))
-        WC3_CANNIBALIZE_LOG("spell command client=%ld caster=%ld code=%.4s class=%s target_type=%d flags=0x%x",
-                            clent ? (long)(clent - globals.edicts) : -1L,
-                            caster ? (long)(caster - globals.edicts) : -1L,
-                            (LPCSTR)&code, spell->classname, spell->target_type, spell->flags);
-
     if (!spell) {
         fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (LPCSTR)&code);
         return;

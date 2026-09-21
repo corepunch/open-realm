@@ -231,10 +231,18 @@ by this effect.
 Some Warcraft units author a research-granted command in their normal ability
 list before the research completes. For those units, OpenRealm correlates the
 unit's `Upgrades Used` list with any `rlev` effect targeting that command. The
-command is omitted from the command card and direct execution is rejected until
-the owning player has researched the matching upgrade. Human Footman Defend
+command remains visible but disabled on the command card, and direct execution
+is rejected until the owning player has researched the matching upgrade. Human
+Footman Defend
 (`Rhde` targeting `Adef`) uses this path; custom unit/upgrade pairs using the
 same data contract inherit it without rawcode-specific code.
+
+Some stock dependencies are authored as gate-only upgrade rows with no effect
+or target code. When the ability's `checkDep` flag is set, OpenRealm matches the
+ability and upgrade's authored comments within the unit's `Upgrades Used` list.
+Undead Ghoul Cannibalize (`Ruac` / `Acan`) uses this path. It has the same
+command-card and direct-execution gate as an `rlev` dependency, but the ability
+does not gain a level from the research.
 
 ### `rmnx` / `rmnr` — mana capacity and regeneration
 

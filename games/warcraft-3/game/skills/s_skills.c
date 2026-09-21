@@ -901,14 +901,6 @@ void S_AbilityCommand(LPEDICT clent, ability_t const *ability) {
 
     if (!S_AbilityHasCommand(ability)) return;
     item = MAKE(abilityitem_t, .code = clent->client->menu.ability_code, .ability = ability);
-    if (ability->classname && (!strcmp(ability->classname, "Acan") ||
-                               !strcmp(ability->classname, "ACcn") ||
-                               !strcmp(ability->classname, "Acn2")))
-        WC3_CANNIBALIZE_LOG("button command client=%ld caster=%ld ability=%.4s target_type=%d menu_code=%.4s",
-                            clent ? (long)(clent - globals.edicts) : -1L,
-                            G_GetMainSelectedUnit(clent->client) ?
-                                (long)(G_GetMainSelectedUnit(clent->client) - globals.edicts) : -1L,
-                            ability->classname, ability->target_type, (LPCSTR)&item.code);
     call = MAKE(abilityCall_t, .item = &item, .client = clent);
     S_AbilityMessage(G_GetMainSelectedUnit(clent->client), A_COMMAND, &call);
 }
