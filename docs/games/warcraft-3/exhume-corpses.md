@@ -24,15 +24,17 @@ Wiki text that says "Crypt Fiend" is wrong for stock `AbilityData`; Neoseeker an
 the SLK agree on Ghoul (`ugho`). AbilityMetaData / ubertip / brief beat wiki.
 
 `Agyd` (Graveyard Create Corpse) shares DataA=5 + UnitID=ugho and uses `Cool=15`
-as its interval. Exhume stores the interval in `Dur` instead. Agyd remains a
-separate TODO.
+as its interval; `DataC`/`Gyd3` supplies the nearby-corpse radius. OpenRealm now
+implements that Graveyard producer through the shared corpse lifecycle. Exhume stores
+its interval in `Dur` instead.
 
 ## Cargo is out of scope
 
 Retail places exhumed corpses inside Meat Wagon cargo (`Amel` / `Amed` / `Amtc`).
 Those load/drop abilities are not implemented here. This procedure spawns an
 ordinary dead edict near the wagon (`owner = wagon`) so Raise Dead / Cannibalize
-can consume it from the ground until cargo lands.
+can consume it through the shared corpse contract until cargo lands. See
+[Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
 ## Runtime Ownership
 

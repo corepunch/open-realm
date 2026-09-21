@@ -409,6 +409,33 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
+BOOL S_SpellAllowsCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+    LPCSTR targets;
+    DWORD ability_level;
+    BOOL structure;
+
+    if (!caster || !G_UnitIsRaisableCorpse(target)) return false;
+    ability_level = S_SpellLevel(caster, code);
+    targets = G_AbilityLevel(code, ability_level)->targs;
+    if (!targets) return true;
+
+    structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+    if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
+        !(strstr(targets, "air") && target->targtype == TARG_AIR) &&
+        !(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
+        !(strstr(targets, "structure") && structure)) return false;
+    if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
+    if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
+
+    if (strstr(targets, "player") && target->s.player == caster->s.player) return true;
+    if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) return true;
+    if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
+    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
+    return !strstr(targets, "player") && !strstr(targets, "friend") &&
+        !strstr(targets, "enemy") && !strstr(targets, "neutral");
+}
+
 void S_SpellHeal(LPEDICT target, FLOAT amount) {
     if (!target || amount <= 0) {
         return;

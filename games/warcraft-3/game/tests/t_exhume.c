@@ -100,4 +100,52 @@ TEST(wc3_spell, exhume_wagon_removal_cancels_production) {
 	exh_done(&fix);
 }
 
+#define BZ_AGYD MAKEFOURCC('A', 'g', 'y', 'd') // rawcode; Graveyard Create Corpse
+
+static char const graveyard_slk[] =
+    "ID;PWXL;N;EBB;Y2;X9\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+    "C;Y1;X4;K\"Cool1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+    "C;Y1;X7;K\"DataC1\"\nC;Y1;X8;K\"UnitID1\"\nC;Y1;X9;K\"targs\"\n"
+    "C;Y2;X1;K\"Agyd\"\nC;Y2;X2;K\"Agyd\"\nC;Y2;X3;K\"1\"\n"
+    "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"64\"\n"
+    "C;Y2;X7;K\"128\"\nC;Y2;X8;K\"hfoo\"\nC;Y2;X9;K\"_\"\nE\n";
+
+static LPEDICT graveyard_test_thinker(LPEDICT graveyard) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == graveyard && ent->think == graveyard_think) return ent;
+    return NULL;
+}
+
+static DWORD graveyard_test_corpse_count(LPEDICT graveyard) {
+    DWORD count = 0;
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && M_IsDead(ent) &&
+                  Vector2_distance(&ent->s.origin2, &graveyard->s.origin2) <= 128.0f) count++;
+    return count;
+}
+
+TEST(wc3_spell, graveyard_registers_and_uses_cool_dataa_datac_unitid) {
+    slkTestData_t *rows, *old;
+    LPEDICT graveyard, thinker;
+    abilityitem_t item = S_AbilityItem(BZ_AGYD);
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    rows = parse_slk_string(graveyard_slk); old = G_SetSLKRows("AbilityData", rows);
+    graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
+    graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
+    graveyard->health.value = graveyard->health.max_value = 900;
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+
+    T_NOT_NULL(item.ability); T_EQ(item.ability->proc, CAbilityGraveyard);
+    T_ASSERT(item.ability->flags & AB_PASSIVE); T_ASSERT(item.ability->flags & AB_UPDATE);
+    S_RunAbilityUpdates(graveyard);
+    thinker = graveyard_test_thinker(graveyard); T_NOT_NULL(thinker);
+    T_EQ(graveyard_test_corpse_count(graveyard), 0);
+    level.time += 999; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 0);
+    level.time += 1; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 1);
+    level.time += 1000; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 2);
+    level.time += 1000; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 2);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 #endif

@@ -1,6 +1,7 @@
 [Errors]
 Nofood=Build more Farms to continue unit production.,Build more Burrows to continue unit production.,Summon more Ziggurats to continue unit production.,Create more Moon Wells to continue unit production.
 UnderConstruction=That building is currently under construction.
+Cantfindcorpse=There are no usable corpses nearby.
 Targetblightedmine=Must target a Haunted Gold Mine.
 Blightringfull=That gold mine can't support any more Acolytes.
 Nototherplayersmine=Unable to use a mine controlled by another player.

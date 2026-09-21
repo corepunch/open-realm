@@ -177,6 +177,7 @@ enum {
     AI_SLEEPING    = 1 << 6,  /* neutral creep is dormant; wakes on enemy proximity */
     AI_CORPSE_UNRAISABLE = 1 << 7, /* corpse lifecycle; sacrifice or temporary summon cannot be raised */
     AI_CORPSE_NO_DECAY = 1 << 8, /* corpse lifecycle; remove after death animation instead of corpse window */
+    AI_CORPSE_RESERVED = 1 << 9, /* corpse lifecycle; an active consuming ability owns this corpse */
 };
 
 typedef enum {
@@ -2736,6 +2737,7 @@ void G_ClearUnitOrderQueue(LPEDICT);
 DWORD G_UnitQueuedOrderCount(LPCEDICT);
 void unit_birth(LPEDICT);
 void unit_die(LPEDICT, LPEDICT);
+void unit_begin_decay(LPEDICT);
 LPEDICT unit_create(DWORD, DWORD, LPCVECTOR2, FLOAT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
@@ -2895,6 +2897,7 @@ void mass_teleport_think(LPEDICT);
 void divine_shield_think(LPEDICT);
 void dark_portal_think(LPEDICT);
 void exhume_think(LPEDICT);
+void graveyard_think(LPEDICT);
 void healing_spray_think(LPEDICT);
 void cannibalize_think(LPEDICT);
 void possession_two_think(LPEDICT);

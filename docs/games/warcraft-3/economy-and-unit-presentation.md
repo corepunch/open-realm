@@ -322,10 +322,14 @@ been holding a construction/gameplay frame. Only when death reaches its end does
 `unit_begin_decay()` select the decay state and set `AI_HOLD_FRAME` again to preserve the
 final corpse pose during the decay timer.
 
-Ordinary corpses are eventually freed by `unit_decay_think()`. Heroes preserve the same
-authoritative edict for revival; `G_ReviveHero()` clears `SVF_DEADMONSTER`,
-`EF_NOT_SELECTABLE`, `RF_HIDDEN`, and `AI_HOLD_FRAME` before returning the Hero to its
-living stand state. See [Hero revival](hero-revival.md) for the remainder of that lifecycle.
+Ordinary corpse lifetime is data-driven after the death animation: raisability comes from
+`UnitData.deathType` bit 0, while bit 1 opts into the map's `DecayTime` flesh phase followed
+by `BoneDecayTime`; decaying structures use `StructureDecayTime`. An active corpse consumer
+can reserve the remains and suspend those ordinary timers. Heroes preserve the same
+authoritative edict for revival and use `DissipateTime`; `G_ReviveHero()` clears
+`SVF_DEADMONSTER`, `EF_NOT_SELECTABLE`, `RF_HIDDEN`, and `AI_HOLD_FRAME` before returning
+the Hero to its living stand state. See [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md)
+and [Hero revival](hero-revival.md).
 
 ### Verification
 

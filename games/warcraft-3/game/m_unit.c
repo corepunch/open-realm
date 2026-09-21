@@ -11,7 +11,7 @@ BOOL G_UnitIsHero(LPCEDICT ent);
 
 /* WC3 corpse lifetime: DecayTime (flesh, 2s) + BoneDecayTime (bone, 88s) = 90s
  * after the death animation, then the corpse is removed (MiscData.txt). */
-#define UNIT_DECAY_SECONDS 90.0f
+#define UNIT_DEATH_TYPE_RAISE (1 << 0)
 #define UNIT_DEATH_TYPE_DECAY (1 << 1)
 
 void ai_birth2(LPEDICT self) {
@@ -23,10 +23,14 @@ void ai_birth2(LPEDICT self) {
 static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
 static umove_t unit_move_stand = { "stand", ai_stand, unit_stand };
 static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
+static void unit_decay_flesh_think(LPEDICT self);
+static void unit_begin_bone_decay(LPEDICT self);
 static umove_t unit_move_death = { "death", NULL, unit_begin_decay };
-/* The corpse holds its final death frame (AI_HOLD_FRAME) while the decay timer
- * counts down; the model has no separate decay sequence we can rely on. */
-static umove_t unit_move_decay = { "decay", unit_decay_think, NULL };
+/* Decay timing is simulation-owned.  Both phases hold the final death frame;
+ * models may provide decay sequences, but corpse existence must not depend on
+ * presentation sequence availability. */
+static umove_t unit_move_decay_flesh = { "decay", unit_decay_flesh_think, NULL };
+static umove_t unit_move_decay_bones = { "decay", unit_decay_think, NULL };
 
 void unit_decay1(LPEDICT self) {
     self->aiflags |= AI_HOLD_FRAME;
@@ -46,26 +50,60 @@ static void hero_become_revivable(LPEDICT self) {
     if (owner && owner->ps.number == self->s.player) G_InvalidateCommands(owner);
 }
 
-/* Death animation finished: sacrifices/timed summons which must not leave a corpse
- * enter the decay owner only long enough for its normal think callback to free them;
- * ordinary deaths keep the authored corpse window below. */
+static FLOAT unit_decay_wait(FLOAT seconds) {
+    /* unit_runwait() deliberately ignores zero, so a zero-authored phase must
+     * still advance on the next simulation frame rather than becoming immortal. */
+    return MAX(seconds, FRAMETIME / 1000.0f);
+}
+
+static void unit_begin_bone_decay(LPEDICT self) {
+    unit_setmove(self, &unit_move_decay_bones);
+    self->aiflags |= AI_HOLD_FRAME;
+    self->wait = unit_decay_wait(game.constants.boneDecayTime);
+}
+
+static void unit_decay_flesh_think(LPEDICT self) {
+    /* An active corpse consumer owns the remains.  Freeze ordinary decay until
+     * that reservation is released or, for Cannibalize, the corpse is consumed. */
+    if (self->aiflags & AI_CORPSE_RESERVED) return;
+    unit_runwait(self, unit_begin_bone_decay);
+}
+
+/* Death animation finished.  UnitData.deathType is authoritative: bit 1 says
+ * the remains decay at all.  Ordinary corpses then use the map's separate
+ * flesh and bone constants; structures use StructureDecayTime; Heroes retain
+ * their distinct dissipation/revival lifecycle. */
 void unit_begin_decay(LPEDICT self) {
     UnitData_t const *data = self && self->data.UnitData ? self->data.UnitData :
         (self ? G_UnitData(self->class_id) : NULL);
-    BOOL const no_decay = !G_UnitIsHero(self) &&
+    BOOL const hero = G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION);
+    BOOL const no_decay = !hero &&
         ((self->aiflags & AI_CORPSE_NO_DECAY) || !data || !(data->deathType & UNIT_DEATH_TYPE_DECAY));
-    unit_setmove(self, &unit_move_decay);
+
     self->aiflags |= AI_HOLD_FRAME;
-    if (no_decay) { self->wait = FRAMETIME / 1000.0f; return; }
-    self->wait = G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION) &&
-        game.constants.dissipateTime > 0.0f
-        ? game.constants.dissipateTime
-        : UNIT_DECAY_SECONDS;
+    if (hero) {
+        unit_setmove(self, &unit_move_decay_bones);
+        self->wait = unit_decay_wait(game.constants.dissipateTime);
+        return;
+    }
+    if (no_decay) {
+        unit_setmove(self, &unit_move_decay_bones);
+        self->wait = FRAMETIME / 1000.0f;
+        return;
+    }
+    if (G_UnitIsBuilding(self->class_id)) {
+        unit_setmove(self, &unit_move_decay_bones);
+        self->wait = unit_decay_wait(game.constants.structureDecayTime);
+        return;
+    }
+    unit_setmove(self, &unit_move_decay_flesh);
+    self->wait = unit_decay_wait(game.constants.decayTime);
 }
 
 /* Ordinary corpses are removed. Heroes instead finish their dissipation timer,
  * become hidden/awaiting-revive, and keep the same authoritative edict. */
 void unit_decay_think(LPEDICT self) {
+    if (self->aiflags & AI_CORPSE_RESERVED) return;
     if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
         if (!self->revival.awaiting) unit_runwait(self, hero_become_revivable);
         return;
@@ -136,8 +174,12 @@ void G_SetHealth(LPEDICT ent, FLOAT value) {
 void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
 
 BOOL G_UnitIsRaisableCorpse(LPCEDICT ent) {
-    return ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
-        (ent->svflags & SVF_DEADMONSTER) && M_IsDead(ent) && !(ent->aiflags & AI_CORPSE_UNRAISABLE);
+    UnitData_t const *data;
+    if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
+        !(ent->svflags & SVF_DEADMONSTER) || !M_IsDead(ent) ||
+        (ent->aiflags & (AI_CORPSE_UNRAISABLE | AI_CORPSE_RESERVED))) return false;
+    data = ent->data.UnitData ? ent->data.UnitData : G_UnitData(ent->class_id);
+    return data && (data->deathType & UNIT_DEATH_TYPE_RAISE) != 0;
 }
 
 /* Ordinary corpse revival keeps handle identity while retiring every death-state owner before returning to idle. */
@@ -146,7 +188,7 @@ void G_ReviveCorpse(LPEDICT ent, FLOAT life_fraction) {
     ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
     ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
-    ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY);
+    ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED);
     G_SetHealth(ent, ent->health.max_value * MAX(0.0f, MIN(1.0f, life_fraction)));
     G_ActivateUnitFood(ent); unit_stand(ent); gi.LinkEntity(ent);
 }

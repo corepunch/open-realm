@@ -1765,6 +1765,7 @@ TEST(wc3_spell, animate_dead_prefers_higher_level_corpse_and_restores_temporary_
         "C;Y2;X1;K\"AUan\"\nC;Y2;X2;K\"AUan\"\nC;Y2;X3;K\"0\"\n"
         "C;Y2;X4;K\"40\"\nC;Y2;X5;K\"900\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"ground,dead\"\nE\n";
     static UnitBalance_t const low_balance = { .level = 1 }, high_balance = { .level = 5 };
+    UnitData_t corpse_data = { .deathType = 3 };
     UnitAbilities_t abilities = { .abilList = "AUan" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     LPEDICT caster = make_hero(MAKEFOURCC('U','d','e','a'), 500, 200, 0, 0);
@@ -1773,6 +1774,7 @@ TEST(wc3_spell, animate_dead_prefers_higher_level_corpse_and_restores_temporary_
 
     old = G_SetSLKRows("AbilityData", rows); caster->data.UnitAbilities = &abilities; caster->s.player = 0;
     low->data.UnitBalance = &low_balance; high->data.UnitBalance = &high_balance;
+    low->data.UnitData = high->data.UnitData = &corpse_data;
     high->abilities.added[0] = MAKEFOURCC('A','I','n','v'); ARRAY_COUNT(high->abilities.added) = 1;
     LPEDICT corpses[] = { low, high };
     FOR_LOOP(i, 2) {
@@ -1801,6 +1803,7 @@ TEST(wc3_spell, resurrection_prefers_higher_level_friendly_corpse) {
         "C;Y2;X1;K\"AHre\"\nC;Y2;X2;K\"AHre\"\nC;Y2;X3;K\"0\"\n"
         "C;Y2;X4;K\"900\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"ground,friend,dead\"\nE\n";
     static UnitBalance_t const low_balance = { .level = 1 }, high_balance = { .level = 5 };
+    UnitData_t corpse_data = { .deathType = 3 };
     UnitAbilities_t abilities = { .abilList = "AHre" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     LPEDICT caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
@@ -1811,6 +1814,7 @@ TEST(wc3_spell, resurrection_prefers_higher_level_friendly_corpse) {
     old = G_SetSLKRows("AbilityData", rows); caster->data.UnitAbilities = &abilities; caster->s.player = 0;
     low->data.UnitBalance = &low_balance;
     high_far->data.UnitBalance = high_near->data.UnitBalance = &high_balance;
+    low->data.UnitData = high_far->data.UnitData = high_near->data.UnitData = &corpse_data;
     LPEDICT corpses[] = { low, high_far, high_near };
     FOR_LOOP(i, 3) {
         corpses[i]->s.player = 0; corpses[i]->svflags |= SVF_MONSTER;
@@ -2831,6 +2835,7 @@ TEST(wc3_spell, purge_and_lightning_shield_registration_aliases) {
 	T_EQ(S_AbilityItem(FS_SLKKey("Arpl")).ability->proc, CAbilityReplenishLife);
 	T_EQ(S_AbilityItem(FS_SLKKey("Arpm")).ability->proc, CAbilityReplenishMana);
 	T_EQ(S_AbilityItem(FS_SLKKey("Arai")).ability->proc, CAbilityRaiseDead);
+	T_EQ(S_AbilityItem(FS_SLKKey("AIrd")).ability->proc, CAbilityRaiseDead);
 }
 
 TEST(wc3_spell, replenish_restores_health_and_mana_essence_heals_area_spirit_touch_restores_mana) {
@@ -2870,32 +2875,78 @@ TEST(wc3_spell, replenish_restores_health_and_mana_essence_heals_area_spirit_tou
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-TEST(wc3_spell, raise_dead_summons_from_nearest_corpse_and_frees_it) {
+TEST(wc3_spell, raise_dead_uses_two_authored_summon_groups_and_marks_summons) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y2;X6\n"
+		"ID;PWXL;N;EBB;Y2;X10\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
-		"C;Y1;X3;K\"Rng1\"\nC;Y1;X4;K\"Dur1\"\n"
-		"C;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"UnitID1\"\n"
+		"C;Y1;X3;K\"targs\"\nC;Y1;X4;K\"Dur1\"\n"
+		"C;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+		"C;Y1;X7;K\"DataC1\"\nC;Y1;X8;K\"DataD1\"\n"
+		"C;Y1;X9;K\"BuffID1\"\nC;Y1;X10;K\"UnitID1\"\n"
 		"C;Y2;X1;K\"Arai\"\nC;Y2;X2;K\"Arai\"\n"
-		"C;Y2;X3;K\"800\"\nC;Y2;X4;K\"30\"\n"
-		"C;Y2;X5;K\"2\"\nC;Y2;X6;K\"uske\"\nE\n";
+		"C;Y2;X3;K\"dead\"\nC;Y2;X4;K\"30\"\n"
+		"C;Y2;X5;K\"1\"\nC;Y2;X6;K\"1\"\n"
+		"C;Y2;X7;K\"uske\"\nC;Y2;X8;K\"hfoo\"\n"
+		"C;Y2;X9;K\"Brai\"\nC;Y2;X10;K\"ogru\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	LPEDICT caster = make_hero(MAKEFOURCC('U','D','k','i'), 500, 500, 0, 0);
 	LPEDICT corpse = alloc_test_unit(MAKEFOURCC('u','d','e','a'), 100, 0);
-	DWORD summon_num;
+	UnitData_t corpse_data = { .deathType = 3 };
+	LPEDICT warrior = NULL, second = NULL;
 	abilityitem_t rai = S_AbilityItem(FS_SLKKey("Arai"));
-	caster->s.player = 0;
+	caster->s.player = 0; caster->runtime.acquisition_range = 800.0f;
+	caster->heroabilities[0] = MAKE(heroability_t, .code = FS_SLKKey("Arai"), .level = 1);
+	g_edicts[0].client = &game.clients[0]; game.clients[0].connected = true; game.clients[0].ps.number = 0;
+	corpse->data.UnitData = &corpse_data;
 	corpse->health.value = 0; corpse->health.max_value = 100;
     corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
-	summon_num = globals.num_edicts;
 	T_EQ(rai.ability->proc, CAbilityRaiseDead); T_ASSERT(rai.ability->flags & AB_AUTOCAST);
-	T_ASSERT(corpse->inuse); T_ASSERT(M_IsDead(corpse));
+	T_ASSERT(G_UnitIsRaisableCorpse(corpse));
 	test_execute_code(caster, "Arai", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
 	T_ASSERT(!corpse->inuse);
-	T_ASSERT(globals.num_edicts >= summon_num + 2);
-	T_EQ(globals.edicts[summon_num].class_id, MAKEFOURCC('u','s','k','e'));
-	T_EQ(globals.edicts[summon_num + 1].class_id, MAKEFOURCC('u','s','k','e'));
+	FILTER_EDICTS(unit, unit->inuse && unit->summon_ability == FS_SLKKey("Arai")) {
+		if (unit->class_id == MAKEFOURCC('u','s','k','e')) warrior = unit;
+		if (unit->class_id == MAKEFOURCC('h','f','o','o')) second = unit;
+	}
+	T_NOT_NULL(warrior); T_NOT_NULL(second);
+	T_EQ(G_UnitStatusLevel(warrior, MAKEFOURCC('B','r','a','i')), 1);
+	T_EQ(G_UnitStatusLevel(second, MAKEFOURCC('B','r','a','i')), 1);
+	T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("Arai")));
+	T_STREQ(game.clients[0].message.text, "There are no usable corpses nearby.");
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+
+/* Retail Raise Dead spends the lowest-ranked corpse first even when a stronger
+ * corpse is closer, preserving high-value remains for Animate Dead. */
+TEST(wc3_spell, raise_dead_prefers_lower_ranked_corpse_before_distance) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataC1\"\n"
+        "C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"levels\"\n"
+        "C;Y2;X1;K\"Arai\"\nC;Y2;X2;K\"Arai\"\nC;Y2;X3;K\"dead\"\n"
+        "C;Y2;X4;K\"30\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"uske\"\n"
+        "C;Y2;X7;K\"Brai\"\nC;Y2;X8;K\"1\"\nE\n";
+    UnitData_t corpse_data = { .deathType = 3 };
+    UnitBalance_t weak_balance = { .level = 1 }, strong_balance = { .level = 5 };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT caster = make_hero(MAKEFOURCC('U','D','k','i'), 500, 500, 0, 0);
+    LPEDICT strong = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 25, 0);
+    LPEDICT weak = alloc_test_unit(MAKEFOURCC('n','s','h','e'), 150, 0);
+
+    caster->s.player = 0; caster->runtime.acquisition_range = 800.0f;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = FS_SLKKey("Arai"), .level = 1);
+    strong->data.UnitData = weak->data.UnitData = &corpse_data;
+    strong->data.UnitBalance = &strong_balance; weak->data.UnitBalance = &weak_balance;
+    strong->health.value = weak->health.value = 0.0f;
+    strong->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    weak->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+
+    test_execute_code(caster, "Arai", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+    T_ASSERT(strong->inuse); T_ASSERT(!weak->inuse);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* Aast's `player,dead` target contract selects the nearest owned ordinary Tauren and restores its original edict. */
@@ -2907,6 +2958,7 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 		"C;Y2;X1;K\"Aast\"\nC;Y2;X2;K\"Aast\"\nC;Y2;X3;K\"ground,player,dead\"\n"
 		"C;Y2;X4;K\"250\"\nC;Y2;X5;K\"30\"\nC;Y2;X6;K\"350\"\nC;Y2;X7;K\"0.4\"\nE\n";
 	static UnitBalance_t const tauren = { .foodUsed = 5 }, hero = { .strength = 1 };
+	UnitData_t corpse_data = { .deathType = 3 };
 	UnitAbilities_t abilities = { .abilList = "Aast" };
 	slkTestData_t *rows = parse_slk_string(slk), *old;
 	LPEDICT caster = make_hero(MAKEFOURCC('o','s','p','m'), 500, 1000, 0, 0);
@@ -2931,6 +2983,7 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	allied_corpse->data.UnitBalance = &tauren;
 	LPEDICT corpses[] = { hero_corpse, other_corpse, allied_corpse, nearest, next, distant };
 	FOR_LOOP(i, sizeof(corpses) / sizeof(*corpses)) {
+		corpses[i]->data.UnitData = &corpse_data;
 		corpses[i]->s.player = corpses[i] == allied_corpse ? 1 : 0;
 		corpses[i]->svflags |= SVF_MONSTER; corpses[i]->stand = unit_stand;
 		corpses[i]->health.value = corpses[i]->health.max_value = 400;

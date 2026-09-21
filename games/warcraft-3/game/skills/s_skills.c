@@ -354,7 +354,7 @@ static ability_t abilitylist[] = {
     // TODO: ANss a_bounce  /* Spell Shield */
     // TODO: ANse a_spell  /* Spell Shield */
     // TODO: Aspb a_bounce  /* Spell Book */
-    // TODO: AIrd a_item_dispel_aoe  /* Raise Dead (Item) */
+    { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
     // TODO: ANsa a_bounce  /* Staff of Sanctuary */
     // TODO: AIsa a_item_speed  /* Scroll of Haste */
     // TODO: AItb a_button  /* Dust of Appearance */
@@ -503,7 +503,7 @@ static ability_t abilitylist[] = {
     // TODO: Amtc a_unknown  /* Cargo Hold */
     { "Atru", CAbilityPassive, AB_PASSIVE },  /* True Sight */
     { "Auns", CAbilityUnsummon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Unsummon Building */
-    // TODO: Agyd a_simple_spell  /* Create Corpse */
+    { "Agyd", CAbilityGraveyard, AB_PASSIVE | AB_UPDATE },  /* Create Corpse */
     { "Alam", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Acolyte) */
     { "Asac", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Sacrificial Pit) */
     { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */

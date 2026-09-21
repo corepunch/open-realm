@@ -513,10 +513,12 @@ Concrete relatives can call the same helper or parent procedure: Fire Bolt and T
 while the per-use `abilityitem_t` carries the actual rawcode. There is no runtime parent wiring.
 
 Corpse-fed no-target channels keep acquisition and periodic behavior in their ability procedure. `Acan`
-(Cannibalize) selects the nearest dead, non-Hero, organic unit within `DataB`, consumes that corpse when the
-cast commits, then restores `DataA` health once per second for `Dur`. The shared `AB_CHANNEL` lifecycle owns
-movement/death interruption; the ability-owned thinker owns pulse timing and ends the channel after the final
-authored-duration pulse. ROC and TFT both author `DataA=10`, `DataB=800`, and `Dur=33` for stock `Acan`.
+(Cannibalize) selects the nearest authored-target-valid corpse within `DataB`, reserves it for the active
+channel, and applies `DataA` HP/second on the simulation cadence. Full health, authored `Dur`, or normal
+channel interruption ends the cast and consumes the reserved corpse. Shared corpse eligibility honors
+`UnitData.deathType`, runtime reservation/unraisable state, and the ability's Targets Allowed field. ROC and
+TFT both author `DataA=10`, `DataB=800`, and `Dur=33` for stock `Acan`; see
+[Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
 ### 6. Write tests
 
