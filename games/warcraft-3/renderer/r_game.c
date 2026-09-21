@@ -61,9 +61,14 @@ static w3TerrainArt_t *g_terrain_rows; static DWORD g_terrain_count; static slkI
 static w3CliffType_t *g_cliff_rows;   static DWORD g_cliff_count;   static slkIndex_t g_cliff_idx;
 static LPCTEXTURE g_blight_texture;
 
-typedef struct { LPCSTR name, sound_label; } wc3AnimLookup_t;
 typedef struct {
-    LPCSTR name, files, directory;
+    LPCSTR name;
+    LPCSTR sound_label;
+} wc3AnimLookup_t;
+typedef struct {
+    LPCSTR name;
+    LPCSTR files;
+    LPCSTR directory;
     FLOAT volume, pitch, pitch_variance, min_distance, max_distance, distance_cutoff;
 } wc3AnimSound_t;
 
@@ -263,9 +268,9 @@ void R_LoadAssets(void) {
     FS_SLKFreeRows(anim_sound_schema, anim_sound_rows, anim_sound_count, sizeof(wc3AnimSound_t));
     anim_lookup_rows = NULL; anim_lookup_count = 0;
     anim_sound_rows = NULL; anim_sound_count = 0;
-    anim_lookup_count = ri.LoadSlk("UI\SoundInfo\AnimLookups.slk", anim_lookup_schema,
+    anim_lookup_count = ri.LoadSlk("UI\\SoundInfo\\AnimLookups.slk", anim_lookup_schema,
                                    (void **)&anim_lookup_rows, sizeof(wc3AnimLookup_t));
-    anim_sound_count = ri.LoadSlk("UI\SoundInfo\AnimSounds.slk", anim_sound_schema,
+    anim_sound_count = ri.LoadSlk("UI\\SoundInfo\\AnimSounds.slk", anim_sound_schema,
                                   (void **)&anim_sound_rows, sizeof(wc3AnimSound_t));
     memset(event_sound_state, 0, sizeof(event_sound_state));
 
@@ -617,7 +622,8 @@ static DWORD R_W3PresentationPick(DWORD entity, DWORD key, DWORD time, DWORD cou
 }
 
 static BOOL R_W3SoundPath(wc3AnimSound_t const *row, DWORD variant, LPSTR path, size_t path_size) {
-    LPCSTR chosen, comma;
+    LPCSTR chosen;
+    LPCSTR comma;
     DWORD count = 1;
     if (!row || !row->files || !row->files[0] || !path || !path_size) return false;
     for (LPCSTR p = row->files; (p = strchr(p, ',')) != NULL; p++) count++;
@@ -658,7 +664,8 @@ static VECTOR3 R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t const 
 
 static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
                                mdxEvent_t const *event, DWORD key, LPCMATRIX4 transform) {
-    LPCSTR id, label;
+    LPCSTR id;
+    LPCSTR label;
     wc3AnimSound_t const *row;
     DWORD count, pick;
     char path[512];
