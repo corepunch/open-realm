@@ -6,7 +6,7 @@
 
 OpenWarcraft3 is an open-source, Quake-style engine and compatibility project for Blizzard-era game data. Warcraft III is the primary playable target; StarCraft II and World of Warcraft provide additional format and renderer targets.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![CI](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) [![Platform: Windows, Linux, macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](#) [![Language: C](https://img.shields.io/badge/Language-C-blue.svg)](#) [![Discord](https://img.shields.io/badge/Discord-join-blue?logo=discord)](https://discord.gg/5W66nrcaB)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![CI](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) [![Platform: Windows, Linux, macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](#) [![Language: C](https://img.shields.io/badge/Language-C-blue.svg)](#) [![Discord](https://img.shields.io/badge/Discord-join-blue?logo=discord)](https://discord.gg/MxkUMWsKGs)
 
 The project does not include retail game data. Use it only with data you legally own. OpenWarcraft3 is not affiliated with Blizzard Entertainment.
 
