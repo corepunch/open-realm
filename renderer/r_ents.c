@@ -81,6 +81,7 @@ void R_DrawEntities(void) {
 
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *ent = tr.viewDef.entities+i;
+        R_UpdateEntityPresentation(ent);
         BOOL in_view = R_EntityInView(ent);
 
         if (debug_entities && ent->number < MAX_GAME_ENTITIES) {

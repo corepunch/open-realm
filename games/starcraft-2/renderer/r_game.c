@@ -307,6 +307,8 @@ void R_ReleaseModel(LPMODEL model) {
     ri.MemFree(model);
 }
 
+void R_UpdateEntityPresentation(renderEntity_t const *entity) { (void)entity; }
+
 void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
 

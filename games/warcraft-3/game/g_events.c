@@ -302,15 +302,18 @@ void G_RunEntities(void) {
         if (!ent->inuse) continue; /* freed edicts are memset and never re-sent; skip the per-frame clear */
         ent->old_origin = ent->s.origin2;
         if (ent->sound.pending) {
-            gi.Sound(ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.pending, 1.0f, 0.0f, 0.0f);
+            gi.Sound(ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.pending,
+                     G_SoundIndexVolume(ent->sound.pending), 0.0f, 0.0f);
             ent->sound.pending = 0;
         }
         if (ent->sound.owner_pending) {
-            gi.Sound(ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.owner_pending, 1.0f, 0.0f, 0.0f);
+            gi.Sound(ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.owner_pending,
+                     G_SoundIndexVolume(ent->sound.owner_pending), 0.0f, 0.0f);
             ent->sound.owner_pending = 0;
         }
         if (ent->sound.world_pending) {
-            gi.Sound(ent, CHAN_VOICE, ent->sound.world_pending, 1.0f, 1.0f, 0.0f);
+            gi.Sound(ent, CHAN_VOICE, ent->sound.world_pending,
+                     G_SoundIndexVolume(ent->sound.world_pending), 1.0f, 0.0f);
             ent->sound.world_pending = 0;
             ent->sound.world_pending_event = EV_NONE;
         }

@@ -5,6 +5,7 @@
 #include "r_weather.h"
 #include "common/stb_slk.h"
 #include "games/warcraft-3/common/minimap.h"
+#include <ctype.h>
 
 void _W3M_RegisterMap(LPCSTR mapFileName);
 void _W3M_DrawWorld(void);
@@ -59,6 +60,45 @@ static BOOL cursor_load_attempted;
 static w3TerrainArt_t *g_terrain_rows; static DWORD g_terrain_count; static slkIndex_t g_terrain_idx;
 static w3CliffType_t *g_cliff_rows;   static DWORD g_cliff_count;   static slkIndex_t g_cliff_idx;
 static LPCTEXTURE g_blight_texture;
+
+typedef struct {
+    LPCSTR name;
+    LPCSTR sound_label;
+} wc3AnimLookup_t;
+typedef struct {
+    LPCSTR name;
+    LPCSTR files;
+    LPCSTR directory;
+    FLOAT volume, pitch, pitch_variance, min_distance, max_distance, distance_cutoff;
+} wc3AnimSound_t;
+
+static slkField_t const anim_lookup_schema[] = {
+    { "", offsetof(wc3AnimLookup_t, name), STB_SLK_STR },
+    { "SoundLabel", offsetof(wc3AnimLookup_t, sound_label), STB_SLK_STR },
+    { NULL, 0, 0 },
+};
+static slkField_t const anim_sound_schema[] = {
+    { "", offsetof(wc3AnimSound_t, name), STB_SLK_STR },
+    { "FileNames", offsetof(wc3AnimSound_t, files), STB_SLK_STR },
+    { "DirectoryBase", offsetof(wc3AnimSound_t, directory), STB_SLK_STR },
+    { "Volume", offsetof(wc3AnimSound_t, volume), STB_SLK_FLOAT },
+    { "Pitch", offsetof(wc3AnimSound_t, pitch), STB_SLK_FLOAT },
+    { "PitchVariance", offsetof(wc3AnimSound_t, pitch_variance), STB_SLK_FLOAT },
+    { "MinDistance", offsetof(wc3AnimSound_t, min_distance), STB_SLK_FLOAT },
+    { "MaxDistance", offsetof(wc3AnimSound_t, max_distance), STB_SLK_FLOAT },
+    { "DistanceCutoff", offsetof(wc3AnimSound_t, distance_cutoff), STB_SLK_FLOAT },
+    { NULL, 0, 0 },
+};
+static wc3AnimLookup_t *anim_lookup_rows; static DWORD anim_lookup_count;
+static wc3AnimSound_t *anim_sound_rows; static DWORD anim_sound_count;
+
+typedef struct {
+    LPCMODEL model;
+    DWORD frame;
+    DWORD render_time;
+    BOOL valid;
+} wc3EventSoundState_t;
+static wc3EventSoundState_t event_sound_state[MAX_GAME_ENTITIES];
 
 /* WorldEditData is the authoritative tileset-to-Blight-art mapping.  Keep the
  * lookup data-driven because custom/expansion tilesets can add rows there. */
@@ -224,6 +264,15 @@ void R_LoadAssets(void) {
     g_cliff_count = ri.LoadSlk("TerrainArt\\CliffTypes.slk", cliff_schema, (void **)&g_cliff_rows, sizeof(w3CliffType_t));
     if (!g_cliff_count) fprintf(stderr, "Renderer: failed to load TerrainArt\\CliffTypes.slk\n");
     FS_SLKBuildIndex(&g_cliff_idx, g_cliff_rows, g_cliff_count, sizeof(w3CliffType_t));
+    FS_SLKFreeRows(anim_lookup_schema, anim_lookup_rows, anim_lookup_count, sizeof(wc3AnimLookup_t));
+    FS_SLKFreeRows(anim_sound_schema, anim_sound_rows, anim_sound_count, sizeof(wc3AnimSound_t));
+    anim_lookup_rows = NULL; anim_lookup_count = 0;
+    anim_sound_rows = NULL; anim_sound_count = 0;
+    anim_lookup_count = ri.LoadSlk("UI\\SoundInfo\\AnimLookups.slk", anim_lookup_schema,
+                                   (void **)&anim_lookup_rows, sizeof(wc3AnimLookup_t));
+    anim_sound_count = ri.LoadSlk("UI\\SoundInfo\\AnimSounds.slk", anim_sound_schema,
+                                  (void **)&anim_sound_rows, sizeof(wc3AnimSound_t));
+    memset(event_sound_state, 0, sizeof(event_sound_state));
 
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
@@ -259,6 +308,11 @@ void R_Shutdown(void) {
     FS_SLKFreeIndex(&g_cliff_idx);
     FS_SLKFreeRows(cliff_schema, g_cliff_rows, g_cliff_count, sizeof(w3CliffType_t));
     g_cliff_rows = NULL; g_cliff_count = 0;
+    FS_SLKFreeRows(anim_lookup_schema, anim_lookup_rows, anim_lookup_count, sizeof(wc3AnimLookup_t));
+    FS_SLKFreeRows(anim_sound_schema, anim_sound_rows, anim_sound_count, sizeof(wc3AnimSound_t));
+    anim_lookup_rows = NULL; anim_lookup_count = 0;
+    anim_sound_rows = NULL; anim_sound_count = 0;
+    memset(event_sound_state, 0, sizeof(event_sound_state));
     R_WeatherShutdown();
     R_LightningShutdown();
     MDLX_Shutdown();
@@ -543,6 +597,133 @@ void R_ReleaseModel(LPMODEL model) {
         MDLX_Release(model->mdx);
     }
     ri.MemFree(model);
+}
+
+static LPCSTR R_W3AnimLookupLabel(LPCSTR id) {
+    if (!id || !*id) return NULL;
+    FOR_LOOP(i, anim_lookup_count)
+        if (anim_lookup_rows[i].name && !strcmp(anim_lookup_rows[i].name, id))
+            return anim_lookup_rows[i].sound_label;
+    return NULL;
+}
+
+static wc3AnimSound_t const *R_W3AnimSound(LPCSTR label) {
+    if (!label || !*label) return NULL;
+    FOR_LOOP(i, anim_sound_count)
+        if (anim_sound_rows[i].name && !strcmp(anim_sound_rows[i].name, label))
+            return anim_sound_rows + i;
+    return NULL;
+}
+
+static DWORD R_W3PresentationPick(DWORD entity, DWORD key, DWORD time, DWORD count) {
+    DWORD x = entity * 0x9e3779b9u ^ key * 0x85ebca6bu ^ time;
+    x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15;
+    return count ? x % count : 0;
+}
+
+static BOOL R_W3SoundPath(wc3AnimSound_t const *row, DWORD variant, LPSTR path, size_t path_size) {
+    LPCSTR chosen;
+    LPCSTR comma;
+    DWORD count = 1;
+    if (!row || !row->files || !row->files[0] || !path || !path_size) return false;
+    for (LPCSTR p = row->files; (p = strchr(p, ',')) != NULL; p++) count++;
+    if (variant >= count) return false;
+    chosen = row->files;
+    while (variant--) { chosen = strchr(chosen, ','); if (!chosen) return false; chosen++; }
+    comma = strchr(chosen, ',');
+    if (row->directory && row->directory[0]) {
+        size_t n = strlen(row->directory);
+        snprintf(path, path_size, "%s%s%.*s", row->directory,
+                 row->directory[n - 1] == '\\' || row->directory[n - 1] == '/' ? "" : "\\",
+                 comma ? (int)(comma - chosen) : (int)strlen(chosen), chosen);
+    } else {
+        snprintf(path, path_size, "%.*s", comma ? (int)(comma - chosen) : (int)strlen(chosen), chosen);
+    }
+    return true;
+}
+
+static DWORD R_W3SoundVariantCount(wc3AnimSound_t const *row) {
+    DWORD count = 0;
+    if (!row || !row->files || !row->files[0]) return 0;
+    count = 1;
+    for (LPCSTR p = row->files; (p = strchr(p, ',')) != NULL; p++) count++;
+    return count;
+}
+
+static VECTOR3 R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t const *event,
+                                      renderEntity_t const *entity, LPCMATRIX4 transform) {
+    VECTOR3 pivot = {0}, local = {0};
+    if (event->node.node_id < (DWORD)model->num_pivots) pivot = model->pivots[event->node.node_id];
+    MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
+    if (event->node.node_id < MDX_MAX_NODES && model->nodes[event->node.node_id])
+        local = Matrix4_multiply_vector3(&node_matrices[event->node.node_id], &pivot);
+    else
+        local = pivot;
+    return Matrix4_multiply_vector3(transform, &local);
+}
+
+static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
+                               mdxEvent_t const *event, DWORD key, LPCMATRIX4 transform) {
+    LPCSTR id;
+    LPCSTR label;
+    wc3AnimSound_t const *row;
+    DWORD count, pick;
+    char path[512];
+    VECTOR3 origin;
+    if (!ri.PlaySoundAt || strncmp(event->node.name, "SND", 3)) return;
+    {
+        char trimmed[sizeof(event->node.name) + 1];
+        size_t n;
+        snprintf(trimmed, sizeof(trimmed), "%.*s", (int)sizeof(event->node.name) - 4, event->node.name + 4);
+        while (trimmed[0] && isspace((unsigned char)trimmed[0])) memmove(trimmed, trimmed + 1, strlen(trimmed));
+        n = strlen(trimmed);
+        while (n && isspace((unsigned char)trimmed[n - 1])) trimmed[--n] = '\0';
+        id = trimmed;
+        label = R_W3AnimLookupLabel(id);
+        row = R_W3AnimSound(label ? label : id);
+        if (!row) return;
+        if (!(count = R_W3SoundVariantCount(row))) return;
+        pick = R_W3PresentationPick(entity->number, key, tr.viewDef.time, count);
+        if (!R_W3SoundPath(row, pick, path, sizeof(path))) return;
+        origin = R_W3EventWorldPosition(model, event, entity, transform);
+        ri.PlaySoundAt(path, &origin, MAX(0.0f, MIN(1.0f, row->volume / 127.0f)));
+    }
+    return;
+}
+
+static void R_W3UpdateModelSoundEvents(renderEntity_t const *entity) {
+    mdxModel_t const *model;
+    wc3EventSoundState_t *state;
+    MATRIX4 transform;
+
+    if (!entity || (entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX ||
+        !entity->model->mdx || entity->number >= MAX_GAME_ENTITIES) return;
+    model = entity->model->mdx;
+    if (!model->events) return;
+    state = event_sound_state + entity->number;
+    if (!state->valid || state->model != entity->model) {
+        *state = (wc3EventSoundState_t){ .model = entity->model, .frame = entity->frame,
+                                        .render_time = tr.viewDef.time, .valid = true };
+        return;
+    }
+    if (state->frame == entity->frame && state->render_time == tr.viewDef.time) return;
+
+    R_GetEntityMatrix(entity, &transform);
+    FOR_EACH_LIST(mdxEvent_t, event, model->events) {
+        if (strncmp(event->node.name, "SND", 3) || !event->num_keys) continue;
+        FOR_LOOP(i, event->num_keys) {
+            DWORD key = event->keys[i];
+            if (MDLX_EventKeyCrossed(model, event, key, state->frame, entity->frame,
+                                     state->render_time, tr.viewDef.time))
+                R_W3EmitSoundEvent(entity, model, event, key, &transform);
+        }
+    }
+    state->frame = entity->frame;
+    state->render_time = tr.viewDef.time;
+}
+
+void R_UpdateEntityPresentation(renderEntity_t const *entity) {
+    R_W3UpdateModelSoundEvents(entity);
 }
 
 void R_RenderModel(renderEntity_t const *entity) {

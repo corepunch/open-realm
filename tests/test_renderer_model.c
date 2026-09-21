@@ -783,6 +783,29 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     MDLX_Release(model);
 }
 
+TEST(renderer_model, mdx_sound_event_keys_follow_sequence_and_global_sequence_time) {
+    mdxSequence_t sequences[2] = {
+        { .name = "Stand", .interval = {100, 200} },
+        { .name = "Attack", .interval = {300, 400} },
+    };
+    mdxGlobalSequence_t global = { .value = 1000 };
+    mdxModel_t model = { .sequences = sequences, .num_sequences = 2,
+                         .globalSequences = &global, .num_globalSequences = 1 };
+    mdxEvent_t event = { .globalSeqId = (DWORD)-1 };
+
+    T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 150, 120, 160, 0, 0));
+    T_ASSERT(!MDLX_EventKeyCrossed(&model, &event, 150, 160, 180, 0, 0));
+    T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 105, 190, 110, 0, 0));
+    T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 310, 150, 320, 0, 0));
+    T_ASSERT(!MDLX_EventKeyCrossed(&model, &event, 180, 150, 320, 0, 0));
+
+    event.globalSeqId = 0;
+    T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 100, 0, 0, 50, 150));
+    T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 25, 0, 0, 950, 1050));
+    T_ASSERT(!MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 950, 1050));
+    T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 50, 1050));
+}
+
 TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
     T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_BLEND), BLEND_MODE_BLEND);
     T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_ADDITIVE), BLEND_MODE_ADD);

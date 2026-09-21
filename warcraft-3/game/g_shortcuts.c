@@ -158,7 +158,7 @@ static BOOL G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {
         G_DeselectEntity(client, ent);
     }
     G_SelectEntity(client, target);
-    G_QueueSelectionSound(target);
+    G_QueueSelectionSound(target, true);
     G_SyncClientSelection(client);
     return true;
 }

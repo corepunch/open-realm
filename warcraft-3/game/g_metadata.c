@@ -309,6 +309,7 @@ static slkField_t const ui_schema[] = {
     { "uberSplat",        offsetof(UnitUI_t, groundTexture),    STB_SLK_STR   },
     { "buildingShadow",   offsetof(UnitUI_t, buildingShadowTexture), STB_SLK_STR   },
     { "special",          offsetof(UnitUI_t, special),          STB_SLK_STR   },
+    { "armor",            offsetof(UnitUI_t, armorSoundType),   STB_SLK_STR   },
     { "armor",            offsetof(UnitUI_t, armorType),        STB_SLK_INT   },
     { "unitClass",        offsetof(UnitUI_t, unitClass),        STB_SLK_INT   },
     { "nbmmIcon",         offsetof(UnitUI_t, neutralBuildingMinimapIcon), STB_SLK_BOOL  },
@@ -700,6 +701,7 @@ static slkField_t const dest_schema[] = {
     { "portraitmodel",    offsetof(DestructableData_t, portraitmodel),    STB_SLK_STR   }, /* TFT */
     { "UserList",         offsetof(DestructableData_t, UserList),         STB_SLK_STR   }, /* TFT */
     { "HP",               offsetof(DestructableData_t, maxHealth),        STB_SLK_INT   },
+    { "armor",            offsetof(DestructableData_t, armorSoundType),   STB_SLK_STR   },
     { "armor",            offsetof(DestructableData_t, armor),            STB_SLK_INT   },
     { "numVar",           offsetof(DestructableData_t, numVar),           STB_SLK_INT   },
     { "selSize",          offsetof(DestructableData_t, selSize),          STB_SLK_FLOAT },
@@ -838,6 +840,9 @@ UnitAckSounds_t *g_UnitAckSounds; DWORD g_UnitAckSoundsCount;
 UnitAckSounds_t *g_UnitCombatSounds; DWORD g_UnitCombatSoundsCount;
 UnitAckSounds_t *g_UISounds; DWORD g_UISoundsCount;
 UnitAckSounds_t *g_AbilitySounds; DWORD g_AbilitySoundsCount;
+UnitAckSounds_t *g_AmbienceSounds; DWORD g_AmbienceSoundsCount;
+UnitAckSounds_t *g_AnimSounds; DWORD g_AnimSoundsCount;
+UnitAckSounds_t *g_DialogSounds; DWORD g_DialogSoundsCount;
 MusicData_t *g_MusicData; DWORD g_MusicDataCount;
 ItemData_t *g_ItemData; DWORD g_ItemDataCount; static slkIndex_t item_idx;
 DestructableData_t *g_DestructableData; DWORD g_DestructableDataCount; static slkIndex_t dest_idx;
@@ -906,11 +911,18 @@ static slkStore_t slk_stores[] = {
     { "UISounds",         "UI\\SoundInfo\\UISounds.slk",         sound_schema, sizeof(*g_UISounds),         (void **)&g_UISounds,         &g_UISoundsCount,         NULL },
     /* Ability sound aliases referenced by AbilityFunc presentation metadata. */
     { "AbilitySounds",    "UI\\SoundInfo\\AbilitySounds.slk",    sound_schema, sizeof(*g_AbilitySounds),    (void **)&g_AbilitySounds,    &g_AbilitySoundsCount,    NULL, true },
+    /* Warsmash merges ambience/UI/ability aliases into one keyed sound lookup. */
+    { "AmbienceSounds",   "UI\\SoundInfo\\AmbienceSounds.slk",   sound_schema, sizeof(*g_AmbienceSounds),   (void **)&g_AmbienceSounds,   &g_AmbienceSoundsCount,   NULL, true },
+    /* JASS sound labels may also reference animation/dialogue sound rows. */
+    { "AnimSounds",       "UI\\SoundInfo\\AnimSounds.slk",       sound_schema, sizeof(*g_AnimSounds),       (void **)&g_AnimSounds,       &g_AnimSoundsCount,       NULL, true },
+    { "DialogSounds",     "UI\\SoundInfo\\DialogSounds.slk",     sound_schema, sizeof(*g_DialogSounds),     (void **)&g_DialogSounds,     &g_DialogSoundsCount,     NULL, true },
     /* Music.slk never shipped in retail MPQs; Warsmash loads it optionally and readers fall back to the raw token. */
     { "Music",            "UI\\SoundInfo\\Music.slk",            music_schema, sizeof(*g_MusicData),        (void **)&g_MusicData,        &g_MusicDataCount,        NULL, true },
     { "ItemData", "Units\\ItemData.slk", item_schema, sizeof(*g_ItemData), (void **)&g_ItemData, &g_ItemDataCount, &item_idx },
     { "DestructableData", "Units\\DestructableData.slk", dest_schema, sizeof(*g_DestructableData), (void **)&g_DestructableData, &g_DestructableDataCount, &dest_idx },
 };
+
+static LONG G_NormalizeArmorType(LPCSTR value, LONG fallback);
 
 /* Tests replace a typed table and restore its original parser-owned source. */
 #ifdef BZ_TESTS
@@ -936,6 +948,12 @@ slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
             *store->rows = data->rows; *store->count = data->count;
             if (!strcmp(store->name, "UnitWeapons"))
                 NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
+            if (!strcmp(store->name, "UnitUI"))
+                FOR_LOOP(i, g_UnitUICount)
+                    g_UnitUI[i].armorType = G_NormalizeArmorType(g_UnitUI[i].armorSoundType, g_UnitUI[i].armorType);
+            if (!strcmp(store->name, "DestructableData"))
+                FOR_LOOP(i, g_DestructableDataCount)
+                    g_DestructableData[i].armor = G_NormalizeArmorType(g_DestructableData[i].armorSoundType, g_DestructableData[i].armor);
             if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
             if (!strcmp(store->name, "AbilityData")) ability_data_generation++;
             data->rows = NULL; data->count = 0;
@@ -1705,33 +1723,80 @@ Doodads_t const *G_Doodad(DWORD id) { static Doodads_t zero; Doodads_t *row = FS
 UberSplatData_t const *G_UberSplat(DWORD id) { static UberSplatData_t zero; UberSplatData_t *row = FS_SLKLookup(&uber_idx, id); return row ? row : &zero; }
 UnitAckSounds_t const *G_UnitAckSound(LPCSTR name) {
     static UnitAckSounds_t zero;
-    FOR_LOOP(i, g_UnitAckSoundsCount) if (!strcmp(g_UnitAckSounds[i].name, name)) return g_UnitAckSounds + i;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_UnitAckSoundsCount)
+        if (g_UnitAckSounds[i].name && !strcmp(g_UnitAckSounds[i].name, name)) return g_UnitAckSounds + i;
     return &zero;
 }
 UnitAckSounds_t const *G_UnitCombatSound(LPCSTR name) {
     static UnitAckSounds_t zero;
-    FOR_LOOP(i, g_UnitCombatSoundsCount) if (!strcmp(g_UnitCombatSounds[i].name, name)) return g_UnitCombatSounds + i;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_UnitCombatSoundsCount)
+        if (g_UnitCombatSounds[i].name && !strcmp(g_UnitCombatSounds[i].name, name)) return g_UnitCombatSounds + i;
     return &zero;
 }
 
 UnitAckSounds_t const *G_UISound(LPCSTR name) {
     static UnitAckSounds_t zero;
-    FOR_LOOP(i, g_UISoundsCount) if (!strcmp(g_UISounds[i].name, name)) return g_UISounds + i;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_UISoundsCount)
+        if (g_UISounds[i].name && !strcmp(g_UISounds[i].name, name)) return g_UISounds + i;
+    return &zero;
+}
+
+UnitAckSounds_t const *G_AmbienceSound(LPCSTR name) {
+    static UnitAckSounds_t zero;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_AmbienceSoundsCount)
+        if (g_AmbienceSounds[i].name && !strcmp(g_AmbienceSounds[i].name, name)) return g_AmbienceSounds + i;
     return &zero;
 }
 
 UnitAckSounds_t const *G_AbilitySound(LPCSTR name) {
     static UnitAckSounds_t zero;
+    UnitAckSounds_t const *row;
+
     if (!name || !*name) return &zero;
     FOR_LOOP(i, g_AbilitySoundsCount)
         if (g_AbilitySounds[i].name && !strcmp(g_AbilitySounds[i].name, name)) return g_AbilitySounds + i;
-    /* Warsmash merges the UI/ability sound tables into one keyed lookup.
-     * Preserve that useful alias fallback while keeping the typed stores separate. */
-    {
-        UnitAckSounds_t const *ui = G_UISound(name);
-        if (ui->name && ui->name[0]) return ui;
-    }
+    row = G_AmbienceSound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_UISound(name);
+    return row->name && row->name[0] ? row : &zero;
+}
+
+UnitAckSounds_t const *G_AnimSound(LPCSTR name) {
+    static UnitAckSounds_t zero;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_AnimSoundsCount)
+        if (g_AnimSounds[i].name && !strcmp(g_AnimSounds[i].name, name)) return g_AnimSounds + i;
     return &zero;
+}
+
+UnitAckSounds_t const *G_DialogSound(LPCSTR name) {
+    static UnitAckSounds_t zero;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_DialogSoundsCount)
+        if (g_DialogSounds[i].name && !strcmp(g_DialogSounds[i].name, name)) return g_DialogSounds + i;
+    return &zero;
+}
+
+UnitAckSounds_t const *G_KeyedSound(LPCSTR name) {
+    UnitAckSounds_t const *row;
+
+    /* Warcraft's label constructors accept rows from all normal SoundInfo
+     * catalogs. Keep the existing GameUI merge precedence first, then the
+     * additional label-only tables; stock labels are normally unique. */
+    row = G_AbilitySound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_AnimSound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_DialogSound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_UnitAckSound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_UnitCombatSound(name);
+    return row->name && row->name[0] ? row : NULL;
 }
 MusicData_t const *G_MusicData(LPCSTR name) {
     static MusicData_t zero;
@@ -1859,6 +1924,32 @@ BOOL G_UnitIsBuilding(DWORD id) {
     return ui ? ui->isBuilding : false;
 }
 
+/* UnitUI/DestructableData author armor as symbolic material names even though
+ * JASS exposes integer ARMOR_TYPE_* values. Keep both views: sound lookup uses
+ * the normalized index so war3map.w3u integer overrides continue to work. */
+static LONG G_NormalizeArmorType(LPCSTR value, LONG fallback) {
+    char *end = NULL;
+    long numeric;
+
+    if (!value || !value[0]) return fallback;
+    numeric = strtol(value, &end, 10);
+    if (end && end != value && !*end) return (LONG)numeric;
+    if (!strcasecmp(value, "Flesh")) return 1;
+    if (!strcasecmp(value, "Metal")) return 2;
+    if (!strcasecmp(value, "Wood")) return 3;
+    if (!strcasecmp(value, "Ethereal")) return 4;
+    if (!strcasecmp(value, "Stone")) return 5;
+    if (!strcasecmp(value, "None")) return 0;
+    return fallback;
+}
+
+static void NormalizeArmorTypes(void) {
+    FOR_LOOP(i, g_UnitUICount)
+        g_UnitUI[i].armorType = G_NormalizeArmorType(g_UnitUI[i].armorSoundType, g_UnitUI[i].armorType);
+    FOR_LOOP(i, g_DestructableDataCount)
+        g_DestructableData[i].armor = G_NormalizeArmorType(g_DestructableData[i].armorSoundType, g_DestructableData[i].armor);
+}
+
 void InitUnitData(void) {
     stbIniCache_t profile_ini = { 0 };
 
@@ -1890,6 +1981,7 @@ void InitUnitData(void) {
             NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
         if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
     }
+    NormalizeArmorTypes();
     ability_data_generation++;
 }
 

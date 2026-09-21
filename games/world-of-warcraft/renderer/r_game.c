@@ -300,6 +300,8 @@ static void R_WowEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMATR
     Matrix4_multiply(&proj, &view, output);
 }
 
+void R_UpdateEntityPresentation(renderEntity_t const *entity) { (void)entity; }
+
 void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     MATRIX4 attached_transform;

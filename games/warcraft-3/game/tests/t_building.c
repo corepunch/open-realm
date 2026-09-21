@@ -35,6 +35,12 @@ static USHORT building_queue_buildtimer;
 static BYTE building_queue_numitems;
 static DWORD building_queue_starttime;
 static DWORD building_queue_endtime;
+static PATHSTR building_sound_path;
+
+static int building_test_sound_index(LPCSTR path) {
+    snprintf(building_sound_path, sizeof(building_sound_path), "%s", path ? path : "");
+    return 91;
+}
 
 static void building_test_stand(LPEDICT ent) {
     (void)ent;
@@ -2179,6 +2185,45 @@ TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) 
     T_FEQ(building->health.value, 100.0f, 0.001f);
 }
 
+TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "B;X4;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y1;X4;K\"Volume\"\n"
+        "C;Y2;X1;K\"BuildingConstructionLoop\"\n"
+        "C;Y2;X2;K\"loop.wav\"\n"
+        "C;Y2;X3;K\"Sound\\Buildings\\\"\n"
+        "C;Y2;X4;K\"96\"\n"
+        "E\n";
+    UnitProfile_t profile = { .buildingSoundLabel = "BuildingConstructionLoop" };
+    LPEDICT builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old_rows = G_SetSLKRows("AmbienceSounds", rows);
+    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+
+    building->data.UnitProfile = &profile;
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+    building_sound_path[0] = '\0';
+    gi.SoundIndex = building_test_sound_index;
+    G_ResetSoundPresentationState();
+
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    T_EQ(building->s.sound, 91);
+    T_STREQ(building_sound_path, "Sound\\Buildings\\loop.wav");
+    T_FEQ(G_SoundIndexVolume(91), 96.0f / 127.0f, 0.001f);
+
+    G_StopConstruction(building);
+    T_EQ(building->s.sound, 0);
+
+    gi.SoundIndex = old_soundindex;
+    G_SetSLKRows("AmbienceSounds", old_rows); free_slk_rows(rows);
+}
+
 TEST(wc3_building, instant_build_cheat_completes_started_human_construction_on_next_frame) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT builder;
@@ -2893,6 +2938,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building->construction.gold = 100;
     building->construction.lumber = 50;
     building->aiflags |= AI_HOLD_FRAME;
+    building->s.sound = 91;
     building->stand = building_test_stand;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 10;
     level.events.write = 0;
@@ -2918,6 +2964,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     T_EQ(building->construction.gold, 0);
     T_EQ(building->construction.lumber, 0);
     T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
+    T_EQ(building->s.sound, 0);
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
     T_EQ(building->food.made, 6);
@@ -2933,6 +2980,17 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
     T_EQ(building_stand_calls, 1);
     T_EQ(level.events.write, 2);
+}
+
+TEST(wc3_building, legacy_construction_death_clears_snapshot_loop) {
+    setup_test_world();
+    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+
+    building->build = building;
+    building->s.sound = 91;
+    unit_die(building, NULL);
+
+    T_EQ(building->s.sound, 0);
 }
 
 TEST(wc3_building, plain_build_error_text_is_not_resolved_as_trigger_string_zero) {

@@ -40,7 +40,7 @@ source are non-positional and are still delivered by the server packet path.
 
 ### WC3 Sound Registration
 
-At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and registers authored `What`, `Yes`, `Ready`, `YesAttack`, and death assets. WC3 also loads `UnitCombatSounds.slk`, `UISounds.slk`, and optional `AbilitySounds.slk`; construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields into `UISounds.slk`, while ability `Effectsound`/`Effectsoundlooped` aliases resolve through `AbilitySounds.slk`. See `docs/games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
+At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and caches authored `What`, `Yes`, `Ready`, and death assets. `YesAttack` and `Pissed` are selected from `UnitAckSounds.slk` at the interaction that owns them rather than being treated as weapon-swing sounds. WC3 also loads `UnitCombatSounds.slk`, `UISounds.slk`, and optional `AmbienceSounds.slk`, `AbilitySounds.slk`, `AnimSounds.slk`, and `DialogSounds.slk`. JASS sound-label constructors resolve those catalogs plus UnitAck/UnitCombat labels; SLK-backed one-shots retain authored row volume. Construction `BuildingSoundLabel` uses the generic snapshot-synchronised loop channel, construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields, and basic attack impacts combine the attacker's weapon-sound class with the target armor material. See `games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
 
 WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When game code passes the connected client's own edict (for example local UI, dialogue, or minimap presentation), the server resolves that exact edict to the connection first; it must not assume the game's Warcraft player number equals the engine client slot. For ordinary unit-source owner sounds, it falls back to the entity's player ownership. World events such as attacks, death, and tree impacts use ordinary entity-relative `gi.Sound` calls.
 
@@ -49,7 +49,7 @@ WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When gam
 | File | Role |
 |------|------|
 | `games/warcraft-3/game/g_monster.c` | `G_RegisterUnitSounds` — sound index registration at spawn |
-| `games/warcraft-3/game/g_sound.c` | WC3 `UISounds.slk` / `AbilitySounds.slk`, owner-only UI sounds, ability/effect sounds, and command-error dispatch |
+| `games/warcraft-3/game/g_sound.c` | WC3 keyed sound tables, owner-only UI sounds, ability/effect and combat-impact sounds, JASS label resolution, and command-error dispatch |
 | `client/cl_view.c` | reconciles persistent snapshot `entityState_t.sound` loops by entity number |
 | `sound/s_sound.c` | one-shot packet playback plus generic persistent loop mixing |
 | `client/cl_fx.c` | `CL_EntityEvent` — fires sounds on event |
@@ -61,9 +61,15 @@ WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When gam
 
 Persistent world effects use ordinary `entityState_t.sound` rather than repeatedly emitting `svc_sound`. During scene construction, `CL_AddEntities` begins a loop-generation pass, reconciles every active entity carrying a sound configstring through `S_UpdateLoopingSound`, then retires loop channels that were not seen in the current snapshot. This makes start, movement, sound-alias replacement, entity removal, channel interruption, and save/load convergence follow authoritative snapshots without WC3-specific state in the mixer.
 
-The generic mixer owns only the resolved sound path, source entity number, current XY origin, attenuation, and generation. When the sample reaches its end, a persistent channel returns to the WAV cue `loopstart` when valid and otherwise loops from frame zero. Game-specific code remains responsible for resolving authored aliases such as WC3 `Effectsoundlooped` into a server sound configstring and putting that index on the presenting entity.
+The generic mixer owns only the resolved sound path, source entity number, current XY origin, attenuation, and generation. When the sample reaches its end, a persistent channel returns to the WAV cue `loopstart` when valid and otherwise loops from frame zero. Game-specific code remains responsible for resolving authored aliases into a server sound configstring and putting that index on the presenting entity. WC3 currently uses this for `BuildingSoundLabel` construction loops and for effect-owned `Effectsoundlooped` paths.
 
 This path is intentionally separate from one-shot `svc_sound`: an ability may play `Effectsound` once at cast/effect start while a persistent area-effect entity carries `Effectsoundlooped` until that entity disappears or clears `s.sound`.
+
+## Renderer-authored one-shot sounds
+
+Model animation sounds are client presentation, not server simulation state. The shared renderer contract exposes a generic positional one-shot callback (`refImport_t.PlaySoundAt`); the Warcraft III renderer resolves MDX `SND` events through `AnimLookups.slk` / `AnimSounds.slk` and invokes that callback when an animation crosses the authored event key. The shared client and mixer do not know WC3 event names or SLK keys.
+
+WC3 evaluates these event tracks before frustum culling so a client-visible model may still be audible while off-screen. The renderer owns event-key de-duplication per entity/model and resolves the animated event node to world space through the existing MDX node matrices. This local path currently passes authored volume; pitch variance and authored panner distances require a future generic mixer/API extension rather than WC3-specific client branches.
 
 
 ## Assets

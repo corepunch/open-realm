@@ -408,6 +408,7 @@ void build_build(LPEDICT ent) {
         G_SetHealth(building, 0);
     }
     building->build = building;
+    if (!construction_started) G_SetConstructionLoopSound(building, true);
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD start worker=%ld worker_id=%.4s building=%ld id=%.4s player=%u build_time=%d health=%.1f/%.1f worker_build=%ld building_build=%ld\n",

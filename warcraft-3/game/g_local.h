@@ -2603,9 +2603,20 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
+void G_ResetSoundPresentationState(void);
+FLOAT G_SoundIndexVolume(int);
+DWORD G_SoundIndexDuration(int);
+int G_UISoundIndex(LPCSTR);
 void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
 int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped);
 void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point);
+DWORD G_UnitAckSoundVariantCount(LPCSTR label, LPCSTR suffix);
+int G_UnitAckSoundVariantIndex(LPCSTR label, LPCSTR suffix, DWORD variant);
+DWORD G_UnitCombatSoundVariantCount(LPCSTR key);
+int G_UnitCombatSoundVariantIndex(LPCSTR key, DWORD variant);
+BOOL G_SoundLabelDescriptor(LPCSTR alias, LPSTR path, size_t path_size, int *sound_index, FLOAT *volume);
+void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target);
+void G_SetConstructionLoopSound(LPEDICT building, BOOL active);
 
 typedef struct {
     FLOAT volume;
@@ -2614,7 +2625,6 @@ typedef struct {
     BOOL positioned;
 } jassSoundPlayback_t;
 
-void G_JassSoundRuntimeReset(void);
 
 /* Client-owned background music presentation.  The game resolves Warcraft
  * skin/Music.SLK data per recipient and emits reliable svc_music commands. */
@@ -2673,7 +2683,12 @@ selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent);
 LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
 void G_UpdateClientSelections(void);
 void G_SyncClientSelection(LPGAMECLIENT);
-void G_QueueSelectionSound(LPEDICT);
+void G_ResetSelectionSoundState(void);
+BOOL G_QueueUnitResponseSound(LPEDICT, int, DWORD);
+BOOL G_UnitResponseTalking(LPCEDICT);
+void G_UpdateUnitResponsePresentation(LPGAMECLIENT);
+void G_QueueSelectionSound(LPEDICT, BOOL);
+void G_QueueAttackOrderSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 BOOL G_CheatsEnabled(void);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);

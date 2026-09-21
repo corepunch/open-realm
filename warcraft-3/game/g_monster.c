@@ -299,56 +299,21 @@ static void M_SetBuildingShadow(LPEDICT self) {
 
 int g_treeFallSounds[3]; BYTE g_numTreeFallSounds;
 
-/* Register the first sound file for a given SLK label+suffix and return its
- * configstring index, or 0 if the entry is not found or has no files. */
-static int G_RegisterSoundLabel(LPCSTR label, LPCSTR suffix) {
-    char key[128];
-    snprintf(key, sizeof(key), "%s%s", label, suffix);
-    UnitAckSounds_t const *row = G_UnitAckSound(key);
-    LPCSTR files = row->FileNames, dir = row->DirectoryBase;
-    if (!files || !files[0]) return 0;
-    /* Take the first comma-separated filename. */
-    char first[256];
-    LPCSTR comma = strchr(files, ',');
-    if (comma)
-        snprintf(first, sizeof(first), "%.*s", (int)(comma - files), files);
-    else
-        snprintf(first, sizeof(first), "%s", files);
-    char path[512];
-    if (dir && dir[0])
-        snprintf(path, sizeof(path), "%s%s", dir, first);
-    else
-        snprintf(path, sizeof(path), "%s", first);
-    return gi.SoundIndex(path);
-}
-
-/* Like G_RegisterSoundVariants but looks up in UnitCombatSounds instead of UnitAckSounds. */
+/* Cache authored UnitAck/UnitCombat variants through the shared sound-row
+ * resolver so volume metadata follows the resulting configstring index. */
 static void G_RegisterCombatVariants(BYTE out[], BYTE *count, BYTE max, LPCSTR key) {
-    char file[256], path[512];
-    UnitAckSounds_t const *row = G_UnitCombatSound(key);
-    LPCSTR files = row->FileNames, dir = row->DirectoryBase;
-    while (files && files[0] && *count < max) {
-        LPCSTR comma = strchr(files, ',');
-        snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
-        snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
-        out[(*count)++] = (BYTE)gi.SoundIndex(path);
-        files = comma ? comma + 1 : NULL;
+    DWORD variants = G_UnitCombatSoundVariantCount(key);
+    for (DWORD i = 0; i < variants && *count < max; i++) {
+        int sound = G_UnitCombatSoundVariantIndex(key, i);
+        if (sound) out[(*count)++] = (BYTE)sound;
     }
 }
 
-/* Register all comma-separated files for a given label+suffix into out[]/count.
- * Every variant lands in CS_SOUNDS so playback never misses a precache. */
 static void G_RegisterSoundVariants(BYTE out[], BYTE *count, LPCSTR label, LPCSTR suffix) {
-    char key[128], file[256], path[512];
-    snprintf(key, sizeof(key), "%s%s", label, suffix);
-    UnitAckSounds_t const *row = G_UnitAckSound(key);
-    LPCSTR files = row->FileNames, dir = row->DirectoryBase;
-    while (files && files[0] && *count < MAX_UNIT_SELECT_SOUNDS) {
-        LPCSTR comma = strchr(files, ',');
-        snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
-        snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
-        out[(*count)++] = (BYTE)gi.SoundIndex(path);
-        files = comma ? comma + 1 : NULL;
+    DWORD variants = G_UnitAckSoundVariantCount(label, suffix);
+    for (DWORD i = 0; i < variants && *count < MAX_UNIT_SELECT_SOUNDS; i++) {
+        int sound = G_UnitAckSoundVariantIndex(label, suffix, i);
+        if (sound) out[(*count)++] = (BYTE)sound;
     }
 }
 
@@ -365,18 +330,14 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     LPCSTR label = self->data.UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
-    /* Register all order-confirmation variants so clients have them cached;
-     * sound.attack keeps the first index for the attack-swing event. */
+    /* Ordinary order and ready variants are cached per unit. YesAttack and
+     * Pissed are selected from UnitAckSounds at the interaction that owns
+     * them; they are not weapon-swing sounds. */
     G_RegisterSoundVariants(self->sound.yes, &self->sound.num_yes, label, "Yes");
     G_RegisterSoundVariants(self->sound.ready, &self->sound.num_ready, label, "Ready");
-    {
-        BYTE tmp[MAX_UNIT_SELECT_SOUNDS]; BYTE n = 0;
-        G_RegisterSoundVariants(tmp, &n, label, "YesAttack");
-        self->sound.attack = n ? tmp[0] : 0;
-    }
     /* Death sounds follow the pattern {label}Death but may not exist in the
      * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
-    self->sound.death = G_RegisterSoundLabel(label, "Death");
+    self->sound.death = G_UnitAckSoundVariantIndex(label, "Death", 0);
     if (!self->sound.death) {
         /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
         LPCSTR model = self->data.UnitUI->modelFile;

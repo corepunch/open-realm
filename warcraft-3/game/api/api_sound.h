@@ -24,23 +24,51 @@ DWORD CreateSound(LPJASS j) {
  * descriptor as CreateSound. Playback is sent through the entity/server sound
  * path; JASS never owns or calls the client mixer directly. */
 DWORD CreateSoundFilenameWithLabel(LPJASS j) {
-    //LPCSTR fileName = jass_checkstring(j, 1);
-    //BOOL looping = jass_checkboolean(j, 2);
-    //BOOL is3D = jass_checkboolean(j, 3);
-    //BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
-    //LONG fadeInRate = jass_checkinteger(j, 5);
-    //LONG fadeOutRate = jass_checkinteger(j, 6);
-    //LPCSTR SLKEntryName = jass_checkstring(j, 7);
-    return jass_pushnullhandle(j, "sound");
+    LPCSTR fileName = jass_checkstring(j, 1);
+    BOOL looping = jass_checkboolean(j, 2);
+    BOOL is3D = jass_checkboolean(j, 3);
+    BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
+    LONG fadeInRate = jass_checkinteger(j, 5);
+    LONG fadeOutRate = jass_checkinteger(j, 6);
+    LPCSTR SLKEntryName = jass_checkstring(j, 7);
+    FLOAT volume = 1.0f;
+
+    API_ALLOC(gsound_t, sound);
+    strlcpy(sound->fileName, fileName, sizeof(sound->fileName));
+    sound->looping = looping;
+    sound->is3D = is3D;
+    sound->stopwhenoutofrange = stopwhenoutofrange;
+    sound->fadeInRate = fadeInRate;
+    sound->fadeOutRate = fadeOutRate;
+    sound->soundIndex = gi.SoundIndex(fileName);
+    G_JassSoundRuntimeInit(sound);
+    if (G_SoundLabelDescriptor(SLKEntryName, NULL, 0, NULL, &volume))
+        G_JassSoundSetVolume(sound, volume);
+    return 1;
 }
 DWORD CreateSoundFromLabel(LPJASS j) {
-    //LPCSTR soundLabel = jass_checkstring(j, 1);
-    //BOOL looping = jass_checkboolean(j, 2);
-    //BOOL is3D = jass_checkboolean(j, 3);
-    //BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
-    //LONG fadeInRate = jass_checkinteger(j, 5);
-    //LONG fadeOutRate = jass_checkinteger(j, 6);
-    return jass_pushnullhandle(j, "sound");
+    LPCSTR soundLabel = jass_checkstring(j, 1);
+    BOOL looping = jass_checkboolean(j, 2);
+    BOOL is3D = jass_checkboolean(j, 3);
+    BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
+    LONG fadeInRate = jass_checkinteger(j, 5);
+    LONG fadeOutRate = jass_checkinteger(j, 6);
+    char path[sizeof(((gsound_t *)0)->fileName)] = { 0 };
+    FLOAT volume = 1.0f;
+    int sound_index = 0;
+
+    API_ALLOC(gsound_t, sound);
+    G_SoundLabelDescriptor(soundLabel, path, sizeof(path), &sound_index, &volume);
+    strlcpy(sound->fileName, path, sizeof(sound->fileName));
+    sound->looping = looping;
+    sound->is3D = is3D;
+    sound->stopwhenoutofrange = stopwhenoutofrange;
+    sound->fadeInRate = fadeInRate;
+    sound->fadeOutRate = fadeOutRate;
+    sound->soundIndex = sound_index;
+    G_JassSoundRuntimeInit(sound);
+    G_JassSoundSetVolume(sound, volume);
+    return 1;
 }
 DWORD CreateMIDISound(LPJASS j) {
     //LPCSTR soundLabel = jass_checkstring(j, 1);
@@ -49,8 +77,15 @@ DWORD CreateMIDISound(LPJASS j) {
     return jass_pushnullhandle(j, "sound");
 }
 DWORD SetSoundParamsFromLabel(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //LPCSTR soundLabel = jass_checkstring(j, 2);
+    gsound_t *sound = jass_checkhandle(j, 1, "sound");
+    LPCSTR soundLabel = jass_checkstring(j, 2);
+    FLOAT volume = 1.0f;
+
+    /* This native changes the label-authored playback parameters, not the
+     * filename chosen when the handle was created. OpenRealm currently
+     * transports authored volume; pitch/channel/distance remain mixer gaps. */
+    if (sound && G_SoundLabelDescriptor(soundLabel, NULL, 0, NULL, &volume))
+        G_JassSoundSetVolume(sound, volume);
     return 0;
 }
 DWORD SetSoundDistanceCutoff(LPJASS j) {

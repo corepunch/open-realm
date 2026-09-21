@@ -866,6 +866,12 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
 
 #endif
 
+
+static void CL_RendererPlaySoundAt(LPCSTR path, LPCVECTOR3 origin, FLOAT volume) {
+    if (!origin) return;
+    S_PlaySoundPacket(path, origin, true, CHAN_AUTO, volume, 1.0f, 0.0f);
+}
+
 void CL_Init(void) {
     VIDEOMODE mode;
 
@@ -882,6 +888,7 @@ void CL_Init(void) {
         .FileExtract = FS_ExtractFile,
         .LoadSlk = Stb_SlkLoad,
         .CvarString = Cvar_String,
+        .PlaySoundAt = CL_RendererPlaySoundAt,
         .error = CON_printf,
     });
 

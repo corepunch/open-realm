@@ -510,6 +510,8 @@ static void G_InitGame(void) {
     InitConstants();
     InitUnitData();
     InitAbilities();
+    G_ResetSelectionSoundState();
+    G_ResetSoundPresentationState();
     G_RegisterGlobalSounds();
     UI_ResetHud();
     fprintf(stderr, "Game initialized.\n\n");
@@ -523,7 +525,6 @@ static void G_ShutdownGame(void) {
     gi.SetPaused(false);
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
-    G_JassSoundRuntimeReset();
     G_ClearJassGroupRegistry();
     G_FowShutdown();
     G_BlightShutdown();
@@ -727,6 +728,7 @@ static void G_RunClients(void) {
                 .zfar = client->camera.state.far_z });
         }
         if (client_ent) client_ent->s.origin = client->ps.vieworigin;
+        G_UpdateUnitResponsePresentation(client);
         /* Transmission scene and voice lifetimes are independent. Blizzard.j
          * keeps the portrait scene alive past the voice, so Portrait Talk must
          * fall back to Portrait before the entire transmission disappears. */

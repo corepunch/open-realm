@@ -711,6 +711,7 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons) MDLX_AddNode(model, &ribbon->node);
     FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) MDLX_AddNode(model, &attachment->node);
     FOR_EACH_LIST(mdxLight_t, light, model->lights) MDLX_AddNode(model, &light->node);
+    FOR_EACH_LIST(mdxEvent_t, event, model->events) MDLX_AddNode(model, &event->node);
     FOR_LOOP(i, model->num_textures) {
         mdxTexture_t *tex = model->textures+i;
         if (!tex->path[0]) {
@@ -817,6 +818,13 @@ void MDLX_ReleaseModelLight(mdxLight_t *light) {
     SAFE_DELETE(light, ri.MemFree);
 }
 
+void MDLX_ReleaseModelEvent(mdxEvent_t *event) {
+    MDLX_ReleaseModelNode(&event->node);
+    SAFE_DELETE(event->next, MDLX_ReleaseModelEvent);
+    SAFE_DELETE(event->keys, ri.MemFree);
+    SAFE_DELETE(event, ri.MemFree);
+}
+
 void MDLX_ReleaseModelRibbon(mdxRibbonEmitter_t *ribbon) {
     MDLX_ReleaseModelNode(&ribbon->node);
     SAFE_DELETE(ribbon->next, MDLX_ReleaseModelRibbon);
@@ -849,6 +857,7 @@ void MDLX_Release(mdxModel_t *model) {
     SAFE_DELETE(model->geosetAnims, MDLX_ReleaseModelGeosetAnim);
     SAFE_DELETE(model->helpers, MDLX_ReleaseModelHelper);
     SAFE_DELETE(model->lights, MDLX_ReleaseModelLight);
+    SAFE_DELETE(model->events, MDLX_ReleaseModelEvent);
     SAFE_DELETE(model->textures, ri.MemFree);
     SAFE_DELETE(model->sequences, ri.MemFree);
     SAFE_DELETE(model->globalSequences, ri.MemFree);

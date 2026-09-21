@@ -32,6 +32,11 @@ BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD slot);
 slkTestData_t *parse_slk_string(LPCSTR slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
+static int selection_sound_index_77(LPCSTR path) {
+    (void)path;
+    return 77;
+}
+
 /* Reset the entity pool between tests. */
 static void reset_test_entities(void) {
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
@@ -157,15 +162,95 @@ TEST(wc3_unit, selecting_owned_unit_queues_one_ack_sound) {
     ent->sound.select[0] = 11;
     ent->sound.select[1] = 12;
     ent->sound.num_select = 2;
-    G_QueueSelectionSound(ent);
+    G_QueueSelectionSound(ent, true);
     T_ASSERT(ent->sound.pending == 11 || ent->sound.pending == 12);
     T_EQ(ent->sound.pending != 0, 1);
 }
 
 TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    G_QueueSelectionSound(ent);
+    G_QueueSelectionSound(ent, true);
     T_EQ(ent->sound.pending, 0);
+}
+
+TEST(wc3_unit, unit_response_suppresses_overlap_until_authored_duration_expires) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+
+    G_ResetSelectionSoundState();
+    level.time = 1000;
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11, 500));
+    T_EQ(ent->sound.pending, 11);
+    T_ASSERT(G_UnitResponseTalking(ent));
+
+    ent->sound.pending = 0;
+    T_ASSERT(!G_QueueUnitResponseSound(ent, 12, 500));
+    T_EQ(ent->sound.pending, 0);
+
+    level.time = 1500;
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    T_ASSERT(G_QueueUnitResponseSound(ent, 12, 250));
+    T_EQ(ent->sound.pending, 12);
+}
+
+TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "B;X3;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y2;X1;K\"FootmanPissed\"\n"
+        "C;Y2;X2;K\"Pissed1.wav,Pissed2.wav\"\n"
+        "C;Y2;X3;K\"Units\\Human\\Footman\\\"\n"
+        "E\n";
+    UnitUI_t ui = { .soundLabel = "Footman" };
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    slkTestData_t *sounds = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
+    int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
+
+    ent->data.UnitUI = &ui;
+    ent->sound.select[0] = 11;
+    ent->sound.num_select = 1;
+    gi.SoundIndex = selection_sound_index_77;
+    G_ResetSelectionSoundState();
+
+    G_QueueSelectionSound(ent, true); T_EQ(ent->sound.pending, 11);
+    G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 11);
+    G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 11);
+    G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 77);
+    G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 77);
+
+    gi.SoundIndex = old_sound_index;
+    G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
+}
+
+TEST(wc3_unit, attack_order_uses_yesattack_instead_of_weapon_swing_slot) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "B;X3;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y2;X1;K\"FootmanYesAttack\"\n"
+        "C;Y2;X2;K\"Attack1.wav,Attack2.wav\"\n"
+        "C;Y2;X3;K\"Units\\Human\\Footman\\\"\n"
+        "E\n";
+    UnitUI_t ui = { .soundLabel = "Footman" };
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    slkTestData_t *sounds = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
+    int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
+
+    ent->data.UnitUI = &ui;
+    ent->sound.attack = 0;
+    gi.SoundIndex = selection_sound_index_77;
+    G_QueueAttackOrderSound(ent);
+    T_EQ(ent->sound.pending, 77);
+    T_EQ(ent->sound.attack, 0);
+
+    gi.SoundIndex = old_sound_index;
+    G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
 }
 
 TEST(wc3_unit, ready_sound_queues_owner_only_sound) {

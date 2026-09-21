@@ -945,6 +945,10 @@ TEST(wc3_slk, weapon_columns_decode_into_attack_records) {
 
 TEST(wc3_slk, optional_tables_tolerate_absent_files) {
     T_ASSERT(G_SLKStoreOptional("AbilityBuffData")); /* expansion-only: War3x.mpq, hidden when fs_expansion==0 */
+    T_ASSERT(G_SLKStoreOptional("AbilitySounds"));
+    T_ASSERT(G_SLKStoreOptional("AmbienceSounds"));
+    T_ASSERT(G_SLKStoreOptional("AnimSounds"));
+    T_ASSERT(G_SLKStoreOptional("DialogSounds"));
     T_ASSERT(G_SLKStoreOptional("Music")); /* never shipped; Warsmash loads it optionally */
     T_ASSERT(!G_SLKStoreOptional("UnitBalance"));
     T_ASSERT(!G_SLKStoreOptional("NoSuchTable"));
@@ -1192,6 +1196,35 @@ TEST(wc3_slk, destructable_texture_preserves_extension_and_absent_sentinel) {
         free_slk_rows(rows);
     }
     gi.ImageIndex = old_index;
+}
+
+TEST(wc3_slk, armor_material_tokens_normalize_for_combat_sound_lookup) {
+    static LPCSTR const ui_slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"unitUIID\"\n"
+        "C;Y1;X2;K\"armor\"\n"
+        "C;Y2;X1;K\"hfoo\"\n"
+        "C;Y2;X2;K\"Flesh\"\n"
+        "E\n";
+    static LPCSTR const dest_slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"armor\"\n"
+        "C;Y2;X1;K\"LT05\"\n"
+        "C;Y2;X2;K\"Stone\"\n"
+        "E\n";
+    slkTestData_t *ui_rows = parse_slk_string(ui_slk);
+    slkTestData_t *dest_rows = parse_slk_string(dest_slk);
+    slkTestData_t *old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    slkTestData_t *old_dest = G_SetSLKRows("DestructableData", dest_rows);
+
+    T_EQ(G_UnitUI(MAKEFOURCC('h','f','o','o'))->armorType, 1);
+    T_STREQ(G_UnitUI(MAKEFOURCC('h','f','o','o'))->armorSoundType, "Flesh");
+    T_EQ(G_DestructableData(MAKEFOURCC('L','T','0','5'))->armor, 5);
+    T_STREQ(G_DestructableData(MAKEFOURCC('L','T','0','5'))->armorSoundType, "Stone");
+
+    G_SetSLKRows("DestructableData", old_dest); free_slk_rows(dest_rows);
+    G_SetSLKRows("UnitUI", old_ui); free_slk_rows(ui_rows);
 }
 
 TEST(wc3_slk, unit_weapon_target_lists_decode_to_targetflag_mask) {

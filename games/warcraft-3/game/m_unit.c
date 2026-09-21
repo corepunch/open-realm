@@ -172,6 +172,12 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
      * abandons it without the player-cancel refund. */
     if (G_BuildingUpgradeActive(self)) G_StopBuildingUpgrade(self, false);
     if (self->construction.active) G_StopConstruction(self);
+    else if (self->build == self) {
+        G_SetConstructionLoopSound(self, false);
+        /* Legacy construction uses a self-link as a marker, not a production
+         * queue. Clear it before generic death cleanup walks build links. */
+        self->build = NULL;
+    }
     if (self->mineoverlay.parent || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
     S_CargoReleaseUnit(self);

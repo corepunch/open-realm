@@ -1065,6 +1065,7 @@ static void WritePortraitFrame(LPEDICT ent) {
     frame.color = COLOR32_WHITE;
     frame.tex.index = ent->s.model;
     frame.stat = G_GetUnitTeamColor(ent);
+    frame.text = G_UnitResponseTalking(ent) ? "Portrait Talk" : "Portrait";
     snprintf(command, sizeof(command), "+portraitcamera %u", (unsigned)ent->s.number);
     frame.onclick = command;
     UI_SetFrameRect(&frame, 0.211f, 0.4865f, 0.0835f, 0.085f);
