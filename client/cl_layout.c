@@ -212,9 +212,11 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
         cs_index = CS_GENERAL + (ni >> 4);
         if (cs_index >= MAX_CONFIGSTRINGS) { text[0] = '\0'; return text; }
         name = cl.configstrings[cs_index] + (ni & 0xF) * ENT_NAME_SLOT_SIZE;
+        /* The server offsets present resource values by one so zero remains a
+         * distinct, valid depleted-mine value instead of meaning absent. */
         if (ent->hover_value && frame->text && *frame->text) {
             snprintf(text, sizeof(text), "%.*s\n%s %u", ENT_NAME_SLOT_SIZE - 1, name,
-                     frame->text, (unsigned)ent->hover_value);
+                     frame->text, (unsigned)(ent->hover_value - 1));
             return text;
         }
         return name;

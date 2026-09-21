@@ -142,10 +142,11 @@ presentation relationships; when neither is set, game-specific renderers may tre
 packed value in `entityState_t` requires
 a `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity` round-trip test in `tests/test_net.c`.
 
-`entityState_t.hover_value` is an optional recipient-filtered `DWORD` for a live numeric detail attached to a server-authored
-world-hover name frame; zero means absent. Game modules own when it is populated and the frame owns its label. WC3 uses the
-generic field for Gold Mine reserves, including the authoritative hidden parent reservoir behind Haunted/Entangled mine
-overlays.
+Protocol version 8 adds `entityState_t.hover_value`, an optional recipient-filtered `DWORD` for a live numeric detail attached to a
+server-authored world-hover name frame. Zero means absent; present values are transmitted as the displayed value plus one so a
+depleted resource can still display zero. Game modules own when it is populated and the frame owns its label. WC3 uses the generic
+field for Gold Mine reserves, including the authoritative hidden parent reservoir behind Haunted/Entangled mine overlays. Clients
+and servers must use the same protocol version because this field is inserted into the entity delta schema.
 
 ## Key files
 

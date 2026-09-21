@@ -151,7 +151,8 @@ Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone d
 
 World hover follows Warsmash's Gold Mine presentation: a live Gold Mine nameplate adds a second localized `COLON_GOLD`
 line containing the mine's current remaining gold, for example `Gold Mine` followed by `Gold: 12500`. The server publishes
-that changing amount through the generic recipient-filtered `entityState_t.hover_value`; the already-authored
+that changing amount through the generic recipient-filtered `entityState_t.hover_value` (wire value is amount plus one so depleted
+mines can display zero); the already-authored
 `LAYER_WORLD_HOVER` name frame supplies the localized label and the client combines both values without a hover RPC or
 `svc_layout` resend. Ordinary `Agld` mines publish their own `resources` reservoir. Haunted/Entangled overlay units publish
 the remaining gold from their still-bound hidden parent mine, so replacing the visible mine model does not create a second

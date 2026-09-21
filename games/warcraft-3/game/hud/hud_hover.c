@@ -26,9 +26,15 @@ static void UI_WriteHoverBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWO
 }
 
 static LPCSTR UI_HoverResourceLabel(void) {
+    static BOOL warned;
     LPCSTR label = UI_GetString("COLON_GOLD");
 
-    return label && strcmp(label, "COLON_GOLD") ? label : "Gold:";
+    if (label && strcmp(label, "COLON_GOLD")) return label;
+    if (!warned) {
+        fprintf(stderr, "UI_WC3: missing GlobalStrings entry COLON_GOLD; using Gold: fallback\n");
+        warned = true;
+    }
+    return "Gold:";
 }
 
 /* The server owns the complete widget; only its declared context changes at draw time. */

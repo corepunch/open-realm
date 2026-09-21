@@ -2957,7 +2957,7 @@ TEST(wc3_api, customize_entity_publishes_gold_mine_hover_value) {
     ent.health.value = 100.0f;
 
     globals.CustomizeEntity(3, &ent, &state);
-    T_EQ(state.hover_value, 12500);
+    T_EQ(state.hover_value, 12501);
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
 }
 
@@ -2978,7 +2978,7 @@ TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
     overlay.health.value = 100.0f;
 
     globals.CustomizeEntity(3, &overlay, &state);
-    T_EQ(state.hover_value, 4500);
+    T_EQ(state.hover_value, 4501);
 }
 
 TEST(wc3_api, customize_entity_hides_invulnerable_health_but_keeps_mana) {

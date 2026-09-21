@@ -156,15 +156,17 @@ TEST(client_layout, context_name_appends_live_hover_value) {
     test_client_stubs_init();
     cl.hover_entity = entnum;
     cl.ents[entnum].current = (entityState_t){
-        .model = 1, .name = name, .hover_value = 12500,
+        .model = 1, .name = name, .hover_value = 12501,
         .stats = { [ENT_HEALTH] = 255 },
     };
     memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
     snprintf(cl.configstrings[CS_GENERAL] + (ni & 0xF) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Gold Mine");
 
     T_STREQ(SCR_GetStringValue(&frame), "Gold Mine\nGold: 12500");
-    cl.ents[entnum].current.hover_value = 12490;
+    cl.ents[entnum].current.hover_value = 12491;
     T_STREQ(SCR_GetStringValue(&frame), "Gold Mine\nGold: 12490");
+    cl.ents[entnum].current.hover_value = 1;
+    T_STREQ(SCR_GetStringValue(&frame), "Gold Mine\nGold: 0");
 }
 
 TEST(client_layout, unknown_high_stat_binding_resolves_empty) {
@@ -2804,7 +2806,7 @@ TEST(net, entity_delta_preserves_build_preview_fields) {
 TEST(net, entity_delta_preserves_hover_value) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .hover_value = 12500 }, out = { 0 };
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .hover_value = 12501 }, out = { 0 };
     DWORD bits = 0;
     int number;
 
@@ -2814,7 +2816,7 @@ TEST(net, entity_delta_preserves_hover_value) {
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
 
     T_EQ(number, 9);
-    T_EQ(out.hover_value, 12500);
+    T_EQ(out.hover_value, 12501);
 }
 
 TEST(net, entity_delta_preserves_destructable_presentation_image) {

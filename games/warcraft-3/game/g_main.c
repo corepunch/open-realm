@@ -1306,18 +1306,23 @@ static USHORT G_UnitNameConfigstring(LPCSTR name) {
 }
 
 /* World-hover secondary values are recipient-filtered snapshot presentation.
+ * Zero means absent on the wire, so present resource values are offset by one.
  * Ordinary Agld mines own the reservoir directly; racial mine overlays expose
  * the live reservoir of their still-bound hidden parent. */
 static DWORD G_HoverResourceValue(LPCEDICT ent) {
     LPCEDICT parent;
+    DWORD value;
 
     if (!ent) return 0;
     if (S_GoldMineIsOverlay(ent) && (parent = ent->mineoverlay.parent)) {
         if (!parent->inuse || parent->spawn_time != ent->mineoverlay.parent_spawn_time ||
             M_IsDead(parent) || !(parent->s.flags & EF_RESOURCE_SOURCE)) return 0;
-        return parent->resources;
+        value = parent->resources;
+    } else {
+        if (!(ent->s.flags & EF_RESOURCE_SOURCE)) return 0;
+        value = ent->resources;
     }
-    return (ent->s.flags & EF_RESOURCE_SOURCE) ? ent->resources : 0;
+    return value == UINT_MAX ? UINT_MAX : value + 1;
 }
 
 /* Selection voices are local feedback; suppress them in snapshots for clients
