@@ -510,7 +510,7 @@ static ability_t abilitylist[] = {
     // TODO: Aspa CAbilityAttack  /* Spider Attack */
     // TODO: Aweb a_auto_target_spell  /* Web */
     // TODO: Astn a_morph  /* Stone Form */
-    { "Amel", CAbilityCargoLoad, AB_COMMAND },  /* Get Corpse */
+    { "Amel", CAbilityCargoLoad, AB_COMMAND | AB_AUTOCAST },  /* Get Corpse */
     { "Amed", CAbilityCargoDrop, AB_COMMAND },  /* Drop Corpse */
     // TODO: Aapl a_unknown  /* Disease Cloud */
     // TODO: Apts a_button  /* Disease Cloud */

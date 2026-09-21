@@ -44,7 +44,9 @@ corpse. The flag rides in persisted `aiflags`, so no new save pointer is require
 ## Cannibalize (`Acan`)
 
 Cannibalize is a no-target channel. It searches `DataB` for the nearest non-Hero corpse
-allowed by the ability's authored Targets Allowed field. A successful cast reserves the
+allowed by the ability's authored Targets Allowed field. Stored Meat Wagon corpses are measured
+at the holder's current position; if the caster must approach one, movement targets the Wagon
+while the consuming thinker continues to own the actual hidden corpse entity. A successful cast reserves the
 corpse for the entire channel by setting `AI_CORPSE_RESERVED` and installing the
 ability-alias targeting status used by the Warsmash behavior definition. Other corpse
 consumers therefore cannot claim the same remains.
@@ -147,9 +149,10 @@ Remaining work is deliberately limited to behavior that still lacks an exact con
 - Cargo evidence establishes a bone-phase timer restart on unload. Exact behavior for a
   corpse picked up during the brief flesh phase, plus exact multi-corpse unload facing and
   placement, remains unresolved; OpenRealm keeps the generic unstuck placement path.
-- Warcraft unit models commonly expose distinct `Decay Flesh` and `Decay Bone` sequences,
-  but the exact retail playback-rate/hold/fallback contract is not established. Presentation
-  remains separate from the authoritative simulation lifetime.
+- Corpse state now requests the standard model sequences `Decay Flesh` and `Decay Bone` at
+  the matching simulation phase. Missing sequences leave the prior/final death pose in place,
+  so lifetime correctness remains independent of model authoring. Exact retail playback-rate,
+  sequence-duration scaling, and malformed/custom-model fallback details remain presentation work.
 
 ## Verification
 
@@ -161,7 +164,7 @@ make test-wc3-engine WC3_PATTERN='wc3_unit.*corpse*'
 make test-wc3-engine WC3_PATTERN='wc3_ability_lifecycle.cannibalize*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.raise_dead*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.graveyard*'
-make test-wc3-engine WC3_PATTERN='wc3_spell.*corpse_cargo*'
+make test-wc3-engine WC3_PATTERN='wc3_spell.*corpse*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.raise_dead*limit*'
 ```
 

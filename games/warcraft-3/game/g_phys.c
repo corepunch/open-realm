@@ -115,8 +115,12 @@ void SV_Physics_Toss(LPEDICT ent) {
              * target defense/armor on impact, matching Warsmash and allowing
              * in-flight armor/defense changes to affect the hit. Spell
              * missiles install currentmove/endfunc and bypass this branch. */
-            int const damage = G_AttackDamage(ent->owner, ent->goalentity, ent->damage);
-            S_ResolveAttackHit(ent->owner, ent->goalentity, damage);
+            if (ent->owner && ent->owner->attack1.weapon == WPN_ARTILLERY) {
+                S_ResolveArtilleryHit(ent->owner, ent->goalentity, ent->damage);
+            } else {
+                int const damage = G_AttackDamage(ent->owner, ent->goalentity, ent->damage);
+                S_ResolveAttackHit(ent->owner, ent->goalentity, damage);
+            }
             G_FreeEdict(ent);
         }
     } else {

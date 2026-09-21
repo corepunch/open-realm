@@ -21,6 +21,8 @@ unit object data
 
 Melee resolves the target-facing stages at the damage point. Missile attacks roll at launch but defer `G_AttackDamage()` until projectile impact, so armor/defense changes while the missile is in flight affect the hit. Before that normal impact path, a basic missile may be consumed or retargeted by the Defend projectile reaction. Spell missiles provide their own `currentmove/endfunc` and do not enter this physical-attack/Defend-missile branch.
 
+`WPN_ARTILLERY` now shares the physical projectile launch path instead of falling through the melee resolver. The unit-level authored `minRange` is a real dead zone: a mobile attacker backs away until the target is outside it, while a holding/immobile attacker cannot fire. At projectile impact the primary target uses the ordinary attack-hit pipeline, and secondary units use the authored full/medium/small splash radii, factors, and `splashTargs` mask. Exact retail point-locked (non-homing) artillery flight and attack-ground behavior remain separate fidelity work; the current projectile still follows its entity target during flight.
+
 `T_Damage()` ignores targets whose life is already zero, and `unit_die()` is a one-shot transition once `SVF_DEADMONSTER` is set. This matters for simultaneous or near-simultaneous missile impacts: only the first lethal hit may publish WC3 death events, so map-authored death/loot triggers cannot run twice for the same corpse.
 
 ### Defend projectile reaction
@@ -46,7 +48,7 @@ For each `unitAttack_t`:
 - `permanentDamageBonus`: permanent modifier ledger used to survive Hero stat recomputation (for example `ratx`).
 - `temporaryDamageBonus`: item/temporary modifier added to each roll but not folded into the base range.
 - `cooldown`, `damagePoint`, `range`: attack timing/range.
-- splash/bounce metadata is parsed but the special weapon behaviors are not yet implemented.
+- artillery splash metadata (`Farea`/`Harea`/`Qarea`, `Hfact`/`Qfact`, `splashTargs`) is consumed by the generic `WPN_ARTILLERY` impact path; bounce/line/missile-splash weapon classes remain separate gaps.
 
 The displayed permanent range is:
 
@@ -173,6 +175,8 @@ Attack 1 target legality is owned by `skills/s_attack.c`, not by the generic AI 
 
 `S_AttackCanTarget()` applies that authored mask to explicit Attack orders and every later attack recheck. For ordinary units, the target's `UnitData.targetType` supplies the ground/air/structure/etc. category; destructables continue through `G_DestructableCanBeAttackedBy()`. This keeps target legality in the Attack ability instead of teaching generic AI about Spirit Towers, Burrows, or other particular unit rawcodes.
 
+Minimum attack range is checked alongside maximum range. It comes from `UnitWeapons.minRange` (`uamn`) rather than a Meat-Wagon rawcode special case. A mobile unit already ordered to attack a target inside that dead zone steps directly away from the target until it can fire; Hold Position and `AI_IMMOBILE` units drop the impossible attack instead.
+
 Automatic acquisition adds one policy on top through `S_AttackCanAutoAcquire()`:
 
 - mobile attackers may acquire a legal target anywhere inside their authored acquisition range and chase it normally;
@@ -181,7 +185,7 @@ Automatic acquisition adds one policy on top through `S_AttackCanAutoAcquire()`:
 
 This is important for defensive buildings whose acquisition range may exceed weapon range: an idle tower must not enter an attack behavior for a target it cannot approach. If an explicit or previously valid attack target is out of range while `AI_IMMOBILE`, `ai_attack_walk()` finishes that attack behavior instead of leaving the structure stuck in a non-moving walk state. This matches Warsmash's movement-disabled ranged behavior, which drops an out-of-range attack when no move behavior exists.
 
-Relevant regression coverage is in `games/warcraft-3/game/tests/t_combat.c`: ground/air mask rejection, nearest-target filtering, structure acquisition, immobile out-of-range acquisition, and explicit immobile out-of-range attack cancellation.
+Relevant regression coverage is in `games/warcraft-3/game/tests/t_combat.c`: ground/air mask rejection, nearest-target filtering, structure acquisition, immobile out-of-range acquisition, explicit immobile out-of-range attack cancellation, artillery ranged-state selection, minimum-range retreat, and authored three-band artillery splash.
 
 ## Destructable Attack Targeting
 
@@ -211,7 +215,7 @@ The current implementation intentionally does not invent the larger Warsmash com
 - low-ground miss and target evasion;
 - target damage-taken and final-damage listeners;
 - generic distinction between attack type and damage type / numeric-armor bypass;
-- `MSPLASH`, `ARTILLERY`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior;
+- `MSPLASH`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior; `ARTILLERY` now has projectile/min-range/three-band splash gameplay, but exact point-locked flight/attack-ground semantics remain;
 - combat selection between Attack 1 and Attack 2 remains Attack-1-only; Attack 1 now enforces its decoded `targs1`/`ua1g` target mask for ordinary unit targets as well as destructables, but Attack 2 selection and its `targs2` mask still need the broader two-weapon implementation;
 - separate Hero base-vs-bonus attributes for Warsmash-exact green primary-stat damage;
 - seeded combat RNG independent from unrelated `rand()` consumers;

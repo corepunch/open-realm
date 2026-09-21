@@ -486,10 +486,14 @@ TEST(wc3_unit, corpse_decay_uses_map_flesh_then_bone_constants) {
     ent->data.UnitData = &data;
     unit_begin_decay(ent);
 
+    T_STREQ(ent->currentmove->animation, "decay flesh");
+    T_STREQ(ent->animation_request, "decay flesh");
     T_FEQ(ent->wait, 0.2f, 0.001f);
     ent->currentmove->think(ent);
     ent->currentmove->think(ent);
     T_ASSERT(ent->inuse);
+    T_STREQ(ent->currentmove->animation, "decay bone");
+    T_STREQ(ent->animation_request, "decay bone");
     T_FEQ(ent->wait, 0.3f, 0.001f);
     FOR_LOOP(i, 4) if (ent->inuse) ent->currentmove->think(ent);
     T_ASSERT(!ent->inuse);

@@ -284,9 +284,8 @@ static BOOL corpse_cargo_target_valid(LPEDICT transport, LPEDICT target) {
 
     if (!transport || !target || !S_CargoIsCorpseHolder(transport) ||
         M_IsDead(transport) || !G_UnitIsRaisableCorpse(target) ||
-        target->s.player != transport->s.player || S_CorpseCargoIsStored(target) ||
-        (target->s.renderfx & RF_HIDDEN) || S_CargoTransportForUnit(target) ||
-        !cargo_has_capacity(transport, 1)) return false;
+        S_CorpseCargoIsStored(target) || (target->s.renderfx & RF_HIDDEN) ||
+        S_CargoTransportForUnit(target) || !cargo_has_capacity(transport, 1)) return false;
     alias = cargo_actor_ability_alias(transport, BZ_AMEL);
     return alias && S_SpellAllowsCorpseTarget(alias, transport, target);
 }
@@ -317,13 +316,14 @@ BOOL S_CorpseCargoTryLoad(LPEDICT transport, LPEDICT target) {
     return S_CargoTransportForUnit(target) == transport;
 }
 
-static LPEDICT corpse_cargo_nearest(LPEDICT transport) {
+static LPEDICT corpse_cargo_nearest(LPEDICT transport, FLOAT max_distance) {
     LPEDICT nearest = NULL;
     FLOAT best = FLT_MAX;
 
     if (!transport) return NULL;
     FILTER_EDICTS(corpse, corpse != transport && corpse_cargo_target_valid(transport, corpse)) {
         FLOAT const distance = Vector2_distance(&transport->s.origin2, &corpse->s.origin2);
+        if (max_distance > 0.0f && distance > max_distance + transport->collision + corpse->collision) continue;
         if (distance < best) { nearest = corpse; best = distance; }
     }
     return nearest;
@@ -362,11 +362,10 @@ static void corpse_cargo_approach_think(LPEDICT thinker) {
     }
 }
 
-static BOOL corpse_cargo_command(LPEDICT clent) {
-    LPEDICT transport, corpse, thinker;
+static BOOL corpse_cargo_start(LPEDICT transport, LPEDICT corpse, DWORD code) {
+    LPEDICT thinker;
 
-    if (!clent || !clent->client || !(transport = G_GetMainSelectedUnit(clent->client)) ||
-        !S_CargoIsCorpseHolder(transport) || !(corpse = corpse_cargo_nearest(transport))) return false;
+    if (!transport || !corpse || !corpse_cargo_target_valid(transport, corpse)) return false;
     if (cargo_target_in_range(transport, corpse)) return S_CorpseCargoTryLoad(transport, corpse);
     order_move(transport, corpse);
     if (transport->goalentity != corpse || !move_is_active_order_walk(transport)) return false;
@@ -374,10 +373,31 @@ static BOOL corpse_cargo_command(LPEDICT clent) {
     if (!thinker) return false;
     thinker->owner = transport;
     thinker->goalentity = corpse;
-    thinker->class_id = BZ_AMEL;
+    thinker->class_id = code;
     thinker->channel.target_spawn_time = corpse->spawn_time;
     thinker->think = corpse_cargo_approach_think;
     return true;
+}
+
+static BOOL corpse_cargo_command(LPEDICT clent) {
+    LPEDICT transport, corpse;
+    DWORD code;
+
+    if (!clent || !clent->client || !(transport = G_GetMainSelectedUnit(clent->client)) ||
+        !S_CargoIsCorpseHolder(transport) || !(corpse = corpse_cargo_nearest(transport, 0.0f))) return false;
+    code = clent->client->menu.ability_code;
+    return corpse_cargo_start(transport, corpse, code ? code : BZ_AMEL);
+}
+
+static BOOL corpse_cargo_autocast_acquire(LPEDICT transport, DWORD code) {
+    FLOAT radius;
+    LPEDICT corpse;
+
+    if (!transport || M_IsDead(transport) || transport->cargo.count >= S_CargoCapacity(transport)) return false;
+    radius = G_AcquisitionRange(transport);
+    if (radius <= 0.0f) return false;
+    corpse = corpse_cargo_nearest(transport, radius);
+    return corpse && corpse_cargo_start(transport, corpse, code);
 }
 
 static BOOL load_selecttarget(LPEDICT clent, LPEDICT target) {
@@ -387,15 +407,34 @@ static BOOL load_selecttarget(LPEDICT clent, LPEDICT target) {
     return S_CargoTryLoad(caster, target);
 }
 
-BZ_COMMAND_PROC(AbilityCargoLoad) {
-    if (clent && clent->client && clent->client->menu.ability_code == BZ_AMEL) {
-        clent->client->menu.on_entity_selected = NULL;
-        clent->client->menu.on_location_selected = NULL;
-        corpse_cargo_command(clent);
-        return;
+BZ_ABILITY_PROC(CAbilityCargoLoad) {
+    DWORD const code = call && call->item ? call->item->code : 0;
+    BOOL const corpse_load = code && G_AbilityCode(code) == BZ_AMEL;
+
+    switch (msg) {
+    case A_COMMAND: {
+        LPEDICT clent = call && call->client ? call->client : ent;
+        if (corpse_load) {
+            if (clent && clent->client) {
+                clent->client->menu.on_entity_selected = NULL;
+                clent->client->menu.on_location_selected = NULL;
+            }
+            return corpse_cargo_command(clent);
+        }
+        if (!clent || !clent->client) return false;
+        UI_AddCancelButton(clent);
+        clent->client->menu.on_entity_selected = load_selecttarget;
+        return true;
     }
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = load_selecttarget;
+    case A_AUTOCAST_ON:
+        return corpse_load && ent && ent->autocast_code == code;
+    case A_AUTOCAST_SET:
+        return corpse_load;
+    case A_AUTOCAST_ACQUIRE:
+        return corpse_load && corpse_cargo_autocast_acquire(ent, code);
+    default:
+        return false;
+    }
 }
 
 /* ---- Battle Stations (Abtl): call nearby allowed units into cargo -------- */

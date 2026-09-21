@@ -304,6 +304,47 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     }
 }
 
+
+static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target) {
+    DWORD mask, flag;
+
+    if (!attacker || !target || !target->inuse || target == attacker || M_IsDead(target)) return false;
+    mask = attacker->data.UnitWeapons ? (DWORD)attacker->data.UnitWeapons->attack1.areaTargets : 0;
+    if (!mask) mask = attacker->attack1.targetsAllowed;
+    flag = G_TargetFlagForType(target->targtype);
+    return flag && (mask & flag) != 0;
+}
+
+/* Artillery weapons damage around the impact using the authored
+ * full/medium/small radii.  The primary target keeps the ordinary
+ * attack-hit pipeline (evasion, on-hit effects, lifesteal, etc.); secondary
+ * splash victims receive physical attack damage only. */
+void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage) {
+    VECTOR2 impact;
+    FLOAT max_radius;
+
+    if (!attacker || !target || raw_damage <= 0) return;
+    impact = target->s.origin2;
+    S_ResolveAttackHit(attacker, target, G_AttackDamage(attacker, target, raw_damage));
+    max_radius = MAX(attacker->attack1.areaFull,
+                     MAX(attacker->attack1.areaMedium, attacker->attack1.areaSmall));
+    if (max_radius <= 0.0f) return;
+
+    FILTER_EDICTS(other, other != target && artillery_splash_target_allowed(attacker, other)) {
+        FLOAT const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, &impact) - MAX(0.0f, other->collision));
+        FLOAT factor;
+        int damage;
+
+        if (distance <= attacker->attack1.areaFull) factor = 1.0f;
+        else if (distance <= attacker->attack1.areaMedium) factor = attacker->attack1.factorMedium;
+        else if (distance <= attacker->attack1.areaSmall) factor = attacker->attack1.factorSmall;
+        else continue;
+        if (factor <= 0.0f) continue;
+        damage = G_AttackDamage(attacker, other, (int)MAX(1.0f, (FLOAT)raw_damage * factor));
+        T_Damage(other, attacker, damage);
+    }
+}
+
 static BOOL attack_animation_can_finish(LPCEDICT ent) {
     return ent && ent->animation && ent->animation->interval[1] > ent->animation->interval[0];
 }
@@ -375,6 +416,36 @@ static void ai_ranged(LPEDICT ent) {
     unit_runwait(ent, throw_missile);
 }
 
+static FLOAT attack_minimum_range(LPCEDICT ent) {
+    return ent && ent->data.UnitWeapons ? MAX(0.0f, ent->data.UnitWeapons->minimumAttackRange) : 0.0f;
+}
+
+static BOOL attack_target_too_close_for(LPCEDICT ent, LPCEDICT target) {
+    FLOAT const minimum = attack_minimum_range(ent);
+    if (!ent || !target || minimum <= 0.0f) return false;
+    return Vector2_distance(&target->s.origin2, &ent->s.origin2) < minimum;
+}
+
+static BOOL attack_target_too_close(LPEDICT ent) {
+    return ent && attack_target_too_close_for(ent, ent->goalentity);
+}
+
+static void attack_retreat_from_target(LPEDICT ent) {
+    VECTOR2 dir;
+    FLOAT len;
+
+    if (!ent || !ent->goalentity) return;
+    dir = Vector2_sub(&ent->s.origin2, &ent->goalentity->s.origin2);
+    len = Vector2_len(&dir);
+    if (len <= 0.001f) dir = MAKE(VECTOR2, cosf(ent->s.angle + (FLOAT)M_PI), sinf(ent->s.angle + (FLOAT)M_PI));
+    else { dir.x /= len; dir.y /= len; }
+    ent->s.angle = atan2f(dir.y, dir.x);
+    ent->movement.heading = ent->s.angle;
+    ent->movement.flow_direct = true;
+    ent->movement.flow_generation = 0;
+    unit_moveindirection(ent);
+}
+
 static BOOL attack_target_out_of_range_for(LPCEDICT ent, LPCEDICT target) {
     FLOAT footprint, range, ensnare_range;
 
@@ -402,7 +473,8 @@ static BOOL attack_target_out_of_range(LPEDICT ent) {
  * disable-chase lifecycle. */
 BOOL S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target) {
     if (!S_AttackCanTarget(attacker, target)) return false;
-    if ((attacker->aiflags & AI_IMMOBILE) && attack_target_out_of_range_for(attacker, target))
+    if ((attacker->aiflags & AI_IMMOBILE) &&
+        (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
         return false;
     return true;
 }
@@ -411,7 +483,7 @@ static void ai_melee_cooldown(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    if (attack_target_out_of_range(ent)) {
+    if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
     } else {
         unit_runwait(ent, attack_melee);
@@ -422,7 +494,7 @@ static void ai_ranged_cooldown(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    if (attack_target_out_of_range(ent)) {
+    if (attack_target_out_of_range(ent) || attack_target_too_close(ent)) {
         attack_walk(ent);
     } else {
         unit_runwait(ent, attack_ranged);
@@ -443,7 +515,15 @@ static void ai_attack_walk(LPEDICT ent) {
         }
         unit_changeangle(ent);
         unit_moveindirection(ent);
-    } else if (ent->attack1.weapon == WPN_MISSILE) {
+    } else if (attack_target_too_close(ent)) {
+        /* Artillery minimum range is a real dead zone. Mobile siege units back
+         * away until they can fire; Hold Position/immobile attackers cannot. */
+        if (ent->movement.holding_position || (ent->aiflags & AI_IMMOBILE)) {
+            attack_finish_after_combat(ent, ent->goalentity);
+            return;
+        }
+        attack_retreat_from_target(ent);
+    } else if (ent->attack1.weapon == WPN_MISSILE || ent->attack1.weapon == WPN_ARTILLERY) {
         attack_ranged(ent);
     } else {
         attack_melee(ent);

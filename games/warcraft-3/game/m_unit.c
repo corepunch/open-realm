@@ -26,11 +26,11 @@ static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
 static void unit_decay_flesh_think(LPEDICT self);
 static void unit_begin_bone_decay(LPEDICT self);
 static umove_t unit_move_death = { "death", NULL, unit_begin_decay };
-/* Decay timing is simulation-owned.  Both phases hold the final death frame;
- * models may provide decay sequences, but corpse existence must not depend on
- * presentation sequence availability. */
-static umove_t unit_move_decay_flesh = { "decay", unit_decay_flesh_think, NULL };
-static umove_t unit_move_decay_bones = { "decay", unit_decay_think, NULL };
+/* Decay timing is simulation-owned. Request Warcraft's authored Decay Flesh /
+ * Decay Bone sequences when present; models lacking either sequence simply keep
+ * the final death frame because corpse existence never depends on presentation. */
+static umove_t unit_move_decay_flesh = { "decay flesh", unit_decay_flesh_think, NULL };
+static umove_t unit_move_decay_bones = { "decay bone", unit_decay_think, NULL };
 
 void unit_decay1(LPEDICT self) {
     self->aiflags |= AI_HOLD_FRAME;

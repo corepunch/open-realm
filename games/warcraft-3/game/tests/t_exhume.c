@@ -18,17 +18,20 @@ typedef struct { slkTestData_t *rows, *old, *unit_rows, *old_units; LPEDICT wago
 
 /* Non-stock Dur=2 / DataA=2 / UnitID=hfoo prove the update path is data-driven. */
 static char const exh_slk[] =
-	"ID;PWXL;N;EBB;Y2;X10\n"
+	"ID;PWXL;N;EBB;Y5;X11\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs\"\n"
 	"C;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\nC;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\n"
-	"C;Y1;X9;K\"DataA1\"\nC;Y1;X10;K\"UnitID1\"\n"
+	"C;Y1;X9;K\"DataA1\"\nC;Y1;X10;K\"UnitID1\"\nC;Y1;X11;K\"DataB1\"\n"
 	"C;Y2;X1;K\"Aexh\"\nC;Y2;X2;K\"Aexh\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"_\"\n"
 	"C;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"2\"\n"
 	"C;Y2;X9;K\"2\"\nC;Y2;X10;K\"hfoo\"\n"
 	"C;Y3;X1;K\"Amel\"\nC;Y3;X2;K\"Amel\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"ground,dead,nonhero\"\n"
 	"C;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"100\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"0\"\n"
 	"C;Y4;X1;K\"Sch2\"\nC;Y4;X2;K\"Amtc\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"dead\"\n"
-	"C;Y4;X5;K\"0\"\nC;Y4;X6;K\"0\"\nC;Y4;X7;K\"160\"\nC;Y4;X8;K\"0\"\nC;Y4;X9;K\"8\"\nE\n";
+	"C;Y4;X5;K\"0\"\nC;Y4;X6;K\"0\"\nC;Y4;X7;K\"160\"\nC;Y4;X8;K\"0\"\nC;Y4;X9;K\"8\"\n"
+	"C;Y5;X1;K\"Acan\"\nC;Y5;X2;K\"Acan\"\nC;Y5;X3;K\"1\"\nC;Y5;X4;K\"ground,dead,organic\"\n"
+	"C;Y5;X5;K\"0\"\nC;Y5;X6;K\"0\"\nC;Y5;X7;K\"0\"\nC;Y5;X8;K\"33\"\n"
+	"C;Y5;X9;K\"10\"\nC;Y5;X11;K\"800\"\nE\n";
 
 static char const exh_unit_slk[] =
 	"ID;PWXL;N;EBB;Y2;X3\n"
@@ -160,6 +163,81 @@ TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
     T_ASSERT(S_CorpseCargoIsStored(corpse));
     T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
     T_ASSERT(!thinker->inuse);
+    exh_done(&fix);
+}
+
+
+
+TEST(wc3_spell, get_corpse_autocast_acquires_authored_valid_enemy_corpse) {
+    EXHFIX fix;
+    LPEDICT corpse, thinker;
+    abilityitem_t item;
+
+    exh_setup(&fix);
+    fix.wagon->runtime.acquisition_range = 400.0f;
+    corpse = alloc_test_unit(BZ_HFOO, 350.0f, 100.0f);
+    corpse->s.player = 1; /* Amel has no ownership token: enemy corpses remain legal. */
+    corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    corpse->targtype = TARG_GROUND;
+    corpse->health.value = 0.0f;
+    item = S_AbilityItem(BZ_AMEL);
+
+    T_ASSERT(item.ability->flags & AB_AUTOCAST);
+    T_ASSERT(G_SetUnitAutocast(fix.wagon, BZ_AMEL, true));
+    T_ASSERT(G_TryUnitAutocast(fix.wagon));
+    T_ASSERT(fix.wagon->goalentity == corpse);
+    T_ASSERT(move_is_active_order_walk(fix.wagon));
+    thinker = corpse_cargo_thinker(fix.wagon);
+    T_NOT_NULL(thinker);
+
+    fix.wagon->s.origin2.x = 260.0f; fix.wagon->s.origin.x = 260.0f;
+    if (thinker) thinker->think(thinker);
+    T_EQ(fix.wagon->cargo.count, 1);
+    T_ASSERT(S_CorpseCargoIsStored(corpse));
+    T_ASSERT(S_CargoTransportForUnit(corpse) == fix.wagon);
+    exh_done(&fix);
+}
+
+TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_origin) {
+    static UnitAbilities_t const abilities = { .abilList = "Acan" };
+    EXHFIX fix;
+    LPEDICT corpse = NULL, caster, clent = &g_edicts[0];
+    abilityitem_t item;
+    abilityCall_t call;
+
+    exh_setup(&fix);
+    S_RunAbilityUpdates(fix.wagon);
+    exh_tick(2000);
+    FOR_LOOP(i, fix.wagon->cargo.count) {
+        LPEDICT ent = S_CargoUnitAt(fix.wagon, i);
+        if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
+    }
+    T_NOT_NULL(corpse);
+    if (!corpse) { exh_done(&fix); return; }
+
+    /* The hidden corpse keeps its original 100,100 origin. Move its holder far
+     * away, then issue Cannibalize from a unit near the holder. The approach
+     * order must follow the Wagon, while the thinker still owns the real corpse. */
+    fix.wagon->s.origin2 = (VECTOR2){ 500.0f, 100.0f };
+    fix.wagon->s.origin.x = 500.0f; fix.wagon->s.origin.y = 100.0f;
+    caster = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 800.0f, 100.0f);
+    caster->s.player = 0; caster->svflags |= SVF_MONSTER; caster->targtype = TARG_GROUND;
+    caster->health.max_value = 1000.0f; caster->health.value = 500.0f;
+    caster->data.UnitAbilities = &abilities;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','c','a','n'), .level = 1);
+    unit_stand(caster);
+
+    clent->client = &game.clients[0]; clent->client->ps.number = 0; G_SelectEntity(clent->client, caster);
+    item = S_AbilityItem(MAKEFOURCC('A','c','a','n'));
+    call = MAKE(abilityCall_t, .item = &item, .client = clent);
+    T_ASSERT(S_AbilityMessage(caster, A_COMMAND, &call));
+    T_ASSERT(caster->goalentity == fix.wagon);
+    T_ASSERT(move_is_active_order_walk(caster));
+    {
+        LPEDICT thinker = NULL;
+        FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->goalentity == corpse && ent->think) { thinker = ent; break; }
+        T_NOT_NULL(thinker);
+    }
     exh_done(&fix);
 }
 

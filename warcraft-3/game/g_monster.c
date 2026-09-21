@@ -547,7 +547,7 @@ void SP_SpawnUnit(LPEDICT self) {
     G_ApplyPlayerUpgradesToUnit(self);
     S_CargoInitUnit(self);
 
-    if (self->attack1.weapon == WPN_MISSILE) {
+    if (self->attack1.weapon == WPN_MISSILE || self->attack1.weapon == WPN_ARTILLERY) {
         self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);
         self->attack1.origin.y = G_UnitAttack1LaunchY(self->class_id);
         self->attack1.origin.z = G_UnitAttack1LaunchZ(self->class_id);

@@ -327,22 +327,43 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
     return corpse;
 }
 
+static LPEDICT cannibalize_approach_target(LPEDICT corpse) {
+    LPEDICT holder;
+
+    if (!corpse) return NULL;
+    if (!S_CorpseCargoIsStored(corpse)) return corpse;
+    holder = S_CargoTransportForUnit(corpse);
+    return holder && holder->inuse ? holder : NULL;
+}
+
+static BOOL cannibalize_corpse_allowed(LPEDICT caster, DWORD code, LPEDICT corpse) {
+    if (!caster || !corpse) return false;
+    return S_CorpseCargoIsStored(corpse)
+        ? S_SpellAllowsStoredCorpseTarget(code, caster, corpse)
+        : S_SpellAllowsCorpseTarget(code, caster, corpse);
+}
+
 static BOOL cannibalize_in_range(LPEDICT caster, LPEDICT corpse) {
-    return caster && corpse && Vector2_distance(&caster->s.origin2, &corpse->s.origin2) <=
-        caster->collision + corpse->collision;
+    VECTOR2 position;
+    LPEDICT target;
+
+    if (!caster || !corpse || !S_CorpseCargoPosition(corpse, &position) ||
+        !(target = cannibalize_approach_target(corpse))) return false;
+    return Vector2_distance(&caster->s.origin2, &position) <= caster->collision + target->collision;
 }
 
 static void cannibalize_approach_think(LPEDICT thinker) {
     LPEDICT caster = thinker ? thinker->owner : NULL;
     LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+    LPEDICT approach = cannibalize_approach_target(corpse);
 
     if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
-        corpse->spawn_time != thinker->channel.target_spawn_time ||
-        !S_SpellAllowsCorpseTarget(thinker->class_id, caster, corpse)) {
+        corpse->spawn_time != thinker->channel.target_spawn_time || !approach ||
+        !cannibalize_corpse_allowed(caster, thinker->class_id, corpse)) {
         if (thinker) G_FreeEdict(thinker);
         return;
     }
-    if (caster->goalentity != corpse || !move_is_active_order_walk(caster)) {
+    if (caster->goalentity != approach || !move_is_active_order_walk(caster)) {
         G_FreeEdict(thinker);
         return;
     }
@@ -369,8 +390,12 @@ static BOOL cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t con
     if (cannibalize_in_range(caster, corpse)) {
         return S_CastNoTargetSpell(caster, spell->code);
     }
-    order_move(caster, corpse);
-    if (caster->goalentity != corpse || !move_is_active_order_walk(caster)) return false;
+    {
+        LPEDICT approach = cannibalize_approach_target(corpse);
+        if (!approach) return false;
+        order_move(caster, approach);
+        if (caster->goalentity != approach || !move_is_active_order_walk(caster)) return false;
+    }
     thinker = G_Spawn();
     if (!thinker) return false;
     thinker->owner = caster;
