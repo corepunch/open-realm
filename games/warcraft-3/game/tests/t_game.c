@@ -1426,6 +1426,22 @@ TEST(wc3_game, hud_passive_string_serializes_tooltip) {
     T_ASSERT(!wire.onclick || !*wire.onclick);
 }
 
+TEST(wc3_game, hud_passive_simpleframe_serializes_status_tooltip) {
+    FRAMEDEF frame = { .Type = FT_SIMPLEFRAME };
+    uiFrame_t wire = { 0 };
+    BYTE typedata[128] = { 0 };
+    char textbuf[128] = { 0 };
+
+    frame.Tip = "Bloodlust";
+    frame.Ubertip = "Increases attack rate and movement speed.";
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_EQ(wire.flags.type, FT_SIMPLEFRAME);
+    T_STREQ(wire.tooltip, "Bloodlust\nIncreases attack rate and movement speed.");
+    T_ASSERT(!wire.onclick || !*wire.onclick);
+}
+
 TEST(wc3_game, hud_checkbox_serializes_authored_states_and_checked_value) {
     BYTE typedata[256];
     char textbuf[128];

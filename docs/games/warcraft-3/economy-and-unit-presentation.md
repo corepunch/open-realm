@@ -408,6 +408,13 @@ remaining fraction is published through player-state snapshots to the retail `Si
 [Timed Status Presentation](timed-status-presentation.md). Adding, replacing, removing, or expiring a status invalidates the selected-unit
 info layer so labels/eligibility refresh without rebuilding the FDF layer for every timer tick.
 
+Each visible status icon is a passive `FT_SIMPLEFRAME` hover target. Its `Tip` and `Ubertip` are populated from the resolved
+`Bufftip` / `Buffubertip` strings and serialize through the generic `uiFrame_t.tooltip` contract as heading plus body. The
+icon has no click command and does not synthesize resource costs, remaining duration, caster identity, or other status metadata.
+`LAYER_INFOPANEL` carries the shared `FT_TOOLTIPTEXT` presenter whenever a single-selection info panel is authored; the client
+therefore renders the standard Warcraft tooltip only in the same layer that owns the hovered status icon. Timed-bar statuses remain
+excluded from this icon path, so they do not gain a duplicate hover target.
+
 Upgrade-level text is the small `InfoPanelIconLevel` overlay attached to the bottom-right of a damage/armor icon. It is not a buff
 slot. Resolve the selected unit's `UnitBalance.upgrades` rawcodes through `UpgradeData.slk` and show the player's researched level only
 for the matching `melee`/`ranged`/`artillery` weapon class or `armor` class. Hero attribute presentation does not inherit an unrelated
