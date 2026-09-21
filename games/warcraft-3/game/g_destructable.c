@@ -120,11 +120,6 @@ BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
     if (target->targtype == TARG_TREE) {
         return true;
     }
-    /* Gates are attackable world objectives for ordinary combat units even
-     * when their generic weapon target mask omits the wall category. */
-    if (target->targtype == TARG_WALL) {
-        return true;
-    }
     flag = G_TargetFlagForType(target->targtype);
     return flag && (attacker->attack1.targetsAllowed & flag) != 0;
 }

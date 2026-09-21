@@ -2022,7 +2022,7 @@ TEST(wc3_movement, smart_attackable_wall_targets_gate) {
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     attacker->stand = unit_stand;
     attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = 0;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_WALL;
     unit_stand(attacker);
     gate = make_smart_destructable(256.0f, 64.0f, &gate_data, TARG_WALL);
     G_SelectEntity(client, attacker);
