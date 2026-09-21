@@ -340,6 +340,33 @@ static LPCENTITYSTATE SCR_LayoutSelectedEntity(void) {
     return NULL;
 }
 
+void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, LPCRECT screen) {
+    LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+    DWORD count, capacity;
+    FLOAT gap, width;
+    RECT const uv = { 0, 0, 1, 1 };
+
+    if (!frame || !screen || !ent || frame->stat >= ENT_STAT_COUNT || !frame->tex.index) return;
+    count = EntityCargoCount(ent->stats[frame->stat]);
+    capacity = EntityCargoCapacity(ent->stats[frame->stat]);
+    if (!count || !capacity) return;
+    count = MIN(count, capacity);
+
+    /* COccupUI is a CStatBar-style 2D overlay. Keep the gaps in layout-space
+     * units so the game module can tune the presentation without client-side
+     * WC3 constants or model effects. */
+    gap = MAX(0.0f, frame->value);
+    width = (screen->w - gap * (FLOAT)(capacity - 1)) / (FLOAT)capacity;
+    if (width <= 0.0f) return;
+
+    FOR_LOOP(i, count) {
+        RECT segment = *screen;
+        segment.x += (FLOAT)i * (width + gap);
+        segment.w = width;
+        re.DrawImage(cl.pics[frame->tex.index], &segment, &uv, frame->color);
+    }
+}
+
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = { 0, 0, 255, 255 };
     RECT screen2 = *screen, uv2 = uv;
@@ -1248,6 +1275,7 @@ static drawer_t drawers[] = {
     { FT_HIGHLIGHT,      SCR_LayoutDrawHighlight },
     { FT_BACKDROP,       SCR_LayoutDrawBackdrop },
     { FT_SIMPLESTATUSBAR,SCR_LayoutDrawStatusbar },
+    { FT_SEGMENTED_STATUSBAR, SCR_LayoutDrawSegmentedStatusbar },
     { FT_LOADING_BAR,    SCR_LayoutDrawLoadingBar },
     { FT_COMMANDBUTTON,  SCR_LayoutDrawCommandButton },
     { FT_STRING,         SCR_LayoutDrawString },
@@ -1555,6 +1583,7 @@ static BOOL SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
         case FT_TEXTURE:
         case FT_BACKDROP:
         case FT_SIMPLESTATUSBAR:
+        case FT_SEGMENTED_STATUSBAR:
         case FT_COMMANDBUTTON:
         case FT_MODEL:
         case FT_PORTRAIT:

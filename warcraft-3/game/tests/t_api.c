@@ -3124,6 +3124,26 @@ TEST(wc3_api, customize_entity_omits_hover_mana_without_mana_pool) {
     T_ASSERT(!(state.flags & EF_HOVER_MANA));
 }
 
+TEST(wc3_api, customize_entity_packs_hover_cargo_count_and_capacity) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Abun\"\nC;Y2;X2;K\"Abun\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"4\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "Abun" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 }, .data = { .UnitAbilities = &abilities } };
+
+    ent.health.value = 100.0f;
+    ent.cargo.count = 3;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(EntityCargoCount(state.stats[ENT_CARGO]), 3);
+    T_EQ(EntityCargoCapacity(state.stats[ENT_CARGO]), 4);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_api, customize_entity_marks_enemy_hover_relation_hostile) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 2 } };

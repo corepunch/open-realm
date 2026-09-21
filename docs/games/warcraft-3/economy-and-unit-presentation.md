@@ -527,6 +527,16 @@ ASCII Unit Separator (`0x1f`) as padding and retain a single final NUL. `CL_Pars
 after receipt, preserving ordinary fixed-offset C strings for renderer and UI consumers. Embedded NUL records truncate at the first
 name in `MSG_WriteString` and leave later hover names empty.
 
+Cargo occupancy is part of the same native hover presentation. Classic Warcraft exposes this as `COccupUI`, a cargo
+`CStatBar`, rather than an MDX attachment or floating-text counter. OpenRealm packs the hovered holder's current cargo count and
+authored capacity into the otherwise spare fourth entity-stat byte and renders a generic `FT_SEGMENTED_STATUSBAR` immediately above
+the health bar. The frame divides the authored width by capacity and draws one yellow/gold segment for each occupied slot; zero cargo
+draws no occupancy bar. Because the state comes from `S_CargoCapacity()` plus the holder's shared cargo array, the same path covers
+Burrows/transports and, once the corpse-cargo patch is present, Meat Wagon `Sch2`/`Amtc` corpse slots without client-side unit-type
+special cases. Stored corpses therefore increment/decrement the overlay through the same cargo transitions used by Exhume, Get Corpse,
+Drop All, corpse consumers, and holder destruction. Exact retail pixel spacing/texture treatment still needs visual verification; do
+not replace the segmented presentation with an MDX effect or numeric `3/8` label.
+
 Retail `PreSelect.cpp` makes the bar width `UnitUI scale * SelectionCircle ScaleFactor * 0.0005`, equivalent to the render
 entity's selection radius times `0.001`. `CStatBar.cpp` uses a `0.004` frame height and `0.001` inset, so the visible fill is half
 the old implementation's thickness. `CUnitTip.cpp` sizes the nameplate from rendered text with `0.008` horizontal and `0.006`

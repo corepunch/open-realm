@@ -670,8 +670,8 @@ static LPEDICT make_test_unit(void) {
 }
 
 static BOOL hover_layout_pending, hover_layer_seen, hover_infopanel_layer_seen, hover_name_seen, hover_hp_seen,
-            hover_mana_seen, hover_name_sized, hover_name_centered, hover_name_short, hover_resource_label_seen,
-            hover_infopanel_tooltip_seen;
+            hover_mana_seen, hover_cargo_seen, hover_name_sized, hover_name_centered, hover_name_short,
+            hover_resource_label_seen, hover_infopanel_tooltip_seen;
 static DWORD hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count;
 static LPEDICT hover_unicast_target;
 static pfWriteType_t window_frame_type;
@@ -706,6 +706,7 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
         hover_hp_seen |= frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
         hover_mana_seen |= frame->stat == UI_STAT_CONTEXT_MANA;
         hover_infopanel_tooltip_seen |= frame->flags.type == FT_TOOLTIPTEXT;
+        hover_cargo_seen |= frame->flags.type == FT_SEGMENTED_STATUSBAR && frame->stat == ENT_CARGO;
     }
 }
 static void hover_test_unicast(LPEDICT ent) { hover_unicast_count++; hover_unicast_target = ent; }
@@ -2105,7 +2106,7 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
 
     setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
     player->mana.max_value = 100.0f; player->mana.value = 50.0f;
-    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_name_sized = false;
+    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_cargo_seen = hover_name_sized = false;
     hover_name_centered = hover_name_short = hover_resource_label_seen = false;
     hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0; hover_unicast_target = NULL;
     gi.Write = hover_test_write; gi.unicast = hover_test_unicast;
@@ -2113,11 +2114,11 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     UI_WriteHoverLayout(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image; gi.FontIndex = old_font;
 
-    T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 5);
+    T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 6);
     T_ASSERT(hover_name_seen); T_ASSERT(hover_name_sized); T_ASSERT(hover_name_centered); T_ASSERT(hover_name_short);
     T_ASSERT(hover_resource_label_seen);
-    T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen);
-    T_EQ(hover_image_count, 6); T_EQ(hover_font_count, 1);
+    T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen); T_ASSERT(hover_cargo_seen);
+    T_EQ(hover_image_count, 7); T_EQ(hover_font_count, 1);
     T_EQ(hover_unicast_count, 1); T_ASSERT(hover_unicast_target == player);
 }
 

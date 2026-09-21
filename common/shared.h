@@ -436,9 +436,26 @@ enum {
     ENT_PLAYER,
     ENT_HEALTH,
     ENT_MANA,
-    ENT_UNUSED,
+    ENT_CARGO, /* packed low nibble=count, high nibble=capacity for world cargo occupancy UI */
     ENT_STAT_COUNT,
 };
+
+#define ENT_CARGO_NIBBLE_MASK 0x0fu
+#define ENT_CARGO_CAPACITY_SHIFT 4u
+
+static inline BYTE EntityCargoPack(DWORD count, DWORD capacity) {
+    count = MIN(count, ENT_CARGO_NIBBLE_MASK);
+    capacity = MIN(capacity, ENT_CARGO_NIBBLE_MASK);
+    return (BYTE)(count | (capacity << ENT_CARGO_CAPACITY_SHIFT));
+}
+
+static inline DWORD EntityCargoCount(BYTE packed) {
+    return packed & ENT_CARGO_NIBBLE_MASK;
+}
+
+static inline DWORD EntityCargoCapacity(BYTE packed) {
+    return (packed >> ENT_CARGO_CAPACITY_SHIFT) & ENT_CARGO_NIBBLE_MASK;
+}
 
 typedef enum {
     PLAYERSTATE_GAME_RESULT = 0,
@@ -915,6 +932,7 @@ typedef enum {
     FT_MINIMAP,
     FT_NAMETAG,
     FT_LOADING_BAR,
+    FT_SEGMENTED_STATUSBAR, /* entity-context packed count/capacity rendered as equal occupied segments */
 } FRAMETYPE;
 
 #define UIFLAG_RADIAL_SHADE      (1 << 9) // FT_COMMANDBUTTON: uiCommandButton_t carries a client-clock radial timer
