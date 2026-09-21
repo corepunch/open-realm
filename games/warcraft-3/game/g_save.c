@@ -283,6 +283,7 @@ static field_t const trigger_fields[] = {
 static field_t const timer_fields[] = {
     F(gtimer_s, duration, F_INT),
     F(gtimer_s, remaining, F_INT),
+    F(gtimer_s, generation, F_INT),
     F(gtimer_s, periodic, F_INT),
     F(gtimer_s, paused, F_INT),
     F(gtimer_s, running, F_INT),

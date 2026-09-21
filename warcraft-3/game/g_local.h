@@ -958,6 +958,7 @@ struct gtrigger_s {
 struct gtimer_s {
     struct jass_function const *handler;
     DWORD duration, remaining;
+    DWORD generation;
     BOOL periodic, paused, running;
 };
 
@@ -2201,6 +2202,8 @@ void G_StartProjectilePresentation(LPEDICT ent);
 void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, struct jass_function const *handler);
 void G_TimerPause(LPGTIMER timer);
 void G_TimerResume(LPGTIMER timer);
+void G_TimerDestroy(LPGTIMER timer);
+BOOL G_TimerCoroutineValid(HANDLE timer, DWORD generation);
 DWORD G_TimerRemaining(LPCGTIMER timer);
 
 LPEDICT Waypoint_add(LPCVECTOR2);

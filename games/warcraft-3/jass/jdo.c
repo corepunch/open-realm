@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 5 // format version; persists sound presentation state in owned handles
+#define BZ_JASS_SNAPSHOT_VERSION 5 // format version; persists sound state and cancellable timer context
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -33,6 +33,8 @@ typedef struct {
     LONG value;
     LPCVECTOR2 point;
     BOOL has_point;
+    HANDLE timer;
+    BOOL timer_pending;
 } jassTriggerContextParams_t;
 
 #define assert_type(var, type) do { if (!jass_checktype(var, type)) jass_rterror(j, "invalid native argument: expected " #type); } while (0)
@@ -917,6 +919,19 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
         return false;
     }
 
+    /* PauseTimer can run after a timer event queues its action but before the
+     * action gets its first resume. Invalidate only that not-yet-started
+     * coroutine; a callback that has already begun may legitimately yield. */
+    if (co->state->context.timer_pending) {
+        co->state->context.timer_pending = false;
+        if (jass_host.TimerCoroutineValid &&
+            !jass_host.TimerCoroutineValid(co->state->context.timer,
+                                           co->state->context.timer_generation)) {
+            co->done = true;
+            return false;
+        }
+    }
+
     previous_player = currentplayer;
     previous_unit = currentunit;
 
@@ -1073,7 +1088,9 @@ static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t cons
                                   .hasPoint = params->has_point,
                                   .playerState = player,
                                   .localPlayerState = currentplayer,
-                                  .timer = currenttimer,
+                                  .timer = params->timer,
+                                  .timer_generation = params->timer ? ((LPCGTIMER)params->timer)->generation : 0,
+                                  .timer_pending = params->timer_pending,
                               ));
         LPJASSVAR loop_index = find_global(j, "bj_forLoopAIndex");
         /* TriggerExecute defers actions; retain the loop index from queue time instead of
@@ -1110,6 +1127,15 @@ BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event) 
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
         .point = event->has_point ? &event->point : NULL, .has_point = event->has_point });
+}
+
+BOOL jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, HANDLE timer) {
+    BOOL queued;
+    jassTriggerContextParams_t params = { .trigger = trigger, .timer = timer, .timer_pending = true };
+    currenttimer = timer;
+    queued = jass_calltriggercontext(j, &params);
+    currenttimer = NULL;
+    return queued;
 }
 
 BOOL jass_calltrigger(LPJASS j,
@@ -2510,7 +2536,9 @@ static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT co
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
         !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue)) ||
         !jass_snapshot_io(snapshot, (void *)&context->point, sizeof(context->point)) ||
-        !jass_snapshot_io(snapshot, (void *)&context->hasPoint, sizeof(context->hasPoint))) return false;
+        !jass_snapshot_io(snapshot, (void *)&context->hasPoint, sizeof(context->hasPoint)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->timer_generation, sizeof(context->timer_generation)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->timer_pending, sizeof(context->timer_pending))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles))
         if (!jass_snapshot_writecontext_handle(snapshot, handles[i].type, handles[i].value)) return false;
     return true;
@@ -2532,7 +2560,9 @@ static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCO
     if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue)) ||
         !jass_snapshot_io(snapshot, &context->point, sizeof(context->point)) ||
         !jass_snapshot_io(snapshot, &context->hasPoint, sizeof(context->hasPoint)) ||
-        context->hasPoint > 1) return false;
+        !jass_snapshot_io(snapshot, &context->timer_generation, sizeof(context->timer_generation)) ||
+        !jass_snapshot_io(snapshot, &context->timer_pending, sizeof(context->timer_pending)) ||
+        context->hasPoint > 1 || context->timer_pending > 1) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
         DWORD present, id;
         if (!jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1) return false;

@@ -332,7 +332,7 @@ DWORD CreateTimer(LPJASS j) {
 }
 DWORD DestroyTimer(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
-    if (whichTimer) whichTimer->running = false;
+    G_TimerDestroy(whichTimer);
     return 0;
 }
 DWORD TimerStart(LPJASS j) {

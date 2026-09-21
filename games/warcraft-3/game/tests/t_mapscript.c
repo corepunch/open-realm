@@ -65,6 +65,7 @@ TEST(wc3_mapscript, jass_dobuffer_null_returns_false) {
         .ReadFile = gi.ReadFile,
         .natives = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
+        .TimerCoroutineValid = G_TimerCoroutineValid,
         .RuntimeError = mapscript_ignore_error,
         .SaveHandle = G_SaveJassHandle,
         .LoadHandle = G_LoadJassHandle,

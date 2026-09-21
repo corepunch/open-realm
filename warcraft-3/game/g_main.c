@@ -457,6 +457,7 @@ static void G_RunJassTests(LPCSTR script, LPCSTR entry) {
         .ReadFile = gi.ReadFile,
         .natives            = jass_funcs,
         .GetPlayerByNumber  = G_GetPlayerByNumber,
+        .TimerCoroutineValid = G_TimerCoroutineValid,
     ));
 
     LPJASS j = jass_newstate();

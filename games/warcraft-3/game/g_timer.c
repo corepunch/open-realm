@@ -88,18 +88,36 @@ void G_FormatTimerDialogValue(LPCGTIMER timer, LPSTR out, size_t out_size) {
 DWORD G_TimerRemaining(LPCGTIMER timer) { return timer ? timer->remaining : 0; }
 
 void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, LPCJASSFUNC handler) {
+    if (!timer) return;
+    timer->generation++;
     timer->handler = handler; timer->duration = timeout; timer->remaining = timeout;
     timer->periodic = periodic; timer->paused = false; timer->running = true;
 }
 
 void G_TimerPause(LPGTIMER timer) {
     if (!timer || !timer->running || timer->paused) return;
+    timer->generation++;
     timer->paused = true;
 }
 
 void G_TimerResume(LPGTIMER timer) {
     if (!timer || !timer->running || !timer->paused) return;
     timer->paused = false;
+}
+
+void G_TimerDestroy(LPGTIMER timer) {
+    if (!timer) return;
+    timer->generation++;
+    timer->running = false;
+    timer->paused = true;
+}
+
+BOOL G_TimerCoroutineValid(HANDLE handle, DWORD generation) {
+    LPCGTIMER timer = handle;
+    /* A one-shot timer is marked not-running when it expires, but its handler
+     * still must run. Periodic timers remain running until explicitly paused. */
+    return timer && !timer->paused && timer->generation == generation &&
+        (!timer->periodic || timer->running);
 }
 
 void G_UpdateTimerDialogs(void) {
@@ -140,11 +158,13 @@ void G_RunTimers(void) {
         timer->remaining = timer->periodic ? timer->duration : 0;
         timer->running = timer->periodic;
         if (timer->handler)
-            jass_startcoroutine(level.vm, &MAKE(JASSCONTEXT, .func = timer->handler, .timer = timer));
+            jass_startcoroutine(level.vm, &MAKE(JASSCONTEXT,
+                .func = timer->handler, .timer = timer,
+                .timer_generation = timer->generation, .timer_pending = true));
         jass_settimercontext(timer);
         FOR_EACH_EVENT(event)
             if (event->type == EVENT_GAME_TIMER_EXPIRED && event->timer == timer)
-                jass_calltrigger(level.vm, event->trigger, NULL, NULL);
+                jass_calltriggerwithtimer(level.vm, event->trigger, timer);
         jass_settimercontext(NULL);
     }
 }

@@ -4200,6 +4200,36 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     remove(filename);
 }
 
+TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  timer pendingTimer = null\n"
+        "  integer timerFired = 0\n"
+        "endglobals\n"
+        "function ExpireAction takes nothing returns nothing\n"
+        "  set timerFired = timerFired + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set pendingTimer = CreateTimer()\n"
+        "  call TriggerAddAction(t, function ExpireAction)\n"
+        "  call TriggerRegisterTimerExpireEvent(t, pendingTimer)\n"
+        "  call TimerStart(pendingTimer, 0.0, true, null)\n"
+        "endfunction\n"
+        "function PausePending takes nothing returns nothing\n"
+        "  call PauseTimer(pendingTimer)\n"
+        "endfunction\n"
+        "function VerifyDropped takes nothing returns nothing\n"
+        "  call BJassAssert(timerFired == 0, \"paused timer expiration action still ran\")\n"
+        "endfunction\n"));
+
+    G_RunTimers();
+    jass_callbyname(level.vm, "PausePending", false);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyDropped", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
     T_ASSERT(run_test_jass(
         "globals\n"
