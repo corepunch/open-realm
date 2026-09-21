@@ -301,18 +301,15 @@ static void show_no_usable_corpse(LPEDICT caster) {
                           "Cantfindcorpse", "There are no usable corpses nearby.");
 }
 
-static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell, LPEDICT requested) {
+static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
     LPEDICT corpse = NULL;
 
-    if (requested) {
-        if (!G_UnitIsHero(requested) && S_SpellAllowsCorpseTarget(spell->code, caster, requested) &&
-            !G_UnitStatusLevel(requested, spell->code) &&
-            Vector2_distance(&requested->s.origin2, &caster->s.origin2) <= range)
-            return requested;
-        return NULL;
-    }
+    WC3_CANNIBALIZE_LOG("acquire caster=%ld code=%.4s level=%u range=%.1f",
+                        caster ? (long)(caster - globals.edicts) : -1L,
+                        spell ? (LPCSTR)&spell->code : "----", (unsigned)level,
+                        range);
 
     FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(spell->code, caster, unit) &&
                   !G_UnitStatusLevel(unit, spell->code)) {
@@ -332,7 +329,70 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell, LP
             if (distance <= range && distance < best) { corpse = unit; best = distance; }
         }
     }
+    WC3_CANNIBALIZE_LOG("search result corpse=%ld distance=%.1f", corpse ? (long)(corpse - globals.edicts) : -1L, best);
     return corpse;
+}
+
+static BOOL cannibalize_in_range(LPEDICT caster, LPEDICT corpse) {
+    return caster && corpse && Vector2_distance(&caster->s.origin2, &corpse->s.origin2) <=
+        caster->collision + corpse->collision;
+}
+
+static void cannibalize_approach_think(LPEDICT thinker) {
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+
+    if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
+        corpse->spawn_time != thinker->channel.target_spawn_time ||
+        !S_SpellAllowsCorpseTarget(thinker->class_id, caster, corpse)) {
+        if (thinker) G_FreeEdict(thinker);
+        return;
+    }
+    if (caster->goalentity != corpse || !move_is_active_order_walk(caster)) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    if (!cannibalize_in_range(caster, corpse)) return;
+    DWORD const code = thinker->class_id;
+    unit_stand(caster);
+    G_FreeEdict(thinker);
+    WC3_CANNIBALIZE_LOG("approach reached caster=%ld corpse=%ld; issuing no-target cast",
+                        (long)(caster - globals.edicts), (long)(corpse - globals.edicts));
+    S_CastNoTargetSpell(caster, code);
+}
+
+static BOOL cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t const *spell) {
+    LPEDICT corpse, thinker;
+
+    if (!caster || !spell) return false;
+    if (caster->health.value >= caster->health.max_value) {
+        G_ShowCommandErrorKey(clent, "UnitHPmaxed", "Already at full health.");
+        WC3_CANNIBALIZE_LOG("command rejected: full health caster=%ld", (long)(caster - globals.edicts));
+        return false;
+    }
+    corpse = cannibalize_corpse(caster, spell);
+    if (!corpse) {
+        show_no_usable_corpse(caster);
+        return false;
+    }
+    if (cannibalize_in_range(caster, corpse)) {
+        WC3_CANNIBALIZE_LOG("command corpse in range caster=%ld corpse=%ld; issuing no-target cast",
+                            (long)(caster - globals.edicts), (long)(corpse - globals.edicts));
+        return S_CastNoTargetSpell(caster, spell->code);
+    }
+    order_move(caster, corpse);
+    if (caster->goalentity != corpse || !move_is_active_order_walk(caster)) return false;
+    thinker = G_Spawn();
+    if (!thinker) return false;
+    thinker->owner = caster;
+    thinker->goalentity = corpse;
+    thinker->class_id = spell->code;
+    thinker->channel.target_spawn_time = corpse->spawn_time;
+    thinker->think = cannibalize_approach_think;
+    WC3_CANNIBALIZE_LOG("command approaching caster=%ld corpse=%ld thinker=%ld",
+                        (long)(caster - globals.edicts), (long)(corpse - globals.edicts),
+                        (long)(thinker - globals.edicts));
+    return true;
 }
 
 static BOOL cannibalize_reserved_corpse_valid(LPCEDICT thinker, LPCEDICT corpse) {
@@ -345,6 +405,12 @@ static void cannibalize_finish(LPEDICT thinker) {
     LPEDICT corpse = thinker ? thinker->goalentity : NULL;
     DWORD code = thinker ? thinker->class_id : 0;
 
+    WC3_CANNIBALIZE_LOG("finish thinker=%ld caster=%ld corpse=%ld channel=%d valid=%d",
+                        thinker ? (long)(thinker - globals.edicts) : -1L,
+                        thinker && thinker->owner ? (long)(thinker->owner - globals.edicts) : -1L,
+                        corpse ? (long)(corpse - globals.edicts) : -1L,
+                        thinker ? thinker->channel.code : 0,
+                        cannibalize_reserved_corpse_valid(thinker, corpse));
     if (cannibalize_reserved_corpse_valid(thinker, corpse)) {
         corpse->aiflags &= ~AI_CORPSE_RESERVED;
         corpse_remove_status(corpse, code);
@@ -362,9 +428,20 @@ void cannibalize_think(LPEDICT thinker) {
     DWORD const now = G_Time();
 
     if (!thinker) return;
-    if (!S_SpellChannelActive(thinker)) { cannibalize_finish(thinker); return; }
-    if (!cannibalize_reserved_corpse_valid(thinker, corpse)) { S_SpellEndChannel(thinker); return; }
+    if (!S_SpellChannelActive(thinker)) {
+        WC3_CANNIBALIZE_LOG("think channel inactive thinker=%ld", (long)(thinker - globals.edicts));
+        cannibalize_finish(thinker); return;
+    }
+    if (!cannibalize_reserved_corpse_valid(thinker, corpse)) {
+        WC3_CANNIBALIZE_LOG("think reserved corpse invalid thinker=%ld corpse=%ld",
+                            (long)(thinker - globals.edicts), corpse ? (long)(corpse - globals.edicts) : -1L);
+        S_SpellEndChannel(thinker); return;
+    }
     if (!caster || caster->health.value >= caster->health.max_value || now >= thinker->freetime) {
+        WC3_CANNIBALIZE_LOG("think ending thinker=%ld caster=%ld hp=%.1f/%.1f now=%u finish=%u",
+                            (long)(thinker - globals.edicts), caster ? (long)(caster - globals.edicts) : -1L,
+                            caster ? caster->health.value : -1.0f, caster ? caster->health.max_value : -1.0f,
+                            (unsigned)now, (unsigned)thinker->freetime);
         cannibalize_finish(thinker);
         return;
     }
@@ -372,26 +449,39 @@ void cannibalize_think(LPEDICT thinker) {
     if (caster->health.value >= caster->health.max_value) cannibalize_finish(thinker);
 }
 
-static BOOL cannibalize_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    if (caster && spell && cannibalize_corpse(caster, spell, st.entity)) return true;
-    if (caster && spell && !st.entity) show_no_usable_corpse(caster);
+static BOOL cannibalize_validate(LPEDICT caster, abilityitem_t const *spell) {
+    if (caster && caster->health.value >= caster->health.max_value) {
+        G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
+                              "UnitHPmaxed", "Already at full health.");
+        return false;
+    }
+    if (caster && spell && cannibalize_corpse(caster, spell)) return true;
+    if (caster && spell) show_no_usable_corpse(caster);
     return false;
 }
 
 BZ_ABILITY_PROC(CAbilityCannibalize) {
     abilityitem_t const *spell = call ? call->item : NULL;
-    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
-        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
+    case A_COMMAND:
+        return cannibalize_command(ent, call ? call->client : NULL, spell);
     case A_VALIDATE:
-        return spell && G_UnitAbilityResearchAvailable(ent, spell->code) && cannibalize_validate(ent, target, spell);
+        WC3_CANNIBALIZE_LOG("ability validate caster=%ld code=%.4s researched=%d",
+                            ent ? (long)(ent - globals.edicts) : -1L,
+                            spell ? (LPCSTR)&spell->code : "----",
+                            ent && spell ? G_UnitAbilityResearchAvailable(ent, spell->code) : 0);
+        return spell && G_UnitAbilityResearchAvailable(ent, spell->code) && cannibalize_validate(ent, spell);
     case A_EXECUTE: {
         DWORD level;
         LPEDICT corpse, thinker;
         if (!ent || !spell) return false;
         level = S_SpellLevel(ent, spell->code);
-        corpse = cannibalize_corpse(ent, spell, target.entity);
-        if (!corpse) { S_SpellCancelChannel(ent); return false; }
+        corpse = cannibalize_corpse(ent, spell);
+        if (!corpse) {
+            WC3_CANNIBALIZE_LOG("ability execute failed to acquire corpse caster=%ld code=%.4s",
+                                (long)(ent - globals.edicts), (LPCSTR)&spell->code);
+            S_SpellCancelChannel(ent); return false;
+        }
         corpse->aiflags |= AI_CORPSE_RESERVED;
         unit_addstatus(corpse, GetClassName(spell->code), level);
         thinker = S_SpellChannelThinker(ent, spell->code);
@@ -400,6 +490,10 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
         thinker->velocity = MAX(0.0f, S_SpellData(spell->code, level, 1));
         thinker->freetime = G_Time() + (DWORD)(MAX(0.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
         thinker->think = cannibalize_think;
+        WC3_CANNIBALIZE_LOG("ability execute started caster=%ld corpse=%ld thinker=%ld hp_per_sec=%.1f ends=%u target_spawn=%u",
+                            (long)(ent - globals.edicts), (long)(corpse - globals.edicts),
+                            (long)(thinker - globals.edicts), thinker->velocity,
+                            (unsigned)thinker->freetime, (unsigned)thinker->channel.target_spawn_time);
         return true;
     }
     default:

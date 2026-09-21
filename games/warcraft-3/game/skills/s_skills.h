@@ -5,6 +5,11 @@
 
 #define AURA_UPDATE_MS 2000 // milliseconds; retail aura refresh interval; used to throttle recipient recalculation
 
+#ifdef WC3_DEBUG_CANNIBALIZE
+#define WC3_CANNIBALIZE_LOG(...) do { fprintf(stderr, "WC3_DEBUG_CANNIBALIZE " __VA_ARGS__); fputc('\n', stderr); } while (0)
+#else
+#define WC3_CANNIBALIZE_LOG(...) ((void)0)
+#endif
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell); \
     BZ_ABILITY_PROC(C##NAME) { \

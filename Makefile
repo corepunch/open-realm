@@ -49,6 +49,9 @@ endif
 ifeq ($(WC3_DEBUG_BLIGHT),1)
 	CFLAGS += -DWC3_DEBUG_BLIGHT
 endif
+ifeq ($(WC3_DEBUG_CANNIBALIZE),1)
+	CFLAGS += -DWC3_DEBUG_CANNIBALIZE
+endif
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------

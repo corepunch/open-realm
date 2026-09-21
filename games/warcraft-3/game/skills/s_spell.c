@@ -369,17 +369,14 @@ BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
-static BOOL spell_allows_corpse_target(DWORD code, LPEDICT caster, LPEDICT target, BOOL stored);
-
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     LPCSTR targets;
     DWORD ability_level;
     BOOL structure;
 
-    if (!target || !target->inuse || S_UnitIsCycloned(target)) {
+    if (!target || !target->inuse || M_IsDead(target) || S_UnitIsCycloned(target)) {
         return false;
     }
-    if (M_IsDead(target)) return spell_allows_corpse_target(code, caster, target, false);
     if (S_UnitSpellImmune(target)) return false;
     if (caster && caster->s.player < MAX_PLAYERS &&
         S_UnitIsInvisibleToPlayer(target, caster->s.player)) return false;
@@ -852,15 +849,9 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     if (spell->target_type != SPELL_TARGET_UNIT) return false;
     if (!S_AbilityHasCommand(spell)) return false;
     level = S_SpellLevel(caster, code);
-    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level))) {
-        return false;
-    }
-    if (!S_SpellAllowsTarget(code, caster, unit)) {
-        return false;
-    }
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) {
-        return false;
-    }
+    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level))) return false;
+    if (!S_SpellAllowsTarget(code, caster, unit)) return false;
+    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
     spell_commit(caster, code, level);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
@@ -904,6 +895,14 @@ void spell_cmd(LPEDICT clent) {
     DWORD code = S_SpellCurrentCode(clent, 0);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
+
+    if (spell && spell->classname && (!strcmp(spell->classname, "Acan") ||
+                                      !strcmp(spell->classname, "ACcn") ||
+                                      !strcmp(spell->classname, "Acn2")))
+        WC3_CANNIBALIZE_LOG("spell command client=%ld caster=%ld code=%.4s class=%s target_type=%d flags=0x%x",
+                            clent ? (long)(clent - globals.edicts) : -1L,
+                            caster ? (long)(caster - globals.edicts) : -1L,
+                            (LPCSTR)&code, spell->classname, spell->target_type, spell->flags);
 
     if (!spell) {
         fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (LPCSTR)&code);

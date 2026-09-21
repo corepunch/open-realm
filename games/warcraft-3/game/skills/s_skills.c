@@ -506,7 +506,7 @@ static ability_t abilitylist[] = {
     { "Agyd", CAbilityGraveyard, AB_PASSIVE | AB_UPDATE },  /* Create Corpse */
     { "Alam", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Acolyte) */
     { "Asac", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Sacrificial Pit) */
-    { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Cannibalize */
+    { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
     // TODO: Aspa CAbilityAttack  /* Spider Attack */
     // TODO: Aweb a_auto_target_spell  /* Web */
     // TODO: Astn a_morph  /* Stone Form */
@@ -553,7 +553,7 @@ static ability_t abilitylist[] = {
     { "ACce", CAbilityPassive, AB_PASSIVE },  /* Cleaving Attack (Creep) */
     { "ACch", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Charm */
     { "ACcl", CAbilityChainLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Chain Lightning (creep) */
-    { "ACcn", CAbilityCannibalize, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Cannibalize (creep) */
+    { "ACcn", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (creep) */
     { "ACcr", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple (creep) */
     { "ACcs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse (creep) */
     { "ACct", CAbilityPassive, AB_PASSIVE },  /* Critical Strike (creep) */
@@ -637,7 +637,7 @@ static ability_t abilitylist[] = {
     { "Adcn", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant (new) */
     // TODO: Ache a_spell  /* Chain Dispel */
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
-    { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Cannibalize (Abomination) */
+    { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
     { "Acdb", CAbilityPassive, AB_PASSIVE },  /* Chen - Drunken Brawler */
     { "Aco2", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Archer) */
     { "Aco3", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Hippogryph) */
@@ -901,6 +901,14 @@ void S_AbilityCommand(LPEDICT clent, ability_t const *ability) {
 
     if (!S_AbilityHasCommand(ability)) return;
     item = MAKE(abilityitem_t, .code = clent->client->menu.ability_code, .ability = ability);
+    if (ability->classname && (!strcmp(ability->classname, "Acan") ||
+                               !strcmp(ability->classname, "ACcn") ||
+                               !strcmp(ability->classname, "Acn2")))
+        WC3_CANNIBALIZE_LOG("button command client=%ld caster=%ld ability=%.4s target_type=%d menu_code=%.4s",
+                            clent ? (long)(clent - globals.edicts) : -1L,
+                            G_GetMainSelectedUnit(clent->client) ?
+                                (long)(G_GetMainSelectedUnit(clent->client) - globals.edicts) : -1L,
+                            ability->classname, ability->target_type, (LPCSTR)&item.code);
     call = MAKE(abilityCall_t, .item = &item, .client = clent);
     S_AbilityMessage(G_GetMainSelectedUnit(clent->client), A_COMMAND, &call);
 }

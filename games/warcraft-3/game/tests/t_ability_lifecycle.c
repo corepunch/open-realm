@@ -567,12 +567,30 @@ TEST(wc3_ability_lifecycle, cannibalize_reserves_nearest_organic_corpse_and_stop
     mechanical->health.value = near->health.value = far->health.value = 0;
     mechanical->svflags |= SVF_DEADMONSTER; near->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER;
     mechanical->targtype = TARG_MECHANICAL; caster->health.value = 995;
-    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), near));
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
     LPEDICT thinker = review_thinker(caster);
     T_ASSERT(mechanical->inuse); T_ASSERT(near->inuse); T_ASSERT(far->inuse); T_NOT_NULL(thinker);
     T_ASSERT(near->aiflags & AI_CORPSE_RESERVED); T_ASSERT(!G_UnitIsRaisableCorpse(near));
     FOR_LOOP(i, 5) { level.time += FRAMETIME; G_RunEntities(); }
     T_FEQ(caster->health.value, 1000, .001f); T_EQ(caster->channel.code, 0); T_ASSERT(!near->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Cannibalize is a no-target command: it acquires the nearest corpse itself and
+ * approaches it before starting the channel instead of targeting the corpse. */
+TEST(wc3_ability_lifecycle, cannibalize_command_approaches_nearby_corpse) {
+    LPEDICT caster = review_setup(), corpse = review_unit(1, 200);
+    UnitData_t corpse_data = { .deathType = 3 };
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT clent = &g_edicts[0];
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Acan"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = clent);
+    caster->health.value = 500;
+    corpse->data.UnitData = &corpse_data; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
+    clent->client = &game.clients[0]; clent->client->ps.number = 0; G_SelectEntity(clent->client, caster);
+    T_ASSERT(S_AbilityMessage(caster, A_COMMAND, &call));
+    T_ASSERT(caster->goalentity == corpse); T_ASSERT(move_is_active_order_walk(caster));
+    T_NOT_NULL(review_thinker(caster));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -587,7 +605,7 @@ TEST(wc3_ability_lifecycle, cannibalize_heals_for_authored_duration_through_enti
     caster->data.UnitBalance = &caster_balance;
     corpse->data.UnitData = &corpse_data;
     caster->health.value = 500; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
-    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), corpse));
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
     FOR_LOOP(i, 330) { level.time += FRAMETIME; G_RunEntities(); }
     T_ASSERT(caster->health.value >= 829.0f && caster->health.value <= 831.0f);
     T_EQ(caster->channel.code, 0); T_ASSERT(!corpse->inuse);
@@ -603,10 +621,10 @@ TEST(wc3_ability_lifecycle, cannibalize_rejects_invalid_corpses_and_stops_when_c
     g_edicts[0].client = &game.clients[0]; game.clients[0].connected = true; game.clients[0].ps.number = 0;
     mechanical->health.value = far->health.value = 0;
     mechanical->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER; mechanical->targtype = TARG_MECHANICAL;
-    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), mechanical));
+    T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
     T_ASSERT(live->inuse); T_ASSERT(mechanical->inuse); T_ASSERT(far->inuse);
     far->s.origin2.x = far->s.origin.x = 40; caster->health.value = 500;
-    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), far));
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
     caster->s.origin2.x += 10; caster->s.origin.x += 10; level.time += FRAMETIME; G_RunEntities();
     T_ASSERT(caster->health.value >= 500.0f && caster->health.value < 501.0f);
     T_EQ(caster->channel.code, 0); T_ASSERT(!far->inuse);
