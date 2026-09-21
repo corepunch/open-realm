@@ -634,7 +634,8 @@ static void ai_chop(LPEDICT ent) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_TREE_FELLED, tree);
         gi.Sound(ent, CHAN_BODY, g_treeFallSounds[rand() % g_numTreeFallSounds], 1.0f, 1.0f, 0.0f);
     } else if (ent->sound.num_chop) {
-        gi.Sound(ent, CHAN_WEAPON, ent->sound.chop[rand() % ent->sound.num_chop], 1.0f, 1.0f, 0.0f);
+        int sound = ent->sound.chop[rand() % ent->sound.num_chop];
+        gi.Sound(ent, CHAN_WEAPON, sound, G_SoundIndexVolume(sound), 1.0f, 0.0f);
     }
 }
 

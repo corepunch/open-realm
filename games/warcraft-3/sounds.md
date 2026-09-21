@@ -13,7 +13,8 @@ Warcraft III sound mappings are primarily driven by SLK tables shipped in `War3.
 | `UI/SoundInfo/UISounds.slk` | Interface sounds (button clicks, etc.) |
 | `UI/SoundInfo/AbilitySounds.slk` | Ability/effect sounds referenced by `Effectsound` aliases |
 | `UI/SoundInfo/AmbienceSounds.slk` | Ambient/keyed sound aliases also addressable by JASS labels |
-| `UI/SoundInfo/AnimSounds.slk` | Sounds triggered from MDX animation events |
+| `UI/SoundInfo/AnimSounds.slk` | Animation-event sound labels; MDX event playback is still separate |
+| `UI/SoundInfo/DialogSounds.slk` | Dialogue/voice sound labels used by JASS label constructors |
 
 ## SLK Column Layout
 
@@ -88,12 +89,15 @@ UI\SoundInfo\UnitCombatSounds.slk
 UI\SoundInfo\UISounds.slk
 UI\SoundInfo\AbilitySounds.slk
 UI\SoundInfo\AmbienceSounds.slk
+UI\SoundInfo\AnimSounds.slk
+UI\SoundInfo\DialogSounds.slk
 ```
 
-All five use `UnitAckSounds_t` because they share the `FileNames` /
-`DirectoryBase` sound-row schema. `G_UnitAckSound`, `G_UnitCombatSound`,
-`G_UISound`, `G_AmbienceSound`, and `G_AbilitySound` retain typed lookup;
-`G_KeyedSound` exposes the Warsmash-style merged UI/ambience/ability namespace.
+All seven use `UnitAckSounds_t` because they share the `FileNames` /
+`DirectoryBase` sound-row schema. Typed access remains available for each
+catalog. `G_KeyedSound` first preserves the Warsmash-style Ability -> Ambience
+-> UI precedence, then falls back through Anim, Dialog, UnitAck, and
+UnitCombat labels for Warcraft JASS label constructors.
 
 ### Unit acknowledgement and completion sounds
 
@@ -118,7 +122,7 @@ Attack commands resolve a random `{label}YesAttack` response. They no longer
 reuse that voice line as a weapon-swing sound; ordinary `Yes` remains the
 fallback when a unit has no `YesAttack` row.
 
-Training completion selects a random registered `Ready` variant and queues it as owner-only `svc_sound`. For unit-source sounds the server resolves the recipient from the unit's WC3 player ownership. For local presentation APIs such as JASS dialogue, the game passes the connected client edict and the server resolves that exact edict before falling back to player ownership. This distinction is required because a campaign's Warcraft player number is not necessarily the engine connection slot.
+Training completion selects a random registered `Ready` variant and queues it as owner-only `svc_sound`. Registered SLK-backed unit responses retain the authored 0..127 row volume and send that volume with their one-shot packet. For unit-source sounds the server resolves the recipient from the unit's WC3 player ownership. For local presentation APIs such as JASS dialogue, the game passes the connected client edict and the server resolves that exact edict before falling back to player ownership. This distinction is required because a campaign's Warcraft player number is not necessarily the engine connection slot.
 
 ### Death sounds
 
@@ -130,7 +134,16 @@ a scripted `KillUnit` path would otherwise be erased before transmission. The
 world-event queue is applied after acknowledgement/owner queues, so death wins
 if several one-shots are pending on the same entity.
 
-### Construction completion and UI sounds
+### Construction loops, completion, and UI sounds
+
+When a building enters the explicit construction state, OpenRealm resolves its
+`BuildingSoundLabel` through the keyed sound tables and places the resulting
+sound index in `entityState_t.sound`. The existing generic snapshot loop mixer
+therefore owns start/restart/movement/removal behavior without a WC3-specific
+client channel. Completion, cancellation, and construction-site death clear the
+loop; the legacy self-linked construction fallback does the same. Authored
+construction fade-in/fade-out and loop volume are not represented by the current
+snapshot sound field and remain follow-up work.
 
 `G_CompleteConstruction` resolves the owner's `JobDoneSound` field through
 `UI\war3skins.txt`, resolves that alias through `UISounds.slk`, and queues the
@@ -153,6 +166,7 @@ known WC3 command error key
     -> targeted owner-only `svc_sound` packet to that player
 ```
 
+SLK-backed immediate/queued UI sounds use their authored row volume when sent.
 The currently normalized hard-coded gameplay messages map to these external
 keys:
 
@@ -230,12 +244,17 @@ MDX SND events remain the missing source for swing/animation sounds.
 
 ### JASS sound handles
 
-`CreateSoundFromLabel` resolves the shared Warsmash-style keyed namespace in
-reverse merge order (`AbilitySounds` -> `AmbienceSounds` -> `UISounds`), stores
+`CreateSoundFromLabel` resolves Warcraft sound labels from the shared sound
+catalogs. It preserves the Warsmash-style Ability -> Ambience -> UI precedence
+and then falls back through Anim, Dialog, UnitAck, and UnitCombat rows, stores
 the first authored file on a normal game-owned sound handle, and initializes
-its authored volume. `SetSoundParamsFromLabel` can replace an existing handle's
-label-backed file/volume through the same path. Missing labels produce a silent
-handle rather than a simulation failure.
+the authored volume. `CreateSoundFilenameWithLabel` keeps its explicit filename
+and applies the supported parameters from the label. `SetSoundParamsFromLabel`
+likewise keeps the handle's current filename and reapplies supported label
+parameters instead of replacing the asset. The current mixer/packet path can
+faithfully apply authored volume here; pitch, channel, distance, cone, and fade
+parameters remain separate gaps. A missing label leaves `CreateSoundFromLabel`
+silent and leaves an existing filename handle otherwise unchanged.
 
 `CreateSound` now retains the JASS handle's 0..127 volume, optional fixed world position, and optional attached unit. `StartSound` samples that state into the existing generic `svc_sound` packet: fixed/attached one-shot sounds use `gi.PositionedSound`, local-player calls remain owner-only, and unscoped calls broadcast once rather than once per configured player slot. Attachment currently samples the unit position when playback starts; continuous moving-emitter tracking, stop/fade state, pitch/cone/distance controls, and volume-group mixing remain future work.
 
@@ -246,10 +265,10 @@ The client mixer currently decodes WAV PCM only. Campaign dialogue and thematic 
 The following remain separate follow-up work:
 
 - `{label}Warcry`;
-- looping construction/movement sound-label playback (`BuildingSoundLabel` / `MovementSoundLabel`);
+- movement sound-label playback (`MovementSoundLabel`) and exact construction loop fade/volume semantics;
 - ability/buff `EffectSoundLooped` lifetime/stop wiring (one-shot `EffectSound` is implemented);
 - MDX `EVTS` -> `AnimLookups.slk` -> `AnimSounds.slk` playback;
-- remaining JASS sound-handle controls such as stop/fade, pitch, cone, distance parameters, and `CreateSoundFilenameWithLabel`;
+- remaining JASS sound-handle controls such as stop/fade, pitch, channel, cone, and distance parameters;
 - volume-group mixing and music/thematic-music natives;
 - MP3 decoding for campaign speech/music assets;
 - race alerts such as `UnderAttack`, `GoldMineLow`, and hero death. Research

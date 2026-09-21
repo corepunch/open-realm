@@ -106,7 +106,7 @@ ROC/TFT columns that moved between tables remain represented in both owning row 
 
 FOURCC-keyed tables use the sorted `slkIndex_t` sidecar. `UnitAckSounds.slk` has arbitrary-length labels such as `FootmanWhat`; its row struct owns the full source row name and lookup compares that string in the flat array. Do not truncate sound labels into FOURCC keys.
 
-`UnitCombatSounds.slk` is a gameplay consumer: weapon-sound + armor-material keys drive lumber and ordinary attack impact audio. `UISounds.slk`, optional `AmbienceSounds.slk`, and optional `AbilitySounds.slk` share the same typed sound-row schema and form the keyed sound namespace. `SplatData.slk` remains outside the typed gameplay registry because it still has no runtime consumer.
+`UnitCombatSounds.slk` is a gameplay consumer: weapon-sound + armor-material keys drive lumber and ordinary attack impact audio. `UISounds.slk` plus optional `AmbienceSounds.slk`, `AbilitySounds.slk`, `AnimSounds.slk`, and `DialogSounds.slk` share the same typed sound-row schema. JASS sound-label constructors search those catalogs and then UnitAck/UnitCombat labels, while gameplay keeps typed access for the narrower consumers. `SplatData.slk` remains outside the typed gameplay registry because it still has no runtime consumer.
 
 ## Verified Archive Characteristics
 

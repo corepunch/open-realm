@@ -841,6 +841,8 @@ UnitAckSounds_t *g_UnitCombatSounds; DWORD g_UnitCombatSoundsCount;
 UnitAckSounds_t *g_UISounds; DWORD g_UISoundsCount;
 UnitAckSounds_t *g_AbilitySounds; DWORD g_AbilitySoundsCount;
 UnitAckSounds_t *g_AmbienceSounds; DWORD g_AmbienceSoundsCount;
+UnitAckSounds_t *g_AnimSounds; DWORD g_AnimSoundsCount;
+UnitAckSounds_t *g_DialogSounds; DWORD g_DialogSoundsCount;
 MusicData_t *g_MusicData; DWORD g_MusicDataCount;
 ItemData_t *g_ItemData; DWORD g_ItemDataCount; static slkIndex_t item_idx;
 DestructableData_t *g_DestructableData; DWORD g_DestructableDataCount; static slkIndex_t dest_idx;
@@ -911,6 +913,9 @@ static slkStore_t slk_stores[] = {
     { "AbilitySounds",    "UI\\SoundInfo\\AbilitySounds.slk",    sound_schema, sizeof(*g_AbilitySounds),    (void **)&g_AbilitySounds,    &g_AbilitySoundsCount,    NULL, true },
     /* Warsmash merges ambience/UI/ability aliases into one keyed sound lookup. */
     { "AmbienceSounds",   "UI\\SoundInfo\\AmbienceSounds.slk",   sound_schema, sizeof(*g_AmbienceSounds),   (void **)&g_AmbienceSounds,   &g_AmbienceSoundsCount,   NULL, true },
+    /* JASS sound labels may also reference animation/dialogue sound rows. */
+    { "AnimSounds",       "UI\\SoundInfo\\AnimSounds.slk",       sound_schema, sizeof(*g_AnimSounds),       (void **)&g_AnimSounds,       &g_AnimSoundsCount,       NULL, true },
+    { "DialogSounds",     "UI\\SoundInfo\\DialogSounds.slk",     sound_schema, sizeof(*g_DialogSounds),     (void **)&g_DialogSounds,     &g_DialogSoundsCount,     NULL, true },
     /* Music.slk never shipped in retail MPQs; Warsmash loads it optionally and readers fall back to the raw token. */
     { "Music",            "UI\\SoundInfo\\Music.slk",            music_schema, sizeof(*g_MusicData),        (void **)&g_MusicData,        &g_MusicDataCount,        NULL, true },
     { "ItemData", "Units\\ItemData.slk", item_schema, sizeof(*g_ItemData), (void **)&g_ItemData, &g_ItemDataCount, &item_idx },
@@ -1718,12 +1723,16 @@ Doodads_t const *G_Doodad(DWORD id) { static Doodads_t zero; Doodads_t *row = FS
 UberSplatData_t const *G_UberSplat(DWORD id) { static UberSplatData_t zero; UberSplatData_t *row = FS_SLKLookup(&uber_idx, id); return row ? row : &zero; }
 UnitAckSounds_t const *G_UnitAckSound(LPCSTR name) {
     static UnitAckSounds_t zero;
-    FOR_LOOP(i, g_UnitAckSoundsCount) if (!strcmp(g_UnitAckSounds[i].name, name)) return g_UnitAckSounds + i;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_UnitAckSoundsCount)
+        if (g_UnitAckSounds[i].name && !strcmp(g_UnitAckSounds[i].name, name)) return g_UnitAckSounds + i;
     return &zero;
 }
 UnitAckSounds_t const *G_UnitCombatSound(LPCSTR name) {
     static UnitAckSounds_t zero;
-    FOR_LOOP(i, g_UnitCombatSoundsCount) if (!strcmp(g_UnitCombatSounds[i].name, name)) return g_UnitCombatSounds + i;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_UnitCombatSoundsCount)
+        if (g_UnitCombatSounds[i].name && !strcmp(g_UnitCombatSounds[i].name, name)) return g_UnitCombatSounds + i;
     return &zero;
 }
 
@@ -1756,10 +1765,38 @@ UnitAckSounds_t const *G_AbilitySound(LPCSTR name) {
     return row->name && row->name[0] ? row : &zero;
 }
 
+UnitAckSounds_t const *G_AnimSound(LPCSTR name) {
+    static UnitAckSounds_t zero;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_AnimSoundsCount)
+        if (g_AnimSounds[i].name && !strcmp(g_AnimSounds[i].name, name)) return g_AnimSounds + i;
+    return &zero;
+}
+
+UnitAckSounds_t const *G_DialogSound(LPCSTR name) {
+    static UnitAckSounds_t zero;
+    if (!name || !*name) return &zero;
+    FOR_LOOP(i, g_DialogSoundsCount)
+        if (g_DialogSounds[i].name && !strcmp(g_DialogSounds[i].name, name)) return g_DialogSounds + i;
+    return &zero;
+}
+
 UnitAckSounds_t const *G_KeyedSound(LPCSTR name) {
-    /* GameUI loads UI, then ambience, then ability sounds into one table; the
-     * AbilitySound accessor searches that reverse merge order. */
-    return G_AbilitySound(name);
+    UnitAckSounds_t const *row;
+
+    /* Warcraft's label constructors accept rows from all normal SoundInfo
+     * catalogs. Keep the existing GameUI merge precedence first, then the
+     * additional label-only tables; stock labels are normally unique. */
+    row = G_AbilitySound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_AnimSound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_DialogSound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_UnitAckSound(name);
+    if (row->name && row->name[0]) return row;
+    row = G_UnitCombatSound(name);
+    return row->name && row->name[0] ? row : NULL;
 }
 MusicData_t const *G_MusicData(LPCSTR name) {
     static MusicData_t zero;

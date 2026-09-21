@@ -463,6 +463,8 @@ extern UnitAckSounds_t *g_UnitCombatSounds; extern DWORD g_UnitCombatSoundsCount
 extern UnitAckSounds_t *g_UISounds; extern DWORD g_UISoundsCount;
 extern UnitAckSounds_t *g_AbilitySounds; extern DWORD g_AbilitySoundsCount;
 extern UnitAckSounds_t *g_AmbienceSounds; extern DWORD g_AmbienceSoundsCount;
+extern UnitAckSounds_t *g_AnimSounds; extern DWORD g_AnimSoundsCount;
+extern UnitAckSounds_t *g_DialogSounds; extern DWORD g_DialogSoundsCount;
 extern MusicData_t *g_MusicData; extern DWORD g_MusicDataCount;
 extern ItemData_t *g_ItemData; extern DWORD g_ItemDataCount;
 extern DestructableData_t *g_DestructableData; extern DWORD g_DestructableDataCount;
@@ -489,6 +491,8 @@ UnitAckSounds_t const *G_UnitCombatSound(LPCSTR name);
 UnitAckSounds_t const *G_UISound(LPCSTR name);
 UnitAckSounds_t const *G_AbilitySound(LPCSTR name);
 UnitAckSounds_t const *G_AmbienceSound(LPCSTR name);
+UnitAckSounds_t const *G_AnimSound(LPCSTR name);
+UnitAckSounds_t const *G_DialogSound(LPCSTR name);
 UnitAckSounds_t const *G_KeyedSound(LPCSTR name);
 MusicData_t const *G_MusicData(LPCSTR name);
 ItemData_t    const *G_ItemData(DWORD id);

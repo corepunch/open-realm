@@ -2908,6 +2908,83 @@ TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
     G_SetSLKRows("AmbienceSounds", old_rows); free_slk_rows(rows);
 }
 
+TEST(wc3_api, jass_create_sound_filename_with_label_keeps_explicit_file_and_uses_unitack_params) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "B;X4;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y1;X4;K\"Volume\"\n"
+        "C;Y2;X1;K\"FootmanWarcry\"\n"
+        "C;Y2;X2;K\"warcry.wav\"\n"
+        "C;Y2;X3;K\"Units\\Human\\Footman\\\"\n"
+        "C;Y2;X4;K\"31.75\"\n"
+        "E\n";
+    LPGAMECLIENT gc = &game.clients[0];
+    LPEDICT recipient = &g_edicts[0];
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old_rows = G_SetSLKRows("UnitAckSounds", rows);
+    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
+    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+
+    recipient->client = gc; gc->ps.number = 0; gc->connected = true; currentplayer = &gc->ps;
+    ui_sound_calls = 0; ui_sound_value = 0; ui_sound_volume = 0.0f; ui_sound_path[0] = '\0';
+    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local sound s = CreateSoundFilenameWithLabel(\"Sound\\\\Custom\\\\explicit.wav\", false, false, false, 0, 0, \"FootmanWarcry\")\n"
+        "  call StartSound(s)\n"
+        "endfunction\n"));
+    T_EQ(ui_sound_calls, 1);
+    T_EQ(ui_sound_value, 77);
+    T_STREQ(ui_sound_path, "Sound\\Custom\\explicit.wav");
+    T_FEQ(ui_sound_volume, 0.25f, 0.001f);
+
+    gi.SoundIndex = old_soundindex; gi.Sound = old_sound; currentplayer = NULL;
+    G_SetSLKRows("UnitAckSounds", old_rows); free_slk_rows(rows);
+}
+
+TEST(wc3_api, jass_set_sound_params_from_label_keeps_filename_and_uses_dialog_params) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "B;X4;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y1;X4;K\"Volume\"\n"
+        "C;Y2;X1;K\"DialogTest\"\n"
+        "C;Y2;X2;K\"different.wav\"\n"
+        "C;Y2;X3;K\"Sound\\Dialog\\\"\n"
+        "C;Y2;X4;K\"63.5\"\n"
+        "E\n";
+    LPGAMECLIENT gc = &game.clients[0];
+    LPEDICT recipient = &g_edicts[0];
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old_rows = G_SetSLKRows("DialogSounds", rows);
+    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
+    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+
+    recipient->client = gc; gc->ps.number = 0; gc->connected = true; currentplayer = &gc->ps;
+    ui_sound_calls = 0; ui_sound_value = 0; ui_sound_volume = 0.0f; ui_sound_path[0] = '\0';
+    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local sound s = CreateSound(\"Sound\\\\Custom\\\\voice.wav\", false, false, false, 0, 0, \"DefaultEAXON\")\n"
+        "  call SetSoundParamsFromLabel(s, \"DialogTest\")\n"
+        "  call StartSound(s)\n"
+        "endfunction\n"));
+    T_EQ(ui_sound_calls, 1);
+    T_EQ(ui_sound_value, 77);
+    T_STREQ(ui_sound_path, "Sound\\Custom\\voice.wav");
+    T_FEQ(ui_sound_volume, 0.5f, 0.001f);
+
+    gi.SoundIndex = old_soundindex; gi.Sound = old_sound; currentplayer = NULL;
+    G_SetSLKRows("DialogSounds", old_rows); free_slk_rows(rows);
+}
+
 TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
     LPGAMECLIENT gc = &game.clients[0];
     LPEDICT recipient = &g_edicts[0];

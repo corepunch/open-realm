@@ -1421,6 +1421,7 @@ static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL 
     building->construction.lumber = 0;
     building->aiflags |= AI_HOLD_FRAME;
     G_SetHealth(building, MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE));
+    G_SetConstructionLoopSound(building, true);
 
     /* Only the translucent Construction Site Indicator is walk-through. The
      * real construction footprint becomes a route obstacle before the worker
@@ -1604,6 +1605,7 @@ void G_StopConstruction(LPEDICT building) {
     /* The construction info panel historically used a self-linked build queue.
      * Clear it before unit_die() walks production/revival ownership. */
     if (building->build == building) building->build = NULL;
+    G_SetConstructionLoopSound(building, false);
     building->construction.active = false;
     building->construction.paused = false;
     building->construction.type = CONSTRUCTION_NONE;
@@ -1690,6 +1692,7 @@ void G_CompleteConstruction(LPEDICT building) {
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
     G_ReleaseConstructionWorker(building, true);
+    G_SetConstructionLoopSound(building, false);
     building->construction.active = false;
     building->construction.paused = false;
     building->construction.type = CONSTRUCTION_NONE;

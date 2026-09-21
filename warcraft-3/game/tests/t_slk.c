@@ -947,6 +947,8 @@ TEST(wc3_slk, optional_tables_tolerate_absent_files) {
     T_ASSERT(G_SLKStoreOptional("AbilityBuffData")); /* expansion-only: War3x.mpq, hidden when fs_expansion==0 */
     T_ASSERT(G_SLKStoreOptional("AbilitySounds"));
     T_ASSERT(G_SLKStoreOptional("AmbienceSounds"));
+    T_ASSERT(G_SLKStoreOptional("AnimSounds"));
+    T_ASSERT(G_SLKStoreOptional("DialogSounds"));
     T_ASSERT(G_SLKStoreOptional("Music")); /* never shipped; Warsmash loads it optionally */
     T_ASSERT(!G_SLKStoreOptional("UnitBalance"));
     T_ASSERT(!G_SLKStoreOptional("NoSuchTable"));

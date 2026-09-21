@@ -38,6 +38,7 @@ void reset_entities(void) {
     G_ResetHeroPassiveCaches();
     G_JassSoundRuntimeReset();
     G_ResetSelectionSoundState();
+    G_ResetSoundPresentationState();
     /* Wipe only the live cap, then restore MAX_ENTITIES. Pocket Factory's alloc-failure
      * test shrinks max_edicts to num_edicts+1 (26 in the full suite); walking 16000
      * edicts first would G_FreeActorSkills stale high slots. */
@@ -109,6 +110,7 @@ static void reset_test_state(void) {
     UI_TestResetInfoPanelIconCache();
     G_JassSoundRuntimeReset();
     G_ResetSelectionSoundState();
+    G_ResetSoundPresentationState();
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); }
     G_FowShutdown();

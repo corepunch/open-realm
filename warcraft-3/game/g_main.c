@@ -511,6 +511,7 @@ static void G_InitGame(void) {
     InitUnitData();
     InitAbilities();
     G_ResetSelectionSoundState();
+    G_ResetSoundPresentationState();
     G_RegisterGlobalSounds();
     UI_ResetHud();
     fprintf(stderr, "Game initialized.\n\n");
