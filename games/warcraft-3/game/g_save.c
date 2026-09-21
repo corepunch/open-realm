@@ -133,6 +133,10 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(mass_teleport_think),
     SAVE_CFUNCTION(divine_shield_think),
     SAVE_CFUNCTION(unsummon_think),
+    /* New callbacks must only be appended: these indices are serialized. */
+    SAVE_CFUNCTION(graveyard_think),
+    SAVE_CFUNCTION(corpse_cargo_approach_think),
+    SAVE_CFUNCTION(cannibalize_approach_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

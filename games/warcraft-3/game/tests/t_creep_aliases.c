@@ -239,6 +239,7 @@ TEST(wc3_spell, creep_heal_slam_animate_dead_use_alias_data) {
         "C;Y7;X4;K\"0\"\nC;Y7;X5;K\"0\"\nC;Y7;X6;K\"400\"\n"
         "C;Y7;X7;K\"900\"\nC;Y7;X8;K\"120\"\nC;Y7;X9;K\"2\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "Anhe,ACtc,ACad" };
+    UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     LPEDICT caster, ally, enemy, corpse;
 
@@ -255,6 +256,7 @@ TEST(wc3_spell, creep_heal_slam_animate_dead_use_alias_data) {
     ally->health.value = 50.0f; ally->health.max_value = 100.0f;
     enemy->s.player = 1; enemy->svflags |= SVF_MONSTER; enemy->targtype = TARG_GROUND;
     enemy->health.value = enemy->health.max_value = 500.0f;
+    corpse->data.UnitData = &corpse_data;
     corpse->health.value = 0.0f; corpse->health.max_value = 100.0f;
     corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
     T_ASSERT(S_CastUnitTargetSpell(caster, BZ_ANHE, ally));

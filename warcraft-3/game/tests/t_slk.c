@@ -857,6 +857,21 @@ TEST(wc3_slk, required_animation_names_combine_order_tags_with_unit_tags) {
     if (selected) T_STREQ(selected->name, "Stand Ready Alternate");
 }
 
+TEST(wc3_slk, decay_secondary_tag_falls_back_within_decay_family) {
+    animation_t animations[] = {
+        { .name = "Stand" },
+        { .name = "Decay" },
+        { .name = "Death" },
+    };
+    LPCANIMATION flesh = G_SelectAnimationForProperties(animations, 3, "decay flesh", NULL);
+    LPCANIMATION bone = G_SelectAnimationForProperties(animations, 3, "decay bone", NULL);
+
+    T_NOT_NULL(flesh);
+    T_NOT_NULL(bone);
+    if (flesh) T_STREQ(flesh->name, "Decay");
+    if (bone) T_STREQ(bone->name, "Decay");
+}
+
 TEST(wc3_slk, unit_animation_properties_add_and_remove_persistent_tags) {
     UnitProfile_t profile = { .animProps = "alternate" };
     edict_t unit = { .class_id = MAKEFOURCC('n','m','d','m'), .data.UnitProfile = &profile };

@@ -16,6 +16,7 @@ static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
     { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
+    { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND },  // Build — engine command
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND },  // Hold Position — engine command
     { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND },  // Patrol — engine command
@@ -354,7 +355,7 @@ static ability_t abilitylist[] = {
     // TODO: ANss a_bounce  /* Spell Shield */
     // TODO: ANse a_spell  /* Spell Shield */
     // TODO: Aspb a_bounce  /* Spell Book */
-    // TODO: AIrd a_item_dispel_aoe  /* Raise Dead (Item) */
+    { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
     // TODO: ANsa a_bounce  /* Staff of Sanctuary */
     // TODO: AIsa a_item_speed  /* Scroll of Haste */
     // TODO: AItb a_button  /* Dust of Appearance */
@@ -503,15 +504,15 @@ static ability_t abilitylist[] = {
     // TODO: Amtc a_unknown  /* Cargo Hold */
     { "Atru", CAbilityPassive, AB_PASSIVE },  /* True Sight */
     { "Auns", CAbilityUnsummon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Unsummon Building */
-    // TODO: Agyd a_simple_spell  /* Create Corpse */
+    { "Agyd", CAbilityGraveyard, AB_PASSIVE | AB_UPDATE },  /* Create Corpse */
     { "Alam", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Acolyte) */
     { "Asac", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Sacrificial Pit) */
     { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
     // TODO: Aspa CAbilityAttack  /* Spider Attack */
     // TODO: Aweb a_auto_target_spell  /* Web */
     // TODO: Astn a_morph  /* Stone Form */
-    // TODO: Amel a_cargo_load  /* Get Corpse */
-    // TODO: Amed a_cargo_drop  /* Drop Corpse */
+    { "Amel", CAbilityCargoLoad, AB_COMMAND | AB_AUTOCAST },  /* Get Corpse */
+    { "Amed", CAbilityCargoDrop, AB_COMMAND },  /* Drop Corpse */
     // TODO: Aapl a_unknown  /* Disease Cloud */
     // TODO: Apts a_button  /* Disease Cloud */
     // TODO: Afrb a_button  /* Frost Breath */
@@ -708,6 +709,9 @@ static abilityProc_t ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0]
 static DWORD num_updates;
 static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static DWORD num_innate;
+static abilityProc_t ability_index_procs[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static DWORD ability_index_values[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static DWORD num_ability_index_procs;
 
 /* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
@@ -909,8 +913,10 @@ void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
     num_updates = 0;
     num_innate = 0;
+    num_ability_index_procs = 0;
     FOR_LOOP(i, game.num_abilities) {
         ability_t *entry = &abilitylist[i];
+        DWORD n;
         abilityitem_t item = MAKE(abilityitem_t, .code = strlen(entry->classname) == 4 ? FS_SLKKey(entry->classname) : 0,
                                   .ability = entry);
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .classname = entry->classname);
@@ -918,9 +924,13 @@ void InitAbilities(void) {
         entry->proc(NULL, A_INIT, &call);
         if (entry->flags & AB_INNATE) innate_items[num_innate++] = item;
         if (entry->flags & AB_UPDATE) {
-            DWORD n;
             for (n = 0; n < num_updates && ability_updates[n] != entry->proc; n++) {}
             if (n == num_updates) ability_updates[num_updates++] = entry->proc;
+        }
+        for (n = 0; n < num_ability_index_procs && ability_index_procs[n] != entry->proc; n++) {}
+        if (n == num_ability_index_procs) {
+            ability_index_procs[num_ability_index_procs] = entry->proc;
+            ability_index_values[num_ability_index_procs++] = i;
         }
     }
 }
@@ -932,10 +942,8 @@ ability_t const *GetAbilityByIndex(DWORD index) {
 }
 
 DWORD GetAbilityIndex(abilityProc_t proc) {
-    FOR_LOOP(i, game.num_abilities) {
-        if (abilitylist[i].proc == proc) {
-            return i;
-        }
-    }
+    if (!proc) return 255;
+    FOR_LOOP(i, num_ability_index_procs)
+        if (ability_index_procs[i] == proc) return ability_index_values[i];
     return 255;
 }

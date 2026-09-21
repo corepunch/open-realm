@@ -409,6 +409,42 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
+static BOOL spell_allows_corpse_target(DWORD code, LPEDICT caster, LPEDICT target, BOOL stored) {
+    LPCSTR targets;
+    DWORD ability_level;
+    BOOL structure;
+
+    if (!caster || (stored ? !G_UnitIsRaisableStoredCorpse(target) :
+                    !G_UnitIsRaisableCorpse(target))) return false;
+    ability_level = S_SpellLevel(caster, code);
+    targets = G_AbilityLevel(code, ability_level)->targs;
+    if (!targets) return true;
+
+    structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+    if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
+        !(strstr(targets, "air") && target->targtype == TARG_AIR) &&
+        !(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
+        !(strstr(targets, "structure") && structure)) return false;
+    if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
+    if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
+
+    if (strstr(targets, "player") && target->s.player == caster->s.player) return true;
+    if (strstr(targets, "friend") && S_SpellIsFriend(caster, target)) return true;
+    if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
+    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
+    return !strstr(targets, "player") && !strstr(targets, "friend") &&
+        !strstr(targets, "enemy") && !strstr(targets, "neutral");
+}
+
+BOOL S_SpellAllowsCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+    return spell_allows_corpse_target(code, caster, target, false);
+}
+
+BOOL S_SpellAllowsStoredCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+    return spell_allows_corpse_target(code, caster, target, true);
+}
+
 void S_SpellHeal(LPEDICT target, FLOAT amount) {
     if (!target || amount <= 0) {
         return;
@@ -628,12 +664,6 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
         G_FreeEdict(thinker);
         return;
     }
-    if (!S_SpellIsAliveTarget(target)) {
-        unit_stand(caster);
-        G_FreeEdict(thinker);
-        return;
-    }
-
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
     st = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
@@ -698,7 +728,6 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
      * target is an accepted order; the caster must walk into cast range. */
     if (!spell_validate(clent, caster, code, level, target, 0.0f)) return false;
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
-    if (!S_SpellIsAliveTarget(target)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
     if (!S_SpellTargetInRange(caster, target, range))
@@ -820,15 +849,9 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     if (spell->target_type != SPELL_TARGET_UNIT) return false;
     if (!S_AbilityHasCommand(spell)) return false;
     level = S_SpellLevel(caster, code);
-    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level))) {
-        return false;
-    }
-    if (!S_SpellAllowsTarget(code, caster, unit)) {
-        return false;
-    }
-    if (!spell_message(caster, A_VALIDATE, &item, &target)) {
-        return false;
-    }
+    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level))) return false;
+    if (!S_SpellAllowsTarget(code, caster, unit)) return false;
+    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
     spell_commit(caster, code, level);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
@@ -852,7 +875,7 @@ BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
     if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
-        !S_SpellIsAliveTarget(unit) || !S_SpellAllowsTarget(code, caster, unit)) return false;
+        !S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
     if (!S_SpellTargetInRange(caster, unit, range))
         return spell_begin_unit_target_approach(caster, code, unit);

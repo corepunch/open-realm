@@ -292,10 +292,11 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     ability_t const *ability = FindAbilityForCommand(code);
     BYTE idx;
     DWORD rawcode;
+    BOOL researched;
 
     if (!S_AbilityHasCommand(ability) || strlen(code) != 4 || *count >= max_buttons) return;
     memcpy(&rawcode, code, sizeof(rawcode));
-    if (!G_UnitAbilityResearchAvailable(ent, rawcode)) return;
+    researched = G_UnitAbilityResearchAvailable(ent, rawcode);
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
@@ -303,7 +304,10 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
-    if (*count > idx) G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = rawcode, .level = 0, .button = &buttons[idx] });
+    if (*count > idx) {
+        if (!researched) buttons[idx].disabled = 1;
+        G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = rawcode, .level = 0, .button = &buttons[idx] });
+    }
     if (!(ability->flags & AB_SEPARATE_OFF) || *count >= max_buttons) return;
     if (G_BuildCommandButtonState(ent, code, false, 0, 1, &buttons[*count])) {
         size_t used;
@@ -313,6 +317,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
         }
         used = strlen(buttons[*count].command);
         snprintf(buttons[*count].command + used, sizeof(buttons[*count].command) - used, ":off");
+        if (!researched) buttons[*count].disabled = 1;
         (*count)++;
     }
 }
@@ -418,6 +423,8 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     }
     if (w->attack1.damageDice != 0 && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
+        if (ent->attack1.weapon == WPN_ARTILLERY)
+            G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttackGround, false, 0);
     }
     /* Some WC3 data paths expose the Burrow hold/battle-stations abilities
      * without listing Astd in UnitAbilities.  Stand Down is nevertheless a
@@ -456,7 +463,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
-        if (ha->level > 0) {
+        if (ha->level > 0 && G_UnitAbilityResearchAvailable(ent, ha->code)) {
             BYTE const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {

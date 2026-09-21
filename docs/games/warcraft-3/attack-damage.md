@@ -21,6 +21,8 @@ unit object data
 
 Melee resolves the target-facing stages at the damage point. Missile attacks roll at launch but defer `G_AttackDamage()` until projectile impact, so armor/defense changes while the missile is in flight affect the hit. Before that normal impact path, a basic missile may be consumed or retargeted by the Defend projectile reaction. Spell missiles provide their own `currentmove/endfunc` and do not enter this physical-attack/Defend-missile branch.
 
+`WPN_ARTILLERY` shares the physical projectile launch path instead of falling through the melee resolver. The unit-level authored `minRange` is a real dead zone: a mobile attacker backs away until the target is outside it, while a holding/immobile attacker cannot fire. At the attack damage point an artillery unit target is converted to a fixed point, matching Warsmash's `CBehaviorAttack`: the missile flies to that snapshot even if the original unit moves afterward. Impact then applies the authored full/medium/small splash radii, factors, and `splashTargs` mask around that point. If the original unit target is still inside the blast, it retains the ordinary primary-hit pipeline; secondary victims (and all victims of Attack Ground, which has no primary unit) receive physical splash damage without duplicating primary-only orb/lifesteal/cleave behavior. `CmdAttackGround` uses the same point-target projectile/splash path and is exposed only for the implemented `WPN_ARTILLERY` class.
+
 `T_Damage()` ignores targets whose life is already zero, and `unit_die()` is a one-shot transition once `SVF_DEADMONSTER` is set. This matters for simultaneous or near-simultaneous missile impacts: only the first lethal hit may publish WC3 death events, so map-authored death/loot triggers cannot run twice for the same corpse.
 
 ### Defend projectile reaction
@@ -46,7 +48,7 @@ For each `unitAttack_t`:
 - `permanentDamageBonus`: permanent modifier ledger used to survive Hero stat recomputation (for example `ratx`).
 - `temporaryDamageBonus`: item/temporary modifier added to each roll but not folded into the base range.
 - `cooldown`, `damagePoint`, `range`: attack timing/range.
-- splash/bounce metadata is parsed but the special weapon behaviors are not yet implemented.
+- artillery splash metadata (`Farea`/`Harea`/`Qarea`, `Hfact`/`Qfact`, `splashTargs`) is consumed by the generic `WPN_ARTILLERY` impact path; bounce/line/missile-splash weapon classes remain separate gaps.
 
 The displayed permanent range is:
 
@@ -161,7 +163,7 @@ These affect existing owned units and newly spawned units that inherit already-r
 
 ## Missile Presentation
 
-Ranged Attack 1 missiles remain ordinary server entities with `MOVETYPE_FLYMISSILE`; the renderer does not own a parallel WC3-only projectile object. `G_StartProjectilePresentation()` therefore initializes presentation state when the missile is spawned: the entity is non-selectable, does not cast a unit shadow, and selects the projectile model's authored `Stand` sequence, falling back to `Birth` only when no `Stand` sequence exists. `SV_Physics_Toss()` advances that sequence while the missile is in flight and updates yaw from the current homing direction every simulation frame. The existing snapshot `model`/`frame`/`angle` fields are sufficient, so this adds no network-only projectile state. Attack and spell missiles also inherit the firing unit's existing `s.player`, allowing the client MDX renderer to resolve replaceable team-colour textures from the correct source player just as it does for ordinary entities.
+Ranged Attack 1 missiles remain ordinary server entities with `MOVETYPE_FLYMISSILE`; the renderer does not own a parallel WC3-only projectile object. `G_StartProjectilePresentation()` therefore initializes presentation state when the missile is spawned: the entity is non-selectable, does not cast a unit shadow, and selects the projectile model's authored `Stand` sequence, falling back to `Birth` only when no `Stand` sequence exists. `SV_Physics_Toss()` advances that sequence while the missile is in flight. Ordinary missiles continue to update yaw from their current homing direction every simulation frame; artillery missiles instead carry `AI_PROJECTILE_FIXED_TARGET` plus the launch-time point in `channel.origin`, so they no longer depend on a moving/freed target entity. The existing snapshot `model`/`frame`/`angle` fields remain sufficient for presentation, and the fixed point rides in already-persisted edict state rather than adding a client-only projectile object. Attack and spell missiles also inherit the firing unit's existing `s.player`, allowing the client MDX renderer to resolve replaceable team-colour textures from the correct source player just as it does for ordinary entities.
 
 This is important for Warcraft missile MDX files whose visible geosets/emitters begin in a sequence interval above frame zero. Merely assigning the registered missile model with `frame == 0` can leave a valid projectile simulation entity visually empty. Spell missiles using the same `MOVETYPE_FLYMISSILE` path receive the same initialization rather than maintaining a second animation policy.
 
@@ -173,6 +175,8 @@ Attack 1 target legality is owned by `skills/s_attack.c`, not by the generic AI 
 
 `S_AttackCanTarget()` applies that authored mask to explicit Attack orders and every later attack recheck. For ordinary units, the target's `UnitData.targetType` supplies the ground/air/structure/etc. category; destructables continue through `G_DestructableCanBeAttackedBy()`. This keeps target legality in the Attack ability instead of teaching generic AI about Spirit Towers, Burrows, or other particular unit rawcodes.
 
+Minimum attack range is checked alongside maximum range. It comes from `UnitWeapons.minRange` (`uamn`) rather than a Meat-Wagon rawcode special case. A mobile unit already ordered to attack a target inside that dead zone steps directly away from the target until it can fire; Hold Position and `AI_IMMOBILE` units drop the impossible attack instead.
+
 Automatic acquisition adds one policy on top through `S_AttackCanAutoAcquire()`:
 
 - mobile attackers may acquire a legal target anywhere inside their authored acquisition range and chase it normally;
@@ -181,7 +185,7 @@ Automatic acquisition adds one policy on top through `S_AttackCanAutoAcquire()`:
 
 This is important for defensive buildings whose acquisition range may exceed weapon range: an idle tower must not enter an attack behavior for a target it cannot approach. If an explicit or previously valid attack target is out of range while `AI_IMMOBILE`, `ai_attack_walk()` finishes that attack behavior instead of leaving the structure stuck in a non-moving walk state. This matches Warsmash's movement-disabled ranged behavior, which drops an out-of-range attack when no move behavior exists.
 
-Relevant regression coverage is in `games/warcraft-3/game/tests/t_combat.c`: ground/air mask rejection, nearest-target filtering, structure acquisition, immobile out-of-range acquisition, and explicit immobile out-of-range attack cancellation.
+Relevant regression coverage is in `games/warcraft-3/game/tests/t_combat.c`: ground/air mask rejection, nearest-target filtering, structure acquisition, immobile out-of-range acquisition, explicit immobile out-of-range attack cancellation, artillery ranged-state selection, minimum-range retreat, authored three-band artillery splash, target-position snapshotting at the damage point, and explicit Attack Ground launch.
 
 ## Destructable Attack Targeting
 
@@ -211,7 +215,7 @@ The current implementation intentionally does not invent the larger Warsmash com
 - low-ground miss and target evasion;
 - target damage-taken and final-damage listeners;
 - generic distinction between attack type and damage type / numeric-armor bypass;
-- `MSPLASH`, `ARTILLERY`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior;
+- `MSPLASH`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior; `ARTILLERY` now has projectile/min-range/three-band splash, damage-point target snapshotting, and Attack Ground gameplay. `ALINE` still needs its distinct line-damage implementation before sharing the Attack Ground command;
 - combat selection between Attack 1 and Attack 2 remains Attack-1-only; Attack 1 now enforces its decoded `targs1`/`ua1g` target mask for ordinary unit targets as well as destructables, but Attack 2 selection and its `targs2` mask still need the broader two-weapon implementation;
 - separate Hero base-vs-bonus attributes for Warsmash-exact green primary-stat damage;
 - seeded combat RNG independent from unrelated `rand()` consumers;

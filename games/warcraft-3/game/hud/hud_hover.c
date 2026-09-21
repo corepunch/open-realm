@@ -37,6 +37,21 @@ static LPCSTR UI_HoverResourceLabel(void) {
     return "Gold:";
 }
 
+/* Retail COccupUI is a cargo CStatBar layered above HP/MP. The client reads
+ * the packed count/capacity from the hovered entity and emits only occupied
+ * yellow segments; no MDX attachment or numeric label is involved. */
+static void UI_WriteHoverCargoBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art) {
+    uiFrame_t frame = { 0 };
+
+    frame.flags.type = FT_SEGMENTED_STATUSBAR;
+    frame.tex.index = gi.ImageIndex(art);
+    frame.stat = ENT_CARGO;
+    frame.color = MAKE(COLOR32, 255, 204, 0, 255);
+    frame.value = 0.001f; /* separation between capacity-sized segments */
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, NULL, 0);
+}
+
 /* The server owns the complete widget; only its declared context changes at draw time. */
 void UI_WriteHoverLayout(LPEDICT ent) {
     uiFrame_t frame = { 0 };
@@ -70,6 +85,7 @@ void UI_WriteHoverLayout(LPEDICT ent) {
     UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, 0, -0.043f, true);
     UI_WriteProxyFrame(&frame, &data, sizeof(data));
 
+    UI_WriteHoverCargoBar(-0.0215f, -0.024f, 0.043f, 0.004f, hp);
     UI_WriteHoverTexture(-0.0225f, -0.019f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 0, 0, 0, 220));
     UI_WriteHoverBar(-0.0215f, -0.018f, 0.043f, 0.006f, hp, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 80, 200, 80, 255));
     UI_WriteHoverTexture(-0.0225f, -0.010f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 0, 0, 0, 220));

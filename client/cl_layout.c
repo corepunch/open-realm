@@ -369,7 +369,8 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
             break;
         }
         case FT_TEXTURE:
-        case FT_SIMPLESTATUSBAR: {
+        case FT_SIMPLESTATUSBAR:
+        case FT_SEGMENTED_STATUSBAR: {
             /* NormalImage/HoverImage semantics: when the frame has no explicit
                size AND no anchors on either axis, it fills the parent rect
                completely (SC2 button image fill-parent behaviour). */

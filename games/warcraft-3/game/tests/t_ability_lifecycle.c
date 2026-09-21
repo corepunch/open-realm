@@ -556,44 +556,78 @@ TEST(wc3_ability_lifecycle, no_target_tranquility_establishes_channel) {
     T_ASSERT(cast); T_EQ(channel, FS_SLKKey("AEtq"));
 }
 
-/* Cannibalize picks the nearest eligible corpse, consumes it at channel start, and heals on one-second pulses. */
-TEST(wc3_ability_lifecycle, cannibalize_consumes_nearest_organic_corpse_and_caps_healing) {
+/* Cannibalize reserves the nearest eligible corpse for the whole channel and
+ * consumes it when healing reaches full HP.  Mechanical corpses fail the authored
+ * ground,dead,organic target mask rather than a Cannibalize-only type check. */
+TEST(wc3_ability_lifecycle, cannibalize_reserves_nearest_organic_corpse_and_stops_at_full_health) {
     LPEDICT caster = review_setup(), mechanical = review_unit(1, 10), near = review_unit(1, 30), far = review_unit(1, 40);
+    UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    mechanical->data.UnitData = near->data.UnitData = far->data.UnitData = &corpse_data;
     mechanical->health.value = near->health.value = far->health.value = 0;
     mechanical->svflags |= SVF_DEADMONSTER; near->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER;
     mechanical->targtype = TARG_MECHANICAL; caster->health.value = 995;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
     LPEDICT thinker = review_thinker(caster);
-    T_ASSERT(mechanical->inuse); T_ASSERT(!near->inuse); T_ASSERT(far->inuse); T_NOT_NULL(thinker);
-    T_FEQ(caster->health.value, 995, .001f); level.time += 1000; G_RunEntities();
-    T_FEQ(caster->health.value, 1000, .001f); T_EQ(caster->channel.code, FS_SLKKey("Acan"));
+    T_ASSERT(mechanical->inuse); T_ASSERT(near->inuse); T_ASSERT(far->inuse); T_NOT_NULL(thinker);
+    T_ASSERT(near->aiflags & AI_CORPSE_RESERVED); T_ASSERT(!G_UnitIsRaisableCorpse(near));
+    FOR_LOOP(i, 5) { level.time += FRAMETIME; G_RunEntities(); }
+    T_FEQ(caster->health.value, 1000, .001f); T_EQ(caster->channel.code, 0); T_ASSERT(!near->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
-/* Dur=33 and DataA=10 are authoritative in both ROC and TFT; the production frame scheduler owns every pulse. */
+/* Cannibalize is a no-target command: it acquires the nearest corpse itself and
+ * approaches it before starting the channel instead of targeting the corpse. */
+TEST(wc3_ability_lifecycle, cannibalize_command_approaches_nearby_corpse) {
+    LPEDICT caster = review_setup(), corpse = review_unit(1, 200);
+    UnitData_t corpse_data = { .deathType = 3 };
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT clent = &g_edicts[0];
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Acan"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = clent);
+    caster->health.value = 500;
+    corpse->data.UnitData = &corpse_data; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
+    clent->client = &game.clients[0]; clent->client->ps.number = 0; G_SelectEntity(clent->client, caster);
+    T_ASSERT(S_AbilityMessage(caster, A_COMMAND, &call));
+    T_ASSERT(caster->goalentity == corpse); T_STREQ(caster->currentmove->animation, "walk");
+    T_NOT_NULL(review_thinker(caster));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Dur=33 and DataA=10 are authoritative in both ROC and TFT; healing is continuous
+ * on the simulation cadence rather than quantized to one-second pulses. */
 TEST(wc3_ability_lifecycle, cannibalize_heals_for_authored_duration_through_entity_scheduler) {
     LPEDICT caster = review_setup(), corpse = review_unit(1, 40);
+    UnitBalance_t caster_balance = *caster->data.UnitBalance;
+    UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    caster_balance.healthRegen = 0;
+    caster->data.UnitBalance = &caster_balance;
+    corpse->data.UnitData = &corpse_data;
     caster->health.value = 500; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
-    FOR_LOOP(i, 33) { level.time += 1000; G_RunEntities(); }
-    T_ASSERT(caster->health.value >= 830.0f && caster->health.value < 832.0f); T_EQ(caster->channel.code, 0);
+    FOR_LOOP(i, 330) { level.time += FRAMETIME; G_RunEntities(); }
+    T_ASSERT(caster->health.value >= 829.0f && caster->health.value <= 831.0f);
+    T_EQ(caster->channel.code, 0); T_ASSERT(!corpse->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 /* Live, mechanical, Hero-lifecycle and out-of-search-range units cannot fund a cast; movement interrupts an active feast. */
 TEST(wc3_ability_lifecycle, cannibalize_rejects_invalid_corpses_and_stops_when_caster_moves) {
     LPEDICT caster = review_setup(), live = review_unit(1, 20), mechanical = review_unit(1, 30), far = review_unit(1, 801);
+    UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    mechanical->data.UnitData = far->data.UnitData = &corpse_data;
+    g_edicts[0].client = &game.clients[0]; game.clients[0].connected = true; game.clients[0].ps.number = 0;
     mechanical->health.value = far->health.value = 0;
     mechanical->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER; mechanical->targtype = TARG_MECHANICAL;
     T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
     T_ASSERT(live->inuse); T_ASSERT(mechanical->inuse); T_ASSERT(far->inuse);
     far->s.origin2.x = far->s.origin.x = 40; caster->health.value = 500;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
-    caster->s.origin2.x += 10; caster->s.origin.x += 10; level.time += 1000; G_RunEntities();
-    T_ASSERT(caster->health.value >= 500.0f && caster->health.value < 501.0f); T_EQ(caster->channel.code, 0);
+    caster->s.origin2.x += 10; caster->s.origin.x += 10; level.time += FRAMETIME; G_RunEntities();
+    T_ASSERT(caster->health.value >= 500.0f && caster->health.value < 501.0f);
+    T_EQ(caster->channel.code, 0); T_ASSERT(!far->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -618,7 +652,9 @@ TEST(wc3_ability_lifecycle, avatar_blocks_storm_bolt_stun_at_impact) {
 /* Resurrection's stock tooltip promises ordinary friendly corpses, not exclusively Heroes. */
 TEST(wc3_ability_lifecycle, resurrection_revives_friendly_footman) {
     LPEDICT caster = review_setup(), ally = review_unit(0, 100);
+    UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    ally->data.UnitData = &corpse_data;
     ally->health.value = 0; ally->svflags |= SVF_DEADMONSTER;
     BOOL cast = S_CastNoTargetSpell(caster, FS_SLKKey("AHre"));
     FLOAT hp = ally->health.value;
@@ -740,7 +776,9 @@ TEST(wc3_ability_lifecycle, frost_nova_uses_victim_center_and_separate_direct_da
 /* Ordinary corpses restore selection and the idle move instead of retaining their decay callback. */
 TEST(wc3_ability_lifecycle, resurrection_retires_death_state_and_rejects_empty_cast) {
     LPEDICT caster = review_setup(), ally = review_unit(0, 100), enemy = review_unit(1, 100);
+    UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    ally->data.UnitData = &corpse_data;
     T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("AHre")));
     unit_die(ally, enemy); ally->aiflags |= AI_HOLD_FRAME;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHre")));

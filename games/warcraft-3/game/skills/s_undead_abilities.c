@@ -1,5 +1,8 @@
 #include "s_skills.h"
 
+#define BZ_UPGRADE_RAISE_DEAD_LIFE MAKEFOURCC('r','r','a','i')
+#define RAISE_DEAD_SUMMON_LIMIT 25u
+
 #define UNDEAD_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AMS_SHIELD MAKEFOURCC('B', 'a', 'm', '2') // rawcode; Bam2 DataC spell-damage absorption
 
@@ -187,91 +190,452 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
     }
 }
 
+/* ---- Graveyard Create Corpse (Agyd) -----------------------------------------
+ * DataA/Gyd1 = maximum corpses, DataB/Gyd2 = gravestone/spawn radius,
+ * DataC/Gyd3 = corpse-count radius, UnitID/Gydu = corpse type, Cool = interval.
+ * Blizzard documents stock Graveyards as one Ghoul corpse every 15 seconds,
+ * capped at five nearby corpses.
+ */
+#define ID_GRAVEYARD_CORPSE MAKEFOURCC('A','g','y','d')
+
+static LPEDICT graveyard_find_thinker(LPEDICT graveyard) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == graveyard && ent->think == graveyard_think &&
+                  ent->class_id == ID_GRAVEYARD_CORPSE) return ent;
+    return NULL;
+}
+
+static DWORD graveyard_corpse_count(LPEDICT graveyard, DWORD unit_id, FLOAT radius) {
+    DWORD count = 0;
+    if (!graveyard || !unit_id || radius < 0.0f) return 0;
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == unit_id && M_IsDead(ent) &&
+                  (ent->svflags & SVF_DEADMONSTER)) {
+        VECTOR2 position;
+        if (S_CorpseCargoPosition(ent, &position) &&
+            Vector2_distance(&position, &graveyard->s.origin2) <= radius) count++;
+    }
+    return count;
+}
+
+static void graveyard_spawn_corpse(LPEDICT graveyard, DWORD unit_id, FLOAT radius, DWORD ordinal) {
+    VECTOR2 point;
+    FLOAT angle;
+    LPEDICT corpse;
+
+    if (!graveyard || !unit_id) return;
+    angle = fmodf((FLOAT)ordinal * 2.3999632297f, 2.0f * (FLOAT)M_PI);
+    point = graveyard->s.origin2;
+    point.x += cosf(angle) * MAX(0.0f, radius);
+    point.y += sinf(angle) * MAX(0.0f, radius);
+    corpse = SP_SpawnAtLocationNoBirth(unit_id, graveyard->s.player, &point);
+    if (!corpse) return;
+    corpse->health.value = 0.0f;
+    corpse->svflags |= SVF_DEADMONSTER;
+    corpse->s.flags |= EF_NOT_SELECTABLE;
+    corpse->aiflags |= AI_HOLD_FRAME;
+    unit_begin_decay(corpse);
+}
+
+void graveyard_think(LPEDICT thinker) {
+    LPEDICT graveyard = thinker ? thinker->owner : NULL;
+    DWORD level, unit_id, cap, count;
+    FLOAT interval, spawn_radius, corpse_radius;
+
+    if (!thinker || !graveyard || !graveyard->inuse || M_IsDead(graveyard) ||
+        !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) {
+        if (thinker) G_FreeEdict(thinker);
+        return;
+    }
+    if (G_Time() < thinker->freetime) return;
+    interval = S_SpellNumber(ID_GRAVEYARD_CORPSE, ABILITY_NUMBER_COOLDOWN, level);
+    if (interval <= 0.0f) { G_FreeEdict(thinker); return; }
+    unit_id = S_SpellUnitId(ID_GRAVEYARD_CORPSE, level);
+    cap = (DWORD)MAX(0.0f, S_SpellData(ID_GRAVEYARD_CORPSE, level, 1));
+    spawn_radius = MAX(0.0f, S_SpellData(ID_GRAVEYARD_CORPSE, level, 2));
+    corpse_radius = MAX(0.0f, S_SpellData(ID_GRAVEYARD_CORPSE, level, 3));
+    count = graveyard_corpse_count(graveyard, unit_id, corpse_radius);
+    if (unit_id && count < cap) graveyard_spawn_corpse(graveyard, unit_id, spawn_radius, count);
+    thinker->freetime = G_Time() + (DWORD)(interval * 1000.0f);
+}
+
+static void graveyard_ensure(LPEDICT graveyard) {
+    DWORD level;
+    FLOAT interval;
+    LPEDICT thinker;
+
+    /* Agyd is one of the global update procedures. Check ownership before the
+     * edict scan; otherwise every updated unit pays for graveyard lookup. */
+    if (!graveyard || M_IsDead(graveyard) ||
+        !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) return;
+    if (graveyard_find_thinker(graveyard)) return;
+    interval = S_SpellNumber(ID_GRAVEYARD_CORPSE, ABILITY_NUMBER_COOLDOWN, level);
+    if (interval <= 0.0f) return;
+    thinker = G_Spawn();
+    if (!thinker) return;
+    thinker->owner = graveyard;
+    thinker->class_id = ID_GRAVEYARD_CORPSE;
+    thinker->think = graveyard_think;
+    thinker->freetime = G_Time() + (DWORD)(interval * 1000.0f);
+}
+
+BZ_ABILITY_PROC(CAbilityGraveyard) {
+    if (msg == A_UPDATE) { graveyard_ensure(ent); return true; }
+    return false;
+}
+
 /* ---- Cannibalize (Acan) -----------------------------------------------------
  * Name=Cannibalize
  * Ubertip="Consumes a nearby corpse to restore hit points over time."
  * DataA = HP restored per second, DataB = corpse acquisition radius, Dur = channel duration.
  */
+static void corpse_remove_status(LPEDICT corpse, DWORD code) {
+    if (!corpse || !code) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        if (corpse->abilstatus[i].level && corpse->abilstatus[i].code == code) {
+            memset(corpse->abilstatus + i, 0, sizeof(corpse->abilstatus[i]));
+            G_InvalidateUnitInfoPanel(corpse);
+            return;
+        }
+    }
+}
+
+static void show_no_usable_corpse(LPEDICT caster) {
+    if (!caster) return;
+    G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
+                          "Cantfindcorpse", "There are no usable corpses nearby.");
+}
+
 static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
     LPEDICT corpse = NULL;
-    /* Dead Heroes and mechanical units retain distinct lifecycles and cannot fund Cannibalize. */
-    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) && unit->targtype != TARG_MECHANICAL) {
-        FLOAT distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+
+    FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(spell->code, caster, unit) &&
+                  !G_UnitStatusLevel(unit, spell->code)) {
+        FLOAT const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
         if (distance <= range && distance < best) { corpse = unit; best = distance; }
+    }
+    FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
+                  transport->s.player == caster->s.player) {
+        FOR_LOOP(i, transport->cargo.count) {
+            LPEDICT unit = S_CargoUnitAt(transport, i);
+            VECTOR2 position;
+            FLOAT distance;
+            if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
+                !S_SpellAllowsStoredCorpseTarget(spell->code, caster, unit) ||
+                G_UnitStatusLevel(unit, spell->code) || !S_CorpseCargoPosition(unit, &position)) continue;
+            distance = Vector2_distance(&position, &caster->s.origin2);
+            if (distance <= range && distance < best) { corpse = unit; best = distance; }
+        }
     }
     return corpse;
 }
 
-/* Healing starts after one full second; the final authored-duration pulse ends the channel. */
+static LPEDICT cannibalize_approach_target(LPEDICT corpse) {
+    LPEDICT holder;
+
+    if (!corpse) return NULL;
+    if (!S_CorpseCargoIsStored(corpse)) return corpse;
+    holder = S_CargoTransportForUnit(corpse);
+    return holder && holder->inuse ? holder : NULL;
+}
+
+/* Cannibalize approaches the holder as an interaction, not as a free-space
+ * destination.  The wagon remains a live collision entity, but it is the
+ * interaction target; treating it as a blocker leaves the Ghoul rotating at
+ * the wagon's edge instead of reaching the channel boundary. */
+static void cannibalize_approach_walk(LPEDICT caster) {
+    if (!caster || !caster->goalentity) return;
+    unit_changeangle_interaction_ignore_units(caster);
+    unit_moveindirection_ignore_units(caster);
+}
+
+static umove_t cannibalize_approach_move = { "walk", cannibalize_approach_walk, NULL, CAbilityMove };
+
+static BOOL cannibalize_corpse_allowed(LPEDICT caster, DWORD code, LPEDICT corpse) {
+    if (!caster || !corpse) return false;
+    return S_CorpseCargoIsStored(corpse)
+        ? S_SpellAllowsStoredCorpseTarget(code, caster, corpse)
+        : S_SpellAllowsCorpseTarget(code, caster, corpse);
+}
+
+static BOOL cannibalize_can_approach(LPEDICT caster) {
+    return caster && !S_GoldMineWorkerIsInside(caster) && !(caster->aiflags & AI_IMMOBILE) &&
+        !S_UnitIsCycloned(caster) && !G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')) &&
+        !S_UnitIsEnsnared(caster) && !S_PurgeIsImmobilized(caster);
+}
+
+static BOOL cannibalize_in_range(LPEDICT caster, LPEDICT corpse) {
+    VECTOR2 position;
+    LPEDICT target;
+
+    if (!caster || !corpse || !S_CorpseCargoPosition(corpse, &position) ||
+        !(target = cannibalize_approach_target(corpse))) return false;
+    return Vector2_distance(&caster->s.origin2, &position) <= caster->collision + target->collision;
+}
+
+static void cannibalize_approach_cancel(LPEDICT thinker) {
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+
+    if (caster && caster->inuse && caster->currentmove == &cannibalize_approach_move)
+        unit_stand(caster);
+    if (thinker) G_FreeEdict(thinker);
+}
+
+void cannibalize_approach_think(LPEDICT thinker) {
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+    LPEDICT approach = cannibalize_approach_target(corpse);
+
+    if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
+        corpse->spawn_time != thinker->channel.target_spawn_time || !approach ||
+        !cannibalize_corpse_allowed(caster, thinker->class_id, corpse)) {
+        cannibalize_approach_cancel(thinker);
+        return;
+    }
+    if (caster->goalentity != approach || caster->currentmove != &cannibalize_approach_move) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    if (!cannibalize_in_range(caster, corpse)) return;
+    DWORD const code = thinker->class_id;
+    unit_stand(caster);
+    G_FreeEdict(thinker);
+    S_CastNoTargetSpell(caster, code);
+}
+
+static BOOL cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t const *spell) {
+    LPEDICT corpse, thinker;
+
+    if (!caster || !spell) return false;
+    if (caster->health.value >= caster->health.max_value) {
+        G_ShowCommandErrorKey(clent, "UnitHPmaxed", "Already at full health.");
+        return false;
+    }
+    corpse = cannibalize_corpse(caster, spell);
+    if (!corpse) {
+        show_no_usable_corpse(caster);
+        return false;
+    }
+    if (cannibalize_in_range(caster, corpse)) {
+        return S_CastNoTargetSpell(caster, spell->code);
+    }
+    {
+        LPEDICT approach = cannibalize_approach_target(corpse);
+        if (!approach || !cannibalize_can_approach(caster)) return false;
+        order_move(caster, approach);
+        unit_setmove(caster, &cannibalize_approach_move);
+        if (caster->goalentity != approach || caster->currentmove != &cannibalize_approach_move) return false;
+    }
+    thinker = G_Spawn();
+    if (!thinker) return false;
+    thinker->owner = caster;
+    thinker->goalentity = corpse;
+    thinker->class_id = spell->code;
+    thinker->channel.target_spawn_time = corpse->spawn_time;
+    thinker->think = cannibalize_approach_think;
+    return true;
+}
+
+static BOOL cannibalize_reserved_corpse_valid(LPCEDICT thinker, LPCEDICT corpse) {
+    return thinker && corpse && corpse->inuse &&
+        corpse->spawn_time == thinker->channel.target_spawn_time &&
+        (corpse->svflags & SVF_DEADMONSTER) && M_IsDead(corpse);
+}
+
+static void cannibalize_finish(LPEDICT thinker) {
+    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+    DWORD code = thinker ? thinker->class_id : 0;
+
+    if (cannibalize_reserved_corpse_valid(thinker, corpse)) {
+        corpse->aiflags &= ~AI_CORPSE_RESERVED;
+        corpse_remove_status(corpse, code);
+        G_FreeEdict(corpse);
+    }
+    if (thinker) S_SpellEndChannel(thinker);
+}
+
+/* Warsmash models DataA as an HP-regeneration stat buff.  OpenRealm applies the
+ * same continuous HP/sec amount on the simulation cadence while the channel is
+ * active, which preserves fractional healing and ends immediately at full HP. */
 void cannibalize_think(LPEDICT thinker) {
-    DWORD now = G_Time();
-    if (!S_SpellChannelActive(thinker)) { S_SpellEndChannel(thinker); return; }
-    if (now < thinker->freetime) return;
-    S_SpellHeal(thinker->owner, thinker->velocity);
-    if (now >= thinker->spawn_time) { S_SpellEndChannel(thinker); return; }
-    thinker->freetime = now + 1000;
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+    DWORD const now = G_Time();
+
+    if (!thinker) return;
+    if (!S_SpellChannelActive(thinker)) {
+        cannibalize_finish(thinker); return;
+    }
+    if (!cannibalize_reserved_corpse_valid(thinker, corpse)) {
+        S_SpellEndChannel(thinker); return;
+    }
+    if (!caster || caster->health.value >= caster->health.max_value || now >= thinker->freetime) {
+        cannibalize_finish(thinker);
+        return;
+    }
+    S_SpellHeal(caster, thinker->velocity * ((FLOAT)FRAMETIME / 1000.0f));
+    if (caster->health.value >= caster->health.max_value) cannibalize_finish(thinker);
+}
+
+static BOOL cannibalize_validate(LPEDICT caster, abilityitem_t const *spell) {
+    if (caster && caster->health.value >= caster->health.max_value) {
+        G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
+                              "UnitHPmaxed", "Already at full health.");
+        return false;
+    }
+    if (caster && spell && cannibalize_corpse(caster, spell)) return true;
+    if (caster && spell) show_no_usable_corpse(caster);
+    return false;
 }
 
 BZ_ABILITY_PROC(CAbilityCannibalize) {
     abilityitem_t const *spell = call ? call->item : NULL;
     switch (msg) {
-    case A_VALIDATE: return ent && spell && cannibalize_corpse(ent, spell);
+    case A_COMMAND:
+        return cannibalize_command(ent, call ? call->client : NULL, spell);
+    case A_VALIDATE:
+        return spell && G_UnitAbilityResearchAvailable(ent, spell->code) && cannibalize_validate(ent, spell);
     case A_EXECUTE: {
-        DWORD level = S_SpellLevel(ent, spell->code);
-        LPEDICT corpse = cannibalize_corpse(ent, spell), thinker;
-        if (!corpse) { S_SpellCancelChannel(ent); return false; }
-        G_FreeEdict(corpse);
+        DWORD level;
+        LPEDICT corpse, thinker;
+        if (!ent || !spell) return false;
+        level = S_SpellLevel(ent, spell->code);
+        corpse = cannibalize_corpse(ent, spell);
+        if (!corpse) {
+            S_SpellCancelChannel(ent); return false;
+        }
+        corpse->aiflags |= AI_CORPSE_RESERVED;
+        unit_addstatus(corpse, GetClassName(spell->code), level);
         thinker = S_SpellChannelThinker(ent, spell->code);
-        thinker->velocity = S_SpellData(spell->code, level, 1);
-        thinker->freetime = G_Time() + 1000;
-        thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f);
+        thinker->goalentity = corpse;
+        thinker->channel.target_spawn_time = corpse->spawn_time;
+        thinker->velocity = MAX(0.0f, S_SpellData(spell->code, level, 1));
+        thinker->freetime = G_Time() + (DWORD)(MAX(0.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
         thinker->think = cannibalize_think;
         return true;
     }
-    default: return CAbilitySimpleSpell(ent, msg, call);
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
     }
 }
 
-/* ---- Raise Dead (Arai) -------------------------------------------------------
- * Name=Raise Dead
- * Ubertip="Raises DataA1 skeletons from a corpse."
- * Untip="Right-click to activate auto-casting."
- * DataA = count of skeletons, UnitID = skeleton type, BuffID = Brai.
+/* ---- Raise Dead (Arai/ACrd/AIrd) --------------------------------------------
+ * The Raise Dead object-data family authors two summon groups:
+ * DataA x DataC and DataB x DataD.  BuffID is the summoned timed-life buff.
  */
-static BOOL raise_dead_has_corpse(LPEDICT caster, FLOAT range) {
-    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) &&
-                  Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= range) return true;
-    return false;
+static FLOAT raise_dead_search_range(LPCEDICT caster) {
+    return caster ? MAX(0.0f, caster->runtime.acquisition_range) : 0.0f;
+}
+
+static LONG raise_dead_corpse_rank(LPCEDICT unit) {
+    UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
+    if (!balance && unit) balance = G_UnitBalance(unit->class_id);
+    return balance ? balance->level : 0;
+}
+
+/* Retail Raise Dead preserves more valuable corpses by preferring the lowest-
+ * ranked eligible corpse; distance is only the tie-breaker.  UnitBalance.level
+ * is already the engine's corpse-power rank for Resurrection/Animate Dead. */
+static LPEDICT raise_dead_corpse(LPEDICT caster, DWORD code, FLOAT range) {
+    FLOAT best_distance = FLT_MAX;
+    LONG best_rank = 0;
+    LPEDICT corpse = NULL;
+
+    FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(code, caster, unit)) {
+        FLOAT const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+        LONG const rank = raise_dead_corpse_rank(unit);
+        if (distance > range) continue;
+        if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
+            corpse = unit; best_rank = rank; best_distance = distance;
+        }
+    }
+    FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
+                  transport->s.player == caster->s.player) {
+        FOR_LOOP(i, transport->cargo.count) {
+            LPEDICT unit = S_CargoUnitAt(transport, i);
+            VECTOR2 position;
+            FLOAT distance;
+            LONG rank;
+            if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
+                !S_SpellAllowsStoredCorpseTarget(code, caster, unit) ||
+                !S_CorpseCargoPosition(unit, &position)) continue;
+            distance = Vector2_distance(&position, &caster->s.origin2);
+            rank = raise_dead_corpse_rank(unit);
+            if (distance > range) continue;
+            if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
+                corpse = unit; best_rank = rank; best_distance = distance;
+            }
+        }
+    }
+    return corpse;
 }
 
 static BOOL raise_dead_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    FLOAT range;
     (void)st;
-    return raise_dead_has_corpse(caster, S_SpellRange(spell->code, S_SpellLevel(caster, spell->code)));
+    if (!caster || !spell) return false;
+    range = raise_dead_search_range(caster);
+    if (raise_dead_corpse(caster, spell->code, range)) return true;
+    show_no_usable_corpse(caster);
+    return false;
+}
+
+static void raise_dead_add_authored_buff(LPEDICT summon, LPCSTR buff_list, DWORD level) {
+    char buff[5] = {0};
+    if (!summon || !buff_list || strlen(buff_list) < 4) return;
+    memcpy(buff, buff_list, 4);
+    unit_addstatus(summon, buff, level);
+}
+
+static void raise_dead_spawn_group(LPEDICT caster, abilityitem_t const *spell, LPEDICT corpse,
+                                   DWORD level, DWORD unit_id, DWORD count, FLOAT duration,
+                                   LPCSTR buff) {
+    VECTOR2 position;
+
+    if (!unit_id || !count || !corpse || !S_CorpseCargoPosition(corpse, &position)) return;
+    FOR_LOOP(i, count) {
+        LPEDICT summon = S_SummonAt(caster, unit_id, &position, duration);
+        if (!summon) continue;
+        summon->s.angle = corpse->s.angle;
+        summon->summon_ability = spell->code;
+        raise_dead_add_authored_buff(summon, buff, level);
+        G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_EFFECT, 0, &summon->s.origin2, true);
+        gi.LinkEntity(summon);
+    }
 }
 
 static void raise_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    DWORD count = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FLOAT range = S_SpellRange(spell->code, level);
-    LPEDICT corpse = NULL;
-    FLOAT best = FLT_MAX;
+    DWORD level, count_a, count_b, unit_a, unit_b;
+    FLOAT duration, range;
+    LPCSTR buff;
+    LPEDICT corpse;
     (void)st;
-    FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit)) {
-        FLOAT d = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
-        if (d <= range && d < best) { corpse = unit; best = d; }
-    }
+
+    if (!caster || !spell) return;
+    level = S_SpellLevel(caster, spell->code);
+    range = raise_dead_search_range(caster);
+    corpse = raise_dead_corpse(caster, spell->code, range);
     if (!corpse) return;
-    FOR_LOOP(i, count) S_SummonAt(caster, S_SpellUnitId(spell->code, level), &corpse->s.origin2,
-                                  S_SpellDuration(spell->code, level, false));
+
+    count_a = (DWORD)MAX(0.0f, S_SpellData(spell->code, level, 1));
+    count_b = (DWORD)MAX(0.0f, S_SpellData(spell->code, level, 2));
+    unit_a = S_SpellDataId(spell->code, level, 3);
+    unit_b = S_SpellDataId(spell->code, level, 4);
+    duration = S_SpellDuration(spell->code, level, false) +
+        G_UnitUpgradeEffectBonus(caster, BZ_UPGRADE_RAISE_DEAD_LIFE);
+    buff = G_AbilityLevel(spell->code, level)->buffID;
+
+    raise_dead_spawn_group(caster, spell, corpse, level, unit_a, count_a, duration, buff);
+    raise_dead_spawn_group(caster, spell, corpse, level, unit_b, count_b, duration, buff);
+    /* Raiu/UnitID is specifically the unit type used for Raise Dead's fixed
+     * retail summon-limit check.  A blank custom-map field disables the cap. */
+    S_EnforceSummonedUnitTypeLimit(caster, S_SpellUnitId(spell->code, level), RAISE_DEAD_SUMMON_LIMIT);
     G_FreeEdict(corpse);
 }
 
 static BOOL raise_dead_autocast_acquire(LPEDICT caster, DWORD code) {
-    FLOAT range = S_SpellRange(code, S_SpellLevel(caster, code));
-    if (range <= 0.0f) range = UNDEAD_AUTOCAST_RADIUS;
-    return raise_dead_has_corpse(caster, range) && S_CastNoTargetSpell(caster, code);
+    FLOAT const range = raise_dead_search_range(caster);
+    return raise_dead_corpse(caster, code, range) && S_CastNoTargetSpell(caster, code);
 }
 
 BZ_ABILITY_PROC(CAbilityRaiseDead) {

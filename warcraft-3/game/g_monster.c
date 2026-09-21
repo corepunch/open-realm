@@ -112,6 +112,19 @@ void M_MoveFrame(LPEDICT self) {
             return;
         }
     }
+    if (move->animation_duration) {
+        FLOAT const duration = move->animation_duration(self);
+        DWORD const frames = anim->interval[1] > anim->interval[0]
+                           ? anim->interval[1] - anim->interval[0] : 0;
+        if (duration > 0.0f && frames > 0) {
+            FLOAT const elapsed = MAX(0.0f, MIN(duration, duration - self->wait));
+            FLOAT const progress = MIN(1.0f, elapsed / duration);
+            DWORD const offset = frames > 1
+                               ? (DWORD)floorf(progress * (FLOAT)(frames - 1)) : 0;
+            self->s.frame = anim->interval[0] + MIN(offset, frames - 1);
+            return;
+        }
+    }
     DWORD next_frame = self->s.frame + (DWORD)frame_step;
     if (G_AnimationHasPrimary(anim, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
@@ -547,7 +560,7 @@ void SP_SpawnUnit(LPEDICT self) {
     G_ApplyPlayerUpgradesToUnit(self);
     S_CargoInitUnit(self);
 
-    if (self->attack1.weapon == WPN_MISSILE) {
+    if (self->attack1.weapon == WPN_MISSILE || self->attack1.weapon == WPN_ARTILLERY) {
         self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);
         self->attack1.origin.y = G_UnitAttack1LaunchY(self->class_id);
         self->attack1.origin.z = G_UnitAttack1LaunchZ(self->class_id);

@@ -157,7 +157,7 @@ static LPCSTR const building_renew_stock_targets =
 
 static const char building_upgrade_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X17;Y11;D0\n"
+    "B;X18;Y12;D0\n"
     "C;X1;Y1;K\"upgradeid\"\n"
     "C;X2;K\"class\"\n"
     "C;X3;K\"maxlevel\"\n"
@@ -175,6 +175,7 @@ static const char building_upgrade_slk[] =
     "C;X15;K\"base2\"\n"
     "C;X16;K\"mod2\"\n"
     "C;X17;K\"code2\"\n"
+    "C;X18;K\"comments\"\n"
     "C;X1;Y2;K\"Rhme\"\n"
     "C;X2;K\"melee\"\n"
     "C;X3;K3\n"
@@ -254,6 +255,26 @@ static const char building_upgrade_slk[] =
     "C;X11;K0\n"
     "C;X12;K0\n"
     "C;X13;K\"Adef\"\n"
+    "C;X14;K\"rlev\"\n"
+    "C;X15;K0\n"
+    "C;X16;K0\n"
+    "C;X17;K\"Amic\"\n"
+    "C;X1;Y12;K\"Ruac\"\n"
+    "C;X2;K\"ability\"\n"
+    "C;X3;K1\n"
+    "C;X10;K\"_\"\n"
+    "C;X18;K\"undead ghoul cannibalize\"\n"
+    "E\n";
+
+static const char building_dependency_ability_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X4;Y2;D0\n"
+    "C;X1;Y1;K\"alias\"\n"
+    "C;X3;K\"checkDep\"\n"
+    "C;X4;K\"comments\"\n"
+    "C;X1;Y2;K\"Amic\"\n"
+    "C;X3;K1\n"
+    "C;X4;K\"Cannibalize\"\n"
     "E\n";
 
 static slkTestData_t *building_install_upgrade_data(slkTestData_t **rows_out) {
@@ -1140,6 +1161,93 @@ TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) 
     T_ASSERT(!G_UnitAbilityResearchAvailable(unit, defend));
     T_EQ(G_UnitAbilityLevel(unit, defend), 1);
 
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
+    LPGAMECLIENT client;
+    LPEDICT unit;
+    UnitBalance_t balance = { .upgrades = "Rhde" };
+    UnitAbilities_t abilities = { .abilList = "Amic" };
+    gameCommandButton_t buttons[16];
+    slkTestData_t *rows = NULL, *old;
+    DWORD defend_research = MAKEFOURCC('R','h','d','e');
+    BYTE count;
+    BOOL found;
+
+    setup_test_world();
+    old = building_install_upgrade_data(&rows);
+    client = &game.clients[0];
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->s.player = client->ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->data.UnitAbilities = &abilities;
+    memset(client->tech, 0, sizeof(client->tech));
+
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(client, defend_research, 1);
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
+    LPGAMECLIENT client;
+    LPEDICT unit;
+    UnitBalance_t balance = { .upgrades = "Ruac" };
+    UnitAbilities_t abilities = { .abilList = "Amic" };
+    gameCommandButton_t buttons[16];
+    slkTestData_t *rows = NULL, *old, *ability_rows, *old_ability;
+    DWORD const cannibalize_research = MAKEFOURCC('R','u','a','c');
+    DWORD const cannibalize = MAKEFOURCC('A','m','i','c');
+    BYTE count;
+    BOOL found;
+
+    setup_test_world();
+    old = building_install_upgrade_data(&rows);
+    ability_rows = parse_slk_string(building_dependency_ability_slk);
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    client = &game.clients[0];
+    unit = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 0, 0);
+    unit->s.player = client->ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->data.UnitAbilities = &abilities;
+    memset(client->tech, 0, sizeof(client->tech));
+
+    T_ASSERT(!G_UnitAbilityResearchAvailable(unit, cannibalize));
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+        found = true;
+        T_ASSERT(buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_SetPlayerTechResearched(client, cannibalize_research, 1);
+    T_ASSERT(G_UnitAbilityResearchAvailable(unit, cannibalize));
+    count = G_GetCommandButtons(unit, buttons, 16);
+    found = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "Amic")) {
+        found = true;
+        T_ASSERT(!buttons[i].disabled);
+    }
+    T_ASSERT(found);
+
+    G_SetSLKRows("AbilityData", old_ability);
+    free_slk_rows(ability_rows);
     building_restore_upgrade_data(old, rows);
 }
 

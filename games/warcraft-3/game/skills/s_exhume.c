@@ -2,11 +2,14 @@
 
 #define BZ_AEXH MAKEFOURCC('A', 'e', 'x', 'h') // rawcode; Exhume Corpses TFT Meat Wagon research
 
-/* Count dead UnitID edicts this wagon still owns (ground stand-in for cargo). */
+/* Count the authored corpse type in this wagon's real cargo slots. */
 static DWORD exhume_count(LPEDICT wagon, DWORD unit_id) {
 	DWORD n = 0;
-	if (!wagon || !unit_id) return 0;
-	FILTER_EDICTS(ent, ent->inuse && ent->owner == wagon && ent->class_id == unit_id && M_IsDead(ent)) n++;
+	if (!wagon || !unit_id || !S_CargoIsCorpseHolder(wagon)) return 0;
+	FOR_LOOP(i, wagon->cargo.count) {
+		LPEDICT corpse = S_CargoUnitAt(wagon, i);
+		if (corpse && S_CorpseCargoIsStored(corpse) && corpse->class_id == unit_id) n++;
+	}
 	return n;
 }
 
@@ -16,7 +19,6 @@ static LPEDICT exhume_find_thinker(LPEDICT wagon) {
 	return NULL;
 }
 
-/* Cargo Amel/Amed is out of scope: spawn a dead UnitID edict at the wagon origin. */
 static void exhume_spawn(LPEDICT wagon, DWORD unit_id) {
 	LPEDICT corpse = SP_SpawnAtLocationNoBirth(unit_id, wagon->s.player, &wagon->s.origin2);
 	if (!corpse) {
@@ -27,6 +29,8 @@ static void exhume_spawn(LPEDICT wagon, DWORD unit_id) {
 	corpse->owner = wagon;
 	corpse->health.value = 0;
 	corpse->svflags |= SVF_DEADMONSTER;
+	unit_begin_decay(corpse);
+	if (!S_CorpseCargoTryLoad(wagon, corpse)) G_FreeEdict(corpse);
 }
 
 /* Classless producer owned by the wagon; wagon removal or missing Aexh ends it. */
@@ -65,8 +69,7 @@ static void exhume_ensure(LPEDICT wagon) {
 }
 
 /* Name=Exhume Corpses
- * Dur = spawn interval, DataA = max corpses, UnitID = corpse type.
- * Cargo hold integration is intentionally deferred with Amel/Amed.
+ * Dur = spawn interval, DataA = maximum authored corpse count, UnitID = corpse type.
  */
 BZ_ABILITY_PROC(CAbilityExhumeCorpses) {
 	switch (msg) {

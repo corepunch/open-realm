@@ -177,6 +177,9 @@ enum {
     AI_SLEEPING    = 1 << 6,  /* neutral creep is dormant; wakes on enemy proximity */
     AI_CORPSE_UNRAISABLE = 1 << 7, /* corpse lifecycle; sacrifice or temporary summon cannot be raised */
     AI_CORPSE_NO_DECAY = 1 << 8, /* corpse lifecycle; remove after death animation instead of corpse window */
+    AI_CORPSE_RESERVED = 1 << 9, /* corpse lifecycle; an active consuming ability owns this corpse */
+    AI_CORPSE_IN_CARGO = 1 << 10, /* corpse lifecycle; stored in a Meat Wagon cargo slot */
+    AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
 };
 
 typedef enum {
@@ -738,6 +741,10 @@ typedef struct {
     void (*think)(LPEDICT);
     void (*endfunc)(LPEDICT);
     abilityProc_t proc;
+    /* Optional authoritative duration for presentation-only moves such as
+     * Warcraft corpse decay. M_MoveFrame maps the selected model sequence
+     * across this duration instead of assuming one model frame per ms tick. */
+    FLOAT (*animation_duration)(LPCEDICT);
 } umove_t;
 
 typedef struct {
@@ -2440,6 +2447,7 @@ LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid);
 void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value);
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid);
+FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect);
 LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid);
 void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid);
@@ -2736,6 +2744,8 @@ void G_ClearUnitOrderQueue(LPEDICT);
 DWORD G_UnitQueuedOrderCount(LPCEDICT);
 void unit_birth(LPEDICT);
 void unit_die(LPEDICT, LPEDICT);
+void unit_begin_decay(LPEDICT);
+void G_RestartCorpseBoneDecayAfterCargo(LPEDICT);
 LPEDICT unit_create(DWORD, DWORD, LPCVECTOR2, FLOAT);
 LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
 BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
@@ -2788,6 +2798,7 @@ void G_HeroSetXP(LPEDICT, DWORD xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
 void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
 BOOL G_UnitIsRaisableCorpse(LPCEDICT);
+BOOL G_UnitIsRaisableStoredCorpse(LPCEDICT);
 void G_ReviveCorpse(LPEDICT, FLOAT life_fraction);
 BOOL G_UnitIsHero(LPCEDICT ent);
 FLOAT G_UnitArmorValue(LPCEDICT ent);
@@ -2864,11 +2875,15 @@ BOOL harvest_gold_return_to(LPEDICT, LPEDICT);
 void cargo_drop_all(LPEDICT);
 void S_CargoInitUnit(LPEDICT);
 BOOL S_CargoTryLoad(LPEDICT, LPEDICT);
+BOOL S_CorpseCargoTryLoad(LPEDICT, LPEDICT);
 BOOL S_CargoOrderBoard(LPEDICT, LPEDICT);
 BOOL S_CargoAttacksEnabled(LPCEDICT);
 LPEDICT S_CargoTransportForUnit(LPCEDICT);
 void S_CargoReleaseUnit(LPEDICT);
 BOOL S_CargoIsBurrow(LPEDICT);
+BOOL S_CargoIsCorpseHolder(LPEDICT);
+BOOL S_CorpseCargoIsStored(LPCEDICT);
+BOOL S_CorpseCargoPosition(LPCEDICT, LPVECTOR2);
 DWORD S_CargoCapacity(LPEDICT);
 LPEDICT S_CargoUnitAt(LPCEDICT, DWORD);
 BOOL S_CargoUnloadAt(LPEDICT, DWORD);
@@ -2895,6 +2910,9 @@ void mass_teleport_think(LPEDICT);
 void divine_shield_think(LPEDICT);
 void dark_portal_think(LPEDICT);
 void exhume_think(LPEDICT);
+void graveyard_think(LPEDICT);
+void corpse_cargo_approach_think(LPEDICT);
+void cannibalize_approach_think(LPEDICT);
 void healing_spray_think(LPEDICT);
 void cannibalize_think(LPEDICT);
 void possession_two_think(LPEDICT);

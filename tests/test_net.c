@@ -42,6 +42,7 @@ void CL_ParseLayout(LPSIZEBUF msg);
 void CL_ParseFrame(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen);
@@ -353,6 +354,35 @@ TEST(client_layout, context_statusbar_uses_hover_snapshot_fraction) {
     cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
     SCR_LayoutDrawStatusbar(&frame, &screen);
     T_EQ(test_status_draws, 1); T_FEQ(test_status_rect.w, screen.w * 128.0f / 255.0f, 0.0001f);
+}
+
+TEST(client_layout, segmented_statusbar_draws_one_segment_per_occupied_cargo_slot) {
+    uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1 }, .value = 0.001f };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.043f, 0.004f);
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_HEALTH,
+        .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(3, 8) },
+    };
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
+    T_EQ(test_status_draws, 3);
+    T_FEQ(test_status_rect.w, (0.043f - 0.007f) / 8.0f, 0.0001f);
+}
+
+TEST(client_layout, segmented_statusbar_hides_empty_cargo) {
+    uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1 }, .value = 0.001f };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.043f, 0.004f);
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = (entityState_t){
+        .model = 1, .flags = EF_HOVER_HEALTH,
+        .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(0, 8) },
+    };
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
+    T_EQ(test_status_draws, 0);
 }
 
 /* r_norefresh skips every renderer/UI submission while its inverse still presents a normal client frame. */
@@ -2907,6 +2937,24 @@ TEST(net, entity_delta_preserves_hover_mana_flag) {
 
     T_EQ(number, 9);
     T_ASSERT(out.flags & EF_HOVER_MANA);
+}
+
+TEST(net, entity_delta_preserves_packed_cargo_occupancy) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1 }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    to.stats[ENT_CARGO] = EntityCargoPack(3, 8);
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_EQ(EntityCargoCount(out.stats[ENT_CARGO]), 3);
+    T_EQ(EntityCargoCapacity(out.stats[ENT_CARGO]), 8);
 }
 
 /* Neutral hover-ring presentation is also recipient-authored snapshot state. */

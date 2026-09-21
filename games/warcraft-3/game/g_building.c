@@ -207,10 +207,74 @@ static FLOAT G_UpgradeEffectValue(UpgradeData_t const *upgrade, DWORD effect, LO
     return upgrade->effectBase[effect] + upgrade->effectMod[effect] * (FLOAT)(level_value - 1);
 }
 
+static BOOL G_UpgradeHasNoEffect(UpgradeData_t const *upgrade) {
+    if (!upgrade) return true;
+    FOR_LOOP(i, 4) {
+        if (upgrade->effect[i] && upgrade->effect[i] != MAKEFOURCC('_', 0, 0, 0) &&
+            upgrade->effect[i] != MAKEFOURCC('-', 0, 0, 0)) return false;
+    }
+    return true;
+}
+
+static BOOL G_ResearchCommentsMatch(LPCSTR ability_comments, LPCSTR upgrade_comments) {
+    LPCSTR ability_word, upgrade_word;
+
+    if (!ability_comments || !*ability_comments || !upgrade_comments || !*upgrade_comments) return false;
+    for (ability_word = ability_comments; *ability_word;) {
+        size_t ability_length;
+        while (*ability_word && !isalpha((unsigned char)*ability_word)) ability_word++;
+        if (!*ability_word) break;
+        ability_length = 0;
+        while (isalpha((unsigned char)ability_word[ability_length])) ability_length++;
+        if (ability_length >= 3) for (upgrade_word = upgrade_comments; *upgrade_word;) {
+            size_t upgrade_length;
+            while (*upgrade_word && !isalpha((unsigned char)*upgrade_word)) upgrade_word++;
+            if (!*upgrade_word) break;
+            upgrade_length = 0;
+            while (isalpha((unsigned char)upgrade_word[upgrade_length])) upgrade_length++;
+            if (MIN(ability_length, upgrade_length) >= 3 &&
+                !strncasecmp(ability_word, upgrade_word, MIN(ability_length, upgrade_length))) return true;
+            upgrade_word += upgrade_length;
+        }
+        ability_word += ability_length;
+    }
+    return false;
+}
+
+static BOOL G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, DWORD ability_id) {
+    AbilityData_t const *ability = G_AbilityData(ability_id);
+
+    return upgrade && ability && ability->id == ability_id && ability->checkDep &&
+           G_UpgradeHasNoEffect(upgrade) &&
+           G_ResearchCommentsMatch(ability->comments, upgrade->comments);
+}
+
+FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect) {
+    LPGAMECLIENT owner;
+    char token[64];
+    FLOAT bonus = 0.0f;
+
+    if (!unit || !unit->data.UnitBalance || !effect || !(owner = G_GetPlayerClientByNumber(unit->s.player))) return 0.0f;
+    for (DWORD u = 0; G_CsvToken(unit->data.UnitBalance->upgrades, u, token, sizeof(token)); u++) {
+        DWORD upgrade_id;
+        UpgradeData_t const *upgrade;
+        LONG level;
+        if (strlen(token) != 4) continue;
+        memcpy(&upgrade_id, token, sizeof(upgrade_id)); upgrade = G_UpgradeData(upgrade_id);
+        level = G_GetPlayerTechResearchedLevel(owner, upgrade_id);
+        if (!upgrade || upgrade->id != upgrade_id || level <= 0) continue;
+        FOR_LOOP(i, 4) if (upgrade->effect[i] == effect)
+            bonus += G_UpgradeEffectValue(upgrade, i, level);
+    }
+    return bonus;
+}
+
 /* Command abilities such as Footman Defend are authored on the unit before
  * their research completes.  UpgradeData rlev names the ability that the
- * research unlocks/levels.  Keep this data-driven so custom units/upgrades
- * inherit the same command-card and execution gate without rawcode checks. */
+ * research unlocks/levels.  Gate-only dependency upgrades use AbilityData's
+ * checkDep flag and the authored ability/upgrade comments because those rows
+ * have no effect/code pair.  Keep both paths data-driven so custom
+ * units/upgrades inherit the same command-card and execution gate. */
 BOOL G_UnitAbilityResearchAvailable(LPCEDICT unit, DWORD ability_id) {
     LPGAMECLIENT owner;
     LPCSTR upgrades;
@@ -234,6 +298,11 @@ BOOL G_UnitAbilityResearchAvailable(LPCEDICT unit, DWORD ability_id) {
         FOR_LOOP(i, 4) {
             if (upgrade->effect[i] != ID_UPGRADE_EFFECT_SPELL_LEVEL ||
                 upgrade->effectCode[i] != ability_id) continue;
+            gated = true;
+            if (owner && owner->ps.number == unit->s.player &&
+                G_GetPlayerTechResearchedLevel(owner, upgrade_id) > 0) return true;
+        }
+        if (G_UpgradeResearchesAbility(upgrade, ability_id)) {
             gated = true;
             if (owner && owner->ps.number == unit->s.player &&
                 G_GetPlayerTechResearchedLevel(owner, upgrade_id) > 0) return true;

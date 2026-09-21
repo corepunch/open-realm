@@ -118,7 +118,8 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Purge Apg2 DataD/DataE immobilize, Aprg/AIlp aliases, Bprg slow | [docs/games/warcraft-3/purge.md](docs/games/warcraft-3/purge.md) |
 | WC3 Possession Apos/ACps instant and Aps2 channel, caster consume, DataB amp | [docs/games/warcraft-3/possession.md](docs/games/warcraft-3/possession.md) |
 | WC3 Unstable Concoction Auco air suicide blast, DataB/C/D splash, caster dies | [docs/games/warcraft-3/unstable-concoction.md](docs/games/warcraft-3/unstable-concoction.md) |
-| WC3 Exhume Corpses Aexh Dur interval, DataA cap, UnitID corpse, cargo deferred | [docs/games/warcraft-3/exhume-corpses.md](docs/games/warcraft-3/exhume-corpses.md) |
+| WC3 Meat Wagon corpse cargo Amel/Amed/Amtc, Exhume Corpses Aexh, stored-corpse consumers | [docs/games/warcraft-3/exhume-corpses.md](docs/games/warcraft-3/exhume-corpses.md) |
+| WC3 corpse decay/raisability/reservation, Graveyard Agyd, Cannibalize Acan, Raise Dead Arai/ACrd/AIrd | [docs/games/warcraft-3/corpse-mechanics.md](docs/games/warcraft-3/corpse-mechanics.md) |
 | WC3 Unsummon Building Auns timed DataB demolition, progressive DataA refund, Buns immunity | [docs/games/warcraft-3/unsummon.md](docs/games/warcraft-3/unsummon.md) |
 | WC3 Undead Sacrifice Asac/Alam Acolyte-to-Shade production lifecycle | [docs/games/warcraft-3/sacrifice.md](docs/games/warcraft-3/sacrifice.md) |
 | WC3 Hippogryph couple Acoa/Acoh mount and Adec dismount, UnitID ehpr | [docs/games/warcraft-3/hippogryph-couple.md](docs/games/warcraft-3/hippogryph-couple.md) |

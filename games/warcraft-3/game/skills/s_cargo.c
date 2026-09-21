@@ -2,6 +2,10 @@
 
 #include "s_skills.h"
 
+#define BZ_AMEL MAKEFOURCC('A','m','e','l')
+#define BZ_AMED MAKEFOURCC('A','m','e','d')
+#define BZ_AMTC MAKEFOURCC('A','m','t','c')
+
 /* Cargo abilities are data-driven per holder. Do not cache one global
  * capacity: Acar/Abun/Aenc and custom aliases can coexist in one map. */
 static DWORD cargo_actor_ability_alias(LPEDICT ent, DWORD base_code) {
@@ -30,6 +34,7 @@ static DWORD cargo_hold_alias(LPEDICT transport) {
         MAKEFOURCC('A','b','u','n'),
         MAKEFOURCC('A','c','a','r'),
         MAKEFOURCC('A','e','n','c'),
+        BZ_AMTC,
     };
 
     FOR_LOOP(i, sizeof(bases) / sizeof(bases[0])) {
@@ -57,6 +62,29 @@ static BOOL cargo_has_capacity(LPEDICT transport, DWORD needed) {
 
 BOOL S_CargoIsBurrow(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','u','n')) != 0;
+}
+
+BOOL S_CargoIsCorpseHolder(LPEDICT transport) {
+    return cargo_actor_ability_alias(transport, BZ_AMTC) != 0;
+}
+
+BOOL S_CorpseCargoIsStored(LPCEDICT unit) {
+    return unit && (unit->aiflags & AI_CORPSE_IN_CARGO) != 0;
+}
+
+/* Stored corpse edicts keep their identity and decay state, but corpse-fed
+ * abilities treat them as physically present at their current holder.  Do not
+ * rely on the hidden edict's stale pre-load origin after the Wagon moves. */
+BOOL S_CorpseCargoPosition(LPCEDICT corpse, LPVECTOR2 out) {
+    LPEDICT transport;
+
+    if (!corpse || !out) return false;
+    *out = corpse->s.origin2;
+    if (!S_CorpseCargoIsStored(corpse)) return true;
+    transport = S_CargoTransportForUnit(corpse);
+    if (!transport || !transport->inuse) return false;
+    *out = transport->s.origin2;
+    return true;
 }
 
 /* Identify Entangled Mines so their cargo count can drive the authored model animation. */
@@ -157,9 +185,14 @@ static LPEDICT cargo_drop_unit(LPEDICT transport, DWORD index) {
     transport->cargo.units[transport->cargo.count] = NULL;
     if (!unit) return NULL;
 
-    cargo_place_unloaded_unit(transport, unit);
-    unit->s.renderfx &= ~RF_HIDDEN;
-    unit->paused = false;
+    {
+        BOOL const was_corpse = S_CorpseCargoIsStored(unit);
+        cargo_place_unloaded_unit(transport, unit);
+        unit->s.renderfx &= ~RF_HIDDEN;
+        unit->paused = false;
+        unit->aiflags &= ~AI_CORPSE_IN_CARGO;
+        if (was_corpse) G_RestartCorpseBoneDecayAfterCargo(unit);
+    }
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
     cargo_update_entangled_animation(transport, old_count);
@@ -246,6 +279,17 @@ static BOOL cargo_target_in_range(LPEDICT transport, LPEDICT target) {
            range + transport->collision + target->collision;
 }
 
+static BOOL corpse_cargo_target_valid(LPEDICT transport, LPEDICT target) {
+    DWORD alias;
+
+    if (!transport || !target || !S_CargoIsCorpseHolder(transport) ||
+        M_IsDead(transport) || !G_UnitIsRaisableCorpse(target) ||
+        S_CorpseCargoIsStored(target) || (target->s.renderfx & RF_HIDDEN) ||
+        S_CargoTransportForUnit(target) || !cargo_has_capacity(transport, 1)) return false;
+    alias = cargo_actor_ability_alias(transport, BZ_AMEL);
+    return alias && S_SpellAllowsCorpseTarget(alias, transport, target);
+}
+
 BOOL S_CargoTryLoad(LPEDICT transport, LPEDICT target) {
     if (!transport || !target || target == transport || M_IsDead(transport) || M_IsDead(target)) return false;
     if (target->s.player != transport->s.player) return false;
@@ -258,14 +302,139 @@ BOOL S_CargoTryLoad(LPEDICT transport, LPEDICT target) {
     return S_CargoTransportForUnit(target) == transport;
 }
 
+BOOL S_CorpseCargoTryLoad(LPEDICT transport, LPEDICT target) {
+    umove_t *move;
+    FLOAT wait;
+
+    if (!corpse_cargo_target_valid(transport, target) || !cargo_target_in_range(transport, target)) return false;
+    move = target->currentmove;
+    wait = target->wait;
+    cargo_add_unit(transport, target);
+    target->currentmove = move;
+    target->wait = wait;
+    target->aiflags |= AI_CORPSE_IN_CARGO;
+    return S_CargoTransportForUnit(target) == transport;
+}
+
+static LPEDICT corpse_cargo_nearest(LPEDICT transport, FLOAT max_distance) {
+    LPEDICT nearest = NULL;
+    FLOAT best = FLT_MAX;
+
+    if (!transport) return NULL;
+    FILTER_EDICTS(corpse, corpse != transport && corpse_cargo_target_valid(transport, corpse)) {
+        FLOAT const distance = Vector2_distance(&transport->s.origin2, &corpse->s.origin2);
+        if (max_distance > 0.0f && distance > max_distance + transport->collision + corpse->collision) continue;
+        if (distance < best) { nearest = corpse; best = distance; }
+    }
+    return nearest;
+}
+
+static void corpse_cargo_approach_cancel(LPEDICT thinker) {
+    LPEDICT transport = thinker ? thinker->owner : NULL;
+    if (transport && transport->inuse && transport->goalentity == thinker->goalentity &&
+        move_is_active_order_walk(transport)) unit_stand(transport);
+    if (thinker) G_FreeEdict(thinker);
+}
+
+void corpse_cargo_approach_think(LPEDICT thinker) {
+    LPEDICT transport = thinker ? thinker->owner : NULL;
+    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+
+    if (!thinker || !transport || !transport->inuse || M_IsDead(transport) ||
+        !corpse || !corpse->inuse || corpse->spawn_time != thinker->channel.target_spawn_time ||
+        !corpse_cargo_target_valid(transport, corpse)) {
+        corpse_cargo_approach_cancel(thinker);
+        return;
+    }
+    if (transport->goalentity != corpse || !move_is_active_order_walk(transport)) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    if (cargo_target_in_range(transport, corpse)) {
+        unit_stand(transport);
+        G_FreeEdict(thinker);
+        S_CorpseCargoTryLoad(transport, corpse);
+        return;
+    }
+    if (transport->movement.flow_unreachable || transport->movement.flow_goal_reached) {
+        corpse_cargo_approach_cancel(thinker);
+        return;
+    }
+}
+
+static BOOL corpse_cargo_start(LPEDICT transport, LPEDICT corpse, DWORD code) {
+    LPEDICT thinker;
+
+    if (!transport || !corpse || !corpse_cargo_target_valid(transport, corpse)) return false;
+    if (cargo_target_in_range(transport, corpse)) return S_CorpseCargoTryLoad(transport, corpse);
+    order_move(transport, corpse);
+    if (transport->goalentity != corpse || !move_is_active_order_walk(transport)) return false;
+    thinker = G_Spawn();
+    if (!thinker) return false;
+    thinker->owner = transport;
+    thinker->goalentity = corpse;
+    thinker->class_id = code;
+    thinker->channel.target_spawn_time = corpse->spawn_time;
+    thinker->think = corpse_cargo_approach_think;
+    return true;
+}
+
+static BOOL corpse_cargo_command(LPEDICT clent) {
+    LPEDICT transport, corpse;
+    DWORD code;
+
+    if (!clent || !clent->client || !(transport = G_GetMainSelectedUnit(clent->client)) ||
+        !S_CargoIsCorpseHolder(transport) || !(corpse = corpse_cargo_nearest(transport, 0.0f))) return false;
+    code = clent->client->menu.ability_code;
+    return corpse_cargo_start(transport, corpse, code ? code : BZ_AMEL);
+}
+
+static BOOL corpse_cargo_autocast_acquire(LPEDICT transport, DWORD code) {
+    FLOAT radius;
+    LPEDICT corpse;
+
+    if (!transport || M_IsDead(transport) || transport->cargo.count >= S_CargoCapacity(transport)) return false;
+    radius = G_AcquisitionRange(transport);
+    if (radius <= 0.0f) return false;
+    corpse = corpse_cargo_nearest(transport, radius);
+    return corpse && corpse_cargo_start(transport, corpse, code);
+}
+
 static BOOL load_selecttarget(LPEDICT clent, LPEDICT target) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    if (clent->client->menu.ability_code == BZ_AMEL)
+        return S_CorpseCargoTryLoad(caster, target);
     return S_CargoTryLoad(caster, target);
 }
 
-BZ_COMMAND_PROC(AbilityCargoLoad) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = load_selecttarget;
+BZ_ABILITY_PROC(CAbilityCargoLoad) {
+    DWORD const code = call && call->item ? call->item->code : 0;
+    BOOL const corpse_load = code && G_AbilityCode(code) == BZ_AMEL;
+
+    switch (msg) {
+    case A_COMMAND: {
+        LPEDICT clent = call && call->client ? call->client : ent;
+        if (corpse_load) {
+            if (clent && clent->client) {
+                clent->client->menu.on_entity_selected = NULL;
+                clent->client->menu.on_location_selected = NULL;
+            }
+            return corpse_cargo_command(clent);
+        }
+        if (!clent || !clent->client) return false;
+        UI_AddCancelButton(clent);
+        clent->client->menu.on_entity_selected = load_selecttarget;
+        return true;
+    }
+    case A_AUTOCAST_ON:
+        return corpse_load && ent && ent->autocast_code == code;
+    case A_AUTOCAST_SET:
+        return corpse_load;
+    case A_AUTOCAST_ACQUIRE:
+        return corpse_load && corpse_cargo_autocast_acquire(ent, code);
+    default:
+        return false;
+    }
 }
 
 /* ---- Battle Stations (Abtl): call nearby allowed units into cargo -------- */
@@ -421,6 +590,13 @@ static BOOL drop_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     (void)point;
 
     if (!caster || caster->cargo.count == 0) return false;
+    if (clent->client->menu.ability_code == BZ_AMED) {
+        BOOL dropped = false;
+        while (caster->cargo.count > 0 &&
+               S_CorpseCargoIsStored(S_CargoUnitAt(caster, caster->cargo.count - 1)))
+            dropped |= S_CargoUnloadAt(caster, caster->cargo.count - 1);
+        return dropped;
+    }
     return cargo_drop_unit(caster, caster->cargo.count - 1) != NULL;
 }
 

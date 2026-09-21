@@ -670,8 +670,8 @@ static LPEDICT make_test_unit(void) {
 }
 
 static BOOL hover_layout_pending, hover_layer_seen, hover_infopanel_layer_seen, hover_name_seen, hover_hp_seen,
-            hover_mana_seen, hover_name_sized, hover_name_centered, hover_name_short, hover_resource_label_seen,
-            hover_infopanel_tooltip_seen;
+            hover_mana_seen, hover_cargo_seen, hover_name_sized, hover_name_centered, hover_name_short,
+            hover_resource_label_seen, hover_infopanel_tooltip_seen;
 static DWORD hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count;
 static LPEDICT hover_unicast_target;
 static pfWriteType_t window_frame_type;
@@ -706,6 +706,7 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
         hover_hp_seen |= frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
         hover_mana_seen |= frame->stat == UI_STAT_CONTEXT_MANA;
         hover_infopanel_tooltip_seen |= frame->flags.type == FT_TOOLTIPTEXT;
+        hover_cargo_seen |= frame->flags.type == FT_SEGMENTED_STATUSBAR && frame->stat == ENT_CARGO;
     }
 }
 static void hover_test_unicast(LPEDICT ent) { hover_unicast_count++; hover_unicast_target = ent; }
@@ -2105,7 +2106,7 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
 
     setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
     player->mana.max_value = 100.0f; player->mana.value = 50.0f;
-    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_name_sized = false;
+    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_cargo_seen = hover_name_sized = false;
     hover_name_centered = hover_name_short = hover_resource_label_seen = false;
     hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0; hover_unicast_target = NULL;
     gi.Write = hover_test_write; gi.unicast = hover_test_unicast;
@@ -2113,11 +2114,11 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     UI_WriteHoverLayout(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image; gi.FontIndex = old_font;
 
-    T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 5);
+    T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 6);
     T_ASSERT(hover_name_seen); T_ASSERT(hover_name_sized); T_ASSERT(hover_name_centered); T_ASSERT(hover_name_short);
     T_ASSERT(hover_resource_label_seen);
-    T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen);
-    T_EQ(hover_image_count, 6); T_EQ(hover_font_count, 1);
+    T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen); T_ASSERT(hover_cargo_seen);
+    T_EQ(hover_image_count, 7); T_EQ(hover_font_count, 1);
     T_EQ(hover_unicast_count, 1); T_ASSERT(hover_unicast_target == player);
 }
 
@@ -3167,7 +3168,7 @@ SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)
 SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)
 SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
-SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY)
+SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
 SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel.code, MAKEFOURCC('A', 'H', 'd', 'r'))
@@ -3606,6 +3607,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     LPEDICT far_sight = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 11.0f, 0.0f);
     LPEDICT chain = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 0.0f);
     LPEDICT chain_marker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 13.0f, 0.0f);
+    LPEDICT cargo_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 14.0f, 0.0f);
+    LPEDICT cannibalize_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 15.0f, 0.0f);
     unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
     mine->stand = unit_stand; mine->think = blight_mine_think;
     idle->stand = unit_stand; idle->think = NULL;
@@ -3613,6 +3616,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     tree->stand = tree_stand; tree->birth = tree_birth; tree->pain = tree_pain; tree->die = tree_die; tree->think = G_FreeEdict;
     human->think = human_ability_think;
     portal->think = dark_portal_think; spray->think = healing_spray_think;
+    cargo_approach->think = corpse_cargo_approach_think; cannibalize_approach->think = cannibalize_approach_think;
     can->think = cannibalize_think; pos->think = possession_two_think; lsh->think = lsh_think;
     far_sight->think = far_sight_think; far_sight->s.player = 3;
     far_sight->s.origin2 = (VECTOR2){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
@@ -3629,6 +3633,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
+    cargo_approach->think = cannibalize_approach->think = monster_think;
     far_sight->s.player = 0; far_sight->s.origin2 = (VECTOR2){ 0 }; far_sight->collision = 0; far_sight->spawn_time = 0;
     chain->owner = NULL; chain->class_id = 0; chain->channel.owner_spawn_time = 0; chain->s.origin2 = (VECTOR2){ 0 }; chain->collision = chain->wait = chain->velocity = 0;
     chain->resources = chain->freetime = 0;
@@ -3648,6 +3653,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(tree->think == G_FreeEdict);
     T_ASSERT(human->think == human_ability_think);
     T_ASSERT(portal->think == dark_portal_think && spray->think == healing_spray_think);
+    T_ASSERT(cargo_approach->think == corpse_cargo_approach_think &&
+             cannibalize_approach->think == cannibalize_approach_think);
     T_ASSERT(can->think == cannibalize_think && pos->think == possession_two_think && lsh->think == lsh_think);
     T_ASSERT(far_sight->think == far_sight_think);
     T_EQ(far_sight->s.player, 3); T_FEQ(far_sight->s.origin2.x, 123.0f, 0.001f);

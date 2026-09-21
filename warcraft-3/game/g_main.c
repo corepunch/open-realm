@@ -1347,7 +1347,11 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL);
     state->name = 0;
     state->hover_value = 0;
+    state->stats[ENT_CARGO] = 0;
     if (hoverable) {
+        DWORD const cargo_capacity = S_CargoCapacity((LPEDICT)ent);
+        if (cargo_capacity > 0)
+            state->stats[ENT_CARGO] = EntityCargoPack(ent->cargo.count, cargo_capacity);
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */

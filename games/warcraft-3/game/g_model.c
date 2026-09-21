@@ -420,6 +420,7 @@ LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count
     char primary[WC3_ANIMATION_TAG_SIZE];
     LPCANIMATION contains = NULL;
     LPCANIMATION overlap = NULL;
+    LPCANIMATION primary_fallback = NULL;
     DWORD contains_extras = UINT32_MAX;
     DWORD overlap_matches = 0;
     DWORD overlap_extras = UINT32_MAX;
@@ -436,6 +437,7 @@ LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count
 
         AnimationParseRequest(animations[i].name, sequence_primary, &sequence_tags);
         if (strcasecmp(primary, sequence_primary)) continue;
+        if (!primary_fallback) primary_fallback = animations + i;
         matches = AnimationTagSetMatchCount(&required, &sequence_tags);
         extras = sequence_tags.count > matches ? sequence_tags.count - matches : 0;
 
@@ -467,6 +469,10 @@ LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count
     }
 
     if (overlap) return overlap;
+    /* Warsmash/Warcraft fall back within the requested primary family when a
+     * model lacks the requested secondary tag (for example a model with only
+     * one generic Decay sequence serving both Decay Flesh and Decay Bone). */
+    if (primary_fallback) return primary_fallback;
     return NULL;
 }
 

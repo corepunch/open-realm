@@ -472,6 +472,101 @@ TEST(wc3_unit, die_releases_held_frame_before_death_animation) {
     T_STREQ(ent->currentmove->animation, "death");
 }
 
+TEST(wc3_unit, corpse_decay_uses_map_flesh_then_bone_constants) {
+    static UnitBalance_t balance = { .maxHealth = 100.0f };
+    static UnitData_t data = { .death = 1.0f, .deathType = 3 };
+    LPEDICT ent;
+
+    reset_test_entities();
+    game.constants.decayTime = 0.2f;
+    game.constants.boneDecayTime = 0.3f;
+    ent = make_unit(0, 0);
+    ent->class_id = MAKEFOURCC('h', 'f', 'o', 'o');
+    ent->data.UnitBalance = &balance;
+    ent->data.UnitData = &data;
+    unit_begin_decay(ent);
+
+    T_STREQ(ent->currentmove->animation, "decay flesh");
+    T_STREQ(ent->animation_request, "decay flesh");
+    T_NOT_NULL(ent->currentmove->animation_duration);
+    T_FEQ(ent->currentmove->animation_duration(ent), 0.2f, 0.001f);
+    T_FEQ(ent->wait, 0.2f, 0.001f);
+    ent->currentmove->think(ent);
+    ent->currentmove->think(ent);
+    T_ASSERT(ent->inuse);
+    T_STREQ(ent->currentmove->animation, "decay bone");
+    T_STREQ(ent->animation_request, "decay bone");
+    T_NOT_NULL(ent->currentmove->animation_duration);
+    T_FEQ(ent->currentmove->animation_duration(ent), 0.3f, 0.001f);
+    T_FEQ(ent->wait, 0.3f, 0.001f);
+    FOR_LOOP(i, 4) if (ent->inuse) ent->currentmove->think(ent);
+    T_ASSERT(!ent->inuse);
+}
+
+TEST(wc3_unit, decaying_structure_uses_structure_decay_constant) {
+    static UnitBalance_t balance = { .isBuilding = true, .maxHealth = 100.0f };
+    static UnitData_t data = { .death = 1.0f, .deathType = 2 };
+    LPEDICT ent;
+
+    reset_test_entities();
+    game.constants.structureDecayTime = 0.3f;
+    ent = make_unit(0, 0);
+    ent->class_id = MAKEFOURCC('h', 'b', 'a', 'r');
+    ent->data.UnitBalance = &balance;
+    ent->data.UnitData = &data;
+    unit_begin_decay(ent);
+
+    T_FEQ(ent->wait, 0.3f, 0.001f);
+    FOR_LOOP(i, 4) if (ent->inuse) ent->currentmove->think(ent);
+    T_ASSERT(!ent->inuse);
+}
+
+TEST(wc3_unit, corpse_reservation_suspends_decay_timer) {
+    static UnitBalance_t balance = { .maxHealth = 100.0f };
+    static UnitData_t data = { .deathType = 3 };
+    LPEDICT ent;
+
+    reset_test_entities();
+    game.constants.decayTime = 0.2f;
+    game.constants.boneDecayTime = 0.3f;
+    ent = make_unit(0, 0);
+    ent->class_id = MAKEFOURCC('h', 'f', 'o', 'o');
+    ent->data.UnitBalance = &balance;
+    ent->data.UnitData = &data;
+    unit_begin_decay(ent);
+    ent->aiflags |= AI_CORPSE_RESERVED;
+
+    FOR_LOOP(i, 5) ent->currentmove->think(ent);
+    T_ASSERT(ent->inuse);
+    T_FEQ(ent->wait, 0.2f, 0.001f);
+
+    ent->aiflags &= ~AI_CORPSE_RESERVED;
+    ent->currentmove->think(ent);
+    ent->currentmove->think(ent);
+    T_ASSERT(ent->inuse);
+    T_FEQ(ent->wait, 0.3f, 0.001f);
+}
+
+TEST(wc3_unit, raisable_corpse_requires_authored_raise_bit_and_no_reservation) {
+    static UnitBalance_t balance = { .maxHealth = 100.0f };
+    UnitData_t data = { .deathType = 2 };
+    LPEDICT ent;
+
+    reset_test_entities();
+    ent = make_unit(0, 0);
+    ent->class_id = MAKEFOURCC('h', 'f', 'o', 'o');
+    ent->data.UnitBalance = &balance;
+    ent->data.UnitData = &data;
+    ent->health.value = 0.0f;
+    ent->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+
+    T_ASSERT(!G_UnitIsRaisableCorpse(ent));
+    data.deathType = 3;
+    T_ASSERT(G_UnitIsRaisableCorpse(ent));
+    ent->aiflags |= AI_CORPSE_RESERVED;
+    T_ASSERT(!G_UnitIsRaisableCorpse(ent));
+}
+
 TEST(wc3_unit, nondecaying_building_uses_authored_death_type) {
     static UnitBalance_t building_balance = { .isBuilding = true, .maxHealth = 100.0f };
     static UnitData_t building_data = { .death = 1.25f, .deathType = 0 };

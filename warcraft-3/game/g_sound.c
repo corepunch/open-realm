@@ -20,6 +20,7 @@ static commandErrorText_t const command_error_texts[] = {
     { "Unable to build there", "Cantplace" },
     { "Unable to build so close to the gold mine", "Tooclosetomine" },
     { "That building is currently under construction", "UnderConstruction" },
+    { "There are no usable corpses nearby", "Cantfindcorpse" },
     { "Inventory is full", "Inventoryfull" },
 };
 
