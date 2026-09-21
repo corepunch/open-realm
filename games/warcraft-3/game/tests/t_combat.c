@@ -1545,6 +1545,8 @@ TEST(wc3_combat, artillery_uses_ranged_attack_state) {
 
 TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
     UnitWeapons_t weapons = { .minimumAttackRange = 100.0f };
+    setup_test_world();
+    reset_entities();
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
     LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
     FLOAT before, after;
