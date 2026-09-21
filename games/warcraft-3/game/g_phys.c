@@ -98,25 +98,36 @@ static void G_AdvanceProjectilePresentation(LPEDICT ent) {
 void SV_Physics_Toss(LPEDICT ent) {
     FLOAT distance;
     VECTOR3 target, dir;
-    if (!ent->goalentity || !ent->goalentity->inuse) { G_FreeEdict(ent); return; }
+    BOOL const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
+
+    if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
     distance = ent->velocity * FRAMETIME;
-    target = ent->goalentity->s.origin;
-    /* s.origin already contains support surface + current FlyHeight.  ImpactZ
-     * is the model-local target point on top of that airborne/ground origin. */
-    target.z += G_UnitImpactZ(ent->goalentity->class_id);
+    if (fixed_target) {
+        target = MAKE(VECTOR3, ent->channel.origin.x, ent->channel.origin.y,
+                      CM_GetHeightAtPoint(ent->channel.origin.x, ent->channel.origin.y));
+    } else {
+        target = ent->goalentity->s.origin;
+        /* s.origin already contains support surface + current FlyHeight.  ImpactZ
+         * is the model-local target point on top of that airborne/ground origin. */
+        target.z += G_UnitImpactZ(ent->goalentity->class_id);
+    }
     dir = Vector3_sub(&target, &ent->s.origin);
     if (Vector3_len(&dir) < distance) {
         if (ent->currentmove && ent->currentmove->endfunc) {
             ent->currentmove->endfunc(ent);
         } else {
             /* Abilities own projectile-impact reactions before the normal hit path. */
-            if (S_UnitProjectileHit(ent)) return;
+            if (!fixed_target && S_UnitProjectileHit(ent)) return;
             /* Basic attack missiles carry the launch-time raw roll. Resolve
              * target defense/armor on impact, matching Warsmash and allowing
              * in-flight armor/defense changes to affect the hit. Spell
              * missiles install currentmove/endfunc and bypass this branch. */
             if (ent->owner && ent->owner->attack1.weapon == WPN_ARTILLERY) {
-                S_ResolveArtilleryHit(ent->owner, ent->goalentity, ent->damage);
+                VECTOR2 impact = fixed_target ? ent->channel.origin : ent->goalentity->s.origin2;
+                LPEDICT primary = ent->goalentity;
+                if (fixed_target && primary &&
+                    (!primary->inuse || primary->spawn_time != ent->channel.target_spawn_time)) primary = NULL;
+                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage);
             } else {
                 int const damage = G_AttackDamage(ent->owner, ent->goalentity, ent->damage);
                 S_ResolveAttackHit(ent->owner, ent->goalentity, damage);

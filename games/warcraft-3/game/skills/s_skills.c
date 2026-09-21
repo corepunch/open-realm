@@ -16,6 +16,7 @@ static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
     { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
+    { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND },  // Build — engine command
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND },  // Hold Position — engine command
     { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND },  // Patrol — engine command

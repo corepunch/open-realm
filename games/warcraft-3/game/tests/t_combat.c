@@ -1598,6 +1598,98 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
     T_FEQ(outside->health.value, 500.0f, 0.001f);
 }
 
+/* Warsmash snapshots an ARTILLERY unit target to a point at the damage point.
+ * Moving the original target after launch therefore does not make the missile
+ * home; splash resolves around the launch-time coordinates. */
+TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
+    UnitWeapons_t weapons = { .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
+    LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    LPEDICT bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    LPEDICT missile = NULL;
+
+    attacker->data.UnitWeapons = &weapons;
+    attacker->goalentity = target;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_ARTILLERY;
+    attacker->attack1.damageBase = 100.0f;
+    attacker->attack1.numberOfDice = 0;
+    attacker->attack1.damagePoint = 0.1f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.projectile.speed = 1000;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack1.areaFull = 40.0f;
+    attacker->attack1.areaMedium = 80.0f;
+    attacker->attack1.areaSmall = 120.0f;
+    target->targtype = bystander->targtype = TARG_GROUND;
+    target->defense_type = bystander->defense_type = 7;
+    target->armor_value = bystander->armor_value = 0.0f;
+
+    attack_ranged(attacker);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
+        missile = ent; break;
+    }
+    T_NOT_NULL(missile);
+    if (missile) {
+        T_ASSERT(missile->aiflags & AI_PROJECTILE_FIXED_TARGET);
+        T_ASSERT(missile->goalentity == target);
+        T_EQ(missile->channel.target_spawn_time, target->spawn_time);
+        T_FEQ(missile->channel.origin.x, 200.0f, 0.001f);
+        T_FEQ(missile->channel.origin.y, 0.0f, 0.001f);
+
+        target->s.origin2.x = target->s.origin.x = 400.0f;
+        missile->s.origin.x = 199.0f;
+        missile->s.origin.y = 0.0f;
+        missile->s.origin.z = CM_GetHeightAtPoint(200.0f, 0.0f);
+        missile->velocity = 1.0f;
+        SV_Physics_Toss(missile);
+
+        T_FEQ(target->health.value, 500.0f, 0.001f);
+        T_ASSERT(bystander->health.value < 500.0f);
+    }
+}
+
+TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projectile) {
+    UnitWeapons_t weapons = { .minimumAttackRange = 50.0f,
+                              .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
+    LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    VECTOR2 point = { 200.0f, 75.0f };
+    LPEDICT missile = NULL;
+
+    attacker->data.UnitWeapons = &weapons;
+    attacker->attack1.type = ATK_SIEGE;
+    attacker->attack1.weapon = WPN_ARTILLERY;
+    attacker->attack1.range = 500.0f;
+    attacker->attack1.damageBase = 73.0f;
+    attacker->attack1.damagePoint = 0.1f;
+    attacker->attack1.cooldown = 1.0f;
+    attacker->attack1.projectile.speed = 900;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->aiflags |= AI_IMMOBILE; /* in-range static artillery may still fire */
+
+    T_ASSERT(S_OrderAttackGround(attacker, &point));
+    T_FEQ(attacker->channel.origin.x, point.x, 0.001f);
+    T_FEQ(attacker->channel.origin.y, point.y, 0.001f);
+    T_NOT_NULL(attacker->currentmove);
+    attacker->currentmove->think(attacker); /* walk state -> attack windup */
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttackGround);
+    T_STREQ(attacker->currentmove->animation, "attack range");
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) {
+        missile = ent; break;
+    }
+    T_NOT_NULL(missile);
+    if (missile) {
+        T_ASSERT(missile->aiflags & AI_PROJECTILE_FIXED_TARGET);
+        T_FEQ(missile->channel.origin.x, point.x, 0.001f);
+        T_FEQ(missile->channel.origin.y, point.y, 0.001f);
+    }
+}
+
 /* A hero's Agility increases attack speed (+2%/point), dividing the windup and
  * recovery so the whole cycle speeds up. */
 TEST(wc3_combat, attack_speed_scales_with_agility) {

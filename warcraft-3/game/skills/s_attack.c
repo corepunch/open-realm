@@ -25,6 +25,7 @@ void order_attack(LPEDICT self, LPEDICT target);
 
 typedef struct {
     LPEDICT target;
+    LPCVECTOR2 fixed_target;
     VECTOR3 start;
     VECTOR3 dir;
     DWORD speed;
@@ -36,16 +37,31 @@ typedef struct {
  * The entity is given MOVETYPE_FLYMISSILE so that SV_Physics_Toss() in
  * g_phys.c will move it each frame until it reaches the target. */
 void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
-    LPEDICT rocket = G_Spawn();
+    LPEDICT rocket;
+    VECTOR2 aim;
+
+    if (!ent || !desc || (!desc->target && !desc->fixed_target)) return;
+    rocket = G_Spawn();
+    if (!rocket) return;
+    aim = desc->fixed_target ? *desc->fixed_target : desc->target->s.origin2;
     rocket->s.origin = desc->start;
-    rocket->s.angle = atan2f(desc->target->s.origin.y - desc->start.y,
-                             desc->target->s.origin.x - desc->start.x);
+    rocket->s.angle = atan2f(aim.y - desc->start.y, aim.x - desc->start.x);
     rocket->s.model = desc->model;
     rocket->s.player = ent->s.player;
     G_InheritUnitTeamColor(rocket, ent);
     rocket->velocity = desc->speed / 1000.f;
     rocket->damage = desc->damage;
-    rocket->goalentity = desc->target;
+    if (desc->fixed_target) {
+        rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
+        rocket->channel.origin = *desc->fixed_target;
+        /* ARTILLERY flies to the snapshotted point, but retaining the original
+         * unit identity lets impact apply the ordinary primary-hit listeners
+         * only when that same unit is still inside the splash bands. */
+        rocket->goalentity = desc->target;
+        rocket->channel.target_spawn_time = desc->target ? desc->target->spawn_time : 0;
+    } else {
+        rocket->goalentity = desc->target;
+    }
     rocket->owner = ent;
     rocket->movetype = MOVETYPE_FLYMISSILE;
     G_StartProjectilePresentation(rocket);
@@ -315,23 +331,23 @@ static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target) {
     return flag && (mask & flag) != 0;
 }
 
-/* Artillery weapons damage around the impact using the authored
- * full/medium/small radii.  The primary target keeps the ordinary
- * attack-hit pipeline (evasion, on-hit effects, lifesteal, etc.); secondary
- * splash victims receive physical attack damage only. */
-void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage) {
-    VECTOR2 impact;
+/* Artillery weapons damage around the fixed impact point using the authored
+ * full/medium/small radii. Warsmash converts an ARTILLERY unit target to an
+ * AbilityPointTarget at the damage point, so the original unit is not a
+ * guaranteed direct hit if it moves before impact. Preserve OpenRealm's
+ * established hit contract: only that original target receives primary-hit
+ * listeners (if it is still in the blast); secondary/Attack-Ground victims
+ * receive physical splash damage without multiplying orb/lifesteal/cleave. */
+void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 impact, int raw_damage) {
     FLOAT max_radius;
 
-    if (!attacker || !target || raw_damage <= 0) return;
-    impact = target->s.origin2;
-    S_ResolveAttackHit(attacker, target, G_AttackDamage(attacker, target, raw_damage));
+    if (!attacker || !impact || raw_damage <= 0) return;
     max_radius = MAX(attacker->attack1.areaFull,
                      MAX(attacker->attack1.areaMedium, attacker->attack1.areaSmall));
-    if (max_radius <= 0.0f) return;
+    if (max_radius < 0.0f) return;
 
-    FILTER_EDICTS(other, other != target && artillery_splash_target_allowed(attacker, other)) {
-        FLOAT const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, &impact) - MAX(0.0f, other->collision));
+    FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other)) {
+        FLOAT const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
         FLOAT factor;
         int damage;
 
@@ -341,8 +357,16 @@ void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage) {
         else continue;
         if (factor <= 0.0f) continue;
         damage = G_AttackDamage(attacker, other, (int)MAX(1.0f, (FLOAT)raw_damage * factor));
-        T_Damage(other, attacker, damage);
+        if (other == primary) S_ResolveAttackHit(attacker, other, damage);
+        else T_Damage(other, attacker, damage);
     }
+}
+
+void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage) {
+    VECTOR2 impact;
+    if (!target) return;
+    impact = target->s.origin2;
+    S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage);
 }
 
 static BOOL attack_animation_can_finish(LPCEDICT ent) {
@@ -378,9 +402,11 @@ static void throw_missile(LPEDICT ent) {
     MATRIX4 matrix;
     M_GetEntityMatrix(&ent->s, &matrix);
     VECTOR3 origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
+    VECTOR2 impact = other->s.origin2;
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
+        .fixed_target = ent->attack1.weapon == WPN_ARTILLERY ? &impact : NULL,
         .speed = ent->attack1.projectile.speed,
         .model = ent->attack1.projectile.model,
         .damage = damage,
@@ -621,6 +647,132 @@ void attack_ranged(LPEDICT self) {
     self->wait = self->attack1.damagePoint / divisor;
 }
 
+/* ---- Attack Ground --------------------------------------------------------
+ * Warsmash exposes Attack Ground for ARTILLERY weapons. The order keeps the
+ * clicked point authoritative, walks a mobile siege unit into its normal
+ * min/max range band, and snapshots that same point into each projectile at
+ * the damage point. */
+static BOOL attack_ground_valid(LPCEDICT ent) {
+    return ent && ent->inuse && !M_IsDead((LPEDICT)ent) && ent->attack1.type != ATK_NONE &&
+           ent->attack1.weapon == WPN_ARTILLERY && !S_UnitIsCycloned(ent) &&
+           S_HumanCanAttack(ent) && S_CargoAttacksEnabled(ent);
+}
+
+static FLOAT attack_ground_distance(LPCEDICT ent) {
+    return ent ? Vector2_distance(&ent->s.origin2, &ent->channel.origin) : FLT_MAX;
+}
+
+static BOOL attack_ground_out_of_range(LPCEDICT ent) {
+    return !ent || attack_ground_distance(ent) > ent->attack1.range;
+}
+
+static BOOL attack_ground_too_close(LPCEDICT ent) {
+    FLOAT const minimum = attack_minimum_range(ent);
+    return ent && minimum > 0.0f && attack_ground_distance(ent) < minimum;
+}
+
+static void attack_ground_walk(LPEDICT ent);
+static void attack_ground_ranged(LPEDICT ent);
+static void attack_ground_cooldown(LPEDICT ent);
+
+static void attack_ground_stop(LPEDICT ent) {
+    if (!ent) return;
+    ent->goalentity = NULL;
+    if (ent->stand) ent->stand(ent);
+    else ent->currentmove = NULL;
+}
+
+static void throw_artillery_ground(LPEDICT ent) {
+    int damage;
+    MATRIX4 matrix;
+    VECTOR3 origin;
+    VECTOR2 impact;
+
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    impact = ent->channel.origin;
+    damage = (int)ai_rolldamage1(ent, 1);
+    M_GetEntityMatrix(&ent->s, &matrix);
+    origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
+    fire_rocket(ent, &(rocketDesc_t) {
+        .start = origin,
+        .fixed_target = &impact,
+        .speed = ent->attack1.projectile.speed,
+        .model = ent->attack1.projectile.model,
+        .damage = damage,
+    });
+    if (ent->currentmove && ent->currentmove->proc == CAbilityAttackGround &&
+        !attack_animation_can_finish(ent))
+        attack_ground_cooldown(ent);
+}
+
+static void ai_attack_ground_ranged(LPEDICT ent) {
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    unit_changeangle(ent);
+    unit_runwait(ent, throw_artillery_ground);
+}
+
+static void ai_attack_ground_cooldown(LPEDICT ent) {
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
+    else unit_runwait(ent, attack_ground_ranged);
+}
+
+static void ai_attack_ground_walk(LPEDICT ent) {
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    if (attack_ground_out_of_range(ent)) {
+        if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
+    } else if (attack_ground_too_close(ent)) {
+        if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
+        attack_retreat_from_target(ent);
+    } else {
+        attack_ground_ranged(ent);
+    }
+}
+
+static umove_t attack_ground_move_walk = { "walk", ai_attack_ground_walk, NULL, CAbilityAttackGround };
+static umove_t attack_ground_move_cooldown = { "stand ready", ai_attack_ground_cooldown, NULL, CAbilityAttackGround };
+static umove_t attack_ground_move_ranged = { "attack range", ai_attack_ground_ranged, attack_ground_cooldown, CAbilityAttackGround };
+
+static void attack_ground_walk(LPEDICT ent) {
+    unit_setmove(ent, &attack_ground_move_walk);
+}
+
+static void attack_ground_cooldown(LPEDICT ent) {
+    FLOAT divisor = attack_speed_divisor(ent);
+    unit_setmove(ent, &attack_ground_move_cooldown);
+    ent->wait = MAX(0.0f, (ent->attack1.cooldown - ent->attack1.damagePoint) / divisor);
+    if (ent->wait <= 0.0f) attack_ground_ranged(ent);
+}
+
+static void attack_ground_ranged(LPEDICT ent) {
+    FLOAT divisor = attack_speed_divisor(ent);
+    S_PermanentInvisibilityReveal(ent);
+    unit_setmove(ent, &attack_ground_move_ranged);
+    ent->wait = ent->attack1.damagePoint / divisor;
+    if (ent->sound.attack) gi.Sound(ent, CHAN_WEAPON, ent->sound.attack, 1.0f, 1.0f, 0.0f);
+}
+
+BOOL S_OrderAttackGround(LPEDICT unit, LPCVECTOR2 point) {
+    LPEDICT waypoint;
+
+    if (!unit || !point || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
+        S_UnitPolymorphed(unit)) return false;
+    waypoint = Waypoint_add(point);
+    if (!waypoint) return false;
+    unit->movement.attackmove_waypoint = NULL;
+    unit->movement.patrol_a = unit->movement.patrol_b = unit->movement.patrol_target = NULL;
+    unit->movement.follow_target = NULL;
+    unit->movement.holding_position = false;
+    unit->movement.group_speed = 0.0f;
+    S_SpellCancelChannel(unit);
+    unit->goalentity = waypoint;
+    attack_ground_walk(unit);
+    unit->channel.origin = *point;
+    return true;
+}
+
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
     BOOL destructable = G_DestructableIsAttackable(target);
     BOOL issued = false;
@@ -716,5 +868,25 @@ BZ_COMMAND_PROC(AbilityAttack) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = attack_menu_selecttarget;
     clent->client->menu.on_location_selected = attackmove_selectlocation;
+    clent->client->menu.supports_order_queue = true;
+}
+
+static BOOL attack_ground_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
+    BOOL any = false;
+
+    if (!clent || !clent->client || !location) return false;
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+        if (ent->attack1.weapon != WPN_ARTILLERY) continue;
+        if (G_IssueUnitPointOrder(ent, "attackground", location,
+                                  clent->client->menu.order_queued,
+                                  clent->client->ps.number, 0.0f)) any = true;
+    }
+    if (any) G_SendPointConfirmation(clent, location, true);
+    return any;
+}
+
+BZ_COMMAND_PROC(AbilityAttackGround) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_location_selected = attack_ground_selectlocation;
     clent->client->menu.supports_order_queue = true;
 }

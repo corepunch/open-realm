@@ -179,6 +179,7 @@ enum {
     AI_CORPSE_NO_DECAY = 1 << 8, /* corpse lifecycle; remove after death animation instead of corpse window */
     AI_CORPSE_RESERVED = 1 << 9, /* corpse lifecycle; an active consuming ability owns this corpse */
     AI_CORPSE_IN_CARGO = 1 << 10, /* corpse lifecycle; stored in a Meat Wagon cargo slot */
+    AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
 };
 
 typedef enum {
@@ -740,6 +741,10 @@ typedef struct {
     void (*think)(LPEDICT);
     void (*endfunc)(LPEDICT);
     abilityProc_t proc;
+    /* Optional authoritative duration for presentation-only moves such as
+     * Warcraft corpse decay. M_MoveFrame maps the selected model sequence
+     * across this duration instead of assuming one model frame per ms tick. */
+    FLOAT (*animation_duration)(LPCEDICT);
 } umove_t;
 
 typedef struct {

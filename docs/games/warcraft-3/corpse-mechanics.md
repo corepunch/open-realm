@@ -37,7 +37,12 @@ AI_CORPSE_NO_DECAY or no authored decay bit
 
 `DecayTime`, `BoneDecayTime`, `StructureDecayTime`, and `DissipateTime` are already
 loaded from the active Warcraft misc data / map overrides. The simulation timers own
-corpse existence; a model does not need a separate flesh/bone animation sequence.
+corpse existence. Presentation follows Warsmash's `RenderUnit` contract: `Decay Flesh`
+is stretched across `DecayTime`, `Decay Bone` across the ending bone/structure decay
+duration, and Heroes use `Dissipate` across `DissipateTime`. The model selector first
+tries the requested secondary tag, then falls back within the same primary animation
+family (so a lone generic `Decay` sequence can serve both phases). A model with no
+usable Decay family does not block the authoritative corpse timer.
 `AI_CORPSE_RESERVED` suspends either ordinary decay phase while a consumer owns the
 corpse. The flag rides in persisted `aiflags`, so no new save pointer is required.
 
@@ -60,8 +65,10 @@ simulation cadence while the shared channel remains valid. The channel ends when
 
 Every started Cannibalize channel consumes its reserved corpse when the channel ends,
 including interruption. No valid corpse rejects before spell commitment and reports the
-Warcraft `Cantfindcorpse` CommandStrings key. Presentation remains data-driven through
-the common spell/effect paths.
+Warcraft `Cantfindcorpse` CommandStrings key. Warsmash confirms that the remaining cast
+presentation belongs to the shared spell behavior (`Animnames`, unit cast point/
+backswing, and the ability's looped sound) rather than an `Acan`-specific effect model;
+OpenRealm does not yet have that complete generic cast-presentation scheduler.
 
 ## Raise Dead (`Arai`, `ACrd`, `AIrd`)
 
@@ -149,10 +156,12 @@ Remaining work is deliberately limited to behavior that still lacks an exact con
 - Cargo evidence establishes a bone-phase timer restart on unload. Exact behavior for a
   corpse picked up during the brief flesh phase, plus exact multi-corpse unload facing and
   placement, remains unresolved; OpenRealm keeps the generic unstuck placement path.
-- Corpse state now requests the standard model sequences `Decay Flesh` and `Decay Bone` at
-  the matching simulation phase. Missing sequences leave the prior/final death pose in place,
-  so lifetime correctness remains independent of model authoring. Exact retail playback-rate,
-  sequence-duration scaling, and malformed/custom-model fallback details remain presentation work.
+- Corpse state requests the standard model sequences `Decay Flesh` and `Decay Bone` at
+  the matching simulation phase and maps model-frame progress across the authoritative
+  gameplay duration. Missing secondary tags fall back within the same primary animation
+  family; if no Decay sequence exists at all, lifetime correctness remains independent of
+  presentation. Retail-vs-Warsmash differences for malformed custom models are still a
+  visual-verification item, not a gameplay blocker.
 
 ## Verification
 

@@ -423,6 +423,8 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     }
     if (w->attack1.damageDice != 0 && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
+        if (ent->attack1.weapon == WPN_ARTILLERY)
+            G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttackGround, false, 0);
     }
     /* Some WC3 data paths expose the Burrow hold/battle-stations abilities
      * without listing Astd in UnitAbilities.  Stand Down is nevertheless a

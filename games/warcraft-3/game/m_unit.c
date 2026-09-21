@@ -25,12 +25,16 @@ static umove_t unit_move_stand = { "stand", ai_stand, unit_stand };
 static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
 static void unit_decay_flesh_think(LPEDICT self);
 static void unit_begin_bone_decay(LPEDICT self);
+static FLOAT unit_decay_flesh_duration(LPCEDICT self);
+static FLOAT unit_decay_bone_duration(LPCEDICT self);
+static FLOAT unit_dissipate_duration(LPCEDICT self);
 static umove_t unit_move_death = { "death", NULL, unit_begin_decay };
-/* Decay timing is simulation-owned. Request Warcraft's authored Decay Flesh /
- * Decay Bone sequences when present; models lacking either sequence simply keep
- * the final death frame because corpse existence never depends on presentation. */
-static umove_t unit_move_decay_flesh = { "decay flesh", unit_decay_flesh_think, NULL };
-static umove_t unit_move_decay_bones = { "decay bone", unit_decay_think, NULL };
+/* Simulation owns corpse lifetime. Presentation stretches the selected Decay
+ * sequence across the matching gameplay phase, just as Warsmash does. */
+static umove_t unit_move_decay_flesh = { "decay flesh", unit_decay_flesh_think, NULL, NULL, unit_decay_flesh_duration };
+static umove_t unit_move_decay_bones = { "decay bone", unit_decay_think, NULL, NULL, unit_decay_bone_duration };
+static umove_t unit_move_dissipate = { "dissipate", unit_decay_think, NULL, NULL, unit_dissipate_duration };
+static umove_t unit_move_decay_remove = { "death", unit_decay_think, NULL };
 
 void unit_decay1(LPEDICT self) {
     self->aiflags |= AI_HOLD_FRAME;
@@ -56,9 +60,33 @@ static FLOAT unit_decay_wait(FLOAT seconds) {
     return MAX(seconds, FRAMETIME / 1000.0f);
 }
 
+static FLOAT unit_decay_flesh_duration(LPCEDICT self) {
+    (void)self;
+    return unit_decay_wait(game.constants.decayTime);
+}
+
+static FLOAT unit_decay_bone_duration(LPCEDICT self) {
+    if (self && G_UnitIsBuilding(self->class_id))
+        return unit_decay_wait(game.constants.structureDecayTime);
+    return unit_decay_wait(game.constants.boneDecayTime);
+}
+
+static FLOAT unit_dissipate_duration(LPCEDICT self) {
+    (void)self;
+    return unit_decay_wait(game.constants.dissipateTime);
+}
+
+static void unit_set_decay_move(LPEDICT self, umove_t *move) {
+    unit_setmove(self, move);
+    /* A missing exact secondary sequence may fall back to another sequence in
+     * the same primary family. If the model has no usable family at all, keep
+     * the final Death frame while the authoritative timer continues. */
+    if (self->animation) self->aiflags &= ~AI_HOLD_FRAME;
+    else self->aiflags |= AI_HOLD_FRAME;
+}
+
 static void unit_begin_bone_decay(LPEDICT self) {
-    unit_setmove(self, &unit_move_decay_bones);
-    self->aiflags |= AI_HOLD_FRAME;
+    unit_set_decay_move(self, &unit_move_decay_bones);
     self->wait = unit_decay_wait(game.constants.boneDecayTime);
 }
 
@@ -90,23 +118,23 @@ void unit_begin_decay(LPEDICT self) {
     BOOL const no_decay = !hero &&
         ((self->aiflags & AI_CORPSE_NO_DECAY) || !data || !(data->deathType & UNIT_DEATH_TYPE_DECAY));
 
-    self->aiflags |= AI_HOLD_FRAME;
     if (hero) {
-        unit_setmove(self, &unit_move_decay_bones);
+        unit_set_decay_move(self, &unit_move_dissipate);
         self->wait = unit_decay_wait(game.constants.dissipateTime);
         return;
     }
     if (no_decay) {
-        unit_setmove(self, &unit_move_decay_bones);
+        unit_setmove(self, &unit_move_decay_remove);
+        self->aiflags |= AI_HOLD_FRAME;
         self->wait = FRAMETIME / 1000.0f;
         return;
     }
     if (G_UnitIsBuilding(self->class_id)) {
-        unit_setmove(self, &unit_move_decay_bones);
+        unit_set_decay_move(self, &unit_move_decay_bones);
         self->wait = unit_decay_wait(game.constants.structureDecayTime);
         return;
     }
-    unit_setmove(self, &unit_move_decay_flesh);
+    unit_set_decay_move(self, &unit_move_decay_flesh);
     self->wait = unit_decay_wait(game.constants.decayTime);
 }
 
@@ -368,6 +396,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "smart", 851971, 0 },
     { "stop", 851972, 0 },
     { "attack", 851983, 0 },
+    { "attackground", 851984, 0 },
     { "move", 851986, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
@@ -669,6 +698,9 @@ static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FL
     if (!self || !order || !point) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
+    /* Attack Ground is an artillery firing order, not movement. Keep the exact
+     * clicked point and allow immobile artillery to accept it. */
+    if (!strcmp(order, "attackground")) return S_OrderAttackGround(self, point);
     if (self->aiflags & AI_IMMOBILE) return false;
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
@@ -775,8 +807,9 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
             return accepted;
         }
     }
-    if (self->aiflags & AI_IMMOBILE) return false;
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) return false;
+    if ((self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+        strcmp(order, "attackground")) return false;
 
     if (queue && unit_has_active_order(self)) {
         BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,

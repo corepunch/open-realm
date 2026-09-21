@@ -112,6 +112,19 @@ void M_MoveFrame(LPEDICT self) {
             return;
         }
     }
+    if (move->animation_duration) {
+        FLOAT const duration = move->animation_duration(self);
+        DWORD const frames = anim->interval[1] > anim->interval[0]
+                           ? anim->interval[1] - anim->interval[0] : 0;
+        if (duration > 0.0f && frames > 0) {
+            FLOAT const elapsed = MAX(0.0f, MIN(duration, duration - self->wait));
+            FLOAT const progress = MIN(1.0f, elapsed / duration);
+            DWORD const offset = frames > 1
+                               ? (DWORD)floorf(progress * (FLOAT)(frames - 1)) : 0;
+            self->s.frame = anim->interval[0] + MIN(offset, frames - 1);
+            return;
+        }
+    }
     DWORD next_frame = self->s.frame + (DWORD)frame_step;
     if (G_AnimationHasPrimary(anim, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];

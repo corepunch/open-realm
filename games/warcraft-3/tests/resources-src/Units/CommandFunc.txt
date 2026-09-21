@@ -1,6 +1,9 @@
 [CmdAttack]
 Art=TestUI\Textures\solid_white.blp
 
+[CmdAttackGround]
+Art=TestUI\Textures\solid_white.blp
+
 [CmdStop]
 Art=TestUI\Textures\solid_white.blp
 
