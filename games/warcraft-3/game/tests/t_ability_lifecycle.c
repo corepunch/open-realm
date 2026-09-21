@@ -580,8 +580,11 @@ TEST(wc3_ability_lifecycle, cannibalize_reserves_nearest_organic_corpse_and_stop
  * on the simulation cadence rather than quantized to one-second pulses. */
 TEST(wc3_ability_lifecycle, cannibalize_heals_for_authored_duration_through_entity_scheduler) {
     LPEDICT caster = review_setup(), corpse = review_unit(1, 40);
+    UnitBalance_t caster_balance = *caster->data.UnitBalance;
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    caster_balance.healthRegen = 0;
+    caster->data.UnitBalance = &caster_balance;
     corpse->data.UnitData = &corpse_data;
     caster->health.value = 500; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));

@@ -1677,7 +1677,9 @@ static FLOAT G_MiscListNum(LPCSTR key, DWORD n, FLOAT fallback) {
 }
 
 BOOL G_UnitIsHero(LPCEDICT ent) {
-    return ent->data.UnitBalance->strength > 0 || ent->data.UnitBalance->agility > 0 || ent->data.UnitBalance->intelligence > 0;
+    return ent && ent->data.UnitBalance &&
+        (ent->data.UnitBalance->strength > 0 || ent->data.UnitBalance->agility > 0 ||
+         ent->data.UnitBalance->intelligence > 0);
 }
 
 static BOOL G_HeroReceivesKillXP(LPCEDICT hero, LPCEDICT victim, LPCEDICT killer, FLOAT range) {
