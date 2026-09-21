@@ -1507,6 +1507,7 @@ struct edict_s {
     unitbalance_t runtime;
     COLOR32 vertex_color;
     BOOL vertex_color_set;
+    BOOL vertex_color_override_set;
     umove_t *currentmove;
     unitRace_t race;
     FLOAT wait;

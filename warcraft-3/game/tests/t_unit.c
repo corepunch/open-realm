@@ -1230,15 +1230,21 @@ static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestDa
         "C;Y3;X4;K\"edtm\"\n"
         "E\n";
     static LPCSTR const ui_slk =
-        "ID;PWXL;N;EBB;Y3;X4\n"
+        "ID;PWXL;N;EBB;Y3;X7\n"
         "C;Y1;X1;K\"unitUIID\"\n"
         "C;Y1;X2;K\"file\"\n"
         "C;Y1;X3;K\"modelScale\"\n"
         "C;Y1;X4;K\"scale\"\n"
+        "C;Y1;X5;K\"red\"\n"
+        "C;Y1;X6;K\"green\"\n"
+        "C;Y1;X7;K\"blue\"\n"
         "C;Y2;X1;K\"hpea\"\n"
         "C;Y2;X2;K\"Units\\Creeps\\Medivh\\Medivh.mdx\"\n"
         "C;Y2;X3;K1\n"
         "C;Y2;X4;K1\n"
+        "C;Y2;X5;K224\n"
+        "C;Y2;X6;K232\n"
+        "C;Y2;X7;K255\n"
         "C;Y3;X1;K\"hfoo\"\n"
         "C;Y3;X2;K\"Units\\Creeps\\Medivh\\Medivh.mdx\"\n"
         "C;Y3;X3;K1\n"
@@ -1282,14 +1288,24 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    G_InitializeUnitVertexColor(ent);
+    T_ASSERT(ent->vertex_color_set);
+    T_EQ(ent->vertex_color.r, 224); T_EQ(ent->vertex_color.g, 232);
+    T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
     T_ASSERT(G_ActorAddSkill(ent, MAKEFOURCC('A','m','r','f')));
 
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
     T_STREQ(ent->animation_props, "alternateex");
+    T_ASSERT(!ent->vertex_color_set);
+    T_EQ(ent->vertex_color.r, 255); T_EQ(ent->vertex_color.g, 255);
+    T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
     T_STREQ(ent->animation_props, "");
+    T_ASSERT(ent->vertex_color_set);
+    T_EQ(ent->vertex_color.r, 224); T_EQ(ent->vertex_color.g, 232);
+    T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }

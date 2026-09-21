@@ -10,7 +10,7 @@ Warcraft trigger events describe an order when the order is **accepted**, not wh
 | point | `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` (39) | `EVENT_UNIT_ISSUED_POINT_ORDER` | plus `GetOrderPointX/Y/Loc()` |
 | widget/unit target | `EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER` (40) | `EVENT_UNIT_ISSUED_TARGET_ORDER` | plus `GetOrderTarget*()` |
 
-Target and point orders publish at acceptance. Immediate/no-target order publication remains separate work. Named Warcraft orders now use the canonical numeric order IDs covered by OpenRealm's stock order table rather than the historical first-four-bytes approximation; build placement remains a special case whose issued order ID is the building rawcode.
+Immediate, target, and point orders publish at acceptance. Named Warcraft orders now use the canonical numeric order IDs covered by OpenRealm's stock order table rather than the historical first-four-bytes approximation; build placement remains a special case whose issued order ID is the building rawcode.
 
 ## Point orders
 
@@ -49,7 +49,6 @@ The missing contract was not a trigger-queue or coroutine failure: OpenRealm's c
 ## Known limitations
 
 - The numeric order table intentionally covers the established movement orders and stock spell orders that OpenRealm can route through its implemented spell pipeline; it is not yet Warcraft's complete order catalog. Unknown/custom four-character order strings retain the historical FourCC fallback. Build orders use the structure rawcode directly.
-- Immediate/no-target issued-order event publication is not completed by this change.
 - Point rally changes now publish point-order events, but entity-target rally changes still return through the older rally metadata path without target-order publication.
 - Shift-queued spell casts are not accepted yet; a spell-aware queued-order representation is required before those can preserve Warcraft cast semantics.
 - Order event callback data is only meaningful while handling an issued-order event; callers should not treat the getters as durable unit state.

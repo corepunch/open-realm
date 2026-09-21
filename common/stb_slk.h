@@ -37,6 +37,7 @@ typedef struct slkField_s {
     ptrdiff_t     offset;  /* offsetof(RowStruct, field)                   */
     bzFieldType_t type;
     LPCSTR        id;      /* optional four-character object-data field ID */
+    LPCSTR        default_value; /* typed value used when the source omits the field */
 } slkField_t;
 
 /* INI files are runtime-keyed dictionaries, so keep their parser state opaque

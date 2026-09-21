@@ -9,10 +9,12 @@ The native clamps every component to `0..255`. Alpha `0` is a valid explicit val
 Current scope is intentionally narrow:
 
 - `SetUnitVertexColor` is implemented end-to-end.
+- `UnitUI.slk` `red`/`green`/`blue` values initialize the authored default tint;
+  omitted columns resolve to white, while `SetUnitVertexColor` remains an explicit
+  per-unit override across type rebinds.
 - `SetWaterBaseColor` remains a placeholder; the W3M water renderer has no live server-authored base-colour contract yet.
 - JASS `texttag` / `SetTextTagColor` store registry state; client draw is still deferred ([multiboard-and-texttag.md](multiboard-and-texttag.md)).
 - Unit invisibility continues to use its existing gameplay/render-state path; this work does not redefine invisibility as vertex alpha.
-- Parsed `UnitUI.slk` `red`/`green`/`blue` values are not yet applied as the default runtime tint. `SetUnitVertexColor` supplies an explicit runtime override when scripts call it.
 
 ## Data Flow
 

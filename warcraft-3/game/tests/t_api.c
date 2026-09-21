@@ -1941,6 +1941,7 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     tinted = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(tinted);
     T_ASSERT(tinted->vertex_color_set);
+    T_ASSERT(tinted->vertex_color_override_set);
     T_EQ(tinted->vertex_color.r, 255); T_EQ(tinted->vertex_color.g, 128);
     T_EQ(tinted->vertex_color.b, 0); T_EQ(tinted->vertex_color.a, 0);
 
@@ -1976,6 +1977,36 @@ TEST(wc3_api, authored_unit_ui_tint_initializes_vertex_color) {
     T_ASSERT(unit.vertex_color_set);
     T_EQ(unit.vertex_color.r, 224); T_EQ(unit.vertex_color.g, 232);
     T_EQ(unit.vertex_color.b, 255); T_EQ(unit.vertex_color.a, 255);
+}
+
+TEST(wc3_api, authored_white_unit_ui_tint_clears_previous_color) {
+    UnitUI_t ui = { .tintRed = 255, .tintGreen = 255, .tintBlue = 255 };
+    edict_t unit = {
+        .data.UnitUI = &ui,
+        .vertex_color = MAKE(COLOR32, 224, 232, 255, 255),
+        .vertex_color_set = true,
+    };
+
+    G_InitializeUnitVertexColor(&unit);
+    T_ASSERT(!unit.vertex_color_set);
+    T_EQ(unit.vertex_color.r, 255); T_EQ(unit.vertex_color.g, 255);
+    T_EQ(unit.vertex_color.b, 255); T_EQ(unit.vertex_color.a, 255);
+}
+
+TEST(wc3_api, explicit_vertex_color_override_survives_authored_rebind) {
+    UnitUI_t ui = { .tintRed = 255, .tintGreen = 255, .tintBlue = 255 };
+    edict_t unit = {
+        .data.UnitUI = &ui,
+        .vertex_color = MAKE(COLOR32, 17, 34, 51, 68),
+        .vertex_color_set = true,
+        .vertex_color_override_set = true,
+    };
+
+    G_InitializeUnitVertexColor(&unit);
+    T_ASSERT(unit.vertex_color_set);
+    T_ASSERT(unit.vertex_color_override_set);
+    T_EQ(unit.vertex_color.r, 17); T_EQ(unit.vertex_color.g, 34);
+    T_EQ(unit.vertex_color.b, 51); T_EQ(unit.vertex_color.a, 68);
 }
 
 
@@ -2569,19 +2600,28 @@ TEST(wc3_api, immediate_order_publishes_order_event_context) {
         "globals\n"
         "  unit testUnit = null\n"
         "  integer orderEvents = 0\n"
+        "  integer unitOrderEvents = 0\n"
         "endglobals\n"
         "function onOrder takes nothing returns nothing\n"
         "  set orderEvents = orderEvents + 1\n"
         "  call BJassAssert(GetOrderedUnit() == testUnit, \"ordered unit must be the immediate-order unit\")\n"
         "endfunction\n"
+        "function onUnitOrder takes nothing returns nothing\n"
+        "  set unitOrderEvents = unitOrderEvents + 1\n"
+        "  call BJassAssert(GetOrderedUnit() == testUnit, \"unit issued-order context must identify the ordered unit\")\n"
+        "endfunction\n"
         "function verifyOrder takes nothing returns nothing\n"
         "  call BJassAssert(orderEvents == 1, \"immediate order must publish one player order event\")\n"
+        "  call BJassAssert(unitOrderEvents == 1, \"immediate order must publish one unit order event\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
+        "  local trigger unitTrigger = CreateTrigger()\n"
         "  set testUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
         "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_ORDER, null)\n"
         "  call TriggerAddAction(t, function onOrder)\n"
+        "  call TriggerRegisterUnitEvent(unitTrigger, testUnit, EVENT_UNIT_ISSUED_ORDER)\n"
+        "  call TriggerAddAction(unitTrigger, function onUnitOrder)\n"
         "endfunction\n"));
 
     unit = find_test_unit(MAKEFOURCC('h','p','e','a'));

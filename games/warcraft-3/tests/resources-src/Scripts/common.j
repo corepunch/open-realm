@@ -384,6 +384,7 @@ globals
     constant unitevent EVENT_UNIT_RESEARCH_START = ConvertUnitEvent(72)
     constant unitevent EVENT_UNIT_RESEARCH_CANCEL = ConvertUnitEvent(73)
     constant unitevent EVENT_UNIT_RESEARCH_FINISH = ConvertUnitEvent(74)
+    constant unitevent EVENT_UNIT_ISSUED_ORDER = ConvertUnitEvent(75)
     constant unitevent EVENT_UNIT_HERO_LEVEL = ConvertUnitEvent(78)
     constant unitevent EVENT_UNIT_SUMMON = ConvertUnitEvent(84)
     constant fogstate FOG_OF_WAR_MASKED  = ConvertFogState(1)

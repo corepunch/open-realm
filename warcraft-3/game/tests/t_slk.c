@@ -347,6 +347,29 @@ TEST(wc3_slk, typed_strings_are_owned_and_alias_safe) {
     FS_SLKFreeRows(schema, rows, count, sizeof(testRow_t));
 }
 
+TEST(wc3_slk, omitted_scalar_uses_schema_default_without_overriding_zero) {
+    typedef struct { DWORD id; LONG red; } row_t;
+    static slkField_t const schema[] = {
+        { "", offsetof(row_t, id), STB_SLK_FOURCC },
+        { "red", offsetof(row_t, red), STB_SLK_INT, NULL, "255" },
+        { NULL, 0, 0 },
+    };
+    static LPCSTR const src =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"red\"\n"
+        "C;Y2;X1;K\"omit\"\n"
+        "C;Y3;X1;K\"zero\"\n"
+        "C;Y3;X2;K\"0\"\n"
+        "E\n";
+    row_t *rows = NULL;
+    DWORD count = Stb_SlkLoadBuffer(src, schema, (void **)&rows, sizeof(*rows));
+
+    T_EQ(count, 2);
+    T_EQ(rows[0].red, 255);
+    T_EQ(rows[1].red, 0);
+    FS_SLKFreeRows(schema, rows, count, sizeof(*rows));
+}
+
 TEST(wc3_slk, profile_ddx_and_fourcc_metadata_share_typed_row) {
     slkTestData_t *row = parse_slk_string("C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Name\"\nC;Y1;X3;K\"Missilespeed\"\nC;Y1;X4;K\"MissileHoming\"\nC;Y2;X1;K\"hrif\"\nC;Y2;X2;K\"Rifleman\"\nC;Y2;X3;K\"900\"\nC;Y2;X4;K\"TRUE\"\nE\n");
     slkTestData_t *old = G_SetProfileRows(row);
