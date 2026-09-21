@@ -5479,6 +5479,49 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
     level.framenum = 0;
 }
 
+TEST(wc3_api, blight_checkerboard_row_uses_bitpack_escape_and_makes_progress) {
+    BYTE data[sizeof(terrainMaskChunk_t) + 16], bits[4096];
+    terrainMaskChunk_t chunk;
+    LPEDICT client_ent;
+    DWORD size, offset = sizeof(chunk);
+
+    setup_test_world();
+    client_ent = &g_edicts[0];
+    client_ent->client = &game.clients[0];
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    T_EQ(level.blight.width, 64); T_EQ(level.blight.height, 64);
+    /* Checkerboard defeats RLE: one alternating row costs W+1 bytes, so the escape must bound it. */
+    FOR_LOOP(i, 64u * 64u) level.blight.cells[i] = (BYTE)(i & 1);
+    G_BlightMarkClientFull(client_ent);
+    /* Bitpack one row costs 1 + 64/8 = 9 bytes; RLE one alternating row costs 65, two rows fit neither. */
+    size = G_BlightWriteDatagram(client_ent, data, sizeof(data));
+    T_EQ(size, sizeof(chunk) + 9);
+    memcpy(&chunk, data, sizeof(chunk));
+    T_EQ(chunk.first_row, 0); T_EQ(chunk.row_count, 1);
+    T_EQ(data[offset], 2); /* bitpack escape bounds the worst case */
+    T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), 64u);
+    FOR_LOOP(i, 64u) T_EQ(bits[i], (BYTE)(i & 1));
+    /* The delivered row cleared, so the next band keeps moving instead of stalling. */
+    size = G_BlightWriteDatagram(client_ent, data, sizeof(data));
+    T_EQ(size, sizeof(chunk) + 9);
+    memcpy(&chunk, data, sizeof(chunk));
+    T_EQ(chunk.first_row, 1); T_EQ(chunk.row_count, 1);
+    /* Sweep resync advances through the same worst case instead of stalling. */
+    FOR_LOOP(y, level.blight.height) level.blight.dirty_rows[y] &= ~(1u << 0);
+    level.blight.sweep_row[0] = 0;
+    level.framenum = BLIGHT_SWEEP_INTERVAL;
+    size = G_BlightWriteDatagram(client_ent, data, sizeof(data));
+    T_EQ(size, sizeof(chunk) + 9);
+    memcpy(&chunk, data, sizeof(chunk));
+    T_EQ(chunk.first_row, 0); T_EQ(chunk.row_count, 1);
+    T_EQ(data[offset], 2);
+    T_EQ(level.blight.sweep_row[0], 1u);
+    client_ent->client = NULL;
+    game.clients[0].connected = false;
+    level.framenum = 0;
+}
+
 TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
     BYTE data[8192];
     USHORT header;

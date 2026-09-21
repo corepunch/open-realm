@@ -2557,7 +2557,7 @@ TEST(net, rle_255_run_boundary_roundtrips) {
 }
 
 TEST(net, rle_rejects_truncated_overlong_and_overflow) {
-    BYTE truncated[] = { 1, 1 }, overlong[] = { 1, 16, 1 }, bad_init[] = { 2, 5 };
+    BYTE truncated[] = { 1, 1 }, overlong[] = { 1, 16, 1 }, bad_init[] = { 3, 5 };
     BYTE alt[] = { 0, 1, 0, 1, 0, 1, 0, 1 }, tiny[2], back[16];
     rleTestSrc_t src = { alt, sizeof(alt) };
     rleTestDst_t dst = { back, sizeof(back) };
@@ -2567,6 +2567,133 @@ TEST(net, rle_rejects_truncated_overlong_and_overflow) {
     T_EQ(MSG_DecodeRLE(truncated, sizeof(truncated), 16, rle_test_write, &dst), 0);
     T_EQ(MSG_EncodeRLE(tiny, sizeof(tiny), sizeof(alt), rle_test_read, &src), 0); // 9-byte worst case
     T_EQ(MSG_EncodeRLE(NULL, 0, 0, NULL, NULL), 0);
+}
+
+/* Uniform runs pin the 255-continuation wiring: 255 stays one byte, 256 splits, 510 fills two, 511 spills. */
+TEST(net, rle_uniform_run_lengths) {
+    static BYTE bits[511], out[8], back[sizeof(bits)];
+    static DWORD const counts[] = { 1, 254, 255, 256, 510, 511 };
+    static BYTE const wires[][4] = { { 1, 1 }, { 1, 254 }, { 1, 255 }, { 1, 255, 1 }, { 1, 255, 255 }, { 1, 255, 255, 1 } };
+    static DWORD const sizes[] = { 2, 2, 2, 3, 3, 4 };
+    memset(bits, 1, sizeof(bits));
+    FOR_LOOP(t, sizeof(counts) / sizeof(counts[0])) {
+        rleTestSrc_t src = { bits, counts[t] };
+        rleTestDst_t dst = { back, sizeof(back) };
+        DWORD n = MSG_EncodeRLE(out, sizeof(out), counts[t], rle_test_read, &src);
+        T_EQ(n, sizes[t]);
+        T_ASSERT(!memcmp(out, wires[t], sizes[t]));
+        T_ASSERT(MSG_ValidateRLE(out, n, counts[t]));
+        memset(back, 0xFF, sizeof(back)); dst.count = counts[t];
+        T_EQ(MSG_DecodeRLE(out, n, counts[t], rle_test_write, &dst), counts[t]);
+        T_ASSERT(!memcmp(back, bits, counts[t]));
+    }
+}
+
+/* A toggle landing exactly on the 255 boundary needs the explicit 0 run; at 256 it must not appear. */
+TEST(net, rle_toggle_at_255_boundary) {
+    static BYTE bits[261], out[8], back[sizeof(bits)];
+    rleTestSrc_t src = { bits, 0 };
+    rleTestDst_t dst = { back, sizeof(back) };
+    DWORD n;
+    memset(bits, 1, 255); memset(bits + 255, 0, 5);
+    src.count = 260; dst.count = 260;
+    memset(out, 0, sizeof(out)); memset(back, 0xFF, sizeof(back));
+    n = MSG_EncodeRLE(out, sizeof(out), 260, rle_test_read, &src);
+    T_EQ(n, 4); T_EQ(out[0], 1); T_EQ(out[1], 255); T_EQ(out[2], 0); T_EQ(out[3], 5);
+    T_ASSERT(MSG_ValidateRLE(out, n, 260));
+    T_EQ(MSG_DecodeRLE(out, n, 260, rle_test_write, &dst), 260);
+    T_ASSERT(!memcmp(back, bits, 260));
+    memset(bits, 1, 256); memset(bits + 256, 0, 5);
+    src.count = 261; dst.count = 261;
+    memset(out, 0, sizeof(out)); memset(back, 0xFF, sizeof(back));
+    n = MSG_EncodeRLE(out, sizeof(out), 261, rle_test_read, &src);
+    T_EQ(n, 4); T_EQ(out[0], 1); T_EQ(out[1], 255); T_EQ(out[2], 1); T_EQ(out[3], 5);
+    T_ASSERT(MSG_ValidateRLE(out, n, 261));
+    T_EQ(MSG_DecodeRLE(out, n, 261, rle_test_write, &dst), 261);
+    T_ASSERT(!memcmp(back, bits, 261));
+}
+
+/* Capacity exactly n succeeds, n-1 fails without a partial write the caller could mistake for data. */
+TEST(net, rle_capacity_exact_and_short) {
+    BYTE sparse[] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }; // encodes to 4 bytes
+    BYTE out[4];
+    rleTestSrc_t src = { sparse, sizeof(sparse) };
+    T_EQ(MSG_EncodeRLE(out, sizeof(out), sizeof(sparse), rle_test_read, &src), 4);
+    T_EQ(MSG_EncodeRLE(out, sizeof(out) - 1, sizeof(sparse), rle_test_read, &src), 0);
+    T_EQ(MSG_EncodeBitpack(out, 3, 16, rle_test_read, &src), 3); // 1 + 16/8 escape bytes
+    T_EQ(MSG_EncodeBitpack(out, 2, 16, rle_test_read, &src), 0);
+}
+
+TEST(net, rle_validate_rejects_malformed) {
+    BYTE trailing[] = { 1, 8, 0 }, short_stream[] = { 1, 4 }, over[] = { 1, 9 }, bad_init[] = { 3, 5 };
+    BYTE short_pack[] = { 2, 0x01 };
+    T_ASSERT(!MSG_ValidateRLE(trailing, sizeof(trailing), 8));
+    T_ASSERT(!MSG_ValidateRLE(short_stream, sizeof(short_stream), 8));
+    T_ASSERT(!MSG_ValidateRLE(over, sizeof(over), 8));
+    T_ASSERT(!MSG_ValidateRLE(bad_init, sizeof(bad_init), 5));
+    T_ASSERT(!MSG_ValidateRLE(short_pack, sizeof(short_pack), 16)); // bitpack of 16 bits needs 3 bytes
+    T_ASSERT(!MSG_ValidateRLE(NULL, 0, 8));
+}
+
+/* The bitpack escape (init 2) carries whatever RLE cannot compress, at 1 + (bits+7)/8 bytes. */
+TEST(net, bitpack_escape_roundtrips) {
+    BYTE sparse[] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+    BYTE out[4], back[sizeof(sparse)];
+    rleTestSrc_t src = { sparse, sizeof(sparse) };
+    rleTestDst_t dst = { back, sizeof(back) };
+    DWORD n = MSG_EncodeBitpack(out, sizeof(out), sizeof(sparse), rle_test_read, &src);
+    T_EQ(n, 3); T_EQ(out[0], 2); T_EQ(out[1], 0x01); T_EQ(out[2], 0x80);
+    T_ASSERT(MSG_ValidateRLE(out, n, sizeof(sparse)));
+    memset(back, 0xFF, sizeof(back));
+    T_EQ(MSG_DecodeRLE(out, n, sizeof(sparse), rle_test_write, &dst), sizeof(sparse));
+    T_ASSERT(!memcmp(back, sparse, sizeof(sparse)));
+}
+
+/* Alternating bits are the RLE worst case (~1 byte per bit); the escape bounds the same row at bitpack density. */
+TEST(net, rle_checkerboard_falls_back_to_bitpack) {
+    static BYTE alt[64], out[72], back[sizeof(alt)];
+    rleTestSrc_t src = { alt, sizeof(alt) };
+    rleTestDst_t dst = { back, sizeof(back) };
+    DWORD n;
+    FOR_LOOP(i, sizeof(alt)) alt[i] = (BYTE)(i & 1);
+    n = MSG_EncodeRLE(out, sizeof(out), sizeof(alt), rle_test_read, &src);
+    T_EQ(n, sizeof(alt) + 1);
+    T_ASSERT(MSG_ValidateRLE(out, n, sizeof(alt)));
+    memset(back, 0, sizeof(back));
+    T_EQ(MSG_DecodeRLE(out, n, sizeof(alt), rle_test_write, &dst), sizeof(alt));
+    T_ASSERT(!memcmp(back, alt, sizeof(alt)));
+    T_EQ(MSG_EncodeBitpack(out, sizeof(out), sizeof(alt), rle_test_read, &src), 1 + sizeof(alt) / 8);
+}
+
+TEST(net, rle_random_roundtrip) {
+    static BYTE bits[600], out[700], back[sizeof(bits)];
+    rleTestSrc_t src = { bits, sizeof(bits) };
+    rleTestDst_t dst = { back, sizeof(back) };
+    DWORD seed = 0x12345678u, n, i = 0;
+    while (i < sizeof(bits)) { /* coherent runs with alternating patches, crossing 255 both ways */
+        BYTE v;
+        seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+        v = (BYTE)(seed & 1);
+        if (seed & 0x80000000u) {
+            DWORD k = 1 + seed % 40;
+            while (k-- && i < sizeof(bits)) { bits[i++] = v; v ^= 1; }
+        } else {
+            DWORD run = 1 + seed % 300;
+            while (run-- && i < sizeof(bits)) bits[i++] = v;
+        }
+    }
+    n = MSG_EncodeRLE(out, sizeof(out), sizeof(bits), rle_test_read, &src);
+    T_ASSERT(n > 0);
+    T_ASSERT(MSG_ValidateRLE(out, n, sizeof(bits)));
+    memset(back, 0xFF, sizeof(back));
+    T_EQ(MSG_DecodeRLE(out, n, sizeof(bits), rle_test_write, &dst), sizeof(bits));
+    T_ASSERT(!memcmp(back, bits, sizeof(bits)));
+    n = MSG_EncodeBitpack(out, sizeof(out), sizeof(bits), rle_test_read, &src);
+    T_EQ(n, 1 + (sizeof(bits) + 7) / 8);
+    T_ASSERT(MSG_ValidateRLE(out, n, sizeof(bits)));
+    memset(back, 0xFF, sizeof(back));
+    T_EQ(MSG_DecodeRLE(out, n, sizeof(bits), rle_test_write, &dst), sizeof(bits));
+    T_ASSERT(!memcmp(back, bits, sizeof(bits)));
 }
 
 /* Static entities must not consume snapshot bandwidth when their state is unchanged. */

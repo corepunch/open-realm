@@ -3,6 +3,8 @@
 
 #include "common/game_datagram.h"
 
+#define TERRAIN_MASK_MAX_CELLS (1024u * 1024u) // cells; rejects absurd grid headers before any allocation
+
 typedef struct {
     DWORD width;
     DWORD height;
