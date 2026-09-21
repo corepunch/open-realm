@@ -567,7 +567,7 @@ TEST(wc3_ability_lifecycle, cannibalize_reserves_nearest_organic_corpse_and_stop
     mechanical->health.value = near->health.value = far->health.value = 0;
     mechanical->svflags |= SVF_DEADMONSTER; near->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER;
     mechanical->targtype = TARG_MECHANICAL; caster->health.value = 995;
-    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), near));
     LPEDICT thinker = review_thinker(caster);
     T_ASSERT(mechanical->inuse); T_ASSERT(near->inuse); T_ASSERT(far->inuse); T_NOT_NULL(thinker);
     T_ASSERT(near->aiflags & AI_CORPSE_RESERVED); T_ASSERT(!G_UnitIsRaisableCorpse(near));
@@ -587,7 +587,7 @@ TEST(wc3_ability_lifecycle, cannibalize_heals_for_authored_duration_through_enti
     caster->data.UnitBalance = &caster_balance;
     corpse->data.UnitData = &corpse_data;
     caster->health.value = 500; corpse->health.value = 0; corpse->svflags |= SVF_DEADMONSTER;
-    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), corpse));
     FOR_LOOP(i, 330) { level.time += FRAMETIME; G_RunEntities(); }
     T_ASSERT(caster->health.value >= 829.0f && caster->health.value <= 831.0f);
     T_EQ(caster->channel.code, 0); T_ASSERT(!corpse->inuse);
@@ -603,11 +603,10 @@ TEST(wc3_ability_lifecycle, cannibalize_rejects_invalid_corpses_and_stops_when_c
     g_edicts[0].client = &game.clients[0]; game.clients[0].connected = true; game.clients[0].ps.number = 0;
     mechanical->health.value = far->health.value = 0;
     mechanical->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER; mechanical->targtype = TARG_MECHANICAL;
-    T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
-    T_STREQ(game.clients[0].message.text, "There are no usable corpses nearby.");
+    T_ASSERT(!S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), mechanical));
     T_ASSERT(live->inuse); T_ASSERT(mechanical->inuse); T_ASSERT(far->inuse);
     far->s.origin2.x = far->s.origin.x = 40; caster->health.value = 500;
-    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("Acan"), far));
     caster->s.origin2.x += 10; caster->s.origin.x += 10; level.time += FRAMETIME; G_RunEntities();
     T_ASSERT(caster->health.value >= 500.0f && caster->health.value < 501.0f);
     T_EQ(caster->channel.code, 0); T_ASSERT(!far->inuse);

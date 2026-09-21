@@ -301,10 +301,18 @@ static void show_no_usable_corpse(LPEDICT caster) {
                           "Cantfindcorpse", "There are no usable corpses nearby.");
 }
 
-static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
+static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell, LPEDICT requested) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
     LPEDICT corpse = NULL;
+
+    if (requested) {
+        if (!G_UnitIsHero(requested) && S_SpellAllowsCorpseTarget(spell->code, caster, requested) &&
+            !G_UnitStatusLevel(requested, spell->code) &&
+            Vector2_distance(&requested->s.origin2, &caster->s.origin2) <= range)
+            return requested;
+        return NULL;
+    }
 
     FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(spell->code, caster, unit) &&
                   !G_UnitStatusLevel(unit, spell->code)) {
@@ -364,23 +372,25 @@ void cannibalize_think(LPEDICT thinker) {
     if (caster->health.value >= caster->health.max_value) cannibalize_finish(thinker);
 }
 
-static BOOL cannibalize_validate(LPEDICT caster, abilityitem_t const *spell) {
-    if (caster && spell && cannibalize_corpse(caster, spell)) return true;
-    if (caster && spell) show_no_usable_corpse(caster);
+static BOOL cannibalize_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    if (caster && spell && cannibalize_corpse(caster, spell, st.entity)) return true;
+    if (caster && spell && !st.entity) show_no_usable_corpse(caster);
     return false;
 }
 
 BZ_ABILITY_PROC(CAbilityCannibalize) {
     abilityitem_t const *spell = call ? call->item : NULL;
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
     case A_VALIDATE:
-        return cannibalize_validate(ent, spell);
+        return spell && G_UnitAbilityResearchAvailable(ent, spell->code) && cannibalize_validate(ent, target, spell);
     case A_EXECUTE: {
         DWORD level;
         LPEDICT corpse, thinker;
         if (!ent || !spell) return false;
         level = S_SpellLevel(ent, spell->code);
-        corpse = cannibalize_corpse(ent, spell);
+        corpse = cannibalize_corpse(ent, spell, target.entity);
         if (!corpse) { S_SpellCancelChannel(ent); return false; }
         corpse->aiflags |= AI_CORPSE_RESERVED;
         unit_addstatus(corpse, GetClassName(spell->code), level);

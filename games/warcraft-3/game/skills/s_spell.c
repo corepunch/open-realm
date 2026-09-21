@@ -369,14 +369,17 @@ BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
+static BOOL spell_allows_corpse_target(DWORD code, LPEDICT caster, LPEDICT target, BOOL stored);
+
 BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     LPCSTR targets;
     DWORD ability_level;
     BOOL structure;
 
-    if (!target || !target->inuse || M_IsDead(target) || S_UnitIsCycloned(target)) {
+    if (!target || !target->inuse || S_UnitIsCycloned(target)) {
         return false;
     }
+    if (M_IsDead(target)) return spell_allows_corpse_target(code, caster, target, false);
     if (S_UnitSpellImmune(target)) return false;
     if (caster && caster->s.player < MAX_PLAYERS &&
         S_UnitIsInvisibleToPlayer(target, caster->s.player)) return false;
@@ -664,12 +667,6 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
         G_FreeEdict(thinker);
         return;
     }
-    if (!S_SpellIsAliveTarget(target)) {
-        unit_stand(caster);
-        G_FreeEdict(thinker);
-        return;
-    }
-
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
     st = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
@@ -734,7 +731,6 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
      * target is an accepted order; the caster must walk into cast range. */
     if (!spell_validate(clent, caster, code, level, target, 0.0f)) return false;
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
-    if (!S_SpellIsAliveTarget(target)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
     if (!S_SpellTargetInRange(caster, target, range))
@@ -888,7 +884,7 @@ BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
     if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
-        !S_SpellIsAliveTarget(unit) || !S_SpellAllowsTarget(code, caster, unit)) return false;
+        !S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
     if (!S_SpellTargetInRange(caster, unit, range))
         return spell_begin_unit_target_approach(caster, code, unit);

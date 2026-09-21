@@ -506,7 +506,7 @@ static ability_t abilitylist[] = {
     { "Agyd", CAbilityGraveyard, AB_PASSIVE | AB_UPDATE },  /* Create Corpse */
     { "Alam", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Acolyte) */
     { "Asac", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Sacrificial Pit) */
-    { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
+    { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Cannibalize */
     // TODO: Aspa CAbilityAttack  /* Spider Attack */
     // TODO: Aweb a_auto_target_spell  /* Web */
     // TODO: Astn a_morph  /* Stone Form */
@@ -553,7 +553,7 @@ static ability_t abilitylist[] = {
     { "ACce", CAbilityPassive, AB_PASSIVE },  /* Cleaving Attack (Creep) */
     { "ACch", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Charm */
     { "ACcl", CAbilityChainLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Chain Lightning (creep) */
-    { "ACcn", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (creep) */
+    { "ACcn", CAbilityCannibalize, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Cannibalize (creep) */
     { "ACcr", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple (creep) */
     { "ACcs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse (creep) */
     { "ACct", CAbilityPassive, AB_PASSIVE },  /* Critical Strike (creep) */
@@ -637,7 +637,7 @@ static ability_t abilitylist[] = {
     { "Adcn", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant (new) */
     // TODO: Ache a_spell  /* Chain Dispel */
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
-    { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
+    { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Cannibalize (Abomination) */
     { "Acdb", CAbilityPassive, AB_PASSIVE },  /* Chen - Drunken Brawler */
     { "Aco2", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Archer) */
     { "Aco3", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Hippogryph) */
