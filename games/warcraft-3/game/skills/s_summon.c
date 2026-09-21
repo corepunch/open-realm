@@ -47,6 +47,33 @@ LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration
     return summon;
 }
 
+/* Some Warcraft summon abilities cap one authored unit type rather than all
+ * results of the cast.  Keep the eviction primitive generic: callers supply
+ * the Object Editor limit-check type and the retail cap, while summoned-unit
+ * identity comes from the shared summon_ability marker. */
+DWORD S_EnforceSummonedUnitTypeLimit(LPEDICT caster, DWORD unit_id, DWORD max_count) {
+    DWORD removed = 0;
+
+    if (!caster || !unit_id || !max_count) return 0;
+    for (;;) {
+        LPEDICT oldest = NULL;
+        DWORD count = 0;
+
+        FILTER_EDICTS(unit, unit->inuse && !M_IsDead(unit) && unit->s.player == caster->s.player &&
+                      unit->class_id == unit_id && unit->summon_ability) {
+            count++;
+            if (!oldest || unit->spawn_time < oldest->spawn_time ||
+                (unit->spawn_time == oldest->spawn_time && unit->s.number < oldest->s.number))
+                oldest = unit;
+        }
+        if (count <= max_count || !oldest) break;
+        if (oldest->die) oldest->die(oldest, caster);
+        else unit_die(oldest, caster);
+        removed++;
+    }
+    return removed;
+}
+
 /* Inferno blast hits living ground/structure enemies; air is out of authored targs. */
 static BOOL inferno_hits(LPEDICT caster, LPEDICT target, FLOAT radius, LPCVECTOR2 origin) {
     if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target)) return false;

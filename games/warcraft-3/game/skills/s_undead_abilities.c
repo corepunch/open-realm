@@ -1,6 +1,7 @@
 #include "s_skills.h"
 
 #define BZ_UPGRADE_RAISE_DEAD_LIFE MAKEFOURCC('r','r','a','i')
+#define RAISE_DEAD_SUMMON_LIMIT 25u
 
 #define UNDEAD_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AMS_SHIELD MAKEFOURCC('B', 'a', 'm', '2') // rawcode; Bam2 DataC spell-damage absorption
@@ -190,9 +191,10 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
 }
 
 /* ---- Graveyard Create Corpse (Agyd) -----------------------------------------
- * DataA/Gyd1 = maximum corpses, DataC/Gyd3 = corpse radius, UnitID/Gydu = corpse
- * type, Cool = production interval.  Blizzard documents stock Graveyards as one
- * Ghoul corpse every 15 seconds, capped at five nearby corpses.
+ * DataA/Gyd1 = maximum corpses, DataB/Gyd2 = gravestone/spawn radius,
+ * DataC/Gyd3 = corpse-count radius, UnitID/Gydu = corpse type, Cool = interval.
+ * Blizzard documents stock Graveyards as one Ghoul corpse every 15 seconds,
+ * capped at five nearby corpses.
  */
 #define ID_GRAVEYARD_CORPSE MAKEFOURCC('A','g','y','d')
 
@@ -206,8 +208,11 @@ static DWORD graveyard_corpse_count(LPEDICT graveyard, DWORD unit_id, FLOAT radi
     DWORD count = 0;
     if (!graveyard || !unit_id || radius < 0.0f) return 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == unit_id && M_IsDead(ent) &&
-                  (ent->svflags & SVF_DEADMONSTER) &&
-                  Vector2_distance(&ent->s.origin2, &graveyard->s.origin2) <= radius) count++;
+                  (ent->svflags & SVF_DEADMONSTER)) {
+        VECTOR2 position;
+        if (S_CorpseCargoPosition(ent, &position) &&
+            Vector2_distance(&position, &graveyard->s.origin2) <= radius) count++;
+    }
     return count;
 }
 
@@ -233,7 +238,7 @@ static void graveyard_spawn_corpse(LPEDICT graveyard, DWORD unit_id, FLOAT radiu
 void graveyard_think(LPEDICT thinker) {
     LPEDICT graveyard = thinker ? thinker->owner : NULL;
     DWORD level, unit_id, cap, count;
-    FLOAT interval, radius;
+    FLOAT interval, spawn_radius, corpse_radius;
 
     if (!thinker || !graveyard || !graveyard->inuse || M_IsDead(graveyard) ||
         !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) {
@@ -245,9 +250,10 @@ void graveyard_think(LPEDICT thinker) {
     if (interval <= 0.0f) { G_FreeEdict(thinker); return; }
     unit_id = S_SpellUnitId(ID_GRAVEYARD_CORPSE, level);
     cap = (DWORD)MAX(0.0f, S_SpellData(ID_GRAVEYARD_CORPSE, level, 1));
-    radius = MAX(0.0f, S_SpellData(ID_GRAVEYARD_CORPSE, level, 3));
-    count = graveyard_corpse_count(graveyard, unit_id, radius);
-    if (unit_id && count < cap) graveyard_spawn_corpse(graveyard, unit_id, radius, count);
+    spawn_radius = MAX(0.0f, S_SpellData(ID_GRAVEYARD_CORPSE, level, 2));
+    corpse_radius = MAX(0.0f, S_SpellData(ID_GRAVEYARD_CORPSE, level, 3));
+    count = graveyard_corpse_count(graveyard, unit_id, corpse_radius);
+    if (unit_id && count < cap) graveyard_spawn_corpse(graveyard, unit_id, spawn_radius, count);
     thinker->freetime = G_Time() + (DWORD)(interval * 1000.0f);
 }
 
@@ -309,11 +315,12 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
                   transport->s.player == caster->s.player) {
         FOR_LOOP(i, transport->cargo.count) {
             LPEDICT unit = S_CargoUnitAt(transport, i);
+            VECTOR2 position;
             FLOAT distance;
             if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
                 !S_SpellAllowsStoredCorpseTarget(spell->code, caster, unit) ||
-                G_UnitStatusLevel(unit, spell->code)) continue;
-            distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+                G_UnitStatusLevel(unit, spell->code) || !S_CorpseCargoPosition(unit, &position)) continue;
+            distance = Vector2_distance(&position, &caster->s.origin2);
             if (distance <= range && distance < best) { corpse = unit; best = distance; }
         }
     }
@@ -424,11 +431,13 @@ static LPEDICT raise_dead_corpse(LPEDICT caster, DWORD code, FLOAT range) {
                   transport->s.player == caster->s.player) {
         FOR_LOOP(i, transport->cargo.count) {
             LPEDICT unit = S_CargoUnitAt(transport, i);
+            VECTOR2 position;
             FLOAT distance;
             LONG rank;
             if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
-                !S_SpellAllowsStoredCorpseTarget(code, caster, unit)) continue;
-            distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
+                !S_SpellAllowsStoredCorpseTarget(code, caster, unit) ||
+                !S_CorpseCargoPosition(unit, &position)) continue;
+            distance = Vector2_distance(&position, &caster->s.origin2);
             rank = raise_dead_corpse_rank(unit);
             if (distance > range) continue;
             if (!corpse || rank < best_rank || (rank == best_rank && distance < best_distance)) {
@@ -459,9 +468,11 @@ static void raise_dead_add_authored_buff(LPEDICT summon, LPCSTR buff_list, DWORD
 static void raise_dead_spawn_group(LPEDICT caster, abilityitem_t const *spell, LPEDICT corpse,
                                    DWORD level, DWORD unit_id, DWORD count, FLOAT duration,
                                    LPCSTR buff) {
-    if (!unit_id || !count) return;
+    VECTOR2 position;
+
+    if (!unit_id || !count || !corpse || !S_CorpseCargoPosition(corpse, &position)) return;
     FOR_LOOP(i, count) {
-        LPEDICT summon = S_SummonAt(caster, unit_id, &corpse->s.origin2, duration);
+        LPEDICT summon = S_SummonAt(caster, unit_id, &position, duration);
         if (!summon) continue;
         summon->s.angle = corpse->s.angle;
         summon->summon_ability = spell->code;
@@ -494,6 +505,9 @@ static void raise_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t c
 
     raise_dead_spawn_group(caster, spell, corpse, level, unit_a, count_a, duration, buff);
     raise_dead_spawn_group(caster, spell, corpse, level, unit_b, count_b, duration, buff);
+    /* Raiu/UnitID is specifically the unit type used for Raise Dead's fixed
+     * retail summon-limit check.  A blank custom-map field disables the cap. */
+    S_EnforceSummonedUnitTypeLimit(caster, S_SpellUnitId(spell->code, level), RAISE_DEAD_SUMMON_LIMIT);
     G_FreeEdict(corpse);
 }
 

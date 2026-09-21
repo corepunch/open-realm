@@ -105,6 +105,44 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	exh_done(&fix);
 }
 
+TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
+    EXHFIX fix; LPEDICT corpse = NULL; VECTOR2 effective;
+    exh_setup(&fix);
+    S_RunAbilityUpdates(fix.wagon);
+    exh_tick(2000);
+    FOR_LOOP(i, fix.wagon->cargo.count) {
+        LPEDICT ent = S_CargoUnitAt(fix.wagon, i);
+        if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
+    }
+    T_NOT_NULL(corpse);
+    if (corpse) {
+        fix.wagon->s.origin2 = (VECTOR2){ 420.0f, 315.0f };
+        fix.wagon->s.origin.x = 420.0f; fix.wagon->s.origin.y = 315.0f;
+        T_ASSERT(S_CorpseCargoPosition(corpse, &effective));
+        T_FEQ(effective.x, 420.0f, 0.001f); T_FEQ(effective.y, 315.0f, 0.001f);
+    }
+    exh_done(&fix);
+}
+
+TEST(wc3_spell, unloading_bone_phase_corpse_restarts_bone_decay_time) {
+    EXHFIX fix; LPEDICT corpse;
+    exh_setup(&fix);
+    game.constants.decayTime = (FLOAT)FRAMETIME / 1000.0f;
+    game.constants.boneDecayTime = 2.75f;
+    corpse = alloc_test_unit(BZ_HFOO, fix.wagon->s.origin2.x, fix.wagon->s.origin2.y);
+    corpse->s.player = fix.wagon->s.player; corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    corpse->health.value = 0.0f;
+    unit_begin_decay(corpse);
+    T_NOT_NULL(corpse->currentmove);
+    if (corpse->currentmove && corpse->currentmove->think) corpse->currentmove->think(corpse);
+    T_FEQ(corpse->wait, 2.75f, 0.001f);
+    corpse->wait = 0.25f;
+    T_ASSERT(S_CorpseCargoTryLoad(fix.wagon, corpse));
+    T_ASSERT(S_CargoUnloadAt(fix.wagon, 0));
+    T_FEQ(corpse->wait, 2.75f, 0.001f);
+    exh_done(&fix);
+}
+
 /* DataA caps how many owned corpses the wagon keeps; further pulses wait until under cap. */
 TEST(wc3_spell, exhume_respects_dataa_corpse_cap) {
 	EXHFIX fix;
@@ -152,7 +190,7 @@ static DWORD graveyard_test_corpse_count(LPEDICT graveyard) {
     return count;
 }
 
-TEST(wc3_spell, graveyard_registers_and_uses_cool_dataa_datac_unitid) {
+TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
     slkTestData_t *rows, *old;
     LPEDICT graveyard, thinker;
     abilityitem_t item = S_AbilityItem(BZ_AGYD);
@@ -171,6 +209,19 @@ TEST(wc3_spell, graveyard_registers_and_uses_cool_dataa_datac_unitid) {
     T_EQ(graveyard_test_corpse_count(graveyard), 0);
     level.time += 999; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 0);
     level.time += 1; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 1);
+    {
+        LPEDICT first = NULL;
+        FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && M_IsDead(ent)) { first = ent; break; }
+        T_NOT_NULL(first);
+        if (first) {
+            /* Gyd2/DataB=64 owns placement while Gyd3/DataC=128 owns the
+             * nearby-corpse cap.  Move the first corpse outside Gyd2 but keep
+             * it inside Gyd3; it must still count against DataA. */
+            T_FEQ(Vector2_distance(&first->s.origin2, &graveyard->s.origin2), 64.0f, 0.01f);
+            first->s.origin2 = (VECTOR2){ graveyard->s.origin2.x + 100.0f, graveyard->s.origin2.y };
+            first->s.origin.x = first->s.origin2.x; first->s.origin.y = first->s.origin2.y;
+        }
+    }
     level.time += 1000; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 2);
     level.time += 1000; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 2);
 

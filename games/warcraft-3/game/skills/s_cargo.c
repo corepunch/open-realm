@@ -72,6 +72,21 @@ BOOL S_CorpseCargoIsStored(LPCEDICT unit) {
     return unit && (unit->aiflags & AI_CORPSE_IN_CARGO) != 0;
 }
 
+/* Stored corpse edicts keep their identity and decay state, but corpse-fed
+ * abilities treat them as physically present at their current holder.  Do not
+ * rely on the hidden edict's stale pre-load origin after the Wagon moves. */
+BOOL S_CorpseCargoPosition(LPCEDICT corpse, LPVECTOR2 out) {
+    LPEDICT transport;
+
+    if (!corpse || !out) return false;
+    *out = corpse->s.origin2;
+    if (!S_CorpseCargoIsStored(corpse)) return true;
+    transport = S_CargoTransportForUnit(corpse);
+    if (!transport || !transport->inuse) return false;
+    *out = transport->s.origin2;
+    return true;
+}
+
 /* Identify Entangled Mines so their cargo count can drive the authored model animation. */
 static BOOL cargo_is_entangled_mine(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','e','g','m')) != 0;
@@ -170,10 +185,14 @@ static LPEDICT cargo_drop_unit(LPEDICT transport, DWORD index) {
     transport->cargo.units[transport->cargo.count] = NULL;
     if (!unit) return NULL;
 
-    cargo_place_unloaded_unit(transport, unit);
-    unit->s.renderfx &= ~RF_HIDDEN;
-    unit->paused = false;
-    unit->aiflags &= ~AI_CORPSE_IN_CARGO;
+    {
+        BOOL const was_corpse = S_CorpseCargoIsStored(unit);
+        cargo_place_unloaded_unit(transport, unit);
+        unit->s.renderfx &= ~RF_HIDDEN;
+        unit->paused = false;
+        unit->aiflags &= ~AI_CORPSE_IN_CARGO;
+        if (was_corpse) G_RestartCorpseBoneDecayAfterCargo(unit);
+    }
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
     cargo_update_entangled_animation(transport, old_count);

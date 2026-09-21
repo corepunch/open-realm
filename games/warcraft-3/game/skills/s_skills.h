@@ -325,6 +325,7 @@ FLOAT S_SpikedDamageReturn(LPCEDICT unit, FLOAT damage);
 int S_ManaShieldDamage(LPEDICT target, int damage);
 void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration);
 LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration);
+DWORD S_EnforceSummonedUnitTypeLimit(LPEDICT caster, DWORD unit_id, DWORD max_count);
 BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code);
 BOOL S_UnitPolymorphed(LPCEDICT unit);
 void S_PolymorphRemove(LPEDICT unit);

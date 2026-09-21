@@ -94,6 +94,13 @@ that authored researched effect to its summon duration through the generic playe
 lookup. `Rusm` (Skeletal Mastery) remains on the existing generic `rlev` path, which
 raises `Arai` to its authored second level.
 
+`UnitID`/`Raiu` is not a summon-output field for this ability family: Warcraft metadata
+labels it **Unit Type for Limit Check**. Stock Raise Dead limits that authored type to 25
+living summoned units per player; after a cast crosses the cap, OpenRealm retires the
+oldest matching summon first (stable `spawn_time`, then entity-number tie-break). Clearing
+`Raiu` in a custom ability disables this check. Skeletal Mastery's second summon type does
+not implicitly join the limit unless authored as the `Raiu` type.
+
 The corpse is removed after the summon groups are created. If no valid corpse exists,
 the cast rejects before cost/cooldown commitment with `Cantfindcorpse`.
 
@@ -103,44 +110,46 @@ the cast rejects before cost/cooldown commitment with `Cantfindcorpse`.
 `Agyd` is a passive update ability. Stock Blizzard documentation says a Graveyard produces
 one Ghoul corpse every 15 seconds and can maintain up to five corpses within 25 displayed
 game units. The object-data fields expose that contract directly: `Cool` is the production
-interval, `DataA`/`Gyd1` the corpse cap, `DataC`/`Gyd3` the corpse radius, and `UnitID`/`Gydu`
+interval, `DataA`/`Gyd1` the corpse cap, `DataB`/`Gyd2` **Radius of Gravestones** (spawn
+radius), `DataC`/`Gyd3` **Radius of Corpses** (the area used for the cap), and `UnitID`/`Gydu`
 the generated corpse type.
 
 OpenRealm arms an ability-owned saveable thinker. On each `Cool` pulse it counts matching
 dead `UnitID` corpses inside `DataC`; when below `DataA`, it creates one dead, non-selectable
-corpse inside that radius and enters the normal corpse-decay lifecycle. Generated corpses
-therefore use the same authored raisability and map decay constants as combat corpses and
-can be consumed by Raise Dead or Cannibalize. Exact retail random placement among
-gravestones remains presentation/placement fidelity work.
+corpse on the deterministic placement ring defined by `DataB` and enters the normal
+corpse-decay lifecycle. Stored corpses are counted at their current holder's position rather
+than their hidden pre-load origin. Generated corpses therefore use the same authored
+raisability and map decay constants as combat corpses and can be consumed by Raise Dead or
+Cannibalize. Exact retail random/grave-marker placement within `Gyd2` remains presentation/
+placement fidelity work.
 
 ## Shared / deferred work
 
-This patch intentionally does not guess behavior where the current evidence or engine
-infrastructure is incomplete:
+The high-confidence corpse-cargo follow-up resolves several earlier ambiguities:
 
-- Meat Wagon cargo now uses the actual corpse edicts in the shared cargo slots. Installed
-  TFT data identifies hidden `Sch2`/`Amtc` as the Cargo Hold with `DataA=8`; `Amel` is the
-  authored corpse-load command (`ground,dead,nonhero`, range 100) and `Amed` drops all
-  stored corpses. Loading hides and pauses the corpse while retaining its decay move/timer;
-  unloading uses the existing generic unstuck placement. Raise Dead and Cannibalize can
-  consume stored corpses directly, and Exhume creates directly into these slots.
-- The installed data does not establish whether retail restarts or resumes a partially
-  elapsed decay phase after unloading, the exact unload facing/placement rule, or the
-  outcome when a Meat Wagon is removed while carrying corpses. OpenRealm currently
-  preserves the saved decay state, uses shared unstuck placement, and follows existing
-  cargo-removal ejection behavior for those unresolved cases.
-- Blizzard's classic documentation confirms that a group Cannibalize order assigns
-  corpses to the most injured units first and that ordinary group orders do not interrupt
-  units already Cannibalizing. OpenRealm still needs a shared multi-selection/group-order
-  policy to represent those semantics without an ability-local command hack.
-- Blizzard documents a 25 Skeleton Warrior per-player cap; modern documentation also says
-  excess Raise Dead skeletons remove the oldest first. Exact Skeletal Mage/combined-cap
-  treatment is not first-party-clear, and OpenRealm has no shared summon-cap owner yet, so
-  this remains deferred rather than guessing.
+- Meat Wagon cargo keeps the actual corpse edict hidden/paused, but its **effective gameplay
+  position is the current holder position**. Cannibalize range, Raise Dead range/spawn
+  position, and Graveyard nearby-corpse counting therefore follow a moving Wagon rather
+  than the corpse's stale pre-load coordinates.
+- Dropping a corpse that was already in the bone/remains phase restarts the map-authored
+  `BoneDecayTime`, matching Warcraft's cargo/decay behavior. The generic cargo death path
+  already spills stored corpses when the Wagon is destroyed.
+- `Agyd` now treats `Gyd2` and `Gyd3` as distinct authored radii, and Raise Dead honors its
+  authored `Raiu` limit-check unit type with the stock 25-per-player oldest-first cap.
+
+Remaining work is deliberately limited to behavior that still lacks an exact contract:
+
+- Blizzard's classic documentation confirms that a group Cannibalize order assigns corpses
+  to the most injured units first and that ordinary group orders do not interrupt units
+  already Cannibalizing. The exact injury comparator/tie order and the generic distinction
+  between group orders and an explicit single-unit cancellation still need a shared
+  multi-selection/group-order policy; do not add an `Acan` special case to generic orders.
+- Cargo evidence establishes a bone-phase timer restart on unload. Exact behavior for a
+  corpse picked up during the brief flesh phase, plus exact multi-corpse unload facing and
+  placement, remains unresolved; OpenRealm keeps the generic unstuck placement path.
 - Warcraft unit models commonly expose distinct `Decay Flesh` and `Decay Bone` sequences,
-  but the exact retail sequence-transition/fallback contract is not established by the
-  gameplay documentation. Exact model presentation remains separate from the authoritative
-  lifetime state machine.
+  but the exact retail playback-rate/hold/fallback contract is not established. Presentation
+  remains separate from the authoritative simulation lifetime.
 
 ## Verification
 
@@ -152,6 +161,8 @@ make test-wc3-engine WC3_PATTERN='wc3_unit.*corpse*'
 make test-wc3-engine WC3_PATTERN='wc3_ability_lifecycle.cannibalize*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.raise_dead*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.graveyard*'
+make test-wc3-engine WC3_PATTERN='wc3_spell.*corpse_cargo*'
+make test-wc3-engine WC3_PATTERN='wc3_spell.raise_dead*limit*'
 ```
 
 The patch was prepared without running compilation or tests locally, per the handoff

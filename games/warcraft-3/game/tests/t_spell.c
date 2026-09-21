@@ -2949,6 +2949,49 @@ TEST(wc3_spell, raise_dead_prefers_lower_ranked_corpse_before_distance) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+
+/* Raiu/UnitID is Raise Dead's authored unit type for the fixed retail limit
+ * check.  Crossing 25 retires the oldest living summon of that type while the
+ * newly raised unit survives. */
+TEST(wc3_spell, raise_dead_unitid_limit_check_retires_oldest_summon) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y1;X7;K\"DataC1\"\nC;Y1;X8;K\"BuffID1\"\nC;Y1;X9;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Arai\"\nC;Y2;X2;K\"Arai\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"dead\"\nC;Y2;X5;K\"30\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y2;X7;K\"uske\"\nC;Y2;X8;K\"Brai\"\nC;Y2;X9;K\"uske\"\nE\n";
+    UnitData_t corpse_data = { .deathType = 3 };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('U','D','k','i'), 500, 500, 0, 0);
+    LPEDICT oldest = NULL, corpse;
+    DWORD living = 0;
+
+    /* make_hero resets the test world, so install the fixture afterward. */
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->s.player = 0; caster->runtime.acquisition_range = 800.0f;
+    caster->heroabilities[0] = MAKE(heroability_t, .code = FS_SLKKey("Arai"), .level = 1);
+    level.time = 10000;
+    FOR_LOOP(i, 25) {
+        LPEDICT summon = alloc_test_unit(MAKEFOURCC('u','s','k','e'), 300.0f + (FLOAT)i, 0.0f);
+        summon->s.player = 0; summon->svflags |= SVF_MONSTER;
+        summon->summon_ability = FS_SLKKey("Arai"); summon->spawn_time = 100 + i;
+        if (i == 0) oldest = summon;
+    }
+    corpse = alloc_test_unit(MAKEFOURCC('u','d','e','a'), 100.0f, 0.0f);
+    corpse->data.UnitData = &corpse_data; corpse->health.value = 0.0f;
+    corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+
+    test_execute_code(caster, "Arai", MAKE(spellTarget_t, .type = SPELL_TARGET_NONE));
+    T_NOT_NULL(oldest); T_ASSERT(oldest && M_IsDead(oldest)); T_ASSERT(!corpse->inuse);
+    FILTER_EDICTS(unit, unit->inuse && !M_IsDead(unit) && unit->s.player == 0 &&
+                  unit->class_id == MAKEFOURCC('u','s','k','e') && unit->summon_ability) living++;
+    T_EQ(living, 25);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Aast's `player,dead` target contract selects the nearest owned ordinary Tauren and restores its original edict. */
 TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	const char slk[] =

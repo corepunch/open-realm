@@ -62,6 +62,16 @@ static void unit_begin_bone_decay(LPEDICT self) {
     self->wait = unit_decay_wait(game.constants.boneDecayTime);
 }
 
+/* Retail cargo preserves corpses indefinitely while stored, but dropping a
+ * corpse restarts the bone-decay countdown rather than resuming the old
+ * remainder.  Keep this phase-specific: the exact flesh-phase cargo behavior
+ * is not established by the available retail evidence. */
+void G_RestartCorpseBoneDecayAfterCargo(LPEDICT corpse) {
+    if (!corpse || !corpse->inuse || corpse->currentmove != &unit_move_decay_bones ||
+        G_UnitIsHero(corpse) || G_UnitIsBuilding(corpse->class_id)) return;
+    corpse->wait = unit_decay_wait(game.constants.boneDecayTime);
+}
+
 static void unit_decay_flesh_think(LPEDICT self) {
     /* An active corpse consumer owns the remains.  Freeze ordinary decay until
      * that reservation is released or, for Cannibalize, the corpse is consumed. */

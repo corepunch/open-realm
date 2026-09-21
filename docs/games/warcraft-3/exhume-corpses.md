@@ -24,9 +24,9 @@ Wiki text that says "Crypt Fiend" is wrong for stock `AbilityData`; Neoseeker an
 the SLK agree on Ghoul (`ugho`). AbilityMetaData / ubertip / brief beat wiki.
 
 `Agyd` (Graveyard Create Corpse) shares DataA=5 + UnitID=ugho and uses `Cool=15`
-as its interval; `DataC`/`Gyd3` supplies the nearby-corpse radius. OpenRealm now
-implements that Graveyard producer through the shared corpse lifecycle. Exhume stores
-its interval in `Dur` instead.
+as its interval; `DataB`/`Gyd2` supplies the gravestone/spawn radius while `DataC`/`Gyd3`
+supplies the nearby-corpse count radius. OpenRealm implements that producer through the
+shared corpse lifecycle. Exhume stores its interval in `Dur` instead.
 
 ## Meat Wagon cargo
 
@@ -34,9 +34,12 @@ Retail places exhumed corpses inside Meat Wagon cargo (`Amel` / `Amed` / `Amtc`)
 OpenRealm now stores the actual dead edict in the authored eight-slot `Sch2` cargo
 hold, suspending its decay state. The `DataA=5` Exhume limit remains independent of
 the eight-slot transport capacity, so Exhume stops at the authored five matching
-corpses. Raise Dead and Cannibalize consume the stored edict directly; Amed unloads
-it through the shared cargo placement path. See [Corpse Lifecycle, Cannibalize, and
-Raise Dead](corpse-mechanics.md).
+corpses. Stored corpse identity remains on the hidden edict, while its effective gameplay
+position follows the current Wagon position for corpse-consuming abilities. Raise Dead and
+Cannibalize consume the stored edict directly; `Amed` unloads it through the shared cargo
+placement path. A corpse already in its bone/remains phase restarts `BoneDecayTime` when
+unloaded rather than resuming the frozen remainder. See [Corpse Lifecycle, Cannibalize,
+and Raise Dead](corpse-mechanics.md).
 
 ## Runtime Ownership
 
