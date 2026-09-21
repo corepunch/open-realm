@@ -4655,6 +4655,58 @@ TEST(wc3_api, unit_out_of_range) {
     T_ASSERT(!(dist <= 4.0f));
 }
 
+TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT subject, target;
+    VECTOR2 destination = { 100.0f, 0.0f };
+
+    reset_entities();
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger rangeTrigger = null\n"
+        "  unit rangeSubject = null\n"
+        "  boolean entered = false\n"
+        "endglobals\n"
+        "function on_range takes nothing returns nothing\n"
+        "  set entered = true\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set rangeSubject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 280.0, 0.0, 0.0)\n"
+        "  set rangeTrigger = CreateTrigger()\n"
+        "  call TriggerRegisterUnitInRange(rangeTrigger, rangeSubject, 256.0, null)\n"
+        "  call TriggerAddAction(rangeTrigger, function on_range)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(entered, \"registered subject movement did not fire range event\")\n"
+        "endfunction\n"));
+
+    subject = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(subject); T_NOT_NULL(target);
+    subject->movetype = MOVETYPE_STEP;
+    subject->stand = unit_stand;
+    subject->birth = unit_birth;
+    subject->die = unit_die;
+    subject->think = monster_think;
+    subject->collision = 0.0f;
+    subject->health.value = 250.0f;
+    subject->health.max_value = 250.0f;
+    unit_stand(subject);
+    T_ASSERT(unit_issueorder(subject, "move", &destination));
+    G_RunEntities();
+    T_ASSERT(subject->s.origin2.x > 0.0f);
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
+    T_ASSERT(level.events.write > level.events.read);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, killunit_runs_normal_unit_death_transition) {
     LPEDICT victim = NULL;
 

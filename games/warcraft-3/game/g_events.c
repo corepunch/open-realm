@@ -281,10 +281,32 @@ static void G_TouchTriggers(LPEDICT ent) {
                 }
                 break;
             case EVENT_UNIT_IN_RANGE:
-                if (ent != evt->subject &&
-                    Vector2_distance(&((LPEDICT)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
-                    Vector2_distance(&((LPEDICT)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range)
-                {
+                if (ent == evt->subject) {
+                    LPEDICT target;
+
+                    /* A unit-in-range event is symmetric for movement: the
+                     * registered subject may approach a target.  The
+                     * subject-side pass owns pairs where both units moved,
+                     * preventing duplicate publications. */
+                    FOR_LOOP(i, globals.num_edicts) {
+                        target = globals.edicts + i;
+                        if (!target->inuse || target == ent)
+                            continue;
+                        if (Vector2_distance(&ent->old_origin, &target->old_origin) <= evt->range &&
+                            Vector2_distance(&ent->s.origin2, &target->s.origin2) > evt->range)
+                            continue;
+                        if (Vector2_distance(&ent->old_origin, &target->old_origin) > evt->range &&
+                            Vector2_distance(&ent->s.origin2, &target->s.origin2) <= evt->range) {
+                            GAMEEVENT *e = G_PublishEvent(target, evt->type);
+                            e->edict = target;
+                            e->responseTo = evt;
+                        }
+                    }
+                } else if (evt->subject &&
+                           memcmp(&((LPEDICT)evt->subject)->old_origin,
+                                  &((LPEDICT)evt->subject)->s.origin2, sizeof(VECTOR2)) == 0 &&
+                           Vector2_distance(&((LPEDICT)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
+                           Vector2_distance(&((LPEDICT)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range) {
                     GAMEEVENT *e = G_PublishEvent(ent, evt->type);
                     e->edict = ent;
                     e->responseTo = evt;
