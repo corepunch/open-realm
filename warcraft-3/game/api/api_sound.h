@@ -34,13 +34,28 @@ DWORD CreateSoundFilenameWithLabel(LPJASS j) {
     return jass_pushnullhandle(j, "sound");
 }
 DWORD CreateSoundFromLabel(LPJASS j) {
-    //LPCSTR soundLabel = jass_checkstring(j, 1);
-    //BOOL looping = jass_checkboolean(j, 2);
-    //BOOL is3D = jass_checkboolean(j, 3);
-    //BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
-    //LONG fadeInRate = jass_checkinteger(j, 5);
-    //LONG fadeOutRate = jass_checkinteger(j, 6);
-    return jass_pushnullhandle(j, "sound");
+    LPCSTR soundLabel = jass_checkstring(j, 1);
+    BOOL looping = jass_checkboolean(j, 2);
+    BOOL is3D = jass_checkboolean(j, 3);
+    BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
+    LONG fadeInRate = jass_checkinteger(j, 5);
+    LONG fadeOutRate = jass_checkinteger(j, 6);
+    char path[sizeof(((gsound_t *)0)->fileName)] = { 0 };
+    FLOAT volume = 1.0f;
+    int sound_index = 0;
+
+    API_ALLOC(gsound_t, sound);
+    G_SoundLabelDescriptor(soundLabel, path, sizeof(path), &sound_index, &volume);
+    strlcpy(sound->fileName, path, sizeof(sound->fileName));
+    sound->looping = looping;
+    sound->is3D = is3D;
+    sound->stopwhenoutofrange = stopwhenoutofrange;
+    sound->fadeInRate = fadeInRate;
+    sound->fadeOutRate = fadeOutRate;
+    sound->soundIndex = sound_index;
+    G_JassSoundRuntimeInit(sound);
+    G_JassSoundSetVolume(sound, volume);
+    return 1;
 }
 DWORD CreateMIDISound(LPJASS j) {
     //LPCSTR soundLabel = jass_checkstring(j, 1);
@@ -49,8 +64,17 @@ DWORD CreateMIDISound(LPJASS j) {
     return jass_pushnullhandle(j, "sound");
 }
 DWORD SetSoundParamsFromLabel(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //LPCSTR soundLabel = jass_checkstring(j, 2);
+    gsound_t *sound = jass_checkhandle(j, 1, "sound");
+    LPCSTR soundLabel = jass_checkstring(j, 2);
+    char path[sizeof(((gsound_t *)0)->fileName)] = { 0 };
+    FLOAT volume = 1.0f;
+    int sound_index = 0;
+
+    if (!sound || !G_SoundLabelDescriptor(soundLabel, path, sizeof(path), &sound_index, &volume))
+        return 0;
+    strlcpy(sound->fileName, path, sizeof(sound->fileName));
+    sound->soundIndex = sound_index;
+    G_JassSoundSetVolume(sound, volume);
     return 0;
 }
 DWORD SetSoundDistanceCutoff(LPJASS j) {

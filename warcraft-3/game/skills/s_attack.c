@@ -279,6 +279,7 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     }
     damage = S_PossessionDamageTaken(target, damage);
     if (damage <= 0) return;
+    G_PlayCombatImpactSound(attacker, target);
     T_Damage(target, attacker, damage);
     S_HumanAttackSplash(attacker, target, damage);
     DWORD cleave_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a'));
@@ -524,7 +525,6 @@ void attack_melee(LPEDICT self) {
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint / divisor;
-    if (self->sound.attack) gi.Sound(self, CHAN_WEAPON, self->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
@@ -539,7 +539,6 @@ void attack_ranged(LPEDICT self) {
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_ranged);
     self->wait = self->attack1.damagePoint / divisor;
-    if (self->sound.attack) gi.Sound(self, CHAN_WEAPON, self->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
@@ -560,6 +559,7 @@ BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
             issued = true;
         }
     }
+    if (issued) G_QueueAttackOrderSound(G_GetMainControllableUnit(ent->client));
     return issued;
 }
 
@@ -625,7 +625,10 @@ static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
             any = true;
         }
     }
-    if (any) G_SendPointConfirmation(clent, location, true);
+    if (any) {
+        G_QueueAttackOrderSound(G_GetMainControllableUnit(clent->client));
+        G_SendPointConfirmation(clent, location, true);
+    }
     return any;
 }
 

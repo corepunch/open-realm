@@ -365,15 +365,11 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     LPCSTR label = self->data.UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
-    /* Register all order-confirmation variants so clients have them cached;
-     * sound.attack keeps the first index for the attack-swing event. */
+    /* Ordinary order and ready variants are cached per unit. YesAttack and
+     * Pissed are selected from UnitAckSounds at the interaction that owns
+     * them; they are not weapon-swing sounds. */
     G_RegisterSoundVariants(self->sound.yes, &self->sound.num_yes, label, "Yes");
     G_RegisterSoundVariants(self->sound.ready, &self->sound.num_ready, label, "Ready");
-    {
-        BYTE tmp[MAX_UNIT_SELECT_SOUNDS]; BYTE n = 0;
-        G_RegisterSoundVariants(tmp, &n, label, "YesAttack");
-        self->sound.attack = n ? tmp[0] : 0;
-    }
     /* Death sounds follow the pattern {label}Death but may not exist in the
      * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
     self->sound.death = G_RegisterSoundLabel(label, "Death");

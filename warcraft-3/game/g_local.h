@@ -2606,6 +2606,10 @@ void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) a
 void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
 int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped);
 void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point);
+DWORD G_UnitAckSoundVariantCount(LPCSTR label, LPCSTR suffix);
+int G_UnitAckSoundVariantIndex(LPCSTR label, LPCSTR suffix, DWORD variant);
+BOOL G_SoundLabelDescriptor(LPCSTR alias, LPSTR path, size_t path_size, int *sound_index, FLOAT *volume);
+void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target);
 
 typedef struct {
     FLOAT volume;
@@ -2673,7 +2677,9 @@ selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent);
 LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
 void G_UpdateClientSelections(void);
 void G_SyncClientSelection(LPGAMECLIENT);
-void G_QueueSelectionSound(LPEDICT);
+void G_ResetSelectionSoundState(void);
+void G_QueueSelectionSound(LPEDICT, BOOL);
+void G_QueueAttackOrderSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 BOOL G_CheatsEnabled(void);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);

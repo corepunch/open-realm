@@ -111,24 +111,29 @@ void G_JassSoundPlayback(HANDLE handle, jassSoundPlayback_t *playback) {
     }
 }
 
-/* Register one random authored file from a Warcraft sound-data row.  UI sound
- * aliases use the same FileNames/DirectoryBase schema as UnitAckSounds. */
-static int G_RegisterSoundRow(UnitAckSounds_t const *row) {
-    LPCSTR files, chosen, comma;
-    char file[256], path[512];
-    DWORD count = 0, pick;
+/* Resolve one authored file from a Warcraft sound-data row. */
+static DWORD G_SoundRowVariantCount(UnitAckSounds_t const *row) {
+    DWORD count = 0;
+    LPCSTR p;
 
     if (!row || !row->FileNames || !row->FileNames[0]) return 0;
-    files = row->FileNames;
     count = 1;
-    for (LPCSTR p = files; (p = strchr(p, ',')) != NULL; p++) count++;
-    if (!count) return 0;
+    for (p = row->FileNames; (p = strchr(p, ',')) != NULL; p++) count++;
+    return count;
+}
 
-    pick = (DWORD)(rand() % count);
-    chosen = files;
-    while (pick--) {
+static BOOL G_SoundRowVariantPath(UnitAckSounds_t const *row, DWORD variant,
+                                  LPSTR path, size_t path_size) {
+    LPCSTR chosen, comma;
+    char file[256];
+    DWORD count;
+
+    if (!path || !path_size || !(count = G_SoundRowVariantCount(row)) || variant >= count)
+        return false;
+    chosen = row->FileNames;
+    while (variant--) {
         chosen = strchr(chosen, ',');
-        if (!chosen) return 0;
+        if (!chosen) return false;
         chosen++;
     }
     comma = strchr(chosen, ',');
@@ -136,37 +141,59 @@ static int G_RegisterSoundRow(UnitAckSounds_t const *row) {
              comma ? (int)(comma - chosen) : (int)strlen(chosen), chosen);
     if (row->DirectoryBase && row->DirectoryBase[0]) {
         size_t n = strlen(row->DirectoryBase);
-        snprintf(path, sizeof(path), "%s%s%s", row->DirectoryBase,
+        snprintf(path, path_size, "%s%s%s", row->DirectoryBase,
                  row->DirectoryBase[n - 1] == '\\' || row->DirectoryBase[n - 1] == '/'
                      ? "" : "\\",
                  file);
     } else {
-        snprintf(path, sizeof(path), "%s", file);
+        snprintf(path, path_size, "%s", file);
     }
-    return gi.SoundIndex(path);
+    return true;
 }
 
+static int G_RegisterSoundRowVariant(UnitAckSounds_t const *row, DWORD variant) {
+    char path[512];
+    return G_SoundRowVariantPath(row, variant, path, sizeof(path)) ? gi.SoundIndex(path) : 0;
+}
+
+/* Register one random authored file from a Warcraft sound-data row. */
+static int G_RegisterSoundRow(UnitAckSounds_t const *row) {
+    DWORD count = G_SoundRowVariantCount(row);
+    return count ? G_RegisterSoundRowVariant(row, (DWORD)(rand() % count)) : 0;
+}
+
+DWORD G_UnitAckSoundVariantCount(LPCSTR label, LPCSTR suffix) {
+    char key[128];
+    if (!label || !label[0] || !suffix) return 0;
+    snprintf(key, sizeof(key), "%s%s", label, suffix);
+    return G_SoundRowVariantCount(G_UnitAckSound(key));
+}
+
+int G_UnitAckSoundVariantIndex(LPCSTR label, LPCSTR suffix, DWORD variant) {
+    char key[128];
+    if (!label || !label[0] || !suffix) return 0;
+    snprintf(key, sizeof(key), "%s%s", label, suffix);
+    return G_RegisterSoundRowVariant(G_UnitAckSound(key), variant);
+}
+
+BOOL G_SoundLabelDescriptor(LPCSTR alias, LPSTR path, size_t path_size,
+                            int *sound_index, FLOAT *volume) {
+    UnitAckSounds_t const *row = G_KeyedSound(alias);
+
+    if (sound_index) *sound_index = 0;
+    if (volume) *volume = 1.0f;
+    if (!row || !row->name || !row->name[0] ||
+        !G_SoundRowVariantPath(row, 0, path, path_size)) return false;
+    if (sound_index) *sound_index = gi.SoundIndex(path);
+    if (volume) *volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
+    return true;
+}
 
 /* Ability sounds are simulation-triggered presentation. Pick the first authored
  * variant on the server rather than consuming gameplay rand(); presentation
  * variant randomization can move client-side without perturbing simulation RNG. */
 static int G_RegisterAbilitySoundRow(UnitAckSounds_t const *row) {
-    LPCSTR comma;
-    char file[256], path[512];
-
-    if (!row || !row->FileNames || !row->FileNames[0]) return 0;
-    comma = strchr(row->FileNames, ',');
-    snprintf(file, sizeof(file), "%.*s",
-             comma ? (int)(comma - row->FileNames) : (int)strlen(row->FileNames), row->FileNames);
-    if (row->DirectoryBase && row->DirectoryBase[0]) {
-        size_t n = strlen(row->DirectoryBase);
-        snprintf(path, sizeof(path), "%s%s%s", row->DirectoryBase,
-                 row->DirectoryBase[n - 1] == '\\' || row->DirectoryBase[n - 1] == '/' ? "" : "\\",
-                 file);
-    } else {
-        snprintf(path, sizeof(path), "%s", file);
-    }
-    return gi.SoundIndex(path);
+    return G_RegisterSoundRowVariant(row, 0);
 }
 
 static int G_RegisterUISound(LPCSTR alias) {
@@ -228,6 +255,43 @@ void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point) {
         FLOAT volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
         gi.PositionedSound(&origin, NULL, CHAN_RELIABLE, sound, volume, 1.0f, 0.0f);
     }
+}
+
+
+static LPCSTR G_ArmorSoundSuffix(LPCEDICT target) {
+    LONG armor;
+
+    if (!target) return NULL;
+    if (G_IsDestructable(target)) armor = target->data.DestructableData->armor;
+    else if (target->data.UnitUI) armor = target->data.UnitUI->armorType;
+    else return NULL;
+    switch (armor) {
+    case 1: return "Flesh";
+    case 2: return "Metal";
+    case 3: return "Wood";
+    case 4: return "Ethereal";
+    case 5: return "Stone";
+    default: return NULL;
+    }
+}
+
+void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target) {
+    UnitAckSounds_t const *row;
+    LPCSTR weapon, armor;
+    char key[128];
+    int sound;
+    FLOAT volume;
+
+    if (!attacker || !target || !attacker->data.UnitWeapons) return;
+    weapon = attacker->data.UnitWeapons->attack1.weaponSound;
+    armor = G_ArmorSoundSuffix(target);
+    if (!weapon || !weapon[0] || weapon[0] == '_' || !armor) return;
+    snprintf(key, sizeof(key), "%s%s", weapon, armor);
+    row = G_UnitCombatSound(key);
+    sound = G_RegisterSoundRow(row);
+    if (!sound) return;
+    volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
+    gi.Sound(target, CHAN_WEAPON, sound, volume, 1.0f, 0.0f);
 }
 
 void G_PlayUISoundForPlayer(LPEDICT clent, LPCSTR alias) {

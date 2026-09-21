@@ -40,7 +40,7 @@ source are non-positional and are still delivered by the server packet path.
 
 ### WC3 Sound Registration
 
-At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and registers authored `What`, `Yes`, `Ready`, `YesAttack`, and death assets. WC3 also loads `UnitCombatSounds.slk`, `UISounds.slk`, and optional `AbilitySounds.slk`; construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields into `UISounds.slk`, while ability `Effectsound`/`Effectsoundlooped` aliases resolve through `AbilitySounds.slk`. See `docs/games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
+At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk` and caches authored `What`, `Yes`, `Ready`, and death assets. `YesAttack` and `Pissed` are selected from `UnitAckSounds.slk` at the interaction that owns them rather than being treated as weapon-swing sounds. WC3 also loads `UnitCombatSounds.slk`, `UISounds.slk`, and optional `AmbienceSounds.slk` / `AbilitySounds.slk`; keyed JASS labels use the merged ability/ambience/UI namespace, construction-complete and command-error sounds resolve through the local player's `war3skins.txt` fields, and basic attack impacts combine the attacker's weapon-sound class with the target armor material. See `docs/games/warcraft-3/sounds.md` for the full lookup chains and current gaps.
 
 WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When game code passes the connected client's own edict (for example local UI, dialogue, or minimap presentation), the server resolves that exact edict to the connection first; it must not assume the game's Warcraft player number equals the engine client slot. For ordinary unit-source owner sounds, it falls back to the entity's player ownership. World events such as attacks, death, and tree impacts use ordinary entity-relative `gi.Sound` calls.
 
@@ -49,7 +49,7 @@ WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When gam
 | File | Role |
 |------|------|
 | `games/warcraft-3/game/g_monster.c` | `G_RegisterUnitSounds` — sound index registration at spawn |
-| `games/warcraft-3/game/g_sound.c` | WC3 `UISounds.slk` / `AbilitySounds.slk`, owner-only UI sounds, ability/effect sounds, and command-error dispatch |
+| `games/warcraft-3/game/g_sound.c` | WC3 keyed sound tables, owner-only UI sounds, ability/effect and combat-impact sounds, JASS label resolution, and command-error dispatch |
 | `client/cl_view.c` | reconciles persistent snapshot `entityState_t.sound` loops by entity number |
 | `sound/s_sound.c` | one-shot packet playback plus generic persistent loop mixing |
 | `client/cl_fx.c` | `CL_EntityEvent` — fires sounds on event |

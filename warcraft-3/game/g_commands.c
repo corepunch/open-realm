@@ -403,16 +403,96 @@ void G_UpdateClientSelections(void) {
     }
 }
 
+typedef struct {
+    LONG entity;
+    DWORD spawn_time;
+    DWORD selected_sound_count;
+    BOOL valid;
+} selectionSoundState_t;
+
+static selectionSoundState_t selection_sound_state[MAX_PLAYERS];
+
+void G_ResetSelectionSoundState(void) {
+    memset(selection_sound_state, 0, sizeof(selection_sound_state));
+}
+
+static selectionSoundState_t *G_SelectionSoundState(LPEDICT ent, BOOL reset) {
+    selectionSoundState_t *state;
+
+    if (!ent || ent->s.player >= MAX_PLAYERS) return NULL;
+    state = selection_sound_state + ent->s.player;
+    if (reset || !state->valid || state->entity != (LONG)ent->s.number ||
+        state->spawn_time != ent->spawn_time) {
+        *state = (selectionSoundState_t){
+            .entity = (LONG)ent->s.number,
+            .spawn_time = ent->spawn_time,
+            .valid = true,
+        };
+    }
+    return state;
+}
+
+static void G_ResetSelectionResponseForUnit(LPEDICT ent) {
+    selectionSoundState_t *state = G_SelectionSoundState(ent, true);
+    if (state) state->selected_sound_count = 0;
+}
+
 /* Client commands arrive before G_RunEntities clears the previous snapshot's
- * event, so retain the chosen acknowledgement until that frame begins. */
-void G_QueueSelectionSound(LPEDICT ent) {
-    if (ent && ent->sound.num_select)
-        ent->sound.pending = ent->sound.select[rand() % ent->sound.num_select];
+ * event, so retain the chosen acknowledgement until that frame begins. Warsmash
+ * uses three normal What responses before walking the Pissed bank in order. */
+void G_QueueSelectionSound(LPEDICT ent, BOOL reset_sequence) {
+    selectionSoundState_t *state;
+    LPCSTR label;
+    DWORD pissed_count, pissed_index;
+    int sound = 0;
+
+    if (!ent || !(state = G_SelectionSoundState(ent, reset_sequence))) return;
+    if (ent->construction.active) {
+        G_QueueOwnerUISound(ent, "ConstructingBuilding");
+        state->selected_sound_count = 0;
+        return;
+    }
+
+    label = ent->data.UnitUI ? ent->data.UnitUI->soundLabel : NULL;
+    pissed_count = G_UnitAckSoundVariantCount(label, "Pissed");
+    if (state->selected_sound_count >= 3 && pissed_count) {
+        pissed_index = state->selected_sound_count - 3;
+        if (pissed_index >= pissed_count) {
+            state->selected_sound_count = 0;
+        } else {
+            sound = G_UnitAckSoundVariantIndex(label, "Pissed", pissed_index);
+        }
+    }
+    if (!sound && ent->sound.num_select)
+        sound = ent->sound.select[rand() % ent->sound.num_select];
+    if (sound) {
+        ent->sound.pending = sound;
+        state->selected_sound_count++;
+    }
+}
+
+void G_QueueAttackOrderSound(LPEDICT ent) {
+    LPCSTR label;
+    DWORD count;
+    int sound;
+
+    if (!ent) return;
+    G_ResetSelectionResponseForUnit(ent);
+    label = ent->data.UnitUI ? ent->data.UnitUI->soundLabel : NULL;
+    count = G_UnitAckSoundVariantCount(label, "YesAttack");
+    sound = count ? G_UnitAckSoundVariantIndex(label, "YesAttack", (DWORD)(rand() % count)) : 0;
+    if (sound) ent->sound.pending = sound;
+    else if (ent->sound.num_yes) ent->sound.pending = ent->sound.yes[rand() % ent->sound.num_yes];
 }
 
 static void G_QueueOrderSound(LPEDICT ent) {
-    if (ent && ent->sound.num_yes)
-        ent->sound.pending = ent->sound.yes[rand() % ent->sound.num_yes];
+    if (!ent) return;
+    if (ent->currentmove && ent->currentmove->proc == CAbilityAttack) {
+        G_QueueAttackOrderSound(ent);
+        return;
+    }
+    G_ResetSelectionResponseForUnit(ent);
+    if (ent->sound.num_yes) ent->sound.pending = ent->sound.yes[rand() % ent->sound.num_yes];
 }
 
 /* select/point are left-click completion paths for targeted commands.  A
@@ -484,6 +564,21 @@ void CMD_CancelCommand(LPEDICT ent) {
     if (!G_CancelBuildPlacement(ent)) {
         Get_Commands_f(ent);
     }
+}
+
+static BOOL G_SelectionMembershipUnchanged(LPGAMECLIENT client, LPEDICT const *old_selection, DWORD old_count) {
+    DWORD current_count = 0;
+
+    if (!client) return false;
+    FOR_SELECTED_UNITS(client, selected) {
+        BOOL found = false;
+        current_count++;
+        FOR_LOOP(i, old_count) {
+            if (old_selection[i] == selected) { found = true; break; }
+        }
+        if (!found) return false;
+    }
+    return current_count == old_count;
 }
 
 CLIENTCOMMAND(Select) {
@@ -608,7 +703,7 @@ CLIENTCOMMAND(Select) {
                 voice = NULL;
             }
             if (G_UnitCanControl(client, voice)) {
-                G_QueueSelectionSound(voice);
+                G_QueueSelectionSound(voice, G_SelectionMembershipUnchanged(client, old_selection, old_count) ? false : true);
             } else if (voice && voice->s.player != PLAYER_NEUTRAL_PASSIVE) {
                 /* Ordinary foreign units use interface feedback rather than
                  * speaking their owner's selection acknowledgement. Neutral
@@ -693,7 +788,7 @@ CLIENTCOMMAND(Focus) {
         G_FocusSelectedUnit(client, target);
 
         if (G_UnitCanControl(client, target)) {
-            G_QueueSelectionSound(target);
+            G_QueueSelectionSound(target, true);
         } else if (target->s.player != PLAYER_NEUTRAL_PASSIVE) {
             G_PlayUISoundForPlayer(clent, "InterfaceClick");
         }

@@ -12,6 +12,7 @@ Warcraft III sound mappings are primarily driven by SLK tables shipped in `War3.
 | `UI/SoundInfo/UnitCombatSounds.slk` | Combat impact/swing sounds by weapon/armor type |
 | `UI/SoundInfo/UISounds.slk` | Interface sounds (button clicks, etc.) |
 | `UI/SoundInfo/AbilitySounds.slk` | Ability/effect sounds referenced by `Effectsound` aliases |
+| `UI/SoundInfo/AmbienceSounds.slk` | Ambient/keyed sound aliases also addressable by JASS labels |
 | `UI/SoundInfo/AnimSounds.slk` | Sounds triggered from MDX animation events |
 
 ## SLK Column Layout
@@ -54,7 +55,7 @@ Death sounds are **not** in `UnitAckSounds.slk`. They are raw WAV files at `{mod
 |-------|-------|---------|
 | `FootmanWhat` | `FootmanWhat1-4.wav` | Click-to-select (acknowledgement) |
 | `FootmanYes` | `FootmanYes1-4.wav` | Move order |
-| `FootmanYesAttack` | `FootmanYesAttack1-3.wav` | Attack order / swing |
+| `FootmanYesAttack` | `FootmanYesAttack1-3.wav` | Attack-order acknowledgement |
 | `FootmanPissed` | `FootmanPissed1-4.wav` | Repeated clicks (idle taunts) |
 | `FootmanReady` | `FootmanReady1.wav` | Unit created / train complete |
 | `FootmanWarcry` | `FootmanWarcry1.wav` | Special (not commonly triggered) |
@@ -86,11 +87,13 @@ UI\SoundInfo\UnitAckSounds.slk
 UI\SoundInfo\UnitCombatSounds.slk
 UI\SoundInfo\UISounds.slk
 UI\SoundInfo\AbilitySounds.slk
+UI\SoundInfo\AmbienceSounds.slk
 ```
 
-All four use `UnitAckSounds_t` because they share the `FileNames` /
+All five use `UnitAckSounds_t` because they share the `FileNames` /
 `DirectoryBase` sound-row schema. `G_UnitAckSound`, `G_UnitCombatSound`,
-`G_UISound`, and `G_AbilitySound` perform exact row-name lookup.
+`G_UISound`, `G_AmbienceSound`, and `G_AbilitySound` retain typed lookup;
+`G_KeyedSound` exposes the Warsmash-style merged UI/ambience/ability namespace.
 
 ### Unit acknowledgement and completion sounds
 
@@ -100,13 +103,20 @@ registers:
 - `sound.select[]` <- every `{label}What` file;
 - `sound.yes[]` <- every `{label}Yes` file;
 - `sound.ready[]` <- every `{label}Ready` file;
-- `sound.attack` <- the first `{label}YesAttack` file;
 - `sound.death` <- `{label}Death` when present, otherwise the raw
   `{modelDir}\{ModelName}Death.wav` path.
 
 Selection and normal right-click acknowledgements are queued until
 `G_RunEntities` clears the previous one-shot queue. They are emitted as
-owner-only `svc_sound` packets to the unit owner.
+owner-only `svc_sound` packets to the unit owner. Repeated selection keeps a
+small presentation-only counter per player/unit: the first three responses use
+`What`, then the authored `Pissed` variants are walked in order. Changing the
+selection or issuing an order resets that sequence. Selecting an active
+construction site uses the owner's `ConstructingBuilding` skin alias instead.
+
+Attack commands resolve a random `{label}YesAttack` response. They no longer
+reuse that voice line as a weapon-swing sound; ordinary `Yes` remains the
+fallback when a unit has no `YesAttack` row.
 
 Training completion selects a random registered `Ready` variant and queues it as owner-only `svc_sound`. For unit-source sounds the server resolves the recipient from the unit's WC3 player ownership. For local presentation APIs such as JASS dialogue, the game passes the connected client edict and the server resolves that exact edict before falling back to player ownership. This distinction is required because a campaign's Warcraft player number is not necessarily the engine connection slot.
 
@@ -204,19 +214,28 @@ Aliases are resolved from Warcraft data rather than hard-coded WAV paths.
 
 ### Combat sounds
 
-`UnitCombatSounds.slk` is currently consumed for lumber harvesting. The
-attacker's authored weapon sound (`ucs1`) is combined with `Wood`, for example
-`MetalLightChopWood`, and all authored variants are registered. A successful
-chop chooses one variant; a lethal chop replaces it with one of
-`Sound\Destructibles\TreeFall{1,2,3}.wav`.
+`UnitCombatSounds.slk` is consumed for both lumber harvesting and ordinary
+attack impacts. The attacker's authored weapon sound (`ucs1`) is combined with
+the target material suffix (`Flesh`, `Metal`, `Wood`, `Ethereal`, or `Stone`)
+and the matching row supplies a random impact variant and authored 0..127
+volume. `UnitUI.slk` and `DestructableData.slk` author those armor values as
+strings, so metadata decoding preserves the token and normalizes it to the JASS
+armor-type integer used by object-data overrides and runtime lookup.
 
-Normal weapon-vs-armour impact resolution is still missing. `sound.attack` is
-still populated from `YesAttack` and fired on attack swings, which is not the
-final WC3 semantic split: `YesAttack` should be an attack-order acknowledgement
-while swing/impact audio should come from combat/model sound data. Keep this as
-a known gap rather than building additional behavior on `sound.attack`.
+Lumber harvesting continues to use `{weaponSound}Wood` (for example
+`MetalLightChopWood`), with a lethal chop replacing it with one of
+`Sound\Destructibles\TreeFall{1,2,3}.wav`. `YesAttack` is now reserved for
+attack-order acknowledgement rather than attack-swing playback. Model-authored
+MDX SND events remain the missing source for swing/animation sounds.
 
 ### JASS sound handles
+
+`CreateSoundFromLabel` resolves the shared Warsmash-style keyed namespace in
+reverse merge order (`AbilitySounds` -> `AmbienceSounds` -> `UISounds`), stores
+the first authored file on a normal game-owned sound handle, and initializes
+its authored volume. `SetSoundParamsFromLabel` can replace an existing handle's
+label-backed file/volume through the same path. Missing labels produce a silent
+handle rather than a simulation failure.
 
 `CreateSound` now retains the JASS handle's 0..127 volume, optional fixed world position, and optional attached unit. `StartSound` samples that state into the existing generic `svc_sound` packet: fixed/attached one-shot sounds use `gi.PositionedSound`, local-player calls remain owner-only, and unscoped calls broadcast once rather than once per configured player slot. Attachment currently samples the unit position when playback starts; continuous moving-emitter tracking, stop/fade state, pitch/cone/distance controls, and volume-group mixing remain future work.
 
@@ -226,14 +245,11 @@ The client mixer currently decodes WAV PCM only. Campaign dialogue and thematic 
 
 The following remain separate follow-up work:
 
-- `{label}Pissed` repeated-click responses;
 - `{label}Warcry`;
-- `ConstructingBuilding` construction-start/selection sound behavior;
-- `YesAttack` as a distinct attack-order acknowledgement;
-- general weapon-vs-armour `UnitCombatSounds.slk` impacts;
-- ability/buff `EffectSound` and `EffectSoundLooped`;
+- looping construction/movement sound-label playback (`BuildingSoundLabel` / `MovementSoundLabel`);
+- ability/buff `EffectSoundLooped` lifetime/stop wiring (one-shot `EffectSound` is implemented);
 - MDX `EVTS` -> `AnimLookups.slk` -> `AnimSounds.slk` playback;
-- `CreateSoundFromLabel` and remaining JASS sound-handle controls such as stop/fade, pitch, cone, and distance parameters;
+- remaining JASS sound-handle controls such as stop/fade, pitch, cone, distance parameters, and `CreateSoundFilenameWithLabel`;
 - volume-group mixing and music/thematic-music natives;
 - MP3 decoding for campaign speech/music assets;
 - race alerts such as `UnderAttack`, `GoldMineLow`, and hero death. Research

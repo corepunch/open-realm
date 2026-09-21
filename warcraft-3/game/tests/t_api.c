@@ -599,14 +599,17 @@ static void campaign_progress_test_user_path(LPCSTR rel, LPSTR out, DWORD out_si
 
 static int ui_sound_calls;
 static int ui_sound_value;
+static FLOAT ui_sound_volume;
+static char ui_sound_path[512];
 static int capture_ui_sound_index(LPCSTR path) {
-    (void)path;
+    snprintf(ui_sound_path, sizeof(ui_sound_path), "%s", path ? path : "");
     return 77;
 }
 static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
-    (void)ent; (void)volume; (void)attenuation; (void)timeofs;
+    (void)ent; (void)attenuation; (void)timeofs;
     ui_sound_calls++;
     ui_sound_value = sound;
+    ui_sound_volume = volume;
     T_EQ(channel, CHAN_OWNER | CHAN_RELIABLE);
 }
 
@@ -2861,6 +2864,48 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     T_NULL(playback.emitter);
 
     G_JassSoundRuntimeReset();
+}
+
+TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "B;X4;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y1;X4;K\"Volume\"\n"
+        "C;Y2;X1;K\"AmbientTest\"\n"
+        "C;Y2;X2;K\"ambient.wav\"\n"
+        "C;Y2;X3;K\"Sound\\Ambient\\\"\n"
+        "C;Y2;X4;K\"63.5\"\n"
+        "E\n";
+    LPGAMECLIENT gc = &game.clients[0];
+    LPEDICT recipient = &g_edicts[0];
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old_rows = G_SetSLKRows("AmbienceSounds", rows);
+    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
+    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+
+    recipient->client = gc;
+    gc->ps.number = 0;
+    gc->connected = true;
+    currentplayer = &gc->ps;
+    ui_sound_calls = 0; ui_sound_value = 0; ui_sound_volume = 0.0f; ui_sound_path[0] = '\0';
+    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local sound s = CreateSoundFromLabel(\"AmbientTest\", false, false, false, 0, 0)\n"
+        "  call StartSound(s)\n"
+        "endfunction\n"));
+    T_EQ(ui_sound_calls, 1);
+    T_EQ(ui_sound_value, 77);
+    T_STREQ(ui_sound_path, "Sound\\Ambient\\ambient.wav");
+    T_FEQ(ui_sound_volume, 0.5f, 0.001f);
+
+    gi.SoundIndex = old_soundindex; gi.Sound = old_sound;
+    currentplayer = NULL;
+    G_SetSLKRows("AmbienceSounds", old_rows); free_slk_rows(rows);
 }
 
 TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
