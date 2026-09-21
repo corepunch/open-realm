@@ -262,8 +262,11 @@ static void graveyard_ensure(LPEDICT graveyard) {
     FLOAT interval;
     LPEDICT thinker;
 
-    if (!graveyard || M_IsDead(graveyard) || graveyard_find_thinker(graveyard) ||
+    /* Agyd is one of the global update procedures. Check ownership before the
+     * edict scan; otherwise every updated unit pays for graveyard lookup. */
+    if (!graveyard || M_IsDead(graveyard) ||
         !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) return;
+    if (graveyard_find_thinker(graveyard)) return;
     interval = S_SpellNumber(ID_GRAVEYARD_CORPSE, ABILITY_NUMBER_COOLDOWN, level);
     if (interval <= 0.0f) return;
     thinker = G_Spawn();

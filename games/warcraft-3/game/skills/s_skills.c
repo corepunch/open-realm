@@ -933,8 +933,18 @@ ability_t const *GetAbilityByIndex(DWORD index) {
 }
 
 DWORD GetAbilityIndex(abilityProc_t proc) {
+    static abilityProc_t cached_proc[8];
+    static BYTE cached_index[8];
+    static BYTE next_cache;
+    BYTE slot;
+
+    if (!proc) return 255;
+    FOR_LOOP(slot, 8) if (cached_proc[slot] == proc) return cached_index[slot];
     FOR_LOOP(i, game.num_abilities) {
         if (abilitylist[i].proc == proc) {
+            slot = next_cache++ & 7;
+            cached_proc[slot] = proc;
+            cached_index[slot] = (BYTE)i;
             return i;
         }
     }

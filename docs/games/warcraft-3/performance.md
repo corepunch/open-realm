@@ -2,6 +2,54 @@
 
 For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
 
+## September 21 CPU profile: Graveyard update scan
+
+Inspection of `build/perf-full.txt` found about 7K `cpu/cycles/P` samples, no lost samples,
+and 89.30% inclusive cost under `SV_Frame`. These are sampled CPU-cycle shares, not wall-time or GPU measurements;
+inclusive parent/child percentages overlap. The report does not identify the capture command, map, or build revision.
+
+`graveyard_find_thinker` accounts for 74.76% self / 75.28% inclusive. The confirmed code path is
+`monster_think -> S_RunAbilityUpdates -> CAbilityGraveyard -> graveyard_ensure -> graveyard_find_thinker`.
+`S_RunAbilityUpdates` dispatches every registered update procedure for each unit. In
+`skills/s_undead_abilities.c`, `graveyard_ensure` scans all `globals.num_edicts` **before** checking
+`G_UnitAbilityLevel(..., Agyd)`. Ordinary living units therefore perform a fruitless full scan every update,
+giving work proportional to updated units times the edict high-water mark, even with no Graveyards.
+`git blame` attributes this ordering to `b8deb304` (`wc3: implement corpse mechanics`).
+
+Recommended implementation sequence (not implemented by this investigation):
+
+1. Establish a failing regression/performance case through real `S_RunAbilityUpdates` dispatch with many
+   non-Agyd units and increasing edict counts, including freed slots. Check Agyd membership before searching
+   for its thinker. Keep behavior in `CAbilityGraveyard`; retain corpse production timing, cap, radii and
+   saveable thinker ownership. Extend `tests/t_exhume.c` coverage for duplicate updates, ability removal/re-add,
+   death and save/load. Measure real Graveyard counts before introducing a persistent thinker index.
+2. Re-profile the same fixed scene with matching build mode, camera, entity population and simulation interval.
+   Record absolute server/frame timings and repeated-run medians. The existing `wc3_perf.run_entities_1900`
+   benchmark is a starting point; verify that its fixture actually enters `monster_think` and ability updates.
+   Removing all current lookup self cost has an idealized fixed-work CPU speedup ceiling of about 4x,
+   not a predicted FPS gain.
+3. `GetAbilityIndex` is 3.64% self / 3.68% inclusive. `g_phys.c` calls it per entity frame; it linearly
+   searches the registry by procedure. Build a procedure-to-first-registry-index lookup in `InitAbilities`,
+   preserving duplicate-procedure first-match behavior and the 255 miss sentinel. Rebuild with the registry;
+   leave transmitted indices and save representation unchanged.
+4. `R_ConformGroundSurfaces` is 1.76% self / 2.19% inclusive. Its nested loops scan all render entities
+   for every ground-conforming entity. Gather `RF_GROUND_SURFACE` candidates once per view, then test only
+   those; retain exact MDX intersection, highest-hit selection and `ground_offset`. Add spatial indexing only
+   if actual surface counts justify it. Test no surfaces, overlapping bridges and altitude offsets.
+5. `MDLX_BindBoneMatrices` is 2.01% inclusive, including geometry and attachment collection. Investigate
+   sharing the already evaluated entity pose with `MDLX_CollectAttachmentPositions`; global scratch matrices
+   can be overwritten by another model, so reuse requires explicit lifetime/identity. Preserve interpolation,
+   billboard/view dependencies and portrait/world separation. Do not begin with SIMD or interpolation changes.
+6. `G_BlightPackRows` is 0.86% inclusive. `G_BlightWriteDatagram` retries encoding with one fewer row on
+   overflow. Measure retry counts and patterns before selecting bounded chunk sizing or incremental packing;
+   preserve dirty-row delivery, periodic sweeps and the existing wire encoding. The profile alone does not
+   prove retries dominate this cost.
+
+Run the baseline `make test` before implementation, reproduce each regression before its fix, and use focused
+`wc3_spell.graveyard*`, corpse/save tests and `wc3_perf.*` comparisons for the first change. Subsequent optimizations
+should be selected from the new profile, since the dominant scan currently suppresses their relative shares.
+See [corpse mechanics](corpse-mechanics.md) for the authored Graveyard contract.
+
 ## Hero aura presentation cache
 
 The full profile in `build/perf-full.txt` assigns 41.62% of sampled CPU cycles to
