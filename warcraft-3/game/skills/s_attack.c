@@ -539,6 +539,7 @@ static void ai_attack_walk(LPEDICT ent) {
             attack_finish_after_combat(ent, ent->goalentity);
             return;
         }
+        if (!S_UnitCanTranslate(ent)) return;
         unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (attack_target_too_close(ent)) {
@@ -548,6 +549,7 @@ static void ai_attack_walk(LPEDICT ent) {
             attack_finish_after_combat(ent, ent->goalentity);
             return;
         }
+        if (!S_UnitCanTranslate(ent)) return;
         attack_retreat_from_target(ent);
     } else if (ent->attack1.weapon == WPN_MISSILE || ent->attack1.weapon == WPN_ARTILLERY) {
         attack_ranged(ent);
@@ -721,10 +723,12 @@ static void ai_attack_ground_walk(LPEDICT ent) {
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent)) {
         if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
+        if (!S_UnitCanTranslate(ent)) return;
         unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (attack_ground_too_close(ent)) {
         if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
+        if (!S_UnitCanTranslate(ent)) return;
         attack_retreat_from_target(ent);
     } else {
         attack_ground_ranged(ent);
@@ -809,6 +813,7 @@ static void ai_attackmove_walk(LPEDICT ent) {
     FLOAT distance = M_DistanceToGoal(ent);
     FLOAT move_distance = unit_movedistance(ent);
 
+    if (!S_UnitCanTranslate(ent)) return;
     if (move_should_arrive(ent, move_distance)) {
         if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
             ent->s.origin2 = ent->goalentity->s.origin2;

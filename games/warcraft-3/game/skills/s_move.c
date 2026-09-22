@@ -1482,6 +1482,18 @@ BOOL move_is_active_order_walk(LPCEDICT ent) {
     return ent && ent->currentmove == &move_move_walk;
 }
 
+/* Move owns translation eligibility. False means the unit cannot change
+ * position this tick (immobile, Cyclone, Entangling Roots, Ensnare, Purge
+ * pause). This is distinct from being unable to attack: a locked artillery
+ * unit must hold its firing point and still fire in-range targets. */
+BOOL S_UnitCanTranslate(LPCEDICT unit) {
+    if (!unit) return false;
+    if ((unit->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(unit) ||
+        G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')) ||
+        S_UnitIsEnsnared(unit) || S_PurgeIsImmobilized(unit)) return false;
+    return true;
+}
+
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
 void order_move(LPEDICT self, LPEDICT target) {

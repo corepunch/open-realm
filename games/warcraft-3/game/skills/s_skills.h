@@ -433,6 +433,7 @@ BOOL S_SummonIsDispelImmune(LPCEDICT unit);
 BOOL S_UnitIsSilenced(LPCEDICT unit);
 BOOL S_StatusIsEnsnare(DWORD code);
 BOOL S_UnitIsEnsnared(LPCEDICT unit);
+BOOL S_UnitCanTranslate(LPCEDICT unit);
 FLOAT S_EnsnareMeleeRange(LPCEDICT unit);
 void S_EnsnareStatusExpired(LPEDICT unit, heroabilitystatus_t const *status);
 BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target);
