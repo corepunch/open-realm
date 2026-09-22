@@ -39,27 +39,11 @@ VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y) {
     return R_TerrainGridNormal(&grid, x, y);
 }
 
-DWORD IsMidRamp(LPCWAR3MAPVERTEX mv) {
-    return
-        (mv[0].cliffVariation && mv[0].ramp) +
-        (mv[1].cliffVariation && mv[1].ramp) +
-        (mv[2].cliffVariation && mv[2].ramp) +
-        (mv[3].cliffVariation && mv[3].ramp);
-}
-
 static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTURE texture) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
     int _tile = GetTile(tile, ground);
-    int _ramps = GetTileRamps(tile);
-
-    if (_tile == 0)
-        return;
-
-    if (IsTileCliff(tile) && _ramps < 4)
-        return;
-    
-    if (_ramps == 2 && IsMidRamp(tile) == 1)
+    if (!_tile || !R_TileHasGround(tile))
         return;
     
     VECTOR3 const p[] = {
@@ -109,23 +93,9 @@ static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTUR
 
 static BOOL R_TileAcceptsSplat(LPCWAR3MAP map, DWORD x, DWORD y) {
     struct War3MapVertex tile[4];
-    int ground;
-    int ramps;
 
     GetTileVertices(x, y, map, tile);
-    ground = GetTile(tile, 0);
-    ramps = GetTileRamps(tile);
-
-    if (ground == 0) {
-        return false;
-    }
-    if (IsTileCliff(tile) && ramps < 4) {
-        return false;
-    }
-    if (ramps == 2 && IsMidRamp(tile) == 1) {
-        return false;
-    }
-    return true;
+    return GetTile(tile, 0) && R_TileHasGround(tile);
 }
 
 static void R_BuildSplatQuad(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, FLOAT width, FLOAT height, COLOR32 color, LPVERTEX geom) {
@@ -406,10 +376,14 @@ static BOOL R_BlightTileCacheUpdate(viewDef_t const *view) {
     BLIGHT_LOG("cache generation=%u tiles=%ux%u\n",
             (unsigned)view->terrain_mask.generation,
             (unsigned)blight_tiles.width, (unsigned)blight_tiles.height);
-    FOR_LOOP(cy, blight_tiles.height + 1) FOR_LOOP(cx, blight_tiles.width + 1)
-        blight_tiles.corners[cx + cy * (blight_tiles.width + 1)] =
+    FOR_LOOP(cy, blight_tiles.height + 1) FOR_LOOP(cx, blight_tiles.width + 1) {
+        int x = (int)lroundf((blight_tiles.origin.x - tr.world->center.x) / TILE_SIZE) + cx;
+        int y = (int)lroundf((blight_tiles.origin.y - tr.world->center.y) / TILE_SIZE) + cy;
+        /* Blight changes eligible ground corners, never the terrain type owned by a cliff mesh. */
+        blight_tiles.corners[cx + cy * (blight_tiles.width + 1)] = !R_CliffOwnsCorner(tr.world, x, y) &&
             TerrainMask_CornerValue(view->terrain_mask.cells, view->terrain_mask.width,
                 view->terrain_mask.height, cells_per_tile, cx, cy);
+    }
     FOR_LOOP(ty, blight_tiles.height) FOR_LOOP(tx, blight_tiles.width) {
         BYTE const *corners = &blight_tiles.corners[tx + ty * (blight_tiles.width + 1)];
         blight_tiles.active[tx + ty * blight_tiles.width] =

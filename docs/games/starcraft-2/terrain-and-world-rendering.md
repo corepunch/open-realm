@@ -87,6 +87,14 @@ the old public fixed-12-byte description shifts the next block count by one byte
 
 SC2 cliff pieces are expanded into non-indexed `VERTEX` triangles in `r_sc2map.c`. Seam smoothing must use quantized XYZ position and placement identity. An XY-only key is invalid because stacked geometry shares grid columns; a bounded `TRaynor01` diagnostic found 9,749 mixed-height XY buckets and 9,058 opposing-normal comparisons among 309,669 vertices.
 
+The dynamic bake and welder now live in `renderer/r_cliff.h`, shared with WC3. Repeated expanded triangle corners count each placement/authored normal only once to avoid weighting one side of a seam more heavily.
+
+The shared header helpers must be `static inline`: the standalone SC2 tests include this header for
+`R_CliffWeldCompatible` without linking the renderer or defining its `ri` import table. In PR #480, plain
+`static` allocation/welding helpers were emitted by GCC at `-O0`, causing undefined `ri` references in
+`make test-sc2` on Linux. Apple Clang discarded the unused helpers, so macOS tests alone missed the failure.
+Keep the standalone link independent of renderer globals; do not add dummy imports or weaken the linker.
+
 Only vertices from different placements with the same quantized height and normals in the same hemisphere may contribute to one another. Same-placement vertices preserve authored hard edges. Seed each average with the source normal, compute outputs separately from inputs, and leave zero normals unchanged so `Vector3_normalize` never receives a zero sum.
 
 Validation:
@@ -95,6 +103,31 @@ Validation:
 make test-sc2
 build/bin/opensc2 -data data/StarCraft2 +map Maps/Campaign/TRaynor01.SC2Map +screenshot 5 +com_frame_limit 10
 ```
+
+## Ramp Cliff Transitions
+
+`t3Terrain.xml/rampList` supplies `dir`, `lo`, `hi`, `cid`, four side variants, and oriented `leftLo`, `leftHi`, `rightLo`, `rightHi`,
+`base`, `mid` boxes. A box stores up/right axes, center and half extents in height-grid units. Scalar attributes use the XML schema;
+the nested box string is one explicit parser production. Variant `4294967295` disables a side. The map owns/frees the parsed array.
+Previously `cc.f & 2` skipped ordinary cliff models without loading the ramp sides (introduced in `24354a8c`).
+
+Borrowing WC3's transition-footprint approach, `r_sc2_build_ramp_cliffs` selects native transition M3s for those boxes. Ordinary
+corners use `A + tier`; slope corners use `P + tier` from the mid-box slope. Packed CLIF levels use six fractional bits. Model
+configurations are cyclic but not all use lexicographically minimal names: the local TRaynor01 diagonal side resolves `BRQQ` to
+`QBRQ` with the corresponding rotation. Preserve M3 vertices/UVs and the authored variant through the existing cliff texture batches.
+
+TRaynor01 has a straight ramp centered at `(102,34)` with `BQRC/BCRQ` sides, and a diagonal ramp centered at `(50,90)` with
+`BQQR/QBRQ` sides. The diagonal M3 footprints are **L-shaped**, missing a complete 2×2 corner block. Classify ground using each
+2×2 block center strictly inside the mid box; the remaining side blocks belong to the mesh. Clipping individual triangles to the
+oriented mid box incorrectly assumes a triangular model footprint and creates overlaps/holes. Mesh edges bordering emitted ground
+sample its actual triangle height, not bilinear height, which differs inside non-planar cells. The low-tier M3 base averages only
+integer-tier HMAP base samples; fractional CLIF samples inside the slope must not bias that base upward.
+
+`make test-sc2` covers XML/MPQ lifecycle, straight and diagonal model configurations, block coverage, and triangle height joins.
+Bounded captures can use `+com_fast_forward 1 +screenshot 10 +com_frame_limit 60`; without fast-forward a hidden scene can finish
+its frame budget before the screenshot receives a world snapshot. Local verification used TRaynor01's authored terrain and M3s
+in a temporary terrain-only map with a StartGame camera at `(50,90)`. Retail assets are not test fixtures or committed outputs.
+See [WC3 cliff baking and ramps](../warcraft-3/architecture/map-renderer.md#shared-normal-welding-and-undead04).
 
 ## Cliff Texture Batches
 

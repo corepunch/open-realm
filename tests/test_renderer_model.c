@@ -1470,7 +1470,7 @@ TEST(renderer_terrain, cliff_texture_skips_non_cliff_corners) {
         { .cliff = {0,1,0,15}, .want = 1 }, /* Then NW. */
         { .cliff = {0,15,1,15}, .want = 0 }, /* Then NE; zero is a valid texture. */
         { .cliff = {15,15,1,15}, .want = 1 }, /* Then SE. */
-        { .cliff = {15,15,15,15}, .want = BZ_WC3_NO_CLIFF_TEXTURE },
+        { .cliff = {15,15,15,15}, .want = 1 }, /* Undead04: implicit second cliff set. */
     };
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         WAR3MAPVERTEX tile[4] = {0};
@@ -1479,8 +1479,12 @@ TEST(renderer_terrain, cliff_texture_skips_non_cliff_corners) {
     }
 }
 
-/* Exercise the cliff baker and cache, mocking only asset loading, SLK lookup and the flat height normal. */
-VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y) { return (VECTOR3){0,0,1}; }
+/* Exercise the terrain/cliff bakers with real height normals, mocking asset lookup and draw submission. */
+void R_DrawBuffer(LPCBUFFER buffer, DWORD count) {}
+LINE3 R_LineForScreenPoint(viewDef_t const *view, FLOAT x, FLOAT y) { return (LINE3){0}; }
+LPCTEXTURE R_BlightTexture(void) { return texture_load_result; }
+w3TerrainArt_t const *R_TerrainArt(DWORD id) { T_ASSERT(false); return NULL; }
+#include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
 w3CliffType_t const *R_CliffType(DWORD id) { T_ASSERT(false); return NULL; }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
@@ -1522,14 +1526,14 @@ TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage
         verts[6].ramp = verts[7].ramp = !pass;
         mdx.bounds.box.max.y = pass ? 128 : 256;
         pos[1].y = pos[2].y = mdx.bounds.box.max.y;
-        cliffs_current_vertex = cliffs_vertex_buffer;
+        cliff_bake.num_vertices = 0;
         R_MakeCliff(&map, 1, 1, &data);
         T_STREQ(last_model_load, pass ? "Doodads\\Terrain\\CityCliffs\\CityCliffsBAAB0.mdx" : "Doodads\\Terrain\\CityCliffTrans\\CityCliffTransBALH0.mdx");
-        T_EQ(cliffs_current_vertex - cliffs_vertex_buffer, 3);
+        T_EQ(cliff_bake.num_vertices, 3);
         FOR_LOOP(y, 5) FOR_LOOP(x, 5)
             T_EQ(verts[x+y*5].ground, x >= 1 && x <= (pass ? 2 : 3) && y >= 1 && y <= 2 ? 4 : 0);
         FOR_LOOP(i, 3) {
-            LPCVERTEX v = &cliffs_vertex_buffer[i];
+            LPCVERTEX v = &cliff_bake.vertices[i];
             T_FEQ(v->position.x, 128 + pos[i].y, 0.001f);
             T_FEQ(v->position.y, 128 - pos[i].x, 0.001f);
             T_FEQ(v->position.z, 384 + pos[i].z, 0.001f);
@@ -1537,7 +1541,67 @@ TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage
             T_FEQ(v->texcoord.x, uv[i].x, 0.001f); T_FEQ(v->texcoord.y, uv[i].y, 0.001f);
         }
     }
-    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
+    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache(); R_FinishCliffs();
+}
+
+TEST(renderer_terrain, cliff_welding_ignores_triangle_multiplicity_and_stacked_faces) {
+    VERTEX vertices[] = {
+        { .position = {128,256,384}, .normal = {1,0,0} },
+        { .position = {128,256,384}, .normal = {1,0,0} },
+        { .position = {128,256,384}, .normal = {0.6f,0.8f,0} },
+        { .position = {128,256,385}, .normal = {0,1,0} },
+        { .position = {128,256,384}, .normal = {-1,0,0} },
+        { .position = {128,256,384} },
+    };
+    DWORD groups[] = { 1,1,2,3,4,5 };
+    rCliffBakeList_t list = { .vertices = vertices, .groups = groups, .num_vertices = 6 };
+    reset_registry(); R_CliffWeldNormals(&list, 0.01f);
+    T_FEQ(vertices[0].normal.x, vertices[2].normal.x, 0.0001f);
+    T_FEQ(vertices[0].normal.y, vertices[2].normal.y, 0.0001f);
+    T_FEQ(vertices[3].normal.y, 1, 0.0001f); T_FEQ(vertices[4].normal.x, -1, 0.0001f);
+    T_FEQ(Vector3_len(&vertices[5].normal), 0, 0.0001f);
+}
+
+TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
+    WAR3MAPVERTEX verts[25];
+    DWORD grounds[] = { MAKEFOURCC('V','d','r','t') };
+    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 1 };
+    /* AABB native mesh: north edge is high; exterior lip is slightly below the terrain. */
+    VECTOR3 pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
+    VECTOR3 norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    VECTOR2 uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
+    cliffData_t data = { .cliff = 1, .groundTile = grounds[0], .rampModelDir = "CliffTrans", .cliffModelDir = "Cliffs" };
+    reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
+    FOR_LOOP(y, 5) FOR_LOOP(x, 5)
+        verts[x+y*5] = (WAR3MAPVERTEX){ .level = y >= 2 ? 5 : 4, .cliff = 15, .accurate_height = 8192 + x*16 };
+    cliff_bake.num_vertices = 0;
+    R_MakeCliff(&map, 1, 1, &data);
+    T_EQ(cliff_bake.num_vertices, 3);
+    FOR_LOOP(i, 3) {
+        T_FEQ(cliff_bake.vertices[i].position.z, 384 + 4 + i*2, 0.001f);
+        T_FEQ(cliff_bake.vertices[i].normal.x, R_GetVertexNormal(&map, 1, 2).x, 0.001f);
+    }
+    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache(); R_FinishCliffs();
+}
+
+TEST(renderer_terrain, blight_preserves_cliff_corners) {
+    WAR3MAPVERTEX verts[25]; BYTE cells[256];
+    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts };
+    reset_registry(); tr.world = &map; memset(cells, 1, sizeof(cells));
+    FOR_LOOP(y, 5) FOR_LOOP(x, 5)
+        verts[x+y*5] = (WAR3MAPVERTEX){ .level = x < 2 ? 4 : 5, .accurate_height = 8192 };
+    viewDef_t view = { .terrain_mask = { .cells = cells, .width = 16, .height = 16, .cell_size = 32, .generation = 1 } };
+    T_ASSERT(R_BlightTileCacheUpdate(&view));
+    FOR_LOOP(y, 5) {
+        T_EQ(blight_tiles.corners[1+y*5], 0); T_EQ(blight_tiles.corners[2+y*5], 0);
+        T_EQ(blight_tiles.corners[3+y*5], 1);
+    }
+    /* A later network generation must preserve the boundary too. */
+    view.terrain_mask.generation++; T_ASSERT(R_BlightTileCacheUpdate(&view));
+    T_EQ(blight_tiles.corners[2+2*5], 0);
+    R_ResetBlightCache(); tr.world = NULL;
 }
 
 TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {

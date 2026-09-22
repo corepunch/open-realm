@@ -28,7 +28,7 @@ R_RenderView       → colour pass: ground + cliffs, then entities,
    - World-space centre offset `map->center` (loaded directly from the file).
    - Flat vertex array `map->vertices` — `map->width × map->height` entries, each `MAP_VERTEX_SIZE` bytes.
 4. `R_FileReadShadowMap` reads `war3map.shd` and uploads it as an inverted greyscale texture to `tr.texture[TEX_SHADOWMAP]`.
-5. `R_LoadMapSegments` partitions the vertex grid into segments and bakes all GPU buffers.
+5. `R_LoadMapSegments` partitions the vertex grid into segments. Cliff triangles remain in a map-wide CPU bake until `R_FinishCliffs` welds seams and uploads the per-segment/material ranges. Ground layers are built afterward.
 
 ## Segment System
 
@@ -88,7 +88,7 @@ vertices[i].texcoord.x = LerpNumber(vertices[i].texcoord.x,
 `R_MakeTile` refuses to emit geometry for a tile if:
 
 - `IsTileCliff(tile) && GetTileRamps(tile) < 4` — at least one vertex has a different `level` from the others, and fewer than all four vertices are ramp vertices. Cliff-face geometry is handled by the cliff layer instead.
-- `GetTileRamps(tile) == 2 && IsMidRamp(tile) == 1` — exactly two ramp flags are set, but only one vertex is in the *mid-ramp* position (see the ramp section below). This avoids a triangle of ground leaking through the middle of a ramp.
+- `GetTileRamps(tile) == 2` with exactly one `ramp && cliffVariation` corner — exactly two ramp flags are set, but only one vertex is in the *mid-ramp* position (see the ramp section below). This avoids a triangle of ground leaking through the middle of a ramp.
 
 ### Water Depth Tinting
 
@@ -118,8 +118,7 @@ Corner order is `[NW, NE, SE, SW]` (`r_cliff_corners[] = {1,0,2,3}`), while `Get
 `[NE, NW, SE, SW]`. The resulting string like `"AABB"` selects the correct model variant.
 
 `R_CliffTexture` selects the first authored cliff index in **SW, NW, NE, SE** order, independently of the model order.
-W3E index 15 marks a
-non-cliff corner, not a texture layer. Checking only SW discards legitimate faces whose other corners identify the cliff.
+W3E index 15 means no explicit cliff texture on that corner. When all four are 15, the cell selects cliff slot **1**. Checking only SW loses mixed-index faces; discarding all-15 cells loses the implicit second-set faces.
 
 The per-map model cache keys the full asset path, not just four configuration letters. `Cliffs` and `CityCliffs`
 (likewise `CliffTrans` and `CityCliffTrans`) contain different geometry with identical configuration suffixes.
@@ -227,7 +226,39 @@ Every vertex of the copied cliff model has its Z adjusted to match the actual he
 fz = vertex.z + baselevel * TILE_SIZE + GetAccurateHeightAtPoint(fx, fy) - HEIGHT_COR;
 ```
 
-This grounds cliff models to terrain depressions or rises that occur within a tile.
+This grounds cliff models to terrain depressions or rises that occur within a tile. `R_CliffGroundJoin` then finds edges bordering
+emitted ground through `R_TileHasGround` and snaps vertices within half a tier to that exact ground edge. This includes ramp-adjusted
+heights from `R_GetVertexPosition`; the decorative MDX lip alone is not the ground surface. Upward-facing join normals use the terrain
+normal while vertical faces retain their authored direction.
+
+### Shared Normal Welding and Undead04
+
+Issue [#477](https://github.com/corepunch/open-realm/issues/477) exposed a second cliff-index case after the mixed-corner fix in
+`5ae558b7`. The local ROC `Undead04.w3m` has 671 cliff cells with all four indices 15, plus 606 with explicit cliff 0. Its W3E cliff
+list is `CLgr,CVdi`: the implicit cells need `CVdi`. Returning 15 skipped every material layer, leaving black holes beside the river
+and waygates. Warsmash's `Terrain` corner selection also resolves the all-15 case to 1. The northeast waygate is at world
+`(4032,-1856)`; a fog-disabled capture of the unchanged terrain confirms those faces are now present.
+
+`renderer/r_cliff.h` shares the dynamic triangle bake and normal welder with SC2. The welder keys quantized XYZ, combines only
+similarly-facing normals from distinct placements, and leaves stacked, opposing and zero normals alone. Expanded triangles must
+count each placement/authored normal once: counting repeated indices biases opposite sides of a seam differently. WC3 defers uploads
+until all segments and cliff materials have been baked, so seams across segment/material boundaries participate in the same pass.
+Native MDX axes, ramp footprints and UVs remain WC3-owned; SC2's M3 placement/catalog rules remain SC2-owned.
+
+Blight preserves corners owned by any omitted cliff/transition cell, including low ramp neighbours. Ground, splats, snapping and
+Blight share `R_TileHasGround`; see [Blight presentation](../blight.md) and [SC2 ramps and welding](../../starcraft-2/terrain-and-world-rendering.md).
+
+Regression coverage in `test_renderer_model` includes `undead04_implicit_cliff_and_ground_join`,
+`blight_preserves_cliff_corners`, and `cliff_welding_ignores_triangle_multiplicity_and_stacked_faces`. Run `make test-renderer-model`
+and `make test`. A bounded retail-data load is:
+
+```sh
+build/bin/openwarcraft3 -data "data/Warcraft III" +vid_hidden 1 +map Maps/Campaign/Undead04.w3m +com_fast_forward 1 +com_frame_limit 120
+```
+
+For camera commands with negative coordinates, use a config passed through `+exec` (for example `camera move 4032 -1856`);
+the startup argument parser treats a separate negative argument as a command-line option. Fog and the opening cinematic must be
+disabled for a visual inspection of that location; automated geometry tests do not need either runtime change.
 
 ## Water Layer (`r_war3map_water.c`)
 

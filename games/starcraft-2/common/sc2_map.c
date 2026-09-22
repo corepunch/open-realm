@@ -250,6 +250,8 @@ static void sc2_free_catalog(sc2Catalog_t *catalog) {
 
 static void sc2_map_clear(void) {
     SAFE_DELETE(sc2_persistent_catalog, sc2_free_catalog);
+    SAFE_DELETE(sc2_map.t3Terrain.ramps, sc2_free);
+    ARRAY_COUNT(sc2_map.t3Terrain.ramps) = 0;
     SAFE_DELETE(sc2_map.t3CellFlags, sc2_free);
     SAFE_DELETE(sc2_map.t3SyncCliffLevel, sc2_free);
     SAFE_DELETE(sc2_map.t3HeightMap, sc2_free);
@@ -890,11 +892,59 @@ static void sc2_parse_terrain_field(xmlNodePtr node, LPCSTR name, LPCSTR value) 
     }
 }
 
+/* Scalar attributes use the XML schema; the nested oriented-box grammar is one explicit production. */
+static sc2XmlField_t const sc2_ramp_fields[] = {
+    { "dir", offsetof(SC2RAMP, dir), BZ_FIELD_U32 },
+    { "hi", offsetof(SC2RAMP, hi), BZ_FIELD_U32 },
+    { "lo", offsetof(SC2RAMP, lo), BZ_FIELD_U32 },
+    { "cid", offsetof(SC2RAMP, cid), BZ_FIELD_U32 },
+    { "leftLoVar", offsetof(SC2RAMP, variant[0]), BZ_FIELD_U32 },
+    { "leftHiVar", offsetof(SC2RAMP, variant[1]), BZ_FIELD_U32 },
+    { "rightLoVar", offsetof(SC2RAMP, variant[2]), BZ_FIELD_U32 },
+    { "rightHiVar", offsetof(SC2RAMP, variant[3]), BZ_FIELD_U32 },
+};
+static struct { LPCSTR name; size_t offset; } const sc2_ramp_boxes[] = {
+    { "leftLo", offsetof(SC2RAMP, edge[0]) },
+    { "leftHi", offsetof(SC2RAMP, edge[1]) },
+    { "rightLo", offsetof(SC2RAMP, edge[2]) },
+    { "rightHi", offsetof(SC2RAMP, edge[3]) },
+    { "base", offsetof(SC2RAMP, base) },
+    { "mid", offsetof(SC2RAMP, mid) },
+};
+
+static void sc2_parse_ramp_list(xmlNodePtr node) {
+    if (!sc2_streqi((LPCSTR)node->name, "rampList")) return;
+    DWORD count = 0;
+    for (xmlNodePtr child = node->children; child; child = child->next)
+        if (sc2_streqi((LPCSTR)child->name, "ramp")) count++;
+    SAFE_DELETE(sc2_map.t3Terrain.ramps, sc2_free);
+    sc2_map.t3Terrain.ramps = count ? sc2_alloc(count * sizeof(SC2RAMP)) : NULL;
+    ARRAY_COUNT(sc2_map.t3Terrain.ramps) = 0;
+    for (xmlNodePtr child = node->children; child; child = child->next) {
+        if (!sc2_streqi((LPCSTR)child->name, "ramp")) continue;
+        SC2RAMP *ramp = &sc2_map.t3Terrain.ramps[ARRAY_COUNT(sc2_map.t3Terrain.ramps)++];
+        memset(ramp, 0, sizeof(*ramp));
+        for (xmlAttrPtr attr = child->properties; attr; attr = attr->next) {
+            xmlChar *value = xmlNodeListGetString(child->doc, attr->children, 1);
+            if (!value) continue;
+            sc2_parse_xml_field(ramp, sc2_ramp_fields, SC2_ARRAY_LEN(sc2_ramp_fields), (LPCSTR)attr->name, (LPCSTR)value);
+            FOR_LOOP(i, SC2_ARRAY_LEN(sc2_ramp_boxes)) {
+                if (!sc2_streqi((LPCSTR)attr->name, sc2_ramp_boxes[i].name)) continue;
+                SC2RAMPBOX *box = (SC2RAMPBOX *)((char *)ramp + sc2_ramp_boxes[i].offset);
+                if (sscanf((LPCSTR)value, "u(%f, %f) r(%f, %f) c=(%f, %f) w=%f h=%f", &box->up.x, &box->up.y, &box->right.x, &box->right.y, &box->center.x, &box->center.y, &box->width, &box->height) != 8)
+                    fprintf(stderr, "SC2 ramp: invalid %s box '%s'\n", sc2_ramp_boxes[i].name, value);
+            }
+            xmlFree(value);
+        }
+    }
+}
+
 static void sc2_parse_terrain_node(xmlNodePtr node) {
     char value[256];
 
     if (!node || node->type != XML_ELEMENT_NODE)
         return;
+    sc2_parse_ramp_list(node);
     sc2_parse_cliff_set_node(node);
     sc2_parse_cliff_cell_node(node);
     for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {

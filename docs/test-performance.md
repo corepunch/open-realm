@@ -6,6 +6,9 @@ The aggregate `test` target runs independent standalone, engine, and game-suite 
 
 The aggregate target runs the suites concurrently through recursive Make. `TEST_JOBS` controls the concurrency and defaults to 16; this was fastest on the local 8-core macOS machine in the measurements below.
 
+The `test-jass-build` shell recipe is marked recursive with `+` because its script invokes Make. This preserves
+GNU Make jobserver descriptors during parallel suite execution and avoids the Linux `jobserver unavailable` warning.
+
 ## Benchmark
 
 Measured on `main` at commit `ac44fc12` before the change:

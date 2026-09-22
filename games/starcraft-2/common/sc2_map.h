@@ -136,7 +136,20 @@ typedef struct {
     DWORD          variant;
 } sc2CliffCell_t;
 
+/* t3Terrain rampList boxes use orthonormal up/right axes and half extents in height-grid units. */
+typedef struct SC2RAMPBOX {
+    VECTOR2 up, right, center;
+    FLOAT width, height;
+} SC2RAMPBOX;
+
+typedef struct SC2RAMP {
+    DWORD dir, hi, lo, cid;
+    SC2RAMPBOX edge[4], base, mid;
+    DWORD variant[4];
+} SC2RAMP;
+
 typedef struct {
+    ARRAY(SC2RAMP, ramps);
     char           tile_set[64];
     DWORD          num_terrain_textures;
     sc2TerrainTexture_t terrain_textures[SC2_MAX_TERRAIN_TEXTURES];

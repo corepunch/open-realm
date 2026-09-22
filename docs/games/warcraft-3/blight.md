@@ -77,3 +77,12 @@ make test
 For one runtime trace of the server-to-renderer path, build/run with `WC3_DEBUG_BLIGHT=1`. The log should show a `growth tick` line, a server `datagram` row range with its sweep flag, and a renderer `cache generation` line.
 
 Manual campaign/custom-map verification should also exercise `SetBlight*`/`IsPointBlighted`, an Undead building crossing a Blight boundary, a damaged `uhrt=blight` unit walking on/off Blight, and stock `Abli` expansion timing.
+
+## Cliff Boundaries
+
+The renderer's cached corner mask rejects `R_CliffOwnsCorner` before sampling network or authored Blight. Any adjacent cell omitted
+by `R_TileHasGround` owns that corner, including the low neighbour of a two-cell ramp. This preserves the cliff type's ground border
+instead of painting Blight across its lip. Reapply this restriction on every mask generation so later spread cannot repaint it.
+The gameplay Blight plane, save data and network mask retain their existing meaning; this is terrain presentation eligibility.
+`renderer_terrain.blight_preserves_cliff_corners` covers spread and a subsequent generation. See
+[map renderer cliff ownership](architecture/map-renderer.md#shared-normal-welding-and-undead04).

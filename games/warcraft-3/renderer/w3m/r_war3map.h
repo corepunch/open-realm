@@ -6,7 +6,7 @@
 #include "games/warcraft-3/common/terrain.h"
 #include "r_terrain_layers.h"
 
-#define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; W3E's non-cliff corner sentinel; excluded from cliff texture selection
+#define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; no explicit W3E corner texture; an all-sentinel cell selects cliff slot 1
 
 static const BYTE r_cliff_corners[] = { 1, 0, 2, 3 }; /* Native MDX configuration: NW,NE,SE,SW. */
 /* Retail rotates cliff geometry -90 degrees; selecting a rotated filename does not preserve authored UVs/shape. */
@@ -18,6 +18,8 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
 LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy);
 void R_ResetGroundTextures(void);
 void R_ResetCliffCache(void);
+void R_FinishCliffs(void);
+VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, BOOL useLevel);
 void R_ResetBlightCache(void);
 void R_LoadBlightTexture(BYTE tileset);
 LPCTEXTURE R_BlightTexture(void);
@@ -46,7 +48,8 @@ static inline DWORD R_CliffTexture(LPCWAR3MAPVERTEX tile) {
     FOR_LOOP(i, 4)
         if (tile[order[i]].cliff != BZ_WC3_NO_CLIFF_TEXTURE)
             return tile[order[i]].cliff;
-    return BZ_WC3_NO_CLIFF_TEXTURE;
+    /* W3E 15 on every corner selects the second cliff set (Undead04 uses CVdi). */
+    return 1;
 }
 
 /* Extend the two-cell MDX footprint into the low neighbour omitted by the ground baker. */
@@ -65,6 +68,23 @@ static inline BOOL R_IsCliffRamp(LPCWAR3MAPVERTEX tile) {
     if (tile[0].ramp + tile[1].ramp + tile[2].ramp + tile[3].ramp != 2) return false;
     FOR_LOOP(i, 4)
         if (tile[i].ramp && tile[next[i]].ramp && abs((int)tile[i].level - tile[next[i]].level) == 1) return true;
+    return false;
+}
+
+/* Ground, splats and cliff joins must agree on the cells owned by transition meshes. */
+static inline BOOL R_TileHasGround(LPCWAR3MAPVERTEX tile) {
+    DWORD ramps = GetTileRamps(tile), mid = 0;
+    FOR_LOOP(i, 4) mid += tile[i].ramp && tile[i].cliffVariation;
+    return !(IsTileCliff(tile) && ramps < 4) && !(ramps == 2 && mid == 1);
+}
+
+/* Preserve every corner of a cliff/transition footprint, including the low ramp neighbour. */
+static inline BOOL R_CliffOwnsCorner(LPCWAR3MAP map, int x, int y) {
+    for (int cy = MAX(0, y-1); cy <= y && cy + 1 < map->height; cy++)
+        for (int cx = MAX(0, x-1); cx <= x && cx + 1 < map->width; cx++) {
+            WAR3MAPVERTEX tile[4]; GetTileVertices(cx, cy, map, tile);
+            if (!R_TileHasGround(tile)) return true;
+        }
     return false;
 }
 

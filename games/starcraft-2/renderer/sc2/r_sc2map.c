@@ -6,9 +6,8 @@
 #include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
 #define BZ_SC2_STR_INNER(x) #x
 #define BZ_SC2_STR(x) BZ_SC2_STR_INNER(x)
-#define SC2_REUSE_WAR3_CLIFF_BAKER
-#include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
-#undef SC2_REUSE_WAR3_CLIFF_BAKER
+#include "renderer/r_cliff.h"
+#include "r_sc2_ramps.h"
 #include "games/warcraft-3/renderer/w3m/r_terrain_layers.c"
 
 #define SC2_TERRAIN_BLEND_LAYERS    8
@@ -93,6 +92,7 @@ typedef struct rSc2CliffPlacement_s {
     FLOAT model_z_offset;
     FLOAT z_scale;
     DWORD join_edges;
+    SC2RAMP const *ramp;
 } rSc2CliffPlacement_t;
 
 typedef struct rSc2CliffBakeBatch_s {
@@ -403,7 +403,7 @@ static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
     DWORD block_y = SC2_CLIFF_BLOCK_ORIGIN(y);
 
     if (r_sc2_cliff_block_is_ramp(map, block_x, block_y))
-        return false;
+        return r_sc2_ramp_covers_ground(map, (VECTOR2){x+0.5f,y+0.5f});
     return !r_sc2_cliff_block_is_flat(map, block_x, block_y);
 }
 
@@ -496,10 +496,9 @@ static FLOAT r_sc2_ground_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y)
 
     if (!sc2_map_height_point(map, x, y, &p))
         return 0.0f;
-    return sc2_map_height_lerp(r_sc2_ground_height_at_grid(map, p.x0, p.y0),
-                               r_sc2_ground_height_at_grid(map, p.x1, p.y0),
-                               r_sc2_ground_height_at_grid(map, p.x0, p.y1),
-                               r_sc2_ground_height_at_grid(map, p.x1, p.y1), p.tx, p.ty);
+    FLOAT height[] = { r_sc2_ground_height_at_grid(map, p.x0, p.y0), r_sc2_ground_height_at_grid(map, p.x1, p.y0),
+        r_sc2_ground_height_at_grid(map, p.x0, p.y1), r_sc2_ground_height_at_grid(map, p.x1, p.y1) };
+    return r_sc2_ground_triangle_height(height, (VECTOR2){p.tx, p.ty});
 }
 
 /* Only cliff sides bordering emitted ground have a seam that must share the height-grid edge. */
@@ -887,12 +886,8 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
             if (r_sc2_skip_ground_cell(map, x, y)) {
                 continue;
             }
-            *out++ = i00;
-            *out++ = i10;
-            *out++ = i11;
-            *out++ = i00;
-            *out++ = i11;
-            *out++ = i01;
+            *out++ = i00; *out++ = i10; *out++ = i11;
+            *out++ = i00; *out++ = i11; *out++ = i01;
         }
     }
 
@@ -1187,6 +1182,22 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
             {
                 BOOL at_ground_edge = r_sc2_cliff_vertex_joins_ground(&rotated, placement->join_edges) &&
                     fabsf(position.z - r_sc2_ground_height_at_point(map, xy.x, xy.y)) < map->cell_size;
+                if (placement->ramp) {
+                    VECTOR2 grid;
+                    /* Authored boxes and SC2 world XY share the map's height-grid origin. */
+                    BOX2 world = SC2_MapBounds();
+                    grid = (VECTOR2){ (xy.x-world.min.x)/map->cell_size, (xy.y-world.min.y)/map->cell_size };
+                    BOOL border = false;
+                    int ix = (int)floorf(grid.x), iy = (int)floorf(grid.y);
+                    for (int y = iy-1; y <= iy; y++) for (int x = ix-1; x <= ix; x++) {
+                        if (x < 0 || y < 0 || x >= SC2_MAP_WIDTH(map) || y >= SC2_MAP_HEIGHT(map)) continue;
+                        FLOAT u = grid.x-x, v = grid.y-y;
+                        if (u < -SC2_EPSILON || u > 1+SC2_EPSILON || v < -SC2_EPSILON || v > 1+SC2_EPSILON) continue;
+                        if (!r_sc2_skip_ground_cell(map, x, y) &&
+                            (fabsf(u) < SC2_EPSILON || fabsf(u-1) < SC2_EPSILON || fabsf(v) < SC2_EPSILON || fabsf(v-1) < SC2_EPSILON)) border = true;
+                    }
+                    at_ground_edge = border && fabsf(position.z-r_sc2_ground_height_at_point(map, xy.x, xy.y)) < map->cell_size;
+                }
                 if (at_ground_edge)
                     position.z = r_sc2_ground_height_at_point(map, xy.x, xy.y);
                 uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
@@ -1209,59 +1220,6 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
     }
 }
 
-typedef struct { int qx, qy, qz; DWORD idx; } rNormalWeldKey_t;
-
-static int r_sc2_weld_xy_cmp(const void *a, const void *b) {
-    rNormalWeldKey_t const *ka = a, *kb = b;
-    if (ka->qx != kb->qx) return ka->qx < kb->qx ? -1 : 1;
-    if (ka->qy != kb->qy) return ka->qy < kb->qy ? -1 : 1;
-    if (ka->qz != kb->qz) return ka->qz < kb->qz ? -1 : 1;
-    return 0;
-}
-
-/* Weld only coincident, similarly facing cliff vertices; XY-only averaging merged stacked and opposing faces. */
-static void r_sc2_weld_cliff_normals_xy(rCliffBakeList_t *list, FLOAT snap) {
-    VERTEX *vertices = list->vertices;
-    DWORD n = list->num_vertices;
-    rNormalWeldKey_t *keys;
-    VECTOR3 *normals;
-    DWORD i;
-
-    if (n < 2 || snap <= 0.0f) return;
-    keys = ri.MemAlloc(n * sizeof(*keys));
-    normals = ri.MemAlloc(n * sizeof(*normals));
-    FOR_LOOP(i, n) {
-        keys[i].qx = (int)roundf(vertices[i].position.x / snap);
-        keys[i].qy = (int)roundf(vertices[i].position.y / snap);
-        keys[i].qz = (int)roundf(vertices[i].position.z / SC2_EPSILON);
-        keys[i].idx = i;
-    }
-    qsort(keys, n, sizeof(*keys), r_sc2_weld_xy_cmp);
-    i = 0;
-    while (i < n) {
-        DWORD j = i;
-        while (j < n && keys[j].qx == keys[i].qx && keys[j].qy == keys[i].qy && keys[j].qz == keys[i].qz)
-            j++;
-        for (DWORD k = i; k < j; k++) {
-            VECTOR3 avg = vertices[keys[k].idx].normal;
-            DWORD count = Vector3_len(&avg) > 0.0f;
-            for (DWORD l = i; l < j; l++) {
-                if (!r_sc2_cliff_weld_compatible(&vertices[keys[k].idx], list->groups[keys[k].idx], &vertices[keys[l].idx], list->groups[keys[l].idx], SC2_EPSILON)) continue;
-                avg.x += vertices[keys[l].idx].normal.x;
-                avg.y += vertices[keys[l].idx].normal.y;
-                avg.z += vertices[keys[l].idx].normal.z;
-                count++;
-            }
-            normals[keys[k].idx] = count ? avg : vertices[keys[k].idx].normal;
-            if (count) Vector3_normalize(&normals[keys[k].idx]);
-        }
-        i = j;
-    }
-    FOR_LOOP(i, n) vertices[i].normal = normals[i];
-    ri.MemFree(normals);
-    ri.MemFree(keys);
-}
-
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    sc2Map_t const *map,
                                    LPCMODEL model,
@@ -1271,7 +1229,7 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    USHORT baselevel) {
     BOX2 map_bounds = SC2_MapBounds();
     BOX3 bounds;
-    rSc2CliffPlacement_t placement;
+    rSc2CliffPlacement_t placement = {0};
     VECTOR2 offset;
     m3Model_t const *m3;
     MATRIX4 bones[SC2_M3_MAX_BONES];
@@ -1428,6 +1386,63 @@ static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, DWORD inde
     return cell;
 }
 
+/* Bake the authored transition footprint instead of discarding every cc flagged as a ramp. */
+static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **batches) {
+    BOX2 world = SC2_MapBounds();
+    FOR_EACH_ARRAY(SC2RAMP, ramp, map->t3Terrain.ramps) FOR_LOOP(edge, 4) {
+        SC2RAMPBOX const *box = &ramp->edge[edge];
+        if (ramp->variant[edge] == ~0u || box->width <= 0 || box->height <= 0) continue;
+        if (ramp->cid >= map->t3Terrain.num_cliff_sets || !map->t3SyncCliffLevel) {
+            fprintf(stderr, "SC2 ramp: unresolved cliff set %u or missing level grid\n", ramp->cid); continue;
+        }
+        SC2RAMPPIECE piece = r_sc2_ramp_piece(map, ramp, edge);
+        LPCSTR mesh = map->t3Terrain.cliff_sets[ramp->cid].mesh;
+        PATHSTR path;
+        BOOL found = false;
+        FOR_LOOP(turn, 4) {
+            char config[5] = {0};
+            FOR_LOOP(i, 4) config[i] = piece.config[(turn+i)&3];
+            if (!r_sc2_cliff_model_path(path, sizeof(path), mesh, config, ramp->variant[edge])) continue;
+            piece.rotation = (piece.rotation+turn)&3; found = true; break;
+        }
+        if (!found) {
+            fprintf(stderr, "SC2 ramp: missing model '%s' at %.1f %.1f\n", path, box->center.x, box->center.y); continue;
+        }
+        LPCMODEL model = r_sc2_load_cliff_model(path);
+        BOX3 bounds;
+        if (!model || model->modeltype != ID_43DM || !model->m3 || !r_sc2_cliff_model_bounds(model, &bounds)) {
+            fprintf(stderr, "SC2 ramp: invalid M3 '%s'\n", path); continue;
+        }
+        rSc2CliffPlacement_t place = { .model_z_offset = -bounds.min.z, .z_scale = 1,
+            .ramp = ramp };
+        VECTOR2 corners[] = { piece.bounds.min, {piece.bounds.max.x, piece.bounds.min.y},
+            piece.bounds.max, {piece.bounds.min.x, piece.bounds.max.y} };
+        DWORD count = 0;
+        FOR_LOOP(i, 4) {
+            DWORD raw = r_sc2_ramp_sample(map, corners[i]);
+            /* Fractional CLIF samples lie inside the ramp, not on its low tier plane. */
+            if (r_sc2_ramp_level(map, corners[i]) != piece.level || (raw >= 64 && (raw & 63))) continue;
+            DWORD x = MIN(map->t3HeightMap->width-1, MAX(0, (int)lroundf(corners[i].x)));
+            DWORD y = MIN(map->t3HeightMap->height-1, MAX(0, (int)lroundf(corners[i].y)));
+            /* The HMAP base is the tier plane; adjustment is applied per vertex in the common baker. */
+            place.base_z += map->t3HeightMap->data[x+y*map->t3HeightMap->width].height * sc2_map_height_scale(map) - sc2_map_height_offset(map);
+            count++;
+        }
+        if (!count) { fprintf(stderr, "SC2 ramp: no base-tier sample for '%s'\n", path); continue; }
+        place.base_z /= count;
+        VECTOR2 offset = { world.min.x + box->center.x*map->cell_size, world.min.y + box->center.y*map->cell_size };
+        MATRIX4 bones[SC2_M3_MAX_BONES];
+        m3Model_t const *m3 = model->m3;
+        rSc2CliffBakeBatch_t *batch = r_sc2_cliff_bake_batch(batches, r_sc2_cliff_diffuse_texture(model));
+        batch->list.current_group++; r_sc2_m3_build_cliff_bones(m3, bones);
+        FOR_LOOP(d, m3->divisionsNum) {
+            m3Divisions_t const *div = &m3->divisions[d];
+            FOR_LOOP(r, div->regionsNum)
+                r_sc2_bake_cliff_region(&batch->list, map, m3, div, &div->regions[r], bones, &place, &offset, piece.rotation);
+        }
+    }
+}
+
 static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     rSc2CliffBakeBatch_t *batches = NULL, *batch;
     LPMAPLAYER layers = NULL;
@@ -1471,11 +1486,12 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
             r_sc2_bake_cliff_model(&batch->list, map, model, grid_x, grid_y, rotation, baselevel);
         }
     }
+    r_sc2_build_ramp_cliffs(map, &batches);
     while (batches) {
         LPMAPLAYER layer;
         batch = batches; batches = batch->next;
         if (!batch->list.num_vertices) { ri.MemFree(batch); continue; }
-        r_sc2_weld_cliff_normals_xy(&batch->list, map->cell_size * 0.5f);
+        R_CliffWeldNormals(&batch->list, map->cell_size * 0.5f);
         layer = ri.MemAlloc(sizeof(*layer)); memset(layer, 0, sizeof(*layer));
         layer->type = MAPLAYERTYPE_CLIFF;
         layer->texture = batch->texture ? batch->texture : tr.texture[TEX_WHITE];

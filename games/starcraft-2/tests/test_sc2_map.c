@@ -11,6 +11,7 @@
 #include "test.h"
 #include "games/starcraft-2/renderer/sc2/r_sc2map.h"
 #include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
+#include "games/starcraft-2/renderer/sc2/r_sc2_ramps.h"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
 #include "games/warcraft-3/renderer/w3m/r_terrain_layers.h"
 
@@ -67,6 +68,48 @@ TEST(sc2_map, flying_unit_height_is_terrain_relative) {
     T_FEQ(sc2_unit_world_height(0.4f, 3.75f, false), 0.4f, 0.001f);
 }
 
+TEST(sc2_map, ramp_join_matches_ground_triangles) {
+    FLOAT height[] = { 0, 0, 0, 4 };
+    /* A diagonal cliff lip at the cell center lies on the emitted 00--11 edge. */
+    T_FEQ(r_sc2_ground_triangle_height(height, (VECTOR2){0.5f,0.5f}), 2, 0.0001f);
+    T_FEQ(r_sc2_ground_triangle_height(height, (VECTOR2){0.75f,0.5f}), 2, 0.0001f);
+    T_FEQ(r_sc2_ground_triangle_height(height, (VECTOR2){0.5f,0.75f}), 2, 0.0001f);
+}
+
+TEST(sc2_map, ramp_footprints_select_authored_straight_and_diagonal_meshes) {
+    /* TRaynor01's actual ramp boxes, with only their four outside tier samples needed here. */
+    sc2MapSyncCliffLevel_t *grid = calloc(1, sizeof(*grid) + 136*160*sizeof(USHORT));
+    grid->width = 136; grid->height = 160;
+    FOR_LOOP(i, 136*160) grid->data[i] = 64;
+    sc2Map_t map = { .t3SyncCliffLevel = grid };
+    SC2RAMP ramp = { .lo = 1, .hi = 2,
+        .mid = { .up = {0,1}, .right = {1,0}, .center = {102,34}, .width = 2, .height = 2 },
+        .edge = { { .up = {0,1}, .right = {1,0}, .center = {99,34}, .width = 1, .height = 2 },
+            { .up = {0,1}, .right = {1,0}, .center = {105,34}, .width = 1, .height = 2 } } };
+    grid->data[98+36*136] = grid->data[106+36*136] = 128;
+    SC2RAMPPIECE left = r_sc2_ramp_piece(&map, &ramp, 0), right = r_sc2_ramp_piece(&map, &ramp, 1);
+    T_STREQ(left.config, "BQRC"); T_EQ(left.rotation, 0);
+    T_STREQ(right.config, "BCRQ"); T_EQ(right.rotation, 1);
+    T_FEQ(left.bounds.max.y-left.bounds.min.y, 4, 0.001f);
+    map.t3Terrain.ramps = &ramp; ARRAY_COUNT(map.t3Terrain.ramps) = 1;
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (VECTOR2){99,34}));
+    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (VECTOR2){101,34}));
+    ramp.mid = (SC2RAMPBOX){ .up = {-0.7071068f,-0.7071068f}, .right = {-0.7071068f,0.7071068f}, .center = {50,90}, .width = 2.828427f, .height = 2.828427f };
+    ramp.edge[0] = (SC2RAMPBOX){ .up = {0,-1}, .right = {-1,0}, .center = {52,88}, .width = 2, .height = 2 };
+    ramp.edge[1] = (SC2RAMPBOX){ .up = {0,-1}, .right = {-1,0}, .center = {48,92}, .width = 2, .height = 2 };
+    left = r_sc2_ramp_piece(&map, &ramp, 0); right = r_sc2_ramp_piece(&map, &ramp, 1);
+    T_STREQ(left.config, "BQQR"); T_EQ(left.rotation, 1);
+    /* This cyclic configuration resolves to the archive's QBRQ orientation, not lexicographic BRQQ. */
+    T_STREQ(right.config, "BRQQ"); T_EQ(right.rotation, 3);
+    /* BQQR is L-shaped: its NE 2x2 block is absent. After rotation, keep only the NW block. */
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (VECTOR2){50.5f,87.5f}));
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (VECTOR2){52.5f,89.5f}));
+    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (VECTOR2){51.5f,88.5f}));
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (VECTOR2){53,87}));
+    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (VECTOR2){51,89}));
+    free(grid);
+}
+
 TEST(sc2_map, cliff_weld_requires_matching_height_and_normal_hemisphere) {
     VERTEX base = {.position={1,2,3},.normal={1,0,0}};
     VERTEX seam = {.position={1,2,3},.normal={0.5f,0.5f,0}};
@@ -74,11 +117,11 @@ TEST(sc2_map, cliff_weld_requires_matching_height_and_normal_hemisphere) {
     VERTEX opposed = {.position={1,2,3},.normal={-1,0,0}};
     VERTEX zero = {.position={1,2,3},.normal={0,0,0}};
 
-    T_ASSERT(r_sc2_cliff_weld_compatible(&base, 1, &seam, 2, 0.001f));
-    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &seam, 1, 0.001f));
-    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &stacked, 2, 0.001f));
-    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &opposed, 2, 0.001f));
-    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &zero, 2, 0.001f));
+    T_ASSERT(R_CliffWeldCompatible(&base, 1, &seam, 2, 0.001f));
+    T_ASSERT(!R_CliffWeldCompatible(&base, 1, &seam, 1, 0.001f));
+    T_ASSERT(!R_CliffWeldCompatible(&base, 1, &stacked, 2, 0.001f));
+    T_ASSERT(!R_CliffWeldCompatible(&base, 1, &opposed, 2, 0.001f));
+    T_ASSERT(!R_CliffWeldCompatible(&base, 1, &zero, 2, 0.001f));
 }
 
 TEST(sc2_map, m3_division_faces_pack_into_model_ranges) {
@@ -627,6 +670,13 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
 
     T_EQ(map->t3Terrain.num_cliff_sets, 1);
     T_STREQ(map->t3Terrain.cliff_sets[0].name, "FixtureCliff0");
+    T_EQ(ARRAY_COUNT(map->t3Terrain.ramps), 1);
+    if (ARRAY_COUNT(map->t3Terrain.ramps)) {
+        SC2RAMP const *ramp = map->t3Terrain.ramps;
+        T_EQ(ramp->hi, 2); T_EQ(ramp->lo, 1); T_EQ(ramp->variant[0], 2); T_EQ(ramp->variant[1], ~0u);
+        T_FEQ(ramp->edge[0].center.x, 1, 0.001f); T_FEQ(ramp->edge[0].height, 2, 0.001f);
+        T_FEQ(ramp->mid.width, 2, 0.001f); T_FEQ(ramp->mid.up.y, 1, 0.001f);
+    }
     T_EQ(map->t3Terrain.num_cliff_cells, 2);
     T_EQ(map->t3Terrain.cliff_cells[0].index, 0);
     T_EQ(map->t3Terrain.cliff_cells[0].flags, 1);
@@ -777,6 +827,13 @@ TEST(sc2_map, sc2_map_loads_directory_fixture_without_generated_layers) {
     T_EQ(map->t3Terrain.num_terrain_textures, 2);
     T_EQ(map->t3Terrain.num_cliff_sets, 1);
     T_STREQ(map->t3Terrain.cliff_sets[0].name, "FixtureCliff0");
+    T_EQ(ARRAY_COUNT(map->t3Terrain.ramps), 1);
+    if (ARRAY_COUNT(map->t3Terrain.ramps)) {
+        SC2RAMP const *ramp = map->t3Terrain.ramps;
+        T_EQ(ramp->hi, 2); T_EQ(ramp->lo, 1); T_EQ(ramp->variant[0], 2); T_EQ(ramp->variant[1], ~0u);
+        T_FEQ(ramp->edge[0].center.x, 1, 0.001f); T_FEQ(ramp->edge[0].height, 2, 0.001f);
+        T_FEQ(ramp->mid.width, 2, 0.001f); T_FEQ(ramp->mid.up.y, 1, 0.001f);
+    }
     T_EQ(map->t3Terrain.num_cliff_cells, 2);
     T_EQ(map->t3Terrain.cliff_cells[0].variant, 2);
     T_EQ(map->lighting.enabled, true);
