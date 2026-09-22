@@ -4,7 +4,7 @@ set -eu
 lib=$1
 # Otherwise an unrelated pending rebuild could make every pretend-new header appear to work.
 make --no-print-directory -q "$lib"
-for header in common/shared.h server/game.h games/warcraft-3/game/g_local.h warcraft-3/game/g_local.h games/warcraft-3/game/g_shared.h; do
+for header in common/shared.h server/game.h games/warcraft-3/game/g_local.h games/warcraft-3/game/g_shared.h; do
     [ -f "$header" ] || continue
     output=$(make --no-print-directory -n -W "$header" "$lib")
     case "$output" in
