@@ -332,7 +332,7 @@ BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item) {
            !(item->s.renderfx & RF_HIDDEN) && !(item->svflags & SVF_NOCLIENT);
 }
 
-BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
+BOOL G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, DWORD slot, BOOL publish_event) {
     if (slot >= G_InventoryCapacity(unit) || !G_CanPickupItem(unit, item) || unit->inventory[slot]) {
         return false;
     }
@@ -346,9 +346,15 @@ BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
     unit->inventory[slot] = item;
     G_ApplyItemStats(unit, item, true);
     G_RefreshInventoryUI(unit);
-    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
-    G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
+    if (publish_event) {
+        G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+        G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
+    }
     return true;
+}
+
+BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
+    return G_AddItemToSlotInternal(unit, item, slot, true);
 }
 
 BOOL G_PickupItem(LPEDICT unit, LPEDICT item) {

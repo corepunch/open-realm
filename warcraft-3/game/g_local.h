@@ -20,7 +20,7 @@
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
-#define MAX_EVENT_QUEUE 256
+#define MAX_EVENT_QUEUE 1024
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
 #define BZ_STRINGIFY_INNER(value) #value
@@ -2967,6 +2967,7 @@ LPCSTR G_ItemAbilityList(LPCEDICT item);
 LONG G_FindFreeInventorySlot(LPCEDICT unit);
 BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);
+BOOL G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, DWORD slot, BOOL publish_event);
 BOOL G_PickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);

@@ -65,6 +65,10 @@ DWORD SetItemDropID(LPJASS j) {
     if (item && G_IsItem(item)) item->item.drop_id = (DWORD)unit_id;
     return 0;
 }
+DWORD GetItemDropID(LPJASS j) {
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    return jass_pushinteger(j, item && G_IsItem(item) ? (LONG)item->item.drop_id : 0);
+}
 DWORD GetItemX(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushnumber(j, item ? item->s.origin.x : 0);

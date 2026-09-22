@@ -439,6 +439,7 @@ JASSMODULE jass_funcs[] = {
     { "GetItemCharges", GetItemCharges },
     { "SetItemCharges", SetItemCharges },
     { "SetItemDropID", SetItemDropID },
+    { "GetItemDropID", GetItemDropID },
     { "GetItemX", GetItemX },
     { "GetItemY", GetItemY },
     { "SetItemPosition", SetItemPosition },

@@ -69,6 +69,21 @@ TEST(wc3_game, target_type_known_value_is_preserved) {
     T_EQ(G_GetTargetType("ground"), TARG_GROUND);
 }
 
+TEST(wc3_game, event_queue_rejects_overflow_without_overwriting_pending_events) {
+    DWORD i;
+
+    memset(&level.events, 0, sizeof(level.events));
+    for (i = 0; i < MAX_EVENT_QUEUE; i++)
+        T_NOT_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_VICTORY, NULL, (LONG)i));
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_END_LEVEL, NULL, 999));
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_EQ(level.events.queue[0].value, 0);
+    T_EQ(level.events.queue[MAX_EVENT_QUEUE - 1].value, (LONG)MAX_EVENT_QUEUE - 1);
+    G_RunEvents();
+    T_EQ(level.events.read, (DWORD)MAX_EVENT_QUEUE);
+}
+
 /* =========================================================================
  * Helpers
  * ========================================================================= */

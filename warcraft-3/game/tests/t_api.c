@@ -5057,6 +5057,39 @@ TEST(wc3_api, gamecache_save_commits_to_process_memory) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_api, gamecache_restore_does_not_publish_pickup_events) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer pickupCount = 0\n"
+        "  unit restored = null\n"
+        "endglobals\n"
+        "function onPickup takes nothing returns nothing\n"
+        "  set pickupCount = pickupCount + 1\n"
+        "endfunction\n"
+        "function verifyPickup takes nothing returns nothing\n"
+        "  call BJassAssert(pickupCount == 1, \"RestoreUnit published a pickup event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local gamecache c = InitGameCache(\"openrealm-test-pickup-restore-memory-only.w3v\")\n"
+        "  local unit source = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local item i = CreateItem('spro', 0.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_PICKUP_ITEM, null)\n"
+        "  call TriggerAddAction(t, function onPickup)\n"
+        "  call UnitAddItem(source, i)\n"
+        "  call FlushGameCache(c)\n"
+        "  call BJassAssert(StoreUnit(c, \"Human01\", \"Arthas\", source), \"StoreUnit failed\")\n"
+        "  set pickupCount = 0\n"
+        "  set restored = RestoreUnit(c, \"Human01\", \"Arthas\", Player(0), 128.0, 64.0, 0.0)\n"
+        "  call BJassAssert(restored != null, \"RestoreUnit returned null\")\n"
+        "endfunction\n"));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "verifyPickup", true);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, gamecache_restore_preserves_hero_progression) {
     LPEDICT restored = NULL;
 

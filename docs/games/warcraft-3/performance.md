@@ -8,19 +8,27 @@ Inspection of `build/perf-full.txt` found about 7K `cpu/cycles/P` samples, no lo
 and 89.30% inclusive cost under `SV_Frame`. These are sampled CPU-cycle shares, not wall-time or GPU measurements;
 inclusive parent/child percentages overlap. The report does not identify the capture command, map, or build revision.
 
-`graveyard_find_thinker` accounts for 74.76% self / 75.28% inclusive. The confirmed code path is
+`graveyard_find_thinker` accounts for 74.76% self / 75.28% inclusive in the historical capture. The confirmed code path is
 `monster_think -> S_RunAbilityUpdates -> CAbilityGraveyard -> graveyard_ensure -> graveyard_find_thinker`.
-`S_RunAbilityUpdates` dispatches every registered update procedure for each unit. In
-`skills/s_undead_abilities.c`, `graveyard_ensure` scans all `globals.num_edicts` **before** checking
-`G_UnitAbilityLevel(..., Agyd)`. Ordinary living units therefore perform a fruitless full scan every update,
-giving work proportional to updated units times the edict high-water mark, even with no Graveyards.
-`git blame` attributes this ordering to `b8deb304` (`wc3: implement corpse mechanics`).
+`S_RunAbilityUpdates` dispatches every registered update procedure for each unit. The current
+`skills/s_undead_abilities.c` implementation checks `G_UnitAbilityLevel(..., Agyd)` before scanning
+`globals.num_edicts`, so ordinary living units do not perform that fruitless full scan. `git blame`
+attributes the original ordering to `b8deb304` (`wc3: implement corpse mechanics`); the correction is
+covered by the current branch's Graveyard tests.
 
-Recommended implementation sequence (not implemented by this investigation):
+The first two recommendations below are already implemented on the current branch:
 
-1. Establish a failing regression/performance case through real `S_RunAbilityUpdates` dispatch with many
-   non-Agyd units and increasing edict counts, including freed slots. Check Agyd membership before searching
-   for its thinker. Keep behavior in `CAbilityGraveyard`; retain corpse production timing, cap, radii and
+1. `graveyard_ensure` checks `G_UnitAbilityLevel(..., Agyd)` before scanning for its thinker,
+   so ordinary units do not pay the full edict scan. The focused Graveyard and corpse tests cover
+   duplicate updates, ability removal/re-add, death and save/load.
+2. `InitAbilities` builds a procedure-to-first-registry-index cache for `GetAbilityIndex`, preserving
+   duplicate-procedure first-match behavior and the 255 miss sentinel.
+
+Remaining implementation sequence:
+
+1. Re-profile the corrected Graveyard path through real `S_RunAbilityUpdates` dispatch with many
+   non-Agyd units and increasing edict counts, including freed slots. Keep behavior in `CAbilityGraveyard`;
+   retain corpse production timing, cap, radii and
    saveable thinker ownership. Extend `tests/t_exhume.c` coverage for duplicate updates, ability removal/re-add,
    death and save/load. Measure real Graveyard counts before introducing a persistent thinker index.
 2. Re-profile the same fixed scene with matching build mode, camera, entity population and simulation interval.
@@ -28,19 +36,15 @@ Recommended implementation sequence (not implemented by this investigation):
    benchmark is a starting point; verify that its fixture actually enters `monster_think` and ability updates.
    Removing all current lookup self cost has an idealized fixed-work CPU speedup ceiling of about 4x,
    not a predicted FPS gain.
-3. `GetAbilityIndex` is 3.64% self / 3.68% inclusive. `g_phys.c` calls it per entity frame; it linearly
-   searches the registry by procedure. Build a procedure-to-first-registry-index lookup in `InitAbilities`,
-   preserving duplicate-procedure first-match behavior and the 255 miss sentinel. Rebuild with the registry;
-   leave transmitted indices and save representation unchanged.
-4. `R_ConformGroundSurfaces` is 1.76% self / 2.19% inclusive. Its nested loops scan all render entities
+2. `R_ConformGroundSurfaces` is 1.76% self / 2.19% inclusive. Its nested loops scan all render entities
    for every ground-conforming entity. Gather `RF_GROUND_SURFACE` candidates once per view, then test only
    those; retain exact MDX intersection, highest-hit selection and `ground_offset`. Add spatial indexing only
    if actual surface counts justify it. Test no surfaces, overlapping bridges and altitude offsets.
-5. `MDLX_BindBoneMatrices` is 2.01% inclusive, including geometry and attachment collection. Investigate
+3. `MDLX_BindBoneMatrices` is 2.01% inclusive, including geometry and attachment collection. Investigate
    sharing the already evaluated entity pose with `MDLX_CollectAttachmentPositions`; global scratch matrices
    can be overwritten by another model, so reuse requires explicit lifetime/identity. Preserve interpolation,
    billboard/view dependencies and portrait/world separation. Do not begin with SIMD or interpolation changes.
-6. `G_BlightPackRows` is 0.86% inclusive. `G_BlightWriteDatagram` retries encoding with one fewer row on
+4. `G_BlightPackRows` is 0.86% inclusive. `G_BlightWriteDatagram` retries encoding with one fewer row on
    overflow. Measure retry counts and patterns before selecting bounded chunk sizing or incremental packing;
    preserve dirty-row delivery, periodic sweeps and the existing wire encoding. The profile alone does not
    prove retries dominate this cost.

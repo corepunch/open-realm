@@ -1303,8 +1303,11 @@ TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
         "function main takes nothing returns nothing\n"
         "  local item i = CreateItem('spro', 64.0, 64.0)\n"
         "  call SetItemDropID(i, 'hpea')\n"
+        "  call BJassAssert(GetItemDropID(i) == 'hpea', \"GetItemDropID did not read the assigned rawcode\")\n"
         "  call SetItemDropID(i, 'hfoo')\n"
+        "  call BJassAssert(GetItemDropID(i) == 'hfoo', \"GetItemDropID did not observe the overwrite\")\n"
         "  call SetItemDropID(null, 'hpea')\n"
+        "  call BJassAssert(GetItemDropID(null) == 0, \"GetItemDropID(null) was not zero\")\n"
         "endfunction\n"));
     FOR_LOOP(i, globals.num_edicts) {
         if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('s','p','r','o')) {

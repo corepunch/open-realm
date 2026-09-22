@@ -1005,7 +1005,14 @@ LPPLAYER G_GetPlayerByNumber(DWORD number) {
 }
 
 GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source, LONG value) {
-    DWORD index = level.events.write++;
+    DWORD index;
+    if (level.events.write - level.events.read >= MAX_EVENT_QUEUE) {
+        fprintf(stderr, "WC3 event queue overflow: dropping type=%u read=%u write=%u capacity=%u\n",
+                (unsigned)type, (unsigned)level.events.read, (unsigned)level.events.write,
+                (unsigned)MAX_EVENT_QUEUE);
+        return NULL;
+    }
+    index = level.events.write++;
     GAMEEVENT *evt = &level.events.queue[index % MAX_EVENT_QUEUE];
 
     memset(evt, 0, sizeof(*evt));
