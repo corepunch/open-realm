@@ -2909,6 +2909,7 @@ BOOL S_CorpseCargoPosition(LPCEDICT, LPVECTOR2);
 DWORD S_CargoCapacity(LPEDICT);
 LPEDICT S_CargoUnitAt(LPCEDICT, DWORD);
 BOOL S_CargoUnloadAt(LPEDICT, DWORD);
+BOOL S_CargoBeginUnloadAll(LPEDICT);
 void S_CargoStandDown(LPEDICT);
 void blight_mine_think(LPEDICT);
 void blizzard_think(LPEDICT);

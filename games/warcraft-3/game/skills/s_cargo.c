@@ -6,6 +6,9 @@
 #define BZ_AMED MAKEFOURCC('A','m','e','d')
 #define BZ_AMTC MAKEFOURCC('A','m','t','c')
 
+static void cargo_unload_all(LPEDICT transport);
+static umove_t cargo_move_unload = { "stand", cargo_unload_all, NULL, CAbilityCargoDrop };
+
 /* Cargo abilities are data-driven per holder. Do not cache one global
  * capacity: Acar/Abun/Aenc and custom aliases can coexist in one map. */
 static DWORD cargo_actor_ability_alias(LPEDICT ent, DWORD base_code) {
@@ -29,12 +32,11 @@ static DWORD cargo_actor_ability_alias(LPEDICT ent, DWORD base_code) {
     return 0;
 }
 
-static DWORD cargo_hold_alias(LPEDICT transport) {
+static DWORD cargo_living_hold_alias(LPEDICT transport) {
     static DWORD const bases[] = {
         MAKEFOURCC('A','b','u','n'),
         MAKEFOURCC('A','c','a','r'),
         MAKEFOURCC('A','e','n','c'),
-        BZ_AMTC,
     };
 
     FOR_LOOP(i, sizeof(bases) / sizeof(bases[0])) {
@@ -42,6 +44,12 @@ static DWORD cargo_hold_alias(LPEDICT transport) {
         if (alias) return alias;
     }
     return 0;
+}
+
+static DWORD cargo_hold_alias(LPEDICT transport) {
+    DWORD alias = cargo_living_hold_alias(transport);
+    if (alias) return alias;
+    return cargo_actor_ability_alias(transport, BZ_AMTC);
 }
 
 DWORD S_CargoCapacity(LPEDICT transport) {
@@ -225,6 +233,40 @@ void cargo_drop_all(LPEDICT transport) {
         cargo_drop_unit(transport, transport->cargo.count - 1);
 }
 
+static DWORD cargo_unload_interval_ms(LPEDICT transport) {
+    DWORD const alias = cargo_hold_alias(transport);
+    abilityLevel_t const *level = alias ? G_AbilityLevel(alias, 1) : NULL;
+    FLOAT const seconds = level ? MAX(0.0f, level->dur) : 0.0f;
+
+    /* Warsmash's Unload All behavior spaces passengers by Cargo Hold Dur.
+     * A zero-duration custom hold still advances at most once per simulation
+     * frame instead of collapsing the whole sequence into one tick. */
+    return (DWORD)MAX((FLOAT)FRAMETIME, seconds * 1000.0f);
+}
+
+/* Unloading is the active order, so Stop/Move/death replace it and the
+ * normal monster scheduler suspends it during pause/stun. An independent
+ * thinker used to keep ejecting passengers after the order was cancelled. */
+static void cargo_unload_all(LPEDICT transport) {
+    if (M_IsDead(transport)) return;
+    if (transport->cargo.count == 0) { unit_stand(transport); return; }
+    if (G_Time() < transport->freetime) return;
+    S_CargoUnloadAt(transport, 0);
+    if (transport->cargo.count == 0) unit_stand(transport);
+    else transport->freetime = G_Time() + cargo_unload_interval_ms(transport);
+}
+
+BOOL S_CargoBeginUnloadAll(LPEDICT transport) {
+    if (!transport || !transport->inuse || !transport->cargo.count || M_IsDead(transport) ||
+        transport->paused || transport->stunned || !cargo_living_hold_alias(transport)) return false;
+    if (transport->currentmove == &cargo_move_unload) return true;
+    order_stop(transport);
+    unit_setmove(transport, &cargo_move_unload);
+    transport->freetime = 0;
+    cargo_unload_all(transport);
+    return true;
+}
+
 LPEDICT S_CargoTransportForUnit(LPCEDICT unit) {
     if (!unit) return NULL;
     FILTER_EDICTS(transport, transport->inuse && transport->cargo.count > 0) {
@@ -298,7 +340,10 @@ static BOOL corpse_cargo_target_valid(LPEDICT transport, LPEDICT target) {
 BOOL S_CargoTryLoad(LPEDICT transport, LPEDICT target) {
     if (!transport || !target || target == transport || M_IsDead(transport) || M_IsDead(target)) return false;
     if (target->s.player != transport->s.player) return false;
-    if (!cargo_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
+    /* Amtc is the Meat Wagon corpse hold, not a normal transport hold.  Keep
+     * living-unit Load/Smart boarding on Acar/Abun/Aenc so a Wagon can never
+     * accept a live unit merely because its corpse hold has free slots. */
+    if (!cargo_living_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
     if (S_CargoTransportForUnit(target) || (target->s.renderfx & RF_HIDDEN)) return false;
     if (!cargo_load_type_allowed(transport, target)) return false;
     if (!cargo_load_target_allowed(transport, target)) return false;
@@ -451,7 +496,7 @@ static DWORD battlestations_alias(LPEDICT transport) {
 static BOOL cargo_board_target_valid(LPEDICT unit, LPEDICT transport) {
     if (!unit || !transport || unit == transport || M_IsDead(unit) || M_IsDead(transport)) return false;
     if (unit->paused || transport->paused || unit->s.player != transport->s.player) return false;
-    if (!cargo_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
+    if (!cargo_living_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
     if (S_CargoTransportForUnit(unit) || (unit->s.renderfx & RF_HIDDEN)) return false;
     if (!cargo_load_type_allowed(transport, unit)) return false;
     return cargo_load_target_allowed(transport, unit);
@@ -602,7 +647,7 @@ static BOOL drop_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
             dropped |= S_CargoUnloadAt(caster, caster->cargo.count - 1);
         return dropped;
     }
-    return cargo_drop_unit(caster, caster->cargo.count - 1) != NULL;
+    return S_CargoBeginUnloadAll(caster);
 }
 
 static void drop_command(LPEDICT clent) {
@@ -612,8 +657,15 @@ static void drop_command(LPEDICT clent) {
 
 BZ_COMMAND_PROC(AbilityCargoDrop) { drop_command(clent); }
 
-/* ---- Drop Instant (Adri): instant drop ---------------------------------- */
-BZ_COMMAND_PROC(AbilityCargoDropInstant) { drop_command(clent); }
+/* ---- Drop Instant (Adri): unload every occupant immediately ------------- */
+BZ_COMMAND_PROC(AbilityCargoDropInstant) {
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    if (!caster || caster->cargo.count == 0) return;
+    /* Retire timed unloading before a new passenger can board this frame. */
+    order_stop(caster);
+    cargo_drop_all(caster);
+    Get_Commands_f(clent);
+}
 
 /* ---- Stand Down (Astd): stop combat, then unload all Burrow occupants --- */
 void S_CargoStandDown(LPEDICT caster) {
