@@ -3913,6 +3913,150 @@ static char const cargo_unload_test_data[] =
     "C;Y2;X4;K0.3\n"
     "E\n";
 
+/* Give cargo scenarios the same lifecycle callbacks as spawned units. */
+static LPEDICT cargo_unload_transport(void) {
+    static UnitAbilities_t const abilities = { .abilList = "Acar,Adro,Adri" };
+    LPEDICT transport = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 256);
+    transport->data.UnitAbilities = &abilities;
+    transport->think = monster_think; transport->stand = unit_stand; transport->die = unit_die;
+    unit_stand(transport);
+    FOR_LOOP(i, 3) {
+        LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256, 256);
+        T_ASSERT(S_CargoTryLoad(transport, unit));
+    }
+    return transport;
+}
+
+TEST(wc3_movement, unload_all_stop_and_move_cancel_remaining_passengers) {
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    FOR_LOOP(i, 2) {
+        LPEDICT transport = cargo_unload_transport();
+        level.time = 1000;
+        T_ASSERT(S_CargoBeginUnloadAll(transport));
+        T_EQ(transport->cargo.count, 2);
+        if (i) order_move(transport, Waypoint_add(&MAKE(VECTOR2, 512, 512)));
+        else order_stop(transport);
+        level.time += 1000; G_RunEntities();
+        T_EQ(transport->cargo.count, 2);
+        T_ASSERT(transport->cargo.units[0]->paused);
+        T_ASSERT(transport->cargo.units[0]->s.renderfx & RF_HIDDEN);
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, unload_all_pause_and_stun_suspend_passengers) {
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    LPEDICT transport = cargo_unload_transport();
+    level.time = 1000;
+    T_ASSERT(S_CargoBeginUnloadAll(transport));
+    transport->paused = true;
+    level.time += 300; G_RunEntities();
+    T_EQ(transport->cargo.count, 2);
+    transport->paused = false; transport->stunned = true;
+    level.time += 300; G_RunEntities();
+    T_EQ(transport->cargo.count, 2);
+    transport->stunned = false;
+    level.time += 300; G_RunEntities();
+    T_EQ(transport->cargo.count, 1);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    LPCSTR drop[] = { "button", "Adro" }, instant[] = { "button", "Adri" };
+    LPEDICT clent = &g_edicts[0];
+    setup_test_world();
+    LPEDICT transport = cargo_unload_transport();
+    transport->svflags |= SVF_MONSTER;
+    G_SelectEntity(clent->client, transport);
+    level.time = 1000;
+    G_ClientCommand(clent, 2, drop);
+    T_NOT_NULL(clent->client->menu.on_location_selected);
+    if (clent->client->menu.on_location_selected)
+        T_ASSERT(clent->client->menu.on_location_selected(clent, &transport->s.origin2));
+    T_EQ(transport->cargo.count, 2);
+    T_ASSERT(S_CargoBeginUnloadAll(transport)); /* Repeated clicks do not bypass Dur. */
+    T_EQ(transport->cargo.count, 2);
+    G_ClientCommand(clent, 2, instant);
+    T_EQ(transport->cargo.count, 0);
+    LPEDICT passenger = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256, 256);
+    T_ASSERT(S_CargoTryLoad(transport, passenger));
+    level.time += 1000; G_RunEntities();
+    T_EQ(transport->cargo.count, 1); /* Instant cancels the old timed unload. */
+    gi.Write = old_write; gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
+    LPCSTR filename = "/tmp/openwarcraft3-cargo-unload-save.bin";
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    LPEDICT transport = cargo_unload_transport();
+    /* Runtime abilities survive data-pointer rebinding during ReadGame. */
+    transport->abilities.added[0] = MAKEFOURCC('A','c','a','r');
+    ARRAY_COUNT(transport->abilities.added) = 1;
+    level.time = 1000;
+    T_ASSERT(S_CargoBeginUnloadAll(transport));
+    LPEDICT second = transport->cargo.units[0], third = transport->cargo.units[1];
+    level.time += 100;
+    T_ASSERT(WriteGame(filename));
+    order_stop(transport); cargo_drop_all(transport);
+    T_ASSERT(ReadGame(filename));
+    T_EQ(transport->cargo.count, 2);
+    T_EQ(transport->cargo.units[0], second);
+    T_EQ(transport->cargo.units[1], third);
+    level.time = 1299; G_RunEntities(); T_EQ(transport->cargo.count, 2);
+    level.time = 1300; G_RunEntities(); T_EQ(transport->cargo.count, 1);
+    T_ASSERT(!second->paused && !(second->s.renderfx & RF_HIDDEN));
+    level.time = 1600; G_RunEntities(); T_EQ(transport->cargo.count, 0);
+    T_ASSERT(!third->paused && !(third->s.renderfx & RF_HIDDEN));
+    remove(filename);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, unload_all_zero_duration_roc_hold_and_single_slot) {
+    slkTestData_t *rows = parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"Data11\"\nC;X3;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Acar\"\nC;X2;K8\nC;X3;K0\nE\n");
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    LPEDICT transport = cargo_unload_transport();
+    T_ASSERT(S_CargoUnloadAt(transport, 1));
+    level.time = 1000; G_RunEntities();
+    T_EQ(transport->cargo.count, 2); /* A cargo-slot click only ejects that passenger. */
+    T_ASSERT(S_CargoBeginUnloadAll(transport));
+    T_EQ(transport->cargo.count, 1);
+    G_RunEntities(); T_EQ(transport->cargo.count, 1);
+    level.time += FRAMETIME; G_RunEntities(); T_EQ(transport->cargo.count, 0);
+    T_ASSERT(!S_CargoBeginUnloadAll(transport));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, unload_all_transport_death_ejects_remaining_cargo) {
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    LPEDICT transport = cargo_unload_transport();
+    level.time = 1000;
+    T_ASSERT(S_CargoBeginUnloadAll(transport));
+    LPEDICT passenger = transport->cargo.units[0];
+    transport->health.value = 0; unit_die(transport, NULL);
+    T_EQ(transport->cargo.count, 0);
+    T_ASSERT(!passenger->paused && !(passenger->s.renderfx & RF_HIDDEN));
+    level.time += 1000; G_RunEntities();
+    T_ASSERT(!S_CargoBeginUnloadAll(transport));
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_movement, unload_all_repeats_one_passenger_per_cargo_duration) {
     static UnitAbilities_t const transport_abilities = { .abilList = "Acar" };
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
@@ -3927,6 +4071,7 @@ TEST(wc3_movement, unload_all_repeats_one_passenger_per_cargo_duration) {
     second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     third = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     transport->data.UnitAbilities = &transport_abilities;
+    transport->think = monster_think; transport->stand = unit_stand;
     transport->cargo.units[0] = first;
     transport->cargo.units[1] = second;
     transport->cargo.units[2] = third;

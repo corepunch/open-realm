@@ -139,7 +139,6 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(cannibalize_approach_think),
     SAVE_CFUNCTION(incinerate_explode_think),
     SAVE_CFUNCTION(monsoon_think),
-    SAVE_CFUNCTION(cargo_unload_all_think),
 };
 
 static int SaveCFunctionIndex(void *func) {

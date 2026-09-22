@@ -6,6 +6,9 @@
 #define BZ_AMED MAKEFOURCC('A','m','e','d')
 #define BZ_AMTC MAKEFOURCC('A','m','t','c')
 
+static void cargo_unload_all(LPEDICT transport);
+static umove_t cargo_move_unload = { "stand", cargo_unload_all, NULL, CAbilityCargoDrop };
+
 /* Cargo abilities are data-driven per holder. Do not cache one global
  * capacity: Acar/Abun/Aenc and custom aliases can coexist in one map. */
 static DWORD cargo_actor_ability_alias(LPEDICT ent, DWORD base_code) {
@@ -241,60 +244,26 @@ static DWORD cargo_unload_interval_ms(LPEDICT transport) {
     return (DWORD)MAX((FLOAT)FRAMETIME, seconds * 1000.0f);
 }
 
-static LPEDICT cargo_unload_all_thinker(LPEDICT transport) {
-    if (!transport) return NULL;
-    FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == transport &&
-                  thinker->think == cargo_unload_all_think) {
-        return thinker;
-    }
-    return NULL;
-}
-
-void cargo_unload_all_think(LPEDICT thinker) {
-    LPEDICT transport = thinker ? thinker->owner : NULL;
-    DWORD now;
-
-    if (!thinker || !transport || !transport->inuse || M_IsDead(transport) ||
-        transport->spawn_time != thinker->channel.owner_spawn_time) {
-        if (thinker) G_FreeEdict(thinker);
-        return;
-    }
-    now = G_Time();
-    if (thinker->freetime && now < thinker->freetime) return;
-    if (transport->cargo.count == 0) {
-        G_FreeEdict(thinker);
-        return;
-    }
-
-    /* Retail/Warsmash Unload All removes the first passenger, then repeats
-     * until the hold is empty.  cargo_drop_unit() places each passenger from
-     * the transport's current position, so a moving Zeppelin continues to
-     * unload directly below wherever it is at each pulse. */
+/* Unloading is the active order, so Stop/Move/death replace it and the
+ * normal monster scheduler suspends it during pause/stun. An independent
+ * thinker used to keep ejecting passengers after the order was cancelled. */
+static void cargo_unload_all(LPEDICT transport) {
+    if (M_IsDead(transport)) return;
+    if (transport->cargo.count == 0) { unit_stand(transport); return; }
+    if (G_Time() < transport->freetime) return;
     S_CargoUnloadAt(transport, 0);
-    if (transport->cargo.count == 0) {
-        G_FreeEdict(thinker);
-        return;
-    }
-    thinker->freetime = now + cargo_unload_interval_ms(transport);
+    if (transport->cargo.count == 0) unit_stand(transport);
+    else transport->freetime = G_Time() + cargo_unload_interval_ms(transport);
 }
 
 BOOL S_CargoBeginUnloadAll(LPEDICT transport) {
-    LPEDICT thinker;
-
-    if (!transport || transport->cargo.count == 0 || M_IsDead(transport)) return false;
-    if (cargo_unload_all_thinker(transport)) return true;
-
-    /* Preserve the existing responsive first click: eject one passenger now,
-     * then let the saved thinker continue the authored timed sequence. */
-    if (!S_CargoUnloadAt(transport, 0)) return false;
-    if (transport->cargo.count == 0) return true;
-
-    thinker = G_Spawn();
-    if (!thinker) return false;
-    thinker->owner = transport;
-    thinker->channel.owner_spawn_time = transport->spawn_time;
-    thinker->think = cargo_unload_all_think;
-    thinker->freetime = G_Time() + cargo_unload_interval_ms(transport);
+    if (!transport || !transport->inuse || !transport->cargo.count || M_IsDead(transport) ||
+        transport->paused || transport->stunned || !cargo_living_hold_alias(transport)) return false;
+    if (transport->currentmove == &cargo_move_unload) return true;
+    order_stop(transport);
+    unit_setmove(transport, &cargo_move_unload);
+    transport->freetime = 0;
+    cargo_unload_all(transport);
     return true;
 }
 
@@ -692,6 +661,8 @@ BZ_COMMAND_PROC(AbilityCargoDrop) { drop_command(clent); }
 BZ_COMMAND_PROC(AbilityCargoDropInstant) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
     if (!caster || caster->cargo.count == 0) return;
+    /* Retire timed unloading before a new passenger can board this frame. */
+    order_stop(caster);
     cargo_drop_all(caster);
     Get_Commands_f(clent);
 }
