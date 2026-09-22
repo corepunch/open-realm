@@ -19,6 +19,8 @@ LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy);
 void R_ResetGroundTextures(void);
 void R_ResetCliffCache(void);
 void R_ResetBlightCache(void);
+void R_LoadBlightTexture(BYTE tileset);
+LPCTEXTURE R_BlightTexture(void);
 void R_UpdateBlightLayer(void);
 void R_DrawBlightLayer(void);
 void _W3M_ClearMap(void);
