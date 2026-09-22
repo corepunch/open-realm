@@ -32,19 +32,61 @@ Its first data slot is Warcraft III field `inv1` (Item Capacity). `AB_Data`
 resolves the archive-version spelling (`Data11` in ROC, `DataA1` in TFT).
 Capacity is clamped to the six-slot OpenRealm storage/UI ceiling.
 
-Reign of Chaos heroes have one compatibility exception. Warsmash adds the
-stock `AInv` ability to a hero when the ROC map (`war3map.w3i` format version
-`<= 24`) does not already author an inventory-derived ability in the unit's
-normal ability list. OpenRealm mirrors that at capacity resolution time rather
-than mutating immutable unit metadata: an ROC hero with no authored inventory
-ability receives stock `AInv` capacity, while TFT-format maps do not get this
-fallback. An explicitly authored inventory-derived ability still wins, including
-the existing Backpack gating rules for stock non-hero inventory abilities.
+Reign of Chaos heroes have one compatibility exception. On ROC maps
+(`war3map.w3i` format version `<= 24`), a hero without an authored inventory
+ability receives stock `AInv` capacity. Classic ROC archives omit that row;
+in that case the built-in hero inventory has six slots and supports item use,
+pickup and drop, retaining items on death. This also applies to an explicit
+`AInv` on a ROC hero when its data row is absent. An existing `AInv` row remains
+authoritative, including zero capacity. TFT-format maps and non-heroes do not
+receive this missing-row default. Explicit custom inventory abilities and
+Backpack upgrade gates retain their authored behavior.
 
 Consequently a normal hero inventory resolves to six slots, while a custom
 inventory ability may expose fewer slots. Pickup, explicit slot insertion,
 client item use/drop commands, JASS slot operations, and HUD enumeration all
 respect the resolved capacity.
+
+### ROC hero checkerboards: attribute bonus mistaken for inventory
+
+The five magenta slots reported on Undead04 came from incorrect capacity, not
+missing item icons. `07cc8967` classified `AIab` as a ROC inventory alias and
+scanned for its first positive Data A value when `AInv` was absent. Retail ROC
+`Units/AbilityData.slk` lists `AIa1` first: its code is `AIab`, its name is
+`AgilityBonus (+1)`, and `Data11=1`. `AIa6` is likewise `AgilityBonus (+6)`.
+Both the extracted demo and TFT class registries identify `AIab` as
+`CAbilityAttributeBonus`; only `AInv` is `CAbilityInventory`.
+
+That scan gave Arthas one slot and caused `WriteInventory` to request five
+`ConsoleInventoryNoCapacity` overlays. The inspected ROC `UI/war3skins.txt`
+does not define that key, producing a logged unresolved image and the magenta
+placeholder. Correcting the inventory classification and classic hero default
+removes those erroneous overlays. It does not supply missing blocked-slot art
+for custom reduced-capacity inventories using this old skin table.
+
+`wc3_items.roc_hero_inventory_does_not_read_attribute_bonus_as_capacity` uses
+the ROC `Data11` schema with `AIa1`, `AIa3`, and `AIa6`, with no `AInv` row.
+It drives capacity, item permissions, selection and `G_RefreshInventoryLayer`
+for implicit and explicit hero inventory, asserting six slots and no blocked-slot
+texture requests. Companion tests exclude attribute bonuses from non-hero
+inventory and preserve custom four-slot and zero-slot capacities. Existing
+`DataA1` fixtures cover TFT inventory and Backpack permissions.
+
+A bounded ROC framebuffer check used an Undead04 diagnostic copy with mission
+triggers disabled, created level-4 `Uear` for player 3, added `ktrm` in slot 0,
+and selected him. `screenshot 30` with `+com_frame_limit 200` showed that item
+and five normal empty slots, with no `ConsoleInventoryNoCapacity` request.
+The native terrain and ROC archive assets were unchanged; no mission progression
+or save/load behavior was inferred from this visual check.
+
+Run `make test-wc3-engine WC3_PATTERN='wc3_items.*'`. To inspect the native
+evidence without launching the game:
+
+```sh
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat Units/AbilityData.slk
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat UI/war3skins.txt
+rg 'AIab|AInv' games/warcraft-3/{demo,tft}-ability-classes.txt
+```
 
 ## Contextual Pickup
 

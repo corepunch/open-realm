@@ -261,72 +261,70 @@ TEST(wc3_items, tft_hero_without_authored_inventory_does_not_get_roc_default) {
     T_EQ(G_InventoryCapacity(hero), 0);
 }
 
-TEST(wc3_items, roc_hero_synthesis_uses_roc_stock_alias_when_ainv_absent) {
-    /* Retail ROC AbilityData.slk has no AInv row; AIa6 (code AIab,
-     * Data11/DataA1 6) is the ROC 6-slot stock alias. Synthesis must resolve
-     * capacity from ROC data instead of logging INVENTORY_DATA. */
-    const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X3\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
-        "C;Y2;X1;K\"AIa6\"\nC;Y2;X2;K\"AIab\"\nC;Y2;X3;K\"6\"\nE\n";
-    UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT hero;
+/* ROC AIa1/AIa3/AIa6 are agility bonuses, not inventory capacities. The real
+ * archive has these in this order and has no AInv row. Use ROC column names. */
+static const char roc_inventory_slk[] =
+    "ID;PWXL;N;EBB;Y6;X3\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Data11\"\n"
+    "C;Y2;X1;K\"AIa1\"\nC;Y2;X2;K\"AIab\"\nC;Y2;X3;K\"1\"\n"
+    "C;Y3;X1;K\"AIa3\"\nC;Y3;X2;K\"AIab\"\nC;Y3;X3;K\"3\"\n"
+    "C;Y4;X1;K\"AIa6\"\nC;Y4;X2;K\"AIab\"\nC;Y4;X3;K\"6\"\n"
+    "C;Y5;X1;K\"Aiv4\"\nC;Y5;X2;K\"AInv\"\nC;Y5;X3;K\"4\"\n"
+    "C;Y6;X1;K\"Aiv0\"\nC;Y6;X2;K\"AInv\"\nC;Y6;X3;K\"0\"\nE\n";
 
+TEST(wc3_items, roc_hero_inventory_does_not_read_attribute_bonus_as_capacity) {
+    UnitAbilities_t abilities[] = { { .abilList = "" }, { .abilList = "AInv" }, { .abilList = "AIa1" } };
+    DWORD capacity[3], image_count[3]; BOOL use[3], get[3], drop[3];
+    slkTestData_t *rows = parse_slk_string(roc_inventory_slk), *old = G_SetSLKRows("AbilityData", rows);
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
     setup_test_world();
     ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
-    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    hero->data.UnitAbilities = &no_inventory;
-
-    T_ASSERT(G_UnitIsHero(hero));
-    T_EQ(G_InventoryCapacity(hero), 6);
-    G_SetSLKRows("AbilityData", old);
-    free_slk_rows(rows);
+    LPEDICT player = &g_edicts[0], hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    player->client->ps.race = kPlayerRaceUndead; G_SelectEntity(player->client, hero);
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image;
+    FOR_LOOP(i, 3) {
+        hero->data.UnitAbilities = &abilities[i];
+        capacity[i] = G_InventoryCapacity(hero);
+        use[i] = G_InventoryCanUseItems(hero); get[i] = G_InventoryCanGetItems(hero); drop[i] = G_InventoryCanDropItems(hero);
+        reset_inventory_panel_capture(); G_RefreshInventoryLayer(player);
+        image_count[i] = inventory_panel_image_count;
+    }
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    FOR_LOOP(i, 3) {
+        T_EQ(capacity[i], 6); T_EQ(image_count[i], 0); /* No blocked-slot texture requests. */
+        T_ASSERT(use[i]); T_ASSERT(get[i]); T_ASSERT(drop[i]);
+    }
 }
 
-TEST(wc3_items, roc_authored_inventory_alias_is_recognized) {
-    /* ROC inventory aliases carry code AIab, not AInv; the capacity scan must
-     * accept both base codes. */
-    const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X3\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
-        "C;Y2;X1;K\"AIa6\"\nC;Y2;X2;K\"AIab\"\nC;Y2;X3;K\"6\"\nE\n";
-    UnitAbilities_t roc_inventory = { .abilList = "AIa6", .heroAbilList = "" };
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT unit;
-
-    setup_test_world();
-    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    unit->data.UnitAbilities = &roc_inventory;
-
-    T_EQ(G_InventoryCapacity(unit), 6);
-    G_SetSLKRows("AbilityData", old);
-    free_slk_rows(rows);
-}
-
-TEST(wc3_items, roc_unit_with_explicit_ainv_uses_aiab_fallback) {
-    /* A unit whose abilList contains AInv on a RoC map used to log INVENTORY_DATA
-     * because retail RoC AbilityData.slk has no AInv row (inv1=0).  The engine
-     * must fall back to the AIab alias tree — the same path the hero synthesis
-     * uses — rather than returning 0 and spamming the error log. */
-    const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X3\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
-        "C;Y2;X1;K\"AIa6\"\nC;Y2;X2;K\"AIab\"\nC;Y2;X3;K\"6\"\nE\n";
-    UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
-    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT unit;
-
+TEST(wc3_items, attribute_bonus_does_not_grant_unit_inventory) {
+    UnitAbilities_t abilities = { .abilList = "AIa6" };
+    slkTestData_t *rows = parse_slk_string(roc_inventory_slk), *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
     ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
-    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     unit->data.UnitAbilities = &abilities;
+    DWORD capacity = G_InventoryCapacity(unit);
+    BOOL use = G_InventoryCanUseItems(unit), get = G_InventoryCanGetItems(unit), drop = G_InventoryCanDropItems(unit);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    T_EQ(capacity, 0); T_ASSERT(!use); T_ASSERT(!get); T_ASSERT(!drop);
+}
 
-    /* AInv is absent from the test SLK above; AIa6 (code AIab, inv1=6) is the
-     * RoC alias.  G_InventoryCapacity must resolve 6 via the fallback, not 0. */
-    T_EQ(G_InventoryCapacity(unit), 6);
-    G_SetSLKRows("AbilityData", old);
-    free_slk_rows(rows);
+TEST(wc3_items, roc_authored_inventory_capacity_overrides_hero_default_including_zero) {
+    UnitAbilities_t abilities = { .abilList = "Aiv4" };
+    slkTestData_t *rows = parse_slk_string(roc_inventory_slk), *old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    LPEDICT hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->data.UnitAbilities = &abilities;
+    DWORD capacity = G_InventoryCapacity(hero);
+    abilities.abilList = "Aiv0";
+    DWORD zero = G_InventoryCapacity(hero);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    T_EQ(capacity, 4); T_EQ(zero, 0);
 }
 
 TEST(wc3_items, inventory_capacity_rejects_zero_and_clamps_above_storage_limit) {
