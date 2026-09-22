@@ -391,8 +391,10 @@ static void reincarnation_think(LPEDICT thinker) {
 }
 
 void S_ReincarnationOnDeath(LPEDICT unit) {
-    DWORD code = MAKEFOURCC('A', 'O', 'r', 'e'), level = G_UnitAbilityLevel(unit, code);
+    static DWORD const codes[] = { MAKEFOURCC('A','O','r','e'), MAKEFOURCC('A','C','r','n'), MAKEFOURCC('A','N','r','n') };
+    DWORD code = 0, level = 0;
     LPEDICT thinker;
+    FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityLevel(unit, codes[i]))) { code = codes[i]; break; }
     if (!level || !S_SpellCooldownReady(unit, code)) return;
     thinker = G_Spawn(); thinker->owner = unit; thinker->s.origin2 = unit->s.origin2;
     thinker->spawn_time = G_Time() + (DWORD)(S_SpellData(code, level, 1) * 1000.0f);
@@ -816,6 +818,22 @@ BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis) {
  * Ubertip="Puts a target enemy unit to sleep."
  */
 BZ_SIMPLE_SPELL_PROC(AbilitySleep) { target_status_execute(caster, st, spell); }
+
+/* Neutral direct-damage bolt; unlike Fire Bolt it has no authored stun. */
+BZ_ABILITY_PROC(CAbilityFingerOfDeath) {
+    if (msg == A_VALIDATE)
+        return call && call->target && call->target->entity &&
+            S_SpellIsAliveTarget(call->target->entity) &&
+            S_SpellIsEnemy(ent, call->target->entity);
+    if (msg == A_EXECUTE && call && call->item && call->target && call->target->entity) {
+        DWORD level = S_SpellLevel(ent, call->item->code);
+        S_SpellDamage(call->target->entity, ent, (int)S_SpellData(call->item->code, level, 1));
+        G_SpawnAbilityEffectTarget(call->item->code, WC3_EFFECT_TARGET, 0, call->target->entity, NULL, true);
+        return true;
+    }
+    return CAbilitySimpleSpell(ent, msg, call);
+}
+
 /* Name=Inferno
  * Ubertip="Calls down an infernal that damages nearby enemy units."
  */

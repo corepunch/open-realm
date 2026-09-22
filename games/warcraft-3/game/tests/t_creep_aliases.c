@@ -32,6 +32,34 @@
 #define BZ_BUSL MAKEFOURCC('B', 'U', 's', 'l')
 #define BZ_BSLP MAKEFOURCC('B', 's', 'l', 'p')
 
+#define BZ_ANEG MAKEFOURCC('A', 'N', 'e', 'g')
+#define BZ_ANDE MAKEFOURCC('A', 'N', 'd', 'e')
+#define BZ_ANFY MAKEFOURCC('A', 'N', 'f', 'y')
+#define BZ_ANMR MAKEFOURCC('A', 'N', 'm', 'r')
+#define BZ_ANWM MAKEFOURCC('A', 'N', 'w', 'm')
+#define BZ_AOAC MAKEFOURCC('A', 'O', 'a', 'c')
+#define BZ_ADDA MAKEFOURCC('A', 'd', 'd', 'a')
+#define BZ_AGHO MAKEFOURCC('A', 'g', 'h', 'o')
+#define BZ_AETH MAKEFOURCC('A', 'e', 't', 'h')
+#define BZ_AETL MAKEFOURCC('A', 'e', 't', 'l')
+#define BZ_AGRA MAKEFOURCC('A', 'g', 'r', 'a')
+#define BZ_ASSK MAKEFOURCC('A', 's', 's', 'k')
+#define BZ_ARSK MAKEFOURCC('A', 'r', 's', 'k')
+#define BZ_AMIM MAKEFOURCC('A', 'm', 'i', 'm')
+#define BZ_AULT MAKEFOURCC('A', 'u', 'l', 't')
+#define BZ_ACOR MAKEFOURCC('A', 'c', 'o', 'r')
+#define BZ_AEST MAKEFOURCC('A', 'E', 's', 't')
+#define BZ_ASPI MAKEFOURCC('A', 's', 'p', 'i')
+#define BZ_ASAL MAKEFOURCC('A', 's', 'a', 'l')
+#define BZ_AABS MAKEFOURCC('A', 'a', 'b', 's')
+#define BZ_ACBH MAKEFOURCC('A', 'C', 'b', 'h')
+#define BZ_ANB2 MAKEFOURCC('A', 'N', 'b', '2')
+#define BZ_ANBH MAKEFOURCC('A', 'N', 'b', 'h')
+#define BZ_ANCA MAKEFOURCC('A', 'N', 'c', 'a')
+#define BZ_ACCE MAKEFOURCC('A', 'C', 'c', 'e')
+#define BZ_AWAR MAKEFOURCC('A', 'w', 'a', 'r')
+#define BZ_ACPV MAKEFOURCC('A', 'C', 'p', 'v')
+
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
@@ -63,12 +91,45 @@ TEST(wc3_spell, creep_aliases_share_parent_procedures) {
     T_EQ(FindAbilityByClassname("Ane2")->proc, CAbilityPassive);
     T_EQ(S_AbilityItem(BZ_ANE2).ability->proc, CAbilityPassive);
     T_EQ(S_AbilityItem(BZ_ANEU).ability->proc, CAbilityPassive);
-    T_NULL(FindAbilityByClassname("ACmo"));
-    T_NULL(FindAbilityByClassname("ACf3"));
-    T_NULL(FindAbilityByClassname("ACfd"));
-    T_NULL(FindAbilityByClassname("ACwb"));
-    T_NULL(FindAbilityByClassname("AHta"));
-    T_NULL(FindAbilityByClassname("Ache"));
+    T_EQ(FindAbilityByClassname("ACmo")->proc, CAbilityMonsoon);
+    T_EQ(FindAbilityByClassname("ACf3")->proc, CAbilityFingerOfDeath);
+    T_EQ(FindAbilityByClassname("ACfd")->proc, CAbilityFingerOfDeath);
+    T_EQ(FindAbilityByClassname("ACwb")->proc, CAbilityWeb);
+    T_EQ(FindAbilityByClassname("AHta")->proc, CAbilityFarSight);
+    T_EQ(FindAbilityByClassname("Ache")->proc, CAbilityDispelMagic);
+}
+
+/* These neutral rows are authored as passive/unit-property abilities.  Keep
+ * them discoverable through the normal registry while their individual
+ * combat/property consumers remain separate work. */
+TEST(wc3_spell, neutral_creep_property_rows_are_registered) {
+    DWORD passive[] = { BZ_ANEG, BZ_ANDE, BZ_ANFY, BZ_ANMR, BZ_AOAC,
+        BZ_ADDA, BZ_AGHO, BZ_AETH, BZ_AETL, BZ_AGRA, BZ_ASSK, BZ_ARSK,
+        BZ_AMIM, BZ_AULT, BZ_ACOR, BZ_AEST, BZ_ASPI, BZ_ASAL, BZ_AABS };
+    size_t i;
+
+    for (i = 0; i < sizeof(passive) / sizeof(passive[0]); i++) {
+        abilityProc_t expected = CAbilityPassive;
+        if (passive[i] == BZ_ANMR) expected = CAbilityMindRot;
+        else if (passive[i] == BZ_ADDA) expected = CAbilityDeathDamageAoe;
+        else if (passive[i] == BZ_ACOR) expected = CAbilityCorrosiveBreath;
+        else if (passive[i] == BZ_AOAC) expected = CAbilityCommandAura;
+        else if (passive[i] == BZ_ASPI) expected = CAbilitySpiked;
+        else if (passive[i] == BZ_ASSK) expected = CAbilityHardenedSkin;
+        else if (passive[i] == BZ_ANEG) expected = CAbilityEngineeringUpgrade;
+        else if (passive[i] == BZ_ANDE) expected = CAbilityDemolish;
+        else if (passive[i] == BZ_ANFY) expected = CAbilityFactory;
+        else if (passive[i] == BZ_AGHO) expected = CAbilityGhost;
+        else if (passive[i] == BZ_AETH) expected = CAbilityGhostVisible;
+        else if (passive[i] == BZ_AETL) expected = CAbilityEthereal;
+        else if (passive[i] == BZ_AGRA) expected = CAbilityGrabTree;
+        else if (passive[i] == BZ_ARSK) expected = CAbilityResistantSkin;
+        else if (passive[i] == BZ_AEST) expected = CAbilityScout;
+        else if (passive[i] == BZ_ASAL) expected = CAbilitySalvage;
+        else if (passive[i] == BZ_AABS) expected = CAbilityAbsorb;
+        T_EQ(S_AbilityItem(passive[i]).ability->proc, expected);
+    }
+    T_EQ(S_AbilityItem(BZ_ANWM).ability->proc, CAbilityWaterElemental);
 }
 
 /* ACmf DataA=2 is not ANms L1's 1; damage must read the owner's alias. */
@@ -207,9 +268,16 @@ TEST(wc3_spell, creep_code_parents_share_hero_procedures) {
     T_EQ(S_AbilityItem(BZ_ACTC).ability->proc, CAbilityThunderClap);
     T_EQ(S_AbilityItem(BZ_ACT2).ability->proc, CAbilityThunderClap);
     T_EQ(S_AbilityItem(BZ_ACAD).ability->proc, CAbilityAnimateDead);
-    T_EQ(S_AbilityItem(BZ_ACRN).ability->proc, CAbilityPassive);
-    T_EQ(S_AbilityItem(BZ_AASL).ability->proc, CAbilityPassive);
-    T_EQ(S_AbilityItem(BZ_AAKB).ability->proc, CAbilityPassive);
+    T_EQ(S_AbilityItem(BZ_ACRN).ability->proc, CAbilityReincarnation);
+    T_EQ(S_AbilityItem(BZ_AASL).ability->proc, CAbilitySlowAura);
+    T_EQ(S_AbilityItem(BZ_AAKB).ability->proc, CAbilityWarDrums);
+    T_EQ(S_AbilityItem(BZ_ACBH).ability->proc, CAbilityBash);
+    T_EQ(S_AbilityItem(BZ_ANB2).ability->proc, CAbilityBash);
+    T_EQ(S_AbilityItem(BZ_ANBH).ability->proc, CAbilityBash);
+    T_EQ(S_AbilityItem(BZ_ANCA).ability->proc, CAbilityCleavingAttack);
+    T_EQ(S_AbilityItem(BZ_ACCE).ability->proc, CAbilityCleavingAttack);
+    T_EQ(S_AbilityItem(BZ_AWAR).ability->proc, CAbilityPulverize);
+    T_EQ(S_AbilityItem(BZ_ACPV).ability->proc, CAbilityPulverize);
 }
 
 /* Anhe DataA=37 (not Ahea's 25), ACtc DataA=77 (not AHtc's 70) and

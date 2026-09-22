@@ -151,7 +151,7 @@ TEST(wc3_spell, registry_keeps_identity_outside_shared_handlers) {
     }
     FOR_LOOP(i, sizeof(abstract) / sizeof(*abstract)) T_NULL(FindAbilityByClassname(abstract[i]));
     T_EQ(FindAbilityByClassname("AIco")->proc, CAbilityCharm);
-    T_EQ(FindAbilityByClassname("Afbk")->proc, CAbilityPassive);
+    T_EQ(FindAbilityByClassname("Afbk")->proc, CAbilityFeedback);
     T_ASSERT(!(FindAbilityByClassname("Afbk")->flags & AB_SPELL));
     T_EQ(FindAbilityByClassname("Abtl")->proc, CAbilityBattlestations);
     T_ASSERT(FindAbilityByClassname("Abtl")->flags & AB_COMMAND);
@@ -429,6 +429,176 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_pulverize_and_spiked_aliases_use_authored_data) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y3;X8\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
+		"C;Y2;X1;K\"Awar\"\nC;Y2;X2;K\"Awar\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"100\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"32\"\nC;Y2;X7;K\"48\"\n"
+		"C;Y3;X1;K\"Aspi\"\nC;Y3;X2;K\"Aspi\"\nC;Y3;X4;K\"0.15\"\nC;Y3;X5;K\"3\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+	LPEDICT primary = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 10, 0);
+	LPEDICT splash = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 30, 0);
+	UnitAbilities_t abilities = { .abilList = "Awar,Aspi" };
+
+	attacker->data.UnitAbilities = &abilities;
+	attacker->s.player = 0; primary->s.player = splash->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+	primary->svflags |= SVF_MONSTER; splash->svflags |= SVF_MONSTER;
+	primary->targtype = splash->targtype = TARG_GROUND;
+	primary->health.value = primary->health.max_value = 100;
+	splash->health.value = splash->health.max_value = 100;
+	T_EQ(G_UnitAbilityLevel(attacker, MAKEFOURCC('A','w','a','r')), 1);
+	T_FEQ(S_SpellData(MAKEFOURCC('A','w','a','r'), 1, 1), 100, 0.001f);
+	S_PulverizeAttack(attacker, primary);
+	T_FEQ(splash->health.value, 75, 0.001f);
+	T_FEQ(S_SpikedDamageReturn(attacker, 20), 3, 0.001f);
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_incinerate_stacks_and_explodes_from_authored_rows) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"BuffID1\"\n"
+		"C;Y1;X7;K\"DataC1\"\n"
+		"C;Y2;X1;K\"ANia\"\nC;Y2;X2;K\"ANia\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"2\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"BNic\"\nC;Y2;X7;K\"80\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+	LPEDICT victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
+	LPEDICT nearby = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+	UnitAbilities_t abilities = { .abilList = "ANia" };
+
+	attacker->data.UnitAbilities = &abilities;
+	attacker->s.player = 0; victim->s.player = nearby->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+	victim->svflags |= SVF_MONSTER; nearby->svflags |= SVF_MONSTER;
+	victim->die = unit_die; nearby->die = unit_die;
+	victim->targtype = nearby->targtype = TARG_GROUND;
+	victim->health.value = victim->health.max_value = 100;
+	nearby->health.value = nearby->health.max_value = 100;
+	S_IncinerateOnHit(attacker, victim);
+	T_FEQ(victim->health.value, 98, 0.001f);
+	T_EQ(G_UnitStatusLevel(victim, FS_SLKKey("BNic")), 1);
+	S_IncinerateOnHit(attacker, victim);
+	T_FEQ(victim->health.value, 94, 0.001f);
+	T_EQ(G_UnitStatusLevel(victim, FS_SLKKey("BNic")), 2);
+	victim->health.value = 1;
+	S_IncinerateOnHit(attacker, victim);
+	T_ASSERT(M_IsDead(victim));
+	T_FEQ(nearby->health.value, 80, 0.001f);
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_attack_passives_and_death_aoe_use_authored_rows) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y5;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y1;X7;K\"DataC1\"\nC;Y1;X8;K\"DataD1\"\nC;Y1;X9;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"ANmr\"\nC;Y2;X2;K\"ANmr\"\nC;Y2;X5;K\"17\"\n"
+        "C;Y3;X1;K\"Aliq\"\nC;Y3;X2;K\"Aliq\"\nC;Y3;X3;K\"100\"\nC;Y3;X4;K\"5\"\nC;Y3;X7;K\"0.25\"\nC;Y3;X9;K\"Bliq\"\n"
+        "C;Y4;X1;K\"Acor\"\nC;Y4;X2;K\"Acor\"\nC;Y4;X3;K\"100\"\nC;Y4;X4;K\"5\"\nC;Y4;X9;K\"Bcor\"\n"
+        "C;Y5;X1;K\"Adda\"\nC;Y5;X2;K\"Adda\"\nC;Y5;X3;K\"40\"\nC;Y5;X5;K\"30\"\nC;Y5;X6;K\"25\"\nC;Y5;X7;K\"80\"\nC;Y5;X8;K\"10\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
+    LPEDICT dead = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 0, 0);
+    LPEDICT nearby = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 40, 0);
+    UnitAbilities_t attack_abilities = { .abilList = "ANmr,Aliq,Acor" };
+    UnitAbilities_t death_abilities = { .abilList = "Adda" };
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Adda"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    attacker->data.UnitAbilities = &attack_abilities; dead->data.UnitAbilities = &death_abilities;
+    attacker->s.player = dead->s.player = 0; target->s.player = nearby->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    target->svflags |= SVF_MONSTER; nearby->svflags |= SVF_MONSTER;
+    target->mana.value = target->mana.max_value = 100;
+    target->health.value = target->health.max_value = 100;
+    nearby->health.value = nearby->health.max_value = 100;
+    dead->die = unit_die; nearby->die = unit_die;
+    S_CreepAttackOnHit(attacker, target);
+    T_FEQ(target->mana.value, 83, 0.001f);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("Bliq")), 1);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("Bcor")), 1);
+    T_FEQ(S_CreepAttackSpeedReduction(target), 0.25f, 0.001f);
+    S_AbilityMessage(dead, A_DEATH, &call);
+    T_FEQ(nearby->health.value, 90, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_bash_alias_uses_its_own_authored_attack_data) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"targs\"\n"
+        "C;Y2;X1;K\"ACbh\"\nC;Y2;X2;K\"AHbh\"\nC;Y2;X3;K\"2\"\n"
+        "C;Y2;X4;K\"100\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"ground,enemy\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
+    UnitAbilities_t abilities = { .abilList = "ACbh" };
+
+    attacker->data.UnitAbilities = &abilities; attacker->s.player = 0;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE; target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND; target->health.value = target->health.max_value = 100;
+    S_ResolveAttackHit(attacker, target, 10);
+    T_FEQ(target->health.value, 83, 0.001f);
+    T_EQ(G_UnitStatusLevel(target, FS_SLKKey("Bstu")), 1);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_slow_aura_reads_authored_move_and_attack_factors) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"Aasl\"\nC;Y2;X2;K\"Aasl\"\nC;Y2;X3;K\"ground,enemy\"\n"
+        "C;Y2;X4;K\"300\"\nC;Y2;X5;K\"0.4\"\nC;Y2;X6;K\"0.25\"\nC;Y2;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    UnitAbilities_t abilities = { .abilList = "Aasl" };
+
+    source->data.UnitAbilities = &abilities;
+    source->s.player = 0; enemy->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    source->targtype = enemy->targtype = TARG_GROUND;
+    T_FEQ(S_SlowAuraMoveReduction(enemy), 0.4f, 0.001f);
+    T_FEQ(S_SlowAuraAttackReduction(enemy), 0.25f, 0.001f);
+    T_FEQ(S_HumanMoveFactor(enemy), 0.6f, 0.001f);
+    enemy->s.origin2.x = 400;
+    T_FEQ(S_SlowAuraMoveReduction(enemy), 0.0f, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_command_and_war_drums_auras_share_damage_consumer) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"ACac\"\nC;Y2;X2;K\"ACac\"\nC;Y2;X3;K\"ground,friend\"\n"
+        "C;Y2;X4;K\"300\"\nC;Y2;X5;K\"0.2\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"Aakb\"\nC;Y3;X2;K\"Aakb\"\nC;Y3;X3;K\"ground,friend\"\n"
+        "C;Y3;X4;K\"300\"\nC;Y3;X5;K\"0.15\"\nC;Y3;X6;K\"1\"\n"
+        "C;Y4;X1;K\"AOac\"\nC;Y4;X2;K\"AOac\"\nC;Y4;X3;K\"ground,friend\"\n"
+        "C;Y4;X4;K\"300\"\nC;Y4;X5;K\"0.1\"\nC;Y4;X6;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    LPEDICT ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    UnitAbilities_t abilities = { .abilList = "ACac,Aakb,AOac" };
+
+    source->data.UnitAbilities = &abilities;
+    source->s.player = ally->s.player = 0;
+    source->targtype = ally->targtype = TARG_GROUND;
+    T_FEQ(S_CommandAuraAttackBonus(ally), 0.2f, 0.001f);
+    T_FEQ(S_WarDrumsAttackBonus(ally), 0.15f, 0.001f);
+    ally->s.origin2.x = 400;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_CommandAuraAttackBonus(ally), 0.0f, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
@@ -1330,6 +1500,72 @@ TEST(wc3_spell, human_attack_passives_and_defend_change_damage) {
 	T_EQ(S_HumanAttackDamage(attacker, target, 100), 60);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_feedback_alias_reads_its_own_mana_burn_data) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"DataC1\"\n"
+        "C;Y2;X1;K\"Afbt\"\nC;Y2;X2;K\"Afbt\"\nC;Y2;X3;K\"9\"\n"
+        "C;Y2;X4;K\"2\"\nC;Y2;X5;K\"3\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
+    UnitAbilities_t abilities = { .abilList = "Afbt" };
+    attacker->data.UnitAbilities = &abilities; target->mana.value = target->mana.max_value = 20;
+    T_EQ(S_FeedbackDamage(attacker, target, 10), 28);
+    T_FEQ(target->mana.value, 11, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_hardened_skin_uses_chance_floor_and_reduction) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"DataC1\"\n"
+        "C;Y2;X1;K\"Ansk\"\nC;Y2;X2;K\"Ansk\"\nC;Y2;X3;K\"100\"\n"
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"12\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT target = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    UnitAbilities_t abilities = { .abilList = "Ansk" };
+    target->data.UnitAbilities = &abilities;
+    T_EQ(S_HardenedSkinDamage(target, 40), 28);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"targs\"\n"
+        "C;Y1;X6;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Aap1\"\nC;Y2;X2;K\"Aapl\"\nC;Y2;X3;K\"100\"\n"
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"ground,enemy,organic\"\nC;Y2;X6;K\"13\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
+    UnitAbilities_t abilities = { .abilList = "Aap1" };
+    source->data.UnitAbilities = &abilities; source->s.player = 0;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE; target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND; target->health.value = target->health.max_value = 100;
+    S_RunAbilityUpdates(source);
+    level.time += 1000; unit_updatestatuses(target);
+    T_FEQ(target->health.value, 87, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, creep_orb_of_annihilation_adds_authored_attack_damage) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"ANak\"\nC;Y2;X2;K\"ANak\"\nC;Y2;X3;K\"19\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    UnitAbilities_t abilities = { .abilList = "ANak" };
+    attacker->data.UnitAbilities = &abilities;
+    T_EQ(S_OrbAnnihilationDamage(attacker, 23), 42);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 TEST(wc3_spell, defend_data_b_and_e_scale_outgoing_and_magic_attack_damage) {

@@ -58,7 +58,7 @@ void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target) {
     DWORD level = G_UnitAbilityLevel(attacker, ID_SLOW_POISON);
     if (!level || !target || !S_SpellIsEnemy(attacker, target)) return;
     /* DataA DPS / BuffID Bssd are leftover; this slice only applies Bspo slow. */
-    unit_addtimedstatus(target, "Bspo", level, S_SpellDuration(ID_SLOW_POISON, level, G_UnitIsHero(target)));
+    unit_addtimedstatus(target, "Bspo", level, S_SpellDuration(ID_SLOW_POISON, level, S_UnitIsResistant(target)));
 }
 
 /* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */
@@ -85,7 +85,7 @@ static void barkskin_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
     if (!st.entity || !buff || strlen(buff) < 4) return;
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 

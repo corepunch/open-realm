@@ -715,6 +715,8 @@ typedef enum {
     A_QUEUE_CANCEL,     /* Queue cancellation: owner runs its inverse path before the item is freed. Payload: call->queue. */
     A_STATUS_REFRESH,   /* Status set changed: owner reconciles derived state with remaining statuses. Payload: call->status of one remaining status. */
     A_STATUS_REMOVE,    /* Status expiring/dispelled: owner runs its inverse while the slot is still valid. Sent before the slot is wiped. Payload: call->status of the expiring slot. */
+    A_STATUS_TICK,      /* Active status scheduler; owner advances its saved next_tick before applying damage. */
+    A_STATUS_DEATH,     /* Victim died with this status active; independent of the victim's learned abilities. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -1169,7 +1171,9 @@ typedef struct heroabilitystatus_s {
     DWORD level;
     DWORD timestamp;
     DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
-    DWORD data; /* ability-owned payload; Anti-Magic Shell remaining absorption, 0 otherwise */
+    DWORD data; /* applying ability rawcode for lifecycle dispatch; legacy Anti-Magic Shell absorption payload */
+    LPEDICT source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
+    DWORD source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
 
 typedef struct {
@@ -2251,6 +2255,10 @@ void unit_leavecombat(LPEDICT);
 BOOL unit_affectingcombat(LPEDICT);
 void unit_updatestatuses(LPEDICT);
 void unit_expirestatus(LPEDICT, heroabilitystatus_t *);
+heroabilitystatus_t *unit_findstatus(LPEDICT, DWORD);
+void unit_statusdeath(LPEDICT);
+void incinerate_explode_think(LPEDICT);
+void monsoon_think(LPEDICT);
 void unit_refreshstatusflags(LPEDICT);
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
