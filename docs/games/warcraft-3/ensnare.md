@@ -5,13 +5,13 @@
 `Aens` is TFT `CAbilityEnsnare` (parent `AAsm`). `ANen` (Naga, TFT-only) and
 `ACen` (creep) are `AbilityData` aliases whose `code` is `Aens`, so they share
 `CAbilityEnsnare` and read their own rows through `abilityitem_t.code`.
-`ACen` remains unregistered here.
+`ACen` is registered in `s_skills.c`.
 
 | Rawcode | Archive | Notes |
 | --- | --- | --- |
 | `Aens` | ROC and TFT | Raider Ensnare |
 | `ANen` | TFT | Naga Ensnare (`code=Aens`) |
-| `ACen` | ROC and TFT | creep Ensnare — unregistered |
+| `ACen` | ROC and TFT | creep Ensnare (`code=Aens`) |
 
 Casting binds one living enemy/neutral unit so it cannot move for `Dur` /
 `HeroDur`. Air units lose `AI_FLYING` immediately so ground attacks can hit them,
@@ -50,9 +50,15 @@ CAbilityEnsnare
   -> A_EXECUTE: unit_addtimedstatus(Bena | Beng | Bens fallback)
               store spell->code in status.data; begin land (DataA/B)
   -> A_UPDATE: advance land / rise FlyHeight; M_CheckGround
-unit_refreshstatusflags
-  -> while ensnared: clear AI_FLYING (height owned by ensnare update)
-  -> after expiry: restore AI_FLYING; S_EnsnareStatusExpired starts rise when DataA>0
+m_unit status machinery (storage, iteration, timing only)
+  -> unit_expirestatus: A_STATUS_REMOVE to the owner resolved from
+     status.data (origin rawcode); slot wiped after the owner runs
+  -> unit_refreshstatusflags: stun aggregation plus A_STATUS_REFRESH to the
+     owner of each remaining status
+CAbilityEnsnare (owns AI_FLYING, phases, restoration)
+  -> A_STATUS_REFRESH: ground while a bind remains, else restore flight
+  -> A_STATUS_REMOVE: start rise when DataA>0, restore flight only when no
+     other bind remains; runs before the slot wipe so authored data is valid
 order_move
   -> S_UnitIsEnsnared / BEer reject movement
 s_attack range
@@ -79,4 +85,6 @@ make test-wc3-engine WC3_PATTERN='wc3_spell.ensnare*'
 
 Focused tests cover alias procedure lookup, ground `Bens` move lock, flyer
 land-and-lock, gradual `DataA`/`DataB` descent, expiry restore of
-`AI_FLYING`/altitude, ground targets staying non-flying, and recast refresh.
+`AI_FLYING`/altitude, ground targets staying non-flying, recast refresh,
+dispel mid-land, overlapping binds, attack/move restoration, unrelated flight
+state, and save/load during land and rise.

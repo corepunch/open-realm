@@ -25,6 +25,8 @@ owner's alias the same way regen auras do for `ACnr`→`Aoar`.
 | `ACpy` | `Aply` | `CAbilityPolymorph` (ROC empty BuffID → `Bply` in `human_buff`) |
 | `ACsl` | `AUsl` | `CAbilitySleep` (ROC empty BuffID → `BUsl`) |
 | `Ane2` | `Aneu` | shop select (`CAbilityPassive`), not Inventory |
+| `ACes` / `ACev` | `AEev` | Evasion: `S_EvasionRoll` resolves the owned alias plus rank via `S_ResolveAbilityAlias` and reads chance from the alias row |
+| `ACbh` | `AHbh` | Bash: `S_ResolveAttackHit` resolves the owned alias plus rank via `S_ResolveAbilityAlias` and reads chance/bonus from the alias row |
 | `Anhe` | `Anhe` (self; `code=` parent of `Anh1`/`Anh2`) | `CAbilityHeal` (autocast; DataA via alias) |
 | `ACtc` | `ACtc` (self; `code=` parent of `ACt2`) | `CAbilityThunderClap` (radial; no slow when ROC BuffID empty) |
 | `ACad` | `ACad` (self) | `CAbilityAnimateDead` (count/area/duration via alias) |

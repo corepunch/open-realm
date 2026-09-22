@@ -324,6 +324,8 @@ FLOAT S_VampiricLifeSteal(LPEDICT unit);
 FLOAT S_TrueshotAttackBonus(LPEDICT unit);
 int S_SearingArrowDamage(LPEDICT attacker, int damage);
 FLOAT S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, FLOAT damage);
+typedef struct { DWORD alias; DWORD level; } abilityAliasRef_t;
+abilityAliasRef_t S_ResolveAbilityAlias(LPEDICT ent, DWORD base_code);
 BOOL S_EvasionRoll(LPEDICT target);
 int S_CriticalStrikeDamage(LPEDICT attacker, int damage);
 FLOAT S_SpikedArmorBonus(LPCEDICT unit);

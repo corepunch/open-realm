@@ -38,8 +38,14 @@ accepted Sacrifice
 
 OpenRealm mirrors this in the existing production queue. The hidden Shade edict
 is the queue item and owns an `edictSacrifice_s` record pointing at the consumed
-Acolyte plus its spawn generation. This keeps the lifecycle in production and
-ability-owned code instead of adding Sacrifice branches to generic monster AI.
+Acolyte plus its spawn generation. Train keeps queue allocation, progress,
+ordering, placement and resource mechanisms; the worker lifecycle (validation,
+hide/pause inverse, completion consume, food-slot inheritance) lives in
+`s_sacrifice.c` behind typed `A_QUEUE_VALIDATE` / `A_QUEUE_COMPLETE` /
+`A_QUEUE_CANCEL` messages dispatched from Train through the flat ability
+procedure. `G_QueueSacrifice` is defined in the owner on Train-owned
+mechanisms (`unit_add_build_queue`, `TrainSetBuildMove`,
+`G_RefreshTrainingQueue`).
 
 The queue deliberately bypasses normal `ReserveTrainingFood`: the Acolyte still
 owns its food slot while hidden. At completion the worker is removed first,

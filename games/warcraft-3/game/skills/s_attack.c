@@ -271,7 +271,6 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
 }
 
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
-    DWORD bash_level;
     if (S_EvasionRoll(target)) return;
     { FLOAT const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (FLOAT)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
@@ -281,11 +280,11 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
                                          - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
-    bash_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
-    if (bash_level && (FLOAT)(rand() % 100) < S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 1)) {
-        damage += (int)S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 3);
-        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, false));
-    }
+    { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
+    if (bash.alias && bash.level && (FLOAT)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
+        damage += (int)S_SpellData(bash.alias, bash.level, 3);
+        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(bash.alias, bash.level, false));
+    } }
     DWORD wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (wind_level) {
         damage += (int)S_SpellData(MAKEFOURCC('A', 'O', 'w', 'k'), wind_level, 3);

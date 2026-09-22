@@ -401,4 +401,35 @@ TEST(wc3_spell, creep_evasion_base_and_brawler_retained) {
     T_ASSERT(alias_target->health.value < 100);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
+
+/* Creep Bash resolves through the owned alias: 100% ACbh stuns and adds its
+ * authored bonus, while a 0% base AHbh does nothing. */
+TEST(wc3_spell, creep_bash_alias_uses_authored_data) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataC1\"\nC;Y1;X5;K\"Dur1\"\n"
+        "C;Y2;X1;K\"AHbh\"\nC;Y2;X2;K\"AHbh\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"1\"\n"
+        "C;Y3;X1;K\"ACbh\"\nC;Y3;X2;K\"AHbh\"\nC;Y3;X3;K\"100\"\n"
+        "C;Y3;X4;K\"5\"\nC;Y3;X5;K\"2\"\nE\n";
+    UnitAbilities_t base_abils = { .abilList = "AHbh" };
+    UnitAbilities_t alias_abils = { .abilList = "ACbh" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT base_attacker, alias_attacker, target;
+    creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
+    base_attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    alias_attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 64);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    base_attacker->s.player = alias_attacker->s.player = 0; target->s.player = 1;
+    base_attacker->data.UnitAbilities = &base_abils;
+    alias_attacker->data.UnitAbilities = &alias_abils;
+    target->health.value = target->health.max_value = 500;
+    S_ResolveAttackHit(base_attacker, target, 10);
+    T_EQ(G_UnitStatusLevel(target, MAKEFOURCC('B','s','t','u')), 0);
+    S_ResolveAttackHit(alias_attacker, target, 10);
+    T_EQ(G_UnitStatusLevel(target, MAKEFOURCC('B','s','t','u')), 1);
+    T_ASSERT(target->health.value < 500);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
 #endif
