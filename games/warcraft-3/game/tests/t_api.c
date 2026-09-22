@@ -3230,6 +3230,25 @@ TEST(wc3_api, customize_entity_packs_hover_cargo_count_and_capacity) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_api, customize_entity_publishes_empty_acar_capacity_for_hover) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Acar\"\nC;Y2;X2;K\"Acar\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"8\"\nE\n";
+    static UnitAbilities_t const abilities = { .abilList = "Acar" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 }, .data = { .UnitAbilities = &abilities } };
+
+    ent.health.value = 100.0f;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(EntityCargoCount(state.stats[ENT_CARGO]), 0);
+    T_EQ(EntityCargoCapacity(state.stats[ENT_CARGO]), 8);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_api, customize_entity_marks_enemy_hover_relation_hostile) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 2 } };

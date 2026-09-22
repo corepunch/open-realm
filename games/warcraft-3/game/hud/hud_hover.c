@@ -7,22 +7,40 @@
 
 #include "hud_local.h"
 
-/* Write one texture relative to the projected entity-context root. */
-static void UI_WriteHoverTexture(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWORD stat, COLOR32 color) {
+/* Write one texture inside a context-bound hover row. */
+static void UI_WriteHoverTexture(DWORD parent, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWORD stat, COLOR32 color) {
     uiFrame_t frame = { 0 };
 
     frame.flags.type = FT_TEXTURE; frame.tex.index = gi.ImageIndex(art); frame.stat = stat; frame.color = color;
-    UI_SetFrameRect(&frame, x, y, w, h);
-    UI_WriteProxyFrame(&frame, NULL, 0);
+    frame.size.width = w; frame.size.height = h;
+    UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, UI_PARENT, 0.0f, false);
+    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, UI_PARENT, y, true);
+    UI_WriteProxyFrameToParent(&frame, NULL, 0, parent);
 }
 
 /* Write a fill bar whose fraction is resolved from the hovered snapshot entity. */
-static void UI_WriteHoverBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWORD stat, COLOR32 color) {
+static void UI_WriteHoverBar(DWORD parent, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWORD stat, COLOR32 color) {
     uiFrame_t frame = { 0 };
 
     frame.flags.type = FT_SIMPLESTATUSBAR; frame.tex.index = gi.ImageIndex(art); frame.stat = stat; frame.color = color;
-    UI_SetFrameRect(&frame, x, y, w, h);
+    frame.size.width = w; frame.size.height = h;
+    UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, UI_PARENT, 0.0f, false);
+    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, UI_PARENT, y, true);
+    UI_WriteProxyFrameToParent(&frame, NULL, 0, parent);
+}
+
+/* A context row contributes its full authored height only while the client has
+ * that live hover capability. The shared layout solver collapses it otherwise. */
+static DWORD UI_WriteHoverRow(DWORD stat, DWORD below, FLOAT height) {
+    uiFrame_t frame = { 0 };
+    DWORD const number = ui_next_frame_number;
+
+    frame.flags.type = FT_FRAME; frame.stat = stat;
+    frame.size.width = 0.045f; frame.size.height = height;
+    UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, 0, 0.0f, false);
+    UI_SetFramePoint(&frame.points.y[FPP_MAX], FPP_MIN, below, 0.0f, true);
     UI_WriteProxyFrame(&frame, NULL, 0);
+    return number;
 }
 
 static LPCSTR UI_HoverResourceLabel(void) {
@@ -37,19 +55,23 @@ static LPCSTR UI_HoverResourceLabel(void) {
     return "Gold:";
 }
 
-/* Retail COccupUI is a cargo CStatBar layered above HP/MP. The client reads
- * the packed count/capacity from the hovered entity and emits only occupied
- * yellow segments; no MDX attachment or numeric label is involved. */
-static void UI_WriteHoverCargoBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art) {
+/* Retail COccupUI is a cargo CStatBar. This hover stack places it below HP/MP;
+ * capacity owns the slot count while filled and empty slots use separate art. */
+static DWORD UI_WriteHoverCargoBar(LPCSTR filled_art, LPCSTR empty_art) {
     uiFrame_t frame = { 0 };
+    DWORD const number = ui_next_frame_number;
 
     frame.flags.type = FT_SEGMENTED_STATUSBAR;
-    frame.tex.index = gi.ImageIndex(art);
+    frame.tex.index = gi.ImageIndex(filled_art);
+    frame.tex.index2 = gi.ImageIndex(empty_art);
     frame.stat = ENT_CARGO;
     frame.color = MAKE(COLOR32, 255, 204, 0, 255);
     frame.value = 0.001f; /* separation between capacity-sized segments */
-    UI_SetFrameRect(&frame, x, y, w, h);
+    frame.size.width = 0.043f; frame.size.height = 0.004f;
+    UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, 0, 0.0f, false);
+    UI_SetFramePoint(&frame.points.y[FPP_MAX], FPP_MIN, 0, -0.002f, true);
     UI_WriteProxyFrame(&frame, NULL, 0);
+    return number;
 }
 
 /* The server owns the complete widget; only its declared context changes at draw time. */
@@ -58,9 +80,24 @@ void UI_WriteHoverLayout(LPEDICT ent) {
     LPCSTR black = "Textures\\Black32.blp";
     LPCSTR hp = "SimpleHpBarConsoleSmall";
     LPCSTR mana = "SimpleManaBarConsoleSmall";
+    DWORD cargo, mana_row, health_row;
 
     if (!ent || !ent->client || !ent->client->connected) return;
     UI_WriteStart(LAYER_WORLD_HOVER);
+
+    /* Build bottom-up. Missing context rows collapse to zero client-side, so
+     * every remaining element stays adjacent without a hover-time layout RPC. */
+    cargo = UI_WriteHoverCargoBar(hp, black);
+    mana_row = UI_WriteHoverRow(UI_STAT_CONTEXT_MANA, cargo, 0.009f);
+    UI_WriteHoverTexture(mana_row, 0.0f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_MANA,
+                         MAKE(COLOR32, 0, 0, 0, 220));
+    UI_WriteHoverBar(mana_row, 0.001f, 0.043f, 0.006f, mana, UI_STAT_CONTEXT_MANA,
+                     MAKE(COLOR32, 60, 90, 235, 255));
+    health_row = UI_WriteHoverRow(UI_STAT_CONTEXT_HEALTH, mana_row, 0.009f);
+    UI_WriteHoverTexture(health_row, 0.0f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_HEALTH,
+                         MAKE(COLOR32, 0, 0, 0, 220));
+    UI_WriteHoverBar(health_row, 0.001f, 0.043f, 0.006f, hp, UI_STAT_CONTEXT_HEALTH,
+                     MAKE(COLOR32, 80, 200, 80, 255));
 
     frame.flags.type = FT_NAMETAG; frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT; frame.stat = UI_STAT_CONTEXT_NAME;
     frame.color = COLOR32_WHITE;
@@ -82,13 +119,8 @@ void UI_WriteHoverLayout(LPEDICT ent) {
         .padding_x = 0.008f,
         .padding_y = 0.006f);
     UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, 0, 0.0f, false);
-    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, 0, -0.043f, true);
+    UI_SetFramePoint(&frame.points.y[FPP_MAX], FPP_MIN, health_row, 0.0f, true);
     UI_WriteProxyFrame(&frame, &data, sizeof(data));
 
-    UI_WriteHoverCargoBar(-0.0215f, -0.024f, 0.043f, 0.004f, hp);
-    UI_WriteHoverTexture(-0.0225f, -0.019f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 0, 0, 0, 220));
-    UI_WriteHoverBar(-0.0215f, -0.018f, 0.043f, 0.006f, hp, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 80, 200, 80, 255));
-    UI_WriteHoverTexture(-0.0225f, -0.010f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 0, 0, 0, 220));
-    UI_WriteHoverBar(-0.0215f, -0.009f, 0.043f, 0.006f, mana, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 60, 90, 235, 255));
     UI_WriteEnd(ent);
 }

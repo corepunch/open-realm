@@ -529,13 +529,21 @@ name in `MSG_WriteString` and leave later hover names empty.
 
 Cargo occupancy is part of the same native hover presentation. Classic Warcraft exposes this as `COccupUI`, a cargo
 `CStatBar`, rather than an MDX attachment or floating-text counter. OpenRealm packs the hovered holder's current cargo count and
-authored capacity into the otherwise spare fourth entity-stat byte and renders a generic `FT_SEGMENTED_STATUSBAR` immediately above
-the health bar. The frame divides the authored width by capacity and draws one yellow/gold segment for each occupied slot; zero cargo
-draws no occupancy bar. Because the state comes from `S_CargoCapacity()` plus the holder's shared cargo array, the same path covers
-Burrows/transports and, once the corpse-cargo patch is present, Meat Wagon `Sch2`/`Amtc` corpse slots without client-side unit-type
-special cases. Stored corpses therefore increment/decrement the overlay through the same cargo transitions used by Exhume, Get Corpse,
-Drop All, corpse consumers, and holder destruction. Exact retail pixel spacing/texture treatment still needs visual verification; do
-not replace the segmented presentation with an MDX effect or numeric `3/8` label.
+authored capacity into the otherwise spare fourth entity-stat byte and renders a generic `FT_SEGMENTED_STATUSBAR` as the bottom row
+of the hover stack. Capacity owns the slot count: every authored slot remains visible, occupied slots use the yellow/gold fill, and
+empty slots use the authored secondary dark art, so `0/N` cargo still displays `N` empty segments. Because the state comes from
+`S_CargoCapacity()` plus the holder's shared cargo array, the same path covers `Acar` transports such as Goblin Zeppelins, Burrows,
+and Meat Wagon `Sch2`/`Amtc` corpse slots without client-side unit-type special cases. Stored corpses therefore increment/decrement
+the overlay through the same cargo transitions used by Exhume, Get Corpse, Drop All, corpse consumers, and holder destruction.
+Exact retail pixel spacing/texture treatment still needs visual verification; do not replace the segmented presentation with an MDX
+effect or numeric `3/8` label.
+
+The native world-hover frames form one compact bottom-up stack: segmented cargo, mana, health, then the name tag. A row whose live
+context capability is absent contributes zero layout height, so health falls directly above cargo when mana is absent, mana becomes
+the bottom bar when cargo capacity is absent, and the name tag follows the highest remaining bar. Zero mana does not remove the mana
+row when the entity still exposes `EF_HOVER_MANA`, and zero cargo does not remove a segmented row when capacity remains nonzero. The
+name tag is bottom-anchored to this stack and remains `UIFLAG_SIZE_TO_CONTENT`, so a Gold Mine's extra `Gold: N` line grows upward
+without creating a gap or pushing the bars downward.
 
 Retail `PreSelect.cpp` makes the bar width `UnitUI scale * SelectionCircle ScaleFactor * 0.0005`, equivalent to the render
 entity's selection radius times `0.001`. `CStatBar.cpp` uses a `0.004` frame height and `0.001` inset, so the visible fill is half

@@ -276,6 +276,7 @@ static inline BOOL CL_EntityAllowsWorldHover(LPCENTITYSTATE state) {
 
 LPCENTITYSTATE SCR_LayoutContextEntity(void);
 BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value);
+BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame);
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root);
 FLOAT SCR_UICanvasWidth(void);
 VECTOR2 SCR_ScreenToUI(int x, int y);

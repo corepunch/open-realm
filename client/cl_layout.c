@@ -182,6 +182,28 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
     return true;
 }
 
+/* Context-bound presentation occupies no layout space when that capability is absent.
+ * Keep zero mana visible when the mana capability exists, and keep segmented cargo
+ * visible for an empty holder as long as its authored capacity is nonzero. */
+BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
+    LPCENTITYSTATE ent;
+    FLOAT value;
+
+    if (!frame) return false;
+    if (frame->stat == UI_STAT_CONTEXT_NAME) {
+        ent = SCR_LayoutContextEntity();
+        return ent && ent->name;
+    }
+    if (frame->stat == UI_STAT_CONTEXT_HEALTH)
+        return SCR_LayoutContextValue(frame->stat, &value) && value > 0.0f;
+    if (frame->stat == UI_STAT_CONTEXT_MANA)
+        return SCR_LayoutContextValue(frame->stat, &value);
+    if (frame->flags.type != FT_SEGMENTED_STATUSBAR) return true;
+
+    ent = SCR_LayoutContextEntity();
+    return ent && frame->stat < ENT_STAT_COUNT && EntityCargoCapacity(ent->stats[frame->stat]) > 0;
+}
+
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
     LPCSTR edit_text = CL_WindowEditTextValue(frame ? frame->number : 0);
@@ -332,6 +354,14 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         return &runtimes[frame->number].rect;
     } else {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
+    }
+    if (!SCR_LayoutContextFrameVisible(frame)) {
+        VECTOR2 const rect[] = {
+            get_position(frame, frame->points.x, 0.0f, get_x, assigned_width),
+            get_position(frame, frame->points.y, 0.0f, get_y, assigned_height),
+        };
+        runtimes[frame->number].rect = MAKE(RECT, rect[0].x, rect[1].x, 0.0f, 0.0f);
+        return &runtimes[frame->number].rect;
     }
     VECTOR2 elemsize = {0};
     FLOAT avl_space = runtimes[0].rect.w;
