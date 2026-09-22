@@ -480,7 +480,7 @@ static BOOL attack_target_out_of_range_for(LPCEDICT ent, LPCEDICT target) {
     /* Ensnare DataC forces the bound unit's own attacks to melee range. */
     ensnare_range = S_EnsnareMeleeRange(ent);
     range = ensnare_range > 0.0f ? ensnare_range : ent->attack1.range;
-    if (G_UnitIsBuilding(target->class_id)) {
+    if ((G_UnitIsBuilding(target->class_id) || G_IsDestructable(target)) && target->pathtex) {
         footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
         if (footprint < FLT_MAX) {
             return footprint > ent->collision + range;

@@ -186,6 +186,7 @@ static BOOL run_test_jass_impl(LPCSTR src, LPCSTR expected) {
         .ReadFile         = gi.ReadFile,
         .natives          = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
+        .TimerCoroutineValid = G_TimerCoroutineValid,
         .RuntimeError     = ignore_jass_error,
         .SaveHandle       = G_SaveJassHandle,
         .LoadHandle       = G_LoadJassHandle,

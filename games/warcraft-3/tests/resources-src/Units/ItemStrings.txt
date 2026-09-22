@@ -2,3 +2,6 @@
 Tip="Purchase Scroll of Protection"
 Ubertip="Temporarily increases the armor of nearby units."
 Description="Increases nearby friendly units' armor for a short duration."
+[ktrm]
+Tip="Urn of KelThuzad"
+Ubertip="Carries the remains of Kel'Thuzad."

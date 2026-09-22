@@ -169,12 +169,16 @@ TEST(wc3_avatar, jass_added_ability_casts_by_order_and_publishes_spell_effect) {
     level.events.read = level.events.write = 0;
     memset(level.events.queue, 0, sizeof(level.events.queue));
     T_ASSERT(unit_issueimmediateorder(unit, "avatar"));
-    T_EQ(level.events.write, 2);
+    T_EQ(level.events.write, 4);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
+    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_ISSUED_ORDER);
+    T_EQ(level.events.queue[3].type, EVENT_UNIT_ISSUED_ORDER);
     T_ASSERT(level.events.queue[0].edict == unit && level.events.queue[1].edict == unit);
     T_EQ((DWORD)level.events.queue[0].value, BZ_AVATAR);
     T_EQ((DWORD)level.events.queue[1].value, BZ_AVATAR);
+    T_ASSERT(level.events.queue[2].edict == unit && level.events.queue[3].edict == unit);
+    T_EQ(G_GetIssuedOrderId(unit), G_OrderId("avatar"));
 
     T_ASSERT(G_ActorRemoveSkill(unit, BZ_AVATAR));
     T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 0);

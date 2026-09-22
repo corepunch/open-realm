@@ -59,6 +59,16 @@ DWORD SetItemCharges(LPJASS j) {
     if (item) G_SetItemCharges(item, (DWORD)MAX(charges, 0));
     return 0;
 }
+DWORD SetItemDropID(LPJASS j) {
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    LONG unit_id = jass_checkinteger(j, 2);
+    if (item && G_IsItem(item)) item->item.drop_id = (DWORD)unit_id;
+    return 0;
+}
+DWORD GetItemDropID(LPJASS j) {
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    return jass_pushinteger(j, item && G_IsItem(item) ? (LONG)item->item.drop_id : 0);
+}
 DWORD GetItemX(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushnumber(j, item ? item->s.origin.x : 0);
@@ -106,7 +116,8 @@ DWORD IsItemInvulnerable(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetManipulatedItem(LPJASS j) {
-    return jass_pushnullhandle(j, "item");
+    LPEDICT item = jass_getcontext(j)->source;
+    return item && G_IsItem(item) ? jass_pushlighthandle(j, item, "item") : jass_pushnullhandle(j, "item");
 }
 DWORD GetOrderTargetItem(LPJASS j) {
     return jass_pushnullhandle(j, "item");

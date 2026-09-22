@@ -407,6 +407,8 @@ so trigger publication and snapshots remain consistent.
 - Item charges are mutable item-instance state. `GetItemCharges` and
   `SetItemCharges` read/write the carried or world item's edict state; setting
   charges on a carried item refreshes the selected-unit inventory layer.
+- `SetItemDropID` stores the mutable unit rawcode metadata on the item instance;
+  it has no immediate inventory or world-drop side effect.
 - `widget` life operations share the damage/life representation across units,
   items, and destructables and clamp against the runtime maximum.
 

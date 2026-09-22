@@ -283,6 +283,7 @@ native Player                   takes integer number returns player
 native CreateItem               takes integer itemid, real x, real y returns item
 native GetItemCharges           takes item whichItem returns integer
 native SetItemCharges           takes item whichItem, integer charges returns nothing
+native SetItemDropID            takes item whichItem, integer unitId returns nothing
 native GetItemName              takes item whichItem returns string
 native GetItemUserData          takes item whichItem returns integer
 native SetItemUserData          takes item whichItem, integer data returns nothing
@@ -368,10 +369,12 @@ globals
     constant playerunitevent EVENT_PLAYER_UNIT_RESEARCH_START = ConvertPlayerUnitEvent(35)
     constant playerunitevent EVENT_PLAYER_UNIT_RESEARCH_CANCEL = ConvertPlayerUnitEvent(36)
     constant playerunitevent EVENT_PLAYER_UNIT_RESEARCH_FINISH = ConvertPlayerUnitEvent(37)
+    constant playerunitevent EVENT_PLAYER_UNIT_ISSUED_ORDER = ConvertPlayerUnitEvent(38)
     constant playerunitevent EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER = ConvertPlayerUnitEvent(39)
     constant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT = ConvertPlayerUnitEvent(274)
     constant playerunitevent EVENT_PLAYER_HERO_LEVEL = ConvertPlayerUnitEvent(41)
     constant playerunitevent EVENT_PLAYER_UNIT_SUMMON = ConvertPlayerUnitEvent(47)
+    constant playerunitevent EVENT_PLAYER_UNIT_PICKUP_ITEM = ConvertPlayerUnitEvent(49)
     constant gameevent EVENT_GAME_STATE_LIMIT = ConvertGameEvent(3)
     constant gameevent EVENT_GAME_ENTER_REGION = ConvertGameEvent(5)
     constant unitevent EVENT_UNIT_DAMAGED = ConvertUnitEvent(52)
@@ -383,6 +386,7 @@ globals
     constant unitevent EVENT_UNIT_RESEARCH_START = ConvertUnitEvent(72)
     constant unitevent EVENT_UNIT_RESEARCH_CANCEL = ConvertUnitEvent(73)
     constant unitevent EVENT_UNIT_RESEARCH_FINISH = ConvertUnitEvent(74)
+    constant unitevent EVENT_UNIT_ISSUED_ORDER = ConvertUnitEvent(75)
     constant unitevent EVENT_UNIT_HERO_LEVEL = ConvertUnitEvent(78)
     constant unitevent EVENT_UNIT_SUMMON = ConvertUnitEvent(84)
     constant fogstate FOG_OF_WAR_MASKED  = ConvertFogState(1)

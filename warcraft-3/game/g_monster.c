@@ -581,6 +581,7 @@ void SP_SpawnUnit(LPEDICT self) {
     /* Resolve WC3's authored team-color precedence in the game module and
      * publish it through the generic entity effect bits consumed by MDX. */
     G_InitializeUnitTeamColor(self);
+    G_InitializeUnitVertexColor(self);
     /* Establish the authored altitude immediately; MOVETYPE_STEP will refresh
      * the same support-surface calculation each simulation frame. */
     M_CheckGround(self);

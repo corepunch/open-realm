@@ -45,6 +45,7 @@ typedef struct {
      * this generic: trigger is the opaque context handle supplied by the host. */
     void (*CoroutineTrace)(HANDLE trigger, LPCSTR function, LPCSTR phase,
                            DWORD now, DWORD wake_time, BOOL yielded, BOOL done);
+    BOOL (*TimerCoroutineValid)(HANDLE timer, DWORD generation);
     void (*VariableChanged)(LPCSTR name, FLOAT before, FLOAT after);
 } JASSHOST;
 

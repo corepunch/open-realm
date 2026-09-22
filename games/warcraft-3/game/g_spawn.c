@@ -50,6 +50,7 @@ void G_InitJassHost(void) {
         .ReadFile = gi.ReadFile,
         .natives = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
+        .TimerCoroutineValid = G_TimerCoroutineValid,
         .SaveHandle = G_SaveJassHandle,
         .LoadHandle = G_LoadJassHandle,
         .CoroutineTrace = G_JassCoroutineTrace,

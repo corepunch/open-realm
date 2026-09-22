@@ -688,7 +688,7 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
             continue;
         }
         G_SetItemCharges(item, saved_item->charges);
-        if (!G_AddItemToSlot(unit, item, i)) {
+        if (!G_AddItemToSlotInternal(unit, item, i, false)) {
             fprintf(stderr, "Game cache '%s': cannot restore item %.4s into slot %u of %.4s\n",
                     cache->campaign, (LPCSTR)&saved_item->item_id, (unsigned)i,
                     (LPCSTR)&saved->class_id);

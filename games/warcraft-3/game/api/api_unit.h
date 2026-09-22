@@ -260,6 +260,7 @@ DWORD SetUnitVertexColor(LPJASS j) {
         whichUnit->vertex_color = MAKE(COLOR32,
             BZ_CLAMP_U8(red), BZ_CLAMP_U8(green), BZ_CLAMP_U8(blue), BZ_CLAMP_U8(alpha));
         whichUnit->vertex_color_set = true;
+        whichUnit->vertex_color_override_set = true;
     }
     return 0;
 }

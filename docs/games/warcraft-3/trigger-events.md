@@ -95,8 +95,8 @@ continue to report registrations for those gaps.
 
 The bridge also provides:
 
-- accepted point/target order events with `GetIssuedOrderId()`, point and target
-  response natives; immediate/no-target issued-order publication remains separate work;
+- accepted immediate, point, and target order events with `GetIssuedOrderId()`,
+  point and target response natives;
 - successful item pickup/use context via `GetManipulatingUnit()` and
   `GetManipulatedItem()`;
 - successful Hero skill learning via `GetLearningUnit()`, `GetLearnedSkill()`

@@ -78,6 +78,8 @@ struct jass_context {
     LPPLAYER playerState;
     LPPLAYER localPlayerState;
     HANDLE timer;
+    DWORD timer_generation;
+    BOOL timer_pending;
     LPCJASSFUNC func;
 };
 
@@ -124,6 +126,7 @@ BOOL jass_isrunning(LPJASS j);
 void jass_haltevents(LPJASS j);
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source);
 BOOL jass_calltriggerwithvalue(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source, LONG eventValue);
+BOOL jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, HANDLE timer);
 BOOL jass_popboolean(LPJASS j);
 void jass_pop(LPJASS j, DWORD count);
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);

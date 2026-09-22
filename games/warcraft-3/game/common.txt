@@ -2860,6 +2860,7 @@ native          EnumItemsInRect     takes rect r, boolexpr filter, code actionFu
 native          GetItemLevel    takes item whichItem returns integer
 native          GetItemType     takes item whichItem returns itemtype
 native          SetItemDropID   takes item whichItem, integer unitId returns nothing
+native          GetItemDropID   takes item whichItem returns integer
 constant native GetItemName     takes item whichItem returns string
 native          GetItemCharges  takes item whichItem returns integer
 native          SetItemCharges  takes item whichItem, integer charges returns nothing

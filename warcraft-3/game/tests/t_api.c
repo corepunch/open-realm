@@ -31,6 +31,7 @@ BOOL run_test_jass(LPCSTR src);
 extern LPPLAYER currentplayer;
 void unit_die(LPEDICT self, LPEDICT attacker);
 void unit_build(LPEDICT self, DWORD class_id);
+static LPEDICT find_test_unit(DWORD class_id);
 
 
 
@@ -1940,6 +1941,7 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     tinted = find_test_unit(MAKEFOURCC('h','p','e','a'));
     T_NOT_NULL(tinted);
     T_ASSERT(tinted->vertex_color_set);
+    T_ASSERT(tinted->vertex_color_override_set);
     T_EQ(tinted->vertex_color.r, 255); T_EQ(tinted->vertex_color.g, 128);
     T_EQ(tinted->vertex_color.b, 0); T_EQ(tinted->vertex_color.a, 0);
 
@@ -1965,6 +1967,46 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
         found = true;
     }
     T_ASSERT(found);
+}
+
+TEST(wc3_api, authored_unit_ui_tint_initializes_vertex_color) {
+    UnitUI_t ui = { .tintRed = 224, .tintGreen = 232, .tintBlue = 255 };
+    edict_t unit = { .data.UnitUI = &ui };
+
+    G_InitializeUnitVertexColor(&unit);
+    T_ASSERT(unit.vertex_color_set);
+    T_EQ(unit.vertex_color.r, 224); T_EQ(unit.vertex_color.g, 232);
+    T_EQ(unit.vertex_color.b, 255); T_EQ(unit.vertex_color.a, 255);
+}
+
+TEST(wc3_api, authored_white_unit_ui_tint_clears_previous_color) {
+    UnitUI_t ui = { .tintRed = 255, .tintGreen = 255, .tintBlue = 255 };
+    edict_t unit = {
+        .data.UnitUI = &ui,
+        .vertex_color = MAKE(COLOR32, 224, 232, 255, 255),
+        .vertex_color_set = true,
+    };
+
+    G_InitializeUnitVertexColor(&unit);
+    T_ASSERT(!unit.vertex_color_set);
+    T_EQ(unit.vertex_color.r, 255); T_EQ(unit.vertex_color.g, 255);
+    T_EQ(unit.vertex_color.b, 255); T_EQ(unit.vertex_color.a, 255);
+}
+
+TEST(wc3_api, explicit_vertex_color_override_survives_authored_rebind) {
+    UnitUI_t ui = { .tintRed = 255, .tintGreen = 255, .tintBlue = 255 };
+    edict_t unit = {
+        .data.UnitUI = &ui,
+        .vertex_color = MAKE(COLOR32, 17, 34, 51, 68),
+        .vertex_color_set = true,
+        .vertex_color_override_set = true,
+    };
+
+    G_InitializeUnitVertexColor(&unit);
+    T_ASSERT(unit.vertex_color_set);
+    T_ASSERT(unit.vertex_color_override_set);
+    T_EQ(unit.vertex_color.r, 17); T_EQ(unit.vertex_color.g, 34);
+    T_EQ(unit.vertex_color.b, 51); T_EQ(unit.vertex_color.a, 68);
 }
 
 
@@ -2548,6 +2590,50 @@ TEST(wc3_api, client_selection_publishes_selection_events_once_per_delta) {
     jass_runevents(level.vm);
     T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 2);
     T_EQ(gc->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 1);
+}
+
+TEST(wc3_api, immediate_order_publishes_order_event_context) {
+    LPEDICT unit;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testUnit = null\n"
+        "  integer orderEvents = 0\n"
+        "  integer unitOrderEvents = 0\n"
+        "endglobals\n"
+        "function onOrder takes nothing returns nothing\n"
+        "  set orderEvents = orderEvents + 1\n"
+        "  call BJassAssert(GetOrderedUnit() == testUnit, \"ordered unit must be the immediate-order unit\")\n"
+        "endfunction\n"
+        "function onUnitOrder takes nothing returns nothing\n"
+        "  set unitOrderEvents = unitOrderEvents + 1\n"
+        "  call BJassAssert(GetOrderedUnit() == testUnit, \"unit issued-order context must identify the ordered unit\")\n"
+        "endfunction\n"
+        "function verifyOrder takes nothing returns nothing\n"
+        "  call BJassAssert(orderEvents == 1, \"immediate order must publish one player order event\")\n"
+        "  call BJassAssert(unitOrderEvents == 1, \"immediate order must publish one unit order event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local trigger unitTrigger = CreateTrigger()\n"
+        "  set testUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_ISSUED_ORDER, null)\n"
+        "  call TriggerAddAction(t, function onOrder)\n"
+        "  call TriggerRegisterUnitEvent(unitTrigger, testUnit, EVENT_UNIT_ISSUED_ORDER)\n"
+        "  call TriggerAddAction(unitTrigger, function onUnitOrder)\n"
+        "endfunction\n"));
+
+    unit = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(unit);
+    unit->health.value = unit->health.max_value = 100.0f;
+    T_ASSERT(unit_issueimmediateorder(unit, "holdposition"));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyOrder", true);
+    jass_runevents(level.vm);
+    T_EQ(G_GetIssuedOrderId(unit), G_OrderId("holdposition"));
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 TEST(wc3_api, build_placement_publishes_point_order_event_context) {
@@ -4609,6 +4695,58 @@ TEST(wc3_api, unit_out_of_range) {
     T_ASSERT(!(dist <= 4.0f));
 }
 
+TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT subject, target;
+    VECTOR2 destination = { 100.0f, 0.0f };
+
+    reset_entities();
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger rangeTrigger = null\n"
+        "  unit rangeSubject = null\n"
+        "  boolean entered = false\n"
+        "endglobals\n"
+        "function on_range takes nothing returns nothing\n"
+        "  set entered = true\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set rangeSubject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 280.0, 0.0, 0.0)\n"
+        "  set rangeTrigger = CreateTrigger()\n"
+        "  call TriggerRegisterUnitInRange(rangeTrigger, rangeSubject, 256.0, null)\n"
+        "  call TriggerAddAction(rangeTrigger, function on_range)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(entered, \"registered subject movement did not fire range event\")\n"
+        "endfunction\n"));
+
+    subject = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    target = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(subject); T_NOT_NULL(target);
+    subject->movetype = MOVETYPE_STEP;
+    subject->stand = unit_stand;
+    subject->birth = unit_birth;
+    subject->die = unit_die;
+    subject->think = monster_think;
+    subject->collision = 0.0f;
+    subject->health.value = 250.0f;
+    subject->health.max_value = 250.0f;
+    unit_stand(subject);
+    T_ASSERT(unit_issueorder(subject, "move", &destination));
+    G_RunEntities();
+    T_ASSERT(subject->s.origin2.x > 0.0f);
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
+    T_ASSERT(level.events.write > level.events.read);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, killunit_runs_normal_unit_death_transition) {
     LPEDICT victim = NULL;
 
@@ -4917,6 +5055,39 @@ TEST(wc3_api, gamecache_save_commits_to_process_memory) {
         "  call BJassAssert(GetStoredInteger(saved, \"Human01\", \"Stage\") == 2, \"saved value did not survive new cache handle\")\n"
         "endfunction\n"));
     gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, gamecache_restore_does_not_publish_pickup_events) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer pickupCount = 0\n"
+        "  unit restored = null\n"
+        "endglobals\n"
+        "function onPickup takes nothing returns nothing\n"
+        "  set pickupCount = pickupCount + 1\n"
+        "endfunction\n"
+        "function verifyPickup takes nothing returns nothing\n"
+        "  call BJassAssert(pickupCount == 1, \"RestoreUnit published a pickup event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local gamecache c = InitGameCache(\"openrealm-test-pickup-restore-memory-only.w3v\")\n"
+        "  local unit source = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local item i = CreateItem('spro', 0.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_PICKUP_ITEM, null)\n"
+        "  call TriggerAddAction(t, function onPickup)\n"
+        "  call UnitAddItem(source, i)\n"
+        "  call FlushGameCache(c)\n"
+        "  call BJassAssert(StoreUnit(c, \"Human01\", \"Arthas\", source), \"StoreUnit failed\")\n"
+        "  set pickupCount = 0\n"
+        "  set restored = RestoreUnit(c, \"Human01\", \"Arthas\", Player(0), 128.0, 64.0, 0.0)\n"
+        "  call BJassAssert(restored != null, \"RestoreUnit returned null\")\n"
+        "endfunction\n"));
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "verifyPickup", true);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 TEST(wc3_api, gamecache_restore_preserves_hero_progression) {

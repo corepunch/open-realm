@@ -20,7 +20,7 @@
 #define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
-#define MAX_EVENT_QUEUE 256
+#define MAX_EVENT_QUEUE 1024
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
 #define BZ_STRINGIFY_INNER(value) #value
@@ -958,6 +958,7 @@ struct gtrigger_s {
 struct gtimer_s {
     struct jass_function const *handler;
     DWORD duration, remaining;
+    DWORD generation;
     BOOL periodic, paused, running;
 };
 
@@ -1383,6 +1384,7 @@ struct edict_s {
         LONG inventory_slot;
         BOOL in_world;
         DWORD charges;
+        DWORD drop_id;        /* SetItemDropID unit rawcode metadata */
         LONG user_data;       /* SetItemUserData script scratch */
         BOOL pawnable_set;    /* SetItemPawnable overrode ItemData.pawnable */
         BOOL pawnable;        /* effective pawnable when pawnable_set */
@@ -1506,6 +1508,7 @@ struct edict_s {
     unitbalance_t runtime;
     COLOR32 vertex_color;
     BOOL vertex_color_set;
+    BOOL vertex_color_override_set;
     umove_t *currentmove;
     unitRace_t race;
     FLOAT wait;
@@ -2201,6 +2204,8 @@ void G_StartProjectilePresentation(LPEDICT ent);
 void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, struct jass_function const *handler);
 void G_TimerPause(LPGTIMER timer);
 void G_TimerResume(LPGTIMER timer);
+void G_TimerDestroy(LPGTIMER timer);
+BOOL G_TimerCoroutineValid(HANDLE timer, DWORD generation);
 DWORD G_TimerRemaining(LPCGTIMER timer);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
@@ -2291,6 +2296,7 @@ void G_SetEntityTeamColor(LPENTITYSTATE state, DWORD color);
 void G_SetUnitTeamColor(LPEDICT unit, DWORD color);
 void G_InheritUnitTeamColor(LPEDICT entity, LPCEDICT source);
 void G_InitializeUnitTeamColor(LPEDICT unit);
+void G_InitializeUnitVertexColor(LPEDICT unit);
 void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement);
 void G_ChangePlayerTeamColor(LPPLAYER player, DWORD previous_color, DWORD new_color);
 BOOL G_GetUnitColorOverride(LPCEDICT unit, LPDWORD color);
@@ -2735,6 +2741,7 @@ BOOL G_TransformUnitType(LPEDICT, DWORD);
 BOOL G_IssueUnitPointOrder(LPEDICT, LPCSTR, LPCVECTOR2, BOOL, DWORD, FLOAT);
 BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
 void G_PublishIssuedPointOrder(LPEDICT, DWORD, LPCVECTOR2, DWORD, LPCSTR);
+void G_PublishIssuedImmediateOrder(LPEDICT, DWORD, DWORD, LPCSTR);
 DWORD G_GetIssuedOrderId(LPCEDICT);
 BOOL G_GetIssuedOrderPoint(LPCEDICT, LPVECTOR2);
 DWORD G_OrderId(LPCSTR);
@@ -2960,6 +2967,7 @@ LPCSTR G_ItemAbilityList(LPCEDICT item);
 LONG G_FindFreeInventorySlot(LPCEDICT unit);
 BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);
+BOOL G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, DWORD slot, BOOL publish_event);
 BOOL G_PickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);

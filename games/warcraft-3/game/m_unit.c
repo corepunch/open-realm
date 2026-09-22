@@ -541,6 +541,15 @@ void G_PublishIssuedPointOrder(LPEDICT self, DWORD order_id, LPCVECTOR2 point,
     G_PublishEvent(self, EVENT_UNIT_ISSUED_POINT_ORDER);
 }
 
+void G_PublishIssuedImmediateOrder(LPEDICT self, DWORD order_id,
+                                   DWORD issuer_player, LPCSTR debug_order) {
+    if (!self || self->s.number >= MAX_ENTITIES) return;
+    issued_order_ids[self->s.number] = order_id;
+    issued_order_point_valid[self->s.number] = false;
+    G_PublishEvent(self, EVENT_PLAYER_UNIT_ISSUED_ORDER);
+    G_PublishEvent(self, EVENT_UNIT_ISSUED_ORDER);
+}
+
 static void unit_publish_target_order(LPEDICT self, LPCSTR order,
                                       LPEDICT target, DWORD issuer_player) {
     DWORD const order_id = unit_order_event_id(order);
@@ -933,28 +942,50 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     if (!strcmp(order, "stop")) {
         G_ClearUnitOrderQueue(self);
         order_stop(self);
+        G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return true;
     }
-    if (!strcmp(order, "holdposition"))
-        return S_HoldPosition(self);
+    if (!strcmp(order, "holdposition")) {
+        BOOL const accepted = S_HoldPosition(self);
+        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return accepted;
+    }
     {
         DWORD const spell_code = unit_spell_code_for_order(self, order);
-        if (spell_code) return S_CastNoTargetSpell(self, spell_code);
+        if (spell_code) {
+            BOOL const accepted = S_CastNoTargetSpell(self, spell_code);
+            if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+            return accepted;
+        }
     }
     ability_t const *ability = FindAbilityByOrder(order);
     if (ability) {
         abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
-        return S_AbilityMessage(self, A_ORDER, &call);
+        BOOL const accepted = S_AbilityMessage(self, A_ORDER, &call);
+        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return accepted;
     }
-    if (!strcmp(order, "repairon"))
-        return S_SetRepairAutocast(self, true);
-    if (!strcmp(order, "repairoff"))
-        return S_SetRepairAutocast(self, false);
-    if (!strcmp(order, "autoharvestgold"))
-        return harvest_auto_start_gold(self);
-    if (!strcmp(order, "autoharvestlumber"))
-        return harvest_auto_start_lumber(self);
+    if (!strcmp(order, "repairon")) {
+        BOOL const accepted = S_SetRepairAutocast(self, true);
+        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return accepted;
+    }
+    if (!strcmp(order, "repairoff")) {
+        BOOL const accepted = S_SetRepairAutocast(self, false);
+        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return accepted;
+    }
+    if (!strcmp(order, "autoharvestgold")) {
+        BOOL const accepted = harvest_auto_start_gold(self);
+        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return accepted;
+    }
+    if (!strcmp(order, "autoharvestlumber")) {
+        BOOL const accepted = harvest_auto_start_lumber(self);
+        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        return accepted;
+    }
     return false;
 }
 

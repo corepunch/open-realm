@@ -69,6 +69,21 @@ TEST(wc3_game, target_type_known_value_is_preserved) {
     T_EQ(G_GetTargetType("ground"), TARG_GROUND);
 }
 
+TEST(wc3_game, event_queue_rejects_overflow_without_overwriting_pending_events) {
+    DWORD i;
+
+    memset(&level.events, 0, sizeof(level.events));
+    for (i = 0; i < MAX_EVENT_QUEUE; i++)
+        T_NOT_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_VICTORY, NULL, (LONG)i));
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_END_LEVEL, NULL, 999));
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_EQ(level.events.queue[0].value, 0);
+    T_EQ(level.events.queue[MAX_EVENT_QUEUE - 1].value, (LONG)MAX_EVENT_QUEUE - 1);
+    G_RunEvents();
+    T_EQ(level.events.read, (DWORD)MAX_EVENT_QUEUE);
+}
+
 /* =========================================================================
  * Helpers
  * ========================================================================= */
@@ -4198,6 +4213,36 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     remove(filename);
+}
+
+TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  timer pendingTimer = null\n"
+        "  integer timerFired = 0\n"
+        "endglobals\n"
+        "function ExpireAction takes nothing returns nothing\n"
+        "  set timerFired = timerFired + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set pendingTimer = CreateTimer()\n"
+        "  call TriggerAddAction(t, function ExpireAction)\n"
+        "  call TriggerRegisterTimerExpireEvent(t, pendingTimer)\n"
+        "  call TimerStart(pendingTimer, 0.0, true, null)\n"
+        "endfunction\n"
+        "function PausePending takes nothing returns nothing\n"
+        "  call PauseTimer(pendingTimer)\n"
+        "endfunction\n"
+        "function VerifyDropped takes nothing returns nothing\n"
+        "  call BJassAssert(timerFired == 0, \"paused timer expiration action still ran\")\n"
+        "endfunction\n"));
+
+    G_RunTimers();
+    jass_callbyname(level.vm, "PausePending", false);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyDropped", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
