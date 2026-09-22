@@ -230,6 +230,74 @@ void cargo_drop_all(LPEDICT transport) {
         cargo_drop_unit(transport, transport->cargo.count - 1);
 }
 
+static DWORD cargo_unload_interval_ms(LPEDICT transport) {
+    DWORD const alias = cargo_hold_alias(transport);
+    abilityLevel_t const *level = alias ? G_AbilityLevel(alias, 1) : NULL;
+    FLOAT const seconds = level ? MAX(0.0f, level->dur) : 0.0f;
+
+    /* Warsmash's Unload All behavior spaces passengers by Cargo Hold Dur.
+     * A zero-duration custom hold still advances at most once per simulation
+     * frame instead of collapsing the whole sequence into one tick. */
+    return (DWORD)MAX((FLOAT)FRAMETIME, seconds * 1000.0f);
+}
+
+static LPEDICT cargo_unload_all_thinker(LPEDICT transport) {
+    if (!transport) return NULL;
+    FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == transport &&
+                  thinker->think == cargo_unload_all_think) {
+        return thinker;
+    }
+    return NULL;
+}
+
+void cargo_unload_all_think(LPEDICT thinker) {
+    LPEDICT transport = thinker ? thinker->owner : NULL;
+    DWORD now;
+
+    if (!thinker || !transport || !transport->inuse || M_IsDead(transport) ||
+        transport->spawn_time != thinker->channel.owner_spawn_time) {
+        if (thinker) G_FreeEdict(thinker);
+        return;
+    }
+    now = G_Time();
+    if (thinker->freetime && now < thinker->freetime) return;
+    if (transport->cargo.count == 0) {
+        G_FreeEdict(thinker);
+        return;
+    }
+
+    /* Retail/Warsmash Unload All removes the first passenger, then repeats
+     * until the hold is empty.  cargo_drop_unit() places each passenger from
+     * the transport's current position, so a moving Zeppelin continues to
+     * unload directly below wherever it is at each pulse. */
+    S_CargoUnloadAt(transport, 0);
+    if (transport->cargo.count == 0) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    thinker->freetime = now + cargo_unload_interval_ms(transport);
+}
+
+BOOL S_CargoBeginUnloadAll(LPEDICT transport) {
+    LPEDICT thinker;
+
+    if (!transport || transport->cargo.count == 0 || M_IsDead(transport)) return false;
+    if (cargo_unload_all_thinker(transport)) return true;
+
+    /* Preserve the existing responsive first click: eject one passenger now,
+     * then let the saved thinker continue the authored timed sequence. */
+    if (!S_CargoUnloadAt(transport, 0)) return false;
+    if (transport->cargo.count == 0) return true;
+
+    thinker = G_Spawn();
+    if (!thinker) return false;
+    thinker->owner = transport;
+    thinker->channel.owner_spawn_time = transport->spawn_time;
+    thinker->think = cargo_unload_all_think;
+    thinker->freetime = G_Time() + cargo_unload_interval_ms(transport);
+    return true;
+}
+
 LPEDICT S_CargoTransportForUnit(LPCEDICT unit) {
     if (!unit) return NULL;
     FILTER_EDICTS(transport, transport->inuse && transport->cargo.count > 0) {
@@ -610,7 +678,7 @@ static BOOL drop_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
             dropped |= S_CargoUnloadAt(caster, caster->cargo.count - 1);
         return dropped;
     }
-    return cargo_drop_unit(caster, caster->cargo.count - 1) != NULL;
+    return S_CargoBeginUnloadAll(caster);
 }
 
 static void drop_command(LPEDICT clent) {
@@ -620,8 +688,13 @@ static void drop_command(LPEDICT clent) {
 
 BZ_COMMAND_PROC(AbilityCargoDrop) { drop_command(clent); }
 
-/* ---- Drop Instant (Adri): instant drop ---------------------------------- */
-BZ_COMMAND_PROC(AbilityCargoDropInstant) { drop_command(clent); }
+/* ---- Drop Instant (Adri): unload every occupant immediately ------------- */
+BZ_COMMAND_PROC(AbilityCargoDropInstant) {
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    if (!caster || caster->cargo.count == 0) return;
+    cargo_drop_all(caster);
+    Get_Commands_f(clent);
+}
 
 /* ---- Stand Down (Astd): stop combat, then unload all Burrow occupants --- */
 void S_CargoStandDown(LPEDICT caster) {

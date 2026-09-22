@@ -3901,6 +3901,69 @@ TEST(wc3_movement, empty_entangled_mine_dies_when_parent_is_depleted) {
     free_slk_rows(rows);
 }
 
+static char const cargo_unload_test_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"DataA1\"\n"
+    "C;Y1;X4;K\"Dur1\"\n"
+    "C;Y2;X1;K\"Acar\"\n"
+    "C;Y2;X2;K\"Acar\"\n"
+    "C;Y2;X3;K8\n"
+    "C;Y2;X4;K0.3\n"
+    "E\n";
+
+TEST(wc3_movement, unload_all_repeats_one_passenger_per_cargo_duration) {
+    static UnitAbilities_t const transport_abilities = { .abilList = "Acar" };
+    slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
+    slkTestData_t *old_abilities;
+    LPEDICT transport, first, second, third;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = G_SetSLKRows("AbilityData", rows);
+    transport = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    third = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    transport->data.UnitAbilities = &transport_abilities;
+    transport->cargo.units[0] = first;
+    transport->cargo.units[1] = second;
+    transport->cargo.units[2] = third;
+    transport->cargo.count = 3;
+    first->s.renderfx |= RF_HIDDEN; first->paused = true;
+    second->s.renderfx |= RF_HIDDEN; second->paused = true;
+    third->s.renderfx |= RF_HIDDEN; third->paused = true;
+    level.time = 1000;
+
+    T_ASSERT(S_CargoBeginUnloadAll(transport));
+    T_EQ(transport->cargo.count, 2);
+    T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!first->paused);
+    T_ASSERT(second->s.renderfx & RF_HIDDEN);
+    T_ASSERT(third->s.renderfx & RF_HIDDEN);
+
+    level.time += 299;
+    G_RunEntities();
+    T_EQ(transport->cargo.count, 2);
+
+    level.time += 1;
+    G_RunEntities();
+    T_EQ(transport->cargo.count, 1);
+    T_ASSERT(!(second->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!second->paused);
+    T_ASSERT(third->s.renderfx & RF_HIDDEN);
+
+    level.time += 300;
+    G_RunEntities();
+    T_EQ(transport->cargo.count, 0);
+    T_ASSERT(!(third->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!third->paused);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_cargo) {
     static UnitAbilities_t const burrow_abilities = {
         .id = MAKEFOURCC('o','b','u','r'),
