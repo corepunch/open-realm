@@ -33,7 +33,9 @@ it clamps the victim to 1 HP and clears `Bspl`.
 AbilityData.slk (Aspl)
   -> DataA, DataB, Area, Dur, BuffID, targs, Cost, Rng
 CAbilitySpiritLink
-  -> A_EXECUTE: up to DataB nearest valid units in Area of click target
+  -> A_EXECUTE: scan the full eligible population with bounded nearest-DataB
+     insertion (no edict-order truncation); valid click target stays first,
+     equal distances keep edict order
   -> unit_addtimedstatus(Bspl); status.data = applying rawcode
 T_Damage
   -> S_SpiritLinkRedirect (one call site)

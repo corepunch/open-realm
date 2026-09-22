@@ -1,7 +1,18 @@
 #include "s_skills.h"
 
 #define BZ_BSPL MAKEFOURCC('B', 's', 'p', 'l') // rawcode; Spirit Link buff
-#define SPL_MAX_CANDS 64 // units; gather cap when selecting DataB nearest in Area
+#define SPL_MAX_CANDS 64 // units; static scratch capacity for DataB nearest selection
+
+/* Bounded nearest-N insertion over the full eligible population. Only
+ * strictly-closer candidates displace the retained farthest, so equal
+ * distances keep edict order (deterministic tie-break). */
+static DWORD spirit_link_nearest_insert(LPEDICT *cands, FLOAT *dists, DWORD n, DWORD maxn, LPEDICT target, FLOAT dist) {
+	DWORD far = 0;
+	FOR_LOOP(i, n) if (dists[i] > dists[far]) far = i;
+	if (n < maxn) { cands[n] = target; dists[n] = dist; return n + 1; }
+	if (dist < dists[far]) { cands[far] = target; dists[far] = dist; }
+	return n;
+}
 
 static void spirit_link_store_code(LPEDICT unit, DWORD buff, DWORD code) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
@@ -10,9 +21,12 @@ static void spirit_link_store_code(LPEDICT unit, DWORD buff, DWORD code) {
 		}
 }
 
-/* Apply Bspl to up to DataB nearest valid units in Area of the click target. */
+/* Apply Bspl to up to DataB nearest valid units in Area of the click target.
+ * The click target is kept first when valid; remaining slots go to the
+ * nearest others. Equal distances keep edict order. */
 static void spirit_link_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-	DWORD level, buff, maxn, n = 0, j;
+	DWORD level, buff, maxn, n = 0, j, rest, restmax;
+	BOOL clicked;
 	FLOAT area, dur, dist;
 	LPCSTR buffstr;
 	LPEDICT cands[SPL_MAX_CANDS];
@@ -26,10 +40,18 @@ static void spirit_link_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
 	if (!buffstr || strlen(buffstr) < 4) buffstr = "Bspl";
 	buff = *((DWORD const *)buffstr);
 	if (!maxn) return;
-	FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(spell->code, caster, target) &&
+	if (maxn > SPL_MAX_CANDS) {
+		fprintf(stderr, "spirit_link: DataB %u exceeds scratch %d; clamping\n", (unsigned)maxn, SPL_MAX_CANDS);
+		maxn = SPL_MAX_CANDS;
+	}
+	clicked = S_SpellIsAliveTarget(st.entity) && S_SpellAllowsTarget(spell->code, caster, st.entity);
+	if (clicked) { cands[0] = st.entity; dists[0] = 0.0f; n = 1; }
+	restmax = clicked ? maxn - 1 : maxn;
+	FILTER_EDICTS(target, target != st.entity && S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(spell->code, caster, target) &&
 	              (dist = Vector2_distance(&target->s.origin2, &st.entity->s.origin2)) <= area) {
-		if (n >= SPL_MAX_CANDS) continue;
-		cands[n] = target; dists[n] = dist; n++;
+		rest = spirit_link_nearest_insert(cands + (clicked ? 1 : 0), dists + (clicked ? 1 : 0),
+		                                  n - (clicked ? 1 : 0), restmax, target, dist);
+		n = rest + (clicked ? 1 : 0);
 	}
 	FOR_LOOP(i, n) for (j = i + 1; j < n; j++)
 		if (dists[j] < dists[i]) {
@@ -70,7 +92,9 @@ static void spirit_link_apply_share(LPEDICT unit, int amount) {
 	G_AddHealth(unit, -(FLOAT)amount);
 }
 
-/* Split DataA of post-mitigation damage across living allied Bspl holders; return primary take. */
+/* Split DataA of post-mitigation damage across living allied Bspl holders; return primary take.
+ * The 64-entry scratch cannot truncate real groups: selection above caps each
+ * cast at authored DataB targets, far below this bound. */
 int S_SpiritLinkRedirect(LPEDICT target, LPEDICT attacker, int damage) {
 	static BOOL redirecting;
 	heroabilitystatus_t *slot;

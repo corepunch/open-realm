@@ -93,44 +93,49 @@ static void aura_cache_update_time(void) {
     aura_cache_last_time = level.time;
 }
 
-static auraAbilityRef_t actor_aura_ability(LPEDICT ent, DWORD base_code) {
-    auraAbilityRef_t result = {0};
+/* Shared owned-alias resolver: actual rawcode plus actual rank for base_code,
+ * across native abilList, runtime-added abilities (honoring removals) and
+ * ranked hero slots, via the authored code mapping. */
+abilityAliasRef_t S_ResolveAbilityAlias(LPEDICT ent, DWORD base_code) {
+    abilityAliasRef_t result = {0};
     char alias_name[5] = {0};
-
     if (!ent || !base_code) return result;
-
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
             DWORD alias = 0;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&alias, token, sizeof(alias));
-            if (G_AbilityCode(alias) == base_code) {
+            if (alias == base_code || G_AbilityCode(alias) == base_code) {
                 result.alias = alias;
                 result.level = 1;
                 return result;
             }
         }
     }
-
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         DWORD const alias = ent->abilities.added[i];
         if (!alias) continue;
         memcpy(alias_name, &alias, 4);
-        if (G_ActorHasSkill(ent, alias_name) && G_AbilityCode(alias) == base_code) {
+        if (G_ActorHasSkill(ent, alias_name) && (alias == base_code || G_AbilityCode(alias) == base_code)) {
             result.alias = alias;
             result.level = 1;
             return result;
         }
     }
-
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *hero = ent->heroabilities + i;
-        if (hero->level && G_AbilityCode(hero->code) == base_code) {
+        if (hero->level && (hero->code == base_code || G_AbilityCode(hero->code) == base_code)) {
             result.alias = hero->code;
             result.level = hero->level;
             return result;
         }
     }
+    return result;
+}
+
+static auraAbilityRef_t actor_aura_ability(LPEDICT ent, DWORD base_code) {
+    abilityAliasRef_t resolved = S_ResolveAbilityAlias(ent, base_code);
+    auraAbilityRef_t result = { resolved.alias, resolved.level };
     return result;
 }
 
@@ -729,8 +734,9 @@ FLOAT S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, FLOAT damage) {
 }
 
 BOOL S_EvasionRoll(LPEDICT target) {
-    DWORD level = G_UnitAbilityLevel(target, ID_EVASION);
-    if (level && (FLOAT)(rand() % 10000) / 10000.0f < S_SpellData(ID_EVASION, level, 1)) return true;
+    abilityAliasRef_t ev = S_ResolveAbilityAlias(target, ID_EVASION);
+    DWORD level;
+    if (ev.alias && ev.level && (FLOAT)(rand() % 10000) / 10000.0f < S_SpellData(ev.alias, ev.level, 1)) return true;
     level = G_UnitAbilityLevel(target, ID_DRUNKEN_BRAWLER);
     return level && (FLOAT)(rand() % 10000) / 10000.0f < S_SpellData(ID_DRUNKEN_BRAWLER, level, 4);
 }

@@ -271,7 +271,6 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
 }
 
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
-    DWORD bash_level;
     if (S_EvasionRoll(target)) return;
     { FLOAT const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (FLOAT)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
@@ -281,11 +280,11 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
                                          - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
-    bash_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
-    if (bash_level && (FLOAT)(rand() % 100) < S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 1)) {
-        damage += (int)S_SpellData(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, 3);
-        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(MAKEFOURCC('A', 'H', 'b', 'h'), bash_level, false));
-    }
+    { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
+    if (bash.alias && bash.level && (FLOAT)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
+        damage += (int)S_SpellData(bash.alias, bash.level, 3);
+        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(bash.alias, bash.level, false));
+    } }
     DWORD wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (wind_level) {
         damage += (int)S_SpellData(MAKEFOURCC('A', 'O', 'w', 'k'), wind_level, 3);
@@ -539,6 +538,7 @@ static void ai_attack_walk(LPEDICT ent) {
             attack_finish_after_combat(ent, ent->goalentity);
             return;
         }
+        if (!S_UnitCanTranslate(ent)) return;
         unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (attack_target_too_close(ent)) {
@@ -548,6 +548,7 @@ static void ai_attack_walk(LPEDICT ent) {
             attack_finish_after_combat(ent, ent->goalentity);
             return;
         }
+        if (!S_UnitCanTranslate(ent)) return;
         attack_retreat_from_target(ent);
     } else if (ent->attack1.weapon == WPN_MISSILE || ent->attack1.weapon == WPN_ARTILLERY) {
         attack_ranged(ent);
@@ -721,10 +722,12 @@ static void ai_attack_ground_walk(LPEDICT ent) {
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent)) {
         if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
+        if (!S_UnitCanTranslate(ent)) return;
         unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (attack_ground_too_close(ent)) {
         if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
+        if (!S_UnitCanTranslate(ent)) return;
         attack_retreat_from_target(ent);
     } else {
         attack_ground_ranged(ent);
@@ -809,6 +812,7 @@ static void ai_attackmove_walk(LPEDICT ent) {
     FLOAT distance = M_DistanceToGoal(ent);
     FLOAT move_distance = unit_movedistance(ent);
 
+    if (!S_UnitCanTranslate(ent)) return;
     if (move_should_arrive(ent, move_distance)) {
         if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
             ent->s.origin2 = ent->goalentity->s.origin2;

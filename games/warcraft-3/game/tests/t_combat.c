@@ -2668,3 +2668,194 @@ TEST(wc3_combat, victory_and_defeat_are_distinct_event_types) {
  * ========================================================================== */
 
 #endif /* BZ_TESTS */
+
+#ifdef BZ_TESTS
+/* Attack Ground must not translate while movement is locked. Ensnare applied
+ * before the order holds the unit at its origin (repro from #476). */
+TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
+    LPEDICT unit;
+    VECTOR2 point = { 1000, 0 };
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    unit_addtimedstatus(unit, "Beng", 1, 12);
+    T_ASSERT(S_UnitIsEnsnared(unit));
+    S_OrderAttackGround(unit, &point);
+    FOR_LOOP(i, 10) {
+        level.time += FRAMETIME;
+        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    }
+    T_FEQ(unit->s.origin2.x, 0, 0.001f);
+    T_FEQ(unit->s.origin2.y, 0, 0.001f);
+}
+
+/* Lock applied mid-approach freezes further steps; the order is retained. */
+TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
+    LPEDICT unit;
+    VECTOR2 point = { 1000, 0 };
+    FLOAT frozen_x, frozen_y;
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    S_OrderAttackGround(unit, &point);
+    level.time += FRAMETIME;
+    if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    frozen_x = unit->s.origin2.x; frozen_y = unit->s.origin2.y;
+    T_ASSERT(frozen_x > 0.001f);
+    unit_addtimedstatus(unit, "Beng", 1, 12);
+    T_ASSERT(S_UnitIsEnsnared(unit));
+    FOR_LOOP(i, 10) {
+        level.time += FRAMETIME;
+        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    }
+    T_FEQ(unit->s.origin2.x, frozen_x, 0.001f);
+    T_FEQ(unit->s.origin2.y, frozen_y, 0.001f);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
+}
+
+/* A point inside minimum range must not cause retreat while locked. */
+TEST(wc3_combat, attack_ground_min_range_no_retreat_while_locked) {
+    UnitWeapons_t weapons = { .minimumAttackRange = 150.0f };
+    LPEDICT unit;
+    VECTOR2 point = { 50, 0 };
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    unit->data.UnitWeapons = &weapons;
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 500; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    unit_addtimedstatus(unit, "Beng", 1, 12);
+    S_OrderAttackGround(unit, &point);
+    FOR_LOOP(i, 10) {
+        level.time += FRAMETIME;
+        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    }
+    T_FEQ(unit->s.origin2.x, 0, 0.001f);
+    T_FEQ(unit->s.origin2.y, 0, 0.001f);
+}
+
+/* Movement lock must not disable stationary firing at an in-range point. */
+TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
+    LPEDICT unit, missile = NULL;
+    VECTOR2 point = { 200, 75 };
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 500; unit->attack1.damageBase = 73;
+    unit->attack1.damagePoint = 0.1f; unit->attack1.cooldown = 1.0f;
+    unit->attack1.projectile.speed = 900; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    unit_addtimedstatus(unit, "Beng", 1, 12);
+    T_ASSERT(!S_UnitCanTranslate(unit));
+    T_ASSERT(S_OrderAttackGround(unit, &point));
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
+    unit->currentmove->think(unit);
+    unit->wait = 0.01f;
+    level.time += FRAMETIME;
+    unit->currentmove->think(unit);
+    FILTER_EDICTS(ent, ent->owner == unit && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (missile) T_FEQ(missile->channel.origin.x, point.x, 0.001f);
+}
+
+/* Expiry removes the restriction; the retained order then progresses. */
+TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
+    LPEDICT unit;
+    VECTOR2 point = { 1000, 0 };
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    unit_addtimedstatus(unit, "Beng", 1, 12);
+    S_OrderAttackGround(unit, &point);
+    FOR_LOOP(i, 3) {
+        level.time += FRAMETIME;
+        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    }
+    T_FEQ(unit->s.origin2.x, 0, 0.001f);
+    level.time += 13000; unit_updatestatuses(unit);
+    T_ASSERT(!S_UnitIsEnsnared(unit));
+    T_ASSERT(S_UnitCanTranslate(unit));
+    FOR_LOOP(i, 10) {
+        level.time += FRAMETIME;
+        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    }
+    T_ASSERT(unit->s.origin2.x > 0.001f);
+}
+
+/* Stop and replacement orders stay effective while locked. */
+TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
+    LPEDICT unit;
+    VECTOR2 point = { 1000, 0 }, other = { 10, 0 };
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    unit_addtimedstatus(unit, "Beng", 1, 12);
+    S_OrderAttackGround(unit, &point);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
+    if (unit->stand) unit->stand(unit);
+    T_ASSERT(!unit->currentmove || unit->currentmove->proc != CAbilityAttackGround);
+    S_OrderAttackGround(unit, &point);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
+    T_FEQ(unit->channel.origin.x, point.x, 0.001f);
+    S_OrderAttackGround(unit, &other);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttackGround);
+    T_FEQ(unit->channel.origin.x, other.x, 0.001f);
+}
+
+/* Roots lock translation the same way; immobile artillery still fires in range. */
+TEST(wc3_combat, attack_ground_roots_and_immobile_cover) {
+    LPEDICT unit, tower, missile = NULL;
+    VECTOR2 far = { 1000, 0 }, near = { 200, 75 };
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    unit_addtimedstatus(unit, "BEer", 1, 12);
+    T_ASSERT(!S_UnitCanTranslate(unit));
+    S_OrderAttackGround(unit, &far);
+    FOR_LOOP(i, 10) {
+        level.time += FRAMETIME;
+        if (unit->currentmove && unit->currentmove->think) unit->currentmove->think(unit);
+    }
+    T_FEQ(unit->s.origin2.x, 0, 0.001f);
+    tower = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
+    tower->attack1.type = ATK_SIEGE; tower->attack1.weapon = WPN_ARTILLERY;
+    tower->attack1.range = 500; tower->attack1.damageBase = 73;
+    tower->attack1.damagePoint = 0.1f; tower->attack1.cooldown = 1.0f;
+    tower->attack1.projectile.speed = 900; tower->aiflags |= AI_IMMOBILE;
+    tower->targtype = TARG_GROUND;
+    T_ASSERT(S_OrderAttackGround(tower, &near));
+    tower->currentmove->think(tower);
+    tower->wait = 0.01f;
+    level.time += FRAMETIME;
+    tower->currentmove->think(tower);
+    FILTER_EDICTS(ent, ent->owner == tower && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+}
+
+/* Scheduler-path coverage: issued point order advances through G_RunEntities. */
+TEST(wc3_combat, attack_ground_issued_order_holds_while_ensnared) {
+    LPEDICT unit;
+    VECTOR2 point = { 1000, 0 };
+    setup_test_world(); reset_entities(); level.time = 1000;
+    unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 100, 0);
+    unit->s.player = 0;
+    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
+    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    unit->targtype = TARG_GROUND;
+    unit_addtimedstatus(unit, "Beng", 1, 12);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "attackground", &point, false, 0, 0.0f));
+    FOR_LOOP(i, 5) { level.time += FRAMETIME; G_RunEntities(); }
+    T_FEQ(unit->s.origin2.x, 100, 0.001f);
+    T_FEQ(unit->s.origin2.y, 0, 0.001f);
+}
+#endif
