@@ -148,3 +148,136 @@ TEST(wc3_spell, spirit_link_redirect_never_fatal) {
 }
 
 #endif
+
+#ifdef BZ_TESTS
+/* More eligible allies than the old 64-entry gather cap: the clicked target
+ * must still receive the buff (repro from #476). */
+TEST(wc3_spell, spirit_link_clicked_target_linked_in_crowd) {
+    SPLFIX fix;
+    LPEDICT selected;
+    spl_setup(&fix);
+    FOR_LOOP(i, 65) {
+        LPEDICT unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+        unit->s.player = 0; unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND;
+        unit->health.value = unit->health.max_value = 500;
+    }
+    selected = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200, 0);
+    selected->s.player = 0; selected->svflags |= SVF_MONSTER; selected->targtype = TARG_GROUND;
+    selected->health.value = selected->health.max_value = 500;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, selected));
+    T_EQ(G_UnitStatusLevel(selected, BZ_BSPL), 1);
+    spl_done(&fix);
+}
+
+/* Closer later-created allies displace farther earlier-created ones. */
+TEST(wc3_spell, spirit_link_prefers_closer_late_allies) {
+    SPLFIX fix;
+    LPEDICT click, near1, near2;
+    DWORD linked = 0;
+    spl_setup(&fix);
+    click = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200, 0);
+    click->s.player = 0; click->svflags |= SVF_MONSTER; click->targtype = TARG_GROUND;
+    click->health.value = click->health.max_value = 500;
+    FOR_LOOP(i, 70) {
+        LPEDICT unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 450, 0);
+        unit->s.player = 0; unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND;
+        unit->health.value = unit->health.max_value = 500;
+    }
+    near1 = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 220, 0);
+    near2 = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 240, 0);
+    near1->s.player = near2->s.player = 0;
+    near1->svflags |= SVF_MONSTER; near2->svflags |= SVF_MONSTER;
+    near1->targtype = near2->targtype = TARG_GROUND;
+    near1->health.value = near1->health.max_value = 500;
+    near2->health.value = near2->health.max_value = 500;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, click));
+    T_EQ(G_UnitStatusLevel(click, BZ_BSPL), 1);
+    T_EQ(G_UnitStatusLevel(near1, BZ_BSPL), 1);
+    T_EQ(G_UnitStatusLevel(near2, BZ_BSPL), 1);
+    FILTER_EDICTS(ent, G_UnitStatusLevel(ent, BZ_BSPL)) linked++;
+    T_EQ(linked, 3);
+    spl_done(&fix);
+}
+
+/* Allocation order does not change the nearest-target outcome. */
+TEST(wc3_spell, spirit_link_order_independent_nearest) {
+    SPLFIX fix;
+    LPEDICT first_far, second_near;
+    spl_setup(&fix);
+    first_far = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 290, 0);
+    second_near = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 10, 0);
+    first_far->s.player = second_near->s.player = 0;
+    first_far->svflags |= SVF_MONSTER; second_near->svflags |= SVF_MONSTER;
+    first_far->targtype = second_near->targtype = TARG_GROUND;
+    first_far->health.value = first_far->health.max_value = 500;
+    second_near->health.value = second_near->health.max_value = 500;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
+    T_EQ(G_UnitStatusLevel(second_near, BZ_BSPL), 1);
+    T_EQ(G_UnitStatusLevel(first_far, BZ_BSPL), 0);
+    spl_done(&fix);
+}
+
+/* Exactly DataB units buffed; dead and out-of-area units excluded. */
+TEST(wc3_spell, spirit_link_exact_count_excludes_dead_and_far) {
+    SPLFIX fix;
+    LPEDICT dead;
+    DWORD linked = 0;
+    spl_setup(&fix);
+    dead = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 20, 0);
+    dead->s.player = 0; dead->svflags |= SVF_MONSTER; dead->targtype = TARG_GROUND;
+    dead->health.value = 0; dead->health.max_value = 500;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
+    FILTER_EDICTS(ent, G_UnitStatusLevel(ent, BZ_BSPL)) linked++;
+    T_EQ(linked, 3);
+    T_EQ(G_UnitStatusLevel(dead, BZ_BSPL), 0);
+    T_EQ(G_UnitStatusLevel(fix.d, BZ_BSPL), 0);
+    T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BSPL), 0);
+    spl_done(&fix);
+}
+
+/* Zero DataB links nothing; one DataB links only the click target. */
+TEST(wc3_spell, spirit_link_zero_and_single_target_counts) {
+    const char slk_zero[] =
+        "ID;PWXL;N;EBB;Y2;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"Area1\"\nC;Y1;X11;K\"DataA1\"\nC;Y1;X12;K\"DataB1\"\n"
+        "C;Y1;X13;K\"BuffID1\"\nC;Y1;X14;K\"DataC1\"\n"
+        "C;Y2;X1;K\"Aspl\"\nC;Y2;X2;K\"Aspl\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"air,ground,friend,self,organic\"\n"
+        "C;Y2;X5;K\"40\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"750\"\n"
+        "C;Y2;X8;K\"20\"\nC;Y2;X9;K\"20\"\nC;Y2;X10;K\"300\"\n"
+        "C;Y2;X11;K\"0.25\"\nC;Y2;X12;K\"0\"\nC;Y2;X13;K\"Bspl\"\nC;Y2;X14;K\"0\"\nE\n";
+    const char slk_one[] =
+        "ID;PWXL;N;EBB;Y2;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"Area1\"\nC;Y1;X11;K\"DataA1\"\nC;Y1;X12;K\"DataB1\"\n"
+        "C;Y1;X13;K\"BuffID1\"\nC;Y1;X14;K\"DataC1\"\n"
+        "C;Y2;X1;K\"Aspl\"\nC;Y2;X2;K\"Aspl\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"air,ground,friend,self,organic\"\n"
+        "C;Y2;X5;K\"40\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"750\"\n"
+        "C;Y2;X8;K\"20\"\nC;Y2;X9;K\"20\"\nC;Y2;X10;K\"300\"\n"
+        "C;Y2;X11;K\"0.25\"\nC;Y2;X12;K\"1\"\nC;Y2;X13;K\"Bspl\"\nC;Y2;X14;K\"0\"\nE\n";
+    SPLFIX fix;
+    DWORD linked;
+    spl_setup(&fix);
+    G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows);
+    fix.rows = parse_slk_string(slk_zero); fix.old = G_SetSLKRows("AbilityData", fix.rows);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
+    linked = 0;
+    FILTER_EDICTS(ent, G_UnitStatusLevel(ent, BZ_BSPL)) linked++;
+    T_EQ(linked, 0);
+    G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows);
+    fix.rows = parse_slk_string(slk_one); fix.old = G_SetSLKRows("AbilityData", fix.rows);
+    fix.caster->mana.value = 100;
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
+    linked = 0;
+    FILTER_EDICTS(ent, G_UnitStatusLevel(ent, BZ_BSPL)) linked++;
+    T_EQ(linked, 1);
+    T_EQ(G_UnitStatusLevel(fix.a, BZ_BSPL), 1);
+    spl_done(&fix);
+}
+#endif
