@@ -2,6 +2,7 @@
 #define R_SC2MAP_H
 
 #include "renderer/r_game.h"
+#include "renderer/r_cliff.h"
 #include "renderer/r_camera_height.h"
 #include "games/starcraft-2/common/sc2_map.h"
 
@@ -50,10 +51,5 @@ static inline VECTOR3 r_sc2_hard_tile_curve_tangent(sc2MapHardTile_t const *a, s
 	return tangent;
 }
 
-static inline BOOL r_sc2_cliff_weld_compatible(LPCVERTEX a, DWORD a_group, LPCVERTEX b, DWORD b_group, FLOAT z_snap) {
-	return a_group != b_group &&
-		   (int)roundf(a->position.z / z_snap) == (int)roundf(b->position.z / z_snap) &&
-		   Vector3_dot(&a->normal, &b->normal) > 0.0f;
-}
 
 #endif

@@ -4,6 +4,12 @@
         <cliffSetList num="1">
             <cliffSet i="0" name="FixtureCliff0"/>
         </cliffSetList>
+        <rampList num="1">
+            <ramp dir="1" hi="2" lo="1" cid="0" leftLoVar="2" leftHiVar="4294967295" rightLoVar="1" rightHiVar="4294967295"
+                leftLo="u(0, 1) r(1, 0) c=(1, 2) w=1 h=2" rightLo="u(0, 1) r(1, 0) c=(7, 2) w=1 h=2"
+                leftHi="u(0, 0) r(0, 0) c=(0, 0) w=0 h=0" rightHi="u(0, 0) r(0, 0) c=(0, 0) w=0 h=0"
+                mid="u(0, 1) r(1, 0) c=(4, 2) w=2 h=2" base="u(0, 1) r(1, 0) c=(4, 3) w=4 h=1"/>
+        </rampList>
         <textureList num="2">
             <texture i="0" name="Assets/Textures/Terrain/FixtureGrass_Diffuse"/>
             <texture i="1" name="Assets/Textures/Terrain/FixtureDirt_Diffuse.dds"/>

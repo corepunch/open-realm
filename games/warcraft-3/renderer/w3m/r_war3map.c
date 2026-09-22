@@ -293,6 +293,7 @@ void _W3M_RegisterMap(char const *mapFilename) {
         .get_height = r_w3_camera_grid_height });
 
     R_LoadMapSegments(map);
+    R_FinishCliffs();
     R_BuildGroundLayers(map);
 }
 

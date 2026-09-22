@@ -316,3 +316,7 @@ WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run
 .PHONY: test-menu-boundary
 test-menu-boundary:
 	@python3 tools/menu_boundary_audit.py
+
+# These tests include the terrain bakers directly; keep incremental regression runs current.
+$(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_EXT): $(wildcard $(WC3_DIR)/renderer/w3m/*.[ch]) renderer/r_cliff.h
+$(RENDERER_LIB): $(wildcard $(WC3_DIR)/renderer/w3m/*.h) renderer/r_cliff.h

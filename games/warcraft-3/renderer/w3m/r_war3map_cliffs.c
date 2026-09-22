@@ -1,53 +1,16 @@
-#ifdef SC2_REUSE_WAR3_CLIFF_BAKER
-
-typedef struct {
-    VERTEX *vertices;
-    DWORD *groups;
-    DWORD num_vertices;
-    DWORD capacity;
-    DWORD current_group;
-} rCliffBakeList_t;
-
-static void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
-    VERTEX *vertices;
-    DWORD *groups;
-    DWORD capacity;
-
-    if (list->num_vertices + add <= list->capacity)
-        return;
-    capacity = MAX(1024, list->capacity);
-    while (list->num_vertices + add > capacity) {
-        capacity *= 2;
-    }
-    vertices = ri.MemAlloc(capacity * sizeof(*vertices));
-    groups = ri.MemAlloc(capacity * sizeof(*groups));
-    if (list->vertices) {
-        memcpy(vertices, list->vertices, list->num_vertices * sizeof(*vertices));
-        memcpy(groups, list->groups, list->num_vertices * sizeof(*groups));
-        ri.MemFree(list->vertices);
-        ri.MemFree(list->groups);
-    }
-    list->vertices = vertices;
-    list->groups = groups;
-    list->capacity = capacity;
-}
-
-static LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
-    R_CliffBakeGrow(list, 1);
-    list->groups[list->num_vertices] = list->current_group;
-    return &list->vertices[list->num_vertices++];
-}
-
-#else
-
 #include "r_war3map.h"
 #include "../mdx/r_mdx.h"
+#include "renderer/r_cliff.h"
 
-#define SAME_TILE 852063
 #define NO_CLIFF MAKEFOURCC('C','L','n','o')
 
-static VERTEX cliffs_vertex_buffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*64];
-static LPVERTEX cliffs_current_vertex = NULL;
+static rCliffBakeList_t cliff_bake;
+typedef struct CLIFFLAYER {
+    LPMAPLAYER layer;
+    DWORD first;
+    struct CLIFFLAYER *next;
+} CLIFFLAYER;
+static CLIFFLAYER *cliff_layers;
 
 VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y);
 
@@ -193,6 +156,27 @@ static LPCTEXTURE R_LoadCliffTexture(DWORD cliffID, char tileset, cliffData_t co
     return entry->texture;
 }
 
+/* Like SC2, only snap mesh edges that border emitted terrain, leaving stacked/internal faces intact. */
+static BOOL R_CliffGroundJoin(LPCWAR3MAP map, LPVECTOR3 pos) {
+    FLOAT gx = (pos->x - map->center.x) / TILE_SIZE, gy = (pos->y - map->center.y) / TILE_SIZE;
+    int ix = (int)floorf(gx), iy = (int)floorf(gy);
+    for (int y = iy - 1; y <= iy; y++) for (int x = ix - 1; x <= ix; x++) {
+        if (x < 0 || y < 0 || x + 1 >= map->width || y + 1 >= map->height) continue;
+        FLOAT u = gx - x, v = gy - y;
+        if (u < -0.0001f || u > 1.0001f || v < -0.0001f || v > 1.0001f) continue;
+        if (fabsf(u) > 0.0001f && fabsf(u-1) > 0.0001f && fabsf(v) > 0.0001f && fabsf(v-1) > 0.0001f) continue;
+        WAR3MAPVERTEX tile[4]; GetTileVertices(x, y, map, tile);
+        if (!R_TileHasGround(tile)) continue;
+        FLOAT low = LerpNumber(R_GetVertexPosition(map, x, y, true).z, R_GetVertexPosition(map, x+1, y, true).z, u);
+        FLOAT high = LerpNumber(R_GetVertexPosition(map, x, y+1, true).z, R_GetVertexPosition(map, x+1, y+1, true).z, u);
+        FLOAT z = LerpNumber(low, high, v);
+        if (fabsf(pos->z - z) >= TILE_SIZE * 0.5f) continue;
+        pos->z = z;
+        return true;
+    }
+    return false;
+}
+
 static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
@@ -250,6 +234,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         }
     }
 
+    cliff_bake.current_group++;
     FOR_LOOP(t, pGeoset->num_triangles) {
         const int i = pGeoset->triangles[t];
         VECTOR3 pos = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->vertices[i]);
@@ -259,19 +244,18 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
         const float fz = pGeoset->vertices[i].z + baselevel * TILE_SIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
-        struct vertex *v = cliffs_current_vertex + t;
+        struct vertex *v = R_CliffBakeVertex(&cliff_bake);
         VECTOR3 fn = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->normals[i]);
         VECTOR3 an = GetAccurateNormalAtPoint(fx, fy);
         v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
         v->position.x = map->center.x + fx;
         v->position.y = map->center.y + fy;
         v->position.z = fz;
+        BOOL join = R_CliffGroundJoin(map, &v->position);
         v->texcoord = pGeoset->texcoord[i];
-        v->normal = Vector3_mad(&(VECTOR3){fn.x,fn.y,0}, fn.z, &an);
+        v->normal = join && fn.z > 0 ? an : Vector3_mad(&(VECTOR3){fn.x,fn.y,0}, fn.z, &an);
         Vector3_normalize(&v->normal);
     }
-
-    cliffs_current_vertex += pGeoset->num_triangles;
 }
 
 LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cliff) {
@@ -292,20 +276,32 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
         .cliffModelDir = row->cliffModelDir,
     };
     mapLayer->type = MAPLAYERTYPE_CLIFF;
-    cliffs_current_vertex = cliffs_vertex_buffer;
+    DWORD first = cliff_bake.num_vertices;
     for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
         for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
             R_MakeCliff(map, x, y, &data);
         }
     }
-    mapLayer->num_vertices = (DWORD)(cliffs_current_vertex - cliffs_vertex_buffer);
+    mapLayer->num_vertices = cliff_bake.num_vertices - first;
     if (!mapLayer->num_vertices) {
         ri.MemFree(mapLayer);
         return NULL;
     }
     mapLayer->texture = R_LoadCliffTexture(cliffID, map->tileset, &data);
-    mapLayer->buffer = R_MakeVertexArrayObject(cliffs_vertex_buffer, mapLayer->num_vertices);
+    CLIFFLAYER *pending = ri.MemAlloc(sizeof(*pending));
+    *pending = (CLIFFLAYER){ .layer = mapLayer, .first = first };
+    ADD_TO_LIST(pending, cliff_layers);
     return mapLayer;
 }
 
-#endif
+/* Weld before uploading any segment/material batch so their boundaries cannot retain lighting seams. */
+void R_FinishCliffs(void) {
+    R_CliffWeldNormals(&cliff_bake, 0.01f);
+    while (cliff_layers) {
+        CLIFFLAYER *part = cliff_layers; cliff_layers = part->next;
+        part->layer->buffer = R_MakeVertexArrayObject(cliff_bake.vertices + part->first, part->layer->num_vertices);
+        ri.MemFree(part);
+    }
+    ri.MemFree(cliff_bake.vertices); ri.MemFree(cliff_bake.groups);
+    memset(&cliff_bake, 0, sizeof(cliff_bake));
+}
