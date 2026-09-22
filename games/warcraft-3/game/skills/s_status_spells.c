@@ -15,7 +15,7 @@ static void status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = status_buff(spell, level);
     if (!st.entity || !buff) return;
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
@@ -130,7 +130,7 @@ static void poison_apply(LPEDICT attacker, LPEDICT target, DWORD code, DWORD *se
     level = MAX(1, G_UnitAbilityLevel(attacker, code));
     seen[(*count)++] = code;
     while (strlen(buffs) >= 4) {
-        unit_addtimedstatus(target, buffs, level, S_SpellDuration(code, level, G_UnitIsHero(target)));
+        unit_addtimedstatus(target, buffs, level, S_SpellDuration(code, level, S_UnitIsResistant(target)));
         buffs = strchr(buffs, ',');
         if (!buffs) break;
         buffs++;

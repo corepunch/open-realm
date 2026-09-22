@@ -35,7 +35,7 @@ static void anti_magic_shell_execute(LPEDICT caster, spellTarget_t st, abilityit
     if (!st.entity) return;
     /* ROC AbilityData omits BuffID; UndeadAbilityStrings still names Bams as the shell buff. */
     if (!buff) buff = absorb > 0.0f ? "Bam2" : "Bams";
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
     if (absorb > 0.0f) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) {
             slot = st.entity->abilstatus + i;
@@ -739,7 +739,7 @@ void possession_two_think(LPEDICT thinker) {
 
 static void possession_two_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT duration = S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity));
+    FLOAT duration = S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity));
     FLOAT damage_mult = S_SpellData(spell->code, level, 2);
     FLOAT invuln = S_SpellData(spell->code, level, 3);
     FLOAT magic_imm = S_SpellData(spell->code, level, 4);

@@ -222,7 +222,7 @@ TEST(wc3_spell, undead_true_sight_uses_authored_range) {
 	abilityitem_t item = S_AbilityItem(BZ_ATRU);
 	ward_setup(&fix);
 	T_NOT_NULL(item.ability);
-	T_EQ(item.ability->proc, CAbilityPassive);
+	T_EQ(item.ability->proc, CAbilityTrueSight);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ATRU, .level = 1);
 	fix.enemy->s.origin2 = (VECTOR2){ 250, 0 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;

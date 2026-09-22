@@ -275,8 +275,10 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     { FLOAT const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (FLOAT)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
     S_PermanentInvisibilityReveal(attacker);
-    damage = S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage)));
-    damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_RoarDamageBonus(attacker)
+    damage = S_OrbAnnihilationDamage(attacker,
+        S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage))));
+    damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
+                                         S_WarDrumsAttackBonus(attacker) + S_RoarDamageBonus(attacker)
                                          - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
@@ -293,19 +295,25 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
             if (attacker->abilstatus[i].code == MAKEFOURCC('B', 'O', 'w', 'k')) memset(attacker->abilstatus + i, 0, sizeof(attacker->abilstatus[i]));
     }
     damage = S_PossessionDamageTaken(target, damage);
+    damage = S_HardenedSkinDamage(target, damage);
     if (damage <= 0) return;
     G_PlayCombatImpactSound(attacker, target);
     T_Damage(target, attacker, damage);
+    S_IncinerateOnHit(attacker, target);
+    S_CreepAttackOnHit(attacker, target);
+    S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
-    DWORD cleave_level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a'));
+    { DWORD cleave_code = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
+            MAKEFOURCC('A','N','c','a') : MAKEFOURCC('A','C','c','e');
+    DWORD cleave_level = G_UnitAbilityLevel(attacker, cleave_code);
     if (cleave_level) {
-        FLOAT radius = S_SpellNumber(MAKEFOURCC('A','N','c','a'), ABILITY_NUMBER_AREA, cleave_level);
-        FLOAT fraction = S_SpellData(MAKEFOURCC('A','N','c','a'), cleave_level, 1);
+        FLOAT radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
+        FLOAT fraction = S_SpellData(cleave_code, cleave_level, 1);
         FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
             T_Damage(other, attacker, (int)MAX(1.0f, damage * fraction));
-    }
+    } }
     S_BlackArrowDeath(attacker, target);
     S_MoonGlaiveAttack(attacker, target, damage);
     S_SlowPoisonOnHit(attacker, target);
@@ -598,7 +606,7 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
     FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
                       - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
-                      - S_DefendAttackReduction(self);
+                      - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
     if (S_AuraUnitActive(self)) {
         FOR_LOOP(i, globals.num_edicts) {
             LPEDICT aura = g_edicts + i;

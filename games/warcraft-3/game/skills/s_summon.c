@@ -93,7 +93,7 @@ static void inferno_impact(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 p
     FILTER_EDICTS(target, inferno_hits(caster, target, area, point)) {
         S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target))
-            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, G_UnitIsHero(target)));
+            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, S_UnitIsResistant(target)));
     }
     if (!unit_id) {
         fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (LPCSTR)&code);
