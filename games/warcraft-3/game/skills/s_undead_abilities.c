@@ -241,6 +241,7 @@ void graveyard_think(LPEDICT thinker) {
     FLOAT interval, spawn_radius, corpse_radius;
 
     if (!thinker || !graveyard || !graveyard->inuse || M_IsDead(graveyard) ||
+        graveyard->construction.active ||
         !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) {
         if (thinker) G_FreeEdict(thinker);
         return;
@@ -264,7 +265,7 @@ static void graveyard_ensure(LPEDICT graveyard) {
 
     /* Agyd is one of the global update procedures. Check ownership before the
      * edict scan; otherwise every updated unit pays for graveyard lookup. */
-    if (!graveyard || M_IsDead(graveyard) ||
+    if (!graveyard || M_IsDead(graveyard) || graveyard->construction.active ||
         !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) return;
     if (graveyard_find_thinker(graveyard)) return;
     interval = S_SpellNumber(ID_GRAVEYARD_CORPSE, ABILITY_NUMBER_COOLDOWN, level);
