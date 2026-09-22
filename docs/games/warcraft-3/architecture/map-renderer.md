@@ -117,8 +117,11 @@ For each tile the four corner vertices are examined. Their relative height diffe
 Corner order is `[NW, NE, SE, SW]` (`r_cliff_corners[] = {1,0,2,3}`), while `GetTileVertices` stores
 `[NE, NW, SE, SW]`. The resulting string like `"AABB"` selects the correct model variant.
 
-`R_CliffTexture` selects the first authored cliff index in **SW, NW, NE, SE** order, independently of the model order.
-W3E index 15 means no explicit cliff texture on that corner. When all four are 15, the cell selects cliff slot **1**. Checking only SW loses mixed-index faces; discarding all-15 cells loses the implicit second-set faces.
+`R_CliffTexture` selects the first authored cliff index in **SW, SE, NW, NE** order, independently of the model order.
+W3E index 15 means no explicit cliff texture on that corner. When all four are 15, retail searches vertices in
+`[x-2,x+2] × [y-2,y+2]`, ascending X first, then ascending Y, skipping out-of-map coordinates. The first non-15
+index wins. If none exists, retail uses slot zero; OpenRealm logs this unresolved-data case. Never interpret
+all-15 as a fixed second cliff set. See [retail evidence](#undead04-cliff-material-verification).
 
 The per-map model cache keys the full asset path, not just four configuration letters. `Cliffs` and `CityCliffs`
 (likewise `CliffTrans` and `CityCliffTrans`) contain different geometry with identical configuration suffixes.
@@ -235,9 +238,10 @@ normal while vertical faces retain their authored direction.
 
 Issue [#477](https://github.com/corepunch/open-realm/issues/477) exposed a second cliff-index case after the mixed-corner fix in
 `5ae558b7`. The local ROC `Undead04.w3m` has 671 cliff cells with all four indices 15, plus 606 with explicit cliff 0. Its W3E cliff
-list is `CLgr,CVdi`: the implicit cells need `CVdi`. Returning 15 skipped every material layer, leaving black holes beside the river
-and waygates. Warsmash's `Terrain` corner selection also resolves the all-15 case to 1. The northeast waygate is at world
-`(4032,-1856)`; a fog-disabled capture of the unchanged terrain confirms those faces are now present.
+list is `CLgr,CVdi`. Returning 15 skipped every material layer, leaving black holes beside the river and waygates.
+Commit `639ce3a4` restored those faces by returning 1, following Warsmash, but selected the wrong material: dirt
+instead of grass. Retail resolves nearby authored corners; all 671 cells select `CLgr` after that lookup (652
+find an explicit neighbour and 19 use the logged slot-zero default). The northeast waygate is at world `(4032,-1856)`.
 
 `renderer/r_cliff.h` shares the dynamic triangle bake and normal welder with SC2. The welder keys quantized XYZ, combines only
 similarly-facing normals from distinct placements, and leaves stacked, opposing and zero normals alone. Expanded triangles must
@@ -336,45 +340,75 @@ the white FOW texture through `RDF_NOWORLDMODEL`, preserving their particle pres
 
 The locally inspected ROC Undead04 W3E has tileset `L`, `custom=1`, ground palette
 `Vdrt,Vdrr,Vcbp,Lgrs,Lgrd,Ybtl,Yrtl`, and cliff palette `CLgr,CVdi`. The 606 cliff cells with an explicit
-index 0 select `CLgr`; the 671 all-15 cliff cells select implicit slot 1, `CVdi`. For example, cell `(93,54)`
-near the northeast waygate has NW/NE/SE/SW levels `[4,4,6,6]`, four ground indices 3, and four cliff indices 15.
-`R_MakeCliff` replaces the adjoining ground with the selected cliff row's `groundTile` before ground baking.
+index 0 select `CLgr`. The 671 cells whose four corners are 15 also resolve to `CLgr`: 652 find a non-15
+vertex within retail's search window; 19 have no such vertex and use the logged slot-zero default.
 
-| Corner selection | Authored cliff slot | ROC/TFT SLK row | Loaded wall image on tileset L | Adjoining ground |
-| --- | --- | --- | --- | --- |
-| Explicit 0 | 0 | `CLgr` | `ReplaceableTextures/Cliff/Cliff1.blp` | `Lgrs` (ground index 3) |
-| All four 15 | 1 | `CVdi` | `ReplaceableTextures/Cliff/Cliff0.blp` | `Vdrt` (ground index 0) |
+Cell `(93,54)` near the northeast waygate has NW/NE/SE/SW levels `[4,4,6,6]`, four ground indices 3,
+and four cliff indices 15. The first explicit vertex in retail's search order is `(92,56)`, whose packed
+height/cliff byte is `0x04`: cliff slot 0, layer 4. These are ordinary grass cliffs with sparse explicit
+material indices, not a special dirt-cliff family. `R_MakeCliff` also sets the footprint's ground corners
+to the selected cliff row's `groundTile`, so a wrong cliff selection changes both the wall and its surround.
 
-Both archive versions give these rows the same `texFile` and `groundTile` values. The locally installed archives
-have no `L_Cliff0.blp` or `L_Cliff1.blp`, so the existing texture lookup resolves the base images. `Cliff0` contains
-the layered rock face and brown rim visible in the supplied photos. The local nested `L.mpq` contains splat
-overrides, not cliff images. Its listfile needs PKWARE decompression; inspect it with StormLib if `mpqtool` reports
-unsupported compression mask 0x08. `blp2jpg` does not support these JPEG-compressed BLP1 images; the renderer's
-decoder handles their shared JPEG header plus mip payload.
+| Selected slot | ROC/TFT SLK row | Loaded wall image on tileset L | Adjoining ground |
+| --- | --- | --- | --- |
+| 0 (Undead04 river and waygates) | `CLgr` | `ReplaceableTextures/Cliff/Cliff1.blp` | `Lgrs` (ground index 3) |
+| 1 (only when an authored neighbour requests it) | `CVdi` | `ReplaceableTextures/Cliff/Cliff0.blp` | `Vdrt` (ground index 0) |
 
-Sorting the stored cliff palette into ground-palette order would swap both materials, making the river grass
-instead of dirt. The all-15 fix in `639ce3a4` is the relevant correction; the
-[W3E reference](../file-docs/w3e.md) distinguishes editor behavior from runtime.
+Both archive versions give these rows the same `texFile` and `groundTile` values. The local archives have no
+`L_Cliff0.blp` or `L_Cliff1.blp`, so texture lookup resolves the base images. `Cliff0` contains the layered
+rock face and brown rim; selecting it for the waygate was the bug. Neither palette sorting nor a replacement
+texture is required. The packed W3E cliff nibble was read correctly; the missing step was neighbourhood resolution.
 
-`renderer_terrain.undead04_cliff_material_and_ground_use_authored_slots` drives `R_BuildMapSegmentCliffs` and
-`R_FinishCliffs` with both corner cases and the native palette/SLK values. It checks that only the expected layer
-is emitted, that its actual texture request matches the table above, and that only cliff-footprint ground corners
-change. Asset lookup and GPU upload are mocked; selection, geometry baking and ground replacement are production code.
-This complements the existing implicit-cliff geometry/join test and locks the authored-slot material contract.
-It does not exercise W3E file loading or real image decoding.
+#### Retail binary evidence
 
-A framebuffer check on `2b673bb1` at the northeast waygate, camera `(4032,-1856)`, showed the layered rock and
-brown cliff rim matching the supplied reference photo. No additional texture mismatch was reproduced there.
-The diagnostic copy retained the native `war3map.w3e` unchanged and disabled `InitCustomTriggers` and
-`RunInitializationTriggers` so the opening cinematic could not override the camera. A JASS helper disabled fog,
-set noon, suspended time of day, and called `ResetToGameCamera(0)` before `camera move 4032 -1856` and
-`screenshot 30`. The run was bounded with `+com_frame_limit 150`; mission behavior was not under test.
+The original code checks SW, SE, NW, NE, then the bounded 5×5 window in ascending X/Y order. It returns the
+selected vertex's cliff index and, when requested, its cliff variation. The no-match result is index 0 and
+variation 0; the demo additionally prints `CLIFF ERROR! No cliff type found for cell (%d, %d)`.
 
-During this local capture, map registration exceeded `CL_TIMEOUT_MSEC` and disconnected the client before
-the scene could render. A one-shot conditional LLDB breakpoint at `CL_CheckTimeout` reset
-`cl_last_packet_time = cl_realtime` only when the timeout condition became true, then continued. This was a
-capture-only workaround; no timeout or renderer production code was changed. A normal-launch loading timeout
-is a separate issue from the material selection verified here.
+| Binary | SHA-256 | Selection function VA | X/Y corner offset tables |
+| --- | --- | --- | --- |
+| September 2002 demo `Game.dll` | `286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654` | `0x6f11d820` | `0x6f4f46c8`, `0x6f4f46d8` |
+| TFT 1.29.2.9231 `Warcraft III.exe` | `a1950f17905b9cd7d5461d45e6723af36dda5304e12dba27a1fea85593b15f3f` | `0x00781d10` | `0x00ea93c8`, `0x00ea93d8` |
+
+Both tables are X=`[0,1,0,1]`, Y=`[0,0,1,1]`. Inspect without running the retail executables:
+
+```sh
+r2 -q -c 'af @ 0x6f11d820; pdg @ 0x6f11d820; pxw 32 @ 0x6f4f46c8' data/Warcraft3demo/Game.dll
+r2 -q -c 'af @ 0x781d10; pdg @ 0x781d10; pxw 32 @ 0xea93c8' "data/Warcraft III/Warcraft III.exe"
+```
+
+The demo's W3E loader `0x6f0fc490` reads the stored cliff list; `0x6f11ce60` deduplicates it and remaps valid
+indices while preserving 15. This is not the editor's ground-palette-derived cliff list described by some
+format references. OpenRealm keeps the stored palette order.
+
+#### Regression and visual evidence
+
+`renderer_terrain.undead04_cliff_material_inherits_nearby_authored_slot` drives `R_BuildMapSegmentCliffs`
+and `R_FinishCliffs` with all-15 cliff cells and explicit neighbours outside those cells. It checks geometry,
+actual texture requests, and footprint ground replacement for both grass and dirt neighbours. It failed
+before the correction: the grass layer was absent and the dirt layer was emitted. Asset lookup and GPU
+upload are mocked; selection, geometry baking and ground replacement are production code.
+
+`undead04_waygate_cliff_type_from_native_corners` records the native 5×5 packed layer/cliff bytes around
+`(93,54)`. `cliff_texture_searches_retail_neighbourhood` covers search priority, radius, map boundaries,
+explicit-corner precedence and the unresolved default. These tests do not exercise W3E file loading or real
+image decoding. Run `make test-renderer-model` and `make test`.
+
+The earlier capture on `2b673bb1` showed the faces restored, but still showed the incorrect brown rim and
+layered dirt rock. The claim in `8d3f61dc` that this matched retail was wrong: its test only confirmed our
+assumed slot-1 behavior. The user's retail waygate photo shows grass-topped cliffs and contradicts that assumption.
+A fresh TFT capture after the neighbourhood correction (`screenshots/shot0182.jpg` locally) shows grass-topped
+rock at the same waygate and no brown dirt rim. The native W3E was byte-identical to the map extracted from
+`War3.mpq`; the run exited successfully after 150 frames. The full test suite passed, including both ROC/TFT
+engine runs; the focused renderer suite passed 5,298 assertions across 100 tests.
+
+For a framebuffer check, the diagnostic map retains native `war3map.w3e` unchanged and disables
+`InitCustomTriggers`/`RunInitializationTriggers` so the cinematic cannot override the camera. Its JASS helper
+disables fog, sets noon, suspends time of day and calls `ResetToGameCamera(0)` before `camera move 4032 -1856`
+and `screenshot 30`; bound the run with `+com_frame_limit 150`. Mission behavior is not under test.
+The earlier capture exceeded `CL_TIMEOUT_MSEC` during registration; a one-shot conditional LLDB breakpoint
+at `CL_CheckTimeout` reset `cl_last_packet_time = cl_realtime` when the timeout condition became true.
+That capture-only workaround does not resolve the separate normal-launch loading timeout.
 
 Ground and cliff textures are located by looking up the tile or cliff ID string (four-character FourCC, e.g. `"Ldrt"`) in the `TerrainArt\Terrain.slk` or `TerrainArt\CliffTypes.slk` spreadsheets respectively.
 

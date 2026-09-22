@@ -1471,16 +1471,54 @@ TEST(renderer_terrain, cliff_texture_skips_non_cliff_corners) {
         { .cliff = {1,15,15,15}, .want = 1 }, /* Human02Interlude (10,29), AACA. */
         { .cliff = {1,1,1,15}, .want = 1 }, /* Human02Interlude (65,35), ABBA. */
         { .cliff = {0,1,0,1}, .want = 1 }, /* SW wins over other authored indices. */
-        { .cliff = {0,1,0,15}, .want = 1 }, /* Then NW. */
-        { .cliff = {0,15,1,15}, .want = 0 }, /* Then NE; zero is a valid texture. */
-        { .cliff = {15,15,1,15}, .want = 1 }, /* Then SE. */
-        { .cliff = {15,15,15,15}, .want = 1 }, /* Undead04: implicit second cliff set. */
+        { .cliff = {0,1,0,15}, .want = 0 }, /* Then SE; zero is a valid texture. */
+        { .cliff = {0,1,15,15}, .want = 1 }, /* Then NW. */
+        { .cliff = {1,15,15,15}, .want = 1 }, /* Then NE. */
+        { .cliff = {15,15,15,15}, .want = 0 }, /* No nearby explicit type: retail's error default. */
     };
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
-        WAR3MAPVERTEX tile[4] = {0};
-        FOR_LOOP(j, 4) tile[j].cliff = cases[i].cliff[j];
-        T_EQ(R_CliffTexture(tile), cases[i].want);
+        WAR3MAPVERTEX verts[4] = {0};
+        WAR3MAP map = { .width = 2, .height = 2, .vertices = verts };
+        FOR_LOOP(j, 4) verts[3-j].cliff = cases[i].cliff[j];
+        T_EQ(R_CliffTexture(&map, 0, 0), cases[i].want);
     }
+}
+
+TEST(renderer_terrain, cliff_texture_searches_retail_neighbourhood) {
+    WAR3MAPVERTEX verts[49];
+    WAR3MAP map = { .width = 7, .height = 7, .vertices = verts };
+    FOR_LOOP(i, 49) verts[i] = (WAR3MAPVERTEX){ .cliff = 15 };
+    /* X-major, not nearest-distance or row-major; include the full radius of two. */
+    verts[1+5*7].cliff = 2; verts[2+1*7].cliff = 1;
+    T_EQ(R_CliffTexture(&map, 3, 3), 2);
+    verts[1+5*7].cliff = 15;
+    T_EQ(R_CliffTexture(&map, 3, 3), 1);
+    verts[2+1*7].cliff = 15; verts[0+3*7].cliff = 2;
+    T_EQ(R_CliffTexture(&map, 3, 3), 0); /* Outside the search radius. */
+    verts[2+2*7].cliff = 1;
+    T_EQ(R_CliffTexture(&map, 0, 0), 1); /* Lower map edge: no unsigned underflow. */
+    verts[4+4*7].cliff = 2;
+    T_EQ(R_CliffTexture(&map, 5, 5), 2); /* Upper map edge: no out-of-bounds read. */
+    verts[5+5*7].cliff = 1;
+    T_EQ(R_CliffTexture(&map, 5, 5), 1); /* Own corners take priority over neighbours. */
+}
+
+TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
+    /* W3E byte 6 at x=91..95, y=52..56. Cell (93,54) has four 15s, but (92,56) names CLgr. */
+    static const BYTE packed[25] = {
+        0xf6, 0xf6, 0xf6, 0xf6, 0xf6,
+        0xf6, 0xf6, 0x06, 0xf6, 0x06,
+        0xf4, 0xf6, 0xf6, 0xf6, 0xf6,
+        0xf4, 0xf4, 0xf4, 0xf4, 0xf6,
+        0xf4, 0x04, 0xf4, 0xf4, 0xf4,
+    };
+    WAR3MAPVERTEX verts[25];
+    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts };
+    FOR_LOOP(i, 25) verts[i] = (WAR3MAPVERTEX){ .cliff = packed[i] >> 4, .level = packed[i] & 15 };
+    T_EQ(R_CliffTexture(&map, 2, 2), 0);
+    verts[1+4*5].cliff = 1;
+    T_EQ(R_CliffTexture(&map, 2, 2), 1); /* Selection follows the data, not grass or ground index. */
+    T_EQ(verts[2+2*5].cliff, 15); /* Resolution must not rewrite authored corner indices. */
 }
 
 /* Exercise the terrain/cliff bakers with real height normals, mocking asset lookup and draw submission. */
@@ -1595,6 +1633,7 @@ TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
     reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
     FOR_LOOP(y, 5) FOR_LOOP(x, 5)
         verts[x+y*5] = (WAR3MAPVERTEX){ .level = y >= 2 ? 5 : 4, .cliff = 15, .accurate_height = 8192 + x*16 };
+    verts[1].cliff = 1; /* Authored neighbour outside the cell's four corners. */
     cliff_bake.num_vertices = 0;
     R_MakeCliff(&map, 1, 1, &data);
     T_EQ(cliff_bake.num_vertices, 3);
@@ -1605,7 +1644,7 @@ TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
     cliff_model = NULL; tr.world = NULL; R_ResetCliffCache(); R_FinishCliffs();
 }
 
-TEST(renderer_terrain, undead04_cliff_material_and_ground_use_authored_slots) {
+TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
     enum { span = SEGMENT_SIZE + 1 };
     WAR3MAPVERTEX verts[span * span];
     DWORD grounds[] = { MAKEFOURCC('V','d','r','t'), MAKEFOURCC('V','d','r','r'), MAKEFOURCC('V','c','b','p'),
@@ -1622,9 +1661,10 @@ TEST(renderer_terrain, undead04_cliff_material_and_ground_use_authored_slots) {
     reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
     ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
     FOR_LOOP(slot, 2) {
-        /* River/waygate cells use four 15s, while other cliffs explicitly select slot 0. */
+        /* All-15 river cells inherit a nearby explicit cliff, not a fixed second palette slot.
+         * Undead04 (93,54) finds CLgr at (92,56); also exercise a neighbour naming dirt. */
         FOR_LOOP(y, span) FOR_LOOP(x, span)
-            verts[x+y*span] = (WAR3MAPVERTEX){ .level = y >= 2 ? 5 : 4, .cliff = slot ? 15 : 0,
+            verts[x+y*span] = (WAR3MAPVERTEX){ .level = y >= 2 ? 5 : 4, .cliff = y ? 15 : slot,
                 .ground = 4, .accurate_height = 8192 };
         T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 1-slot));
         LPMAPLAYER layer = R_BuildMapSegmentCliffs(&map, 0, 0, slot);

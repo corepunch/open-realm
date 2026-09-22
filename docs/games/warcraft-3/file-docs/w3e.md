@@ -54,8 +54,11 @@ float    center offset Y      typically -(My-1)*128/2
 Ground tileset IDs are found in `TerrainArt\Terrain.slk` inside `war3.mpq`.  
 Cliff tileset IDs are found in `TerrainArt\CliffTypes.slk`.  
 OpenRealm uses the authored cliff list directly. Do not rebuild or sort it by the ground palette: Undead04 stores
-`CLgr,CVdi`, with explicit index 0 selecting grass and all-15 cliff cells selecting the implicit second slot, dirt.
-Descriptions of the World Editor deriving a cliff list from ground tiles do not establish a runtime reordering rule.
+`CLgr,CVdi`. Index 15 means no explicit type at that vertex. Retail checks a cell's SW, SE, NW, NE corners,
+then a 5×5 vertex window centred on its SW corner (ascending X, then Y). The first non-15 index wins; if none
+exists, retail uses index 0. OpenRealm logs that unresolved case. Undead04's river cells resolve to grass
+slot 0, not dirt slot 1. Descriptions of the World Editor deriving a cliff list from ground tiles do not
+establish a runtime reordering rule.
 See [Undead04 material verification](../architecture/map-renderer.md#undead04-cliff-material-verification).
 
 ### Center offsets

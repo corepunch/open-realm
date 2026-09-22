@@ -6,7 +6,7 @@
 #include "games/warcraft-3/common/terrain.h"
 #include "r_terrain_layers.h"
 
-#define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; no explicit W3E corner texture; an all-sentinel cell selects cliff slot 1
+#define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; no explicit W3E corner texture; resolved from neighbouring vertices
 
 static const BYTE r_cliff_corners[] = { 1, 0, 2, 3 }; /* Native MDX configuration: NW,NE,SE,SW. */
 /* Retail rotates cliff geometry -90 degrees; selecting a rotated filename does not preserve authored UVs/shape. */
@@ -42,14 +42,20 @@ DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
-/* A non-cliff SW corner must not discard the face: use the first authored cliff in SW,NW,NE,SE order. */
-static inline DWORD R_CliffTexture(LPCWAR3MAPVERTEX tile) {
-    static const BYTE order[] = { 3, 1, 0, 2 }; /* Texture priority is independent of model corner order. */
-    FOR_LOOP(i, 4)
-        if (tile[order[i]].cliff != BZ_WC3_NO_CLIFF_TEXTURE)
-            return tile[order[i]].cliff;
-    /* W3E 15 on every corner selects the second cliff set (Undead04 uses CVdi). */
-    return 1;
+/* Retail checks SW,SE,NW,NE, then an X-major 5x5 neighbourhood. A fixed slot turns Undead04 grass into dirt. */
+static inline DWORD R_CliffTexture(LPCWAR3MAP map, int x, int y) {
+    FOR_LOOP(i, 4) {
+        DWORD cliff = GetWar3MapVertex(map, x + (i & 1), y + (i >> 1))->cliff;
+        if (cliff != BZ_WC3_NO_CLIFF_TEXTURE) return cliff;
+    }
+    for (int cx = MAX(0, x-2); cx <= x+2 && cx < map->width; cx++)
+        for (int cy = MAX(0, y-2); cy <= y+2 && cy < map->height; cy++) {
+            DWORD cliff = GetWar3MapVertex(map, cx, cy)->cliff;
+            if (cliff != BZ_WC3_NO_CLIFF_TEXTURE) return cliff;
+        }
+    /* Retail's explicit error case: no authored type in range uses slot zero, never slot one. */
+    fprintf(stderr, "WC3: no cliff type near cell (%d,%d); using cliff slot 0\n", x, y);
+    return 0;
 }
 
 /* Extend the two-cell MDX footprint into the low neighbour omitted by the ground baker. */

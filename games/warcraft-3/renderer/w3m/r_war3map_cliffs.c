@@ -181,7 +181,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
 
-    if (GetTileRamps(tile) == 4 || !IsTileCliff(tile) || R_CliffTexture(tile) != data->cliff)
+    if (GetTileRamps(tile) == 4 || !IsTileCliff(tile) || R_CliffTexture(map, x, y) != data->cliff)
         return;
 
     char cliffcfg[5] = { 0 };
