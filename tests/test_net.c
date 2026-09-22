@@ -148,6 +148,7 @@ TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     DWORD const ni = name - 1;
 
     test_client_stubs_init();
+    SCR_ClearLayer(NULL, LAYER_WORLD_HOVER);
     cl.hover_entity = entnum;
     cl.ents[entnum].current = (entityState_t){
         .model = 1, .name = name, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 255 },
@@ -164,6 +165,7 @@ TEST(client_layout, context_name_appends_live_hover_value) {
     DWORD const ni = name - 1;
 
     test_client_stubs_init();
+    SCR_ClearLayer(NULL, LAYER_WORLD_HOVER);
     cl.hover_entity = entnum;
     cl.ents[entnum].current = (entityState_t){
         .model = 1, .name = name, .hover_value = 12501,
@@ -259,6 +261,7 @@ TEST(client_layout, context_values_follow_hover_snapshot) {
     FLOAT value = -1.0f;
 
     test_client_stubs_init();
+    SCR_ClearLayer(NULL, LAYER_WORLD_HOVER);
     cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){
         .model = 1, .flags = EF_HOVER_HEALTH | EF_HOVER_MANA,
@@ -309,7 +312,7 @@ TEST(client_layout, context_name_survives_invulnerable_without_bars) {
 TEST(client_layout, context_mana_zero_is_still_present) {
     FLOAT value = -1.0f;
 
-    test_client_stubs_init(); cl.hover_entity = 7;
+    test_client_stubs_init(); SCR_ClearLayer(NULL, LAYER_WORLD_HOVER); cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){
         .model = 1, .flags = EF_HOVER_MANA, .name = 1,
         .stats = { [ENT_HEALTH] = 255, [ENT_MANA] = 0 },
@@ -323,7 +326,7 @@ TEST(client_layout, hover_mana_backdrop_draws_at_empty_pool) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_MANA, .tex = { .index = 1 } };
     RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.4f, 0.05f);
 
-    test_client_stubs_init(); cl.hover_entity = 7;
+    test_client_stubs_init(); SCR_ClearLayer(NULL, LAYER_WORLD_HOVER); cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){
         .model = 1, .flags = EF_HOVER_MANA, .name = 1,
         .stats = { [ENT_HEALTH] = 255, [ENT_MANA] = 0 },
@@ -356,7 +359,7 @@ TEST(client_layout, context_statusbar_uses_hover_snapshot_fraction) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_HEALTH, .tex = { .index = 1 }, .value = 1.0f };
     RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.4f, 0.05f);
 
-    test_client_stubs_init(); cl.hover_entity = 7;
+    test_client_stubs_init(); SCR_ClearLayer(NULL, LAYER_WORLD_HOVER); cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){
         .model = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 128 },
     };
@@ -369,7 +372,7 @@ TEST(client_layout, segmented_statusbar_draws_filled_and_empty_slots_to_capacity
     uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1, .index2 = 2 }, .value = 0.001f };
     RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.043f, 0.004f);
 
-    test_client_stubs_init(); cl.hover_entity = 7;
+    test_client_stubs_init(); SCR_ClearLayer(NULL, LAYER_WORLD_HOVER); cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){
         .model = 1, .flags = EF_HOVER_HEALTH,
         .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(3, 8) },
@@ -397,7 +400,7 @@ TEST(client_layout, segmented_statusbar_keeps_empty_capacity_slots_visible) {
     uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1, .index2 = 2 }, .value = 0.001f };
     RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.043f, 0.004f);
 
-    test_client_stubs_init(); cl.hover_entity = 7;
+    test_client_stubs_init(); SCR_ClearLayer(NULL, LAYER_WORLD_HOVER); cl.hover_entity = 7;
     cl.ents[7].current = (entityState_t){
         .model = 1, .flags = EF_HOVER_HEALTH,
         .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(0, 8) },

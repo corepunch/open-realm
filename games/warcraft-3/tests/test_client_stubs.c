@@ -59,6 +59,7 @@ static BOOL mock_CameraUsesTerrainHeight(void) { return false; }
 static size2_t mock_GetWindowSize(void) { return test_window_size; }
 static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) { (void)rect; (void)time; (void)color; }
 static void mock_DrawFill(LPCRECT rect, COLOR32 color) { (void)rect; (void)color; }
+static void mock_DrawImageEx(LPCDRAWIMAGE image) { (void)image; }
 static bool mock_DrawCursor(float x, float y, COLOR32 tint) {
     (void)x; (void)y;
     test_cursor_draw_calls++;
@@ -186,6 +187,7 @@ void test_client_stubs_init(void) {
     re.CameraUsesTerrainHeight = mock_CameraUsesTerrainHeight;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
     re.DrawFill = mock_DrawFill;
+    re.DrawImageEx = mock_DrawImageEx;
     re.DrawCursor = mock_DrawCursor;
 }
 
