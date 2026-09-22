@@ -539,7 +539,8 @@ static void ai_repair_legacy(LPEDICT ent) {
     LPEDICT building = ent ? ent->build : NULL;
     edictStat_s *hp;
 
-    if (!building || !building->inuse || M_IsDead(building) || building->data.UnitBalance->buildTime <= 0) {
+    if (!building || !building->inuse || (M_IsDead(building) && building->build != building) ||
+        building->data.UnitBalance->buildTime <= 0) {
         if (ent) ent->stand(ent);
         return;
     }
