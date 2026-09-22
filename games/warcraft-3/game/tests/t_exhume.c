@@ -410,6 +410,37 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, graveyard_waits_for_legacy_self_link_construction) {
+    slkTestData_t *rows, *old;
+    LPEDICT graveyard, thinker;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    rows = parse_slk_string(graveyard_slk); old = G_SetSLKRows("AbilityData", rows);
+    graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
+    graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
+    graveyard->health.value = graveyard->health.max_value = 900;
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+    graveyard->build = graveyard; /* Legacy construction marker; health may already be positive. */
+
+    S_RunAbilityUpdates(graveyard);
+    T_NULL(graveyard_test_thinker(graveyard));
+    T_EQ(graveyard_test_corpse_count(graveyard), 0);
+
+    graveyard->build = NULL;
+    S_RunAbilityUpdates(graveyard);
+    thinker = graveyard_test_thinker(graveyard); T_NOT_NULL(thinker);
+    level.time += 999; graveyard_think(thinker);
+    T_EQ(graveyard_test_corpse_count(graveyard), 0);
+    level.time += 1; graveyard_think(thinker);
+    T_EQ(graveyard_test_corpse_count(graveyard), 1);
+
+    graveyard->build = graveyard;
+    graveyard_think(thinker);
+    T_ASSERT(!thinker->inuse);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
     slkTestData_t *rows, *old;
     LPEDICT graveyard, thinker;

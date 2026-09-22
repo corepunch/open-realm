@@ -198,6 +198,10 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
  */
 #define ID_GRAVEYARD_CORPSE MAKEFOURCC('A','g','y','d')
 
+static BOOL graveyard_is_under_construction(LPEDICT graveyard) {
+    return graveyard && (graveyard->construction.active || graveyard->build == graveyard);
+}
+
 static LPEDICT graveyard_find_thinker(LPEDICT graveyard) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == graveyard && ent->think == graveyard_think &&
                   ent->class_id == ID_GRAVEYARD_CORPSE) return ent;
@@ -241,7 +245,7 @@ void graveyard_think(LPEDICT thinker) {
     FLOAT interval, spawn_radius, corpse_radius;
 
     if (!thinker || !graveyard || !graveyard->inuse || M_IsDead(graveyard) ||
-        graveyard->construction.active ||
+        graveyard_is_under_construction(graveyard) ||
         !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) {
         if (thinker) G_FreeEdict(thinker);
         return;
@@ -265,7 +269,7 @@ static void graveyard_ensure(LPEDICT graveyard) {
 
     /* Agyd is one of the global update procedures. Check ownership before the
      * edict scan; otherwise every updated unit pays for graveyard lookup. */
-    if (!graveyard || M_IsDead(graveyard) || graveyard->construction.active ||
+    if (!graveyard || M_IsDead(graveyard) || graveyard_is_under_construction(graveyard) ||
         !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) return;
     if (graveyard_find_thinker(graveyard)) return;
     interval = S_SpellNumber(ID_GRAVEYARD_CORPSE, ABILITY_NUMBER_COOLDOWN, level);

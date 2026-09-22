@@ -124,11 +124,12 @@ radius), `DataC`/`Gyd3` **Radius of Corpses** (the area used for the cap), and `
 the generated corpse type.
 
 OpenRealm arms an ability-owned saveable thinker only after the Graveyard has completed
-construction; the first `Cool` interval starts at that point rather than while the building is
-still being summoned. A restored/stale producer also retires if its owner is incomplete. On
-each `Cool` pulse it counts matching dead `UnitID` corpses inside `DataC`; when below `DataA`,
-it creates one dead, non-selectable
-corpse on the deterministic placement ring defined by `DataB` and enters the normal
+construction; both the explicit construction state and the legacy self-linked build marker mean
+the building is incomplete. The first `Cool` interval starts after completion rather than while
+the building is still being summoned. A restored/stale producer also retires if its owner is
+incomplete. Each `Cool` pulse counts matching dead `UnitID` corpses inside `DataC`; when below
+the `DataA` cap, it creates one dead, non-selectable corpse on the deterministic placement ring
+defined by `DataB` and enters the normal
 corpse-decay lifecycle. Stored corpses are counted at their current holder's position rather
 than their hidden pre-load origin. Generated corpses therefore use the same authored
 raisability and map decay constants as combat corpses and can be consumed by Raise Dead or
