@@ -332,11 +332,56 @@ the white FOW texture through `RDF_NOWORLDMODEL`, preserving their particle pres
 
 ## Texture Loading
 
+### Undead04 cliff material verification
+
+The locally inspected ROC Undead04 W3E has tileset `L`, `custom=1`, ground palette
+`Vdrt,Vdrr,Vcbp,Lgrs,Lgrd,Ybtl,Yrtl`, and cliff palette `CLgr,CVdi`. The 606 cliff cells with an explicit
+index 0 select `CLgr`; the 671 all-15 cliff cells select implicit slot 1, `CVdi`. For example, cell `(93,54)`
+near the northeast waygate has NW/NE/SE/SW levels `[4,4,6,6]`, four ground indices 3, and four cliff indices 15.
+`R_MakeCliff` replaces the adjoining ground with the selected cliff row's `groundTile` before ground baking.
+
+| Corner selection | Authored cliff slot | ROC/TFT SLK row | Loaded wall image on tileset L | Adjoining ground |
+| --- | --- | --- | --- | --- |
+| Explicit 0 | 0 | `CLgr` | `ReplaceableTextures/Cliff/Cliff1.blp` | `Lgrs` (ground index 3) |
+| All four 15 | 1 | `CVdi` | `ReplaceableTextures/Cliff/Cliff0.blp` | `Vdrt` (ground index 0) |
+
+Both archive versions give these rows the same `texFile` and `groundTile` values. The locally installed archives
+have no `L_Cliff0.blp` or `L_Cliff1.blp`, so the existing texture lookup resolves the base images. `Cliff0` contains
+the layered rock face and brown rim visible in the supplied photos. The local nested `L.mpq` contains splat
+overrides, not cliff images. Its listfile needs PKWARE decompression; inspect it with StormLib if `mpqtool` reports
+unsupported compression mask 0x08. `blp2jpg` does not support these JPEG-compressed BLP1 images; the renderer's
+decoder handles their shared JPEG header plus mip payload.
+
+Sorting the stored cliff palette into ground-palette order would swap both materials, making the river grass
+instead of dirt. The all-15 fix in `639ce3a4` is the relevant correction; the
+[W3E reference](../file-docs/w3e.md) distinguishes editor behavior from runtime.
+
+`renderer_terrain.undead04_cliff_material_and_ground_use_authored_slots` drives `R_BuildMapSegmentCliffs` and
+`R_FinishCliffs` with both corner cases and the native palette/SLK values. It checks that only the expected layer
+is emitted, that its actual texture request matches the table above, and that only cliff-footprint ground corners
+change. Asset lookup and GPU upload are mocked; selection, geometry baking and ground replacement are production code.
+This complements the existing implicit-cliff geometry/join test and locks the authored-slot material contract.
+It does not exercise W3E file loading or real image decoding.
+
+A framebuffer check on `2b673bb1` at the northeast waygate, camera `(4032,-1856)`, showed the layered rock and
+brown cliff rim matching the supplied reference photo. No additional texture mismatch was reproduced there.
+The diagnostic copy retained the native `war3map.w3e` unchanged and disabled `InitCustomTriggers` and
+`RunInitializationTriggers` so the opening cinematic could not override the camera. A JASS helper disabled fog,
+set noon, suspended time of day, and called `ResetToGameCamera(0)` before `camera move 4032 -1856` and
+`screenshot 30`. The run was bounded with `+com_frame_limit 150`; mission behavior was not under test.
+
+During this local capture, map registration exceeded `CL_TIMEOUT_MSEC` and disconnected the client before
+the scene could render. A one-shot conditional LLDB breakpoint at `CL_CheckTimeout` reset
+`cl_last_packet_time = cl_realtime` only when the timeout condition became true, then continued. This was a
+capture-only workaround; no timeout or renderer production code was changed. A normal-launch loading timeout
+is a separate issue from the material selection verified here.
+
 Ground and cliff textures are located by looking up the tile or cliff ID string (four-character FourCC, e.g. `"Ldrt"`) in the `TerrainArt\Terrain.slk` or `TerrainArt\CliffTypes.slk` spreadsheets respectively.
 
 For cliffs, the code first tries the tileset-specific variant `<texDir>\<tileset>_<texFile>.blp` and falls back to the generic `<texDir>\<texFile>.blp` if the first file does not exist.
 
-Ground textures are cached globally in `g_groundTextures[]`, indexed by the ground layer index. Because this is a global array, **ground textures are not freed or re-initialised between maps**. Loading a second map will reuse textures from the first map if the layer count is the same.
+Ground textures are cached in `g_groundTextures[]`, indexed by ground layer. `_W3M_ClearMap` resets the ground
+and cliff choices before the next map is registered; texture storage remains owned by the renderer cache.
 
 ## Key Constants
 

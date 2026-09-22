@@ -145,6 +145,7 @@ static BOOL fail_load, fail_scoped_load, touch_during_registration;
 static PATHSTR last_model_load;
 static DWORD spawn_count;
 static LPTEXTURE texture_load_result;
+static PATHSTR last_texture_load;
 static GLenum upload_format, upload_internal;
 static COLOR32 upload_pixel;
 static DWORD upload_count;
@@ -227,7 +228,10 @@ static void test_free(HANDLE memory) { free_count++; free(memory); }
 static void test_error(LPCSTR format, ...) { (void)format; T_ASSERT(false); }
 static void test_spawn(void *context) { (*(DWORD *)context)++; }
 
-LPTEXTURE R_LoadTexture(LPCSTR filename) { (void)filename; return texture_load_result; }
+LPTEXTURE R_LoadTexture(LPCSTR filename) {
+    snprintf(last_texture_load, sizeof(last_texture_load), "%s", filename);
+    return texture_load_result;
+}
 
 static mdxModel_t *cliff_model;
 LPMODEL R_LoadModel(LPCSTR filename) {
@@ -1485,9 +1489,24 @@ LINE3 R_LineForScreenPoint(viewDef_t const *view, FLOAT x, FLOAT y) { return (LI
 LPCTEXTURE R_BlightTexture(void) { return texture_load_result; }
 w3TerrainArt_t const *R_TerrainArt(DWORD id) { T_ASSERT(false); return NULL; }
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
-w3CliffType_t const *R_CliffType(DWORD id) { T_ASSERT(false); return NULL; }
+w3CliffType_t const *R_CliffType(DWORD id) {
+    /* Undead04's authored order is shared by the ROC and TFT CliffTypes.slk rows. */
+    static w3CliffType_t const rows[] = {
+        { .id = MAKEFOURCC('C','L','g','r'), .groundTile = MAKEFOURCC('L','g','r','s'),
+          .texDir = "ReplaceableTextures\\Cliff", .texFile = "Cliff1", .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" },
+        { .id = MAKEFOURCC('C','V','d','i'), .groundTile = MAKEFOURCC('V','d','r','t'),
+          .texDir = "ReplaceableTextures\\Cliff", .texFile = "Cliff0", .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" },
+    };
+    FOR_LOOP(i, 2)
+        if (rows[i].id == id) return &rows[i];
+    T_ASSERT(false); return NULL;
+}
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
+/* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
+static LPBUFFER test_cliff_buffer(LPCVERTEX vertices, DWORD count) { return test_alloc(sizeof(BUFFER)); }
+#define R_MakeVertexArrayObject test_cliff_buffer
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
+#undef R_MakeVertexArrayObject
 
 TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
     cliffData_t city = { .cliffModelDir = "CityCliffs", .rampModelDir = "CityCliffTrans" };
@@ -1584,6 +1603,39 @@ TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
         T_FEQ(cliff_bake.vertices[i].normal.x, R_GetVertexNormal(&map, 1, 2).x, 0.001f);
     }
     cliff_model = NULL; tr.world = NULL; R_ResetCliffCache(); R_FinishCliffs();
+}
+
+TEST(renderer_terrain, undead04_cliff_material_and_ground_use_authored_slots) {
+    enum { span = SEGMENT_SIZE + 1 };
+    WAR3MAPVERTEX verts[span * span];
+    DWORD grounds[] = { MAKEFOURCC('V','d','r','t'), MAKEFOURCC('V','d','r','r'), MAKEFOURCC('V','c','b','p'),
+        MAKEFOURCC('L','g','r','s'), MAKEFOURCC('L','g','r','d'), MAKEFOURCC('Y','b','t','l'), MAKEFOURCC('Y','r','t','l') };
+    DWORD cliffs[] = { MAKEFOURCC('C','L','g','r'), MAKEFOURCC('C','V','d','i') };
+    WAR3MAP map = { .tileset = 'L', .custom = 1, .width = span, .height = span, .vertices = verts,
+        .grounds = grounds, .num_grounds = 7, .cliffs = cliffs, .num_cliffs = 2 };
+    VECTOR3 pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}}, norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    VECTOR2 uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
+    TEXTURE texture = {0}; LPTEXTURE saved = texture_load_result;
+    int (*read_file)(LPCSTR, void **) = ri.FS_ReadFile;
+    reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
+    ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
+    FOR_LOOP(slot, 2) {
+        /* River/waygate cells use four 15s, while other cliffs explicitly select slot 0. */
+        FOR_LOOP(y, span) FOR_LOOP(x, span)
+            verts[x+y*span] = (WAR3MAPVERTEX){ .level = y >= 2 ? 5 : 4, .cliff = slot ? 15 : 0,
+                .ground = 4, .accurate_height = 8192 };
+        T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 1-slot));
+        LPMAPLAYER layer = R_BuildMapSegmentCliffs(&map, 0, 0, slot);
+        T_NOT_NULL(layer); T_EQ(layer->num_vertices, SEGMENT_SIZE*3); T_ASSERT(layer->texture == &texture);
+        T_STREQ(last_texture_load, slot ? "ReplaceableTextures\\Cliff\\Cliff0.blp" : "ReplaceableTextures\\Cliff\\Cliff1.blp");
+        FOR_LOOP(y, span) FOR_LOOP(x, span)
+            T_EQ(verts[x+y*span].ground, y == 1 || y == 2 ? (slot ? 0 : 3) : 4);
+        R_FinishCliffs(); test_free((LPBUFFER)layer->buffer); test_free(layer);
+        R_ResetCliffCache();
+    }
+    ri.FS_ReadFile = read_file; texture_load_result = saved; cliff_model = NULL; tr.world = NULL;
 }
 
 TEST(renderer_terrain, blight_preserves_cliff_corners) {
