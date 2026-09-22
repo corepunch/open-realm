@@ -46,7 +46,7 @@ void volcano_think(LPEDICT ent) {
         if (G_UnitIsBuilding(target->class_id)) dmg *= factor;
         T_Damage(target, caster, (int)dmg);
         if (!M_IsDead(target))
-            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, G_UnitIsHero(target)));
+            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, S_UnitIsResistant(target)));
     }
     FILTER_EDICTS(target, volcano_hits_destructable(ent->goalentity, target, ent->collision, &origin))
         G_DestructableApplyDamage(target, caster, volcano_wave_damage(ent, Vector2_distance(&target->s.origin2, &origin)));

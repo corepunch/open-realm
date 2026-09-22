@@ -78,7 +78,7 @@ static ability_t abilitylist[] = {
     { "Ahrl", CAbilityHarvestLumber, AB_COMMAND },  /* Harvest */
     { "Arev", CAbilityPassive, AB_PASSIVE },  /* Revive Hero */
     { "Aawa", CAbilityPassive, AB_PASSIVE },  /* Revive Hero Instantly */
-    { "Adet", CAbilityPassive, AB_PASSIVE },  /* Detector */
+    { "Adet", CAbilityDetector, AB_PASSIVE },  /* Detector */
     { "Arep", CAbilityRepair, AB_COMMAND | AB_AUTOCAST },  /* Repair */
     { "AEpa", CAbilityPoisonArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Poison Arrows */
     { "AEbu", CAbilityBuild, AB_COMMAND },  /* Build (Night Elf) */
@@ -104,7 +104,7 @@ static ability_t abilitylist[] = {
 
     /* HumanAbilityStrings.txt */
     { "Amls", CAbilityMagicLeash, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Aerial Shackles */
-    { "Afbk", CAbilityPassive, AB_PASSIVE },  /* Feedback */
+    { "Afbk", CAbilityFeedback, AB_PASSIVE },  /* Feedback */
     { "Acmg", CAbilityControlMagic, AB_SPELL, SPELL_TARGET_UNIT },  /* Control Magic */
     { "AHdr", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana */
     { "Aflk", CAbilityPassive, AB_PASSIVE },  /* Flak Cannons */
@@ -121,10 +121,10 @@ static ability_t abilitylist[] = {
     { "Apxf", CAbilityPassive, AB_PASSIVE },  /* Phoenix Fire */
     { "Agyb", CAbilityPassive, AB_PASSIVE },  /* Flying Machine Bombs */
     { "Asth", CAbilityPassive, AB_PASSIVE },  /* Storm Hammers */
-    { "Agyv", CAbilityPassive, AB_PASSIVE },  /* True Sight */
+    { "Agyv", CAbilityTrueSight, AB_PASSIVE },  /* True Sight */
     { "Adef", CAbilityDefend, AB_SPELL | AB_TOGGLE },  /* Defend */
     { "Afla", CAbilityFlare, AB_SPELL, SPELL_TARGET_POINT },  /* Flare */
-    { "Adts", CAbilityPassive, AB_PASSIVE },  /* Magic Sentry */
+    { "Adts", CAbilityMagicSentry, AB_PASSIVE },  /* Magic Sentry */
     { "Ainf", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire */
     { "Adis", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic */
     { "Ahea", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal */
@@ -174,7 +174,7 @@ static ability_t abilitylist[] = {
     { "ANrf", CAbilityRainOfFire, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Rain of Fire */
     { "AHca", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Cold Arrows */
     { "ANht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
-    { "ANca", CAbilityPassive, AB_PASSIVE },  /* Cleaving Attack */
+    { "ANca", CAbilityCleavingAttack, AB_PASSIVE },  /* Cleaving Attack */
     { "ANdo", CAbilityDoom, AB_SPELL, SPELL_TARGET_UNIT },  /* Doom */
     { "ANdr", CAbilityDrainNeutral, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Life Drain */
     { "ANbf", CAbilityBreathOfFire, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire */
@@ -184,7 +184,7 @@ static ability_t abilitylist[] = {
     { "ANst", CAbilityStampede, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Stampede */
     { "ANfs", CAbilityFlameStrikeNeutral, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
     { "AInv", CAbilityInventory, AB_PASSIVE },  /* Inventory */
-    { "ANdb", CAbilityPassive, AB_PASSIVE },  /* Drunken Brawler */
+    { "ANdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Drunken Brawler */
     { "ANdh", CAbilityDrunkenHaze, AB_SPELL, SPELL_TARGET_UNIT },  /* Drunken Haze */
     { "ANsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence */
     { "ANba", CAbilityBlackArrow, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Black Arrow */
@@ -225,11 +225,11 @@ static ability_t abilitylist[] = {
     { "Aenr", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Roots (creep) */
     { "Aenw", CAbilityEntanglingRoots, AB_SPELL, SPELL_TARGET_UNIT },  /* Entangling Seaweed */
     { "AEfn", CAbilityForceOfNature, AB_SPELL },  /* Force of Nature */
-    { "AEah", CAbilityPassive, AB_PASSIVE },  /* Thorns Aura */
+    { "AEah", CAbilityCreepAura, AB_PASSIVE },  /* Thorns Aura */
     { "AEtq", CAbilityTranquility, AB_SPELL | AB_CHANNEL },  /* Tranquility */
     { "AHfa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Searing Arrows */
     { "ACsa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Searing Arrows (creep) */
-    { "AEar", CAbilityPassive, AB_PASSIVE },  /* Trueshot Aura */
+    { "AEar", CAbilityCreepAura, AB_PASSIVE },  /* Trueshot Aura */
     { "AEsf", CAbilityStarfall, AB_SPELL | AB_CHANNEL },  /* Starfall */
     { "Aren", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST },  /* Renew */
     { "Afae", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */
@@ -244,7 +244,7 @@ static ability_t abilitylist[] = {
     { "Abtl", CAbilityBattlestations, AB_COMMAND },  /* Battle Stations */
     { "AOwk", CAbilityWindWalk, AB_SPELL },  /* Wind Walk */
     { "AOmi", CAbilityMirrorImage, AB_SPELL },  /* Mirror Image */
-    { "AOcr", CAbilityPassive, AB_PASSIVE },  /* Critical Strike */
+    { "AOcr", CAbilityCreepAura, AB_PASSIVE },  /* Critical Strike */
     { "AOww", CAbilityWhirlwind, AB_SPELL | AB_CHANNEL },  /* Bladestorm */
     { "AOcl", CAbilityChainLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Chain Lightning */
     { "AOfs", CAbilityFarSight, AB_SPELL, SPELL_TARGET_POINT },  /* Far Sight */
@@ -252,7 +252,7 @@ static ability_t abilitylist[] = {
     { "AOeq", CAbilityEarthquake, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Earthquake */
     { "AOsh", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave */
     { "AOae", CAbilityPassive, AB_PASSIVE },  /* Endurance Aura */
-    { "AOre", CAbilityPassive, AB_PASSIVE },  /* Reincarnation */
+    { "AOre", CAbilityReincarnation, AB_PASSIVE },  /* Reincarnation */
     { "AOws", CAbilityStomp, AB_SPELL },  /* War Stomp */
     { "Ablo", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust */
 
@@ -263,7 +263,7 @@ static ability_t abilitylist[] = {
     { "AUls", CAbilityLocustSwarm, AB_SPELL | AB_CHANNEL },  /* Locust Swarm */
     { "Aaha", CAbilityAcolyteHarvest, AB_COMMAND },  /* Gather */
     { "AUdc", CAbilityDeathCoil, AB_SPELL, SPELL_TARGET_UNIT },  /* Death Coil */
-    { "AUau", CAbilityPassive, AB_PASSIVE },  /* Unholy Aura */
+    { "AUau", CAbilityCreepAura, AB_PASSIVE },  /* Unholy Aura */
     { "AUdp", CAbilityDeathPact, AB_SPELL, SPELL_TARGET_UNIT },  /* Death Pact */
     { "AUan", CAbilityAnimateDead, AB_SPELL },  /* Animate Dead */
     { "AUa2", CAbilityAnimateDead, AB_SPELL },  /* Animate Dead (2.0.3 ability-preserving variant) */
@@ -274,7 +274,7 @@ static ability_t abilitylist[] = {
     { "ACc3", CAbilityCarrionSwarm, AB_SPELL, SPELL_TARGET_POINT },  /* Crushing Wave (Lesser) */
     { "AUsl", CAbilitySleep, AB_SPELL, SPELL_TARGET_UNIT },  /* Sleep */
     { "ACsl", CAbilitySleep, AB_SPELL, SPELL_TARGET_UNIT },  /* Sleep (creep) */
-    { "AUav", CAbilityPassive, AB_PASSIVE },  /* Vampiric Aura */
+    { "AUav", CAbilityCreepAura, AB_PASSIVE },  /* Vampiric Aura */
     { "AUfn", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Nova */
     { "AUfa", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "AUfu", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
@@ -367,115 +367,115 @@ static ability_t abilitylist[] = {
     // TODO: AIsh a_item_town_portal  /* Summon Headhunter */
 
     /* NeutralAbilityStrings.txt */
-    // TODO: ANic CAbilityInnerFire  /* Incinerate */
-    // TODO: ANia CAbilityInnerFire  /* Incinerate */
+    { "ANic", CAbilityIncinerate, AB_PASSIVE },  /* Incinerate */
+    { "ANia", CAbilityIncinerate, AB_PASSIVE },  /* Incinerate Arrow */
     { "ANso", CAbilitySoulBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Soul Burn */
-    // TODO: ANlm a_lightning_shield  /* Summon Lava Spawn */
+    { "ANlm", CAbilityWaterElemental, AB_SPELL },  /* Summon Lava Spawn */
     { "ANvc", CAbilityVolcano, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Volcano */
     { "ANsy", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory */
     { "ANs1", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 1) */
     { "ANs2", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 2) */
     { "ANs3", CAbilityPocketFactory, AB_SPELL, SPELL_TARGET_POINT },  /* Pocket Factory (Level 3) */
-    // TODO: ANcs a_spell  /* Cluster Rockets */
-    // TODO: ANeg CAbilityEvasion  /* Engineering Upgrade */
-    // TODO: ANrg a_regen_base  /* Robo-Goblin */
-    // TODO: ANde a_button  /* Demolish */
-    // TODO: ANfy CAbilityOnFireHuman  /* Factory */
+    { "ANcs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Cluster Rockets */
+    { "ANeg", CAbilityEngineeringUpgrade, AB_PASSIVE },  /* Engineering Upgrade */
+    { "ANrg", CAbilityMetamorphosis, AB_SPELL },  /* Robo-Goblin */
+    { "ANde", CAbilityDemolish, AB_PASSIVE },  /* Demolish */
+    { "ANfy", CAbilityFactory, AB_PASSIVE },  /* Factory */
     { "ANhs", CAbilityHealingSpray, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Healing Spray */
-    // TODO: ANcr CAbilityCriticalStrike  /* Chemical Rage */
+    { "ANcr", CAbilityMetamorphosis, AB_SPELL },  /* Chemical Rage */
     { "ANtm", CAbilityTransmute, AB_SPELL, SPELL_TARGET_UNIT },  /* Transmute */
-    { "Aasl", CAbilityPassive, AB_PASSIVE },  /* Slow Aura */
-    // TODO: Atdg CAbilityStampede  /* Building Damage Aura */
-    // TODO: Atsp a_aura  /* Tornado Spin */
-    // TODO: Atwa CAbilityStomp  /* Tornado Wander */
-    // TODO: ANef a_button  /* "Storm, Earth, And Fire" */
-    // TODO: ACbf CAbilityOnFireHuman  /* Breath of Frost */
-    // TODO: ANmr a_aura  /* Mind Rot */
-    // TODO: ANmo a_bounce  /* Monsoon */
-    // TODO: ANwm CAbilityStomp  /* Watery Minion */
-    // TODO: Arng a_revenge  /* Revenge */
-    // TODO: Atol a_upgrade  /* Tree of Life upgrade ability */
-    // TODO: Awrp a_warp  /* Waygate ability */
-    // TODO: ANsl a_spell  /* Soul Preservation */
-    // TODO: ANfd a_spell  /* Finger of Death */
+    { "Aasl", CAbilitySlowAura, AB_PASSIVE },  /* Slow Aura */
+    { "Atdg", CAbilityTornadoDamage, AB_PASSIVE },  /* Building Damage Aura */
+    { "Atsp", CAbilityTornado, AB_SPELL | AB_CHANNEL },  /* Tornado Spin */
+    { "Atwa", CAbilityTornado, AB_SPELL | AB_CHANNEL },  /* Tornado Wander */
+    { "ANef", CAbilityStormEarthFire, AB_SPELL },  /* Storm, Earth, And Fire */
+    { "ACbf", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Breath of Frost */
+    { "ANmr", CAbilityMindRot, AB_PASSIVE },  /* Mind Rot */
+    { "ANmo", CAbilityMonsoon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Monsoon */
+    { "ANwm", CAbilityWaterElemental, AB_SPELL },  /* Watery Minion */
+    { "Arng", CAbilityRevenge, AB_PASSIVE },  /* Revenge */
+    { "Atol", CAbilityTreeOfLife, AB_PASSIVE },  /* Tree of Life upgrade ability */
+    { "Awrp", CAbilityWarp, AB_PASSIVE },  /* Waygate ability */
+    { "ANsl", CAbilityResurrection, AB_SPELL, SPELL_TARGET_NONE },  /* Soul Preservation */
+    { "ANfd", CAbilityFingerOfDeath, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Death */
     { "ANdp", CAbilityDarkPortal, AB_SPELL, SPELL_TARGET_POINT },  /* Dark Portal */
     { "ANrc", CAbilityRainOfChaos, AB_SPELL, SPELL_TARGET_POINT },  /* Rain of Chaos */
     { "ANr3", CAbilityRainOfChaos, AB_SPELL, SPELL_TARGET_POINT },  /* Rain of Chaos (button) */
-    // TODO: Achd CAbilityCargoHold  /* Cargo Hold Death */
-    // TODO: Asla a_sleep_always  /* Sleep Always; UnitCanSleepPerm recognizes ownership, behavior remains unresolved */
-    // TODO: Advc a_devour_cargo  /* Devour Cargo */
-    // TODO: ANpi a_perm_immolation  /* Permanent Immolation */
-    // TODO: Apig a_harvest_return  /* Permanent Immolation */
-    // TODO: Andt a_evil_eye  /* Reveal */
+    { "Achd", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold Death */
+    { "Asla", CAbilitySleepAlways, AB_PASSIVE | AB_INNATE },  /* Sleep Always */
+    { "Advc", CAbilityCargoLoad, AB_COMMAND },  /* Devour Cargo */
+    { "ANpi", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Permanent Immolation */
+    { "Apig", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Permanent Immolation */
+    { "Andt", CAbilityFarSight, AB_SPELL, SPELL_TARGET_POINT },  /* Reveal */
     { "ANin", CAbilityInferno, AB_SPELL, SPELL_TARGET_POINT },  /* Inferno */
     { "Anhe", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (creep) */
     { "ACtc", CAbilityThunderClap, AB_SPELL },  /* Slam */
     { "ACtb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Hurl Boulder */
     { "Afzy", CAbilityFrenzy, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frenzy */
-    // TODO: ACdv a_creep_devour  /* Devour */
+    { "ACdv", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Devour */
     { "ACsp", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE },  /* Natural creep sleep */
-    // TODO: Asod a_simple_spell  /* Spawn Skeleton */
-    // TODO: Assp a_simple_spell  /* Spawn Spiderlings */
-    // TODO: Aspd a_simple_spell  /* Spawn Spiders */
-    // TODO: AOac a_unknown  /* Command Aura */
+    { "Asod", CAbilityRaiseDead, AB_SPELL },  /* Spawn Skeleton */
+    { "Assp", CAbilityForceOfNature, AB_SPELL },  /* Spawn Spiderlings */
+    { "Aspd", CAbilityForceOfNature, AB_SPELL },  /* Spawn Spiders */
+    { "AOac", CAbilityCommandAura, AB_PASSIVE },  /* Command Aura */
     { "ACad", CAbilityAnimateDead, AB_SPELL },  /* Animate Dead (creep) */
-    { "ACrn", CAbilityPassive, AB_PASSIVE },  /* Reincarnation (creep) */
-    // TODO: Adda CAbilityOnFireHuman  /* AOE damage upon death */
-    // TODO: Agho a_ghost  /* Ghost */
-    // TODO: Aeth a_ghost  /* Ghost */
-    // TODO: Amin a_button  /* Mine - exploding */
+    { "ACrn", CAbilityReincarnation, AB_PASSIVE },  /* Reincarnation (creep) */
+    { "Adda", CAbilityDeathDamageAoe, AB_PASSIVE },  /* AOE damage upon death */
+    { "Agho", CAbilityGhost, AB_PASSIVE },  /* Ghost */
+    { "Aeth", CAbilityGhostVisible, AB_PASSIVE },  /* Ghost */
+    { "Amin", CAbilityStasisTrap, AB_SPELL, SPELL_TARGET_POINT },  /* Mine - exploding */
     { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE },  /* Permanent Invisibility */
-    // TODO: Awan a_wander  /* Wander */
-    // TODO: Aarm a_unknown  /* Mana Regeneration Aura */
-    // TODO: Asid a_button  /* Sell Items */
-    // TODO: Asud a_spell  /* Sell Units */
+    { "Awan", CAbilityWander, AB_PASSIVE },  /* Wander */
+    /* Aarm is registered with the explicit regeneration family below. */
+    { "Asid", CAbilitySellItem, AB_PASSIVE },  /* Sell Items */
+    { "Asud", CAbilitySellUnit, AB_PASSIVE },  /* Sell Units */
 
     /* NightElfAbilityStrings.txt */
     { "Avng", CAbilitySpiritOfVengeance, AB_SPELL, SPELL_TARGET_NONE },  /* Spirit of Vengeance */
     { "Amfl", CAbilityManaFlare, AB_SPELL | AB_CHANNEL | AB_UPDATE, SPELL_TARGET_NONE },  /* Mana Flare */
-    // TODO: Apsh CAbilityStampede  /* Phase Shift */
-    // TODO: Aetl a_button  /* Ethereal */
-    // TODO: Agra a_poison_attack  /* War Club */
-    // TODO: Assk a_button  /* Hardened Skin */
-    // TODO: Arsk a_morph  /* Resistant Skin */
+    { "Apsh", CAbilityDivineShield, AB_SPELL },  /* Phase Shift */
+    { "Aetl", CAbilityEthereal, AB_PASSIVE },  /* Ethereal */
+    { "Agra", CAbilityGrabTree, AB_PASSIVE },  /* War Club */
+    { "Assk", CAbilityHardenedSkin, AB_PASSIVE },  /* Hardened Skin */
+    { "Arsk", CAbilityResistantSkin, AB_PASSIVE },  /* Resistant Skin */
     { "Atau", CAbilityTaunt, AB_SPELL },  /* Taunt */
     { "Amgl", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive */
     { "Aspo", CAbilitySlowPoison, AB_PASSIVE | AB_INNATE },  /* Slow Poison */
-    // TODO: Ashm a_shadow_meld  /* Shadow Meld */
-    // TODO: Ahid a_shadow_meld  /* Shadow Meld */
-    // TODO: Aesn a_button  /* Sentinel */
-    // TODO: Adtn a_button  /* Detonate */
-    // TODO: Abrf a_morph  /* Bear Form */
+    { "Ashm", CAbilityWindWalk, AB_SPELL },  /* Shadow Meld */
+    { "Ahid", CAbilityWindWalk, AB_SPELL },  /* Hide */
+    { "Aesn", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentinel */
+    { "Adtn", CAbilitySelfDestruct, AB_SPELL, SPELL_TARGET_NONE },  /* Detonate */
+    { "Abrf", CAbilityMetamorphosis, AB_SPELL },  /* Bear Form */
 
-    // TODO: Aadm a_auto_dispel_magic  /* Abolish Magic */
-    // TODO: Amim a_magic_immunity  /* Spell Immunity */
-    // TODO: Ault a_night_vision  /* Ultravision */
+    { "Aadm", CAbilityAbolishMagic, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_POINT },  /* Abolish Magic */
+    { "Amim", CAbilityPassive, AB_PASSIVE },  /* Spell Immunity */
+    { "Ault", CAbilityPassive, AB_PASSIVE },  /* Ultravision */
     { "Acoa", CAbilityCoupleArcher, AB_SPELL, SPELL_TARGET_UNIT },  /* Mount Hippogryph */
     { "Acoh", CAbilityCoupleHippogryph, AB_SPELL, SPELL_TARGET_UNIT },  /* Pick up Archer */
     { "Adec", CAbilityDecouple, AB_SPELL, SPELL_TARGET_NONE },  /* Dismount */
-    // TODO: Acor a_bounce  /* Corrosive Breath */
-    // TODO: AEst a_button  /* Scout */
+    { "Acor", CAbilityCorrosiveBreath, AB_PASSIVE },  /* Corrosive Breath */
+    { "AEst", CAbilityScout, AB_PASSIVE },  /* Scout */
     { "Acyc", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone */
     { "ACcy", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (creep) */
     { "SCc1", CAbilityCyclone, AB_SPELL, SPELL_TARGET_UNIT },  /* Cyclone (Cenarius) */
-    // TODO: Alit a_lightning_attack  /* Lightning Attack */
+    { "Alit", CAbilityLightningAttack, AB_PASSIVE },  /* Lightning Attack */
 
     /* OrcAbilityStrings.txt */
-    // TODO: Abof a_aura_command  /* Burning Oil */
-    // TODO: Absk a_button  /* Berserk */
-    // TODO: Arbr a_button  /* Reinforced Burrows Upgrade */
+    { "Abof", CAbilityBallsOfFire, AB_PASSIVE },  /* Burning Oil */
+    { "Absk", CAbilityFrenzy, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Berserk */
+    { "Arbr", CAbilityPassive, AB_PASSIVE },  /* Reinforced Burrows Upgrade */
     { "Aast", CAbilityAncestralSpirit, AB_SPELL, SPELL_TARGET_NONE },  /* Ancestral Spirit */
     { "Adch", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant */
-    // TODO: Acpf a_purge  /* Corporeal Form */
-    // TODO: Aetf a_morph  /* Ethereal Form */
+    { "Acpf", CAbilityBanish, AB_SPELL },  /* Corporeal Form */
+    { "Aetf", CAbilityBanish, AB_SPELL },  /* Ethereal Form */
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
-    // TODO: Aliq CAbilityOnFireHuman  /* Liquid Fire */
+    { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
-    // TODO: Acha a_unknown  /* Chaos */
-    // TODO: Achl a_cargo_load  /* Chaos Cargo Load */
-    // TODO: Awar a_bounce  /* Pulverize */
+    { "Acha", CAbilityChaos, AB_PASSIVE },  /* Chaos */
+    { "Achl", CAbilityCargoLoad, AB_COMMAND },  /* Chaos Cargo Load */
+    { "Awar", CAbilityPulverize, AB_PASSIVE },  /* Pulverize */
     { "Aens", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
-    // TODO: Adev a_devour  /* Devour */
+    { "Adev", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Devour */
     { "Aprg", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge */
     { "Apg2", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (TFT melee; DataD/DataE pause) */
     { "Alsh", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield */
@@ -486,38 +486,38 @@ static ability_t abilitylist[] = {
     { "Aven", CAbilityPoisonAttack, AB_PASSIVE },  /* Envenomed Spears */
     { "Apoi", CAbilityPoisonAttack, AB_PASSIVE },  /* Poison Sting */
     { "Apo2", CAbilityPoisonAttack, AB_PASSIVE },  /* Orb of Venom (Poison Attack) */
-    // TODO: Aspi a_spiked  /* Spiked Barricades */
-    // TODO: Asal a_button  /* Pillage */
-    { "Aakb", CAbilityPassive, AB_PASSIVE },  /* War Drums */
+    { "Aspi", CAbilitySpiked, AB_PASSIVE },  /* Spiked Barricades */
+    { "Asal", CAbilitySalvage, AB_PASSIVE },  /* Pillage */
+    { "Aakb", CAbilityWarDrums, AB_PASSIVE },  /* War Drums */
 
     /* UndeadAbilityStrings.txt */
     { "Arpb", CAbilityReplenish, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Replenish */
     { "Arpl", CAbilityReplenishLife, AB_SPELL | AB_AUTOCAST },  /* Essence of Blight */
     { "Arpm", CAbilityReplenishMana, AB_SPELL | AB_AUTOCAST },  /* Spirit Touch */
     { "Aexh", CAbilityExhumeCorpses, AB_PASSIVE | AB_UPDATE },  /* Exhume Corpses */
-    // TODO: Aave CAbilityStampede  /* Destroyer Form */
-    // TODO: Afak a_spell  /* Orb of Annihilation */
+    { "Aave", CAbilityMetamorphosis, AB_SPELL },  /* Destroyer Form */
+    { "Afak", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Orb of Annihilation */
     { "Advm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Devour Magic */
     { "Aabr", CAbilityAuraRegenLife, AB_PASSIVE | AB_INNATE },  /* Aura of Blight */
-    // TODO: Aabs a_aura  /* Absorb Mana */
-    // TODO: Abur a_creep_sleep  /* Burrow */
-    // TODO: Amtc a_unknown  /* Cargo Hold */
-    { "Atru", CAbilityPassive, AB_PASSIVE },  /* True Sight */
+    { "Aabs", CAbilityAbsorb, AB_PASSIVE },  /* Absorb Mana */
+    { "Abur", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE },  /* Burrow */
+    { "Amtc", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold */
+    { "Atru", CAbilityTrueSight, AB_PASSIVE },  /* True Sight */
     { "Auns", CAbilityUnsummon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Unsummon Building */
     { "Agyd", CAbilityGraveyard, AB_PASSIVE | AB_UPDATE },  /* Create Corpse */
     { "Alam", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Acolyte) */
     { "Asac", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Sacrificial Pit) */
     { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
-    // TODO: Aspa CAbilityAttack  /* Spider Attack */
-    // TODO: Aweb a_auto_target_spell  /* Web */
-    // TODO: Astn a_morph  /* Stone Form */
+    { "Aspa", CAbilitySpiderAttack, AB_PASSIVE },  /* Spider Attack */
+    { "Aweb", CAbilityWeb, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Web */
+    { "Astn", CAbilityDivineShield, AB_SPELL },  /* Stone Form */
     { "Amel", CAbilityCargoLoad, AB_COMMAND | AB_AUTOCAST },  /* Get Corpse */
     { "Amed", CAbilityCargoDrop, AB_COMMAND },  /* Drop Corpse */
-    // TODO: Aapl a_unknown  /* Disease Cloud */
-    // TODO: Apts a_button  /* Disease Cloud */
-    // TODO: Afrb a_button  /* Frost Breath */
-    // TODO: Afra a_button  /* Frost Attack */
-    // TODO: Afrz CAbilityFrostNova  /* Freezing Breath */
+    { "Aapl", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Disease Cloud */
+    { "Apts", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Disease Cloud */
+    { "Afrb", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Breath */
+    { "Afra", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Frost Attack */
+    { "Afrz", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Freezing Breath */
     { "Arai", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead */
     { "Auhf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy */
     { "Acrs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse */
@@ -530,34 +530,34 @@ static ability_t abilitylist[] = {
     /* No AbilityStrings source file */
     // TODO: AIgl a_unknown  /* FortificationGlyph — CAbility [ITEM] other */
     // TODO: AIrg a_unknown  /* Potion of Life Regen — CAbility [ITEM] other */
-    // TODO: ANsu a_unknown  /* Submerge (Myrmidon) — CAbility creeps */
-    // TODO: AOwd a_unknown  /* Shadow Hunter - Serpent Ward */
-    // TODO: Aimp a_bounce  /* Impaling Bolt — CAbilityBounce nightelf */
-    // TODO: Ansp a_neutral_spell  /* Neutral Spies — CAbilityNeutralSpell creeps */
+    { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE },  /* Submerge (Myrmidon) */
+    { "AOwd", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Shadow Hunter - Serpent Ward */
+    { "Aimp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impaling Bolt */
+    { "Ansp", CAbilityNeutralSpell, AB_PASSIVE },  /* Neutral Spies */
 
     /* Extra AbilityData aliases of registered parents; poll code= before mapping. */
-    { "ACac", CAbilityPassive, AB_PASSIVE },  /* Aura - Command (Creep) */
-    { "ACah", CAbilityPassive, AB_PASSIVE },  /* Thorns Aura (creep) */
+    { "ACac", CAbilityCommandAura, AB_PASSIVE },  /* Aura - Command (Creep) */
+    { "ACah", CAbilityCreepAura, AB_PASSIVE },  /* Thorns Aura (creep) */
     { "ACam", CAbilityAntiMagicShell, AB_SPELL, SPELL_TARGET_UNIT },  /* Anti-magic Shield (creep) */
     { "ACps", CAbilityPossession, AB_SPELL, SPELL_TARGET_UNIT },  /* Possession (creep) */
-    { "ACat", CAbilityPassive, AB_PASSIVE },  /* Aura - Trueshot (Creep) */
-    { "ACav", CAbilityPassive, AB_PASSIVE },  /* Aura - Devotion (Creep) */
-    { "ACba", CAbilityPassive, AB_PASSIVE },  /* Aura - Brilliance (creep) */
+    { "ACat", CAbilityCreepAura, AB_PASSIVE },  /* Aura - Trueshot (Creep) */
+    { "ACav", CAbilityCreepAura, AB_PASSIVE },  /* Aura - Devotion (Creep) */
+    { "ACba", CAbilityCreepAura, AB_PASSIVE },  /* Aura - Brilliance (creep) */
     { "ACbb", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust (creep, Hotkey B) */
     { "ACbc", CAbilityBreathOfFire, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire (Creep) */
-    { "ACbh", CAbilityPassive, AB_PASSIVE },  /* Bash (creep) */
+    { "ACbh", CAbilityBash, AB_PASSIVE },  /* Bash (creep) */
     { "ACbk", CAbilityBlackArrow, AB_SPELL | AB_TOGGLE | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Black Arrow (melee, creep) */
     { "ACbl", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Bloodlust (Creep) */
     { "ACbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish (Creep) */
     { "ACbz", CAbilityBlizzard, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Blizzard (creep) */
     { "ACcb", CAbilityThunderBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Bolt */
-    { "ACce", CAbilityPassive, AB_PASSIVE },  /* Cleaving Attack (Creep) */
+    { "ACce", CAbilityCleavingAttack, AB_PASSIVE },  /* Cleaving Attack (Creep) */
     { "ACch", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Charm */
     { "ACcl", CAbilityChainLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Chain Lightning (creep) */
     { "ACcn", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (creep) */
     { "ACcr", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple (creep) */
     { "ACcs", CAbilityCurse, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Curse (creep) */
-    { "ACct", CAbilityPassive, AB_PASSIVE },  /* Critical Strike (creep) */
+    { "ACct", CAbilityCreepAura, AB_PASSIVE },  /* Critical Strike (creep) */
     { "ACcw", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Cold Arrows (creep) */
     { "ACd2", CAbilityAbolishMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Abolish Magic (Creep, 1,2 pos) */
     { "ACdc", CAbilityDeathCoil, AB_SPELL, SPELL_TARGET_UNIT },  /* Death Coil (creep) */
@@ -566,13 +566,13 @@ static ability_t abilitylist[] = {
     { "ACdr", CAbilityDrainNeutral, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Drain Life (Creep) */
     { "ACds", CAbilityDivineShield, AB_SPELL },  /* Divine Shield (creep) */
     { "ACen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare (Creep) */
-    { "ACes", CAbilityPassive, AB_PASSIVE },  /* Evasion (creep 100%) */
-    { "ACev", CAbilityPassive, AB_PASSIVE },  /* Evasion (creep) */
+    { "ACes", CAbilityCreepAura, AB_PASSIVE },  /* Evasion (creep 100%) */
+    { "ACev", CAbilityCreepAura, AB_PASSIVE },  /* Evasion (creep) */
     { "ACf2", CAbilityFrostArmor, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Frost Armor (creep, autocast) */
-    // TODO: ACf3 a_spell  /* Finger of Pain (2,1 Button) */
+    { "ACf3", CAbilityFingerOfDeath, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Pain (2,1 Button) */
     { "ACfa", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor (creep, old) */
     { "ACfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (creep) */
-    // TODO: ACfd a_spell  /* Finger of Pain */
+    { "ACfd", CAbilityFingerOfDeath, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Pain */
     { "ACff", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire (creep) */
     { "ACfl", CAbilityForkedLightning, AB_SPELL, SPELL_TARGET_UNIT },  /* Forked Lightning (creep) */
     { "ACfn", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Nova (creep) */
@@ -584,71 +584,71 @@ static ability_t abilitylist[] = {
     { "ACif", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire (Creep) */
     { "ACim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation (creep) */
     { "ACls", CAbilityLightningShield, AB_SPELL, SPELL_TARGET_UNIT },  /* Lightning Shield (creep) */
-    { "ACm2", CAbilityPassive, AB_PASSIVE },  /* Magic Immunity (Archimonde) */
-    { "ACm3", CAbilityPassive, AB_PASSIVE },  /* Magic Immunity (Dragons) */
-    { "ACmi", CAbilityPassive, AB_PASSIVE },  /* Magic Immunity (Creep) */
-    // TODO: ACmo a_bounce  /* Monsoon (creep) */
+    { "ACm2", CAbilityMagicImmunity, AB_PASSIVE },  /* Magic Immunity (Archimonde) */
+    { "ACm3", CAbilityMagicImmunity, AB_PASSIVE },  /* Magic Immunity (Dragons) */
+    { "ACmi", CAbilityCreepAura, AB_PASSIVE },  /* Magic Immunity (Creep) */
+    { "ACmo", CAbilityMonsoon, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Monsoon (creep) */
     { "ACmp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impale (Creep) */
-    { "ACnr", CAbilityPassive, AB_PASSIVE },  /* Neutral Regen (health only) */
+    { "ACnr", CAbilityAuraRegenLife, AB_PASSIVE },  /* Neutral Regen (health only) */
     { "ACpa", CAbilityParasiteCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Parasite (eredar) */
     { "ACpu", CAbilityPurge, AB_SPELL, SPELL_TARGET_UNIT },  /* Purge (Creep) */
-    { "ACpv", CAbilityPassive, AB_PASSIVE },  /* Pulverize (Sea Giant) */
+    { "ACpv", CAbilityPulverize, AB_PASSIVE },  /* Pulverize (Sea Giant) */
     { "ACr1", CAbilityRoar, AB_SPELL },  /* Roar (Skeletal Orc) */
     { "ACr2", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation (Furbolg) */
     { "ACrd", CAbilityRaiseDead, AB_SPELL | AB_AUTOCAST },  /* Raise Dead (Creep) */
     { "ACrf", CAbilityRainOfFire, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Rain of Fire (creep) */
     { "ACrg", CAbilityRainOfFire, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Rain of Fire (creep, greater) */
     { "ACrj", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation (creep) */
-    { "ACrk", CAbilityPassive, AB_PASSIVE },  /* Resistant Skin (creep) */
+    { "ACrk", CAbilityResistantSkin, AB_PASSIVE },  /* Resistant Skin (creep) */
     { "ACro", CAbilityRoar, AB_SPELL },  /* Roar (creep) */
     { "ACs9", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit (creep - pig) */
     { "ACsf", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit (creep) */
     { "ACsh", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Creep) */
     { "ACsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence (Creep) */
-    { "ACsk", CAbilityPassive, AB_PASSIVE },  /* Resistant Skin (3,1 pos, creep) */
+    { "ACsk", CAbilityResistantSkin, AB_PASSIVE },  /* Resistant Skin (3,1 pos, creep) */
     { "ACsm", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana (Creep) */
     { "ACss", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */
     { "ACst", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Trap) */
     { "ACsw", CAbilitySlow, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Slow (Creep) */
     { "ACt2", CAbilityThunderClap, AB_SPELL },  /* Thunder Clap (Thunder Lizard) */
-    { "ACua", CAbilityPassive, AB_PASSIVE },  /* Unholy Aura (creep) */
+    { "ACua", CAbilityCreepAura, AB_PASSIVE },  /* Unholy Aura (creep) */
     { "ACuf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy (creep) */
-    { "ACvp", CAbilityPassive, AB_PASSIVE },  /* Vampiric Aura (creep) */
-    { "ACvs", CAbilityPassive, AB_PASSIVE },  /* Venom Spears (Creep) */
-    // TODO: ACwb a_auto_target_spell  /* Web (creep) */
+    { "ACvp", CAbilityCreepAura, AB_PASSIVE },  /* Vampiric Aura (creep) */
+    { "ACvs", CAbilityPoisonAttack, AB_PASSIVE },  /* Venom Spears (Creep) */
+    { "ACwb", CAbilityWeb, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Web (creep) */
     { "ACwe", CAbilityWaterElemental, AB_SPELL },  /* Summon Sea Elemental */
-    // TODO: AHta a_spell  /* Reveal (Arcane Tower) */
-    { "ANak", CAbilityPassive, AB_PASSIVE },  /* Orb of Annihilation (Quill Spray) */
-    { "ANb2", CAbilityPassive, AB_PASSIVE },  /* Bash (maul, SP Bear, level 3) */
-    { "ANbh", CAbilityPassive, AB_PASSIVE },  /* Bash (Beastmaster Bear) */
+    { "AHta", CAbilityFarSight, AB_SPELL, SPELL_TARGET_POINT },  /* Reveal (Arcane Tower) */
+    { "ANak", CAbilityOrbAnnihilation, AB_PASSIVE },  /* Orb of Annihilation (Quill Spray) */
+    { "ANb2", CAbilityBash, AB_PASSIVE },  /* Bash (maul, SP Bear, level 3) */
+    { "ANbh", CAbilityBash, AB_PASSIVE },  /* Bash (Beastmaster Bear) */
     { "ANbl", CAbilityBlink, AB_SPELL, SPELL_TARGET_POINT },  /* Blink (Beastmaster Bear) */
     { "ANfa", CAbilityColdArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Sea Witch - Frost Arrows */
-    { "ANre", CAbilityPassive, AB_PASSIVE },  /* Neutral Regen (mana only) */
-    { "ANrn", CAbilityPassive, AB_PASSIVE },  /* Mannoroth - Reincarnation */
+    { "ANre", CAbilityAuraRegenMana, AB_PASSIVE },  /* Neutral Regen (mana only) */
+    { "ANrn", CAbilityReincarnation, AB_PASSIVE },  /* Mannoroth - Reincarnation */
     { "ANta", CAbilityTaunt, AB_SPELL },  /* Taunt (Creep) */
-    { "ANtr", CAbilityPassive, AB_PASSIVE },  /* Detect (War Eagle) */
+    { "ANtr", CAbilityTrueSight, AB_PASSIVE },  /* Detect (War Eagle) */
     { "ANwk", CAbilityWindWalk, AB_SPELL },  /* Wind Walk */
-    { "Aap1", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Abomination) */
-    { "Aap2", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Plague Ward) */
-    { "Aap3", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Creep) */
-    { "Aap4", CAbilityPassive, AB_PASSIVE },  /* Aura - Plague (Creep gfx) */
-    { "SCae", CAbilityPassive, AB_PASSIVE },  /* Aura - Endurance (Creep) */
-    { "SCva", CAbilityPassive, AB_PASSIVE },  /* Vampiric attack */
+    { "Aap1", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Abomination) */
+    { "Aap2", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Plague Ward) */
+    { "Aap3", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Creep) */
+    { "Aap4", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Aura - Plague (Creep gfx) */
+    { "SCae", CAbilityCreepAura, AB_PASSIVE },  /* Aura - Endurance (Creep) */
+    { "SCva", CAbilityAuraRegenLife, AB_PASSIVE },  /* Vampiric attack */
     { "Adsm", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Dispel Magic (creep) */
     { "Adcn", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Disenchant (new) */
-    // TODO: Ache a_spell  /* Chain Dispel */
+    { "Ache", CAbilityDispelMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Chain Dispel */
     { "Acht", CAbilityHowlOfTerror, AB_SPELL },  /* Howl of Terror */
     { "Acn2", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize (Abomination) */
-    { "Acdb", CAbilityPassive, AB_PASSIVE },  /* Chen - Drunken Brawler */
+    { "Acdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Chen - Drunken Brawler */
     { "Aco2", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Archer) */
     { "Aco3", CAbilityCoupleInstant, AB_COMMAND },  /* Couple Instant (Hippogryph) */
-    { "Adt1", CAbilityPassive, AB_PASSIVE },  /* Detect (Sentry Ward) */
-    { "Adtg", CAbilityPassive, AB_PASSIVE },  /* Detect (general) */
+    { "Adt1", CAbilityDetector, AB_PASSIVE },  /* Detect (Sentry Ward) */
+    { "Adtg", CAbilityTrueSight, AB_PASSIVE },  /* Detect (general) */
     { "Afa2", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */
-    { "Afbt", CAbilityPassive, AB_PASSIVE },  /* Feedback (Arcane Tower) */
+    { "Afbt", CAbilityFeedback, AB_PASSIVE },  /* Feedback (Arcane Tower) */
     { "Anh1", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (Creep Normal) */
     { "Anh2", CAbilityHeal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Heal (Creep High) */
-    { "Ansk", CAbilityPassive, AB_PASSIVE },  /* Hardened Skin (Naga Turtle) */
+    { "Ansk", CAbilityHardenedSkin, AB_PASSIVE },  /* Hardened Skin (Naga Turtle) */
     { "Aihn", CAbilityInventory, AB_PASSIVE },  /* Inventory (2 slot unit) Human */
     { "Aion", CAbilityInventory, AB_PASSIVE },  /* Inventory (2 slot unit) Orc */
     { "Aiun", CAbilityInventory, AB_PASSIVE },  /* Inventory (2 slot unit) Undead */
@@ -674,10 +674,10 @@ static ability_t abilitylist[] = {
     { "Sca4", CAbilityPassive, AB_PASSIVE },  /* Chaos (Kodo) */
     { "Sca5", CAbilityPassive, AB_PASSIVE },  /* Chaos (Peon) */
     { "Sca6", CAbilityPassive, AB_PASSIVE },  /* Chaos (Grom) */
-    { "Sch2", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Meat Wagon) */
-    { "Sch3", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Transport) */
-    { "Sch4", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Tank) */
-    { "Sch5", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Ship) */
+    { "Sch2", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Meat Wagon) */
+    { "Sch3", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Transport) */
+    { "Sch4", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Tank) */
+    { "Sch5", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Ship) */
     { "Scri", CAbilityCripple, AB_SPELL, SPELL_TARGET_UNIT },  /* Cripple (Warlock) */
     { "Sdro", CAbilityCargoDrop, AB_COMMAND },  /* Drop */
     { "Slo2", CAbilityCargoLoad, AB_COMMAND },  /* Load (Entangled Gold Mine) */
@@ -701,7 +701,7 @@ static ability_t abilitylist[] = {
 
     /* Passive regeneration base codes remain explicit outside generated TODOs. */
     { "Abar", CAbilityBarkskin, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT, barkskin_orders },  /* Barkskin */
-    { "Aarm", CAbilityPassive, AB_PASSIVE },  /* Mana Regeneration Aura */
+    { "Aarm", CAbilityAuraRegenMana, AB_PASSIVE },  /* Mana Regeneration Aura */
 };
 
 /* Build a compact unique procedure list once, rather than scan the whole registry per unit tick. */

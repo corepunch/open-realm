@@ -3,8 +3,6 @@
 #include "../skills/s_skills.h"
 
 #define BZ_AEXH MAKEFOURCC('A', 'e', 'x', 'h') // rawcode; Exhume Corpses (TFT Meat Wagon)
-#define BZ_AMEL MAKEFOURCC('A', 'm', 'e', 'l')
-#define BZ_AMTC MAKEFOURCC('A', 'm', 't', 'c')
 #define BZ_SCH2 MAKEFOURCC('S', 'c', 'h', '2')
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; non-stock fixture corpse UnitID
 

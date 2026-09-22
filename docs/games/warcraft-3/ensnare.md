@@ -7,6 +7,12 @@
 `CAbilityEnsnare` and read their own rows through `abilityitem_t.code`.
 `ACen` is registered in `s_skills.c`.
 
+Web (`Aweb` / `ACwb`, `Bwea` / `Bweb`) delegates to the same bind/height
+lifecycle with air-only validation and autocast. Removing one bind leaves flight
+grounded until the last Web or Ensnare slot is removed. Landing/restoration also
+updates `targtype` between ground and air, not only `AI_FLYING`.
+See [creep combat effects](creep-combat-effects.md).
+
 | Rawcode | Archive | Notes |
 | --- | --- | --- |
 | `Aens` | ROC and TFT | Raider Ensnare |

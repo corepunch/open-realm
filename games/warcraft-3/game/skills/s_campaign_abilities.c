@@ -106,8 +106,7 @@ static heroabilitystatus_t *ensnare_status(LPEDICT unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *slot = unit->abilstatus + i;
         if (!slot->level) continue;
-        if (slot->code == MAKEFOURCC('B', 'e', 'n', 's') || slot->code == MAKEFOURCC('B', 'e', 'n', 'a') ||
-            slot->code == MAKEFOURCC('B', 'e', 'n', 'g'))
+        if (S_StatusIsEnsnare(slot->code))
             return slot;
     }
     return NULL;
@@ -172,13 +171,14 @@ static void ensnare_update(LPEDICT unit) {
 
 BOOL S_StatusIsEnsnare(DWORD code) {
     return code == MAKEFOURCC('B', 'e', 'n', 's') || code == MAKEFOURCC('B', 'e', 'n', 'a') ||
-        code == MAKEFOURCC('B', 'e', 'n', 'g');
+        code == MAKEFOURCC('B', 'e', 'n', 'g') || code == MAKEFOURCC('B','w','e','a') ||
+        code == MAKEFOURCC('B','w','e','b');
 }
 
 BOOL S_UnitIsEnsnared(LPCEDICT unit) {
-    return unit && (G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 's')) ||
-                    G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 'a')) ||
-                    G_UnitStatusLevel(unit, MAKEFOURCC('B', 'e', 'n', 'g')));
+    if (unit) FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
+    return false;
 }
 
 /* DataC Melee Attack Range while the bind is active; 0 when not ensnared. */
@@ -199,6 +199,7 @@ static BOOL ensnare_authored_flyer(LPCEDICT unit) {
 static void ensnare_restore_flight(LPEDICT unit) {
     if (!unit || !ensnare_authored_flyer(unit) || (unit->aiflags & AI_FLYING)) return;
     unit->aiflags |= AI_FLYING;
+    unit->targtype = TARG_AIR;
     if (unit->ensnare.phase == ENSNARE_HEIGHT_LAND && unit->ensnare.adjust > 0.0f) {
         unit->ensnare.height = unit->data.UnitData->moveHeight;
         unit->ensnare.start = G_Time();
@@ -216,6 +217,7 @@ static void ensnare_refresh(LPEDICT unit) {
     if (S_UnitIsEnsnared(unit)) {
         if (unit->aiflags & AI_FLYING) {
             unit->aiflags &= ~AI_FLYING;
+            unit->targtype = TARG_GROUND;
             M_CheckGround(unit);
         }
     } else ensnare_restore_flight(unit);
@@ -226,8 +228,12 @@ static void ensnare_refresh(LPEDICT unit) {
  * when no other Ensnare bind remains on the victim. */
 static void ensnare_remove(LPEDICT unit, heroabilitystatus_t const *expiring) {
     FLOAT adjust, target;
-    BOOL restrained = false;
     if (!unit || !expiring) return;
+    /* Web and Ensnare share one height transition: removing either cannot release the other. */
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *slot = unit->abilstatus + i;
+        if (slot->level && slot != expiring && S_StatusIsEnsnare(slot->code)) return;
+    }
     if (ensnare_is_flyer(unit)) {
         adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : unit->ensnare.adjust;
         target = ensnare_authored_height(unit);
@@ -239,11 +245,7 @@ static void ensnare_remove(LPEDICT unit, heroabilitystatus_t const *expiring) {
             unit->unitinfo.FlyHeight = 0.0f;
         } else memset(&unit->ensnare, 0, sizeof(unit->ensnare));
     }
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t const *slot = unit->abilstatus + i;
-        if (slot->level && slot != expiring && S_StatusIsEnsnare(slot->code)) { restrained = true; break; }
-    }
-    if (!restrained) ensnare_restore_flight(unit);
+    ensnare_restore_flight(unit);
 }
 
 static void ensnare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -255,9 +257,10 @@ static void ensnare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t cons
     list = G_AbilityLevel(spell->code, level)->buffID;
     buff = ensnare_buff_token(list, ensnare_is_flyer(st.entity) ? 0 : 1);
     if (!buff || strlen(buff) < 4) buff = ensnare_buff_token(list, 0);
-    if (!buff || strlen(buff) < 4) buff = "Bens";
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
-    slot = ensnare_status(st.entity);
+    /* ROC omits BuffID. Use each family's authored TFT token, preserving Web's air bind. */
+    if (!buff || strlen(buff) < 4) buff = spell->ability->proc == CAbilityWeb ? "Bwea" : "Bens";
+    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
+    slot = unit_findstatus(st.entity, FS_SLKKey(buff));
     if (slot) slot->data = spell->code;
     ensnare_begin_land(st.entity, spell->code, level);
     ensnare_refresh(st.entity);
@@ -278,6 +281,22 @@ BZ_ABILITY_PROC(CAbilityEnsnare) {
         return true;
     }
     return CAbilitySimpleSpell(ent, msg, call);
+}
+
+/* Web shares the bind/landing mechanism, but only accepts flying enemies and supports autocast. */
+BZ_ABILITY_PROC(CAbilityWeb) {
+    if (msg == A_AUTOCAST_ON || msg == A_AUTOCAST_SET) return CAbilityModalSpell(ent, msg, call);
+    if (msg == A_VALIDATE) {
+        LPEDICT target = call && call->target ? call->target->entity : NULL;
+        return target && target != ent && target->targtype == TARG_AIR &&
+            S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent, target);
+    }
+    if (msg == A_AUTOCAST_ACQUIRE && call && call->item) {
+        FILTER_EDICTS(target, target->targtype == TARG_AIR && S_SpellIsEnemy(ent, target))
+            if (S_CastUnitTargetSpell(ent, call->item->code, target)) return true;
+        return false;
+    }
+    return CAbilityEnsnare(ent, msg, call);
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmorCampaign) { campaign_status_execute(caster, st, spell); }

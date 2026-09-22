@@ -137,6 +137,8 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(graveyard_think),
     SAVE_CFUNCTION(corpse_cargo_approach_think),
     SAVE_CFUNCTION(cannibalize_approach_think),
+    SAVE_CFUNCTION(incinerate_explode_think),
+    SAVE_CFUNCTION(monsoon_think),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -629,6 +631,12 @@ static field_t const channel_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+/* Status sources survive saves by entity index; all scalar payload/timing fields remain in the raw record. */
+static field_t const status_fields[] = {
+    TF(heroabilitystatus_t, source, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const shop_stock_item_fields[] = {
     F(edictShopStockItem_s, id, F_INT),
     F(edictShopStockItem_s, current, F_INT),
@@ -664,6 +672,7 @@ field_t edict_fields[] = {
     F(edict_s, aiflags, F_INT),
     F(edict_s, autocast_code, F_INT),
     F(edict_s, channel, F_STRUCT, 1, channel_fields),
+    F(edict_s, abilstatus, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
     F(edict_s, damage, F_INT),
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),

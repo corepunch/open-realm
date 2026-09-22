@@ -5,6 +5,8 @@
 #define ID_CRITICAL_STRIKE MAKEFOURCC('A', 'O', 'c', 'r')
 #define ID_CREEP_CRITICAL_STRIKE MAKEFOURCC('A', 'C', 'c', 't')
 #define ID_SPIKED_CARAPACE MAKEFOURCC('A', 'U', 't', 's')
+#define ID_SPIKED_BARRICADES MAKEFOURCC('A', 's', 'p', 'i')
+#define ID_PULVERIZE MAKEFOURCC('A', 'w', 'a', 'r')
 #define ID_UNHOLY_AURA MAKEFOURCC('A', 'U', 'a', 'u')
 #define ID_EVASION MAKEFOURCC('A', 'E', 'e', 'v')
 #define ID_VAMPIRIC_AURA MAKEFOURCC('A', 'U', 'a', 'v')
@@ -14,6 +16,10 @@
 #define ID_SEARING_ARROWS MAKEFOURCC('A', 'H', 'f', 'a')
 #define ID_POISON_ARROWS MAKEFOURCC('A', 'E', 'p', 'a')
 #define ID_TRUESHOT_AURA MAKEFOURCC('A', 'E', 'a', 'r')
+#define ID_SLOW_AURA MAKEFOURCC('A', 'a', 's', 'l')
+#define ID_COMMAND_AURA MAKEFOURCC('A', 'C', 'a', 'c')
+#define ID_COMMAND_AURA_NEUTRAL MAKEFOURCC('A', 'O', 'a', 'c')
+#define ID_WAR_DRUMS MAKEFOURCC('A', 'a', 'k', 'b')
 
 #define ID_REGEN_LIFE_ORC MAKEFOURCC('A', 'o', 'a', 'r')
 #define ID_REGEN_LIFE_BLIGHT MAKEFOURCC('A', 'a', 'b', 'r')
@@ -71,6 +77,9 @@ static aura_cache_key_t const aura_cache_keys[] = {
     { ID_VAMPIRIC_AURA, 1 },
     { ID_TRUESHOT_AURA, 1 },
     { ID_THORNS_AURA, 1 }
+    ,{ ID_COMMAND_AURA, 1 }
+    ,{ ID_COMMAND_AURA_NEUTRAL, 1 }
+    ,{ ID_WAR_DRUMS, 1 }
 };
 static FLOAT aura_cache[MAX_ENTITIES][sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)];
 static DWORD aura_cache_next_update[MAX_ENTITIES];
@@ -643,6 +652,31 @@ FLOAT S_UnholyHealthRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY
 FLOAT S_UnholyMoveBonus(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 1); }
 FLOAT S_VampiricLifeSteal(LPEDICT unit) { return hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1); }
 
+static FLOAT slow_aura_bonus(LPCEDICT unit, DWORD data) {
+    FLOAT result = 0.0f;
+    if (!unit) return 0.0f;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT source = g_edicts + i;
+        auraAbilityRef_t ability;
+        abilityLevel_t const *row;
+        if (!S_AuraUnitActive(source) || !S_SpellIsAliveTarget(source) || !S_SpellIsEnemy(source, (LPEDICT)unit)) continue;
+        ability = actor_aura_ability(source, ID_SLOW_AURA);
+        if (!ability.alias) continue;
+        row = G_AbilityLevel(ability.alias, ability.level);
+        if (Vector2_distance(&source->s.origin2, &unit->s.origin2) > row->area ||
+            !aura_allows_target(source, (LPEDICT)unit, row->targs)) continue;
+        result = MAX(result, row->data[data - 1].number);
+    }
+    return MAX(0.0f, MIN(0.9f, result));
+}
+
+FLOAT S_SlowAuraMoveReduction(LPCEDICT unit) { return slow_aura_bonus(unit, 1); }
+FLOAT S_SlowAuraAttackReduction(LPCEDICT unit) { return slow_aura_bonus(unit, 2); }
+FLOAT S_CommandAuraAttackBonus(LPEDICT unit) {
+    return MAX(hero_aura_bonus(unit, ID_COMMAND_AURA, 1), hero_aura_bonus(unit, ID_COMMAND_AURA_NEUTRAL, 1));
+}
+FLOAT S_WarDrumsAttackBonus(LPEDICT unit) { return hero_aura_bonus(unit, ID_WAR_DRUMS, 1); }
+
 FLOAT S_TrueshotAttackBonus(LPEDICT unit) {
     return unit->attack1.type == ATK_PIERCE ? hero_aura_bonus(unit, ID_TRUESHOT_AURA, 1) : 0.0f;
 }
@@ -756,7 +790,33 @@ FLOAT S_SpikedArmorBonus(LPCEDICT unit) {
 }
 
 FLOAT S_SpikedDamageReturn(LPCEDICT unit, FLOAT damage) {
-    DWORD level = G_UnitAbilityLevel(unit, ID_SPIKED_CARAPACE);
+    DWORD code = ID_SPIKED_CARAPACE, level = G_UnitAbilityLevel(unit, code);
+    if (!level) { code = ID_SPIKED_BARRICADES; level = G_UnitAbilityLevel(unit, code); }
     if (!level) return 0.0f;
-    return MAX(S_SpellData(ID_SPIKED_CARAPACE, level, 2), damage * S_SpellData(ID_SPIKED_CARAPACE, level, 1));
+    return MAX(S_SpellData(code, level, 2), damage * S_SpellData(code, level, 1));
+}
+
+/* Pulverize is a passive attack proc. DataA is percent chance, DataB damage,
+ * DataC/D full/half damage radii; the authored Area cell is unused.
+ * Its damage is an authored physical-spell event, so secondary victims do not
+ * recursively trigger attack listeners. */
+void S_PulverizeAttack(LPEDICT attacker, LPCEDICT primary) {
+    abilityAliasRef_t ability = S_ResolveAbilityAlias(attacker, ID_PULVERIZE);
+    DWORD code = ability.alias, level = ability.level;
+    FLOAT full_radius, partial_radius, chance, full_damage, partial_damage;
+    if (!level || !primary) return;
+    chance = S_SpellData(code, level, 1) * 0.01f;
+    if ((FLOAT)(rand() % 10000) / 10000.0f >= chance) return;
+    full_damage = S_SpellData(code, level, 2);
+    partial_damage = full_damage * 0.5f;
+    full_radius = S_SpellData(code, level, 3);
+    partial_radius = S_SpellData(code, level, 4);
+    FILTER_EDICTS(target, target != attacker && target != primary &&
+                  S_SpellIsAliveTarget(target) && S_SpellIsEnemy(attacker, target) &&
+                  target->targtype == TARG_GROUND) {
+        FLOAT distance = Vector2_distance(&target->s.origin2, &primary->s.origin2);
+        FLOAT amount = distance <= full_radius ? full_damage :
+                       distance <= partial_radius ? partial_damage : 0.0f;
+        if (amount > 0.0f) S_SpellDamage(target, attacker, (int)amount);
+    }
 }

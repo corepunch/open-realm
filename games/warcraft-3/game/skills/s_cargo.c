@@ -64,6 +64,11 @@ BOOL S_CargoIsBurrow(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','u','n')) != 0;
 }
 
+/* Cargo Hold is a passive capability row; load/drop commands own interaction. */
+BZ_ABILITY_PROC(CAbilityCargoHold) {
+    return CAbilityPassive(ent, msg, call);
+}
+
 BOOL S_CargoIsCorpseHolder(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, BZ_AMTC) != 0;
 }

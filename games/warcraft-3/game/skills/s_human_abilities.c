@@ -62,8 +62,14 @@ static void human_toggle_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
 
 /* Retail timed immunity buffs block spell targeting and impacts, independently of physical damage. */
 BOOL S_UnitSpellImmune(LPCEDICT unit) {
-    return unit && (G_UnitStatusLevel(unit, BZ_AVATAR_BUFF) || G_UnitStatusLevel(unit, BZ_ANTI_MAGIC_SHELL_BUFF) ||
-                    G_UnitStatusLevel(unit, MAKEFOURCC('B','u','n','s')) || S_PossessionSpellImmune(unit));
+    static DWORD const passive[] = {
+        MAKEFOURCC('A','m','i','m'), MAKEFOURCC('A','C','m','i'),
+        MAKEFOURCC('A','C','m','2'), MAKEFOURCC('A','C','m','3')
+    };
+    if (!unit) return false;
+    FOR_LOOP(i, sizeof(passive) / sizeof(*passive)) if (G_UnitAbilityLevel(unit, passive[i])) return true;
+    return G_UnitStatusLevel(unit, BZ_AVATAR_BUFF) || G_UnitStatusLevel(unit, BZ_ANTI_MAGIC_SHELL_BUFF) ||
+           G_UnitStatusLevel(unit, MAKEFOURCC('B','u','n','s')) || S_PossessionSpellImmune(unit);
 }
 
 /* Spell impacts recheck immunity because a missile may have launched before Avatar was cast.
@@ -532,6 +538,7 @@ FLOAT S_HumanMoveFactor(LPCEDICT unit) {
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','s','l','o'), level, 1);
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
+    factor *= 1.0f - S_SlowAuraMoveReduction(unit);
     if (human_has_status(unit, MAKEFOURCC('B','m','l','t'))) return 0.0f;
     return factor;
 }
@@ -621,11 +628,7 @@ int S_HumanAttackDamage(LPEDICT attacker, LPEDICT target, int damage) {
     DWORD level;
     if ((level = G_UnitStatusLevel(attacker, MAKEFOURCC('B','i','n','f'))))
         damage = (int)(damage * (1.0f + S_SpellData(MAKEFOURCC('A','i','n','f'), level, 1)));
-    if ((level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','b','k'))) && target->mana.value > 0.0f) {
-        DWORD slot = G_UnitIsHero(target) ? 3 : 1;
-        FLOAT drained = MIN(target->mana.value, S_SpellData(MAKEFOURCC('A','f','b','k'), level, slot));
-        target->mana.value -= drained; damage += (int)(drained * S_SpellData(MAKEFOURCC('A','f','b','k'), level, slot + 1));
-    }
+    damage = S_FeedbackDamage(attacker, target, damage);
     if ((level = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','s','h'))) && target->defense_type <= 2)
         damage += (int)S_SpellData(MAKEFOURCC('A','f','s','h'), level, 3 + target->defense_type);
     /* Defend Data B scales the defender's own attacks while the stance is

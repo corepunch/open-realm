@@ -250,6 +250,8 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
+    /* Marks belong to their applying abilities, even when another unit lands the killing blow. */
+    unit_statusdeath(self);
     /* Construction owns Repair workers and a self-linked HUD queue marker.
      * Tear that state down before generic production/revival death cleanup.
      * A structure upgrade is the same edict rather than a queued child; death
@@ -1144,6 +1146,22 @@ static void UnitDispatchStatus(LPEDICT ent, heroabilitystatus_t *slot, DWORD abi
     S_AbilityMessage(ent, msg, &call);
 }
 
+/* Return the live slot so an ability can attach its applying rawcode/source after insertion. */
+heroabilitystatus_t *unit_findstatus(LPEDICT ent, DWORD code) {
+    if (ent) FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (ent->abilstatus[i].level && ent->abilstatus[i].code == code) return ent->abilstatus + i;
+    return NULL;
+}
+
+/* Notify active victim statuses before death cleanup can discard their applying state. */
+void unit_statusdeath(LPEDICT ent) {
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *slot = ent->abilstatus + i;
+        if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
+            UnitDispatchStatus(ent, slot, slot->data, A_STATUS_DEATH);
+    }
+}
+
 /* Derived locks come only from statuses that actually remain; owners
  * reconcile their own flight/height state through A_STATUS_REFRESH. */
 void unit_refreshstatusflags(LPEDICT ent) {
@@ -1191,7 +1209,7 @@ void unit_updatestatuses(LPEDICT ent) {
             unit_timed_status_log("expire", ent, status);
             unit_expirestatus(ent, status);
             changed = true;
-        }
+        } else if (!M_IsDead(ent)) UnitDispatchStatus(ent, status, status->data, A_STATUS_TICK);
     }
     if (changed) {
         unit_refreshstatusflags(ent);
@@ -1243,6 +1261,8 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
                 /* "Replace" (default): overwrite level and timestamp. */
                 status->level = level;
                 status->data = 0;
+                status->source = NULL;
+                status->source_spawn_time = status->rank = status->next_tick = 0;
                 if (duration_ms) {
                     status->timestamp = now + duration_ms;
                     status->duration_ms = duration_ms;
@@ -1269,6 +1289,8 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
     slot->timestamp = duration_ms ? now + duration_ms : 0;
     slot->duration_ms = duration_ms;
     slot->data = 0;
+    slot->source = NULL;
+    slot->source_spawn_time = slot->rank = slot->next_tick = 0;
     unit_refreshstatusflags(ent);
     unit_timed_status_log("add", ent, slot);
     G_InvalidateUnitInfoPanel(ent);
