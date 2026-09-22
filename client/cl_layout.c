@@ -185,7 +185,7 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
 /* Context-bound presentation occupies no layout space when that capability is absent.
  * Keep zero mana visible when the mana capability exists, and keep segmented cargo
  * visible for an empty holder as long as its authored capacity is nonzero. */
-static BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
+BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
     LPCENTITYSTATE ent;
     FLOAT value;
 

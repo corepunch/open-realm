@@ -1312,7 +1312,9 @@ static drawer_t drawers[] = {
 
 void SCR_LayoutDrawFrame(LPCUIFRAME frame) {
     RECT const *screen = SCR_LayoutRect(frame);
-    if (screen->w <= 0.0f || screen->h <= 0.0f) return;
+    /* Model sprites and dynamic drawers legitimately have no authored size.
+     * Only absent context bindings suppress drawing, just as they collapse layout. */
+    if (!SCR_LayoutContextFrameVisible(frame)) return;
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
             drawers[j].func(frame, screen);

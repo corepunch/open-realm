@@ -33,6 +33,8 @@
 static LPCSTR minimap_map;
 static void capture_minimap(LPCRECT screen, LPCSTR map) { (void)screen; minimap_map = map; }
 
+static sizeBuf_t make_msg_buf(BYTE *buf, DWORD bufsz);
+
 void test_client_stubs_init(void);
 void test_client_stubs_set_window_size(DWORD width, DWORD height);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
@@ -121,7 +123,7 @@ static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) 
 }
 static void capture_status_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)uv; test_status_rect = *screen;
-    if (test_status_draws < ARRAY_COUNT(test_status_textures)) {
+    if (test_status_draws < sizeof(test_status_textures) / sizeof(test_status_textures[0])) {
         test_status_textures[test_status_draws] = texture;
         test_status_colors[test_status_draws] = color;
     }
@@ -383,6 +385,12 @@ TEST(client_layout, segmented_statusbar_draws_filled_and_empty_slots_to_capacity
     T_EQ(test_status_colors[7].r, COLOR32_WHITE.r); T_EQ(test_status_colors[7].g, COLOR32_WHITE.g);
     T_EQ(test_status_colors[7].b, COLOR32_WHITE.b); T_EQ(test_status_colors[7].a, COLOR32_WHITE.a);
     T_FEQ(test_status_rect.w, (0.043f - 0.007f) / 8.0f, 0.0001f);
+    frame.tex.index2 = 0; test_status_draws = 0;
+    SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
+    T_EQ(test_status_draws, 3); /* Secondary art is optional for existing senders. */
+    cl.ents[7].current.stats[ENT_CARGO] = 0; test_status_draws = 0;
+    SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
+    T_EQ(test_status_draws, 0);
 }
 
 TEST(client_layout, segmented_statusbar_keeps_empty_capacity_slots_visible) {
@@ -494,6 +502,46 @@ TEST(client_layout, world_hover_context_rows_compact_through_relative_anchor_cha
     T_FEQ(mana_rect->h, 0.0f, 0.0001f);
     T_FEQ(health_rect->y + health_rect->h, mana_rect->y, 0.0001f);
     T_FEQ(mana_rect->y, cargo_rect->y, 0.0001f);
+}
+
+/* Reuse one wire layout while snapshots add/remove capabilities; absent rows
+ * must suppress draw calls without suppressing unrelated zero-size sprites. */
+TEST(client_layout, context_visibility_and_empty_slot_art_survive_wire_draw_dispatch) {
+    BYTE data[512];
+    sizeBuf_t msg = make_msg_buf(data, sizeof(data));
+    uiFrame_t empty = {0}, frames[] = {
+        { .number = 1, .flags.type = FT_TEXTURE, .stat = UI_STAT_CONTEXT_MANA,
+          .tex.index = 1, .size = { .width = 0.04f, .height = 0.006f } },
+        { .number = 2, .flags.type = FT_TEXTURE, .stat = UI_STAT_CONTEXT_HEALTH,
+          .tex.index = 1, .size = { .width = 0.04f, .height = 0.006f } },
+        { .number = 3, .flags.type = FT_SEGMENTED_STATUSBAR, .stat = ENT_CARGO,
+          .tex = { .index = 1, .index2 = 2 }, .size = { .width = 0.04f, .height = 0.004f } },
+    };
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; cl.pics[2] = (LPTEXTURE)(uintptr_t)2;
+    re.DrawImage = capture_status_image;
+    MSG_WriteByte(&msg, LAYER_WORLD_HOVER);
+    FOR_LOOP(i, sizeof(frames) / sizeof(frames[0])) {
+        MSG_WriteDeltaUIFrame(&msg, &empty, &frames[i], true); MSG_WriteByte(&msg, 0);
+    }
+    MSG_WriteLong(&msg, 0); MSG_WriteShort(&msg, 0); msg.readcount = 0;
+    CL_ParseLayout(&msg);
+    FOR_LOOP(i, 6) {
+        entityState_t *state = &cl.ents[7].current;
+        if (i == 1) *state = MAKE(entityState_t, .model = 1, .flags = EF_HOVER_HEALTH,
+                                 .stats = { [ENT_HEALTH] = 255 });
+        if (i == 2) state->flags |= EF_HOVER_MANA;
+        if (i == 3) state->stats[ENT_CARGO] = EntityCargoPack(0, 3);
+        if (i == 4) { state->flags &= ~EF_HOVER_MANA; state->stats[ENT_CARGO] = 0; }
+        if (i == 5) state->stats[ENT_HEALTH] = 0;
+        SCR_Clear(cl.layout[LAYER_WORLD_HOVER]); test_status_draws = 0;
+        SCR_LayoutDrawOverlay(cl.layout[LAYER_WORLD_HOVER]);
+        T_EQ(test_status_draws, i == 0 || i == 5 ? 0 : i == 3 ? 5 : i == 2 ? 2 : 1);
+        if (i == 3) {
+            T_EQ(SCR_Frame(3)->tex.index2, 2);
+            for (DWORD slot = 2; slot < 5; slot++) T_EQ(test_status_textures[slot], cl.pics[2]);
+        }
+    }
 }
 
 /* r_norefresh skips every renderer/UI submission while its inverse still presents a normal client frame. */
