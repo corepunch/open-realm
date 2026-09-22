@@ -3,8 +3,7 @@
 #include "../skills/s_skills.h"
 
 #define BZ_AEXH MAKEFOURCC('A', 'e', 'x', 'h') // rawcode; Exhume Corpses (TFT Meat Wagon)
-#define BZ_AMEL MAKEFOURCC('A', 'm', 'e', 'l')
-#define BZ_AMTC MAKEFOURCC('A', 'm', 't', 'c')
+#define BZ_EXH_AMEL MAKEFOURCC('A', 'm', 'e', 'l') // rawcode; corpse-load fixture, distinct from unity-build skill macros
 #define BZ_SCH2 MAKEFOURCC('S', 'c', 'h', '2')
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; non-stock fixture corpse UnitID
 
@@ -48,9 +47,9 @@ static void exh_setup(EXHFIX *fix) {
 	fix->wagon->s.player = 0; fix->wagon->svflags |= SVF_MONSTER; fix->wagon->targtype = TARG_GROUND;
 	fix->wagon->health.value = fix->wagon->health.max_value = 500;
 	fix->wagon->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEXH, .level = 1);
-	fix->wagon->heroabilities[1] = MAKE(heroability_t, .code = BZ_AMEL, .level = 1);
+	fix->wagon->heroabilities[1] = MAKE(heroability_t, .code = BZ_EXH_AMEL, .level = 1);
 	fix->wagon->heroabilities[2] = MAKE(heroability_t, .code = BZ_SCH2, .level = 1);
-	G_ActorAddSkill(fix->wagon, BZ_AMEL);
+	G_ActorAddSkill(fix->wagon, BZ_EXH_AMEL);
 	G_ActorAddSkill(fix->wagon, BZ_SCH2);
 	fix->wagon->think = monster_think;
 }
@@ -77,7 +76,7 @@ static LPEDICT exh_thinker(LPEDICT wagon) {
 }
 
 static LPEDICT corpse_cargo_thinker(LPEDICT wagon) {
-    FILTER_EDICTS(ent, ent->inuse && ent->owner == wagon && ent->class_id == BZ_AMEL && ent->think) return ent;
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == wagon && ent->class_id == BZ_EXH_AMEL && ent->think) return ent;
     return NULL;
 }
 
@@ -147,9 +146,9 @@ TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
     corpse->health.value = 0.0f;
     T_ASSERT(G_UnitIsRaisableCorpse(corpse));
     clent->client = &game.clients[0]; clent->client->ps.number = 0;
-    clent->client->menu.ability_code = BZ_AMEL;
+    clent->client->menu.ability_code = BZ_EXH_AMEL;
     G_SelectEntity(clent->client, fix.wagon);
-    item = S_AbilityItem(BZ_AMEL);
+    item = S_AbilityItem(BZ_EXH_AMEL);
     call = MAKE(abilityCall_t, .item = &item, .client = clent);
 
     T_ASSERT(S_AbilityMessage(fix.wagon, A_COMMAND, &call));
@@ -180,10 +179,10 @@ TEST(wc3_spell, get_corpse_autocast_acquires_authored_valid_enemy_corpse) {
     corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
     corpse->targtype = TARG_GROUND;
     corpse->health.value = 0.0f;
-    item = S_AbilityItem(BZ_AMEL);
+    item = S_AbilityItem(BZ_EXH_AMEL);
 
     T_ASSERT(item.ability->flags & AB_AUTOCAST);
-    T_ASSERT(G_SetUnitAutocast(fix.wagon, BZ_AMEL, true));
+    T_ASSERT(G_SetUnitAutocast(fix.wagon, BZ_EXH_AMEL, true));
     T_ASSERT(G_TryUnitAutocast(fix.wagon));
     T_ASSERT(fix.wagon->goalentity == corpse);
     T_ASSERT(move_is_active_order_walk(fix.wagon));

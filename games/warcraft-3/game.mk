@@ -170,7 +170,7 @@ test-client-camera: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
 
 .PHONY: test-jass-build
 test-jass-build: $(JASS_LIB)
-	@sh tests/test_jass_build.sh $(JASS_LIB)
+	+@sh tests/test_jass_build.sh $(JASS_LIB)
 
 # ---------------------------------------------------------------------------
 # Standalone test binaries — tests that don't need the full game module.

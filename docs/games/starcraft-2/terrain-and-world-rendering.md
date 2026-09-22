@@ -89,6 +89,12 @@ SC2 cliff pieces are expanded into non-indexed `VERTEX` triangles in `r_sc2map.c
 
 The dynamic bake and welder now live in `renderer/r_cliff.h`, shared with WC3. Repeated expanded triangle corners count each placement/authored normal only once to avoid weighting one side of a seam more heavily.
 
+The shared header helpers must be `static inline`: the standalone SC2 tests include this header for
+`R_CliffWeldCompatible` without linking the renderer or defining its `ri` import table. In PR #480, plain
+`static` allocation/welding helpers were emitted by GCC at `-O0`, causing undefined `ri` references in
+`make test-sc2` on Linux. Apple Clang discarded the unused helpers, so macOS tests alone missed the failure.
+Keep the standalone link independent of renderer globals; do not add dummy imports or weaken the linker.
+
 Only vertices from different placements with the same quantized height and normals in the same hemisphere may contribute to one another. Same-placement vertices preserve authored hard edges. Seed each average with the source normal, compute outputs separately from inputs, and leave zero normals unchanged so `Vector3_normalize` never receives a zero sum.
 
 Validation:

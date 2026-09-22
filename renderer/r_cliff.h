@@ -13,7 +13,8 @@ typedef struct {
 
 typedef struct { int qx, qy, qz; DWORD idx; } rNormalWeldKey_t;
 
-static void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
+/* Header consumers may only use the pure predicate; unused helpers must not import ri at -O0. */
+static inline void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
     VERTEX *vertices;
     DWORD *groups;
     DWORD capacity;
@@ -37,7 +38,7 @@ static void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
     list->capacity = capacity;
 }
 
-static LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
+static inline LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
     R_CliffBakeGrow(list, 1);
     list->groups[list->num_vertices] = list->current_group;
     return &list->vertices[list->num_vertices++];
@@ -49,7 +50,7 @@ static inline BOOL R_CliffWeldCompatible(LPCVERTEX a, DWORD a_group, LPCVERTEX b
 		   Vector3_dot(&a->normal, &b->normal) > 0.0f;
 }
 
-static int r_cliff_weld_cmp(const void *a, const void *b) {
+static inline int r_cliff_weld_cmp(const void *a, const void *b) {
     rNormalWeldKey_t const *ka = a, *kb = b;
     if (ka->qx != kb->qx) return ka->qx < kb->qx ? -1 : 1;
     if (ka->qy != kb->qy) return ka->qy < kb->qy ? -1 : 1;
@@ -58,7 +59,7 @@ static int r_cliff_weld_cmp(const void *a, const void *b) {
 }
 
 /* Weld only coincident, similarly facing cliff vertices; XY-only averaging merged stacked and opposing faces. */
-static void R_CliffWeldNormals(rCliffBakeList_t *list, FLOAT snap) {
+static inline void R_CliffWeldNormals(rCliffBakeList_t *list, FLOAT snap) {
     VERTEX *vertices = list->vertices;
     DWORD n = list->num_vertices;
     rNormalWeldKey_t *keys;
