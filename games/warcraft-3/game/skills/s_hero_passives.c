@@ -729,8 +729,9 @@ FLOAT S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, FLOAT damage) {
 }
 
 BOOL S_EvasionRoll(LPEDICT target) {
-    DWORD level = G_UnitAbilityLevel(target, ID_EVASION);
-    if (level && (FLOAT)(rand() % 10000) / 10000.0f < S_SpellData(ID_EVASION, level, 1)) return true;
+    auraAbilityRef_t ev = actor_aura_ability(target, ID_EVASION);
+    DWORD level;
+    if (ev.alias && ev.level && (FLOAT)(rand() % 10000) / 10000.0f < S_SpellData(ev.alias, ev.level, 1)) return true;
     level = G_UnitAbilityLevel(target, ID_DRUNKEN_BRAWLER);
     return level && (FLOAT)(rand() % 10000) / 10000.0f < S_SpellData(ID_DRUNKEN_BRAWLER, level, 4);
 }

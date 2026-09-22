@@ -270,3 +270,135 @@ TEST(wc3_spell, creep_heal_slam_animate_dead_use_alias_data) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 #endif
+
+#ifdef BZ_TESTS
+/* Native ACes at authored 100% avoids the hit; base AEev is 0 so only the
+ * alias row can produce the evade (repro from #476). */
+TEST(wc3_spell, creep_evasion_alias_full_chance_avoids_hit) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEev\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y3;X1;K\"ACes\"\nC;Y3;X2;K\"AEev\"\nC;Y3;X3;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "ACes" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT attacker, target;
+    creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    attacker->s.player = 0; target->s.player = 1;
+    target->data.UnitAbilities = &abilities;
+    target->health.value = target->health.max_value = 100;
+    T_EQ(G_UnitAbilityLevel(target, FS_SLKKey("ACes")), 1);
+    T_FEQ(S_SpellData(FS_SLKKey("ACes"), 1, 1), 1, 0.001f);
+    S_ResolveAttackHit(attacker, target, 10);
+    T_FEQ(target->health.value, 100, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A zero-chance alias takes the hit; the resolver must not evade by default. */
+TEST(wc3_spell, creep_evasion_zero_chance_alias_takes_hit) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEev\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y3;X1;K\"ACev\"\nC;Y3;X2;K\"AEev\"\nC;Y3;X3;K\"0\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "ACev" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT attacker, target;
+    creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->attack1.damageBase = 10;
+    target->data.UnitAbilities = &abilities;
+    target->health.value = target->health.max_value = 100;
+    S_ResolveAttackHit(attacker, target, 10);
+    T_ASSERT(target->health.value < 100);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Runtime-added aliases work; removal stops the effect. */
+TEST(wc3_spell, creep_evasion_runtime_added_and_removed) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEev\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y3;X1;K\"ACes\"\nC;Y3;X2;K\"AEev\"\nC;Y3;X3;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT attacker, target;
+    creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->attack1.damageBase = 10;
+    target->data.UnitAbilities = &abilities;
+    target->health.value = target->health.max_value = 100;
+    target->abilities.added[0] = FS_SLKKey("ACes");
+    ARRAY_COUNT(target->abilities.added) = 1;
+    S_ResolveAttackHit(attacker, target, 10);
+    T_FEQ(target->health.value, 100, 0.001f);
+    target->abilities.removed[0] = FS_SLKKey("ACes");
+    ARRAY_COUNT(target->abilities.removed) = 1;
+    S_ResolveAttackHit(attacker, target, 10);
+    T_ASSERT(target->health.value < 100);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A ranked alias uses its actual rank and authored row: rank 1 (0%) takes
+ * the hit while rank 2 (100%) avoids it. */
+TEST(wc3_spell, creep_evasion_ranked_alias_uses_authored_row) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataA2\"\n"
+        "C;Y2;X1;K\"ACes\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"2\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT attacker, target;
+    creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    attacker->s.player = 0; target->s.player = 1;
+    attacker->attack1.damageBase = 10;
+    target->health.value = target->health.max_value = 100;
+    target->heroabilities[0] = MAKE(heroability_t, .code = FS_SLKKey("ACes"), .level = 1);
+    S_ResolveAttackHit(attacker, target, 10);
+    T_ASSERT(target->health.value < 100);
+    target->health.value = target->health.max_value = 100;
+    target->heroabilities[0].level = 2;
+    S_ResolveAttackHit(attacker, target, 10);
+    T_FEQ(target->health.value, 100, 0.001f);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* Base AEev and the Drunken Brawler path keep their existing behavior. */
+TEST(wc3_spell, creep_evasion_base_and_brawler_retained) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEev\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y3;X1;K\"ACes\"\nC;Y3;X2;K\"AEev\"\nC;Y3;X3;K\"0\"\n"
+        "C;Y4;X1;K\"ANdb\"\nC;Y4;X2;K\"ANdb\"\nC;Y4;X3;K\"0\"\nE\n";
+    UnitAbilities_t base_abils = { .abilList = "AEev" };
+    UnitAbilities_t alias_abils = { .abilList = "ACes" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT attacker, base_target, alias_target;
+    creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    base_target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    alias_target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    attacker->s.player = 0; base_target->s.player = alias_target->s.player = 1;
+    base_target->data.UnitAbilities = &base_abils;
+    alias_target->data.UnitAbilities = &alias_abils;
+    base_target->health.value = base_target->health.max_value = 100;
+    alias_target->health.value = alias_target->health.max_value = 100;
+    attacker->attack1.damageBase = 10;
+    S_ResolveAttackHit(attacker, base_target, 10);
+    T_FEQ(base_target->health.value, 100, 0.001f);
+    S_ResolveAttackHit(attacker, alias_target, 10);
+    T_ASSERT(alias_target->health.value < 100);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+#endif
