@@ -230,4 +230,120 @@ TEST(wc3_spell, ensnare_gradual_restore_after_expiry) {
     ens_done(fix);
 }
 
+/* Dispel mid-land goes through the same expirstatus funnel: rise starts and
+ * flight restores instead of snapping. */
+TEST(wc3_spell, ensnare_dispel_mid_land_starts_rise) {
+    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    heroabilitystatus_t *slot = NULL;
+
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_ASSERT(fix.flyer->unitinfo.FlyHeight > 1.0f && fix.flyer->unitinfo.FlyHeight < 159.0f);
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (fix.flyer->abilstatus[i].level && S_StatusIsEnsnare(fix.flyer->abilstatus[i].code))
+            slot = fix.flyer->abilstatus + i;
+    T_NOT_NULL(slot);
+    unit_expirestatus(fix.flyer, slot); /* what Dispel Magic and Purge call per slot */
+    unit_refreshstatusflags(fix.flyer);
+    T_ASSERT(!S_UnitIsEnsnared(fix.flyer));
+    T_ASSERT(fix.flyer->aiflags & AI_FLYING);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_ASSERT(fix.flyer->unitinfo.FlyHeight > 1.0f && fix.flyer->unitinfo.FlyHeight < 179.0f);
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
+    ens_done(fix);
+}
+
+/* A second remaining bind keeps the lock when the first expires. */
+TEST(wc3_spell, ensnare_second_bind_keeps_lock_after_first_expires) {
+    ENSFIX fix; ens_setup(&fix, ENS_SLK);
+    heroabilitystatus_t *slot = NULL;
+
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
+    unit_addtimedstatus(fix.flyer, "Beng", 1, 20);
+    T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
+    FOR_LOOP(i, MAX_UNIT_STATUSES)
+        if (fix.flyer->abilstatus[i].level && fix.flyer->abilstatus[i].code == BZ_BENA)
+            slot = fix.flyer->abilstatus + i;
+    T_NOT_NULL(slot);
+    unit_expirestatus(fix.flyer, slot);
+    unit_refreshstatusflags(fix.flyer);
+    T_ASSERT(S_UnitIsEnsnared(fix.flyer));
+    T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
+    T_ASSERT(!S_UnitCanTranslate(fix.flyer));
+    ens_done(fix);
+}
+
+/* Expiry restores ordinary attack and movement orders, not just status slots. */
+TEST(wc3_spell, ensnare_expiry_restores_attack_and_move_orders) {
+    ENSFIX fix; ens_setup(&fix, ENS_SLK);
+    LPEDICT wp, victim;
+
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
+    level.time += 7000; unit_updatestatuses(fix.flyer);
+    T_ASSERT(!S_UnitIsEnsnared(fix.flyer));
+    wp = Waypoint_add(&(VECTOR2){280, 0});
+    fix.flyer->goalentity = NULL;
+    order_move(fix.flyer, wp);
+    T_ASSERT(fix.flyer->goalentity == wp);
+    victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 0);
+    victim->s.player = 0; victim->svflags |= SVF_MONSTER; victim->targtype = TARG_GROUND;
+    victim->health.value = victim->health.max_value = 500;
+    fix.flyer->attack1.type = ATK_PIERCE; fix.flyer->attack1.range = 300.0f;
+    fix.flyer->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    order_attack(fix.flyer, victim);
+    T_ASSERT(fix.flyer->goalentity == victim);
+    ens_done(fix);
+}
+
+/* An unrelated status expiring on a flyer never touches flight state. */
+TEST(wc3_spell, ensnare_unrelated_flight_state_untouched) {
+    ENSFIX fix; ens_setup(&fix, ENS_SLK);
+
+    level.time = 1000;
+    unit_addtimedstatus(fix.flyer, "Bstu", 1, 0.05f);
+    T_ASSERT(fix.flyer->aiflags & AI_FLYING);
+    level.time += 1000; unit_updatestatuses(fix.flyer);
+    unit_refreshstatusflags(fix.flyer);
+    T_ASSERT(fix.flyer->aiflags & AI_FLYING);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
+    T_FEQ(fix.flyer->s.origin.z, 180, 0.001f);
+    ens_done(fix);
+}
+
+/* Save/load mid-land resumes the descent after load. */
+TEST(wc3_save, ensnare_land_round_trips) {
+    LPCSTR filename = "/tmp/openwarcraft3-ensnare-land.bin";
+    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_ASSERT(fix.flyer->unitinfo.FlyHeight > 1.0f && fix.flyer->unitinfo.FlyHeight < 159.0f);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(S_UnitIsEnsnared(fix.flyer));
+    T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
+    level.time += 1000; S_RunAbilityUpdates(fix.flyer);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
+    remove(filename);
+    ens_done(fix);
+}
+
+/* Save/load mid-rise resumes the ascent after load. */
+TEST(wc3_save, ensnare_rise_round_trips) {
+    LPCSTR filename = "/tmp/openwarcraft3-ensnare-rise.bin";
+    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
+    level.time += 2000; S_RunAbilityUpdates(fix.flyer);
+    level.time += 5000; unit_updatestatuses(fix.flyer);
+    T_ASSERT(!S_UnitIsEnsnared(fix.flyer));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(fix.flyer->aiflags & AI_FLYING);
+    level.time += 2000; S_RunAbilityUpdates(fix.flyer);
+    T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
+    remove(filename);
+    ens_done(fix);
+}
+
 #endif

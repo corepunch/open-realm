@@ -188,21 +188,62 @@ FLOAT S_EnsnareMeleeRange(LPCEDICT unit) {
     return S_SpellData(slot->data, slot->level, 3);
 }
 
-/* Buff expiry starts gradual rise when DataA was non-zero; otherwise height snaps in refresh. */
-void S_EnsnareStatusExpired(LPEDICT unit, heroabilitystatus_t const *status) {
-    FLOAT adjust, target;
-    if (!unit || !status || !ensnare_is_flyer(unit)) return;
-    adjust = status->data ? S_SpellData(status->data, status->level, 1) : unit->ensnare.adjust;
-    target = ensnare_authored_height(unit);
-    if (adjust <= 0.0f) {
-        memset(&unit->ensnare, 0, sizeof(unit->ensnare));
-        return;
+static BOOL ensnare_authored_flyer(LPCEDICT unit) {
+    LPCSTR movetp = unit && unit->data.UnitData ? unit->data.UnitData->moveTypeName : NULL;
+    return movetp && !strcmp(movetp, "fly");
+}
+
+/* Restore authored flight after the last bind ends. Dispel/expiry mid-land
+ * converts the stored DataA land into a rise; a snapped land restores height
+ * immediately. Unrelated flight state is never touched. */
+static void ensnare_restore_flight(LPEDICT unit) {
+    if (!unit || !ensnare_authored_flyer(unit) || (unit->aiflags & AI_FLYING)) return;
+    unit->aiflags |= AI_FLYING;
+    if (unit->ensnare.phase == ENSNARE_HEIGHT_LAND && unit->ensnare.adjust > 0.0f) {
+        unit->ensnare.height = unit->data.UnitData->moveHeight;
+        unit->ensnare.start = G_Time();
+        unit->ensnare.phase = ENSNARE_HEIGHT_RISE;
+        unit->unitinfo.FlyHeight = 0.0f;
+    } else if (unit->ensnare.phase != ENSNARE_HEIGHT_RISE && unit->unitinfo.FlyHeight <= 0.0f) {
+        unit->unitinfo.FlyHeight = unit->data.UnitData->moveHeight;
     }
-    unit->ensnare.adjust = adjust;
-    unit->ensnare.height = target > 0.0f ? target : unit->ensnare.height;
-    unit->ensnare.start = G_Time();
-    unit->ensnare.phase = ENSNARE_HEIGHT_RISE;
-    unit->unitinfo.FlyHeight = 0.0f;
+    M_CheckGround(unit);
+}
+
+/* A_STATUS_REFRESH: reconcile derived flight state with binds that remain. */
+static void ensnare_refresh(LPEDICT unit) {
+    if (!unit) return;
+    if (S_UnitIsEnsnared(unit)) {
+        if (unit->aiflags & AI_FLYING) {
+            unit->aiflags &= ~AI_FLYING;
+            M_CheckGround(unit);
+        }
+    } else ensnare_restore_flight(unit);
+}
+
+/* A_STATUS_REMOVE: inverse while the expiring slot is still valid. Buff
+ * expiry starts a gradual rise when DataA was non-zero; flight restores only
+ * when no other Ensnare bind remains on the victim. */
+static void ensnare_remove(LPEDICT unit, heroabilitystatus_t const *expiring) {
+    FLOAT adjust, target;
+    BOOL restrained = false;
+    if (!unit || !expiring) return;
+    if (ensnare_is_flyer(unit)) {
+        adjust = expiring->data ? S_SpellData(expiring->data, expiring->level, 1) : unit->ensnare.adjust;
+        target = ensnare_authored_height(unit);
+        if (adjust > 0.0f) {
+            unit->ensnare.adjust = adjust;
+            unit->ensnare.height = target > 0.0f ? target : unit->ensnare.height;
+            unit->ensnare.start = G_Time();
+            unit->ensnare.phase = ENSNARE_HEIGHT_RISE;
+            unit->unitinfo.FlyHeight = 0.0f;
+        } else memset(&unit->ensnare, 0, sizeof(unit->ensnare));
+    }
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *slot = unit->abilstatus + i;
+        if (slot->level && slot != expiring && S_StatusIsEnsnare(slot->code)) { restrained = true; break; }
+    }
+    if (!restrained) ensnare_restore_flight(unit);
 }
 
 static void ensnare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -219,12 +260,18 @@ static void ensnare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t cons
     slot = ensnare_status(st.entity);
     if (slot) slot->data = spell->code;
     ensnare_begin_land(st.entity, spell->code, level);
+    ensnare_refresh(st.entity);
     st.entity->goalentity = NULL;
 }
 
 /* Name=Ensnare — bind; air takes Bena and lands via DataA/B (AB_UPDATE advances height). */
 BZ_ABILITY_PROC(CAbilityEnsnare) {
     if (msg == A_UPDATE) { ensnare_update(ent); return true; }
+    if (msg == A_STATUS_REFRESH) { ensnare_refresh(ent); return true; }
+    if (msg == A_STATUS_REMOVE) {
+        if (call) ensnare_remove(ent, call->status.slot);
+        return true;
+    }
     if (msg == A_EXECUTE) {
         spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
         ensnare_execute(ent, target, call ? call->item : NULL);

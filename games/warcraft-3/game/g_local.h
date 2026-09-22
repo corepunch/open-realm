@@ -675,6 +675,7 @@ typedef enum {
 
 typedef struct ability_s ability_t;
 typedef struct ability_call_s abilityCall_t;
+typedef struct heroabilitystatus_s heroabilitystatus_t;
 
 /* A resolved use of a shared procedure. Rawcode belongs to the authored ability, not its behavior. */
 typedef struct {
@@ -709,6 +710,11 @@ typedef enum {
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
     A_DEATH,            /* unit_die: ability-owned death behavior on the dying unit. */
+    A_QUEUE_VALIDATE,   /* Train scheduler: queued item may progress this tick; return validity. Payload: call->queue.{producer,item}. */
+    A_QUEUE_COMPLETE,   /* Train completion after placement: owner consumes inputs and activates the result. Payload: call->queue. */
+    A_QUEUE_CANCEL,     /* Queue cancellation: owner runs its inverse path before the item is freed. Payload: call->queue. */
+    A_STATUS_REFRESH,   /* Status set changed: owner reconciles derived state with remaining statuses. Payload: call->status of one remaining status. */
+    A_STATUS_REMOVE,    /* Status expiring/dispelled: owner runs its inverse while the slot is still valid. Sent before the slot is wiped. Payload: call->status of the expiring slot. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -725,6 +731,8 @@ struct ability_call_s {
         LPCSTR classname;
         DWORD level;
         BOOL enabled;
+        struct { LPEDICT producer; LPEDICT item; } queue; /* A_QUEUE_*: owning producer and queued item. */
+        struct { heroabilitystatus_t *slot; DWORD ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
     };
 };
 
@@ -1156,7 +1164,7 @@ typedef enum {
     HERO_SKILL_MAXED
 } heroSkillState_t;
 
-typedef struct {
+typedef struct heroabilitystatus_s {
     DWORD code;
     DWORD level;
     DWORD timestamp;
@@ -2858,7 +2866,6 @@ BOOL S_MilitiaTargetOrder(LPEDICT, LPCSTR, LPEDICT);
 void S_CancelMilitiaPairing(LPEDICT);
 void S_MilitiaExpire(LPEDICT);
 BOOL S_StatusIsEnsnare(DWORD);
-void S_EnsnareStatusExpired(LPEDICT, heroabilitystatus_t const *);
 void S_GoldMineInitUnit(LPEDICT);
 void S_GoldMineReleaseWorker(LPEDICT);
 BOOL S_MineOverlayBind(LPEDICT, LPEDICT);

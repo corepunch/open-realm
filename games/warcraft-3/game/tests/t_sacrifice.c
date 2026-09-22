@@ -183,4 +183,148 @@ TEST(wc3_spell, sacrifice_requires_counterpart_ability_and_idle_pit) {
     sac_done(&fix);
 }
 
+/* Worker death invalidates the queue through the scheduler; the dead worker
+ * is not consumed and the queue clears. */
+TEST(wc3_spell, sacrifice_worker_death_cancels_queue) {
+    SACFIX fix;
+    LPEDICT result;
+    sac_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
+    result = fix.pit->build;
+    T_NOT_NULL(result);
+    G_SetHealth(fix.acolyte, 0);
+    T_ASSERT(M_IsDead(fix.acolyte));
+    level.time += FRAMETIME; G_RunEntity(fix.pit);
+    T_NULL(fix.pit->build);
+    T_ASSERT(!result->inuse);
+    T_ASSERT(M_IsDead(fix.acolyte));
+    sac_done(&fix);
+}
+
+/* Ownership change invalidates the queue; the former worker survives. */
+TEST(wc3_spell, sacrifice_worker_ownership_change_cancels_queue) {
+    SACFIX fix;
+    LPEDICT result;
+    sac_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
+    result = fix.pit->build;
+    T_NOT_NULL(result);
+    fix.acolyte->s.player = 1;
+    level.time += FRAMETIME; G_RunEntity(fix.pit);
+    T_NULL(fix.pit->build);
+    T_ASSERT(!result->inuse);
+    T_ASSERT(fix.acolyte->inuse);
+    T_ASSERT(!(fix.acolyte->s.renderfx & RF_HIDDEN));
+    sac_done(&fix);
+}
+
+/* A freed worker slot reused by another unit is never consumed: the stale
+ * queue cancels and the new occupant survives. */
+TEST(wc3_spell, sacrifice_reused_slot_not_consumed) {
+    SACFIX fix;
+    LPEDICT result, occupant;
+    DWORD slot;
+    sac_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
+    result = fix.pit->build;
+    T_NOT_NULL(result);
+    slot = (DWORD)(fix.acolyte - g_edicts);
+    G_FreeEdict(fix.acolyte);
+    occupant = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 64, 0);
+    occupant->s.player = 0;
+    level.time += FRAMETIME; G_RunEntity(fix.pit);
+    T_NULL(fix.pit->build);
+    T_ASSERT(!result->inuse);
+    T_ASSERT(occupant->inuse);
+    (void)slot;
+    sac_done(&fix);
+}
+
+/* Blocked result placement defers completion without consuming the worker;
+ * clearing space lets the retained order finish. */
+TEST(wc3_spell, sacrifice_blocked_placement_preserves_worker) {
+    SACFIX fix;
+    LPEDICT result;
+    UnitBalance_t result_balance;
+    sac_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
+    result = fix.pit->build;
+    T_NOT_NULL(result);
+    if (!result) { sac_done(&fix); return; }
+    result->stand = unit_stand;
+    result_balance = *result->data.UnitBalance;
+    result_balance.buildTime = 1;
+    result_balance.foodUsed = 1;
+    result->data.UnitBalance = &result_balance;
+    result->collision = 4000.0f; /* no exit fits: placement must fail */
+    FOR_LOOP(i, 20) {
+        level.time += FRAMETIME; G_RunEntity(fix.pit);
+        if (!result->inuse || !result->training) break;
+    }
+    T_ASSERT(result->training);
+    T_ASSERT(fix.acolyte->inuse);
+    T_ASSERT(fix.acolyte->s.renderfx & RF_HIDDEN);
+    result->collision = 16.0f;
+    FOR_LOOP(i, 40) {
+        level.time += FRAMETIME; G_RunEntity(fix.pit);
+        if (!result->inuse || !result->training) break;
+    }
+    T_ASSERT(!fix.acolyte->inuse);
+    T_ASSERT(result->inuse && !result->training);
+    sac_done(&fix);
+}
+
+/* Save/load resumes the queued sacrifice: worker linkage survives and the
+ * scheduler still completes after load. */
+TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
+    LPCSTR filename = "/tmp/openwarcraft3-sacrifice-queue.bin";
+    SACFIX fix;
+    LPEDICT result;
+    UnitBalance_t result_balance;
+    sac_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
+    result = fix.pit->build;
+    T_NOT_NULL(result);
+    if (!result) { sac_done(&fix); return; }
+    result->stand = unit_stand;
+    result->collision = 16.0f;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(fix.pit->build == result);
+    T_ASSERT(result->sacrifice.active);
+    T_ASSERT(result->sacrifice.worker == fix.acolyte);
+    result_balance = *result->data.UnitBalance;
+    result_balance.buildTime = 1;
+    result_balance.foodUsed = 1;
+    result->data.UnitBalance = &result_balance;
+    FOR_LOOP(i, 40) {
+        level.time += FRAMETIME; G_RunEntity(fix.pit);
+        if (!result->inuse || !result->training) break;
+    }
+    T_ASSERT(!fix.acolyte->inuse);
+    T_ASSERT(result->inuse && !result->training);
+    remove(filename);
+    sac_done(&fix);
+}
+
+/* Save/load preserves cancellation: the restored worker is released. */
+TEST(wc3_save, sacrifice_queue_round_trips_then_cancels) {
+    LPCSTR filename = "/tmp/openwarcraft3-sacrifice-cancel.bin";
+    SACFIX fix;
+    LPEDICT result;
+    sac_setup(&fix);
+    T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
+    result = fix.pit->build;
+    T_NOT_NULL(result);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(G_CancelTrainingQueueItem(fix.pit, 0, true));
+    T_NULL(fix.pit->build);
+    T_ASSERT(fix.acolyte->inuse);
+    T_ASSERT(!(fix.acolyte->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!fix.acolyte->paused);
+    remove(filename);
+    sac_done(&fix);
+}
+
 #endif

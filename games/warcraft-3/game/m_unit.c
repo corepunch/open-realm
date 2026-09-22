@@ -1129,47 +1129,41 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
 
 
 
-static BOOL unit_authored_flyer(LPCEDICT ent) {
-    LPCSTR movetp = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
-    return movetp && !strcmp(movetp, "fly");
+/* Generic status-lifecycle dispatch. The owner procedure resolves from the
+ * status's origin ability rawcode, never from the victim's learned abilities
+ * (the victim may not own the casting ability). REMOVE arrives while the slot
+ * is still valid; the wipe happens after every owner has run. */
+static void UnitDispatchStatus(LPEDICT ent, heroabilitystatus_t *slot, DWORD ability, abilityMsg_t msg) {
+    abilityitem_t item;
+    abilityCall_t call;
+    if (!ent || !slot || !slot->level || !ability) return;
+    item = S_AbilityItem(ability);
+    if (!item.ability || !item.ability->proc) return;
+    call = MAKE(abilityCall_t, .item = &item);
+    call.status.slot = slot; call.status.ability = ability;
+    S_AbilityMessage(ent, msg, &call);
 }
 
-/* Ensnare clears AI_FLYING here; FlyHeight land/rise is owned by CAbilityEnsnare. */
+/* Derived locks come only from statuses that actually remain; owners
+ * reconcile their own flight/height state through A_STATUS_REFRESH. */
 void unit_refreshstatusflags(LPEDICT ent) {
-    BOOL ensnared = false;
-    ent->stunned = false;
+    BOOL stunned = false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
-        if (unit_status_stuns(status->code)) ent->stunned = true;
-        if (S_StatusIsEnsnare(status->code)) ensnared = true;
+        if (unit_status_stuns(status->code)) stunned = true;
+        UnitDispatchStatus(ent, status, status->data, A_STATUS_REFRESH);
     }
-    if (ensnared) {
-        if (ent->aiflags & AI_FLYING) {
-            ent->aiflags &= ~AI_FLYING;
-            M_CheckGround(ent);
-        }
-    } else if (unit_authored_flyer(ent) && !(ent->aiflags & AI_FLYING)) {
-        ent->aiflags |= AI_FLYING;
-        /* Dispel/expiry mid-land: convert stored DataA land into a rise. */
-        if (ent->ensnare.phase == ENSNARE_HEIGHT_LAND && ent->ensnare.adjust > 0.0f) {
-            ent->ensnare.height = ent->data.UnitData->moveHeight;
-            ent->ensnare.start = G_Time();
-            ent->ensnare.phase = ENSNARE_HEIGHT_RISE;
-            ent->unitinfo.FlyHeight = 0.0f;
-        } else if (ent->ensnare.phase != ENSNARE_HEIGHT_RISE && ent->unitinfo.FlyHeight <= 0.0f) {
-            ent->unitinfo.FlyHeight = ent->data.UnitData->moveHeight;
-        }
-        M_CheckGround(ent);
-    }
+    ent->stunned = stunned;
 }
 
-/* Dispel/Purge share this so Ensnare flyers start their rise before the slot is wiped. */
+/* Dispel/Purge share this so owners run their inverse before the slot is wiped. */
 void unit_expirestatus(LPEDICT ent, heroabilitystatus_t *status) {
+    DWORD origin;
     if (!ent || !status || !status->level) return;
     S_HumanStatusExpired(ent, status->code, status->level);
-    if (S_StatusIsEnsnare(status->code))
-        S_EnsnareStatusExpired(ent, status);
+    origin = status->data;
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE);
     memset(status, 0, sizeof(*status));
 }
 

@@ -20,8 +20,8 @@ static BOOL ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
     if (!unit || !unit->data.UnitBalance) return false;
     /* Warsmash sacrifice queues do not reserve additional food while the
      * consumed worker still exists; the resulting Shade inherits the slot at
-     * completion. */
-    if (unit->sacrifice.active) return true;
+     * completion. The exception policy lives in s_sacrifice.c. */
+    if (S_SacrificeSkipsFoodReservation(unit)) return true;
     was_waiting = unit->training_food_wait_notified;
     if (G_ReserveTrainingFood(unit)) {
         if (was_waiting) {
@@ -57,6 +57,17 @@ static void ProductionSetNext(LPEDICT item, LPEDICT next) {
     else item->build = next;
 }
 
+/* Queue lifecycle ownership dispatch. Special queue types validate, complete
+ * and cancel through their owning ability procedure; Train keeps allocation,
+ * progress, ordering, placement and resource mechanisms. */
+static intptr_t SacrificeQueueMessage(LPEDICT producer, LPEDICT item, abilityMsg_t msg) {
+    abilityitem_t ab = S_AbilityItem(S_SacrificeAbilityCode());
+    abilityCall_t call = MAKE(abilityCall_t, .item = &ab);
+    if (!ab.ability || !ab.ability->proc) return false;
+    call.queue.producer = producer; call.queue.item = item;
+    return S_AbilityMessage(producer, msg, &call);
+}
+
 static void RefundTrainingCost(LPEDICT item) {
     LPPLAYER player;
     UnitBalance_t const *balance;
@@ -72,23 +83,6 @@ static void RefundTrainingCost(LPEDICT item) {
     player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
 }
 
-
-static BOOL SacrificeWorkerValid(LPCEDICT item) {
-    LPCEDICT worker;
-    if (!item || !item->sacrifice.active || !(worker = item->sacrifice.worker)) return false;
-    return worker->inuse && worker->spawn_time == item->sacrifice.worker_spawn_time &&
-        !M_IsDead(worker) && worker->s.player == item->s.player;
-}
-
-static void ReleaseSacrificeWorker(LPEDICT item) {
-    LPEDICT worker;
-    if (!item || !item->sacrifice.active || !(worker = item->sacrifice.worker)) return;
-    if (worker->inuse && worker->spawn_time == item->sacrifice.worker_spawn_time) {
-        if (!item->sacrifice.restore_hidden) worker->s.renderfx &= ~RF_HIDDEN;
-        worker->paused = item->sacrifice.restore_paused;
-        G_InvalidateUnitShortcutsForUnit(worker);
-    }
-}
 
 static void RefundResearchCost(LPEDICT item) {
     LPPLAYER player;
@@ -150,10 +144,9 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
     ProductionSetNext(item, NULL);
 
     if (item->sacrifice.active) {
-        /* Sacrifice is a producer queue type, but the input Acolyte was not
-         * charged and must be restored if the queue is cancelled.  Refund only
-         * the resulting unit's authored cost, matching Warsmash. */
-        ReleaseSacrificeWorker(item);
+        /* The input Acolyte was not charged and the owner restores it; Train
+         * refunds only the resulting unit's authored cost, matching Warsmash. */
+        SacrificeQueueMessage(producer, item, A_QUEUE_CANCEL);
         if (refund) RefundTrainingCost(item);
         G_ClearUnitFood(item);
     } else if (item->research.upgrade) {
@@ -418,11 +411,9 @@ void ai_train_build(LPEDICT ent) {
         return;
     }
 
-    /* Sacrifice shares the production progress bar but consumes the hidden
-     * worker's food slot, so it deliberately bypasses ordinary queue food
-     * reservation.  If the sacrificed worker disappears, cancel the result and
-     * refund its authored cost instead of completing from a stale pointer. */
-    if (ent->build->sacrifice.active && !SacrificeWorkerValid(ent->build)) {
+    /* If the sacrificed worker disappears, the owner invalidates the result;
+     * cancel and refund its authored cost instead of completing from stale. */
+    if (ent->build->sacrifice.active && !SacrificeQueueMessage(ent, ent->build, A_QUEUE_VALIDATE)) {
         CancelTrainingQueueItem(ent, 0, true, true);
         return;
     }
@@ -442,17 +433,8 @@ void ai_train_build(LPEDICT ent) {
             if (!ShowTrainedUnit(ent, completed)) {
                 return;
             }
-            if (completed->sacrifice.active) {
-                LPEDICT worker = completed->sacrifice.worker;
-                DWORD const worker_spawn_time = completed->sacrifice.worker_spawn_time;
-                memset(&completed->sacrifice, 0, sizeof(completed->sacrifice));
-                /* Warsmash removes the sacrificed Acolyte only when Shade
-                 * production completes.  Remove first so its food is released,
-                 * then account the completed result without a transient +1. */
-                if (worker && worker->inuse && worker->spawn_time == worker_spawn_time)
-                    G_FreeEdict(worker);
-                G_SetUnitFoodUsed(completed, completed->data.UnitBalance ? completed->data.UnitBalance->foodUsed : 0);
-            }
+            if (completed->sacrifice.active)
+                SacrificeQueueMessage(ent, completed, A_QUEUE_COMPLETE);
             /* Queued units use build as the next-item link, while unit_stand()
              * clears build for the completed unit. Preserve the producer's queue
              * link before revealing/standing the completed unit. */
@@ -478,6 +460,13 @@ void ai_train_build(LPEDICT ent) {
 
 static umove_t train_move_train = { "stand", ai_train_build, NULL, CAbilityTrain };
 
+/* Train-owned queue mechanisms shared with sacrifice queue creation. */
+void TrainSetBuildMove(LPEDICT producer) {
+    if (producer) unit_setmove(producer, &train_move_train);
+}
+
+void G_RefreshTrainingQueue(LPEDICT producer) { RefreshTrainingQueue(producer); }
+
 void unit_add_build_queue(LPEDICT self, LPEDICT item) {
     LPEDICT last;
 
@@ -491,42 +480,6 @@ void unit_add_build_queue(LPEDICT self, LPEDICT item) {
         while (ProductionNext(last)) last = ProductionNext(last);
         ProductionSetNext(last, item);
     }
-}
-
-BOOL G_QueueSacrifice(LPEDICT producer, LPEDICT worker, DWORD result_id) {
-    LPPLAYER player;
-    LPEDICT result;
-    BOOL restore_hidden;
-
-    if (!producer || !worker || !result_id || producer->build || !worker->inuse || M_IsDead(worker) ||
-        producer->s.player != worker->s.player) return false;
-    player = G_GetPlayerByNumber(producer->s.player);
-    if (!player) return false;
-    result = SP_SpawnAtLocation(result_id, producer->s.player, &producer->s.origin2);
-    if (!result) return false;
-    if (!player_pay(player, result_id)) {
-        G_FreeEdict(result);
-        return false;
-    }
-
-    result->training = true;
-    result->training_food_wait_notified = false;
-    G_SetHealth(result, 0);
-    result->s.renderfx |= RF_HIDDEN;
-    result->sacrifice.active = true;
-    result->sacrifice.worker = worker;
-    result->sacrifice.worker_spawn_time = worker->spawn_time;
-    result->sacrifice.restore_paused = worker->paused;
-    restore_hidden = (worker->s.renderfx & RF_HIDDEN) != 0;
-    result->sacrifice.restore_hidden = restore_hidden;
-    worker->s.renderfx |= RF_HIDDEN;
-    worker->paused = true;
-    G_InvalidateUnitShortcutsForUnit(worker);
-
-    unit_add_build_queue(producer, result);
-    unit_setmove(producer, &train_move_train);
-    RefreshTrainingQueue(producer);
-    return true;
 }
 
 BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero) {
