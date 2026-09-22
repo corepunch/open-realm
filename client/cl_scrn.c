@@ -349,21 +349,24 @@ void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     if (!frame || !screen || !ent || frame->stat >= ENT_STAT_COUNT || !frame->tex.index) return;
     count = EntityCargoCount(ent->stats[frame->stat]);
     capacity = EntityCargoCapacity(ent->stats[frame->stat]);
-    if (!count || !capacity) return;
+    if (!capacity) return;
     count = MIN(count, capacity);
 
-    /* COccupUI is a CStatBar-style 2D overlay. Keep the gaps in layout-space
-     * units so the game module can tune the presentation without client-side
-     * WC3 constants or model effects. */
+    /* Segmented status bars use the primary art for filled slots and optional
+     * secondary art for empty slots. Capacity owns the slot geometry even when
+     * the current count is zero. */
     gap = MAX(0.0f, frame->value);
     width = (screen->w - gap * (FLOAT)(capacity - 1)) / (FLOAT)capacity;
     if (width <= 0.0f) return;
 
-    FOR_LOOP(i, count) {
+    FOR_LOOP(i, capacity) {
+        BOOL const occupied = i < count;
+        RESOURCE const image = occupied ? frame->tex.index : frame->tex.index2;
         RECT segment = *screen;
+        if (!image) continue;
         segment.x += (FLOAT)i * (width + gap);
         segment.w = width;
-        re.DrawImage(cl.pics[frame->tex.index], &segment, &uv, frame->color);
+        re.DrawImage(cl.pics[image], &segment, &uv, occupied ? frame->color : COLOR32_WHITE);
     }
 }
 
@@ -1309,6 +1312,7 @@ static drawer_t drawers[] = {
 
 void SCR_LayoutDrawFrame(LPCUIFRAME frame) {
     RECT const *screen = SCR_LayoutRect(frame);
+    if (screen->w <= 0.0f || screen->h <= 0.0f) return;
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
             drawers[j].func(frame, screen);

@@ -932,7 +932,7 @@ typedef enum {
     FT_MINIMAP,
     FT_NAMETAG,
     FT_LOADING_BAR,
-    FT_SEGMENTED_STATUSBAR, /* entity-context packed count/capacity rendered as equal occupied segments */
+    FT_SEGMENTED_STATUSBAR, /* entity-context packed count/capacity rendered as equal filled/empty slots */
 } FRAMETYPE;
 
 #define UIFLAG_RADIAL_SHADE      (1 << 9) // FT_COMMANDBUTTON: uiCommandButton_t carries a client-clock radial timer

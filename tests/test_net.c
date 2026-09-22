@@ -74,6 +74,8 @@ static DWORD test_model_loads, test_model_releases, test_tex_loads, test_tex_rel
 static VECTOR3 test_overhead_point;
 static RECT test_status_rect;
 static DWORD test_status_draws;
+static LPCTEXTURE test_status_textures[16];
+static COLOR32 test_status_colors[16];
 static RECT test_fade_rect;
 static COLOR32 test_fade_color;
 static DWORD test_fade_draws;
@@ -118,7 +120,12 @@ static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) 
     (void)entity; *out = test_overhead_point; return true;
 }
 static void capture_status_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
-    (void)texture; (void)uv; (void)color; test_status_rect = *screen; test_status_draws++;
+    (void)uv; test_status_rect = *screen;
+    if (test_status_draws < ARRAY_COUNT(test_status_textures)) {
+        test_status_textures[test_status_draws] = texture;
+        test_status_colors[test_status_draws] = color;
+    }
+    test_status_draws++;
 }
 static void capture_fade_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)texture; (void)uv; test_fade_rect = *screen; test_fade_color = color; test_fade_draws++;
@@ -356,8 +363,8 @@ TEST(client_layout, context_statusbar_uses_hover_snapshot_fraction) {
     T_EQ(test_status_draws, 1); T_FEQ(test_status_rect.w, screen.w * 128.0f / 255.0f, 0.0001f);
 }
 
-TEST(client_layout, segmented_statusbar_draws_one_segment_per_occupied_cargo_slot) {
-    uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1 }, .value = 0.001f };
+TEST(client_layout, segmented_statusbar_draws_filled_and_empty_slots_to_capacity) {
+    uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1, .index2 = 2 }, .value = 0.001f };
     RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.043f, 0.004f);
 
     test_client_stubs_init(); cl.hover_entity = 7;
@@ -365,14 +372,21 @@ TEST(client_layout, segmented_statusbar_draws_one_segment_per_occupied_cargo_slo
         .model = 1, .flags = EF_HOVER_HEALTH,
         .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(3, 8) },
     };
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; cl.pics[2] = (LPTEXTURE)(uintptr_t)2;
+    test_status_draws = 0; re.DrawImage = capture_status_image;
     SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
-    T_EQ(test_status_draws, 3);
+    T_EQ(test_status_draws, 8);
+    FOR_LOOP(i, 3) T_ASSERT(test_status_textures[i] == cl.pics[1]);
+    for (DWORD i = 3; i < 8; i++) T_ASSERT(test_status_textures[i] == cl.pics[2]);
+    T_EQ(test_status_colors[0].r, frame.color.r); T_EQ(test_status_colors[0].g, frame.color.g);
+    T_EQ(test_status_colors[0].b, frame.color.b); T_EQ(test_status_colors[0].a, frame.color.a);
+    T_EQ(test_status_colors[7].r, COLOR32_WHITE.r); T_EQ(test_status_colors[7].g, COLOR32_WHITE.g);
+    T_EQ(test_status_colors[7].b, COLOR32_WHITE.b); T_EQ(test_status_colors[7].a, COLOR32_WHITE.a);
     T_FEQ(test_status_rect.w, (0.043f - 0.007f) / 8.0f, 0.0001f);
 }
 
-TEST(client_layout, segmented_statusbar_hides_empty_cargo) {
-    uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1 }, .value = 0.001f };
+TEST(client_layout, segmented_statusbar_keeps_empty_capacity_slots_visible) {
+    uiFrame_t frame = { .stat = ENT_CARGO, .tex = { .index = 1, .index2 = 2 }, .value = 0.001f };
     RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.043f, 0.004f);
 
     test_client_stubs_init(); cl.hover_entity = 7;
@@ -380,9 +394,106 @@ TEST(client_layout, segmented_statusbar_hides_empty_cargo) {
         .model = 1, .flags = EF_HOVER_HEALTH,
         .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(0, 8) },
     };
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; cl.pics[2] = (LPTEXTURE)(uintptr_t)2;
+    test_status_draws = 0; re.DrawImage = capture_status_image;
     SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
-    T_EQ(test_status_draws, 0);
+    T_EQ(test_status_draws, 8);
+    FOR_LOOP(i, 8) T_ASSERT(test_status_textures[i] == cl.pics[2]);
+}
+
+static RECT context_bound_layout_rect(FRAMETYPE type, DWORD stat, entityState_t state, FLOAT height) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = {0};
+
+    frame.number = 1; frame.flags.type = type; frame.stat = stat;
+    frame.size.width = 0.045f; frame.size.height = height;
+    frame.points.x[FPP_MID].used = 1;
+    frame.points.x[FPP_MID].targetPos = FPP_MID;
+    frame.points.x[FPP_MID].relativeTo = 0;
+    frame.points.y[FPP_MAX].used = 1;
+    frame.points.y[FPP_MAX].targetPos = FPP_MIN;
+    frame.points.y[FPP_MAX].relativeTo = 0;
+    frame.points.y[FPP_MAX].offset = (SHORT)(0.002f * UI_FRAMEPOINT_SCALE);
+
+    test_client_stubs_init(); cl.hover_entity = 7; cl.ents[7].current = state;
+    MSG_WriteByte(&sb, LAYER_WORLD_HOVER);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true); MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0); sb.readcount = 0;
+    CL_ParseLayout(&sb); SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    return *SCR_LayoutRect(SCR_Frame(1));
+}
+
+TEST(client_layout, world_hover_context_rows_collapse_only_when_capability_is_absent) {
+    entityState_t state = { .model = 1, .name = 1, .stats = { [ENT_HEALTH] = 255 } };
+    RECT rect;
+
+    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_HEALTH, state, 0.009f);
+    T_FEQ(rect.h, 0.0f, 0.0001f);
+    state.flags |= EF_HOVER_HEALTH;
+    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_HEALTH, state, 0.009f);
+    T_FEQ(rect.h, 0.009f, 0.0001f);
+
+    state.flags &= ~EF_HOVER_HEALTH;
+    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_MANA, state, 0.009f);
+    T_FEQ(rect.h, 0.0f, 0.0001f);
+    state.flags |= EF_HOVER_MANA; state.stats[ENT_MANA] = 0;
+    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_MANA, state, 0.009f);
+    T_FEQ(rect.h, 0.009f, 0.0001f);
+
+    state.stats[ENT_CARGO] = EntityCargoPack(0, 8);
+    rect = context_bound_layout_rect(FT_SEGMENTED_STATUSBAR, ENT_CARGO, state, 0.004f);
+    T_FEQ(rect.h, 0.004f, 0.0001f);
+    state.stats[ENT_CARGO] = 0;
+    rect = context_bound_layout_rect(FT_SEGMENTED_STATUSBAR, ENT_CARGO, state, 0.004f);
+    T_FEQ(rect.h, 0.0f, 0.0001f);
+}
+
+TEST(client_layout, world_hover_context_rows_compact_through_relative_anchor_chain) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, cargo = {0}, mana = {0}, health = {0};
+    LPCRECT cargo_rect, mana_rect, health_rect;
+
+    cargo.number = 1; cargo.flags.type = FT_SEGMENTED_STATUSBAR; cargo.stat = ENT_CARGO;
+    cargo.size.width = 0.043f; cargo.size.height = 0.004f;
+    cargo.points.x[FPP_MID] = MAKE(uiFramePoint_t, .used = 1, .targetPos = FPP_MID, .relativeTo = 0);
+    cargo.points.y[FPP_MAX] = MAKE(uiFramePoint_t, .used = 1, .targetPos = FPP_MIN, .relativeTo = 0,
+                                           .offset = (SHORT)(0.002f * UI_FRAMEPOINT_SCALE));
+    mana.number = 2; mana.flags.type = FT_FRAME; mana.stat = UI_STAT_CONTEXT_MANA;
+    mana.size.width = 0.045f; mana.size.height = 0.009f;
+    mana.points.x[FPP_MID] = MAKE(uiFramePoint_t, .used = 1, .targetPos = FPP_MID, .relativeTo = 0);
+    mana.points.y[FPP_MAX] = MAKE(uiFramePoint_t, .used = 1, .targetPos = FPP_MIN, .relativeTo = 1);
+    health.number = 3; health.flags.type = FT_FRAME; health.stat = UI_STAT_CONTEXT_HEALTH;
+    health.size.width = 0.045f; health.size.height = 0.009f;
+    health.points.x[FPP_MID] = MAKE(uiFramePoint_t, .used = 1, .targetPos = FPP_MID, .relativeTo = 0);
+    health.points.y[FPP_MAX] = MAKE(uiFramePoint_t, .used = 1, .targetPos = FPP_MIN, .relativeTo = 2);
+
+    test_client_stubs_init(); cl.hover_entity = 7;
+    cl.ents[7].current = MAKE(entityState_t, .model = 1, .name = 1,
+        .flags = EF_HOVER_HEALTH | EF_HOVER_MANA,
+        .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(0, 8) });
+    MSG_WriteByte(&sb, LAYER_WORLD_HOVER);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &cargo, true); MSG_WriteByte(&sb, 0);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &mana, true); MSG_WriteByte(&sb, 0);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &health, true); MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0); sb.readcount = 0;
+    CL_ParseLayout(&sb); SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    cargo_rect = SCR_LayoutRect(SCR_Frame(1)); mana_rect = SCR_LayoutRect(SCR_Frame(2)); health_rect = SCR_LayoutRect(SCR_Frame(3));
+    T_FEQ(mana_rect->y + mana_rect->h, cargo_rect->y, 0.0001f);
+    T_FEQ(health_rect->y + health_rect->h, mana_rect->y, 0.0001f);
+
+    cl.ents[7].current.stats[ENT_CARGO] = 0; SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    cargo_rect = SCR_LayoutRect(SCR_Frame(1)); mana_rect = SCR_LayoutRect(SCR_Frame(2)); health_rect = SCR_LayoutRect(SCR_Frame(3));
+    T_FEQ(cargo_rect->h, 0.0f, 0.0001f);
+    T_FEQ(mana_rect->y + mana_rect->h, cargo_rect->y, 0.0001f);
+    T_FEQ(health_rect->y + health_rect->h, mana_rect->y, 0.0001f);
+
+    cl.ents[7].current.flags &= ~EF_HOVER_MANA; SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    cargo_rect = SCR_LayoutRect(SCR_Frame(1)); mana_rect = SCR_LayoutRect(SCR_Frame(2)); health_rect = SCR_LayoutRect(SCR_Frame(3));
+    T_FEQ(mana_rect->h, 0.0f, 0.0001f);
+    T_FEQ(health_rect->y + health_rect->h, mana_rect->y, 0.0001f);
+    T_FEQ(mana_rect->y, cargo_rect->y, 0.0001f);
 }
 
 /* r_norefresh skips every renderer/UI submission while its inverse still presents a normal client frame. */

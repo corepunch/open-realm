@@ -188,6 +188,13 @@ racial mine overlay. The client then projects
 `re.GetEntityOverheadPosition` through the current view matrix; the layer is skipped when the point is behind the camera or
 outside the world scissor.
 
+Context-bound hover geometry also resolves locally. Frames bound to `UI_STAT_CONTEXT_NAME`, `UI_STAT_CONTEXT_HEALTH`, or
+`UI_STAT_CONTEXT_MANA` collapse to zero layout size when that snapshot capability is absent; a present mana capability remains laid
+out even at zero current mana. `FT_SEGMENTED_STATUSBAR` uses its packed entity stat capacity as presence: zero capacity collapses the
+frame, while nonzero capacity remains laid out even when the current count is zero. Its primary texture is the filled-slot art and
+`tex.index2` is optional empty-slot art. Relative anchors can therefore describe a compact static stack without resending layout data
+as the hovered entity changes.
+
 This is not a per-hover network protocol. The server sends the static frame tree, art/font indexes, geometry, and binding declarations
 once; mouse picking, projection, and evaluation of already-replicated values happen locally each render frame. Do not revive
 `clc_request_unit_ui`/`svc_unit_ui`, add an entity-name query, or resend `svc_layout` on mouse motion.
