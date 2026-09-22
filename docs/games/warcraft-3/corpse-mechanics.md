@@ -123,8 +123,11 @@ interval, `DataA`/`Gyd1` the corpse cap, `DataB`/`Gyd2` **Radius of Gravestones*
 radius), `DataC`/`Gyd3` **Radius of Corpses** (the area used for the cap), and `UnitID`/`Gydu`
 the generated corpse type.
 
-OpenRealm arms an ability-owned saveable thinker. On each `Cool` pulse it counts matching
-dead `UnitID` corpses inside `DataC`; when below `DataA`, it creates one dead, non-selectable
+OpenRealm arms an ability-owned saveable thinker only after the Graveyard has completed
+construction; the first `Cool` interval starts at that point rather than while the building is
+still being summoned. A restored/stale producer also retires if its owner is incomplete. On
+each `Cool` pulse it counts matching dead `UnitID` corpses inside `DataC`; when below `DataA`,
+it creates one dead, non-selectable
 corpse on the deterministic placement ring defined by `DataB` and enters the normal
 corpse-decay lifecycle. Stored corpses are counted at their current holder's position rather
 than their hidden pre-load origin. Generated corpses therefore use the same authored

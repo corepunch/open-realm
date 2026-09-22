@@ -374,6 +374,42 @@ static DWORD graveyard_test_corpse_count(LPEDICT graveyard) {
     return count;
 }
 
+TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cooldown) {
+    slkTestData_t *rows, *old;
+    LPEDICT graveyard, thinker;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    rows = parse_slk_string(graveyard_slk); old = G_SetSLKRows("AbilityData", rows);
+    graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
+    graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
+    graveyard->health.value = graveyard->health.max_value = 900;
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+    graveyard->construction.active = true;
+
+    S_RunAbilityUpdates(graveyard);
+    T_NULL(graveyard_test_thinker(graveyard));
+    level.time += 5000;
+    S_RunAbilityUpdates(graveyard);
+    T_NULL(graveyard_test_thinker(graveyard));
+    T_EQ(graveyard_test_corpse_count(graveyard), 0);
+
+    graveyard->construction.active = false;
+    S_RunAbilityUpdates(graveyard);
+    thinker = graveyard_test_thinker(graveyard); T_NOT_NULL(thinker);
+    level.time += 999; graveyard_think(thinker);
+    T_EQ(graveyard_test_corpse_count(graveyard), 0);
+    level.time += 1; graveyard_think(thinker);
+    T_EQ(graveyard_test_corpse_count(graveyard), 1);
+
+    /* A restored/stale producer must also stop if its owner becomes incomplete,
+     * so it cannot continue producing from a pre-construction timer. */
+    graveyard->construction.active = true;
+    graveyard_think(thinker);
+    T_ASSERT(!thinker->inuse);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
     slkTestData_t *rows, *old;
     LPEDICT graveyard, thinker;
