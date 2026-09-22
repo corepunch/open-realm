@@ -2477,6 +2477,49 @@ TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 }
 
+TEST(wc3_building, legacy_custom_worker_construction_progresses_from_zero_health) {
+    LPGAMECLIENT client = &game.clients[0];
+    UnitData_t worker_data;
+    UnitBalance_t building_balance;
+    UnitProfile_t profile = { .builds = "hbar" };
+    LPEDICT worker, building;
+    VECTOR2 point = { 64.0f, 64.0f };
+    DWORD const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), -128.0f, -128.0f);
+    worker_data = *worker->data.UnitData;
+    worker_data.race = "custom";
+    worker->data.UnitData = &worker_data;
+    worker->data.UnitProfile = &profile;
+    worker->s.player = client->ps.number;
+    worker->stand = unit_stand;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(worker, barracks, &point));
+    worker->s.origin2 = worker->goalentity->s.origin2;
+    build_build(worker);
+    building = worker->build;
+    T_NOT_NULL(building);
+    if (building) {
+        building_balance = *building->data.UnitBalance;
+        building_balance.buildTime = 1000;
+        building->data.UnitBalance = &building_balance;
+    }
+    T_ASSERT(building && building->build == building);
+    T_ASSERT(building && M_IsDead(building));
+    T_ASSERT(worker->currentmove && worker->currentmove->think);
+    T_ASSERT(building && building->data.UnitBalance && building->data.UnitBalance->buildTime > 0);
+    T_ASSERT(building && building->health.max_value > 0.0f);
+
+    if (worker->currentmove && worker->currentmove->think)
+        worker->currentmove->think(worker);
+    T_ASSERT(building && !M_IsDead(building));
+    T_ASSERT(building && building->health.value > 0.0f);
+}
+
 TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
     LPEDICT worker;
     LPEDICT building;
