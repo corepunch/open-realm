@@ -7,6 +7,7 @@
 
 static UIFRAME frames[MAX_LAYOUT_OBJECTS];
 static DWORD num_frames = 0;
+static DWORD layout_runtime_layer = MAX_LAYOUT_LAYERS;
 
 struct {
     RECT rect;
@@ -152,6 +153,10 @@ LPCENTITYSTATE SCR_LayoutContextEntity(void) {
     return ent;
 }
 
+BOOL SCR_LayoutEntityContextActive(void) {
+    return layout_runtime_layer == LAYER_WORLD_HOVER;
+}
+
 BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
     LPCENTITYSTATE ent;
 
@@ -165,6 +170,7 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
         return true;
     }
 
+    if (!SCR_LayoutEntityContextActive()) return false;
     ent = SCR_LayoutContextEntity();
     if (!ent) return false;
     switch (stat) {
@@ -190,6 +196,7 @@ BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
     FLOAT value;
 
     if (!frame) return false;
+    if (!SCR_LayoutEntityContextActive()) return true;
     if (frame->stat == UI_STAT_CONTEXT_NAME) {
         ent = SCR_LayoutContextEntity();
         return ent && ent->name;
@@ -224,7 +231,7 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
             text[0] = '\0';
         }
         return text;
-    } else if (frame->stat == UI_STAT_CONTEXT_NAME) {
+    } else if (SCR_LayoutEntityContextActive() && frame->stat == UI_STAT_CONTEXT_NAME) {
         LPCENTITYSTATE ent = SCR_LayoutContextEntity();
         LPCSTR name;
         DWORD ni, cs_index;
@@ -502,9 +509,11 @@ static void SCR_InferContainerHeights(void) {
     }
 }
 
-LPCUIFRAME SCR_Clear(HANDLE data) {
+LPCUIFRAME SCR_ClearLayer(HANDLE data, DWORD layer) {
     DWORD layout_size = 0;
     LPBYTE layout_data = (LPBYTE)data;
+
+    layout_runtime_layer = layer < MAX_LAYOUT_LAYERS ? layer : MAX_LAYOUT_LAYERS;
 
     memset(runtimes, 0, sizeof(runtimes));
     memset(frames, 0, sizeof(frames));
@@ -556,6 +565,10 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     }
     SCR_InferContainerHeights();
     return frames;
+}
+
+LPCUIFRAME SCR_Clear(HANDLE data) {
+    return SCR_ClearLayer(data, MAX_LAYOUT_LAYERS);
 }
 
 /* Window packets keep frame text in one trailing arena and encode frame string fields as DWORD offsets. */

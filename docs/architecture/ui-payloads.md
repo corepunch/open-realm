@@ -195,15 +195,21 @@ frame, while nonzero capacity remains laid out even when the current count is ze
 `tex.index2` is optional empty-slot art. Relative anchors can therefore describe a compact static stack without resending layout data
 as the hovered entity changes.
 
-`SCR_LayoutContextFrameVisible` owns both collapse and draw suppression. Do not
-infer visibility from a zero rectangle: `FT_SPRITE` uses model-authored geometry
-and only needs an anchor, while other drawers can measure their own content.
-A blanket size check in PR #482 suppressed autocast and time-of-day sprites;
+`SCR_LayoutContextFrameVisible` owns both collapse and draw suppression, but entity-context interpretation is a
+`LAYER_WORLD_HOVER` runtime contract rather than a global meaning for `uiFrame_t.stat`. The field is shared type-specific storage:
+for example, `FT_COMMANDBUTTON` stores its active ability index there and Warcraft III uses 255 as the no-active-ability sentinel,
+which numerically overlaps `UI_STAT_CONTEXT_MANA`. Parsing or drawing another layout layer must therefore leave those values alone.
+`SCR_ClearLayer` records the layer currently being evaluated; plain `SCR_Clear` deliberately has no entity context, which also keeps
+transient windows and non-hover test layouts isolated. Within `LAYER_WORLD_HOVER`, the existing generic bindings remain frame-type
+agnostic enough for both games: Warcraft III uses `FT_NAMETAG`, while WoW uses `FT_STRING` for `UI_STAT_CONTEXT_NAME`.
+
+Do not infer visibility from a zero rectangle: `FT_SPRITE` uses model-authored geometry and only needs an anchor, while other drawers
+can measure their own content. A blanket size check in PR #482 suppressed autocast and time-of-day sprites;
 `client_layout.sprite_overlay_draws_after_button_artwork` reproduces that regression.
-`client_layout.context_visibility_and_empty_slot_art_survive_wire_draw_dispatch`
-checks capability changes against one retained layout and the secondary art's
-wire round trip (`tex.index` and `tex.index2` are two USHORTs encoded together
-by the existing `NFT_LONG` field).
+`client_layout.context_bindings_are_world_hover_layer_scoped` protects the shared-stat collision and the cross-game name binding.
+`client_layout.context_visibility_and_empty_slot_art_survive_wire_draw_dispatch` checks capability changes against one retained layout
+and the secondary art's wire round trip (`tex.index` and `tex.index2` are two USHORTs encoded together by the existing `NFT_LONG`
+field).
 
 This is not a per-hover network protocol. The server sends the static frame tree, art/font indexes, geometry, and binding declarations
 once; mouse picking, projection, and evaluation of already-replicated values happen locally each render frame. Do not revive
