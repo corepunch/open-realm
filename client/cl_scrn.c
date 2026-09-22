@@ -341,12 +341,14 @@ static LPCENTITYSTATE SCR_LayoutSelectedEntity(void) {
 }
 
 void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, LPCRECT screen) {
-    LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+    LPCENTITYSTATE ent;
     DWORD count, capacity;
     FLOAT gap, width;
     RECT const uv = { 0, 0, 1, 1 };
 
-    if (!frame || !screen || !ent || frame->stat >= ENT_STAT_COUNT || !frame->tex.index) return;
+    if (!frame || !screen || !SCR_LayoutEntityContextActive()) return;
+    ent = SCR_LayoutContextEntity();
+    if (!ent || frame->stat >= ENT_STAT_COUNT || !frame->tex.index) return;
     count = EntityCargoCount(ent->stats[frame->stat]);
     capacity = EntityCargoCapacity(ent->stats[frame->stat]);
     if (!capacity) return;
@@ -401,7 +403,8 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     FLOAT value = 0;
     BOOL const has = SCR_LayoutContextValue(frame->stat, &value);
-    BOOL const ctx = frame->stat == UI_STAT_CONTEXT_HEALTH || frame->stat == UI_STAT_CONTEXT_MANA;
+    BOOL const ctx = SCR_LayoutEntityContextActive() &&
+                     (frame->stat == UI_STAT_CONTEXT_HEALTH || frame->stat == UI_STAT_CONTEXT_MANA);
     /* Mana hides by flag so an empty pool still draws the bar; health still
      * drops at value 0 because that snapshot means the unit is dead. */
     if (has ? (value <= 0.0f && frame->stat != UI_STAT_CONTEXT_MANA) : ctx) return;
@@ -1391,7 +1394,7 @@ void SCR_DrawLayout(void) {
             RECT root;
             layout_current_window = false;
             layout_current_layer = layer;
-            SCR_Clear(layout);
+            SCR_ClearLayer(layout, layer);
             if (layer == LAYER_WORLD_HOVER) {
                 if (!SCR_LayoutWorldHoverRoot(&root)) continue;
                 SCR_SetLayoutRoot(&root);
@@ -1413,7 +1416,7 @@ void SCR_DrawLoadingLayout(void) {
     if (!layout) return;
     layout_current_window = false;
     layout_current_layer = LAYER_LOADING;
-    SCR_Clear(layout);
+    SCR_ClearLayer(layout, LAYER_LOADING);
     root = SCR_LayoutSceneRect();
     SCR_SetLayoutRoot(&root);
     SCR_LayoutDrawOverlay(layout);

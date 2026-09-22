@@ -409,7 +409,7 @@ TEST(client_layout, segmented_statusbar_keeps_empty_capacity_slots_visible) {
     FOR_LOOP(i, 8) T_ASSERT(test_status_textures[i] == cl.pics[2]);
 }
 
-static RECT context_bound_layout_rect(FRAMETYPE type, DWORD stat, entityState_t state, FLOAT height) {
+static RECT context_bound_layout_rect(DWORD layer, FRAMETYPE type, DWORD stat, entityState_t state, FLOAT height) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, frame = {0};
@@ -425,35 +425,59 @@ static RECT context_bound_layout_rect(FRAMETYPE type, DWORD stat, entityState_t 
     frame.points.y[FPP_MAX].offset = (SHORT)(0.002f * UI_FRAMEPOINT_SCALE);
 
     test_client_stubs_init(); cl.hover_entity = 7; cl.ents[7].current = state;
-    MSG_WriteByte(&sb, LAYER_WORLD_HOVER);
+    MSG_WriteByte(&sb, layer);
     MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true); MSG_WriteByte(&sb, 0);
     MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0); sb.readcount = 0;
-    CL_ParseLayout(&sb); SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    CL_ParseLayout(&sb); SCR_ClearLayer(cl.layout[layer], layer);
     return *SCR_LayoutRect(SCR_Frame(1));
+}
+
+TEST(client_layout, context_bindings_are_world_hover_layer_scoped) {
+    entityState_t state = { .model = 1, .name = 1, .stats = { [ENT_HEALTH] = 255 } };
+    uiFrame_t wow_name = { .flags.type = FT_STRING, .stat = UI_STAT_CONTEXT_NAME };
+    RECT rect;
+
+    /* Reproduce the command-card failure through retained wire layout geometry,
+     * not only through the visibility helper. WC3 command buttons use this same
+     * byte for ability indices, including 255 as the no-active-ability sentinel. */
+    rect = context_bound_layout_rect(LAYER_COMMANDBAR, FT_COMMANDBUTTON, UI_STAT_CONTEXT_NAME, state, 0.039f);
+    T_FEQ(rect.h, 0.039f, 0.0001f);
+    rect = context_bound_layout_rect(LAYER_COMMANDBAR, FT_COMMANDBUTTON, UI_STAT_CONTEXT_HEALTH, state, 0.039f);
+    T_FEQ(rect.h, 0.039f, 0.0001f);
+    rect = context_bound_layout_rect(LAYER_COMMANDBAR, FT_COMMANDBUTTON, UI_STAT_CONTEXT_MANA, state, 0.039f);
+    T_FEQ(rect.h, 0.039f, 0.0001f);
+
+    /* The layer gate must not become a WC3 frame-type gate: WoW authors its
+     * hover name as FT_STRING rather than FT_NAMETAG. */
+    test_client_stubs_init(); cl.hover_entity = 7; cl.ents[7].current = state;
+    SCR_ClearLayer(NULL, LAYER_WORLD_HOVER);
+    T_ASSERT(SCR_LayoutContextFrameVisible(&wow_name));
+    cl.ents[7].current.name = 0;
+    T_ASSERT(!SCR_LayoutContextFrameVisible(&wow_name));
 }
 
 TEST(client_layout, world_hover_context_rows_collapse_only_when_capability_is_absent) {
     entityState_t state = { .model = 1, .name = 1, .stats = { [ENT_HEALTH] = 255 } };
     RECT rect;
 
-    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_HEALTH, state, 0.009f);
+    rect = context_bound_layout_rect(LAYER_WORLD_HOVER, FT_FRAME, UI_STAT_CONTEXT_HEALTH, state, 0.009f);
     T_FEQ(rect.h, 0.0f, 0.0001f);
     state.flags |= EF_HOVER_HEALTH;
-    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_HEALTH, state, 0.009f);
+    rect = context_bound_layout_rect(LAYER_WORLD_HOVER, FT_FRAME, UI_STAT_CONTEXT_HEALTH, state, 0.009f);
     T_FEQ(rect.h, 0.009f, 0.0001f);
 
     state.flags &= ~EF_HOVER_HEALTH;
-    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_MANA, state, 0.009f);
+    rect = context_bound_layout_rect(LAYER_WORLD_HOVER, FT_FRAME, UI_STAT_CONTEXT_MANA, state, 0.009f);
     T_FEQ(rect.h, 0.0f, 0.0001f);
     state.flags |= EF_HOVER_MANA; state.stats[ENT_MANA] = 0;
-    rect = context_bound_layout_rect(FT_FRAME, UI_STAT_CONTEXT_MANA, state, 0.009f);
+    rect = context_bound_layout_rect(LAYER_WORLD_HOVER, FT_FRAME, UI_STAT_CONTEXT_MANA, state, 0.009f);
     T_FEQ(rect.h, 0.009f, 0.0001f);
 
     state.stats[ENT_CARGO] = EntityCargoPack(0, 8);
-    rect = context_bound_layout_rect(FT_SEGMENTED_STATUSBAR, ENT_CARGO, state, 0.004f);
+    rect = context_bound_layout_rect(LAYER_WORLD_HOVER, FT_SEGMENTED_STATUSBAR, ENT_CARGO, state, 0.004f);
     T_FEQ(rect.h, 0.004f, 0.0001f);
     state.stats[ENT_CARGO] = 0;
-    rect = context_bound_layout_rect(FT_SEGMENTED_STATUSBAR, ENT_CARGO, state, 0.004f);
+    rect = context_bound_layout_rect(LAYER_WORLD_HOVER, FT_SEGMENTED_STATUSBAR, ENT_CARGO, state, 0.004f);
     T_FEQ(rect.h, 0.0f, 0.0001f);
 }
 
@@ -486,18 +510,18 @@ TEST(client_layout, world_hover_context_rows_compact_through_relative_anchor_cha
     MSG_WriteDeltaUIFrame(&sb, &empty, &mana, true); MSG_WriteByte(&sb, 0);
     MSG_WriteDeltaUIFrame(&sb, &empty, &health, true); MSG_WriteByte(&sb, 0);
     MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0); sb.readcount = 0;
-    CL_ParseLayout(&sb); SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    CL_ParseLayout(&sb); SCR_ClearLayer(cl.layout[LAYER_WORLD_HOVER], LAYER_WORLD_HOVER);
     cargo_rect = SCR_LayoutRect(SCR_Frame(1)); mana_rect = SCR_LayoutRect(SCR_Frame(2)); health_rect = SCR_LayoutRect(SCR_Frame(3));
     T_FEQ(mana_rect->y + mana_rect->h, cargo_rect->y, 0.0001f);
     T_FEQ(health_rect->y + health_rect->h, mana_rect->y, 0.0001f);
 
-    cl.ents[7].current.stats[ENT_CARGO] = 0; SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    cl.ents[7].current.stats[ENT_CARGO] = 0; SCR_ClearLayer(cl.layout[LAYER_WORLD_HOVER], LAYER_WORLD_HOVER);
     cargo_rect = SCR_LayoutRect(SCR_Frame(1)); mana_rect = SCR_LayoutRect(SCR_Frame(2)); health_rect = SCR_LayoutRect(SCR_Frame(3));
     T_FEQ(cargo_rect->h, 0.0f, 0.0001f);
     T_FEQ(mana_rect->y + mana_rect->h, cargo_rect->y, 0.0001f);
     T_FEQ(health_rect->y + health_rect->h, mana_rect->y, 0.0001f);
 
-    cl.ents[7].current.flags &= ~EF_HOVER_MANA; SCR_Clear(cl.layout[LAYER_WORLD_HOVER]);
+    cl.ents[7].current.flags &= ~EF_HOVER_MANA; SCR_ClearLayer(cl.layout[LAYER_WORLD_HOVER], LAYER_WORLD_HOVER);
     cargo_rect = SCR_LayoutRect(SCR_Frame(1)); mana_rect = SCR_LayoutRect(SCR_Frame(2)); health_rect = SCR_LayoutRect(SCR_Frame(3));
     T_FEQ(mana_rect->h, 0.0f, 0.0001f);
     T_FEQ(health_rect->y + health_rect->h, mana_rect->y, 0.0001f);
@@ -534,7 +558,7 @@ TEST(client_layout, context_visibility_and_empty_slot_art_survive_wire_draw_disp
         if (i == 3) state->stats[ENT_CARGO] = EntityCargoPack(0, 3);
         if (i == 4) { state->flags &= ~EF_HOVER_MANA; state->stats[ENT_CARGO] = 0; }
         if (i == 5) state->stats[ENT_HEALTH] = 0;
-        SCR_Clear(cl.layout[LAYER_WORLD_HOVER]); test_status_draws = 0;
+        SCR_ClearLayer(cl.layout[LAYER_WORLD_HOVER], LAYER_WORLD_HOVER); test_status_draws = 0;
         SCR_LayoutDrawOverlay(cl.layout[LAYER_WORLD_HOVER]);
         T_EQ(test_status_draws, i == 0 || i == 5 ? 0 : i == 3 ? 5 : i == 2 ? 2 : 1);
         if (i == 3) {

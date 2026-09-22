@@ -252,6 +252,7 @@ void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c
 LPCUIFRAME SCR_Clear(HANDLE data);
+LPCUIFRAME SCR_ClearLayer(HANDLE data, DWORD layer);
 LPCUIFRAME SCR_ClearWindow(HANDLE data);
 DWORD SCR_NumFrames(void);
 LPUIFRAME SCR_Frame(DWORD number);
@@ -275,6 +276,7 @@ static inline BOOL CL_EntityAllowsWorldHover(LPCENTITYSTATE state) {
 }
 
 LPCENTITYSTATE SCR_LayoutContextEntity(void);
+BOOL SCR_LayoutEntityContextActive(void);
 BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value);
 BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame);
 BOOL SCR_LayoutWorldHoverRoot(LPRECT root);
