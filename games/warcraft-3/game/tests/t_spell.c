@@ -436,7 +436,7 @@ TEST(wc3_spell, creep_pulverize_and_spiked_aliases_use_authored_data) {
 		"ID;PWXL;N;EBB;Y3;X8\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
 		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\nC;Y1;X7;K\"DataD1\"\nC;Y1;X8;K\"DataE1\"\n"
-		"C;Y2;X1;K\"Awar\"\nC;Y2;X2;K\"Awar\"\nC;Y2;X3;K\"32\"\nC;Y2;X4;K\"100\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"10\"\nC;Y2;X7;K\"48\"\n"
+		"C;Y2;X1;K\"Awar\"\nC;Y2;X2;K\"Awar\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"100\"\nC;Y2;X5;K\"25\"\nC;Y2;X6;K\"32\"\nC;Y2;X7;K\"48\"\n"
 		"C;Y3;X1;K\"Aspi\"\nC;Y3;X2;K\"Aspi\"\nC;Y3;X4;K\"0.15\"\nC;Y3;X5;K\"3\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
@@ -461,10 +461,11 @@ TEST(wc3_spell, creep_pulverize_and_spiked_aliases_use_authored_data) {
 
 TEST(wc3_spell, creep_incinerate_stacks_and_explodes_from_authored_rows) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y2;X6\n"
+		"ID;PWXL;N;EBB;Y2;X7\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
 		"C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"BuffID1\"\n"
-		"C;Y2;X1;K\"ANia\"\nC;Y2;X2;K\"ANia\"\nC;Y2;X3;K\"80\"\nC;Y2;X4;K\"2\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"BNic\"\nE\n";
+		"C;Y1;X7;K\"DataC1\"\n"
+		"C;Y2;X1;K\"ANia\"\nC;Y2;X2;K\"ANia\"\nC;Y2;X3;K\"0\"\nC;Y2;X4;K\"2\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"BNic\"\nC;Y2;X7;K\"80\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	LPEDICT attacker = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
 	LPEDICT victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
@@ -1535,11 +1536,12 @@ TEST(wc3_spell, creep_hardened_skin_uses_chance_floor_and_reduction) {
 
 TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X5\n"
+        "ID;PWXL;N;EBB;Y2;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
         "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"targs\"\n"
+        "C;Y1;X6;K\"DataB1\"\n"
         "C;Y2;X1;K\"Aap1\"\nC;Y2;X2;K\"Aapl\"\nC;Y2;X3;K\"100\"\n"
-        "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"ground,enemy,organic\"\nE\n";
+        "C;Y2;X4;K\"5\"\nC;Y2;X5;K\"ground,enemy,organic\"\nC;Y2;X6;K\"13\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     LPEDICT source = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 20, 0);
@@ -1548,6 +1550,7 @@ TEST(wc3_spell, creep_disease_cloud_alias_ticks_authored_area_damage) {
     target->s.player = PLAYER_NEUTRAL_AGGRESSIVE; target->svflags |= SVF_MONSTER;
     target->targtype = TARG_GROUND; target->health.value = target->health.max_value = 100;
     S_RunAbilityUpdates(source);
+    level.time += 1000; unit_updatestatuses(target);
     T_FEQ(target->health.value, 87, 0.001f);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }

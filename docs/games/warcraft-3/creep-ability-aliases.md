@@ -1,5 +1,8 @@
 # Creep Ability Aliases
 
+For Disease Cloud, Pulverize, Web, Monsoon and Incinerate data/lifecycle contracts,
+see [creep combat effects](creep-combat-effects.md).
+
 Creep `ACxx` / extra AbilityData rows are `code=` aliases of an already-registered
 parent procedure. Register them as extra `abilitylist[]` rows on that parent in
 `s_skills.c`. Do not create `s_creep.c` for the dump: procedures stay in the
@@ -33,14 +36,14 @@ owner's alias the same way regen auras do for `ACnr`→`Aoar`.
 | `ACrn` | `ACrn` (self) | `CAbilityPassive` (same as `AOre`/`ANrn`) |
 | `Aasl` | `Aasl` (self) | `CAbilityPassive` (Slow Aura placeholder, like other creep auras) |
 | `Aakb` | `Aakb` (self) | `CAbilityPassive` (War Drums placeholder, like other creep auras) |
+| `ACmo` | `ANmo` | `CAbilityMonsoon` (fixed-point channel, authored interval/building multiplier) |
+| `ACwb` | `Aweb` | `CAbilityWeb` (air-only autocast, shared Ensnare landing/restoration) |
 
 Do not register as the parent until that procedure exists:
 
 | Alias | `code=` | Class | Why it stays TODO |
 | --- | --- | --- | --- |
-| `ACmo` | `ANmo` | `CAbilityMonsoon` | not Forked Lightning |
 | `ACf3` / `ACfd` / `Afod` | `ANfd` | `CAbilityFingerOfDeath` | not Firebolt |
-| `ACwb` | `Aweb` | `CAbilityWeb` | active air-only, not `AB_PASSIVE` |
 | `AHta` | `AIta` | `CAbilityItemDetectAoe` | active Reveal, not passive |
 | `Ache` | `AIdc` | `CAbilityItemDispelChain` | active chain dispel, not passive |
 

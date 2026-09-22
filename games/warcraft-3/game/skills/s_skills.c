@@ -509,7 +509,7 @@ static ability_t abilitylist[] = {
     { "Asac", CAbilitySacrifice, AB_SPELL, SPELL_TARGET_UNIT },  /* Sacrifice (Sacrificial Pit) */
     { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
     { "Aspa", CAbilitySpiderAttack, AB_PASSIVE },  /* Spider Attack */
-    { "Aweb", CAbilityWeb, AB_SPELL, SPELL_TARGET_UNIT },  /* Web */
+    { "Aweb", CAbilityWeb, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Web */
     { "Astn", CAbilityDivineShield, AB_SPELL },  /* Stone Form */
     { "Amel", CAbilityCargoLoad, AB_COMMAND | AB_AUTOCAST },  /* Get Corpse */
     { "Amed", CAbilityCargoDrop, AB_COMMAND },  /* Drop Corpse */
@@ -615,7 +615,7 @@ static ability_t abilitylist[] = {
     { "ACuf", CAbilityUnholyFrenzy, AB_SPELL, SPELL_TARGET_UNIT },  /* Unholy Frenzy (creep) */
     { "ACvp", CAbilityCreepAura, AB_PASSIVE },  /* Vampiric Aura (creep) */
     { "ACvs", CAbilityPoisonAttack, AB_PASSIVE },  /* Venom Spears (Creep) */
-    { "ACwb", CAbilityWeb, AB_SPELL, SPELL_TARGET_UNIT },  /* Web (creep) */
+    { "ACwb", CAbilityWeb, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Web (creep) */
     { "ACwe", CAbilityWaterElemental, AB_SPELL },  /* Summon Sea Elemental */
     { "AHta", CAbilityFarSight, AB_SPELL, SPELL_TARGET_POINT },  /* Reveal (Arcane Tower) */
     { "ANak", CAbilityOrbAnnihilation, AB_PASSIVE },  /* Orb of Annihilation (Quill Spray) */

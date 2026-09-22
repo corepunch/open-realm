@@ -7,7 +7,6 @@
 #define ID_SPIKED_CARAPACE MAKEFOURCC('A', 'U', 't', 's')
 #define ID_SPIKED_BARRICADES MAKEFOURCC('A', 's', 'p', 'i')
 #define ID_PULVERIZE MAKEFOURCC('A', 'w', 'a', 'r')
-#define ID_PULVERIZE_CREEP MAKEFOURCC('A', 'C', 'p', 'v')
 #define ID_UNHOLY_AURA MAKEFOURCC('A', 'U', 'a', 'u')
 #define ID_EVASION MAKEFOURCC('A', 'E', 'e', 'v')
 #define ID_VAMPIRIC_AURA MAKEFOURCC('A', 'U', 'a', 'v')
@@ -797,23 +796,21 @@ FLOAT S_SpikedDamageReturn(LPCEDICT unit, FLOAT damage) {
     return MAX(S_SpellData(code, level, 2), damage * S_SpellData(code, level, 1));
 }
 
-/* Pulverize is a passive attack proc.  DataA is the chance, DataB/C are the
- * full/partial damage amounts, while Area/DataD are the corresponding radii.
+/* Pulverize is a passive attack proc. DataA is percent chance, DataB damage,
+ * DataC/D full/half damage radii; the authored Area cell is unused.
  * Its damage is an authored physical-spell event, so secondary victims do not
  * recursively trigger attack listeners. */
 void S_PulverizeAttack(LPEDICT attacker, LPCEDICT primary) {
-    DWORD code = ID_PULVERIZE, level = G_UnitAbilityLevel(attacker, code);
+    abilityAliasRef_t ability = S_ResolveAbilityAlias(attacker, ID_PULVERIZE);
+    DWORD code = ability.alias, level = ability.level;
     FLOAT full_radius, partial_radius, chance, full_damage, partial_damage;
-    if (!level) { code = ID_PULVERIZE_CREEP; level = G_UnitAbilityLevel(attacker, code); }
     if (!level || !primary) return;
-    chance = S_SpellData(code, level, 1);
-    if (chance > 1.0f) chance *= 0.01f;
+    chance = S_SpellData(code, level, 1) * 0.01f;
     if ((FLOAT)(rand() % 10000) / 10000.0f >= chance) return;
     full_damage = S_SpellData(code, level, 2);
-    partial_damage = S_SpellData(code, level, 3);
-    full_radius = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    partial_damage = full_damage * 0.5f;
+    full_radius = S_SpellData(code, level, 3);
     partial_radius = S_SpellData(code, level, 4);
-    if (partial_radius <= full_radius) partial_radius = full_radius * 1.4f;
     FILTER_EDICTS(target, target != attacker && target != primary &&
                   S_SpellIsAliveTarget(target) && S_SpellIsEnemy(attacker, target) &&
                   target->targtype == TARG_GROUND) {

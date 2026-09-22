@@ -834,23 +834,6 @@ BZ_ABILITY_PROC(CAbilityFingerOfDeath) {
     return CAbilitySimpleSpell(ent, msg, call);
 }
 
-/* Monsoon keeps a distinct procedure identity while sharing the existing
- * channel/tick implementation used by the point-area tornado family. */
-BZ_ABILITY_PROC(CAbilityMonsoon) { return CAbilityWhirlwind(ent, msg, call); }
-
-static BOOL web_validate(LPEDICT caster, spellTarget_t target) {
-    return target.entity && target.entity != caster && target.entity->targtype == TARG_AIR &&
-        S_SpellIsAliveTarget(target.entity) && S_SpellIsEnemy(caster, target.entity);
-}
-
-BZ_ABILITY_PROC(CAbilityWeb) {
-    spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-    switch (msg) {
-    case A_VALIDATE: return web_validate(ent, target);
-    case A_EXECUTE: target_status_execute(ent, target, call ? call->item : NULL); return true;
-    default: return CAbilitySimpleSpell(ent, msg, call);
-    }
-}
 /* Name=Inferno
  * Ubertip="Calls down an infernal that damages nearby enemy units."
  */

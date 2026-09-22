@@ -127,6 +127,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Transmute](transmute.md): kill unit for `goldCost * DataA`; DataC max creep level.
 - [Adding Warcraft III Abilities](ability-implementation-plan.md): data, procedure macros, registration, and tests.
 - [Creep Ability Aliases](creep-ability-aliases.md): `code=` mapping, parent-owned registry rows, not `s_creep.c`.
+- [Creep Combat Effects](creep-combat-effects.md): Disease Cloud, Pulverize, Web, Monsoon and Incinerate data contracts, lifecycle and save/load tests.
 <- [Item Orbs](item-orbs.md): `AIDB` orb DataA damage via `CAbilityAttackBonus`, `S_OrbOnHit` BuffID state.
 - [Poison Attacks](poison-attacks.md): `Aven`/`Apoi`/`Apo2` on-hit buff state, DPS deferred to the status tick.
 - [Implemented Ability Verification Review](ability-verification-review.md): reproduced failures, lifecycle fixes, and permanent regression coverage.

@@ -298,8 +298,8 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     damage = S_HardenedSkinDamage(target, damage);
     if (damage <= 0) return;
     G_PlayCombatImpactSound(attacker, target);
-    T_Damage(target, attacker, damage);
     S_IncinerateOnHit(attacker, target);
+    T_Damage(target, attacker, damage);
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
