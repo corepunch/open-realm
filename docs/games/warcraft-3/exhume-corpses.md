@@ -32,9 +32,11 @@ shared corpse lifecycle. Exhume stores its interval in `Dur` instead.
 
 Retail places exhumed corpses inside Meat Wagon cargo (`Amel` / `Amed` / `Amtc`).
 OpenRealm now stores the actual dead edict in the authored eight-slot `Sch2` cargo
-hold, suspending its decay state. `Amel` Get Corpse is an autocast-capable command: its
-scheduler searches the holder's authored acquisition range, applies the ability's target mask,
-and then reuses the ordinary approach/load path. Because stock `Amel` does not author a
+hold, suspending its decay state. `Amtc` is corpse-only storage: it contributes corpse capacity
+but does not qualify the Meat Wagon for ordinary living-unit Load or Smart/right-click boarding.
+`Amel` Get Corpse is an autocast-capable command: its scheduler searches the holder's authored
+acquisition range, applies the ability's target mask, and then reuses the corpse approach/load
+path. Because stock `Amel` does not author a
 friend/player ownership token, eligible enemy corpses are not rejected by a hard-coded owner check. The `DataA=5` Exhume limit remains independent of
 the eight-slot transport capacity, so Exhume stops at the authored five matching
 corpses. Stored corpse identity remains on the hidden edict, while its effective gameplay

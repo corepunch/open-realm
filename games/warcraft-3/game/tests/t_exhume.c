@@ -112,6 +112,27 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	exh_done(&fix);
 }
 
+/* Amtc is corpse-only storage.  A Meat Wagon must not become a generic
+ * transport just because the shared cargo array has empty slots. */
+TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
+    EXHFIX fix; LPEDICT living;
+
+    exh_setup(&fix);
+    living = alloc_test_unit(BZ_HFOO, fix.wagon->s.origin2.x, fix.wagon->s.origin2.y);
+    living->s.player = fix.wagon->s.player;
+    living->svflags |= SVF_MONSTER;
+    living->targtype = TARG_GROUND;
+    living->health.value = living->health.max_value = 100.0f;
+
+    T_ASSERT(!S_CargoTryLoad(fix.wagon, living));
+    T_ASSERT(!S_CargoOrderBoard(living, fix.wagon));
+    T_EQ(fix.wagon->cargo.count, 0);
+    T_ASSERT(!(living->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!living->paused);
+    T_NULL(S_CargoTransportForUnit(living));
+    exh_done(&fix);
+}
+
 TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
     EXHFIX fix; LPEDICT corpse = NULL; VECTOR2 effective;
     exh_setup(&fix);

@@ -29,12 +29,11 @@ static DWORD cargo_actor_ability_alias(LPEDICT ent, DWORD base_code) {
     return 0;
 }
 
-static DWORD cargo_hold_alias(LPEDICT transport) {
+static DWORD cargo_living_hold_alias(LPEDICT transport) {
     static DWORD const bases[] = {
         MAKEFOURCC('A','b','u','n'),
         MAKEFOURCC('A','c','a','r'),
         MAKEFOURCC('A','e','n','c'),
-        BZ_AMTC,
     };
 
     FOR_LOOP(i, sizeof(bases) / sizeof(bases[0])) {
@@ -42,6 +41,12 @@ static DWORD cargo_hold_alias(LPEDICT transport) {
         if (alias) return alias;
     }
     return 0;
+}
+
+static DWORD cargo_hold_alias(LPEDICT transport) {
+    DWORD alias = cargo_living_hold_alias(transport);
+    if (alias) return alias;
+    return cargo_actor_ability_alias(transport, BZ_AMTC);
 }
 
 DWORD S_CargoCapacity(LPEDICT transport) {
@@ -298,7 +303,10 @@ static BOOL corpse_cargo_target_valid(LPEDICT transport, LPEDICT target) {
 BOOL S_CargoTryLoad(LPEDICT transport, LPEDICT target) {
     if (!transport || !target || target == transport || M_IsDead(transport) || M_IsDead(target)) return false;
     if (target->s.player != transport->s.player) return false;
-    if (!cargo_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
+    /* Amtc is the Meat Wagon corpse hold, not a normal transport hold.  Keep
+     * living-unit Load/Smart boarding on Acar/Abun/Aenc so a Wagon can never
+     * accept a live unit merely because its corpse hold has free slots. */
+    if (!cargo_living_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
     if (S_CargoTransportForUnit(target) || (target->s.renderfx & RF_HIDDEN)) return false;
     if (!cargo_load_type_allowed(transport, target)) return false;
     if (!cargo_load_target_allowed(transport, target)) return false;
@@ -451,7 +459,7 @@ static DWORD battlestations_alias(LPEDICT transport) {
 static BOOL cargo_board_target_valid(LPEDICT unit, LPEDICT transport) {
     if (!unit || !transport || unit == transport || M_IsDead(unit) || M_IsDead(transport)) return false;
     if (unit->paused || transport->paused || unit->s.player != transport->s.player) return false;
-    if (!cargo_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
+    if (!cargo_living_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
     if (S_CargoTransportForUnit(unit) || (unit->s.renderfx & RF_HIDDEN)) return false;
     if (!cargo_load_type_allowed(transport, unit)) return false;
     return cargo_load_target_allowed(transport, unit);
