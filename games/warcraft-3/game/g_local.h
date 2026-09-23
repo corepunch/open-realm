@@ -1233,6 +1233,11 @@ typedef enum {
     MOVE_FALLBACK_APPLIED,
 } moveFallbackState_t;
 
+typedef struct edictArtillery_s {
+    DWORD attack_type, area_targets, targets_allowed;
+    FLOAT area_full, area_medium, area_small, factor_medium, factor_small;
+} edictArtillery_t;
+
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -1373,6 +1378,8 @@ struct edict_s {
     DWORD peonsinside;
     DWORD aiflags;
     DWORD damage;
+    /* Impact behavior captured by fixed-point artillery shots. */
+    edictArtillery_t artillery;
     DWORD resources;
     DWORD freetime;
     struct edictGoldMine_s {

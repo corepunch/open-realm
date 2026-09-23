@@ -3336,6 +3336,25 @@ SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
+TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-artillery-profile.bin";
+    field_t const *desc = find_save_field("artillery");
+    reset_entities();
+    LPEDICT projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    projectile->artillery = (edictArtillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
+                                                  40.0f, 80.0f, 120.0f, 0.5f, 0.25f };
+    T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_STRUCT);
+    T_ASSERT(WriteGame(filename)); memset(&projectile->artillery, 0, sizeof(projectile->artillery));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(projectile->artillery.attack_type, ATK_SIEGE);
+    T_EQ(projectile->artillery.area_targets, WC3_TARGET_FLAG_GROUND);
+    T_FEQ(projectile->artillery.area_full, 40.0f, 0.001f);
+    T_FEQ(projectile->artillery.area_medium, 80.0f, 0.001f);
+    T_FEQ(projectile->artillery.area_small, 120.0f, 0.001f);
+    T_FEQ(projectile->artillery.factor_medium, 0.5f, 0.001f);
+    T_FEQ(projectile->artillery.factor_small, 0.25f, 0.001f);
+    remove(filename);
+}
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
 SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel.code, MAKEFOURCC('A', 'H', 'd', 'r'))
 SAVE_INT_FIELD_TEST(field_channel_serial_round_trip, channel.serial, 7)

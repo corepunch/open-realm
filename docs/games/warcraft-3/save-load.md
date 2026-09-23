@@ -13,6 +13,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot and a raw `edict_t` block for used slots;
+- fixed-point artillery projectiles retain their launch-time attack type and splash profile in the serialized edict;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
@@ -465,3 +466,7 @@ Save format version 16 adds the active WC3 environmental terrain-fog state and i
 Channel cast serials, saved origins, and owner/target incarnation stamps are persisted in version 21.
 The appended channel thinker callback roster and continuation tests are described in
 [ability verification](ability-verification-review.md#dispatch-and-persistence).
+
+Save format version 38 adds the launch-time artillery attack type, target masks,
+splash radii, and damage factors to projectile edicts so in-flight shots retain
+their impact profile across save/load.

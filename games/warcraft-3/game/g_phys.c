@@ -127,7 +127,7 @@ void SV_Physics_Toss(LPEDICT ent) {
                 LPEDICT primary = ent->goalentity;
                 if (fixed_target && primary &&
                     (!primary->inuse || primary->spawn_time != ent->channel.target_spawn_time)) primary = NULL;
-                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage);
+                S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, &ent->artillery);
             } else {
                 int const damage = G_AttackDamage(ent->owner, ent->goalentity, ent->damage);
                 S_ResolveAttackHit(ent->owner, ent->goalentity, damage);

@@ -400,7 +400,8 @@ int S_BlackArrowDamage(LPEDICT attacker, int damage);
 void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target);
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage);
 void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage);
-void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 impact, int raw_damage);
+void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 impact, int raw_damage,
+                                struct edictArtillery_s const *profile);
 BOOL S_OrderAttackGround(LPEDICT unit, LPCVECTOR2 point);
 void S_ReincarnationOnDeath(LPEDICT unit);
 BOOL S_HumanCanAttack(LPCEDICT unit);

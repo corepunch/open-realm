@@ -464,6 +464,14 @@ static field_t const entity_state_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const artillery_fields[] = {
+    TF(edictArtillery_t, attack_type, F_INT), TF(edictArtillery_t, area_targets, F_INT),
+    TF(edictArtillery_t, targets_allowed, F_INT),
+    TF(edictArtillery_t, area_full, F_FLOAT), TF(edictArtillery_t, area_medium, F_FLOAT),
+    TF(edictArtillery_t, area_small, F_FLOAT), TF(edictArtillery_t, factor_medium, F_FLOAT),
+    TF(edictArtillery_t, factor_small, F_FLOAT), { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const link_fields[] = {
     F(link_s, prev, F_IGNORE, 0, FIELD_RUNTIME),
     F(link_s, next, F_IGNORE, 0, FIELD_RUNTIME),
@@ -674,6 +682,7 @@ field_t edict_fields[] = {
     F(edict_s, channel, F_STRUCT, 1, channel_fields),
     F(edict_s, abilstatus, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
     F(edict_s, damage, F_INT),
+    F(edict_s, artillery, F_STRUCT, 1, artillery_fields),
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
