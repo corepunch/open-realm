@@ -266,10 +266,14 @@ DWORD GetTriggeringRegion(LPJASS j) {
     return jass_pushnullhandle(j, "region");
 }
 DWORD TriggerRegisterLeaveRegion(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichRegion = jass_checkhandle(j, 2, "region");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPREGION whichRegion = jass_checkhandle(j, 2, "region");
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    return jass_pushnullhandle(j, "event");
+    if (!whichTrigger || !whichRegion) return jass_pushnullhandle(j, "event");
+    LPEVENT evt = G_MakeEvent(EVENT_GAME_LEAVE_REGION);
+    evt->trigger = whichTrigger;
+    evt->region = *whichRegion;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterTrackableHitEvent(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -360,12 +364,20 @@ DWORD TriggerRegisterDeathEvent(LPJASS j) {
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterUnitStateEvent(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichUnit = jass_checkhandle(j, 2, "unit");
-    //HANDLE whichState = jass_checkhandle(j, 3, "unitstate");
-    //HANDLE opcode = jass_checkhandle(j, 4, "limitop");
-    //FLOAT limitval = jass_checknumber(j, 5);
-    return jass_pushnullhandle(j, "event");
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
+    LPDWORD whichState = jass_checkhandle(j, 3, "unitstate");
+    LPDWORD opcode = jass_checkhandle(j, 4, "limitop");
+    FLOAT limitval = jass_checknumber(j, 5);
+    if (!whichTrigger || !whichUnit || !whichState || !opcode || *whichState != UNIT_STATE_LIFE)
+        return jass_pushnullhandle(j, "event");
+    LPEVENT evt = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    evt->trigger = whichTrigger;
+    evt->subject = whichUnit;
+    evt->state = *whichState;
+    evt->limitop = *opcode;
+    evt->limitval = limitval;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterUnitEvent(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");

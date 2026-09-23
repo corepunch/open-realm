@@ -202,9 +202,16 @@ void unit_stand(LPEDICT self) {
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
 void G_SetHealth(LPEDICT ent, FLOAT value) {
     BYTE const old = compress_stat(&ent->health);
+    FLOAT const old_value = ent->health.value;
     BYTE next;
     ent->health.value = value;
     next = compress_stat(&ent->health);
+    if (old_value != value) FOR_EACH_EVENT(evt) {
+        if (evt->type == EVENT_GAME_STATE_LIMIT && evt->subject == ent && evt->state == WC3_UNIT_STATE_LIFE &&
+            !G_LimitMatches(evt->limitop, old_value, evt->limitval) &&
+             G_LimitMatches(evt->limitop, value, evt->limitval))
+            G_PublishEvent(ent, EVENT_GAME_STATE_LIMIT)->responseTo = evt;
+    }
     if ((ent->s.flags & EF_BUILDING) && (old != next || value <= 0.0f))
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
 }

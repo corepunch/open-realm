@@ -811,9 +811,12 @@ DWORD GetUnitTypeId(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? (LONG)whichUnit->class_id : 0);
 }
+static DWORD JassPushRaceHandle(LPJASS j, LONG value);
 DWORD GetUnitRace(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnullhandle(j, "race");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    unitRace_t race = whichUnit && whichUnit->data.UnitData
+        ? WC3_RaceFromString(whichUnit->data.UnitData->race) : RACE_UNKNOWN;
+    return JassPushRaceHandle(j, (LONG)race);
 }
 DWORD GetUnitName(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -921,6 +924,9 @@ DWORD IsUnitType(LPJASS j) {
         return jass_pushboolean(j, whichUnit->aiflags & AI_FLYING);
     if (*whichUnitType == 10) /* UNIT_TYPE_SUMMONED */
         return jass_pushboolean(j, whichUnit->summon_ability != 0);
+    if (*whichUnitType == 14) /* UNIT_TYPE_UNDEAD */
+        return jass_pushboolean(j, whichUnit->data.UnitData &&
+            WC3_RaceFromString(whichUnit->data.UnitData->race) == RACE_UNDEAD);
     return jass_pushboolean(j, 0);
 }
 DWORD IsUnit(LPJASS j) {

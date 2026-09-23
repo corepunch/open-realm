@@ -148,6 +148,74 @@ TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
+    LPEDICT undead = NULL;
+    UnitData_t undead_data = { .id = MAKEFOURCC('u','g','h','o'), .race = "undead" };
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function onDeath takes nothing returns nothing\n"
+        "  if IsUnitType(GetTriggerUnit(), ConvertUnitType(14)) then\n"
+        "    call SetWidgetLife(GetTriggerUnit(), 333.0)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local unit u = CreateUnit(Player(0), 'ugho', 0.0, 0.0, 0.0)\n"
+        "  call TriggerAddAction(t, function onDeath)\n"
+        "  call TriggerRegisterDeathEvent(t, u)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('u','g','h','o')) undead = &g_edicts[i];
+    T_NOT_NULL(undead);
+    undead->data.UnitData = &undead_data;
+    T_EQ(WC3_RaceFromString(undead->data.UnitData->race), RACE_UNDEAD);
+    G_SetHealth(undead, 500.0f);
+    unit_die(undead, NULL);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_FEQ(undead->health.value, 333.0f, 0.001f);
+}
+
+TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
+    LPEDICT unit = NULL;
+    LPEVENT registration = NULL;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  call SetWidgetLife(GetTriggerUnit(), 75.0)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "  call TriggerRegisterUnitStateEvent(t, u, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = &g_edicts[i];
+    T_NOT_NULL(unit);
+    FOR_EACH_EVENT(evt)
+        if (evt->type == EVENT_GAME_STATE_LIMIT && evt->subject == unit) registration = evt;
+    T_NOT_NULL(registration);
+    if (registration) {
+        T_EQ(registration->state, WC3_UNIT_STATE_LIFE);
+        T_EQ(registration->limitop, WC3_LIMITOP_LESS_THAN_OR_EQUAL);
+        T_FEQ(registration->limitval, 0.0f, 0.001f);
+    }
+    G_SetHealth(unit, 100.0f);
+    G_SetHealth(unit, 0.0f);
+    T_ASSERT(level.events.write > level.events.read);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_FEQ(unit->health.value, 75.0f, 0.001f);
+}
+
 TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     LPPLAYER saved_currentplayer = currentplayer;
     LPEDICT mover = NULL;
@@ -729,6 +797,36 @@ TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
     jass_callbyname(level.vm, "verifyEnter", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
+    LPEDICT leaving = NULL;
+    LPEVENT handler = NULL;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function onLeave takes nothing returns nothing\n"
+        "  call SetWidgetLife(GetTriggerUnit(), 75.0)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  call RegionAddRect(r, Rect(100.0, 100.0, 200.0, 200.0))\n"
+        "  call TriggerAddAction(t, function onLeave)\n"
+        "  call TriggerRegisterLeaveRegion(t, r, null)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 150.0, 150.0, 0.0)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') && g_edicts[i].s.player == 0)
+            leaving = &g_edicts[i];
+    T_NOT_NULL(leaving);
+    FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_LEAVE_REGION) { handler = evt; break; }
+    T_NOT_NULL(handler);
+    G_PublishEvent(leaving, EVENT_GAME_LEAVE_REGION)->responseTo = handler;
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_FEQ(leaving->health.value, 75.0f, 0.001f);
 }
 
 /* An event's owner is GetTriggerPlayer(), not the local-player selector used by GetLocalPlayer().
