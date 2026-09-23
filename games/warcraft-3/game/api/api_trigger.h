@@ -256,7 +256,7 @@ DWORD TriggerRegisterEnterRegion(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPREGION whichRegion = jass_checkhandle(j, 2, "region");
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
-    if (!whichTrigger || !whichRegion) return jass_pushnullhandle(j, "event");
+    if (!whichTrigger || !whichRegion || !whichRegion->inuse) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_GAME_ENTER_REGION);
     if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
@@ -274,7 +274,7 @@ DWORD TriggerRegisterLeaveRegion(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPREGION whichRegion = jass_checkhandle(j, 2, "region");
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
-    if (!whichTrigger || !whichRegion) return jass_pushnullhandle(j, "event");
+    if (!whichTrigger || !whichRegion || !whichRegion->inuse) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_GAME_LEAVE_REGION);
     if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;

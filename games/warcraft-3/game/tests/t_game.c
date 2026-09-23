@@ -3894,11 +3894,13 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-region-filter-save-test.bin";
     LEVELEVENTS old_events = level.events;
     LPEVENT registration = NULL;
-    LPREGION expected_region;
+    LPREGION expected_region, restored_region;
+    DWORD expected_region_id = UINT32_MAX;
     LPCJASSFUNC expected_filter;
 
     T_ASSERT(run_test_jass(
         "globals\n"
+        "  region staleRegion = null\n"
         "  region savedRegion = null\n"
         "endglobals\n"
         "function savedRegionFilter takes nothing returns boolean\n"
@@ -3906,24 +3908,37 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
+        "  set staleRegion = CreateRegion()\n"
+        "  call RegionAddRect(staleRegion, Rect(100.0, 200.0, 300.0, 400.0))\n"
+        "  call RemoveRegion(staleRegion)\n"
         "  set savedRegion = CreateRegion()\n"
         "  call RegionAddRect(savedRegion, Rect(10.0, 20.0, 30.0, 40.0))\n"
         "  call TriggerRegisterLeaveRegion(t, savedRegion, Condition(function savedRegionFilter))\n"
+        "endfunction\n"
+        "function verifyRegionSnapshot takes nothing returns nothing\n"
+        "  call BJassAssert(staleRegion == null, \"removed region handle was restored\")\n"
+        "  call BJassAssert(savedRegion != null, \"live region handle was lost\")\n"
+        "  call BJassAssert(IsPointInRegion(savedRegion, 20.0, 30.0), \"live region geometry was lost\")\n"
         "endfunction\n"));
     FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_LEAVE_REGION) { registration = evt; break; }
     T_NOT_NULL(registration);
     expected_region = registration ? registration->region : NULL;
     T_NOT_NULL(expected_region);
+    T_ASSERT(G_SaveJassHandle("region", expected_region, &expected_region_id));
     expected_filter = jass_functionbyname(level.vm, "savedRegionFilter");
     T_ASSERT(registration && registration->filter == expected_filter);
     T_ASSERT(WriteGame(filename));
     if (registration) registration->filter = NULL;
     T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyRegionSnapshot", true);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(registration && registration->filter == expected_filter);
-    T_ASSERT(registration && registration->region == expected_region);
-    T_EQ(expected_region->num_rects, 1);
-    T_FEQ(expected_region->rects[0].min.x, 10.0f, 0.001f);
-    T_FEQ(expected_region->rects[0].max.y, 40.0f, 0.001f);
+    restored_region = G_LoadJassHandle("region", expected_region_id);
+    T_NOT_NULL(restored_region);
+    T_ASSERT(registration && registration->region == restored_region);
+    T_EQ(restored_region->num_rects, 1);
+    T_FEQ(restored_region->rects[0].min.x, 10.0f, 0.001f);
+    T_FEQ(restored_region->rects[0].max.y, 40.0f, 0.001f);
     level.events = old_events;
     remove(filename);
 }

@@ -6,7 +6,7 @@
 
 The map reads race from the authored `UnitData.race` column. `GetUnitRace` maps authored race strings to the JASS values: Human 1, Orc 2, Undead 3, Night Elf 4, Demon 5, Other 7, Creeps 8, Commoner 9, Critters 10, and Naga 11. Value 6 is unused; an unknown race returns the null race value 0. These assignments were checked against a Warcraft III test-map enumeration and game.dll analysis ([race-value report](https://www.hiveworkshop.com/threads/map-script-independent-jass-driven-ai-experiment.370776/)); Warsmash's `CUnitRace` enum identifies authored race names but its ordinal values are a separate internal representation.
 
-Region handles occupy stable slots in `level.regions`. Event registrations keep the same region handle, so rectangle changes made after registration are visible to crossings. The region registry and event reference are saved by slot ID. Crossing evaluates the optional filter with `GetFilterUnit()` bound to the crossing unit before publishing the event. Trigger actions receive the registered region through `GetTriggeringRegion()` and the crossing unit through `GetEnteringUnit()` or `GetLeavingUnit()`.
+Region handles occupy stable slots in `level.regions`, while each handle object has a distinct allocation for its lifetime. `RemoveRegion` marks it inactive and detaches its event registrations; a later region can reuse the slot without making an old JASS handle alias the new region. Rectangle changes made after registration remain visible to crossings. The registry and event reference are saved by slot ID. Crossing evaluates the optional filter with `GetFilterUnit()` bound to the crossing unit before publishing the event. Trigger actions receive the registered region through `GetTriggeringRegion()` and the crossing unit through `GetEnteringUnit()` or `GetLeavingUnit()`.
 
 ## Confirmed Failure And Fix
 
@@ -22,7 +22,7 @@ Region event filters are JASS function references in the saved event registratio
 
 ## Verification
 
-`games/warcraft-3/game/tests/t_api.c` covers JASS `GetUnitRace` and `IsUnitType` for authored Undead data, the authored race-to-JASS enum table, unit life threshold crossing, and filtered enter/leave events driven by real unit movement through `G_TouchTriggers`. The enter test registers an empty region, adds its rectangle afterward, and checks `GetTriggeringRegion()` in the action. `games/warcraft-3/game/tests/t_avatar.c` covers threshold events crossed by Avatar's health increase and expiry. `games/warcraft-3/game/tests/t_game.c` covers save/load of a registered region, its rectangles, and filter function. `g_save.c` verifies version-39 snapshots are rejected. Run the focused suites with:
+`games/warcraft-3/game/tests/t_api.c` covers JASS `GetUnitRace` and `IsUnitType` for authored Undead data, the authored race-to-JASS enum table, unit life threshold crossing, filtered enter/leave events driven by real unit movement through `G_TouchTriggers`, stale-handle isolation after `RemoveRegion`, and repeated create/remove cycles beyond the old lifetime cap. The enter test registers an empty region, adds its rectangle afterward, and checks `GetTriggeringRegion()` in the action. `games/warcraft-3/game/tests/t_avatar.c` covers threshold events crossed by Avatar's health increase and expiry. `games/warcraft-3/game/tests/t_game.c` covers save/load of a registered region, its rectangles, and filter function. `g_save.c` verifies version-39 save files are rejected. Run the focused suites with:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_api.*'

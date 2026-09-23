@@ -432,6 +432,18 @@ void G_ClearJassGroupRegistry(void) {
     G_ResetJassGroupDebug();
 }
 
+void G_ClearRegionRegistry(void) {
+    LPREGION region = level.region_allocations;
+    while (region) {
+        LPREGION next = region->next_allocation;
+        free(region);
+        region = next;
+    }
+    memset(level.regions, 0, sizeof(level.regions));
+    level.num_regions = 0;
+    level.region_allocations = NULL;
+}
+
 LPTRIGGER G_AllocJassTrigger(void) {
     if (level.num_triggers >= MAX_TRIGGERS) return NULL;
     LPTRIGGER trigger = &level.triggers[level.num_triggers++];

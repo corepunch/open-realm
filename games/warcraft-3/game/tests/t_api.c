@@ -312,6 +312,49 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, removed_region_is_inert_and_does_not_alias_replacement) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  region retired = null\n"
+        "  region replacement = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger watched = CreateTrigger()\n"
+        "  set retired = CreateRegion()\n"
+        "  call RegionAddRect(retired, Rect(0.0, 0.0, 20.0, 20.0))\n"
+        "  call TriggerRegisterEnterRegion(watched, retired, null)\n"
+        "  call RemoveRegion(retired)\n"
+        "  call BJassAssert(not IsPointInRegion(retired, 10.0, 10.0), \"removed region remains active\")\n"
+        "  call BJassAssert(TriggerRegisterEnterRegion(watched, retired, null) == null, \"removed region accepted a new registration\")\n"
+        "  set replacement = CreateRegion()\n"
+        "  call BJassAssert(replacement != retired, \"replacement reused stale region handle\")\n"
+        "  call RegionAddRect(replacement, Rect(100.0, 100.0, 120.0, 120.0))\n"
+        "  call RegionAddRect(retired, Rect(200.0, 200.0, 220.0, 220.0))\n"
+        "  call BJassAssert(IsPointInRegion(replacement, 110.0, 110.0), \"replacement geometry lost\")\n"
+        "  call BJassAssert(not IsPointInRegion(replacement, 210.0, 210.0), \"stale region mutated replacement\")\n"
+        "endfunction\n"));
+    FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_ENTER_REGION)
+        T_NULL(evt->region);
+}
+
+TEST(wc3_api, removed_regions_reuse_slots_without_lifetime_cap) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local region r = null\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i >= 3000\n"
+        "    set r = CreateRegion()\n"
+        "    call BJassAssert(r != null, \"region creation stopped after repeated removals\")\n"
+        "    call RemoveRegion(r)\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"));
+}
+
 static DWORD unit_team_color(LPCEDICT unit) {
     DWORD const encoded = unit
         ? (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT : 0;

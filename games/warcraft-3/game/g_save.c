@@ -12,6 +12,7 @@ typedef enum {
     F_GSTRING,            // string on disk, pointer in memory, TAG_GAME
     F_VECTOR,
     F_REGION,
+    F_REGION_REGISTRY,
     F_ANGLEHACK,
     F_EDICT,            // index on disk, pointer in memory
     F_ITEM,                // index on disk, pointer in memory
@@ -52,6 +53,7 @@ typedef struct {
 #define F_METADATA_F_GSTRING(...) 0, 0
 #define F_METADATA_F_VECTOR(...) 0, 0
 #define F_METADATA_F_REGION(...) 0, 0
+#define F_METADATA_F_REGION_REGISTRY(count, schema) count, (uintptr_t)(schema)
 #define F_METADATA_F_ANGLEHACK(...) 0, 0
 #define F_METADATA_F_EDICT(count, flags) count, flags
 #define F_METADATA_F_ITEM(count, flags) count, flags
@@ -473,7 +475,7 @@ static field_t const level_fields[] = {
     F(level_locals, multiboard_items, F_STRUCT, MAX_MULTIBOARD_ITEMS, multiboard_item_fields),
     F(level_locals, texttags, F_STRUCT, MAX_TEXTTAGS, texttag_fields),
     F(level_locals, hashtables, F_STRUCT, MAX_HASHTABLES, hashtable_fields),
-    FC(level_locals, regions, F_STRUCT, MAX_REGIONS, region_fields, num_regions),
+    FC(level_locals, regions, F_REGION_REGISTRY, MAX_REGIONS, region_fields, num_regions),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
     FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
     { NULL, 0, 0, 0, 0, 0 }
@@ -1095,11 +1097,9 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
     }
     if (domain == JASS_HANDLE_REGION) {
         LPREGION region = value;
-        uintptr_t pointer = (uintptr_t)region, base = (uintptr_t)level.regions;
-        if (!region || pointer < base || pointer >= base + sizeof(level.regions) ||
-            (pointer - base) % sizeof(*region) || !region->inuse) return false;
-        *id = (DWORD)((pointer - base) / sizeof(*region));
-        return true;
+        if (!region || !region->inuse) return false;
+        FOR_LOOP(i, level.num_regions) if (level.regions[i] == region) { *id = i; return true; }
+        return false;
     }
     if (domain == JASS_HANDLE_QUEST) {
         if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
@@ -1143,7 +1143,7 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     if (domain == JASS_HANDLE_LIGHTNING)
         return id < MAX_LIGHTNING_EFFECTS && level.lightning_effects[id].inuse ? &level.lightning_effects[id] : NULL;
     if (domain == JASS_HANDLE_REGION)
-        return id < MAX_REGIONS && level.regions[id].inuse ? &level.regions[id] : NULL;
+        return id < level.num_regions && level.regions[id] && level.regions[id]->inuse ? level.regions[id] : NULL;
     return JassListHandle(domain, id);
 }
 
@@ -1349,6 +1349,13 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         if (fields->count_ofs != UINT32_MAX && count > fields->array_size) return false;
         if (fields->count_ofs != UINT32_MAX && !SaveBytes(f, &count, sizeof(count))) return false;
         switch (fields->type) {
+        case F_REGION_REGISTRY: {
+            LPREGION const *regions = (LPREGION const *)(base + fields->ofs);
+            REGION empty = {0};
+            FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags,
+                regions[i] ? (BYTE *)regions[i] : (BYTE *)&empty)) return false;
+            break;
+        }
         case F_STRUCT:
             FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
             break;
@@ -1411,6 +1418,24 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             *(DWORD *)(base + fields->count_ofs) = count;
         }
         switch (fields->type) {
+        case F_REGION_REGISTRY: {
+            LPREGION *regions = (LPREGION *)(base + fields->ofs);
+            field_t const *schema = (field_t const *)fields->flags;
+            memset(regions, 0, fields->size);
+            FOR_LOOP(i, count) {
+                REGION restored = {0};
+                LPREGION region;
+                if (!ReadMappedFields(f, schema, (BYTE *)&restored) || restored.num_rects > MAX_REGION_SIZE)
+                    return false;
+                region = malloc(sizeof(*region));
+                if (!region) return false;
+                *region = restored;
+                region->next_allocation = level.region_allocations;
+                level.region_allocations = region;
+                regions[i] = region;
+            }
+            break;
+        }
         case F_STRUCT:
             FOR_LOOP(i, count) if (!ReadMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
             break;

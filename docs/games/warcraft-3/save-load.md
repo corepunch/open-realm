@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 39, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 40, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -21,6 +21,12 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines.
+
+### Version 40 compatibility concern and possible solution
+
+Version 40 adds the region registry to the level stream, region IDs to saved event registrations, and region context to the JASS snapshot (snapshot format 6). The exact-version guard rejects version 39 saves; the existing regression test confirms this. This is a compatibility break for existing saves, even though the added data is limited to region-backed trigger state. The current region lifecycle work leaves the save version and wire format unchanged.
+
+One possible compatibility design is to retain the version 39 header and base payload byte-for-byte, then put version-40-only region state in a tagged, length-delimited extension after the JASS snapshot and before the existing checksum footer. The new reader would parse the optional extension; a version-39 reader could continue parsing the known base payload and ignore the remaining bytes after its snapshot. The extension would need its own schema/version and strict bounds, while the existing footer checksum would cover it. Before adopting this design, verify the trailing-byte behavior with an actual version-39 reader and move every version-40-only field—including region handle and coroutine context data—out of the base payload. This is a proposal only; implementing it requires a separate save-format change and compatibility tests.
 
 Version 32 adds `edict_t.permanent_health_bonus`, the persistent ledger for
 research-owned maximum-life effects such as `UpgradeData.slk` `rhpx`. The field
@@ -98,7 +104,7 @@ Event handler registrations store type, subject entity index, trigger index, tim
 
 ## JASS Snapshot
 
-The embedded snapshot starts with `JSVM`, snapshot format version 4, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
+The embedded snapshot starts with `JSVM`, snapshot format version 6, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
 
 - mutable scalar globals and sparse array entries;
 - integer, real, boolean, string, code, null, and supported typed-handle values;
@@ -471,3 +477,8 @@ Save format version 39 adds the launch-time attack type for basic projectiles.
 Version 38 added the launch-time artillery attack type, target masks, splash
 radii, and damage factors so in-flight shots retain their impact profile across
 save/load.
+
+Save format version 40 adds the fixed region registry and region references in
+event registrations. Region handles use stable registry slot IDs in the level
+state and JASS snapshot format 6 persists `GetTriggeringRegion()` in yielded
+trigger context. Version 39 saves are rejected by the exact-version guard.

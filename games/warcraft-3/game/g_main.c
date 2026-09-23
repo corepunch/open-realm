@@ -527,6 +527,7 @@ static void G_ShutdownGame(void) {
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearJassGroupRegistry();
+    G_ClearRegionRegistry();
     G_FowShutdown();
     G_BlightShutdown();
     G_FreeModels();

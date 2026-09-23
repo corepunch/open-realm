@@ -664,6 +664,7 @@ void G_SpawnEntities(void) {
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearSaveRegistries();
     G_ClearJassGroupRegistry();
+    G_ClearRegionRegistry();
     G_ClearHashtableRegistry();
     G_FowShutdown();
     G_BlightShutdown();
