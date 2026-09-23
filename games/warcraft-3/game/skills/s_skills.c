@@ -522,7 +522,7 @@ static ability_t abilitylist[] = {
     { "Acan", CAbilityCannibalize, AB_SPELL | AB_CHANNEL },  /* Cannibalize */
     { "Aspa", CAbilitySpiderAttack, AB_PASSIVE },  /* Spider Attack */
     { "Aweb", CAbilityWeb, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Web */
-    { "Astn", CAbilityDivineShield, AB_SPELL },  /* Stone Form */
+    { "Astn", CAbilityStoneForm, AB_SPELL, SPELL_TARGET_NONE, stone_form_orders },  /* Stone Form */
     { "Amel", CAbilityCargoLoad, AB_COMMAND | AB_AUTOCAST },  /* Get Corpse */
     { "Amed", CAbilityCargoDrop, AB_COMMAND },  /* Drop Corpse */
     { "Aapl", CAbilityDiseaseCloud, AB_PASSIVE | AB_UPDATE },  /* Disease Cloud */
