@@ -123,6 +123,8 @@ static BOOL can_attack(LPCEDICT ent) {
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
 BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     DWORD flag;
+    BOOL allowed;
+    LPEDICT mutable_attacker = (LPEDICT)attacker;
 
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
         attacker->attack1.type == ATK_NONE || S_UnitIsCycloned(target)) {
@@ -135,7 +137,19 @@ BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     if (M_IsDead((LPEDICT)target)) return false;
 
     flag = G_TargetFlagForType(target->targtype);
-    return flag && (attacker->attack1.targetsAllowed & flag) != 0;
+    allowed = flag && (attacker->attack1.targetsAllowed & flag) != 0;
+    /* WC3 units may carry two independent weapon profiles.  The Gargoyle's
+     * primary profile is air-only and its secondary profile is ground-only;
+     * make the profile that accepts this target the active attack so all of
+     * the existing attack timing, projectile, and damage code uses it. */
+    if (!allowed && flag && attacker->attack2.type != ATK_NONE &&
+        (attacker->attack2.targetsAllowed & flag) != 0) {
+        unitAttack_t swap = mutable_attacker->attack1;
+        mutable_attacker->attack1 = mutable_attacker->attack2;
+        mutable_attacker->attack2 = swap;
+        allowed = true;
+    }
+    return allowed;
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
