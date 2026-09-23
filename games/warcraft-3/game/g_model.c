@@ -369,6 +369,10 @@ static DWORD AnimationTagSetMatchCount(animationTagSet_t const *required,
     return matches;
 }
 
+static BOOL AnimationTagSetsEqual(animationTagSet_t const *a, animationTagSet_t const *b) {
+    return a->count == b->count && AnimationTagSetMatchCount(a, b) == a->count;
+}
+
 static BOOL AnimationTagSetContainsAll(animationTagSet_t const *candidate,
                                        animationTagSet_t const *required) {
     return AnimationTagSetMatchCount(required, candidate) == required->count;
@@ -487,46 +491,42 @@ LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCS
     return G_GetAnimation(modelindex, animname);
 }
 
-/* Select an authored animation variant while preserving the ordinary selector's fallback. */
-LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize) {
-    g_cmodel_t *model = GetModel(modelindex);
+/* Select numbered variants without crossing the selected sequence's tag set. */
+LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, DWORD count,
+                                                    LPCSTR animname, LPCSTR properties, BOOL randomize) {
     LPCANIMATION selected;
     LPCANIMATION choice = NULL;
+    animationTagSet_t selected_tags = {0};
+    char primary[WC3_ANIMATION_TAG_SIZE];
     DWORD matches = 0;
 
-    if (!model) return NULL;
-    selected = G_GetAnimationForProperties(modelindex, animname, NULL);
+    selected = G_SelectAnimationForProperties(animations, count, animname, properties);
     if (!selected || !randomize) return selected;
-
-    /* ConvertMDLXAnimationName gives numbered variants of one logical sequence
-     * the same sync point. Reservoir sampling chooses uniformly without a
-     * temporary allocation; animRandom=false above keeps the first authored
-     * match used by the ordinary selector. */
-    FOR_LOOP(i, model->num_animations) {
-        LPCANIMATION candidate = model->animations + i;
+    AnimationParseRequest(selected->name, primary, &selected_tags);
+    FOR_LOOP(i, count) {
+        LPCANIMATION candidate = animations + i;
+        animationTagSet_t candidate_tags = {0};
+        AnimationParseRequest(candidate->name, primary, &candidate_tags);
         if (candidate->syncpoint != selected->syncpoint) continue;
+        if (!AnimationTagSetsEqual(&selected_tags, &candidate_tags)) continue;
         matches++;
         if ((DWORD)(rand() % matches) == 0) choice = candidate;
     }
     return choice ? choice : selected;
 }
 
-static LPCANIMATION AnimationVariantForProperties(g_cmodel_t *model, LPCSTR animname, LPCSTR properties) {
-    LPCANIMATION selected, choice = NULL;
-    DWORD matches = 0;
-
+/* Select an authored animation variant while preserving the ordinary selector's fallback. */
+LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize) {
+    g_cmodel_t *model = GetModel(modelindex);
     if (!model) return NULL;
-    selected = G_SelectAnimationForProperties(model->animations, model->num_animations, animname, properties);
-    if (!selected) return NULL;
-    /* The MDLX loader hashes numbered variants using their common logical
-     * sequence name. Keep that syncpoint as the family key; parsing the
-     * original display name would mistake "- 1" and "- 2" for animation tags. */
-    FOR_LOOP(i, model->num_animations) {
-        LPCANIMATION candidate = model->animations + i;
-        if (candidate->syncpoint != selected->syncpoint) continue;
-        if ((DWORD)(rand() % ++matches) == 0) choice = candidate;
-    }
-    return choice ? choice : selected;
+    return G_SelectAnimationVariantForProperties(model->animations, model->num_animations,
+                                                  animname, NULL, randomize);
+}
+
+static LPCANIMATION AnimationVariantForProperties(g_cmodel_t *model, LPCSTR animname, LPCSTR properties) {
+    if (!model) return NULL;
+    return G_SelectAnimationVariantForProperties(model->animations, model->num_animations,
+                                                  animname, properties, true);
 }
 
 BOOL G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary) {

@@ -838,6 +838,25 @@ TEST(wc3_slk, required_animation_names_select_matching_alternate_sequence) {
     if (selected) T_STREQ(selected->name, "Stand");
 }
 
+TEST(wc3_slk, randomized_walk_variants_keep_the_selected_tag_set) {
+    animation_t animations[] = {
+        { .name = "Walk - 1", .syncpoint = 17 },
+        { .name = "Walk - 2", .syncpoint = 17 },
+        { .name = "Walk - 1 Alternate", .syncpoint = 17 },
+        { .name = "Walk - 2 Alternate", .syncpoint = 17 },
+    };
+
+    srand(1);
+    for (int i = 0; i < 64; i++) {
+        LPCANIMATION generic = G_SelectAnimationVariantForProperties(animations, 4, "walk", "", true);
+        LPCANIMATION alternate = G_SelectAnimationVariantForProperties(animations, 4, "walk", "alternate", true);
+        T_NOT_NULL(generic);
+        T_NOT_NULL(alternate);
+        if (generic) T_ASSERT(strstr(generic->name, "Alternate") == NULL);
+        if (alternate) T_ASSERT(strstr(alternate->name, "Alternate") != NULL);
+    }
+}
+
 TEST(wc3_slk, required_animation_names_alternateex_falls_back_to_alternate_sequences) {
     animation_t animations[] = {
         { .name = "Stand" },

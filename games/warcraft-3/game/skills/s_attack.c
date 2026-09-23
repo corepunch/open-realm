@@ -31,13 +31,14 @@ typedef struct {
     DWORD speed;
     DWORD model;
     DWORD damage;
+    DWORD attack_type;
     unitAttack_t const *attack;
     DWORD area_targets;
 }  rocketDesc_t;
 
 BOOL S_UnitAttackSlotEnabled(LPCEDICT attacker, DWORD slot) {
-    return attacker && slot < 2 && (!attacker->data.UnitWeapons ||
-        (attacker->data.UnitWeapons->attacksEnabled & (1 << slot)) != 0);
+    return attacker && slot < 2 && attacker->data.UnitWeapons &&
+        (attacker->data.UnitWeapons->attacksEnabled & (1 << slot)) != 0;
 }
 
 /* Attack 1/2 remain the authored runtime copies. Select the compatible slot
@@ -74,6 +75,7 @@ void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
     G_InheritUnitTeamColor(rocket, ent);
     rocket->velocity = desc->speed / 1000.f;
     rocket->damage = desc->damage;
+    rocket->projectile_attack_type = desc->attack_type;
     if (desc->fixed_target) {
         rocket->aiflags |= AI_PROJECTILE_FIXED_TARGET;
         rocket->channel.origin = *desc->fixed_target;
@@ -230,6 +232,10 @@ static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, DWORD 
 int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     return attack_damage_type(attacker, target, base,
                               attacker && target ? attack_profile(attacker, target)->type : 0);
+}
+
+int G_AttackDamageWithType(LPEDICT attacker, LPEDICT target, int base, DWORD type) {
+    return attack_damage_type(attacker, target, base, type);
 }
 
 static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, DWORD atk) {
@@ -470,6 +476,7 @@ static void throw_missile(LPEDICT ent) {
         .speed = atk->projectile.speed,
         .model = atk->projectile.model,
         .damage = damage,
+        .attack_type = atk->type,
         .attack = atk,
         .area_targets = ent->data.UnitWeapons ? (atk == &ent->attack2 ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });

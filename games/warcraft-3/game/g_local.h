@@ -1378,6 +1378,7 @@ struct edict_s {
     DWORD peonsinside;
     DWORD aiflags;
     DWORD damage;
+    DWORD projectile_attack_type; /* basic missile attack type captured at launch */
     /* Impact behavior captured by fixed-point artillery shots. */
     edictArtillery_t artillery;
     DWORD resources;
@@ -2247,6 +2248,7 @@ void         G_NormalizeModelFilename(LPCSTR authored, LPSTR out, size_t out_siz
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
 LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties);
+LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties, BOOL randomize);
 LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCSTR properties);
 LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize);
 BOOL         G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary);
@@ -2751,6 +2753,7 @@ void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c
 int G_AttackDamage(LPEDICT, LPEDICT, int);
+int G_AttackDamageWithType(LPEDICT, LPEDICT, int, DWORD);
 void T_Damage(LPEDICT, LPEDICT, int);
 
 // g_utils.c
