@@ -46,6 +46,7 @@
 
 extern LPCSTR const raven_orders[];
 extern LPCSTR const barkskin_orders[];
+extern LPCSTR const stone_form_orders[];
 BZ_ABILITY_PROC(CAbilityHarvest);
 BZ_ABILITY_PROC(CAbilityMove);
 BZ_ABILITY_PROC(CAbilityRavenForm);
@@ -197,6 +198,7 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots);
 BZ_ABILITY_PROC(CAbilityDarkRitual);
 BZ_ABILITY_PROC(CAbilityFrostArmor);
 BZ_ABILITY_PROC(CAbilityDivineShield);
+BZ_ABILITY_PROC(CAbilityStoneForm);
 BZ_ABILITY_PROC(CAbilityCriticalStrike);
 BZ_ABILITY_PROC(CAbilityEvasion);
 BZ_ABILITY_PROC(CAbilityMassTeleport);
