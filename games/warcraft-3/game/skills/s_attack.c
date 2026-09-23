@@ -123,11 +123,9 @@ static BOOL can_attack(LPCEDICT ent) {
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
 BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     DWORD flag;
-    BOOL allowed;
-    LPEDICT mutable_attacker = (LPEDICT)attacker;
 
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
-        attacker->attack1.type == ATK_NONE || S_UnitIsCycloned(target)) {
+        (attacker->attack1.type == ATK_NONE && attacker->attack2.type == ATK_NONE) || S_UnitIsCycloned(target)) {
         return false;
     }
     if (attacker->s.player < MAX_PLAYERS && S_UnitIsInvisibleToPlayer(target, attacker->s.player)) return false;
@@ -137,19 +135,23 @@ BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     if (M_IsDead((LPEDICT)target)) return false;
 
     flag = G_TargetFlagForType(target->targtype);
-    allowed = flag && (attacker->attack1.targetsAllowed & flag) != 0;
-    /* WC3 units may carry two independent weapon profiles.  The Gargoyle's
-     * primary profile is air-only and its secondary profile is ground-only;
-     * make the profile that accepts this target the active attack so all of
-     * the existing attack timing, projectile, and damage code uses it. */
-    if (!allowed && flag && attacker->attack2.type != ATK_NONE &&
-        (attacker->attack2.targetsAllowed & flag) != 0) {
-        unitAttack_t swap = mutable_attacker->attack1;
-        mutable_attacker->attack1 = mutable_attacker->attack2;
-        mutable_attacker->attack2 = swap;
-        allowed = true;
+    return flag && ((attacker->attack1.type != ATK_NONE && (attacker->attack1.targetsAllowed & flag)) ||
+                    (attacker->attack2.type != ATK_NONE && (attacker->attack2.targetsAllowed & flag)));
+}
+
+/* The attack routines consume attack1 as their active profile. Select it only
+ * after an order has chosen its target; S_AttackCanTarget remains a read-only
+ * predicate during candidate scans and repeated target validation. */
+static void attack_select_profile(LPEDICT attacker, LPCEDICT target) {
+    DWORD flag = target ? G_TargetFlagForType(target->targtype) : 0;
+    if (attacker && flag && attacker->attack1.type != ATK_NONE &&
+        (attacker->attack1.targetsAllowed & flag)) return;
+    if (attacker && flag && attacker->attack2.type != ATK_NONE &&
+        (attacker->attack2.targetsAllowed & flag)) {
+        unitAttack_t swap = attacker->attack1;
+        attacker->attack1 = attacker->attack2;
+        attacker->attack2 = swap;
     }
-    return allowed;
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
@@ -595,6 +597,7 @@ void order_attack(LPEDICT self, LPEDICT target) {
         !S_AttackCanTarget(self, target)) {
         return;
     }
+    attack_select_profile(self, target);
     unit_entercombat(self, target);
     self->goalentity = target;
     attack_walk(self);

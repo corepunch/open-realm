@@ -37,7 +37,7 @@ The ordinary campaign path is implemented:
 - `TimerDialogDisplay`
 - `IsTimerDialogDisplayed`
 
-`TimerDialogDisplay` follows the existing `currentplayer` convention. Inside a local-player branch it changes only that client's visibility bit; outside a local branch it applies to all client slots. The visibility mask is presentation state and does not alter the gameplay timer.
+`TimerDialogDisplay` follows the existing `currentplayer` convention. Inside a local-player branch it changes only that Warcraft player-number visibility bit; outside a local branch it applies to every client slot's `ps.number`. Client slot indexes and Warcraft player numbers are not interchangeable, so the all-client mask is built by mapping each slot to its player number. The visibility mask is presentation state and does not alter the gameplay timer.
 
 Titles pass through `G_LevelString()` before being copied into dialog state, so ordinary `TRIGSTR_` mission strings use the existing map-string resolution path.
 
