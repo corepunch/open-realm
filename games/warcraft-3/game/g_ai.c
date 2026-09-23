@@ -2,6 +2,9 @@
 #include "skills/s_skills.h"
 
 void unit_setanimation(LPEDICT self, LPCSTR anim) {
+    /* Walk is requested every movement tick. Keep the selected numbered walk
+     * sequence until a move transition selects a fresh animation. */
+    if (self && anim && !strcmp(anim, "walk") && G_AnimationHasPrimary(self->animation, "walk")) return;
     G_SetUnitAnimation(self, anim);
 }
 
