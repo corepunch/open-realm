@@ -147,7 +147,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
 
     rows = board->size_by_item_count >= 0 ? (DWORD)board->size_by_item_count : board->item_count;
     rows = MAX(1u, MIN(rows, (DWORD)MAX_LEADERBOARD_ITEMS));
-    visible_rows = MAX(1u, MIN(board->item_count, rows));
+    visible_rows = board->item_count ? MAX(1u, MIN(board->item_count, rows)) : 0;
     has_title = board->show_label && board->label[0];
 
     /* The stock list container reserves substantially more vertical space than
@@ -185,7 +185,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
         }
     }
 
-    UI_SetHidden(container, false);
+    UI_SetHidden(container, visible_rows == 0);
     ResetFramePoints(container);
     UI_SetPoint(container, FRAMEPOINT_TOPLEFT, root, FRAMEPOINT_TOPLEFT,
                 LEADERBOARD_EDGE_INSET, -list_top);

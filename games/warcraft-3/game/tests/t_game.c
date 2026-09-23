@@ -200,6 +200,8 @@ static char timer_dialog_measure_text[128];
 static uiNameTag_t timer_dialog_size_to_text;
 static DWORD timer_dialog_unicast_count;
 static LPEDICT timer_dialog_unicast_target;
+static BOOL leaderboard_size_capture;
+static char leaderboard_measure_capture_text[128];
 
 static void timer_dialog_test_unicast(LPEDICT ent) {
     timer_dialog_unicast_count++;
@@ -217,6 +219,17 @@ static void timer_dialog_test_write(pfWriteType_t type, void const *data) {
     if (frame->text) strlcpy(timer_dialog_measure_text, frame->text, sizeof(timer_dialog_measure_text));
     if (frame->buffer.data && frame->buffer.size >= sizeof(timer_dialog_size_to_text))
         memcpy(&timer_dialog_size_to_text, frame->buffer.data, sizeof(timer_dialog_size_to_text));
+}
+
+static void leaderboard_test_write(pfWriteType_t type, void const *data) {
+    LPCUIFRAME frame;
+
+    if (type != PF_UIFRAME || !data) return;
+    frame = data;
+    if (!(frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT)) return;
+    leaderboard_size_capture = true;
+    strlcpy(leaderboard_measure_capture_text, frame->text ? frame->text : "",
+            sizeof(leaderboard_measure_capture_text));
 }
 
 TEST(wc3_game, selected_unit_cheats_preserve_controller_and_run_death) {
@@ -1771,6 +1784,56 @@ TEST(wc3_game, leaderboard_stacks_below_visible_timer_per_client) {
 
     hud.timer_dialog.TimerDialog = old_timer_frame;
     level.timer_dialogs[0] = old_dialog;
+}
+
+TEST(wc3_game, title_only_leaderboard_does_not_reserve_an_empty_row) {
+    FRAMEDEF root = { .Type = FT_SIMPLEFRAME };
+    FRAMEDEF backdrop = { .Type = FT_BACKDROP, .Parent = &root };
+    FRAMEDEF title = { .Type = FT_STRING, .Parent = &root };
+    FRAMEDEF container = { .Type = FT_SIMPLEFRAME, .Parent = &root };
+    LeaderBoard_t old_binding = hud.leaderboard;
+    LEADERBOARD old_board;
+    LONG old_player_board;
+    DWORD old_dirty;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
+
+    setup_test_world();
+    old_board = level.leaderboards[0];
+    old_player_board = level.player_leaderboards[0];
+    old_dirty = level.leaderboard_dirty_clients;
+    memset(&level.leaderboards[0], 0, sizeof(level.leaderboards[0]));
+    level.leaderboards[0].inuse = true;
+    level.leaderboards[0].displayed_clients = 1u;
+    level.leaderboards[0].show_label = true;
+    strlcpy(level.leaderboards[0].label, "A Runner is on its way!",
+            sizeof(level.leaderboards[0].label));
+    level.player_leaderboards[0] = 0;
+    title.Font.Size = 0.02f;
+    hud.leaderboard = (LeaderBoard_t){
+        .Leaderboard = &root, .LeaderboardBackdrop = &backdrop,
+        .LeaderboardTitle = &title, .LeaderboardListContainer = &container,
+    };
+    leaderboard_size_capture = false;
+    leaderboard_measure_capture_text[0] = '\0';
+    gi.Write = leaderboard_test_write;
+    gi.unicast = selection_test_unicast;
+    gi.FontIndex = portrait_test_font;
+
+    UI_WriteLeaderboard(&g_edicts[0]);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    hud.leaderboard = old_binding;
+    level.leaderboards[0] = old_board;
+    level.player_leaderboards[0] = old_player_board;
+    level.leaderboard_dirty_clients = old_dirty;
+    T_ASSERT(leaderboard_size_capture);
+    T_STREQ(leaderboard_measure_capture_text, "A Runner is on its way!");
+    T_ASSERT(container.hidden);
+    T_FEQ(root.Height, 0.035f, 0.0001f);
 }
 
 TEST(wc3_game, hud_save_panel_accepts_native_list_in_authored_frame_slot) {
