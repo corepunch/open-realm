@@ -28,9 +28,19 @@ ownership and held orb items (the same orb from both applies once).
 Buffs are state-only like Frost Nova's `Bfro`: no movement/armor
 consumer reads `Bfro`/`BIcb`/`Bfre` yet.
 
+## Attack Damage Bonus Aliases
+
+The passive item attack damage family is also handled by `CAbilityAttackBonus`.
+TFT aliases `AIt6`, `AIt9`, `AItc`, `AItf`, `AItg`, `AIth`, `AIti`,
+`AItj`, `AItk`, `AItl`, `AItn`, and `AItx` share `AIat`'s `DataA`
+pickup/removal behavior. Their values come from each alias's own AbilityData
+row, so an item carrying `AItg` uses its authored +1 while `AItx` uses +20.
+ROC includes the `+6`, `+9`, `+12`, and `+15` aliases; the remaining aliases
+are TFT-only. The registry maps all twelve directly to the same procedure.
+
 ## Verification
 
 ```sh
 build/bin/ability_audit -data 'data/Warcraft III' -raw AIob
-make test-wc3-engine WC3_PATTERN='wc3_item_lifecycle.orb_*'
+make test-wc3-engine WC3_PATTERN='wc3_item_lifecycle.*'
 ```
