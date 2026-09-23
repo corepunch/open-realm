@@ -1533,6 +1533,7 @@ struct edict_s {
     FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
     FLOAT permanent_health_bonus; /* research/permanent maximum-health modifiers preserved across hero recompute */
     FLOAT temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
+    FLOAT temporary_mana_bonus; /* item/temporary maximum-mana modifiers preserved across hero recompute */
     FLOAT mana_regen_bonus; /* research/permanent mana regeneration modifiers */
     struct {
         BYTE select[MAX_UNIT_SELECT_SOUNDS];
@@ -2354,6 +2355,13 @@ BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);
 void G_RunEntity(LPEDICT);
 void G_SetHealth(LPEDICT, FLOAT);
 void G_AddHealth(LPEDICT, FLOAT);
+void G_ApplyPermanentMaxHealthBonus(LPEDICT, FLOAT);
+void G_ApplyTemporaryMaxHealthBonus(LPEDICT, FLOAT);
+void G_ApplyTemporaryMaxManaBonus(LPEDICT, FLOAT);
+void G_ApplyPermanentArmorBonus(LPEDICT, FLOAT);
+void G_ApplyTemporaryArmorBonus(LPEDICT, FLOAT);
+void G_ApplyPermanentAttackDamageBonus(LPEDICT, FLOAT);
+void G_ApplyTemporaryAttackDamageBonus(LPEDICT, FLOAT);
 void S_EnableAbility(LPEDICT, DWORD);
 void S_DisableAbility(LPEDICT, DWORD);
 void S_RefreshAbilityLevel(LPEDICT, ability_t const *);

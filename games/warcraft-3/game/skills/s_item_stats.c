@@ -5,31 +5,19 @@
  * CAbilityItemDefenseBonus.onAdd/onRemove, etc. */
 
 static void apply_attack(LPEDICT unit, FLOAT amount) {
-    unit->attack1.temporaryDamageBonus += amount;
-    unit->attack2.temporaryDamageBonus += amount;
-    G_InvalidateUnitInfoPanel(unit);
+    G_ApplyTemporaryAttackDamageBonus(unit, amount);
 }
 
 static void apply_defense(LPEDICT unit, FLOAT amount) {
-    unit->temporary_armor_bonus += amount;
-    unit->armor_value += amount;
-    G_InvalidateUnitInfoPanel(unit);
+    G_ApplyTemporaryArmorBonus(unit, amount);
 }
 
 static void apply_life(LPEDICT unit, FLOAT amount) {
-    FLOAT old_max = unit->health.max_value;
-    if (old_max <= 0) old_max = 1.0f;
-    FLOAT ratio = unit->health.value / old_max;
-    unit->health.max_value += amount;
-    G_SetHealth(unit, unit->health.max_value * ratio);
+    G_ApplyTemporaryMaxHealthBonus(unit, amount);
 }
 
 static void apply_mana(LPEDICT unit, FLOAT amount) {
-    FLOAT old_max = unit->mana.max_value;
-    if (old_max <= 0) old_max = 1.0f;
-    FLOAT ratio = unit->mana.value / old_max;
-    unit->mana.max_value += amount;
-    unit->mana.value = unit->mana.max_value * ratio;
+    G_ApplyTemporaryMaxManaBonus(unit, amount);
 }
 
 /* Attribute aliases share the authored Agility/Intelligence/Strength field order used by tomes. */
