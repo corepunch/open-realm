@@ -35,15 +35,22 @@ typedef struct {
     DWORD area_targets;
 }  rocketDesc_t;
 
+BOOL S_UnitAttackSlotEnabled(LPCEDICT attacker, DWORD slot) {
+    return attacker && slot < 2 && (!attacker->data.UnitWeapons ||
+        (attacker->data.UnitWeapons->attacksEnabled & (1 << slot)) != 0);
+}
+
 /* Attack 1/2 remain the authored runtime copies. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(LPCEDICT attacker, LPCEDICT target) {
     DWORD flag = target ? G_TargetFlagForType(target->targtype) : 0;
-    if (attacker && target && target->destructable.initialized && target->targtype == TARG_TREE &&
-        attacker->attack1.type != ATK_NONE) return &attacker->attack1;
-    if (attacker && flag && attacker->attack1.type != ATK_NONE &&
+    if (attacker && target && target->destructable.initialized && target->targtype == TARG_TREE) {
+        if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
+        if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
+    }
+    if (attacker && flag && attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
         (attacker->attack1.targetsAllowed & flag)) return &attacker->attack1;
-    if (attacker && flag && attacker->attack2.type != ATK_NONE &&
+    if (attacker && flag && attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
         (attacker->attack2.targetsAllowed & flag)) return &attacker->attack2;
     return attacker ? &attacker->attack1 : NULL;
 }
@@ -138,7 +145,8 @@ static BOOL can_attack(LPCEDICT ent) {
     if (S_UnitIsCycloned(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
-    if (ent->attack1.type == ATK_NONE && ent->attack2.type == ATK_NONE)
+    if ((!S_UnitAttackSlotEnabled(ent, 0) || ent->attack1.type == ATK_NONE) &&
+        (!S_UnitAttackSlotEnabled(ent, 1) || ent->attack2.type == ATK_NONE))
         return false;
     if (!ent->currentmove || ent->currentmove->proc != CAbilityAttack)
         return true;
@@ -152,7 +160,8 @@ BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     DWORD flag;
 
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
-        (attacker->attack1.type == ATK_NONE && attacker->attack2.type == ATK_NONE) || S_UnitIsCycloned(target)) {
+        ((!S_UnitAttackSlotEnabled(attacker, 0) || attacker->attack1.type == ATK_NONE) &&
+         (!S_UnitAttackSlotEnabled(attacker, 1) || attacker->attack2.type == ATK_NONE)) || S_UnitIsCycloned(target)) {
         return false;
     }
     if (attacker->s.player < MAX_PLAYERS && S_UnitIsInvisibleToPlayer(target, attacker->s.player)) return false;
@@ -162,8 +171,8 @@ BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     if (M_IsDead((LPEDICT)target)) return false;
 
     flag = G_TargetFlagForType(target->targtype);
-    return flag && ((attacker->attack1.type != ATK_NONE && (attacker->attack1.targetsAllowed & flag)) ||
-                    (attacker->attack2.type != ATK_NONE && (attacker->attack2.targetsAllowed & flag)));
+    return flag && ((attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (attacker->attack1.targetsAllowed & flag)) ||
+                    (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->attack2.targetsAllowed & flag)));
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
@@ -708,7 +717,7 @@ void attack_ranged(LPEDICT self) {
  * min/max range band, and snapshots that same point into each projectile at
  * the damage point. */
 static BOOL attack_ground_valid(LPCEDICT ent) {
-    return ent && ent->inuse && !M_IsDead((LPEDICT)ent) && ent->attack1.type != ATK_NONE &&
+    return ent && ent->inuse && !M_IsDead((LPEDICT)ent) && S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.type != ATK_NONE &&
            ent->attack1.weapon == WPN_ARTILLERY && !S_UnitIsCycloned(ent) &&
            S_HumanCanAttack(ent) && S_CargoAttacksEnabled(ent);
 }

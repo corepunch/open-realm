@@ -13,9 +13,14 @@
 extern JASSMODULE jass_funcs[];
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
+    static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     LPEDICT ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
+    /* The fixture archive has no UnitWeapons.slk. Tests that construct attacks
+     * by hand start with both authored weapon slots enabled unless they attach
+     * a specific row for a disabled-slot case. */
+    ent->data.UnitWeapons = &test_weapons;
     ent->s.origin2 = (VECTOR2){x, y};
     ent->s.origin.x = x;
     ent->s.origin.y = y;

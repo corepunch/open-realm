@@ -84,12 +84,14 @@ static int capture_fire_model(LPCSTR model) {
 }
 
 static LPEDICT make_combat_unit(DWORD class_id, FLOAT hp, FLOAT x, FLOAT y) {
+    static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     LPEDICT ent       = alloc_test_unit(class_id, x, y);
     ent->health.value     = hp;
     ent->health.max_value = hp;
     ent->stand            = unit_stand;
     ent->die              = stub_die;
     ent->svflags         |= SVF_MONSTER;
+    ent->data.UnitWeapons = &test_weapons;
     unit_stand(ent);
     return ent;
 }
@@ -576,6 +578,7 @@ TEST(wc3_combat, attack_button_accepts_owned_building) {
 
     clent->s.player = 0;
     attacker->s.player = 0;
+    { static UnitWeapons_t const weapons = { .attacksEnabled = 3 }; attacker->data.UnitWeapons = &weapons; }
     building->s.player = 0;
     building->targtype = TARG_STRUCTURE;
     attacker->attack1.type = ATK_NORMAL;
@@ -596,6 +599,7 @@ TEST(wc3_combat, attack_button_accepts_owned_nonbuilding_unit) {
 
     clent->s.player = 0;
     attacker->s.player = 0;
+    { static UnitWeapons_t const weapons = { .attacksEnabled = 3 }; attacker->data.UnitWeapons = &weapons; }
     friendly->s.player = 0;
     friendly->targtype = TARG_GROUND;
     attacker->attack1.type = ATK_NORMAL;
@@ -616,6 +620,7 @@ TEST(wc3_combat, attack_button_accepts_allied_unit) {
 
     clent->s.player = 0;
     attacker->s.player = 0;
+    { static UnitWeapons_t const weapons = { .attacksEnabled = 3 }; attacker->data.UnitWeapons = &weapons; }
     friendly->s.player = 1;
     friendly->targtype = TARG_GROUND;
     /* Allied targeting requires active map slots; the old test set only a raw alliance bit for an inactive owner. */
@@ -752,8 +757,10 @@ TEST(wc3_combat, secondary_attack_can_target_destructables) {
 
 TEST(wc3_combat, secondary_attack_selection_keeps_authored_profiles) {
     LPEDICT attacker, target;
+    UnitWeapons_t weapons = { .attacksEnabled = 3 };
     setup_test_world(); reset_entities();
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    attacker->data.UnitWeapons = &weapons;
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 256.0f, 0.0f);
     target->targtype = TARG_AIR;
     attacker->attack1.type = ATK_NORMAL; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
@@ -762,6 +769,19 @@ TEST(wc3_combat, secondary_attack_selection_keeps_authored_profiles) {
     T_ASSERT(S_OrderAttack(attacker, target));
     T_EQ(attacker->attack1.type, ATK_NORMAL); T_EQ(attacker->attack1.targetsAllowed, WC3_TARGET_FLAG_GROUND);
     T_EQ(attacker->attack2.type, ATK_PIERCE); T_EQ(attacker->attack2.damageBase, 17);
+}
+
+TEST(wc3_combat, disabled_secondary_attack_cannot_target_air) {
+    LPEDICT attacker, target;
+    UnitWeapons_t weapons = { .attacksEnabled = 1 };
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+    target->targtype = TARG_AIR;
+    attacker->data.UnitWeapons = &weapons;
+    attacker->attack1.type = ATK_NORMAL; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack2.type = ATK_PIERCE; attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    T_ASSERT(!S_AttackCanTarget(attacker, target));
 }
 
 /* ==========================================================================
@@ -1600,7 +1620,7 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
 
 
 TEST(wc3_combat, artillery_uses_ranged_attack_state) {
-    UnitWeapons_t weapons = { .minimumAttackRange = 0.0f };
+    UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 0.0f };
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
     LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
 
@@ -1617,7 +1637,7 @@ TEST(wc3_combat, artillery_uses_ranged_attack_state) {
 }
 
 TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
-    UnitWeapons_t weapons = { .minimumAttackRange = 100.0f };
+    UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 100.0f };
     setup_test_world();
     reset_entities();
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
@@ -1640,7 +1660,7 @@ TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
 }
 
 TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
-    UnitWeapons_t weapons = { .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
+    UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, -300.0f, 0.0f);
     LPEDICT primary = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
     LPEDICT medium = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 75.0f, 0.0f);
@@ -1675,7 +1695,7 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
  * Moving the original target after launch therefore does not make the missile
  * home; splash resolves around the launch-time coordinates. */
 TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
-    UnitWeapons_t weapons = { .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND },
+    UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND },
                               .attack2 = { .areaTargets = WC3_TARGET_FLAG_AIR } };
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
     LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
@@ -1738,7 +1758,7 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
 }
 
 TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projectile) {
-    UnitWeapons_t weapons = { .minimumAttackRange = 50.0f,
+    UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 50.0f,
                               .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
     VECTOR2 point = { 200.0f, 75.0f };
@@ -2762,7 +2782,7 @@ TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
 
 /* A point inside minimum range must not cause retreat while locked. */
 TEST(wc3_combat, attack_ground_min_range_no_retreat_while_locked) {
-    UnitWeapons_t weapons = { .minimumAttackRange = 150.0f };
+    UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 150.0f };
     LPEDICT unit;
     VECTOR2 point = { 50, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
