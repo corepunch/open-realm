@@ -56,14 +56,13 @@ See [corpse mechanics](corpse-mechanics.md) for the authored Graveyard contract.
 
 ## Hero aura presentation cache
 
-The full profile in `build/perf-full.txt` assigns 41.62% of sampled CPU cycles to
-`S_UpdateHeroAuraEffects`, with `hero_aura_presentation` scanning the entire edict
-list and reparsing each source's ability list for every recipient. The existing
-per-frame aura provider cache now resolves Devotion and Unholy providers alongside
-the regeneration families; presentation still evaluates live range, alliance, and
-target rules per recipient, but iterates only cached providers. Cache validity uses
-the `UINT_MAX` reset sentinel, so frame zero does not rebuild the provider list for
-every entity.
+An earlier full profile assigned 41.62% of sampled CPU cycles to
+`S_UpdateHeroAuraEffects`, with `hero_aura_presentation` scanning the edict list
+and reparsing source ability lists for each recipient. The per-frame provider cache
+now resolves Devotion and Unholy providers alongside the regeneration families;
+presentation still checks live range, alliance, and target rules per recipient, but
+iterates cached providers. Cache validity uses the `UINT_MAX` reset sentinel, so
+frame zero does not rebuild the provider list for every entity.
 
 The in-engine 1,900-unit benchmark measured `G_RunEntities` at 2,394.48 ms/call
 while frame-zero cache invalidation rebuilt the list per entity. After the generation
@@ -72,6 +71,20 @@ binary. This benchmark is a regression signal for cache invalidation and scaling
 it is not an end-to-end frame-rate claim. Aura presentation tests drive
 `G_RunEntities` at frame zero and after a timed range change so the scheduler path
 and cache reset contract remain covered.
+
+The September 23 `build/perf-full.txt` capture exposed a separate mechanical path:
+`S_UnholyHealthRegen -> hero_aura_bonus -> actor_aura_ability` accounts for 72.99%
+inclusive sampled cycles. Each recipient refresh scanned all edicts and resolved all
+combat aura aliases for every active friendly unit. `regen_aura_cache_update` now
+caches those alias/rank references with the other aura providers, so a shared source
+pass replaces the repeated recipient-by-edict alias resolution. Each recipient still
+checks live source activity, alliance, range, and authored target masks; its numeric
+cache keeps the existing two-second refresh and invalidates on AbilityData generation
+changes. `wc3_spell.combat_aura_alias_resolution_scales_with_edicts` reproduces the
+old resolver-call growth with 32 aura sources and 96 recipients, then checks the
+linear edict-bound pass and runtime ability removal/re-add. The stored profile has
+only about 4K CPU samples and no scene/build metadata; take a new weighted profile to
+measure the post-fix cycle share.
 
 Profile-driven optimizations across the renderer, client, and server. The five sampled hot spots and the fixes applied to each are listed below so a future reader understands *why* each path is shaped the way it is.
 
