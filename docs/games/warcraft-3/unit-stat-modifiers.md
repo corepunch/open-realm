@@ -9,17 +9,20 @@ ledger for a derived stat; they do not replace ability ownership.
 
 - Treat SLK/DBC unit rows as immutable base data. Do not write bonuses back into
   those tables or repeatedly add deltas to a value that will later be rebuilt.
-- Store persistent additive modifiers in named edict ledgers. Runtime values
-  such as `armor_value` and `damageBase` are derived caches, not independent
-  sources of truth.
+- Store persistent additive modifiers in named ledgers. Unit-local bonuses
+  belong on the edict; researched `rmnx` mana belongs to player tech and is
+  queried through `G_UnitUpgradeEffectBonus`. Runtime values such as
+  `armor_value` and `damageBase` are derived caches, not independent sources
+  of truth.
 - Use the same operation for ordinary add/remove paths. Removal passes the
   inverse delta through that operation, keeping the ledger and live value in
   sync. A bespoke ability transition may use different current-resource rules,
   but must still update the ledger (Avatar expiry clamps current HP instead of
   preserving its fraction).
-- When changing a maximum health or mana value, preserve the unit's current
-  fraction. Keep the bonus in its ledger so Hero attribute recomputation and
-  save/load do not erase it.
+- Item maximum-health and maximum-mana bonuses preserve the unit's current
+  fraction. `rmnx` research moves current mana by the absolute maximum delta.
+  Keep each bonus in its authoritative ledger so Hero attribute recomputation
+  and save/load do not erase it.
 
 Current examples:
 
@@ -28,7 +31,7 @@ Current examples:
 | Attack damage | `unitAttack_t.permanentDamageBonus` / `temporaryDamageBonus`; primary Hero attribute is rebuilt from `UnitWeapons` | `ai_rolldamage1`, then attack-resolution modifiers; use `G_Apply*AttackDamageBonus` |
 | Armor | `permanent_armor_bonus` / `temporary_armor_bonus`; `armor_value` is rebuilt from base armor and Agility | `G_UnitArmorValue`, shared by physical damage and HUD; use `G_Apply*ArmorBonus` |
 | Maximum health | `permanent_health_bonus` / `temporary_health_bonus`; use `G_Apply*MaxHealthBonus` | Hero recomputation and health cap |
-| Maximum mana | Hero Intelligence plus `temporary_mana_bonus`; temporary changes use `G_ApplyTemporaryMaxManaBonus` | Hero recomputation and mana cap |
+| Maximum mana | Hero Intelligence, player-owned `rmnx` research via `G_UnitUpgradeEffectBonus`, plus `temporary_mana_bonus`; temporary changes use `G_ApplyTemporaryMaxManaBonus` | Hero recomputation and mana cap |
 
 Add another ledger only when the stat needs a separately owned contribution
 that must survive recomputation or persistence. Timed buffs whose value can be

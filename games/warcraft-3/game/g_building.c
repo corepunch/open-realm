@@ -83,7 +83,6 @@ void G_ClearBuildPreview(LPEDICT builder) {
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
 #define ID_UPGRADE_EFFECT_HIT_POINTS    MAKEFOURCC('r', 'h', 'p', 'x')
 #define ID_UPGRADE_EFFECT_SPELL_LEVEL   MAKEFOURCC('r', 'l', 'e', 'v')
-#define ID_UPGRADE_EFFECT_MAX_MANA      MAKEFOURCC('r', 'm', 'n', 'x') // fourcc; maximum-mana upgrade effect
 #define ID_UPGRADE_EFFECT_MANA_REGEN    MAKEFOURCC('r', 'm', 'n', 'r') // fourcc; mana-regeneration upgrade effect
 
 static BYTE G_PlacementFlags(LPCSTR list) {
@@ -379,8 +378,11 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
             FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
             if (delta != 0.0f) {
-                unit->mana.max_value = MAX(0.0f, unit->mana.max_value + delta);
-                unit->mana.value = MAX(0.0f, MIN(unit->mana.max_value, unit->mana.value + delta));
+                if (G_UnitIsHero(unit)) G_RecomputeHeroStats(unit);
+                else {
+                    unit->mana.max_value = MAX(0.0f, unit->mana.max_value + delta);
+                    unit->mana.value = MAX(0.0f, MIN(unit->mana.max_value, unit->mana.value + delta));
+                }
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_MANA_REGEN) {

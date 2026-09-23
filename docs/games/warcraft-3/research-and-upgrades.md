@@ -250,6 +250,12 @@ does not gain a level from the research.
 current mana by that same absolute delta, clamped to the new maximum. `rmnr`
 records the authored regeneration delta in `mana_regen_bonus`.
 
+For Heroes, `G_RecomputeHeroStats` reads the current `rmnx` total from the
+player's researched tech and the unit's `Upgrades Used` list. Research changes
+recompute that derived maximum instead of adding the delta again. This keeps
+the upgrade alongside Intelligence and item mana bonuses when Hero attributes
+change or a form is rebound, without another per-unit save field.
+
 Existing owned units whose `Upgrades Used` list contains the upgrade are updated
 when player tech changes. Newly spawned/trained units run the same application
 path after their base/Hero stats are initialized, so they inherit research that

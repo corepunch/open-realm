@@ -2478,6 +2478,7 @@ void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_val
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid);
 FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect);
+#define ID_UPGRADE_EFFECT_MAX_MANA MAKEFOURCC('r', 'm', 'n', 'x')
 LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid);
 void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid);

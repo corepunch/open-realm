@@ -1279,6 +1279,52 @@ TEST(wc3_building, researched_caster_mana_effects_update_existing_units) {
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, researched_mana_survives_hero_recompute_with_item_bonus) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit, future;
+    UnitBalance_t balance;
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const training = MAKEFOURCC('R','h','s','t');
+
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    balance = *unit->data.UnitBalance;
+    balance.maxMana = 200.0f;
+    balance.upgrades = "Rhst";
+    memset(client->tech, 0, sizeof(client->tech));
+    unit->s.player = client->ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->hero.intel = balance.intelligence;
+    unit->mana.max_value = 200.0f;
+    unit->mana.value = 0.0f;
+
+    G_SetPlayerTechResearched(client, training, 1);
+    T_FEQ(unit->mana.max_value, 300.0f, 0.001f);
+    G_ApplyTemporaryMaxManaBonus(unit, 50.0f);
+    T_FEQ(unit->mana.max_value, 350.0f, 0.001f);
+
+    future = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    future->s.player = client->ps.number;
+    future->data.UnitBalance = &balance;
+    future->hero.intel = balance.intelligence;
+    future->mana.max_value = 200.0f;
+    G_RecomputeHeroStats(future);
+    G_ApplyPlayerUpgradesToUnit(future);
+    T_FEQ(future->mana.max_value, 300.0f, 0.001f);
+
+    unit->hero.intel++;
+    G_RecomputeHeroStats(unit);
+    T_FEQ(unit->mana.max_value, 365.0f, 0.001f);
+
+    G_SetPlayerTechResearched(client, training, 0);
+    T_FEQ(unit->mana.max_value, 265.0f, 0.001f);
+    T_FEQ(future->mana.max_value, 200.0f, 0.001f);
+    G_ApplyTemporaryMaxManaBonus(unit, -50.0f);
+    T_FEQ(unit->mana.max_value, 215.0f, 0.001f);
+    building_restore_upgrade_data(old, rows);
+}
+
 TEST(wc3_building, status_upgrade_families_follow_unit_upgrades_used) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);

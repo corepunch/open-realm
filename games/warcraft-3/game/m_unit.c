@@ -1622,6 +1622,7 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f +
                            ent->permanent_health_bonus + ent->temporary_health_bonus;
     FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f +
+                             G_UnitUpgradeEffectBonus(ent, ID_UPGRADE_EFFECT_MAX_MANA) +
                              ent->temporary_mana_bonus;
     FLOAT const agiDefenseBonus = game.constants.combatConstantsLoaded
                                 ? game.constants.agiDefenseBonus
