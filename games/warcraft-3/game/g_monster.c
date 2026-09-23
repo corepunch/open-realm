@@ -89,8 +89,7 @@ BOOL M_IsDead(LPCEDICT ent) {
 
 /* Advance the unit's animation frame by its scaled simulation timestep.
  * If the new frame would exceed the animation's end interval, the current
- * umove_t endfunc is called (e.g. to loop the walk cycle or transition to
- * the cooldown phase after an attack). */
+ * umove_t endfunc is called and walk variants are rerolled when the move remains active. */
 void M_MoveFrame(LPEDICT self) {
     /* Construction keeps AI_HOLD_FRAME so the birth sequence never advances
      * independently of authoritative construction progress. Human progress is
@@ -140,6 +139,9 @@ void M_MoveFrame(LPEDICT self) {
     } else if (next_frame >= anim->interval[1]) {
         SAFE_CALL(move->endfunc, self);
         if (!(self->aiflags & AI_HOLD_FRAME)) {
+            if (self->currentmove == move && self->animation == anim &&
+                !self->animation_override && G_AnimationHasPrimary(anim, "walk"))
+                G_SetUnitAnimation(self, self->animation_request);
             /* End callbacks may install a different move/animation. Restart
              * whichever animation is active after the callback; resetting to
              * the completed clip's first frame leaves the replacement model
