@@ -1783,6 +1783,22 @@ TEST(wc3_spell, mana_shield_toggle_status_controls_authored_damage_absorption) {
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, mana_shield_orders_require_ability_ownership) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X4\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\nC;Y1;X4;K\"DataA1\"\n"
+		"C;Y2;X1;K\"ANms\"\nC;Y2;X2;K\"ANms\"\nC;Y2;X3;K\"BNms\"\nC;Y2;X4;K2\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+	unit->mana.value = 10.0f;
+
+	T_EQ(G_UnitAbilityLevel(unit, MAKEFOURCC('A','N','m','s')), 0);
+	T_ASSERT(!unit_issueimmediateorder(unit, "manashieldon"));
+	T_ASSERT(!S_UnitHasStatus(unit, MAKEFOURCC('B','N','m','s')));
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, beastmaster_summons_use_force_of_nature_contract) {
 	abilityitem_t bear_item = S_AbilityItem(FS_SLKKey("ANsg"));
 	ability_t const *bear = bear_item.ability;

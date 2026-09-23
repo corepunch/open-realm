@@ -727,6 +727,10 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
         return true;
     case A_ORDER:
         if (!call || !call->order) return false;
+        ref = mana_shield_ability(ent);
+        if (!ref.alias) return false;
+        code = ref.alias; level = ref.level; buff = mana_shield_buff(code, level);
+        active = buff && G_UnitStatusLevel(ent, buff);
         if (!strcmp(call->order, "manashieldon")) {
             if (!active && buff && ent->mana.value > 0.0f) unit_addstatus(ent, GetClassName(buff), level);
             return true;

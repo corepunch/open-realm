@@ -2,25 +2,24 @@
 
 LPCSTR const stone_form_orders[] = { "stoneform", "unstoneform", NULL };
 
-/* Gargoyle Stone Form is authored as an alternate unit row: ugrm is the
- * immobile stone presentation and ugar is the ordinary flying unit.  Keep the
- * same edict/selection/script handle and let the shared transform path clear
- * AI_IMMOBILE, restore movement data, and rebuild the unit's authored combat. */
-static BOOL stone_form_order(LPEDICT unit, LPCSTR order) {
-    DWORD const stone = MAKEFOURCC('u', 'g', 'r', 'm');
-    DWORD const gargoyle = MAKEFOURCC('u', 'g', 'a', 'r');
-    DWORD target;
+static BOOL stone_form_types(DWORD code, DWORD *base, DWORD *stone) {
+    AbilityData_t const *ability = G_AbilityData(code);
+    if (!ability || !ability->id || !ability->level[0].data[0].id || !ability->level[0].unitID) return false;
+    *base = ability->level[0].data[0].id;
+    *stone = ability->level[0].unitID;
+    return true;
+}
 
-    if (!unit || !order) return false;
+static BOOL stone_form_order(LPEDICT unit, LPCSTR order, DWORD code) {
+    DWORD base, stone, target;
+    if (!unit || !order || !stone_form_types(code, &base, &stone)) return false;
     if (!strcmp(order, "unstoneform")) {
         if (unit->class_id != stone) return false;
-        target = gargoyle;
+        target = base;
     } else if (!strcmp(order, "stoneform")) {
-        if (unit->class_id != gargoyle) return false;
+        if (unit->class_id != base) return false;
         target = stone;
-    } else {
-        return false;
-    }
+    } else return false;
     if (!G_TransformUnitType(unit, target)) return false;
     unit->goalentity = NULL;
     unit->secondarygoal = NULL;
@@ -29,29 +28,28 @@ static BOOL stone_form_order(LPEDICT unit, LPCSTR order) {
     return true;
 }
 
-/* The command card uses the shared no-target cast path; only units in one of
- * the two authored Gargoyle forms may commit the transformation. */
-static BOOL stone_form_can_transform(LPCEDICT unit) {
-    return unit && (unit->class_id == MAKEFOURCC('u', 'g', 'a', 'r') ||
-                    unit->class_id == MAKEFOURCC('u', 'g', 'r', 'm'));
+static BOOL stone_form_can_transform(LPCEDICT unit, DWORD code) {
+    DWORD base, stone;
+    return unit && stone_form_types(code, &base, &stone) &&
+           (unit->class_id == base || unit->class_id == stone);
 }
 
-static BOOL stone_form_execute(LPEDICT unit) {
-    if (!stone_form_can_transform(unit)) return false;
-    return stone_form_order(unit, unit->class_id == MAKEFOURCC('u', 'g', 'a', 'r')
-                                  ? "stoneform" : "unstoneform");
+static BOOL stone_form_execute(LPEDICT unit, DWORD code) {
+    DWORD base, stone;
+    if (!unit || !stone_form_types(code, &base, &stone)) return false;
+    return stone_form_order(unit, unit->class_id == base ? "stoneform" : "unstoneform", code);
 }
 
 BZ_ABILITY_PROC(CAbilityStoneForm) {
+    DWORD code = call && call->item ? call->item->code : 0;
     switch (msg) {
     case A_ORDER:
-        /* Immediate orders are routed by m_unit.c through S_CastNoTargetSpell;
-         * this legacy message must not bypass spell ownership/cooldown checks. */
+        /* Immediate orders use shared cast validation, preserving ownership and cooldown checks. */
         return false;
     case A_VALIDATE:
-        return stone_form_can_transform(ent);
+        return stone_form_can_transform(ent, code);
     case A_EXECUTE:
-        return stone_form_execute(ent);
+        return call && call->item && stone_form_execute(ent, code);
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }
