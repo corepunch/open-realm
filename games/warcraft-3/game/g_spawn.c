@@ -2,8 +2,11 @@
 #include "jass/jass.h"
 
 #define MAX_SPAWN_ITERATIONS 10
+#define MAX_REPOSITION_BLOCKERS 256 // entities; bounded broad-phase results, any hit rejects the point
 
 extern JASSMODULE jass_funcs[];
+static LPEDICT reposition_unit;
+static LPCVECTOR2 reposition_point;
 
 static BOOL G_TutorialFlowDebugEnabledForMapSource(void) {
     return WC3_TUTORIAL_DEBUG_ENABLED();
@@ -967,35 +970,32 @@ static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
     return true;
 }
 
+/* The old per-candidate full edict scan made crowded CreateUnit spawns costly.
+ * BoxEdicts bounds include each linked entity's collision radius; keep the
+ * same precise circle/layer rules while querying only nearby units. */
+static BOOL G_RepositionBlocker(LPCEDICT other) {
+    FLOAT dx, dy, reach;
+    LPEDICT unit = reposition_unit;
+    if (other == unit || (G_IsItem(unit) && other == unit->item.carrier) ||
+        IS_HOLLOW(other) || other->collision <= 0.0f ||
+        !!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) return false;
+    dx = other->s.origin2.x - reposition_point->x;
+    dy = other->s.origin2.y - reposition_point->y;
+    reach = unit->collision + other->collision;
+    return dx * dx + dy * dy < reach * reach;
+}
+
 static BOOL G_CanRepositionUnitAt(LPEDICT unit, LPCVECTOR2 point) {
-    BYTE const blocked_flags = M_UnitStaticPathingFlags(unit);
-    if (!unit || !point) {
-        return false;
-    }
-    if (!CM_PointIsPathableForRadiusFlags(point, unit->collision, blocked_flags)) {
-        return false;
-    }
-
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT other = &globals.edicts[i];
-        VECTOR2 delta;
-
-        /* A carried item is intentionally released at its carrier's feet; the
-         * carrier must not make the item appear blocked before it becomes a
-         * world entity. */
-        if (other == unit || (G_IsItem(unit) && other == unit->item.carrier) ||
-            IS_HOLLOW(other) || other->collision <= 0.0f) {
-            continue;
-        }
-        if (!!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) {
-            continue;
-        }
-        delta = Vector2_sub(&other->s.origin2, point);
-        if (Vector2_len(&delta) < unit->collision + other->collision) {
-            return false;
-        }
-    }
-    return true;
+    LPEDICT blockers[MAX_REPOSITION_BLOCKERS];
+    FLOAT radius;
+    BOX2 area;
+    if (!unit || !point) return false;
+    if (!CM_PointIsPathableForRadiusFlags(point, unit->collision, M_UnitStaticPathingFlags(unit))) return false;
+    radius = MAX(0.0f, unit->collision);
+    area = MAKE(BOX2, .min = { point->x - radius, point->y - radius },
+                      .max = { point->x + radius, point->y + radius });
+    reposition_unit = unit; reposition_point = point;
+    return gi.BoxEdicts(&area, blockers, MAX_REPOSITION_BLOCKERS, G_RepositionBlocker) == 0;
 }
 
 /* Warcraft III SetUnitPosition is not the raw X/Y setter. Warsmash models the

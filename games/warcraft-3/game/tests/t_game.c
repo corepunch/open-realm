@@ -2991,6 +2991,27 @@ TEST(wc3_perf, acquisition_ranges_1900) {
     T_BENCH("G_AcquisitionRange (1900 units x 10 passes)", 30, bench_acquisition_ranges());
 }
 
+/* Scripted CreateUnit near a crowded point must retain collision semantics
+ * without walking the entire edict array for every spiral candidate. */
+TEST(wc3_perf, crowded_unstuck_search) {
+    VECTOR2 const point = {512.0f, 512.0f};
+    VECTOR2 out;
+    LPEDICT mover;
+    setup_test_world(); reset_entities();
+    FOR_LOOP(i, 1900) {
+        LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'),
+                                      (FLOAT)(i % 50) * 32.0f, (FLOAT)(i / 50) * 32.0f);
+        ent->s.model = 1; ent->collision = 16.0f;
+        gi.LinkEntity(ent);
+    }
+    mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    mover->s.model = 1; mover->collision = 16.0f; gi.LinkEntity(mover);
+    T_BENCH("G_FindUnitUnstuckPosition (1900 linked units, crowded point)", 20,
+            G_FindUnitUnstuckPosition(mover, &point, &out));
+    T_FEQ(out.x, 0.0f, 0.001f);
+    T_FEQ(out.y, -64.0f, 0.001f);
+}
+
 TEST(wc3_save, round_trip_edict_and_player_state) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-test.bin";
     QUESTITEM item = { .description = strdup("Find the key"), .completed = true, .inuse = true };

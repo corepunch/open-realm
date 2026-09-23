@@ -844,16 +844,17 @@ TEST(wc3_slk, randomized_walk_variants_keep_the_selected_tag_set) {
         { .name = "Walk - 2", .syncpoint = 17 },
         { .name = "Walk - 1 Alternate", .syncpoint = 17 },
         { .name = "Walk - 2 Alternate", .syncpoint = 17 },
+        { .name = "Stand - 1", .syncpoint = 17 },
     };
 
     srand(1);
     for (int i = 0; i < 64; i++) {
-        LPCANIMATION generic = G_SelectAnimationVariantForProperties(animations, 4, "walk", "", true);
-        LPCANIMATION alternate = G_SelectAnimationVariantForProperties(animations, 4, "walk", "alternate", true);
+        LPCANIMATION generic = G_SelectAnimationVariantForProperties(animations, 5, "walk", "", true);
+        LPCANIMATION alternate = G_SelectAnimationVariantForProperties(animations, 5, "walk", "alternate", true);
         T_NOT_NULL(generic);
         T_NOT_NULL(alternate);
-        if (generic) T_ASSERT(strstr(generic->name, "Alternate") == NULL);
-        if (alternate) T_ASSERT(strstr(alternate->name, "Alternate") != NULL);
+        if (generic) T_ASSERT(!strncmp(generic->name, "Walk", 4) && strstr(generic->name, "Alternate") == NULL);
+        if (alternate) T_ASSERT(!strncmp(alternate->name, "Walk", 4) && strstr(alternate->name, "Alternate") != NULL);
     }
 }
 

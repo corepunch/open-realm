@@ -1827,6 +1827,23 @@ TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
     T_FEQ(created->s.origin.y, 192.0f, 0.001f);
 }
 
+TEST(wc3_api, createunit_avoids_live_unit_collision) {
+    VECTOR2 const point = { 256.0f, 256.0f };
+    LPEDICT first, second;
+
+    reset_entities(); setup_test_world();
+    first = unit_create(0, BZ_WC3_UNIT_PEASANT, &point, 0);
+    /* The first visible unit occupies the point; CreateUnit must search nearby. */
+    if (first) { first->s.model = 1; first->collision = 16.0f; gi.LinkEntity(first); }
+    second = unit_create(0, BZ_WC3_UNIT_PEASANT, &point, 0);
+    T_NOT_NULL(first); T_NOT_NULL(second);
+    if (first && second) {
+        T_FEQ(first->s.origin.x, 256.0f, 0.001f);
+        T_FEQ(second->s.origin.x, 256.0f, 0.001f);
+        T_FEQ(second->s.origin.y, 192.0f, 0.001f);
+    }
+}
+
 TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     enum { CELLS = 16 };
     BYTE pathmap[CELLS * CELLS] = {0};
@@ -1864,6 +1881,7 @@ TEST(wc3_api, unit_unstuck_search_skips_live_unit_collision) {
     mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     blocker->s.model = mover->s.model = 1;
     blocker->collision = mover->collision = 16.0f;
+    gi.LinkEntity(blocker);
 
     T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
     /* Requested point is static-blocked; the next spiral point is occupied. */

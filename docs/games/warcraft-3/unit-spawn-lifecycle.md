@@ -26,6 +26,10 @@ The unit is moved to a nearby legal point when the requested location overlaps
 static pathing. If the bounded search finds none, `CreateUnit` preserves its
 handle contract by retaining the requested point and logs a warning with the
 unit, player, and coordinates.
+The creation search also respects live-unit occupancy, matching Warsmash's
+`setPointAndCheckUnstuck`. Its collision queries use the server's linked-entity
+spatial index so dense scripted spawns do not scan every edict at each of the
+search's 300 possible candidates.
 
 Construction, training, and summons use `SP_SpawnAtLocation()` directly because
 their owning systems may consume the birth presentation or replace it with a
