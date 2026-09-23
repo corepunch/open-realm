@@ -14,4 +14,4 @@ The procedure validates that the current unit is one endpoint, transforms the sa
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_unit.stoneform_*'
 ```
 
-The round-trip fixture calls the registered ability execute message directly because its minimal test unit data does not model all live-cast prerequisites. The separate ownership test covers immediate-order rejection; a complete live cast fixture should be used if cast timing/cooldown behavior changes.
+The round-trip fixture issues `stoneform` and `unstoneform` through `unit_issueimmediateorder`, exercising ownership lookup, shared no-target spell validation, and both authored transforms. The separate ownership test confirms an unowned request is rejected.
