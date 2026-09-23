@@ -22,6 +22,11 @@ activates food. It must not call `SP_SpawnAtLocation()` followed by `stand()`:
 `stand()` changes the animation but does not clear the birth wait, leaving a
 ready unit with a stale build-time delay.
 
+The unit is moved to a nearby legal point when the requested location overlaps
+static pathing. If the bounded search finds none, `CreateUnit` preserves its
+handle contract by retaining the requested point and logs a warning with the
+unit, player, and coordinates.
+
 Construction, training, and summons use `SP_SpawnAtLocation()` directly because
 their owning systems may consume the birth presentation or replace it with a
 construction/hidden lifecycle afterward.

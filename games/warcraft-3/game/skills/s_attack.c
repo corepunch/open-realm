@@ -31,6 +31,8 @@ typedef struct {
     DWORD speed;
     DWORD model;
     DWORD damage;
+    unitAttack_t const *attack;
+    DWORD area_targets;
 }  rocketDesc_t;
 
 /* Attack 1/2 remain the authored runtime copies. Select the compatible slot
@@ -73,6 +75,16 @@ void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
          * only when that same unit is still inside the splash bands. */
         rocket->goalentity = desc->target;
         rocket->channel.target_spawn_time = desc->target ? desc->target->spawn_time : 0;
+        if (desc->attack) {
+            rocket->artillery.attack_type = desc->attack->type;
+            rocket->artillery.area_targets = desc->area_targets;
+            rocket->artillery.targets_allowed = desc->attack->targetsAllowed;
+            rocket->artillery.area_full = desc->attack->areaFull;
+            rocket->artillery.area_medium = desc->attack->areaMedium;
+            rocket->artillery.area_small = desc->attack->areaSmall;
+            rocket->artillery.factor_medium = desc->attack->factorMedium;
+            rocket->artillery.factor_small = desc->attack->factorSmall;
+        }
     } else {
         rocket->goalentity = desc->target;
     }
@@ -205,10 +217,14 @@ static FLOAT const g_default_damage_table[8][8] = {
  * then numeric armor. Positive armor is 1/(1+K*A); negative armor uses the
  * Warcraft exponential curve 2-(1-K)^(-A). Result remains minimum 1 for the
  * existing OpenRealm physical-attack contract. */
+static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, DWORD atk);
 int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
-    if (!attacker || !target || base <= 0)
-        return base;
-    DWORD atk = attack_profile(attacker, target)->type;
+    return attack_damage_type(attacker, target, base,
+                              attacker && target ? attack_profile(attacker, target)->type : 0);
+}
+
+static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, DWORD atk) {
+    if (!attacker || !target || base <= 0) return base;
     DWORD def = target->defense_type;
     if (atk >= 8) atk = 0;
     if (def >= 8) def = 7;
@@ -344,12 +360,11 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
 }
 
 
-static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target) {
-    DWORD mask, flag;
+static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target, DWORD mask, DWORD targets_allowed) {
+    DWORD flag;
 
     if (!attacker || !target || !target->inuse || target == attacker || M_IsDead(target)) return false;
-    mask = attacker->data.UnitWeapons ? (DWORD)attacker->data.UnitWeapons->attack1.areaTargets : 0;
-    if (!mask) mask = ACTIVE_ATTACK(attacker)->targetsAllowed;
+    if (!mask) mask = targets_allowed;
     flag = G_TargetFlagForType(target->targtype);
     return flag && (mask & flag) != 0;
 }
@@ -361,25 +376,26 @@ static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target) {
  * established hit contract: only that original target receives primary-hit
  * listeners (if it is still in the blast); secondary/Attack-Ground victims
  * receive physical splash damage without multiplying orb/lifesteal/cleave. */
-void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 impact, int raw_damage) {
+void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 impact, int raw_damage,
+                                struct edictArtillery_s const *profile) {
     FLOAT max_radius;
 
     if (!attacker || !impact || raw_damage <= 0) return;
-    max_radius = MAX(ACTIVE_ATTACK(attacker)->areaFull,
-                     MAX(ACTIVE_ATTACK(attacker)->areaMedium, ACTIVE_ATTACK(attacker)->areaSmall));
+    if (!profile) return;
+    max_radius = MAX(profile->area_full, MAX(profile->area_medium, profile->area_small));
     if (max_radius < 0.0f) return;
 
-    FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other)) {
+    FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other, profile->area_targets, profile->targets_allowed)) {
         FLOAT const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
         FLOAT factor;
         int damage;
 
-        if (distance <= ACTIVE_ATTACK(attacker)->areaFull) factor = 1.0f;
-        else if (distance <= ACTIVE_ATTACK(attacker)->areaMedium) factor = ACTIVE_ATTACK(attacker)->factorMedium;
-        else if (distance <= ACTIVE_ATTACK(attacker)->areaSmall) factor = ACTIVE_ATTACK(attacker)->factorSmall;
+        if (distance <= profile->area_full) factor = 1.0f;
+        else if (distance <= profile->area_medium) factor = profile->factor_medium;
+        else if (distance <= profile->area_small) factor = profile->factor_small;
         else continue;
         if (factor <= 0.0f) continue;
-        damage = G_AttackDamage(attacker, other, (int)MAX(1.0f, (FLOAT)raw_damage * factor));
+        damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (FLOAT)raw_damage * factor), profile->attack_type);
         if (other == primary) S_ResolveAttackHit(attacker, other, damage);
         else T_Damage(other, attacker, damage);
     }
@@ -387,9 +403,20 @@ void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 im
 
 void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage) {
     VECTOR2 impact;
+    unitAttack_t const *atk;
+    struct edictArtillery_s profile = { 0 };
     if (!target) return;
+    atk = attack_profile(attacker, target);
+    if (!atk) return;
+    profile.attack_type = atk->type;
+    profile.targets_allowed = atk->targetsAllowed;
+    profile.area_full = atk->areaFull; profile.area_medium = atk->areaMedium; profile.area_small = atk->areaSmall;
+    profile.factor_medium = atk->factorMedium; profile.factor_small = atk->factorSmall;
+    if (attacker->data.UnitWeapons)
+        profile.area_targets = atk == &attacker->attack2 ? attacker->data.UnitWeapons->attack2.areaTargets
+                                                       : attacker->data.UnitWeapons->attack1.areaTargets;
     impact = target->s.origin2;
-    S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage);
+    S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage, &profile);
 }
 
 static BOOL attack_animation_can_finish(LPCEDICT ent) {
@@ -434,6 +461,8 @@ static void throw_missile(LPEDICT ent) {
         .speed = atk->projectile.speed,
         .model = atk->projectile.model,
         .damage = damage,
+        .attack = atk,
+        .area_targets = ent->data.UnitWeapons ? (atk == &ent->attack2 ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
     /* See damage_target(): if the model has no finite attack sequence there
      * will be no animation-end callback to start recovery, so do it at the
@@ -725,6 +754,8 @@ static void throw_artillery_ground(LPEDICT ent) {
         .speed = ent->attack1.projectile.speed,
         .model = ent->attack1.projectile.model,
         .damage = damage,
+        .attack = &ent->attack1,
+        .area_targets = ent->data.UnitWeapons ? ent->data.UnitWeapons->attack1.areaTargets : 0,
     });
     if (ent->currentmove && ent->currentmove->proc == CAbilityAttackGround &&
         !attack_animation_can_finish(ent))

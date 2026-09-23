@@ -559,11 +559,12 @@ LPCSTR G_OrderId2String(DWORD id) {
 
 static DWORD unit_spell_code_for_order(LPCEDICT unit, LPCSTR order) {
     if (!unit || !order) return 0;
-    /* Gargoyle Stone Form has paired orders but one authored Astn row. Route
-     * both through the shared spell processor so cooldown/ownership checks run. */
-    if ((!strcmp(order, "stoneform") || !strcmp(order, "unstoneform")) &&
-        G_UnitAbilityLevel(unit, MAKEFOURCC('A','s','t','n')))
-        return MAKEFOURCC('A','s','t','n');
+    ability_t const *ordered = FindAbilityByOrder(order);
+    if (ordered && (ordered->flags & AB_SPELL) && ordered->classname) {
+        DWORD code = 0;
+        memcpy(&code, ordered->classname, MIN(sizeof(code), strlen(ordered->classname)));
+        if (G_UnitAbilityLevel(unit, code) && S_SpellAbilityForCode(code)) return code;
+    }
     FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         DWORD const code = unit_order_defs[i].ability;
         DWORD const level = code ? G_UnitAbilityLevel(unit, code) : 0;
@@ -1027,6 +1028,16 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return accepted;
     }
+    ability_t const *ability = FindAbilityByOrder(order);
+    if (ability) {
+        abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
+        BOOL const accepted = S_AbilityMessage(self, A_ORDER, &call);
+        if (accepted) {
+            G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+            return true;
+        }
+    }
     {
         DWORD const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
@@ -1034,14 +1045,6 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
             if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             return accepted;
         }
-    }
-    ability_t const *ability = FindAbilityByOrder(order);
-    if (ability) {
-        abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
-        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
-        BOOL const accepted = S_AbilityMessage(self, A_ORDER, &call);
-        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-        return accepted;
     }
     if (!strcmp(order, "repairon")) {
         BOOL const accepted = S_SetRepairAutocast(self, true);
@@ -1085,7 +1088,9 @@ LPEDICT unit_create(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facin
         unit->s.origin.y = position.y;
         M_CheckGround(unit);
         gi.LinkEntity(unit);
-    }
+    } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
+                   unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
+                   player, location->x, location->y);
     if (unit->stand) {
         unit->stand(unit);
     }

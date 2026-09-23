@@ -1675,10 +1675,12 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
  * Moving the original target after launch therefore does not make the missile
  * home; splash resolves around the launch-time coordinates. */
 TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
-    UnitWeapons_t weapons = { .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
+    UnitWeapons_t weapons = { .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND },
+                              .attack2 = { .areaTargets = WC3_TARGET_FLAG_AIR } };
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
     LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
     LPEDICT bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    LPEDICT retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
     LPEDICT missile = NULL;
 
     attacker->data.UnitWeapons = &weapons;
@@ -1694,9 +1696,17 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     attacker->attack1.areaFull = 40.0f;
     attacker->attack1.areaMedium = 80.0f;
     attacker->attack1.areaSmall = 120.0f;
+    attacker->attack1.factorMedium = 0.5f;
+    attacker->attack1.factorSmall = 0.25f;
+    attacker->attack2.type = ATK_SIEGE;
+    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    attacker->attack2.areaFull = attacker->attack2.areaMedium = attacker->attack2.areaSmall = 1.0f;
+    attacker->attack2.projectile.speed = 1000;
     target->targtype = bystander->targtype = TARG_GROUND;
+    retarget->targtype = TARG_AIR;
     target->defense_type = bystander->defense_type = 7;
     target->armor_value = bystander->armor_value = 0.0f;
+    bystander->defense_type = 1; /* normal launch attack is 150%; current siege profile differs */
 
     attack_ranged(attacker);
     attacker->wait = 0.01f;
@@ -1711,7 +1721,10 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
         T_EQ(missile->channel.target_spawn_time, target->spawn_time);
         T_FEQ(missile->channel.origin.x, 200.0f, 0.001f);
         T_FEQ(missile->channel.origin.y, 0.0f, 0.001f);
+        T_EQ(missile->artillery.attack_type, ATK_NORMAL);
+        T_EQ(missile->artillery.area_targets, WC3_TARGET_FLAG_GROUND);
 
+        attacker->goalentity = retarget; /* impact must retain the launch profile */
         target->s.origin2.x = target->s.origin.x = 400.0f;
         missile->s.origin.x = 199.0f;
         missile->s.origin.y = 0.0f;
@@ -1720,7 +1733,7 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
         SV_Physics_Toss(missile);
 
         T_FEQ(target->health.value, 500.0f, 0.001f);
-        T_ASSERT(bystander->health.value < 500.0f);
+        T_FEQ(bystander->health.value, 350.0f, 0.001f);
     }
 }
 
