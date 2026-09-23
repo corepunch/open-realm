@@ -1810,6 +1810,23 @@ TEST(wc3_api, set_unit_position_unstucks_from_blocked_pathing) {
     T_FEQ(moved->s.origin.y, 192.0f, 0.001f);
 }
 
+TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
+    LPEDICT created;
+
+    setup_set_unit_position_pathmap();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CreateUnit(Player(0), 'hpea', 256.0, 256.0, 0.0)\n"
+        "endfunction\n"));
+
+    created = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(created);
+    /* Warsmash CreateUnit calls createUnitSimple, which nudges an embedded
+     * unit to the first legal point in its 64-unit spiral. */
+    T_FEQ(created->s.origin.x, 256.0f, 0.001f);
+    T_FEQ(created->s.origin.y, 192.0f, 0.001f);
+}
+
 TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     enum { CELLS = 16 };
     BYTE pathmap[CELLS * CELLS] = {0};

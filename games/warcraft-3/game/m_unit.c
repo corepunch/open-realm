@@ -1071,6 +1071,16 @@ LPEDICT unit_create(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facin
     if (!unit) {
         return NULL;
     }
+    /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
+     * spawned unit against static pathing and nudges it to a legal point. */
+    VECTOR2 position;
+    if (G_FindUnitUnstuckPosition(unit, location, &position)) {
+        unit->s.origin2 = position;
+        unit->s.origin.x = position.x;
+        unit->s.origin.y = position.y;
+        unit->s.origin.z = CM_GetHeightAtPoint(position.x, position.y);
+        gi.LinkEntity(unit);
+    }
     if (unit->stand) {
         unit->stand(unit);
     }
