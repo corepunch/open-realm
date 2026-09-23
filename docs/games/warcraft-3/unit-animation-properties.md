@@ -6,6 +6,8 @@ Warcraft unit profile data may provide `animProps` (`uani`, Required Animation N
 
 `AddUnitAnimationProperties` mutates the active per-unit tag set and immediately reselects the retained logical animation family. This state is inline edict data, so ordinary WC3 save/load persists it with the unit record.
 
+Numbered model sequences such as `Walk`, `Walk 2`, and tagged walk variants are one logical family. Movement keeps the selected variant while that sequence is active, then selects a same-syncpoint variant when the cycle completes. Changing the logical animation or required properties still performs a fresh selection; movement ticks must not restart a numbered walk every frame.
+
 The stock Medivh model/data combination is unusual: the raven-form unit requests `alternateex`, while the shared model exposes `Alternate` sequences. Animation selection therefore falls back from a required `alternateex` tag to `alternate` only when no matching `AlternateEx` sequence exists. A genuine `AlternateEx` model remains distinct.
 
 ## Raven Form Orders

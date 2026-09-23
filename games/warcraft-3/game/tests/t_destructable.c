@@ -176,11 +176,13 @@ TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
 }
 
 static LPEDICT make_destructable_test_attacker(FLOAT x, FLOAT y) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 3 };
     LPEDICT ent = G_Spawn();
 
     ent->class_id = MAKEFOURCC('h', 'f', 'o', 'o');
     ent->s.class_id = ent->class_id;
     G_BindEntityData(ent);
+    ent->data.UnitWeapons = &weapons;
     ent->s.model = 1;
     ent->s.origin = (VECTOR3){ x, y, 0.0f };
     ent->health.value = 100.0f;

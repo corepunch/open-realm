@@ -46,9 +46,11 @@ static void reset_test_entities(void) {
 
 /* Create a minimal unit edict with lifecycle callbacks wired up. */
 static LPEDICT make_unit(FLOAT x, FLOAT y) {
+    static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     LPEDICT ent = G_Spawn();
     ent->class_id       = MAKEFOURCC('h','p','e','a');
     G_BindEntityData(ent);
+    ent->data.UnitWeapons = &test_weapons;
     ent->s.origin2      = (VECTOR2){x, y};
     ent->s.origin.x     = x;
     ent->s.origin.y     = y;
@@ -1331,19 +1333,18 @@ TEST(wc3_unit, stoneform_order_requires_authored_ability_ownership) {
 
 TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
-    abilityitem_t item = { .code = MAKEFOURCC('A','s','t','n'), .ability = FindAbilityByClassname("Astn") };
-    abilityCall_t call = { .item = &item };
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
-    T_ASSERT(G_ActorAddSkill(ent, MAKEFOURCC('A','s','t','n')));
+    ent->svflags |= SVF_MONSTER;
+    ent->abilities.added[0] = MAKEFOURCC('A','s','t','n'); ent->abilities.added_count = 1;
     T_ASSERT(G_UnitAbilityLevel(ent, MAKEFOURCC('A','s','t','n')));
     T_NOT_NULL(S_SpellAbilityForCode(MAKEFOURCC('A','s','t','n')));
     T_EQ(G_AbilityData(MAKEFOURCC('A','s','t','n'))->level[0].data[0].id, MAKEFOURCC('h','p','e','a'));
     T_EQ(G_AbilityData(MAKEFOURCC('A','s','t','n'))->level[0].unitID, MAKEFOURCC('h','f','o','o'));
-    T_ASSERT(S_AbilityMessage(ent, A_EXECUTE, &call));
+    T_ASSERT(unit_issueimmediateorder(ent, "stoneform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
-    T_ASSERT(S_AbilityMessage(ent, A_EXECUTE, &call));
+    T_ASSERT(unit_issueimmediateorder(ent, "unstoneform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }

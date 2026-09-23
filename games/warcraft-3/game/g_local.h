@@ -2860,6 +2860,7 @@ LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 void order_attack(LPEDICT, LPEDICT);
 BOOL S_OrderAttack(LPEDICT self, LPEDICT target);
 BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target);
+BOOL S_UnitAttackSlotEnabled(LPCEDICT attacker, DWORD slot);
 BOOL S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target);
 void order_move(LPEDICT, LPEDICT);
 BOOL move_is_active_order_walk(LPCEDICT);
