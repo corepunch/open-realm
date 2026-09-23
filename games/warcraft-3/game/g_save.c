@@ -247,6 +247,7 @@ static field_t const save_event_fields[] = {
     F(gevent_s, subject, F_EDICT, 0, FIELD_NONE),
     F(gevent_s, trigger, F_TRIGGER, 0, FIELD_NONE),
     F(gevent_s, timer, F_TIMER, 0, FIELD_NONE),
+    F(gevent_s, filter, F_FUNCTION),
     F(gevent_s, region, F_REGION),
     F(gevent_s, range, F_FLOAT),
     F(gevent_s, state, F_INT),

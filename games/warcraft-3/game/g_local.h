@@ -1665,6 +1665,7 @@ struct gevent_s {
     EVENTTYPE type;
     LPTRIGGER trigger;
     LPGTIMER timer;
+    struct jass_function const *filter;
     REGION region;
     FLOAT range;
     DWORD state;

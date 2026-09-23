@@ -1,6 +1,7 @@
 #include "g_local.h"
 
 BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
+BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
 
 BOOL G_LimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     switch (op) {
@@ -257,7 +258,8 @@ static void G_TouchTriggers(LPEDICT ent) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION:
                 if (G_RegionContains(&evt->region, &ent->s.origin2) &&
-                    !G_RegionContains(&evt->region, &ent->old_origin))
+                    !G_RegionContains(&evt->region, &ent->old_origin) &&
+                    jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
 #ifdef WC3_DEBUG_BUILD
                     if (ent->class_id == MAKEFOURCC('h','p','e','a') && evt->region.num_rects) {
@@ -275,7 +277,8 @@ static void G_TouchTriggers(LPEDICT ent) {
                 break;
             case EVENT_GAME_LEAVE_REGION:
                 if (!G_RegionContains(&evt->region, &ent->s.origin2) &&
-                    G_RegionContains(&evt->region, &ent->old_origin))
+                    G_RegionContains(&evt->region, &ent->old_origin) &&
+                    jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
                     G_PublishEvent(ent, evt->type)->responseTo = evt;
                 }

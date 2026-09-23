@@ -90,11 +90,15 @@ typedef enum {
 typedef struct {
     LPCSTR name;
     unitRace_t race;
+    LONG jass_value;
 } wc3RaceName_t;
 
 static wc3RaceName_t const wc3_race_names[] = {
-    { STR_HUMAN, RACE_HUMAN }, { STR_ORC, RACE_ORC }, { STR_UNDEAD, RACE_UNDEAD },
-    { STR_NIGHTELF, RACE_NIGHTELF },
+    { STR_HUMAN, RACE_HUMAN, 1 }, { STR_ORC, RACE_ORC, 2 },
+    { STR_UNDEAD, RACE_UNDEAD, 3 }, { STR_NIGHTELF, RACE_NIGHTELF, 4 },
+    { STR_DEMON, RACE_DEMON, 5 }, { STR_CREEPS, RACE_CREEPS, 6 },
+    { STR_OTHER, RACE_OTHER, 7 }, { STR_CRITTERS, RACE_CRITTERS, 8 },
+    { STR_COMMONER, RACE_COMMONER, 9 },
 };
 
 /* Resolve authored WC3 race names through one shared table used by game/UI code. */
@@ -103,6 +107,14 @@ static inline unitRace_t WC3_RaceFromString(LPCSTR name) {
     FOR_LOOP(i, sizeof(wc3_race_names) / sizeof(*wc3_race_names))
         if (!strcmp(name, wc3_race_names[i].name)) return wc3_race_names[i].race;
     return RACE_UNKNOWN;
+}
+
+/* UnitData race names and the JASS race enum use related but distinct values. */
+static inline LONG WC3_JassRaceFromString(LPCSTR name) {
+    if (!name) return 0;
+    FOR_LOOP(i, sizeof(wc3_race_names) / sizeof(*wc3_race_names))
+        if (!strcmp(name, wc3_race_names[i].name)) return wc3_race_names[i].jass_value;
+    return 0;
 }
 
 #define WC3_GOLD_MINE_MIN_DISTANCE 512.0f

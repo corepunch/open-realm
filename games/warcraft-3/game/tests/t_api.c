@@ -155,27 +155,41 @@ TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
     reset_entities();
     setup_test_world();
     T_ASSERT(run_test_jass(
-        "function onDeath takes nothing returns nothing\n"
-        "  if IsUnitType(GetTriggerUnit(), ConvertUnitType(14)) then\n"
-        "    call SetWidgetLife(GetTriggerUnit(), 333.0)\n"
+        "globals\n"
+        "  unit raceSubject = null\n"
+        "endglobals\n"
+        "function verifyRace takes nothing returns nothing\n"
+        "  if GetUnitRace(raceSubject) == ConvertRace(3) and\n"
+        "      IsUnitType(raceSubject, ConvertUnitType(14)) then\n"
+        "    call SetWidgetLife(raceSubject, 333.0)\n"
+        "  else\n"
+        "    call SetWidgetLife(raceSubject, 222.0)\n"
         "  endif\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
-        "  local trigger t = CreateTrigger()\n"
-        "  local unit u = CreateUnit(Player(0), 'ugho', 0.0, 0.0, 0.0)\n"
-        "  call TriggerAddAction(t, function onDeath)\n"
-        "  call TriggerRegisterDeathEvent(t, u)\n"
+        "  set raceSubject = CreateUnit(Player(0), 'ugho', 0.0, 0.0, 0.0)\n"
         "endfunction\n"));
     FOR_LOOP(i, globals.num_edicts)
-        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('u','g','h','o')) undead = &g_edicts[i];
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('u','g','h','o')) {
+            undead = &g_edicts[i];
+            undead->data.UnitData = &undead_data;
+        }
     T_NOT_NULL(undead);
-    undead->data.UnitData = &undead_data;
     T_EQ(WC3_RaceFromString(undead->data.UnitData->race), RACE_UNDEAD);
-    G_SetHealth(undead, 500.0f);
-    unit_die(undead, NULL);
-    G_RunEvents();
+    jass_callbyname(level.vm, "verifyRace", true);
     jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_FEQ(undead->health.value, 333.0f, 0.001f);
+}
+
+TEST(wc3_api, authored_race_names_map_to_jass_race_values) {
+    static struct { LPCSTR name; LONG value; } const races[] = {
+        { STR_HUMAN, 1 }, { STR_ORC, 2 }, { STR_UNDEAD, 3 }, { STR_NIGHTELF, 4 },
+        { STR_DEMON, 5 }, { STR_CREEPS, 6 }, { STR_OTHER, 7 },
+        { STR_CRITTERS, 8 }, { STR_COMMONER, 9 },
+    };
+    FOR_LOOP(i, sizeof(races) / sizeof(*races)) T_EQ(WC3_JassRaceFromString(races[i].name), races[i].value);
+    T_EQ(WC3_JassRaceFromString("unrecognized"), 0);
 }
 
 TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
@@ -232,22 +246,36 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         "  unit mover = null\n"
         "  unit entering = null\n"
         "  boolean entered = false\n"
+        "  integer rejected = 0\n"
         "endglobals\n"
+        "function accept_enter_filter takes nothing returns boolean\n"
+        "  return GetFilterUnit() == mover\n"
+        "endfunction\n"
+        "function reject_enter_filter takes nothing returns boolean\n"
+        "  return false\n"
+        "endfunction\n"
         "function on_enter takes nothing returns nothing\n"
         "  set entering = GetEnteringUnit()\n"
         "  set entered = true\n"
         "endfunction\n"
+        "function on_rejected_enter takes nothing returns nothing\n"
+        "  set rejected = rejected + 1\n"
+        "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local region area = CreateRegion()\n"
-        "  local trigger event = CreateTrigger()\n"
+        "  local trigger acceptedEvent = CreateTrigger()\n"
+        "  local trigger rejectedEvent = CreateTrigger()\n"
         "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
         "  call RegionAddRect(area, Rect(24.0, -16.0, 64.0, 16.0))\n"
-        "  call TriggerRegisterEnterRegion(event, area, null)\n"
-        "  call TriggerAddAction(event, function on_enter)\n"
+        "  call TriggerRegisterEnterRegion(acceptedEvent, area, Condition(function accept_enter_filter))\n"
+        "  call TriggerRegisterEnterRegion(rejectedEvent, area, Condition(function reject_enter_filter))\n"
+        "  call TriggerAddAction(acceptedEvent, function on_enter)\n"
+        "  call TriggerAddAction(rejectedEvent, function on_rejected_enter)\n"
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
         "  call BJassAssert(entered, \"movement did not enter region\")\n"
         "  call BJassAssert(entering == mover, \"GetEnteringUnit mismatch\")\n"
+        "  call BJassAssert(rejected == 0, \"rejected enter filter should not run\")\n"
         "endfunction\n"));
 
     FOR_LOOP(i, globals.num_edicts) {
@@ -800,33 +828,78 @@ TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
 }
 
 TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
+    LPPLAYER saved_currentplayer = currentplayer;
     LPEDICT leaving = NULL;
-    LPEVENT handler = NULL;
+    VECTOR2 destination = { 300.0f, 150.0f };
 
     reset_entities();
     setup_test_world();
+    currentplayer = NULL;
     T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit leaving = null\n"
+        "  integer accepted = 0\n"
+        "  integer rejected = 0\n"
+        "  boolean correctLeavingUnit = false\n"
+        "endglobals\n"
+        "function allow_filter takes nothing returns boolean\n"
+        "  return GetFilterUnit() == leaving\n"
+        "endfunction\n"
+        "function reject_filter takes nothing returns boolean\n"
+        "  return false\n"
+        "endfunction\n"
+        "function onAcceptedLeave takes nothing returns nothing\n"
+        "  set accepted = accepted + 1\n"
+        "  set correctLeavingUnit = GetLeavingUnit() == leaving\n"
+        "endfunction\n"
+        "function onRejectedLeave takes nothing returns nothing\n"
+        "  set rejected = rejected + 1\n"
+        "endfunction\n"
         "function onLeave takes nothing returns nothing\n"
         "  call SetWidgetLife(GetTriggerUnit(), 75.0)\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
-        "  local trigger t = CreateTrigger()\n"
+        "  local trigger acceptedTrigger = CreateTrigger()\n"
+        "  local trigger rejectedTrigger = CreateTrigger()\n"
         "  local region r = CreateRegion()\n"
         "  call RegionAddRect(r, Rect(100.0, 100.0, 200.0, 200.0))\n"
-        "  call TriggerAddAction(t, function onLeave)\n"
-        "  call TriggerRegisterLeaveRegion(t, r, null)\n"
-        "  call CreateUnit(Player(0), 'hfoo', 150.0, 150.0, 0.0)\n"
+        "  set leaving = CreateUnit(Player(0), 'hpea', 150.0, 150.0, 0.0)\n"
+        "  call TriggerAddAction(acceptedTrigger, function onAcceptedLeave)\n"
+        "  call TriggerAddAction(rejectedTrigger, function onRejectedLeave)\n"
+        "  call TriggerRegisterLeaveRegion(acceptedTrigger, r, Condition(function allow_filter))\n"
+        "  call TriggerRegisterLeaveRegion(rejectedTrigger, r, Condition(function reject_filter))\n"
+        "endfunction\n"
+        "function verifyLeave takes nothing returns nothing\n"
+        "  call BJassAssert(accepted == 1, \"accepted leave filter should run once\")\n"
+        "  call BJassAssert(rejected == 0, \"rejected leave filter should not run\")\n"
+        "  call BJassAssert(correctLeavingUnit, \"GetLeavingUnit should resolve the crossing unit\")\n"
         "endfunction\n"));
     FOR_LOOP(i, globals.num_edicts)
-        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') && g_edicts[i].s.player == 0)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') && g_edicts[i].s.player == 0)
             leaving = &g_edicts[i];
     T_NOT_NULL(leaving);
-    FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_LEAVE_REGION) { handler = evt; break; }
-    T_NOT_NULL(handler);
-    G_PublishEvent(leaving, EVENT_GAME_LEAVE_REGION)->responseTo = handler;
-    G_RunEvents();
+    leaving->movetype = MOVETYPE_STEP;
+    leaving->stand = unit_stand;
+    leaving->birth = unit_birth;
+    leaving->die = unit_die;
+    leaving->think = monster_think;
+    leaving->collision = 0.0f;
+    leaving->unitinfo.MoveSpeed = 1000.0f;
+    leaving->health.value = leaving->health.max_value = 250.0f;
+    unit_stand(leaving);
+    T_ASSERT(unit_issueorder(leaving, "move", &destination));
+    FOR_LOOP(i, 10) {
+        if (leaving->s.origin2.x > 200.0f) break;
+        level.time += FRAMETIME;
+        G_RunEntities();
+        G_RunEvents();
+        jass_runevents(level.vm);
+    }
+    T_ASSERT(leaving->s.origin2.x > 200.0f);
+    jass_callbyname(level.vm, "verifyLeave", false);
     jass_runevents(level.vm);
-    T_FEQ(leaving->health.value, 75.0f, 0.001f);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
 }
 
 /* An event's owner is GetTriggerPlayer(), not the local-player selector used by GetLocalPlayer().

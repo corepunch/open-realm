@@ -255,9 +255,12 @@ DWORD TriggerRegisterGameEvent(LPJASS j) {
 DWORD TriggerRegisterEnterRegion(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPREGION whichRegion = jass_checkhandle(j, 2, "region");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
+    if (!whichTrigger || !whichRegion) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_GAME_ENTER_REGION);
+    if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
+    evt->filter = filter;
     evt->region = *whichRegion;
     QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_ENTER_REGION, NULL, "enter-region");
     return jass_pushlighthandle(j, evt, "event");
@@ -268,11 +271,14 @@ DWORD GetTriggeringRegion(LPJASS j) {
 DWORD TriggerRegisterLeaveRegion(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPREGION whichRegion = jass_checkhandle(j, 2, "region");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     if (!whichTrigger || !whichRegion) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_GAME_LEAVE_REGION);
+    if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
+    evt->filter = filter;
     evt->region = *whichRegion;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_LEAVE_REGION, NULL, "leave-region");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterTrackableHitEvent(LPJASS j) {
@@ -369,14 +375,24 @@ DWORD TriggerRegisterUnitStateEvent(LPJASS j) {
     LPDWORD whichState = jass_checkhandle(j, 3, "unitstate");
     LPDWORD opcode = jass_checkhandle(j, 4, "limitop");
     FLOAT limitval = jass_checknumber(j, 5);
-    if (!whichTrigger || !whichUnit || !whichState || !opcode || *whichState != UNIT_STATE_LIFE)
+    if (!whichTrigger || !whichUnit || !whichState || !opcode)
         return jass_pushnullhandle(j, "event");
+    if (*whichState != UNIT_STATE_LIFE) {
+        fprintf(stderr, "WC3 TriggerRegisterUnitStateEvent: unsupported state %u\n", (unsigned)*whichState);
+        return jass_pushnullhandle(j, "event");
+    }
+    if (*opcode > WC3_LIMITOP_NOT_EQUAL) {
+        fprintf(stderr, "WC3 TriggerRegisterUnitStateEvent: unsupported limit operator %u\n", (unsigned)*opcode);
+        return jass_pushnullhandle(j, "event");
+    }
     LPEVENT evt = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
     evt->subject = whichUnit;
     evt->state = *whichState;
     evt->limitop = *opcode;
     evt->limitval = limitval;
+    QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_STATE_LIMIT, whichUnit, "unit-state");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterUnitEvent(LPJASS j) {

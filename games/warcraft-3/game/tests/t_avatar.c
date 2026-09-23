@@ -97,6 +97,35 @@ TEST(wc3_avatar, cast_expire_recast_keeps_other_bonuses) {
     avatar_done(fix);
 }
 
+TEST(wc3_avatar, runtime_health_bonus_publishes_life_limit_events) {
+    AVFIX fix = avatar_setup(1);
+    LPEDICT unit = fix.unit;
+    LPEVENT gained = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    LPEVENT lost = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    BOOL saw_gain = false, saw_loss = false;
+
+    gained->subject = lost->subject = unit;
+    gained->state = lost->state = UNIT_STATE_LIFE;
+    gained->limitop = WC3_LIMITOP_GREATER_THAN_OR_EQUAL;
+    gained->limitval = 800.0f;
+    lost->limitop = WC3_LIMITOP_LESS_THAN_OR_EQUAL;
+    lost->limitval = 700.0f;
+
+    T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
+    T_FEQ(unit->health.value, 900.0f, 0.001f);
+    S_AvatarExpire(unit);
+    T_FEQ(unit->health.value, 650.0f, 0.001f);
+
+    FOR_LOOP(i, level.events.write) {
+        GAMEEVENT const *event = &level.events.queue[i % MAX_EVENT_QUEUE];
+        if (event->responseTo == gained) saw_gain = true;
+        if (event->responseTo == lost) saw_loss = true;
+    }
+    T_ASSERT(saw_gain);
+    T_ASSERT(saw_loss);
+    avatar_done(fix);
+}
+
 TEST(wc3_avatar, level_change_death_and_removal_reverse_stored_values) {
     AVFIX fix = avatar_setup(2);
     LPEDICT unit = fix.unit;

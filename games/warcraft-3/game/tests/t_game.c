@@ -3890,6 +3890,33 @@ TEST(wc3_save, rejects_unknown_c_callback) {
     remove(filename);
 }
 
+TEST(wc3_save, round_trip_region_event_filter_function) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-region-filter-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+    LPEVENT registration = NULL;
+    LPCJASSFUNC expected_filter;
+
+    T_ASSERT(run_test_jass(
+        "function savedRegionFilter takes nothing returns boolean\n"
+        "  return GetFilterUnit() != null\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  call TriggerRegisterLeaveRegion(t, r, Condition(function savedRegionFilter))\n"
+        "endfunction\n"));
+    FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_LEAVE_REGION) { registration = evt; break; }
+    T_NOT_NULL(registration);
+    expected_filter = jass_functionbyname(level.vm, "savedRegionFilter");
+    T_ASSERT(registration && registration->filter == expected_filter);
+    T_ASSERT(WriteGame(filename));
+    if (registration) registration->filter = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(registration && registration->filter == expected_filter);
+    level.events = old_events;
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_game_state_event_condition) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-game-state-event-save-test.bin";
     LEVELEVENTS old_events = level.events;

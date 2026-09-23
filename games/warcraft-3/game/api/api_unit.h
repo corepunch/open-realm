@@ -814,9 +814,9 @@ DWORD GetUnitTypeId(LPJASS j) {
 static DWORD JassPushRaceHandle(LPJASS j, LONG value);
 DWORD GetUnitRace(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    unitRace_t race = whichUnit && whichUnit->data.UnitData
-        ? WC3_RaceFromString(whichUnit->data.UnitData->race) : RACE_UNKNOWN;
-    return JassPushRaceHandle(j, (LONG)race);
+    LONG race = whichUnit && whichUnit->data.UnitData
+        ? WC3_JassRaceFromString(whichUnit->data.UnitData->race) : 0;
+    return JassPushRaceHandle(j, race);
 }
 DWORD GetUnitName(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
