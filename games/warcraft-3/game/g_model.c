@@ -498,6 +498,7 @@ LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, DWOR
     LPCANIMATION choice = NULL;
     animationTagSet_t selected_tags = {0};
     char primary[WC3_ANIMATION_TAG_SIZE];
+    char candidate_primary[WC3_ANIMATION_TAG_SIZE];
     DWORD matches = 0;
 
     selected = G_SelectAnimationForProperties(animations, count, animname, properties);
@@ -506,8 +507,10 @@ LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, DWOR
     FOR_LOOP(i, count) {
         LPCANIMATION candidate = animations + i;
         animationTagSet_t candidate_tags = {0};
-        AnimationParseRequest(candidate->name, primary, &candidate_tags);
+        AnimationParseRequest(candidate->name, candidate_primary, &candidate_tags);
         if (candidate->syncpoint != selected->syncpoint) continue;
+        /* A shared sync point does not make Stand a variant of Walk. */
+        if (strcasecmp(primary, candidate_primary)) continue;
         if (!AnimationTagSetsEqual(&selected_tags, &candidate_tags)) continue;
         matches++;
         if ((DWORD)(rand() % matches) == 0) choice = candidate;
