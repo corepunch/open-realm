@@ -198,6 +198,13 @@ static void selection_test_unicast(LPEDICT ent) { (void)ent; }
 static BOOL timer_dialog_size_capture;
 static char timer_dialog_measure_text[128];
 static uiNameTag_t timer_dialog_size_to_text;
+static DWORD timer_dialog_unicast_count;
+static LPEDICT timer_dialog_unicast_target;
+
+static void timer_dialog_test_unicast(LPEDICT ent) {
+    timer_dialog_unicast_count++;
+    timer_dialog_unicast_target = ent;
+}
 
 static void timer_dialog_test_write(pfWriteType_t type, void const *data) {
     LPCUIFRAME frame;
@@ -871,6 +878,64 @@ TEST(wc3_game, timer_dialog_writer_sends_client_measured_content_contract) {
     T_EQ(timer_dialog_size_to_text.text.textalignx, FONT_JUSTIFYLEFT);
     T_ASSERT(timer_dialog_size_to_text.padding_x > 0.0f);
     T_ASSERT(timer_dialog_size_to_text.min_width > 0.0f);
+}
+
+TEST(wc3_game, timer_dialog_update_uses_player_number_not_client_slot) {
+    FRAMEDEF timer_frame = { .Type = FT_SIMPLEFRAME, .Height = 0.022f };
+    FRAMEDEF title_frame = { .Type = FT_STRING };
+    FRAMEDEF value_frame = { .Type = FT_STRING };
+    GTIMER timer = { .remaining = 65u * 1000u };
+    TimerDialog_t old_timer_binding = hud.timer_dialog;
+    TIMERDIALOG old_dialog = level.timer_dialogs[0];
+    DWORD old_dirty = level.timer_dialog_dirty_clients;
+    DWORD client_count = MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS);
+    LONG old_last_index[MAX_CLIENTS], old_last_seconds[MAX_CLIENTS];
+    DWORD old_numbers[MAX_CLIENTS];
+    BOOL old_connected[MAX_CLIENTS];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+
+    setup_test_world();
+    memcpy(old_last_index, level.timer_dialog_last_index, sizeof(old_last_index));
+    memcpy(old_last_seconds, level.timer_dialog_last_seconds, sizeof(old_last_seconds));
+    FOR_LOOP(i, client_count) {
+        old_numbers[i] = game.clients[i].ps.number;
+        old_connected[i] = game.clients[i].connected;
+        game.clients[i].ps.number = MAX_CLIENTS + i;
+        game.clients[i].connected = false;
+    }
+    game.clients[0].ps.number = 3;
+    game.clients[0].connected = true;
+    memset(level.timer_dialog_last_index, 0xff, sizeof(level.timer_dialog_last_index));
+    memset(level.timer_dialog_last_seconds, 0xff, sizeof(level.timer_dialog_last_seconds));
+    level.timer_dialog_dirty_clients = 1u << 3;
+    memset(&level.timer_dialogs[0], 0, sizeof(level.timer_dialogs[0]));
+    level.timer_dialogs[0].inuse = true;
+    level.timer_dialogs[0].timer = &timer;
+    level.timer_dialogs[0].visible_clients = 1u << 3;
+    hud.timer_dialog.TimerDialog = &timer_frame;
+    hud.timer_dialog.TimerDialogTitle = &title_frame;
+    hud.timer_dialog.TimerDialogValue = &value_frame;
+    timer_dialog_unicast_count = 0;
+    timer_dialog_unicast_target = NULL;
+    gi.Write = timer_dialog_test_write;
+    gi.unicast = timer_dialog_test_unicast;
+
+    G_UpdateTimerDialogs();
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    hud.timer_dialog = old_timer_binding;
+    level.timer_dialogs[0] = old_dialog;
+    level.timer_dialog_dirty_clients = old_dirty;
+    memcpy(level.timer_dialog_last_index, old_last_index, sizeof(old_last_index));
+    memcpy(level.timer_dialog_last_seconds, old_last_seconds, sizeof(old_last_seconds));
+    FOR_LOOP(i, client_count) {
+        game.clients[i].ps.number = old_numbers[i];
+        game.clients[i].connected = old_connected[i];
+    }
+    T_EQ(timer_dialog_unicast_count, 1);
+    T_ASSERT(timer_dialog_unicast_target == &g_edicts[0]);
 }
 
 TEST(wc3_game, text_exact_width_fits) { T_ASSERT(R_TextFitsWidth(0.0f)); }

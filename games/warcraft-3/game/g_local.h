@@ -29,6 +29,11 @@
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
+#ifdef WC3_DEBUG_TIMERDIALOG
+#define WC3_TIMERDIALOG_LOG(...) fprintf(stderr, "WC3_TIMERDIALOG " __VA_ARGS__)
+#else
+#define WC3_TIMERDIALOG_LOG(...) ((void)0)
+#endif
 
 typedef enum {
     WC3_MAP_GAME_DATA_SET_DEFAULT = 0,
@@ -1873,7 +1878,7 @@ struct level_locals {
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     DWORD multiboard_dirty_clients;
     DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
-    LONG timer_dialog_last_index[MAX_CLIENTS]; /* transient active-slot cache */
+    LONG timer_dialog_last_index[MAX_CLIENTS]; /* transient player-number cache */
     LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
     gweather_t weather_effects[MAX_WEATHER_EFFECTS];
     DWORD next_weather_id;
