@@ -1632,6 +1632,7 @@ TEST(wc3_spell, defend_projectile_retargets_to_unit_source_and_cannot_reflect_tw
 	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
 	attacker->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
 	missile->owner = attacker; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	missile->projectile_attack_type = ATK_PIERCE;
 	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
 	SV_Physics_Toss(missile);
 	T_ASSERT(missile->inuse); T_ASSERT(missile->projectile_reflected); T_ASSERT(missile->goalentity == attacker);
@@ -1640,6 +1641,39 @@ TEST(wc3_spell, defend_projectile_retargets_to_unit_source_and_cannot_reflect_tw
 	missile->s.origin = attacker->s.origin;
 	SV_Physics_Toss(missile);
 	T_ASSERT(!missile->inuse); T_ASSERT(attacker->health.value < attacker_hp);
+
+	game.constants.combatConstantsLoaded = old_loaded; game.constants.defendDeflection = old_deflect;
+	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, defend_attack2_projectile_uses_launch_type_after_target_morph) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X10\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+		"C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"DataD1\"\nC;Y1;X7;K\"DataE1\"\nC;Y1;X8;K\"DataF1\"\n"
+		"C;Y1;X9;K\"DataG1\"\nC;Y1;X10;K\"DataH1\"\n"
+		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\n"
+		"C;Y2;X5;K\"0.3\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"100\"\nC;Y2;X9;K\"0.5\"\nC;Y2;X10;K\"1\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	BOOL const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
+	UnitWeapons_t weapons = { .attacksEnabled = 3 };
+	LPEDICT attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 0, 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 0);
+	LPEDICT missile = G_Spawn();
+
+	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
+	attacker->data.UnitWeapons = &weapons;
+	attacker->attack1.type = ATK_NORMAL; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+	attacker->attack2.type = ATK_PIERCE; attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
+	target->targtype = TARG_AIR;
+	missile->projectile_attack_type = attacker->attack2.type; /* Launch-time snapshot. */
+	target->targtype = TARG_GROUND; target->defense_type = 0; /* Target morphed before impact. */
+	unit_addstatus(target, "Adef", 1);
+	missile->owner = attacker; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
+	SV_Physics_Toss(missile);
+
+	T_ASSERT(missile->inuse); T_ASSERT(missile->projectile_reflected); T_ASSERT(missile->goalentity == attacker);
 
 	game.constants.combatConstantsLoaded = old_loaded; game.constants.defendDeflection = old_deflect;
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -1663,6 +1697,7 @@ TEST(wc3_spell, defend_consumes_deflected_building_projectile_without_return_dam
 	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
 	tower->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
 	missile->owner = tower; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	missile->projectile_attack_type = ATK_PIERCE;
 	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
 	SV_Physics_Toss(missile);
 	T_ASSERT(!missile->inuse); T_FEQ(target->health.value, target_hp, 0.001f); T_FEQ(tower->health.value, tower_hp, 0.001f);

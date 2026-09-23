@@ -6,14 +6,14 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 38, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 39, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot and a raw `edict_t` block for used slots;
-- fixed-point artillery projectiles retain their launch-time attack type and splash profile in the serialized edict;
+- basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
@@ -467,6 +467,7 @@ Channel cast serials, saved origins, and owner/target incarnation stamps are per
 The appended channel thinker callback roster and continuation tests are described in
 [ability verification](ability-verification-review.md#dispatch-and-persistence).
 
-Save format version 38 adds the launch-time artillery attack type, target masks,
-splash radii, and damage factors to projectile edicts so in-flight shots retain
-their impact profile across save/load.
+Save format version 39 adds the launch-time attack type for basic projectiles.
+Version 38 added the launch-time artillery attack type, target masks, splash
+radii, and damage factors so in-flight shots retain their impact profile across
+save/load.
