@@ -1,7 +1,7 @@
 #include "g_local.h"
 #include "jass/jass.h"
 
-static DWORD TimerDialogClientMask(void) {
+static DWORD TimerDialogPlayerMask(void) {
     DWORD count = MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS);
     return count ? (DWORD)((1ull << count) - 1ull) : 0;
 }
@@ -11,12 +11,12 @@ static DWORD TimerDialogDisplaySeconds(LPCGTIMER timer) {
     return millis / 1000u + (millis % 1000u != 0);
 }
 
-static LPTIMERDIALOG VisibleTimerDialogForClient(DWORD client_num, LONG *index) {
+static LPTIMERDIALOG VisibleTimerDialogForPlayer(DWORD player_num, LONG *index) {
     if (index) *index = -1;
-    if (client_num >= MAX_CLIENTS) return NULL;
+    if (player_num >= MAX_CLIENTS) return NULL;
     FOR_LOOP(i, MAX_TIMERDIALOGS) {
         LPTIMERDIALOG dialog = &level.timer_dialogs[i];
-        if (!dialog->inuse || !(dialog->visible_clients & (1u << client_num))) continue;
+        if (!dialog->inuse || !(dialog->visible_clients & (1u << player_num))) continue;
         if (index) *index = (LONG)i;
         return dialog;
     }
@@ -35,6 +35,9 @@ LPTIMERDIALOG G_AllocTimerDialog(LPGTIMER timer) {
         memset(dialog, 0, sizeof(*dialog));
         dialog->inuse = true;
         dialog->timer = timer;
+        WC3_TIMERDIALOG_LOG("create dialog=%ld timer=%p running=%d remaining=%u\n",
+                            (long)i, (void *)timer, timer ? timer->running : 0,
+                            (unsigned)G_TimerRemaining(timer));
         return dialog;
     }
     return NULL;
@@ -49,18 +52,23 @@ void G_FreeTimerDialog(LPTIMERDIALOG dialog) {
 }
 
 void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, BOOL visible) {
-    DWORD mask;
+    DWORD mask, old_mask;
     if (!dialog || !dialog->inuse) return;
     if (player) {
         DWORD number = PLAYER_NUM(player);
         if (number >= MAX_CLIENTS) return;
         mask = 1u << number;
     } else {
-        mask = TimerDialogClientMask();
+        mask = TimerDialogPlayerMask();
     }
-    if (visible) dialog->visible_clients |= mask;
-    else dialog->visible_clients &= ~mask;
+    old_mask = dialog->visible_clients;
+    dialog->visible_clients = visible ? (old_mask | mask) : (old_mask & ~mask);
     level.timer_dialog_dirty_clients |= mask;
+    WC3_TIMERDIALOG_LOG("display dialog=%ld player=%d visible=%d clients=0x%08x->0x%08x timer_running=%d remaining=%u\n",
+                        (long)(dialog - level.timer_dialogs), player ? (int)PLAYER_NUM(player) : -1,
+                        visible, (unsigned)old_mask, (unsigned)dialog->visible_clients,
+                        dialog->timer ? dialog->timer->running : 0,
+                        (unsigned)G_TimerRemaining(dialog->timer));
 }
 
 BOOL G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player) {
@@ -70,7 +78,7 @@ BOOL G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player) {
         DWORD number = PLAYER_NUM(player);
         return number < MAX_CLIENTS && (dialog->visible_clients & (1u << number));
     }
-    mask = TimerDialogClientMask();
+    mask = TimerDialogPlayerMask();
     return mask && (dialog->visible_clients & mask) == mask;
 }
 
@@ -92,6 +100,10 @@ void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, LPCJASSFUNC hand
     timer->generation++;
     timer->handler = handler; timer->duration = timeout; timer->remaining = timeout;
     timer->periodic = periodic; timer->paused = false; timer->running = true;
+    FOR_LOOP(i, MAX_TIMERDIALOGS) if (level.timer_dialogs[i].inuse && level.timer_dialogs[i].timer == timer)
+        WC3_TIMERDIALOG_LOG("start dialog=%d duration=%u periodic=%d visible=0x%08x\n",
+                            i, (unsigned)timeout, periodic,
+                            (unsigned)level.timer_dialogs[i].visible_clients);
 }
 
 void G_TimerPause(LPGTIMER timer) {
@@ -123,26 +135,32 @@ BOOL G_TimerCoroutineValid(HANDLE handle, DWORD generation) {
 void G_UpdateTimerDialogs(void) {
     FOR_LOOP(i, MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS)) {
         LPGAMECLIENT client = &game.clients[i];
+        DWORD player_num = client->ps.number;
         LPEDICT ent;
         LPTIMERDIALOG dialog;
         LONG dialog_index;
         LONG seconds = -1;
         BOOL dirty;
 
-        if (!client->connected) continue;
-        dialog = VisibleTimerDialogForClient(i, &dialog_index);
+        if (!client->connected || player_num >= MAX_CLIENTS) continue;
+        dialog = VisibleTimerDialogForPlayer(player_num, &dialog_index);
         if (dialog && dialog->timer)
             seconds = (LONG)TimerDialogDisplaySeconds(dialog->timer);
-        dirty = (level.timer_dialog_dirty_clients & (1u << i)) != 0;
-        if (!dirty && level.timer_dialog_last_index[i] == dialog_index &&
-            level.timer_dialog_last_seconds[i] == seconds) continue;
+        dirty = (level.timer_dialog_dirty_clients & (1u << player_num)) != 0;
+        if (!dirty && level.timer_dialog_last_index[player_num] == dialog_index &&
+            level.timer_dialog_last_seconds[player_num] == seconds) continue;
 
-        ent = G_GetPlayerEntityByNumber(i);
+        ent = G_GetPlayerEntityByNumber(player_num);
+        if (dialog && (dirty || (seconds >= 0 && (seconds % 30) == 0)) )
+            WC3_TIMERDIALOG_LOG("hud update client_slot=%u player=%u dialog=%ld seconds=%ld dirty=%d player_ent=%d client=%d\n",
+                                (unsigned)i, (unsigned)player_num, (long)dialog_index,
+                                (long)seconds, dirty,
+                                ent != NULL, ent && ent->client != NULL);
         if (!ent || !ent->client) continue;
         UI_WriteTimerDialogs(ent);
-        level.timer_dialog_last_index[i] = dialog_index;
-        level.timer_dialog_last_seconds[i] = seconds;
-        level.timer_dialog_dirty_clients &= ~(1u << i);
+        level.timer_dialog_last_index[player_num] = dialog_index;
+        level.timer_dialog_last_seconds[player_num] = seconds;
+        level.timer_dialog_dirty_clients &= ~(1u << player_num);
     }
 }
 

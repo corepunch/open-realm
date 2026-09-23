@@ -42,11 +42,11 @@ static DWORD TimerDialogMeasureFont(void) {
     return font ? font : gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
 }
 
-static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD client_num) {
-    if (client_num >= MAX_CLIENTS) return NULL;
+static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD player_num) {
+    if (player_num >= MAX_CLIENTS) return NULL;
     FOR_LOOP(i, MAX_TIMERDIALOGS) {
         LPTIMERDIALOG dialog = &level.timer_dialogs[i];
-        if (dialog->inuse && (dialog->visible_clients & (1u << client_num))) return dialog;
+        if (dialog->inuse && (dialog->visible_clients & (1u << player_num))) return dialog;
     }
     return NULL;
 }
@@ -130,13 +130,18 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     char value[32];
     char measure[MAX_TRIGSTR_LENGTH + sizeof(value) + 8];
     uiSizeToTextParams_t size_params;
-    DWORD client_num;
+    DWORD player_num;
 
     if (!ent || !ent->client) return;
-    client_num = ent->client->ps.number;
-    dialog = UI_VisibleTimerDialog(client_num);
+    player_num = ent->client->ps.number;
+    dialog = UI_VisibleTimerDialog(player_num);
     if (!dialog || !hud.timer_dialog.TimerDialog || !hud.timer_dialog.TimerDialogTitle ||
         !hud.timer_dialog.TimerDialogValue) {
+        WC3_TIMERDIALOG_LOG("hud clear player=%u client_edict=%u dialog=%d frame=%d title=%d value=%d\n",
+                            (unsigned)player_num, (unsigned)ent->s.number, dialog != NULL,
+                            hud.timer_dialog.TimerDialog != NULL,
+                            hud.timer_dialog.TimerDialogTitle != NULL,
+                            hud.timer_dialog.TimerDialogValue != NULL);
         UI_ClearLayer(ent, WC3_LAYER_TIMERDIALOG);
         return;
     }
@@ -166,5 +171,10 @@ void UI_WriteTimerDialogs(LPEDICT ent) {
     UI_WriteFrame(&hud.timer_dialog_anchor);
     UI_WriteFrameWithChildrenSizedToText(&size_params);
     UI_WriteEnd(ent);
+    if ((G_TimerRemaining(dialog->timer) / 1000u) % 30u == 0)
+        WC3_TIMERDIALOG_LOG("hud write player=%u client_edict=%u remaining_ms=%u title=\"%s\" value=%s layer=%d\n",
+                            (unsigned)player_num, (unsigned)ent->s.number,
+                            (unsigned)G_TimerRemaining(dialog->timer),
+                            title && *title ? title : " ", value, WC3_LAYER_TIMERDIALOG);
     UI_SetCurrentClient(NULL);
 }
