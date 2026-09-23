@@ -1316,6 +1316,15 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
+TEST(wc3_unit, stoneform_order_requires_authored_ability_ownership) {
+    LPEDICT ent;
+    reset_test_entities(); setup_test_world();
+    ent = alloc_test_unit(MAKEFOURCC('u','g','a','r'), 64.0f, 64.0f);
+    T_ASSERT(!G_UnitAbilityLevel(ent, MAKEFOURCC('A','s','t','n')));
+    T_ASSERT(!unit_issueimmediateorder(ent, "stoneform"));
+    T_EQ(ent->class_id, MAKEFOURCC('u','g','a','r'));
+}
+
 TEST(wc3_unit, unravenform_accepts_preplaced_alternate_form) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
     LPEDICT ent;

@@ -111,7 +111,7 @@ BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
     DWORD flag;
 
     if (!attacker || !G_DestructableIsAttackable(target) ||
-        attacker->attack1.type == ATK_NONE) {
+        (attacker->attack1.type == ATK_NONE && attacker->attack2.type == ATK_NONE)) {
         return false;
     }
     /* Retail lets the explicit Attack command cut down trees even though
@@ -121,7 +121,8 @@ BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
         return true;
     }
     flag = G_TargetFlagForType(target->targtype);
-    return flag && (attacker->attack1.targetsAllowed & flag) != 0;
+    return flag && ((attacker->attack1.type != ATK_NONE && (attacker->attack1.targetsAllowed & flag)) ||
+                    (attacker->attack2.type != ATK_NONE && (attacker->attack2.targetsAllowed & flag)));
 }
 
 BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target) {

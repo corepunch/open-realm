@@ -734,6 +734,36 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     gi.MemFree(pathtex);
 }
 
+TEST(wc3_combat, secondary_attack_can_target_destructables) {
+    LPEDICT attacker, gate;
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    gate = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 128.0f, 0.0f);
+    gate->svflags &= ~SVF_MONSTER;
+    gate->targtype = TARG_DEBRIS;
+    gate->destructable.initialized = true;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack2.type = ATK_SIEGE;
+    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_DEBRIS;
+
+    T_ASSERT(S_AttackCanTarget(attacker, gate));
+}
+
+TEST(wc3_combat, secondary_attack_selection_keeps_authored_profiles) {
+    LPEDICT attacker, target;
+    setup_test_world(); reset_entities();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 256.0f, 0.0f);
+    target->targtype = TARG_AIR;
+    attacker->attack1.type = ATK_NORMAL; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack2.type = ATK_PIERCE; attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    attacker->attack2.damageBase = 17;
+    T_ASSERT(S_OrderAttack(attacker, target));
+    T_EQ(attacker->attack1.type, ATK_NORMAL); T_EQ(attacker->attack1.targetsAllowed, WC3_TARGET_FLAG_GROUND);
+    T_EQ(attacker->attack2.type, ATK_PIERCE); T_EQ(attacker->attack2.damageBase, 17);
+}
+
 /* ==========================================================================
  * M_MoveFrame
  * ========================================================================== */

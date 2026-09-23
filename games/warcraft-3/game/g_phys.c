@@ -122,7 +122,7 @@ void SV_Physics_Toss(LPEDICT ent) {
              * target defense/armor on impact, matching Warsmash and allowing
              * in-flight armor/defense changes to affect the hit. Spell
              * missiles install currentmove/endfunc and bypass this branch. */
-            if (ent->owner && ent->owner->attack1.weapon == WPN_ARTILLERY) {
+            if (fixed_target) {
                 VECTOR2 impact = fixed_target ? ent->channel.origin : ent->goalentity->s.origin2;
                 LPEDICT primary = ent->goalentity;
                 if (fixed_target && primary &&
