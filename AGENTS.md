@@ -129,6 +129,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Sentry Ward Aeye/AIsw, Adt1 Rng detect via S_UnitIsDetected | [docs/games/warcraft-3/sentry-ward.md](docs/games/warcraft-3/sentry-ward.md) |
 | WC3 Ancestral Spirit target rules, authored data, and same-edict corpse revival | [docs/games/warcraft-3/ancestral-spirit.md](docs/games/warcraft-3/ancestral-spirit.md) |
 | WC3 Mana Shield toggle, authored damage/mana ratio, buff and order lifecycle | [docs/games/warcraft-3/mana-shield.md](docs/games/warcraft-3/mana-shield.md) |
+| WC3 Gargoyle Stone Form AbilityData endpoints and reversible unit rebind | [docs/games/warcraft-3/stone-form.md](docs/games/warcraft-3/stone-form.md) |
 | WC3 demo/TFT FOURCC-to-class extraction, registration offsets, generated references | [docs/games/warcraft-3/demo-ability-classes.md](docs/games/warcraft-3/demo-ability-classes.md) |
 | WC3 player AI, Blizzard AI script contract, Human02 implementation plan | [docs/games/warcraft-3/player-ai.md](docs/games/warcraft-3/player-ai.md) |
 | WC3 player AI architecture and implementation postmortem | [docs/games/warcraft-3/player-ai-postmortem.md](docs/games/warcraft-3/player-ai-postmortem.md) |

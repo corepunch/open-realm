@@ -1215,7 +1215,7 @@ static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestDa
                                          slkTestData_t **ui_rows, slkTestData_t **old_ui,
                                          slkTestData_t **profile_rows, slkTestData_t **old_profile) {
     static LPCSTR const ability_slk =
-        "ID;PWXL;N;EBB;Y3;X4\n"
+        "ID;PWXL;N;EBB;Y4;X4\n"
         "C;Y1;X1;K\"alias\"\n"
         "C;Y1;X2;K\"code\"\n"
         "C;Y1;X3;K\"DataA1\"\n"
@@ -1228,6 +1228,10 @@ static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestDa
         "C;Y3;X2;K\"Arav\"\n"
         "C;Y3;X3;K\"edot\"\n"
         "C;Y3;X4;K\"edtm\"\n"
+        "C;Y4;X1;K\"Astn\"\n"
+        "C;Y4;X2;K\"Astn\"\n"
+        "C;Y4;X3;K\"hpea\"\n"
+        "C;Y4;X4;K\"hfoo\"\n"
         "E\n";
     static LPCSTR const ui_slk =
         "ID;PWXL;N;EBB;Y3;X7\n"
@@ -1323,6 +1327,25 @@ TEST(wc3_unit, stoneform_order_requires_authored_ability_ownership) {
     T_ASSERT(!G_UnitAbilityLevel(ent, MAKEFOURCC('A','s','t','n')));
     T_ASSERT(!unit_issueimmediateorder(ent, "stoneform"));
     T_EQ(ent->class_id, MAKEFOURCC('u','g','a','r'));
+}
+
+TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    abilityitem_t item = { .code = MAKEFOURCC('A','s','t','n'), .ability = FindAbilityByClassname("Astn") };
+    abilityCall_t call = { .item = &item };
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    T_ASSERT(G_ActorAddSkill(ent, MAKEFOURCC('A','s','t','n')));
+    T_ASSERT(G_UnitAbilityLevel(ent, MAKEFOURCC('A','s','t','n')));
+    T_NOT_NULL(S_SpellAbilityForCode(MAKEFOURCC('A','s','t','n')));
+    T_EQ(G_AbilityData(MAKEFOURCC('A','s','t','n'))->level[0].data[0].id, MAKEFOURCC('h','p','e','a'));
+    T_EQ(G_AbilityData(MAKEFOURCC('A','s','t','n'))->level[0].unitID, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(S_AbilityMessage(ent, A_EXECUTE, &call));
+    T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(S_AbilityMessage(ent, A_EXECUTE, &call));
+    T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
 TEST(wc3_unit, unravenform_accepts_preplaced_alternate_form) {
