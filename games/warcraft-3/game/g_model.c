@@ -511,6 +511,29 @@ LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL rando
     return choice ? choice : selected;
 }
 
+static LPCANIMATION AnimationVariantForProperties(g_cmodel_t *model, LPCSTR animname, LPCSTR properties) {
+    LPCANIMATION selected, choice = NULL;
+    animationTagSet_t selected_tags = {0};
+    char primary[WC3_ANIMATION_TAG_SIZE];
+    DWORD matches = 0;
+
+    if (!model) return NULL;
+    selected = G_SelectAnimationForProperties(model->animations, model->num_animations, animname, properties);
+    if (!selected) return NULL;
+    AnimationParseRequest(selected->name, primary, &selected_tags);
+    FOR_LOOP(i, model->num_animations) {
+        LPCANIMATION candidate = model->animations + i;
+        animationTagSet_t tags = {0};
+        char candidate_primary[WC3_ANIMATION_TAG_SIZE];
+        if (candidate->syncpoint != selected->syncpoint) continue;
+        AnimationParseRequest(candidate->name, candidate_primary, &tags);
+        if (strcasecmp(primary, candidate_primary) || !AnimationTagSetContainsAll(&tags, &selected_tags) ||
+            !AnimationTagSetContainsAll(&selected_tags, &tags)) continue;
+        if ((DWORD)(rand() % ++matches) == 0) choice = candidate;
+    }
+    return choice ? choice : selected;
+}
+
 BOOL G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary) {
     size_t len;
     unsigned char next;
@@ -548,11 +571,16 @@ LPCANIMATION G_GetUnitAnimation(LPEDICT unit, LPCSTR animname) {
 
 void G_SetUnitAnimation(LPEDICT unit, LPCSTR animname) {
     char request[WC3_ANIMATION_REQUEST_SIZE];
+    char primary[WC3_ANIMATION_TAG_SIZE];
+    animationTagSet_t request_tags = {0};
 
     if (!unit || !animname) return;
     strlcpy(request, animname, sizeof(request));
     strlcpy(unit->animation_request, request, sizeof(unit->animation_request));
-    unit->animation = G_GetUnitAnimation(unit, request);
+    AnimationParseRequest(request, primary, &request_tags);
+    unit->animation = !strcasecmp(primary, "walk") ?
+        AnimationVariantForProperties(GetModel(unit->s.model), request, unit->animation_props) : NULL;
+    if (!unit->animation) unit->animation = G_GetUnitAnimation(unit, request);
 }
 
 void G_AddUnitAnimationProperties(LPEDICT unit, LPCSTR properties, BOOL add) {
