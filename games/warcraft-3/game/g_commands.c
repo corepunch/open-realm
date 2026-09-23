@@ -23,6 +23,7 @@ static cheatToggleValue_t const cheat_toggle_values[] = {
 static DWORD selection_focus[MAX_CLIENTS];
 static BOOL G_DebugIsNumber(LPCSTR text);
 static void G_CheatPrintf(LPEDICT clent, LPCSTR fmt, ...);
+static void G_PublishEndCinematicForHumans(LPEDICT clent, BOOL debug_log);
 
 static DWORD *G_SelectionFocusSlot(LPGAMECLIENT client) {
     LONG index;
@@ -629,6 +630,13 @@ void CMD_CancelCommand(LPEDICT ent) {
         }
     }
     if (!G_CancelBuildPlacement(ent)) {
+        if (ent && ent->client && ent->client->ps.client_ui_state == CLIENT_UI_CINEMATIC) {
+            /* The UI CmdCancel ability is the Escape path.  Retail Escape
+             * publishes EVENT_PLAYER_END_CINEMATIC so map-authored skip
+             * handlers can restore actors and input before gameplay resumes. */
+            G_PublishEndCinematicForHumans(ent, false);
+            return;
+        }
         Get_Commands_f(ent);
     }
 }
