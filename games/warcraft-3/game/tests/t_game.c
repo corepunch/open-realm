@@ -3336,6 +3336,7 @@ SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_corpse_flags_round_trip, aiflags, AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
+SAVE_INT_FIELD_TEST(field_projectile_attack_type_round_trip, projectile_attack_type, ATK_PIERCE)
 TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-artillery-profile.bin";
     field_t const *desc = find_save_field("artillery");

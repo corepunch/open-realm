@@ -784,6 +784,59 @@ TEST(wc3_combat, disabled_secondary_attack_cannot_target_air) {
     T_ASSERT(!S_AttackCanTarget(attacker, target));
 }
 
+TEST(wc3_combat, missing_weapon_data_disables_authored_attack_slots) {
+    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->targtype = TARG_GROUND;
+    attacker->data.UnitWeapons = NULL;
+    T_ASSERT(!S_UnitAttackSlotEnabled(attacker, 0));
+    T_ASSERT(!S_AttackCanTarget(attacker, target));
+}
+
+TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
+    UnitWeapons_t weapons = { .attacksEnabled = 3 };
+    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    LPEDICT missile = NULL;
+
+    attacker->data.UnitWeapons = &weapons;
+    attacker->goalentity = target;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_MISSILE;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    attacker->attack2.type = ATK_PIERCE;
+    attacker->attack2.weapon = WPN_MISSILE;
+    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    attacker->attack2.damageBase = 100;
+    attacker->attack2.numberOfDice = 0;
+    attacker->attack2.damagePoint = 0.1f;
+    attacker->attack2.cooldown = 1.0f;
+    attacker->attack2.projectile.speed = 1000;
+    target->targtype = TARG_AIR;
+    target->defense_type = 0; /* Pierce deals 200%; Normal deals 100%. */
+    target->armor_value = 0.0f;
+
+    T_ASSERT(S_OrderAttack(attacker, target));
+    attack_ranged(attacker);
+    attacker->wait = 0.01f;
+    attacker->currentmove->think(attacker);
+    FILTER_EDICTS(ent, ent->owner == attacker && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    if (!missile) return;
+    T_EQ(missile->projectile_attack_type, ATK_PIERCE);
+
+    target->targtype = TARG_GROUND; /* Transform after launch; slot 1 no longer matches. */
+    missile->s.origin.x = target->s.origin.x - 1.0f;
+    missile->s.origin.y = target->s.origin.y;
+    missile->s.origin.z = target->s.origin.z;
+    missile->velocity = 1.0f;
+    SV_Physics_Toss(missile);
+
+    T_FEQ(target->health.value, 220.0f, 0.001f);
+}
+
 /* ==========================================================================
  * M_MoveFrame
  * ========================================================================== */

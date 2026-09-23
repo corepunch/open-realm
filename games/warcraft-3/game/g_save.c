@@ -72,7 +72,7 @@ static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Timer generation and event-ring layout are serialized state; reject older
  * saves rather than decoding those records with shifted field boundaries. */
-static DWORD const save_version = 38;
+static DWORD const save_version = 39;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -682,6 +682,7 @@ field_t edict_fields[] = {
     F(edict_s, channel, F_STRUCT, 1, channel_fields),
     F(edict_s, abilstatus, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
     F(edict_s, damage, F_INT),
+    F(edict_s, projectile_attack_type, F_INT),
     F(edict_s, artillery, F_STRUCT, 1, artillery_fields),
     F(edict_s, projectile_reflected, F_INT),
     F(edict_s, collision, F_FLOAT),
