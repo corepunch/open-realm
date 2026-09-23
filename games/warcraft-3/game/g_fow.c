@@ -46,9 +46,12 @@ BOOL G_FowPlayersShareVision(DWORD viewer, DWORD owner) {
     if (viewer >= MAX_PLAYERS || owner >= MAX_PLAYERS) {
         return false;
     }
+    /* SetPlayerAlliance(source, other, shared vision) means source shares its
+     * sight with other.  The viewer therefore reads the owner's outgoing
+     * alliance bit. */
     return viewer == owner ||
-           (level.alliances[viewer][owner] & (1 << ALLIANCE_SHARED_VISION)) ||
-           (level.alliances[viewer][owner] & (1 << ALLIANCE_SHARED_VISION_FORCED));
+           (level.alliances[owner][viewer] & (1 << ALLIANCE_SHARED_VISION)) ||
+           (level.alliances[owner][viewer] & (1 << ALLIANCE_SHARED_VISION_FORCED));
 }
 
 DWORD G_FowWorldToCellX(FLOAT x) {
