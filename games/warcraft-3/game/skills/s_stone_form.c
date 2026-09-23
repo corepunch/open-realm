@@ -29,7 +29,28 @@ static BOOL stone_form_order(LPEDICT unit, LPCSTR order) {
     return true;
 }
 
+/* The command card uses the shared no-target cast path; only units in one of
+ * the two authored Gargoyle forms may commit the transformation. */
+static BOOL stone_form_can_transform(LPCEDICT unit) {
+    return unit && (unit->class_id == MAKEFOURCC('u', 'g', 'a', 'r') ||
+                    unit->class_id == MAKEFOURCC('u', 'g', 'r', 'm'));
+}
+
+static BOOL stone_form_execute(LPEDICT unit) {
+    if (!stone_form_can_transform(unit)) return false;
+    return stone_form_order(unit, unit->class_id == MAKEFOURCC('u', 'g', 'a', 'r')
+                                  ? "stoneform" : "unstoneform");
+}
+
 BZ_ABILITY_PROC(CAbilityStoneForm) {
-    if (msg != A_ORDER || !call || !call->order) return false;
-    return stone_form_order(ent, call->order);
+    switch (msg) {
+    case A_ORDER:
+        return call && call->order && stone_form_order(ent, call->order);
+    case A_VALIDATE:
+        return stone_form_can_transform(ent);
+    case A_EXECUTE:
+        return stone_form_execute(ent);
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
 }

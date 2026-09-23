@@ -1078,7 +1078,7 @@ LPEDICT unit_create(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facin
         unit->s.origin2 = position;
         unit->s.origin.x = position.x;
         unit->s.origin.y = position.y;
-        unit->s.origin.z = CM_GetHeightAtPoint(position.x, position.y);
+        M_CheckGround(unit);
         gi.LinkEntity(unit);
     }
     if (unit->stand) {
