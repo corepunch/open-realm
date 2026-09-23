@@ -261,12 +261,14 @@ DWORD TriggerRegisterEnterRegion(LPJASS j) {
     if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
     evt->filter = filter;
-    evt->region = *whichRegion;
+    evt->region = whichRegion;
     QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_ENTER_REGION, NULL, "enter-region");
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD GetTriggeringRegion(LPJASS j) {
-    return jass_pushnullhandle(j, "region");
+    LPCJASSCONTEXT context = jass_getcontext(j);
+    HANDLE region = context ? context->region : NULL;
+    return region ? jass_pushlighthandle(j, region, "region") : jass_pushnullhandle(j, "region");
 }
 DWORD TriggerRegisterLeaveRegion(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -277,7 +279,7 @@ DWORD TriggerRegisterLeaveRegion(LPJASS j) {
     if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
     evt->filter = filter;
-    evt->region = *whichRegion;
+    evt->region = whichRegion;
     QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_LEAVE_REGION, NULL, "leave-region");
     return jass_pushlighthandle(j, evt, "event");
 }

@@ -1,4 +1,9 @@
 #include "g_local.h"
+#ifdef BZ_TESTS
+#include "shared/test.h"
+void reset_entities(void);
+void setup_test_world(void);
+#endif
 
 typedef enum {
     F_INT,
@@ -72,7 +77,7 @@ static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Timer generation and event-ring layout are serialized state; reject older
  * saves rather than decoding those records with shifted field boundaries. */
-static DWORD const save_version = 39;
+static DWORD const save_version = 40;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -173,6 +178,7 @@ typedef enum {
     JASS_HANDLE_HASHTABLE,
     JASS_HANDLE_WEATHER,
     JASS_HANDLE_LIGHTNING,
+    JASS_HANDLE_REGION,
 } jassHandleDomain_t;
 
 static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
@@ -196,6 +202,7 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "hashtable", JASS_HANDLE_HASHTABLE },
     { "weathereffect", JASS_HANDLE_WEATHER },
     { "lightning", JASS_HANDLE_LIGHTNING },
+    { "region", JASS_HANDLE_REGION },
 };
 
 static field_t const timer_dialog_fields[] = {
@@ -255,6 +262,17 @@ static field_t const save_event_fields[] = {
     F(gevent_s, limitval, F_FLOAT),
     F(gevent_s, variable, F_LSTRING),
     F(gevent_s, inuse, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const box2_fields[] = {
+    TF(BOX2, min, F_VECTOR), TF(BOX2, max, F_VECTOR),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const region_fields[] = {
+    F(gregion_s, rects, F_STRUCT, MAX_REGION_SIZE, box2_fields),
+    F(gregion_s, num_rects, F_INT), F(gregion_s, inuse, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -455,6 +473,7 @@ static field_t const level_fields[] = {
     F(level_locals, multiboard_items, F_STRUCT, MAX_MULTIBOARD_ITEMS, multiboard_item_fields),
     F(level_locals, texttags, F_STRUCT, MAX_TEXTTAGS, texttag_fields),
     F(level_locals, hashtables, F_STRUCT, MAX_HASHTABLES, hashtable_fields),
+    FC(level_locals, regions, F_STRUCT, MAX_REGIONS, region_fields, num_regions),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
     FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
     { NULL, 0, 0, 0, 0, 0 }
@@ -1074,6 +1093,14 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         *id = (DWORD)((pointer - base) / sizeof(*effect));
         return true;
     }
+    if (domain == JASS_HANDLE_REGION) {
+        LPREGION region = value;
+        uintptr_t pointer = (uintptr_t)region, base = (uintptr_t)level.regions;
+        if (!region || pointer < base || pointer >= base + sizeof(level.regions) ||
+            (pointer - base) % sizeof(*region) || !region->inuse) return false;
+        *id = (DWORD)((pointer - base) / sizeof(*region));
+        return true;
+    }
     if (domain == JASS_HANDLE_QUEST) {
         if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
             *id = (DWORD)((LPQUEST)value - level.quests); return true;
@@ -1115,6 +1142,8 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
         return id < MAX_HASHTABLES && level.hashtables[id].inuse ? &level.hashtables[id] : NULL;
     if (domain == JASS_HANDLE_LIGHTNING)
         return id < MAX_LIGHTNING_EFFECTS && level.lightning_effects[id].inuse ? &level.lightning_effects[id] : NULL;
+    if (domain == JASS_HANDLE_REGION)
+        return id < MAX_REGIONS && level.regions[id].inuse ? &level.regions[id] : NULL;
     return JassListHandle(domain, id);
 }
 
@@ -1338,6 +1367,15 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         case F_FUNCTION:
             if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)(base + fields->ofs)))) return false;
             break;
+        case F_REGION: {
+            LPREGION region = *(LPREGION *)(base + fields->ofs);
+            DWORD id = UINT32_MAX;
+            if (region && !G_SaveJassHandle("region", region, &id)) {
+                fprintf(stderr, "WC3 SaveGame: cannot resolve region field %s\n", fields->name); return false;
+            }
+            if (!SaveBytes(f, &id, sizeof(id))) return false;
+            break;
+        }
         case F_LSTRING:
         case F_GSTRING:
             if (!WriteString(f, *(LPCSTR *)(base + fields->ofs))) return false;
@@ -1392,6 +1430,13 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             *(LPCJASSFUNC *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
             if (name && !*(LPCJASSFUNC *)(base + fields->ofs)) { free(name); return false; }
             free(name);
+            break;
+        }
+        case F_REGION: {
+            DWORD id;
+            if (!LoadBytes(f, &id, sizeof(id))) return false;
+            *(LPREGION *)(base + fields->ofs) = id == UINT32_MAX ? NULL : G_LoadJassHandle("region", id);
+            if (id != UINT32_MAX && !*(LPREGION *)(base + fields->ofs)) return false;
             break;
         }
         case F_LSTRING:
@@ -1797,3 +1842,46 @@ BOOL ReadGame(LPCSTR filename) {
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;
 }
+
+#ifdef BZ_TESTS
+static BOOL write_save_fixture_version(LPCSTR source_path, LPCSTR output_path, DWORD version) {
+    BYTE buffer[4096];
+    SAVEHEADER header;
+    long payload;
+    FILE *source = fopen(source_path, "rb"), *output = NULL;
+    if (!source || fseek(source, 0, SEEK_END) || (payload = ftell(source)) < (long)sizeof(SAVEFOOTER) ||
+        fseek(source, 0, SEEK_SET) || !LoadBytes(source, &header, sizeof(header))) goto fail;
+    payload -= sizeof(SAVEFOOTER);
+    header.version = version;
+    output = fopen(output_path, "w+b");
+    if (!output || !SaveBytes(output, &header, sizeof(header))) goto fail;
+    for (long remaining = payload - (long)sizeof(header); remaining > 0;) {
+        size_t size = MIN((size_t)remaining, sizeof(buffer));
+        if (!LoadBytes(source, buffer, size) || !SaveBytes(output, buffer, size)) goto fail;
+        remaining -= (long)size;
+    }
+    if (!WriteFooter(output)) goto fail;
+    fclose(source); fclose(output);
+    return true;
+fail:
+    if (source) fclose(source);
+    if (output) fclose(output);
+    remove(output_path);
+    return false;
+}
+
+TEST(wc3_save, rejects_pre_region_filter_save_version) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-pre-region-filter-version.bin";
+    LPCSTR legacy_filename = "/tmp/openwarcraft3-wc3-save-pre-region-filter-version-legacy.bin";
+    DWORD const old_version = 39;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(write_save_fixture_version(filename, legacy_filename, old_version));
+    T_NE(save_version, old_version);
+    T_ASSERT(!ReadGame(legacy_filename));
+    remove(filename);
+    remove(legacy_filename);
+}
+#endif

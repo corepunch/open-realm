@@ -185,11 +185,12 @@ TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
 TEST(wc3_api, authored_race_names_map_to_jass_race_values) {
     static struct { LPCSTR name; LONG value; } const races[] = {
         { STR_HUMAN, 1 }, { STR_ORC, 2 }, { STR_UNDEAD, 3 }, { STR_NIGHTELF, 4 },
-        { STR_DEMON, 5 }, { STR_CREEPS, 6 }, { STR_OTHER, 7 },
-        { STR_CRITTERS, 8 }, { STR_COMMONER, 9 },
+        { STR_DEMON, 5 }, { STR_CREEPS, 8 }, { STR_OTHER, 7 },
+        { STR_CRITTERS, 10 }, { STR_COMMONER, 9 }, { "naga", 11 },
     };
     FOR_LOOP(i, sizeof(races) / sizeof(*races)) T_EQ(WC3_JassRaceFromString(races[i].name), races[i].value);
     T_EQ(WC3_JassRaceFromString("unrecognized"), 0);
+    T_EQ(WC3_JassRaceFromString("NAGA"), 11);
 }
 
 TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
@@ -245,6 +246,8 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         "globals\n"
         "  unit mover = null\n"
         "  unit entering = null\n"
+        "  region watchedRegion = null\n"
+        "  boolean correctTriggeringRegion = false\n"
         "  boolean entered = false\n"
         "  integer rejected = 0\n"
         "endglobals\n"
@@ -256,25 +259,27 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         "endfunction\n"
         "function on_enter takes nothing returns nothing\n"
         "  set entering = GetEnteringUnit()\n"
+        "  set correctTriggeringRegion = GetTriggeringRegion() == watchedRegion\n"
         "  set entered = true\n"
         "endfunction\n"
         "function on_rejected_enter takes nothing returns nothing\n"
         "  set rejected = rejected + 1\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
-        "  local region area = CreateRegion()\n"
         "  local trigger acceptedEvent = CreateTrigger()\n"
         "  local trigger rejectedEvent = CreateTrigger()\n"
+        "  set watchedRegion = CreateRegion()\n"
         "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
-        "  call RegionAddRect(area, Rect(24.0, -16.0, 64.0, 16.0))\n"
-        "  call TriggerRegisterEnterRegion(acceptedEvent, area, Condition(function accept_enter_filter))\n"
-        "  call TriggerRegisterEnterRegion(rejectedEvent, area, Condition(function reject_enter_filter))\n"
+        "  call TriggerRegisterEnterRegion(acceptedEvent, watchedRegion, Condition(function accept_enter_filter))\n"
+        "  call TriggerRegisterEnterRegion(rejectedEvent, watchedRegion, Condition(function reject_enter_filter))\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
         "  call TriggerAddAction(acceptedEvent, function on_enter)\n"
         "  call TriggerAddAction(rejectedEvent, function on_rejected_enter)\n"
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
         "  call BJassAssert(entered, \"movement did not enter region\")\n"
         "  call BJassAssert(entering == mover, \"GetEnteringUnit mismatch\")\n"
+        "  call BJassAssert(correctTriggeringRegion, \"GetTriggeringRegion mismatch\")\n"
         "  call BJassAssert(rejected == 0, \"rejected enter filter should not run\")\n"
         "endfunction\n"));
 

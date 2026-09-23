@@ -80,9 +80,18 @@ DWORD GetRectMaxY(LPJASS j) {
     return jass_pushnumber(j, whichRect ? whichRect->max.y : 0);
 }
 DWORD CreateRegion(LPJASS j) {
-    API_ALLOC(REGION, region);
-    (void)region;
-    return 1;
+    FOR_LOOP(i, level.num_regions) if (!level.regions[i].inuse) {
+        LPREGION region = &level.regions[i];
+        memset(region, 0, sizeof(*region)); region->inuse = true;
+        return jass_pushlighthandle(j, region, "region");
+    }
+    if (level.num_regions < MAX_REGIONS) {
+        LPREGION region = &level.regions[level.num_regions++];
+        memset(region, 0, sizeof(*region)); region->inuse = true;
+        return jass_pushlighthandle(j, region, "region");
+    }
+    fprintf(stderr, "WC3 CreateRegion: region registry full (%u)\n", MAX_REGIONS);
+    return jass_pushnullhandle(j, "region");
 }
 DWORD RemoveRegion(LPJASS j) {
     //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
@@ -91,14 +100,14 @@ DWORD RemoveRegion(LPJASS j) {
 DWORD RegionAddRect(LPJASS j) {
     LPREGION whichRegion = jass_checkhandle(j, 1, "region");
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
-    if (whichRegion && r && whichRegion->num_rects < MAX_REGION_SIZE)
+    if (whichRegion && whichRegion->inuse && r && whichRegion->num_rects < MAX_REGION_SIZE)
         whichRegion->rects[whichRegion->num_rects++] = *r;
     return 0;
 }
 DWORD RegionClearRect(LPJASS j) {
     LPREGION whichRegion = jass_checkhandle(j, 1, "region");
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
-    if (!whichRegion || !r) return 0;
+    if (!whichRegion || !whichRegion->inuse || !r) return 0;
     FOR_LOOP(i, whichRegion->num_rects) {
         if (memcmp(whichRegion->rects + i, r, sizeof(*r))) continue;
         memmove(whichRegion->rects + i, whichRegion->rects + i + 1,

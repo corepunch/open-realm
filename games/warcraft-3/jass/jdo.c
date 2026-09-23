@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 5 // format version; persists sound state and cancellable timer context
+#define BZ_JASS_SNAPSHOT_VERSION 6 // format version; persists region trigger context
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -34,6 +34,7 @@ typedef struct {
     LPCVECTOR2 point;
     BOOL has_point;
     HANDLE timer;
+    HANDLE region;
     BOOL timer_pending;
 } jassTriggerContextParams_t;
 
@@ -501,6 +502,9 @@ LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
     }
     if (!co_state->context.unit) {
         co_state->context.unit = currentunit;
+    }
+    if (!co_state->context.region) {
+        co_state->context.region = jass_getcontext(j)->region;
     }
     co_state->root = root;
     co_state->coroutines = NULL;
@@ -1023,6 +1027,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j, jassTriggerContextParams_t con
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
         tmp_state.context.timer = currenttimer;
+        tmp_state.context.region = params->region ? params->region : jass_getcontext(j)->region;
         jass_pushfunction(&tmp_state, cond->expr);
         LPEDICT previous_unit = currentunit;
         currentunit = params->unit;
@@ -1089,6 +1094,7 @@ static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t cons
                                   .playerState = player,
                                   .localPlayerState = currentplayer,
                                   .timer = params->timer,
+                                  .region = params->region,
                                   .timer_generation = params->timer ? ((LPCGTIMER)params->timer)->generation : 0,
                                   .timer_pending = params->timer_pending,
                               ));
@@ -1126,7 +1132,9 @@ BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event) 
     if (!event) return false;
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
-        .point = event->has_point ? &event->point : NULL, .has_point = event->has_point });
+        .point = event->has_point ? &event->point : NULL, .has_point = event->has_point,
+        .region = event->responseTo && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
+            ? event->responseTo->region : NULL });
 }
 
 BOOL jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, HANDLE timer) {
@@ -2531,7 +2539,8 @@ static BOOL jass_snapshot_writecontext_handle(JASSSNAPSHOT *snapshot, LPCSTR typ
 static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT context) {
     struct { LPCSTR type; HANDLE value; } handles[] = {
         { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->source },
-        { "player", context->playerState }, { "player", context->localPlayerState }, { "timer", context->timer },
+        { "player", context->playerState }, { "player", context->localPlayerState },
+        { "timer", context->timer }, { "region", context->region },
     };
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
         !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue)) ||
@@ -2549,6 +2558,7 @@ static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCO
         { "trigger", (HANDLE *)&context->trigger }, { "unit", (HANDLE *)&context->unit },
         { "unit", (HANDLE *)&context->source }, { "player", (HANDLE *)&context->playerState },
         { "player", (HANDLE *)&context->localPlayerState }, { "timer", &context->timer },
+        { "region", &context->region },
     };
     LPSTR func = NULL;
     BOOL has_func;

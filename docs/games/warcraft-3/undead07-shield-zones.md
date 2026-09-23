@@ -4,7 +4,9 @@
 
 `Undead07.j` filters shield-zone entrants by owner and Undead race/type, adds accepted units to a JASS group, then applies life loss and vertex tint from periodic callbacks. Leaving the region removes a unit from that group. Shield shutdown is registered on each Archmage's life reaching zero; the script then changes the shield doodads to their death animation.
 
-The map reads race from the authored `UnitData.race` column. `GetUnitRace` maps each authored race string to its JASS `race` enum value; `IsUnitType(..., UNIT_TYPE_UNDEAD)` uses the authored race classification. Region entry and leave registrations retain their region, trigger, and optional boolexpr in `level.events`. Crossing evaluates the filter with `GetFilterUnit()` bound to the crossing unit before publishing the event. `GetEnteringUnit()` and `GetLeavingUnit()` resolve to that event subject.
+The map reads race from the authored `UnitData.race` column. `GetUnitRace` maps authored race strings to the JASS values: Human 1, Orc 2, Undead 3, Night Elf 4, Demon 5, Other 7, Creeps 8, Commoner 9, Critters 10, and Naga 11. Value 6 is unused; an unknown race returns the null race value 0. These assignments were checked against a Warcraft III test-map enumeration and game.dll analysis ([race-value report](https://www.hiveworkshop.com/threads/map-script-independent-jass-driven-ai-experiment.370776/)); Warsmash's `CUnitRace` enum identifies authored race names but its ordinal values are a separate internal representation.
+
+Region handles occupy stable slots in `level.regions`. Event registrations keep the same region handle, so rectangle changes made after registration are visible to crossings. The region registry and event reference are saved by slot ID. Crossing evaluates the optional filter with `GetFilterUnit()` bound to the crossing unit before publishing the event. Trigger actions receive the registered region through `GetTriggeringRegion()` and the crossing unit through `GetEnteringUnit()` or `GetLeavingUnit()`.
 
 ## Confirmed Failure And Fix
 
@@ -16,11 +18,11 @@ The captured `openwarcraft3.log` showed three missing native paths:
 
 The existing `EVENT_GAME_STATE_LIMIT` event carries the registered unit as its subject and retains the limit operator/value. `G_SetHealth` publishes the matching response only when life crosses into the registered condition, allowing the standard trigger dispatch to run the map action. Runtime health changes, including Avatar's temporary health delta and expiry clamp, pass through `G_SetHealth`. Unit state event registration currently supports `UNIT_STATE_LIFE`; unsupported states and limit operators are reported and return a null event.
 
-Region event filters are JASS function references in the saved event registration. Save/load persists them by function name, matching trigger actions and conditions.
+Region event filters are JASS function references in the saved event registration. Save/load persists them by function name, matching trigger actions and conditions. Save format version 40 includes region registry slots and event region references; older versions are rejected before decoding.
 
 ## Verification
 
-`games/warcraft-3/game/tests/t_api.c` covers JASS `GetUnitRace` and `IsUnitType` for authored Undead data, the authored race-to-JASS enum table, unit life threshold crossing, and filtered enter/leave events driven by real unit movement through `G_TouchTriggers`. `games/warcraft-3/game/tests/t_avatar.c` covers threshold events crossed by Avatar's health increase and expiry. `games/warcraft-3/game/tests/t_game.c` covers save/load of a registered region filter. Run the focused suites with:
+`games/warcraft-3/game/tests/t_api.c` covers JASS `GetUnitRace` and `IsUnitType` for authored Undead data, the authored race-to-JASS enum table, unit life threshold crossing, and filtered enter/leave events driven by real unit movement through `G_TouchTriggers`. The enter test registers an empty region, adds its rectangle afterward, and checks `GetTriggeringRegion()` in the action. `games/warcraft-3/game/tests/t_avatar.c` covers threshold events crossed by Avatar's health increase and expiry. `games/warcraft-3/game/tests/t_game.c` covers save/load of a registered region, its rectangles, and filter function. `g_save.c` verifies version-39 snapshots are rejected. Run the focused suites with:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_api.*'

@@ -257,13 +257,13 @@ static void G_TouchTriggers(LPEDICT ent) {
     FOR_EACH_EVENT(evt) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION:
-                if (G_RegionContains(&evt->region, &ent->s.origin2) &&
-                    !G_RegionContains(&evt->region, &ent->old_origin) &&
+                if (evt->region && evt->region->inuse && G_RegionContains(evt->region, &ent->s.origin2) &&
+                    !G_RegionContains(evt->region, &ent->old_origin) &&
                     jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
 #ifdef WC3_DEBUG_BUILD
-                    if (ent->class_id == MAKEFOURCC('h','p','e','a') && evt->region.num_rects) {
-                        BOX2 const *rect = evt->region.rects;
+                    if (ent->class_id == MAKEFOURCC('h','p','e','a') && evt->region->num_rects) {
+                        BOX2 const *rect = evt->region->rects;
                         fprintf(stderr, "WC3_BUILD region-enter unit=%ld origin=(%.1f,%.1f) old=(%.1f,%.1f) rect=(%.1f,%.1f)-(%.1f,%.1f) move=%s goal=%ld\n",
                                 (long)(ent - g_edicts), ent->s.origin2.x, ent->s.origin2.y,
                                 ent->old_origin.x, ent->old_origin.y, rect->min.x, rect->min.y,
@@ -276,8 +276,8 @@ static void G_TouchTriggers(LPEDICT ent) {
                 }
                 break;
             case EVENT_GAME_LEAVE_REGION:
-                if (!G_RegionContains(&evt->region, &ent->s.origin2) &&
-                    G_RegionContains(&evt->region, &ent->old_origin) &&
+                if (evt->region && evt->region->inuse && !G_RegionContains(evt->region, &ent->s.origin2) &&
+                    G_RegionContains(evt->region, &ent->old_origin) &&
                     jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
                     G_PublishEvent(ent, evt->type)->responseTo = evt;

@@ -3894,25 +3894,36 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-region-filter-save-test.bin";
     LEVELEVENTS old_events = level.events;
     LPEVENT registration = NULL;
+    LPREGION expected_region;
     LPCJASSFUNC expected_filter;
 
     T_ASSERT(run_test_jass(
+        "globals\n"
+        "  region savedRegion = null\n"
+        "endglobals\n"
         "function savedRegionFilter takes nothing returns boolean\n"
         "  return GetFilterUnit() != null\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
-        "  local region r = CreateRegion()\n"
-        "  call TriggerRegisterLeaveRegion(t, r, Condition(function savedRegionFilter))\n"
+        "  set savedRegion = CreateRegion()\n"
+        "  call RegionAddRect(savedRegion, Rect(10.0, 20.0, 30.0, 40.0))\n"
+        "  call TriggerRegisterLeaveRegion(t, savedRegion, Condition(function savedRegionFilter))\n"
         "endfunction\n"));
     FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_LEAVE_REGION) { registration = evt; break; }
     T_NOT_NULL(registration);
+    expected_region = registration ? registration->region : NULL;
+    T_NOT_NULL(expected_region);
     expected_filter = jass_functionbyname(level.vm, "savedRegionFilter");
     T_ASSERT(registration && registration->filter == expected_filter);
     T_ASSERT(WriteGame(filename));
     if (registration) registration->filter = NULL;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(registration && registration->filter == expected_filter);
+    T_ASSERT(registration && registration->region == expected_region);
+    T_EQ(expected_region->num_rects, 1);
+    T_FEQ(expected_region->rects[0].min.x, 10.0f, 0.001f);
+    T_FEQ(expected_region->rects[0].max.y, 40.0f, 0.001f);
     level.events = old_events;
     remove(filename);
 }

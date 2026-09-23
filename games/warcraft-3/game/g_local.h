@@ -27,6 +27,7 @@
 #define BZ_STRINGIFY(value) BZ_STRINGIFY_INNER(value)
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
+#define MAX_REGIONS 2048 // JASS region handles; stable slots preserve trigger references across save/load
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #ifdef WC3_DEBUG_TIMERDIALOG
@@ -441,6 +442,7 @@ typedef enum {
 struct gregion_s {
     BOX2 rects[MAX_REGION_SIZE];
     DWORD num_rects;
+    BOOL inuse;
 };
 
 typedef enum {
@@ -1666,7 +1668,7 @@ struct gevent_s {
     LPTRIGGER trigger;
     LPGTIMER timer;
     struct jass_function const *filter;
-    REGION region;
+    LPREGION region;
     FLOAT range;
     DWORD state;
     DWORD limitop;
@@ -1885,6 +1887,8 @@ struct level_locals {
     MULTIBOARDITEM multiboard_items[MAX_MULTIBOARD_ITEMS];
     TEXTTAG texttags[MAX_TEXTTAGS];
     HASHTABLE hashtables[MAX_HASHTABLES];
+    REGION regions[MAX_REGIONS];
+    DWORD num_regions;
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     DWORD multiboard_dirty_clients;
     DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
