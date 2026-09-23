@@ -30,6 +30,7 @@ Strings pass through `G_LevelString()` on mutation, so map `TRIGSTR_` strings fo
 The stock title/backdrop/container provide the board chrome. Runtime rows are emitted as text frames parented to `LeaderboardListContainer`: a natural-width left name/label and a natural-width right integer value. The server does not pick a "widest" row by `strlen`. It sends every visible title and `label    value` line as one newline-separated measurement string; `R_GetTextSize()` returns the widest rendered line in the proportional font, and the client sizes the board root to that width plus the stock edge inset. Row height still follows the authored title font with a conservative fallback.
 
 The common campaign-counter case therefore renders as a stock leaderboard title plus a changing value without rebuilding the leaderboard handle.
+When a board has a title but no items, the title remains visible and the empty list container is hidden; no placeholder row is reserved.
 
 `LeaderboardSetSizeByItemCount` controls the number of presented row slots; it does not mutate `LeaderboardGetItemCount`.
 
