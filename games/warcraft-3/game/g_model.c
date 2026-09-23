@@ -513,22 +513,17 @@ LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL rando
 
 static LPCANIMATION AnimationVariantForProperties(g_cmodel_t *model, LPCSTR animname, LPCSTR properties) {
     LPCANIMATION selected, choice = NULL;
-    animationTagSet_t selected_tags = {0};
-    char primary[WC3_ANIMATION_TAG_SIZE];
     DWORD matches = 0;
 
     if (!model) return NULL;
     selected = G_SelectAnimationForProperties(model->animations, model->num_animations, animname, properties);
     if (!selected) return NULL;
-    AnimationParseRequest(selected->name, primary, &selected_tags);
+    /* The MDLX loader hashes numbered variants using their common logical
+     * sequence name. Keep that syncpoint as the family key; parsing the
+     * original display name would mistake "- 1" and "- 2" for animation tags. */
     FOR_LOOP(i, model->num_animations) {
         LPCANIMATION candidate = model->animations + i;
-        animationTagSet_t tags = {0};
-        char candidate_primary[WC3_ANIMATION_TAG_SIZE];
         if (candidate->syncpoint != selected->syncpoint) continue;
-        AnimationParseRequest(candidate->name, candidate_primary, &tags);
-        if (strcasecmp(primary, candidate_primary) || !AnimationTagSetContainsAll(&tags, &selected_tags) ||
-            !AnimationTagSetContainsAll(&selected_tags, &tags)) continue;
         if ((DWORD)(rand() % ++matches) == 0) choice = candidate;
     }
     return choice ? choice : selected;

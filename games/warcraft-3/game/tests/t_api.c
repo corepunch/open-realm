@@ -1250,7 +1250,7 @@ TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
     DWORD index;
     setup_test_world();
     G_FowInit();
-    G_SetPlayerAlliance(test_player(1), test_player(0), ALLIANCE_SHARED_VISION, true);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_VISION, true);
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call SetFogStateRadius(Player(0), FOG_OF_WAR_VISIBLE, 0.0, 0.0, 32.0, true)\n"

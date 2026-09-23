@@ -602,6 +602,11 @@ CLIENTCOMMAND(IdleWorker) {
 
 void CMD_CancelCommand(LPEDICT ent) {
     LPEDICT producer;
+    if (ent && ent->client && ent->client->ps.client_ui_state == CLIENT_UI_CINEMATIC) {
+        /* Escape skips the cinematic before it can cancel unrelated gameplay work. */
+        G_PublishEndCinematicForHumans(ent, false);
+        return;
+    }
     if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
         G_UnitCanControl(ent->client, producer)) {
         /* In-place upgrades and spawned construction are both cancelled by
@@ -630,13 +635,6 @@ void CMD_CancelCommand(LPEDICT ent) {
         }
     }
     if (!G_CancelBuildPlacement(ent)) {
-        if (ent && ent->client && ent->client->ps.client_ui_state == CLIENT_UI_CINEMATIC) {
-            /* The UI CmdCancel ability is the Escape path.  Retail Escape
-             * publishes EVENT_PLAYER_END_CINEMATIC so map-authored skip
-             * handlers can restore actors and input before gameplay resumes. */
-            G_PublishEndCinematicForHumans(ent, false);
-            return;
-        }
         Get_Commands_f(ent);
     }
 }
