@@ -42,7 +42,7 @@ semantically the same after loading.
 
 ## Runtime Attack Fields
 
-`edict_t.attack1` and `attack2` are mutable copies of `UnitWeapons.slk` data. Both are initialized at spawn even though combat order selection still uses Attack 1.
+`edict_t.attack1` and `attack2` are mutable copies of `UnitWeapons.slk` data. Target validation checks both authored target masks without changing either profile. Once an attack order commits to a target, the compatible profile is placed in `attack1`, which remains the active profile consumed by the shared attack timing, projectile, and damage paths. Candidate scans and repeated target validation are read-only, so their traversal order cannot change the active weapon.
 
 For each `unitAttack_t`:
 
@@ -230,7 +230,7 @@ The current implementation intentionally does not invent the larger Warsmash com
 - target damage-taken and final-damage listeners;
 - generic distinction between attack type and damage type / numeric-armor bypass;
 - `MSPLASH`, `MBOUNCE`, `MLINE`/`ALINE` damage behavior; `ARTILLERY` now has projectile/min-range/three-band splash, damage-point target snapshotting, and Attack Ground gameplay. `ALINE` still needs its distinct line-damage implementation before sharing the Attack Ground command;
-- combat selection between Attack 1 and Attack 2 remains Attack-1-only; Attack 1 now enforces its decoded `targs1`/`ua1g` target mask for ordinary unit targets as well as destructables, but Attack 2 selection and its `targs2` mask still need the broader two-weapon implementation;
+- both Attack 1 and Attack 2 target masks participate in ordinary unit target validation; the selected compatible profile drives the shared attack path. Full retail weapon-selection priorities and special weapon classes remain separate gaps;
 - separate Hero base-vs-bonus attributes for Warsmash-exact green primary-stat damage;
 - seeded combat RNG independent from unrelated `rand()` consumers;
 - non-Agility attack-speed buffs/debuffs.

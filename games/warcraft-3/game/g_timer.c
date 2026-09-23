@@ -2,8 +2,12 @@
 #include "jass/jass.h"
 
 static DWORD TimerDialogPlayerMask(void) {
-    DWORD count = MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS);
-    return count ? (DWORD)((1ull << count) - 1ull) : 0;
+    DWORD mask = 0;
+    FOR_LOOP(i, MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS)) {
+        DWORD number = game.clients[i].ps.number;
+        if (number < MAX_CLIENTS) mask |= 1u << number;
+    }
+    return mask;
 }
 
 static DWORD TimerDialogDisplaySeconds(LPCGTIMER timer) {
