@@ -533,9 +533,8 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.maxTargets = w->attack1.maxTargets;
     self->attack1.damageLoss = w->attack1.damageLossFactor;
 
-    /* Keep Attack 2 runtime state parallel with Attack 1 even though order
-     * selection still uses Attack 1 today. This lets upgrades/HUD math operate
-     * on mutable runtime values instead of immutable SLK rows. */
+    /* Keep Attack 2 runtime state parallel with Attack 1 so target selection
+     * can activate the authored secondary weapon profile. */
     self->attack2.type = FindEnumValue(w->attack2.attackType, attack_type);
     self->attack2.weapon = FindEnumValue(w->attack2.weaponType, weapon_type);
     self->attack2.damageBase = w->attack2.damageBase;
@@ -567,6 +566,14 @@ void SP_SpawnUnit(LPEDICT self) {
         self->attack1.projectile.model = G_RegisterModel(G_UnitProfile(self->class_id)->attack[0].art);
         self->attack1.projectile.arc = G_UnitProfile(self->class_id)->attack[0].arc;
         self->attack1.projectile.speed = G_UnitProfile(self->class_id)->attack[0].speed;
+    }
+    if (self->attack2.weapon == WPN_MISSILE || self->attack2.weapon == WPN_ARTILLERY) {
+        self->attack2.origin.x = G_UnitAttack1LaunchX(self->class_id);
+        self->attack2.origin.y = G_UnitAttack1LaunchY(self->class_id);
+        self->attack2.origin.z = G_UnitAttack1LaunchZ(self->class_id);
+        self->attack2.projectile.model = G_RegisterModel(G_UnitProfile(self->class_id)->attack[1].art);
+        self->attack2.projectile.arc = G_UnitProfile(self->class_id)->attack[1].arc;
+        self->attack2.projectile.speed = G_UnitProfile(self->class_id)->attack[1].speed;
     }
 
     if ((self->pathtex = M_LoadPathTex(path_tex))) {
