@@ -582,7 +582,7 @@ static BOOL defend_projectile_reaction(LPEDICT projectile) {
         !(level = G_UnitStatusLevel(target, MAKEFOURCC('A','d','e','f')))) return false;
     if (game.constants.combatConstantsLoaded && !game.constants.defendDeflection) return false;
 
-    attack_type = attacker->attack1.type;
+    attack_type = projectile->projectile_attack_type;
     if (attack_type == ATK_PIERCE)
         deflect_factor = S_SpellData(MAKEFOURCC('A','d','e','f'), level, 7);
     else if (attack_type == ATK_MAGIC || attack_type == ATK_SPELLS)
@@ -603,7 +603,7 @@ static BOOL defend_projectile_reaction(LPEDICT projectile) {
      * target's Defend damage-taken multiplier and armor/type table but do not
      * replay attack on-hit passives. Stock Footman Defend has Data G=0. */
     if (deflect_factor > 0.0f) {
-        int damage = G_AttackDamage(attacker, target, (int)((FLOAT)projectile->damage * deflect_factor));
+        int damage = G_AttackDamageWithType(attacker, target, (int)((FLOAT)projectile->damage * deflect_factor), attack_type);
         damage = defend_damage_taken(target, attack_type, damage);
         if (damage > 0) T_Damage(target, attacker, damage);
     }
