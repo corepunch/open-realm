@@ -8,6 +8,43 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
+TEST(wc3_item_lifecycle, all_item_attack_bonus_aliases_resolve_to_one_handler) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y20;X2\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AIat\"\nC;Y2;X2;K\"AIat\"\n"
+        "C;Y3;X1;K\"AIt6\"\nC;Y3;X2;K\"AIat\"\n"
+        "C;Y4;X1;K\"AIt9\"\nC;Y4;X2;K\"AIat\"\n"
+        "C;Y5;X1;K\"AItc\"\nC;Y5;X2;K\"AIat\"\n"
+        "C;Y6;X1;K\"AItf\"\nC;Y6;X2;K\"AIat\"\n"
+        "C;Y7;X1;K\"AItg\"\nC;Y7;X2;K\"AIat\"\n"
+        "C;Y8;X1;K\"AIth\"\nC;Y8;X2;K\"AIat\"\n"
+        "C;Y9;X1;K\"AIti\"\nC;Y9;X2;K\"AIat\"\n"
+        "C;Y10;X1;K\"AItj\"\nC;Y10;X2;K\"AIat\"\n"
+        "C;Y11;X1;K\"AItk\"\nC;Y11;X2;K\"AIat\"\n"
+        "C;Y12;X1;K\"AItl\"\nC;Y12;X2;K\"AIat\"\n"
+        "C;Y13;X1;K\"AItn\"\nC;Y13;X2;K\"AIat\"\n"
+        "C;Y14;X1;K\"AItx\"\nC;Y14;X2;K\"AIat\"\n"
+        "C;Y15;X1;K\"AIfb\"\nC;Y15;X2;K\"AIfb\"\n"
+        "C;Y16;X1;K\"AIlb\"\nC;Y16;X2;K\"AIlb\"\n"
+        "C;Y17;X1;K\"AIob\"\nC;Y17;X2;K\"AIob\"\n"
+        "C;Y18;X1;K\"AIpb\"\nC;Y18;X2;K\"AIpb\"\n"
+        "C;Y19;X1;K\"AIcb\"\nC;Y19;X2;K\"AIcb\"\n"
+        "C;Y20;X1;K\"AIzb\"\nC;Y20;X2;K\"AIzb\"\nE\n";
+    static char const *const aliases[] = {
+        "AIat", "AIt6", "AIt9", "AItc", "AItf", "AItg", "AIth",
+        "AIti", "AItj", "AItk", "AItl", "AItn", "AItx",
+        "AIfb", "AIlb", "AIob", "AIpb", "AIcb", "AIzb"
+    };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    FOR_LOOP(i, sizeof(aliases) / sizeof(aliases[0])) {
+        abilityitem_t item = S_AbilityItem(FS_SLKKey(aliases[i]));
+        T_ASSERT(item.ability);
+        T_ASSERT(item.ability->proc == CAbilityAttackBonus);
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Distinct stock aliases stack and reverse after reload without depending on a family-wide cache. */
 TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     const char slk[] =

@@ -151,6 +151,18 @@ static ability_t abilitylist[] = {
     { "AIsm", CAbilityStrengthMod, AB_ITEM },  /* Item Strength Gain */
     { "AIam", CAbilityStrengthMod, AB_ITEM },  /* Item Agility Gain */
     { "AIat", CAbilityAttackBonus, 0 },  /* Item Damage Bonus */
+    { "AIt6", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +6 */
+    { "AIt9", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +9 */
+    { "AItc", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +12 */
+    { "AItf", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +15 */
+    { "AItg", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +1 */
+    { "AIth", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +2 */
+    { "AIti", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +4 */
+    { "AItj", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +5 */
+    { "AItk", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +7 */
+    { "AItl", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +8 */
+    { "AItn", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +10 */
+    { "AItx", CAbilityAttackBonus, 0 },  /* Item Damage Bonus +20 */
     { "AIde", CAbilityDefenseBonus, 0 },  /* Item Armor Bonus */
     { "AIem", CAbilityExperienceMod, AB_ITEM },  /* Item Experience Gain */
     { "AIlm", CAbilityLevelMod, AB_ITEM },  /* Item Level Gain */
