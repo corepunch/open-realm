@@ -33,6 +33,20 @@ typedef struct {
     DWORD damage;
 }  rocketDesc_t;
 
+/* Attack 1/2 remain the authored runtime copies. Select the compatible slot
+ * from the target whenever attack behavior reads a profile. */
+static unitAttack_t const *attack_profile(LPCEDICT attacker, LPCEDICT target) {
+    DWORD flag = target ? G_TargetFlagForType(target->targtype) : 0;
+    if (attacker && target && target->destructable.initialized && target->targtype == TARG_TREE &&
+        attacker->attack1.type != ATK_NONE) return &attacker->attack1;
+    if (attacker && flag && attacker->attack1.type != ATK_NONE &&
+        (attacker->attack1.targetsAllowed & flag)) return &attacker->attack1;
+    if (attacker && flag && attacker->attack2.type != ATK_NONE &&
+        (attacker->attack2.targetsAllowed & flag)) return &attacker->attack2;
+    return attacker ? &attacker->attack1 : NULL;
+}
+#define ACTIVE_ATTACK(ent) attack_profile((ent), (ent)->goalentity)
+
 /* Spawn a projectile entity aimed at desc->target.
  * The entity is given MOVETYPE_FLYMISSILE so that SV_Physics_Toss() in
  * g_phys.c will move it each frame until it reaches the target. */
@@ -88,16 +102,17 @@ void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
 }
 
 static FLOAT ai_rolldamage1(LPEDICT self, int weapon) {
-    FLOAT damageBase = self->attack1.damageBase;
+    unitAttack_t const *atk = ACTIVE_ATTACK(self);
+    FLOAT damageBase = atk->damageBase;
     (void)weapon;
-    FOR_LOOP(i, self->attack1.numberOfDice) {
+    FOR_LOOP(i, atk->numberOfDice) {
         /* Warsmash treats a malformed zero-sided die as contributing +1
          * instead of taking modulo zero. Normal Warcraft data has S > 0. */
-        damageBase += self->attack1.sidesPerDie
-                    ? (FLOAT)(rand() % self->attack1.sidesPerDie + 1)
+        damageBase += atk->sidesPerDie
+                    ? (FLOAT)(rand() % atk->sidesPerDie + 1)
                     : 1.0f;
     }
-    return damageBase + self->attack1.temporaryDamageBonus;
+    return damageBase + atk->temporaryDamageBonus;
 }
 
 void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
@@ -111,7 +126,7 @@ static BOOL can_attack(LPCEDICT ent) {
     if (S_UnitIsCycloned(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
-    if (ent->attack1.type == ATK_NONE)
+    if (ent->attack1.type == ATK_NONE && ent->attack2.type == ATK_NONE)
         return false;
     if (!ent->currentmove || ent->currentmove->proc != CAbilityAttack)
         return true;
@@ -137,21 +152,6 @@ BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
     flag = G_TargetFlagForType(target->targtype);
     return flag && ((attacker->attack1.type != ATK_NONE && (attacker->attack1.targetsAllowed & flag)) ||
                     (attacker->attack2.type != ATK_NONE && (attacker->attack2.targetsAllowed & flag)));
-}
-
-/* The attack routines consume attack1 as their active profile. Select it only
- * after an order has chosen its target; S_AttackCanTarget remains a read-only
- * predicate during candidate scans and repeated target validation. */
-static void attack_select_profile(LPEDICT attacker, LPCEDICT target) {
-    DWORD flag = target ? G_TargetFlagForType(target->targtype) : 0;
-    if (attacker && flag && attacker->attack1.type != ATK_NONE &&
-        (attacker->attack1.targetsAllowed & flag)) return;
-    if (attacker && flag && attacker->attack2.type != ATK_NONE &&
-        (attacker->attack2.targetsAllowed & flag)) {
-        unitAttack_t swap = attacker->attack1;
-        attacker->attack1 = attacker->attack2;
-        attacker->attack2 = swap;
-    }
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
@@ -208,7 +208,7 @@ static FLOAT const g_default_damage_table[8][8] = {
 int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     if (!attacker || !target || base <= 0)
         return base;
-    DWORD atk = attacker->attack1.type;
+    DWORD atk = attack_profile(attacker, target)->type;
     DWORD def = target->defense_type;
     if (atk >= 8) atk = 0;
     if (def >= 8) def = 7;
@@ -349,7 +349,7 @@ static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target) {
 
     if (!attacker || !target || !target->inuse || target == attacker || M_IsDead(target)) return false;
     mask = attacker->data.UnitWeapons ? (DWORD)attacker->data.UnitWeapons->attack1.areaTargets : 0;
-    if (!mask) mask = attacker->attack1.targetsAllowed;
+    if (!mask) mask = ACTIVE_ATTACK(attacker)->targetsAllowed;
     flag = G_TargetFlagForType(target->targtype);
     return flag && (mask & flag) != 0;
 }
@@ -365,8 +365,8 @@ void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 im
     FLOAT max_radius;
 
     if (!attacker || !impact || raw_damage <= 0) return;
-    max_radius = MAX(attacker->attack1.areaFull,
-                     MAX(attacker->attack1.areaMedium, attacker->attack1.areaSmall));
+    max_radius = MAX(ACTIVE_ATTACK(attacker)->areaFull,
+                     MAX(ACTIVE_ATTACK(attacker)->areaMedium, ACTIVE_ATTACK(attacker)->areaSmall));
     if (max_radius < 0.0f) return;
 
     FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other)) {
@@ -374,9 +374,9 @@ void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 im
         FLOAT factor;
         int damage;
 
-        if (distance <= attacker->attack1.areaFull) factor = 1.0f;
-        else if (distance <= attacker->attack1.areaMedium) factor = attacker->attack1.factorMedium;
-        else if (distance <= attacker->attack1.areaSmall) factor = attacker->attack1.factorSmall;
+        if (distance <= ACTIVE_ATTACK(attacker)->areaFull) factor = 1.0f;
+        else if (distance <= ACTIVE_ATTACK(attacker)->areaMedium) factor = ACTIVE_ATTACK(attacker)->factorMedium;
+        else if (distance <= ACTIVE_ATTACK(attacker)->areaSmall) factor = ACTIVE_ATTACK(attacker)->factorSmall;
         else continue;
         if (factor <= 0.0f) continue;
         damage = G_AttackDamage(attacker, other, (int)MAX(1.0f, (FLOAT)raw_damage * factor));
@@ -424,14 +424,15 @@ static void throw_missile(LPEDICT ent) {
     int damage = (int)ai_rolldamage1(ent, 1);
     MATRIX4 matrix;
     M_GetEntityMatrix(&ent->s, &matrix);
-    VECTOR3 origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
+    unitAttack_t const *atk = ACTIVE_ATTACK(ent);
+    VECTOR3 origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
     VECTOR2 impact = other->s.origin2;
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
-        .fixed_target = ent->attack1.weapon == WPN_ARTILLERY ? &impact : NULL,
-        .speed = ent->attack1.projectile.speed,
-        .model = ent->attack1.projectile.model,
+        .fixed_target = atk->weapon == WPN_ARTILLERY ? &impact : NULL,
+        .speed = atk->projectile.speed,
+        .model = atk->projectile.model,
         .damage = damage,
     });
     /* See damage_target(): if the model has no finite attack sequence there
@@ -502,7 +503,7 @@ static BOOL attack_target_out_of_range_for(LPCEDICT ent, LPCEDICT target) {
 
     /* Ensnare DataC forces the bound unit's own attacks to melee range. */
     ensnare_range = S_EnsnareMeleeRange(ent);
-    range = ensnare_range > 0.0f ? ensnare_range : ent->attack1.range;
+    range = ensnare_range > 0.0f ? ensnare_range : attack_profile(ent, target)->range;
     if ((G_UnitIsBuilding(target->class_id) || G_IsDestructable(target)) && target->pathtex) {
         footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
         if (footprint < FLT_MAX) {
@@ -574,7 +575,7 @@ static void ai_attack_walk(LPEDICT ent) {
         }
         if (!S_UnitCanTranslate(ent)) return;
         attack_retreat_from_target(ent);
-    } else if (ent->attack1.weapon == WPN_MISSILE || ent->attack1.weapon == WPN_ARTILLERY) {
+    } else if (ACTIVE_ATTACK(ent)->weapon == WPN_MISSILE || ACTIVE_ATTACK(ent)->weapon == WPN_ARTILLERY) {
         attack_ranged(ent);
     } else {
         attack_melee(ent);
@@ -597,7 +598,6 @@ void order_attack(LPEDICT self, LPEDICT target) {
         !S_AttackCanTarget(self, target)) {
         return;
     }
-    attack_select_profile(self, target);
     unit_entercombat(self, target);
     self->goalentity = target;
     attack_walk(self);
@@ -644,7 +644,7 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
 void attack_melee_cooldown(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee_cooldown);
-    self->wait = MAX(0.0f, (self->attack1.cooldown - self->attack1.damagePoint) / divisor);
+    self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     /* Burrow cargo can reduce the authored cooldown below damagePoint.  A zero
      * recovery means the next swing starts immediately; unit_runwait() treats
      * wait==0 as inactive, so transition explicitly instead of stalling after
@@ -656,13 +656,13 @@ void attack_melee(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_melee);
-    self->wait = self->attack1.damagePoint / divisor;
+    self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged_cooldown);
-    self->wait = MAX(0.0f, (self->attack1.cooldown - self->attack1.damagePoint) / divisor);
+    self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
@@ -670,7 +670,7 @@ void attack_ranged(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_ranged);
-    self->wait = self->attack1.damagePoint / divisor;
+    self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
 
 /* ---- Attack Ground --------------------------------------------------------

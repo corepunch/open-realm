@@ -559,6 +559,11 @@ LPCSTR G_OrderId2String(DWORD id) {
 
 static DWORD unit_spell_code_for_order(LPCEDICT unit, LPCSTR order) {
     if (!unit || !order) return 0;
+    /* Gargoyle Stone Form has paired orders but one authored Astn row. Route
+     * both through the shared spell processor so cooldown/ownership checks run. */
+    if ((!strcmp(order, "stoneform") || !strcmp(order, "unstoneform")) &&
+        G_UnitAbilityLevel(unit, MAKEFOURCC('A','s','t','n')))
+        return MAKEFOURCC('A','s','t','n');
     FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         DWORD const code = unit_order_defs[i].ability;
         DWORD const level = code ? G_UnitAbilityLevel(unit, code) : 0;

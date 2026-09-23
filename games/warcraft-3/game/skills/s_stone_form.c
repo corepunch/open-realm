@@ -45,7 +45,9 @@ static BOOL stone_form_execute(LPEDICT unit) {
 BZ_ABILITY_PROC(CAbilityStoneForm) {
     switch (msg) {
     case A_ORDER:
-        return call && call->order && stone_form_order(ent, call->order);
+        /* Immediate orders are routed by m_unit.c through S_CastNoTargetSpell;
+         * this legacy message must not bypass spell ownership/cooldown checks. */
+        return false;
     case A_VALIDATE:
         return stone_form_can_transform(ent);
     case A_EXECUTE:
