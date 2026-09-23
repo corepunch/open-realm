@@ -3,6 +3,9 @@
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
 
+DWORD S_TestHeroAuraAliasResolves(void);
+void S_TestResetHeroAuraAliasResolves(void);
+
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
@@ -794,6 +797,55 @@ TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
     T_FEQ(S_UnholyHealthRegen(target), 0.0f, 0.001f);
     T_EQ(S_UnholyAuraBuff(target), 0);
     T_NULL(overlay->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, combat_aura_alias_resolution_scales_with_edicts) {
+    enum { AURA_SOURCES = 32, AURA_TARGETS = 96 };
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+        "C;Y1;X7;K\"DataC1\"\nC;Y1;X8;K\"BuffID1\"\nC;Y1;X9;K\"levels\"\n"
+        "C;Y2;X1;K\"XUau\"\nC;Y2;X2;K\"AUau\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.1\"\nC;Y2;X6;K\"0.01\"\n"
+        "C;Y2;X7;K\"1\"\nC;Y2;X8;K\"Biml\"\nC;Y2;X9;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "XUau" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    LPEDICT sources[AURA_SOURCES], targets[AURA_TARGETS];
+
+    reset_entities();
+    setup_test_world();
+    old = G_SetSLKRows("AbilityData", rows);
+    level.time = level.framenum = 0;
+    FOR_LOOP(i, AURA_SOURCES) {
+        sources[i] = alloc_test_unit(MAKEFOURCC('U','d','e','a'), 0, 0);
+        sources[i]->data.UnitAbilities = &abilities;
+        sources[i]->s.player = 0;
+        sources[i]->targtype = TARG_GROUND;
+    }
+    FOR_LOOP(i, AURA_TARGETS) {
+        targets[i] = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 0, 0);
+        targets[i]->s.player = 0;
+        targets[i]->targtype = TARG_GROUND;
+        targets[i]->health.max_value = 1000.0f;
+        targets[i]->health.value = 500.0f;
+    }
+
+    S_TestResetHeroAuraAliasResolves();
+    FOR_LOOP(i, AURA_TARGETS)
+        T_FEQ(S_UnholyHealthRegen(targets[i]), 10.0f, 0.001f);
+    /* One shared provider pass should replace per-recipient scans and alias parsing. */
+    T_ASSERT(S_TestHeroAuraAliasResolves() <= globals.num_edicts * 16);
+
+    FOR_LOOP(i, AURA_SOURCES) T_ASSERT(G_ActorRemoveSkill(sources[i], MAKEFOURCC('X','U','a','u')));
+    level.time = AURA_UPDATE_MS; level.framenum++;
+    T_FEQ(S_UnholyHealthRegen(targets[0]), 0.0f, 0.001f);
+    T_ASSERT(G_ActorAddSkill(sources[0], MAKEFOURCC('X','U','a','u')));
+    level.time += AURA_UPDATE_MS; level.framenum++;
+    T_FEQ(S_UnholyHealthRegen(targets[0]), 10.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

@@ -31,12 +31,32 @@ typedef struct {
 } auraAbilityRef_t;
 
 typedef struct {
+    DWORD code, data;
+} aura_cache_key_t;
+
+enum { HERO_AURA_CACHE_KEYS = 10 };
+
+static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
+    { ID_BRILLIANCE, 1 },
+    { ID_DEVOTION_AURA, 1 },
+    { ID_UNHOLY_AURA, 1 },
+    { ID_UNHOLY_AURA, 2 },
+    { ID_VAMPIRIC_AURA, 1 },
+    { ID_TRUESHOT_AURA, 1 },
+    { ID_THORNS_AURA, 1 }
+    ,{ ID_COMMAND_AURA, 1 }
+    ,{ ID_COMMAND_AURA_NEUTRAL, 1 }
+    ,{ ID_WAR_DRUMS, 1 }
+};
+
+typedef struct {
     LPEDICT source;
     auraAbilityRef_t life_orc;
     auraAbilityRef_t life_blight;
     auraAbilityRef_t mana;
     auraAbilityRef_t devotion;
     auraAbilityRef_t unholy;
+    auraAbilityRef_t combat[HERO_AURA_CACHE_KEYS];
 } regenAuraSource_t;
 
 typedef enum {
@@ -65,26 +85,15 @@ static DWORD regen_value_next_update[MAX_ENTITIES];
 static DWORD regen_visual_next_update[MAX_ENTITIES];
 static LPCVOID regen_value_ability_data[MAX_ENTITIES];
 
-typedef struct {
-    DWORD code, data;
-} aura_cache_key_t;
-
-static aura_cache_key_t const aura_cache_keys[] = {
-    { ID_BRILLIANCE, 1 },
-    { ID_DEVOTION_AURA, 1 },
-    { ID_UNHOLY_AURA, 1 },
-    { ID_UNHOLY_AURA, 2 },
-    { ID_VAMPIRIC_AURA, 1 },
-    { ID_TRUESHOT_AURA, 1 },
-    { ID_THORNS_AURA, 1 }
-    ,{ ID_COMMAND_AURA, 1 }
-    ,{ ID_COMMAND_AURA_NEUTRAL, 1 }
-    ,{ ID_WAR_DRUMS, 1 }
-};
 static FLOAT aura_cache[MAX_ENTITIES][sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)];
 static DWORD aura_cache_next_update[MAX_ENTITIES];
-static LPCVOID aura_cache_ability_data[MAX_ENTITIES];
+static DWORD aura_cache_generation[MAX_ENTITIES];
 static DWORD aura_cache_last_time = UINT_MAX;
+#ifdef BZ_TESTS
+static DWORD test_hero_aura_alias_resolves;
+void S_TestResetHeroAuraAliasResolves(void) { test_hero_aura_alias_resolves = 0; }
+DWORD S_TestHeroAuraAliasResolves(void) { return test_hero_aura_alias_resolves; }
+#endif
 
 static regenFamily_t regen_family(DWORD base_code);
 
@@ -95,7 +104,7 @@ static void aura_cache_update_time(void) {
         memset(regen_visual_next_update, 0, sizeof(regen_visual_next_update));
         memset(regen_value_ability_data, 0, sizeof(regen_value_ability_data));
         memset(aura_cache_next_update, 0, sizeof(aura_cache_next_update));
-        memset(aura_cache_ability_data, 0, sizeof(aura_cache_ability_data));
+        memset(aura_cache_generation, 0, sizeof(aura_cache_generation));
         memset(devotion_recipient_buff, 0, sizeof(devotion_recipient_buff));
         memset(unholy_recipient_buff, 0, sizeof(unholy_recipient_buff));
     }
@@ -143,6 +152,9 @@ abilityAliasRef_t S_ResolveAbilityAlias(LPEDICT ent, DWORD base_code) {
 }
 
 static auraAbilityRef_t actor_aura_ability(LPEDICT ent, DWORD base_code) {
+#ifdef BZ_TESTS
+    test_hero_aura_alias_resolves++;
+#endif
     abilityAliasRef_t resolved = S_ResolveAbilityAlias(ent, base_code);
     auraAbilityRef_t result = { resolved.alias, resolved.level };
     return result;
@@ -282,8 +294,11 @@ void G_ResetHeroPassiveCaches(void) {
     memset(regen_value_ability_data, 0, sizeof(regen_value_ability_data));
     memset(aura_cache, 0, sizeof(aura_cache));
     memset(aura_cache_next_update, 0, sizeof(aura_cache_next_update));
-    memset(aura_cache_ability_data, 0, sizeof(aura_cache_ability_data));
+    memset(aura_cache_generation, 0, sizeof(aura_cache_generation));
     aura_cache_last_time = UINT_MAX;
+#ifdef BZ_TESTS
+    S_TestResetHeroAuraAliasResolves();
+#endif
 }
 
 static DWORD aura_buff_code(LPCSTR buff_id) {
@@ -301,6 +316,7 @@ static void regen_aura_cache_update(void) {
     regen_source_count = 0;
     FOR_LOOP(i, globals.num_edicts) {
         regenAuraSource_t *entry = regen_sources + regen_source_count;
+        BOOL has_combat_aura = false;
 
         entry->source = g_edicts + i;
         entry->life_orc = actor_aura_ability(entry->source, ID_REGEN_LIFE_ORC);
@@ -308,8 +324,12 @@ static void regen_aura_cache_update(void) {
         entry->mana = actor_aura_ability(entry->source, ID_REGEN_MANA);
         entry->devotion = actor_aura_ability(entry->source, ID_DEVOTION_AURA);
         entry->unholy = actor_aura_ability(entry->source, ID_UNHOLY_AURA);
+        FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
+            entry->combat[j] = actor_aura_ability(entry->source, aura_cache_keys[j].code);
+            if (entry->combat[j].alias) has_combat_aura = true;
+        }
         if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
-            entry->devotion.alias || entry->unholy.alias) regen_source_count++;
+            entry->devotion.alias || entry->unholy.alias || has_combat_aura) regen_source_count++;
     }
     regen_cache_frame = level.framenum;
     regen_cache_generation = ability_generation;
@@ -506,22 +526,24 @@ void S_UpdateUnitPassiveEffects(LPEDICT unit) {
 /* Refresh all combat aura families together so one recipient scan serves every consumer. */
 static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
     DWORD slot = sizeof(aura_cache_keys) / sizeof(*aura_cache_keys);
-    LPCVOID ability_data;
+    DWORD ability_generation;
 
     FOR_LOOP(i, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys))
         if (aura_cache_keys[i].code == code && aura_cache_keys[i].data == data) { slot = i; break; }
     if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
         return 0.0f;
+    ability_generation = G_AbilityDataGeneration();
     aura_cache_update_time();
-    ability_data = G_AbilityData(ID_BRILLIANCE);
     if (level.time >= aura_cache_next_update[unit->s.number] ||
-        aura_cache_ability_data[unit->s.number] != ability_data) {
+        aura_cache_generation[unit->s.number] != ability_generation) {
         memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
-        FOR_LOOP(i, globals.num_edicts) {
-            LPEDICT aura = g_edicts + i;
+        regen_aura_cache_update();
+        FOR_LOOP(i, regen_source_count) {
+            regenAuraSource_t const *source = regen_sources + i;
+            LPEDICT aura = source->source;
             if (!S_AuraUnitActive(aura) || !S_SpellIsFriend(aura, unit)) continue;
             FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
-                auraAbilityRef_t const ability = actor_aura_ability(aura, aura_cache_keys[j].code);
+                auraAbilityRef_t const ability = source->combat[j];
                 abilityLevel_t const *row;
                 if (!ability.alias) continue;
                 row = G_AbilityLevel(ability.alias, ability.level);
@@ -548,7 +570,7 @@ static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
             }
         }
         aura_cache_next_update[unit->s.number] = level.time + AURA_UPDATE_MS;
-        aura_cache_ability_data[unit->s.number] = ability_data;
+        aura_cache_generation[unit->s.number] = ability_generation;
     }
     return aura_cache[unit->s.number][slot];
 }
