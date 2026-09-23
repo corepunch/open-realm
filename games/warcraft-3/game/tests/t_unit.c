@@ -1293,15 +1293,21 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     T_EQ(ent->vertex_color.r, 224); T_EQ(ent->vertex_color.g, 232);
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
     T_ASSERT(G_ActorAddSkill(ent, MAKEFOURCC('A','m','r','f')));
+    G_ApplyTemporaryMaxHealthBonus(ent, 123.0f);
+    G_ApplyTemporaryMaxManaBonus(ent, 77.0f);
 
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
+    T_FEQ(ent->health.max_value, ent->data.UnitBalance->maxHealth + 123.0f, 0.001f);
+    T_FEQ(ent->mana.max_value, ent->data.UnitBalance->maxMana + 77.0f, 0.001f);
     T_STREQ(ent->animation_props, "alternateex");
     T_ASSERT(!ent->vertex_color_set);
     T_EQ(ent->vertex_color.r, 255); T_EQ(ent->vertex_color.g, 255);
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
+    T_FEQ(ent->health.max_value, ent->data.UnitBalance->maxHealth + 123.0f, 0.001f);
+    T_FEQ(ent->mana.max_value, ent->data.UnitBalance->maxMana + 77.0f, 0.001f);
     T_STREQ(ent->animation_props, "");
     T_ASSERT(ent->vertex_color_set);
     T_EQ(ent->vertex_color.r, 224); T_EQ(ent->vertex_color.g, 232);

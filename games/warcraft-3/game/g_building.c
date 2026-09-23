@@ -325,14 +325,8 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
             LONG const new_value = (LONG)G_UpgradeEffectValue(upgrade, i, new_level);
             LONG const delta = new_value - old_value;
 
-            if (delta && unit->attack1.numberOfDice) {
-                unit->attack1.permanentDamageBonus += (FLOAT)delta;
-                unit->attack1.damageBase = (DWORD)MAX(0, (LONG)unit->attack1.damageBase + delta);
-                changed = true;
-            }
-            if (delta && unit->attack2.numberOfDice) {
-                unit->attack2.permanentDamageBonus += (FLOAT)delta;
-                unit->attack2.damageBase = (DWORD)MAX(0, (LONG)unit->attack2.damageBase + delta);
+            if (delta && (unit->attack1.numberOfDice || unit->attack2.numberOfDice)) {
+                G_ApplyPermanentAttackDamageBonus(unit, (FLOAT)delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ATTACK_DICE) {
@@ -362,21 +356,14 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
         } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
             FLOAT const delta = unit->data.UnitBalance->armorPerUpgrade * (FLOAT)(new_level - old_level);
             if (delta != 0.0f) {
-                unit->permanent_armor_bonus += delta;
-                unit->armor_value += delta;
+                G_ApplyPermanentArmorBonus(unit, delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_HIT_POINTS) {
             FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
             if (delta != 0.0f) {
-                FLOAT const old_max = unit->health.max_value;
-                FLOAT const health_ratio = old_max > 0.0f ? unit->health.value / old_max : 0.0f;
-                FLOAT const new_max = MAX(1.0f, old_max + delta);
-
-                unit->permanent_health_bonus += delta;
-                unit->health.max_value = new_max;
-                unit->health.value = MAX(0.0f, MIN(new_max, new_max * health_ratio));
+                G_ApplyPermanentMaxHealthBonus(unit, delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_SPELL_LEVEL) {

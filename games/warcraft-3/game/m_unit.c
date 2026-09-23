@@ -211,6 +211,71 @@ void G_SetHealth(LPEDICT ent, FLOAT value) {
 
 void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
 
+static void unit_apply_health_cap_delta(LPEDICT ent, FLOAT amount, FLOAT *ledger) {
+    FLOAT old_max, fraction;
+    if (!ent || amount == 0.0f) return;
+    old_max = MAX(1.0f, ent->health.max_value);
+    fraction = ent->health.value / old_max;
+    *ledger += amount;
+    ent->health.max_value = MAX(1.0f, ent->health.max_value + amount);
+    G_SetHealth(ent, ent->health.max_value * fraction);
+    G_InvalidateUnitInfoPanel(ent);
+}
+
+void G_ApplyPermanentMaxHealthBonus(LPEDICT ent, FLOAT amount) {
+    if (ent) unit_apply_health_cap_delta(ent, amount, &ent->permanent_health_bonus);
+}
+
+void G_ApplyTemporaryMaxHealthBonus(LPEDICT ent, FLOAT amount) {
+    if (ent) unit_apply_health_cap_delta(ent, amount, &ent->temporary_health_bonus);
+}
+
+void G_ApplyTemporaryMaxManaBonus(LPEDICT ent, FLOAT amount) {
+    FLOAT old_max, fraction;
+    if (!ent || amount == 0.0f) return;
+    old_max = MAX(1.0f, ent->mana.max_value);
+    fraction = ent->mana.value / old_max;
+    ent->temporary_mana_bonus += amount;
+    ent->mana.max_value = MAX(0.0f, ent->mana.max_value + amount);
+    ent->mana.value = ent->mana.max_value * fraction;
+    G_InvalidateUnitInfoPanel(ent);
+}
+
+static void unit_apply_armor_delta(LPEDICT ent, FLOAT amount, FLOAT *ledger) {
+    if (!ent || amount == 0.0f) return;
+    *ledger += amount;
+    ent->armor_value += amount;
+    G_InvalidateUnitInfoPanel(ent);
+}
+
+void G_ApplyPermanentArmorBonus(LPEDICT ent, FLOAT amount) {
+    if (ent) unit_apply_armor_delta(ent, amount, &ent->permanent_armor_bonus);
+}
+
+void G_ApplyTemporaryArmorBonus(LPEDICT ent, FLOAT amount) {
+    if (ent) unit_apply_armor_delta(ent, amount, &ent->temporary_armor_bonus);
+}
+
+void G_ApplyPermanentAttackDamageBonus(LPEDICT ent, FLOAT amount) {
+    if (!ent || amount == 0.0f) return;
+    if (ent->attack1.numberOfDice) {
+        ent->attack1.permanentDamageBonus += amount;
+        ent->attack1.damageBase = (DWORD)MAX(0, (LONG)ent->attack1.damageBase + (LONG)amount);
+    }
+    if (ent->attack2.numberOfDice) {
+        ent->attack2.permanentDamageBonus += amount;
+        ent->attack2.damageBase = (DWORD)MAX(0, (LONG)ent->attack2.damageBase + (LONG)amount);
+    }
+    G_InvalidateUnitInfoPanel(ent);
+}
+
+void G_ApplyTemporaryAttackDamageBonus(LPEDICT ent, FLOAT amount) {
+    if (!ent || amount == 0.0f) return;
+    ent->attack1.temporaryDamageBonus += amount;
+    ent->attack2.temporaryDamageBonus += amount;
+    G_InvalidateUnitInfoPanel(ent);
+}
+
 static BOOL unit_is_raisable_corpse(LPCEDICT ent, BOOL stored) {
     UnitData_t const *data;
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
@@ -879,7 +944,7 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
  * trigger references keep pointing at the same unit. */
 BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     LPGAMECLIENT client;
-    FLOAT health_ratio, mana_ratio, temporary_armor;
+    FLOAT health_ratio, mana_ratio, temporary_armor, temporary_health, temporary_mana;
     FLOAT temporary_attack1, temporary_attack2;
     DWORD old_flags;
     BOOL source_building, target_building;
@@ -893,6 +958,8 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
     mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
     temporary_armor = unit->temporary_armor_bonus;
+    temporary_health = unit->temporary_health_bonus;
+    temporary_mana = unit->temporary_mana_bonus;
     temporary_attack1 = unit->attack1.temporaryDamageBonus;
     temporary_attack2 = unit->attack2.temporaryDamageBonus;
     old_flags = unit->s.flags;
@@ -913,11 +980,14 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     unit->permanent_armor_bonus = 0.0f;
     unit->permanent_health_bonus = 0.0f;
     unit->temporary_armor_bonus = 0.0f;
+    unit->temporary_health_bonus = 0.0f;
+    unit->temporary_mana_bonus = 0.0f;
     SP_SpawnUnit(unit);
+    G_ApplyTemporaryMaxHealthBonus(unit, temporary_health);
+    G_ApplyTemporaryMaxManaBonus(unit, temporary_mana);
     G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
     unit->mana.value = MIN(unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
-    unit->temporary_armor_bonus = temporary_armor;
-    unit->armor_value += temporary_armor;
+    G_ApplyTemporaryArmorBonus(unit, temporary_armor);
     unit->attack1.temporaryDamageBonus = temporary_attack1;
     unit->attack2.temporaryDamageBonus = temporary_attack2;
     G_ActivateUnitFood(unit);
@@ -1551,7 +1621,8 @@ void G_RecomputeHeroStats(LPEDICT ent) {
     }
     FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f +
                            ent->permanent_health_bonus + ent->temporary_health_bonus;
-    FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f;
+    FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f +
+                             ent->temporary_mana_bonus;
     FLOAT const agiDefenseBonus = game.constants.combatConstantsLoaded
                                 ? game.constants.agiDefenseBonus
                                 : 0.3f;

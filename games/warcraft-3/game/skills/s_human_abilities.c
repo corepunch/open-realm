@@ -84,9 +84,8 @@ BOOL S_SpellDamage(LPEDICT target, LPEDICT caster, int damage) {
 /* Retail removes the stored deltas and clamps current health instead of subtracting it. */
 void S_AvatarExpire(LPEDICT unit) {
     if (!unit || !unit->avatar.level) return;
-    unit->temporary_armor_bonus -= unit->avatar.armor; unit->armor_value -= unit->avatar.armor;
-    unit->attack1.temporaryDamageBonus -= unit->avatar.damage;
-    unit->attack2.temporaryDamageBonus -= unit->avatar.damage;
+    G_ApplyTemporaryArmorBonus(unit, -unit->avatar.armor);
+    G_ApplyTemporaryAttackDamageBonus(unit, -(FLOAT)unit->avatar.damage);
     unit->temporary_health_bonus -= unit->avatar.health;
     unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar.health);
     unit->health.value = MIN(unit->health.value, unit->health.max_value);
@@ -118,9 +117,8 @@ static void avatar_execute(LPEDICT caster, spellTarget_t target, abilityitem_t c
     }
     caster->avatar.level = rank; caster->avatar.armor = S_SpellData(spell->code, rank, 1);
     caster->avatar.health = S_SpellData(spell->code, rank, 2); caster->avatar.damage = (LONG)S_SpellData(spell->code, rank, 3);
-    caster->temporary_armor_bonus += caster->avatar.armor; caster->armor_value += caster->avatar.armor;
-    caster->attack1.temporaryDamageBonus += caster->avatar.damage;
-    caster->attack2.temporaryDamageBonus += caster->avatar.damage;
+    G_ApplyTemporaryArmorBonus(caster, caster->avatar.armor);
+    G_ApplyTemporaryAttackDamageBonus(caster, (FLOAT)caster->avatar.damage);
     caster->temporary_health_bonus += caster->avatar.health;
     caster->health.max_value = MAX(1.0f, caster->health.max_value + caster->avatar.health);
     caster->health.value = MIN(caster->health.max_value, caster->health.value + MAX(0.0f, caster->avatar.health));

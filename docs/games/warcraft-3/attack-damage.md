@@ -1,5 +1,8 @@
 # Warcraft III Attack Damage
 
+See [Unit Stat Modifiers](unit-stat-modifiers.md) for the shared ledger and
+damage-entry contracts used by attack, armor, spell, and direct damage effects.
+
 ## Contract
 
 OpenRealm keeps normal WC3 attack damage in three layers:

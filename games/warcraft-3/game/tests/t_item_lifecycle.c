@@ -156,6 +156,47 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
     free_slk_rows(old_abilities); free_slk_rows(enabled);
 }
 
+/* Max-life/mana item bonuses must survive a derived-stat recompute and reverse cleanly. */
+TEST(wc3_item_lifecycle, max_resource_item_bonuses_survive_hero_recompute) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIml\"\nC;Y2;X2;K\"AIml\"\nC;Y2;X3;K\"123\"\n"
+        "C;Y3;X1;K\"AImm\"\nC;Y3;X2;K\"AImm\"\nC;Y3;X3;K\"77\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    UnitBalance_t balance;
+    setup_test_world();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    balance = *unit->data.UnitBalance;
+    unit->data.UnitBalance = &balance;
+    unit->hero.str = balance.strength;
+    unit->hero.agi = balance.agility;
+    unit->hero.intel = balance.intelligence;
+    unit->health.max_value = balance.maxHealth;
+    unit->health.value = balance.maxHealth;
+    unit->mana.max_value = balance.maxMana;
+    unit->mana.value = balance.maxMana;
+    {
+        DWORD codes[] = { MAKEFOURCC('A','I','m','l'), MAKEFOURCC('A','I','m','m') };
+        abilityitem_t items[2] = { S_AbilityItem(codes[0]), S_AbilityItem(codes[1]) };
+        abilityCall_t calls[2] = { { .item = &items[0] }, { .item = &items[1] } };
+        FOR_LOOP(i, 2) T_ASSERT(S_AbilityMessage(unit, A_ITEM_ADD, calls + i));
+        T_FEQ(unit->health.max_value, balance.maxHealth + 123, 0.001f);
+        T_FEQ(unit->mana.max_value, balance.maxMana + 77, 0.001f);
+
+        unit->hero.str++;
+        unit->hero.intel++;
+        G_RecomputeHeroStats(unit);
+        T_FEQ(unit->health.max_value, balance.maxHealth + 25 + 123, 0.001f);
+        T_FEQ(unit->mana.max_value, balance.maxMana + 15 + 77, 0.001f);
+
+        FOR_LOOP(i, 2) T_ASSERT(S_AbilityMessage(unit, A_ITEM_REMOVE, calls + i));
+        T_FEQ(unit->health.max_value, balance.maxHealth + 25, 0.001f);
+        T_FEQ(unit->mana.max_value, balance.maxMana + 15, 0.001f);
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* All three tomes and their passive equivalents use Agility/Intelligence/Strength data order. */
 TEST(wc3_item_lifecycle, strength_tome_modifies_strength) {
     const char slk[] =
