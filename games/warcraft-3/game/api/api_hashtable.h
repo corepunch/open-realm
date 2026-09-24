@@ -71,12 +71,16 @@ static BOOL hashtable_is_edict(HANDLE h, DWORD *out_id) {
 static DWORD hashtable_handle_id(HANDLE h) {
     DWORD id;
     uintptr_t p;
+    LPREGION region;
     if (!h) return 0;
     if (hashtable_is_edict(h, &id)) return id;
     if (G_HashtableIndex(h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x3000u + id;
     FOR_LOOP(i, game.max_clients)
         if (h == &game.clients[i].ps) return HASHTABLE_HANDLE_ID_BASE + (DWORD)i;
     if (G_JassGroupIndex(h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x2000u + id;
+    if ((region = G_RegionFromHandle(h))) return HASHTABLE_HANDLE_ID_BASE + 0x4000u +
+        (DWORD)(region - level.regions);
+    if (G_SaveJassHandle("event", h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x5000u + id;
     p = (uintptr_t)h;
     return HASHTABLE_HANDLE_ID_BASE + 0x1000u + (DWORD)((p >> 3) ^ (p >> 32));
 }

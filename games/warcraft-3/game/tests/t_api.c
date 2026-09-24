@@ -353,6 +353,40 @@ TEST(wc3_api, removed_regions_reuse_slots_without_lifetime_cap) {
         "    set i = i + 1\n"
         "  endloop\n"
         "endfunction\n"));
+    T_EQ(level.num_regions, 1);
+}
+
+TEST(wc3_api, removed_region_events_release_handler_capacity) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "type event extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local region r = null\n"
+        "  local event oldEvent = null\n"
+        "  local event e = null\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i >= 1100\n"
+        "    set r = CreateRegion()\n"
+        "    set e = TriggerRegisterEnterRegion(t, r, null)\n"
+        "    call BJassAssert(e != null, \"removed region registrations exhausted event slots\")\n"
+        "    if i == 0 then\n"
+        "      set oldEvent = e\n"
+        "    elseif i == 1 then\n"
+        "      call BJassAssert(oldEvent != e, \"reused event slot aliased a retired event handle\")\n"
+        "    endif\n"
+        "    call RemoveRegion(r)\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"));
+    {
+        DWORD active_region_events = 0;
+        FOR_EACH_EVENT(event) if (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
+            active_region_events++;
+        T_EQ(active_region_events, 0);
+    }
 }
 
 static DWORD unit_team_color(LPCEDICT unit) {

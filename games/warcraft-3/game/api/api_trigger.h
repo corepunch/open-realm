@@ -254,16 +254,17 @@ DWORD TriggerRegisterGameEvent(LPJASS j) {
 }
 DWORD TriggerRegisterEnterRegion(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    LPREGION whichRegion = jass_checkhandle(j, 2, "region");
+    HANDLE region = jass_checkhandle(j, 2, "region");
+    LPREGION whichRegion = G_RegionFromHandle(region);
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     if (!whichTrigger || !whichRegion || !whichRegion->inuse) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_GAME_ENTER_REGION);
     if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
     evt->filter = filter;
-    evt->region = whichRegion;
+    evt->region = region;
     QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_ENTER_REGION, NULL, "enter-region");
-    return jass_pushlighthandle(j, evt, "event");
+    return jass_pushlighthandle(j, G_EventHandle(evt), "event");
 }
 DWORD GetTriggeringRegion(LPJASS j) {
     LPCJASSCONTEXT context = jass_getcontext(j);
@@ -272,16 +273,17 @@ DWORD GetTriggeringRegion(LPJASS j) {
 }
 DWORD TriggerRegisterLeaveRegion(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    LPREGION whichRegion = jass_checkhandle(j, 2, "region");
+    HANDLE region = jass_checkhandle(j, 2, "region");
+    LPREGION whichRegion = G_RegionFromHandle(region);
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     if (!whichTrigger || !whichRegion || !whichRegion->inuse) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_GAME_LEAVE_REGION);
     if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
     evt->filter = filter;
-    evt->region = whichRegion;
+    evt->region = region;
     QuestPeonStageLogRegistration(whichTrigger, EVENT_GAME_LEAVE_REGION, NULL, "leave-region");
-    return jass_pushlighthandle(j, evt, "event");
+    return jass_pushlighthandle(j, G_EventHandle(evt), "event");
 }
 DWORD TriggerRegisterTrackableHitEvent(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");

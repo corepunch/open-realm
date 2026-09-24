@@ -82,41 +82,48 @@ DWORD GetRectMaxY(LPJASS j) {
 DWORD CreateRegion(LPJASS j) {
     DWORD i;
     LPREGION region;
-    for (i = 0; i < level.num_regions && level.regions[i] && level.regions[i]->inuse; i++) { }
+    for (i = 0; i < MAX_REGIONS && (level.regions[i].inuse || level.regions[i].exhausted); i++) { }
     if (i == MAX_REGIONS) {
-        fprintf(stderr, "WC3 CreateRegion: active region registry full (%u)\n", MAX_REGIONS);
+        fprintf(stderr, "WC3 CreateRegion: no reusable region slots (%u)\n", MAX_REGIONS);
         return jass_pushnullhandle(j, "region");
     }
-    region = calloc(1, sizeof(*region));
-    if (!region) {
-        fprintf(stderr, "WC3 CreateRegion: region allocation failed\n");
-        return jass_pushnullhandle(j, "region");
-    }
+    region = &level.regions[i];
+    memset(region->rects, 0, sizeof(region->rects)); region->num_rects = 0;
     region->inuse = true;
-    region->next_allocation = level.region_allocations;
-    level.region_allocations = region;
-    level.regions[i] = region;
-    if (i == level.num_regions) level.num_regions++;
-    return jass_pushlighthandle(j, region, "region");
+    if (i >= level.num_regions) level.num_regions = i + 1;
+    return jass_pushlighthandle(j, G_RegionHandle(i), "region");
 }
 DWORD RemoveRegion(LPJASS j) {
-    LPREGION region = jass_checkhandle(j, 1, "region");
-    if (!region || !region->inuse) return 0;
+    HANDLE handle = jass_checkhandle(j, 1, "region");
+    LPREGION region = G_RegionFromHandle(handle);
+    if (!region) return 0;
     region->inuse = false;
     region->num_rects = 0;
-    FOR_LOOP(i, MAX_EVENTS) if (level.events.handlers[i].region == region)
-        level.events.handlers[i].region = NULL;
+    memset(region->rects, 0, sizeof(region->rects));
+    if (region->generation == (UINTPTR_MAX >> REGION_TOKEN_SLOT_BITS)) region->exhausted = true;
+    else region->generation++;
+    FOR_LOOP(i, MAX_EVENTS) {
+        LPEVENT event = &level.events.handlers[i];
+        if (!event->inuse || event->region != handle) continue;
+        event->region = NULL;
+        for (DWORD n = level.events.read; n < level.events.write; n++)
+            if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo == event)
+                level.events.queue[n % MAX_EVENT_QUEUE].responseTo = NULL;
+        event->inuse = false;
+        if (event->handle_generation == (UINTPTR_MAX >> EVENT_TOKEN_SLOT_BITS)) event->generation_exhausted = true;
+        else event->handle_generation++;
+    }
     return 0;
 }
 DWORD RegionAddRect(LPJASS j) {
-    LPREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
     if (whichRegion && whichRegion->inuse && r && whichRegion->num_rects < MAX_REGION_SIZE)
         whichRegion->rects[whichRegion->num_rects++] = *r;
     return 0;
 }
 DWORD RegionClearRect(LPJASS j) {
-    LPREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
     if (!whichRegion || !whichRegion->inuse || !r) return 0;
     FOR_LOOP(i, whichRegion->num_rects) {

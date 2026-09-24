@@ -1096,10 +1096,10 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         return true;
     }
     if (domain == JASS_HANDLE_REGION) {
-        LPREGION region = value;
-        if (!region || !region->inuse) return false;
-        FOR_LOOP(i, level.num_regions) if (level.regions[i] == region) { *id = i; return true; }
-        return false;
+        LPREGION region = G_RegionFromHandle(value);
+        if (!region) return false;
+        *id = (DWORD)(region - level.regions);
+        return true;
     }
     if (domain == JASS_HANDLE_QUEST) {
         if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
@@ -1113,7 +1113,8 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         return false;
     }
     if (domain == JASS_HANDLE_EVENT) {
-        return EventId(value, id);
+        LPEVENT event = G_EventFromHandle(value);
+        return event && EventId(event, id);
     }
     return TriggerIndex(value, id);
 }
@@ -1143,7 +1144,11 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     if (domain == JASS_HANDLE_LIGHTNING)
         return id < MAX_LIGHTNING_EFFECTS && level.lightning_effects[id].inuse ? &level.lightning_effects[id] : NULL;
     if (domain == JASS_HANDLE_REGION)
-        return id < level.num_regions && level.regions[id] && level.regions[id]->inuse ? level.regions[id] : NULL;
+        return G_RegionHandle(id);
+    if (domain == JASS_HANDLE_EVENT) {
+        LPEVENT event = EventById(id);
+        return G_EventHandle(event);
+    }
     return JassListHandle(domain, id);
 }
 
@@ -1350,10 +1355,9 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         if (fields->count_ofs != UINT32_MAX && !SaveBytes(f, &count, sizeof(count))) return false;
         switch (fields->type) {
         case F_REGION_REGISTRY: {
-            LPREGION const *regions = (LPREGION const *)(base + fields->ofs);
-            REGION empty = {0};
+            REGION const *regions = (REGION const *)(base + fields->ofs);
             FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags,
-                regions[i] ? (BYTE *)regions[i] : (BYTE *)&empty)) return false;
+                (BYTE *)(regions + i))) return false;
             break;
         }
         case F_STRUCT:
@@ -1419,20 +1423,14 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         }
         switch (fields->type) {
         case F_REGION_REGISTRY: {
-            LPREGION *regions = (LPREGION *)(base + fields->ofs);
+            REGION *regions = (REGION *)(base + fields->ofs);
             field_t const *schema = (field_t const *)fields->flags;
             memset(regions, 0, fields->size);
             FOR_LOOP(i, count) {
-                REGION restored = {0};
-                LPREGION region;
-                if (!ReadMappedFields(f, schema, (BYTE *)&restored) || restored.num_rects > MAX_REGION_SIZE)
+                if (!ReadMappedFields(f, schema, (BYTE *)(regions + i)) || regions[i].num_rects > MAX_REGION_SIZE)
                     return false;
-                region = malloc(sizeof(*region));
-                if (!region) return false;
-                *region = restored;
-                region->next_allocation = level.region_allocations;
-                level.region_allocations = region;
-                regions[i] = region;
+                regions[i].generation = 0;
+                regions[i].exhausted = false;
             }
             break;
         }

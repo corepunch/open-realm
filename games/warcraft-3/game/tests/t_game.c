@@ -3894,7 +3894,8 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-region-filter-save-test.bin";
     LEVELEVENTS old_events = level.events;
     LPEVENT registration = NULL;
-    LPREGION expected_region, restored_region;
+    HANDLE expected_region, restored_region;
+    LPREGION restored_data;
     DWORD expected_region_id = UINT32_MAX;
     LPCJASSFUNC expected_filter;
 
@@ -3902,6 +3903,9 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
         "globals\n"
         "  region staleRegion = null\n"
         "  region savedRegion = null\n"
+        "  event savedEvent = null\n"
+        "  integer savedRegionId = 0\n"
+        "  integer savedEventId = 0\n"
         "endglobals\n"
         "function savedRegionFilter takes nothing returns boolean\n"
         "  return GetFilterUnit() != null\n"
@@ -3913,12 +3917,16 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
         "  call RemoveRegion(staleRegion)\n"
         "  set savedRegion = CreateRegion()\n"
         "  call RegionAddRect(savedRegion, Rect(10.0, 20.0, 30.0, 40.0))\n"
-        "  call TriggerRegisterLeaveRegion(t, savedRegion, Condition(function savedRegionFilter))\n"
+        "  set savedRegionId = GetHandleId(savedRegion)\n"
+        "  set savedEvent = TriggerRegisterLeaveRegion(t, savedRegion, Condition(function savedRegionFilter))\n"
+        "  set savedEventId = GetHandleId(savedEvent)\n"
         "endfunction\n"
         "function verifyRegionSnapshot takes nothing returns nothing\n"
         "  call BJassAssert(staleRegion == null, \"removed region handle was restored\")\n"
         "  call BJassAssert(savedRegion != null, \"live region handle was lost\")\n"
         "  call BJassAssert(IsPointInRegion(savedRegion, 20.0, 30.0), \"live region geometry was lost\")\n"
+        "  call BJassAssert(GetHandleId(savedRegion) == savedRegionId, \"region handle ID changed after load\")\n"
+        "  call BJassAssert(GetHandleId(savedEvent) == savedEventId, \"region event handle ID changed after load\")\n"
         "endfunction\n"));
     FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_LEAVE_REGION) { registration = evt; break; }
     T_NOT_NULL(registration);
@@ -3936,9 +3944,13 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
     restored_region = G_LoadJassHandle("region", expected_region_id);
     T_NOT_NULL(restored_region);
     T_ASSERT(registration && registration->region == restored_region);
-    T_EQ(restored_region->num_rects, 1);
-    T_FEQ(restored_region->rects[0].min.x, 10.0f, 0.001f);
-    T_FEQ(restored_region->rects[0].max.y, 40.0f, 0.001f);
+    restored_data = G_RegionFromHandle(restored_region);
+    T_NOT_NULL(restored_data);
+    T_EQ(restored_data->num_rects, 1);
+    T_FEQ(restored_data->rects[0].min.x, 10.0f, 0.001f);
+    T_FEQ(restored_data->rects[0].max.y, 40.0f, 0.001f);
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(G_RegionFromHandle(restored_region) == restored_data);
     level.events = old_events;
     remove(filename);
 }

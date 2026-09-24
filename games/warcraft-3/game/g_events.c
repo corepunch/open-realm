@@ -256,22 +256,24 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
 static void G_TouchTriggers(LPEDICT ent) {
     FOR_EACH_EVENT(evt) {
         switch (evt->type) {
-            case EVENT_GAME_ENTER_REGION:
-                if (evt->region && evt->region->inuse && G_RegionContains(evt->region, &ent->s.origin2) &&
-                    !G_RegionContains(evt->region, &ent->old_origin) &&
-                    jass_evaluateboolexpr(level.vm, evt->filter, ent))
+            case EVENT_GAME_ENTER_REGION: {
+                LPREGION region = G_RegionFromHandle(evt->region);
+                if (region && G_RegionContains(region, &ent->s.origin2) &&
+                    !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
                     G_PublishEvent(ent, evt->type)->responseTo = evt;
                 }
                 break;
-            case EVENT_GAME_LEAVE_REGION:
-                if (evt->region && evt->region->inuse && !G_RegionContains(evt->region, &ent->s.origin2) &&
-                    G_RegionContains(evt->region, &ent->old_origin) &&
-                    jass_evaluateboolexpr(level.vm, evt->filter, ent))
+            }
+            case EVENT_GAME_LEAVE_REGION: {
+                LPREGION region = G_RegionFromHandle(evt->region);
+                if (region && !G_RegionContains(region, &ent->s.origin2) &&
+                    G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
                     G_PublishEvent(ent, evt->type)->responseTo = evt;
                 }
                 break;
+            }
             case EVENT_UNIT_IN_RANGE:
                 if (ent == evt->subject) {
                     LPEDICT target;

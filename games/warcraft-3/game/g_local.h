@@ -27,7 +27,9 @@
 #define BZ_STRINGIFY(value) BZ_STRINGIFY_INNER(value)
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
-#define MAX_REGIONS 2048 // concurrent JASS regions; retired slots are reused and serialized by slot ID
+#define MAX_REGIONS 2048 // fixed region data slots; generation tokens let retired slots be reused safely
+#define REGION_TOKEN_SLOT_BITS 13 // 2048 slots plus a two-bit tag; upper uintptr_t bits carry a generation
+#define EVENT_TOKEN_SLOT_BITS 12 // 1024 slots plus a two-bit tag; upper bits carry a generation
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #ifdef WC3_DEBUG_TIMERDIALOG
@@ -443,7 +445,8 @@ struct gregion_s {
     BOX2 rects[MAX_REGION_SIZE];
     DWORD num_rects;
     BOOL inuse;
-    struct gregion_s *next_allocation;
+    uintptr_t generation;
+    BOOL exhausted;
 };
 
 typedef enum {
@@ -898,7 +901,7 @@ typedef struct {
 #define MAX_GAMECACHE_STRING 256 // chars; shared string cap for gamecache and hashtable string slots
 #define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
 #define WC3_LAYER_LEADERBOARD LAYER_GAME_1
-#define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
+#define MAX_EVENTS 1024 // handlers; region-event tokens allow safe reuse of retired handler slots
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
@@ -1669,13 +1672,15 @@ struct gevent_s {
     LPTRIGGER trigger;
     LPGTIMER timer;
     struct jass_function const *filter;
-    LPREGION region;
+    HANDLE region;
     FLOAT range;
     DWORD state;
     DWORD limitop;
     FLOAT limitval;
     LPCSTR variable;
     BOOL inuse;
+    uintptr_t handle_generation;
+    BOOL generation_exhausted;
 };
 
 typedef struct {
@@ -1888,9 +1893,8 @@ struct level_locals {
     MULTIBOARDITEM multiboard_items[MAX_MULTIBOARD_ITEMS];
     TEXTTAG texttags[MAX_TEXTTAGS];
     HASHTABLE hashtables[MAX_HASHTABLES];
-    LPREGION regions[MAX_REGIONS];
+    REGION regions[MAX_REGIONS];
     DWORD num_regions;
-    LPREGION region_allocations;
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     DWORD multiboard_dirty_clients;
     DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
@@ -2175,6 +2179,10 @@ BOOL G_QuestItemValid(QUESTITEM const *item);
 void G_FreeJassGroup(ggroup_t *group);
 void G_ClearJassGroupRegistry(void);
 void G_ClearRegionRegistry(void);
+LPREGION G_RegionFromHandle(HANDLE);
+HANDLE G_RegionHandle(DWORD);
+LPEVENT G_EventFromHandle(HANDLE);
+HANDLE G_EventHandle(LPEVENT);
 BOOL G_JassGroupDebugEnabled(void);
 void G_ResetJassGroupDebug(void);
 void G_SetJassGroupDebugCreator(ggroup_t *group, LPCSTR creator);

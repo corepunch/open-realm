@@ -117,9 +117,11 @@ void G_RunDeferredFrees(void) {
 void G_ResetDeferredFrees(void) { deferred_free_count = 0; }
 
 LPEVENT G_MakeEvent(EVENTTYPE type) {
-    FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse) {
+    FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse && !level.events.handlers[i].generation_exhausted) {
         LPEVENT evt = &level.events.handlers[i];
-        memset(evt, 0, sizeof(*evt)); evt->inuse = true; evt->type = type; return evt;
+        uintptr_t generation = evt->handle_generation;
+        memset(evt, 0, sizeof(*evt)); evt->handle_generation = generation;
+        evt->inuse = true; evt->type = type; return evt;
     }
     fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
     return NULL;
@@ -433,15 +435,53 @@ void G_ClearJassGroupRegistry(void) {
 }
 
 void G_ClearRegionRegistry(void) {
-    LPREGION region = level.region_allocations;
-    while (region) {
-        LPREGION next = region->next_allocation;
-        free(region);
-        region = next;
-    }
     memset(level.regions, 0, sizeof(level.regions));
     level.num_regions = 0;
-    level.region_allocations = NULL;
+}
+
+LPREGION G_RegionFromHandle(HANDLE handle) {
+    uintptr_t token = (uintptr_t)handle;
+    DWORD slot = (DWORD)((token & (((uintptr_t)1 << REGION_TOKEN_SLOT_BITS) - 1)) >> 2);
+    uintptr_t generation = token >> REGION_TOKEN_SLOT_BITS;
+    LPREGION region;
+    if ((token & 3) != 1 || slot >= MAX_REGIONS || slot >= level.num_regions) return NULL;
+    region = &level.regions[slot];
+    return region->inuse && region->generation == generation ? region : NULL;
+}
+
+HANDLE G_RegionHandle(DWORD slot) {
+    LPREGION region;
+    if (slot >= level.num_regions || slot >= MAX_REGIONS) return NULL;
+    region = &level.regions[slot];
+    if (!region->inuse) return NULL;
+    return (HANDLE)((region->generation << REGION_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 1);
+}
+
+LPEVENT G_EventFromHandle(HANDLE handle) {
+    uintptr_t token = (uintptr_t)handle, base = (uintptr_t)level.events.handlers;
+    if ((token & 3) == 3) {
+        DWORD slot = (DWORD)((token & (((uintptr_t)1 << EVENT_TOKEN_SLOT_BITS) - 1)) >> 2);
+        uintptr_t generation = token >> EVENT_TOKEN_SLOT_BITS;
+        LPEVENT event;
+        if (slot >= MAX_EVENTS) return NULL;
+        event = &level.events.handlers[slot];
+        return event->inuse && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION) &&
+            event->handle_generation == generation ? event : NULL;
+    }
+    if (token < base || token >= base + sizeof(level.events.handlers) ||
+        (token - base) % sizeof(*level.events.handlers)) return NULL;
+    {
+        LPEVENT event = handle;
+        return event->inuse ? event : NULL;
+    }
+}
+
+HANDLE G_EventHandle(LPEVENT event) {
+    DWORD slot;
+    if (!event) return NULL;
+    if (event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION) return event;
+    slot = (DWORD)(event - level.events.handlers);
+    return (HANDLE)((event->handle_generation << EVENT_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 3);
 }
 
 LPTRIGGER G_AllocJassTrigger(void) {
