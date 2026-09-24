@@ -77,9 +77,9 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Timer generation and event-ring layout are serialized state; reject older
- * saves rather than decoding those records with shifted field boundaries. */
-static DWORD const save_version = 40;
+/* Timer, region/event handle generation, and event-ring state are serialized;
+ * reject older saves rather than decoding records with shifted boundaries. */
+static DWORD const save_version = 41;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -264,6 +264,8 @@ static field_t const save_event_fields[] = {
     F(gevent_s, limitval, F_FLOAT),
     F(gevent_s, variable, F_LSTRING),
     F(gevent_s, inuse, F_INT),
+    F(gevent_s, handle_generation, F_INT),
+    F(gevent_s, generation_exhausted, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -275,6 +277,7 @@ static field_t const box2_fields[] = {
 static field_t const region_fields[] = {
     F(gregion_s, rects, F_STRUCT, MAX_REGION_SIZE, box2_fields),
     F(gregion_s, num_rects, F_INT), F(gregion_s, inuse, F_INT),
+    F(gregion_s, generation, F_INT), F(gregion_s, exhausted, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -1427,10 +1430,9 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             field_t const *schema = (field_t const *)fields->flags;
             memset(regions, 0, fields->size);
             FOR_LOOP(i, count) {
-                if (!ReadMappedFields(f, schema, (BYTE *)(regions + i)) || regions[i].num_rects > MAX_REGION_SIZE)
+                if (!ReadMappedFields(f, schema, (BYTE *)(regions + i)) || regions[i].num_rects > MAX_REGION_SIZE ||
+                    regions[i].generation > REGION_HANDLE_GENERATION_MAX || regions[i].inuse > 1 || regions[i].exhausted > 1)
                     return false;
-                regions[i].generation = 0;
-                regions[i].exhausted = false;
             }
             break;
         }
@@ -1795,12 +1797,18 @@ BOOL ReadGame(LPCSTR filename) {
             fclose(f); return false;
         }
     }
-    if (!ReadMappedFields(f, level_fields, (BYTE *)&level) || level.waypoints.count > MAX_WAYPOINTS ||
+    if (!ReadMappedFields(f, level_fields, (BYTE *)&level) ||
+        level.waypoints.count > MAX_WAYPOINTS ||
         (level.waypoints.count && (level.waypoints.count != MAX_WAYPOINTS || level.waypoints.cursor >= MAX_WAYPOINTS ||
         header.num_edicts < level.waypoints.count ||
         level.waypoints.base > header.num_edicts - level.waypoints.count)) ||
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
+    }
+    FOR_LOOP(i, MAX_EVENTS) if (level.events.handlers[i].handle_generation > EVENT_HANDLE_GENERATION_MAX ||
+        level.events.handlers[i].generation_exhausted > 1) {
+        fprintf(stderr, "WC3 LoadGame: invalid event handle generation at slot %u\n", (unsigned)i);
+        fclose(f); return false;
     }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
@@ -1893,18 +1901,23 @@ fail:
     return false;
 }
 
-TEST(wc3_save, rejects_pre_region_filter_save_version) {
-    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-pre-region-filter-version.bin";
-    LPCSTR legacy_filename = "/tmp/openwarcraft3-wc3-save-pre-region-filter-version-legacy.bin";
-    DWORD const old_version = 39;
+TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-pre-region-handle-generation.bin";
+    LPCSTR old_paths[] = {
+        "/tmp/openwarcraft3-wc3-save-version-39.bin",
+        "/tmp/openwarcraft3-wc3-save-version-40.bin",
+    };
+    DWORD const old_versions[] = { 39, 40 };
 
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));
-    T_ASSERT(write_save_fixture_version(filename, legacy_filename, old_version));
-    T_NE(save_version, old_version);
-    T_ASSERT(!ReadGame(legacy_filename));
+    FOR_LOOP(i, sizeof(old_versions) / sizeof(*old_versions)) {
+        T_ASSERT(write_save_fixture_version(filename, old_paths[i], old_versions[i]));
+        T_NE(save_version, old_versions[i]);
+        T_ASSERT(!ReadGame(old_paths[i]));
+        remove(old_paths[i]);
+    }
     remove(filename);
-    remove(legacy_filename);
 }
 #endif

@@ -72,14 +72,19 @@ static DWORD hashtable_handle_id(HANDLE h) {
     DWORD id;
     uintptr_t p;
     LPREGION region;
+    LPEVENT event;
     if (!h) return 0;
     if (hashtable_is_edict(h, &id)) return id;
     if (G_HashtableIndex(h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x3000u + id;
     FOR_LOOP(i, game.max_clients)
         if (h == &game.clients[i].ps) return HASHTABLE_HANDLE_ID_BASE + (DWORD)i;
     if (G_JassGroupIndex(h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x2000u + id;
-    if ((region = G_RegionFromHandle(h))) return HASHTABLE_HANDLE_ID_BASE + 0x4000u +
-        (DWORD)(region - level.regions);
+    if ((region = G_RegionFromHandle(h))) return REGION_HANDLE_ID_BASE |
+        (region->generation << (REGION_TOKEN_SLOT_BITS - 2)) | (DWORD)(region - level.regions);
+    if ((event = G_EventFromHandle(h)) &&
+        (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION))
+        return REGION_EVENT_HANDLE_ID_BASE |
+            (event->handle_generation << (EVENT_TOKEN_SLOT_BITS - 2)) | (DWORD)(event - level.events.handlers);
     if (G_SaveJassHandle("event", h, &id)) return HASHTABLE_HANDLE_ID_BASE + 0x5000u + id;
     p = (uintptr_t)h;
     return HASHTABLE_HANDLE_ID_BASE + 0x1000u + (DWORD)((p >> 3) ^ (p >> 32));

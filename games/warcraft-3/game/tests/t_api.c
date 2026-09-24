@@ -364,6 +364,46 @@ TEST(wc3_api, removed_region_is_inert_and_does_not_alias_replacement) {
         T_NULL(evt->region);
 }
 
+TEST(wc3_api, recycled_region_gets_distinct_handle_id) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type hashtable extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local hashtable ht = InitHashtable()\n"
+        "  local region oldRegion = CreateRegion()\n"
+        "  local region newRegion = null\n"
+        "  local integer oldRegionId = GetHandleId(oldRegion)\n"
+        "  call SaveInteger(ht, oldRegionId, 0, 11)\n"
+        "  call RemoveRegion(oldRegion)\n"
+        "  set newRegion = CreateRegion()\n"
+        "  call BJassAssert(GetHandleId(newRegion) != oldRegionId, \"recycled region reused GetHandleId\")\n"
+        "  call BJassAssert(LoadInteger(ht, GetHandleId(newRegion), 0) == 0, \"replacement region inherited old hashtable data\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, recycled_region_event_gets_distinct_handle_id) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "type event extends handle\n"
+        "type hashtable extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local hashtable ht = InitHashtable()\n"
+        "  local region r = CreateRegion()\n"
+        "  local region replacement = null\n"
+        "  local event oldEvent = TriggerRegisterEnterRegion(t, r, null)\n"
+        "  local event newEvent = null\n"
+        "  local integer oldEventId = GetHandleId(oldEvent)\n"
+        "  call SaveInteger(ht, oldEventId, 0, 22)\n"
+        "  call RemoveRegion(r)\n"
+        "  set replacement = CreateRegion()\n"
+        "  set newEvent = TriggerRegisterEnterRegion(t, replacement, null)\n"
+        "  call BJassAssert(GetHandleId(newEvent) != oldEventId, \"recycled region event reused GetHandleId\")\n"
+        "  call BJassAssert(LoadInteger(ht, GetHandleId(newEvent), 0) == 0, \"replacement event inherited old hashtable data\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, removed_regions_reuse_slots_without_lifetime_cap) {
     T_ASSERT(run_test_jass(
         "type region extends handle\n"

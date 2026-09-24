@@ -30,6 +30,12 @@
 #define MAX_REGIONS 2048 // fixed region data slots; generation tokens let retired slots be reused safely
 #define REGION_TOKEN_SLOT_BITS 13 // 2048 slots plus a two-bit tag; upper uintptr_t bits carry a generation
 #define EVENT_TOKEN_SLOT_BITS 12 // 1024 slots plus a two-bit tag; upper bits carry a generation
+#define REGION_HANDLE_ID_GENERATION_BITS 17 // keeps region GetHandleId values unique in a positive 28-bit range
+#define EVENT_HANDLE_ID_GENERATION_BITS 18 // keeps region-event GetHandleId values unique in a positive 28-bit range
+#define REGION_HANDLE_GENERATION_MAX ((1u << REGION_HANDLE_ID_GENERATION_BITS) - 1)
+#define EVENT_HANDLE_GENERATION_MAX ((1u << EVENT_HANDLE_ID_GENERATION_BITS) - 1)
+#define REGION_HANDLE_ID_BASE 0x10000000u
+#define REGION_EVENT_HANDLE_ID_BASE 0x20000000u
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #ifdef WC3_DEBUG_TIMERDIALOG
@@ -445,7 +451,7 @@ struct gregion_s {
     BOX2 rects[MAX_REGION_SIZE];
     DWORD num_rects;
     BOOL inuse;
-    uintptr_t generation;
+    DWORD generation;
     BOOL exhausted;
 };
 
@@ -1679,7 +1685,7 @@ struct gevent_s {
     FLOAT limitval;
     LPCSTR variable;
     BOOL inuse;
-    uintptr_t handle_generation;
+    DWORD handle_generation;
     BOOL generation_exhausted;
 };
 

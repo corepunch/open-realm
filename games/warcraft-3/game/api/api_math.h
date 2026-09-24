@@ -100,7 +100,7 @@ DWORD RemoveRegion(LPJASS j) {
     region->inuse = false;
     region->num_rects = 0;
     memset(region->rects, 0, sizeof(region->rects));
-    if (region->generation == (UINTPTR_MAX >> REGION_TOKEN_SLOT_BITS)) region->exhausted = true;
+    if (region->generation == REGION_HANDLE_GENERATION_MAX) region->exhausted = true;
     else region->generation++;
     FOR_LOOP(i, MAX_EVENTS) {
         LPEVENT event = &level.events.handlers[i];
@@ -110,7 +110,7 @@ DWORD RemoveRegion(LPJASS j) {
             if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo == event)
                 level.events.queue[n % MAX_EVENT_QUEUE].responseTo = NULL;
         event->inuse = false;
-        if (event->handle_generation == (UINTPTR_MAX >> EVENT_TOKEN_SLOT_BITS)) event->generation_exhausted = true;
+        if (event->handle_generation == EVENT_HANDLE_GENERATION_MAX) event->generation_exhausted = true;
         else event->handle_generation++;
     }
     return 0;
