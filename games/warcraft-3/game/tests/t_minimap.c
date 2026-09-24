@@ -196,10 +196,20 @@ done:
 
 TEST(wc3_minimap, invalid_optional_skin_leaves_stock_default_available) {
     stbIniCache_t theme = { 0 }, invalid_map_skin = { 0 };
+    wc3MinimapSpecialAsset_t assets[5];
+    minimapLoadCapture_t capture = { 0 };
+    DWORD count;
+
     T_ASSERT(Stb_IniCacheLoad(&theme, "UI\\war3skins.txt"));
     T_ASSERT(!Stb_IniCacheLoadBuffer(&invalid_map_skin, "invalid text without a section\n"));
-    T_STREQ(wc3_minimap_skin_texture_path(&theme, &invalid_map_skin, "MinimapHeroTexture"),
-            "TestUI\\Textures\\solid_white.blp");
+    count = wc3_minimap_special_assets(&theme, &invalid_map_skin, assets, 5);
+    T_EQ(count, 5);
+    FOR_LOOP(i, count) T_ASSERT(!assets[i].map_override);
+    T_STREQ(assets[0].path, "TestUI\\Textures\\solid_white.blp");
+    T_ASSERT(wc3_minimap_register_special_asset(&assets[0], NULL, &capture,
+        test_minimap_load_pinned, test_minimap_load_streamed) == &capture.pinned_token);
+    T_EQ(capture.pinned, 1);
+    T_EQ(capture.streamed, 0);
     Stb_IniCacheFree(&invalid_map_skin);
     Stb_IniCacheFree(&theme);
 }
