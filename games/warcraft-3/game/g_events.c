@@ -327,6 +327,16 @@ static void G_TouchTriggers(LPEDICT ent) {
     }
 }
 
+/* Explicit JASS position changes happen before G_RunEntities samples old_origin.
+ * Evaluate the crossing here, then make the teleported position the next baseline. */
+void G_UnitPositionChanged(LPEDICT ent, LPCVECTOR2 old_position) {
+    if (!ent || !ent->inuse || !old_position ||
+        !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
+    ent->old_origin = *old_position;
+    G_TouchTriggers(ent);
+    ent->old_origin = ent->s.origin2;
+}
+
 void G_RunEntities(void) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = globals.edicts+i;

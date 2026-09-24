@@ -558,6 +558,7 @@ TEST(wc3_api, recycled_region_gets_distinct_handle_id) {
         "  local integer oldRegionId = GetHandleId(oldRegion)\n"
         "  call SaveInteger(ht, oldRegionId, 0, 11)\n"
         "  call RemoveRegion(oldRegion)\n"
+        "  call BJassAssert(GetHandleId(oldRegion) == oldRegionId, \"retired region changed GetHandleId\")\n"
         "  set newRegion = CreateRegion()\n"
         "  call BJassAssert(GetHandleId(newRegion) != oldRegionId, \"recycled region reused GetHandleId\")\n"
         "  call BJassAssert(LoadInteger(ht, GetHandleId(newRegion), 0) == 0, \"replacement region inherited old hashtable data\")\n"
@@ -580,11 +581,63 @@ TEST(wc3_api, recycled_region_event_gets_distinct_handle_id) {
         "  local integer oldEventId = GetHandleId(oldEvent)\n"
         "  call SaveInteger(ht, oldEventId, 0, 22)\n"
         "  call RemoveRegion(r)\n"
+        "  call BJassAssert(GetHandleId(oldEvent) == oldEventId, \"retired region event changed GetHandleId\")\n"
         "  set replacement = CreateRegion()\n"
         "  set newEvent = TriggerRegisterEnterRegion(t, replacement, null)\n"
         "  call BJassAssert(GetHandleId(newEvent) != oldEventId, \"recycled region event reused GetHandleId\")\n"
         "  call BJassAssert(LoadInteger(ht, GetHandleId(newEvent), 0) == 0, \"replacement event inherited old hashtable data\")\n"
         "endfunction\n"));
+}
+
+TEST(wc3_api, set_unit_position_dispatches_region_crossings) {
+    LPPLAYER saved_currentplayer = currentplayer;
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit mover = null\n"
+        "  integer enters = 0\n"
+        "  integer leaves = 0\n"
+        "endglobals\n"
+        "function on_enter takes nothing returns nothing\n"
+        "  set enters = enters + 1\n"
+        "endfunction\n"
+        "function on_leave takes nothing returns nothing\n"
+        "  set leaves = leaves + 1\n"
+        "endfunction\n"
+        "function teleport_into takes nothing returns nothing\n"
+        "  call SetUnitPosition(mover, 40.0, 0.0)\n"
+        "endfunction\n"
+        "function teleport_out takes nothing returns nothing\n"
+        "  call SetUnitPosition(mover, 80.0, 0.0)\n"
+        "endfunction\n"
+        "function verify_crossings takes nothing returns nothing\n"
+        "  call BJassAssert(enters == 1, \"SetUnitPosition did not fire enter event\")\n"
+        "  call BJassAssert(leaves == 1, \"SetUnitPosition did not fire leave event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger enterTrigger = CreateTrigger()\n"
+        "  local trigger leaveTrigger = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call RegionAddRect(r, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(enterTrigger, r, null)\n"
+        "  call TriggerRegisterLeaveRegion(leaveTrigger, r, null)\n"
+        "  call TriggerAddAction(enterTrigger, function on_enter)\n"
+        "  call TriggerAddAction(leaveTrigger, function on_leave)\n"
+        "endfunction\n"));
+
+    jass_callbyname(level.vm, "teleport_into", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "teleport_out", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "verify_crossings", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
 }
 
 TEST(wc3_api, removed_regions_reuse_slots_without_lifetime_cap) {

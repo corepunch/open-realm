@@ -458,13 +458,21 @@ void G_ClearRegionRegistry(void) {
 }
 
 LPREGION G_RegionFromHandle(HANDLE handle) {
-    uintptr_t token = (uintptr_t)handle;
-    DWORD slot = (DWORD)((token & (((uintptr_t)1 << REGION_TOKEN_SLOT_BITS) - 1)) >> 2);
-    uintptr_t generation = token >> REGION_TOKEN_SLOT_BITS;
+    DWORD slot, generation;
     LPREGION region;
-    if ((token & 3) != 1 || slot >= MAX_REGIONS || slot >= level.num_regions) return NULL;
+    if (!G_RegionHandleParts(handle, &slot, &generation) || slot >= level.num_regions) return NULL;
     region = &level.regions[slot];
     return region->inuse && region->generation == generation ? region : NULL;
+}
+
+BOOL G_RegionHandleParts(HANDLE handle, DWORD *slot, DWORD *generation) {
+    uintptr_t token = (uintptr_t)handle;
+    DWORD const index = (DWORD)((token & (((uintptr_t)1 << REGION_TOKEN_SLOT_BITS) - 1)) >> 2);
+    uintptr_t const gen = token >> REGION_TOKEN_SLOT_BITS;
+    if ((token & 3) != 1 || index >= MAX_REGIONS || gen > REGION_HANDLE_GENERATION_MAX) return false;
+    if (slot) *slot = index;
+    if (generation) *generation = (DWORD)gen;
+    return true;
 }
 
 HANDLE G_RegionHandle(DWORD slot) {
@@ -478,10 +486,9 @@ HANDLE G_RegionHandle(DWORD slot) {
 LPEVENT G_EventFromHandle(HANDLE handle) {
     uintptr_t token = (uintptr_t)handle, base = (uintptr_t)level.events.handlers;
     if ((token & 3) == 3) {
-        DWORD slot = (DWORD)((token & (((uintptr_t)1 << EVENT_TOKEN_SLOT_BITS) - 1)) >> 2);
-        uintptr_t generation = token >> EVENT_TOKEN_SLOT_BITS;
+        DWORD slot, generation;
         LPEVENT event;
-        if (slot >= MAX_EVENTS) return NULL;
+        if (!G_EventHandleParts(handle, &slot, &generation)) return NULL;
         event = &level.events.handlers[slot];
         return event->inuse && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION) &&
             event->handle_generation == generation ? event : NULL;
@@ -492,6 +499,16 @@ LPEVENT G_EventFromHandle(HANDLE handle) {
         LPEVENT event = handle;
         return event->inuse ? event : NULL;
     }
+}
+
+BOOL G_EventHandleParts(HANDLE handle, DWORD *slot, DWORD *generation) {
+    uintptr_t token = (uintptr_t)handle;
+    DWORD const index = (DWORD)((token & (((uintptr_t)1 << EVENT_TOKEN_SLOT_BITS) - 1)) >> 2);
+    uintptr_t const gen = token >> EVENT_TOKEN_SLOT_BITS;
+    if ((token & 3) != 3 || index >= MAX_EVENTS || gen > EVENT_HANDLE_GENERATION_MAX) return false;
+    if (slot) *slot = index;
+    if (generation) *generation = (DWORD)gen;
+    return true;
 }
 
 HANDLE G_EventHandle(LPEVENT event) {
