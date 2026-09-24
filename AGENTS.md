@@ -37,6 +37,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
+| WC3 event-trigger queueing, synchronous `TriggerExecute`, coroutine context | [docs/games/warcraft-3/trigger-events.md](docs/games/warcraft-3/trigger-events.md) |
 | WC3 timer-dialog mission countdowns, stock FDF HUD, local visibility, save/load identity | [docs/games/warcraft-3/timer-dialogs.md](docs/games/warcraft-3/timer-dialogs.md) |
 | WC3 leaderboards, counted-objective HUDs, per-player assignment, save/load identity | [docs/games/warcraft-3/leaderboards.md](docs/games/warcraft-3/leaderboards.md) |
 | WC3 multiboard/texttag JASS registries, local display bits, presentation gaps | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |

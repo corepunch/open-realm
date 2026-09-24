@@ -23,6 +23,30 @@ coroutine runs:
 coroutines retain the same response context. The save/JASS snapshot serializers
 persist the queue/context fields introduced by the event bridge.
 
+## Explicit trigger execution
+
+Event dispatch evaluates conditions, then queues action coroutines for the JASS
+scheduler. A direct `TriggerExecute()` call instead starts each action and runs
+it immediately until it finishes or reaches its first wait. A waiting action
+remains scheduled to resume after the caller continues.
+`ConditionalTriggerExecute()` therefore exposes action writes before the
+action's first wait to its caller; if the action has no wait, all of its writes
+are visible when the native returns.
+
+Nested immediate actions must preserve the active parent coroutine. In
+particular, if the parent calls `TriggerSleepAction()` after a nested
+`TriggerExecute()`, it must still yield and resume at that point. `jass_resume()`
+restores the enclosing coroutine, player/unit response context, and loop index
+when the nested action returns.
+
+This distinction fixed Orc03's zeppelin victory gate. Its `ForGroup` callback
+executes a counter trigger for each zeppelin, then immediately checks the
+counter. Queuing those `TriggerExecute()` actions made the check run too early,
+so the victory trigger was skipped even when both zeppelins were home. The
+regression is covered by
+`wc3_jass_map.orc03_home_counter_actions_complete_before_victory_gate_check` and
+`wc3_jass_map.nested_trigger_execute_preserves_parent_coroutine`.
+
 ## Selection
 
 Interactive selection uses `G_SelectEntity()` / `G_DeselectEntity()` and emits
@@ -159,6 +183,9 @@ A `wc3_event_debug 2` Human01 run established these reusable facts:
 
 Focused coverage lives in:
 
+- `games/warcraft-3/game/tests/t_jass_map.c` — Orc03's synchronous `ForGroup` /
+  `ConditionalTriggerExecute` counter gate, direct trigger waits, and nested
+  parent-coroutine restoration;
 - `games/warcraft-3/game/tests/t_api.c` — selection locality, attacked response,
   order/item/Hero/region/range response context, spell response context;
 - `games/warcraft-3/game/tests/t_avatar.c` — a runtime-added spell can cast through
@@ -169,6 +196,7 @@ Focused coverage lives in:
 After building, useful targeted runs are:
 
 ```bash
+make test-wc3-engine WC3_PATTERN=wc3_jass_map.orc03_home_counter_actions_complete_before_victory_gate_check
 make test-wc3-engine WC3_PATTERN='wc3_api.*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.*'
 make test-wc3-engine WC3_PATTERN='wc3_save.round_trip_jass_timers'
