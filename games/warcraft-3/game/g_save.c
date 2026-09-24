@@ -78,7 +78,7 @@ enum {
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* The fixed edict layout is validated by SAVEHEADER.edict_size. */
-static DWORD const save_version = 44;
+static DWORD const save_version = 45;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -1939,8 +1939,9 @@ TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-41.bin",
         "/tmp/openwarcraft3-wc3-save-version-42.bin",
         "/tmp/openwarcraft3-wc3-save-version-43.bin",
+        "/tmp/openwarcraft3-wc3-save-version-44.bin",
     };
-    DWORD const old_versions[] = { 39, 40, 41, 42, 43 };
+    DWORD const old_versions[] = { 39, 40, 41, 42, 43, 44 };
 
     reset_entities();
     setup_test_world();
@@ -1956,7 +1957,7 @@ TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
 
 TEST(wc3_save, rejects_pre_waygate_edict_layout) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
-    LPCSTR old_path = "/tmp/openwarcraft3-wc3-save-version-44.bin";
+    LPCSTR old_path = "/tmp/openwarcraft3-wc3-save-old-edict-size.bin";
 
     reset_entities();
     setup_test_world();
@@ -1966,4 +1967,5 @@ TEST(wc3_save, rejects_pre_waygate_edict_layout) {
     remove(old_path);
     remove(filename);
 }
+
 #endif
