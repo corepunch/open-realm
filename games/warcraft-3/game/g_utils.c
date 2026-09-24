@@ -109,7 +109,16 @@ void G_DeferFreeEdict(LPEDICT ent) {
 /* Complete queued JASS removals after entity iteration and before the next snapshot. */
 void G_RunDeferredFrees(void) {
     while (deferred_free_count) {
-        deferred_free_t pending = deferred_frees[--deferred_free_count];
+        deferred_free_t pending = deferred_frees[deferred_free_count - 1];
+        /* Actions run after the normal event pass and can kill/remove more units.
+         * Drain their death callbacks before freeing, then re-read the removal queue. */
+        if (level.vm && pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time &&
+            G_HasPendingDeathEvent(pending.ent)) {
+            G_RunEvents();
+            jass_runevents(level.vm);
+            continue;
+        }
+        deferred_free_count--;
         if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
     }
 }
@@ -142,7 +151,7 @@ void G_SetPlayerEventSubject(LPEVENT evt, LPEDICT subject) {
 BOOL G_EventSubjectIsCurrent(LPEVENT evt) {
     return !evt->subject || !evt->subject_spawn_tracked ||
         (evt->subject->inuse && evt->subject->spawn_time == evt->subject_spawn_time &&
-         !G_IsDeferredFree(evt->subject));
+         (G_IsDeathEvent(evt->type) || !G_IsDeferredFree(evt->subject)));
 }
 
 #define JASS_GROUP_DEBUG_CHAIN_SIZE 256 // characters; bounds one captured JASS call chain for group diagnostics

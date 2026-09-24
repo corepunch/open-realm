@@ -5944,6 +5944,129 @@ TEST(wc3_api, gamecache_restore_preserves_explicit_red_unit_color) {
  * Death event context
  * ========================================================================= */
 
+/* Removal must preserve both death registrations and the dying-unit context until actions run. */
+static void death_events_before_corpse_removal(BOOL queued) {
+    LPEDICT victim;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit victim = null\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "  call BJassAssert(GetDyingUnit() == victim, \"wrong dying unit\")\n"
+        "  call BJassAssert(GetUnitTypeId(GetDyingUnit()) == 'hfoo', \"corpse freed before death action\")\n"
+        "endfunction\n"
+        "function kill_and_remove takes nothing returns nothing\n"
+        "  call KillUnit(victim)\n"
+        "  call RemoveUnit(victim)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 2, \"removing the corpse cancelled or duplicated death events\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set victim = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterDeathEvent(t, victim)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "endfunction\n"));
+    victim = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(victim);
+    jass_callbyname(level.vm, "kill_and_remove", queued);
+    level.started = level.scriptsStarted = true;
+    globals.RunFrame();
+    T_ASSERT(!victim->inuse);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    globals.RunFrame();
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, death_events_survive_same_tick_corpse_removal) { death_events_before_corpse_removal(false); }
+TEST(wc3_api, death_events_survive_removal_after_frame_event_pass) { death_events_before_corpse_removal(true); }
+
+TEST(wc3_api, death_events_drain_chained_corpse_removals) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit first = null\n"
+        "  unit second = null\n"
+        "  unit alive = null\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "  call BJassAssert(GetUnitTypeId(GetDyingUnit()) == 'hfoo', \"death context was freed\")\n"
+        "  if GetDyingUnit() == first then\n"
+        "    call KillUnit(second)\n"
+        "    call RemoveUnit(second)\n"
+        "    call RemoveUnit(alive)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function finish takes nothing returns nothing\n"
+        "  call KillUnit(first)\n"
+        "  call RemoveUnit(first)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 2, \"chained removals lost or invented death events\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set first = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  set second = CreateUnit(Player(0), 'hfoo', 128.0, 64.0, 0.0)\n"
+        "  set alive = CreateUnit(Player(0), 'hpea', 192.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "finish", true);
+    level.started = level.scriptsStarted = true;
+    globals.RunFrame();
+    FOR_LOOP(i, globals.num_edicts) if (i >= game.max_clients) T_ASSERT(!g_edicts[i].inuse);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    globals.RunFrame();
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
+    LPEDICT victim, replacement;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 0, \"death event reached a reused edict\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local unit victim = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterDeathEvent(t, victim)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "  call KillUnit(victim)\n"
+        "endfunction\n"));
+    victim = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(victim);
+    G_FreeEdict(victim);
+    level.time += 2000;
+    replacement = SP_SpawnAtLocation(MAKEFOURCC('h','p','e','a'), 0, &MAKE(VECTOR2, 64, 64));
+    T_ASSERT(replacement == victim);
+    G_DeferFreeEdict(replacement);
+    G_RunDeferredFrees();
+    T_ASSERT(!replacement->inuse);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, death_event_exposes_trigger_widget_and_killing_unit) {
     LPEDICT victim = NULL;
     LPEDICT killer = NULL;

@@ -2039,6 +2039,8 @@ void G_RemoveUnitStock(LPEDICT, DWORD);
 void G_AddUnitStockAll(DWORD, LONG, LONG);
 void G_RemoveUnitStockAll(DWORD);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+static inline BOOL G_IsDeathEvent(EVENTTYPE type) { return type == EVENT_UNIT_DEATH || type == EVENT_PLAYER_UNIT_DEATH; }
+BOOL G_HasPendingDeathEvent(LPCEDICT);
 void G_PublishEventResponse(LPEDICT, EVENTTYPE, LPEVENT);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);

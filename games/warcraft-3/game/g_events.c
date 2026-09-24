@@ -97,8 +97,10 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
     BOOL result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     DWORD matching_handlers = 0, invoked_handlers = 0;
+    /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
     if (evt->edict_spawn_tracked &&
-        (!subject || !subject->inuse || subject->spawn_time != evt->edict_spawn_time || G_IsDeferredFree(subject)))
+        (!subject || !subject->inuse || subject->spawn_time != evt->edict_spawn_time ||
+         (!G_IsDeathEvent(evt->type) && G_IsDeferredFree(subject))))
         return;
     if (evt->source_spawn_tracked &&
         (!evt->source || !evt->source->inuse || evt->source->spawn_time != evt->source_spawn_time || G_IsDeferredFree(evt->source))) {
@@ -371,6 +373,16 @@ void G_RunEntities(void) {
             continue;
         G_TouchTriggers(ent);
     }
+}
+
+/* A late-frame death must reach its actions before deferred removal clears the dying unit. */
+BOOL G_HasPendingDeathEvent(LPCEDICT ent) {
+    for (DWORD i = level.events.read; i < level.events.write; i++) {
+        GAMEEVENT const *evt = &level.events.queue[i % MAX_EVENT_QUEUE];
+        if (G_IsDeathEvent(evt->type) && evt->edict == ent &&
+            (!evt->edict_spawn_tracked || evt->edict_spawn_time == ent->spawn_time)) return true;
+    }
+    return false;
 }
 
 void G_RunEvents(void) {
