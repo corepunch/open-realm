@@ -202,12 +202,13 @@ TEST_JOBS ?= 16
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
 	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-core.xml" TEST_JUNIT_SUITE="test-core" $(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net \
+	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-ui test-renderer-view test-renderer-shadows test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
+$(eval $(call test_schema,test-sound,$(LIB_DIR) $(CLIENT_HEADERS) $(COMMON_HEADERS) sound/s_local.h vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(CFLAGS) -DBZ_TESTS -DTRUE=1 -DFALSE=0,$(BIN_DIR)/test_sound$(EXE_EXT),tests/test_runner.c tests/test_sound.c sound/s_sound.c sound/s_mp3.c shared/test.c,$(LIBS) -lm,))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_MDX_RIBBON_HEADLESS,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/mdx/r_mdx_load.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-mdx-ui,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable,$(BIN_DIR)/test_mdx_ui$(EXE_EXT),tests/test_runner.c tests/test_mdx_ui.c,-lshared -lm $(LIBS),))

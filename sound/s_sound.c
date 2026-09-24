@@ -3,8 +3,8 @@
  *
  * DBC SoundEntries kits and raw file paths are the two handle types.
  * Both carry a sfxcache_t* that is NULL until first use (lazy load).
- * WAV parsing and resampling are done with Q2's GetWavinfo/ResampleSfx;
- * output is always S16, 44100 Hz, mono to match the SDL device spec.
+ * WAV parsing and resampling follow Q2's GetWavinfo/ResampleSfx; minimp3
+ * decodes MP3 dialogue into the same S16, 44100 Hz, mono cache format.
  */
 #include "s_local.h"
 #include "common/stb_dbc.h"
@@ -70,8 +70,7 @@ static wavinfo_t GetWavinfo(const char *name, BYTE *wav, int wavlength) {
 
     FindChunk("RIFF");
     if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4))) {
-        /* Non-WAV assets such as WC3 campaign MP3 dialogue are expected until compressed audio is supported. */
-        //fprintf(stderr, "[sound] %s: missing RIFF/WAVE\n", name);
+        /* Format dispatch handles non-WAV audio before calling this parser. */
         return info;
     }
     iff_data = data_p + 12;
@@ -118,18 +117,32 @@ static wavinfo_t GetWavinfo(const char *name, BYTE *wav, int wavlength) {
  * Resample + allocate sfxcache_t (mirrors Q2 ResampleSfx, always → S16/44100/mono)
  * ========================================================================= */
 
+static BOOL s_is_mp3_path(LPCSTR path) {
+    LPCSTR extension = path ? strrchr(path, '.') : NULL;
+    return extension && !strcasecmp(extension, ".mp3");
+}
+
 static sfxcache_t *S_ResampleLoad(const char *path) {
     DWORD file_size = 0;
     BYTE *file_data = FS_ReadFile(path, &file_size);
     if (!file_data || !file_size) {
+        fprintf(stderr, "[sound] %s: failed to read audio file\n", path);
         FS_FreeFile(file_data);
         return NULL;
     }
 
+    if (file_size < 12 || strncmp((char *)file_data, "RIFF", 4) || strncmp((char *)file_data + 8, "WAVE", 4)) {
+        BOOL is_mp3 = s_is_mp3_path(path);
+        sfxcache_t *sc = is_mp3 ? s_mp3_decode(file_data, file_size) : NULL;
+        if (!sc) fprintf(stderr, "[sound] %s: %s\n", path,
+                         is_mp3 ? "MP3 decode failed" : "unsupported audio format (expected WAV or MP3)");
+        FS_FreeFile(file_data);
+        return sc;
+    }
+
     wavinfo_t info = GetWavinfo(path, file_data, (int)file_size);
     if (info.channels != 1) {
-        /* Restore this warning when format dispatch can distinguish unsupported MP3s from malformed WAVs. */
-        //fprintf(stderr, "[sound] %s: %d-channel audio, rejecting (need mono)\n", path, info.channels);
+        fprintf(stderr, "[sound] %s: %d-channel WAV, rejecting (need mono)\n", path, info.channels);
         FS_FreeFile(file_data);
         return NULL;
     }
@@ -201,6 +214,9 @@ static void S_InsertHash(DWORD kit_id, LPCSTR name) {
 static sfxcache_t *S_LoadKit(sSoundKit_t *k) {
     if (!k || k->id == 0 || !k->files[0] || !*k->files[0]) return NULL;
     if (k->cache) return k->cache;
+    if (k->load_attempted && k->load_attempt_sequence == s.registration_sequence) return NULL;
+    k->load_attempted = TRUE;
+    k->load_attempt_sequence = s.registration_sequence;
 
     char path[512];
     if (k->directoryBase && *k->directoryBase && *k->directoryBase != '(')
@@ -216,6 +232,9 @@ static sfxcache_t *S_LoadKit(sSoundKit_t *k) {
 static sfxcache_t *S_LoadSfx(sfx_t *sfx) {
     if (!sfx || !sfx->path[0]) return NULL;
     if (sfx->cache) return sfx->cache;
+    if (sfx->load_attempted && sfx->load_attempt_sequence == s.registration_sequence) return NULL;
+    sfx->load_attempted = TRUE;
+    sfx->load_attempt_sequence = s.registration_sequence;
     sfx->cache = S_ResampleLoad(sfx->path);
     return sfx->cache;
 }
@@ -269,6 +288,7 @@ void S_LoadSoundEntries(void) {
         k->volume = Stb_DbcReadFloat(rec + 24 * sizeof(DWORD));
         k->flags  = Stb_DbcField(&h, rec, 25);
         k->cache  = NULL;
+        k->load_attempted = FALSE;
         k->registration_sequence = s.registration_sequence;
         if (k->id >= s.kit_count) s.kit_count = k->id + 1;
         S_InsertHash(id, k->name);

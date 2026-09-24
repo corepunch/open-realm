@@ -20,7 +20,7 @@ war3map.j
     -> SDL audio device
 ```
 
-Do not route background music through `svc_sound`, `S_PlaySoundFile`, unit channels, or a world entity. The one-shot WC3 sound path remains WAV-oriented and has different ownership/lifetime semantics.
+Do not route background music through `svc_sound`, `S_PlaySoundFile`, unit channels, or a world entity. One-shot WAV and MP3 sounds use the separate sound cache; background music keeps its independent playlist, seek, fade, and streaming lifetime.
 
 ## Build Modes
 

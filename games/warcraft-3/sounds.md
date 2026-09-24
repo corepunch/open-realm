@@ -16,6 +16,13 @@ Warcraft III sound mappings are primarily driven by SLK tables shipped in `War3.
 | `UI/SoundInfo/AnimSounds.slk` | Animation-event sound labels resolved by MDX `SND` event objects |
 | `UI/SoundInfo/DialogSounds.slk` | Dialogue/voice sound labels used by JASS label constructors |
 
+## Audio Decoding
+
+One-shot sound paths accept mono PCM WAV and MP3 files. MP3 dialogue is decoded by the generic sound cache with vendored
+minimp3, then converted to the mixer's S16 / 44.1-kHz mono format; this works in builds without FFmpeg. Failed loads are
+cached for the active registration sequence to prevent repeated archive reads when a looping sound is unavailable.
+See [Sound Architecture](../../architecture/sound.md) for the client decode path.
+
 ## SLK Column Layout
 
 Both `UnitAckSounds.slk` and `UnitCombatSounds.slk` share the same column schema (X1–X19):
