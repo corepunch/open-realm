@@ -490,3 +490,11 @@ generations so recycled slots retain their `GetHandleId` identity after load.
 Version 42 persists the edict incarnation captured by unit-bound event
 registrations, preventing slot reuse from retargeting an old registration.
 Versions 39, 40, and 41 are rejected by the exact-version guard.
+
+Version 43 persists the queued-event subject incarnation (`edict_spawn_time`
+and `edict_spawn_tracked`) alongside its edict index, so an unread event is
+discarded if its subject slot has been freed or reused. Version 44 persists the
+queued-event source incarnation (`source_spawn_time` and
+`source_spawn_tracked`) alongside its edict index, allowing dispatch to clear a
+stale source without losing an event for a still-current subject. The exact-
+version guard rejects version 43 saves as well as earlier versions.

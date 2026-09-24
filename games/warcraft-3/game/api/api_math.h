@@ -118,8 +118,13 @@ DWORD RemoveRegion(LPJASS j) {
 DWORD RegionAddRect(LPJASS j) {
     LPREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
-    if (whichRegion && whichRegion->inuse && r && whichRegion->num_rects < MAX_REGION_SIZE)
-        whichRegion->rects[whichRegion->num_rects++] = *r;
+    if (!whichRegion || !whichRegion->inuse || !r) return 0;
+    if (whichRegion->num_rects >= MAX_REGION_SIZE) {
+        fprintf(stderr, "WC3: RegionAddRect rejected rectangle: MAX_REGION_SIZE (%u) reached\n",
+                (unsigned)MAX_REGION_SIZE);
+        return 0;
+    }
+    whichRegion->rects[whichRegion->num_rects++] = *r;
     return 0;
 }
 DWORD RegionClearRect(LPJASS j) {

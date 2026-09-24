@@ -97,10 +97,15 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
     BOOL result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     DWORD matching_handlers = 0, invoked_handlers = 0;
-
-    if ((evt->edict_spawn_tracked && (!subject->inuse || subject->spawn_time != evt->edict_spawn_time || G_IsDeferredFree(subject))) ||
-        (evt->source_spawn_tracked && (!evt->source->inuse || evt->source->spawn_time != evt->source_spawn_time || G_IsDeferredFree(evt->source))))
+    if (evt->edict_spawn_tracked &&
+        (!subject || !subject->inuse || subject->spawn_time != evt->edict_spawn_time || G_IsDeferredFree(subject)))
         return;
+    if (evt->source_spawn_tracked &&
+        (!evt->source || !evt->source->inuse || evt->source->spawn_time != evt->source_spawn_time || G_IsDeferredFree(evt->source))) {
+        evt->source = NULL;
+        evt->source_spawn_time = 0;
+        evt->source_spawn_tracked = false;
+    }
 
     if (result_event) {
         G_GameResultDebug("execute event type=%s subject_ent=%ld owner=%u",

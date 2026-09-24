@@ -141,7 +141,8 @@ void G_SetPlayerEventSubject(LPEVENT evt, LPEDICT subject) {
 
 BOOL G_EventSubjectIsCurrent(LPEVENT evt) {
     return !evt->subject || !evt->subject_spawn_tracked ||
-        (evt->subject->inuse && evt->subject->spawn_time == evt->subject_spawn_time);
+        (evt->subject->inuse && evt->subject->spawn_time == evt->subject_spawn_time &&
+         !G_IsDeferredFree(evt->subject));
 }
 
 #define JASS_GROUP_DEBUG_CHAIN_SIZE 256 // characters; bounds one captured JASS call chain for group diagnostics
