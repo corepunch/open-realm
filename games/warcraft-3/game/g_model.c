@@ -1,6 +1,9 @@
 #include "g_local.h"
 #include <ctype.h>
 #include <stdlib.h>
+#ifdef BZ_TESTS
+#include "shared/test.h"
+#endif
 
 enum {
     ID_SEQS = MAKEFOURCC('S','E','Q','S'),
@@ -32,9 +35,8 @@ static void ConvertMDLXAnimationName(LPANIMATION seq) {
             last_char = ch;
         }
     }
-    for (DWORD i = (DWORD)strlen(buffer) - 1; i > 0 && isspace(buffer[i]); i--) {
-        buffer[i] = '\0';
-    }
+    for (size_t len = strlen(buffer); len && isspace((unsigned char)buffer[len - 1]);)
+        buffer[--len] = '\0';
     seq->syncpoint = fnv1a32(buffer);
 }
 
@@ -180,6 +182,29 @@ static animation_t *LoadModelMDLX(BYTE const *data, DWORD data_size, DWORD *out_
     *out_count = num;
     return animations;
 }
+
+#ifdef BZ_TESTS
+TEST(wc3_model, empty_mdlx_sequence_name_does_not_break_animation_loading) {
+    enum { SEQ_SIZE = 132, HEADER_SIZE = 12 };
+    BYTE data[HEADER_SIZE + 2 * SEQ_SIZE] = {0};
+    DWORD chunk = ID_SEQS, chunk_size = 2 * SEQ_SIZE, count = 0;
+    animation_t *animations;
+
+    memcpy(data, "MDLX", 4);
+    memcpy(data + 4, &chunk, sizeof(chunk));
+    memcpy(data + 8, &chunk_size, sizeof(chunk_size));
+    memcpy(data + HEADER_SIZE + SEQ_SIZE, "Stand", 5);
+    animations = LoadModelMDLX(data, sizeof(data), &count);
+    T_NOT_NULL(animations);
+    T_EQ(count, 2);
+    if (animations && count == 2) {
+        T_STREQ(animations[0].name, "");
+        T_EQ(animations[0].syncpoint, fnv1a32(""));
+        T_STREQ(animations[1].name, "Stand");
+    }
+    if (animations) gi.MemFree(animations);
+}
+#endif
 
 /* ---- model cache ---- */
 
