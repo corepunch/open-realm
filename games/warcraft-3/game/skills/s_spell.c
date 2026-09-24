@@ -125,7 +125,6 @@ DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
 
 FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level) {
     abilityLevel_t const *row = G_AbilityLevel(code, level);
-    level = MAX(1, MIN(level, 4));
     switch (field) {
     case ABILITY_NUMBER_CAST: return row->cast;
     case ABILITY_NUMBER_DURATION: return row->dur;

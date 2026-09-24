@@ -185,7 +185,7 @@ typedef struct unitModification_t {
     DWORD modID;
     unitModificationType_t type;
     DWORD level;       /* w3a/w3q/w3d leveled fields; 0 for w3u */
-    DWORD dataPointer; /* w3a DataA-I column index; 0 for non-Data fields */
+    DWORD dataPointer; /* W3A: 1..9 address DataA..DataI; 0 for non-Data fields */
     HANDLE data;
 } unitModification_t;
 

@@ -1209,9 +1209,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         if (status->level && status->code == MAKEFOURCC('B', 'd', 'e', 'f')) {
-            DWORD level = MAX(1, MIN(status->level, 4));
-            AbilityData_t const *ability = G_AbilityData(MAKEFOURCC('A', 'I', 'd', 'a'));
-            armor += ability->level[level - 1].data[0].number;
+            armor += G_AbilityLevel(MAKEFOURCC('A', 'I', 'd', 'a'), status->level)->data[0].number;
         }
     }
     return armor + S_DevotionArmorBonus((LPEDICT)ent) + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) +

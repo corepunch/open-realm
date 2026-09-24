@@ -933,10 +933,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFire) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    AbilityData_t const *data = G_AbilityData(spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FLOAT duration = S_SpellDuration(spell->code, level, false);
-    LPCSTR buff = data->level[level - 1].buffID;
+    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius)
         if (buff && strlen(buff) >= 4) unit_addtimedstatus(target, buff, level, duration);

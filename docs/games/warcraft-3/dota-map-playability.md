@@ -147,7 +147,14 @@ unregistered (`SetCreepCampFilterState`, `GetLocationZ`, `CopySaveGame`, terrain
 pathing, `DestroyForce`, `TerrainDeformRipple`) are registered. `main()` then
 spends a long time filling arrays (`jass_set_array_value`) before returning to
 the frame loop — `+com_frame_limit` does not tick until `main()` returns.
-Custom `A00Y` map abilities and HUD draw remain gameplay follow-ups.
+Map AbilityData rows with custom rawcodes can inherit a registered mechanic
+through W3A DataA–I fields and `AbilityMetaData.slk`'s `useSpecific` list. Shared
+fields such as `Ocl1` also belong to Healing Wave and Forked Lightning, so a
+map-authored `Order` from `CampaignAbilityFunc.txt` selects the matching mechanic;
+ambiguous rows without that identity are logged and left unresolved. The `A00Y`
+fixture exercises Chain Lightning with authored rank-five values and the normal
+spell cast path. This does not implement custom JASS-triggered ability behavior
+or HUD drawing.
 
 Suggested order (GitHub #431 and children):
 
@@ -165,8 +172,9 @@ Suggested order (GitHub #431 and children):
    UnitDamageTarget, GetHeroStr/Agi/Int, shop stock/sell context, item user-data
    natives, StringHash/Case/Length, and minimal lightning/image/ubersplat handles.
    SetPlayerAbilityAvailable now stores per-player disabled ability rawcodes.
-6. Custom ability mechanics. Melee AbilityData work does not cover `A00Y`-style
-   map abilities.
+6. Custom ability mechanics (#448 — custom rawcode → base mechanic inference,
+   one-based DataA–I application, and map-authored ranks are implemented for
+   AbilityData-backed mechanics; custom JASS-triggered behavior remains follow-up).
 
 Parsing 4.1 MiB / 5,708 functions is unproven. Budget time for VM capacity
 after the mapscript actually loads.

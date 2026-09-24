@@ -469,6 +469,7 @@ static void SetUpgradeLevel(LPFRAMEDEF frame, DWORD upgrade, LPEDICT ent) {
 
 static DWORD StatusBuffCode(heroabilitystatus_t const *status) {
     AbilityData_t const *ability;
+    abilityLevel_t const *row;
     DWORD level;
     DWORD buff;
 
@@ -481,9 +482,10 @@ static DWORD StatusBuffCode(heroabilitystatus_t const *status) {
     if (status->timestamp) return 0;
     ability = G_AbilityData(status->code);
     if (!ability || !ability->id) return 0;
-    level = MIN(MAX(status->level, 1u), 4u) - 1u;
-    buff = RawcodeFromListToken(ability->level[level].buffID);
-    if (!buff && level != 0) buff = RawcodeFromListToken(ability->level[0].buffID);
+    level = MAX(status->level, 1u);
+    row = G_AbilityLevel(status->code, level);
+    buff = RawcodeFromListToken(row->buffID);
+    if (!buff && level != 1) buff = RawcodeFromListToken(G_AbilityLevel(status->code, 1)->buffID);
     return buff;
 }
 

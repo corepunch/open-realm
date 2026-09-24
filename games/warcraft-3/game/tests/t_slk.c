@@ -9,10 +9,13 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "../skills/s_skills.h"
 #include "common/stb_slk.h"
 #include "common/mpq.h"
 
 void setup_test_world(void);
+void reset_entities(void);
+LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 
 TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
     MAPINFO info = { 0 };
@@ -168,7 +171,7 @@ TEST(wc3_slk, map_w3a_applies_levels_and_data_a) {
     DWORD levels = 4; /* stock fixture AHhb uses 3 */
     unitModification_t mods[] = {
         { .modID = MAKEFOURCC('a','l','e','v'), .type = mod_int, .data = &levels },
-        { .modID = MAKEFOURCC('H','h','b','1'), .type = mod_real, .level = 1, .dataPointer = 0, .data = &data_a },
+        { .modID = MAKEFOURCC('H','h','b','1'), .type = mod_real, .level = 1, .dataPointer = 1, .data = &data_a },
     };
     unitData_t original = {
         .originalUnitID = id, .numbeOfModifications = 2, .modifications = mods
@@ -190,6 +193,149 @@ TEST(wc3_slk, map_w3a_applies_levels_and_data_a) {
     G_SetMapAbilityOverrides(NULL);
     T_EQ(G_AbilityData(id)->levels, before->levels);
     T_ASSERT(G_AbilityData(id)->level[0].data[0].number != 123.0f);
+}
+
+/* DotA A00Y is an original-table row whose W3A field IDs identify Chain Lightning.
+ * Its level-five data uses W3A's one-based dataPointer convention. */
+TEST(wc3_slk, map_w3a_custom_rawcode_inherits_mechanics_and_authored_level) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X13\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs1\"\nC;Y1;X5;K\"targs2\"\nC;Y1;X6;K\"targs3\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Rng2\"\nC;Y1;X9;K\"Rng3\"\n"
+        "C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\nC;Y1;X13;K\"DataA3\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\nC;Y2;X3;K\"3\"\n"
+        "C;Y2;X4;K\"air,ground,enemy\"\nC;Y2;X5;K\"air,ground,enemy\"\nC;Y2;X6;K\"air,ground,enemy\"\n"
+        "C;Y2;X7;K\"800\"\nC;Y2;X8;K\"800\"\nC;Y2;X9;K\"800\"\n"
+        "C;Y2;X10;K\"85\"\nC;Y2;X11;K\"4\"\nC;Y2;X12;K\"0.1\"\nC;Y2;X13;K\"100\"\nE\n";
+    DWORD const id = MAKEFOURCC('A','0','0','Y'), parent = MAKEFOURCC('A','O','c','l');
+    FLOAT damage = 300.0f, parent_damage = 125.0f, reduction = 0.0f, area = 600.0f;
+    DWORD bounces = 12;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('O','c','l','1'), .type = mod_unreal, .level = 5, .dataPointer = 1, .data = &damage },
+        { .modID = MAKEFOURCC('O','c','l','2'), .type = mod_int, .level = 5, .dataPointer = 2, .data = &bounces },
+        { .modID = MAKEFOURCC('O','c','l','3'), .type = mod_unreal, .level = 5, .dataPointer = 3, .data = &reduction },
+        { .modID = MAKEFOURCC('a','a','r','e'), .type = mod_unreal, .level = 5, .data = &area },
+    };
+    unitModification_t parent_mod = {
+        .modID = MAKEFOURCC('O','c','l','1'), .type = mod_unreal, .level = 3, .dataPointer = 1, .data = &parent_damage
+    };
+    unitData_t originals[] = {
+        { .originalUnitID = id, .numbeOfModifications = 4, .modifications = mods },
+        { .originalUnitID = parent, .numbeOfModifications = 1, .modifications = &parent_mod },
+    };
+    MAPINFO mapinfo = { .num_originalAbilities = 2, .originalAbilities = originals };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    abilityitem_t item;
+    UnitAbilities_t ability_list = { .abilList = "A00Y" };
+    LPEDICT caster, target, next, last, thinker = NULL;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    old = G_SetSLKRows("AbilityData", rows);
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    G_SetMapAbilityOverrides(&mapinfo);
+    T_EQ(G_AbilityCode(id), parent);
+    T_EQ(G_AbilityData(id)->levels, 5);
+    T_FEQ(G_AbilityLevel(id, 5)->data[0].number, damage, 0.001f);
+    T_EQ(G_AbilityLevel(id, 5)->data[1].id, bounces);
+    T_FEQ(G_AbilityLevel(id, 5)->data[2].number, reduction, 0.001f);
+    T_FEQ(G_AbilityLevel(id, 5)->area, area, 0.001f);
+    T_FEQ(G_AbilityLevel(id, 5)->range, 800.0f, 0.001f);
+    T_STREQ(G_AbilityLevel(id, 5)->targs, "air,ground,enemy");
+    T_FEQ(G_AbilityLevel(id, 1)->data[0].number, 85.0f, 0.001f);
+    T_FEQ(G_AbilityLevel(id, 3)->data[0].number, parent_damage, 0.001f);
+    item = S_AbilityItem(id);
+    T_ASSERT(item.ability && (item.ability->flags & AB_SPELL) && item.ability->proc == CAbilityChainLightning);
+    caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    next = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    last = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 192, 0);
+    caster->data.UnitAbilities = &ability_list;
+    caster->s.player = 0; target->s.player = next->s.player = last->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    target->svflags |= SVF_MONSTER; next->svflags |= SVF_MONSTER; last->svflags |= SVF_MONSTER;
+    target->targtype = next->targtype = last->targtype = TARG_GROUND;
+    caster->heroabilities[0] = (heroability_t){ .code = id, .level = 5 };
+    target->health.value = target->health.max_value = 1000.0f;
+    next->health.value = next->health.max_value = 1000.0f;
+    last->health.value = last->health.max_value = 1000.0f;
+    T_ASSERT(S_CastUnitTargetSpell(caster, id, target));
+    T_FEQ(target->health.value, 700.0f, 0.01f);
+    FILTER_EDICTS(ent, ent->think == chain_lightning_think) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
+    T_EQ(thinker->resources, 11);
+    T_FEQ(thinker->collision, 600.0f, 0.001f);
+    T_FEQ(thinker->wait, 300.0f, 0.001f);
+    level.time = thinker->freetime; G_RunEntities();
+    T_FEQ(next->health.value, 700.0f, 0.01f);
+    level.time += 250; G_RunEntities();
+    T_FEQ(last->health.value, 700.0f, 0.01f);
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Retail AbilityMetaData assigns Ocl1 to both Chain Lightning and Healing Wave.
+ * A field ID alone cannot select one of their different procedures. */
+TEST(wc3_slk, map_w3a_shared_field_without_identity_keeps_mechanic_unresolved) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\nC;Y2;X3;K\"3\"\n"
+        "C;Y3;X1;K\"AOhw\"\nC;Y3;X2;K\"AOhw\"\nC;Y3;X3;K\"3\"\nE\n";
+    DWORD id = MAKEFOURCC('A','0','0','Z'), healing = MAKEFOURCC('A','0','0','H');
+    FLOAT value = 20.0f;
+    unitModification_t mod = {
+        .modID = MAKEFOURCC('O','c','l','1'), .type = mod_unreal,
+        .level = 1, .dataPointer = 1, .data = &value
+    };
+    unitData_t originals[] = {
+        { .originalUnitID = id, .numbeOfModifications = 1, .modifications = &mod },
+        { .originalUnitID = healing, .numbeOfModifications = 1, .modifications = &mod },
+    };
+    MAPINFO info = { .num_originalAbilities = 2, .originalAbilities = originals };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    G_SetMapAbilityOverrides(&info);
+    T_EQ(G_AbilityCode(id), id);
+    T_ASSERT(!S_AbilityItem(id).ability);
+    T_EQ(G_AbilityCode(healing), MAKEFOURCC('A','O','h','w'));
+    T_ASSERT(S_AbilityItem(healing).ability->proc == CAbilityHealingWave);
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, map_w3a_roc_order_confirms_only_matching_field_parent) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\nE\n";
+    DWORD lightning = MAKEFOURCC('A','0','0','Y'), healing = MAKEFOURCC('A','0','0','H');
+    FLOAT value = 20.0f;
+    BYTE placeholder = 0;
+    unitModification_t mod = {
+        .modID = MAKEFOURCC('O','c','l','1'), .type = mod_unreal,
+        .level = 1, .dataPointer = 1, .data = &value
+    };
+    unitData_t originals[] = {
+        { .originalUnitID = lightning, .numbeOfModifications = 1, .modifications = &mod },
+        { .originalUnitID = healing, .numbeOfModifications = 1, .modifications = &mod },
+    };
+    MAPINFO info = { .num_originalAbilities = 2, .originalAbilities = originals };
+    slkTestData_t absent_meta = { .rows = &placeholder }, *old_meta;
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    old_meta = G_SetSLKRows("AbilityMetaData", &absent_meta);
+    G_SetMapAbilityOverrides(&info);
+    T_EQ(G_AbilityCode(lightning), MAKEFOURCC('A','O','c','l'));
+    T_EQ(G_AbilityCode(healing), healing);
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityMetaData", old_meta);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_slk, map_archive_w3a_parse_stores_original_ability_mods) {
@@ -218,7 +364,7 @@ TEST(wc3_slk, map_archive_w3a_parse_stores_original_ability_mods) {
     T_EQ(world.info.originalAbilities[0].numbeOfModifications, 2);
     T_EQ(world.info.originalAbilities[0].modifications[0].modID, MAKEFOURCC('a','l','e','v'));
     T_EQ(*(DWORD const *)world.info.originalAbilities[0].modifications[0].data, 3);
-    T_EQ(world.info.originalAbilities[0].modifications[1].dataPointer, 0);
+    T_EQ(world.info.originalAbilities[0].modifications[1].dataPointer, 1);
     T_EQ(world.info.originalAbilities[0].modifications[1].level, 1);
     T_FEQ(*(FLOAT const *)world.info.originalAbilities[0].modifications[1].data, 123.0f, 0.001f);
 
