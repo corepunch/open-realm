@@ -147,9 +147,12 @@ unregistered (`SetCreepCampFilterState`, `GetLocationZ`, `CopySaveGame`, terrain
 pathing, `DestroyForce`, `TerrainDeformRipple`) are registered. `main()` then
 spends a long time filling arrays (`jass_set_array_value`) before returning to
 the frame loop — `+com_frame_limit` does not tick until `main()` returns.
-Map AbilityData rows with custom rawcodes can inherit their registered mechanic
-from W3A DataA–I field IDs. `A00Y` now resolves to Chain Lightning through its
-`Ocl1`/`Ocl2`/`Ocl3` fields, including authored rank-five values and the normal
+Map AbilityData rows with custom rawcodes can inherit a registered mechanic
+through W3A DataA–I fields and `AbilityMetaData.slk`'s `useSpecific` list. Shared
+fields such as `Ocl1` also belong to Healing Wave and Forked Lightning, so a
+map-authored `Order` from `CampaignAbilityFunc.txt` selects the matching mechanic;
+ambiguous rows without that identity are logged and left unresolved. The `A00Y`
+fixture exercises Chain Lightning with authored rank-five values and the normal
 spell cast path. This does not implement custom JASS-triggered ability behavior
 or HUD drawing.
 

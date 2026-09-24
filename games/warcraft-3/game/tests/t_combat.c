@@ -1907,6 +1907,42 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_combat, endurance_aura_uses_map_authored_rank_five) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
+        "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"1\"\nE\n";
+    DWORD id = MAKEFOURCC('A','O','a','e'), levels = 5;
+    FLOAT area = 900.0f, speed = 75.0f;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('a','l','e','v'), .type = mod_int, .data = &levels },
+        { .modID = MAKEFOURCC('a','a','r','e'), .type = mod_real, .level = 5, .data = &area },
+        { .modID = MAKEFOURCC('O','a','e','2'), .type = mod_real, .level = 5, .dataPointer = 2, .data = &speed },
+    };
+    unitData_t original = { .originalUnitID = id, .numbeOfModifications = 3, .modifications = mods };
+    MAPINFO info = { .num_originalAbilities = 1, .originalAbilities = &original };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source, target;
+
+    reset_entities(); setup_test_world();
+    G_SetMapAbilityOverrides(&info);
+    source = make_combat_unit(MAKEFOURCC('O','b','l','m'), 725.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('o','g','r','u'), 700.0f, 100.0f, 0.0f);
+    source->s.player = target->s.player = 0;
+    source->heroabilities[0] = (heroability_t){ .code = id, .level = 5 };
+    target->attack1.cooldown = 1.0f;
+    target->attack1.damagePoint = 0.2f;
+    target->hero.agi = 0;
+
+    attack_melee_cooldown(target);
+    T_FEQ(target->wait, 0.8f / 1.75f, 0.001f);
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
     LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.agi = 1000;

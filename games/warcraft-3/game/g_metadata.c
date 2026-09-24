@@ -42,6 +42,7 @@ LPCSTR config_files[] = {
     "Units\\NightElfAbilityStrings.txt",
     "Units\\UndeadUnitStrings.txt",
     "Units\\NightElfAbilityFunc.txt",
+    "Units\\CampaignAbilityFunc.txt",
     "Units\\MiscData.txt",
     "Units\\UndeadUpgradeStrings.txt",
     NULL
@@ -423,6 +424,20 @@ static slkField_t const abil_schema[] = {
     { "heroAbilList", offsetof(UnitAbilities_t, heroAbilList), STB_SLK_STR  },
     { "auto",         offsetof(UnitAbilities_t, auto_),        STB_SLK_BOOL },
     { "InBeta",       offsetof(UnitAbilities_t, InBeta),       STB_SLK_BOOL },
+    { NULL, 0, 0 }
+};
+
+typedef struct {
+    DWORD id;
+    LPCSTR field, useSpecific;
+    LONG data;
+} abilityMetaData_t;
+
+static slkField_t const ability_meta_schema[] = {
+    { "",            offsetof(abilityMetaData_t, id),          STB_SLK_FOURCC },
+    { "field",       offsetof(abilityMetaData_t, field),       STB_SLK_STR    },
+    { "data",        offsetof(abilityMetaData_t, data),        STB_SLK_INT    },
+    { "useSpecific", offsetof(abilityMetaData_t, useSpecific), STB_SLK_STR    },
     { NULL, 0, 0 }
 };
 
@@ -833,6 +848,7 @@ UnitUI_t *g_UnitUI; DWORD g_UnitUICount; static slkIndex_t ui_idx;
 UnitWeapons_t *g_UnitWeapons; DWORD g_UnitWeaponsCount; static slkIndex_t weapons_idx;
 UnitAbilities_t *g_UnitAbilities; DWORD g_UnitAbilitiesCount; static slkIndex_t abil_idx;
 AbilityData_t *g_AbilityData; DWORD g_AbilityDataCount; static slkIndex_t ability_idx;
+static abilityMetaData_t *ability_metadata; static DWORD ability_metadata_count; static slkIndex_t ability_meta_idx;
 AbilityBuffData_t *g_AbilityBuffData; DWORD g_AbilityBuffDataCount; static slkIndex_t ability_buff_idx;
 Doodads_t *g_Doodads; DWORD g_DoodadsCount; static slkIndex_t doodad_idx;
 UberSplatData_t *g_UberSplatData; DWORD g_UberSplatDataCount; static slkIndex_t uber_idx;
@@ -903,6 +919,7 @@ static slkStore_t slk_stores[] = {
     { "UnitWeapons", "Units\\UnitWeapons.slk", weapons_schema, sizeof(*g_UnitWeapons), (void **)&g_UnitWeapons, &g_UnitWeaponsCount, &weapons_idx },
     { "UnitAbilities", "Units\\UnitAbilities.slk", abil_schema, sizeof(*g_UnitAbilities), (void **)&g_UnitAbilities, &g_UnitAbilitiesCount, &abil_idx },
     { "AbilityData", "Units\\AbilityData.slk", ability_schema, sizeof(*g_AbilityData), (void **)&g_AbilityData, &g_AbilityDataCount, &ability_idx },
+    { "AbilityMetaData", "Units\\AbilityMetaData.slk", ability_meta_schema, sizeof(*ability_metadata), (void **)&ability_metadata, &ability_metadata_count, &ability_meta_idx, true },
     /* AbilityBuffData.slk ships only in War3x.mpq; RoC hides expansion archives, so zero rows are legitimate. */
     { "AbilityBuffData", "Units\\AbilityBuffData.slk", ability_buff_schema, sizeof(*g_AbilityBuffData), (void **)&g_AbilityBuffData, &g_AbilityBuffDataCount, &ability_buff_idx, true },
     { "Doodads", "Doodads\\Doodads.slk", doodad_schema, sizeof(*g_Doodads), (void **)&g_Doodads, &g_DoodadsCount, &doodad_idx },
@@ -1503,33 +1520,95 @@ static abilityLevel_t const *SLKAbilityLevelForInheritance(AbilityData_t const *
     return row->level + MAX(1, MIN(level, last)) - 1;
 }
 
-/* Original-table map abilities have no parent rawcode in W3A. A data field such
- * as Ocl1 carries the parent's three-character ability code (AOcl) in its ID. */
-static DWORD MapAbilityParentFromFields(unitData_t const *ability) {
-    DWORD parent = 0, handler = 0;
+static BOOL MapAbilityFieldAllows(unitModification_t const *mod, DWORD candidate) {
+    abilityMetaData_t const *meta = FS_SLKLookup(&ability_meta_idx, mod->modID);
+    if (!meta || !meta->field || strcmp(meta->field, "Data") ||
+        meta->data != (LONG)mod->dataPointer || !meta->useSpecific) return false;
+    PARSE_LIST(meta->useSpecific, name, parse_segment)
+        if (strlen(name) == 4 && FS_SLKKey(name) == candidate) return true;
+    return false;
+}
 
+/* RoC has no AbilityMetaData.slk. A matching authored Order can still confirm
+ * the field-name candidate; absent that confirmation, leave it unresolved. */
+static DWORD MapAbilityParentFromOrder(unitData_t const *ability, LPCSTR order) {
+    DWORD parent = 0, handler = 0;
+    if (!order) return 0;
     FOR_LOOP(i, ability->numbeOfModifications) {
         unitModification_t const *mod = ability->modifications + i;
-        char field[5] = { 0 }, id[5] = { 0 };
+        char field[5] = { 0 };
         DWORD candidate, candidate_handler;
         AbilityData_t const *row;
-
+        LPCSTR candidate_order;
         if (mod->dataPointer < 1 || mod->dataPointer > 9) continue;
         memcpy(field, GetClassName(mod->modID), 4);
-        if (!((field[0] >= 'A' && field[0] <= 'Z') || (field[0] >= 'a' && field[0] <= 'z')) ||
-            field[3] != '0' + mod->dataPointer) continue;
+        if (field[3] != '0' + mod->dataPointer) return 0;
         candidate = MAKEFOURCC('A', field[0], field[1], field[2]);
         row = G_AbilityData(candidate);
-        if (!row || !row->id) continue;
+        candidate_order = FindConfigValue(GetClassName(candidate), "Order");
+        if (!row->id || !candidate_order || strcasecmp(order, candidate_order)) return 0;
         candidate_handler = row->code ? row->code : candidate;
-        if ((parent && parent != candidate) || (handler && handler != candidate_handler)) {
-            memcpy(id, GetClassName(ability->newUnitID ? ability->newUnitID : ability->originalUnitID), 4);
-            fprintf(stderr, "G_SetMapAbilityOverrides: conflicting base ability fields for %.4s\n", id);
+        if (handler && handler != candidate_handler) return 0;
+        if (!parent) parent = candidate;
+        handler = candidate_handler;
+    }
+    return parent;
+}
+
+/* Original-table custom rows omit the parent rawcode. AbilityMetaData lists
+ * every stock ability that owns each Data field; the map's Order selects among
+ * different mechanics that share a field (Ocl1 is used by lightning and healing). */
+static DWORD MapAbilityParentFromFields(unitData_t const *ability) {
+    abilityMetaData_t const *first = NULL;
+    DWORD parent = 0, handler = 0;
+    char id[5] = { 0 };
+    LPCSTR order;
+
+    memcpy(id, GetClassName(ability->newUnitID ? ability->newUnitID : ability->originalUnitID), 4);
+    order = FindConfigValue(id, "Order");
+    if (!ability_metadata_count) return MapAbilityParentFromOrder(ability, order);
+    FOR_LOOP(i, ability->numbeOfModifications) {
+        unitModification_t const *mod = ability->modifications + i;
+        abilityMetaData_t const *meta;
+        if (mod->dataPointer < 1 || mod->dataPointer > 9) continue;
+        meta = FS_SLKLookup(&ability_meta_idx, mod->modID);
+        if (!meta || !meta->field || strcmp(meta->field, "Data") ||
+            meta->data != (LONG)mod->dataPointer || !meta->useSpecific) {
+            fprintf(stderr, "G_SetMapAbilityOverrides: no AbilityMetaData for %.4s field %.4s\n",
+                    id, GetClassName(mod->modID));
+            return 0;
+        }
+        if (!first) first = meta;
+    }
+    if (!first) return 0;
+    PARSE_LIST(first->useSpecific, name, parse_segment) {
+        AbilityData_t const *row;
+        DWORD candidate, candidate_handler;
+        LPCSTR candidate_order;
+        BOOL valid = true;
+
+        if (strlen(name) != 4) continue;
+        candidate = FS_SLKKey(name);
+        row = G_AbilityData(candidate);
+        if (!row || !row->id) continue;
+        FOR_LOOP(i, ability->numbeOfModifications) {
+            unitModification_t const *mod = ability->modifications + i;
+            if (mod->dataPointer >= 1 && mod->dataPointer <= 9 &&
+                !MapAbilityFieldAllows(mod, candidate)) { valid = false; break; }
+        }
+        if (!valid) continue;
+        candidate_order = FindConfigValue(name, "Order");
+        if (order && (!candidate_order || strcasecmp(order, candidate_order))) continue;
+        candidate_handler = row->code ? row->code : candidate;
+        if (parent && handler != candidate_handler) {
+            fprintf(stderr, "G_SetMapAbilityOverrides: ambiguous ability mechanic for %.4s%s%s\n",
+                    id, order ? " order " : "", order ? order : "");
             return 0;
         }
         if (!parent) parent = candidate;
         handler = candidate_handler;
     }
+    if (!parent) fprintf(stderr, "G_SetMapAbilityOverrides: no matching ability mechanic for %.4s\n", id);
     return parent;
 }
 

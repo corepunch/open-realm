@@ -277,6 +277,67 @@ TEST(wc3_slk, map_w3a_custom_rawcode_inherits_mechanics_and_authored_level) {
     free_slk_rows(rows);
 }
 
+/* Retail AbilityMetaData assigns Ocl1 to both Chain Lightning and Healing Wave.
+ * A field ID alone cannot select one of their different procedures. */
+TEST(wc3_slk, map_w3a_shared_field_without_identity_keeps_mechanic_unresolved) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\nC;Y2;X3;K\"3\"\n"
+        "C;Y3;X1;K\"AOhw\"\nC;Y3;X2;K\"AOhw\"\nC;Y3;X3;K\"3\"\nE\n";
+    DWORD id = MAKEFOURCC('A','0','0','Z'), healing = MAKEFOURCC('A','0','0','H');
+    FLOAT value = 20.0f;
+    unitModification_t mod = {
+        .modID = MAKEFOURCC('O','c','l','1'), .type = mod_unreal,
+        .level = 1, .dataPointer = 1, .data = &value
+    };
+    unitData_t originals[] = {
+        { .originalUnitID = id, .numbeOfModifications = 1, .modifications = &mod },
+        { .originalUnitID = healing, .numbeOfModifications = 1, .modifications = &mod },
+    };
+    MAPINFO info = { .num_originalAbilities = 2, .originalAbilities = originals };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    G_SetMapAbilityOverrides(&info);
+    T_EQ(G_AbilityCode(id), id);
+    T_ASSERT(!S_AbilityItem(id).ability);
+    T_EQ(G_AbilityCode(healing), MAKEFOURCC('A','O','h','w'));
+    T_ASSERT(S_AbilityItem(healing).ability->proc == CAbilityHealingWave);
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, map_w3a_roc_order_confirms_only_matching_field_parent) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\nE\n";
+    DWORD lightning = MAKEFOURCC('A','0','0','Y'), healing = MAKEFOURCC('A','0','0','H');
+    FLOAT value = 20.0f;
+    BYTE placeholder = 0;
+    unitModification_t mod = {
+        .modID = MAKEFOURCC('O','c','l','1'), .type = mod_unreal,
+        .level = 1, .dataPointer = 1, .data = &value
+    };
+    unitData_t originals[] = {
+        { .originalUnitID = lightning, .numbeOfModifications = 1, .modifications = &mod },
+        { .originalUnitID = healing, .numbeOfModifications = 1, .modifications = &mod },
+    };
+    MAPINFO info = { .num_originalAbilities = 2, .originalAbilities = originals };
+    slkTestData_t absent_meta = { .rows = &placeholder }, *old_meta;
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    old_meta = G_SetSLKRows("AbilityMetaData", &absent_meta);
+    G_SetMapAbilityOverrides(&info);
+    T_EQ(G_AbilityCode(lightning), MAKEFOURCC('A','O','c','l'));
+    T_EQ(G_AbilityCode(healing), healing);
+    G_SetMapAbilityOverrides(NULL);
+    G_SetSLKRows("AbilityMetaData", old_meta);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, map_archive_w3a_parse_stores_original_ability_mods) {
     HANDLE archive = NULL;
     DWORD size = 0;

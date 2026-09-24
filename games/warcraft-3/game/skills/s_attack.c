@@ -673,10 +673,11 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
         FOR_LOOP(i, globals.num_edicts) {
             LPEDICT aura = g_edicts + i;
             DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
-            if (S_AuraUnitActive(aura) && level && S_SpellIsFriend(aura, self) &&
-                Vector2_distance(&aura->s.origin2, &self->s.origin2) <=
-                G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].area)
-                total_bonus += G_AbilityData(MAKEFOURCC('A', 'O', 'a', 'e'))->level[level - 1].data[1].number * 0.01f;
+            abilityLevel_t const *ability_level;
+            if (!S_AuraUnitActive(aura) || !level || !S_SpellIsFriend(aura, self)) continue;
+            ability_level = G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), level);
+            if (Vector2_distance(&aura->s.origin2, &self->s.origin2) <= ability_level->area)
+                total_bonus += ability_level->data[1].number * 0.01f;
         }
     }
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm

@@ -1,0 +1,11 @@
+[AOcl]
+Order=chainlightning
+
+[AOhw]
+Order=healingwave
+
+[A00H]
+Order=healingwave
+
+[A00Y]
+Order=chainlightning
