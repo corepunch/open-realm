@@ -101,8 +101,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
-    AbilityData_t const *data = G_AbilityData(spell->code);
-    LPCSTR buff = data->level[level - 1].buffID;
+    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
 
     if (!target || !buff || strlen(buff) < 4) {
         fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (LPCSTR)&spell->code);
@@ -154,8 +153,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    AbilityData_t const *data = G_AbilityData(spell->code);
-    LPCSTR buff = data->level[level - 1].buffID;
+    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
     LPEDICT target = st.entity;
     FLOAT duration;
 

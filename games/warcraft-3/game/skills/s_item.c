@@ -134,10 +134,9 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
     LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
     DWORD level = 1;
-    AbilityData_t const *data = G_AbilityData(code);
     FLOAT bonus = S_SpellData(code, level, 1);
     FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
-    LPCSTR buff = data->level[level - 1].buffID;
+    LPCSTR buff = G_AbilityLevel(code, level)->buffID;
     DWORD affected = 0;
 
     if (!caster || bonus <= 0.0f || area < 0.0f || !buff || strlen(buff) < 4) {

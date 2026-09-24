@@ -293,11 +293,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityDeathAndDecay) {
 
 static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    AbilityData_t const *data = G_AbilityData(spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FLOAT duration = S_SpellDuration(spell->code, level, false);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    LPCSTR buff = data->level[level - 1].buffID;
+    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
 
     FILTER_EDICTS(target, target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
