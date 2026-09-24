@@ -78,6 +78,7 @@ struct jass_context {
     LPPLAYER playerState;
     LPPLAYER localPlayerState;
     HANDLE timer;
+    HANDLE region;
     DWORD timer_generation;
     BOOL timer_pending;
     LPCJASSFUNC func;

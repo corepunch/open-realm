@@ -115,7 +115,7 @@ static void reset_test_state(void) {
     G_ResetSelectionSoundState();
     G_ResetSoundPresentationState();
     G_BotShutdown();
-    if (level.vm) { jass_close(level.vm); }
+    if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_FowShutdown();
     G_BlightShutdown();
     globals.max_edicts = MAX_ENTITIES;
@@ -149,6 +149,7 @@ static void reset_test_state(void) {
         g_edicts[i].client = &game.clients[i];
     }
     G_ClearJassGroupRegistry();
+    G_ClearRegionRegistry();
     G_ClearHashtableRegistry();
     memset(&level, 0, sizeof(level));
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;

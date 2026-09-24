@@ -19,6 +19,7 @@ type questitem        extends handle
 type playergameresult extends handle
 type trigger          extends handle
 type event            extends handle
+type race             extends handle
 type triggeraction    extends handle
 type playerevent      extends handle
 type playerunitevent  extends handle
@@ -100,6 +101,7 @@ constant native GetCameraBoundMaxY takes nothing returns real
 
 // Map and player configuration.
 native ConvertAllianceType   takes integer i returns alliancetype
+native ConvertRace           takes integer i returns race
 native ConvertRacePref       takes integer i returns racepreference
 native ConvertMapControl     takes integer i returns mapcontrol
 native ConvertGameType       takes integer i returns gametype

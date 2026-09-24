@@ -462,17 +462,17 @@ DWORD ForForce(LPJASS j) {
     return 0;
 }
 DWORD IsUnitInRegion(LPJASS j) {
-    LPCREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPCREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCEDICT whichUnit = jass_checkhandle(j, 2, "unit");
     return jass_pushboolean(j, whichRegion && whichUnit && G_RegionContains(whichRegion, &whichUnit->s.origin2));
 }
 DWORD IsPointInRegion(LPJASS j) {
-    LPCREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPCREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     VECTOR2 point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     return jass_pushboolean(j, whichRegion && G_RegionContains(whichRegion, &point));
 }
 DWORD IsLocationInRegion(LPJASS j) {
-    LPCREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPCREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
     return jass_pushboolean(j, whichRegion && whichLocation && G_RegionContains(whichRegion, whichLocation));
 }

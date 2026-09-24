@@ -109,7 +109,16 @@ void G_DeferFreeEdict(LPEDICT ent) {
 /* Complete queued JASS removals after entity iteration and before the next snapshot. */
 void G_RunDeferredFrees(void) {
     while (deferred_free_count) {
-        deferred_free_t pending = deferred_frees[--deferred_free_count];
+        deferred_free_t pending = deferred_frees[deferred_free_count - 1];
+        /* Actions run after the normal event pass and can kill/remove more units.
+         * Drain their death callbacks before freeing, then re-read the removal queue. */
+        if (level.vm && pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time &&
+            G_HasPendingDeathEvent(pending.ent)) {
+            G_RunEvents();
+            jass_runevents(level.vm);
+            continue;
+        }
+        deferred_free_count--;
         if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
     }
 }
@@ -117,12 +126,32 @@ void G_RunDeferredFrees(void) {
 void G_ResetDeferredFrees(void) { deferred_free_count = 0; }
 
 LPEVENT G_MakeEvent(EVENTTYPE type) {
-    FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse) {
+    FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse && !level.events.handlers[i].generation_exhausted) {
         LPEVENT evt = &level.events.handlers[i];
-        memset(evt, 0, sizeof(*evt)); evt->inuse = true; evt->type = type; return evt;
+        uintptr_t generation = evt->handle_generation;
+        memset(evt, 0, sizeof(*evt)); evt->handle_generation = generation;
+        evt->inuse = true; evt->type = type; return evt;
     }
     fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
     return NULL;
+}
+
+void G_SetEventSubject(LPEVENT evt, LPEDICT subject) {
+    evt->subject = subject;
+    evt->subject_spawn_time = subject ? subject->spawn_time : 0;
+    evt->subject_spawn_tracked = subject != NULL;
+}
+
+void G_SetPlayerEventSubject(LPEVENT evt, LPEDICT subject) {
+    evt->subject = subject;
+    evt->subject_spawn_time = 0;
+    evt->subject_spawn_tracked = false;
+}
+
+BOOL G_EventSubjectIsCurrent(LPEVENT evt) {
+    return !evt->subject || !evt->subject_spawn_tracked ||
+        (evt->subject->inuse && evt->subject->spawn_time == evt->subject_spawn_time &&
+         (G_IsDeathEvent(evt->type) || !G_IsDeferredFree(evt->subject)));
 }
 
 #define JASS_GROUP_DEBUG_CHAIN_SIZE 256 // characters; bounds one captured JASS call chain for group diagnostics
@@ -430,6 +459,73 @@ void G_ClearJassGroupRegistry(void) {
     level.group_capacity = 0;
     level.first_free_group = 0;
     G_ResetJassGroupDebug();
+}
+
+void G_ClearRegionRegistry(void) {
+    memset(level.regions, 0, sizeof(level.regions));
+    level.num_regions = 0;
+}
+
+LPREGION G_RegionFromHandle(HANDLE handle) {
+    DWORD slot, generation;
+    LPREGION region;
+    if (!G_RegionHandleParts(handle, &slot, &generation) || slot >= level.num_regions) return NULL;
+    region = &level.regions[slot];
+    return region->inuse && region->generation == generation ? region : NULL;
+}
+
+BOOL G_RegionHandleParts(HANDLE handle, DWORD *slot, DWORD *generation) {
+    uintptr_t token = (uintptr_t)handle;
+    DWORD const index = (DWORD)((token & (((uintptr_t)1 << REGION_TOKEN_SLOT_BITS) - 1)) >> 2);
+    uintptr_t const gen = token >> REGION_TOKEN_SLOT_BITS;
+    if ((token & 3) != 1 || index >= MAX_REGIONS || gen > REGION_HANDLE_GENERATION_MAX) return false;
+    if (slot) *slot = index;
+    if (generation) *generation = (DWORD)gen;
+    return true;
+}
+
+HANDLE G_RegionHandle(DWORD slot) {
+    LPREGION region;
+    if (slot >= level.num_regions || slot >= MAX_REGIONS) return NULL;
+    region = &level.regions[slot];
+    if (!region->inuse) return NULL;
+    return (HANDLE)((region->generation << REGION_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 1);
+}
+
+LPEVENT G_EventFromHandle(HANDLE handle) {
+    uintptr_t token = (uintptr_t)handle, base = (uintptr_t)level.events.handlers;
+    if ((token & 3) == 3) {
+        DWORD slot, generation;
+        LPEVENT event;
+        if (!G_EventHandleParts(handle, &slot, &generation)) return NULL;
+        event = &level.events.handlers[slot];
+        return event->inuse && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION) &&
+            event->handle_generation == generation ? event : NULL;
+    }
+    if (token < base || token >= base + sizeof(level.events.handlers) ||
+        (token - base) % sizeof(*level.events.handlers)) return NULL;
+    {
+        LPEVENT event = handle;
+        return event->inuse ? event : NULL;
+    }
+}
+
+BOOL G_EventHandleParts(HANDLE handle, DWORD *slot, DWORD *generation) {
+    uintptr_t token = (uintptr_t)handle;
+    DWORD const index = (DWORD)((token & (((uintptr_t)1 << EVENT_TOKEN_SLOT_BITS) - 1)) >> 2);
+    uintptr_t const gen = token >> EVENT_TOKEN_SLOT_BITS;
+    if ((token & 3) != 3 || index >= MAX_EVENTS || gen > EVENT_HANDLE_GENERATION_MAX) return false;
+    if (slot) *slot = index;
+    if (generation) *generation = (DWORD)gen;
+    return true;
+}
+
+HANDLE G_EventHandle(LPEVENT event) {
+    DWORD slot;
+    if (!event) return NULL;
+    if (event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION) return event;
+    slot = (DWORD)(event - level.events.handlers);
+    return (HANDLE)((event->handle_generation << EVENT_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 3);
 }
 
 LPTRIGGER G_AllocJassTrigger(void) {

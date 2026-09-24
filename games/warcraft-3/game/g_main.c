@@ -204,7 +204,7 @@ static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
         if (!G_LimitMatches(evt->limitop, before, evt->limitval) &&
             G_LimitMatches(evt->limitop, after, evt->limitval))
         {
-            G_PublishEvent(NULL, EVENT_GAME_STATE_LIMIT)->responseTo = evt;
+            G_PublishEventResponse(NULL, EVENT_GAME_STATE_LIMIT, evt);
         }
     }
 }
@@ -527,6 +527,7 @@ static void G_ShutdownGame(void) {
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearJassGroupRegistry();
+    G_ClearRegionRegistry();
     G_FowShutdown();
     G_BlightShutdown();
     G_FreeModels();
@@ -1018,7 +1019,11 @@ GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source
     memset(evt, 0, sizeof(*evt));
     evt->type = type;
     evt->edict = edict;
+    evt->edict_spawn_time = edict ? edict->spawn_time : 0;
+    evt->edict_spawn_tracked = edict && edict->inuse;
     evt->source = source;
+    evt->source_spawn_time = source ? source->spawn_time : 0;
+    evt->source_spawn_tracked = source && source->inuse;
     evt->value = value;
     if (type == EVENT_PLAYER_VICTORY || type == EVENT_PLAYER_DEFEAT) {
         G_GameResultDebug("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",
@@ -1048,6 +1053,11 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT sourc
 
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     return G_PublishEventWithValue(edict, type, NULL, 0);
+}
+
+void G_PublishEventResponse(LPEDICT edict, EVENTTYPE type, LPEVENT response_to) {
+    GAMEEVENT *event = G_PublishEvent(edict, type);
+    if (event) event->responseTo = response_to;
 }
 
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned) {

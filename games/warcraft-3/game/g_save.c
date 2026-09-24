@@ -1,4 +1,9 @@
 #include "g_local.h"
+#ifdef BZ_TESTS
+#include "shared/test.h"
+void reset_entities(void);
+void setup_test_world(void);
+#endif
 
 typedef enum {
     F_INT,
@@ -7,6 +12,7 @@ typedef enum {
     F_GSTRING,            // string on disk, pointer in memory, TAG_GAME
     F_VECTOR,
     F_REGION,
+    F_REGION_REGISTRY,
     F_ANGLEHACK,
     F_EDICT,            // index on disk, pointer in memory
     F_ITEM,                // index on disk, pointer in memory
@@ -47,6 +53,7 @@ typedef struct {
 #define F_METADATA_F_GSTRING(...) 0, 0
 #define F_METADATA_F_VECTOR(...) 0, 0
 #define F_METADATA_F_REGION(...) 0, 0
+#define F_METADATA_F_REGION_REGISTRY(count, schema) count, (uintptr_t)(schema)
 #define F_METADATA_F_ANGLEHACK(...) 0, 0
 #define F_METADATA_F_EDICT(count, flags) count, flags
 #define F_METADATA_F_ITEM(count, flags) count, flags
@@ -70,9 +77,9 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Timer generation and event-ring layout are serialized state; reject older
- * saves rather than decoding those records with shifted field boundaries. */
-static DWORD const save_version = 39;
+/* Timer, region/event handle generation, and event-ring state are serialized;
+ * reject older saves rather than decoding records with shifted boundaries. */
+static DWORD const save_version = 44;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -173,6 +180,7 @@ typedef enum {
     JASS_HANDLE_HASHTABLE,
     JASS_HANDLE_WEATHER,
     JASS_HANDLE_LIGHTNING,
+    JASS_HANDLE_REGION,
 } jassHandleDomain_t;
 
 static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
@@ -196,6 +204,7 @@ static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_doma
     { "hashtable", JASS_HANDLE_HASHTABLE },
     { "weathereffect", JASS_HANDLE_WEATHER },
     { "lightning", JASS_HANDLE_LIGHTNING },
+    { "region", JASS_HANDLE_REGION },
 };
 
 static field_t const timer_dialog_fields[] = {
@@ -245,8 +254,11 @@ static field_t const lightning_fields[] = {
 static field_t const save_event_fields[] = {
     F(gevent_s, type, F_INT),
     F(gevent_s, subject, F_EDICT, 0, FIELD_NONE),
+    F(gevent_s, subject_spawn_time, F_INT),
+    F(gevent_s, subject_spawn_tracked, F_INT),
     F(gevent_s, trigger, F_TRIGGER, 0, FIELD_NONE),
     F(gevent_s, timer, F_TIMER, 0, FIELD_NONE),
+    F(gevent_s, filter, F_FUNCTION),
     F(gevent_s, region, F_REGION),
     F(gevent_s, range, F_FLOAT),
     F(gevent_s, state, F_INT),
@@ -254,13 +266,31 @@ static field_t const save_event_fields[] = {
     F(gevent_s, limitval, F_FLOAT),
     F(gevent_s, variable, F_LSTRING),
     F(gevent_s, inuse, F_INT),
+    F(gevent_s, handle_generation, F_INT),
+    F(gevent_s, generation_exhausted, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const box2_fields[] = {
+    TF(BOX2, min, F_VECTOR), TF(BOX2, max, F_VECTOR),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const region_fields[] = {
+    F(gregion_s, rects, F_STRUCT, MAX_REGION_SIZE, box2_fields),
+    F(gregion_s, num_rects, F_INT), F(gregion_s, inuse, F_INT),
+    F(gregion_s, generation, F_INT), F(gregion_s, exhausted, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const save_game_event_fields[] = {
     F(gameevent_s, type, F_INT),
     F(gameevent_s, edict, F_EDICT, 0, FIELD_NONE),
+    F(gameevent_s, edict_spawn_time, F_INT),
+    F(gameevent_s, edict_spawn_tracked, F_INT),
     F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
+    F(gameevent_s, source_spawn_time, F_INT),
+    F(gameevent_s, source_spawn_tracked, F_INT),
     F(gameevent_s, value, F_INT),
     F(gameevent_s, point, F_VECTOR),
     F(gameevent_s, has_point, F_INT),
@@ -454,6 +484,7 @@ static field_t const level_fields[] = {
     F(level_locals, multiboard_items, F_STRUCT, MAX_MULTIBOARD_ITEMS, multiboard_item_fields),
     F(level_locals, texttags, F_STRUCT, MAX_TEXTTAGS, texttag_fields),
     F(level_locals, hashtables, F_STRUCT, MAX_HASHTABLES, hashtable_fields),
+    FC(level_locals, regions, F_REGION_REGISTRY, MAX_REGIONS, region_fields, num_regions),
     F(level_locals, events.handlers, F_STRUCT, MAX_EVENTS, save_event_fields),
     FR(level_locals, events.queue, MAX_EVENT_QUEUE, &game_event_ring),
     { NULL, 0, 0, 0, 0, 0 }
@@ -848,13 +879,14 @@ void G_ClearSaveRegistries(void) {
 
 static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWORD events) {
     if (groups < level.num_groups || timers < level.num_timers || triggers < level.num_triggers ||
-        events < ActiveEventCount() || groups > MAX_SAVE_GROUP_HANDLES || timers > MAX_TIMERS ||
+        groups > MAX_SAVE_GROUP_HANDLES || timers > MAX_TIMERS ||
         triggers > MAX_TRIGGERS || events > MAX_EVENTS)
         return false;
     if (!G_EnsureJassGroupSlots(groups)) return false;
     while (level.num_timers < timers) if (!G_AllocJassTimer()) return false;
     while (level.num_triggers < triggers) if (!G_AllocJassTrigger()) return false;
-    while (ActiveEventCount() < events) if (!G_MakeEvent(0)) return false;
+    /* Event slots are a fixed serialized table. Preserve holes and retired
+     * registrations from the save instead of padding the live map registry. */
     return true;
 }
 
@@ -1073,6 +1105,12 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         *id = (DWORD)((pointer - base) / sizeof(*effect));
         return true;
     }
+    if (domain == JASS_HANDLE_REGION) {
+        LPREGION region = G_RegionFromHandle(value);
+        if (!region) return false;
+        *id = (DWORD)(region - level.regions);
+        return true;
+    }
     if (domain == JASS_HANDLE_QUEST) {
         if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
             *id = (DWORD)((LPQUEST)value - level.quests); return true;
@@ -1085,7 +1123,8 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         return false;
     }
     if (domain == JASS_HANDLE_EVENT) {
-        return EventId(value, id);
+        LPEVENT event = G_EventFromHandle(value);
+        return event && EventId(event, id);
     }
     return TriggerIndex(value, id);
 }
@@ -1114,6 +1153,12 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
         return id < MAX_HASHTABLES && level.hashtables[id].inuse ? &level.hashtables[id] : NULL;
     if (domain == JASS_HANDLE_LIGHTNING)
         return id < MAX_LIGHTNING_EFFECTS && level.lightning_effects[id].inuse ? &level.lightning_effects[id] : NULL;
+    if (domain == JASS_HANDLE_REGION)
+        return G_RegionHandle(id);
+    if (domain == JASS_HANDLE_EVENT) {
+        LPEVENT event = EventById(id);
+        return G_EventHandle(event);
+    }
     return JassListHandle(domain, id);
 }
 
@@ -1303,9 +1348,13 @@ static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
     case F_TIMER:
         if (index >= (int)level.num_timers) return false;
         *(LPGTIMER *)ptr = index < 0 ? NULL : &level.timers[index]; return true;
-    case F_EVENT:
-        if (index >= (int)ActiveEventCount()) return false;
-        *(LPEVENT *)ptr = index < 0 ? NULL : EventById(index); return true;
+    case F_EVENT: {
+        LPEVENT event;
+        if (index < 0) { *(LPEVENT *)ptr = NULL; return true; }
+        event = EventById((DWORD)index);
+        if (!event) return false;
+        *(LPEVENT *)ptr = event; return true;
+    }
     default: return false;
     }
 }
@@ -1319,6 +1368,12 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         if (fields->count_ofs != UINT32_MAX && count > fields->array_size) return false;
         if (fields->count_ofs != UINT32_MAX && !SaveBytes(f, &count, sizeof(count))) return false;
         switch (fields->type) {
+        case F_REGION_REGISTRY: {
+            REGION const *regions = (REGION const *)(base + fields->ofs);
+            FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags,
+                (BYTE *)(regions + i))) return false;
+            break;
+        }
         case F_STRUCT:
             FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
             break;
@@ -1337,6 +1392,15 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         case F_FUNCTION:
             if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)(base + fields->ofs)))) return false;
             break;
+        case F_REGION: {
+            LPREGION region = *(LPREGION *)(base + fields->ofs);
+            DWORD id = UINT32_MAX;
+            if (region && !G_SaveJassHandle("region", region, &id)) {
+                fprintf(stderr, "WC3 SaveGame: cannot resolve region field %s\n", fields->name); return false;
+            }
+            if (!SaveBytes(f, &id, sizeof(id))) return false;
+            break;
+        }
         case F_LSTRING:
         case F_GSTRING:
             if (!WriteString(f, *(LPCSTR *)(base + fields->ofs))) return false;
@@ -1372,6 +1436,17 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             *(DWORD *)(base + fields->count_ofs) = count;
         }
         switch (fields->type) {
+        case F_REGION_REGISTRY: {
+            REGION *regions = (REGION *)(base + fields->ofs);
+            field_t const *schema = (field_t const *)fields->flags;
+            memset(regions, 0, fields->size);
+            FOR_LOOP(i, count) {
+                if (!ReadMappedFields(f, schema, (BYTE *)(regions + i)) || regions[i].num_rects > MAX_REGION_SIZE ||
+                    regions[i].generation > REGION_HANDLE_GENERATION_MAX || regions[i].inuse > 1 || regions[i].exhausted > 1)
+                    return false;
+            }
+            break;
+        }
         case F_STRUCT:
             FOR_LOOP(i, count) if (!ReadMappedFields(f, (field_t const *)fields->flags, base + fields->ofs + i * size)) return false;
             break;
@@ -1391,6 +1466,13 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             *(LPCJASSFUNC *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
             if (name && !*(LPCJASSFUNC *)(base + fields->ofs)) { free(name); return false; }
             free(name);
+            break;
+        }
+        case F_REGION: {
+            DWORD id;
+            if (!LoadBytes(f, &id, sizeof(id))) return false;
+            *(LPREGION *)(base + fields->ofs) = id == UINT32_MAX ? NULL : G_LoadJassHandle("region", id);
+            if (id != UINT32_MAX && !*(LPREGION *)(base + fields->ofs)) return false;
             break;
         }
         case F_LSTRING:
@@ -1688,6 +1770,7 @@ done:
 BOOL ReadGame(LPCSTR filename) {
     FILE *f = fopen(filename, "rb");
     SAVEHEADER header = { 0 };
+    BOOL current_nonregion_event_slots[MAX_EVENTS] = { 0 };
     DWORD index;
     int targets[MAX_CLIENTS];
 
@@ -1712,7 +1795,7 @@ BOOL ReadGame(LPCSTR filename) {
         else if (header.groups < level.num_groups) field = "groups";
         else if (header.triggers < level.num_triggers) field = "triggers";
         else if (header.timers < level.num_timers) field = "timers";
-        else if (header.events < ActiveEventCount()) field = "events";
+        else if (header.events > MAX_EVENTS) field = "events";
         else if (!header.map_path[0] || strcasecmp(header.map_path, level.map_path)) field = "map_path";
         else if (!RestoreRegistrySlots(header.groups, header.timers, header.triggers, header.events)) field = "registry_slots";
         if (field) {
@@ -1726,12 +1809,34 @@ BOOL ReadGame(LPCSTR filename) {
             fclose(f); return false;
         }
     }
-    if (!ReadMappedFields(f, level_fields, (BYTE *)&level) || level.waypoints.count > MAX_WAYPOINTS ||
+    FOR_LOOP(i, MAX_EVENTS) {
+        LPEVENT event = &level.events.handlers[i];
+        current_nonregion_event_slots[i] = event->inuse &&
+            event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION;
+    }
+    if (!ReadMappedFields(f, level_fields, (BYTE *)&level)) {
+        fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
+    }
+    FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
+        fprintf(stderr, "WC3 LoadGame: saved event registry dropped live non-region slot %u\n", (unsigned)i);
+        fclose(f); return false;
+    }
+    if (ActiveEventCount() != header.events) {
+        fprintf(stderr, "WC3 LoadGame: event count mismatch saved=%u restored=%u\n",
+                (unsigned)header.events, (unsigned)ActiveEventCount());
+        fclose(f); return false;
+    }
+    if (level.waypoints.count > MAX_WAYPOINTS ||
         (level.waypoints.count && (level.waypoints.count != MAX_WAYPOINTS || level.waypoints.cursor >= MAX_WAYPOINTS ||
         header.num_edicts < level.waypoints.count ||
         level.waypoints.base > header.num_edicts - level.waypoints.count)) ||
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
+    }
+    FOR_LOOP(i, MAX_EVENTS) if (level.events.handlers[i].handle_generation > EVENT_HANDLE_GENERATION_MAX ||
+        level.events.handlers[i].generation_exhausted > 1) {
+        fprintf(stderr, "WC3 LoadGame: invalid event handle generation at slot %u\n", (unsigned)i);
+        fclose(f); return false;
     }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
@@ -1796,3 +1901,54 @@ BOOL ReadGame(LPCSTR filename) {
     fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
     return true;
 }
+
+#ifdef BZ_TESTS
+static BOOL write_save_fixture_version(LPCSTR source_path, LPCSTR output_path, DWORD version) {
+    BYTE buffer[4096];
+    SAVEHEADER header;
+    long payload;
+    FILE *source = fopen(source_path, "rb"), *output = NULL;
+    if (!source || fseek(source, 0, SEEK_END) || (payload = ftell(source)) < (long)sizeof(SAVEFOOTER) ||
+        fseek(source, 0, SEEK_SET) || !LoadBytes(source, &header, sizeof(header))) goto fail;
+    payload -= sizeof(SAVEFOOTER);
+    header.version = version;
+    output = fopen(output_path, "w+b");
+    if (!output || !SaveBytes(output, &header, sizeof(header))) goto fail;
+    for (long remaining = payload - (long)sizeof(header); remaining > 0;) {
+        size_t size = MIN((size_t)remaining, sizeof(buffer));
+        if (!LoadBytes(source, buffer, size) || !SaveBytes(output, buffer, size)) goto fail;
+        remaining -= (long)size;
+    }
+    if (!WriteFooter(output)) goto fail;
+    fclose(source); fclose(output);
+    return true;
+fail:
+    if (source) fclose(source);
+    if (output) fclose(output);
+    remove(output_path);
+    return false;
+}
+
+TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-pre-region-handle-generation.bin";
+    LPCSTR old_paths[] = {
+        "/tmp/openwarcraft3-wc3-save-version-39.bin",
+        "/tmp/openwarcraft3-wc3-save-version-40.bin",
+        "/tmp/openwarcraft3-wc3-save-version-41.bin",
+        "/tmp/openwarcraft3-wc3-save-version-42.bin",
+        "/tmp/openwarcraft3-wc3-save-version-43.bin",
+    };
+    DWORD const old_versions[] = { 39, 40, 41, 42, 43 };
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(WriteGame(filename));
+    FOR_LOOP(i, sizeof(old_versions) / sizeof(*old_versions)) {
+        T_ASSERT(write_save_fixture_version(filename, old_paths[i], old_versions[i]));
+        T_NE(save_version, old_versions[i]);
+        T_ASSERT(!ReadGame(old_paths[i]));
+        remove(old_paths[i]);
+    }
+    remove(filename);
+}
+#endif

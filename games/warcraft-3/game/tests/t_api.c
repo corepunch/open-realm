@@ -40,6 +40,7 @@ static LPEDICT find_test_unit(DWORD class_id);
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <unistd.h>
 
 /* =========================================================================
  * Helpers
@@ -148,6 +149,137 @@ TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
+    LPEDICT undead = NULL;
+    UnitData_t undead_data = { .id = MAKEFOURCC('u','g','h','o'), .race = "undead" };
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit raceSubject = null\n"
+        "endglobals\n"
+        "function verifyRace takes nothing returns nothing\n"
+        "  if GetUnitRace(raceSubject) == ConvertRace(3) and\n"
+        "      IsUnitType(raceSubject, ConvertUnitType(14)) then\n"
+        "    call SetWidgetLife(raceSubject, 333.0)\n"
+        "  else\n"
+        "    call SetWidgetLife(raceSubject, 222.0)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set raceSubject = CreateUnit(Player(0), 'ugho', 0.0, 0.0, 0.0)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('u','g','h','o')) {
+            undead = &g_edicts[i];
+            undead->data.UnitData = &undead_data;
+        }
+    T_NOT_NULL(undead);
+    T_EQ(WC3_RaceFromString(undead->data.UnitData->race), RACE_UNDEAD);
+    jass_callbyname(level.vm, "verifyRace", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_FEQ(undead->health.value, 333.0f, 0.001f);
+}
+
+TEST(wc3_api, authored_race_names_map_to_jass_race_values) {
+    static struct { LPCSTR name; LONG value; } const races[] = {
+        { STR_HUMAN, 1 }, { STR_ORC, 2 }, { STR_UNDEAD, 3 }, { STR_NIGHTELF, 4 },
+        { STR_DEMON, 5 }, { STR_CREEPS, 8 }, { STR_OTHER, 7 },
+        { STR_CRITTERS, 10 }, { STR_COMMONER, 9 }, { "naga", 11 },
+    };
+    FOR_LOOP(i, sizeof(races) / sizeof(*races)) T_EQ(WC3_JassRaceFromString(races[i].name), races[i].value);
+    T_EQ(WC3_JassRaceFromString("unrecognized"), 0);
+    T_EQ(WC3_JassRaceFromString("NAGA"), 11);
+}
+
+TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
+    LPEDICT unit = NULL;
+    LPEVENT registration = NULL;
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit u = null\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  call SetWidgetLife(GetTriggerUnit(), 75.0)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "  call TriggerRegisterUnitStateEvent(t, u, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call SetWidgetLife(u, 100.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(0), 0.0)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = &g_edicts[i];
+    T_NOT_NULL(unit);
+    FOR_EACH_EVENT(evt)
+        if (evt->type == EVENT_GAME_STATE_LIMIT && evt->subject == unit) registration = evt;
+    T_NOT_NULL(registration);
+    if (registration) {
+        T_EQ(registration->state, WC3_UNIT_STATE_LIFE);
+        T_EQ(registration->limitop, WC3_LIMITOP_LESS_THAN_OR_EQUAL);
+        T_FEQ(registration->limitval, 0.0f, 0.001f);
+    }
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_FEQ(unit->health.value, 75.0f, 0.001f);
+}
+
+TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
+    LPEDICT unit;
+    LPEVENT registration;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    unit->health.value = 100.0f;
+    registration = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    T_NOT_NULL(registration);
+    G_SetEventSubject(registration, unit);
+    registration->state = WC3_UNIT_STATE_LIFE;
+    registration->limitop = WC3_LIMITOP_LESS_THAN_OR_EQUAL;
+    registration->limitval = 0.0f;
+
+    FOR_LOOP(i, MAX_EVENT_QUEUE)
+        T_NOT_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_VICTORY, NULL, (LONG)i));
+    G_SetHealth(unit, 0.0f);
+
+    T_FEQ(unit->health.value, 0.0f, 0.001f);
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_EQ(level.events.queue[0].value, 0);
+    T_EQ(level.events.queue[MAX_EVENT_QUEUE - 1].value, (LONG)MAX_EVENT_QUEUE - 1);
+}
+
+TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
+    LPEDICT unit, replacement;
+    LPEVENT registration;
+    DWORD old_spawn_time;
+
+    reset_entities(); setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    unit->spawn_time = level.time;
+    registration = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    G_SetEventSubject(registration, unit);
+    registration->state = WC3_UNIT_STATE_LIFE;
+    registration->limitop = WC3_LIMITOP_LESS_THAN_OR_EQUAL;
+    registration->limitval = 0;
+    old_spawn_time = unit->spawn_time;
+    G_FreeEdict(unit);
+    level.time += 2000;
+    replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    replacement->spawn_time = level.time;
+    T_ASSERT(replacement == unit);
+    T_NE(replacement->spawn_time, old_spawn_time);
+    G_SetHealth(replacement, 0);
+    T_EQ(level.events.write, 0);
+}
+
 TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     LPPLAYER saved_currentplayer = currentplayer;
     LPEDICT mover = NULL;
@@ -163,23 +295,41 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
         "globals\n"
         "  unit mover = null\n"
         "  unit entering = null\n"
+        "  region watchedRegion = null\n"
+        "  boolean correctTriggeringRegion = false\n"
         "  boolean entered = false\n"
+        "  integer rejected = 0\n"
         "endglobals\n"
+        "function accept_enter_filter takes nothing returns boolean\n"
+        "  return GetFilterUnit() == mover\n"
+        "endfunction\n"
+        "function reject_enter_filter takes nothing returns boolean\n"
+        "  return false\n"
+        "endfunction\n"
         "function on_enter takes nothing returns nothing\n"
         "  set entering = GetEnteringUnit()\n"
+        "  set correctTriggeringRegion = GetTriggeringRegion() == watchedRegion\n"
         "  set entered = true\n"
         "endfunction\n"
+        "function on_rejected_enter takes nothing returns nothing\n"
+        "  set rejected = rejected + 1\n"
+        "endfunction\n"
         "function main takes nothing returns nothing\n"
-        "  local region area = CreateRegion()\n"
-        "  local trigger event = CreateTrigger()\n"
+        "  local trigger acceptedEvent = CreateTrigger()\n"
+        "  local trigger rejectedEvent = CreateTrigger()\n"
+        "  set watchedRegion = CreateRegion()\n"
         "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
-        "  call RegionAddRect(area, Rect(24.0, -16.0, 64.0, 16.0))\n"
-        "  call TriggerRegisterEnterRegion(event, area, null)\n"
-        "  call TriggerAddAction(event, function on_enter)\n"
+        "  call TriggerRegisterEnterRegion(acceptedEvent, watchedRegion, Condition(function accept_enter_filter))\n"
+        "  call TriggerRegisterEnterRegion(rejectedEvent, watchedRegion, Condition(function reject_enter_filter))\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerAddAction(acceptedEvent, function on_enter)\n"
+        "  call TriggerAddAction(rejectedEvent, function on_rejected_enter)\n"
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
         "  call BJassAssert(entered, \"movement did not enter region\")\n"
         "  call BJassAssert(entering == mover, \"GetEnteringUnit mismatch\")\n"
+        "  call BJassAssert(correctTriggeringRegion, \"GetTriggeringRegion mismatch\")\n"
+        "  call BJassAssert(rejected == 0, \"rejected enter filter should not run\")\n"
         "endfunction\n"));
 
     FOR_LOOP(i, globals.num_edicts) {
@@ -209,6 +359,335 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT mover = NULL;
+    VECTOR2 destination = {80.0f, 0.0f};
+
+    reset_entities();
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  region watchedRegion = null\n"
+        "  trigger replacementTrigger = null\n"
+        "  unit mover = null\n"
+        "  integer replacementFires = 0\n"
+        "endglobals\n"
+        "function mutate_region_filter takes nothing returns boolean\n"
+        "  call RemoveRegion(watchedRegion)\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(replacementTrigger, watchedRegion, null)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function on_replacement_enter takes nothing returns nothing\n"
+        "  set replacementFires = replacementFires + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger oldTrigger = CreateTrigger()\n"
+        "  set replacementTrigger = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(oldTrigger, watchedRegion, Condition(function mutate_region_filter))\n"
+        "  call TriggerAddAction(replacementTrigger, function on_replacement_enter)\n"
+        "endfunction\n"
+        "function verify_replacement_did_not_receive_old_crossing takes nothing returns nothing\n"
+        "  call BJassAssert(replacementFires == 0, \"retired region crossing fired replacement registration\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].s.player == 0 &&
+            g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            mover = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(mover);
+    mover->movetype = MOVETYPE_STEP;
+    mover->stand = unit_stand;
+    mover->birth = unit_birth;
+    mover->die = unit_die;
+    mover->think = monster_think;
+    mover->collision = 0.0f;
+    mover->health.value = mover->health.max_value = 250.0f;
+    unit_stand(mover);
+    T_ASSERT(unit_issueorder(mover, "move", &destination));
+    G_RunEntities();
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_replacement_did_not_receive_old_crossing", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, removed_region_filter_unit_does_not_receive_crossing_event) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT mover = NULL;
+    VECTOR2 destination = {80.0f, 0.0f};
+
+    G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  region watchedRegion = null\n"
+        "  unit mover = null\n"
+        "  integer fires = 0\n"
+        "endglobals\n"
+        "function remove_filter takes nothing returns boolean\n"
+        "  call RemoveUnit(mover)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function on_enter takes nothing returns nothing\n"
+        "  set fires = fires + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(t, watchedRegion, Condition(function remove_filter))\n"
+        "  call TriggerAddAction(t, function on_enter)\n"
+        "endfunction\n"
+        "function verify_removed_unit_did_not_receive_event takes nothing returns nothing\n"
+        "  call BJassAssert(fires == 0, \"removed region-filter unit received crossing event\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].s.player == 0 &&
+            g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) { mover = &g_edicts[i]; break; }
+    }
+    T_NOT_NULL(mover);
+    mover->movetype = MOVETYPE_STEP; mover->stand = unit_stand; mover->birth = unit_birth;
+    mover->die = unit_die; mover->think = monster_think; mover->collision = 0.0f;
+    mover->health.value = mover->health.max_value = 250.0f;
+    unit_stand(mover);
+    T_ASSERT(unit_issueorder(mover, "move", &destination));
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_removed_unit_did_not_receive_event", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunDeferredFrees();
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, removed_region_is_inert_and_does_not_alias_replacement) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  region retired = null\n"
+        "  region replacement = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger watched = CreateTrigger()\n"
+        "  set retired = CreateRegion()\n"
+        "  call RegionAddRect(retired, Rect(0.0, 0.0, 20.0, 20.0))\n"
+        "  call TriggerRegisterEnterRegion(watched, retired, null)\n"
+        "  call RemoveRegion(retired)\n"
+        "  call BJassAssert(not IsPointInRegion(retired, 10.0, 10.0), \"removed region remains active\")\n"
+        "  call BJassAssert(TriggerRegisterEnterRegion(watched, retired, null) == null, \"removed region accepted a new registration\")\n"
+        "  set replacement = CreateRegion()\n"
+        "  call BJassAssert(replacement != retired, \"replacement reused stale region handle\")\n"
+        "  call RegionAddRect(replacement, Rect(100.0, 100.0, 120.0, 120.0))\n"
+        "  call RegionAddRect(retired, Rect(200.0, 200.0, 220.0, 220.0))\n"
+        "  call BJassAssert(IsPointInRegion(replacement, 110.0, 110.0), \"replacement geometry lost\")\n"
+        "  call BJassAssert(not IsPointInRegion(replacement, 210.0, 210.0), \"stale region mutated replacement\")\n"
+        "endfunction\n"));
+    FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_ENTER_REGION)
+        T_NULL(evt->region);
+}
+
+TEST(wc3_api, region_add_rect_reports_capacity_rejection) {
+    FILE *capture = tmpfile();
+    int saved_stderr = dup(STDERR_FILENO);
+    char diagnostic[1024] = { 0 };
+    LPREGION region = NULL;
+
+    reset_entities(); setup_test_world();
+    T_NOT_NULL(capture);
+    T_ASSERT(saved_stderr >= 0);
+    if (!capture || saved_stderr < 0) {
+        if (capture) fclose(capture);
+        if (saved_stderr >= 0) close(saved_stderr);
+        return;
+    }
+
+    fflush(stderr);
+    T_EQ(dup2(fileno(capture), STDERR_FILENO), STDERR_FILENO);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local region watched = CreateRegion()\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i == 17\n"
+        "    call RegionAddRect(watched, Rect(100.0, 100.0, 200.0, 200.0))\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"));
+    fflush(stderr);
+    T_EQ(dup2(saved_stderr, STDERR_FILENO), STDERR_FILENO);
+    close(saved_stderr);
+    rewind(capture);
+    (void)fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+    fclose(capture);
+
+    FOR_LOOP(i, level.num_regions)
+        if (level.regions[i].inuse) { region = &level.regions[i]; break; }
+    T_NOT_NULL(region);
+    if (region) T_EQ(region->num_rects, MAX_REGION_SIZE);
+    T_ASSERT(strstr(diagnostic, "RegionAddRect rejected") != NULL);
+    T_ASSERT(strstr(diagnostic, "MAX_REGION_SIZE") != NULL);
+}
+
+TEST(wc3_api, recycled_region_gets_distinct_handle_id) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type hashtable extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local hashtable ht = InitHashtable()\n"
+        "  local region oldRegion = CreateRegion()\n"
+        "  local region newRegion = null\n"
+        "  local integer oldRegionId = GetHandleId(oldRegion)\n"
+        "  call SaveInteger(ht, oldRegionId, 0, 11)\n"
+        "  call RemoveRegion(oldRegion)\n"
+        "  call BJassAssert(GetHandleId(oldRegion) == oldRegionId, \"retired region changed GetHandleId\")\n"
+        "  set newRegion = CreateRegion()\n"
+        "  call BJassAssert(GetHandleId(newRegion) != oldRegionId, \"recycled region reused GetHandleId\")\n"
+        "  call BJassAssert(LoadInteger(ht, GetHandleId(newRegion), 0) == 0, \"replacement region inherited old hashtable data\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, recycled_region_event_gets_distinct_handle_id) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "type event extends handle\n"
+        "type hashtable extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local hashtable ht = InitHashtable()\n"
+        "  local region r = CreateRegion()\n"
+        "  local region replacement = null\n"
+        "  local event oldEvent = TriggerRegisterEnterRegion(t, r, null)\n"
+        "  local event newEvent = null\n"
+        "  local integer oldEventId = GetHandleId(oldEvent)\n"
+        "  call SaveInteger(ht, oldEventId, 0, 22)\n"
+        "  call RemoveRegion(r)\n"
+        "  call BJassAssert(GetHandleId(oldEvent) == oldEventId, \"retired region event changed GetHandleId\")\n"
+        "  set replacement = CreateRegion()\n"
+        "  set newEvent = TriggerRegisterEnterRegion(t, replacement, null)\n"
+        "  call BJassAssert(GetHandleId(newEvent) != oldEventId, \"recycled region event reused GetHandleId\")\n"
+        "  call BJassAssert(LoadInteger(ht, GetHandleId(newEvent), 0) == 0, \"replacement event inherited old hashtable data\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, set_unit_position_dispatches_region_crossings) {
+    LPPLAYER saved_currentplayer = currentplayer;
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit mover = null\n"
+        "  integer enters = 0\n"
+        "  integer leaves = 0\n"
+        "endglobals\n"
+        "function on_enter takes nothing returns nothing\n"
+        "  set enters = enters + 1\n"
+        "endfunction\n"
+        "function on_leave takes nothing returns nothing\n"
+        "  set leaves = leaves + 1\n"
+        "endfunction\n"
+        "function teleport_into takes nothing returns nothing\n"
+        "  call SetUnitPosition(mover, 40.0, 0.0)\n"
+        "endfunction\n"
+        "function teleport_out takes nothing returns nothing\n"
+        "  call SetUnitPosition(mover, 80.0, 0.0)\n"
+        "endfunction\n"
+        "function verify_crossings takes nothing returns nothing\n"
+        "  call BJassAssert(enters == 1, \"SetUnitPosition did not fire enter event\")\n"
+        "  call BJassAssert(leaves == 1, \"SetUnitPosition did not fire leave event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger enterTrigger = CreateTrigger()\n"
+        "  local trigger leaveTrigger = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call RegionAddRect(r, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(enterTrigger, r, null)\n"
+        "  call TriggerRegisterLeaveRegion(leaveTrigger, r, null)\n"
+        "  call TriggerAddAction(enterTrigger, function on_enter)\n"
+        "  call TriggerAddAction(leaveTrigger, function on_leave)\n"
+        "endfunction\n"));
+
+    jass_callbyname(level.vm, "teleport_into", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "teleport_out", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "verify_crossings", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, removed_regions_reuse_slots_without_lifetime_cap) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local region r = null\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i >= 3000\n"
+        "    set r = CreateRegion()\n"
+        "    call BJassAssert(r != null, \"region creation stopped after repeated removals\")\n"
+        "    call RemoveRegion(r)\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"));
+    T_EQ(level.num_regions, 1);
+}
+
+TEST(wc3_api, removed_region_events_release_handler_capacity) {
+    T_ASSERT(run_test_jass(
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "type event extends handle\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local region r = null\n"
+        "  local event oldEvent = null\n"
+        "  local event e = null\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i >= 1100\n"
+        "    set r = CreateRegion()\n"
+        "    set e = TriggerRegisterEnterRegion(t, r, null)\n"
+        "    call BJassAssert(e != null, \"removed region registrations exhausted event slots\")\n"
+        "    if i == 0 then\n"
+        "      set oldEvent = e\n"
+        "    elseif i == 1 then\n"
+        "      call BJassAssert(oldEvent != e, \"reused event slot aliased a retired event handle\")\n"
+        "    endif\n"
+        "    call RemoveRegion(r)\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "endfunction\n"));
+    {
+        DWORD active_region_events = 0;
+        FOR_EACH_EVENT(event) if (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
+            active_region_events++;
+        T_EQ(active_region_events, 0);
+    }
 }
 
 static DWORD unit_team_color(LPCEDICT unit) {
@@ -729,6 +1208,81 @@ TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
     jass_callbyname(level.vm, "verifyEnter", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT leaving = NULL;
+    VECTOR2 destination = { 300.0f, 150.0f };
+
+    reset_entities();
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit leaving = null\n"
+        "  integer accepted = 0\n"
+        "  integer rejected = 0\n"
+        "  boolean correctLeavingUnit = false\n"
+        "endglobals\n"
+        "function allow_filter takes nothing returns boolean\n"
+        "  return GetFilterUnit() == leaving\n"
+        "endfunction\n"
+        "function reject_filter takes nothing returns boolean\n"
+        "  return false\n"
+        "endfunction\n"
+        "function onAcceptedLeave takes nothing returns nothing\n"
+        "  set accepted = accepted + 1\n"
+        "  set correctLeavingUnit = GetLeavingUnit() == leaving\n"
+        "endfunction\n"
+        "function onRejectedLeave takes nothing returns nothing\n"
+        "  set rejected = rejected + 1\n"
+        "endfunction\n"
+        "function onLeave takes nothing returns nothing\n"
+        "  call SetWidgetLife(GetTriggerUnit(), 75.0)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger acceptedTrigger = CreateTrigger()\n"
+        "  local trigger rejectedTrigger = CreateTrigger()\n"
+        "  local region r = CreateRegion()\n"
+        "  call RegionAddRect(r, Rect(100.0, 100.0, 200.0, 200.0))\n"
+        "  set leaving = CreateUnit(Player(0), 'hpea', 150.0, 150.0, 0.0)\n"
+        "  call TriggerAddAction(acceptedTrigger, function onAcceptedLeave)\n"
+        "  call TriggerAddAction(rejectedTrigger, function onRejectedLeave)\n"
+        "  call TriggerRegisterLeaveRegion(acceptedTrigger, r, Condition(function allow_filter))\n"
+        "  call TriggerRegisterLeaveRegion(rejectedTrigger, r, Condition(function reject_filter))\n"
+        "endfunction\n"
+        "function verifyLeave takes nothing returns nothing\n"
+        "  call BJassAssert(accepted == 1, \"accepted leave filter should run once\")\n"
+        "  call BJassAssert(rejected == 0, \"rejected leave filter should not run\")\n"
+        "  call BJassAssert(correctLeavingUnit, \"GetLeavingUnit should resolve the crossing unit\")\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') && g_edicts[i].s.player == 0)
+            leaving = &g_edicts[i];
+    T_NOT_NULL(leaving);
+    leaving->movetype = MOVETYPE_STEP;
+    leaving->stand = unit_stand;
+    leaving->birth = unit_birth;
+    leaving->die = unit_die;
+    leaving->think = monster_think;
+    leaving->collision = 0.0f;
+    leaving->unitinfo.MoveSpeed = 1000.0f;
+    leaving->health.value = leaving->health.max_value = 250.0f;
+    unit_stand(leaving);
+    T_ASSERT(unit_issueorder(leaving, "move", &destination));
+    FOR_LOOP(i, 10) {
+        if (leaving->s.origin2.x > 200.0f) break;
+        level.time += FRAMETIME;
+        G_RunEntities();
+        G_RunEvents();
+        jass_runevents(level.vm);
+    }
+    T_ASSERT(leaving->s.origin2.x > 200.0f);
+    jass_callbyname(level.vm, "verifyLeave", false);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
 }
 
 /* An event's owner is GetTriggerPlayer(), not the local-player selector used by GetLocalPlayer().
@@ -4801,6 +5355,146 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT subject = NULL, target = NULL;
+    LPEVENT rangeEvent = NULL;
+    BOOL queuedRangeCrossing = false;
+    VECTOR2 destination = { 200.0f, 0.0f };
+
+    G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit rangeSubject = null\n"
+        "  integer rangeFires = 0\n"
+        "endglobals\n"
+        "function on_range takes nothing returns nothing\n"
+        "  set rangeFires = rangeFires + 1\n"
+        "endfunction\n"
+        "function remove_range_subject takes nothing returns nothing\n"
+        "  call RemoveUnit(rangeSubject)\n"
+        "endfunction\n"
+        "function verify_removed_subject_did_not_dispatch takes nothing returns nothing\n"
+        "  call BJassAssert(rangeFires == 0, \"deferred-removed range subject dispatched crossing\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger rangeTrigger = CreateTrigger()\n"
+        "  set rangeSubject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 280.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterUnitInRange(rangeTrigger, rangeSubject, 256.0, null)\n"
+        "  call TriggerAddAction(rangeTrigger, function on_range)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].s.player == 0 &&
+            g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) subject = &g_edicts[i];
+        if (g_edicts[i].inuse && g_edicts[i].s.player == 0 &&
+            g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) target = &g_edicts[i];
+    }
+    T_NOT_NULL(subject); T_NOT_NULL(target);
+    FOR_EACH_EVENT(evt) if (evt->type == EVENT_UNIT_IN_RANGE) { rangeEvent = evt; break; }
+    T_NOT_NULL(rangeEvent);
+    if (rangeEvent) T_ASSERT(rangeEvent->subject == subject);
+    jass_callbyname(level.vm, "remove_range_subject", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(subject->inuse && G_IsDeferredFree(subject));
+    T_ASSERT(!G_EventSubjectIsCurrent(rangeEvent));
+
+    target->movetype = MOVETYPE_STEP; target->stand = unit_stand; target->birth = unit_birth;
+    target->die = unit_die; target->think = monster_think; target->collision = 0.0f;
+    target->unitinfo.MoveSpeed = 1000.0f;
+    target->health.value = target->health.max_value = 250.0f; unit_stand(target);
+    T_ASSERT(unit_issueorder(target, "move", &destination));
+    G_RunEntities();
+    T_ASSERT(memcmp(&subject->old_origin, &subject->s.origin2, sizeof(VECTOR2)) == 0);
+    T_ASSERT(Vector2_distance(&subject->old_origin, &target->old_origin) > rangeEvent->range);
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
+    T_ASSERT(level.events.write > level.events.read);
+    for (DWORD i = level.events.read; i < level.events.write; i++) {
+        GAMEEVENT *queued = &level.events.queue[i % MAX_EVENT_QUEUE];
+        if (queued->type == EVENT_UNIT_IN_RANGE && queued->responseTo == rangeEvent)
+            queuedRangeCrossing = true;
+    }
+    T_ASSERT(!queuedRangeCrossing);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_removed_subject_did_not_dispatch", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunDeferredFrees();
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, unit_in_range_queue_full_does_not_crash_subject_movement) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT subject = NULL;
+    VECTOR2 destination = {100.0f, 0.0f};
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  unit rangeSubject = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set rangeSubject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 280.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterUnitInRange(t, rangeSubject, 256.0, null)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) { subject = &g_edicts[i]; break; }
+    T_NOT_NULL(subject);
+    subject->movetype = MOVETYPE_STEP; subject->stand = unit_stand; subject->birth = unit_birth;
+    subject->die = unit_die; subject->think = monster_think; subject->collision = 0.0f;
+    subject->health.value = subject->health.max_value = 250.0f; unit_stand(subject);
+    T_ASSERT(unit_issueorder(subject, "move", &destination));
+    level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
+    G_RunEntities();
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT subject = NULL;
+    LPEDICT target = NULL;
+    VECTOR2 destination = {100.0f, 0.0f};
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  unit rangeSubject = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set rangeSubject = CreateUnit(Player(0), 'hpea', 530.0, 0.0, 0.0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 257.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterUnitInRange(t, rangeSubject, 256.0, null)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') &&
+            g_edicts[i].s.origin2.x > 500.0f) subject = &g_edicts[i];
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            g_edicts[i].s.origin2.x > 256.0f) target = &g_edicts[i];
+    }
+    T_NOT_NULL(subject);
+    T_NOT_NULL(target);
+    T_FEQ(subject->s.origin2.x, 530.0f, 0.01f);
+    T_FEQ(target->s.origin2.x, 257.0f, 0.01f);
+    target->movetype = MOVETYPE_STEP; target->stand = unit_stand; target->birth = unit_birth;
+    target->die = unit_die; target->think = monster_think; target->collision = 0.0f;
+    target->health.value = target->health.max_value = 250.0f; unit_stand(target);
+    T_ASSERT(unit_issueorder(target, "move", &destination));
+    level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
+    G_RunEntities();
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, killunit_runs_normal_unit_death_transition) {
     LPEDICT victim = NULL;
 
@@ -5249,6 +5943,129 @@ TEST(wc3_api, gamecache_restore_preserves_explicit_red_unit_color) {
 /* =========================================================================
  * Death event context
  * ========================================================================= */
+
+/* Removal must preserve both death registrations and the dying-unit context until actions run. */
+static void death_events_before_corpse_removal(BOOL queued) {
+    LPEDICT victim;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit victim = null\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "  call BJassAssert(GetDyingUnit() == victim, \"wrong dying unit\")\n"
+        "  call BJassAssert(GetUnitTypeId(GetDyingUnit()) == 'hfoo', \"corpse freed before death action\")\n"
+        "endfunction\n"
+        "function kill_and_remove takes nothing returns nothing\n"
+        "  call KillUnit(victim)\n"
+        "  call RemoveUnit(victim)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 2, \"removing the corpse cancelled or duplicated death events\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set victim = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterDeathEvent(t, victim)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "endfunction\n"));
+    victim = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(victim);
+    jass_callbyname(level.vm, "kill_and_remove", queued);
+    level.started = level.scriptsStarted = true;
+    globals.RunFrame();
+    T_ASSERT(!victim->inuse);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    globals.RunFrame();
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, death_events_survive_same_tick_corpse_removal) { death_events_before_corpse_removal(false); }
+TEST(wc3_api, death_events_survive_removal_after_frame_event_pass) { death_events_before_corpse_removal(true); }
+
+TEST(wc3_api, death_events_drain_chained_corpse_removals) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit first = null\n"
+        "  unit second = null\n"
+        "  unit alive = null\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "  call BJassAssert(GetUnitTypeId(GetDyingUnit()) == 'hfoo', \"death context was freed\")\n"
+        "  if GetDyingUnit() == first then\n"
+        "    call KillUnit(second)\n"
+        "    call RemoveUnit(second)\n"
+        "    call RemoveUnit(alive)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function finish takes nothing returns nothing\n"
+        "  call KillUnit(first)\n"
+        "  call RemoveUnit(first)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 2, \"chained removals lost or invented death events\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set first = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  set second = CreateUnit(Player(0), 'hfoo', 128.0, 64.0, 0.0)\n"
+        "  set alive = CreateUnit(Player(0), 'hpea', 192.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "finish", true);
+    level.started = level.scriptsStarted = true;
+    globals.RunFrame();
+    FOR_LOOP(i, globals.num_edicts) if (i >= game.max_clients) T_ASSERT(!g_edicts[i].inuse);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    globals.RunFrame();
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
+    LPEDICT victim, replacement;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 0, \"death event reached a reused edict\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local unit victim = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterDeathEvent(t, victim)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "  call KillUnit(victim)\n"
+        "endfunction\n"));
+    victim = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(victim);
+    G_FreeEdict(victim);
+    level.time += 2000;
+    replacement = SP_SpawnAtLocation(MAKEFOURCC('h','p','e','a'), 0, &MAKE(VECTOR2, 64, 64));
+    T_ASSERT(replacement == victim);
+    G_DeferFreeEdict(replacement);
+    G_RunDeferredFrees();
+    T_ASSERT(!replacement->inuse);
+    G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
 
 TEST(wc3_api, death_event_exposes_trigger_widget_and_killing_unit) {
     LPEDICT victim = NULL;
@@ -5752,6 +6569,69 @@ TEST(wc3_api, dota_damage_event_exposes_source_and_amount) {
     jass_callbyname(level.vm, "verify_damage", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, removed_damage_source_does_not_cancel_live_subject_event) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT attacker, target = NULL;
+    LPEVENT damageRegistration = NULL;
+    GAMEEVENT *damageEvent = NULL;
+    DWORD queued_before;
+
+    G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
+    attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    T_NOT_NULL(attacker);
+    attacker->s.player = 1;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit damageSource = null\n"
+        "  unit damageTarget = null\n"
+        "  boolean damageEventFired = false\n"
+        "endglobals\n"
+        "function on_damaged_after_source_removed takes nothing returns nothing\n"
+        "  set damageSource = GetEventDamageSource()\n"
+        "  set damageEventFired = true\n"
+        "endfunction\n"
+        "function verify_damaged_event_after_source_removed takes nothing returns nothing\n"
+        "  call BJassAssert(damageEventFired, \"live subject damage event was canceled with its source\")\n"
+        "  call BJassAssert(damageSource == null, \"stale damage source should be cleared\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger damageTrigger = CreateTrigger()\n"
+        "  local event damageRegistration = null\n"
+        "  set damageTarget = CreateUnit(Player(0), 'hfoo', 256.0, 256.0, 0.0)\n"
+        "  set damageRegistration = TriggerRegisterUnitEvent(damageTrigger, damageTarget, EVENT_UNIT_DAMAGED)\n"
+        "  call BJassAssert(damageRegistration != null, \"damage event registration failed\")\n"
+        "  call TriggerAddAction(damageTrigger, function on_damaged_after_source_removed)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            g_edicts[i].s.origin2.x > 200.0f) { target = &g_edicts[i]; break; }
+    }
+    T_NOT_NULL(target);
+    G_SetHealth(target, 500);
+    queued_before = level.events.write;
+    T_Damage(target, attacker, 25);
+    T_ASSERT(level.events.write > queued_before);
+    for (DWORD i = queued_before; i < level.events.write; i++) {
+        GAMEEVENT *queued = &level.events.queue[i % MAX_EVENT_QUEUE];
+        if (queued->type == EVENT_UNIT_DAMAGED) damageEvent = queued;
+    }
+    FOR_EACH_EVENT(evt)
+        if (evt->type == EVENT_UNIT_DAMAGED && evt->subject == target) { damageRegistration = evt; break; }
+    T_NOT_NULL(damageEvent); T_NOT_NULL(damageRegistration);
+    if (damageEvent) {
+        T_ASSERT(damageEvent->edict == target && damageEvent->source == attacker);
+        T_ASSERT(damageEvent->edict_spawn_tracked && damageEvent->source_spawn_tracked);
+    }
+    if (damageRegistration) T_ASSERT(G_EventSubjectIsCurrent(damageRegistration));
+    G_FreeEdict(attacker);
+    T_ASSERT(target->inuse && !G_IsDeferredFree(target));
+    G_RunEvents(); jass_runevents(level.vm);
+    T_ASSERT(damageEvent->source == NULL && !damageEvent->source_spawn_tracked);
+    jass_callbyname(level.vm, "verify_damaged_event_after_source_removed", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
 }
 
 TEST(wc3_api, blight_natives_share_authoritative_world_state) {

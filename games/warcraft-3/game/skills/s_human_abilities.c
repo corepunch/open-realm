@@ -88,7 +88,7 @@ void S_AvatarExpire(LPEDICT unit) {
     G_ApplyTemporaryAttackDamageBonus(unit, -(FLOAT)unit->avatar.damage);
     unit->temporary_health_bonus -= unit->avatar.health;
     unit->health.max_value = MAX(1.0f, unit->health.max_value - unit->avatar.health);
-    unit->health.value = MIN(unit->health.value, unit->health.max_value);
+    G_SetHealth(unit, MIN(unit->health.value, unit->health.max_value));
     memset(&unit->avatar, 0, sizeof(unit->avatar));
     human_remove_status(unit, BZ_AVATAR_BUFF);
     G_AddUnitAnimationProperties(unit, "alternate", false); G_InvalidateUnitInfoPanel(unit);
@@ -121,7 +121,7 @@ static void avatar_execute(LPEDICT caster, spellTarget_t target, abilityitem_t c
     G_ApplyTemporaryAttackDamageBonus(caster, (FLOAT)caster->avatar.damage);
     caster->temporary_health_bonus += caster->avatar.health;
     caster->health.max_value = MAX(1.0f, caster->health.max_value + caster->avatar.health);
-    caster->health.value = MIN(caster->health.max_value, caster->health.value + MAX(0.0f, caster->avatar.health));
+    G_SetHealth(caster, MIN(caster->health.max_value, caster->health.value + MAX(0.0f, caster->avatar.health)));
     G_AddUnitAnimationProperties(caster, "alternate", true); G_InvalidateUnitInfoPanel(caster);
 }
 

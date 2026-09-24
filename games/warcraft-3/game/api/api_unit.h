@@ -34,8 +34,26 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
-UNIT_ACCESS(X, s.origin.x);
-UNIT_ACCESS(Y, s.origin.y);
+#define UNIT_POSITION_ACCESS(NAME, FIELD) \
+DWORD SetUnit##NAME(LPJASS j) { \
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit"); \
+    if (whichUnit) { \
+        VECTOR2 old_position = whichUnit->s.origin2; \
+        whichUnit->FIELD = jass_checknumber(j, 2); \
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty(); \
+        gi.LinkEntity(whichUnit); \
+        G_UnitPositionChanged(whichUnit, &old_position); \
+    } \
+    return 0; \
+} \
+DWORD GetUnit##NAME(LPJASS j) { \
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit"); \
+    return jass_pushnumber(j, whichUnit ? whichUnit->FIELD : 0); \
+}
+
+UNIT_POSITION_ACCESS(X, s.origin.x);
+UNIT_POSITION_ACCESS(Y, s.origin.y);
+#undef UNIT_POSITION_ACCESS
 
 DWORD SetUnitPositionLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -43,11 +61,13 @@ DWORD SetUnitPositionLoc(LPJASS j) {
     VECTOR2 position;
 
     if (whichUnit && whichLocation) {
+        VECTOR2 old_position = whichUnit->s.origin2;
         G_FindUnitUnstuckPosition(whichUnit, whichLocation, &position);
         whichUnit->s.origin.x = position.x;
         whichUnit->s.origin.y = position.y;
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         gi.LinkEntity(whichUnit);
+        G_UnitPositionChanged(whichUnit, &old_position);
     }
     return 0;
 }
@@ -155,7 +175,8 @@ JASS_API(SetUnitState,
         return;
     }
     was_dead = M_IsDead(whichUnit);
-    (&whichUnit->health.value)[*whichUnitState] = newVal;
+    if (*whichUnitState == WC3_UNIT_STATE_LIFE) G_SetHealth(whichUnit, newVal);
+    else (&whichUnit->health.value)[*whichUnitState] = newVal;
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
 }
 //DWORD SetUnitState(LPJASS j) {
@@ -177,11 +198,13 @@ DWORD SetUnitPosition(LPJASS j) {
     VECTOR2 position;
 
     if (whichUnit) {
+        VECTOR2 old_position = whichUnit->s.origin2;
         G_FindUnitUnstuckPosition(whichUnit, &requested, &position);
         whichUnit->s.origin.x = position.x;
         whichUnit->s.origin.y = position.y;
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         gi.LinkEntity(whichUnit);
+        G_UnitPositionChanged(whichUnit, &old_position);
     }
     return 0;
 }
@@ -811,9 +834,12 @@ DWORD GetUnitTypeId(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? (LONG)whichUnit->class_id : 0);
 }
+static DWORD JassPushRaceHandle(LPJASS j, LONG value);
 DWORD GetUnitRace(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnullhandle(j, "race");
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG race = whichUnit && whichUnit->data.UnitData
+        ? WC3_JassRaceFromString(whichUnit->data.UnitData->race) : 0;
+    return JassPushRaceHandle(j, race);
 }
 DWORD GetUnitName(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -921,6 +947,9 @@ DWORD IsUnitType(LPJASS j) {
         return jass_pushboolean(j, whichUnit->aiflags & AI_FLYING);
     if (*whichUnitType == 10) /* UNIT_TYPE_SUMMONED */
         return jass_pushboolean(j, whichUnit->summon_ability != 0);
+    if (*whichUnitType == 14) /* UNIT_TYPE_UNDEAD */
+        return jass_pushboolean(j, whichUnit->data.UnitData &&
+            WC3_RaceFromString(whichUnit->data.UnitData->race) == RACE_UNDEAD);
     return jass_pushboolean(j, 0);
 }
 DWORD IsUnit(LPJASS j) {

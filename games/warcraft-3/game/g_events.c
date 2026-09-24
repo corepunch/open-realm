@@ -1,6 +1,7 @@
 #include "g_local.h"
 
 BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
+BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
 
 BOOL G_LimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     switch (op) {
@@ -18,7 +19,7 @@ void G_JassVariableChanged(LPCSTR name, FLOAT before, FLOAT after) {
     FOR_EACH_EVENT(evt) {
         if (evt->type == EVENT_GAME_VARIABLE_LIMIT && evt->variable && !strcmp(evt->variable, name) &&
             !G_LimitMatches(evt->limitop, before, evt->limitval) && G_LimitMatches(evt->limitop, after, evt->limitval))
-            G_PublishEvent(NULL, EVENT_GAME_VARIABLE_LIMIT)->responseTo = evt;
+            G_PublishEventResponse(NULL, EVENT_GAME_VARIABLE_LIMIT, evt);
     }
 }
 
@@ -96,6 +97,17 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
     BOOL result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     DWORD matching_handlers = 0, invoked_handlers = 0;
+    /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
+    if (evt->edict_spawn_tracked &&
+        (!subject || !subject->inuse || subject->spawn_time != evt->edict_spawn_time ||
+         (!G_IsDeathEvent(evt->type) && G_IsDeferredFree(subject))))
+        return;
+    if (evt->source_spawn_tracked &&
+        (!evt->source || !evt->source->inuse || evt->source->spawn_time != evt->source_spawn_time || G_IsDeferredFree(evt->source))) {
+        evt->source = NULL;
+        evt->source_spawn_time = 0;
+        evt->source_spawn_tracked = false;
+    }
 
     if (result_event) {
         G_GameResultDebug("execute event type=%s subject_ent=%ld owner=%u",
@@ -105,6 +117,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     }
 
     FOR_EACH_EVENT(e) {
+        if (!G_EventSubjectIsCurrent(e)) continue;
         switch (e->type) {
             case EVENT_GAME_VICTORY:
                 break;
@@ -255,32 +268,34 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
 static void G_TouchTriggers(LPEDICT ent) {
     FOR_EACH_EVENT(evt) {
         switch (evt->type) {
-            case EVENT_GAME_ENTER_REGION:
-                if (G_RegionContains(&evt->region, &ent->s.origin2) &&
-                    !G_RegionContains(&evt->region, &ent->old_origin))
+            case EVENT_GAME_ENTER_REGION: {
+                HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
+                LPREGION region = G_RegionFromHandle(evt->region);
+                DWORD spawn_time = ent->spawn_time;
+                if (region && G_RegionContains(region, &ent->s.origin2) &&
+                    !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                    ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
+                    G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
-#ifdef WC3_DEBUG_BUILD
-                    if (ent->class_id == MAKEFOURCC('h','p','e','a') && evt->region.num_rects) {
-                        BOX2 const *rect = evt->region.rects;
-                        fprintf(stderr, "WC3_BUILD region-enter unit=%ld origin=(%.1f,%.1f) old=(%.1f,%.1f) rect=(%.1f,%.1f)-(%.1f,%.1f) move=%s goal=%ld\n",
-                                (long)(ent - g_edicts), ent->s.origin2.x, ent->s.origin2.y,
-                                ent->old_origin.x, ent->old_origin.y, rect->min.x, rect->min.y,
-                                rect->max.x, rect->max.y,
-                                ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
-                                ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
-                    }
-#endif
-                    G_PublishEvent(ent, evt->type)->responseTo = evt;
+                    G_PublishEventResponse(ent, EVENT_GAME_ENTER_REGION, evt);
                 }
                 break;
-            case EVENT_GAME_LEAVE_REGION:
-                if (!G_RegionContains(&evt->region, &ent->s.origin2) &&
-                    G_RegionContains(&evt->region, &ent->old_origin))
+            }
+            case EVENT_GAME_LEAVE_REGION: {
+                HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
+                LPREGION region = G_RegionFromHandle(evt->region);
+                DWORD spawn_time = ent->spawn_time;
+                if (region && !G_RegionContains(region, &ent->s.origin2) &&
+                    G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                    ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
+                    G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
-                    G_PublishEvent(ent, evt->type)->responseTo = evt;
+                    G_PublishEventResponse(ent, EVENT_GAME_LEAVE_REGION, evt);
                 }
                 break;
+            }
             case EVENT_UNIT_IN_RANGE:
+                if (!G_EventSubjectIsCurrent(evt)) break;
                 if (ent == evt->subject) {
                     LPEDICT target;
 
@@ -297,9 +312,7 @@ static void G_TouchTriggers(LPEDICT ent) {
                             continue;
                         if (Vector2_distance(&ent->old_origin, &target->old_origin) > evt->range &&
                             Vector2_distance(&ent->s.origin2, &target->s.origin2) <= evt->range) {
-                            GAMEEVENT *e = G_PublishEvent(target, evt->type);
-                            e->edict = target;
-                            e->responseTo = evt;
+                            G_PublishEventResponse(target, evt->type, evt);
                         }
                     }
                 } else if (evt->subject &&
@@ -307,15 +320,23 @@ static void G_TouchTriggers(LPEDICT ent) {
                                   &((LPEDICT)evt->subject)->s.origin2, sizeof(VECTOR2)) == 0 &&
                            Vector2_distance(&((LPEDICT)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
                            Vector2_distance(&((LPEDICT)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range) {
-                    GAMEEVENT *e = G_PublishEvent(ent, evt->type);
-                    e->edict = ent;
-                    e->responseTo = evt;
+                    G_PublishEventResponse(ent, evt->type, evt);
                 }
                 break;
             default:
                 break;
         }
     }
+}
+
+/* Explicit JASS position changes happen before G_RunEntities samples old_origin.
+ * Evaluate the crossing here, then make the teleported position the next baseline. */
+void G_UnitPositionChanged(LPEDICT ent, LPCVECTOR2 old_position) {
+    if (!ent || !ent->inuse || !old_position ||
+        !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
+    ent->old_origin = *old_position;
+    G_TouchTriggers(ent);
+    ent->old_origin = ent->s.origin2;
 }
 
 void G_RunEntities(void) {
@@ -352,6 +373,16 @@ void G_RunEntities(void) {
             continue;
         G_TouchTriggers(ent);
     }
+}
+
+/* A late-frame death must reach its actions before deferred removal clears the dying unit. */
+BOOL G_HasPendingDeathEvent(LPCEDICT ent) {
+    for (DWORD i = level.events.read; i < level.events.write; i++) {
+        GAMEEVENT const *evt = &level.events.queue[i % MAX_EVENT_QUEUE];
+        if (G_IsDeathEvent(evt->type) && evt->edict == ent &&
+            (!evt->edict_spawn_tracked || evt->edict_spawn_time == ent->spawn_time)) return true;
+    }
+    return false;
 }
 
 void G_RunEvents(void) {

@@ -3890,6 +3890,152 @@ TEST(wc3_save, rejects_unknown_c_callback) {
     remove(filename);
 }
 
+TEST(wc3_save, round_trip_region_event_filter_function) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-region-filter-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+    LPEVENT registration = NULL;
+    HANDLE expected_region, restored_region;
+    LPREGION restored_data;
+    DWORD expected_region_id = UINT32_MAX;
+    LPCJASSFUNC expected_filter;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  region staleRegion = null\n"
+        "  region savedRegion = null\n"
+        "  event staleEvent = null\n"
+        "  event savedEvent = null\n"
+        "  integer savedRegionId = 0\n"
+        "  integer savedEventId = 0\n"
+        "endglobals\n"
+        "function savedRegionFilter takes nothing returns boolean\n"
+        "  return GetFilterUnit() != null\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set staleRegion = CreateRegion()\n"
+        "  call RegionAddRect(staleRegion, Rect(100.0, 200.0, 300.0, 400.0))\n"
+        "  set staleEvent = TriggerRegisterEnterRegion(t, staleRegion, null)\n"
+        "  call RemoveRegion(staleRegion)\n"
+        "  set savedRegion = CreateRegion()\n"
+        "  call RegionAddRect(savedRegion, Rect(10.0, 20.0, 30.0, 40.0))\n"
+        "  set savedRegionId = GetHandleId(savedRegion)\n"
+        "  set savedEvent = TriggerRegisterLeaveRegion(t, savedRegion, Condition(function savedRegionFilter))\n"
+        "  set savedEventId = GetHandleId(savedEvent)\n"
+        "endfunction\n"
+        "function verifyRegionSnapshot takes nothing returns nothing\n"
+        "  call BJassAssert(staleRegion == null, \"removed region handle was restored\")\n"
+        "  call BJassAssert(staleEvent == null, \"removed region event handle was restored\")\n"
+        "  call BJassAssert(savedRegion != null, \"live region handle was lost\")\n"
+        "  call BJassAssert(IsPointInRegion(savedRegion, 20.0, 30.0), \"live region geometry was lost\")\n"
+        "  call BJassAssert(GetHandleId(savedRegion) == savedRegionId, \"region handle ID changed after load\")\n"
+        "  call BJassAssert(GetHandleId(savedEvent) == savedEventId, \"region event handle ID changed after load\")\n"
+        "endfunction\n"));
+    FOR_EACH_EVENT(evt) if (evt->type == EVENT_GAME_LEAVE_REGION) { registration = evt; break; }
+    T_NOT_NULL(registration);
+    expected_region = registration ? registration->region : NULL;
+    T_NOT_NULL(expected_region);
+    T_ASSERT(G_SaveJassHandle("region", expected_region, &expected_region_id));
+    expected_filter = jass_functionbyname(level.vm, "savedRegionFilter");
+    T_ASSERT(registration && registration->filter == expected_filter);
+    T_ASSERT(WriteGame(filename));
+    if (registration) registration->filter = NULL;
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyRegionSnapshot", true);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(registration && registration->filter == expected_filter);
+    restored_region = G_LoadJassHandle("region", expected_region_id);
+    T_NOT_NULL(restored_region);
+    T_ASSERT(registration && registration->region == restored_region);
+    restored_data = G_RegionFromHandle(restored_region);
+    T_NOT_NULL(restored_data);
+    T_EQ(restored_data->num_rects, 1);
+    T_FEQ(restored_data->rects[0].min.x, 10.0f, 0.001f);
+    T_FEQ(restored_data->rects[0].max.y, 40.0f, 0.001f);
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(G_RegionFromHandle(restored_region) == restored_data);
+    level.events = old_events;
+    remove(filename);
+}
+
+TEST(wc3_save, removed_region_event_survives_map_registry_recreation) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-removed-region-event-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+    DWORD active_events = 0;
+
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger watchedTrigger = null\n"
+        "  region watchedRegion = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set watchedTrigger = CreateTrigger()\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
+        "  call RemoveRegion(watchedRegion)\n"
+        "endfunction\n"
+        "function recreateMapRegistration takes nothing returns nothing\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
+        "endfunction\n"
+        "function verifyRemovedRegionRestored takes nothing returns nothing\n"
+        "  call BJassAssert(watchedRegion == null, \"removed region handle was restored\")\n"
+        "endfunction\n"));
+    FOR_EACH_EVENT(evt) active_events++;
+    T_EQ(active_events, 0);
+    T_ASSERT(WriteGame(filename));
+
+    jass_callbyname(level.vm, "recreateMapRegistration", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    active_events = 0;
+    FOR_EACH_EVENT(evt) active_events++;
+    T_EQ(active_events, 1);
+    T_ASSERT(ReadGame(filename));
+
+    active_events = 0;
+    FOR_EACH_EVENT(evt) active_events++;
+    T_EQ(active_events, 0);
+    jass_callbyname(level.vm, "verifyRemovedRegionRestored", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.events = old_events;
+    remove(filename);
+}
+
+TEST(wc3_save, queued_event_reference_round_trips_after_region_slot_retirement) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-region-event-slot-hole-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger watchedTrigger = null\n"
+        "  region watchedRegion = null\n"
+        "  unit watchedUnit = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set watchedTrigger = CreateTrigger()\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
+        "  set watchedUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterUnitStateEvent(watchedTrigger, watchedUnit, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call RemoveRegion(watchedRegion)\n"
+        "  call SetWidgetLife(watchedUnit, 100.0)\n"
+        "  call SetWidgetLife(watchedUnit, 0.0)\n"
+        "endfunction\n"));
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!level.events.handlers[0].inuse);
+    T_ASSERT(level.events.handlers[1].inuse);
+    T_EQ(level.events.write, 1);
+    T_ASSERT(level.events.queue[0].responseTo == &level.events.handlers[1]);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.events.write, 1);
+    T_ASSERT(level.events.queue[0].responseTo == &level.events.handlers[1]);
+    level.events = old_events;
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_game_state_event_condition) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-game-state-event-save-test.bin";
     LEVELEVENTS old_events = level.events;
@@ -3947,6 +4093,8 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
     LPEVENT saved_handler = &level.events.handlers[0];
     subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    subject->spawn_time = level.time + 1234;
+    G_SetEventSubject(saved_handler, subject);
     source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
     GAMEEVENT *queued = G_PublishEventWithPoint(&(gameEventPointParams_t){
         .edict = subject, .type = EVENT_UNIT_IN_RANGE, .source = source,
@@ -3958,11 +4106,18 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     T_EQ(level.events.read, 0); T_EQ(level.events.write, 1);
     T_EQ(level.events.queue[0].type, EVENT_UNIT_IN_RANGE);
     T_ASSERT(level.events.queue[0].edict == subject && level.events.queue[0].source == source);
+    T_EQ(level.events.queue[0].edict_spawn_time, subject->spawn_time);
+    T_ASSERT(level.events.queue[0].edict_spawn_tracked);
+    T_EQ(level.events.queue[0].source_spawn_time, source->spawn_time);
+    T_ASSERT(level.events.queue[0].source_spawn_tracked);
     T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('R','h','m','e'));
     T_ASSERT(level.events.queue[0].has_point);
     T_FEQ(level.events.queue[0].point.x, 11.0f, 0.001f);
     T_FEQ(level.events.queue[0].point.y, 22.0f, 0.001f);
     T_ASSERT(level.events.queue[0].responseTo == saved_handler);
+    T_ASSERT(saved_handler->subject == subject);
+    T_EQ(saved_handler->subject_spawn_time, subject->spawn_time);
+    T_ASSERT(saved_handler->subject_spawn_tracked);
     level.events = old_events; remove(filename);
 }
 

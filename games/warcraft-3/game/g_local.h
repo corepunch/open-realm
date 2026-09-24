@@ -27,6 +27,15 @@
 #define BZ_STRINGIFY(value) BZ_STRINGIFY_INNER(value)
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
+#define MAX_REGIONS 2048 // fixed region data slots; generation tokens let retired slots be reused safely
+#define REGION_TOKEN_SLOT_BITS 13 // 2048 slots plus a two-bit tag; upper uintptr_t bits carry a generation
+#define EVENT_TOKEN_SLOT_BITS 12 // 1024 slots plus a two-bit tag; upper bits carry a generation
+#define REGION_HANDLE_ID_GENERATION_BITS 17 // keeps region GetHandleId values unique in a positive 28-bit range
+#define EVENT_HANDLE_ID_GENERATION_BITS 18 // keeps region-event GetHandleId values unique in a positive 28-bit range
+#define REGION_HANDLE_GENERATION_MAX ((1u << REGION_HANDLE_ID_GENERATION_BITS) - 1)
+#define EVENT_HANDLE_GENERATION_MAX ((1u << EVENT_HANDLE_ID_GENERATION_BITS) - 1)
+#define REGION_HANDLE_ID_BASE 0x10000000u
+#define REGION_EVENT_HANDLE_ID_BASE 0x20000000u
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #ifdef WC3_DEBUG_TIMERDIALOG
@@ -441,6 +450,9 @@ typedef enum {
 struct gregion_s {
     BOX2 rects[MAX_REGION_SIZE];
     DWORD num_rects;
+    BOOL inuse;
+    DWORD generation;
+    BOOL exhausted;
 };
 
 typedef enum {
@@ -821,7 +833,11 @@ typedef struct {
 typedef struct gameevent_s {
     EVENTTYPE type;
     LPEDICT edict;
+    DWORD edict_spawn_time;
+    BOOL edict_spawn_tracked;
     LPEDICT source;
+    DWORD source_spawn_time;
+    BOOL source_spawn_tracked;
     LONG value; /* scalar JASS callback payload (for example spell/research rawcode) */
     VECTOR2 point;
     BOOL has_point;
@@ -895,7 +911,7 @@ typedef struct {
 #define MAX_GAMECACHE_STRING 256 // chars; shared string cap for gamecache and hashtable string slots
 #define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
 #define WC3_LAYER_LEADERBOARD LAYER_GAME_1
-#define MAX_EVENTS 1024 // handlers; fixed event slots preserve stable pointers across removal
+#define MAX_EVENTS 1024 // handlers; region-event tokens allow safe reuse of retired handler slots
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
 #define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
@@ -1109,6 +1125,7 @@ typedef struct {
 #define UNIT_BALANCE_PERMANENT_INVISIBLE 0x2 // bit; cached Apiv classification for hot per-viewer FOW checks
 #define WC3_UNIT_TYPE_STRUCTURE 2 // handle value; Warcraft structure type; used by IsUnitType
 #define WC3_UNIT_TYPE_POLYMORPHED 22 // handle value; Warcraft Polymorphed type; used by IsUnitType
+#define WC3_UNIT_STATE_LIFE 0 // handle value; UNIT_STATE_LIFE
 #define WC3_ORDER_ID_POLYMORPH 852074 // order ID; Warcraft Polymorph command; used by order dispatch
 
 typedef struct {
@@ -1661,16 +1678,21 @@ struct game_locals {
 
 struct gevent_s {
     LPEDICT subject;
+    DWORD subject_spawn_time;
+    BOOL subject_spawn_tracked;
     EVENTTYPE type;
     LPTRIGGER trigger;
     LPGTIMER timer;
-    REGION region;
+    struct jass_function const *filter;
+    HANDLE region;
     FLOAT range;
     DWORD state;
     DWORD limitop;
     FLOAT limitval;
     LPCSTR variable;
     BOOL inuse;
+    DWORD handle_generation;
+    BOOL generation_exhausted;
 };
 
 typedef struct {
@@ -1883,6 +1905,8 @@ struct level_locals {
     MULTIBOARDITEM multiboard_items[MAX_MULTIBOARD_ITEMS];
     TEXTTAG texttags[MAX_TEXTTAGS];
     HASHTABLE hashtables[MAX_HASHTABLES];
+    REGION regions[MAX_REGIONS];
+    DWORD num_regions;
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     DWORD multiboard_dirty_clients;
     DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
@@ -2015,6 +2039,9 @@ void G_RemoveUnitStock(LPEDICT, DWORD);
 void G_AddUnitStockAll(DWORD, LONG, LONG);
 void G_RemoveUnitStockAll(DWORD);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+static inline BOOL G_IsDeathEvent(EVENTTYPE type) { return type == EVENT_UNIT_DEATH || type == EVENT_PLAYER_UNIT_DEATH; }
+BOOL G_HasPendingDeathEvent(LPCEDICT);
+void G_PublishEventResponse(LPEDICT, EVENTTYPE, LPEVENT);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
 GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params);
@@ -2166,6 +2193,13 @@ BOOL G_QuestValid(QUEST const *quest);
 BOOL G_QuestItemValid(QUESTITEM const *item);
 void G_FreeJassGroup(ggroup_t *group);
 void G_ClearJassGroupRegistry(void);
+void G_ClearRegionRegistry(void);
+LPREGION G_RegionFromHandle(HANDLE);
+HANDLE G_RegionHandle(DWORD);
+BOOL G_RegionHandleParts(HANDLE, DWORD *, DWORD *);
+LPEVENT G_EventFromHandle(HANDLE);
+HANDLE G_EventHandle(LPEVENT);
+BOOL G_EventHandleParts(HANDLE, DWORD *, DWORD *);
 BOOL G_JassGroupDebugEnabled(void);
 void G_ResetJassGroupDebug(void);
 void G_SetJassGroupDebugCreator(ggroup_t *group, LPCSTR creator);
@@ -2763,6 +2797,10 @@ BOOL G_IsDeferredFree(LPCEDICT);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 LPEVENT G_MakeEvent(EVENTTYPE);
+void G_SetEventSubject(LPEVENT, LPEDICT);
+void G_SetPlayerEventSubject(LPEVENT, LPEDICT);
+BOOL G_EventSubjectIsCurrent(LPEVENT);
+void G_UnitPositionChanged(LPEDICT, LPCVECTOR2);
 void G_JassVariableChanged(LPCSTR, FLOAT, FLOAT);
 BOOL G_LimitMatches(DWORD, FLOAT, FLOAT);
 LPQUEST G_MakeQuest(void);

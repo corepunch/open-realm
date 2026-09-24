@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 39, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 44, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -18,9 +18,19 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
-Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
+Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines.
+
+### Version 40 compatibility concern and possible solution
+
+Version 40 added the region registry to the level stream, region IDs to saved event registrations, and region context to the JASS snapshot (snapshot format 6). The exact-version guard rejects version 39 saves; the existing regression test confirms this. This remains a compatibility break for existing saves, even though the added data is limited to region-backed trigger state.
+
+One possible compatibility design is to retain the version 39 header and base payload byte-for-byte, then put version-40-only region state in a tagged, length-delimited extension after the JASS snapshot and before the existing checksum footer. The new reader would parse the optional extension; a version-39 reader could continue parsing the known base payload and ignore the remaining bytes after its snapshot. The extension would need its own schema/version and strict bounds, while the existing footer checksum would cover it. Before adopting this design, verify the trailing-byte behavior with an actual version-39 reader and move every version-40-only field—including region handle and coroutine context data—out of the base payload. This is a proposal only; implementing it requires a separate save-format change and compatibility tests.
+
+Version 41 persists region and region-event handle generations and exhaustion state. This keeps each recycled handle's `GetHandleId` unique during a session and stable across save/load. The exact-version guard rejects version 40 saves as well as earlier versions.
+
+Version 42 persists the unit incarnation (`spawn_time`) captured by unit-bound trigger registrations. This prevents an event from attaching to a different unit when the original edict slot is reused after load. The exact-version guard rejects version 41 saves as well as earlier versions.
 
 Version 32 adds `edict_t.permanent_health_bonus`, the persistent ledger for
 research-owned maximum-life effects such as `UpgradeData.slk` `rhpx`. The field
@@ -98,7 +108,7 @@ Event handler registrations store type, subject entity index, trigger index, tim
 
 ## JASS Snapshot
 
-The embedded snapshot starts with `JSVM`, snapshot format version 4, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
+The embedded snapshot starts with `JSVM`, snapshot format version 6, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
 
 - mutable scalar globals and sparse array entries;
 - integer, real, boolean, string, code, null, and supported typed-handle values;
@@ -471,3 +481,20 @@ Save format version 39 adds the launch-time attack type for basic projectiles.
 Version 38 added the launch-time artillery attack type, target masks, splash
 radii, and damage factors so in-flight shots retain their impact profile across
 save/load.
+
+Save format version 40 adds the fixed region registry and region references in
+event registrations. Region handles use stable registry slot IDs in the level
+state and JASS snapshot format 6 persists `GetTriggeringRegion()` in yielded
+trigger context. Version 41 adds persisted region and region-event handle
+generations so recycled slots retain their `GetHandleId` identity after load.
+Version 42 persists the edict incarnation captured by unit-bound event
+registrations, preventing slot reuse from retargeting an old registration.
+Versions 39, 40, and 41 are rejected by the exact-version guard.
+
+Version 43 persists the queued-event subject incarnation (`edict_spawn_time`
+and `edict_spawn_tracked`) alongside its edict index, so an unread event is
+discarded if its subject slot has been freed or reused. Version 44 persists the
+queued-event source incarnation (`source_spawn_time` and
+`source_spawn_tracked`) alongside its edict index, allowing dispatch to clear a
+stale source without losing an event for a still-current subject. The exact-
+version guard rejects version 43 saves as well as earlier versions.

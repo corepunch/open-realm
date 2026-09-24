@@ -103,6 +103,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Call to Arms And Militia](call-to-arms-and-militia.md)
 - [Timed Status Presentation](timed-status-presentation.md)
 - [Unit Vertex Color](unit-vertex-color.md)
+- [Undead07 Shield Zones](undead07-shield-zones.md)
 - [Unit Selection And Control](selection-and-control.md)
 - [Team Colors](team-colors.md)
 - [Shift Order Queue](order-queue.md)
