@@ -86,7 +86,10 @@ LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
     if (!ent) return NULL;
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
-        if (client->state == cs_spawned && client->playernum == ent->s.player)
+        /* The game may remap campaign players after lobby assignment. Use the
+         * same published player identity as snapshots, not the lobby slot. */
+        if (client->state == cs_spawned && client->edict && client->edict->client &&
+            client->edict->client->ps.number == ent->s.player)
             return client;
     }
     return NULL;

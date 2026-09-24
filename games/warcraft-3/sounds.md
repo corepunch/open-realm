@@ -138,6 +138,23 @@ fallback when a unit has no `YesAttack` row.
 
 Training completion selects a random registered `Ready` variant and queues it as owner-only `svc_sound`. Registered SLK-backed unit responses retain the authored 0..127 row volume and send that volume with their one-shot packet. For unit-source sounds the server resolves the recipient from the unit's WC3 player ownership. For local presentation APIs such as JASS dialogue, the game passes the connected client edict and the server resolves that exact edict before falling back to player ownership. This distinction is required because a campaign's Warcraft player number is not necessarily the engine connection slot.
 
+The ownership lookup must compare against the connected edict's published `client->ps.number`, as snapshot
+visibility already does. `server/client.playernum` is lobby assignment state and can remain unassigned or differ
+from the game identity. This caused silent selection/move responses in NightElfX01 (game player 0), and also
+reproduced in NightElf01 (game player 1): `SV_StartSound: recipient unavailable` appeared even though the response
+file, volume, and command queue were valid. Music uses a separate transport and continued playing.
+`server_net.unit_ack_uses_game_player_identity_after_campaign_begin` covers conflicting identities, reliable
+packet delivery, and rejecting disconnected/unbound recipients; `wc3_unit.smart_move_emits_selected_unit_response`
+covers the real SmartPoint command and entity scheduler.
+
+Entity-relative sound packets pack a 13-bit entity number and a 3-bit channel into an **unsigned** 16-bit value.
+Sign-extending `MSG_ReadShort` before shifting rejected campaign entities 4096–8191 (NightElfX01 reported
+`bad entity=-3935` for entity 4257). `client_sound.packed_entity_above_4095_reaches_mixer` exercises the actual
+client decoder through mixer channel creation, including the 4095/4096 boundary, 4257, and 8191. These fixes
+do not change the wire format or save layout. Run `make test-server-net test-wc3-engine`; the latter includes
+the client packet regression in the engine test executable. Retail comparison commands are in
+[the parity harness](../../tools/parity/README.md#linux-retail-comparison-with-wine).
+
 ### Death sounds
 
 `unit_die` queues the already-registered death sound for the next sound packet.
