@@ -12,6 +12,12 @@ order / behavior -> target + interaction range -> routing -> collision-aware ste
 
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 
+### Static interaction rectangles
+
+`CM_ClosestStaticPathablePointInRectForRadiusFlags()` is a generic routing query for interactions whose legal destination is a world-space rectangle rather than one point or an entity footprint. It searches every pathmap cell intersecting the rectangle, applies the caller's collision radius and blocked-pathing mask to `pathmap.original`, and returns the closest point inside a legal intersecting cell. It does **not** stamp live units into the query. Temporary occupancy remains a move-time collision/local-avoidance concern, matching the rest of the static-route contract and preventing a crowded interaction area from becoming unavailable at order submission. Warcraft Way Gates use this helper for authored `Wrp1`/`Wrp2` entry rectangles; the shared router contains no Way Gate/portal semantics.
+
+Tests cover sub-cell rectangles, blocked intersecting cells, and live occupancy being ignored by the static query.
+
 ### Movement-class static pathing
 
 WC3 `movetp="fly"` units now use the WPM/pathing-texture **UNFLYABLE** bit (`0x04`) for static movement instead of the ground **UNWALKABLE** bit (`0x02`). Ground movers keep the existing UNWALKABLE contract. This selection is carried through destination correction, direct/swept line tests, bounded A*, closest-reachable fallback, resumable flow fields, trained-unit exit placement, and pathing-aware scripted repositioning.

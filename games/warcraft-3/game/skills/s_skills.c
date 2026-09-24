@@ -407,7 +407,7 @@ static ability_t abilitylist[] = {
     { "ANwm", CAbilityWaterElemental, AB_SPELL },  /* Watery Minion */
     { "Arng", CAbilityRevenge, AB_PASSIVE },  /* Revenge */
     { "Atol", CAbilityTreeOfLife, AB_PASSIVE },  /* Tree of Life upgrade ability */
-    { "Awrp", CAbilityWarp, AB_PASSIVE },  /* Waygate ability */
+    { "Awrp", CAbilityWarp, AB_PASSIVE | AB_INNATE },  /* Waygate ability */
     { "ANsl", CAbilityResurrection, AB_SPELL, SPELL_TARGET_NONE },  /* Soul Preservation */
     { "ANfd", CAbilityFingerOfDeath, AB_SPELL, SPELL_TARGET_UNIT },  /* Finger of Death */
     { "ANdp", CAbilityDarkPortal, AB_SPELL, SPELL_TARGET_POINT },  /* Dark Portal */
@@ -772,6 +772,65 @@ BOOL S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE)) break;
     }
     return handled;
+}
+
+/* Accepted instant/spell orders can leave the current movement object untouched.
+ * Give innate behavior owners one generic post-accept hook so they can retire
+ * their own state without putting ability names in m_unit.c. */
+BOOL S_UnitAbilityOrderAccepted(LPEDICT ent, LPCSTR order) {
+    BOOL handled = false;
+    if (!ent || !order) return false;
+    FOR_LOOP(i, num_innate) {
+        abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i, .order = order);
+        handled |= S_AbilityMessage(ent, A_ORDER_ACCEPTED, &call) != 0;
+    }
+    return handled;
+}
+
+static BOOL unit_target_ability_try(LPEDICT target, LPEDICT issuer, LPCSTR order, DWORD code,
+                                    DWORD *seen, DWORD *seen_count, DWORD seen_capacity) {
+    abilityitem_t item;
+    abilityCall_t call;
+    if (!target || !issuer || !order || !code || !seen || !seen_count) return false;
+    FOR_LOOP(i, *seen_count) if (seen[i] == code) return false;
+    if (*seen_count < seen_capacity) seen[(*seen_count)++] = code;
+    if (!G_UnitAbilityLevel(target, code)) return false;
+    item = S_AbilityItem(code);
+    if (!item.ability) return false;
+    call = MAKE(abilityCall_t, .item = &item, .target_order = { issuer, order });
+    return S_AbilityMessage(target, A_TARGET_ORDER, &call) != 0;
+}
+
+/* Generic target-owned interaction dispatch. The target's concrete authored
+ * rawcode is retained so derived AbilityData aliases can consume their own data. */
+BOOL S_UnitTargetAbilityOrder(LPEDICT target, LPEDICT issuer, LPCSTR order) {
+    DWORD seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0};
+    DWORD seen_count = 0;
+    DWORD const seen_capacity = sizeof(seen) / sizeof(*seen);
+    char const *abilities;
+
+    if (!target || !target->inuse || !issuer || !order) return false;
+    abilities = target->data.UnitAbilities ? target->data.UnitAbilities->abilList : NULL;
+    if (abilities) {
+        PARSE_LIST(abilities, token, parse_segment) {
+            DWORD code = 0;
+            if (strlen(token) != 4) continue;
+            memcpy(&code, token, 4);
+            if (unit_target_ability_try(target, issuer, order, code, seen, &seen_count, seen_capacity))
+                return true;
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(target->abilities.added)) {
+        DWORD const code = target->abilities.added[i];
+        if (unit_target_ability_try(target, issuer, order, code, seen, &seen_count, seen_capacity))
+            return true;
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        DWORD const code = target->heroabilities[i].level ? target->heroabilities[i].code : 0;
+        if (unit_target_ability_try(target, issuer, order, code, seen, &seen_count, seen_capacity))
+            return true;
+    }
+    return false;
 }
 
 /* Dispatch projectile impact to the target's authored abilities before damage is applied. */

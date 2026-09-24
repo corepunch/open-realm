@@ -70,6 +70,8 @@ BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags,
                                            LPVECTOR2 out);
+BOOL CM_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
+                                                       FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
 BOOL CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius,
                                             BYTE blocked_flags, LPVECTOR2 out);
