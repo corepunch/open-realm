@@ -426,6 +426,57 @@ TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, removed_region_filter_unit_does_not_receive_crossing_event) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT mover = NULL;
+    VECTOR2 destination = {80.0f, 0.0f};
+
+    G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  region watchedRegion = null\n"
+        "  unit mover = null\n"
+        "  integer fires = 0\n"
+        "endglobals\n"
+        "function remove_filter takes nothing returns boolean\n"
+        "  call RemoveUnit(mover)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function on_enter takes nothing returns nothing\n"
+        "  set fires = fires + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(t, watchedRegion, Condition(function remove_filter))\n"
+        "  call TriggerAddAction(t, function on_enter)\n"
+        "endfunction\n"
+        "function verify_removed_unit_did_not_receive_event takes nothing returns nothing\n"
+        "  call BJassAssert(fires == 0, \"removed region-filter unit received crossing event\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].s.player == 0 &&
+            g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) { mover = &g_edicts[i]; break; }
+    }
+    T_NOT_NULL(mover);
+    mover->movetype = MOVETYPE_STEP; mover->stand = unit_stand; mover->birth = unit_birth;
+    mover->die = unit_die; mover->think = monster_think; mover->collision = 0.0f;
+    mover->health.value = mover->health.max_value = 250.0f;
+    unit_stand(mover);
+    T_ASSERT(unit_issueorder(mover, "move", &destination));
+    G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_removed_unit_did_not_receive_event", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunDeferredFrees();
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, removed_region_is_inert_and_does_not_alias_replacement) {
     T_ASSERT(run_test_jass(
         "type region extends handle\n"

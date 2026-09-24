@@ -833,7 +833,11 @@ typedef struct {
 typedef struct gameevent_s {
     EVENTTYPE type;
     LPEDICT edict;
+    DWORD edict_spawn_time;
+    BOOL edict_spawn_tracked;
     LPEDICT source;
+    DWORD source_spawn_time;
+    BOOL source_spawn_tracked;
     LONG value; /* scalar JASS callback payload (for example spell/research rawcode) */
     VECTOR2 point;
     BOOL has_point;

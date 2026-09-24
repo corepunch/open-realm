@@ -98,6 +98,10 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     BOOL result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     DWORD matching_handlers = 0, invoked_handlers = 0;
 
+    if ((evt->edict_spawn_tracked && (!subject->inuse || subject->spawn_time != evt->edict_spawn_time || G_IsDeferredFree(subject))) ||
+        (evt->source_spawn_tracked && (!evt->source->inuse || evt->source->spawn_time != evt->source_spawn_time || G_IsDeferredFree(evt->source))))
+        return;
+
     if (result_event) {
         G_GameResultDebug("execute event type=%s subject_ent=%ld owner=%u",
             evt->type == EVENT_PLAYER_VICTORY ? "VICTORY" : "DEFEAT",
@@ -260,8 +264,10 @@ static void G_TouchTriggers(LPEDICT ent) {
             case EVENT_GAME_ENTER_REGION: {
                 HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
                 LPREGION region = G_RegionFromHandle(evt->region);
+                DWORD spawn_time = ent->spawn_time;
                 if (region && G_RegionContains(region, &ent->s.origin2) &&
                     !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                    ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
                     G_PublishEventResponse(ent, EVENT_GAME_ENTER_REGION, evt);
@@ -271,8 +277,10 @@ static void G_TouchTriggers(LPEDICT ent) {
             case EVENT_GAME_LEAVE_REGION: {
                 HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
                 LPREGION region = G_RegionFromHandle(evt->region);
+                DWORD spawn_time = ent->spawn_time;
                 if (region && !G_RegionContains(region, &ent->s.origin2) &&
                     G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                    ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
                     G_PublishEventResponse(ent, EVENT_GAME_LEAVE_REGION, evt);

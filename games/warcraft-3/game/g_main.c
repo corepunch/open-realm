@@ -1019,7 +1019,11 @@ GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source
     memset(evt, 0, sizeof(*evt));
     evt->type = type;
     evt->edict = edict;
+    evt->edict_spawn_time = edict ? edict->spawn_time : 0;
+    evt->edict_spawn_tracked = edict && edict->inuse;
     evt->source = source;
+    evt->source_spawn_time = source ? source->spawn_time : 0;
+    evt->source_spawn_tracked = source && source->inuse;
     evt->value = value;
     if (type == EVENT_PLAYER_VICTORY || type == EVENT_PLAYER_DEFEAT) {
         G_GameResultDebug("publish event type=%s ordinal=%u subject_ent=%ld owner=%u read=%u write=%u",

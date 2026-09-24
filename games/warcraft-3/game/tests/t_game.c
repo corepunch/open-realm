@@ -4106,6 +4106,10 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     T_EQ(level.events.read, 0); T_EQ(level.events.write, 1);
     T_EQ(level.events.queue[0].type, EVENT_UNIT_IN_RANGE);
     T_ASSERT(level.events.queue[0].edict == subject && level.events.queue[0].source == source);
+    T_EQ(level.events.queue[0].edict_spawn_time, subject->spawn_time);
+    T_ASSERT(level.events.queue[0].edict_spawn_tracked);
+    T_EQ(level.events.queue[0].source_spawn_time, source->spawn_time);
+    T_ASSERT(level.events.queue[0].source_spawn_tracked);
     T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('R','h','m','e'));
     T_ASSERT(level.events.queue[0].has_point);
     T_FEQ(level.events.queue[0].point.x, 11.0f, 0.001f);
