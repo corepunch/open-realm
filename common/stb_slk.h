@@ -49,6 +49,7 @@ DWORD Stb_SlkLoad(LPCSTR filename, slkField_t const *schema, void **dest, DWORD 
 /* Load SLK from in-memory buffer → allocate *dest, return count (0 on failure). */
 DWORD Stb_SlkLoadBuffer(LPCSTR buffer, slkField_t const *schema, void **dest, DWORD row_stride);
 BOOL Stb_IniCacheLoad(stbIniCache_t *cache, LPCSTR filename);
+BOOL Stb_IniCacheLoadBuffer(stbIniCache_t *cache, LPCSTR buffer);
 BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames);
 /* Decode an INI cache into a typed row array → allocate *dest, return count. */
 DWORD Stb_IniDecode(stbIniCache_t const *ini, slkField_t const *schema, void **dest, DWORD row_stride);

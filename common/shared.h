@@ -243,6 +243,14 @@ enum {
 #define EFX_TEAM_COLOR_SHIFT 3
 #define EFX_SLOT_MASK 0x1f00 // bits 8-12; authored attachment slots used by model effects
 #define EFX_SLOT_SHIFT 8 // bits; low bit of the packed attachment-slot mask; used by the renderer
+/* Bits 13-15 are an opaque game-owned presentation variant. Shared/client
+ * code transports this value without assigning game semantics; the selected
+ * game module and renderer must agree on the 0..7 interpretation. */
+#define EFX_GAME_VARIANT_MASK 0xe000
+#define EFX_GAME_VARIANT_SHIFT 13
+#define EFX_GAME_VARIANT_GET(flags) (((flags) & EFX_GAME_VARIANT_MASK) >> EFX_GAME_VARIANT_SHIFT)
+#define EFX_GAME_VARIANT_SET(flags, variant) \
+    (((flags) & ~EFX_GAME_VARIANT_MASK) | ((((USHORT)(variant)) << EFX_GAME_VARIANT_SHIFT) & EFX_GAME_VARIANT_MASK))
 
 enum {
     FLAG(RDF_NOFOG, 0),
@@ -530,6 +538,7 @@ typedef enum {
     UI_PLAYERSTAT_SELECTION_MAX_MANA,
     UI_PLAYERSTAT_SELECTION_TIMED_STATUS, /* 0..USHRT_MAX; selected-unit timed-status remaining fraction */
     UI_PLAYERSTAT_ENV_VARIANT, /* presentation variant for environment-bound UI; 0 is normal */
+    UI_PLAYERSTAT_GAME_VARIANT, /* opaque game-owned local presentation variant; shared/client code assigns no semantics */
 } UIPLAYERSTAT;
 
 typedef enum {
@@ -580,8 +589,8 @@ typedef const struct ENVIRONLIGHT *LPCENVIRONLIGHT;
 
 _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR,
                "env phase and cinematic portrait color must occupy distinct stats[] slots");
-_Static_assert(UI_PLAYERSTAT_ENV_VARIANT < MAX_STATS,
-               "environment presentation stats must fit playerState.stats[]");
+_Static_assert(UI_PLAYERSTAT_GAME_VARIANT < MAX_STATS,
+               "presentation stats must fit playerState.stats[]");
 
 /* Controller input is independent of whether the player edict has a visible model. */
 #define BZ_INPUT_MAX_MSEC 250 // milliseconds; bounds one controller movement sample after stalls

@@ -244,6 +244,7 @@ static void V_AddClientEntity(centity_t const *ent) {
      * collapse the rendered model and its collision shape to zero. */
     re.scale = cl_normalize_entity_scale(re.scale);
     re.frame = ent->current.frame;
+    re.owner = ent->current.player;
     re.oldframe = ent->prev.frame;
     re.health = ent->current.stats[ENT_HEALTH];
     re.effect_flags = ent->current.effect_flags;
@@ -633,8 +634,9 @@ void V_RenderView(void) {
         cl.viewDef.time = cl.time;
         cl.viewDef.deltaTime = elapsed;
         cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG;
-    cl.viewDef.player = cl.playerstate.number;
-    cl.viewDef.hover_entity = cl.hover_entity;
+        cl.viewDef.player = cl.playerstate.number;
+        cl.viewDef.game_variant = cl.playerstate.stats[UI_PLAYERSTAT_GAME_VARIANT];
+        cl.viewDef.hover_entity = cl.hover_entity;
 
         V_ClearScene();
         Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
@@ -663,6 +665,7 @@ void V_RenderView(void) {
 #endif
         cl.viewDef.rdflags = cl.playerstate.rdflags;
         cl.viewDef.player = cl.playerstate.number;
+        cl.viewDef.game_variant = cl.playerstate.stats[UI_PLAYERSTAT_GAME_VARIANT];
         cl.viewDef.hover_entity = cl.hover_entity;
     
 #if !defined(WOW) && !defined(SC2)

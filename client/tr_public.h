@@ -135,6 +135,7 @@ typedef struct {
     LPCTEXTURE splat;
     LPCSTR name;                      /* server-authored world label (NULL = none) */
     DWORD number;
+    DWORD owner;                     /* authoritative entity owner/player slot when the game assigns one */
     DWORD team;
 #ifdef WOW
     DWORD display_id;
@@ -207,6 +208,7 @@ typedef struct {
     ENVIRONLIGHT terrainLight;  /* evaluated world/terrain light; valid=0 keeps the renderer fallback */
     ENVIRONLIGHT entityLight;   /* evaluated entity light; valid=0 reuses terrainLight or the fallback */
     DWORD player;
+    USHORT game_variant;      /* opaque game-owned local presentation variant */
     DWORD rdflags;
     DWORD hover_entity;     /* entity under mouse cursor (0 = none) */
     DWORD fow_width, fow_height, fow_generation;
