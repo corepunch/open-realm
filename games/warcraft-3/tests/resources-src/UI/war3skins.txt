@@ -13,6 +13,11 @@ InfoPanelIconArmorHeroNeutral=TestUI\Textures\missing-hero-neutral.blp
 InfoPanelIconArmorHero=TestUI\Textures\solid_white.blp
 InfoPanelIconArmorDivineNeutral=TestUI\Textures\missing-divine-neutral.blp
 InfoPanelIconArmorDivine=TestUI\Textures\missing-divine.blp
+MinimapHeroTexture=TestUI\Textures\solid_white.blp
+MinimapResourceTexture=TestUI\Textures\solid_white.blp
+MinimapEntangledResourceTexture=TestUI\Textures\checker_8x8.blp
+MinimapHauntedResourceTexture=TestUI\Textures\panel_border_32x32.blp
+MinimapNeutralTexture=TestUI\Textures\alpha_ring_16x16.blp
 
 [Human]
 ConsoleInventoryCoverTexture=TestUI\Textures\human-inventory-cover.blp

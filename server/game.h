@@ -148,6 +148,8 @@ struct game_export {
     bool (*PrepareMap)(LPCSTR mapFilename);
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
+    /* Cheap predicate, called for each visible candidate to preserve it under saturation. */
+    BOOL (*IsSnapshotPriorityEntity)(DWORD player, LPCEDICT ent);
     void (*CustomizeEntity)(DWORD player, LPCEDICT ent, LPENTITYSTATE state);
     DWORD (*WriteClientDatagram)(LPEDICT ent, LPBYTE data, DWORD size);
     DWORD (*PlayerCreateMap)(void);

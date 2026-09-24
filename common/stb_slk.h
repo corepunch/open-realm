@@ -54,6 +54,7 @@ BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames);
 /* Decode an INI cache into a typed row array → allocate *dest, return count. */
 DWORD Stb_IniDecode(stbIniCache_t const *ini, slkField_t const *schema, void **dest, DWORD row_stride);
 LPCSTR Stb_IniCacheFind(stbIniCache_t const *cache, LPCSTR section, LPCSTR key);
+/* Release parsed INI tables and clear the cache; safe for a zero-initialized cache. */
 void Stb_IniCacheFree(stbIniCache_t *cache);
 
 /* -------------------------------------------------------------------------
