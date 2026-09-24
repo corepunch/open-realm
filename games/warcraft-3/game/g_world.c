@@ -59,6 +59,57 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 #include "common/world.c"
 #include "common/world_w3.c"
 #include "server/sv_routing.c"
+
+/* WC3 Way Gate entry selection uses the shared router's static grid, but this
+ * rectangle-specific policy belongs to the game that consumes it. */
+BOOL G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
+                                                      FLOAT radius, BYTE blocked_flags, LPVECTOR2 out) {
+    BOX2 rect;
+    VECTOR2 nmin, nmax;
+    FLOAT best_distance = FLT_MAX;
+    int radius_cells, x0, x1, y0, y1;
+    BOOL found = false;
+
+    if (!location || !bounds || !out) return false;
+    rect.min = (VECTOR2){ MIN(bounds->min.x, bounds->max.x), MIN(bounds->min.y, bounds->max.y) };
+    rect.max = (VECTOR2){ MAX(bounds->min.x, bounds->max.x), MAX(bounds->min.y, bounds->max.y) };
+    if (rect.max.x <= rect.min.x || rect.max.y <= rect.min.y) return false;
+    if (!pathmap.original || !pathmap.width || !pathmap.height) {
+        *out = (VECTOR2){ MIN(rect.max.x, MAX(rect.min.x, location->x)),
+                          MIN(rect.max.y, MAX(rect.min.y, location->y)) };
+        return true;
+    }
+
+    nmin = CM_GetNormalizedMapPosition(rect.min.x, rect.min.y);
+    nmax = CM_GetNormalizedMapPosition(rect.max.x, rect.max.y);
+    x0 = MIN((int)pathmap.width - 1, MAX(0, (int)floorf(MIN(nmin.x, nmax.x) * pathmap.width)));
+    x1 = MIN((int)pathmap.width - 1, MAX(0, (int)floorf(MAX(nmin.x, nmax.x) * pathmap.width)));
+    y0 = MIN((int)pathmap.height - 1, MAX(0, (int)floorf(MIN(nmin.y, nmax.y) * pathmap.height)));
+    y1 = MIN((int)pathmap.height - 1, MAX(0, (int)floorf(MAX(nmin.y, nmax.y) * pathmap.height)));
+    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+
+    for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
+        VECTOR2 a, b, candidate, check;
+        FLOAT min_x, max_x, min_y, max_y, distance;
+        int check_x, check_y;
+
+        if (!is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, blocked_flags)) continue;
+        a = CM_GetDenormalizedMapPosition((FLOAT)x / pathmap.width, (FLOAT)y / pathmap.height);
+        b = CM_GetDenormalizedMapPosition((FLOAT)(x + 1) / pathmap.width,
+                                           (FLOAT)(y + 1) / pathmap.height);
+        min_x = MAX(rect.min.x, MIN(a.x, b.x)); max_x = MIN(rect.max.x, MAX(a.x, b.x));
+        min_y = MAX(rect.min.y, MIN(a.y, b.y)); max_y = MIN(rect.max.y, MAX(a.y, b.y));
+        if (min_x > max_x || min_y > max_y) continue;
+        candidate = (VECTOR2){ MIN(max_x, MAX(min_x, location->x)), MIN(max_y, MAX(min_y, location->y)) };
+        check = CM_GetNormalizedMapPosition(candidate.x, candidate.y);
+        check_x = (int)floorf(check.x * pathmap.width); check_y = (int)floorf(check.y * pathmap.height);
+        if (check_x != x || check_y != y)
+            candidate = (VECTOR2){ (min_x + max_x) * 0.5f, (min_y + max_y) * 0.5f };
+        distance = Vector2_distance(location, &candidate);
+        if (!found || distance < best_distance) best_distance = distance, *out = candidate, found = true;
+    }
+    return found;
+}
 #pragma GCC visibility pop
 
 #undef FS_ReadFile

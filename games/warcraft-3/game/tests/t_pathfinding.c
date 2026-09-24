@@ -56,7 +56,7 @@ DWORD  CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, FLOAT radius, BYTE b
 void   CM_ProcessPathJobs(DWORD work_budget);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
-BOOL   CM_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
+BOOL   G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 BOOL   CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius,
                                               BYTE blocked_flags, LPVECTOR2 out);
@@ -1258,7 +1258,7 @@ TEST(wc3_pathfinding, static_rect_query_handles_subcell_interaction_area) {
     VECTOR2 from = {0.25f, 0.25f}, out = {0};
 
     setup_test_pathmap(4, 4, cells);
-    T_ASSERT(CM_ClosestStaticPathablePointInRectForRadiusFlags(&from, &rect, 0.0f,
+    T_ASSERT(G_ClosestStaticPathablePointInRectForRadiusFlags(&from, &rect, 0.0f,
         CM_PATHING_UNWALKABLE, &out));
     T_ASSERT(out.x >= rect.min.x && out.x <= rect.max.x);
     T_ASSERT(out.y >= rect.min.y && out.y <= rect.max.y);
@@ -1272,7 +1272,7 @@ TEST(wc3_pathfinding, static_rect_query_skips_blocked_intersecting_cell) {
 
     cells[1 * 4 + 1] = CM_PATHING_UNWALKABLE;
     setup_test_pathmap(4, 4, cells);
-    T_ASSERT(CM_ClosestStaticPathablePointInRectForRadiusFlags(&from, &rect, 0.0f,
+    T_ASSERT(G_ClosestStaticPathablePointInRectForRadiusFlags(&from, &rect, 0.0f,
         CM_PATHING_UNWALKABLE, &out));
     T_ASSERT(out.x >= 2.0f && out.x <= rect.max.x);
     T_ASSERT(out.y >= rect.min.y && out.y <= rect.max.y);
@@ -1292,7 +1292,7 @@ TEST(wc3_pathfinding, static_rect_query_ignores_temporary_unit_occupancy) {
     blocker->collision = 0.25f;
     blocker->s.model = 1;
     gi.LinkEntity(blocker);
-    T_ASSERT(CM_ClosestStaticPathablePointInRectForRadiusFlags(&from, &rect, 0.0f,
+    T_ASSERT(G_ClosestStaticPathablePointInRectForRadiusFlags(&from, &rect, 0.0f,
         CM_PATHING_UNWALKABLE, &out));
     T_FEQ(out.x, from.x, 0.001f);
     T_FEQ(out.y, from.y, 0.001f);

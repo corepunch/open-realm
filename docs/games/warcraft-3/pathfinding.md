@@ -14,7 +14,7 @@ Ground Move, Patrol, and Attack-move location orders are collision-size aware fr
 
 ### Static interaction rectangles
 
-`CM_ClosestStaticPathablePointInRectForRadiusFlags()` is a generic routing query for interactions whose legal destination is a world-space rectangle rather than one point or an entity footprint. It searches every pathmap cell intersecting the rectangle, applies the caller's collision radius and blocked-pathing mask to `pathmap.original`, and returns the closest point inside a legal intersecting cell. It does **not** stamp live units into the query. Temporary occupancy remains a move-time collision/local-avoidance concern, matching the rest of the static-route contract and preventing a crowded interaction area from becoming unavailable at order submission. Warcraft Way Gates use this helper for authored `Wrp1`/`Wrp2` entry rectangles; the shared router contains no Way Gate/portal semantics.
+`G_ClosestStaticPathablePointInRectForRadiusFlags()` is a WC3-owned query for interactions whose legal destination is a world-space rectangle rather than one point or an entity footprint. It searches every pathmap cell intersecting the rectangle, applies the caller's collision radius and blocked-pathing mask to `pathmap.original`, and returns the closest point inside a legal intersecting cell. It does **not** stamp live units into the query. Temporary occupancy remains a move-time collision/local-avoidance concern, preventing a crowded interaction area from becoming unavailable at order submission. Way Gates use it for authored `Wrp1`/`Wrp2` entry rectangles; the shared router retains only generic pathing primitives.
 
 Tests cover sub-cell rectangles, blocked intersecting cells, and live occupancy being ignored by the static query.
 
