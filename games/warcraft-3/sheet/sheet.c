@@ -510,6 +510,12 @@ BOOL Stb_IniCacheLoad(stbIniCache_t *cache, LPCSTR filename) {
     return cache->source != NULL;
 }
 
+BOOL Stb_IniCacheLoadBuffer(stbIniCache_t *cache, LPCSTR buffer) {
+    if (!cache || !buffer) return false;
+    cache->source = FS_ParseINI_Buffer(buffer);
+    return cache->source != NULL;
+}
+
 BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames) {
     sheetTable_t *head = NULL, *tail = NULL;
     if (!cache || !filenames) return false;

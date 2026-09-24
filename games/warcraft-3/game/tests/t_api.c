@@ -19,6 +19,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "common/ui_constants.h"
+#include "games/warcraft-3/common/minimap.h"
 #include "common/campaign_progress.h"
 
 /* Helpers defined in t_utils.c */
@@ -3731,6 +3732,80 @@ TEST(wc3_api, customize_entity_preserves_world_state) {
     T_EQ(state.renderfx, RF_SELECTED);
 }
 
+TEST(wc3_api, customize_entity_publishes_automatic_minimap_contacts) {
+    UnitBalance_t hero_balance = { .strength = 1 };
+    UnitUI_t ui = { 0 };
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 }, .data = { .UnitUI = &ui } };
+
+    ent.health.value = 100.0f;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_UNIT);
+
+    state.flags = EF_BUILDING;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_BUILDING);
+
+    ui.hideOnMinimap = true;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_NONE);
+    ui.hideOnMinimap = false;
+
+    ui.neutralBuildingMinimapIcon = true;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING);
+
+    ui.neutralBuildingMinimapIcon = false;
+    state.flags = 0;
+    ent.data.UnitBalance = &hero_balance;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_HERO);
+
+    /* WC3 keeps the hero icon and generic minimap-display switches separate. */
+    ui.hideOnMinimap = true;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_HERO);
+
+    ui.hideHeroMinimap = true;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_NONE);
+
+    ui.hideOnMinimap = false;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_UNIT);
+}
+
+TEST(wc3_api, customize_entity_distinguishes_racial_gold_mine_markers) {
+    UnitAbilities_t haunted_abilities = { .abilList = "Abgm" };
+    UnitAbilities_t entangled_abilities = { .abilList = "Aegm" };
+    entityState_t state = { .number = 7, .model = 11, .flags = EF_BUILDING };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
+
+    ent.health.value = 100.0f;
+    ent.data.UnitAbilities = &haunted_abilities;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_GOLD_HAUNTED);
+
+    ent.data.UnitAbilities = &entangled_abilities;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_GOLD_ENTANGLED);
+}
+
+TEST(wc3_api, customize_entity_suppresses_hidden_and_dead_minimap_contacts) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
+
+    ent.health.value = 100.0f;
+    state.renderfx = RF_HIDDEN;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_NONE);
+
+    state.renderfx = 0;
+    ent.svflags |= SVF_DEADMONSTER;
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_NONE);
+}
+
 TEST(wc3_api, customize_entity_marks_live_unit_hoverable) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
@@ -3845,6 +3920,18 @@ TEST(wc3_api, customize_entity_marks_enemy_hover_relation_hostile) {
 
     globals.CustomizeEntity(0, &ent, &state);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(state.flags & EF_HOSTILE);
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
+TEST(wc3_api, customize_entity_publishes_minimap_relation_when_not_hoverable) {
+    entityState_t state = { .number = 7, .model = 11, .flags = EF_NOT_SELECTABLE };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 2 } };
+    ent.health.value = 100.0f;
+
+    globals.CustomizeEntity(0, &ent, &state);
+    T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_UNIT);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
     T_ASSERT(state.flags & EF_HOSTILE);
     T_ASSERT(!(state.flags & EF_NEUTRAL));
 }
@@ -6410,6 +6497,50 @@ TEST(wc3_api, issue_418_campaign_natives_are_registered) {
         "  call BJassAssert(not GetCreepCampFilterState(), \"creep camp filter\")\n"
         "  call UnitRemoveBuffsEx(null, true, true, true, true, true, true, true)\n"
         "endfunction\n"));
+}
+
+TEST(wc3_api, ally_color_filter_global_state_updates_all_players) {
+    LPPLAYER const saved_currentplayer = currentplayer;
+
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetAllyColorFilterState(2)\n"
+        "  call BJassAssert(GetAllyColorFilterState() == 2, \"global ally color state\")\n"
+        "endfunction\n"));
+    FOR_LOOP(i, game.max_clients)
+        T_EQ(game.clients[i].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR], WC3_MINIMAP_ALLY_COLOR_WORLD);
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, ally_color_filter_clamps_to_wc3_modes) {
+    LPPLAYER const saved_currentplayer = currentplayer;
+
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetAllyColorFilterState(99)\n"
+        "  call BJassAssert(GetAllyColorFilterState() == 2, \"high ally filter clamp\")\n"
+        "  call SetAllyColorFilterState(-7)\n"
+        "  call BJassAssert(GetAllyColorFilterState() == 0, \"low ally filter clamp\")\n"
+        "endfunction\n"));
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, ally_color_filter_state_honors_currentplayer) {
+    LPPLAYER const saved_currentplayer = currentplayer;
+
+    game.clients[0].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR] = WC3_MINIMAP_ALLY_COLOR_PLAYERS;
+    game.clients[1].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR] = WC3_MINIMAP_ALLY_COLOR_PLAYERS;
+    currentplayer = test_player(1);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetAllyColorFilterState(1)\n"
+        "  call BJassAssert(GetAllyColorFilterState() == 1, \"local ally color state\")\n"
+        "endfunction\n"));
+    T_EQ(game.clients[0].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR], WC3_MINIMAP_ALLY_COLOR_PLAYERS);
+    T_EQ(game.clients[1].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR], WC3_MINIMAP_ALLY_COLOR_MINIMAP);
+    currentplayer = saved_currentplayer;
 }
 
 TEST(wc3_api, destroyed_quest_handle_is_safe) {

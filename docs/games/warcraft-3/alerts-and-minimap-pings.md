@@ -18,7 +18,7 @@ The server does not move the camera when an alert is emitted, and a ping does no
 
 The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, RGBA color, and behavior flags. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
 
-Ordinary minimap unit dots are not pings. They are derived every frame from replicated entities by each game's renderer. A ping is a transient attention event, analogous to `svc_sound`, and therefore does not widen `entityState_t` or survive save/load.
+Ordinary minimap unit/building contacts are not pings. Warcraft III assigns its contact classes to the generic three-bit `EFX_GAME_VARIANT_*` payload in `entityState_t.effect_flags`; shared/client code carries that payload opaquely and the WC3 renderer interprets it. See [minimap markers](minimap-markers.md). A ping is a transient attention event, analogous to `svc_sound`, and therefore does not use the automatic-contact variant or survive save/load.
 
 ## Producers
 

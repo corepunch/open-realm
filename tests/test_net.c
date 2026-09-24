@@ -2332,6 +2332,24 @@ TEST(net, environment_variant_stat_roundtrips) {
     T_EQ(out.stats[UI_PLAYERSTAT_ENV_VARIANT], 1);
 }
 
+TEST(net, game_presentation_variant_stat_roundtrips) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 }, to = { 0 }, out = { 0 };
+    DWORD bits;
+    int number;
+
+    to.number = 3;
+    to.stats[UI_PLAYERSTAT_GAME_VARIANT] = 2;
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(number, 3);
+    T_EQ(out.stats[UI_PLAYERSTAT_GAME_VARIANT], 2);
+}
+
 TEST(net, playerstat_pair_after_gameplay_states_roundtrips) {
     DWORD const stat = PLAYERSTATE_LUMBER_GATHERED + 1;
     BYTE buf[256];
@@ -3045,6 +3063,26 @@ TEST(net, entity_delta_preserves_build_preview_fields) {
     T_EQ(EntityPathingPreviewRequired(out.pathing_preview), 0x20);
     T_FEQ(out.origin.x, 0.0f, 0.001f);
     T_FEQ(out.origin.y, 0.0f, 0.001f);
+}
+
+TEST(net, entity_delta_preserves_game_presentation_variant_bits) {
+    FOR_LOOP(variant, 8) {
+        BYTE buf[256];
+        sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+        entityState_t from = { 0 }, to = { .number = 9, .model = 1 }, out = { 0 };
+        DWORD bits = 0;
+        int number;
+
+        to.effect_flags = EFX_GAME_VARIANT_SET(EFX_MODEL, variant);
+        MSG_WriteDeltaEntity(&sb, &from, &to, true);
+        sb.readcount = 0;
+        number = MSG_ReadEntityBits(&sb, &bits);
+        MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+        T_EQ(number, 9);
+        T_EQ(out.effect_flags & EFX_MODEL, EFX_MODEL);
+        T_EQ(EFX_GAME_VARIANT_GET(out.effect_flags), variant);
+    }
 }
 
 TEST(net, entity_delta_preserves_hover_value) {

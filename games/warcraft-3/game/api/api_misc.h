@@ -1,3 +1,5 @@
+#include "games/warcraft-3/common/minimap.h"
+
 extern LPPLAYER currentplayer;
 
 static BOOL TutorialTextDebugEnabledMisc(void) {
@@ -873,10 +875,29 @@ DWORD SetCampaignMenuRace(LPJASS j) {
     //HANDLE r = jass_checkhandle(j, 1, "race");
     return 0;
 }
-static LONG ally_color_filter_state;
 static BOOL creep_camp_filter_state = true;
-DWORD GetAllyColorFilterState(LPJASS j) { (void)j; return jass_pushinteger(j, ally_color_filter_state); }
-DWORD SetAllyColorFilterState(LPJASS j) { ally_color_filter_state = jass_checkinteger(j, 1); return 0; }
+
+static void set_minimap_ally_color_state(USHORT value) {
+    if (currentplayer) {
+        currentplayer->stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR] = value;
+        return;
+    }
+    FOR_LOOP(i, game.max_clients)
+        game.clients[i].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR] = value;
+}
+
+DWORD GetAllyColorFilterState(LPJASS j) {
+    LONG const state = currentplayer ? currentplayer->stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR]
+                                     : game.max_clients ? game.clients[0].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR]
+                                                        : WC3_MINIMAP_ALLY_COLOR_PLAYERS;
+    return jass_pushinteger(j, state);
+}
+DWORD SetAllyColorFilterState(LPJASS j) {
+    LONG state = jass_checkinteger(j, 1);
+    state = MAX(WC3_MINIMAP_ALLY_COLOR_PLAYERS, MIN(state, WC3_MINIMAP_ALLY_COLOR_WORLD));
+    set_minimap_ally_color_state((USHORT)state);
+    return 0;
+}
 DWORD GetCreepCampFilterState(LPJASS j) { (void)j; return jass_pushboolean(j, creep_camp_filter_state); }
 DWORD SetCreepCampFilterState(LPJASS j) { creep_camp_filter_state = jass_checkboolean(j, 1); return 0; }
 DWORD EnableMinimapFilterButtons(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }

@@ -26,6 +26,7 @@
 #include "common/common.h"
 #include "g_local.h"
 #include "common/ui_constants.h"
+#include "games/warcraft-3/common/minimap.h"
 #include "jass/jass.h"
 #include <stdarg.h>
 
@@ -1345,6 +1346,45 @@ static DWORD G_HoverResourceValue(LPCEDICT ent) {
     return value == UINT_MAX ? UINT_MAX : value + 1;
 }
 
+/* Choose exactly one automatic minimap contact for this recipient. The
+ * renderer owns marker artwork; game state owns unit classification and the
+ * object-editor suppression flags. The distinct uhhm/uhom fields are kept
+ * independent: hiding only the Hero icon falls through to the ordinary path,
+ * while uhom can suppress that fallback. */
+static wc3MinimapContact_t G_MinimapMarkerForEntity(LPCEDICT ent, LPCENTITYSTATE state) {
+    UnitUI_t const *ui;
+
+    if (!ent || !state || !(ent->svflags & SVF_MONSTER) ||
+        (ent->svflags & SVF_DEADMONSTER) || ent->health.value <= 0.0f ||
+        (state->renderfx & RF_HIDDEN)) {
+        return WC3_MINIMAP_CONTACT_NONE;
+    }
+
+    ui = ent->data.UnitUI;
+    if (G_UnitIsHero(ent) && (!ui || !ui->hideHeroMinimap))
+        return WC3_MINIMAP_CONTACT_HERO;
+
+    if (ui && ui->hideOnMinimap)
+        return WC3_MINIMAP_CONTACT_NONE;
+
+    if (S_GoldMineIsOverlay(ent)) {
+        if (G_ActorHasSkill(ent, "Aegm")) return WC3_MINIMAP_CONTACT_GOLD_ENTANGLED;
+        if (G_ActorHasSkill(ent, "Abgm")) return WC3_MINIMAP_CONTACT_GOLD_HAUNTED;
+        return WC3_MINIMAP_CONTACT_GOLD_MINE;
+    }
+    /* Natural mines advertise the resource-source bit; avoid re-parsing every
+     * ordinary unit's ability list on every recipient snapshot. */
+    if ((state->flags & EF_RESOURCE_SOURCE) && S_GoldMineIsMine(ent))
+        return WC3_MINIMAP_CONTACT_GOLD_MINE;
+
+    if (ui && ui->neutralBuildingMinimapIcon)
+        return WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING;
+
+    if (state->flags & EF_BUILDING)
+        return WC3_MINIMAP_CONTACT_BUILDING;
+    return WC3_MINIMAP_CONTACT_UNIT;
+}
+
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
@@ -1355,6 +1395,9 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
         !S_UnitIsInvisibleToPlayer(ent, player)) {
         state->renderfx &= ~RF_HIDDEN;
     }
+    wc3MinimapContact_t const minimap_marker = G_MinimapMarkerForEntity(ent, state);
+    state->effect_flags = wc3_minimap_contact_set(state->effect_flags, minimap_marker);
+
     BOOL const hoverable = (ent->svflags & SVF_MONSTER) &&
         !(ent->svflags & SVF_DEADMONSTER) &&
         ent->health.value > 0.0f &&
@@ -1366,22 +1409,24 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     state->name = 0;
     state->hover_value = 0;
     state->stats[ENT_CARGO] = 0;
+    if (minimap_marker != WC3_MINIMAP_CONTACT_NONE || hoverable) {
+        selectionRelation_t const relation = G_SelectionRelation(player, ent);
+        if (relation == SELECT_RELATION_ENEMY) {
+            state->flags |= EF_HOSTILE;
+        } else if (relation == SELECT_RELATION_NEUTRAL) {
+            state->flags |= EF_NEUTRAL;
+        }
+    }
     if (hoverable) {
         DWORD const cargo_capacity = S_CargoCapacity((LPEDICT)ent);
         if (cargo_capacity > 0)
             state->stats[ENT_CARGO] = EntityCargoPack(ent->cargo.count, cargo_capacity);
-        selectionRelation_t const relation = G_SelectionRelation(player, ent);
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
         /* Name remains the hover gate for invulnerable units with no mana bar. */
         state->name = G_UnitNameConfigstring(G_UnitName(ent->s.class_id));
         state->hover_value = G_HoverResourceValue(ent);
         if (!ent->invulnerable) state->flags |= EF_HOVER_HEALTH;
         if (ent->mana.max_value > 0.0f) state->flags |= EF_HOVER_MANA;
-        if (relation == SELECT_RELATION_ENEMY) {
-            state->flags |= EF_HOSTILE;
-        } else if (relation == SELECT_RELATION_NEUTRAL) {
-            state->flags |= EF_NEUTRAL;
-        }
     }
 
 }
