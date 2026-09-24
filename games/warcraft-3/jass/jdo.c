@@ -911,6 +911,7 @@ BOOL jass_coroutinedone(LPCJASSCOROUTINE co) {
 
 BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     LPJASS root = jass_root(j);
+    LPJASSCOROUTINE previous_coroutine = root->current_coroutine;
     DWORD now = jass_gettime();
     LPPLAYER previous_player;
     LPEDICT previous_unit;
@@ -968,7 +969,7 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     }
     currentunit = previous_unit;
     currentplayer = previous_player;
-    root->current_coroutine = NULL;
+    root->current_coroutine = previous_coroutine;
     if (restore_loop_index) {
         jass_pushinteger(root, previous_loop_index);
         jass_copy(root, loop_index, jass_topvalue(root));
@@ -1080,9 +1081,10 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
-static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
+static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params, BOOL immediate) {
     FOR_EACH_LIST(TRIGGERACTION, action, params->trigger->actions) {
         LPPLAYER player = jass_eventplayer(params->unit);
+        LPJASS root = jass_root(j);
         LPJASSCOROUTINE co = jass_startcoroutine(j, &MAKE(JASSCONTEXT,
                                   .trigger = params->trigger,
                                   .func = action->func,
@@ -1099,23 +1101,23 @@ static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t cons
                                   .timer_pending = params->timer_pending,
                               ));
         LPJASSVAR loop_index = find_global(j, "bj_forLoopAIndex");
-        /* TriggerExecute defers actions; retain the loop index from queue time instead of
-         * letting every coroutine observe the caller's final shared bj_forLoopAIndex. */
+        /* Keep queued and suspended actions on the loop index captured at dispatch. */
         if (co && loop_index && loop_index->value && jass_getvarbasetype(loop_index) == jasstype_integer) {
             co->loop_a_index = *(LONG *)loop_index->value;
             co->loop_a_index_valid = true;
         }
+        if (immediate && co) jass_resume(root, co);
     }
 }
 
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    jass_executetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit });
+    jass_executetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit }, true);
 }
 
 static BOOL jass_calltriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
     if (!jass_evaluatetriggercontext(j, params))
         return false;
-    jass_executetriggercontext(j, params);
+    jass_executetriggercontext(j, params, false);
     return true;
 }
 

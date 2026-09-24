@@ -331,6 +331,131 @@ TEST(wc3_jass_map, coroutine_discards_statement_return_values) {
     ));
 }
 
+/* Orc03's gate runs ForGroup, TriggerExecute()s one counter action per
+ * qualifying zeppelin, then immediately reads the counter. */
+TEST(wc3_jass_map, orc03_home_counter_actions_complete_before_victory_gate_check) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  group zeppelinGroup = null\n"
+        "  trigger homeCounter = null\n"
+        "  trigger victoryTrigger = null\n"
+        "  integer zeppelinsHome = 0\n"
+        "  integer countAtGate = -1\n"
+        "  integer victoryRan = 0\n"
+        "endglobals\n"
+        "function ConditionalTriggerExecute takes trigger trig returns nothing\n"
+        "  if TriggerEvaluate(trig) then\n"
+        "    call TriggerExecute(trig)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function IncrementHome takes nothing returns nothing\n"
+        "  set zeppelinsHome = zeppelinsHome + 1\n"
+        "endfunction\n"
+        "function MarkVictory takes nothing returns nothing\n"
+        "  set victoryRan = victoryRan + 1\n"
+        "endfunction\n"
+        "function CountZeppelinAtHome takes nothing returns nothing\n"
+        "  call ConditionalTriggerExecute(homeCounter)\n"
+        "endfunction\n"
+        "function Orc03BuildingCheck takes nothing returns nothing\n"
+        "  set zeppelinsHome = 0\n"
+        "  call ForGroup(zeppelinGroup, function CountZeppelinAtHome)\n"
+        "  set countAtGate = zeppelinsHome\n"
+        "  if zeppelinsHome < 2 then\n"
+        "    return\n"
+        "  endif\n"
+        "  call ConditionalTriggerExecute(victoryTrigger)\n"
+        "endfunction\n"
+        "function VerifyOrc03BuildingCheck takes nothing returns nothing\n"
+        "  call BJassAssert(countAtGate == 2, \"gate sees both synchronously executed counter actions\")\n"
+        "  call BJassAssert(zeppelinsHome == 2, \"both counter actions ran\")\n"
+        "  call BJassAssert(victoryRan == 1, \"victory trigger ran before the gate returned\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local unit zeppelinOne = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  local unit zeppelinTwo = CreateUnit(Player(0), 'hfoo', 32.0, 0.0, 0.0)\n"
+        "  set zeppelinGroup = CreateGroup()\n"
+        "  call GroupAddUnit(zeppelinGroup, zeppelinOne)\n"
+        "  call GroupAddUnit(zeppelinGroup, zeppelinTwo)\n"
+        "  set homeCounter = CreateTrigger()\n"
+        "  call TriggerAddAction(homeCounter, function IncrementHome)\n"
+        "  set victoryTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(victoryTrigger, function MarkVictory)\n"
+        "  call Orc03BuildingCheck()\n"
+        "endfunction\n"
+    ));
+    jass_callbyname(level.vm, "VerifyOrc03BuildingCheck", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_jass_map, trigger_execute_runs_until_child_sleep_then_resumes) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger sleepingTrigger = null\n"
+        "  integer sleepStage = 0\n"
+        "  integer stageAfterExecute = 0\n"
+        "endglobals\n"
+        "function SleepingAction takes nothing returns nothing\n"
+        "  set sleepStage = 1\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set sleepStage = 2\n"
+        "endfunction\n"
+        "function ExecuteSleepingTrigger takes nothing returns nothing\n"
+        "  call TriggerExecute(sleepingTrigger)\n"
+        "  set stageAfterExecute = sleepStage\n"
+        "endfunction\n"
+        "function VerifySleepingTrigger takes nothing returns nothing\n"
+        "  call BJassAssert(stageAfterExecute == 1, \"TriggerExecute ran child to its first wait\")\n"
+        "  call BJassAssert(sleepStage == 2, \"yielded child resumed after caller returned\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set sleepingTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(sleepingTrigger, function SleepingAction)\n"
+        "  call ExecuteSleepingTrigger()\n"
+        "endfunction\n"
+    ));
+    jass_callbyname(level.vm, "VerifySleepingTrigger", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_jass_map, nested_trigger_execute_preserves_parent_coroutine) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger parentTrigger = null\n"
+        "  trigger childTrigger = null\n"
+        "  integer nestedStage = 0\n"
+        "  integer parentStageAtReturn = 0\n"
+        "endglobals\n"
+        "function ChildAction takes nothing returns nothing\n"
+        "  set nestedStage = 1\n"
+        "endfunction\n"
+        "function ParentAction takes nothing returns nothing\n"
+        "  call TriggerExecute(childTrigger)\n"
+        "  set nestedStage = 2\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set nestedStage = 3\n"
+        "endfunction\n"
+        "function VerifyNestedTriggerExecute takes nothing returns nothing\n"
+        "  call BJassAssert(parentStageAtReturn == 2, \"parent yielded after nested TriggerExecute\")\n"
+        "  call BJassAssert(nestedStage == 3, \"parent resumed after its own wait\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set childTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(childTrigger, function ChildAction)\n"
+        "  set parentTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(parentTrigger, function ParentAction)\n"
+        "  call TriggerExecute(parentTrigger)\n"
+        "  set parentStageAtReturn = nestedStage\n"
+        "endfunction\n"
+    ));
+    jass_callbyname(level.vm, "VerifyNestedTriggerExecute", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 /* =========================================================================
  * Map/player setup — config() state round trips through native enum handles
  * ========================================================================= */
