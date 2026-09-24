@@ -988,6 +988,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
 }
 
 TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
     reset_test_entities();
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT altar = make_unit(0, 0);
@@ -997,6 +998,7 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     LONG lumber = MAX(0, trainee->data.UnitBalance->lumberCost);
 
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
+    altar->data.UnitProfile = &revive_profile;
     altar->build = hero;
     hero->revival.awaiting = true;
     hero->revival.reviving = true;
