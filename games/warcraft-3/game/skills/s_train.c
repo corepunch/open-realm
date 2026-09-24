@@ -542,7 +542,10 @@ void G_CancelHeroRevives(LPEDICT altar) {
     LPEDICT item;
     LPEDICT next;
 
-    if (!altar) return;
+    /* This cleanup is also called for ordinary units on death/removal. Their
+     * build pointer can name a construction target, whose self-link is not a
+     * production queue. Only revive-capable producers own this queue. */
+    if (!altar || !G_UnitCanReviveHeroes(altar)) return;
     item = altar->build;
     while (item) {
         next = ProductionNext(item);
