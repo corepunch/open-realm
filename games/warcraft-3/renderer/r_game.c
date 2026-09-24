@@ -18,6 +18,10 @@ bool _W3M_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
 typedef struct { DWORD kind, x, y; COLOR32 bgra; } MMPICON;
 typedef struct { DWORD version, count; MMPICON icons[]; } MMP;
 static struct { PATHSTR map; LPCTEXTURE image, icons[3]; MMP *mmp; } preview;
+
+static LPCTEXTURE minimap_special[WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING + 1];
+static stbIniCache_t minimap_theme, minimap_map_skin;
+
 static LPCSTR const preview_art[] = {
     "UI\\Minimap\\minimap-gold.blp",
     "UI\\Minimap\\minimap-neutralbuilding.blp",
@@ -299,6 +303,9 @@ void R_Shutdown(void) {
     _W3M_ClearMap();
     if (preview.mmp) ri.FS_FreeFile(preview.mmp);
     memset(&preview, 0, sizeof(preview));
+    Stb_IniCacheFree(&minimap_theme);
+    Stb_IniCacheFree(&minimap_map_skin);
+    memset(minimap_special, 0, sizeof(minimap_special));
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
     cursor_model = NULL; cursor_load_attempted = false;
     memset(wc3_attachment_models, 0, sizeof(wc3_attachment_models));
@@ -402,6 +409,177 @@ static void draw_preview(LPCRECT screen, LPCSTR map) {
     }
 }
 
+typedef enum {
+    WC3_INI_MISSING = -1,
+    WC3_INI_INVALID,
+    WC3_INI_LOADED,
+} wc3IniLoadResult_t;
+
+static wc3IniLoadResult_t R_LoadIniCachePath(stbIniCache_t *cache, LPCSTR path) {
+    void *file = NULL;
+    LPSTR text;
+    int size;
+    BOOL loaded;
+
+    if (!cache || !path || !*path) return WC3_INI_MISSING;
+    size = ri.FS_ReadFile(path, &file);
+    if (size < 0 || !file) return WC3_INI_MISSING;
+    text = ri.MemAlloc((long)size + 1);
+    if (!text) {
+        ri.FS_FreeFile(file);
+        fprintf(stderr, "WC3 minimap: failed to allocate INI buffer for %s\n", path);
+        return WC3_INI_INVALID;
+    }
+    memcpy(text, file, (size_t)size);
+    text[size] = '\0';
+    loaded = Stb_IniCacheLoadBuffer(cache, text);
+    ri.MemFree(text);
+    ri.FS_FreeFile(file);
+    if (!loaded) fprintf(stderr, "WC3 minimap: failed to parse %s\n", path);
+    return loaded ? WC3_INI_LOADED : WC3_INI_INVALID;
+}
+
+/* Text data follows the same map-scope precedence as models/textures: a map
+ * archive replacement wins, a missing replacement falls back to base data,
+ * and an invalid authored replacement is diagnosed instead of demoted. */
+static wc3IniLoadResult_t R_LoadIniCache(stbIniCache_t *cache, LPCSTR path) {
+    PATHSTR scoped;
+    wc3IniLoadResult_t result;
+
+    if (!cache || !path || !*path) return WC3_INI_MISSING;
+    if (R_MapAssetCandidate(path, scoped, sizeof(scoped))) {
+        result = R_LoadIniCachePath(cache, scoped);
+        if (result != WC3_INI_MISSING) return result;
+    }
+    return R_LoadIniCachePath(cache, path);
+}
+
+static void R_ClearMinimapSpecialAssets(void) {
+    Stb_IniCacheFree(&minimap_theme);
+    Stb_IniCacheFree(&minimap_map_skin);
+    memset(minimap_special, 0, sizeof(minimap_special));
+}
+
+/* Special minimap textures are Game Interface skin fields. Resolve the map's
+ * CustomSkin after asset scope is active; R_LoadTexture then also honors a
+ * map-owned replacement at the resolved path. Missing keys/assets remain the
+ * renderer's visible placeholder rather than silently changing marker type. */
+static void R_LoadMinimapSpecialAssets(void) {
+    wc3IniLoadResult_t const theme_result = R_LoadIniCache(&minimap_theme, "UI\\war3skins.txt");
+    wc3IniLoadResult_t const map_skin_result = R_LoadIniCache(&minimap_map_skin, "war3mapSkin.txt");
+
+    if (theme_result == WC3_INI_MISSING)
+        fprintf(stderr, "WC3 minimap: missing UI\\war3skins.txt\n");
+    /* An authored map skin that exists but cannot be parsed must stay visible as
+     * a data error. Do not silently demote all of its fields to stock defaults. */
+    if (map_skin_result == WC3_INI_INVALID) {
+        for (wc3MinimapContact_t contact = WC3_MINIMAP_CONTACT_HERO;
+             contact <= WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING; contact++)
+            minimap_special[contact] = tr.texture[TEX_PLACEHOLDER];
+        return;
+    }
+
+    for (wc3MinimapContact_t contact = WC3_MINIMAP_CONTACT_HERO;
+         contact <= WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING; contact++) {
+        LPCSTR const key = wc3_minimap_skin_key(contact);
+        LPCSTR const path = wc3_minimap_skin_texture_path(&minimap_theme, &minimap_map_skin, key);
+        if (!path || !*path) {
+            fprintf(stderr, "WC3 minimap: missing/empty Game Interface key %s\n", key ? key : "<null>");
+            minimap_special[contact] = tr.texture[TEX_PLACEHOLDER];
+            continue;
+        }
+        minimap_special[contact] = R_LoadTexture(path);
+    }
+}
+
+static DWORD R_MinimapAllyColorFilter(void) {
+    return MIN((DWORD)tr.viewDef.game_variant, (DWORD)WC3_MINIMAP_ALLY_COLOR_WORLD);
+}
+
+static BOOL R_MinimapUsesAllianceColors(void) {
+    return R_MinimapAllyColorFilter() >= WC3_MINIMAP_ALLY_COLOR_MINIMAP;
+}
+
+static wc3MinimapColorKind_t R_MinimapColorKind(renderEntity_t const *entity) {
+    wc3MinimapColorParams_t const params = {
+        .owner = entity ? entity->owner : 0,
+        .viewer = tr.viewDef.player,
+        .filter = R_MinimapAllyColorFilter(),
+        .hostile = entity && (entity->flags & RF_HOSTILE),
+        .neutral = entity && (entity->flags & RF_NEUTRAL),
+    };
+    return wc3_minimap_ordinary_color_kind(&params);
+}
+
+static COLOR32 R_MinimapAllianceColor(renderEntity_t const *entity) {
+    wc3MinimapColorKind_t const kind = R_MinimapColorKind(entity);
+    switch (kind) {
+    case WC3_MINIMAP_COLOR_SELF_WHITE: return COLOR32_WHITE;
+    case WC3_MINIMAP_COLOR_ENEMY_RED: return MAKE(COLOR32, 255, 3, 3, 255);
+    case WC3_MINIMAP_COLOR_NEUTRAL_BLACK: return MAKE(COLOR32, 0, 0, 0, 255);
+    case WC3_MINIMAP_COLOR_ALLY_TEAL: return MAKE(COLOR32, 28, 230, 185, 255);
+    case WC3_MINIMAP_COLOR_TEAM:
+    default:
+        return COLOR32_WHITE;
+    }
+}
+
+static LPCTEXTURE R_MinimapOrdinaryContactTexture(renderEntity_t const *entity, LPCOLOR32 color) {
+    wc3MinimapColorKind_t const kind = R_MinimapColorKind(entity);
+    if (kind == WC3_MINIMAP_COLOR_TEAM) {
+        *color = COLOR32_WHITE;
+        return tr.texture[TEX_TEAM_COLOR + (entity->team & TEAM_MASK)];
+    }
+    *color = R_MinimapAllianceColor(entity);
+    return tr.texture[TEX_WHITE];
+}
+
+/* Draw one automatic WC3 contact from recipient-authored snapshot metadata.
+ * Shared/client code carries the game variant opaquely; only this WC3 renderer
+ * assigns minimap semantics to it. */
+static void R_DrawMinimapEntityMarker(renderEntity_t const *entity) {
+    wc3MinimapContact_t const contact = wc3_minimap_contact_get(entity ? entity->effect_flags : 0);
+    LPCTEXTURE texture = NULL;
+    COLOR32 color = COLOR32_WHITE;
+    VECTOR2 point, world, size;
+    RECT marker;
+
+    if (!entity || !entity->number || contact == WC3_MINIMAP_CONTACT_NONE ||
+        (entity->flags & RF_HIDDEN)) return;
+    world = MAKE(VECTOR2, entity->origin.x, entity->origin.y);
+    if (!R_WorldToMinimap(&world, &point)) return;
+
+    size = wc3_minimap_marker_size(contact);
+    switch (contact) {
+    case WC3_MINIMAP_CONTACT_HERO:
+        texture = minimap_special[contact];
+        if (R_MinimapUsesAllianceColors()) color = R_MinimapAllianceColor(entity);
+        break;
+    case WC3_MINIMAP_CONTACT_GOLD_MINE:
+    case WC3_MINIMAP_CONTACT_GOLD_ENTANGLED:
+    case WC3_MINIMAP_CONTACT_GOLD_HAUNTED:
+    case WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING:
+        texture = minimap_special[contact];
+        break;
+    case WC3_MINIMAP_CONTACT_BUILDING:
+    case WC3_MINIMAP_CONTACT_UNIT:
+        texture = R_MinimapOrdinaryContactTexture(entity, &color);
+        break;
+    default:
+        return;
+    }
+
+    if (!texture || size.x <= 0.0f || size.y <= 0.0f) return;
+    marker = MAKE(RECT, point.x - size.x * 0.5f, point.y - size.y * 0.5f, size.x, size.y);
+    R_DrawImage(texture, &marker, &MAKE(RECT, 0, 0, 1, 1), color);
+}
+
+static void R_DrawMinimapEntityMarkers(void) {
+    if (!tr.viewDef.entities) return;
+    FOR_LOOP(i, tr.viewDef.num_entities)
+        R_DrawMinimapEntityMarker(&tr.viewDef.entities[i]);
+}
+
 void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
     if (map) { draw_preview(screen, map); return; }
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
@@ -431,6 +609,9 @@ void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
         }
     }
 
+    /* Contacts draw over the fog texture after the game/server has already
+     * decided which entities this recipient is allowed to know about. */
+    R_DrawMinimapEntityMarkers();
     R_DrawMinimapCameraRect(&content);
     /* Draw last so the border remains visible over the map and camera overlay.
      * It outlines the actual aspect-preserving map area, not letterbox margins. */
@@ -440,6 +621,8 @@ void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
 void R_RegisterMap(LPCSTR mapFileName) {
     R_SetMapAssetScope(mapFileName);
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
+    R_ClearMinimapSpecialAssets();
+    if (mapFileName && *mapFileName) R_LoadMinimapSpecialAssets();
     R_WeatherRegisterMap();
     R_LightningRegisterMap();
     _W3M_RegisterMap(mapFileName);

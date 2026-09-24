@@ -96,7 +96,11 @@ never samples fog, draws the camera outline or live pings, or registers a clicka
 `hide_minimap_in_preview_screens` flag is respected. MMP v0 consists of two 32-bit header words and 16-byte records
 (type, X, Y, BGRA). Coordinates refer to the full 256-pixel thumbnail, including letterboxing. Types 0/1/2 use the
 stock gold, neutral-building, and Circle of Power textures. Start-marker colors are the authored MMP colors,
-not lobby-remapped colors or final randomized spawn positions. Missing/corrupt assets are logged.
+not lobby-remapped colors or final randomized spawn positions. Missing/corrupt assets are logged. This preview-only
+MMP path is separate from the live automatic contacts documented in [minimap markers](minimap-markers.md). Live Hero,
+Gold Mine, racial-mine, and neutral-building marker paths come from `war3skins.txt` Game Interface fields with
+`war3mapSkin.txt` `CustomSkin` precedence after map asset scope is active; missing live art is diagnosed and shown with
+the renderer placeholder rather than silently demoted to an ordinary contact.
 
 The first implementation stored the preview-bit result in `BOOL`, an unsigned byte. A bounded Bandit Ridge trace
 showed flags `0x802a` arriving intact but the narrowed preview value becoming zero, drawing the unloaded gameplay

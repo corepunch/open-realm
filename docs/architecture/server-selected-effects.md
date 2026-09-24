@@ -8,7 +8,8 @@ completely ignorant of *which* content is selected. It only carries:
 
 - `BYTE entityState_t.effect` — a registered model index, same shape as `model`/`model2`.
 - `USHORT entityState_t.effect_flags` — an explicit discriminant (`EFX_MODEL`, `EFX_SPLAT`,
-  `EFX_ATTACH_SLOTS`, ...) plus a packed slot/parameter mask (`EFX_SLOT_MASK`/`EFX_SLOT_SHIFT`).
+  `EFX_ATTACH_SLOTS`, ...), a packed slot/parameter mask (`EFX_SLOT_MASK`/`EFX_SLOT_SHIFT`),
+  and the opaque `EFX_GAME_VARIANT_*` bits when a selected game needs a tiny renderer-facing classification.
 
 All content resolution — race lookup, asset path construction, threshold/tier logic —
 happens server-side in `games/<game>/game/skills/`, which registers the resolved model
@@ -74,6 +75,31 @@ Warcraft III lightning uses the same boundary for two-endpoint transient present
 The shared ribbon primitive accepts a polyline and continuous texture coordinates; the WC3 renderer owns the `LightningData.slk`-specific point generation and lifetime interpretation. This keeps procedural lightning reusable without moving WC3 rawcode or SLK knowledge into the engine layer.
 
 The WC3 renderer resets its unresolved-row warning cache when the map asset scope changes. Each missing effect ID is reported once per map and remains visible to diagnostics without adding a draw-time fallback path.
+
+## Opaque game-owned presentation variants
+
+When a game needs a very small renderer-facing classification that is not a
+registered model/effect index, use the generic variant carriers rather than
+adding game names to shared structs. `entityState_t.effect_flags` bits 13-15
+are `EFX_GAME_VARIANT_*`: shared networking and `client/` transport the `0..7`
+value without interpreting it. `playerState_t.stats[UI_PLAYERSTAT_GAME_VARIANT]`
+likewise carries one game-owned local presentation mode into
+`viewDef.game_variant`. The selected `games/<game>/game/` producer and
+`games/<game>/renderer/` consumer own the meaning.
+
+Warcraft III automatic minimap contacts are the first user of this contract:
+WC3 defines its contact enum and ally-colour semantics only in
+`games/warcraft-3/common/minimap.h`. The generic client copies entity owner,
+team, `effect_flags`, and the local game variant but contains no WC3 marker or
+filter branches. Game renderers that use the opaque value remain responsible
+for identifying which top-level render entities participate; the generic client does
+not rewrite game-owned variant bits on derived/secondary draw entities.
+
+The three entity bits were previously unused. Assigning them changes protocol
+semantics but does not widen `entityState_t`, consume another entity-delta bit,
+or change the struct size. Every value is covered by a generic delta round-trip
+in `tests/test_net.c`; semantic behavior belongs in game-specific tests. See
+[WC3 minimap markers](../games/warcraft-3/minimap-markers.md).
 
 ## Selection-scoped world indicators
 

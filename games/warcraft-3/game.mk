@@ -137,7 +137,7 @@ $(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN
 JASS_HEADERS := $(COMMON_HEADERS) $(CLIENT_HEADERS) $(shell find $(WC3_GAME_DIR) $(WC3_DIR)/common server shared -name '*.h')
 $(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(JASS_HEADERS) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
 $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
-$(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
+$(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(SHEET_LIB) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS) -lsheet))
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
 # The remote client loads collision data before any game imports exist; compile its format reader into the engine.

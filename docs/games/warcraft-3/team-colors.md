@@ -34,6 +34,7 @@ Current inheritance paths are:
 - gameplay/cinematic transmission portraits already carry the explicit `SetCinematicScene` playercolor through `UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR`;
 - the build-placement cursor publishes the configured owner `playerState_t.color` in its cursor entity, matching Warsmash's build-cursor behavior;
 - the rally destination indicator publishes the owning player's configured color;
+- automatic ordinary minimap unit/building contacts render the local player's contacts white in every ally-filter state; in state `0`, non-local contacts use `renderEntity_t.team` so they inherit the resolved unit presentation color instead of re-deriving a player-slot color, while states `1` and `2` use relationship colours for non-local contacts (ally teal, hostile red, neutral/passive black);
 - renderer-created authored attachment children and building-damage fire already inherit their parent `renderEntity_t.team`.
 
 These values are sampled when the transient/derived visual is created. Existing projectile/effect instances are not recolored retroactively if the unit's color changes later.
