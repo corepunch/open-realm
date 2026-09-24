@@ -134,7 +134,7 @@ resolve but clothing does not, inspect both versioned DBC schemas before changin
 ## Equipment and Actor State
 
 - The current packed WoW `equipment` bytes are local slot item indices, not raw item IDs. Treat each byte as an index into a WoW-owned 256-entry item list selected by race, gender, and slot, with index `0` meaning empty. Keep the game state packed with `Wow_PackEquipment(...)` rather than widening entity/player state for preview gear.
-- Grounded WoW actors must use the same one-dimensional yaw path as Warcraft III entities: game code writes `entityState_t.angle` in radians, the client interpolates it with `LerpRotation(...)`, and grounded M2 rendering consumes `renderEntity_t.angle`. Do not put player/creature yaw into `entityState_t.rotation`; `rotation` is reserved for static object/model transforms that genuinely need three axes.
+- WoW actors use the same one-dimensional yaw path as Warcraft III entities: game code writes `entityState_t.angle` in radians, the client interpolates it with `LerpRotation(...)`, and M2 rendering consumes `renderEntity_t.angle`. Do not put player/creature yaw into `entityState_t.rotation`; `rotation` is reserved for static object/model transforms that genuinely need three axes. Ground anchoring adjusts height only; named yaw/pitch/roll and source conversions are described in [AXIS.md](../AXIS.md#engine-pose-contract).
 
 ## Diagnostic Workflow
 

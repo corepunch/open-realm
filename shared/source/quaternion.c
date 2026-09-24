@@ -109,3 +109,11 @@ QUATERNION Quaternion_fromEuler(LPCVECTOR3 euler, ROTATIONORDER order) {
     Matrix4_rotate(&tmp, euler, order);
     return Quaternion_fromMatrix(&tmp);
 }
+
+QUATERNION Quaternion_fromOrientation(orientation_t const *angles) {
+    float cy = cosf(angles->yaw * 0.5f), sy = sinf(angles->yaw * 0.5f);
+    float cp = cosf(-angles->pitch * 0.5f), sp = sinf(-angles->pitch * 0.5f);
+    float cr = cosf(angles->roll * 0.5f), sr = sinf(angles->roll * 0.5f);
+    return (QUATERNION){ sr*cp*cy - cr*sp*sy, cr*sp*cy + sr*cp*sy,
+        cr*cp*sy - sr*sp*cy, cr*cp*cy + sr*sp*sy };
+}

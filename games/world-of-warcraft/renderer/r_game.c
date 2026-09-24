@@ -216,65 +216,13 @@ void R_ReleaseModel(LPMODEL model) {
     ri.MemFree(model);
 }
 
-bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
-    VECTOR3 origin;
-    MATRIX4 adt_to_world_basis;
-    MATRIX4 tmp;
-
-    if (!entity || !entity->model || entity->model->modeltype != ID_MD20) {
-        return false;
-    }
-
-    /* Ground-effect (grass) instances are yaw-only with unit scale and no ground
-     * anchor, so the general path below (B basis multiply + 3 Euler rotates + scale)
-     * reduces to M = T(origin) * B * Ry(-90) * Rx(rotation.z - 90), which folds into
-     * a single 1-sin/1-cos matrix.  This removes ~10 4x4 multiplies per clump, the
-     * dominant CPU cost in Wow_DrawGrass. */
-    if (entity->flags & RF_GROUND_EFFECT) {
-        float const DEG2RAD = 3.14159f / 180.0f;
-        float const rad = (entity->rotation.z - 90.0f) * DEG2RAD;
-        float const c = cosf(rad), s = sinf(rad);
-        matrix->v[0] = 1.0f;  matrix->v[1] = 0.0f; matrix->v[2] = 0.0f; matrix->v[3] = 0.0f;
-        matrix->v[4] = 0.0f;  matrix->v[5] = -s;    matrix->v[6] = c;    matrix->v[7] = 0.0f;
-        matrix->v[8] = 0.0f;  matrix->v[9] = -c;    matrix->v[10] = -s;  matrix->v[11] = 0.0f;
-        matrix->v[12] = entity->origin.x;
-        matrix->v[13] = entity->origin.y;
-        matrix->v[14] = entity->origin.z;
-        matrix->v[15] = 1.0f;
-        return true;
-    }
-
-    origin = entity->origin;
-    if ((entity->flags & RF_GROUND_ANCHOR) && M2_IsCharacterModel(entity->model->m2)) {
-        origin.z += M2_GroundOffset(entity->model->m2) * entity->scale;
-    }
-
-    Matrix4_identity(matrix);
-    Matrix4_translate(matrix, &origin);
-
-    Matrix4_identity(&adt_to_world_basis);
-    adt_to_world_basis.v[0] = 0.0f;
-    adt_to_world_basis.v[1] = 1.0f;
-    adt_to_world_basis.v[2] = 0.0f;
-    adt_to_world_basis.v[4] = 0.0f;
-    adt_to_world_basis.v[5] = 0.0f;
-    adt_to_world_basis.v[6] = 1.0f;
-    adt_to_world_basis.v[8] = 1.0f;
-    adt_to_world_basis.v[9] = 0.0f;
-    adt_to_world_basis.v[10] = 0.0f;
-    Matrix4_multiply(matrix, &adt_to_world_basis, &tmp);
-    *matrix = tmp;
-    if (entity->flags & RF_GROUND_ANCHOR) {
-        /* Grounded actors: yaw around Z (up in renderer space). */
-        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->angle * 180.0f / (FLOAT)M_PI, 0.0f }, ROTATE_XYZ);
-    }
-    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->rotation.y - 90.0f, 0.0f }, ROTATE_XYZ);
-    if (!(entity->flags & RF_GROUND_ANCHOR)) {
-        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
-    }
-    Matrix4_rotate(matrix, &(VECTOR3){ entity->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
-    Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
-    return true;
+LPCMATRIX4 R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+    pose->angles = Wow_DoodadOrientation(entity->rotation);
+    pose->angles.yaw += entity->angle;
+    if (entity->model && entity->model->modeltype == ID_MD20 && (entity->flags & RF_GROUND_ANCHOR) &&
+        M2_IsCharacterModel(entity->model->m2))
+        pose->origin.z += M2_GroundOffset(entity->model->m2) * pose->scale;
+    return &wow_model_basis;
 }
 
 bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
@@ -320,7 +268,7 @@ void R_RenderModel(renderEntity_t const *entity) {
         marker.model = entity->overhead_model;
         /* A visible name owns the base slot; TalkToMe's authored bottom clearance separates the marker above it. */
         if (entity->name && *entity->name) marker.origin.z += M2_VisibleBottom(marker.model->m2);
-        marker.attached_model = marker.overhead_model = NULL;
+        marker.attachment.model = marker.overhead_model = NULL;
         marker.flags &= ~(RF_HAS_QUEST | RF_QUEST_COMPLETE);
         marker.scale = 1.0f;
         /* The parent frame crosses TalkToMe's unrelated sequence every 1533 ms; the marker owns Stand's clock. */
@@ -338,18 +286,16 @@ void R_RenderModel(renderEntity_t const *entity) {
         R_DrawBillboardSprite(s_quest_active_icon, &origin, 0.5f, tint);
     }
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
-    if (entity->attached_model &&
-        entity->attached_model->modeltype == ID_MD20 &&
+    if (entity->attachment.model &&
+        entity->attachment.model->modeltype == ID_MD20 &&
 #ifdef USE_SHADOWMAPS
         tr.render_phase != RENDER_PHASE_LIGHTS &&
 #endif
         M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
-        if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {
-            Matrix4_rotate(&attached_transform, &(VECTOR3){ 0.0f, 0.0f, entity->angle * 180.0f / (FLOAT)M_PI }, ROTATE_XYZ);
-        }
+        R_GetAttachmentMatrix(entity, &attached_transform, &attached_transform);
         attached_entity = *entity;
-        attached_entity.model = entity->attached_model;
-        attached_entity.attached_model = NULL;
+        attached_entity.model = entity->attachment.model;
+        attached_entity.attachment.model = NULL;
         if (!(tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA)) {
             attached_entity.frame = 0;
             attached_entity.oldframe = 0;

@@ -28,3 +28,20 @@ TEST(compat, strlcat_bounded_unterminated_destination_does_not_write) {
     T_EQ(bz_strlcat(destination, "de", sizeof(destination)), 5);
     T_ASSERT(!memcmp(destination, "abc", sizeof(destination)));
 }
+
+TEST(orientation, named_angles_match_canonical_axes) {
+    FOR_LOOP(i, 12) {
+        orientation_t angles = { .yaw = i * 0.63f, .pitch = i * -0.31f, .roll = i * 0.47f };
+        QUATERNION q = Quaternion_fromOrientation(&angles);
+        MATRIX4 actual, expected;
+        Matrix4_identity(&actual); Matrix4_rotateQuat(&actual, &q);
+        Matrix4_identity(&expected);
+        Matrix4_rotate(&expected, &MAKE(VECTOR3, RAD2DEG(angles.roll), -RAD2DEG(angles.pitch), RAD2DEG(angles.yaw)), ROTATE_XYZ);
+        FOR_LOOP(k, 16) T_FEQ(actual.v[k], expected.v[k], 0.00001f);
+    }
+    QUATERNION up = Quaternion_fromOrientation(&MAKE(orientation_t, .pitch = M_PI / 2));
+    MATRIX4 matrix;
+    Matrix4_identity(&matrix); Matrix4_rotateQuat(&matrix, &up);
+    VECTOR3 forward = Matrix4_multiply_vector3(&matrix, &MAKE(VECTOR3, 1, 0, 0));
+    T_FEQ(forward.x, 0, 0.00001f); T_FEQ(forward.z, 1, 0.00001f);
+}

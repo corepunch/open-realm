@@ -1,4 +1,5 @@
 #include "g_sc2_local.h"
+#include "common/sc2_coords.h"
 #include "server/routing.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "games/starcraft-2/game/hud/hud.h"
@@ -705,7 +706,7 @@ static void SC2_SpawnEntities(void) {
         ent->s.number = (DWORD)(ent - sc2_edicts);
         ent->s.class_id = SC2_MapObjectClassId(object);
         ent->s.origin = object->position;
-        ent->s.angle = object->angle;
+        ent->s.angle = SC2_PlacementHeading(object->angle);
         ent->s.scale = object->scale > 0.0f ? object->scale : 1.0f;
         ent->s.radius = SC2_ObjectRadius(object);
         ent->s.player = object->player;

@@ -1,4 +1,5 @@
 #include "renderer/r_game.h"
+#include "games/warcraft-3/common/wc3_coords.h"
 #include "r_lightning.h"
 #include "mdx/r_mdx.h"
 #include "w3m/r_war3map.h"
@@ -808,10 +809,9 @@ bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
     return true;
 }
 
-bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
-    (void)entity;
-    (void)matrix;
-    return false;
+LPCMATRIX4 R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+    (void)entity; (void)pose;
+    return &wc3_model_basis;
 }
 
 bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {

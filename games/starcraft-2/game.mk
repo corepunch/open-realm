@@ -90,7 +90,7 @@ SC2_PHONY := renderer-sc2 game-sc2 menu-sc2 opensc2 run-sc2 build-run-sc2 \
 # Exercise authoritative selection/orders in the same module as the live game.
 GAME_SC2_TEST_LIB := $(LIB_DIR)/libgame-sc2-test$(LIB_EXT)
 SC2_TEST_BINARY := $(BIN_DIR)/opensc2-tests$(EXE_EXT)
-$(eval $(call unity_lib_schema,$(GAME_SC2_TEST_LIB),$(SC2_GAME_HEADERS) $(GAME_BASE_DEPS) $(JASS_LIB) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2-test,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS) -DBZ_TESTS,common/mpq.c,-ljass -lshared $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_SC2_TEST_LIB),$(SC2_GAME_HEADERS) $(GAME_BASE_DEPS) $(JASS_LIB) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2-test,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS) -DBZ_TESTS,common/mpq.c,-ljass -lshared -lrenderer-sc2 $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(SC2_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_TEST_LIB) $(RENDERER_SC2_LIB) $(MENU_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(SC2_TEST_DIR)/test_sc2_picking.c,opensc2-tests,$(SC2_IMPL_CFLAGS) -DBZ_TESTS,-lsheet -lshared -lgame-sc2-test -lrenderer-sc2 -lmenu-sc2 $(LIBS) -lz,$(SC2_TEST_DIR)/test_sc2_picking.c))
 .PHONY: test-sc2-engine
 test-sc2-engine: $(SC2_TEST_BINARY) | $(TEST_JUNIT_DIR)
@@ -99,3 +99,7 @@ test-sc2: test-sc2-engine
 
 $(BIN_DIR)/test_sc2$(EXE_EXT): $(wildcard $(SC2_DIR)/renderer/sc2/*.h) renderer/r_cliff.h
 $(RENDERER_SC2_LIB): $(wildcard $(SC2_DIR)/renderer/sc2/*.h) renderer/r_cliff.h
+
+$(RENDERER_SC2_LIB): renderer/r_game.h
+
+$(GAME_SC2_TEST_LIB): $(RENDERER_SC2_LIB)

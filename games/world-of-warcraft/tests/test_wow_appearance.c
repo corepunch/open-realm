@@ -128,7 +128,7 @@ TEST(wow_renderer, placement_preserves_native_geometry) {
         WOWPLACEMENT place = { .pos = { 17000, 42, 16900 }, .rot = { i * 31, -(FLOAT)i * 17, i * 47 },
             .scale = i ? i * 256 : 0 };
         MATRIX4 old, basis, tmp, matrix;
-        VECTOR3 pos = CM_WowObjectPoint(place.pos.x, place.pos.y, place.pos.z);
+        VECTOR3 pos = Wow_ObjectPosition(place.pos.x, place.pos.y, place.pos.z);
         FLOAT scale = place.scale ? place.scale / 1024.0f : 1.0f;
         Matrix4_identity(&old); Matrix4_translate(&old, &pos);
         Matrix4_identity(&basis);
@@ -488,4 +488,14 @@ TEST(wow_appearance, wow_entity_delta_preserves_mounted_flag) {
 
     T_EQ(number, 10);
     T_EQ((int)(out.flags & EF_MOUNTED), (int)EF_MOUNTED);
+}
+
+TEST(wow_renderer, source_coordinate_adapters) {
+    VECTOR3 point = Wow_ObjectPosition(17000, 42, 16900);
+    T_FEQ(point.x, 32 * WOW_ADT_SIZE - 16900, 0.001f);
+    T_FEQ(point.y, 32 * WOW_ADT_SIZE - 17000, 0.001f); T_FEQ(point.z, 42, 0.0001f);
+    VECTOR3 offset = Wow_TerrainOffset(2, 3, 4), normal = Wow_TerrainNormal((VECTOR3){0.2f, 0.3f, 0.4f});
+    T_FEQ(offset.x, -2, 0.0001f); T_FEQ(offset.y, -3, 0.0001f); T_FEQ(offset.z, 4, 0.0001f);
+    T_FEQ(normal.x, -0.3f, 0.0001f); T_FEQ(normal.y, -0.2f, 0.0001f); T_FEQ(normal.z, 0.4f, 0.0001f);
+    T_EQ(Wow_TileIndex(0), 32); T_EQ(Wow_TileIndex(0.5f), 31); T_EQ(Wow_TileIndex(-0.5f), 32);
 }

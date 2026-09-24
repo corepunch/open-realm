@@ -43,6 +43,11 @@ selection of foreign units, and shift order queues remain separate work.
 
 ## Model feedback
 
+M3 unit forward is -Y. The shared renderer applies SC2's mandatory model basis so `angle` remains a gameplay
+heading from +X. Placed objects decode their native mesh rotation through `SC2_PlacementHeading`, preserving
+bridges and scenery; Galaxy `UnitCreate` and `UnitSetFacing` both decode degrees to radians. See
+[coordinates and model transforms](../../../AXIS.md#sc2-authored-placement-and-facing).
+
 `R_TraceModel` inverse-transforms the cursor segment into M3 model space and tests
 the authored bounds, returning world-space hit distance. These same bounds serve
 visibility culling. SC2 loads the shared procedural ring and samples terrain Z
@@ -75,7 +80,7 @@ another router. Inspect server values and decoded client values independently.
 
 - `make test-sc2-engine`: selection replacement/clearing, owner filtering, immediate
   point orders, arrival, rotated/scaled M3 picking, a collision-sized wall detour
-  through the shared accelerator/field/slide, and fractional Galaxy flight snapshots.
+  through the shared accelerator/field/slide, fractional Galaxy flight snapshots, cardinal/detour model facing, authored placement, and camera preservation.
 - `make test-galaxy`: cargo inherits a non-default transport owner; invalid cargo
   creation does not spawn units.
 - `make test`: includes fractional/large-radius snapshot round trips, WC3

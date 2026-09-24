@@ -2,6 +2,7 @@
 #define __r_wowmap_h__
 
 #include "renderer/r_local.h"
+#include "common/wow_coords.h"
 #include "common/ui_constants.h"
 #include "common/wow_chunks.h"
 #include <strings.h>
@@ -503,7 +504,6 @@ COLOR32 Wow_Color(BYTE r, BYTE g, BYTE b, BYTE a);
 VERTEX Wow_Vertex(float x, float y, float z, float u, float v, COLOR32 color);
 void Wow_AddBoundsPoint(LPBOX3 bounds, LPCVECTOR3 p);
 BOX3 Wow_EmptyBounds(void);
-VECTOR3 Wow_WorldPoint(float x, float y, float z);
 VECTOR2 Wow_McvtCoords(int index);
 VECTOR3 Wow_McvtPoint(wowVec3_t pos, float const *heights, int index);
 VECTOR3 Wow_TerrainFaceNormal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c);
@@ -545,7 +545,6 @@ void Wow_LoadAdtFile(DWORD tile_x, DWORD tile_y);
 BYTE const *Wow_FindMainChunk(BYTE const *data, DWORD size, LPDWORD main_size);
 void Wow_LoadWdtFlags(BYTE const *data, DWORD size);
 BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size);
-int Wow_AdtIndexForWorldCoord(float coord);
 void Wow_LoadMapDbcFlags(void);
 void Wow_LoadGroundEffectDBCs(void);
 void Wow_FreeGrassScratch(void);

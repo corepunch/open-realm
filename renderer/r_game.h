@@ -3,6 +3,13 @@
 
 #include "r_local.h"
 
+/* Renderer-derived pose; source/wire Euler fields keep their authored layout. */
+typedef struct {
+    VECTOR3 origin;
+    orientation_t angles;
+    FLOAT scale;
+} modelPose_t;
+
 typedef struct {
 	DWORD id;
 	LPCSTR dir;
@@ -48,7 +55,8 @@ bool R_ModelCanStaticInstance(LPCMODEL model);
 bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance);
 bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds);
 bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
-bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
+/* Mandatory for every game, including identity conversions. Returns native-model -> actor basis. */
+LPCMATRIX4 R_EntityPose(renderEntity_t const *entity, modelPose_t *pose);
 #ifndef USE_SHADOWMAPS
 bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin);
 #endif

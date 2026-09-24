@@ -2016,7 +2016,7 @@ static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t con
         if (!valid[i]) continue;
         ae = *entity;
         ae.model = models[i];
-        ae.attached_model = NULL;
+        ae.attachment.model = NULL;
         ae.skin = textures[i];
         ae.flags &= ~RF_GROUND_ANCHOR;
         M2_RenderModel(&ae, models[i]->m2, &matrices[i]);

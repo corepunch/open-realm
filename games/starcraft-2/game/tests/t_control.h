@@ -1,5 +1,6 @@
 /* Included by g_sc2.c so tests drive the production command handlers and movement state. */
 #include "shared/test.h"
+#include "renderer/r_game.h"
 
 static LONG sc2_test_wire[80];
 static DWORD sc2_test_count, sc2_test_time;
@@ -9,6 +10,20 @@ static void sc2_test_write(pfWriteType_t type, void const *value) {
 static void sc2_test_unicast(LPEDICT ent) { (void)ent; }
 static void sc2_test_link(LPEDICT ent) { (void)ent; }
 static DWORD sc2_test_clock(void) { return sc2_test_time; }
+
+/* Compare the renderer's native model front with a completed authoritative move step. */
+static void sc2_test_model_follows_step(LPCEDICT ent, VECTOR2 previous) {
+    entityState_t state = ent->s;
+    model_t model = { .modeltype = ID_43DM };
+    renderEntity_t render = { .model = &model, .origin = state.origin, .angle = state.angle, .scale = 1 };
+    MATRIX4 matrix;
+    R_GetEntityMatrix(&render, &matrix);
+    VECTOR3 front = Matrix4_multiply_vector3(&matrix, &MAKE(VECTOR3, 0, -1, 0));
+    VECTOR2 forward = { front.x - state.origin.x, front.y - state.origin.y };
+    VECTOR2 step = Vector2_sub(&ent->s.origin2, &previous);
+    Vector2_normalize(&step); Vector2_normalize(&forward);
+    T_ASSERT(forward.x * step.x + forward.y * step.y > 0.9999f);
+}
 
 /* Test invalid requests after a valid selection as well as owner filtering and replacement. */
 TEST(sc2_control, selection_orders_and_clear) {
@@ -88,6 +103,8 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
         CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
         SC2_RunUnit(ent);
         T_ASSERT(CM_LineIsWalkableForRadius(&prev, &ent->s.origin2, ent->collision));
+        if (Vector2_distance(&prev, &ent->s.origin2) > 0.001f)
+            sc2_test_model_follows_step(ent, prev);
         if (ent->s.origin2.y > 20) detour = true;
     }
     T_ASSERT(detour); T_ASSERT(!sc2_move[1].moving);
@@ -116,6 +133,31 @@ TEST(sc2_control, cutscene_flight_preserves_positions) {
         T_ASSERT(SC2_GalaxyUnitIsMoving(ent));
         T_ASSERT(fabsf(ent->s.origin.x - floorf(ent->s.origin.x)) > 0.001f);
         T_FEQ(ent->s.origin.z, 4.375f, 0.00001f);
+    }
+    g_models[1] = model; gi = saved;
+}
+
+TEST(sc2_control, cardinal_move_orders_face_displacement) {
+    struct game_import saved = gi;
+    animation_t anims[] = { { .name = "Stand", .interval = {0, 1000} }, { .name = "Walk", .interval = {1000, 2000} } };
+    g_cmodel_t model = g_models[1];
+    g_models[1].animations = anims; g_models[1].num_animations = 2;
+    gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
+    gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
+    FOR_LOOP(i, 4) {
+        memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
+        globals.num_edicts = 2; sc2_edicts[0].client = &sc2_clients[0]; sc2_clients[0].ps.number = 1;
+        LPEDICT ent = &sc2_edicts[1];
+        *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .scale = 1, .player = 1, .origin = {8, 8, 0} } };
+        sc2_move[1].mobile = true;
+        sc2_test_count = 0;
+        SC2_ClientCommand(sc2_edicts, 2, (LPCSTR[]){"select", "1"});
+        LPCSTR points[][2] = { {"20", "8"}, {"8", "20"}, {"0", "8"}, {"8", "0"} };
+        SC2_ClientCommand(sc2_edicts, 3, (LPCSTR[]){"smartpoint", points[i][0], points[i][1]});
+        VECTOR2 previous = ent->s.origin2;
+        SC2_RunUnit(ent);
+        T_ASSERT(sc2_move[1].moving);
+        sc2_test_model_follows_step(ent, previous);
     }
     g_models[1] = model; gi = saved;
 }

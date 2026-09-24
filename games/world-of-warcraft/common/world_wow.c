@@ -35,8 +35,7 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags) {
 }
 FLOAT CM_GetCameraHeightOffset(void) { return 0; }
 
-#define CM_WOW_ADT_SIZE       533.333313f
-#define CM_WOW_ADT_UNIT_SIZE  (CM_WOW_ADT_SIZE / 16.0f / 8.0f)
+#define CM_WOW_ADT_UNIT_SIZE  (WOW_ADT_SIZE / 16.0f / 8.0f)
 #define CM_WOW_MCVT_COUNT     (9 * 9 + 8 * 8)
 #define CM_WOW_HEIGHT_CACHE_TILES 16
 #define CM_WOW_WMO_DETAIL     0x04
@@ -242,10 +241,6 @@ static void CM_WowSetMapPath(LPCSTR mapFilename) {
 
     if (!cm_wow_map_dir[0] && cm_wow_map_name[0])
         snprintf(cm_wow_map_dir, sizeof(cm_wow_map_dir), "World/Maps/%s", cm_wow_map_name);
-}
-
-static int CM_WowAdtIndexForWorldCoord(float coord) {
-    return (int)floorf(32.0f - coord / CM_WOW_ADT_SIZE);
 }
 
 LPCSTR CM_WowAdtPath(int tile_x, int tile_y, LPSTR out, DWORD out_size) {
@@ -488,8 +483,8 @@ static void CM_WowLoadAdtWmos(cmWowAdtHeightCache_t *cache, BYTE const *data, DW
         instance = MemAlloc(sizeof(*instance)); memset(instance, 0, sizeof(*instance));
         snprintf(instance->path, sizeof(instance->path), "%s", path);
         CM_WowWmoMatrix(def, &instance->matrix); Matrix4_inverse(&instance->matrix, &instance->inverse);
-        a = CM_WowObjectPoint(def->extents.min.x, def->extents.min.y, def->extents.min.z);
-        b = CM_WowObjectPoint(def->extents.max.x, def->extents.max.y, def->extents.max.z);
+        a = Wow_ObjectPosition(def->extents.min.x, def->extents.min.y, def->extents.min.z);
+        b = Wow_ObjectPosition(def->extents.max.x, def->extents.max.y, def->extents.max.z);
         instance->bounds.min = (VECTOR3){ MIN(a.x,b.x), MIN(a.y,b.y), MIN(a.z,b.z) };
         instance->bounds.max = (VECTOR3){ MAX(a.x,b.x), MAX(a.y,b.y), MAX(a.z,b.z) };
         instance->next = cache->wmos; cache->wmos = instance;
@@ -670,7 +665,7 @@ BOOL CM_WowTestWallRay(BOOL wall) {
 FLOAT CM_WowFloorHeight(FLOAT sx, FLOAT sy, FLOAT ref_z, FLOAT step_up) {
     cmWowAdtHeightCache_t *cache = NULL;
     FLOAT best = CM_GetHeightAtPoint(sx, sy), top = ref_z + MAX(step_up, 0.0f);
-    int tile_x = CM_WowAdtIndexForWorldCoord(sy), tile_y = CM_WowAdtIndexForWorldCoord(sx);
+    int tile_x = Wow_TileIndex(sy), tile_y = Wow_TileIndex(sx);
     if (tile_x < 0 || tile_x >= 64 || tile_y < 0 || tile_y >= 64) return best;
     CM_WowLoadAdtHeights(tile_x, tile_y);
     FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES)
@@ -770,8 +765,8 @@ BOOL CM_WowMoveBlocked(LPCVECTOR3 from, LPCVECTOR3 to) {
     cmWowAdtHeightCache_t *cache[2] = { NULL, NULL };
     VECTOR2 move = { to->x - from->x, to->y - from->y };
     FLOAT len = sqrtf(move.x * move.x + move.y * move.y);
-    int tile_x[2] = { CM_WowAdtIndexForWorldCoord(from->y), CM_WowAdtIndexForWorldCoord(to->y) };
-    int tile_y[2] = { CM_WowAdtIndexForWorldCoord(from->x), CM_WowAdtIndexForWorldCoord(to->x) };
+    int tile_x[2] = { Wow_TileIndex(from->y), Wow_TileIndex(to->y) };
+    int tile_y[2] = { Wow_TileIndex(from->x), Wow_TileIndex(to->x) };
     if (len < 0.0001f) return false;
     FOR_LOOP(k, 2) {
         if (k && tile_x[k] == tile_x[0] && tile_y[k] == tile_y[0]) { cache[k] = cache[0]; continue; }
@@ -836,8 +831,8 @@ static BOOL CM_WowHeightInCell(float const *heights, int row, int col, float fx,
 
 static BOOL CM_WowTerrainHeightAtPoint(FLOAT sx, FLOAT sy, FLOAT *height) {
     cmWowAdtHeightCache_t *cache = NULL;
-    int tile_x = CM_WowAdtIndexForWorldCoord(sy);
-    int tile_y = CM_WowAdtIndexForWorldCoord(sx);
+    int tile_x = Wow_TileIndex(sy);
+    int tile_y = Wow_TileIndex(sx);
 
     if (!height || tile_x < 0 || tile_x >= 64 || tile_y < 0 || tile_y >= 64)
         return false;

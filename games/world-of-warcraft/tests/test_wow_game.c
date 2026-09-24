@@ -10,6 +10,7 @@
 #include <strings.h>
 
 #include "game/g_wow_local.h"
+#include "common/wow_coords.h"
 #include "client/menu.h"
 
 

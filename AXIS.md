@@ -1,27 +1,144 @@
-# Coordinates and camera angles
+# Coordinates, model transforms, and camera angles
 
-## World and asset spaces
+## Engine pose contract
 
-All three current game backends expose **Z-up world coordinates** to the engine. World positions, camera targets,
-collision, picking, lighting and culling must agree before projection. OpenGL eye space looks down -Z with +Y screen-up;
-that is a view-matrix convention, not a reason to swap world Y/Z.
+All three game backends expose **Z-up world coordinates**. World positions, camera targets, collision,
+picking, lighting and culling agree before projection. OpenGL eye space looks down -Z with +Y screen-up;
+that is a view convention, not a reason to swap world Y/Z.
 
-WoW has several on-disk spaces, not one global Y-up world:
+`R_GetEntityMatrix` in `renderer/r_ents.c` is the shared model-to-world boundary:
 
-- Gameplay/SQL positions, WMO vertices and M2 vertices are Z-up.
-- ADT object placements (MODF/MDDF) encode height in Y and horizontal coordinates relative to the map corner.
-  `CM_WowObjectPoint(x,y,z)` maps them to `(center-z, center-x, y)`, where `center = 32 * WOW_ADT_SIZE`.
-- MODF rotations are placement angles, not camera angles. `Wow_PlacementMatrix` in
-  `games/world-of-warcraft/common/wow_coords.h` owns their conversion for both WMO rendering and collision.
-  It uses the equivalent rotation `Rz(rot.y+180) * Ry(rot.x) * Rx(rot.z)` instead of the old permutation basis followed
-  by three separate rotations. The old chain was `B * Ry(y-270) * Rz(-x) * Rx(z-90)`, with `B(x,y,z)=(z,x,y)`.
-  Scale 1024 is unity; an absent/zero MODF scale means unity.
-- WMO child doodads retain their local MODD quaternion/translation and compose with the parent placement matrix.
+```text
+interpolated entity -> mandatory per-game R_EntityPose -> modelPose_t + model basis
+modelToWorld = translation * orientation * scale * modelBasis
+native skinned vertex -> modelToWorld -> view/projection
+```
 
-Keep model buffers in their native space and apply placement at the model-to-world boundary. Deferring this to the
-final camera matrix would also require migrating collision, terrain queries, bounds, normals, lights and every other
-world-space consumer. It cannot correct just the WMO draw path. The shared placement helper avoids renderer/collision
-drift while leaving local vertex data intact.
+Every game implements `R_EntityPose`, including WC3. There is no optional override or implicit fallback.
+The hook decodes game-owned placement conventions and returns the basis declared in that game's coordinate header.
+The engine applies the basis once in the composition. Skinning stays in native model space. Drawing, bounds,
+model-space picking, model cameras and attachments use the resulting transform. A global view rotation cannot
+repair sideways walking because it rotates the mesh and its movement vector together.
+
+`modelPose_t.angles` uses `orientation_t`: **yaw, pitch, roll in radians**. Its canonical frame is +X forward,
++Y left, +Z up. Positive yaw turns left, positive pitch raises the nose, and positive roll rotates about forward.
+Composition is `Rz(yaw) * Ry(-pitch) * Rx(roll)`, implemented once by `Quaternion_fromOrientation`.
+The names describe the pose rather than the asset's native axes; the per-game basis aligns native model axes.
+
+The existing `entityState_t.angle`/`renderEntity_t.angle` is canonical heading in radians. WoW's `rotation`
+field retains authored placement Euler components in degrees: raw binary and wire fields are deliberately not
+renamed yaw/pitch/roll, because their components have source-format meanings. The game adapter decodes them into
+the named pose. Network layouts, field widths, entity flags and save formats are unchanged; the renderer's
+`modelPose_t` and attachment pose are derived presentation state, not snapshot additions.
+
+| Game | Native unit-model forward / up | Mandatory model basis | Coordinate owner |
+|---|---|---|---|
+| WC3 MDX | +X / +Z | Identity | `games/warcraft-3/common/wc3_coords.h` |
+| WoW M2 | +X / +Z | Identity | `games/world-of-warcraft/common/wow_coords.h` |
+| SC2 M3 | -Y / +Z | `Rz(+90 degrees)` | `games/starcraft-2/common/sc2_coords.h` |
+
+The identity entries apply to model-to-actor orientation, not every on-disk placement format in that game.
+Matrices remain derived values. Static WMO and grass instances retain their existing caches. Dynamic calls may
+re-evaluate the same pure builder; that is not double conversion. No mutable per-frame matrix cache was added,
+so picking between frames and nested UI render views do not depend on cache preparation order.
+
+## SC2 authored placement and facing
+
+`SC2_RunUnit` writes `atan2f(dir.y, dir.x)` as gameplay heading. `R_GetEntityMatrix` then aligns the M3's -Y
+front with that heading. The model loader contains no extra orientation or 100x scale correction.
+
+Placed-object `Angle` already describes native mesh placement. `SC2_SpawnEntities` calls
+`SC2_PlacementHeading(raw) = raw - pi/2`, so the final transform preserves the authored placement:
+`Rz(raw - pi/2) * Rz(pi/2) = Rz(raw)`. This applies to placed units and scenery alike. It requires no model-name,
+selection or movement heuristics. Galaxy `UnitCreate` and `UnitSetFacing` both decode degrees through
+`SC2_FacingRadians` at the native API boundary; host callbacks receive radians. The same coordinate header owns `SC2_EulerFromCamera` and
+`SC2_CameraFromEuler`; degree interpolation remains with the camera/map state.
+
+Do not restore the old global +90 rotation inside `M3_RenderModel`. Commit `24354a8c1` removed it after authored
+bridges and doodads were rotated an extra quarter turn. Source-placement decoding and model basis must change
+together. The old `UnitCreate` callback also stored incoming degrees as radians; the VM regression uses a nonzero
+90-degree heading to distinguish those units.
+
+Local-data evidence: decoding the installed Liberty `Assets/Units/Terran/Marine/Marine.m3` BONE v1 names and
+inverting its IREF matrices places `Ref_Head` at approximately `(0.004,-0.063,0.777)` and `Ref_Weapon` at
+`(-0.124,-0.393,0.010)` in the bind pose. The
+[WC3-to-M3 exporter's orientation notes](https://github.com/Darithos/W3ModelViewer) independently describe +X to -Y.
+
+```sh
+build/bin/mpqtool -mpq data/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets \
+  cat Assets/Units/Terran/Marine/Marine.m3 > /tmp/openrealm-marine-axis.m3
+```
+
+## WoW source spaces and ownership
+
+WoW has several source spaces. `wow_coords.h` owns their conversions:
+
+| Input | Mapping / consumer |
+|---|---|
+| Native M2/WMO vertices and gameplay positions | Z-up; no model up-axis conversion. |
+| ADT MDDF/MODF position | `Wow_ObjectPosition(x,y,z) = (center-z, center-x, y)`, `center = 32 * WOW_ADT_SIZE`. Used by scenery, interactive entities, collision and placement bounds. |
+| MDDF rotation | `Wow_DoodadOrientation`: yaw = raw Y, pitch = -raw X, roll = raw Z, converted from degrees to radians. Actor heading is added independently. |
+| MODF/WMO placement | `Wow_PlacementMatrix` uses the same angle decoder plus 180-degree yaw. `Wow_InstanceMatrix` and `CM_WowWmoMatrix` delegate to it. Fixed-point scale 1024 is unity; absent/zero MODF scale is unity. |
+| MCVT offsets / MCNR normals | `Wow_TerrainOffset` and `Wow_TerrainNormal` own the reversed row/column mapping and `(-ny,-nx,nz)` normal mapping. Height sampling and packed-normal decoding remain subsystem responsibilities. |
+| World coordinate -> ADT tile | `Wow_TileIndex` is shared by renderer streaming, collision and interactive-object loading. |
+| Camera parameterization | `Wow_EulerFromCamera` / `Wow_CameraFromEuler` adapt native downward pitch/heading to the shared orbit view. Camera interpolation remains in `wow_view.h`. |
+
+A local Classic `Character/Orc/Male/OrcMale.m2` (MD20 version 256, 2,724 vertices) has raw bounds
+X `[-0.6577,0.4515]`, Y `[-0.8431,0.8431]`, Z `[-0.0067,2.5358]`. `M2_MakeVertex` copies these positions directly.
+[Issue #194](https://github.com/corepunch/open-realm/issues/194) conflated Y-height ADT placements with all native
+WoW data; using one global Y-to-Z transform would rotate already Z-up geometry incorrectly.
+
+The removed M2 chain used `B(x,y,z)=(z,x,y)` followed by fixed quarter turns. For ordinary actors it reduced to
+`B * Ry(yaw-90) * Rx(-90) = Rz(yaw)`; for MDDF it reduced to
+`B * Ry(y-90) * Rz(-x) * Rx(z-90) = Rz(y) * Ry(x) * Rx(z)`.
+Ground anchoring now adjusts only character height. Flying actors and spell projectiles use heading without the
+old `EF_GROUND_ANCHOR` workaround. Grass supplies its sampled radian yaw in `angle`, using the same shared matrix
+builder. Its old handwritten branch interpreted a radian value as degrees and rotated about X.
+
+WMO child doodads retain their native MODD quaternion/translation and compose with the parent placement.
+M2 bones, sockets, lights, particles and ribbons similarly inherit model-to-world without another basis.
+`renderEntity_t.attachment.angles` explicitly carries local attachment orientation. `R_GetAttachmentMatrix`
+applies it after the parent socket; FrameXML character facing therefore rotates the character without rotating
+the backdrop or its embedded camera. The synthesized sun already produces world-space directions.
+
+History: `11301f70` previously unified WMO collision/render placement and camera conventions while leaving the
+M2 chain in place. `9435b60c3` optimized that chain for grass; `196bfd3c3` introduced the projectile flag workaround.
+The consolidation removes these independent orientation paths while preserving the source-format distinctions.
+
+## Transform regression coverage
+
+- `make test-sc2-engine`: real selected-unit cardinal move orders and obstacle detours, model-forward agreement,
+  snapshot decode and wrapped client yaw interpolation, asymmetric picking, authored placement and model camera.
+- `make test-galaxy`: nonzero `UnitCreate` and `UnitSetFacing` agree on radians at the real VM/native boundary.
+- `make test-wow-engine PATTERN='wow_coordinates.*'`: actor heading with and without ground anchoring, grass
+  radian yaw/uprightness, tilted/scaled MDDF equivalence, explicit preview attachment pose, MODF and nested MODD.
+- `make test-wow-appearance`: reduced MODF placement against the legacy chain, camera conversion and source adapters.
+- `make test-wow-abilities`: projectiles retain authored heading without ground-anchor orientation flags.
+- `make openwarcraft3-tests`, then `build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_coordinates.*'`:
+  mandatory WC3 identity conversion preserves translated, rotated and scaled MDX placement.
+- `make test`: includes shared named-angle math, engine suites, routing, snapshot and existing gameplay coverage.
+
+The regression fixtures exercise production movement, matrix, picking and camera entry points without a GL window.
+They do not constitute a framebuffer comparison of TRaynor01 or every authored asset.
+
+## Reference implementations
+
+- **3ds Max:** [Object Transformation Matrix](https://help.autodesk.com/cloudhelp/2019/ENU/Max-Developer-Help/developer/3ds_max_sdk_features/modeling/transformation_and_rotation/object_transformation_matrix.html)
+  separates node placement from an object offset. `GetObjectTM()` gives the combined geometry-to-world matrix.
+  Max writes `ObjectOffsetTM * NodeWorldTM` using its
+  [row-vector convention](https://help.autodesk.com/cloudhelp/2023/ENU/Max-Developer-Help/3ds_max_sdk_features/modeling/transformation_and_rotation/matrix_representations_of_3d_tra/matrix_fundamentals.html);
+  do not copy that multiplication order into this engine's column-vector math.
+- **FBX SDK:** [FbxAxisSystem](https://help.autodesk.com/cloudhelp/2020/ENU/FBX-API-Reference/cpp_ref/class_fbx_axis_system.html)
+  describes up, signed front, and handedness. `ConvertScene` rotates root nodes and lets descendants inherit;
+  `DeepConvertScene` also rewrites transforms/geometry/animation and supports handedness changes. This is scene
+  basis conversion, distinct from aligning a unit mesh with its gameplay forward vector.
+- **FBX renderer example:** [ViewScene/DrawScene.cxx](https://help.autodesk.com/cloudhelp/2020/ENU/FBX-API-Reference/cpp_ref/_view_scene_2_draw_scene_8cxx-example.html)
+  composes `globalPosition * geometryOffset` for drawing. The geometry offset is not inherited by child scene
+  nodes. Our native model skeleton and sockets remain inside the asset coordinate space, so their evaluated
+  positions must use the asset's final model-to-world matrix.
+- **Quake 2:** `data/Quake-2-master/ref_gl/gl_rmain.c` separates `R_RotateForEntity` from the fixed world-to-eye
+  basis in `R_SetupGL`. This is the closest engine precedent: entity placement and the camera basis have
+  different owners and purposes.
 
 ## Camera wire contract
 

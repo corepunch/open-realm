@@ -129,7 +129,7 @@ $(WOW_BINARY) $(WOW_TEST_BINARY) $(GAME_WOW_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER
 $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),test_wow_appearance test_wow_game test_wow_abilities test_wow_entities)): $(WOW_COMMON_HEADERS)
 
 $(eval $(call unity_lib_schema,$(GAME_WOW_TEST_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game) $(RENDERER_WOW_LIB),game-wow-test,$(WOW_DIR)/game,,$(WOW_CFLAGS) -DBZ_TESTS,common/mpq.c $(SERVER_GAME_SRCS),-lshared -lrenderer-wow $(LIBS) -lm -lz))
-$(eval $(call app_schema,$(WOW_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER_WOW_LIB) $(MENU_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow-tests,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow-test -lrenderer-wow -lmenu-wow $(LIBS) -lz))
+$(eval $(call app_schema,$(WOW_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER_WOW_LIB) $(MENU_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WOW_TEST_DIR)/test_coordinates.c,openwow-tests,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow-test -lrenderer-wow -lmenu-wow $(LIBS) -lz,$(WOW_TEST_DIR)/test_coordinates.c))
 
 openwow-tests: $(WOW_TEST_BINARY)
 
@@ -243,3 +243,5 @@ WOW_PHONY := renderer-wow game-wow menu-wow openwow openwow-tests \
 	test-wow-engine test-wow-engine-assets \
 	test-wow-appearance test-wow-abilities test-wow-game test-wow-entities \
 	test-wow-menu test-wow-assets test-wow-wmo test-wow-wmo-assets test-wow-hud-xml
+
+$(RENDERER_WOW_LIB): renderer/r_game.h

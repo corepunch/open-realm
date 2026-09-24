@@ -365,7 +365,8 @@ transitions between grass and dirt in Northshire.
 
 
 MDDF positions are absolute map coordinates, not tile-local coordinates. Both the
-renderer and the game-side interactive-object path use `CM_WowObjectPoint`:
+renderer and the game-side interactive-object path use `Wow_ObjectPosition` from `common/wow_coords.h`
+(see [coordinate ownership](../../../AXIS.md#wow-source-spaces-and-ownership)):
 
 ```text
 engine.x = 32 * WOW_ADT_SIZE - mddf.position.z
@@ -390,8 +391,8 @@ Do not assume that a visible doodad is a game entity. The two MDDF consumers are
 
 | Consumer | Purpose | Transform path |
 | --- | --- | --- |
-| `renderer/wow/r_wowmap_objects.c` | All visible static doodads | `Wow_ObjectPoint` -> `CM_WowObjectPoint` |
-| `game/g_gameobject.c` | DBC-matched interactive entities | `WowGo_SetDoodadTransform` -> `CM_WowObjectPoint` |
+| `renderer/wow/r_wowmap_objects.c` | All visible static doodads | `Wow_ObjectPoint` -> `Wow_ObjectPosition` |
+| `game/g_gameobject.c` | DBC-matched interactive entities | `WowGo_SetDoodadTransform` -> `Wow_ObjectPosition` |
 
 Check the existing startup line before changing either path:
 
@@ -407,7 +408,7 @@ model=world\dungeon\scarletmonastery\passivedoodads\statues\statuehmcrusader.mdx
 position=(17598.289, 90.646, 14467.403) rotation=(0, 138.5, 0) scale=1863
 ```
 
-Compare that raw record, `CM_WowObjectPoint`, and its supporting WMO/platform.
+Compare that raw record, `Wow_ObjectPosition`, and its supporting WMO/platform.
 Do not terrain-snap its authored Z.
 
 ## Minimap

@@ -1,4 +1,5 @@
 #include "renderer/r_game.h"
+#include "games/starcraft-2/common/sc2_coords.h"
 #include "renderer/r_shader.h"
 #include "m3/r_m3.h"
 #include "games/starcraft-2/common/sc2_map.h"
@@ -334,10 +335,9 @@ bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance)
     return true;
 }
 
-bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
-    (void)entity;
-    (void)matrix;
-    return false;
+LPCMATRIX4 R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+    (void)entity; (void)pose;
+    return &sc2_model_basis;
 }
 
 bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
