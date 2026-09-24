@@ -102,6 +102,18 @@ TEST(wc3_slk, sheet_reader_prefers_active_map_data_overlay) {
     strlcpy(game.data_prefix, saved_prefix, sizeof(game.data_prefix));
 }
 
+TEST(wc3_slk, ini_cache_handles_carriage_return_only_lines) {
+    stbIniCache_t cache = { 0 };
+    T_ASSERT(Stb_IniCacheLoadBuffer(&cache, "[Data]\r// comment\rFirst=one\rSecond=two\rThird=three\r"));
+    T_STREQ(Stb_IniCacheFind(&cache, "Data", "First"), "one");
+    T_STREQ(Stb_IniCacheFind(&cache, "Data", "Second"), "two");
+    T_STREQ(Stb_IniCacheFind(&cache, "Data", "Third"), "three");
+    T_ASSERT(Stb_IniCacheLoadBuffer(&cache, "[Data]\r\nFirst=crlf\r\nSecond=still-crlf\r\n"));
+    T_STREQ(Stb_IniCacheFind(&cache, "Data", "First"), "crlf");
+    T_STREQ(Stb_IniCacheFind(&cache, "Data", "Second"), "still-crlf");
+    Stb_IniCacheFree(&cache);
+}
+
 /* Map-archive Units\CampaignUnitFunc.txt and war3mapMisc.txt must win over base
  * TFT through gi.SetPriorityArchive (the same hook CM_LoadMapFormat installs). */
 TEST(wc3_slk, map_archive_campaign_unit_func_overrides_base) {

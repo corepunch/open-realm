@@ -253,8 +253,14 @@ Automated coverage is intentionally split by ownership:
 - `games/warcraft-3/game/tests/t_minimap.c` verifies the screenshot-derived
   marker-size and rectangle path, passive-ally customization through the
   minimap colour policy, fixture-MPQ stock/map-skin lookup, pinned versus
-  map-scoped texture registration, placeholder selection, and fallback after
-  an invalid optional map skin.
+  map-scoped loader selection, placeholder selection, and stock-default
+  resolution after an invalid optional map skin. The fixture test exercises
+  the production asset resolver and loader selector without creating a GL
+  context or calling the renderer's full `R_RegisterMap()` entry point.
+- `tests/test_renderer_model.c` verifies the renderer texture cache's real
+  generation and reclaim behavior, including stale streamed textures and
+  aliases. `R_RegisterMap()` advances the generation before loading map
+  overrides and reclaims stale streamed entries after map registration.
 - `games/warcraft-3/tests/test_server_net.c` verifies that a game-prioritized
   minimap contact survives ordinary entity snapshot saturation.
 
