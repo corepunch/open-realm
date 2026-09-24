@@ -210,7 +210,7 @@ void G_SetHealth(LPEDICT ent, FLOAT value) {
         if (evt->type == EVENT_GAME_STATE_LIMIT && evt->subject == ent && evt->state == WC3_UNIT_STATE_LIFE &&
             !G_LimitMatches(evt->limitop, old_value, evt->limitval) &&
              G_LimitMatches(evt->limitop, value, evt->limitval))
-            G_PublishEvent(ent, EVENT_GAME_STATE_LIMIT)->responseTo = evt;
+            G_PublishEventResponse(ent, EVENT_GAME_STATE_LIMIT, evt);
     }
     if ((ent->s.flags & EF_BUILDING) && (old != next || value <= 0.0f))
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));

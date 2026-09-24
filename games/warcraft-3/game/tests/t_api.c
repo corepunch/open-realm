@@ -231,6 +231,31 @@ TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
     T_FEQ(unit->health.value, 75.0f, 0.001f);
 }
 
+TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
+    LPEDICT unit;
+    LPEVENT registration;
+
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    unit->health.value = 100.0f;
+    registration = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    T_NOT_NULL(registration);
+    registration->subject = unit;
+    registration->state = WC3_UNIT_STATE_LIFE;
+    registration->limitop = WC3_LIMITOP_LESS_THAN_OR_EQUAL;
+    registration->limitval = 0.0f;
+
+    FOR_LOOP(i, MAX_EVENT_QUEUE)
+        T_NOT_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_VICTORY, NULL, (LONG)i));
+    G_SetHealth(unit, 0.0f);
+
+    T_FEQ(unit->health.value, 0.0f, 0.001f);
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_EQ(level.events.queue[0].value, 0);
+    T_EQ(level.events.queue[MAX_EVENT_QUEUE - 1].value, (LONG)MAX_EVENT_QUEUE - 1);
+}
+
 TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     LPPLAYER saved_currentplayer = currentplayer;
     LPEDICT mover = NULL;

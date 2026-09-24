@@ -19,7 +19,7 @@ void G_JassVariableChanged(LPCSTR name, FLOAT before, FLOAT after) {
     FOR_EACH_EVENT(evt) {
         if (evt->type == EVENT_GAME_VARIABLE_LIMIT && evt->variable && !strcmp(evt->variable, name) &&
             !G_LimitMatches(evt->limitop, before, evt->limitval) && G_LimitMatches(evt->limitop, after, evt->limitval))
-            G_PublishEvent(NULL, EVENT_GAME_VARIABLE_LIMIT)->responseTo = evt;
+            G_PublishEventResponse(NULL, EVENT_GAME_VARIABLE_LIMIT, evt);
     }
 }
 
@@ -261,7 +261,7 @@ static void G_TouchTriggers(LPEDICT ent) {
                 if (region && G_RegionContains(region, &ent->s.origin2) &&
                     !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
-                    G_PublishEvent(ent, evt->type)->responseTo = evt;
+                    G_PublishEventResponse(ent, evt->type, evt);
                 }
                 break;
             }
@@ -270,7 +270,7 @@ static void G_TouchTriggers(LPEDICT ent) {
                 if (region && !G_RegionContains(region, &ent->s.origin2) &&
                     G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent))
                 {
-                    G_PublishEvent(ent, evt->type)->responseTo = evt;
+                    G_PublishEventResponse(ent, evt->type, evt);
                 }
                 break;
             }

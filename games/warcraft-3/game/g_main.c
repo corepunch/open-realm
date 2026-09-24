@@ -204,7 +204,7 @@ static void G_CheckTimeOfDayEvents(FLOAT before, FLOAT after) {
         if (!G_LimitMatches(evt->limitop, before, evt->limitval) &&
             G_LimitMatches(evt->limitop, after, evt->limitval))
         {
-            G_PublishEvent(NULL, EVENT_GAME_STATE_LIMIT)->responseTo = evt;
+            G_PublishEventResponse(NULL, EVENT_GAME_STATE_LIMIT, evt);
         }
     }
 }
@@ -1049,6 +1049,11 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT sourc
 
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     return G_PublishEventWithValue(edict, type, NULL, 0);
+}
+
+void G_PublishEventResponse(LPEDICT edict, EVENTTYPE type, LPEVENT response_to) {
+    GAMEEVENT *event = G_PublishEvent(edict, type);
+    if (event) event->responseTo = response_to;
 }
 
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned) {

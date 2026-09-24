@@ -2027,6 +2027,7 @@ void G_RemoveUnitStock(LPEDICT, DWORD);
 void G_AddUnitStockAll(DWORD, LONG, LONG);
 void G_RemoveUnitStockAll(DWORD);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+void G_PublishEventResponse(LPEDICT, EVENTTYPE, LPEVENT);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
 GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params);
