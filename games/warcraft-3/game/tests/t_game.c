@@ -3958,6 +3958,84 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
     remove(filename);
 }
 
+TEST(wc3_save, removed_region_event_survives_map_registry_recreation) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-removed-region-event-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+    DWORD active_events = 0;
+
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger watchedTrigger = null\n"
+        "  region watchedRegion = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set watchedTrigger = CreateTrigger()\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
+        "  call RemoveRegion(watchedRegion)\n"
+        "endfunction\n"
+        "function recreateMapRegistration takes nothing returns nothing\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
+        "endfunction\n"
+        "function verifyRemovedRegionRestored takes nothing returns nothing\n"
+        "  call BJassAssert(watchedRegion == null, \"removed region handle was restored\")\n"
+        "endfunction\n"));
+    FOR_EACH_EVENT(evt) active_events++;
+    T_EQ(active_events, 0);
+    T_ASSERT(WriteGame(filename));
+
+    jass_callbyname(level.vm, "recreateMapRegistration", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    active_events = 0;
+    FOR_EACH_EVENT(evt) active_events++;
+    T_EQ(active_events, 1);
+    T_ASSERT(ReadGame(filename));
+
+    active_events = 0;
+    FOR_EACH_EVENT(evt) active_events++;
+    T_EQ(active_events, 0);
+    jass_callbyname(level.vm, "verifyRemovedRegionRestored", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.events = old_events;
+    remove(filename);
+}
+
+TEST(wc3_save, queued_event_reference_round_trips_after_region_slot_retirement) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-region-event-slot-hole-save-test.bin";
+    LEVELEVENTS old_events = level.events;
+
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger watchedTrigger = null\n"
+        "  region watchedRegion = null\n"
+        "  unit watchedUnit = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set watchedTrigger = CreateTrigger()\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
+        "  set watchedUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterUnitStateEvent(watchedTrigger, watchedUnit, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call RemoveRegion(watchedRegion)\n"
+        "  call SetWidgetLife(watchedUnit, 100.0)\n"
+        "  call SetWidgetLife(watchedUnit, 0.0)\n"
+        "endfunction\n"));
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!level.events.handlers[0].inuse);
+    T_ASSERT(level.events.handlers[1].inuse);
+    T_EQ(level.events.write, 1);
+    T_ASSERT(level.events.queue[0].responseTo == &level.events.handlers[1]);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_EQ(level.events.write, 1);
+    T_ASSERT(level.events.queue[0].responseTo == &level.events.handlers[1]);
+    level.events = old_events;
+    remove(filename);
+}
+
 TEST(wc3_save, round_trip_game_state_event_condition) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-game-state-event-save-test.bin";
     LEVELEVENTS old_events = level.events;

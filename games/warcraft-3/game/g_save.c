@@ -875,13 +875,14 @@ void G_ClearSaveRegistries(void) {
 
 static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWORD events) {
     if (groups < level.num_groups || timers < level.num_timers || triggers < level.num_triggers ||
-        events < ActiveEventCount() || groups > MAX_SAVE_GROUP_HANDLES || timers > MAX_TIMERS ||
+        groups > MAX_SAVE_GROUP_HANDLES || timers > MAX_TIMERS ||
         triggers > MAX_TRIGGERS || events > MAX_EVENTS)
         return false;
     if (!G_EnsureJassGroupSlots(groups)) return false;
     while (level.num_timers < timers) if (!G_AllocJassTimer()) return false;
     while (level.num_triggers < triggers) if (!G_AllocJassTrigger()) return false;
-    while (ActiveEventCount() < events) if (!G_MakeEvent(0)) return false;
+    /* Event slots are a fixed serialized table. Preserve holes and retired
+     * registrations from the save instead of padding the live map registry. */
     return true;
 }
 
@@ -1343,9 +1344,13 @@ static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
     case F_TIMER:
         if (index >= (int)level.num_timers) return false;
         *(LPGTIMER *)ptr = index < 0 ? NULL : &level.timers[index]; return true;
-    case F_EVENT:
-        if (index >= (int)ActiveEventCount()) return false;
-        *(LPEVENT *)ptr = index < 0 ? NULL : EventById(index); return true;
+    case F_EVENT: {
+        LPEVENT event;
+        if (index < 0) { *(LPEVENT *)ptr = NULL; return true; }
+        event = EventById((DWORD)index);
+        if (!event) return false;
+        *(LPEVENT *)ptr = event; return true;
+    }
     default: return false;
     }
 }
@@ -1761,6 +1766,7 @@ done:
 BOOL ReadGame(LPCSTR filename) {
     FILE *f = fopen(filename, "rb");
     SAVEHEADER header = { 0 };
+    BOOL current_nonregion_event_slots[MAX_EVENTS] = { 0 };
     DWORD index;
     int targets[MAX_CLIENTS];
 
@@ -1785,7 +1791,7 @@ BOOL ReadGame(LPCSTR filename) {
         else if (header.groups < level.num_groups) field = "groups";
         else if (header.triggers < level.num_triggers) field = "triggers";
         else if (header.timers < level.num_timers) field = "timers";
-        else if (header.events < ActiveEventCount()) field = "events";
+        else if (header.events > MAX_EVENTS) field = "events";
         else if (!header.map_path[0] || strcasecmp(header.map_path, level.map_path)) field = "map_path";
         else if (!RestoreRegistrySlots(header.groups, header.timers, header.triggers, header.events)) field = "registry_slots";
         if (field) {
@@ -1799,8 +1805,24 @@ BOOL ReadGame(LPCSTR filename) {
             fclose(f); return false;
         }
     }
-    if (!ReadMappedFields(f, level_fields, (BYTE *)&level) ||
-        level.waypoints.count > MAX_WAYPOINTS ||
+    FOR_LOOP(i, MAX_EVENTS) {
+        LPEVENT event = &level.events.handlers[i];
+        current_nonregion_event_slots[i] = event->inuse &&
+            event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION;
+    }
+    if (!ReadMappedFields(f, level_fields, (BYTE *)&level)) {
+        fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
+    }
+    FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
+        fprintf(stderr, "WC3 LoadGame: saved event registry dropped live non-region slot %u\n", (unsigned)i);
+        fclose(f); return false;
+    }
+    if (ActiveEventCount() != header.events) {
+        fprintf(stderr, "WC3 LoadGame: event count mismatch saved=%u restored=%u\n",
+                (unsigned)header.events, (unsigned)ActiveEventCount());
+        fclose(f); return false;
+    }
+    if (level.waypoints.count > MAX_WAYPOINTS ||
         (level.waypoints.count && (level.waypoints.count != MAX_WAYPOINTS || level.waypoints.cursor >= MAX_WAYPOINTS ||
         header.num_edicts < level.waypoints.count ||
         level.waypoints.base > header.num_edicts - level.waypoints.count)) ||
