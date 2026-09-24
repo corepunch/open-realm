@@ -1527,6 +1527,45 @@ LINE3 R_LineForScreenPoint(viewDef_t const *view, FLOAT x, FLOAT y) { return (LI
 LPCTEXTURE R_BlightTexture(void) { return texture_load_result; }
 w3TerrainArt_t const *R_TerrainArt(DWORD id) { T_ASSERT(false); return NULL; }
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+
+TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
+    WAR3MAPVERTEX verts[4] = {0};
+    WAR3MAP map = { .width = 2, .height = 2, .vertices = verts };
+    VECTOR2 mins = { 32, 24 }, maxs = { 96, 104 };
+    FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
+    ground_current_vertex = ground_vertex_buffer;
+    R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
+    T_ASSERT(ground_current_vertex > ground_vertex_buffer);
+    for (LPVERTEX v = ground_vertex_buffer; v < ground_current_vertex; v++) {
+        T_ASSERT(v->position.x >= mins.x && v->position.x <= maxs.x);
+        T_ASSERT(v->position.y >= mins.y && v->position.y <= maxs.y);
+        T_ASSERT(v->texcoord.x >= 0 && v->texcoord.x <= 1);
+        T_ASSERT(v->texcoord.y >= 0 && v->texcoord.y <= 1);
+    }
+    ground_current_vertex = NULL;
+}
+
+TEST(renderer_terrain, clipped_splat_follows_both_terrain_triangles) {
+    WAR3MAPVERTEX verts[4] = {0};
+    WAR3MAP map = { .width = 2, .height = 2, .vertices = verts };
+    VECTOR2 mins = { 24, 20 }, maxs = { 108, 112 };
+    FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
+    verts[1].level = 1; verts[2].level = 2;
+    VECTOR3 p0 = R_GetVertexPosition(&map, 0, 0, true), p1 = R_GetVertexPosition(&map, 1, 0, true);
+    VECTOR3 p2 = R_GetVertexPosition(&map, 1, 1, true), p3 = R_GetVertexPosition(&map, 0, 1, true);
+    ground_current_vertex = ground_vertex_buffer;
+    R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
+    T_ASSERT(ground_current_vertex > ground_vertex_buffer);
+    T_ASSERT(ground_current_vertex - ground_vertex_buffer <= SPLAT_TILE_MAX_VERTICES);
+    for (LPVERTEX v = ground_vertex_buffer; v < ground_current_vertex; v++) {
+        FLOAT u = v->position.x / TILE_SIZE, t = v->position.y / TILE_SIZE;
+        FLOAT z = u >= t ? p0.z + (u-t)*(p1.z-p0.z) + t*(p2.z-p0.z)
+                         : p0.z + u*(p2.z-p0.z) + (t-u)*(p3.z-p0.z);
+        T_FEQ(v->position.z, z, 0.001f);
+    }
+    ground_current_vertex = NULL;
+}
+
 w3CliffType_t const *R_CliffType(DWORD id) {
     /* Undead04's authored order is shared by the ROC and TFT CliffTypes.slk rows. */
     static w3CliffType_t const rows[] = {

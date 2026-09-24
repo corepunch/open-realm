@@ -280,6 +280,26 @@ The [Warsmash terrain loader](https://github.com/Retera/WarsmashModEngine/blob/m
 is a useful secondary reference for separating transition edges from regular cliff cells; local archive
 contents and logged vertex metadata establish this case.
 
+## Building footprints on terrain transitions
+
+`UnitUI.uberSplat` (`groundTexture`) becomes `edict.s.splat` in `SP_SpawnUnit`, then the client submits it as an
+entity splat. `R_RenderUberSplat` uses the lit world shader so the footprint receives terrain lighting and fog.
+`R_GenerateSplatTiles` emits only ground-owned cells; `R_TileHasGround` excludes cells occupied by cliff transition
+meshes. The splat rectangle may still end *inside* an adjacent ground cell.
+
+Before the partial-tile clip, `R_MakeSplatTile` emitted that whole cell with UVs outside `[0,1]`. The texture uses
+`GL_CLAMP_TO_EDGE`, and the lit world shader has no splat UV crop, so an opaque border texel could extend to the
+cell edge as a straight strip beside a building. The regular splat and shadow shaders crop UVs, which made the
+building footprint look different. `R_MakeSplatTile` now clips each of the cell's two terrain triangles to the
+rectangle and interpolates height along the original triangle edges. Whole cells retain their six-vertex path.
+Do not replace the building's shader with the unlit splat shader to solve this edge; that would lose its terrain
+lighting and fog behavior.
+
+`renderer_terrain.splat_rect_stops_at_partial_tile_edge` reproduces the out-of-bounds vertices and UVs;
+`renderer_terrain.clipped_splat_follows_both_terrain_triangles` checks the height on a non-planar cell. Run them
+through `make test-renderer-model test-renderer-shadows`. A framebuffer comparison against a real map remains a
+visual check beyond these headless geometry assertions.
+
 ## Diagnostics and verification
 
 ```sh
