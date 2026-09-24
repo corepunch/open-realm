@@ -272,7 +272,10 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
     if (!buffer) return NULL;
     size = strlen(buffer);
     for (size_t i = 0; i < size; i++) {
-        if (buffer[i] == '\n') lines++;
+        if (buffer[i] == '\r') {
+            lines++;
+            if (i + 1 < size && buffer[i + 1] == '\n') i++;
+        } else if (buffer[i] == '\n') lines++;
         if (buffer[i] == '[') row_capacity++;
     }
     if (row_capacity == SIZE_MAX || lines > (SIZE_MAX - row_capacity - 1) / 2) return NULL;
@@ -298,7 +301,7 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
         while (p < end && isspace((unsigned char)*p)) p++;
         if (p >= end) break;
         if (p[0] == '/' && p + 1 < end && p[1] == '/') {
-            while (p < end && *p != '\n') p++;
+            while (p < end && *p != '\n' && *p != '\r') p++;
         } else if (*p == '[') {
             LPCSTR name_start, name_end;
             p++; name_start = p;
