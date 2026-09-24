@@ -1,4 +1,5 @@
 #include "client.h"
+#include "common/ui_canvas.h"
 #include "menu_text_input.h"
 #include "ui_layout.h"
 #include <ctype.h>
@@ -11,18 +12,7 @@ BOOL scr_initialized;
 #define SCR_ALERT_PULSE_HALF_MS 250 // milliseconds; triangle-wave half period for transient command-button alert tint
 #define SCR_ALERT_PULSE_MIN_GB 80 // color channel value; preserves portrait detail at the red peak of a transient alert
 
-/* Returns the UI canvas width for the current window aspect.  The canvas
- * expands horizontally while the height stays fixed (matches
- * cl_layout.c::SCR_GetUISceneRect and r_draw.c::R_UISceneRect). */
-FLOAT SCR_UICanvasWidth(void) {
-    size2_t win = re.GetWindowSize();
-    if (win.height > 0) {
-        FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
-        if (aspect > UI_MIN_ASPECT)
-            return UI_BASE_HEIGHT * aspect;
-    }
-    return UI_BASE_WIDTH;
-}
+FLOAT SCR_UICanvasWidth(void) { return UI_CanvasWidth(re.GetWindowSize()); }
 
 /*
  * SDL mouse positions are window pixels, while UI/layout coordinates use the

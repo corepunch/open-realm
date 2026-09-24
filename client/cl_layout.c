@@ -14,23 +14,9 @@ struct {
     bool calculated;
 } runtimes[MAX_LAYOUT_OBJECTS];
 
-/* Return the authored HUD root. WC3 keeps its 4:3 HUD centered while the
- * renderer's wider scene exposes extra world space; world-hover overrides this
- * root with the complete scene because it is positioned in world coordinates. */
+/* Layout and rendering use the same full-window coordinate space. */
 RECT SCR_LayoutSceneRect(void) {
-    size2_t win = re.GetWindowSize();
-    if (win.height > 0) {
-        FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
-        if (aspect > UI_MIN_ASPECT) {
-            FLOAT width = UI_BASE_HEIGHT * aspect;
-#ifdef WC3
-            return MAKE(RECT, (width - UI_BASE_WIDTH) * 0.5f, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
-#else
-            return MAKE(RECT, 0, 0, width, UI_BASE_HEIGHT);
-#endif
-        }
-    }
-    return MAKE(RECT, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+    return MAKE(RECT, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
 }
 
 VECTOR2 get_x(LPCRECT rect) {

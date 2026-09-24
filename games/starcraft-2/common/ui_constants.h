@@ -1,6 +1,8 @@
 #ifndef UI_CONSTANTS_H
 #define UI_CONSTANTS_H
 
+#define UI_STRETCH_CANVAS 0 // stretch authored UI to the window instead of widening its canvas
+
 #define UI_BASE_WIDTH  1600.0f
 #define UI_BASE_HEIGHT 1200.0f
 #define UI_MIN_ASPECT  (4.0f / 3.0f)
