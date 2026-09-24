@@ -10,7 +10,7 @@
 #include "../renderer/mdx/r_mdx.h"
 #include "../menu/menu_dialog.h"
 #include "../menu/menu_screen.h"
-#include "../common/minimap.h"
+#include "../common/minimap_render.h"
 #include "../common/campaign_progress.h"
 #include "../../../common/mpq.h"
 #include "../../../common/video_modes.h"

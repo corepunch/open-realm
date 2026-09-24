@@ -3739,6 +3739,7 @@ TEST(wc3_api, customize_entity_publishes_automatic_minimap_contacts) {
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 }, .data = { .UnitUI = &ui } };
 
     ent.health.value = 100.0f;
+    T_ASSERT(globals.IsSnapshotPriorityEntity(3, &ent));
     globals.CustomizeEntity(3, &ent, &state);
     T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_UNIT);
 
@@ -3747,6 +3748,7 @@ TEST(wc3_api, customize_entity_publishes_automatic_minimap_contacts) {
     T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_BUILDING);
 
     ui.hideOnMinimap = true;
+    T_ASSERT(!globals.IsSnapshotPriorityEntity(3, &ent));
     globals.CustomizeEntity(3, &ent, &state);
     T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_NONE);
     ui.hideOnMinimap = false;
@@ -3767,6 +3769,7 @@ TEST(wc3_api, customize_entity_publishes_automatic_minimap_contacts) {
     T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_HERO);
 
     ui.hideHeroMinimap = true;
+    T_ASSERT(!globals.IsSnapshotPriorityEntity(3, &ent));
     globals.CustomizeEntity(3, &ent, &state);
     T_EQ(wc3_minimap_contact_get(state.effect_flags), WC3_MINIMAP_CONTACT_NONE);
 

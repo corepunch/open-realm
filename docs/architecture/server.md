@@ -128,6 +128,14 @@ MSG_WriteDeltaEntity(&msg, &oldState, &newState, false, newState.number == cl->c
 
 The client's acknowledged frame number is tracked per slot so the server can re-send if a snapshot was lost.
 
+When the visible candidate set exceeds `MAX_PACKET_ENTITIES`, the server keeps
+the nearest candidates as before. Games may implement
+`game_export.IsSnapshotPriorityEntity` for recipient-visible entities whose
+presentation must survive ordinary saturation. The callback is game-owned and
+does not expose game-specific marker types to the server. Priority entities
+still share the packet budget; if they alone exceed it, distance determines
+which ones fit.
+
 ## Key Files
 
 | File | Purpose |

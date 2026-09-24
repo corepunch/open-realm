@@ -36,7 +36,14 @@ entity delta mask and `entityState_t`/`playerState_t` sizes are unchanged.
 `tests/test_net.c` round-trips all eight values of the generic three-bit entity
 variant.
 
-`G_CustomizeEntity()` chooses exactly one automatic WC3 contact per recipient:
+`G_CustomizeEntity()` chooses exactly one automatic WC3 contact per recipient.
+`game_export.IsSnapshotPriorityEntity` lets the game identify visible contacts
+that should survive ordinary snapshot saturation; the server keeps those ahead
+of non-contact entities while retaining the existing per-frame packet limit.
+If prioritized contacts themselves exceed `MAX_PACKET_ENTITIES`, the nearest
+prioritized contacts still win.
+
+The contact values are:
 
 - `WC3_MINIMAP_CONTACT_NONE`
 - `WC3_MINIMAP_CONTACT_UNIT`
@@ -115,15 +122,19 @@ current map, resolving `war3mapSkin.txt` `[CustomSkin]` before stock
 | Hero | `MinimapHeroTexture` |
 
 The renderer reads these text files through its import filesystem, so map
-archive precedence remains active. A missing or empty Game Interface key is diagnosed
-and uses the renderer's visible placeholder texture. An authored `war3mapSkin.txt`
-that exists but cannot be parsed also keeps the special markers on the visible
-placeholder path rather than silently dropping back to stock skin values. A
-resolved path that fails to load follows the existing `R_LoadTexture()`
-diagnostic/placeholder path.
+archive precedence remains active. A malformed optional `war3mapSkin.txt` is
+diagnosed once; fields that cannot be read then use valid stock `[Default]`
+values. A missing/empty field or a resolved path that fails to load is diagnosed
+and uses the renderer's visible placeholder texture.
 There is deliberately **no** demotion from a missing special icon to an
 ordinary unit/building marker: that would hide an asset/data error and violate
 the repository's no-silent-fallback rule.
+
+Stock skin textures use the normal pinned texture lifetime. Map-skin overrides
+use the renderer's streaming texture cache and are reclaimed on the next map
+registration if no persistent renderer consumer has pinned them. INI cache
+parses own their table/text allocations; `Stb_IniCacheFree()` releases them.
+The fixture MPQ includes all five stock keys and a map-level Hero override.
 
 Loading/game-setup previews remain a different path. Existing
 `war3map.mmp` types still use their preview artwork and do not create live
@@ -142,11 +153,15 @@ For ordinary unit/building contacts:
 - state `0` leaves non-local contacts in their already-resolved presentation
   team colour (`renderEntity_t.team`);
 - states `1` and `2` use relationship colours for non-local contacts: ally teal,
-  hostile red, and neutral/passive or creep contacts black.
+  hostile red, and neutral player slots/creeps black.
 
-The game publishes recipient-relative `EF_HOSTILE`/`EF_NEUTRAL` relationship
-flags for automatic contacts even when an entity is not hoverable. The WC3
-renderer therefore does not reconstruct alliance policy from team numbers.
+`G_SelectionRelation()` and `EF_NEUTRAL` retain their selection/hover meaning:
+an allied player without shared control can still be selection-neutral. The
+minimap policy does not treat that flag as a neutral creep. It recognizes
+neutral player slots as black, recipient-relative `EF_HOSTILE` as red, and
+other non-local owners as teal. `EF_NEUTRAL` is published only for hoverable
+entities where its existing world/hover semantics require it. The WC3 renderer
+does not reconstruct alliance policy from team numbers.
 Hero artwork receives relationship tint when the minimap ally-colour filter is
 active. Mine and special neutral-building artwork retains its authored icon
 colour.
@@ -181,10 +196,9 @@ The current screenshot-calibrated FDF sizes are therefore:
 | Gold/Entangled/Haunted/neutral special | 0.0105 x 0.0105 |
 | Hero | 0.014 x 0.014 |
 
-`wc3_minimap_marker_size()` owns these values directly; keeping them in WC3-owned
-code avoids another pixel/FDF conversion path.
-`wc3_minimap.marker_sizes_match_retail_capture_calibration` locks the discovered
-regression into an automated test. These values are capture-derived OpenRealm
+`wc3_minimap_marker_size()` and `wc3_minimap_marker_rect()` own the size and
+centered-rectangle path used by the renderer. `wc3_minimap.marker_sizes_match_retail_capture_calibration`
+locks the values and rectangle geometry into an automated test. These values are capture-derived OpenRealm
 calibration, not independently recovered retail engine constants; like-for-like
 retail captures may refine them later without changing the snapshot contract.
 
@@ -214,6 +228,8 @@ verified systems separate:
 
 - ally-colour state `2` does not yet recolour world models;
 - Hero pulse timing/alpha is not retail-calibrated;
+- the server still has a hard snapshot capacity; if visible minimap contacts
+  alone exceed it, the nearest prioritized set is retained;
 - creep-camp strategic markers and filter buttons are not rendered;
 - `CreateMinimapIcon*`, `DestroyMinimapIcon`, visibility/orphan lifetime,
   `SetAltMinimapIcon`, and `UnitSetUsesAltIcon` are not implemented as live
@@ -235,9 +251,12 @@ Automated coverage is intentionally split by ownership:
   recipient relationship publication, ally-filter clamping, and
   `currentplayer` locality.
 - `games/warcraft-3/game/tests/t_minimap.c` verifies the screenshot-derived
-  marker-size conversion, self-white/relationship colour policy, stock Game
-  Interface key mapping, map-skin precedence, and the in-memory INI parsing used
-  by the renderer path.
+  marker-size and rectangle path, passive-ally customization through the
+  minimap colour policy, fixture-MPQ stock/map-skin lookup, pinned versus
+  map-scoped texture registration, placeholder selection, and fallback after
+  an invalid optional map skin.
+- `games/warcraft-3/tests/test_server_net.c` verifies that a game-prioritized
+  minimap contact survives ordinary entity snapshot saturation.
 
 The focused WC3 checks can be run with:
 
@@ -245,6 +264,7 @@ The focused WC3 checks can be run with:
 make test-wc3-engine WC3_PATTERN='wc3_minimap.*'
 make test-wc3-engine WC3_PATTERN='wc3_api.customize_entity_*minimap*'
 make test-wc3-engine WC3_PATTERN='wc3_api.ally_color_filter_*'
+make test-server-net
 ```
 
 The generic wire round trips remain part of `make test` (`net.game_presentation_variant_stat_roundtrips`

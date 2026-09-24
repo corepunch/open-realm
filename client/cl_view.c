@@ -650,6 +650,8 @@ void V_RenderView(void) {
     }
 
     rebuild = V_AdvanceSceneTime(&cl.viewDef, cl.time, &lastTime, Cvar_Integer("paused", 0));
+    /* Local presentation state can change while simulation snapshots are paused. */
+    cl.viewDef.game_variant = cl.playerstate.stats[UI_PLAYERSTAT_GAME_VARIANT];
     if (rebuild) {
         cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
         cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
@@ -665,7 +667,6 @@ void V_RenderView(void) {
 #endif
         cl.viewDef.rdflags = cl.playerstate.rdflags;
         cl.viewDef.player = cl.playerstate.number;
-        cl.viewDef.game_variant = cl.playerstate.stats[UI_PLAYERSTAT_GAME_VARIANT];
         cl.viewDef.hover_entity = cl.hover_entity;
     
 #if !defined(WOW) && !defined(SC2)
