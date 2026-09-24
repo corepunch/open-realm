@@ -1,18 +1,10 @@
 #include "r_local.h"
 #include "r_game.h"
 
-#include "common/ui_constants.h"
-#define R_UI_BASE_WIDTH  UI_BASE_WIDTH
-#define R_UI_BASE_HEIGHT UI_BASE_HEIGHT
-#define R_UI_MIN_ASPECT  UI_MIN_ASPECT
+#include "common/ui_canvas.h"
 
 RECT R_UISceneRect(void) {
-    if (tr.drawableSize.height > 0) {
-        FLOAT aspect = (FLOAT)tr.drawableSize.width / (FLOAT)tr.drawableSize.height;
-        if (aspect > R_UI_MIN_ASPECT)
-            return MAKE(RECT, 0, 0, R_UI_BASE_HEIGHT * aspect, R_UI_BASE_HEIGHT);
-    }
-    return MAKE(RECT, 0, 0, R_UI_BASE_WIDTH, R_UI_BASE_HEIGHT);
+    return MAKE(RECT, 0, 0, UI_CanvasWidth(tr.drawableSize), UI_BASE_HEIGHT);
 }
 
 /* Share glyph batching internally; only scaled characters need a renderer export. */

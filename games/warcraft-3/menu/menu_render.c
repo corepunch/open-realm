@@ -10,6 +10,7 @@
  */
 
 #include "menu_local.h"
+#include "common/ui_canvas.h"
 #include "client/menu_text_input.h"
 #if defined(__has_include)
 #if __has_include(<SDL2/SDL_keycode.h>)
@@ -152,20 +153,10 @@ RECT UI_GetSceneRect(void) {
     if (scene_rect_valid) {
         return scene_rect;
     }
-    /* Glue screens use the complete renderer canvas.  Their FDF explicitly
-     * anchors the left and right chrome to MainMenuFrame edges; keeping a
-     * centred 4:3 root here makes right-anchored buttons stop short of the
-     * sprite-layer edge while hit testing still follows that shorter rect. */
     scene_rect = (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
     LPRENDERER renderer = mi.GetRenderer();
-    if (renderer && renderer->GetWindowSize) {
-        size2_t win = renderer->GetWindowSize();
-        if (win.height > 0) {
-            FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
-            if (aspect > UI_MIN_ASPECT)
-                scene_rect.w = UI_BASE_HEIGHT * aspect;
-        }
-    }
+    if (renderer && renderer->GetWindowSize)
+        scene_rect.w = UI_CanvasWidth(renderer->GetWindowSize());
     scene_rect_valid = TRUE;
     return scene_rect;
 }

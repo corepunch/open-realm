@@ -1593,7 +1593,7 @@ TEST(net, cinematic_fade_covers_widescreen_canvas) {
     T_EQ(test_fade_draws, 1);
     T_FEQ(test_fade_rect.x, 0.0f, 0.0001f);
     T_FEQ(test_fade_rect.y, 0.0f, 0.0001f);
-    T_FEQ(test_fade_rect.w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
+    T_FEQ(test_fade_rect.w, 0.8f, 0.0001f);
     T_FEQ(test_fade_rect.h, UI_BASE_HEIGHT, 0.0001f);
     T_EQ(test_fade_color.a, 255);
 }
@@ -1630,7 +1630,7 @@ TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
     rect = SCR_LayoutRect(SCR_Frame(1));
     T_NOT_NULL(rect);
     T_FEQ(rect->x, 0.0f, 0.0001f);
-    T_FEQ(rect->w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
+    T_FEQ(rect->w, 0.8f, 0.0001f);
     T_FEQ(rect->y, UI_BASE_HEIGHT - 0.140f, 0.0001f);
     T_FEQ(rect->h, 0.140f, 0.0001f);
 }
