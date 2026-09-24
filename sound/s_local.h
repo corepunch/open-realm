@@ -48,6 +48,8 @@ typedef struct {
     char         path[512];
     sfxcache_t  *cache;
     int          registration_sequence;
+    int          load_attempt_sequence;
+    BOOL         load_attempted;
 } sfx_t;
 
 /* DBC kit entry — cache pointer added so the decoded PCM lives on the handle. */
@@ -62,6 +64,8 @@ typedef struct {
     DWORD        flags;
     sfxcache_t  *cache;
     int          registration_sequence;
+    int          load_attempt_sequence;
+    BOOL         load_attempted;
 } sSoundKit_t;
 
 typedef struct sHashNode_s {
@@ -122,6 +126,7 @@ typedef struct {
 extern sState_t s;
 
 /* s_sound.c */
+sfxcache_t *s_mp3_decode(BYTE const *data, DWORD size);
 void S_LoadSoundEntries(void);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);

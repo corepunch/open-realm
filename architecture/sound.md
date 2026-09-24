@@ -6,6 +6,13 @@ See also: [Warcraft III — Unit Sound System](../games/warcraft-3/sounds.md) an
 Based on Quake 2's sound system. Sound is a client-side subsystem with server-mediated triggering via configstrings and
 dedicated `svc_sound` packets.
 
+One-shot sounds load mono PCM WAV or MP3 files from the virtual filesystem into the same S16 / 44.1-kHz mono cache.
+`sound/s_sound.c` keeps WAV loop markers; `sound/s_mp3.c` uses vendored minimp3, downmixes stereo frames, and resamples
+MP3 dialogue without an FFmpeg build dependency. A failed decode is remembered for the current sound registration
+sequence, so a bad loop/sample is not read and diagnosed again every frame.
+The vendored Huffman bit reader bounds reads at the main-data buffer end; preserve this guard when updating minimp3
+because the upstream report [#145](https://github.com/lieff/minimp3/issues/145) identifies the same unchecked reads.
+
 
 ## Long-Form PCM Streams
 
@@ -21,11 +28,11 @@ source are non-positional and are still delivered by the server packet path.
 
 ### Protocol
 
-1. **Server game code** registers a WAV file path via `gi.SoundIndex(path)` → sound index.
+1. **Server game code** registers a WAV or MP3 file path via `gi.SoundIndex(path)` → sound index.
 2. `gi.Sound` or `gi.PositionedSound` calls the server import boundary with entity/channel, volume, attenuation, and offset.
 3. `SV_StartSound` encodes the Quake 2 packet flags and sends `svc_sound` to the selected clients.
 4. **Client** (`cl_parse.c`) decodes the packet, resolves configstring path and entity-relative origin, then calls `S_PlaySoundPacket`.
-5. `S_PlaySoundPacket` loads the WAV from the MPQ and mixes it with the packet's volume and attenuation.
+5. `S_PlaySoundPacket` loads and normalizes the WAV or MP3 from the MPQ, then mixes it with the packet's volume and attenuation.
 
 ### Legacy Entity Event Types (`entity_event_t` in `common/shared.h`)
 
@@ -52,6 +59,7 @@ WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When gam
 | `games/warcraft-3/game/g_sound.c` | WC3 keyed sound tables, owner-only UI sounds, ability/effect and combat-impact sounds, JASS label resolution, and command-error dispatch |
 | `client/cl_view.c` | reconciles persistent snapshot `entityState_t.sound` loops by entity number |
 | `sound/s_sound.c` | one-shot packet playback plus generic persistent loop mixing |
+| `sound/s_mp3.c` | MP3 frame decoding and conversion to the one-shot mono PCM cache |
 | `client/cl_fx.c` | `CL_EntityEvent` — fires sounds on event |
 | `sound/s_sound.c` | `S_PlaySoundFile` — raw MPQ path playback |
 
