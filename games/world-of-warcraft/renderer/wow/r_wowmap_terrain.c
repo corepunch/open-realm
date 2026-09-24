@@ -30,14 +30,6 @@ BOX3 Wow_EmptyBounds(void) {
     };
 }
 
-VECTOR3 Wow_WorldPoint(float x, float y, float z) {
-    return (VECTOR3){
-        x,
-        y,
-        z,
-    };
-}
-
 VECTOR2 Wow_McvtCoords(int index) {
     int row = index / 17;
     int col = index % 17;
@@ -56,7 +48,8 @@ VECTOR2 Wow_McvtCoords(int index) {
 VECTOR3 Wow_McvtPoint(wowVec3_t pos, float const *heights, int index) {
     VECTOR2 coords = Wow_McvtCoords(index);
 
-    return Wow_WorldPoint( pos.x - coords.y, pos.y - coords.x, pos.z + heights[index]);
+    VECTOR3 base = { pos.x, pos.y, pos.z }, offset = Wow_TerrainOffset(coords.y, coords.x, heights[index]);
+    return Vector3_add(&base, &offset);
 }
 
 VECTOR3 Wow_TerrainFaceNormal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
@@ -90,12 +83,7 @@ static VECTOR3 Wow_DecodeTerrainNormal(BYTE const *normals, int index) {
     ny = (signed char)normals[base + 1];
     nz = (signed char)normals[base + 2];
 
-    /* ADT local axes map into world axes as x=-y_local, y=-x_local, z=z_local. */
-    normal = (VECTOR3){
-        -(float)ny / 127.0f,
-        -(float)nx / 127.0f,
-        (float)nz / 127.0f,
-    };
+    normal = Wow_TerrainNormal((VECTOR3){ nx / 127.0f, ny / 127.0f, nz / 127.0f });
 
     if (Vector3_lengthsq(&normal) <= 0.000001f) {
         return (VECTOR3){ 0.0f, 0.0f, 1.0f };

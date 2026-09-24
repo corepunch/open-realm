@@ -894,13 +894,13 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 renderEntity_t entity = {0};
 
                 entity.model = e->model;
-                entity.attached_model = UIWow_XMLCharCustomizeModel(i);
+                entity.attachment.model = UIWow_XMLCharCustomizeModel(i);
                 entity.appearance = is_char_select ? UIWow_GetCharacterSelectAppearance()
                                                    : UIWow_GetCharacterCreateAppearance();
                 entity.frame = e->frame;
                 entity.oldframe = e->oldframe;
                 entity.scale = 1.0f;
-                entity.angle = is_char_select ? 0.0f
+                entity.attachment.angles.yaw = is_char_select ? 0.0f
                                               : (FLOAT)DEG2RAD(UIWow_GetCharacterCreateFacing());
                 entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING;
                 if (wow_ui.renderer->SetEntityAnimFrame) {

@@ -158,7 +158,7 @@ GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz,$(WC3_DIR)/common/world_w3.c))
+$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 
@@ -323,3 +323,5 @@ test-menu-boundary:
 # These tests include the terrain bakers directly; keep incremental regression runs current.
 $(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_EXT): $(wildcard $(WC3_DIR)/renderer/w3m/*.[ch]) renderer/r_cliff.h
 $(RENDERER_LIB): $(wildcard $(WC3_DIR)/renderer/w3m/*.h) renderer/r_cliff.h
+
+$(RENDERER_LIB): $(WC3_DIR)/common/wc3_coords.h renderer/r_game.h

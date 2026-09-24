@@ -130,6 +130,7 @@ typedef struct {
 typedef struct {
     VECTOR3 origin;
     LPCMODEL model;
+    struct { LPCMODEL model; orientation_t angles; } attachment; /* local pose after the parent socket */
     LPCTEXTURE skin;
     LPCTEXTURE splat;
     LPCSTR name;                      /* server-authored world label (NULL = none) */
@@ -139,9 +140,8 @@ typedef struct {
     DWORD display_id;
     DWORD appearance;
     DWORD equipment;
-    LPCMODEL attached_model;
     LPCMODEL overhead_model;
-    VECTOR3 rotation;   /* 3D rotation for renderer-only static objects (WoW map objects, doodads) */
+    VECTOR3 rotation;   /* Authored placement Euler degrees; game adapter decodes to yaw/pitch/roll. */
 #endif
     DWORD frame;
     DWORD oldframe;
@@ -149,7 +149,7 @@ typedef struct {
     BYTE health;        /* compressed 0..255 snapshot health ratio */
     USHORT effect_flags;
     LPCMODEL effect_model;
-    float angle;        /* 1D yaw for dynamic actors (units, players); grounded Warcraft III entities use this */
+    float angle;        /* Canonical actor heading in radians, independent of height anchoring. */
     float scale;
     float radius;
     float splatsize;

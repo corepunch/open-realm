@@ -875,10 +875,6 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     MATRIX3 mNormalMatrix;
 
     memcpy(&mScaledMatrix, transform, sizeof(MATRIX4));
-    // SC2 placed-object rotations are already in the entity matrix; the old global M3 +90 made bridges and doodads quarter-turn too far.
-//    Matrix4_rotate(&mScaledMatrix, &(VECTOR3){0,0,90/*tr.viewDef.time*0.05*/}, ROTATE_ZYX);
-    // SC2 entity scale is already applied by R_GetEntityMatrix; the old 100x loader scale put the camera inside units.
-//    Matrix4_scale(&mScaledMatrix, &(VECTOR3){100,100,100});
     Matrix3_normal(&mNormalMatrix, &mScaledMatrix);
 
     R_Call(glDisable, GL_BLEND);

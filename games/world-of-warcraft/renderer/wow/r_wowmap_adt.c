@@ -357,10 +357,6 @@ BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size) {
     return true;
 }
 
-int Wow_AdtIndexForWorldCoord(float coord) {
-    return (int)floorf(32.0f - coord / WOW_ADT_SIZE);
-}
-
 void Wow_LoadMapDbcFlags(void) {
     stbDbc_t h;
     LPBYTE data = NULL;
@@ -436,8 +432,8 @@ void Wow_LoadNearbyAdts(int center_x, int center_y) {
 }
 
 void Wow_LoadCameraAdts(void) {
-    int center_x = Wow_AdtIndexForWorldCoord(tr.viewDef.camerastate[0].origin.y);
-    int center_y = Wow_AdtIndexForWorldCoord(tr.viewDef.camerastate[0].origin.x);
+    int center_x = Wow_TileIndex(tr.viewDef.camerastate[0].origin.y);
+    int center_y = Wow_TileIndex(tr.viewDef.camerastate[0].origin.x);
 
     if (center_x < 0 || center_x >= WOW_WDT_TILES || center_y < 0 || center_y >= WOW_WDT_TILES) {
         static BOOL logged_outside = false;

@@ -1,3 +1,5 @@
+#include "games/starcraft-2/common/sc2_coords.h"
+
 /* galaxy_unit.h — unit, unitgroup, and unittype natives */
 
 #define MAX_GALAXY_UNITS   256
@@ -25,7 +27,7 @@ static DWORD sc2_UnitCreate(LPJASS j) {
     LPCSTR type   = jass_checkstring(j, 2);
     LONG   player = jass_checkinteger(j, 4);
     LONG   pt_h   = (LONG)(uintptr_t)jass_checkhandle(j, 5, "point");
-    FLOAT  angle  = jass_checknumber(j, 6);
+    FLOAT  angle  = SC2_FacingRadians(jass_checknumber(j, 6));
     FLOAT  x = 0.0f, y = 0.0f;
     if (pt_h > 0 && pt_h < sc2_gpoint_n) { x = sc2_gpoints[pt_h].x; y = sc2_gpoints[pt_h].y; }
     LONG handle = 0;
@@ -68,7 +70,7 @@ static DWORD sc2_UnitSetFacing(LPJASS j) {
     if (ent && sc2_galaxy_unit_set_position) {
         /* Re-use set_position with NaN for x/y to indicate facing-only update.
          * g_sc2.c checks for this sentinel and only updates the angle. */
-        sc2_galaxy_unit_set_position(ent, 0.0f/0.0f, 0.0f/0.0f, ang * 3.14159265f / 180.0f);
+        sc2_galaxy_unit_set_position(ent, 0.0f/0.0f, 0.0f/0.0f, SC2_FacingRadians(ang));
     }
     return jass_pushnull(j);
 }

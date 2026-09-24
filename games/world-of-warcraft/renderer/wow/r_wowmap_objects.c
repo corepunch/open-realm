@@ -120,7 +120,7 @@ void Wow_AddGroundEffectInstance(LPCSTR model_path, VECTOR3 origin, float angle)
     instance = ri.MemAlloc(sizeof(*instance));
     memset(instance, 0, sizeof(*instance));
     instance->entity.origin = origin;
-    instance->entity.rotation = (VECTOR3){ 0.0f, 0.0f, angle };
+    instance->entity.angle = angle;
     instance->entity.scale = 1.0f;
     instance->entity.model = model;
     instance->entity.radius = WOW_DOODAD_BUCKET_SIZE * 0.25f;

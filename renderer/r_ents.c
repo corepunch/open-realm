@@ -8,16 +8,21 @@
 #include <stdlib.h>
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
-    VECTOR3 origin = entity->origin;
+    modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle, .scale = entity->scale };
+    LPCMATRIX4 basis = R_EntityPose(entity, &pose);
+    QUATERNION rotation = Quaternion_fromOrientation(&pose.angles);
+    MATRIX4 placement;
+    Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
+        &MAKE(VECTOR3, pose.scale, pose.scale, pose.scale), &MAKE(VECTOR3, 0, 0, 0));
+    /* Native skinning precedes this basis. All world-space consumers use this same composition. */
+    Matrix4_multiply(&placement, basis, matrix);
+}
 
-    if (R_EntityMatrix(entity, matrix)) {
-        return;
-    }
-
-    Matrix4_identity(matrix);
-    Matrix4_translate(matrix, &origin);
-    Matrix4_rotate(matrix, &(VECTOR3){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
-    Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
+/* A socket already includes the parent's model basis. Apply only the child's local pose. */
+void R_GetAttachmentMatrix(renderEntity_t const *entity, LPCMATRIX4 socket, LPMATRIX4 matrix) {
+    QUATERNION rotation = Quaternion_fromOrientation(&entity->attachment.angles);
+    *matrix = *socket;
+    Matrix4_rotateQuat(matrix, &rotation);
 }
 
 static int R_DebugEntities(void) {

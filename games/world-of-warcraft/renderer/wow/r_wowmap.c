@@ -333,7 +333,7 @@ static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
 void Wow_DrawMinimap(LPCRECT screen) {
     VECTOR3 cam = tr.viewDef.camerastate[0].origin;
     float r = WOW_MINIMAP_WORLD_RADIUS, x0 = cam.x - r, x1 = cam.x + r, y0 = cam.y - r, y1 = cam.y + r;
-    int center_x = Wow_AdtIndexForWorldCoord(cam.y), center_y = Wow_AdtIndexForWorldCoord(cam.x);
+    int center_x = Wow_TileIndex(cam.y), center_y = Wow_TileIndex(cam.x);
 
     if (!R_CvarEnabled("r_minimap", "1") || !screen || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) return;
     for (int tx = center_x - 1; tx <= center_x + 1; tx++) {

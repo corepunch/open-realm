@@ -182,7 +182,7 @@ static void Wow_WmoBuildFree(WOWWMOBUILD *builds, DWORD count) {
 }
 
 VECTOR3 Wow_ObjectPoint(wowVec3_t p) {
-    return CM_WowObjectPoint(p.x, p.y, p.z);
+    return Wow_ObjectPosition(p.x, p.y, p.z);
 }
 
 /* Renderer and collision consume one placement transform; vertex data needs no axis swaps. */

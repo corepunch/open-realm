@@ -688,9 +688,9 @@ typedef struct entityState_s {
         VECTOR3 origin;
         struct { VECTOR2 origin2; FLOAT z; };
     };
-    FLOAT angle;
+    FLOAT angle; /* Canonical actor heading, radians. */
 #ifdef WOW
-    VECTOR3 rotation;
+    VECTOR3 rotation; /* Raw placement Euler degrees; preserve the wire layout and decode in the game pose hook. */
 #endif
     FLOAT scale;
     FLOAT radius;

@@ -1074,11 +1074,6 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     proj->s.scale  = 0.8f;
     proj->s.radius = 0.5f;
     proj->s.player = caster->s.player;
-    /* EF_GROUND_ANCHOR routes the renderer through the grounded-actor matrix path
-     * (yaw-only around Z), which is correct for spell projectiles.  Without it
-     * R_EntityMatrix applies the doodad Euler angles (rotation.y-90, rotation.z-90)
-     * to a zero-rotation entity, which lifts the mesh far above the origin. */
-    proj->s.flags  = EF_GROUND_ANCHOR;
     /* Ranged spells use the selected target, not the melee combat target; leaving
      * this field set would make the generic frame loop chase after launch. */
     caster_local->enemy = NULL;
@@ -1216,7 +1211,6 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
     proj->s.scale   = 0.8f;
     proj->s.radius  = 0.5f;
     proj->s.player  = caster->s.player;
-    proj->s.flags   = EF_GROUND_ANCHOR; /* see Wow_FireFirebolt for rationale */
     /* Ranged spells use the selected target, not the melee combat target; leaving
      * this field set would make the generic frame loop chase after launch. */
     caster_local->enemy = NULL;

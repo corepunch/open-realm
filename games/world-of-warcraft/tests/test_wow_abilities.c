@@ -605,7 +605,8 @@ TEST(wow_abilities, frostbolt_spawns_projectile) {
         T_EQ((int)pl->projectile_damage, 3);
         T_EQ((int)pl->slow_timer, 2000);  /* pending slow to apply on hit */
         T_FEQ(proj->s.scale, 0.8f, 0.001f);
-        T_ASSERT(proj->s.flags & EF_GROUND_ANCHOR);
+        T_ASSERT(!(proj->s.flags & EF_GROUND_ANCHOR));
+        T_FEQ(proj->s.angle, atan2f(target->s.origin.y - caster->s.origin.y, target->s.origin.x - caster->s.origin.x), 0.0001f);
     }
 }
 

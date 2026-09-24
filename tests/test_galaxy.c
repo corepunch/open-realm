@@ -78,6 +78,14 @@ static void *gal_unit_create(LPCSTR type, int player, float x, float y, float an
     (void)type; (void)player; (void)x; (void)y; (void)angle;
     return (void *)(uintptr_t)1;
 }
+static FLOAT gal_created_angle, gal_facing_angle;
+static void *gal_facing_create(LPCSTR type, int player, float x, float y, float angle) {
+    gal_created_angle = angle;
+    return gal_unit_create(type, player, x, y, angle);
+}
+static void gal_set_facing(void *ent, float x, float y, float angle) {
+    (void)ent; (void)x; (void)y; gal_facing_angle = angle;
+}
 static int gal_owners[8], gal_units;
 static void *gal_owned_create(LPCSTR type, int player, float x, float y, float angle) {
     (void)type; (void)x; (void)y; (void)angle;
@@ -1458,6 +1466,22 @@ TEST(galaxy, smoke_init_globals) {
     }
     T_ASSERT(!jass_rterror_pending(s.j));
     gal_destroy(&s);
+}
+
+TEST(galaxy, create_and_set_facing_share_radian_host_contract) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    gal_created_angle = gal_facing_angle = 0;
+    sc2_galaxy_on_unit_create = gal_facing_create;
+    sc2_galaxy_unit_set_position = gal_set_facing;
+    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "void main() { UnitCreate(1, \"Marine\", 0, 1, Point(3.0, 5.0), 90.0);"
+        "UnitSetFacing(UnitLastCreated(), 90.0, 0.0); }"));
+    T_FEQ(gal_created_angle, (FLOAT)M_PI / 2, 0.0001f);
+    T_FEQ(gal_facing_angle, gal_created_angle, 0.0001f);
+    sc2_galaxy_on_unit_create = NULL; sc2_galaxy_unit_set_position = NULL;
+    galaxy_reset(); gal_destroy(&s);
 }
 
 #endif /* BZ_TESTS */

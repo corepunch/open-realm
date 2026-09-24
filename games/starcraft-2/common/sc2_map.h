@@ -2,21 +2,13 @@
 #define SC2_MAP_H
 
 #include "common/common.h"
+#include "sc2_coords.h"
 #include <stdio.h>
 #include <math.h>
 
 static inline FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) {
     FLOAT delta = fmodf(b - a + 540.0f, 360.0f) - 180.0f;
     return a + delta * k;
-}
-
-/* Map/Galaxy yaw selects the eye side of the target; using it as view rotation put the camera
- * across the map (TRaynor01 bridge). Orbit identity looks down -Z, so tilt is pitch minus 90. */
-static inline VECTOR3 SC2_EulerFromCamera(FLOAT pitch, FLOAT yaw) {
-    return (VECTOR3){ pitch - 90.0f, 0.0f, yaw - 180.0f };
-}
-static inline VECTOR3 SC2_CameraFromEuler(LPCVECTOR3 euler, FLOAT height) {
-    return (VECTOR3){ euler->x + 90.0f, euler->z + 180.0f, height };
 }
 
 #define SC2_MAX_MAP_OBJECTS 4096 // objects; accommodates object-heavy campaign maps such as TRaynor01

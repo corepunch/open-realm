@@ -305,7 +305,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.model2 > 0 && (ent->current.renderfx & RF_ATTACH_OVERHEAD))
         re.overhead_model = cl.models[ent->current.model2];
     else if (ent->current.model2 > 0)
-        re.attached_model = cl.models[ent->current.model2];
+        re.attachment.model = cl.models[ent->current.model2];
 #endif
 
     CL_ApplyIndicator(&re);
@@ -313,7 +313,7 @@ static void V_AddClientEntity(centity_t const *ent) {
 
     if (ent->current.model2 > 0) {
 #ifdef WOW
-        if (re.attached_model || re.overhead_model) return;
+        if (re.attachment.model || re.overhead_model) return;
 #endif
         if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
             return;

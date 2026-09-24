@@ -100,11 +100,6 @@ BOX2 CM_GetWorldBounds(void);
 /* WoW-only: all WorldSafeLocs entries for the current map.  Populated during
  * CM_LoadMap; null until a WoW map is loaded.  Callers must not free. */
 #ifdef WOW
-#define WOW_ADT_SIZE 533.333313f
-#define WOW_ADT_TILES 64
-static inline VECTOR3 CM_WowObjectPoint(FLOAT x, FLOAT y, FLOAT z) {
-    return (VECTOR3){ WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - z, WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - x, y };
-}
 DWORD CM_WowGetMapId(void);
 DWORD CM_WowGetAllSpawnCount(void);
 LPCVECTOR3 CM_WowGetSpawnPos(DWORD index);

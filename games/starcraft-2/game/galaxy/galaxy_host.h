@@ -54,7 +54,7 @@ extern LPCSTR (*sc2_galaxy_conversation_field)(LPCSTR key, LPCSTR field);
 extern float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
 extern void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
 
-/* UnitCreate — resolve and spawn a unit type; returns LPEDICT cast to void*, or NULL. */
+/* UnitCreate returns LPEDICT cast to void*, or NULL. Host headings are radians; native APIs decode degrees. */
 extern void *(*sc2_galaxy_on_unit_create)(LPCSTR unit_type, int player,
                                           float x, float y, float angle);
 

@@ -1,4 +1,5 @@
 #include "g_wow_local.h"
+#include "common/wow_coords.h"
 #include "common/stb_dbc.h"
 #include "common/wow_chunks.h"
 #include <math.h>
@@ -216,7 +217,7 @@ static BOOL WowGo_IsInteractive(DWORD display_id) {
 /* Keep server-authored interactive entities coincident with renderer-owned MDDF doodads. */
 void WowGo_SetDoodadTransform(LPCWOWDOODADDEF def, LPENTITYSTATE state) {
     /* MDDF positions are absolute map coordinates; the old tile offset and terrain projection destroyed authored Z. */
-    state->origin = CM_WowObjectPoint(def->position[0], def->position[1], def->position[2]);
+    state->origin = Wow_ObjectPosition(def->position[0], def->position[1], def->position[2]);
     state->origin2 = (VECTOR2){ state->origin.x, state->origin.y };
     state->rotation = (VECTOR3){ def->rotation[0], def->rotation[1], def->rotation[2] };
     state->scale = def->scale / 1024.0f;
@@ -300,8 +301,8 @@ void Wow_SpawnGameObjects(LPCVECTOR2 origin) {
 
     /* Spawn from tiles near the player's spawn origin.
      * A typical view range covers ~4×4 tiles. */
-    int center_x = (int)(32.0f - origin->x / WOW_ADT_SIZE);
-    int center_y = (int)(32.0f - origin->y / WOW_ADT_SIZE);
+    int center_x = Wow_TileIndex(origin->x);
+    int center_y = Wow_TileIndex(origin->y);
     int radius = 2;
 
     for (int ty = center_y - radius; ty <= center_y + radius; ty++) {
