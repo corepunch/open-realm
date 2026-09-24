@@ -44,6 +44,8 @@ static int gen_panel_sprite(int, char **);
 static int gen_ui_panel(int, char **);
 static int gen_anim_pulse(int, char **);
 static int gen_morph(int, char **);
+static int gen_doodad(int, char **);
+static int gen_doodad_birth(int, char **);
 
 static const struct { const char *name; int (*gen)(int, char **); } presets[] = {
     { "quad_sprite", gen_quad_sprite },
@@ -51,6 +53,8 @@ static const struct { const char *name; int (*gen)(int, char **); } presets[] = 
     { "ui_panel", gen_ui_panel },
     { "anim_pulse", gen_anim_pulse },
     { "morph", gen_morph },
+    { "doodad", gen_doodad },
+    { "doodad_birth", gen_doodad_birth },
 };
 
 static void wb_grow(wbuf_t *b, size_t need) {
@@ -505,6 +509,24 @@ static int gen_morph(int argc, char **argv) {
         return 1;
     }
     return build_model(argv[1], argv[2], "Morph", 0.5f, 0.5f, names, starts, ends, 6) ? 0 : 1;
+}
+
+/* Nonzero Stand range and a separate portrait: frame zero is not a valid world pose. */
+static int gen_doodad(int argc, char **argv) {
+    const char *names[] = { "Stand", "Portrait", "Death" };
+    uint32_t starts[] = { 4167, 67333, 70000 }, ends[] = { 6667, 69333, 72333 };
+    if (argc < 3) { fprintf(stderr, "usage: mdxgen doodad <texture> <out.mdx>\n"); return 1; }
+    return build_model(argv[1], argv[2], "ElvenFishVillageBuilding0", 0.5f, 0.5f,
+                       names, starts, ends, 3) ? 0 : 1;
+}
+
+/* Ruined2 has Birth first: spawn must choose Stand by name, not sequence zero. */
+static int gen_doodad_birth(int argc, char **argv) {
+    const char *names[] = { "Birth", "Stand", "Portrait", "Death" };
+    uint32_t starts[] = { 0, 61667, 67333, 70000 }, ends[] = { 60000, 66667, 69333, 72333 };
+    if (argc < 3) { fprintf(stderr, "usage: mdxgen doodad_birth <texture> <out.mdx>\n"); return 1; }
+    return build_model(argv[1], argv[2], "ElvenFishVillageBuildingRuined2", 0.5f, 0.5f,
+                       names, starts, ends, 4) ? 0 : 1;
 }
 
 /* =========================================================================

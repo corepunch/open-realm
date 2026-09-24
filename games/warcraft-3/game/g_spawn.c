@@ -374,6 +374,8 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     edict->s.model = G_RegisterModel(buffer);
     edict->movetype = MOVETYPE_NONE;
     edict->svflags |= SVF_STATIC_SCENERY;
+    /* Frame zero may show portrait-only geometry. Start the authored world sequence. */
+    G_DoodadSetAnimation(edict, "stand", false);
 }
 
 /* DestructableData may provide either a complete model stem (TFT/current

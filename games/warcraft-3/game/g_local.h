@@ -3103,6 +3103,7 @@ void G_DestructableStartAliveAnimation(LPEDICT ent, BOOL birth);
 
 BOOL G_IsDoodad(LPCEDICT ent);
 void G_DoodadAnimationEnd(LPEDICT ent);
+BOOL G_DoodadSetAnimation(LPEDICT ent, LPCSTR anim_name, BOOL random_animation);
 typedef struct {
     FLOAT x, y, radius;
     DWORD doodad_id;

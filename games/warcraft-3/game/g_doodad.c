@@ -34,7 +34,7 @@ void G_DoodadAnimationEnd(LPEDICT ent) {
 }
 
 /* Apply a named scripted animation without changing the doodad footprint. */
-static BOOL G_DoodadSetAnimation(LPEDICT ent, LPCSTR anim_name, BOOL random_animation) {
+BOOL G_DoodadSetAnimation(LPEDICT ent, LPCSTR anim_name, BOOL random_animation) {
     LPCANIMATION anim;
 
     if (!G_IsDoodad(ent) || !anim_name || !*anim_name) return false;

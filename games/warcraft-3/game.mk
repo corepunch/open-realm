@@ -246,12 +246,14 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(BIN_DIR)/blpgen$(EXE_EXT) $$tex; \
 	done
 	@echo "[test-assets] generating models"
-	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models $(TESTS_RES_DIR)/Units/Creeps/Medivh
+	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models $(TESTS_RES_DIR)/Units/Creeps/Medivh $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuilding0 $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuildingRuined2
 	@for model in \
 		"quad_sprite TestUI/Textures/checker_8x8.blp $(TESTS_RES_DIR)/TestUI/Models/quad_sprite.mdx" \
 		"panel_sprite TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/panel_sprite.mdx" \
 		"ui_panel TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx" \
 		"anim_pulse TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx" \
+		"doodad_birth TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuildingRuined2/ElvenFishVillageBuildingRuined2.mdx" \
+		"doodad TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuilding0/ElvenFishVillageBuilding0.mdx" \
 		"morph TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Units/Creeps/Medivh/Medivh.mdx"; do \
 		$(BIN_DIR)/mdxgen$(EXE_EXT) $$model; \
 	done
