@@ -621,6 +621,16 @@ static BOOL CL_WindowContains(clientWindow_t *window, LPCVECTOR2 point) {
     return frame && Rect_contains(SCR_LayoutRect(frame), point);
 }
 
+BOOL CL_WindowMouseOver(int x, int y) {
+    VECTOR2 point = SCR_ScreenToUI(x, y);
+    clientWindow_t *modal = CL_WindowModal();
+    for (clientWindow_t *window = cl_windows.last; window; window = window->prev) {
+        if (modal && window != modal) continue;
+        if (CL_WindowContains(window, &point)) return true;
+    }
+    return modal != NULL;
+}
+
 static LPCUIFRAME CL_WindowClickableAt(clientWindow_t *window, LPCVECTOR2 point) {
     RECT root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);

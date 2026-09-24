@@ -29,6 +29,9 @@ static BYTE test_last_unicast_buf[MAX_MSGLEN];
 static DWORD test_multicast_size;
 static DWORD test_last_unicast_size;
 static DWORD test_unicast_calls;
+static DWORD test_welcome_window_flags;
+static BYTE test_window_write_stage;
+static BOOL test_welcome_window_seen;
 static BYTE test_selection_buf[6];
 static DWORD test_selection_size;
 static char test_last_error[512];
@@ -351,6 +354,9 @@ static void test_write(pfWriteType_t type, void const *value) {
     switch (type) {
         case PF_BYTE:
             b = (BYTE)*(LONG const *)value;
+            if (test_window_write_stage == 1) test_window_write_stage = 2;
+            else if (test_window_write_stage) test_window_write_stage = 0;
+            if (!test_window_write_stage && b == svc_window) test_window_write_stage = 1;
             if (b == svc_layout) test_expect_layout_layer = true;
             else if (test_expect_layout_layer) {
                 test_layout_layer = b;
@@ -364,6 +370,13 @@ static void test_write(pfWriteType_t type, void const *value) {
             test_write_data(&s, sizeof(s));
             break;
         case PF_LONG:
+            if (test_window_write_stage == 2) test_window_write_stage = 3;
+            else if (test_window_write_stage == 3) test_window_write_stage = 4;
+            else if (test_window_write_stage == 4) {
+                test_welcome_window_flags = *(DWORD const *)value;
+                test_welcome_window_seen = true;
+                test_window_write_stage = 0;
+            } else if (test_window_write_stage) test_window_write_stage = 0;
             test_write_data(value, sizeof(LONG));
             break;
         case PF_STRING:
@@ -499,6 +512,9 @@ static void reset_test_state(void) {
     memset(test_last_unicast_buf, 0, sizeof(test_last_unicast_buf));
     test_last_unicast_size = 0;
     test_unicast_calls = 0;
+    test_welcome_window_flags = 0;
+    test_window_write_stage = 0;
+    test_welcome_window_seen = false;
     memset(test_last_error, 0, sizeof(test_last_error));
     memset(test_configstrings, 0, sizeof(test_configstrings));
     test_playerinfo[0] = '\0';
@@ -1149,6 +1165,15 @@ TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
 
     Wow_QuestAwardKillCredit(player, 503);
     T_EQ((int)wc->kill_progress[0][0], 1);
+}
+
+TEST(wow_game, welcome_window_does_not_block_gameplay_input) {
+    struct game_export *game = init_game();
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(&wow_edicts[0]);
+    T_ASSERT(test_welcome_window_seen);
+    T_ASSERT(!(test_welcome_window_flags & UI_WINDOW_MODAL));
+    game->Shutdown();
 }
 
 TEST(wow_game, wow_load_map_initializes_player_state) {

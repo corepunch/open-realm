@@ -98,35 +98,14 @@ Implemented in the current tree:
 - server-owned open/read state and `message_open`/`message_close` commands;
 - regression coverage for reward delivery and open/close state changes.
 
-## Tutorial tips
+## Welcome window and gameplay input
 
-The welcome panel is classic tutorial ID 42, not a `WelcomeFrame`. The server sends the semantic `TutorialFrame` window request at
-client begin. The WoW UI loads `GlobalStrings.lua`, resolves `TUTORIAL_TITLE42` and `TUTORIAL42`, then binds them into Blizzard's
-`Interface/FrameXML/TutorialFrame.xml`. Its zero-height body is measured at runtime and the frame follows native
-`TutorialFrameText:GetHeight() + 62` sizing, so localized text expands the backdrop.
-The reusable client path retains `tutorial_id`, title, and body, so later
-tutorial triggers can use the same presentation rather than adding one-off HUD
-frames.
+`Wow_ClientBegin` sends the welcome tutorial through `UI_WriteWelcomeWindow` as a
+unique client window. Keep this informational window non-modal: the shared
+`CL_GameplayInputReady` gate blocks keyboard movement and right-mouse camera
+look whenever a modal window is open. The welcome window's own bounds still
+capture mouse actions through `CL_WindowMouseOver`, so clicks on its Okay button
+stay with the window while WASD and camera input remain available.
 
-At client begin the server sends versioned `wow_tutorial` triggers for tutorial
-IDs 1 (`Questgivers`) and 2 (`Movement`), alongside the welcome-window request.
-This mirrors `TutorialFrame_NewTutorial`, which receives numeric `TUTORIAL_TRIGGER` events in the original Lua. Each appears above
-the action bar using the native alert dimensions and runtime sibling stride; clicking an alert
-removes it from the bounded client queue and opens the same localized tutorial
-panel for that ID. Inbox notifications share the strip geometry but remain
-separate server-authored records.
-
-`ui_show_tips` is the `Display Tips` cvar (default `1`). The client suppresses
-incoming tutorial-window requests when it is `0`; the check box changes it
-through the UI cvar import. Missing localized tutorial keys emit a `UIWow:`
-diagnostic instead of displaying an empty panel.
-
-The Okay button follows the XML button press/release contract: left mouse down
-swaps the art to `UI-Panel-Button-Down` and arms `tutorial_okay_pressed`, and
-left mouse up over the button closes the panel. Releasing off the button clears
-the pressed state without closing.
-
-The remaining work is persistence, localization keys instead of the initial
-literal quest text, close/focus behavior for multiple windows, and moving the
-existing server-positioned quest/inventory panels onto the same client window
-registry.
+The server-authored welcome text and button are built in `game/g_ui.c`; the
+`WelcomeFrame.xml` test fixture is not the runtime source for this window.
