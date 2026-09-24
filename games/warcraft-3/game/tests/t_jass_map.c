@@ -160,6 +160,14 @@ TEST(wc3_jass_map, minified_return_nonempty_string_tokens) {
     T_STREQ(tok, "\"hello\"");
 }
 
+TEST(wc3_jass_map, jass_lexer_eof_does_not_advance_past_nul) {
+    char const src[] = "";
+    PARSER parser = { .buffer = src, .start = src, .delimiters = ",;()[]+-/*=<>!" };
+
+    T_STREQ(jlex_parse_token(&parser), "");
+    T_ASSERT(parser.buffer == src);
+}
+
 TEST(wc3_jass_map, minified_return_empty_string) {
     T_ASSERT(run_test_jass(
         "function foo takes nothing returns string\n"
@@ -453,6 +461,58 @@ TEST(wc3_jass_map, nested_trigger_execute_preserves_parent_coroutine) {
     ));
     jass_callbyname(level.vm, "VerifyNestedTriggerExecute", true);
     jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_jass_map, trigger_execute_snapshots_actions_before_callbacks_mutate_them) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger clearTrigger = null\n"
+        "  trigger removeTrigger = null\n"
+        "  triggeraction removedAction = null\n"
+        "  integer clearCount = 0\n"
+        "  integer pendingAfterClearCount = 0\n"
+        "  integer lateCount = 0\n"
+        "  integer removeCount = 0\n"
+        "  integer pendingAfterRemoveCount = 0\n"
+        "endglobals\n"
+        "function ClearActionsDuringDispatch takes nothing returns nothing\n"
+        "  set clearCount = clearCount + 1\n"
+        "  call TriggerClearActions(clearTrigger)\n"
+        "endfunction\n"
+        "function PendingAfterClear takes nothing returns nothing\n"
+        "  set pendingAfterClearCount = pendingAfterClearCount + 1\n"
+        "endfunction\n"
+        "function LateAction takes nothing returns nothing\n"
+        "  set lateCount = lateCount + 1\n"
+        "endfunction\n"
+        "function RemovePendingAction takes nothing returns nothing\n"
+        "  set removeCount = removeCount + 1\n"
+        "  call TriggerRemoveAction(removeTrigger, removedAction)\n"
+        "  set removedAction = null\n"
+        "endfunction\n"
+        "function PendingAfterRemove takes nothing returns nothing\n"
+        "  set pendingAfterRemoveCount = pendingAfterRemoveCount + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set clearTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(clearTrigger, function PendingAfterClear)\n"
+        "  call TriggerAddAction(clearTrigger, function ClearActionsDuringDispatch)\n"
+        "  call TriggerExecute(clearTrigger)\n"
+        "  call BJassAssert(clearCount == 1, \"clear callback ran once\")\n"
+        "  call BJassAssert(pendingAfterClearCount == 1, \"dispatch retained action list captured before clear\")\n"
+        "  call TriggerAddAction(clearTrigger, function LateAction)\n"
+        "  call TriggerExecute(clearTrigger)\n"
+        "  call BJassAssert(clearCount == 1 and pendingAfterClearCount == 1 and lateCount == 1, \"cleared trigger accepts a new action without stale nodes\")\n"
+        "  set removeTrigger = CreateTrigger()\n"
+        "  set removedAction = TriggerAddAction(removeTrigger, function PendingAfterRemove)\n"
+        "  call TriggerAddAction(removeTrigger, function RemovePendingAction)\n"
+        "  call TriggerExecute(removeTrigger)\n"
+        "  call BJassAssert(removeCount == 1 and pendingAfterRemoveCount == 1, \"dispatch retained action list captured before remove\")\n"
+        "  call TriggerExecute(removeTrigger)\n"
+        "  call BJassAssert(removeCount == 2 and pendingAfterRemoveCount == 1, \"removed action is absent from the next dispatch\")\n"
+        "endfunction\n"
+    ));
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 

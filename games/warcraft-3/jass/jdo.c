@@ -1082,9 +1082,9 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
 }
 
 static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params, BOOL immediate) {
+    LPJASSCOROUTINE first = NULL, last = NULL;
     FOR_EACH_LIST(TRIGGERACTION, action, params->trigger->actions) {
         LPPLAYER player = jass_eventplayer(params->unit);
-        LPJASS root = jass_root(j);
         LPJASSCOROUTINE co = jass_startcoroutine(j, &MAKE(JASSCONTEXT,
                                   .trigger = params->trigger,
                                   .func = action->func,
@@ -1106,7 +1106,21 @@ static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t cons
             co->loop_a_index = *(LONG *)loop_index->value;
             co->loop_a_index_valid = true;
         }
-        if (immediate && co) jass_resume(root, co);
+        if (co) {
+            if (!first) first = co;
+            last = co;
+        }
+    }
+    /* Run only the coroutines created for this dispatch. Callbacks can mutate
+     * the trigger's action list or append coroutines through nested executes. */
+    if (immediate) {
+        LPJASS root = jass_root(j);
+        for (LPJASSCOROUTINE co = first; co;) {
+            LPJASSCOROUTINE next = co->next;
+            jass_resume(root, co);
+            if (co == last) break;
+            co = next;
+        }
     }
 }
 

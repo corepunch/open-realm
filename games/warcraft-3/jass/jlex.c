@@ -35,7 +35,7 @@ LPCSTR parse_token(LPPARSER p) {
         word[stringLength] = '\0';
         p->buffer = closingQuote + 1;
         return word;
-    } else if (strchr(p->delimiters, *p->buffer)) {
+    } else if (*p->buffer && strchr(p->delimiters, *p->buffer)) {
         word[0] = *(p->buffer++);
         word[1] = '\0';
         if ((*p->buffer == '=' && strchr("=<>!", word[0])) ||
