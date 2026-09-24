@@ -11,6 +11,7 @@ void R_ResetGroundTextures(void) {
 }
 
 #define GROUND_VERTEX_BUFFER_CAPACITY (SEGMENT_SIZE * SEGMENT_SIZE * 6)
+#define SPLAT_TILE_MAX_VERTICES 30 // vertices; two clipped terrain triangles can each form a seven-corner polygon
 
 static VERTEX ground_vertex_buffer[GROUND_VERTEX_BUFFER_CAPACITY];
 static LPVERTEX ground_current_vertex = NULL;
@@ -123,11 +124,61 @@ static void R_BuildSplatQuad(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, 
     memcpy(geom, quad, sizeof(quad));
 }
 
+/* Clip in world XY while interpolating Z on each original terrain triangle. */
+struct SPLCLIP { DWORD count, axis; FLOAT edge; BOOL above; };
+static DWORD R_ClipSplatPoly(LPCVECTOR3 src, LPVECTOR3 dst, struct SPLCLIP clip) {
+    VECTOR3 prev = src[clip.count - 1];
+    FLOAT pv = clip.axis ? prev.y : prev.x;
+    BOOL pin = clip.above ? pv >= clip.edge : pv <= clip.edge;
+    DWORD out = 0;
+    FOR_LOOP(i, clip.count) {
+        VECTOR3 cur = src[i];
+        FLOAT cv = clip.axis ? cur.y : cur.x;
+        BOOL cin = clip.above ? cv >= clip.edge : cv <= clip.edge;
+        if (pin != cin && pv != clip.edge && cv != clip.edge) {
+            FLOAT t = (clip.edge - pv) / (cv - pv);
+            VECTOR3 hit = { prev.x + (cur.x - prev.x) * t, prev.y + (cur.y - prev.y) * t,
+                            prev.z + (cur.z - prev.z) * t };
+            if (clip.axis) hit.y = clip.edge; else hit.x = clip.edge;
+            dst[out++] = hit;
+        }
+        if (cin) dst[out++] = cur;
+        prev = cur; pv = cv; pin = cin;
+    }
+    return out;
+}
+
 static void R_MakeSplatTile(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, FLOAT width, FLOAT height, COLOR32 color) {
     VERTEX geom[6];
     R_BuildSplatQuad(map, x, y, mins, width, height, color, geom);
-    memcpy(ground_current_vertex, geom, sizeof(geom));
-    ground_current_vertex += sizeof(geom) / sizeof(VERTEX);
+    if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
+        geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
+        memcpy(ground_current_vertex, geom, sizeof(geom));
+        ground_current_vertex += 6;
+        return;
+    }
+    /* Full tile quads stretched edge texels outside the splat when the lit shader drew building footprints. */
+    FOR_LOOP(tri, 2) {
+        VECTOR3 a[8], b[8];
+        DWORD n = 3;
+        FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
+        n = R_ClipSplatPoly(a, b, (struct SPLCLIP){n, 0, mins->x, true});
+        if (!n) continue;
+        n = R_ClipSplatPoly(b, a, (struct SPLCLIP){n, 0, mins->x + width, false});
+        if (!n) continue;
+        n = R_ClipSplatPoly(a, b, (struct SPLCLIP){n, 1, mins->y, true});
+        if (!n) continue;
+        n = R_ClipSplatPoly(b, a, (struct SPLCLIP){n, 1, mins->y + height, false});
+        for (DWORD i = 1; i + 1 < n; i++) {
+            VECTOR3 p[] = { a[0], a[i], a[i + 1] };
+            FOR_LOOP(j, 3) {
+                VERTEX v = geom[0];
+                v.position = p[j];
+                v.texcoord = (VECTOR2){ (p[j].x - mins->x) / width, 1 - (p[j].y - mins->y) / height };
+                *ground_current_vertex++ = v;
+            }
+        }
+    }
 }
 
 static void R_MakeBlightTile(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, FLOAT width, FLOAT height, DWORD blight_tile) {
@@ -206,7 +257,8 @@ static void R_GenerateSplatTiles(LPCVECTOR2 mins, LPCVECTOR2 maxs, COLOR32 color
             if (!R_TileAcceptsSplat(tr.world, (DWORD)x, (DWORD)y)) {
                 continue;
             }
-            if ((ground_current_vertex - ground_vertex_buffer) + 6 > GROUND_VERTEX_BUFFER_CAPACITY) {
+            if (ground_current_vertex - ground_vertex_buffer >
+                GROUND_VERTEX_BUFFER_CAPACITY - SPLAT_TILE_MAX_VERTICES) {
                 R_FlushSplatBatch();
             }
             R_MakeSplatTile(tr.world, (DWORD)x, (DWORD)y, mins, width, height, color);
