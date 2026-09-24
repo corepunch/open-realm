@@ -2431,6 +2431,8 @@ void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction);
 void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
+BOOL G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
+                                                      FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 
 // g_abilities.c
 void S_RunAbilityUpdates(LPEDICT);

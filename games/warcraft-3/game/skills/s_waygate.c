@@ -133,7 +133,7 @@ static BOOL waygate_find_entry_point(LPEDICT unit, LPEDICT gate, LPVECTOR2 out) 
     if (!unit || !gate || !out || !waygate_dimensions(gate, &width, &height)) return false;
     entry.min = (VECTOR2){ gate->s.origin2.x - width * 0.5f, gate->s.origin2.y - height * 0.5f };
     entry.max = (VECTOR2){ gate->s.origin2.x + width * 0.5f, gate->s.origin2.y + height * 0.5f };
-    return CM_ClosestStaticPathablePointInRectForRadiusFlags(&unit->s.origin2, &entry,
+    return G_ClosestStaticPathablePointInRectForRadiusFlags(&unit->s.origin2, &entry,
         unit->collision, M_UnitStaticPathingFlags(unit), out);
 }
 
