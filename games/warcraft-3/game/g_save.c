@@ -77,9 +77,9 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Timer, region/event handle generation, and event-ring state are serialized;
- * reject older saves rather than decoding records with shifted boundaries. */
-static DWORD const save_version = 44;
+/* Way Gate runtime state expands edict_t after the region/event v44 layout;
+ * reject older saves rather than decoding raw entities with shifted fields. */
+static DWORD const save_version = 45;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -621,6 +621,8 @@ static field_t const ensnare_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(edictMovement_s, waygate_target, F_EDICT, 0, FIELD_NONE),
+    TF(edictMovement_s, waygate_goal, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_a, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_b, F_EDICT, 0, FIELD_NONE),
@@ -1949,6 +1951,20 @@ TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
         T_ASSERT(!ReadGame(old_paths[i]));
         remove(old_paths[i]);
     }
+    remove(filename);
+}
+
+TEST(wc3_save, rejects_pre_waygate_save_version) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
+    LPCSTR old_path = "/tmp/openwarcraft3-wc3-save-version-44.bin";
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(write_save_fixture_version(filename, old_path, 44));
+    T_NE(save_version, 44);
+    T_ASSERT(!ReadGame(old_path));
+    remove(old_path);
     remove(filename);
 }
 #endif

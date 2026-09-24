@@ -745,6 +745,9 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
             }
             return S_OrderAttack(self, target);
         }
+        /* Target-owned Smart interactions run before relation-based attack/follow
+         * fallback. The target ability owns validation and any persistent move. */
+        if (S_UnitTargetAbilityOrder(target, self, order)) return true;
         if (unit_smart_target_is_enemy(self, target)) {
             if (S_UnitPolymorphed(self)) return false;
             return S_OrderAttack(self, target);
@@ -843,7 +846,10 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
             if (queue) return false;
             G_ClearUnitOrderQueue(self);
             accepted = S_IssueUnitTargetSpell(self, spell_code, target);
-            if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+            if (accepted) {
+                S_UnitAbilityOrderAccepted(self, order);
+                unit_publish_target_order(self, order, target, issuer_player);
+            }
             return accepted;
         }
     }
@@ -890,6 +896,7 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
             G_ClearUnitOrderQueue(self);
             accepted = S_CastPointTargetSpell(self, spell_code, point);
             if (accepted) {
+                S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                           issuer_player, order);
             }
@@ -1041,6 +1048,7 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
         BOOL const accepted = S_AbilityMessage(self, A_ORDER, &call);
         if (accepted) {
+            S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
             return true;
         }
@@ -1049,7 +1057,10 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         DWORD const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
             BOOL const accepted = S_CastNoTargetSpell(self, spell_code);
-            if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+            if (accepted) {
+                S_UnitAbilityOrderAccepted(self, order);
+                G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+            }
             return accepted;
         }
     }

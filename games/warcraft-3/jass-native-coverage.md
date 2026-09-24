@@ -88,6 +88,9 @@ Natural creep sleep now consumes the authored `UnitData.canSleep` flag and imple
 `UnitIsSleeping`, and `UnitWakeUp` against a natural-sleep state distinct from the Dreadlord `AUsl`/`BUsL` status.
 `UnitCanSleepPerm` recognizes `Sleep Always` (`Asla`), while `UnitAddSleepPerm` remains a placeholder until Asla's
 ability-owned `Sleep Once` / player-slot semantics are modeled. See [Neutral Creep Sleep](creep-sleep.md).
+
+The five classic Way Gate natives are implemented in `api_unit.h`: `WaygateGetDestinationX`, `WaygateGetDestinationY`, `WaygateSetDestination`, `WaygateActivate`, and `WaygateIsActive`. They operate on the same `Awrp`-owned runtime state used by explicit Smart traversal; activation honors both `true` and `false`, and destination coordinates are arbitrary points rather than paired-gate handles. The synthetic JASS regression installs an `Awrp` AbilityData row before `UnitAddAbility`, so the native contract is exercised through a valid runtime gate. See [Way Gates](way-gates.md).
+
 The Warcraft Blight native family is no longer a placeholder. `SetBlight`, `SetBlightRect`, `SetBlightPoint`, and `SetBlightLoc` mutate the same game-owned `level.blight` state used by building placement and Blight-only regeneration; `IsPointBlighted` queries that state directly. The setter `player` argument is validated but Blight remains global terrain state, matching the player-less query contract. See [Blight](blight.md). Client terrain presentation and preview synchronization are implemented separately from this native simulation coverage and are not validated by these native tests.
 
 `KillUnit` must use the normal unit-death transition rather than only writing life to zero. The transition selects the
@@ -154,7 +157,7 @@ DotA 6.83d's compiled map script references 525 natives, 137 of them unregistere
 The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, typed
 `Save*`/`Load*`/`HaveSaved*`/`RemoveSaved*`/`Flush*`) is registered in
 `api_hashtable.h` with a host-owned `level.hashtables[]` registry and typed nested-handle
-save/load (current format version 37; hashtable payload introduced in format version 31). Multiboard/texttag DotA surfaces are registered as
+save/load (current format version 45; hashtable payload introduced in format version 31). Multiboard/texttag DotA surfaces are registered as
 server-owned state ([multiboard-and-texttag.md](multiboard-and-texttag.md)); HUD/client
 draw remains deferred. Remaining DotA holes are shop events and hero attributes. See
 [DotA Custom-Map Playability](dota-map-playability.md) and [Save/Load](save-load.md).
