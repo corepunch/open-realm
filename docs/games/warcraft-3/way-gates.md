@@ -78,13 +78,13 @@ gate does not recursively teleport during the same simulation update.
 
 ## Save/load
 
-Save format 45 adds the Way Gate state and the in-flight approach state to the
-expanded `edict_t`. The movement schema relocates both `waygate_target` and
+The current save format version remains 44. Way Gate adds runtime state and
+in-flight approach state to the expanded `edict_t`. The movement schema relocates both `waygate_target` and
 `waygate_goal` through `F_EDICT`; `waygate_target_spawn_time` remains the
 incarnation guard, and `currentmove` continues through the existing `F_MMOVE`
 relocation. A save taken during an explicit gate approach therefore resumes the
-same guarded target and waypoint after load. Version 44 saves are rejected by
-the exact-version/layout guard.
+same guarded target and waypoint after load. Saves with the previous `edict_t`
+size are rejected by the existing header-size guard.
 
 ## Remaining gap: automatic portal routing
 
