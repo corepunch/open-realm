@@ -337,6 +337,72 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     currentplayer = saved_currentplayer;
 }
 
+TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT mover = NULL;
+    VECTOR2 destination = {80.0f, 0.0f};
+
+    reset_entities();
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type region extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  region watchedRegion = null\n"
+        "  trigger replacementTrigger = null\n"
+        "  unit mover = null\n"
+        "  integer replacementFires = 0\n"
+        "endglobals\n"
+        "function mutate_region_filter takes nothing returns boolean\n"
+        "  call RemoveRegion(watchedRegion)\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(replacementTrigger, watchedRegion, null)\n"
+        "  return true\n"
+        "endfunction\n"
+        "function on_replacement_enter takes nothing returns nothing\n"
+        "  set replacementFires = replacementFires + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger oldTrigger = CreateTrigger()\n"
+        "  set replacementTrigger = CreateTrigger()\n"
+        "  set mover = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  set watchedRegion = CreateRegion()\n"
+        "  call RegionAddRect(watchedRegion, Rect(24.0, -16.0, 64.0, 16.0))\n"
+        "  call TriggerRegisterEnterRegion(oldTrigger, watchedRegion, Condition(function mutate_region_filter))\n"
+        "  call TriggerAddAction(replacementTrigger, function on_replacement_enter)\n"
+        "endfunction\n"
+        "function verify_replacement_did_not_receive_old_crossing takes nothing returns nothing\n"
+        "  call BJassAssert(replacementFires == 0, \"retired region crossing fired replacement registration\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].s.player == 0 &&
+            g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            mover = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(mover);
+    mover->movetype = MOVETYPE_STEP;
+    mover->stand = unit_stand;
+    mover->birth = unit_birth;
+    mover->die = unit_die;
+    mover->think = monster_think;
+    mover->collision = 0.0f;
+    mover->health.value = mover->health.max_value = 250.0f;
+    unit_stand(mover);
+    T_ASSERT(unit_issueorder(mover, "move", &destination));
+    G_RunEntities();
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify_replacement_did_not_receive_old_crossing", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
 TEST(wc3_api, removed_region_is_inert_and_does_not_alias_replacement) {
     T_ASSERT(run_test_jass(
         "type region extends handle\n"
@@ -5116,6 +5182,77 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, unit_in_range_queue_full_does_not_crash_subject_movement) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT subject = NULL;
+    VECTOR2 destination = {100.0f, 0.0f};
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  unit rangeSubject = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set rangeSubject = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 280.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterUnitInRange(t, rangeSubject, 256.0, null)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) { subject = &g_edicts[i]; break; }
+    T_NOT_NULL(subject);
+    subject->movetype = MOVETYPE_STEP; subject->stand = unit_stand; subject->birth = unit_birth;
+    subject->die = unit_die; subject->think = monster_think; subject->collision = 0.0f;
+    subject->health.value = subject->health.max_value = 250.0f; unit_stand(subject);
+    T_ASSERT(unit_issueorder(subject, "move", &destination));
+    level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
+    G_RunEntities();
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    currentplayer = saved_currentplayer;
+}
+
+TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
+    LPPLAYER saved_currentplayer = currentplayer;
+    LPEDICT subject = NULL;
+    LPEDICT target = NULL;
+    VECTOR2 destination = {100.0f, 0.0f};
+
+    reset_entities(); setup_test_world(); currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "type unit extends handle\n"
+        "type trigger extends handle\n"
+        "globals\n"
+        "  unit rangeSubject = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set rangeSubject = CreateUnit(Player(0), 'hpea', 530.0, 0.0, 0.0)\n"
+        "  call CreateUnit(Player(0), 'hfoo', 257.0, 0.0, 0.0)\n"
+        "  call TriggerRegisterUnitInRange(t, rangeSubject, 256.0, null)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a') &&
+            g_edicts[i].s.origin2.x > 500.0f) subject = &g_edicts[i];
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            g_edicts[i].s.origin2.x > 256.0f) target = &g_edicts[i];
+    }
+    T_NOT_NULL(subject);
+    T_NOT_NULL(target);
+    T_FEQ(subject->s.origin2.x, 530.0f, 0.01f);
+    T_FEQ(target->s.origin2.x, 257.0f, 0.01f);
+    target->movetype = MOVETYPE_STEP; target->stand = unit_stand; target->birth = unit_birth;
+    target->die = unit_die; target->think = monster_think; target->collision = 0.0f;
+    target->health.value = target->health.max_value = 250.0f; unit_stand(target);
+    T_ASSERT(unit_issueorder(target, "move", &destination));
+    level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
+    G_RunEntities();
+    T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
+    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
     currentplayer = saved_currentplayer;
 }
 

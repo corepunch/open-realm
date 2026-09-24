@@ -257,20 +257,24 @@ static void G_TouchTriggers(LPEDICT ent) {
     FOR_EACH_EVENT(evt) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION: {
+                HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
                 LPREGION region = G_RegionFromHandle(evt->region);
                 if (region && G_RegionContains(region, &ent->s.origin2) &&
-                    !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent))
+                    !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                    G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
-                    G_PublishEventResponse(ent, evt->type, evt);
+                    G_PublishEventResponse(ent, EVENT_GAME_ENTER_REGION, evt);
                 }
                 break;
             }
             case EVENT_GAME_LEAVE_REGION: {
+                HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
                 LPREGION region = G_RegionFromHandle(evt->region);
                 if (region && !G_RegionContains(region, &ent->s.origin2) &&
-                    G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent))
+                    G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                    G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
-                    G_PublishEventResponse(ent, evt->type, evt);
+                    G_PublishEventResponse(ent, EVENT_GAME_LEAVE_REGION, evt);
                 }
                 break;
             }
@@ -291,9 +295,7 @@ static void G_TouchTriggers(LPEDICT ent) {
                             continue;
                         if (Vector2_distance(&ent->old_origin, &target->old_origin) > evt->range &&
                             Vector2_distance(&ent->s.origin2, &target->s.origin2) <= evt->range) {
-                            GAMEEVENT *e = G_PublishEvent(target, evt->type);
-                            e->edict = target;
-                            e->responseTo = evt;
+                            G_PublishEventResponse(target, evt->type, evt);
                         }
                     }
                 } else if (evt->subject &&
@@ -301,9 +303,7 @@ static void G_TouchTriggers(LPEDICT ent) {
                                   &((LPEDICT)evt->subject)->s.origin2, sizeof(VECTOR2)) == 0 &&
                            Vector2_distance(&((LPEDICT)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
                            Vector2_distance(&((LPEDICT)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range) {
-                    GAMEEVENT *e = G_PublishEvent(ent, evt->type);
-                    e->edict = ent;
-                    e->responseTo = evt;
+                    G_PublishEventResponse(ent, evt->type, evt);
                 }
                 break;
             default:
