@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "../g_local.h"
 #include "shared/test.h"
+#include "common/stb_slk.h"
 
 BOOL run_test_jass(LPCSTR src);
 
@@ -91,5 +92,44 @@ TEST(wc3_doodad, looping_animation_wraps_to_sequence_start) {
 
     T_EQ(ent->s.frame, 1000);
     T_ASSERT(!(ent->aiflags & AI_HOLD_FRAME));
+}
+
+TEST(wc3_doodad, spawn_enters_nonzero_stand_and_script_can_replace_it) {
+    static const char *slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"numVar\"\n"
+        "C;Y2;X1;K\"ASv0\"\n"
+        "C;Y2;X2;K\"Buildings\\Other\\ElvenFishVillageBuilding0\\ElvenFishVillageBuilding0\"\n"
+        "C;Y2;X3;K1\n"
+        "C;Y3;X1;K\"ASx2\"\n"
+        "C;Y3;X2;K\"Buildings\\Other\\ElvenFishVillageBuildingRuined2\\ElvenFishVillageBuildingRuined2\"\n"
+        "C;Y3;X3;K1\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *saved = G_SetSLKRows("Doodads", rows);
+    BOX2 area = { .min = { -1, -1 }, .max = { 1, 1 } };
+
+    FOR_LOOP(index, 2) {
+        LPEDICT ent = G_Spawn();
+        DWORD first = index ? 61667 : 4167, last = index ? 66667 : 6667;
+        ent->class_id = index ? MAKEFOURCC('A','S','x','2') : MAKEFOURCC('A','S','v','0');
+        SP_CallSpawn(ent); /* same path as a war3map.doo placement */
+        T_ASSERT(G_IsDoodad(ent));
+        T_NOT_NULL(ent->animation);
+        T_EQ(ent->s.frame, first);
+        T_STREQ(ent->animation_request, "Stand");
+        T_ASSERT(ent->think == monster_think);
+        if (ent->animation && ent->think) {
+            ent->think(ent);
+            T_ASSERT(ent->s.frame > first && ent->s.frame < last);
+            ent->s.frame = last - 1;
+            ent->think(ent);
+            T_EQ(ent->s.frame, first);
+            T_EQ(G_SetDoodadAnimationRect(&area, ent->class_id, "portrait", false), 1);
+            T_EQ(ent->s.frame, 67333);
+            T_EQ(G_SetDoodadAnimationRect(&area, ent->class_id, "stand", false), 1);
+            T_EQ(ent->s.frame, first);
+        }
+        G_FreeEdict(ent);
+    }
+    G_SetSLKRows("Doodads", saved); free_slk_rows(rows);
 }
 #endif
