@@ -1385,6 +1385,16 @@ static wc3MinimapContact_t G_MinimapMarkerForEntity(LPCEDICT ent, LPCENTITYSTATE
     return WC3_MINIMAP_CONTACT_UNIT;
 }
 
+static BOOL G_IsSnapshotPriorityEntity(DWORD player, LPCEDICT ent) {
+    entityState_t state;
+    if (!ent) return false;
+    state = ent->s;
+    if ((state.renderfx & RF_HIDDEN) && S_UnitUsesInvisibilityRenderFlag(ent) &&
+        !S_UnitIsInvisibleToPlayer(ent, player))
+        state.renderfx &= ~RF_HIDDEN;
+    return G_MinimapMarkerForEntity(ent, &state) != WC3_MINIMAP_CONTACT_NONE;
+}
+
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
@@ -1413,7 +1423,7 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;
-        } else if (relation == SELECT_RELATION_NEUTRAL) {
+        } else if (relation == SELECT_RELATION_NEUTRAL && hoverable) {
             state->flags |= EF_NEUTRAL;
         }
     }
@@ -1450,6 +1460,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.PrepareMap = G_PrepareMap;
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
+    globals.IsSnapshotPriorityEntity = G_IsSnapshotPriorityEntity;
     globals.CustomizeEntity = G_CustomizeEntity;
     globals.WriteClientDatagram = G_WriteClientDatagram;
     globals.GetThemeValue = G_GetThemeValue;

@@ -2,3 +2,4 @@
 Music=MapMusicOverride
 VersionedMusic_V0=MapMusicROC
 VersionedMusic_V1=MapMusicTFT
+MinimapHeroTexture=TestUI\Textures\checker_8x8.blp

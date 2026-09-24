@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #include "common/common.h"
 #include "common/stb_slk.h"
@@ -30,6 +31,7 @@ typedef struct sheet_table_s {
     sheetRow_t *rows;
     sheetRow_t *tail;
     struct sheet_table_s *next;
+    void *allocation;
 } sheetTable_t;
 
 // TODO: allocate these as needed, this is only PoC and will only work for 1 level
@@ -43,28 +45,6 @@ static LPSHEET previous_cell = cells;
 static sheetRow_t *current_row = rows;
 static sheetField_t *current_field = fields;
 
-static LPSTR SheetStoreTextRange(LPCSTR text, size_t len) {
-    LPSTR out = current_text;
-    size_t remaining;
-
-    if (!text) {
-        text = "";
-        len = 0;
-    }
-
-    remaining = (size_t)((text_buffer + sizeof(text_buffer)) - current_text);
-    if (remaining == 0) {
-        return text_buffer + sizeof(text_buffer) - 1;
-    }
-    if (len >= remaining) {
-        len = remaining - 1;
-    }
-    memcpy(current_text, text, len);
-    current_text[len] = '\0';
-    current_text += len + 1;
-    return out;
-}
-
 static sheetTable_t *FS_MakeTable(sheetRow_t *rows, sheetRow_t *tail)
 {
     sheetTable_t *table = (sheetTable_t *)malloc(sizeof(*table));
@@ -76,6 +56,7 @@ static sheetTable_t *FS_MakeTable(sheetRow_t *rows, sheetRow_t *tail)
     table->rows = rows;
     table->tail = tail;
     table->next = NULL;
+    table->allocation = NULL;
     return table;
 }
 
@@ -280,68 +261,81 @@ static LPCSTR FS_FindSheetCell(sheetTable_t const *sheet, LPCSTR row, LPCSTR col
 }
 
 static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
-    LPCSTR p = buffer;
-    sheetRow_t *start = current_row;
-    sheetRow_t *section = NULL;
-    while (true) {
-        while (*p && isspace(*p)) p++;
-        if (!*p)
-            break;
-        if (p[0] == '/' && p[1] == '/') {
-            for (; *p != '\n' && *p != '\0'; p++);
+    size_t size, lines = 1, row_capacity = 0, row_count = 0, field_count = 0;
+    size_t text_capacity, text_overhead, allocation_size;
+    sheetTable_t *table;
+    sheetRow_t *rows, *section = NULL, *last_row = NULL;
+    sheetField_t *fields, *last_field = NULL;
+    char *text;
+    LPCSTR p, end;
+
+    if (!buffer) return NULL;
+    size = strlen(buffer);
+    for (size_t i = 0; i < size; i++) {
+        if (buffer[i] == '\n') lines++;
+        if (buffer[i] == '[') row_capacity++;
+    }
+    if (row_capacity == SIZE_MAX || lines > (SIZE_MAX - row_capacity - 1) / 2) return NULL;
+    text_overhead = row_capacity + lines * 2 + 1;
+    if (size > SIZE_MAX - text_overhead) return NULL;
+    text_capacity = size + text_overhead;
+    if (lines > (SIZE_MAX - sizeof(*table)) / sizeof(*fields)) return NULL;
+    allocation_size = sizeof(*table) + lines * sizeof(*fields);
+    if (row_capacity > (SIZE_MAX - allocation_size) / sizeof(*rows)) return NULL;
+    allocation_size += row_capacity * sizeof(*rows);
+    if (text_capacity > SIZE_MAX - allocation_size) return NULL;
+    allocation_size += text_capacity;
+    table = calloc(1, allocation_size);
+    if (!table) return NULL;
+    rows = (sheetRow_t *)(table + 1);
+    fields = (sheetField_t *)(rows + row_capacity);
+    text = (char *)(fields + lines);
+    table->allocation = table;
+    table->rows = rows;
+
+    p = buffer; end = buffer + size;
+    while (p < end) {
+        while (p < end && isspace((unsigned char)*p)) p++;
+        if (p >= end) break;
+        if (p[0] == '/' && p + 1 < end && p[1] == '/') {
+            while (p < end && *p != '\n') p++;
         } else if (*p == '[') {
-            LPCSTR nameStart;
-            LPCSTR nameEnd;
-
-            p++;
-            nameStart = p;
-            while (*p && *p != ']' && *p != '\n' && *p != '\r') {
-                p++;
-            }
-            nameEnd = p;
-            if (*p == ']') {
-                p++;
-            }
-            if (section) {
-                section->next = current_row;
-            }
-            section = current_row++;
-            section->next = NULL;
-            section->fields = NULL;
-            section->name = SheetStoreTextRange(nameStart, (size_t)(nameEnd - nameStart));
+            LPCSTR name_start, name_end;
+            p++; name_start = p;
+            while (p < end && *p != ']' && *p != '\n' && *p != '\r') p++;
+            name_end = p;
+            section = &rows[row_count++];
+            if (last_row) last_row->next = section;
+            else table->rows = section;
+            last_row = section; table->tail = section;
+            section->name = text;
+            memcpy(text, name_start, (size_t)(name_end - name_start));
+            text[name_end - name_start] = '\0'; text += (name_end - name_start) + 1;
+            if (p < end && *p == ']') p++;
+            last_field = NULL;
         } else {
-            LPCSTR lineStart = p;
-            LPCSTR lineEnd;
-            LPCSTR eq;
-
-            while (*p != '\n' && *p != '\r' && *p != '\0') {
-                p++;
-            }
-            lineEnd = p;
-            eq = memchr(lineStart, '=', (size_t)(lineEnd - lineStart));
+            LPCSTR line_start = p, line_end, eq;
+            while (p < end && *p != '\n' && *p != '\r') p++;
+            line_end = p;
+            eq = memchr(line_start, '=', (size_t)(line_end - line_start));
             if (eq && section) {
-                LPCSTR keyEnd = eq;
-                LPCSTR valueStart = eq + 1;
-
-                while (keyEnd > lineStart && keyEnd[-1] == ' ') {
-                    keyEnd--;
-                }
-                while (valueStart < lineEnd && *valueStart == ' ') {
-                    valueStart++;
-                }
-//                printf("%s.%s %s\n", currentSec, line, eq);
-                sheetField_t *field = current_field++;
-                field->name = SheetStoreTextRange(lineStart, (size_t)(keyEnd - lineStart));
-                field->value = SheetStoreTextRange(valueStart, (size_t)(lineEnd - valueStart));
-                ADD_TO_LIST(field, section->fields);
+                LPCSTR key_end = eq, value_start = eq + 1;
+                sheetField_t *field = &fields[field_count++];
+                while (key_end > line_start && key_end[-1] == ' ') key_end--;
+                while (value_start < line_end && *value_start == ' ') value_start++;
+                field->name = text;
+                memcpy(text, line_start, (size_t)(key_end - line_start));
+                text[key_end - line_start] = '\0'; text += (key_end - line_start) + 1;
+                field->value = text;
+                memcpy(text, value_start, (size_t)(line_end - value_start));
+                text[line_end - value_start] = '\0'; text += (line_end - value_start) + 1;
+                if (last_field) last_field->next = field;
+                else section->fields = field;
+                last_field = field;
             }
         }
     }
-    if (current_row == start)
-        return NULL;
-    if (section)
-        section->next = NULL;
-    return FS_MakeTable(start, section);
+    return row_count ? table : (free(table), NULL);
 }
 
 static sheetTable_t *FS_ParseINI(LPCSTR fileName) {
@@ -506,12 +500,14 @@ DWORD Stb_SlkLoadBuffer(LPCSTR buffer, slkField_t const *schema, void **dest, DW
 
 BOOL Stb_IniCacheLoad(stbIniCache_t *cache, LPCSTR filename) {
     if (!cache || !filename) return false;
+    Stb_IniCacheFree(cache);
     cache->source = FS_ParseINI(filename);
     return cache->source != NULL;
 }
 
 BOOL Stb_IniCacheLoadBuffer(stbIniCache_t *cache, LPCSTR buffer) {
     if (!cache || !buffer) return false;
+    Stb_IniCacheFree(cache);
     cache->source = FS_ParseINI_Buffer(buffer);
     return cache->source != NULL;
 }
@@ -519,6 +515,7 @@ BOOL Stb_IniCacheLoadBuffer(stbIniCache_t *cache, LPCSTR buffer) {
 BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames) {
     sheetTable_t *head = NULL, *tail = NULL;
     if (!cache || !filenames) return false;
+    Stb_IniCacheFree(cache);
     for (; *filenames; filenames++) FS_AppendSheetTable(&head, &tail, FS_ParseINI(*filenames));
     cache->source = head;
     return head != NULL;
@@ -536,5 +533,11 @@ LPCSTR Stb_IniCacheFind(stbIniCache_t const *cache, LPCSTR section, LPCSTR key) 
 }
 
 void Stb_IniCacheFree(stbIniCache_t *cache) {
+    sheetTable_t *table = cache ? cache->source : NULL;
+    while (table) {
+        sheetTable_t *next = table->next;
+        free(table->allocation ? table->allocation : table);
+        table = next;
+    }
     if (cache) cache->source = NULL;
 }

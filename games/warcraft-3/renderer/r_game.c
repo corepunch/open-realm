@@ -5,7 +5,7 @@
 #include "w3m/r_war3map.h"
 #include "r_weather.h"
 #include "common/stb_slk.h"
-#include "games/warcraft-3/common/minimap.h"
+#include "games/warcraft-3/common/minimap_render.h"
 #include <ctype.h>
 
 void _W3M_RegisterMap(LPCSTR mapFileName);
@@ -439,9 +439,9 @@ static wc3IniLoadResult_t R_LoadIniCachePath(stbIniCache_t *cache, LPCSTR path) 
     return loaded ? WC3_INI_LOADED : WC3_INI_INVALID;
 }
 
-/* Text data follows the same map-scope precedence as models/textures: a map
- * archive replacement wins, a missing replacement falls back to base data,
- * and an invalid authored replacement is diagnosed instead of demoted. */
+/* A map archive replacement wins; missing map data falls back to the base
+ * archive. Invalid overrides are diagnosed and returned to the caller so it
+ * can apply the field's explicit optional-data policy. */
 static wc3IniLoadResult_t R_LoadIniCache(stbIniCache_t *cache, LPCSTR path) {
     PATHSTR scoped;
     wc3IniLoadResult_t result;
@@ -460,35 +460,41 @@ static void R_ClearMinimapSpecialAssets(void) {
     memset(minimap_special, 0, sizeof(minimap_special));
 }
 
-/* Special minimap textures are Game Interface skin fields. Resolve the map's
- * CustomSkin after asset scope is active; R_LoadTexture then also honors a
- * map-owned replacement at the resolved path. Missing keys/assets remain the
- * renderer's visible placeholder rather than silently changing marker type. */
+static void *R_LoadMinimapTexturePinned(void *context, LPCSTR path) {
+    (void)context;
+    return R_LoadTexture(path);
+}
+
+static void *R_LoadMinimapTextureMapScoped(void *context, LPCSTR path) {
+    (void)context;
+    return R_LoadTextureStreamed(path);
+}
+
+/* Resolve map CustomSkin before stock defaults. Map overrides are streamable;
+ * stock Game Interface textures stay pinned across map registrations. */
 static void R_LoadMinimapSpecialAssets(void) {
     wc3IniLoadResult_t const theme_result = R_LoadIniCache(&minimap_theme, "UI\\war3skins.txt");
-    wc3IniLoadResult_t const map_skin_result = R_LoadIniCache(&minimap_map_skin, "war3mapSkin.txt");
+    wc3MinimapSpecialAsset_t assets[WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING - WC3_MINIMAP_CONTACT_HERO + 1];
 
+    /* A malformed optional map override is diagnosed by R_LoadIniCachePath;
+     * its empty cache lets valid stock defaults supply the missing fields. */
+    R_LoadIniCache(&minimap_map_skin, "war3mapSkin.txt");
     if (theme_result == WC3_INI_MISSING)
         fprintf(stderr, "WC3 minimap: missing UI\\war3skins.txt\n");
-    /* An authored map skin that exists but cannot be parsed must stay visible as
-     * a data error. Do not silently demote all of its fields to stock defaults. */
-    if (map_skin_result == WC3_INI_INVALID) {
-        for (wc3MinimapContact_t contact = WC3_MINIMAP_CONTACT_HERO;
-             contact <= WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING; contact++)
-            minimap_special[contact] = tr.texture[TEX_PLACEHOLDER];
-        return;
-    }
 
-    for (wc3MinimapContact_t contact = WC3_MINIMAP_CONTACT_HERO;
-         contact <= WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING; contact++) {
-        LPCSTR const key = wc3_minimap_skin_key(contact);
-        LPCSTR const path = wc3_minimap_skin_texture_path(&minimap_theme, &minimap_map_skin, key);
+    DWORD const count = wc3_minimap_special_assets(&minimap_theme, &minimap_map_skin,
+                                                    assets, sizeof(assets) / sizeof(assets[0]));
+    FOR_LOOP(i, count) {
+        wc3MinimapSpecialAsset_t const *asset = &assets[i];
+        LPCSTR const path = asset->path;
         if (!path || !*path) {
-            fprintf(stderr, "WC3 minimap: missing/empty Game Interface key %s\n", key ? key : "<null>");
-            minimap_special[contact] = tr.texture[TEX_PLACEHOLDER];
+            fprintf(stderr, "WC3 minimap: missing/empty Game Interface key %s\n", asset->key ? asset->key : "<null>");
+            minimap_special[asset->contact] = tr.texture[TEX_PLACEHOLDER];
             continue;
         }
-        minimap_special[contact] = R_LoadTexture(path);
+        minimap_special[asset->contact] = wc3_minimap_register_special_asset(
+            asset, tr.texture[TEX_PLACEHOLDER], NULL,
+            R_LoadMinimapTexturePinned, R_LoadMinimapTextureMapScoped);
     }
 }
 
@@ -506,7 +512,6 @@ static wc3MinimapColorKind_t R_MinimapColorKind(renderEntity_t const *entity) {
         .viewer = tr.viewDef.player,
         .filter = R_MinimapAllyColorFilter(),
         .hostile = entity && (entity->flags & RF_HOSTILE),
-        .neutral = entity && (entity->flags & RF_NEUTRAL),
     };
     return wc3_minimap_ordinary_color_kind(&params);
 }
@@ -570,7 +575,7 @@ static void R_DrawMinimapEntityMarker(renderEntity_t const *entity) {
     }
 
     if (!texture || size.x <= 0.0f || size.y <= 0.0f) return;
-    marker = MAKE(RECT, point.x - size.x * 0.5f, point.y - size.y * 0.5f, size.x, size.y);
+    marker = wc3_minimap_marker_rect(&point, contact);
     R_DrawImage(texture, &marker, &MAKE(RECT, 0, 0, 1, 1), color);
 }
 
@@ -620,12 +625,14 @@ void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
 
 void R_RegisterMap(LPCSTR mapFileName) {
     R_SetMapAssetScope(mapFileName);
+    R_AdvanceTextureGeneration();
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
     R_ClearMinimapSpecialAssets();
     if (mapFileName && *mapFileName) R_LoadMinimapSpecialAssets();
     R_WeatherRegisterMap();
     R_LightningRegisterMap();
     _W3M_RegisterMap(mapFileName);
+    R_ReclaimStreamedTextures(0);
 }
 
 void R_SetupEnvironmentLighting(void) {

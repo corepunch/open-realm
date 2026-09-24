@@ -79,6 +79,11 @@ static void test_customize_entity(DWORD player, LPCEDICT ent, LPENTITYSTATE stat
     (void)player; (void)ent; (void)state;
 }
 
+static BOOL test_snapshot_priority_entity(DWORD player, LPCEDICT ent) {
+    (void)player;
+    return ent && ent->s.class_id == MAKEFOURCC('m', 'm', 'c', 't');
+}
+
 static int test_image_index(LPCSTR name) {
     (void)name;
     return 0;
@@ -880,6 +885,7 @@ TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
     for (int i = 1; i < test_ge.num_edicts; i++) {
         test_edicts[i].inuse = true;
         test_edicts[i].s.number = i; test_edicts[i].s.model = 1;
+        test_edicts[i].s.player = 1;
         test_edicts[i].s.origin.x = (FLOAT)(test_ge.num_edicts - i);
     }
 
@@ -888,6 +894,39 @@ TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
     T_EQ(frame->num_entities, MAX_PACKET_ENTITIES);
     FOR_LOOP(i, frame->num_entities)
         T_EQ(svs.client_entities[frame->first_entity + i].number, i + 3);
+    SV_Shutdown();
+}
+
+TEST(server_net, snapshot_overflow_retains_game_prioritized_minimap_contact) {
+    static struct client_s game_client;
+    LPCLIENT client;
+    LPCLIENTFRAME frame;
+    DWORD contact_number = MAX_PACKET_ENTITIES + 1;
+    BOOL contact_retained = false;
+
+    reset_server_state(1);
+    SV_InitGame();
+    client = &svs.clients[0]; frame = &client->frames[0];
+    memset(&game_client, 0, sizeof(game_client));
+    test_edicts[0].client = &game_client; client->edict = &test_edicts[0];
+    game_client.ps.number = 0;
+    test_ge.IsSnapshotPriorityEntity = test_snapshot_priority_entity;
+    test_ge.num_edicts = MAX_PACKET_ENTITIES + 2;
+    for (int i = 1; i < test_ge.num_edicts; i++) {
+        test_edicts[i].inuse = true;
+        test_edicts[i].s.number = i; test_edicts[i].s.model = 1;
+        test_edicts[i].s.player = 2;
+        test_edicts[i].s.origin.x = 0.0f;
+    }
+    test_edicts[contact_number].s.class_id = MAKEFOURCC('m', 'm', 'c', 't');
+    test_edicts[contact_number].s.origin.x = 1200.0f;
+
+    SV_BuildClientFrame(client);
+
+    T_EQ(frame->num_entities, MAX_PACKET_ENTITIES);
+    FOR_LOOP(i, frame->num_entities)
+        if (svs.client_entities[frame->first_entity + i].number == contact_number) contact_retained = true;
+    T_ASSERT(contact_retained);
     SV_Shutdown();
 }
 
