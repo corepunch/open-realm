@@ -216,6 +216,7 @@ TEST(server_net, entity_recipient_prefers_exact_client_edict_over_player_slot) {
 
 TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
     LPCLIENT client;
+    GAMECLIENT player = { .ps.number = 4 };
 
     reset_server_state(2);
     svs.num_clients = 2;
@@ -223,9 +224,45 @@ TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
     client->state = cs_spawned;
     client->playernum = 4;
     client->edict = &test_edicts[1];
+    client->edict->client = &player;
     test_edicts[5].s.player = 4;
 
     T_ASSERT(SV_ClientForEntityRecipient(&test_edicts[5]) == client);
+}
+
+/* Campaign player identity is assigned by the game, independently of lobby slots. */
+TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
+    GAMECLIENT players[2] = { { .ps.number = 1 }, { .ps.number = 0 } };
+    BYTE data[32];
+    sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
+    netadr_t from;
+
+    reset_server_state(2);
+    svs.num_clients = 2;
+    NET_Config(false);
+    FOR_LOOP(i, 2) {
+        LPCLIENT client = &svs.clients[i];
+        client->state = cs_spawned;
+        client->playernum = i; /* Opposite to the actual game identities. */
+        client->edict = &test_edicts[i];
+        client->edict->client = &players[i];
+        client->netchan.remote_address.type = NA_LOOPBACK;
+        SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
+    }
+    test_edicts[5].s.player = 1;
+    T_ASSERT(SV_ClientForEntityRecipient(&test_edicts[5]) == &svs.clients[0]);
+    svs.clients[1].state = cs_connected;
+    SV_StartSound(NULL, &test_edicts[5], CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, 118, 1, 0, 0);
+    T_EQ(NET_GetPacket(NS_CLIENT, &from, &msg), 5);
+    T_EQ(MSG_ReadByte(&msg), svc_sound);
+    T_EQ(MSG_ReadByte(&msg), SND_ATTENUATION);
+    T_EQ(MSG_ReadShort(&msg), 118);
+    T_EQ(MSG_ReadByte(&msg), 0);
+    T_EQ(svs.clients[1].netchan.message.cursize, 0);
+    test_edicts[5].s.player = 0;
+    T_NULL(SV_ClientForEntityRecipient(&test_edicts[5]));
+    svs.clients[0].edict->client = NULL;
+    T_NULL(SV_ClientForEntityRecipient(&test_edicts[5]));
 }
 
 TEST(server_net, edict_recipient_rejects_unowned_edict) {

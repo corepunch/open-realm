@@ -915,7 +915,9 @@ static void CL_ParseSound(LPSIZEBUF msg) {
     if (flags & SND_ATTENUATION) attenuation = MSG_ReadByte(msg) / 64.0f;
     if (flags & SND_OFFSET) timeofs = MSG_ReadByte(msg) / 1000.0f;
     if (flags & SND_ENT) {
-        int packed = MSG_ReadShort(msg);
+        /* Entity/channel is an unsigned bitfield; sign extension rejected
+         * valid campaign entities 4096..8191 as negative entity numbers. */
+        USHORT packed = (USHORT)MSG_ReadShort(msg);
         entity = packed >> 3;
         channel = packed & 7;
         if (entity <= 0 || entity >= MAX_CLIENT_ENTITIES) {
@@ -932,6 +934,50 @@ static void CL_ParseSound(LPSIZEBUF msg) {
     path = cl.configstrings[CS_SOUNDS + sound_index];
     if (path && path[0]) S_PlaySoundPacket(path, &origin, flags & (SND_POS | SND_ENT), channel, volume, attenuation, timeofs);
 }
+
+#if defined(BZ_TESTS) && defined(BZ_CLIENT_WORLD)
+#include "shared/test.h"
+#include "sound/s_local.h"
+
+/* High entity numbers set the packed short's sign bit; playback must retain all 13 entity bits. */
+TEST(client_sound, packed_entity_above_4095_reaches_mixer) {
+    static DWORD const entities[] = { 4095, 4096, 4257, 8191 };
+    sState_t *saved = malloc(sizeof(s));
+    sfxcache_t sample = { .length = 1, .loopstart = -1, .data = { 1000 } };
+    PATHSTR path;
+    BYTE data[32];
+    sizeBuf_t msg;
+
+    T_NOT_NULL(saved);
+    if (!saved) return;
+    *saved = s;
+    memcpy(path, cl.configstrings[CS_SOUNDS + 1], sizeof(path));
+    memset(&s, 0, sizeof(s));
+    s.initialized = true; s.num_sfx = 1;
+    strlcpy(s.known_sfx[0].path, "packet-test.wav", sizeof(s.known_sfx[0].path));
+    s.known_sfx[0].cache = &sample;
+    strlcpy(cl.configstrings[CS_SOUNDS + 1], "packet-test.wav", sizeof(path));
+    FOR_LOOP(i, sizeof(entities) / sizeof(*entities)) {
+        DWORD entity = entities[i];
+        VECTOR3 origin = cl.ents[entity].current.origin;
+        cl.ents[entity].current.origin = (VECTOR3){ 123, 456, 0 };
+        memset(s.channels, 0, sizeof(s.channels));
+        SZ_Init(&msg, data, sizeof(data));
+        MSG_WriteByte(&msg, SND_ENT | SND_POS);
+        MSG_WriteShort(&msg, 1);
+        MSG_WriteShort(&msg, (entity << 3) | CHAN_WEAPON);
+        MSG_WritePos(&msg, &cl.ents[entity].current.origin);
+        CL_ParseSound(&msg);
+        T_EQ(msg.readcount, msg.cursize);
+        T_ASSERT(s.channels[0].active);
+        T_EQ(s.channels[0].channel, CHAN_WEAPON);
+        T_FEQ(s.channels[0].origin.x, 123, 0.001f);
+        cl.ents[entity].current.origin = origin;
+    }
+    memcpy(cl.configstrings[CS_SOUNDS + 1], path, sizeof(path));
+    s = *saved; free(saved);
+}
+#endif
 
 static void CL_ParseWindow(LPSIZEBUF msg) {
     uiWindowDef_t def;
