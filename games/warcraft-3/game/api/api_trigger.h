@@ -300,7 +300,7 @@ DWORD TriggerRegisterPlayerEvent(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     EVENTTYPE *whichPlayerEvent = jass_checkhandle(j, 3, "playerevent");
     LPEVENT evt = G_MakeEvent(*whichPlayerEvent);
-    evt->subject = PLAYER_ENT(whichPlayer);
+    G_SetPlayerEventSubject(evt, PLAYER_ENT(whichPlayer));
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichPlayerEvent, evt->subject, "player");
     if (*whichPlayerEvent == EVENT_PLAYER_VICTORY || *whichPlayerEvent == EVENT_PLAYER_DEFEAT) {
@@ -320,7 +320,7 @@ DWORD TriggerRegisterPlayerUnitEvent(LPJASS j) {
     EVENTTYPE *whichPlayerUnitEvent = jass_checkhandle(j, 3, "playerunitevent");
     //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
     LPEVENT evt = G_MakeEvent(*whichPlayerUnitEvent);
-    evt->subject = PLAYER_ENT(whichPlayer);
+    G_SetPlayerEventSubject(evt, PLAYER_ENT(whichPlayer));
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichPlayerUnitEvent, evt->subject, "player-unit");
     if (WC3_TUTORIAL_DEBUG_ENABLED() &&
@@ -368,7 +368,7 @@ DWORD TriggerRegisterDeathEvent(LPJASS j) {
     LPEDICT whichWidget = jass_checkhandle(j, 2, "widget");
     if (!whichTrigger || !whichWidget) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_UNIT_DEATH);
-    evt->subject = whichWidget;
+    G_SetEventSubject(evt, whichWidget);
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, EVENT_UNIT_DEATH, evt->subject, "death");
     return jass_pushlighthandle(j, evt, "event");
@@ -392,7 +392,7 @@ DWORD TriggerRegisterUnitStateEvent(LPJASS j) {
     LPEVENT evt = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
     if (!evt) return jass_pushnullhandle(j, "event");
     evt->trigger = whichTrigger;
-    evt->subject = whichUnit;
+    G_SetEventSubject(evt, whichUnit);
     evt->state = *whichState;
     evt->limitop = *opcode;
     evt->limitval = limitval;
@@ -407,7 +407,7 @@ DWORD TriggerRegisterUnitEvent(LPJASS j) {
         return jass_pushnullhandle(j, "event");
     }
     LPEVENT evt = G_MakeEvent(*whichEvent);
-    evt->subject = whichUnit;
+    G_SetEventSubject(evt, whichUnit);
     evt->trigger = whichTrigger;
     QuestPeonStageLogRegistration(whichTrigger, *whichEvent, evt->subject, "unit");
     if (WC3_TUTORIAL_DEBUG_ENABLED() &&
@@ -438,7 +438,7 @@ DWORD TriggerRegisterUnitInRange(LPJASS j) {
         return jass_pushnullhandle(j, "event");
     }
     LPEVENT evt = G_MakeEvent(EVENT_UNIT_IN_RANGE);
-    evt->subject = whichUnit;
+    G_SetEventSubject(evt, whichUnit);
     evt->trigger = whichTrigger;
     evt->range = range;
     QuestPeonStageLogRegistration(whichTrigger, EVENT_UNIT_IN_RANGE, evt->subject, "unit-in-range");

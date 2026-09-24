@@ -155,7 +155,8 @@ JASS_API(SetUnitState,
         return;
     }
     was_dead = M_IsDead(whichUnit);
-    (&whichUnit->health.value)[*whichUnitState] = newVal;
+    if (*whichUnitState == WC3_UNIT_STATE_LIFE) G_SetHealth(whichUnit, newVal);
+    else (&whichUnit->health.value)[*whichUnitState] = newVal;
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
 }
 //DWORD SetUnitState(LPJASS j) {

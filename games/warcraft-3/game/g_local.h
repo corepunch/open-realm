@@ -1674,6 +1674,8 @@ struct game_locals {
 
 struct gevent_s {
     LPEDICT subject;
+    DWORD subject_spawn_time;
+    BOOL subject_spawn_tracked;
     EVENTTYPE type;
     LPTRIGGER trigger;
     LPGTIMER timer;
@@ -2787,6 +2789,9 @@ BOOL G_IsDeferredFree(LPCEDICT);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 LPEVENT G_MakeEvent(EVENTTYPE);
+void G_SetEventSubject(LPEVENT, LPEDICT);
+void G_SetPlayerEventSubject(LPEVENT, LPEDICT);
+BOOL G_EventSubjectIsCurrent(LPEVENT);
 void G_JassVariableChanged(LPCSTR, FLOAT, FLOAT);
 BOOL G_LimitMatches(DWORD, FLOAT, FLOAT);
 LPQUEST G_MakeQuest(void);

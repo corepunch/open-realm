@@ -4015,6 +4015,8 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
     LPEVENT saved_handler = &level.events.handlers[0];
     subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    subject->spawn_time = level.time + 1234;
+    G_SetEventSubject(saved_handler, subject);
     source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
     GAMEEVENT *queued = G_PublishEventWithPoint(&(gameEventPointParams_t){
         .edict = subject, .type = EVENT_UNIT_IN_RANGE, .source = source,
@@ -4031,6 +4033,9 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     T_FEQ(level.events.queue[0].point.x, 11.0f, 0.001f);
     T_FEQ(level.events.queue[0].point.y, 22.0f, 0.001f);
     T_ASSERT(level.events.queue[0].responseTo == saved_handler);
+    T_ASSERT(saved_handler->subject == subject);
+    T_EQ(saved_handler->subject_spawn_time, subject->spawn_time);
+    T_ASSERT(saved_handler->subject_spawn_tracked);
     level.events = old_events; remove(filename);
 }
 

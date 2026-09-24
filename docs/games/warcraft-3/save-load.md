@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 41, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 42, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -29,6 +29,8 @@ Version 40 added the region registry to the level stream, region IDs to saved ev
 One possible compatibility design is to retain the version 39 header and base payload byte-for-byte, then put version-40-only region state in a tagged, length-delimited extension after the JASS snapshot and before the existing checksum footer. The new reader would parse the optional extension; a version-39 reader could continue parsing the known base payload and ignore the remaining bytes after its snapshot. The extension would need its own schema/version and strict bounds, while the existing footer checksum would cover it. Before adopting this design, verify the trailing-byte behavior with an actual version-39 reader and move every version-40-only field—including region handle and coroutine context data—out of the base payload. This is a proposal only; implementing it requires a separate save-format change and compatibility tests.
 
 Version 41 persists region and region-event handle generations and exhaustion state. This keeps each recycled handle's `GetHandleId` unique during a session and stable across save/load. The exact-version guard rejects version 40 saves as well as earlier versions.
+
+Version 42 persists the unit incarnation (`spawn_time`) captured by unit-bound trigger registrations. This prevents an event from attaching to a different unit when the original edict slot is reused after load. The exact-version guard rejects version 41 saves as well as earlier versions.
 
 Version 32 adds `edict_t.permanent_health_bonus`, the persistent ledger for
 research-owned maximum-life effects such as `UpgradeData.slk` `rhpx`. The field
@@ -485,4 +487,6 @@ event registrations. Region handles use stable registry slot IDs in the level
 state and JASS snapshot format 6 persists `GetTriggeringRegion()` in yielded
 trigger context. Version 41 adds persisted region and region-event handle
 generations so recycled slots retain their `GetHandleId` identity after load.
-Versions 39 and 40 are rejected by the exact-version guard.
+Version 42 persists the edict incarnation captured by unit-bound event
+registrations, preventing slot reuse from retargeting an old registration.
+Versions 39, 40, and 41 are rejected by the exact-version guard.

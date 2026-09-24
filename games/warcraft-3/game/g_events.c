@@ -106,6 +106,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
     }
 
     FOR_EACH_EVENT(e) {
+        if (!G_EventSubjectIsCurrent(e)) continue;
         switch (e->type) {
             case EVENT_GAME_VICTORY:
                 break;
@@ -279,6 +280,7 @@ static void G_TouchTriggers(LPEDICT ent) {
                 break;
             }
             case EVENT_UNIT_IN_RANGE:
+                if (!G_EventSubjectIsCurrent(evt)) break;
                 if (ent == evt->subject) {
                     LPEDICT target;
 

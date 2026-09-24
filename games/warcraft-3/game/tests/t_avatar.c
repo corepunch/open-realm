@@ -104,7 +104,7 @@ TEST(wc3_avatar, runtime_health_bonus_publishes_life_limit_events) {
     LPEVENT lost = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
     BOOL saw_gain = false, saw_loss = false;
 
-    gained->subject = lost->subject = unit;
+    G_SetEventSubject(gained, unit); G_SetEventSubject(lost, unit);
     gained->state = lost->state = UNIT_STATE_LIFE;
     gained->limitop = WC3_LIMITOP_GREATER_THAN_OR_EQUAL;
     gained->limitval = 800.0f;

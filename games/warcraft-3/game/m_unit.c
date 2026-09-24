@@ -207,7 +207,7 @@ void G_SetHealth(LPEDICT ent, FLOAT value) {
     ent->health.value = value;
     next = compress_stat(&ent->health);
     if (old_value != value) FOR_EACH_EVENT(evt) {
-        if (evt->type == EVENT_GAME_STATE_LIMIT && evt->subject == ent && evt->state == WC3_UNIT_STATE_LIFE &&
+        if (evt->type == EVENT_GAME_STATE_LIMIT && G_EventSubjectIsCurrent(evt) && evt->subject == ent && evt->state == WC3_UNIT_STATE_LIFE &&
             !G_LimitMatches(evt->limitop, old_value, evt->limitval) &&
              G_LimitMatches(evt->limitop, value, evt->limitval))
             G_PublishEventResponse(ent, EVENT_GAME_STATE_LIMIT, evt);

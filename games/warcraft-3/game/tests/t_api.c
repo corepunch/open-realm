@@ -211,6 +211,8 @@ TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
         "  set u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
         "  call TriggerAddAction(t, function on_death)\n"
         "  call TriggerRegisterUnitStateEvent(t, u, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call SetWidgetLife(u, 100.0)\n"
+        "  call SetUnitState(u, ConvertUnitState(0), 0.0)\n"
         "endfunction\n"));
     FOR_LOOP(i, globals.num_edicts)
         if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = &g_edicts[i];
@@ -223,9 +225,6 @@ TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
         T_EQ(registration->limitop, WC3_LIMITOP_LESS_THAN_OR_EQUAL);
         T_FEQ(registration->limitval, 0.0f, 0.001f);
     }
-    G_SetHealth(unit, 100.0f);
-    G_SetHealth(unit, 0.0f);
-    T_ASSERT(level.events.write > level.events.read);
     G_RunEvents();
     jass_runevents(level.vm);
     T_FEQ(unit->health.value, 75.0f, 0.001f);
@@ -241,7 +240,7 @@ TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
     unit->health.value = 100.0f;
     registration = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
     T_NOT_NULL(registration);
-    registration->subject = unit;
+    G_SetEventSubject(registration, unit);
     registration->state = WC3_UNIT_STATE_LIFE;
     registration->limitop = WC3_LIMITOP_LESS_THAN_OR_EQUAL;
     registration->limitval = 0.0f;
@@ -254,6 +253,30 @@ TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
     T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
     T_EQ(level.events.queue[0].value, 0);
     T_EQ(level.events.queue[MAX_EVENT_QUEUE - 1].value, (LONG)MAX_EVENT_QUEUE - 1);
+}
+
+TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
+    LPEDICT unit, replacement;
+    LPEVENT registration;
+    DWORD old_spawn_time;
+
+    reset_entities(); setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    unit->spawn_time = level.time;
+    registration = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    G_SetEventSubject(registration, unit);
+    registration->state = WC3_UNIT_STATE_LIFE;
+    registration->limitop = WC3_LIMITOP_LESS_THAN_OR_EQUAL;
+    registration->limitval = 0;
+    old_spawn_time = unit->spawn_time;
+    G_FreeEdict(unit);
+    level.time += 2000;
+    replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    replacement->spawn_time = level.time;
+    T_ASSERT(replacement == unit);
+    T_NE(replacement->spawn_time, old_spawn_time);
+    G_SetHealth(replacement, 0);
+    T_EQ(level.events.write, 0);
 }
 
 TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {

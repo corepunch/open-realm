@@ -127,6 +127,23 @@ LPEVENT G_MakeEvent(EVENTTYPE type) {
     return NULL;
 }
 
+void G_SetEventSubject(LPEVENT evt, LPEDICT subject) {
+    evt->subject = subject;
+    evt->subject_spawn_time = subject ? subject->spawn_time : 0;
+    evt->subject_spawn_tracked = subject != NULL;
+}
+
+void G_SetPlayerEventSubject(LPEVENT evt, LPEDICT subject) {
+    evt->subject = subject;
+    evt->subject_spawn_time = 0;
+    evt->subject_spawn_tracked = false;
+}
+
+BOOL G_EventSubjectIsCurrent(LPEVENT evt) {
+    return !evt->subject || !evt->subject_spawn_tracked ||
+        (evt->subject->inuse && evt->subject->spawn_time == evt->subject_spawn_time);
+}
+
 #define JASS_GROUP_DEBUG_CHAIN_SIZE 256 // characters; bounds one captured JASS call chain for group diagnostics
 #define JASS_GROUP_DEBUG_MAX_STATS 128 // entries; bounds distinct group-debug chains retained per map
 
