@@ -151,7 +151,7 @@ static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, DWORD count)
         snprintf(cl->userinfo, sizeof(cl->userinfo), "%s", saved[i].userinfo);
         snprintf(cl->name, sizeof(cl->name), "%s", saved[i].name);
         SZ_Init(&cl->netchan.message, cl->netchan.message_buf, MAX_MSGLEN);
-        Netchan_OutOfBandPrint(NS_SERVER, saved[i].addr, "client_connect");
+        Netchan_OutOfBandPrint(NS_SERVER, saved[i].addr, "client_connect %d", BZ_PROTOCOL_VERSION);
     }
 }
 
@@ -164,7 +164,7 @@ void SV_ClientConnect(void) {
         svs.clients[0].lastframe = (DWORD)-1;
         SV_InitMulticast();
         SV_LobbyAssignClient(0, true);
-        Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
+        Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect %d", BZ_PROTOCOL_VERSION);
         SV_LobbyBroadcastSetup();
         return;
     }
@@ -187,7 +187,7 @@ void SV_ClientConnect(void) {
     netadr_t adr = { NA_LOOPBACK };
     fprintf(stderr, "SV_ClientConnect: connected local client over loopback\n");
     SV_LobbyAssignClient(0, true);
-    Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
+    Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect %d", BZ_PROTOCOL_VERSION);
     SV_LobbyBroadcastSetup();
 }
 
@@ -216,7 +216,7 @@ void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
      * pre-created this address. Re-send the idempotent handshake response so
      * the client cannot remain on the loading plaque waiting for `new`. */
     if ((existing = SV_FindClientByAddr(from))) {
-        Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect");
+        Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
         return;
     }
     if (svs.num_clients >= MAX_CLIENTS ||
@@ -240,7 +240,7 @@ void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
         svs.num_clients--;
         return;
     }
-    Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect");
+    Netchan_OutOfBandPrint(NS_SERVER, *from, "client_connect %d", BZ_PROTOCOL_VERSION);
     SV_LobbyBroadcastSetup();
 }
 

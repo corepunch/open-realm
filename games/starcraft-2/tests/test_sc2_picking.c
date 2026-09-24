@@ -78,6 +78,33 @@ TEST(sc2_control, authored_placement_and_camera_preserved) {
     }
 }
 
+/* Include the snapshot codec: a non-periodic angle grid introduced a 0.299-degree placement bias. */
+TEST(sc2_control, snapshot_preserves_authored_placement) {
+    FLOAT angles[] = { 0, M_PI / 2, M_PI, 3 * M_PI / 2, -M_PI / 2, 2 * M_PI,
+        0.8427f, 0.7963f, -0.8427f }; /* TRaynor01's two bridge placements. */
+    model_t model = { .modeltype = ID_43DM };
+    FOR_LOOP(i, sizeof(angles) / sizeof(angles[0])) {
+        entityState_t zero = {0}, states[2] = {0};
+        FOR_LOOP(j, 2) {
+            entityState_t source = { .number = 1, .model = 1, .scale = 1.5f, .origin = {3, 5, 7},
+                .angle = j ? SC2_PlacementHeading(angles[i]) : angles[i] };
+            BYTE bytes[256]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+            DWORD bits;
+            MSG_WriteDeltaEntity(&msg, &zero, &source, true);
+            int number = MSG_ReadEntityBits(&msg, &bits);
+            MSG_ReadDeltaEntity(&msg, &states[j], number, bits);
+        }
+        renderEntity_t ent = { .model = &model, .origin = states[1].origin,
+            .scale = states[1].scale, .angle = states[1].angle };
+        MATRIX4 expected, actual;
+        Matrix4_identity(&expected); Matrix4_translate(&expected, &states[0].origin);
+        Matrix4_rotate(&expected, &MAKE(VECTOR3, 0, 0, RAD2DEG(states[0].angle)), ROTATE_XYZ);
+        Matrix4_scale(&expected, &MAKE(VECTOR3, ent.scale, ent.scale, ent.scale));
+        R_GetEntityMatrix(&ent, &actual);
+        FOR_LOOP(k, 16) T_FEQ(actual.v[k], expected.v[k], 0.0001f);
+    }
+}
+
 /* Use the live snapshot codec and client yaw interpolation before the common renderer boundary. */
 extern FLOAT LerpRotation(FLOAT a, FLOAT b, FLOAT t);
 TEST(sc2_control, snapshot_interpolation_preserves_facing) {

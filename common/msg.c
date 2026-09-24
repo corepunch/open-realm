@@ -18,7 +18,7 @@ typedef enum {
     NFT_BOX2,
     NFT_VECTOR3,
     NFT_VECTOR3_FLOAT,
-    NFT_ANGLE,
+    NFT_ANGLE, /* Radians, one turn in 65536 unsigned wire steps. */
     NFT_TEXT,
     NFT_DUPTEXT,
 } netFieldType_t;
@@ -355,7 +355,9 @@ static void MSG_WriteFields(LPSIZEBUF msg,
             case NFT_FLOAT: MSG_WriteFloat(msg, *_float); break;
             case NFT_ROUND: MSG_WriteShort(msg, *_float); break;
             case NFT_PACKED_FLOAT: MSG_WriteShort(msg, *_float * 500); break;
-            case NFT_ANGLE: MSG_WriteShort(msg, *_float / 360 * 0xffff); break;
+            case NFT_ANGLE:
+                MSG_WriteShort(msg, (int)floor(fmod(*_float, 2 * M_PI) * (65536 / (2 * M_PI)) + 0.5) & 0xffff);
+                break;
             case NFT_LONG: MSG_WriteLong(msg, *toF); break;
             case NFT_SHORT: MSG_WriteShort(msg, *(uint16_t *)toF); break;
             case NFT_BYTE: MSG_WriteByte(msg, *(uint8_t *)toF); break;
@@ -388,7 +390,7 @@ static void MSG_ReadFields(LPSIZEBUF msg,
             case NFT_FLOAT: *_float = MSG_ReadFloat(msg); break;
             case NFT_ROUND: *_float = MSG_ReadShort(msg); break;
             case NFT_PACKED_FLOAT: *_float = MSG_ReadShort(msg) / 500.f; break;
-            case NFT_ANGLE: *_float = MSG_ReadShort(msg) * 360.f / 0xffff; break;
+            case NFT_ANGLE: *_float = (USHORT)MSG_ReadShort(msg) * (2 * M_PI / 65536); break;
             case NFT_LONG: *toF = MSG_ReadLong(msg); break;
             case NFT_SHORT: *(uint16_t *)toF = (uint16_t)MSG_ReadShort(msg); break;
             case NFT_BYTE: *(uint8_t *)toF = (uint8_t)MSG_ReadByte(msg); break;
