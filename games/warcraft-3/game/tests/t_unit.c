@@ -1022,6 +1022,78 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50 + lumber);
 }
 
+TEST(wc3_unit, worker_death_does_not_walk_construction_target_as_production_queue) {
+    reset_test_entities();
+    LPEDICT worker = make_unit(0, 0);
+    LPEDICT building = make_unit(0, 0);
+
+    building->construction.active = true;
+    building->build = building;
+    worker->build = building;
+
+    unit_die(worker, NULL);
+
+    T_ASSERT(worker->svflags & SVF_DEADMONSTER);
+    T_ASSERT(building->construction.active);
+    T_ASSERT(building->build == building);
+}
+
+TEST(wc3_unit, ownership_change_does_not_walk_constructing_revive_altar) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
+    reset_test_entities();
+    LPGAMECLIENT old_client = &game.clients[0];
+    LPGAMECLIENT new_client = &game.clients[1];
+    LPEDICT altar = make_unit(0, 0);
+
+    altar->data.UnitProfile = &revive_profile;
+    altar->s.player = old_client->ps.number;
+    altar->construction.active = true;
+    altar->build = altar;
+
+    G_SetUnitPlayer(altar, new_client->ps.number);
+
+    T_EQ(altar->s.player, new_client->ps.number);
+    T_ASSERT(altar->construction.active);
+    T_ASSERT(altar->build == altar);
+}
+
+TEST(wc3_unit, ownership_change_does_not_walk_legacy_constructing_revive_altar) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
+    reset_test_entities();
+    LPGAMECLIENT new_client = &game.clients[1];
+    LPEDICT altar = make_unit(0, 0);
+
+    altar->data.UnitProfile = &revive_profile;
+    altar->s.player = game.clients[0].ps.number;
+    altar->build = altar;
+
+    G_SetUnitPlayer(altar, new_client->ps.number);
+
+    T_EQ(altar->s.player, new_client->ps.number);
+    T_ASSERT(!altar->construction.active);
+    T_ASSERT(altar->build == altar);
+}
+
+TEST(wc3_unit, hero_revive_cleanup_stops_on_cyclic_production_queue) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
+    reset_test_entities();
+    LPEDICT altar = make_unit(0, 0);
+    LPEDICT first = make_unit(0, 0);
+    LPEDICT second = make_unit(0, 0);
+
+    altar->data.UnitProfile = &revive_profile;
+    altar->build = first;
+    first->training = second->training = true;
+    first->build = second;
+    second->build = first;
+
+    G_CancelHeroRevives(altar);
+
+    T_ASSERT(altar->build == first);
+    T_ASSERT(first->build == second);
+    T_ASSERT(second->build == first);
+}
+
 /* -----------------------------------------------------------------------
  * Order tests
  * --------------------------------------------------------------------- */

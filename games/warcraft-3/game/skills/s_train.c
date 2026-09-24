@@ -539,15 +539,30 @@ BOOL G_CancelHeroRevive(LPEDICT altar, LPEDICT hero) {
 }
 
 void G_CancelHeroRevives(LPEDICT altar) {
+    LPEDICT visited[MAX_BUILD_QUEUE];
     LPEDICT item;
     LPEDICT next;
+    DWORD visited_count = 0;
 
     /* This cleanup is also called for ordinary units on death/removal. Their
      * build pointer can name a construction target, whose self-link is not a
-     * production queue. Only revive-capable producers own this queue. */
-    if (!altar || !G_UnitCanReviveHeroes(altar)) return;
+     * production queue. Construction itself cannot own an active revive queue. */
+    if (!altar || !G_UnitCanReviveHeroes(altar) || altar->construction.active || altar->build == altar) return;
     item = altar->build;
     while (item) {
+        for (DWORD i = 0; i < visited_count; i++) {
+            if (visited[i] == item) {
+                fprintf(stderr, "WC3: cyclic Hero-revive queue at producer %ld (item %ld)\n",
+                        (long)(altar - g_edicts), (long)(item - g_edicts));
+                return;
+            }
+        }
+        if (visited_count >= MAX_BUILD_QUEUE) {
+            fprintf(stderr, "WC3: Hero-revive queue exceeds %d entries at producer %ld\n",
+                    MAX_BUILD_QUEUE, (long)(altar - g_edicts));
+            return;
+        }
+        visited[visited_count++] = item;
         next = ProductionNext(item);
         if (item->revival.reviving) G_CancelHeroRevive(altar, item);
         item = next;
