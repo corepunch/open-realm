@@ -77,9 +77,8 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Way Gate runtime state expands edict_t after the region/event v44 layout;
- * reject older saves rather than decoding raw entities with shifted fields. */
-static DWORD const save_version = 45;
+/* The fixed edict layout is validated by SAVEHEADER.edict_size. */
+static DWORD const save_version = 44;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -1905,7 +1904,7 @@ BOOL ReadGame(LPCSTR filename) {
 }
 
 #ifdef BZ_TESTS
-static BOOL write_save_fixture_version(LPCSTR source_path, LPCSTR output_path, DWORD version) {
+static BOOL write_save_fixture_header(LPCSTR source_path, LPCSTR output_path, DWORD version, DWORD edict_size) {
     BYTE buffer[4096];
     SAVEHEADER header;
     long payload;
@@ -1914,6 +1913,7 @@ static BOOL write_save_fixture_version(LPCSTR source_path, LPCSTR output_path, D
         fseek(source, 0, SEEK_SET) || !LoadBytes(source, &header, sizeof(header))) goto fail;
     payload -= sizeof(SAVEFOOTER);
     header.version = version;
+    header.edict_size = edict_size;
     output = fopen(output_path, "w+b");
     if (!output || !SaveBytes(output, &header, sizeof(header))) goto fail;
     for (long remaining = payload - (long)sizeof(header); remaining > 0;) {
@@ -1946,7 +1946,7 @@ TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
     setup_test_world();
     T_ASSERT(WriteGame(filename));
     FOR_LOOP(i, sizeof(old_versions) / sizeof(*old_versions)) {
-        T_ASSERT(write_save_fixture_version(filename, old_paths[i], old_versions[i]));
+        T_ASSERT(write_save_fixture_header(filename, old_paths[i], old_versions[i], sizeof(edict_t)));
         T_NE(save_version, old_versions[i]);
         T_ASSERT(!ReadGame(old_paths[i]));
         remove(old_paths[i]);
@@ -1954,15 +1954,14 @@ TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
     remove(filename);
 }
 
-TEST(wc3_save, rejects_pre_waygate_save_version) {
+TEST(wc3_save, rejects_pre_waygate_edict_layout) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
     LPCSTR old_path = "/tmp/openwarcraft3-wc3-save-version-44.bin";
 
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));
-    T_ASSERT(write_save_fixture_version(filename, old_path, 44));
-    T_NE(save_version, 44);
+    T_ASSERT(write_save_fixture_header(filename, old_path, save_version, sizeof(edict_t) - 1));
     T_ASSERT(!ReadGame(old_path));
     remove(old_path);
     remove(filename);

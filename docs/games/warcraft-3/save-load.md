@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 45, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 44, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -90,7 +90,7 @@ Version 36 expands the raw `GAMECLIENT` Warcraft music state with per-client ses
 
 Version 37 adds the timer callback generation/pending fields, expands the bounded event ring, and adds the Undead Sacrifice queue relationship. A queued Shade carries `edict_s.sacrifice` and `sacrifice.worker` is relocated through an `F_EDICT` fixup; the saved worker generation and hidden/paused restoration scalars remain in the raw edict record. This lets a save taken while an Acolyte is hidden inside a Sacrificial Pit resume the same production item and cancel/complete safely instead of retaining a process pointer. Version 36 saves are rejected by the exact-version guard because the timer schema and event ring layout changed. See [Undead Sacrifice](sacrifice.md).
 
-Version 45 adds per-edict Way Gate destination/activation state and explicit approach state. `movement.waygate_target` and `movement.waygate_goal` use the ordinary `F_EDICT` relocation contract, `waygate_target_spawn_time` guards the target incarnation, and the behavior continues to use the existing `currentmove` `F_MMOVE` relocation. The expanded `edict_t` layout rejects version 44 saves through the exact-version/size guard. See [Way Gates](way-gates.md).
+Way Gate state adds per-edict destination/activation values and explicit approach state. `movement.waygate_target` and `movement.waygate_goal` use the ordinary `F_EDICT` relocation contract, `waygate_target_spawn_time` guards the target incarnation, and the behavior continues to use the existing `currentmove` `F_MMOVE` relocation. The save version remains 44; the existing exact `sizeof(edict_t)` header check rejects saves with the prior edict layout. See [Way Gates](way-gates.md).
 
 Corpse lifecycle (`AI_CORPSE_UNRAISABLE`, `AI_CORPSE_NO_DECAY`, `AI_CORPSE_RESERVED`, and `AI_CORPSE_IN_CARGO`) rides in the already-persisted `aiflags` edict field, while the existing persisted `cargo.units[]`/`cargo.count` links the Meat Wagon to the actual stored corpse edicts. Thus cargo occupancy, corpse identity, decay move/timer, and active corpse-consumer reservation survive save/load without a new format field. Graveyard `Agyd` production uses an ordinary owner-linked thinker plus `freetime`; `graveyard_think` is in the saved callback roster, so its cadence resumes without a format change. See [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
@@ -499,8 +499,8 @@ queued-event source incarnation (`source_spawn_time` and
 `source_spawn_tracked`) alongside its edict index, allowing dispatch to clear a
 stale source without losing an event for a still-current subject.
 
-Version 45 adds per-edict Way Gate destination/activation state plus the
-explicit approach target, approach goal, and target-incarnation guard. The two
-entity pointers use `F_EDICT` relocation and the live Way Gate move uses the
-existing `F_MMOVE` relocation. Version 44 and all earlier layouts are rejected
-by the exact-version guard.
+Way Gate state adds per-edict destination/activation values plus the explicit
+approach target, approach goal, and target-incarnation guard. The two entity
+pointers use `F_EDICT` relocation and the live Way Gate move uses the existing
+`F_MMOVE` relocation. The save version remains 44; the exact `sizeof(edict_t)`
+header check rejects saves with the previous edict layout.

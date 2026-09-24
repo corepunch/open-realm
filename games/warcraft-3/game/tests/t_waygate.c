@@ -43,6 +43,12 @@ static WAYFIX waygate_setup(FLOAT unit_x, FLOAT unit_y) {
     fix.unit->svflags |= SVF_MONSTER;
     fix.gate->targtype = TARG_STRUCTURE;
     fix.unit->targtype = TARG_GROUND;
+    fix.unit->stand = unit_stand;
+    fix.unit->die = unit_die;
+    fix.unit->think = monster_think;
+    fix.unit->movetype = MOVETYPE_STEP;
+    fix.unit->unitinfo.MoveSpeed = 300.0f;
+    unit_stand(fix.unit);
     fix.unit->collision = 16.0f;
     T_ASSERT(G_ActorAddSkill(fix.gate, BZ_TEST_WARP));
     S_WaygateSetDestination(fix.gate, &destination);
@@ -88,6 +94,20 @@ TEST(wc3_waygate, smart_use_reads_rectangular_authored_data_and_teleports) {
     waygate_done(fix);
 }
 
+TEST(wc3_waygate, blocked_destination_cancels_without_raw_position_fallback) {
+    BYTE blocked[64 * 64];
+    WAYFIX fix = waygate_setup(70.0f, 0.0f);
+    VECTOR2 before = fix.unit->s.origin2;
+
+    memset(blocked, CM_PATHING_UNWALKABLE, sizeof(blocked));
+    setup_test_pathmap(64, 64, blocked);
+    T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
+    T_FEQ(fix.unit->s.origin2.x, before.x, 0.001f);
+    T_FEQ(fix.unit->s.origin2.y, before.y, 0.001f);
+    assert_no_waygate_order(fix.unit);
+    waygate_done(fix);
+}
+
 TEST(wc3_waygate, disabled_gate_does_not_consume_smart_as_waygate) {
     WAYFIX fix = waygate_setup(70.0f, 0.0f);
     VECTOR2 before = fix.unit->s.origin2;
@@ -110,7 +130,7 @@ TEST(wc3_waygate, approach_revalidates_gate_generation_before_teleport) {
     T_EQ(fix.unit->movement.waygate_target_spawn_time, fix.gate->spawn_time);
     fix.gate->spawn_time++;
     T_NOT_NULL(fix.unit->currentmove);
-    fix.unit->currentmove->think(fix.unit);
+    G_RunEntities();
     assert_no_waygate_order(fix.unit);
     T_FEQ(fix.unit->s.origin2.x, 300.0f, 0.001f);
     waygate_done(fix);
@@ -122,7 +142,7 @@ TEST(wc3_waygate, approach_rechecks_activation_before_traversal) {
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     S_WaygateSetActive(fix.gate, false);
     T_NOT_NULL(fix.unit->currentmove);
-    fix.unit->currentmove->think(fix.unit);
+    G_RunEntities();
     T_FEQ(fix.unit->s.origin2.x, 300.0f, 0.001f);
     assert_no_waygate_order(fix.unit);
     waygate_done(fix);
@@ -138,7 +158,7 @@ TEST(wc3_waygate, approach_uses_live_destination_at_traversal_time) {
     fix.unit->s.origin.x = 70.0f;
     fix.unit->s.origin.y = 0.0f;
     T_NOT_NULL(fix.unit->currentmove);
-    fix.unit->currentmove->think(fix.unit);
+    G_RunEntities();
     T_FEQ(fix.unit->s.origin2.x, 640.0f, 0.001f);
     T_FEQ(fix.unit->s.origin2.y, -128.0f, 0.001f);
     assert_no_waygate_order(fix.unit);

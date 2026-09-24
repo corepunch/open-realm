@@ -89,6 +89,8 @@ static BOOL waygate_behavior_active(LPCEDICT unit) {
                     unit->movement.waygate_target_spawn_time);
 }
 
+static void waygate_cancel(LPEDICT unit);
+
 /* CAbilityWarp owns only its pointers. In particular, secondarygoal is shared
  * by unrelated movement behaviors and must never be cleared by Way Gate exit. */
 static void waygate_clear_order(LPEDICT unit) {
@@ -101,14 +103,18 @@ static void waygate_clear_order(LPEDICT unit) {
     move_reset_progress(unit);
 }
 
-static void waygate_complete(LPEDICT unit, LPEDICT gate) {
+static BOOL waygate_complete(LPEDICT unit, LPEDICT gate) {
     VECTOR2 source, position;
 
-    if (!unit || !gate) return;
+    if (!unit || !gate) return false;
     source = unit->s.origin2;
+    if (!G_FindUnitUnstuckPosition(unit, &gate->waygate.destination, &position)) {
+        fprintf(stderr, "WC3 Waygate: no legal destination for unit %u gate %u at (%.1f, %.1f); traversal cancelled\n",
+                unit->s.number, gate->s.number, gate->waygate.destination.x, gate->waygate.destination.y);
+        waygate_cancel(unit);
+        return false;
+    }
     G_SpawnAbilityEffectAtPoint(BZ_AMOV, WC3_EFFECT_SPECIAL, 0, &source, true);
-    if (!G_FindUnitUnstuckPosition(unit, &gate->waygate.destination, &position))
-        position = gate->waygate.destination;
     unit->s.origin2 = position;
     unit->s.origin.x = position.x;
     unit->s.origin.y = position.y;
@@ -117,6 +123,7 @@ static void waygate_complete(LPEDICT unit, LPEDICT gate) {
     G_SpawnAbilityEffectAtPoint(BZ_AMOV, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
     waygate_clear_order(unit);
     unit_stand(unit);
+    return true;
 }
 
 static BOOL waygate_find_entry_point(LPEDICT unit, LPEDICT gate, LPVECTOR2 out) {
