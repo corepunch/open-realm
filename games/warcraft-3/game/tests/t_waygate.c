@@ -300,4 +300,21 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
     waygate_done(fix);
 }
 
+TEST(wc3_save, rejects_invalid_waygate_entity_references) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-waygate-invalid-reference.bin";
+    WAYFIX fix = waygate_setup(300.0f, 0.0f);
+    LPEDICT target, goal;
+
+    T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
+    target = fix.unit->movement.waygate_target;
+    goal = fix.unit->movement.waygate_goal;
+    fix.unit->movement.waygate_target = (LPEDICT)(uintptr_t)1;
+    T_ASSERT(!WriteGame(filename));
+    fix.unit->movement.waygate_target = target;
+    fix.unit->movement.waygate_goal = (LPEDICT)(uintptr_t)1;
+    T_ASSERT(!WriteGame(filename));
+    fix.unit->movement.waygate_goal = goal;
+    waygate_done(fix);
+}
+
 #endif
