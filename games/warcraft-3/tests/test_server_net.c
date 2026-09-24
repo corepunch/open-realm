@@ -351,13 +351,13 @@ static void send_connect_oob(int sock, unsigned short server_port) {
     enum {
         MAX_CONNECT_DATAGRAM_SIZE = 64,
         OOB_HEADER_SIZE = 4,
-        CONNECT_TEXT_SIZE = 7
+        CONNECT_TEXT_SIZE = sizeof("connect " BZ_XSTR(BZ_PROTOCOL_VERSION)) - 1
     };
     BYTE datagram[MAX_CONNECT_DATAGRAM_SIZE];
     DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE;
     int oob_marker = -1;
     memcpy(datagram, &oob_marker, sizeof(oob_marker));
-    memcpy(datagram + 4, "connect", 7);
+    memcpy(datagram + 4, "connect " BZ_XSTR(BZ_PROTOCOL_VERSION), CONNECT_TEXT_SIZE);
 
     struct sockaddr_in to;
     memset(&to, 0, sizeof(to));
@@ -403,7 +403,8 @@ static BOOL recv_client_connect_oob(int sock) {
     FOR_LOOP(i, MAX_RECV_RETRIES) {
         int r = recvfrom(sock, datagram, sizeof(datagram), 0, (struct sockaddr *)&from, &fromlen);
         if (r > 0) {
-            if (r >= 4 + 14 && memcmp(datagram + 4, "client_connect", 14) == 0)
+            LPCSTR reply = "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION);
+            if (r >= 4 + strlen(reply) && memcmp(datagram + 4, reply, strlen(reply)) == 0)
                 return true;
             return false;
         }
@@ -438,7 +439,7 @@ static void pump_server_connects(void) {
             int hdr = 0;
             memcpy(&hdr, msg.data, sizeof(hdr));
             if (hdr == -1 && memcmp(msg.data + 4, "connect", 7) == 0)
-                SV_DirectConnect(&from, "");
+                SV_ConnectionlessPacket(&from, &msg);
         }
     }
 }
@@ -636,6 +637,20 @@ TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
     NET_Shutdown();
 }
 
+TEST(server_net, connectionless_connect_requires_matching_protocol) {
+    netadr_t loopback = { .type = NA_LOOPBACK };
+    LPCSTR requests[] = { "connect\n\\name\\Old", "connect 8\n\\name\\Old",
+        "connect " BZ_XSTR(BZ_PROTOCOL_VERSION) "\n\\name\\Player" };
+    NET_Init(); reset_server_state(4);
+    FOR_LOOP(i, 3) {
+        BYTE bytes[128]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+        MSG_WriteLong(&msg, -1); MSG_WriteString(&msg, requests[i]);
+        SV_ConnectionlessPacket(&loopback, &msg);
+        T_EQ(svs.num_clients, i == 2 ? 1 : 0);
+    }
+    NET_Shutdown();
+}
+
 TEST(server_net, udp_connect_honors_ge_max_clients_limit) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();
@@ -798,8 +813,9 @@ TEST(server_net, duplicate_loopback_connect_replies_without_allocating_client) {
     NET_Shutdown(); reset_server_state(1); SV_ClientConnect(); drain_client_packets();
     SV_DirectConnect(&loopback, "\\name\\Player");
     T_EQ(svs.num_clients, 1); T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
-    T_EQ(*(int *)msg.data, -1); T_EQ(msg.cursize, 4 + sizeof("client_connect") - 1);
-    T_ASSERT(!memcmp(msg.data + 4, "client_connect", sizeof("client_connect") - 1));
+    LPCSTR reply = "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION);
+    T_EQ(*(int *)msg.data, -1); T_EQ(msg.cursize, 4 + strlen(reply));
+    T_ASSERT(!memcmp(msg.data + 4, reply, strlen(reply)));
     SV_Shutdown(); NET_Shutdown();
 }
 

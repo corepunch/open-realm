@@ -28,7 +28,8 @@ The names describe the pose rather than the asset's native axes; the per-game ba
 The existing `entityState_t.angle`/`renderEntity_t.angle` is canonical heading in radians. WoW's `rotation`
 field retains authored placement Euler components in degrees: raw binary and wire fields are deliberately not
 renamed yaw/pitch/roll, because their components have source-format meanings. The game adapter decodes them into
-the named pose. Network layouts, field widths, entity flags and save formats are unchanged; the renderer's
+the named pose. Network layouts, field widths, entity flags and save formats are unchanged; protocol version 9
+corrects heading quantization to unsigned 16-bit turns in radians. The renderer's
 `modelPose_t` and attachment pose are derived presentation state, not snapshot additions.
 
 | Game | Native unit-model forward / up | Mandatory model basis | Coordinate owner |
@@ -58,6 +59,15 @@ Do not restore the old global +90 rotation inside `M3_RenderModel`. Commit `2435
 bridges and doodads were rotated an extra quarter turn. Source-placement decoding and model basis must change
 together. The old `UnitCreate` callback also stored incoming degrees as radians; the VM regression uses a nonzero
 90-degree heading to distinguish those units.
+
+Placement preservation must include the snapshot codec. The old `NFT_ANGLE` encoded radians using
+`angle / 360 * 65535`; its grid did not contain an exact quarter turn. Subtracting `pi/2` before that codec
+and restoring the model basis afterward rotated a zero placement by 0.2991 degrees, and shifted both
+TRaynor01 bridge placements by the same amount. Protocol 9 rounds a full radian turn into 65536 steps,
+so quarter turns are exact and other headings have at most half a wire step of error (about 0.00275 degrees).
+The same two-byte field wraps negative and multi-turn headings. Old clients/servers must be rebuilt together;
+the versioned connection request and reply reject older peers. Earlier versions declared a protocol constant
+but did not negotiate it. See [network contract](docs/architecture/network.md).
 
 Local-data evidence: decoding the installed Liberty `Assets/Units/Terran/Marine/Marine.m3` BONE v1 names and
 inverting its IREF matrices places `Ref_Head` at approximately `(0.004,-0.063,0.777)` and `Ref_Weapon` at
@@ -108,7 +118,8 @@ The consolidation removes these independent orientation paths while preserving t
 ## Transform regression coverage
 
 - `make test-sc2-engine`: real selected-unit cardinal move orders and obstacle detours, model-forward agreement,
-  snapshot decode and wrapped client yaw interpolation, asymmetric picking, authored placement and model camera.
+  snapshot decode and wrapped client yaw interpolation, asymmetric picking, authored placement through the codec,
+  including cardinal headings and TRaynor01 bridge angles, and model camera.
 - `make test-galaxy`: nonzero `UnitCreate` and `UnitSetFacing` agree on radians at the real VM/native boundary.
 - `make test-wow-engine PATTERN='wow_coordinates.*'`: actor heading with and without ground anchoring, grass
   radian yaw/uprightness, tilted/scaled MDDF equivalence, explicit preview attachment pose, MODF and nested MODD.

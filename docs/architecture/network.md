@@ -94,20 +94,21 @@ Quake 2:
 ### Remote client → server
 
 1. Client calls `CL_Connect(host, port)` which resolves the hostname via
-   `NET_StringToAdr` and sends an out-of-band `"connect"` datagram to the
-   server.
+   `NET_StringToAdr` and sends an out-of-band `"connect 9\n<userinfo>"` datagram to the
+   server (the version comes from `BZ_PROTOCOL_VERSION`).
 2. The server's `SV_ReadPackets` reads the datagram, checks that the payload
-   starts with `"connect"`, and calls `SV_DirectConnect(from)` to allocate a
-   new client slot with `NA_IP` type.
-3. From this point the normal `clc_*` / `svc_*` message exchange proceeds over
+   starts with `"connect"`, validates the protocol version, and calls `SV_DirectConnect(from, userinfo)`
+   to allocate a new client slot with `NA_IP` type. Missing or mismatched versions are rejected before allocation.
+3. The server replies `"client_connect 9"`; the client validates that version before clearing its state
+   and sending the `"new"` command. This also rejects an old server's unversioned reply.
+4. From this point the normal `clc_*` / `svc_*` message exchange proceeds over
    UDP, identical to the loopback exchange.
 
 ### Local client (loopback)
 
 `SV_Map` calls `SV_ClientConnect()` which allocates slot 0 with type
-`NA_LOOPBACK`.  No network handshake is required; the client sends a
-`clc_connect` message through the ring buffer and the server responds with
-`svc_serverdata`.
+`NA_LOOPBACK` and sends the same versioned `"client_connect"` reply through the ring buffer.
+Map restarts and lobby-to-game transitions also retain this versioned reply.
 
 ## Command-line interface
 
@@ -147,6 +148,22 @@ server-authored world-hover name frame. Zero means absent; present values are tr
 depleted resource can still display zero. Game modules own when it is populated and the frame owns its label. WC3 uses the generic
 field for Gold Mine reserves, including the authoritative hidden parent reservoir behind Haunted/Entangled mine overlays. Clients
 and servers must use the same protocol version because this field is inserted into the entity delta schema.
+
+## Entity heading encoding
+
+Protocol version 9 keeps `entityState_t.angle` two bytes wide but encodes its radian value as an unsigned
+16-bit turn: 65536 steps span `2*pi`, rounding to the nearest step and wrapping negative/multi-turn input.
+Decode the short as unsigned before converting back to radians. Quarter turns are exact; the maximum
+rounding error is half a step, about 0.00275 degrees. Camera Euler vectors retain their existing degree encoding.
+
+Versions through 8 scaled this radian field as if it held degrees (`angle / 360 * 65535`). That coarse,
+non-periodic grid introduced a 0.2991-degree bias when SC2 shifted placed-object heading by a quarter turn
+before serialization and restored its native model basis afterward. The wire meaning changed, so mixed
+version 8/9 peers are rejected by the versioned connection request/reply. Earlier builds declared
+`BZ_PROTOCOL_VERSION` but did not negotiate it. Struct layouts and save data
+are unchanged. `net.entity_delta_preserves_radian_headings` covers signed, wrapped, cardinal and arbitrary
+headings; `sc2_control.snapshot_preserves_authored_placement` exercises the codec and renderer together.
+See [coordinate contracts](../../AXIS.md).
 
 ## Key files
 

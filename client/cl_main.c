@@ -960,6 +960,7 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     char command[256] = { 0 };
     char *info;
     DWORD length;
+    int protocol = 0;
 
     if (msg->cursize <= 4) {
         return;
@@ -969,13 +970,17 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
         length = sizeof(payload) - 1;
     }
     memcpy(payload, msg->data + 4, length);
-    sscanf(payload, "%255s", command);
+    sscanf(payload, "%255s %d", command, &protocol);
     if (!strcmp(command, "info")) {
         info = strchr(payload, '\n');
         CL_AddLANServer(from, info ? info + 1 : "");
         return;
     }
     if (strcmp(command, "client_connect")) {
+        return;
+    }
+    if (protocol != BZ_PROTOCOL_VERSION) {
+        fprintf(stderr, "CL_ConnectionlessPacket: server protocol %d does not match %d\n", protocol, BZ_PROTOCOL_VERSION);
         return;
     }
 
@@ -990,6 +995,35 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
         cls.state = ca_connected;
     }
 }
+
+#ifdef BZ_TESTS
+TEST(client_session, connection_reply_requires_matching_protocol) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(LPCSTR) = re.RegisterMap;
+    netadr_t loopback = { .type = NA_LOOPBACK };
+    LPCSTR replies[] = { "client_connect", "client_connect 8",
+        "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION) };
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestRegisterMap;
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    FOR_LOOP(i, 3) {
+        BYTE bytes[128]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+        cls.state = ca_connecting; SZ_Clear(&cls.netchan.message);
+        MSG_WriteLong(&msg, -1); MSG_WriteString(&msg, replies[i]);
+        CL_ConnectionlessPacket(&loopback, &msg);
+        T_EQ(cls.state, i == 2 ? ca_connected : ca_connecting);
+        if (i < 2) T_EQ(cls.netchan.message.cursize, 0);
+        else {
+            cls.netchan.message.readcount = 0;
+            T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+            T_STREQ(MSG_ReadString2(&cls.netchan.message), "new");
+        }
+    }
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+#endif
 
 static void CL_ReadPacketMessage(const netadr_t *from, LPSIZEBUF msg, int length) {
     cl_last_packet_time = cl_realtime;
@@ -1110,7 +1144,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     // Send an out-of-band "connect" request; the server will register this
     // client slot and reply with "client_connect".
     CL_SanitizeUserinfoValue(Cvar_String("name", "Player"), name, sizeof(name));
-    Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect\n\\name\\%s", name[0] ? name : "Player");
+    Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect %d\n\\name\\%s", BZ_PROTOCOL_VERSION, name[0] ? name : "Player");
     if (adr.type == NA_LOOPBACK)
         fprintf(stderr, "CL_Connect: connecting to local server via loopback\n");
     else

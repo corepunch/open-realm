@@ -78,6 +78,7 @@ void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     char command[32] = { 0 };
     char *status;
     DWORD length;
+    int protocol = 0;
 
     if (!msg || msg->cursize <= 4) {
         return;
@@ -94,8 +95,12 @@ void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     if (status) {
         *status++ = '\0';
     }
-    sscanf(payload, "%31s", command);
+    sscanf(payload, "%31s %d", command, &protocol);
     if (!strcmp(command, "connect")) {
+        if (protocol != BZ_PROTOCOL_VERSION) {
+            fprintf(stderr, "SV_ConnectionlessPacket: client protocol %d does not match %d\n", protocol, BZ_PROTOCOL_VERSION);
+            return;
+        }
         fprintf(stderr,
                 "SV_ConnectionlessPacket: connect from %s\n",
                 from ? NET_AdrToString(from) : "unknown");

@@ -2944,6 +2944,25 @@ TEST(net, unchanged_entity_delta_emits_nothing) {
     T_EQ(sb.cursize, 0);
 }
 
+/* Headings are radians. Quarter turns must land exactly on the two-byte wire grid. */
+TEST(net, entity_delta_preserves_radian_headings) {
+    FLOAT angles[] = { 0, M_PI / 2, M_PI, 3 * M_PI / 2, -M_PI / 2, 2 * M_PI,
+        -2 * M_PI, 0.8427f, -0.8427f, 8 * M_PI + 0.8427f };
+    entityState_t from = {0}, out = {0};
+    FOR_LOOP(i, sizeof(angles) / sizeof(angles[0])) {
+        BYTE bytes[256]; sizeBuf_t msg = make_msg_buf(bytes, sizeof(bytes));
+        entityState_t to = { .number = 1, .model = 1, .angle = angles[i] };
+        DWORD bits;
+        MSG_WriteDeltaEntity(&msg, &from, &to, true);
+        int number = MSG_ReadEntityBits(&msg, &bits);
+        MSG_ReadDeltaEntity(&msg, &out, number, bits);
+        T_EQ(msg.readcount, msg.cursize);
+        T_FEQ(remainderf(out.angle - to.angle, 2 * M_PI), 0, 0.00005f);
+        if (i < 7) T_FEQ(remainderf(out.angle - to.angle, 2 * M_PI), 0, 0.000001f);
+        from = to;
+    }
+}
+
 TEST(net, entity_delta_preserves_large_wc3_radii) {
     FLOAT radii[] = { 36.0f, 72.0f, 200.0f, 320.0f };
 
