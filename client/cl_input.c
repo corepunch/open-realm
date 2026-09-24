@@ -469,7 +469,8 @@ static keyCode_t CL_MouseButtonKey(SDL_MouseButtonEvent const *button) {
 }
 
 BOOL CL_MouseOverGameplayUI(void) {
-    return SCR_LayoutHitTest((int)mouse.origin.x, (int)mouse.origin.y);
+    return SCR_LayoutHitTest((int)mouse.origin.x, (int)mouse.origin.y) ||
+           CL_WindowMouseOver((int)mouse.origin.x, (int)mouse.origin.y);
 }
 
 BOOL CL_GameplayInputReady(void) {

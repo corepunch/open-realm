@@ -68,6 +68,8 @@ What the World of Warcraft target currently knows how to load and render.
 
 - [Data Loading](data-loading.md): MPQ data layout, WDT/ADT map entry, DBC helpers, and tool commands.
 - [DBC Reference](dbc-reference.md): WDBC binary format, packed appearance/equipment values, and per-table field layouts for character/creature/UI DBCs.
+- [Quest UI & Server Data](quest-ui.md): quest lifecycle, authoritative data, dialog presentation, and spawn rules.
+- [Message Inbox And Client Windows](message-inbox-ui.md): server-owned notifications, window input ownership, and the non-modal welcome tutorial.
 - [File Formats](file-formats.md): collected reverse-engineered format notes for MPQ/CASC, WDT/ADT/WDL, WMO, M2/SKIN/ANIM, BLP, DBC/DB2, WDB, and related files.
 - [Terrain And World Rendering](terrain-and-world-rendering.md): WDT tiles, ADT chunks, splats, alpha maps, doodads, WMOs, and height queries.
 - [M2 And Character Display](m2-and-character-display.md): M2 loading, creation/select data flow, packed defaults, DBC-backed outfit data, geosets, and component texture rules.

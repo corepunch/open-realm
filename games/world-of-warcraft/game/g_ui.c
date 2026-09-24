@@ -759,13 +759,13 @@ static void UI_WriteBackpackWindow(LPEDICT ent) {
     }
 }
 
-/* Show the classic welcome tutorial as a server-owned transient window. */
+/* Show the welcome tutorial without taking control away from the player. */
 void UI_WriteWelcomeWindow(LPEDICT ent) {
     uiFrame_t frame = {0};
     uiBackdrop_t backdrop = {0};
 
     UI_WriteWindowStart(&(uiWindowDef_t){ .id = 1, .class_id = 1,
-        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE | UI_WINDOW_NO_PAUSE });
+        .flags = UI_WINDOW_UNIQUE });
     frame.flags.type = FT_BACKDROP; frame.color = COLOR32_WHITE;
     backdrop.Background = gi.ImageIndex("Interface\\DialogFrame\\UI-DialogBox-Background.blp");
     backdrop.EdgeFile = gi.ImageIndex("Interface\\DialogFrame\\UI-DialogBox-Border.blp");

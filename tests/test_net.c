@@ -1386,6 +1386,15 @@ TEST(net, window_click_raises_and_moves_keyboard_focus) {
     CL_WindowClear();
 }
 
+TEST(net, nonmodal_window_keeps_gameplay_mouse_input_inside_its_bounds) {
+    test_client_stubs_init(); CL_WindowClear();
+    re.GetTextSize = text_length_mock_size; re.DrawText = capture_textarea;
+    test_send_window(21, 111, UI_WINDOW_UNIQUE, 0.05f, "Welcome", UI_WINDOW_CLOSE_ACTION);
+    T_ASSERT(CL_WindowMouseOver(128, 256));
+    T_ASSERT(!CL_WindowMouseOver(900, 700));
+    CL_WindowClear();
+}
+
 TEST(net, window_disconnect_action_defers_world_to_main_menu) {
     test_client_stubs_init(); CL_WindowClear(); re.GetTextSize = text_length_mock_size;
     test_send_window(14, 104, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,

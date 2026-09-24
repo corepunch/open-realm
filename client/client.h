@@ -201,6 +201,7 @@ void CL_RemoveActiveEntity(DWORD index);
 
 // cl_window.c
 void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout);
+BOOL CL_WindowMouseOver(int x, int y);
 void CL_WindowClose(DWORD id);
 void CL_WindowClear(void);
 void CL_WindowDraw(void);
