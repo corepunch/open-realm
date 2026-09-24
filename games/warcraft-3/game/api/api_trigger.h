@@ -519,7 +519,9 @@ DWORD TriggerRemoveAction(LPJASS j) {
 }
 DWORD TriggerClearActions(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    DELETE_LIST(TRIGGERACTION, whichTrigger->actions, gi.MemFree);
+    TRIGGERACTION *actions = whichTrigger->actions;
+    whichTrigger->actions = NULL;
+    DELETE_LIST(TRIGGERACTION, actions, gi.MemFree);
     return 0;
 }
 DWORD TriggerSleepAction(LPJASS j) {
