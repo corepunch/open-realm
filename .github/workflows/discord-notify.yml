@@ -15,7 +15,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Post title-only notification
+      - name: Post compact title card
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           EVENT_NAME: ${{ github.event_name }}
@@ -31,11 +31,12 @@ jobs:
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then echo "DISCORD_WEBHOOK_URL not set, skipping."; exit 0; fi
           case "$EVENT_NAME" in
-            pull_request) MSG="PR #$PR_NUMBER $PR_TITLE"$'\n'"$PR_URL" ;;
-            issues) MSG="Issue #$ISSUE_NUMBER $ISSUE_TITLE"$'\n'"$ISSUE_URL" ;;
-            release) MSG="Release $RELEASE_TAG${RELEASE_NAME:+: $RELEASE_NAME}"$'\n'"$RELEASE_URL" ;;
+            pull_request) TITLE="#$PR_NUMBER $PR_TITLE"; URL="$PR_URL" ;;
+            issues) TITLE="#$ISSUE_NUMBER $ISSUE_TITLE"; URL="$ISSUE_URL" ;;
+            release) TITLE="$RELEASE_TAG${RELEASE_NAME:+: $RELEASE_NAME}"; URL="$RELEASE_URL" ;;
             *) echo "Unhandled event $EVENT_NAME, skipping."; exit 0 ;;
           esac
-          jq -n --arg content "$MSG" '{content: $content, allowed_mentions: {parse: []}}' \
+          jq -n --arg title "$TITLE" --arg url "$URL" \
+            '{embeds: [{title: ($title | .[0:256]), url: $url, color: 3066993}], allowed_mentions: {parse: []}}' \
             | curl -sS --fail-with-body --connect-timeout 10 --max-time 30 \
                 -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
