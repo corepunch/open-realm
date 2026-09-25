@@ -265,7 +265,7 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
     size_t text_capacity, text_overhead, allocation_size;
     sheetTable_t *table;
     sheetRow_t *rows, *section = NULL, *last_row = NULL;
-    sheetField_t *fields, *last_field = NULL;
+    sheetField_t *fields;
     char *text;
     LPCSTR p, end;
 
@@ -315,7 +315,6 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
             memcpy(text, name_start, (size_t)(name_end - name_start));
             text[name_end - name_start] = '\0'; text += (name_end - name_start) + 1;
             if (p < end && *p == ']') p++;
-            last_field = NULL;
         } else {
             LPCSTR line_start = p, line_end, eq;
             while (p < end && *p != '\n' && *p != '\r') p++;
@@ -332,9 +331,10 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
                 field->value = text;
                 memcpy(text, value_start, (size_t)(line_end - value_start));
                 text[line_end - value_start] = '\0'; text += (line_end - value_start) + 1;
-                if (last_field) last_field->next = field;
-                else section->fields = field;
-                last_field = field;
+                /* Preserve the original parser's prepend order: lookup returns
+                 * the first key, so the last authored assignment wins. */
+                field->next = section->fields;
+                section->fields = field;
             }
         }
     }

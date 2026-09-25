@@ -177,6 +177,14 @@ TEST(wc3_slk, map_archive_war3map_misc_overrides_max_hero_level) {
     strlcpy(game.data_prefix, saved_prefix, sizeof(game.data_prefix));
 }
 
+TEST(wc3_slk, ini_duplicate_key_keeps_last_assignment) {
+    stbIniCache_t cache = { 0 };
+    T_ASSERT(Stb_IniCacheLoadBuffer(&cache,
+        "[Default]\nMinimapHeroTexture=old.blp\nMinimapHeroTexture=new.blp\n"));
+    T_STREQ(Stb_IniCacheFind(&cache, "Default", "MinimapHeroTexture"), "new.blp");
+    Stb_IniCacheFree(&cache);
+}
+
 TEST(wc3_slk, map_w3a_applies_levels_and_data_a) {
     DWORD const id = MAKEFOURCC('A','H','h','b');
     FLOAT data_a = 123.0f;
