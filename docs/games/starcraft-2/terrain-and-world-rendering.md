@@ -79,8 +79,13 @@ envelope are clipped, not discarded as whole triangles; canyon floors outside it
 intersections before allocating and splits GPU buffers at
 65,535 vertices to respect the M3 material path's 16-bit index contract.
 
-`r_sc2_draw_hard_tiles` uses `glPolygonOffset(-2,-2)`, ahead of the cliff overlay at `(-1,-1)`, and restores offset state
-afterward. There is no geometric Z lift.
+`r_sc2_draw_road_layers` uses `glPolygonOffset(-2,-2)` in the color pass, ahead of the cliff overlay at `(-1,-1)`, and
+restores offset state afterward. There is no geometric Z lift. The road is a coplanar material overlay and must not draw
+in `RENDER_PHASE_LIGHTS`: ground/cliff geometry already supplies that caster surface. Submitting the negative decal bias
+to the shadow map made roads shadow themselves, nearly blacking out the asphalt and dashed lines; resetting it afterward
+also removed `R_RenderShadowMap`'s positive `(2,4)` bias before unit casters. Keep the entire road pass, including GL state
+changes, out of shadow rendering. `sc2_map.road_overlay_preserves_shadow_caster_pass` captures the production draw calls
+and checks both shadow-state preservation and material submission/state cleanup in the color pass.
 The former `max(authored_z, terrain_z + 0.05)` path (continuous ribbons introduced in `102eb94c`) placed roads above
 SC2 selection splats, which have a `0.02` world-unit lift, and left wide triangles floating across terrain folds. Raising
 selection circles or merely reducing the road constant would hide the geometry mismatch. The authored spline Z still

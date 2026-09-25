@@ -1058,3 +1058,52 @@ TEST(sc2_map, catalog_root_lighting_and_model_variations) {
     T_STREQ(map->objects[6].model, "Assets\\Doodads\\BillboardTall\\BillboardTall_07.m3");
     SC2_MapShutdown();
 }
+
+/* Exercise production pass submission with GL calls captured, rather than judging shadowed pixels. */
+static struct {
+    render_phase_t render_phase;
+    BOOL offset;
+    FLOAT factor, units;
+    DWORD calls, draws;
+} road_pass;
+static void road_enable(GLenum cap) { T_EQ(cap, GL_POLYGON_OFFSET_FILL); road_pass.offset = true; road_pass.calls++; }
+static void road_disable(GLenum cap) { T_EQ(cap, GL_POLYGON_OFFSET_FILL); road_pass.offset = false; road_pass.calls++; }
+static void road_offset(GLfloat factor, GLfloat units) {
+    road_pass.factor = factor; road_pass.units = units; road_pass.calls++;
+}
+static void road_draw(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, DWORD vertices, DWORD indices) {
+    T_ASSERT(entity->model->m3 == model); T_NOT_NULL(buffer); T_EQ(vertices, 3); T_EQ(indices, 3);
+    T_ASSERT(road_pass.offset); T_ASSERT(road_pass.factor < -1); T_ASSERT(road_pass.units < -1);
+    road_pass.draws++;
+}
+#define tr road_pass
+#define glEnable road_enable
+#define glDisable road_disable
+#define glPolygonOffset road_offset
+#define M3_RenderBuffer road_draw
+#include "games/starcraft-2/renderer/sc2/r_sc2_road_draw.h"
+#undef M3_RenderBuffer
+#undef glPolygonOffset
+#undef glDisable
+#undef glEnable
+#undef tr
+
+TEST(sc2_map, road_overlay_preserves_shadow_caster_pass) {
+    m3Model_t m3 = {0};
+    model_t model = {.m3=&m3};
+    renderEntity_t entity = {.model=&model};
+    BUFFER buffer = {0};
+    MAPLAYER layer = {.buffer=&buffer, .num_vertices=3, .num_indices=3};
+    road_pass = (__typeof__(road_pass)){.render_phase=RENDER_PHASE_LIGHTS, .offset=true, .factor=2, .units=4};
+    r_sc2_draw_road_layers(&layer, &entity);
+    /* Coplanar overlays add no caster surface; preserve terrain depth and the bias for later units. */
+    T_EQ(road_pass.draws, 0); T_EQ(road_pass.calls, 0);
+    T_ASSERT(road_pass.offset); T_FEQ(road_pass.factor, 2, 0); T_FEQ(road_pass.units, 4, 0);
+    road_pass = (__typeof__(road_pass)){.render_phase=RENDER_PHASE_SOLID};
+    r_sc2_draw_road_layers(&layer, &entity);
+    T_EQ(road_pass.draws, 1); T_ASSERT(!road_pass.offset);
+    T_FEQ(road_pass.factor, 0, 0); T_FEQ(road_pass.units, 0, 0);
+    road_pass.calls = 0;
+    r_sc2_draw_road_layers(NULL, &entity);
+    T_EQ(road_pass.calls, 0);
+}
