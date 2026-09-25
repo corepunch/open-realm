@@ -36,15 +36,29 @@ Remaining implementation sequence:
    benchmark is a starting point; verify that its fixture actually enters `monster_think` and ability updates.
    Removing all current lookup self cost has an idealized fixed-work CPU speedup ceiling of about 4x,
    not a predicted FPS gain.
-2. `R_ConformGroundSurfaces` is 1.76% self / 2.19% inclusive. Its nested loops scan all render entities
-   for every ground-conforming entity. Gather `RF_GROUND_SURFACE` candidates once per view, then test only
-   those; retain exact MDX intersection, highest-hit selection and `ground_offset`. Add spatial indexing only
-   if actual surface counts justify it. Test no surfaces, overlapping bridges and altitude offsets.
-3. `MDLX_BindBoneMatrices` is 2.01% inclusive, including geometry and attachment collection. Investigate
+3. `R_ConformGroundSurfaces` remains a renderer optimization candidate. An earlier capture measured 1.76%
+   self / 2.19% inclusive; `screenshots/2026-09-25/fixed4/perf-full-Orc04.txt` measures 11.01% self /
+   11.12% inclusive with about 3K CPU-cycle samples and no lost samples. Orc03 and Orc04 are different
+   campaign scenes, so this is not an A/B regression measurement. The current nested loops scan the full
+   view entity list for each ground-conforming entity. A possible fix is to gather eligible
+   `RF_GROUND_SURFACE` entity indices once into bounded renderer-owned scratch, then test only those
+   candidates for each eligible `RF_GROUND_CONFORM` entity. Preserve original candidate order and leave
+   `MDLX_TraceWalkableSurface`, highest-hit selection, and `ground_offset` behavior unchanged. This reduces
+   the list work from O(C*N) to O(N+C*S), where N is the view entity count, C the conforming entity count,
+   and S the walkable surface count; add spatial filtering only if a follow-up profile shows the exact MDX
+   traces still dominate.
+
+   Test first in the headless renderer suite using the production `R_ConformGroundSurfaces` path: cover no
+   surfaces/no hit, hidden or model-less entities, overlapping surfaces (highest hit wins), altitude offsets,
+   and `RDF_NOWORLDMODEL`. In the test build, count entity classification visits and exact trace calls; a scene
+   with many unrelated entities, several conformers, and few surfaces should fail the old repeated full-list
+   scan bound and pass with one collection pass plus C-by-S traces. Then repeat the same bounded Orc04 scene
+   and record N/C/S counts and repeated profile or frame-time measurements.
+4. `MDLX_BindBoneMatrices` is 2.01% inclusive, including geometry and attachment collection. Investigate
    sharing the already evaluated entity pose with `MDLX_CollectAttachmentPositions`; global scratch matrices
    can be overwritten by another model, so reuse requires explicit lifetime/identity. Preserve interpolation,
    billboard/view dependencies and portrait/world separation. Do not begin with SIMD or interpolation changes.
-4. `G_BlightPackRows` is 0.86% inclusive. `G_BlightWriteDatagram` retries encoding with one fewer row on
+5. `G_BlightPackRows` is 0.86% inclusive. `G_BlightWriteDatagram` retries encoding with one fewer row on
    overflow. Measure retry counts and patterns before selecting bounded chunk sizing or incremental packing;
    preserve dirty-row delivery, periodic sweeps and the existing wire encoding. The profile alone does not
    prove retries dominate this cost.
