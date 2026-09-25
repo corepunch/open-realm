@@ -1,0 +1,18 @@
+schemaVersion: "1"
+name: openrealm-dev
+agent: codex
+
+args:
+  ffmpeg:
+    default: "0"
+    description: Install optional FFmpeg development libraries (0 or 1)
+    enum:
+      - "0"
+      - "1"
+
+workspace: .
+
+kits:
+  - source: ./tools/docker-sandbox/openrealm-dev
+    args:
+      ffmpeg: "${{ env.args.ffmpeg }}"
