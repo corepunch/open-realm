@@ -55,7 +55,7 @@ Hamg → "HeroArchMage"
 
 This label is the base for all per-unit sound lookups: `{label}What`, `{label}Yes`, `{label}YesAttack`, `{label}Pissed`, `{label}Ready`, `{label}Warcry`.
 
-Death sounds are **not** in `UnitAckSounds.slk`. They are raw WAV files at `{modelDir}\{ModelName}Death.wav` (e.g. `Units\Human\Footman\FootmanDeath.wav`).
+Death sounds are looked up in `UnitAckSounds.slk` first. When no entry exists, the game checks for raw WAV files beside the model: `{modelDir}\{ModelName}Death1.wav`, then `{modelDir}\{ModelName}Death.wav`. The archive has both naming patterns: `OgreDeath1.wav` and `FootmanDeath.wav`. Some units have neither, so no death sound is registered. Probe the archive before calling `SoundIndex` to avoid publishing a guessed missing path.
 
 ## Sound Events Per Unit (Footman Example)
 

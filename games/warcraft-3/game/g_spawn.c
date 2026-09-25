@@ -334,12 +334,13 @@ static void SP_DoodadModelFilename(Doodads_t const *row, DWORD variation,
     out[0] = '\0';
     if (!row || !(file = row->file) || !*file) return;
 
-    /* Doodads.slk `file` is already the authoritative model stem.  Do not
-     * rebuild it from the legacy `dir` column: doing so turns entries such as
-     * LOo2 into a path that the game-side MDX loader cannot open even though
-     * the map renderer can still display the placement.  Warsmash likewise
-     * resolves doodads from `file` directly. */
-    strlcpy(stem, file, sizeof(stem));
+    /* RoC rows pair dir with a short file name; newer rows can store a full path. */
+    if (strchr(file, '\\') || strchr(file, '/'))
+        strlcpy(stem, file, sizeof(stem));
+    else if (row->dir && *row->dir)
+        snprintf(stem, sizeof(stem), "%s\\%s\\%s", row->dir, file, file);
+    else
+        strlcpy(stem, file, sizeof(stem));
     dot = strrchr(stem, '.');
     if (dot && (!strcasecmp(dot, ".mdx") || !strcasecmp(dot, ".mdl")))
         *dot = '\0';

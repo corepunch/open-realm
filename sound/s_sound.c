@@ -107,7 +107,9 @@ static wavinfo_t GetWavinfo(const char *name, BYTE *wav, int wavlength) {
     /* Always use the data chunk size for total length. The cue/LIST loop markers
      * in WC3 files describe a loop region inside a longer sound, not the full
      * duration — using loopstart+loop_len here would crop the audio. */
-    info.samples = GetLittleLong() / info.width;
+    int data_bytes = GetLittleLong();
+    if (info.width > 0 && info.channels > 0)
+        info.samples = data_bytes / (info.width * info.channels);
 
     info.dataofs = (int)(data_p - wav);
     return info;
@@ -141,12 +143,12 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
     }
 
     wavinfo_t info = GetWavinfo(path, file_data, (int)file_size);
-    if (info.channels != 1) {
-        fprintf(stderr, "[sound] %s: %d-channel WAV, rejecting (need mono)\n", path, info.channels);
+    if (info.channels != 1 && info.channels != 2) {
+        fprintf(stderr, "[sound] %s: unsupported WAV channels=%d\n", path, info.channels);
         FS_FreeFile(file_data);
         return NULL;
     }
-    if (!info.samples || !info.width) {
+    if (!info.samples || (info.width != 1 && info.width != 2)) {
         fprintf(stderr, "[sound] %s: bad WAV (samples=%d width=%d)\n", path, info.samples, info.width);
         FS_FreeFile(file_data);
         return NULL;
@@ -167,12 +169,13 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
     for (int i = 0; i < outcount; i++) {
         int srcsample = samplefrac >> 8;
         samplefrac += fracstep;
-        int sample;
-        if (info.width == 2)
-            sample = (int)(short)(src[srcsample * 2] | (src[srcsample * 2 + 1] << 8));
-        else
-            sample = ((int)(unsigned char)src[srcsample] - 128) << 8;
-        sc->data[i] = (short)sample;
+        int sample = 0;
+        for (int channel = 0; channel < info.channels; channel++) {
+            BYTE *pcm = src + (srcsample * info.channels + channel) * info.width;
+            sample += info.width == 2 ? (short)(pcm[0] | (pcm[1] << 8))
+                                      : ((int)pcm[0] - 128) << 8;
+        }
+        sc->data[i] = (short)(sample / info.channels);
     }
 
     FS_FreeFile(file_data);

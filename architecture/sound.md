@@ -6,7 +6,7 @@ See also: [Warcraft III — Unit Sound System](../games/warcraft-3/sounds.md) an
 Based on Quake 2's sound system. Sound is a client-side subsystem with server-mediated triggering via configstrings and
 dedicated `svc_sound` packets.
 
-One-shot sounds load mono PCM WAV or MP3 files from the virtual filesystem into the same S16 / 44.1-kHz mono cache.
+One-shot sounds load mono or stereo PCM WAV and MP3 files from the virtual filesystem into the same S16 / 44.1-kHz mono cache. Stereo WAV frames are averaged before resampling, using frame counts rather than channel sample counts; this covers stock `Sound\Interface` cues such as `Rescue.wav` and `QuestNew.wav`.
 `sound/s_sound.c` keeps WAV loop markers; `sound/s_mp3.c` uses vendored minimp3, downmixes stereo frames, and resamples
 MP3 dialogue without an FFmpeg build dependency. A failed decode is remembered for the current sound registration
 sequence, so a bad loop/sample is not read and diagnosed again every frame.

@@ -1359,6 +1359,34 @@ TEST(wc3_slk, doodad_model_uses_file_stem_and_only_appends_real_variations) {
     gi.ModelIndex = old_index;
 }
 
+TEST(wc3_slk, roc_doodad_short_file_uses_dir_and_model_folder) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"dir\"\n"
+        "C;Y1;X3;K\"file\"\n"
+        "C;Y1;X4;K\"numVar\"\n"
+        "C;Y2;X1;K\"LPwh\"\n"
+        "C;Y2;X2;K\"Doodads\\LordaeronSummer\\Plants\"\n"
+        "C;Y2;X3;K\"Wheat\"\n"
+        "C;Y2;X4;K1\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved = G_SetSLKRows("Doodads", rows);
+    int (*old_index)(LPCSTR) = gi.ModelIndex;
+    edict_t ent = { .class_id = MAKEFOURCC('L','P','w','h') };
+
+    setup_test_world();
+    spawn_model[0] = '\0';
+    gi.ModelIndex = capture_spawn_model;
+    SP_CallSpawn(&ent);
+    T_STREQ(spawn_model, "Doodads\\LordaeronSummer\\Plants\\Wheat\\Wheat.mdx");
+
+    gi.ModelIndex = old_index;
+    G_SetSLKRows("Doodads", saved);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, doodad_model_missing_variation_falls_back_to_unsuffixed_asset) {
     static LPCSTR const slk =
         "ID;PWXL;N;E\n"

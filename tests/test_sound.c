@@ -12,6 +12,18 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
     BYTE *data;
 
     sound_test_reads++;
+    if (!strcmp(filename, "stereo.wav")) {
+        static BYTE const wav[] = {
+            'R','I','F','F',40,0,0,0,'W','A','V','E',
+            'f','m','t',' ',16,0,0,0,1,0,2,0,0x44,0xac,0,0,0x10,0xb1,2,0,2,0,8,0,
+            'd','a','t','a',4,0,0,0,255,128,0,128
+        };
+        data = malloc(sizeof(wav));
+        if (!data) return NULL;
+        memcpy(data, wav, sizeof(wav));
+        *size = sizeof(wav);
+        return data;
+    }
     if (!strcmp(filename, "broken.mp3")) {
         static BYTE const invalid[] = { 'n', 'o', 't', ' ', 'm', 'p', '3' };
         data = malloc(sizeof(invalid));
@@ -76,5 +88,19 @@ TEST(sound, failed_load_is_cached_until_next_registration) {
     S_BeginRegistration();
     S_RegisterSound("broken.mp3");
     T_EQ(sound_test_reads, 2);
+    sound_test_reset();
+}
+
+TEST(sound, stereo_wav_downmixes_to_mono_cache) {
+    sfxcache_t *cache;
+
+    sound_test_reset();
+    S_RegisterSound("stereo.wav");
+    cache = s.known_sfx[0].cache;
+    T_NOT_NULL(cache);
+    if (!cache) return;
+    T_EQ(cache->length, 2);
+    T_EQ(cache->data[0], 16256);
+    T_EQ(cache->data[1], -16384);
     sound_test_reset();
 }
