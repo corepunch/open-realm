@@ -61,6 +61,8 @@ extern VECTOR4 M3_GetVector4AnimValue(m3Model_t const *model,
 extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform);
 extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, DWORD vertices, DWORD indices);
 
+#include "r_sc2_road_draw.h"
+
 static LPMAPSEGMENT sc2_terrain_segment;
 static LPMAPLAYER sc2_hard_tile_layers;
 static LPCMODEL sc2_hard_tile_model;
@@ -1606,17 +1608,6 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     };
 }
 
-/* Coplanar road surfaces use raster depth bias, not a world-space lift above selection rings. */
-static void r_sc2_draw_hard_tiles(void) {
-    if (!sc2_hard_tile_layers) return;
-    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
-    /* Cliff material overlays already use -1; roads must sit ahead of that depth layer. */
-    R_Call(glPolygonOffset, -2.0f, -2.0f);
-    for (LPCMAPLAYER layer = sc2_hard_tile_layers; layer; layer = layer->next)
-        M3_RenderBuffer(&sc2_hard_tile_entity, sc2_hard_tile_model->m3, layer->buffer, layer->num_vertices, layer->num_indices);
-    R_Call(glPolygonOffset, 0.0f, 0.0f);
-    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
-}
 
 static LPTEXTURE r_sc2_terrain_layer_texture(DWORD index) {
     if (index < sc2_num_terrain_layers && sc2_terrain_textures[index])
@@ -1835,7 +1826,7 @@ void R_SC2DrawWorld(void) {
     R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     r_sc2_draw_ground_layer(sc2_terrain_segment);
     r_sc2_draw_cliff_layer(sc2_terrain_segment);
-    r_sc2_draw_hard_tiles();
+    r_sc2_draw_road_layers(sc2_hard_tile_layers, &sc2_hard_tile_entity);
 }
 
 static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0, LPFLOAT t1) {
