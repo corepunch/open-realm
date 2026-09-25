@@ -220,12 +220,26 @@ static void CL_EndPan(void) {
     camera_drag.active = false;
 }
 
+static void CL_SendSmartPointCommand(float x, float y) {
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
+        ? "smartpoint %d %d queue" : "smartpoint %d %d", (int)x, (int)y);
+}
+
 static void CL_SendSmartCommand(float x, float y) {
     uint32_t entnum;
+    vector2_t minimap_point;
     vector3_t point;
     bool have_point = false;
 
     if (!CL_GameplayInputReady()) {
+        return;
+    }
+    /* The minimap is authored HUD, but Smart-bound clicks there are point
+     * orders rather than blocked UI clicks. Resolve it before the generic
+     * HUD guard and reuse the ordinary Smart point-order command. */
+    if (re.TraceMinimap(x, y, &minimap_point)) {
+        CL_SendSmartPointCommand(minimap_point.x, minimap_point.y);
         return;
     }
     if (CL_MouseOverGameplayUI()) {
@@ -244,10 +258,7 @@ static void CL_SendSmartCommand(float x, float y) {
             SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
                 ? "smart %d queue" : "smart %d", entnum);
     } else if ((have_point = re.TraceLocation(&cl.viewDef, x, y, &point))) {
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
-            ? "smartpoint %d %d queue" : "smartpoint %d %d",
-            (int)point.x, (int)point.y);
+        CL_SendSmartPointCommand(point.x, point.y);
     }
 }
 
@@ -981,6 +992,9 @@ static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, vector3_t
 static bool CL_TestMinimap(float x, float y, vector2_t *point) {
     (void)y; *point = (vector2_t){ 300, 400 }; return x >= 0 && x <= 100 && y >= 0 && y <= 100;
 }
+static bool CL_TestNoMinimap(float x, float y, vector2_t *point) {
+    (void)x; (void)y; (void)point; return false;
+}
 static rect_t same_type_rect;
 static uint32_t CL_TestEntitiesInRect(viewDef_t const *view, rect_t const *rect, uint32_t max, uint32_t *array) {
     (void)view;
@@ -1177,7 +1191,7 @@ TEST(client_input, smart_entity_click_preserves_ground_point) {
     SDL_Keymod old_mod = SDL_GetModState();
     char command[128];
 
-    re.TraceEntity = CL_TestSmartEntity; re.TraceLocation = CL_TestSmartLocation;
+    re.TraceMinimap = CL_TestNoMinimap; re.TraceEntity = CL_TestSmartEntity; re.TraceLocation = CL_TestSmartLocation;
     re.GetWindowSize = CL_TestWindowSize;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input.focus = true; cl.selection.num_selected = 0;
@@ -1208,7 +1222,7 @@ TEST(client_input, smart_entity_trace_precedes_ground_trace) {
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
     bool old_focus = input.focus;
 
-    re.TraceEntity = CL_TestSmartEntityOrder; re.TraceLocation = CL_TestSmartLocationOrder;
+    re.TraceMinimap = CL_TestNoMinimap; re.TraceEntity = CL_TestSmartEntityOrder; re.TraceLocation = CL_TestSmartLocationOrder;
     re.GetWindowSize = CL_TestWindowSize;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input.focus = true; smart_trace_order = 0;
@@ -1420,22 +1434,28 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     __typeof__(input) old_input = input;
     mouseEvent_t old_mouse = mouse;
     SDL_Keymod old_mod = SDL_GetModState();
-    UINAME binding;
+    UINAME select_binding, smart_binding;
     uint8_t data[512], packet[512];
     sizeBuf_t msg;
     uiFrame_t empty = { 0 }, frame = { .number = 1, .flags.type = FT_TEXTURE,
         .size = { UI_BASE_WIDTH, UI_BASE_HEIGHT }, .tooltip = "Minimap" };
     SDL_Event event = { .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 10, .y = 20 } };
     float old_edge = Cvar_Value("cl_camera_edge_scroll", 0), old_cursor = Cvar_Value("cl_context_cursor", 0);
-    bool add_down = !Cmd_Exists("+select"), add_up = !Cmd_Exists("-select");
+    bool add_select_down = !Cmd_Exists("+select"), add_select_up = !Cmd_Exists("-select");
+    bool add_smart_down = !Cmd_Exists("+smart"), add_smart_up = !Cmd_Exists("-smart");
     inputCmd_t cmd = { 0 };
+    char command[128];
 
     memcpy(old_cl, &cl, sizeof(cl));
-    strlcpy(binding, Key_GetBinding(K_MOUSE1, 0), sizeof(binding));
+    strlcpy(select_binding, Key_GetBinding(K_MOUSE1, 0), sizeof(select_binding));
+    strlcpy(smart_binding, Key_GetBinding(K_MOUSE2, 0), sizeof(smart_binding));
     T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
-    if (add_down) Cmd_AddCommand("+select", IN_SelectDown);
-    if (add_up) Cmd_AddCommand("-select", IN_SelectUp);
-    Key_SetBinding(K_MOUSE1, 0, "+select"); SDL_SetModState(KMOD_NONE);
+    if (add_select_down) Cmd_AddCommand("+select", IN_SelectDown);
+    if (add_select_up) Cmd_AddCommand("-select", IN_SelectUp);
+    if (add_smart_down) Cmd_AddCommand("+smart", IN_SmartDown);
+    if (add_smart_up) Cmd_AddCommand("-smart", IN_SmartUp);
+    Key_SetBinding(K_MOUSE1, 0, "+select"); Key_SetBinding(K_MOUSE2, 0, "+smart");
+    SDL_SetModState(KMOD_NONE);
     Cvar_Set("cl_camera_edge_scroll", "0"); Cvar_Set("cl_context_cursor", "0");
     memset(&cl, 0, sizeof(cl)); input = (__typeof__(input)){ .focus = true };
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
@@ -1470,15 +1490,43 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
     T_EQ(cls.netchan.message.cursize, 0);
 
-    /* Other HUD pixels must not become world selection or camera focus. */
+    /* Minimap right-click bypasses the HUD blocker and uses the normal Smart
+     * point-order path. Shift preserves the existing queued-order suffix. */
+    FOR_LOOP(j, 2) { cl.viewDef.camerastate[j].origin.x = 111; cl.viewDef.camerastate[j].origin.y = 222; }
+    FOR_LOOP(i, 2) {
+        SDL_SetModState(i ? KMOD_LSHIFT : KMOD_NONE);
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_RIGHT, .x = 10, .y = 20 } };
+        T_EQ(SDL_PushEvent(&event), 1);
+        event.type = SDL_MOUSEBUTTONUP;
+        T_EQ(SDL_PushEvent(&event), 1);
+        CL_Input(); Cbuf_Execute();
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+        MSG_ReadString(&cls.netchan.message, command);
+        T_STREQ(command, i ? "smartpoint 300 400 queue" : "smartpoint 300 400");
+        T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+        FOR_LOOP(j, 2) {
+            T_FEQ(cl.viewDef.camerastate[j].origin.x, 111, 0.001f);
+            T_FEQ(cl.viewDef.camerastate[j].origin.y, 222, 0.001f);
+        }
+    }
+    SDL_SetModState(KMOD_NONE);
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+
+    /* Other HUD pixels must not become world selection, camera focus, or Smart orders. */
     event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 500, .y = 100 } };
     T_ASSERT(SCR_LayoutHitTest(500, 100));
     T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
     event.type = SDL_MOUSEBUTTONUP;
     T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
     T_EQ(cls.netchan.message.cursize, 0); T_ASSERT(!cl.selection.in_progress);
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_RIGHT, .x = 500, .y = 100 } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    event.type = SDL_MOUSEBUTTONUP;
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_EQ(cls.netchan.message.cursize, 0);
 
-    /* A real modal layout must still prevent the same bound click from moving the camera. */
+    /* A real modal layout must still prevent the same bound click from moving the camera or issuing an order. */
     SCR_SetLayoutLayer(LAYER_GAME_RESULT, cl.layout[LAYER_CONSOLE]);
     event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 10, .y = 20 } };
     T_ASSERT(SCR_LayoutModalActive());
@@ -1486,12 +1534,20 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     event.type = SDL_MOUSEBUTTONUP;
     T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
     T_EQ(cls.netchan.message.cursize, 0);
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_RIGHT, .x = 10, .y = 20 } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    event.type = SDL_MOUSEBUTTONUP;
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_EQ(cls.netchan.message.cursize, 0);
     MemFree(cl.layout[LAYER_CONSOLE]);
     cl = *old_cl; MemFree(old_cl); cls = old_cls; re = old_re; input = old_input; mouse = old_mouse;
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
-    Key_SetBinding(K_MOUSE1, 0, binding); SDL_SetModState(old_mod);
-    if (add_down) Cmd_RemoveCommand("+select");
-    if (add_up) Cmd_RemoveCommand("-select");
+    Key_SetBinding(K_MOUSE1, 0, select_binding); Key_SetBinding(K_MOUSE2, 0, smart_binding);
+    SDL_SetModState(old_mod);
+    if (add_select_down) Cmd_RemoveCommand("+select");
+    if (add_select_up) Cmd_RemoveCommand("-select");
+    if (add_smart_down) Cmd_RemoveCommand("+smart");
+    if (add_smart_up) Cmd_RemoveCommand("-smart");
     Cvar_SetValue("cl_camera_edge_scroll", old_edge); Cvar_SetValue("cl_context_cursor", old_cursor);
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
     CL_TestWorldBounds(false);
