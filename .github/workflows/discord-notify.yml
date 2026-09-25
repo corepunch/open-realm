@@ -23,8 +23,6 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          PR_AUTHOR_URL: ${{ github.event.pull_request.user.html_url }}
-          PR_AUTHOR_AVATAR: ${{ github.event.pull_request.user.avatar_url }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
@@ -33,14 +31,13 @@ jobs:
           RELEASE_URL: ${{ github.event.release.html_url }}
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then echo "DISCORD_WEBHOOK_URL not set, skipping."; exit 0; fi
-          AUTHOR=""; AUTHOR_URL=""; AUTHOR_AVATAR=""
           case "$EVENT_NAME" in
-            pull_request) TITLE="#$PR_NUMBER $PR_TITLE"; URL="$PR_URL"; AUTHOR="$PR_AUTHOR"; AUTHOR_URL="$PR_AUTHOR_URL"; AUTHOR_AVATAR="$PR_AUTHOR_AVATAR" ;;
+            pull_request) TITLE="$PR_AUTHOR #$PR_NUMBER: $PR_TITLE"; URL="$PR_URL" ;;
             issues) TITLE="#$ISSUE_NUMBER $ISSUE_TITLE"; URL="$ISSUE_URL" ;;
             release) TITLE="$RELEASE_TAG${RELEASE_NAME:+: $RELEASE_NAME}"; URL="$RELEASE_URL" ;;
             *) echo "Unhandled event $EVENT_NAME, skipping."; exit 0 ;;
           esac
-          jq -n --arg title "$TITLE" --arg url "$URL" --arg author "$AUTHOR" --arg author_url "$AUTHOR_URL" --arg author_avatar "$AUTHOR_AVATAR" \
-            '{embeds: [({title: ($title | .[0:256]), url: $url, color: 3066993} + (if $author == "" then {} else {author: {name: $author, url: $author_url, icon_url: $author_avatar}} end))], allowed_mentions: {parse: []}}' \
+          jq -n --arg title "$TITLE" --arg url "$URL" \
+            '{embeds: [{title: ($title | .[0:256]), url: $url, color: 3066993}], allowed_mentions: {parse: []}}' \
             | curl -sS --fail-with-body --connect-timeout 10 --max-time 30 \
                 -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"

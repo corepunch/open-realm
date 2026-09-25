@@ -1,5 +1,7 @@
 # Contributing
 
+For repository webhook formatting and local payload checks, see [Discord notifications](docs/discord-notifications.md).
+
 ## Developer Documentation
 
 Investigation findings are part of the contribution. Follow the
