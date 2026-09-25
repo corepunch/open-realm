@@ -2788,7 +2788,7 @@ void G_SyncClientSelection(LPGAMECLIENT);
 void G_ResetSelectionSoundState(void);
 BOOL G_QueueUnitResponseSound(LPEDICT, int, DWORD);
 BOOL G_UnitResponseTalking(LPCEDICT);
-void G_UpdateUnitResponsePresentation(LPGAMECLIENT);
+void G_UpdateUnitResponsePresentation(void);
 void G_QueueSelectionSound(LPEDICT, BOOL);
 void G_QueueAttackOrderSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);

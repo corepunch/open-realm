@@ -24,6 +24,8 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void G_ResetTestSelectionChecks(void);
+DWORD G_GetTestSelectionChecks(void);
 
 
 #include "../game/hud/hud_utils.h"
@@ -1325,6 +1327,23 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
     T_EQ(portrait_capture_count, 0);
 }
 
+TEST(wc3_game, idle_response_updates_skip_selection_scans) {
+    enum { DECOYS = 256, UPDATES = 4 };
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    FOR_LOOP(i, DECOYS) alloc_test_unit(MAKEFOURCC('h','p','e','a'), (FLOAT)i, 0);
+
+    G_ResetTestSelectionChecks();
+    FOR_LOOP(i, UPDATES) G_UpdateUnitResponsePresentation();
+    T_EQ(G_GetTestSelectionChecks(), 0);
+}
+
 TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_expires) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(LPEDICT) = gi.unicast;
@@ -1336,6 +1355,7 @@ TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_
     reset_entities();
     setup_test_world();
     player->client = client;
+    client->connected = true;
     client->ps.number = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     unit->svflags |= SVF_MONSTER;
@@ -1352,14 +1372,93 @@ TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_
     UI_WriteSelectedPortraitLayer(player);
     T_STREQ(portrait_capture_animation, "Portrait Talk");
 
+    G_ResetTestSelectionChecks();
+    level.time = 1499;
+    G_UpdateUnitResponsePresentation();
+    T_EQ(G_GetTestSelectionChecks(), 0);
+
+    client->presentation_dirty = false;
     level.time = 1500;
-    G_UpdateUnitResponsePresentation(client);
+    G_UpdateUnitResponsePresentation();
+    T_ASSERT(client->presentation_dirty);
     portrait_capture_animation[0] = '\0';
     UI_WriteSelectedPortraitLayer(player);
     gi.Write = old_write;
     gi.unicast = old_unicast;
     gi.FontIndex = old_font;
     T_STREQ(portrait_capture_animation, "Portrait");
+}
+
+TEST(wc3_game, response_expiry_tracks_the_current_focused_unit) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT speaker, focused;
+
+    reset_entities();
+    setup_test_world();
+    FOR_LOOP(i, game.max_clients) game.clients[i].connected = false;
+    player->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    speaker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    focused = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    speaker->svflags |= SVF_MONSTER;
+    focused->svflags |= SVF_MONSTER;
+    speaker->s.player = focused->s.player = 0;
+    G_SelectEntity(client, speaker);
+    G_SelectEntity(client, focused);
+    T_ASSERT(G_FocusSelectedUnit(client, speaker));
+
+    level.time = 1000;
+    T_ASSERT(G_QueueUnitResponseSound(speaker, 77, 500));
+    T_ASSERT(G_FocusSelectedUnit(client, focused));
+    client->presentation_dirty = false;
+    level.time = 1500;
+    G_UpdateUnitResponsePresentation();
+
+    T_ASSERT(!client->presentation_dirty);
+    T_ASSERT(!G_UnitResponseTalking(speaker));
+}
+
+TEST(wc3_game, response_expiry_ignores_reused_entity_slots) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT player = &g_edicts[0];
+    LPEDICT speaker, replacement;
+    DWORD speaker_number;
+
+    reset_entities();
+    setup_test_world();
+    FOR_LOOP(i, game.max_clients) game.clients[i].connected = false;
+    player->client = client;
+    client->connected = true;
+    client->ps.number = 0;
+    level.time = 1000;
+    speaker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    speaker->spawn_time = level.time;
+    speaker->svflags |= SVF_MONSTER;
+    speaker->s.player = 0;
+    G_SelectEntity(client, speaker);
+    speaker_number = speaker->s.number;
+    T_ASSERT(G_QueueUnitResponseSound(speaker, 77, 500));
+
+    G_FreeEdict(speaker);
+    level.time = 2001;
+    replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    T_EQ(replacement->s.number, speaker_number);
+    replacement->spawn_time = level.time;
+    replacement->svflags |= SVF_MONSTER;
+    replacement->s.player = 0;
+    G_SelectEntity(client, replacement);
+    T_ASSERT(G_QueueUnitResponseSound(replacement, 78, 200));
+
+    client->presentation_dirty = false;
+    level.time = 2200;
+    G_UpdateUnitResponsePresentation();
+    T_ASSERT(!client->presentation_dirty);
+    level.time = 2201;
+    G_UpdateUnitResponsePresentation();
+    T_ASSERT(client->presentation_dirty);
+    T_ASSERT(!G_UnitResponseTalking(replacement));
 }
 
 TEST(wc3_game, multiselect_portrait_live_stats_follow_focus) {

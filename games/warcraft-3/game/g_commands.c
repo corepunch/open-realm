@@ -21,6 +21,14 @@ static cheatToggleValue_t const cheat_toggle_values[] = {
  * gameplay relationship. Keep it out of GAMECLIENT so save compatibility does
  * not depend on which multiselect subgroup happened to own the HUD. */
 static DWORD selection_focus[MAX_CLIENTS];
+#ifdef BZ_TESTS
+static DWORD test_selection_checks;
+void G_ResetTestSelectionChecks(void) { test_selection_checks = 0; }
+DWORD G_GetTestSelectionChecks(void) { return test_selection_checks; }
+#define TEST_SELECTION_CHECK() test_selection_checks++
+#else
+#define TEST_SELECTION_CHECK() ((void)0)
+#endif
 static BOOL G_DebugIsNumber(LPCSTR text);
 static void G_CheatPrintf(LPEDICT clent, LPCSTR fmt, ...);
 static void G_PublishEndCinematicForHumans(LPEDICT clent, BOOL debug_log);
@@ -313,6 +321,7 @@ void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent) {
 }
 
 BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
+    TEST_SELECTION_CHECK();
     return client && ent && ent->inuse && !M_IsDead(ent) &&
         !(ent->s.flags & EF_NOT_SELECTABLE) && !(ent->s.renderfx & RF_HIDDEN) &&
         (ent->selected & (1 << client->ps.number));
@@ -417,12 +426,49 @@ typedef struct {
     BOOL talking;
 } unitResponseState_t;
 
+typedef struct {
+    DWORD entity, spawn_time;
+} unitResponseExpiry_t;
+
 static selectionSoundState_t selection_sound_state[MAX_PLAYERS];
 static unitResponseState_t unit_response_state[MAX_ENTITIES];
+static unitResponseExpiry_t unit_response_expiries[MAX_ENTITIES];
+static DWORD unit_response_expiry_slot[MAX_ENTITIES];
+static DWORD unit_response_expiry_count;
+static DWORD unit_response_next_expiry = UINT_MAX;
+
+static void unit_response_expiry_remove(DWORD entity) {
+    DWORD slot, index, last;
+
+    if (entity >= MAX_ENTITIES || !(slot = unit_response_expiry_slot[entity])) return;
+    index = slot - 1;
+    last = --unit_response_expiry_count;
+    unit_response_expiry_slot[entity] = 0;
+    if (index != last) {
+        unit_response_expiries[index] = unit_response_expiries[last];
+        unit_response_expiry_slot[unit_response_expiries[index].entity] = index + 1;
+    }
+}
+
+static void unit_response_expiry_schedule(LPEDICT ent) {
+    DWORD entity = ent->s.number;
+    DWORD slot = unit_response_expiry_slot[entity];
+
+    if (slot) unit_response_expiries[slot - 1].spawn_time = ent->spawn_time;
+    else {
+        slot = ++unit_response_expiry_count;
+        unit_response_expiry_slot[entity] = slot;
+        unit_response_expiries[slot - 1] = (unitResponseExpiry_t){ entity, ent->spawn_time };
+    }
+    unit_response_next_expiry = MIN(unit_response_next_expiry, unit_response_state[entity].end_time);
+}
 
 void G_ResetSelectionSoundState(void) {
     memset(selection_sound_state, 0, sizeof(selection_sound_state));
     memset(unit_response_state, 0, sizeof(unit_response_state));
+    memset(unit_response_expiry_slot, 0, sizeof(unit_response_expiry_slot));
+    unit_response_expiry_count = 0;
+    unit_response_next_expiry = UINT_MAX;
 }
 
 static unitResponseState_t *G_UnitResponseState(LPCEDICT ent) {
@@ -434,6 +480,7 @@ static unitResponseState_t *G_UnitResponseState(LPCEDICT ent) {
     if (number >= MAX_ENTITIES) return NULL;
     state = unit_response_state + number;
     if (state->spawn_time != ent->spawn_time) {
+        unit_response_expiry_remove(number);
         *state = (unitResponseState_t){ .spawn_time = ent->spawn_time };
     }
     return state;
@@ -460,11 +507,13 @@ BOOL G_QueueUnitResponseSound(LPEDICT ent, int sound, DWORD duration) {
     ent->sound.pending = sound;
     state->talking = duration > 0;
     state->end_time = duration ? G_Time() + duration : 0;
+    if (duration) unit_response_expiry_schedule(ent);
+    else unit_response_expiry_remove(ent->s.number);
     G_DirtyResponsePortrait(ent);
     return true;
 }
 
-void G_UpdateUnitResponsePresentation(LPGAMECLIENT client) {
+static void unit_response_update_client(LPGAMECLIENT client) {
     LPEDICT ent;
     unitResponseState_t *state;
 
@@ -473,6 +522,47 @@ void G_UpdateUnitResponsePresentation(LPGAMECLIENT client) {
         state->talking = false;
         state->end_time = 0;
         client->presentation_dirty = true;
+    }
+}
+
+void G_UpdateUnitResponsePresentation(void) {
+    DWORD now = G_Time(), next_expiry = UINT_MAX;
+    BOOL due = false;
+
+    if (now < unit_response_next_expiry) return;
+    for (DWORD i = 0; i < unit_response_expiry_count;) {
+        unitResponseExpiry_t const expiry = unit_response_expiries[i];
+        LPEDICT ent = expiry.entity < globals.num_edicts ? globals.edicts + expiry.entity : NULL;
+        unitResponseState_t *state = unit_response_state + expiry.entity;
+
+        if (!ent || !ent->inuse || ent->spawn_time != expiry.spawn_time ||
+            state->spawn_time != expiry.spawn_time || !state->talking) {
+            unit_response_expiry_remove(expiry.entity);
+            continue;
+        }
+        if (state->end_time <= now) due = true;
+        else next_expiry = MIN(next_expiry, state->end_time);
+        i++;
+    }
+    if (!due) {
+        unit_response_next_expiry = next_expiry;
+        return;
+    }
+
+    unit_response_next_expiry = UINT_MAX;
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        if (client->connected) unit_response_update_client(client);
+    }
+    for (DWORD i = 0; i < unit_response_expiry_count;) {
+        unitResponseExpiry_t const expiry = unit_response_expiries[i];
+        unitResponseState_t *state = unit_response_state + expiry.entity;
+        if (state->spawn_time != expiry.spawn_time || !state->talking || state->end_time <= now) {
+            unit_response_expiry_remove(expiry.entity);
+            continue;
+        }
+        unit_response_next_expiry = MIN(unit_response_next_expiry, state->end_time);
+        i++;
     }
 }
 
