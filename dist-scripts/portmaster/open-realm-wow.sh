@@ -93,8 +93,7 @@ export LIBGL_SILENTSTUB=0
 #  +set r_debug_destructables 1 \
 
 #/opt/muos/bin/strace
-./openwow.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/world-of-warcraft" +vid_mode 0 +set r_profile 0 +set r_cursor 1  \
-   +map 1
+./openwow.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/world-of-warcraft" +set vid_native 1 +set vid_fullscreen 1 +set r_profile 0 +set r_cursor 0 +map 1
 
 
 
