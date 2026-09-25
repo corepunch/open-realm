@@ -17,6 +17,11 @@ When you need a frame that exists in the MPQ, load it with `UI_EnsureFDF` and ge
 (see AGENTS.md §WC3 UI Tooling). Examples: `InfoPanelBuildingDetail.fdf` for the building-detail HUD sub-panel; `QuestDialog.fdf`
 for the quest window; `MapListBox.fdf` for a list-box control reused by campaign and multiplayer screens.
 
+`fdfbindgen` reserves space for the `_H` suffix even at its maximum prefix length. Duplicate-name
+suffixes and frame-type copies fail with a diagnostic if they exceed their destination buffer;
+they must not silently truncate generated identifiers. Run `python3 tests/test_fdfbindgen.py`
+after building the tool to check the name boundaries.
+
 For runtime controls that have no FDF geometry in War3.mpq — portraits, command buttons, minimap content, tooltip payloads — construct a
 small proxy frame in C. Warsmash ships a project-owned `UI\FrameDef\SmashUI\UnitPortrait.fdf` to describe its portrait geometry;
 that file is not a retail MPQ source and must not be introduced as an OpenRealm data dependency. OpenRealm's portrait remains a runtime

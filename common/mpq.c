@@ -5,7 +5,7 @@
  * Supports:
  *  - MPQ v1/v2 format
  *  - File lookup by name
- *  - ZLIB, adaptive Huffman, and Blizzard ADPCM decompression
+ *  - ZLIB, PKWARE DCL, adaptive Huffman, and Blizzard ADPCM decompression
  *  - Uncompressed files
  *
  * Based on StormLib specifications and MPQ format documentation.
@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <zlib.h>
+#include "vendor/blast/blast.h"
 
 #ifndef TRUE
 #define TRUE 1
@@ -43,6 +44,7 @@
 #define MPQ_FILE_EXISTS 0x80000000u
 
 #define MPQ_COMP_HUFF         0x01 // mask bit; adaptive Huffman compression
+#define MPQ_COMP_PKWARE       0x08 // mask bit; PKWARE DCL compression
 #define MPQ_COMP_ADPCM_MONO   0x40 // mask bit; one-channel Blizzard ADPCM
 #define MPQ_COMP_ADPCM_STEREO 0x80 // mask bit; two-channel Blizzard ADPCM
 #define MPQ_HUFF_SYMBOLS      258 // symbols; 256 bytes plus end and escape markers
@@ -245,11 +247,26 @@ static BOOL Mpq_AdpcmDecode(BYTE const *src, DWORD src_size, BYTE *dst, DWORD ca
     return *out_size != 0;
 }
 
+static unsigned Mpq_BlastInput(void *how, unsigned char **buf) { return 0; }
+
+static int Mpq_BlastOutput(void *how, unsigned char *buf, unsigned len) {
+    mpqDecompress_t *p = how;
+    if (len > p->dst_size - p->out_size) return 1;
+    memcpy(p->dst + p->out_size, buf, len); p->out_size += len;
+    return 0;
+}
+
 /* Decode the MPQ method byte in Blizzard's prescribed method order. */
 static BOOL Mpq_DecompressSector(mpqDecompress_t *p) {
     if (!p || !p->src || !p->dst || !p->src_size || !p->dst_size) return FALSE;
     if (p->src_size == p->dst_size) { memcpy(p->dst, p->src, p->src_size); p->out_size = p->src_size; return TRUE; }
     BYTE mask = p->src[0];
+    if (mask == MPQ_COMP_PKWARE) {
+        unsigned left = p->src_size - 1;
+        unsigned char *in = (unsigned char *)p->src + 1;
+        p->out_size = 0;
+        return blast(Mpq_BlastInput, NULL, Mpq_BlastOutput, p, &left, &in) == 0;
+    }
     if (mask == MPQ_COMPRESSION_ZLIB) {
         uLongf size = p->dst_size;
         if (uncompress(p->dst, &size, p->src + 1, p->src_size - 1) != Z_OK) return FALSE;

@@ -278,7 +278,10 @@ static void uniquify_node_ident(int node_index) {
     int suffix = 2;
     snprintf(base, sizeof(base), "%s", nodes[node_index].ident);
     while (ident_used_by_sibling(nodes[node_index].parent, nodes[node_index].ident, node_index)) {
-        snprintf(nodes[node_index].ident, sizeof(nodes[node_index].ident), "%s_%d", base, suffix++);
+        if (snprintf(nodes[node_index].ident, sizeof(nodes[node_index].ident), "%s_%d", base, suffix++) >= sizeof(nodes[node_index].ident)) {
+            fprintf(stderr, "fdfbindgen: identifier too long: %s\n", base);
+            exit(1);
+        }
     }
 }
 
@@ -383,7 +386,10 @@ static void parse_scope(lexer_t *lx, int parent) {
                 return;
             }
         } else {
-            snprintf(frame_type, sizeof(frame_type), "%s", tok);
+            if (snprintf(frame_type, sizeof(frame_type), "%s", tok) >= sizeof(frame_type)) {
+                fprintf(stderr, "fdfbindgen: frame type too long: %s\n", tok);
+                exit(1);
+            }
             if (!lexer_next(lx, frame_name, sizeof(frame_name), &quoted)) {
                 return;
             }
@@ -500,11 +506,11 @@ static void assign_binding_idents(int node_index) {
     snprintf(base, sizeof(base), "%s", nodes[node_index].ident);
     snprintf(nodes[node_index].binding_ident, sizeof(nodes[node_index].binding_ident), "%s", base);
     while (binding_ident_used(nodes[node_index].binding_ident, node_index)) {
-        snprintf(nodes[node_index].binding_ident,
-                 sizeof(nodes[node_index].binding_ident),
-                 "%s_%d",
-                 base,
-                 suffix++);
+        if (snprintf(nodes[node_index].binding_ident, sizeof(nodes[node_index].binding_ident),
+                     "%s_%d", base, suffix++) >= sizeof(nodes[node_index].binding_ident)) {
+            fprintf(stderr, "fdfbindgen: binding identifier too long: %s\n", base);
+            exit(1);
+        }
     }
     for (int child = nodes[node_index].first_child; child >= 0; child = nodes[child].next_sibling) {
         assign_binding_idents(child);
@@ -640,7 +646,7 @@ static void emit_bind_at_function(void) {
 
 static void emit_header(void) {
     char guard[MAX_IDENT * 2];
-    char guard_prefix[MAX_IDENT];
+    char guard_prefix[MAX_IDENT + 2];
     snprintf(guard_prefix, sizeof(guard_prefix), "%s_H", prefix);
     make_ident(guard_prefix, guard, sizeof(guard));
     for (size_t i = 0; guard[i]; i++) {

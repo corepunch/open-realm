@@ -9,6 +9,69 @@ Warcraft III, and for catching rendering regressions.
 the command, edition, map, source revision/dirty files, Wine version, and process output under `build/parity/logs/`.
 Retail requires your own installed executable and archives. No disassembler or debugger is required.
 
+The edition defaults to TFT and the destination defaults to the menu. The local `build/parity/wc3`
+wrapper supplies `WC3DATA` and forwards all arguments to this script:
+
+```bash
+./build/parity/wc3 openrealm                    # TFT menu
+./build/parity/wc3 openrealm --map=menu         # same destination
+./build/parity/wc3 openrealm --map=elf1         # Maiev, Rise of the Naga
+./build/parity/wc3 openrealm roc --map=elf1     # Tyrande, Enemies at the Gate
+./build/parity/wc3 openrealm --map=elf1 --intro # normal cinematic timing
+./build/parity/wc3 openrealm --list           # all maps with in-game names
+./build/parity/wc3 openrealm --select         # searchable terminal picker
+./build/parity/wc3 openrealm --map=roc-human2-interlude
+./build/parity/wc3 openrealm --map=tft-undead7b
+./build/parity/wc3 openrealm --map=tft-orc2-10  # Outland Arena
+./build/parity/wc3 openrealm --select --maps-dir='/path/to/optional/maps'
+```
+
+All slugs are generated from installed map identifiers, not a compiled campaign list. Unqualified
+slugs use the selected edition; `roc-` and `tft-` prefixes override it. `--list` and `--select`
+show both editions. Type any words in the picker to search names, campaign, path, or slug;
+use arrows/Page Up/Page Down to navigate, Enter to launch, Escape to cancel, and Ctrl-U to clear.
+The picker uses a gold selection bar, cyan ROC labels, violet TFT labels, and a selected-map
+detail area. It uses the terminal background, adapts its palette to 256/8-color terminals,
+falls back to reverse-video selection without color, and switches to a compact layout in small windows.
+Optional `--maps-dir=PATH` folders are scanned recursively for `.w3m`/`.w3x` files and may be repeated.
+Their `custom-<folder>-<map>` aliases appear alongside campaigns, using W3I/WTS names. Native loose
+map paths are relative to the data directory (including `../` for external folders); retail receives
+the same path relative to its installation. No map files are copied or modified.
+
+Aliases enable native `skip_cutscene=1` to fast-forward into gameplay through the map's authored
+script cleanup. This cvar also shortens later cinematic timing; use `--intro` to retain normal
+timing, or set `skip_cutscene 0` in the console after the opening. Retail still requires manual Escape.
+Custom `--map='Maps/My Map.w3x'` paths and legacy positional paths retain normal timing.
+Unknown aliases and duplicate map/edition arguments fail explicitly. The wrapper is local and ignored
+by Git; keep its installation path there, not in the shared script.
+
+Run command-contract tests without opening a game: `make test-render-harness`.
+
+### Catalog generation
+
+`wc3_maps.py` reads `UI/CampaignStrings.txt` and `UI/CampaignStrings_exp.txt` with INI/CSV parsers.
+Older tables use `TitleN`/`MissionN`/`FileN`; newer tables (including newer ROC tables) use CSV
+`MissionN` rows containing title, name, path, and optional extra fields. Schema selection follows
+the fields present, not the edition. Archive listfiles contribute unlisted campaign maps, and
+`war3map.w3i`/`war3map.wts` supply their loading titles via the existing map-audit parser.
+TFT's model-only finale and prerendered movies are not map destinations.
+
+Archives are discovered case-insensitively in the installation root and `Frozen Throne/`, in
+base/local/expansion/expansion-local/patch precedence. Some retail patch archives have no listfile;
+the generator logs that limitation and follows literal next-map references plus the bonus campaign's
+authored `udg_ZoneMapPath`, `udg_ZoneMapExt`, and `udg_ZoneMaps[]` table. This discovers the Orc bonus
+submaps without guessing filenames. Windows-1252 legacy script/WTS decoding is reported explicitly.
+The observed 1.27b installation yields 44 ROC + 53 TFT maps; other editions follow their own data.
+
+The generated catalog is `build/parity/campaign-maps.json`. Archive, optional-map, tool, and generator
+file timestamps/sizes invalidate the cache; `--refresh` forces regeneration. The first generation
+extracts nested metadata and can take a minute. Later listing/selection uses the cache. Python 3 with
+`curses` and a built `mpqtool` are required; no extra Python packages are needed. `WC3_MAP_CATALOG`
+selects an explicit catalog for fixtures or a separately generated catalog (its freshness is then
+the caller's responsibility). Missing maps, unreadable metadata, and alias collisions fail visibly.
+See [MPQ decoding](../../docs/fs-loading-architecture.md) and
+[vendored dependencies](../../docs/vendored-dependencies.md) for PKWARE support.
+
 ```bash
 export WC3DATA='/path/to/Warcraft III'
 # TFT Night Elf 1 (Maiev), as distinct from ROC Night Elf 1 (Tyrande):

@@ -20,3 +20,15 @@ OpenWarcraft compiles its own Lua and XML parser from checked-in sources, matchi
 - All strings/nodes come from a per-document **chunked arena** (linked list of blocks, never `realloc`'d in place) so tree pointers stay valid across growth; `xmlFreeDoc` frees the arena and `xmlFree` is a no-op.
 - Parsing is lenient (equivalent to `XML_PARSE_RECOVER`): comments, processing instructions, and DOCTYPE are skipped; CDATA becomes text; the five standard entities and numeric character references are decoded.
 - Because it is header-only with `static` functions, the include guard prevents redefinition inside unity builds; every consumer compiles with `-Wno-unused-function`.
+
+## PKWARE DCL decoder (`vendor/blast/`)
+
+- Verbatim `contrib/blast/blast.c` and `blast.h` from zlib tag `v1.3.1`:
+  https://github.com/madler/zlib/tree/v1.3.1/contrib/blast
+- Mark Adler's blast 1.3; its permissive license is retained in `blast.h`.
+- Built as a separate translation unit into `libshared`, avoiding unity-build symbol collisions.
+  The standalone MPQ compatibility binary and WoW tests using `COMMON_GAME_SRCS` compile it directly.
+- `common/mpq.c` uses bounded output callbacks to decode MPQ method byte `0x08`.
+  This supports retail archive listfiles and patch campaign data needed by the parity catalog.
+- `make test-mpq-compression` checks the upstream reference stream, truncated input, and output bounds.
+  This adds method-byte decoding, not a claim that every legacy `MPQ_FILE_IMPLODE` layout is supported.
