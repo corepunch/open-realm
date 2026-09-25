@@ -211,6 +211,16 @@ static void R_FlushSplatBatch(void) {
 static LPCTEXTURE g_splat_texture;
 static splat_shader_t *g_splat_shader;
 
+static void R_SetSplatDepthBias(BOOL enabled) {
+    if (enabled) {
+        R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
+        R_Call(glPolygonOffset, -1.0f, -1.0f);
+    } else {
+        R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
+        R_Call(glPolygonOffset, 0.0f, 0.0f);
+    }
+}
+
 static void R_SetupSplatState(LPCTEXTURE texture, splat_shader_t *shader) {
     MATRIX4 mModelMatrix;
 
@@ -225,6 +235,7 @@ static void R_SetupSplatState(LPCTEXTURE texture, splat_shader_t *shader) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
+    R_SetSplatDepthBias(true);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     ground_current_vertex = ground_vertex_buffer;
@@ -285,6 +296,7 @@ void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR3
 
 void R_EndSplatBatch(void) {
     R_FlushSplatBatch();
+    R_SetSplatDepthBias(false);
     R_Call(glDepthMask, GL_TRUE);
 }
 
@@ -458,6 +470,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
     R_SetupSplatState(texture, shader);
     R_GenerateSplatTiles(mins, maxs, color);
     R_FlushSplatBatch();
+    R_SetSplatDepthBias(false);
     R_Call(glDepthMask, GL_TRUE);
 }
 
