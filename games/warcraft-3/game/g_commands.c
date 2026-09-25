@@ -1727,19 +1727,21 @@ CLIENTCOMMAND(Inventory) {
                 succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
                 handled = true;
             } else if (S_AbilityHasCommand(ability)) {
-                /* Preserve existing support for item-authored command abilities
-                 * that enter an asynchronous targeting mode. Their eventual
-                 * success is not known here, so charge consumption remains the
-                 * responsibility of a future targeted-item completion path. */
+                /* Bind the carried item to the asynchronous spell command.
+                 * The target callback completes item use only after A_EXECUTE
+                 * succeeds, so selecting/approaching a target does not consume
+                 * the charge prematurely. */
+                client->menu.ability_item = item;
+                client->menu.ability_item_spawn_time = item->spawn_time;
                 S_AbilityCommand(clent, ability);
                 handled = true;
+                if (!client->menu.on_entity_selected && !client->menu.on_location_selected) {
+                    client->menu.ability_item = NULL;
+                    client->menu.ability_item_spawn_time = 0;
+                }
             }
 
-            if (succeeded) {
-                G_PublishEvent(ent, EVENT_PLAYER_UNIT_USE_ITEM);
-                G_PublishEvent(ent, EVENT_UNIT_USE_ITEM);
-                G_ConsumeItemCharge(item);
-            }
+            if (succeeded) G_CompleteItemUse(ent, item);
             if (handled) break;
         }
     }

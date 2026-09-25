@@ -332,8 +332,8 @@ static ability_t abilitylist[] = {
     { "AIpb", CAbilityAttackBonus, 0 },  /* Item Attack Poison Bonus (orb) */
     { "AIcb", CAbilityAttackBonus, 0 },  /* Item Attack Corruption Bonus (orb) */
     // TODO: AIsi a_sight_bonus  /* Item Sight Range Bonus */
-    // TODO: AIso a_simple_spell  /* Item Soul Theft */
-    // TODO: Asou a_simple_spell  /* Item Soul Possession */
+    { "AIso", CAbilitySoulTrap, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Soul Theft */
+    { "Asou", CAbilitySoulTrapped, AB_PASSIVE },  /* Item Soul Possession; reveal/release lifecycle TODO */
     // TODO: AIrc a_item_reincarnation  /* Item Reincarnation */
     // TODO: AIrt a_item_recall  /* Item Recall */
     // TODO: AItp a_item_town_portal  /* Item Town Portal */

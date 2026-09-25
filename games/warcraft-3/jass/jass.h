@@ -124,6 +124,7 @@ jassContext_t const *jass_getcontext(jass_t *j);
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
 jass_t *jass_getroot(jass_t *j);
 bool jass_isrunning(jass_t *j);
+bool jass_context_references_entity(jass_t *j, edict_t const *ent);
 void jass_haltevents(jass_t *j);
 bool jass_calltrigger(jass_t *j, trigger_t *trigger, edict_t *unit, edict_t *source);
 bool jass_calltriggerwithvalue(jass_t *j, trigger_t *trigger, edict_t *unit, edict_t *source, int32_t eventValue);

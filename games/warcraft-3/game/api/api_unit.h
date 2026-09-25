@@ -533,7 +533,7 @@ uint32_t UnitDropItemPoint(jass_t *j) {
         return jass_pushboolean(j, 0);
     slot = whichItem->item.inventory_slot;
     if (slot < 0) return jass_pushboolean(j, 0);
-    return jass_pushboolean(j, G_DropItemAt(whichUnit, (uint32_t)slot, &MAKE(vector2_t, x, y)));
+    return jass_pushboolean(j, G_DropItemAtScripted(whichUnit, (uint32_t)slot, &MAKE(vector2_t, x, y)));
 }
 uint32_t UnitDamageTarget(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -722,7 +722,7 @@ uint32_t UnitRemoveItem(jass_t *j) {
     }
     FOR_LOOP(i, MAX_INVENTORY) {
         if (whichUnit->inventory[i] == whichItem) {
-            G_DropItem(whichUnit, i);
+            G_DropItemAtScripted(whichUnit, i, &whichUnit->s.origin2);
             break;
         }
     }
@@ -736,7 +736,7 @@ uint32_t UnitRemoveItemFromSlot(jass_t *j) {
     }
     edict_t *item = whichUnit->inventory[itemSlot];
     if (!item) return jass_pushnullhandle(j, "item");
-    if (!G_DropItem(whichUnit, (uint32_t)itemSlot)) {
+    if (!G_DropItemAtScripted(whichUnit, (uint32_t)itemSlot, &whichUnit->s.origin2)) {
         return jass_pushnullhandle(j, "item");
     }
     return jass_pushlighthandle(j, item, "item");

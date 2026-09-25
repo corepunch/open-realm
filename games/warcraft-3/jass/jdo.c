@@ -387,6 +387,19 @@ jassContext_t const *jass_getcontext(jass_t *j) {
 static jass_t *jass_root(jass_t *j) { return j->root ? j->root : j; }
 jass_t *jass_getroot(jass_t *j)     { return jass_root(j); }
 bool jass_isrunning(jass_t *j)     { return jass_root(j)->current_coroutine != NULL; }
+bool jass_context_references_entity(jass_t *j, edict_t const *ent) {
+    jass_t *root;
+
+    if (!j || !ent) return false;
+    root = jass_root(j);
+    if (root->context.unit == ent || root->context.source == ent) return true;
+    FOR_EACH_LIST(jasscoroutine_t, co, root->coroutines) {
+        if (!co->done && co->state &&
+            (co->state->context.unit == ent || co->state->context.source == ent))
+            return true;
+    }
+    return false;
+}
 void jass_haltevents(jass_t *j)    { jass_root(j)->halt_events = true; }
 
 /* =========================================================================

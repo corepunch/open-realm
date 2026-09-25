@@ -10,6 +10,8 @@ typedef struct {
     uint32_t code, level;
     ability_t const *spell;
     edict_t *target;
+    edict_t *source_item;
+    uint32_t source_item_spawn_time;
 } spellUnitTargetParams_t;
 
 typedef struct {
@@ -368,6 +370,22 @@ bool S_SpellIsFriend(edict_t *caster, edict_t *target) {
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
+static bool spell_target_has_token(cstring_t targets, cstring_t full, cstring_t short_name) {
+    char token[32];
+    cstring_t cursor = targets;
+
+    while (cursor && *cursor) {
+        size_t len = 0;
+        while (*cursor == ',' || isspace((unsigned char)*cursor)) cursor++;
+        while (*cursor && *cursor != ',' && len + 1 < sizeof(token)) token[len++] = *cursor++;
+        while (len && isspace((unsigned char)token[len - 1])) len--;
+        token[len] = '\0';
+        if (!strcasecmp(token, full) || (short_name && !strcasecmp(token, short_name))) return true;
+        while (*cursor && *cursor != ',') cursor++;
+    }
+    return false;
+}
+
 bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     cstring_t targets;
     uint32_t ability_level;
@@ -385,6 +403,12 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
         return true;
     }
     structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+    {
+        bool const allows_hero = spell_target_has_token(targets, "hero", NULL);
+        bool const allows_nonhero = spell_target_has_token(targets, "nonhero", "nonh");
+        if ((allows_hero || allows_nonhero) &&
+            !(G_UnitIsHero(target) ? allows_hero : allows_nonhero)) return false;
+    }
     if (strstr(targets, "notself") && target == caster) return false;
     if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
         !(strstr(targets, "air") && target->targtype == TARG_AIR) &&
@@ -623,8 +647,14 @@ static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t t
 
 /* ---- Per-target-type unified callbacks ---- */
 
+static bool spell_item_source_valid(edict_t const *caster, edict_t const *item, uint32_t spawn_time) {
+    if (!item) return true;
+    return item->inuse && item->spawn_time == spawn_time && G_IsItem(item) &&
+        !item->item.pending_use_removal && item->item.carrier == caster;
+}
+
 /* Commit a validated unit-target spell at the point where its cast range is reached. */
-static void spell_execute_unit_target(spellUnitTargetParams_t const *params) {
+static bool spell_execute_unit_target(spellUnitTargetParams_t const *params) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = params->target };
     abilityitem_t item = { .code = params->code, .ability = params->spell };
 
@@ -632,7 +662,12 @@ static void spell_execute_unit_target(spellUnitTargetParams_t const *params) {
     if (params->spell->flags & AB_CHANNEL)
         spell_begin_channel(params->caster, params->code);
     spell_publish_effect(params->caster, params->code, st);
-    spell_message(params->caster, A_EXECUTE, &item, &st);
+    bool const executed = spell_message(params->caster, A_EXECUTE, &item, &st);
+    if (executed && params->source_item) G_CompleteItemUse(params->caster, params->source_item);
+    /* Existing unit spells historically accepted the order once validation and
+     * commit succeeded even if a handler returned false from A_EXECUTE. Item
+     * casts additionally need a positive execution result before consuming. */
+    return params->source_item ? executed : true;
 }
 
 /* Ranged target spells are accepted before the caster is in range. Warsmash's
@@ -648,11 +683,13 @@ static void spell_unit_target_approach_think(edict_t *thinker) {
     uint32_t code = thinker ? thinker->class_id : 0;
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
+    edict_t *source_item = thinker ? thinker->spell_item : NULL;
     uint32_t level;
     float range;
     spellTarget_t st;
 
     if (!caster || !caster->inuse || M_IsDead(caster) || !target || !spell ||
+        !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
         (spell->target_type != SPELL_TARGET_UNIT && spell->target_type != SPELL_TARGET_UNIT_OR_POINT)) {
         G_FreeEdict(thinker);
         return;
@@ -684,7 +721,8 @@ static void spell_unit_target_approach_think(edict_t *thinker) {
     }
 
     spellUnitTargetParams_t params = {
-        .caster = caster, .code = code, .level = level, .spell = spell, .target = target
+        .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
+        .source_item = source_item, .source_item_spawn_time = thinker->spell_item_spawn_time
     };
     unit_stand(caster);
     spell_execute_unit_target(&params);
@@ -692,7 +730,8 @@ static void spell_unit_target_approach_think(edict_t *thinker) {
 }
 
 /* Start the ordinary walk order used to bring an out-of-range spell target into range. */
-static bool spell_begin_unit_target_approach(edict_t *caster, uint32_t code, edict_t *target) {
+static bool spell_begin_unit_target_approach(edict_t *caster, uint32_t code, edict_t *target,
+                                             edict_t *source_item, uint32_t source_item_spawn_time) {
     edict_t *thinker;
 
     if (!caster || !target || (caster->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(caster) ||
@@ -707,6 +746,8 @@ static bool spell_begin_unit_target_approach(edict_t *caster, uint32_t code, edi
     thinker->owner = caster;
     thinker->goalentity = target;
     thinker->class_id = code;
+    thinker->spell_item = source_item;
+    thinker->spell_item_spawn_time = source_item_spawn_time;
     thinker->think = spell_unit_target_approach_think;
     thinker->freetime = G_Time();
     return true;
@@ -720,9 +761,11 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
+    edict_t *source_item = clent->client->menu.ability_item;
+    uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
-    if (!spell) return false;
+    if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) return false;
     /* Range is intentionally excluded here. An otherwise valid out-of-range
      * target is an accepted order; the caster must walk into cast range. */
     if (!spell_validate(clent, caster, code, level, target, 0.0f)) return false;
@@ -730,13 +773,13 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
 
     if (!S_SpellTargetInRange(caster, target, range))
-        return spell_begin_unit_target_approach(caster, code, target);
+        return spell_begin_unit_target_approach(caster, code, target, source_item, source_item_spawn_time);
 
     spellUnitTargetParams_t params = {
-        .caster = caster, .code = code, .level = level, .spell = spell, .target = target
+        .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
+        .source_item = source_item, .source_item_spawn_time = source_item_spawn_time
     };
-    spell_execute_unit_target(&params);
-    return true;
+    return spell_execute_unit_target(&params);
 }
 
 /* Called when user clicks a location for a POINT-target spell. */
@@ -747,11 +790,13 @@ static bool spell_point_target_selected(edict_t *clent, vector2_t const *point) 
     float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
+    edict_t *source_item = clent->client->menu.ability_item;
+    uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
     spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
                                           .clent = clent, .caster = caster, .code = code, .level = level,
                                           .point = point, .range = range);
 
-    if (!spell) return false;
+    if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) return false;
     if (!spell_validate_point(&val)) return false;
     spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return false;
@@ -760,7 +805,9 @@ static bool spell_point_target_selected(edict_t *clent, vector2_t const *point) 
     if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
-    spell_message(caster, A_EXECUTE, &item, &st);
+    bool const executed = spell_message(caster, A_EXECUTE, &item, &st);
+    if (executed && source_item) G_CompleteItemUse(caster, source_item);
+    if (source_item && !executed) return false;
     S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);
     return true;
@@ -773,8 +820,10 @@ static void spell_no_target_execute(edict_t *clent) {
     uint32_t level = S_SpellLevel(caster, code);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
+    edict_t *source_item = clent->client->menu.ability_item;
+    uint32_t source_item_spawn_time = clent->client->menu.ability_item_spawn_time;
 
-    if (!spell) return;
+    if (!spell || !spell_item_source_valid(caster, source_item, source_item_spawn_time)) return;
     if (!spell_validate(clent, caster, code, level, NULL, 0.0f)) return;
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
@@ -782,7 +831,8 @@ static void spell_no_target_execute(edict_t *clent) {
     spell_commit(caster, code, level);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
-    spell_message(caster, A_EXECUTE, &item, &st);
+    if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)
+        G_CompleteItemUse(caster, source_item);
 }
 
 bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
@@ -877,7 +927,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
         !S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
     if (!S_SpellTargetInRange(caster, unit, range))
-        return spell_begin_unit_target_approach(caster, code, unit);
+        return spell_begin_unit_target_approach(caster, code, unit, NULL, 0);
 
     spellUnitTargetParams_t params = {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = unit

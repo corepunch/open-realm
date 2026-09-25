@@ -135,7 +135,8 @@ bool G_IsItem(edict_t const *item) {
      * target type before reading it so destructables cannot be mistaken for
      * items and dereference the wrong data union member. */
     return item->targtype == TARG_ITEM &&
-        (item->item.in_world || item->item.carrier || (item->data.ItemData && item->data.ItemData->file));
+        (item->item.in_world || item->item.carrier || item->item.pending_use_removal ||
+         (item->data.ItemData && item->data.ItemData->file));
 }
 
 /* The item currently being visited by EnumItemsInRect, read back by the
@@ -225,9 +226,20 @@ bool G_InventoryCanGetItems(edict_t const *unit) {
 }
 
 bool G_InventoryCanDropItems(edict_t const *unit) {
-    /* inv5 / DataE gates player-issued drop/handoff orders. Direct native
-     * removal remains available through G_DropItem/G_DropItemAt. */
+    /* inv5 / DataE gates player-issued drop/handoff orders. ItemData.droppable
+     * (plus SetItemDroppable overrides) is a separate per-item gate. */
     return G_InventoryAbilityFlag(unit, 4, true);
+}
+
+bool G_ItemDroppable(edict_t const *item) {
+    ItemData_t const *data;
+
+    if (!G_IsItem(item)) return false;
+    if (item->item.droppable_set) return item->item.droppable;
+    data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
+    /* Preserve the historical permissive fallback for synthetic/custom test
+     * items that do not have a normalized ItemData row. */
+    return !data || data->droppable;
 }
 
 static bool G_InventoryDropsItemsOnDeath(edict_t const *unit) {
@@ -301,6 +313,81 @@ void G_ConsumeItemCharge(edict_t *item) {
         return;
     }
     G_SetItemCharges(item, item->item.charges - 1);
+}
+
+static void G_RetainConsumedItemForUseEvent(edict_t *item) {
+    edict_t *carrier;
+    int32_t slot;
+
+    if (!G_IsItem(item) || item->item.pending_use_removal) return;
+    carrier = item->item.carrier;
+    slot = item->item.inventory_slot;
+    if (carrier && carrier->inuse) {
+        if (slot < 0 || slot >= MAX_INVENTORY || carrier->inventory[slot] != item) {
+            slot = -1;
+            FOR_LOOP(i, MAX_INVENTORY) {
+                if (carrier->inventory[i] == item) { slot = (int32_t)i; break; }
+            }
+        }
+        if (slot >= 0) {
+            G_ApplyItemStats(carrier, item, false);
+            carrier->inventory[slot] = NULL;
+        }
+        G_RefreshInventoryUI(carrier);
+    }
+
+    gi.UnlinkEntity(item);
+    item->item.carrier = NULL;
+    item->item.inventory_slot = -1;
+    item->item.in_world = false;
+    item->item.pending_use_removal = true;
+    item->s.renderfx |= RF_HIDDEN;
+    item->svflags |= SVF_NOCLIENT;
+    level.pending_consumed_item_cleanup = true;
+}
+
+void G_CompleteItemUse(edict_t *unit, edict_t *item) {
+    if (!unit || !unit->inuse || !G_IsItem(item) || item->item.pending_use_removal) return;
+
+    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
+
+    /* A one-charge perishable has to leave gameplay immediately, but its jass_t
+     * handle remains observable as GetManipulatedItem() until the queued event
+     * and any sleeping response action have released that event context. */
+    if (item->data.ItemData && item->item.charges == 1 && item->data.ItemData->perishable) {
+        item->item.charges = 0;
+        G_RetainConsumedItemForUseEvent(item);
+        return;
+    }
+    G_ConsumeItemCharge(item);
+}
+
+static bool G_ConsumedItemHasQueuedEvent(edict_t const *item) {
+    if (!item) return false;
+    for (uint32_t i = level.events.read; i < level.events.write; i++) {
+        gameEvent_t const *evt = &level.events.queue[i % MAX_EVENT_QUEUE];
+        if (evt->source == item &&
+            (!evt->source_spawn_tracked || evt->source_spawn_time == item->spawn_time))
+            return true;
+    }
+    return false;
+}
+
+void G_RunConsumedItemFrees(void) {
+    if (!level.pending_consumed_item_cleanup) return;
+    level.pending_consumed_item_cleanup = false;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *item = globals.edicts + i;
+        if (!item->inuse || item->targtype != TARG_ITEM || !item->item.pending_use_removal) continue;
+        if (G_ConsumedItemHasQueuedEvent(item) ||
+            (level.vm && jass_context_references_entity(level.vm, item))) {
+            level.pending_consumed_item_cleanup = true;
+            continue;
+        }
+        G_FreeEdict(item);
+    }
 }
 
 int32_t G_FindFreeInventorySlot(edict_t const *unit) {
@@ -453,6 +540,15 @@ static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vector2_t const *
 }
 
 bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position) {
+    edict_t *item;
+
+    if (!unit || slot >= (uint32_t)G_InventoryCapacity(unit)) return false;
+    item = unit->inventory[slot];
+    if (!G_ItemDroppable(item)) return false;
+    return G_DropItemAtInternal(unit, slot, position, true);
+}
+
+bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vector2_t const *position) {
     return G_DropItemAtInternal(unit, slot, position, true);
 }
 
@@ -522,7 +618,7 @@ static umove_t item_move_drop = {
 
 bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vector2_t const *position) {
     if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
-        (unit->aiflags & AI_IMMOBILE) ||
+        !G_ItemDroppable(item) || (unit->aiflags & AI_IMMOBILE) ||
         !G_IsItem(item) || item->item.carrier != unit || item->item.in_world ||
         item->item.inventory_slot < 0 || item->item.inventory_slot >= MAX_INVENTORY ||
         unit->inventory[item->item.inventory_slot] != item) {
@@ -600,17 +696,19 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
         if (ability->flags & AB_ITEM) {
             succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
         } else if (S_AbilityHasCommand(ability)) {
+            clent->client->menu.ability_item = item;
+            clent->client->menu.ability_item_spawn_time = item->spawn_time;
             S_AbilityCommand(clent, ability);
+            if (!clent->client->menu.on_entity_selected && !clent->client->menu.on_location_selected) {
+                clent->client->menu.ability_item = NULL;
+                clent->client->menu.ability_item_spawn_time = 0;
+            }
             return;
         } else {
             continue;
         }
 
-        if (succeeded) {
-            G_PublishEvent(unit, EVENT_PLAYER_UNIT_USE_ITEM);
-            G_PublishEvent(unit, EVENT_UNIT_USE_ITEM);
-            G_ConsumeItemCharge(item);
-        }
+        if (succeeded) G_CompleteItemUse(unit, item);
         return;
     }
 }

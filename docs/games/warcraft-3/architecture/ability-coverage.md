@@ -259,6 +259,8 @@ is applied. All three abilities share the `melee_status_execute` path.
 | `Acoi` | Couple Instant | TODO | Test/special ability; low priority unless map data requires it. |
 | `AIhe` | Item Heal | Partial | Inventory dispatch, selected-unit heal, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |
 | `AIma` | Item Mana Regain | Partial | Inventory dispatch, selected-unit mana restore, target art and synchronous charge/consume rules exist. Shared item cooldown groups remain. |
+| `AIso` | Item Soul Theft / Soul Trap | Partial | Registered as the retail `CAbilitySoulTrap` family and uses the shared unit-target spell pipeline. Authored target masks distinguish `hero`/`nonhero`; the originating item survives walk-into-range with spawn-generation validation, and successful `A_EXECUTE` publishes use-item events with a valid manipulated-item source before final perishable retirement. This is sufficient for Orc08's `gsou` trigger integration. Generic trapped-unit imprisonment, carrier reveal, and release-on-death semantics remain. |
+| `Asou` | Item Soul Possession | Partial | Registered as the passive `CAbilitySoulTrapped` family so filled-soul item data is recognized. The generic carrier reveal/release lifecycle remains TODO. |
 | `AIda` | Item Defense AOE | Partial | Authored area/duration/target mask applies `Bdef`; live status contributes its authored armor bonus to combat/HUD. Persistent buff-world-art ownership and shared item cooldown groups remain. |
 | `AIat` | Item Attack Bonus | Partial | Passive item bonus updates temporary Attack 1/2 damage and HUD modifier; broader stacking/modifier framework remains. |
 | `AIab` | Item Stat Bonus | TODO | Needs hero stat modifier system. |

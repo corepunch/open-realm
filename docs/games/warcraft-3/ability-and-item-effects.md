@@ -120,22 +120,24 @@ synchronously report whether the gameplay effect actually happened. The
 callback is append-only at the end of `ability_t`; existing dispatch-field
 offsets must not be changed.
 
-The inventory command walks `abilList` in authored order and uses the first registered ability it can handle. For a synchronous `A_ITEM_USE` procedure case:
+The inventory command walks `abilList` in authored order and uses the first registered ability it can handle. Successful immediate and command-backed item uses converge on `G_CompleteItemUse`:
 
 ```text
 inventory click
     -> item ability validates carrier/state
-    -> gameplay effect succeeds
+    -> immediate effect OR targeted spell command
+    -> gameplay A_EXECUTE succeeds
     -> optional ability TARGET art
     -> EVENT_PLAYER_UNIT_USE_ITEM / EVENT_UNIT_USE_ITEM
-    -> G_ConsumeItemCharge
+         source = originating item
+    -> charge/perishable completion
 ```
 
-Failed uses do not publish use-item events and do not consume a charge. For example, a healing item at full health returns failure.
+Failed uses do not publish use-item events and do not consume a charge. For example, a healing item at full health returns failure. Targeted item commands preserve the source item and its spawn generation while the shared spell path walks into range, so cancellation, a rejected target, or a stale/moved item cannot consume a charge accidentally.
 
-`G_ConsumeItemCharge` decrements a positive runtime charge count after successful use. When the final charge belongs to a `perishable` item, the item is removed through `G_RemoveItem`, which also reverses passive item-stat hooks and clears the inventory slot. A non-perishable item also decrements to zero but remains present.
+`G_ConsumeItemCharge` remains the ordinary charge helper. `G_CompleteItemUse` adds event-context lifetime semantics: when a successful use consumes the final charge of a perishable item, the item leaves the carrier immediately but its handle remains valid until queued use-item events and any sleeping JASS response coroutine are finished. This is required for retail-style `GetManipulatedItem()` conditions such as Orc08's Soul Gem trigger. Non-perishable items decrement to zero and remain present.
 
-Asynchronous item abilities that enter a targeting command through `AB_COMMAND`/`A_COMMAND` are still dispatched, but their eventual success cannot be known by the inventory click handler. This slice intentionally does not consume their charges or publish success events at click time. The eventual targeted-item completion path needs to own those operations.
+`AIso` is registered as a unit-target Soul Trap command so the authored `gsou` item can complete through that path and report a successful use. `Asou` is recognized as a passive placeholder for the filled-soul side. The generic Soul Trap/Soul Possession imprisonment, carrier reveal, and release lifecycle is not implemented by this integration slice.
 
 Spell command dispatch has a similar rawcode boundary: a WC3 FourCC held in a
 `DWORD` is not a C string. Runtime lookup must convert it through
@@ -171,7 +173,6 @@ The following are deliberately outside this implementation slice:
 - Earthquake Data D/final-area specialized terrain presentation remains separate from the now-implemented persistent area-art/looped-sound ownership;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
 - automatic `powerup` acquisition/use;
-- asynchronous targeted-item success/charge completion;
 - spell cast-point/backswing timing changes;
 - a fully generalized missile-art/arc object separate from existing projectile simulation.
 - save/load rebinding for independent effect-edict animation callbacks and persistent effect ownership.

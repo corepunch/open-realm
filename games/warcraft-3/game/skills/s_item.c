@@ -15,6 +15,27 @@
 
 /* ---- Active items (consume on use) -------------------------------------- */
 
+/* Soul Trap is a dedicated retail item spell family. Orc08's map script owns
+ * the campaign-specific Grom/captured-soul state transition, while the engine
+ * must still run AIso as a real unit-target cast so item-use triggers observe
+ * a successful use and the source item can be consumed. */
+BZ_ABILITY_PROC(CAbilitySoulTrap) {
+    if (!call || !call->item) return false;
+    switch (msg) {
+    case A_EXECUTE:
+        return call->target && call->target->type == SPELL_TARGET_UNIT &&
+            S_SpellIsAliveTarget(call->target->entity);
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+/* The filled Soul item carries Asou. Keep it as the distinct retail ability
+ * class without inventing generic reveal/release semantics in this Orc08 slice. */
+BZ_ABILITY_PROC(CAbilitySoulTrapped) {
+    return CAbilityPassive(ent, msg, call);
+}
+
 BZ_ITEM_PROC(AbilityItemHeal) {
     edict_t *target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
