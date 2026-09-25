@@ -422,6 +422,26 @@ TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames
     T_ASSERT(CM_RequestHeatmapForRadius(goal, 0.0f) != 0);
 }
 
+TEST(wc3_pathfinding, heatmap_reuses_neighbor_pathability_queries) {
+    enum { WIDTH = 256, HEIGHT = 256 };
+    static BYTE open[WIDTH * HEIGHT];
+    struct routePerfStats_s stats;
+    LPEDICT goal;
+
+    memset(open, 0, sizeof(open));
+    setup_test_pathmap(WIDTH, HEIGHT, open);
+    reset_entities();
+    CM_ResetTestPathPerfStats();
+    goal = make_waypoint(128.5f, 128.5f);
+
+    T_ASSERT(CM_BuildHeatmapForRadius(goal, 2.0f) != 0);
+    stats = CM_GetTestPathPerfStats();
+    T_ASSERT(stats.heatmap_iterations > 0);
+    /* A flood checks each of eight candidate neighbors once; diagonal corner
+     * checks reuse the already computed cardinal-neighbor results. */
+    T_ASSERT(stats.pathability_checks <= stats.heatmap_iterations * 8 + 1);
+}
+
 TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
     VECTOR2 from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
     pathAccelParams_t params = { &from, &target, 0.0f, 0 };
