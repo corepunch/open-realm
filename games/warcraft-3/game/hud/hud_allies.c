@@ -30,6 +30,7 @@ static BOOL AlliesDebugEnabled(void) {
 
 static LPCSTR AlliesImageName(DWORD image) {
     LPCSTR value;
+    if (image >= MAX_IMAGES) return UI_ImageKey(image);
     if (!image || !gi.GetConfigstring) return image ? "<unavailable>" : "<none>";
     value = gi.GetConfigstring(CS_IMAGES + image);
     return value && *value ? value : "<empty>";

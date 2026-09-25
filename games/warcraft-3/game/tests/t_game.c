@@ -3259,6 +3259,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].camera.target_inherit_orientation = true;
     game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
     game.clients[0].quest_dialog_open = true;
+    game.clients[0].canvas = UI_CANVAS_WIDE;
     T_ASSERT(WriteGame(filename));
     level.cinefilter.displayed = true;
     PATHSTR saved_map;
@@ -3377,6 +3378,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(game.clients[0].camera.target_inherit_orientation);
     T_EQ(game.clients[0].modal_flags, 0);
     T_ASSERT(!game.clients[0].quest_dialog_open);
+    /* The window class belongs to the reconnecting client, which reports it again before begin. */
+    T_EQ(game.clients[0].canvas, UI_CANVAS_STANDARD);
     T_ASSERT(game.clients[0].rally_indicator == &g_edicts[indicator - g_edicts]);
     T_ASSERT(game.clients[0].ps.name == game.clients[0].jass.name);
     T_STREQ(game.clients[0].ps.name, "Jaina");

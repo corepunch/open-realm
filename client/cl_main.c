@@ -572,6 +572,8 @@ static void CL_VideoApply_f(void) {
     if (re.SetWindowSize) {
         re.SetWindowSize(mode.width, mode.height);
     }
+    /* Mode changes resize the window without waiting for the SDL event to be polled. */
+    CL_CanvasWindowChanged();
 }
 
 static LPCSTR CL_RebuildMenuTarget(LPCSTR target) {
@@ -582,6 +584,8 @@ static void CL_RebuildMenu(LPCSTR target) {
     Cvar_Set("map", "");
     CL_SuspendMenu();
     re.RegisterMap(NULL);
+    /* An edition switch changes which archives are visible, and with them the authored widescreen chrome. */
+    CL_CanvasResolvePolicy();
     CL_ResumeMenu();
 
     /* M_Init deliberately installs no disconnected glue screen.  Every
@@ -803,6 +807,9 @@ static void CL_TestRegisterMap(LPCSTR map) {
     cl_test_register_map_was_null = map == NULL;
 }
 
+/* Dedicated test runs have no renderer; the menu rebuild re-resolves the canvas, which pushes its scene. */
+static void CL_TestSetUIScene(LPCRECT scene) { (void)scene; }
+
 TEST(client_session, menu_resources_suspend_once_and_resume_once) {
     clMenuLife_t old_life = cl_menu_life;
     struct client_state *old_cl = MemAlloc(sizeof(cl));
@@ -840,6 +847,7 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
     void (*old_shutdown)(void) = menu.Shutdown;
     void (*old_init)(void) = menu.Init;
     void (*old_register_map)(LPCSTR) = re.RegisterMap;
+    void (*old_set_scene)(LPCRECT) = re.SetUIScene;
 
     cl_test_menu_shutdown_count = 0;
     cl_test_menu_init_count = 0;
@@ -848,6 +856,7 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
     menu.Shutdown = CL_TestMenuShutdown;
     menu.Init = CL_TestMenuInit;
     re.RegisterMap = CL_TestRegisterMap;
+    re.SetUIScene = CL_TestSetUIScene;
     Cvar_Set("map", "maps/test.map");
 
     CL_RebuildMenu("menu_main");
@@ -862,6 +871,7 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
     menu.Shutdown = old_shutdown;
     menu.Init = old_init;
     re.RegisterMap = old_register_map;
+    re.SetUIScene = old_set_scene;
 }
 
 #endif
@@ -896,6 +906,7 @@ void CL_Init(void) {
     
     mode = CL_VideoMode();
     re.Init(mode.width, mode.height);
+    CL_CanvasInit();
     
     S_Init();
     CL_MusicInit();
@@ -1185,6 +1196,7 @@ void CL_Frame(DWORD msec) {
 
     CL_ProcessPendingMenuAction();
     CL_Input();
+    CL_CanvasFrame(cl_realtime);
     CL_MovieUpdate();
     CL_ReadPackets();
     CL_MusicUpdate();

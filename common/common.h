@@ -326,6 +326,8 @@ typedef struct {
     DWORD command_size;
 } gameSameTypeSelection_t;
 BOOL CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection);
+/* Resolved from the mounted archives once per session and after an edition switch; see common/ui_canvas.h. */
+UICANVASPOLICY CL_GameCanvasPolicy(void);
 
 extern struct world_state world;
 

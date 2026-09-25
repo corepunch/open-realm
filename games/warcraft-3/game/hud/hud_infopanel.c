@@ -1465,6 +1465,7 @@ void G_RefreshResourceBar(LPEDICT ent) {
 
     if (ent->client->quest_until <= level.time) ent->client->quest_until = 0;
     if (ent->client->quest_until == ent->client->resourcebar.quest_until &&
+        ent->client->canvas == ent->client->resourcebar.canvas &&
         gold        == ent->client->resourcebar.gold        &&
         lumber      == ent->client->resourcebar.lumber      &&
         food_u      == ent->client->resourcebar.food_used   &&
@@ -1479,6 +1480,7 @@ void G_RefreshResourceBar(LPEDICT ent) {
     UI_WriteEnd(ent);
 
     ent->client->resourcebar.quest_until = ent->client->quest_until;
+    ent->client->resourcebar.canvas      = ent->client->canvas;
     ent->client->resourcebar.gold        = gold;
     ent->client->resourcebar.lumber      = lumber;
     ent->client->resourcebar.food_used   = food_u;

@@ -28,6 +28,8 @@ char test_console_message[MAX_CONSOLE_MESSAGE_LEN];
 static PATHSTR test_existing_file;
 static BOX2 test_world_bounds;
 static size2_t test_window_size;
+static UICANVASPOLICY test_canvas_policy = UI_CANVAS_POLICY;
+static RECT test_ui_scene;
 
 typedef struct { char name[64]; char value[128]; } mockCvar_t;
 static mockCvar_t mock_cvars[32];
@@ -57,6 +59,15 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value) {
 
 static BOOL mock_CameraUsesTerrainHeight(void) { return false; }
 static size2_t mock_GetWindowSize(void) { return test_window_size; }
+static void mock_SetUIScene(LPCRECT scene) { test_ui_scene = *scene; }
+/* The scene the client canvas last pushed to the renderer; tests compare it with CL_Canvas(). */
+RECT test_client_stubs_ui_scene(void) { return test_ui_scene; }
+/* Stands in for the per-game hook in games/<game>/common/world_*.c. */
+UICANVASPOLICY CL_GameCanvasPolicy(void) { return test_canvas_policy; }
+void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy) {
+    test_canvas_policy = policy;
+    CL_CanvasResolvePolicy();
+}
 static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) { (void)rect; (void)time; (void)color; }
 static void mock_DrawFill(LPCRECT rect, COLOR32 color) { (void)rect; (void)color; }
 static void mock_DrawImageEx(LPCDRAWIMAGE image) { (void)image; }
@@ -183,16 +194,22 @@ void test_client_stubs_init(void) {
     test_existing_file[0] = '\0';
     test_world_bounds = (BOX2){ 0 };
     test_window_size = MAKE(size2_t, 1024, 768);
+    test_canvas_policy = UI_CANVAS_POLICY;
+    test_ui_scene = (RECT){ 0 };
     re.GetWindowSize = mock_GetWindowSize;
+    re.SetUIScene = mock_SetUIScene;
     re.CameraUsesTerrainHeight = mock_CameraUsesTerrainHeight;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
     re.DrawFill = mock_DrawFill;
     re.DrawImageEx = mock_DrawImageEx;
     re.DrawCursor = mock_DrawCursor;
+    CL_CanvasInit();
 }
 
+/* Window changes reach the canvas the way SDL events do: resolved at once, before any hit test. */
 void test_client_stubs_set_window_size(DWORD width, DWORD height) {
     test_window_size = MAKE(size2_t, width, height);
+    CL_CanvasWindowChanged();
 }
 
 HANDLE MemAlloc(long size) {

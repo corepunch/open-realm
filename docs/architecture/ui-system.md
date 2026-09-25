@@ -313,21 +313,23 @@ glyphs and inferred square scrollbar sprites exactly 25% too short vertically.
 Frames with authoritative width and height already converted independently
 (for example WoW `PW(16)` and `PH(16)`) must not apply the factor a second time.
 
-Classic WC3 maps its authored 0.8 × 0.6 UI canvas across the whole drawable,
-including widescreen. `UI_STRETCH_CANVAS` selects that policy in the game's
-constants; SC2 and WoW retain expanding canvases. `UI_CanvasWidth` is shared
-by the renderer projection, client pointer/layout coordinates, and WC3 glue
-frames and sprite layers. World projection still uses the physical viewport's
-aspect ratio; projected labels map into the same UI canvas as pointer input.
+The client UI canvas (`client/cl_canvas.c`, [ui-canvas.md](ui-canvas.md)) owns
+how the authored scene maps onto the window. SC2 and WoW expand the scene with
+the window aspect. WC3 stretches the authored 0.8 × 0.6 scene when the mounted
+archives author no widescreen console chrome (classic retail behaviour) and
+widens it with the authored 4:3 HUD root centered when `ConsoleUI.fdf` authors
+the `ConsoleTexture05`/`06` extension tiles (retail 1.30+ behaviour). The
+renderer projects the scene the client pushes, pointer mapping and the layout
+root read the same canvas, and WC3 glue frames and sprite layers anchor to the
+renderer scene; none of them derive geometry from the window on their own.
+World projection still uses the physical viewport's aspect ratio; projected
+labels map into the same UI canvas as pointer input. Pre-rendered movies use
+the physical window aspect for letterboxing, then map that rectangle into UI
+units; using the virtual canvas aspect would stretch the video.
 
-The previous centered-4:3 policy (`dee3a1cd7`) left black margins beside the
-console at 16:10 and wider ratios, unlike classic retail. Changing just the
-HUD root width cannot fix fixed-size authored console panels: renderer and
-input must agree on the canvas. Regression tests cover 4:3, 16:10, 16:9,
-ultrawide, resize, both console-edge hit regions, world-projected points,
-cinematic fades and glue sprite/frame alignment. Pre-rendered movies use the
-physical window aspect for letterboxing, then map that rectangle into UI units;
-using the virtual canvas aspect would stretch the video.
+`UIFLAG_EXTEND_WIDESCREEN_X` frames (cinematic borders, shortcut and timer
+anchors) reach the full scene regardless of the root; under the stretched
+policy that is the authored 0.8 width.
 
 ## Key Files
 
@@ -336,6 +338,7 @@ using the virtual canvas aspect would stretch the video.
 | `client/menu.h` | UI module boundary: `menuImport_t` / `menuExport_t` |
 | `client/cl_scrn.c` | `SCR_DrawScreenField` — dispatch between menus and in-game HUD |
 | `client/cl_scrn.c` | `SCR_DrawLayout` — server-authored layout rendering |
+| `client/cl_canvas.c` | UI canvas: scene/root resolution, settle-gated `ui_canvas` class commits |
 | `client/cl_input.c` | Mouse state, input sampling |
 | `common/shared.h` | `CLIENTUISTATE` enum, `UILAYOUTLAYER` enum, `playerState_t` |
 | `games/*/common/ui_constants.h` | Per-game scene dimensions and `UI_PIXEL_ASPECT` |

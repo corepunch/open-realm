@@ -33,6 +33,9 @@
 #define BZ_WC3_HUD_TIMER_DIALOG_STACK_GAP 0.0040f // normalized UI units; separates a leaderboard from a visible timer
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
+#define HUD_CONSOLE_WIDE_MAX 8 // frames; retail ConsoleUI.fdf authors four widescreen tiles; headroom for custom skins
+#define HUD_DEFERRED_IMAGES 8 // symbolic skin keys registered at write time, not parse time; class-gated chrome only
+#define HUD_DEFERRED_IMAGE_BASE MAX_IMAGES // handle base; deferred handles never alias a live CS_IMAGES slot
 
 typedef struct {
     BOOL resolved;
@@ -52,6 +55,9 @@ typedef struct {
 typedef struct {
     LoadingScreen_t loading;
     ConsoleUI_t console;
+    LPFRAMEDEF console_wide[HUD_CONSOLE_WIDE_MAX]; /* ConsoleTexture05/06 children; written for wide clients only */
+    DWORD console_wide_count;
+    PATHSTR deferred_key[HUD_DEFERRED_IMAGES]; /* symbolic keys behind HUD_DEFERRED_IMAGE_BASE handles */
     ResourceBar_t res;
     UpperButtonBar_t upper;
     UINAME upper_cmds[4];
@@ -123,6 +129,8 @@ DWORD UI_WindowTextOffset(LPCSTR text);
 void UI_ResetFrameWriteList(void);
 void UI_CenterFrame(LPFRAMEDEF frame);
 DWORD UI_LiveImage(DWORD image);
+LPCSTR UI_ImageKey(DWORD image);
+BOOL UI_IsWideChromeKey(LPCSTR key);
 LPCSTR UI_ThemeImagePath(LPCSTR key);
 DWORD UI_LiveFont(DWORD font);
 void UI_ResetHud(void);

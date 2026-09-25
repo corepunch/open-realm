@@ -551,6 +551,9 @@ struct client_s {
     LPCMAPPLAYER mapplayer;
     DWORD ping;
     BOOL no_control, no_ui;
+    /* Presentation class the client's window settled on (ui_canvas command); gates widescreen console
+     * chrome. Runtime state: the client reports it again before begin. */
+    UICANVASCLASS canvas;
     BOOL cheat_instant_build; /* developer cheat: owner construction/training/research completes on next work tick */
     BOOL cheat_instant_kill; /* developer cheat: owner damage lethally hits units/buildings/destructables */
     DWORD modal_flags;
@@ -589,6 +592,7 @@ struct client_s {
         LONG gold_rate;
         LONG lumber_rate;
         DWORD quest_until;
+        UICANVASCLASS canvas; /* class the console chrome was last authored for */
     } resourcebar;
     /* Persistent Hero/idle-worker HUD is rebuilt only after gameplay marks it
      * dirty. last_idle_worker is the cycling cursor, not a per-frame cache. */

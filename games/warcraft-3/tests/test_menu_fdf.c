@@ -5,6 +5,7 @@
 #include <stdarg.h>
 
 #include "test.h"
+#include "common/ui_canvas.h"
 #include "common/common.h"
 #include "../menu/menu_local.h"
 #include "../renderer/mdx/r_mdx.h"
@@ -32,6 +33,7 @@ static DWORD captured_sprite_calls;
 static FLOAT captured_sprite_x[2];
 static PATHSTR captured_sprite_anim[2];
 static size2_t test_window_size = { 1000, 750 };
+static UICANVASPOLICY test_canvas_policy = UI_CANVAS_STRETCH;
 static DWORD captured_birth_sprites;
 static DWORD captured_death_sprites;
 static DWORD captured_glue_changes;
@@ -274,6 +276,9 @@ static size2_t test_get_window_size(void) {
     return test_window_size;
 }
 
+/* Stands in for the client canvas push: the renderer scene the glue anchors to follows window and policy. */
+static RECT test_get_scene_rect(void) { return UI_ResolveCanvas(test_window_size, test_canvas_policy).scene; }
+
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
 static void test_release_model(LPMODEL model) { (void)model; }
 static bool test_entity_anim(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
@@ -289,6 +294,7 @@ static LPRENDERER test_get_renderer(void) {
         .ReleaseModel = test_release_model,
         .LoadFont = test_load_font,
         .GetWindowSize = test_get_window_size,
+        .GetUISceneRect = test_get_scene_rect,
         .DrawImageEx = test_draw_image_ex,
         .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
@@ -2245,6 +2251,7 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
 
     UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+    /* Classic archives stretch the authored scene: both sprite layers stay at their 4:3 origins. */
     UI_DrawGlueScene();
     T_EQ(captured_sprite_calls, 2);
     T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
@@ -2255,6 +2262,20 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     centered = UI_GetCenteredSceneRect();
     T_FEQ(centered.x, 0.0f, 0.0001f);
     T_FEQ(centered.w, 0.8f, 0.0001f);
+    /* Widescreen archives widen the engine canvas: the right layer follows the extra width, glue frames the scene. */
+    test_canvas_policy = UI_CANVAS_EXPAND_CENTER;
+    captured_sprite_calls = 0;
+    UI_DrawGlueScene();
+    T_EQ(captured_sprite_calls, 2);
+    T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
+    T_FEQ(captured_sprite_x[1], 0.266666f, 0.0001f);
+    UI_DrawFrames((LPCFRAMEDEF[]){ UI_FindFrame("MainMenuFrame") }, 1);
+    T_FEQ(UI_GetSceneRect().x, 0.0f, 0.0001f);
+    T_FEQ(UI_GetSceneRect().w, 1.066666f, 0.0001f);
+    centered = UI_GetCenteredSceneRect();
+    T_FEQ(centered.x, 0.133333f, 0.0001f);
+    T_FEQ(centered.w, 0.8f, 0.0001f);
+    test_canvas_policy = UI_CANVAS_STRETCH;
     test_window_size = MAKE(size2_t, 1000, 750);
 
     mi = saved;

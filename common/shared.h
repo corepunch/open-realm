@@ -878,6 +878,30 @@ typedef struct {
     DWORD height;
 } size2_t;
 
+/* UI canvas contract: how the authored UI scene maps onto the window (docs/architecture/ui-canvas.md).
+ * The client resolves it (common/ui_canvas.h), the renderer projects it, the game authors chrome per class. */
+typedef enum {
+    UI_CANVAS_STRETCH,       // authored scene fills the window at any aspect; classic WC3 without widescreen chrome
+    UI_CANVAS_EXPAND,        // scene widens with the window aspect and the HUD root is the whole scene; SC2 and WoW
+    UI_CANVAS_EXPAND_CENTER, // scene widens, the authored 4:3 HUD root stays centered, extension chrome fills the sides
+} UICANVASPOLICY;
+
+typedef enum {
+    UI_CANVAS_STANDARD,    // no scene area beside the HUD root; the game authors its 4:3 chrome only
+    UI_CANVAS_WIDE,        // scene area exists beside the HUD root; the game also authors extension chrome for it
+    UI_CANVAS_CLASS_COUNT,
+} UICANVASCLASS;
+
+typedef struct {
+    RECT scene;            // full UI scene in authored units; the renderer maps it onto the whole drawable
+    RECT root;             // server-authored HUD root inside the scene; centered under UI_CANVAS_EXPAND_CENTER
+    size2_t window;        // logical window size the canvas was resolved from
+    UICANVASPOLICY policy; // resolved once per mounted data by the game's client hook
+    UICANVASCLASS chrome;  // presentation class reported to the game through the ui_canvas client command
+} UICANVAS;
+typedef UICANVAS *LPUICANVAS;
+typedef UICANVAS const *LPCUICANVAS;
+
 typedef enum {
     TE_GUNSHOT,
     TE_BLOOD,

@@ -1098,6 +1098,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawFill = R_DrawFill,
         .GetWindowSize = R_GetWindowSize,
         .GetUISceneRect = R_UISceneRect,
+        .SetUIScene = R_SetUIScene,
         .GetDrawCalls = R_GetFrameDrawCalls,
         .SetWindowSize = R_SetWindowSize,
         .WindowChanged = R_WindowChanged,

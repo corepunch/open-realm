@@ -120,6 +120,9 @@ static void CL_SendBegin(void) {
             (unsigned)cl.playerstate.team,
             (unsigned)cl.playerstate.race,
             (unsigned)cl.playerstate.color);
+    /* The presentation class precedes begin on the same reliable channel, so ClientBegin authors the
+     * console for the window this client actually has instead of re-sending it a frame later. */
+    CL_CanvasWriteChrome();
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "begin");
 }

@@ -458,6 +458,8 @@ static BOOL CL_WindowEvent(SDL_WindowEvent const *event) {
         case SDL_WINDOWEVENT_DISPLAY_CHANGED:
 #endif
             re.WindowChanged();
+            /* Mouse events later in this poll pass hit-test against the canvas; resolve it before them. */
+            CL_CanvasWindowChanged();
             break;
         default:
             break;

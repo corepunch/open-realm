@@ -1,0 +1,75 @@
+
+Texture "UpperMenuButtonBackground" {
+    File "UpperMenuButtonTexture",
+    TexCoord 0.0, 0.6640625, 0.0, 0.171875,
+}
+Texture "UpperMenuButtonPushedBackground" {
+    File "UpperMenuButtonTexture",
+    TexCoord 0.0, 0.6640625, 0.25, 0.421875,
+}
+Texture "UpperMenuButtonDisabledBackground" {
+    File "UpperMenuButtonTexture",
+    TexCoord 0.0, 0.6640625, 0.5, 0.671875,
+}
+Texture "UpperMenuButtonHighlight" {
+    File "UpperMenuButtonTexture",
+    TexCoord 0.0, 0.6640625, 0.75, 0.921875,
+    AlphaMode "ADD",
+}
+
+Frame "SIMPLEBUTTON" "UpperButtonBarButtonTemplate" {
+    DecorateFileNames,
+    Width 0.085,
+    Height 0.022,
+    ButtonPushedTextOffset 0.001 -0.001,
+    NormalTexture "UpperMenuButtonBackground",
+    PushedTexture "UpperMenuButtonPushedBackground",
+    DisabledTexture "UpperMenuButtonDisabledBackground",
+    UseHighlight "UpperMenuButtonHighlight",
+}
+
+String "UpperButtonBarButtonTextTemplate" {
+    Font "MasterFont",0.01,
+    FontColor 1.0 1.0 1.0,
+}
+
+String "UpperButtonBarButtonDisabledTextTemplate" INHERITS "UpperButtonBarButtonTextTemplate" {
+    FontColor 0.4 0.4 0.4,
+}
+
+String "UpperButtonBarButtonHighlightTextTemplate" INHERITS "UpperButtonBarButtonTextTemplate" {
+    FontColor 1.0 0.83 0.07,
+}
+
+Frame "SIMPLEFRAME" "UpperButtonBarFrame" {
+    Width 0.34,
+    Height 0.022,
+
+    Frame "SIMPLEBUTTON" "UpperButtonBarQuestsButton" INHERITS "UpperButtonBarButtonTemplate" {
+        SetPoint TOPLEFT,"UpperButtonBarFrame",TOPLEFT,0.002,0,
+        NormalText "UpperButtonBarButtonTextTemplate" "KEY_QUESTS",
+        DisabledText "UpperButtonBarButtonDisabledTextTemplate" "QUESTS",
+        HighlightText "UpperButtonBarButtonHighlightTextTemplate" "KEY_QUESTS",
+    }
+
+    Frame "SIMPLEBUTTON" "UpperButtonBarMenuButton" INHERITS "UpperButtonBarButtonTemplate" {
+        SetPoint LEFT,"UpperButtonBarQuestsButton",RIGHT,0,0,
+        NormalText "UpperButtonBarButtonTextTemplate" "KEY_MENU",
+        DisabledText "UpperButtonBarButtonDisabledTextTemplate" "MENU",
+        HighlightText "UpperButtonBarButtonHighlightTextTemplate" "KEY_MENU",
+    }
+
+    Frame "SIMPLEBUTTON" "UpperButtonBarAlliesButton" INHERITS "UpperButtonBarButtonTemplate" {
+        SetPoint LEFT,"UpperButtonBarMenuButton",RIGHT,0,0,
+        NormalText "UpperButtonBarButtonTextTemplate" "KEY_ALLIES",
+        DisabledText "UpperButtonBarButtonDisabledTextTemplate" "ALLIES",
+        HighlightText "UpperButtonBarButtonHighlightTextTemplate" "KEY_ALLIES",
+    }
+
+    Frame "SIMPLEBUTTON" "UpperButtonBarChatButton" INHERITS "UpperButtonBarButtonTemplate" {
+        SetPoint LEFT,"UpperButtonBarAlliesButton",RIGHT,0,0,
+        NormalText "UpperButtonBarButtonTextTemplate" "KEY_CHAT",
+        DisabledText "UpperButtonBarButtonDisabledTextTemplate" "CHAT",
+        HighlightText "UpperButtonBarButtonHighlightTextTemplate" "KEY_CHAT",
+    }
+}

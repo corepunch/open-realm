@@ -10,7 +10,6 @@
  */
 
 #include "menu_local.h"
-#include "common/ui_canvas.h"
 #include "client/menu_text_input.h"
 #if defined(__has_include)
 #if __has_include(<SDL2/SDL_keycode.h>)
@@ -149,14 +148,15 @@ LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
  * LAYOUT SOLVING
  * ======================================================================== */
 
+/* Glue frames anchor to the scene the engine canvas resolved and the renderer projects, so widescreen policy
+ * (stretched classic canvas or widened 1.30+ canvas) lives in one place; a test without a renderer keeps the
+ * authored scene. */
 RECT UI_GetSceneRect(void) {
     if (scene_rect_valid) {
         return scene_rect;
     }
-    scene_rect = (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
     LPRENDERER renderer = mi.GetRenderer();
-    if (renderer && renderer->GetWindowSize)
-        scene_rect.w = UI_CanvasWidth(renderer->GetWindowSize());
+    scene_rect = renderer ? renderer->GetUISceneRect() : (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
     scene_rect_valid = TRUE;
     return scene_rect;
 }

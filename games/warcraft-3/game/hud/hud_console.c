@@ -237,6 +237,23 @@ static void UI_SetUpkeepTooltip(LPFRAMEDEF frame, resourceTooltipText_t *storage
     frame->Ubertip = storage->ubertip[0] ? storage->ubertip : NULL;
 }
 
+/* Retail 1.30+ ConsoleUI.fdf hangs ConsoleTexture05/06 tiles 0.256 outside the authored 4:3 root; classic
+ * archives author none.  Collect them once so each console write can gate them on the recipient's class. */
+static void UI_CollectConsoleWideChrome(void) {
+    hud.console_wide_count = 0;
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPFRAMEDEF it = frames + i;
+        if (!it->inuse || it->Parent != hud.console.ConsoleUI || it->Type != FT_TEXTURE) continue;
+        if (!UI_IsWideChromeKey(UI_ImageKey(it->Texture.Image))) continue;
+        if (hud.console_wide_count == HUD_CONSOLE_WIDE_MAX) {
+            fprintf(stderr, "WC3 HUD: more than %u widescreen console tiles; extra tile stays authored\n",
+                    (unsigned)HUD_CONSOLE_WIDE_MAX);
+            return;
+        }
+        hud.console_wide[hud.console_wide_count++] = it;
+    }
+}
+
 void UI_LoadHudConsole(void) {
     if (hud.console.ConsoleUI) return;
     /* ResourceBar.fdf references global resource/upkeep strings indirectly;
@@ -245,6 +262,7 @@ void UI_LoadHudConsole(void) {
     UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf");
     if (!ConsoleUI_Load(&hud.console)) return;
     UI_SetAllPoints(hud.console.ConsoleUI);
+    UI_CollectConsoleWideChrome();
     ResourceBar_Load(&hud.res);
     UI_SetParent(hud.res.ResourceBarFrame, hud.console.ConsoleUI);
     UI_SetPoint(hud.res.ResourceBarFrame, FRAMEPOINT_TOPRIGHT, hud.console.ConsoleUI, FRAMEPOINT_TOPRIGHT, 0.0f, 0.0f);
@@ -398,6 +416,9 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
     UI_SetUpkeepTooltip(hud.res.ResourceBarUpkeepText, &resource_tooltips[3],
                         upkeep_tier, gold_rate);
 
+    /* Class-gated chrome: a standard client never receives the extension tiles, so their configstrings are
+     * only ever registered by a wide client's write (docs/architecture/ui-canvas.md). */
+    FOR_LOOP(i, hud.console_wide_count) UI_SetHidden(hud.console_wide[i], client->canvas != UI_CANVAS_WIDE);
     UI_WriteFrameWithChildren(hud.console.ConsoleUI, NULL);
     UI_WriteTimeOfDayIndicator(client);
     UI_WriteQuestIndicator(client);

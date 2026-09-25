@@ -3,7 +3,6 @@
  */
 
 #include "menu_local.h"
-#include "common/ui_canvas.h"
 #include "menu_glue_motion.h"
 
 #define UI_GLUE_ANIM_NAME 96 // chars; fits Blizzard glue sequence names and suffixes; used as animation storage.
@@ -101,9 +100,10 @@ static LPCSTR UI_GlueTopRightPanelPath(void) {
     return Theme_String("GlueSpriteLayerTopRight", "UI\\Glues\\SpriteLayers\\TopRightPanel.mdx");
 }
 
-/* Both authored sprite layers share the frame layout's canvas. */
+/* The stock sprite layers are an authored 4:3 pair: the left layer stays at the scene origin and the right
+ * layer follows whatever extra width the engine canvas resolved (zero under the classic stretched policy). */
 static FLOAT UI_GlueRightPanelOffset(LPRENDERER renderer) {
-    return UI_CanvasWidth(renderer->GetWindowSize()) - UI_BASE_WIDTH;
+    return renderer->GetUISceneRect().w - UI_BASE_WIDTH;
 }
 
 /* Both clocks use the renderer's normalized sequence-time contract. */
