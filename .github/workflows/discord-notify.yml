@@ -1,0 +1,41 @@
+name: Discord Notify
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issues:
+    types: [opened, reopened]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post title-only notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then echo "DISCORD_WEBHOOK_URL not set, skipping."; exit 0; fi
+          case "$EVENT_NAME" in
+            pull_request) MSG="PR #$PR_NUMBER $PR_TITLE"$'\n'"$PR_URL" ;;
+            issues) MSG="Issue #$ISSUE_NUMBER $ISSUE_TITLE"$'\n'"$ISSUE_URL" ;;
+            release) MSG="Release $RELEASE_TAG${RELEASE_NAME:+: $RELEASE_NAME}"$'\n'"$RELEASE_URL" ;;
+            *) echo "Unhandled event $EVENT_NAME, skipping."; exit 0 ;;
+          esac
+          jq -n --arg content "$MSG" '{content: $content, allowed_mentions: {parse: []}}' \
+            | curl -sS --fail-with-body --connect-timeout 10 --max-time 30 \
+                -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
