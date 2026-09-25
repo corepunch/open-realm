@@ -316,6 +316,7 @@ static inline void player_set_lens(LPPLAYER ps, gameCamera_t const *cam) {
 BOOL CL_GameDefaultCamera(gameCamera_t *camera);
 BOOL CL_GameCameraUsesWorldUp(void);
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);
+LPCSTR CL_GameOrderQueueReleaseCommand(void);
 BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin);
 void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags);
 typedef struct {

@@ -64,6 +64,7 @@ static void mock_SetUIScene(LPCRECT scene) { test_ui_scene = *scene; }
 RECT test_client_stubs_ui_scene(void) { return test_ui_scene; }
 /* Stands in for the per-game hook in games/<game>/common/world_*.c. */
 UICANVASPOLICY CL_GameCanvasPolicy(void) { return test_canvas_policy; }
+LPCSTR CL_GameOrderQueueReleaseCommand(void) { return NULL; }
 void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy) {
     test_canvas_policy = policy;
     CL_CanvasResolvePolicy();

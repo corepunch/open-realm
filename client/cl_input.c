@@ -164,9 +164,10 @@ static BOOL CL_IsShiftKey(int sym) {
 }
 
 static void CL_SendOrderQueueRelease(void) {
-    if (cls.state != ca_active) return;
+    LPCSTR command = CL_GameOrderQueueReleaseCommand();
+    if (cls.state != ca_active || !command) return;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, "orderqueuerelease");
+    SZ_Printf(&cls.netchan.message, "%s", command);
 }
 
 static void CL_SendOrderQueueReleaseOnShiftUp(int sym, SDL_Keymod mods) {
@@ -1077,6 +1078,7 @@ TEST(client_input, final_shift_release_notifies_game_order_queue) {
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
     BOOL old_focus = input.focus;
     SDL_Keymod old_mod = SDL_GetModState();
+    LPCSTR release_command = CL_GameOrderQueueReleaseCommand();
     char command[64];
 
     cls.state = ca_active;
@@ -1087,9 +1089,11 @@ TEST(client_input, final_shift_release_notifies_game_order_queue) {
     SDL_SetModState(KMOD_NONE);
     SZ_Init(&cls.netchan.message, data, sizeof(data));
     CL_SendOrderQueueReleaseOnShiftUp(SDLK_LSHIFT, KMOD_LSHIFT);
-    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
-    MSG_ReadString(&cls.netchan.message, command);
-    T_STREQ(command, "orderqueuerelease");
+    if (release_command) {
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+        MSG_ReadString(&cls.netchan.message, command);
+        T_STREQ(command, release_command);
+    } else T_EQ(cls.netchan.message.cursize, 0);
 
     SDL_SetModState(KMOD_RSHIFT);
     SZ_Init(&cls.netchan.message, data, sizeof(data));
@@ -1106,6 +1110,60 @@ TEST(client_input, final_shift_release_notifies_game_order_queue) {
     cls.key_dest = old_dest;
     cl.playerstate.client_ui_state = old_ui;
     input.focus = old_focus;
+    SDL_SetModState(old_mod);
+}
+
+static void CL_TestOrderQueueReleaseMessage(void) {
+    LPCSTR command = CL_GameOrderQueueReleaseCommand();
+    char text[64];
+    if (!command) { T_EQ(cls.netchan.message.cursize, 0); return; }
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, text);
+    T_STREQ(text, command);
+}
+
+TEST(client_input, shift_release_reaches_game_when_console_owns_keyup) {
+    BYTE data[128];
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    __typeof__(input) old_input = input;
+    mouseEvent_t old_mouse = mouse;
+    SDL_Event event = { .key = { .type = SDL_KEYUP, .keysym.sym = SDLK_LSHIFT, .keysym.mod = KMOD_LSHIFT } };
+    SDL_Keymod old_mod = SDL_GetModState();
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0); SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    input = (__typeof__(input)){ .focus = true };
+    cls.state = ca_active; cls.key_dest = key_console; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input();
+    CL_TestOrderQueueReleaseMessage();
+
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT); SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    cl = *old_cl; MemFree(old_cl); cls = old_cls; input = old_input; mouse = old_mouse;
+    SDL_SetModState(old_mod);
+}
+
+TEST(client_input, focus_loss_releases_game_order_queue) {
+    BYTE data[128];
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    __typeof__(input) old_input = input;
+    mouseEvent_t old_mouse = mouse;
+    SDL_Event event = { .window = { .type = SDL_WINDOWEVENT, .event = SDL_WINDOWEVENT_FOCUS_LOST } };
+    SDL_Keymod old_mod = SDL_GetModState();
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0); SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    input = (__typeof__(input)){ .focus = true };
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input();
+    CL_TestOrderQueueReleaseMessage();
+    T_ASSERT(!input.focus);
+
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT); SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    cl = *old_cl; MemFree(old_cl); cls = old_cls; input = old_input; mouse = old_mouse;
     SDL_SetModState(old_mod);
 }
 

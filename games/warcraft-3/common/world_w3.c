@@ -67,6 +67,8 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 pos, LPBYTE flags) {
 
 #define WC3_GOLD_MINE_MIN_DISTANCE 512.0f
 
+LPCSTR CL_GameOrderQueueReleaseCommand(void) { return "orderqueuerelease"; }
+
 BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
     FLOAT const min_dist_sq = WC3_GOLD_MINE_MIN_DISTANCE * WC3_GOLD_MINE_MIN_DISTANCE;
     if (!origin || !cl.cursorEntity || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN)) return false;

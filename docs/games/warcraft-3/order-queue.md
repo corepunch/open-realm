@@ -40,7 +40,15 @@ The shared bind layer must still dispatch the ordinary mouse-button command whil
 
 `select` and `point` are also used to finish command-card targeting. `menu_t.supports_order_queue` gates the modifier on the server, so only an explicitly queue-capable targeting mode treats Shift as order queuing. Move, Attack, Repair, and construction placement set that flag. Other target modes ignore `queue`, preserving their existing lifecycle until their reservation/cost semantics are implemented deliberately.
 
-For a successful queue-capable target click, `Get_Commands_f()` is not called while Shift remains part of that click. This leaves the targeting callback armed so the player can add several targets/points without reopening the command button. Construction additionally marks `menu_t.order_queue_chained` after the first successful Shift placement. When the final Shift key is released, the client sends `orderqueuerelease`; the server removes the sticky construction ghost only when that chained state is set. Merely tapping Shift before a successful placement is therefore a no-op. A successful non-Shift target returns to the normal command card as before.
+For a successful queue-capable target click, `Get_Commands_f()` is not called while Shift remains part
+of that click. This leaves the targeting callback armed so the player can add several targets/points
+without reopening the command button. Construction additionally marks `menu_t.order_queue_chained`
+after the first successful Shift placement. When the final Shift key is released or focus is lost,
+shared client input asks `CL_GameOrderQueueReleaseCommand()` for the active game's release command.
+Warcraft III returns `orderqueuerelease`; WoW and SC2 return `NULL`, so the shared client sends no
+WC3-only command to those servers. The WC3 server removes the sticky construction ghost only when that
+chained state is set. Merely tapping Shift before a successful placement is therefore a no-op. A
+successful non-Shift target returns to the normal command card as before.
 
 A small world click now sends either the entity target or the terrain point, not both. This prevents a unit-target completion from immediately being followed by a second point-target completion at the same cursor coordinate.
 
@@ -184,6 +192,9 @@ The unit suite contains coverage for:
 - point `attack` selecting attack-move rather than ordinary Move;
 - construction placement staying armed across successful Shift clicks;
 - construction queue entries retaining the building rawcode and point;
+- the real movement scheduler starting a queued build when its active Move completes, then discarding a
+  queued build and indicator when the worker no longer has the required resources;
+- queued Build payload and site-indicator identity surviving a save/load round trip;
 - final Shift release removing only the placement overlay after a successful chain;
 - Shift release before any successful placement leaving the overlay active;
 - invalid placement, selection replacement, selected-worker death, right-click cancellation, explicit cancel, and command-card rebuild cursor lifecycles.
@@ -192,6 +203,9 @@ After building locally, useful targeted checks are:
 
 ```bash
 make test-wc3-engine WC3_PATTERN='wc3_unit.*'
+make test-wc3-engine WC3_PATTERN='wc3_building.scheduler_*'
+make test-wc3-engine WC3_PATTERN='wc3_building.queued_build_payload_and_indicator_survive_save_load'
+make test-wc3-engine WC3_PATTERN='client_input.*'
 ```
 
 Runtime checks should additionally cover:
