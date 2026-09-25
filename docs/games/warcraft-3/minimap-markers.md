@@ -5,8 +5,9 @@ automatic live entity contacts, transient pings/alerts, and preview-only
 `war3map.mmp` icons. This document covers the automatic live contact path.
 
 See also [alerts and minimap pings](alerts-and-minimap-pings.md), [team
-colors](team-colors.md), [fog and cinematics](fog-and-cinematics.md), and
-[loading and assets](loading-and-assets.md), and the generic
+colors](team-colors.md), [fog and cinematics](fog-and-cinematics.md),
+[minimap input routing](../../architecture/shared-input.md#minimap-and-context-click-routing),
+[order queues](order-queue.md), [loading and assets](loading-and-assets.md), and the generic
 [server-selected presentation contract](../../architecture/server-selected-effects.md).
 
 ## Ownership and engine boundary

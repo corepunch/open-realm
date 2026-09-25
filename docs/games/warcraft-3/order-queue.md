@@ -7,6 +7,7 @@ Player-issued movement/combat orders use a per-unit pending FIFO that is separat
 The current implementation deliberately covers the high-confidence Warsmash-compatible core:
 
 - Shift + right-click point (`Smart`) queues movement for mobile units;
+- Shift + right-click on the minimap converts the minimap hit to world XY and submits the same queued `smartpoint` command without moving the camera;
 - Shift + right-click entity queues Smart target resolution, including attack, harvest, repair, item pickup, persistent follow for a passive allied unit, and fallback point movement for other accepted targets;
 - Shift + Move queues point movement;
 - Shift + Attack queues either an entity attack or point attack-move;
@@ -36,7 +37,7 @@ point 1024 768 queue
 Entity Smart clicks may also carry the traced world point as `smart <entity> <x> <y>`. The game normally resolves the entity target exactly as before; the point is only a fallback for an alive walkable destructable whose entity Smart action is rejected. This lets a bridge remain non-attackable by right-click while the same click still becomes formation-aware ground movement to the clicked deck position. Without Shift the corresponding form is `smart 57 1024 768`.
 
 
-The shared bind layer must still dispatch the ordinary mouse-button command while Shift is held. Explicit modified mouse binds take priority (for example `ALT+MOUSE1 +pan`); when no modified mouse bind exists, `SHIFT+MOUSE1`/`SHIFT+MOUSE2` inherit the plain `MOUSE1`/`MOUSE2` bind. This lets `+select`/`+smart` run and inspect the live Shift state without weakening exact modifier semantics for keyboard hotkeys such as control groups.
+The shared bind layer must still dispatch the ordinary mouse-button command while Shift is held. Explicit modified mouse binds take priority (for example `ALT+MOUSE1 +pan`); when no modified mouse bind exists, `SHIFT+MOUSE1`/`SHIFT+MOUSE2` inherit the plain `MOUSE1`/`MOUSE2` bind. This lets `+select`/`+smart` run and inspect the live Shift state without weakening exact modifier semantics for keyboard hotkeys such as control groups. Minimap Smart routing follows the same rule and is documented in [shared input](../../architecture/shared-input.md#minimap-and-context-click-routing).
 
 `select` and `point` are also used to finish command-card targeting. `menu_t.supports_order_queue` gates the modifier on the server, so only an explicitly queue-capable targeting mode treats Shift as order queuing. Move, Attack, Repair, and construction placement set that flag. Other target modes ignore `queue`, preserving their existing lifecycle until their reservation/cost semantics are implemented deliberately.
 

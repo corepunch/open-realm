@@ -128,12 +128,21 @@ checks the minimap before the world-selection HUD blocker; otherwise an authored
 can swallow the click. `IN_SelectUp` ends the minimap drag before either single- or multi-selection returns.
 Gameplay/menu/modal ownership still gates entry, and `CL_ResetInput` cancels drags when ownership changes.
 
-`client/cl_minimap.c` calls the mandatory `re.TraceMinimap` export. A false trace result means no minimap hit;
+Minimap camera input in `client/cl_minimap.c` and Smart input in `client/cl_input.c` call the mandatory
+`re.TraceMinimap` export. A false trace result means no minimap hit;
 an absent function pointer is an incomplete renderer API, not an optional feature. The renderer owns screen/world
 conversion and the drawn minimap bounds; the client does not duplicate game layout geometry or inspect game names.
 `CL_SetCameraPosition` predicts focus and writes `clc_input` with `BZ_INPUT_FOCUS`. Server transport delivers that
 typed input to `game_export.ClientInput`. WC3 and SC2 resolve controller focus there; WoW deliberately ignores free
 focus because its camera follows its actor. Availability of a shared minimap does not override that game policy.
+
+Smart/context clicks resolve a minimap hit before the generic gameplay-HUD blocker. The WC3 and SC2 default configs
+bind MOUSE2 to `+smart`, so a right-click over the minimap uses the traced world XY as the ordinary
+`smartpoint <x> <y> [queue]` command; Shift therefore appends the same
+`queue` suffix used by world-space Smart clicks. The minimap path does not entity-pick marker sprites, so visible
+unit/building contacts remain positional references rather than direct Smart targets. It also does not call
+`CL_SetCameraPosition`, keeping right-click orders independent from left-click camera focus. Other HUD pixels remain
+blocked from Smart/world input.
 
 Smart entity clicks preserve both available renderer results in the existing `clc_stringcmd` command:
 `smart <entity> <x> <y> [queue]`. Without a point hit the command remains `smart <entity> [queue]`.
@@ -142,7 +151,8 @@ walkability and attack rules on the server and uses its existing queued-order/fo
 see [order queues](../games/warcraft-3/order-queue.md). No new game-specific callback or snapshot field is required.
 
 The `client_input` tests decode the focus packet, exercise selection capacities 1 and 64, drag/release, a missed
-minimap trace, menu ownership, and Smart commands with/without traced points and Shift. A bounded diagnostic run
+minimap trace, menu ownership, minimap right-click/Shift-right-click point orders through SDL bindings, generic-HUD
+blocking, modal blocking, and Smart commands with/without traced points and Shift. A bounded diagnostic run
 with `+test 'client_input.*' +com_frame_limit 100` confirmed the focus channel before the old optional-callback
 guards and duplicate release were removed. Investigative logs are not retained in source.
 
@@ -191,7 +201,9 @@ coordinates in the returned server snapshot. That revision's normal focused game
 an input-order failure. Also check window focus, modal ownership, cinematic state, and the active MOUSE1 binding.
 
 Regression coverage: `client_input.minimap_sdl_click_drag_release_over_hud` pushes SDL button/motion events
-through `CL_Input`, the MOUSE1 binding, layout handling and `Cbuf_Execute`. It checks focus packets, drag/release,
-non-minimap HUD clicks and modal blocking. `wc3_api.controller_focus_updates_camera_and_respects_control`
-checks server application, camera-target release, bounds clamping and scripted ownership. Temporarily moving
-the HUD blocker ahead of `CL_TryMinimapClick` makes the SDL regression fail.
+through `CL_Input`, the MOUSE1/MOUSE2 bindings, layout handling and `Cbuf_Execute`. It checks left-click focus
+packets and drag/release, right-click `smartpoint`, Shift-right-click queued `smartpoint`, unchanged camera state for
+Smart minimap clicks, non-minimap HUD blocking, and modal blocking.
+`wc3_api.controller_focus_updates_camera_and_respects_control`
+checks server application, camera-target release, bounds clamping and scripted ownership. Moving either selection
+or Smart handling's generic HUD blocker ahead of its minimap trace makes the SDL regression fail.

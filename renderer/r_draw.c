@@ -459,7 +459,7 @@ bool R_WorldToMinimap(vector2_t const *world, vector2_t *outScreen) {
 }
 
 /* Inverse of R_MinimapPointForWorld: map a window-pixel click over the minimap
- * to a world position, so a minimap click can recenter the camera. */
+ * to a world position for camera focus or point-order input. */
 bool R_TraceMinimap(float x, float y, vector2_t *outWorld) {
     size2_t window;
     rect_t scene;
