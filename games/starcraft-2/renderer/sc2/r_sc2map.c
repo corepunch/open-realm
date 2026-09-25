@@ -62,11 +62,9 @@ extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model,
 extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, DWORD vertices, DWORD indices);
 
 static LPMAPSEGMENT sc2_terrain_segment;
-static LPBUFFER sc2_hard_tile_buffer;
+static LPMAPLAYER sc2_hard_tile_layers;
 static LPCMODEL sc2_hard_tile_model;
 static renderEntity_t sc2_hard_tile_entity;
-static DWORD sc2_hard_tile_vertices, sc2_hard_tile_indices;
-static BOOL sc2_hard_tiles_draw_logged;
 static BOOL sc2_terrain_shader_loaded;
 static BOOL sc2_cliff_shader_loaded;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
@@ -100,6 +98,9 @@ typedef struct rSc2CliffBakeBatch_s {
     LPCTEXTURE texture;
     struct rSc2CliffBakeBatch_s *next;
 } rSc2CliffBakeBatch_t;
+
+/* Borrow the terrain bake until road projection finishes; no second cliff geometry representation. */
+static rSc2CliffBakeBatch_t *sc2_road_cliffs;
 
 typedef enum {
     SC2_CLIFF_JOIN_LEFT = 1 << 0,
@@ -599,91 +600,150 @@ static void r_sc2_release_terrain(void) {
         SAFE_DELETE(sc2_terrain_masks[i], R_ReleaseTexture);
     }
     r_sc2_release_cliff_models();
-    R_ReleaseVertexArrayObject(sc2_hard_tile_buffer); sc2_hard_tile_buffer = NULL;
+    while (sc2_hard_tile_layers) {
+        LPMAPLAYER next = sc2_hard_tile_layers->next;
+        R_ReleaseVertexArrayObject((LPBUFFER)sc2_hard_tile_layers->buffer);
+        ri.MemFree(sc2_hard_tile_layers); sc2_hard_tile_layers = next;
+    }
     if (sc2_hard_tile_model) R_ReleaseModel((LPMODEL)sc2_hard_tile_model);
-    sc2_hard_tile_model = NULL; sc2_hard_tile_vertices = sc2_hard_tile_indices = 0;
-    sc2_hard_tiles_draw_logged = false;
+    sc2_hard_tile_model = NULL;
     sc2_num_terrain_layers = 0;
     ri.MemFree(sc2_terrain_normals);
     sc2_terrain_normals = NULL;
 }
 
+/* Count or emit the same ground-triangle intersections, including cliff/ramp omissions. */
+static DWORD r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVERTEX out) {
+    LPCVERTEX road = tri->verts;
+    BOX2 bounds = SC2_MapBounds();
+    VECTOR2 lo = {road[0].position.x, road[0].position.y}, hi = lo;
+    DWORD total = 0;
+    FOR_LOOP(i, 3) {
+        lo.x = MIN(lo.x, road[i].position.x); lo.y = MIN(lo.y, road[i].position.y);
+        hi.x = MAX(hi.x, road[i].position.x); hi.y = MAX(hi.y, road[i].position.y);
+    }
+    int x0 = MAX(0, (int)floorf((lo.x-bounds.min.x)/map->cell_size));
+    int y0 = MAX(0, (int)floorf((lo.y-bounds.min.y)/map->cell_size));
+    int x1 = MIN((int)SC2_MAP_WIDTH(map)-1, (int)floorf((hi.x-bounds.min.x)/map->cell_size));
+    int y1 = MIN((int)SC2_MAP_HEIGHT(map)-1, (int)floorf((hi.y-bounds.min.y)/map->cell_size));
+    for (int y = y0; y <= y1; y++) {
+        for (int x = x0; x <= x1; x++) {
+            VERTEX corners[4] = {0};
+            if (r_sc2_skip_ground_cell(map, x, y)) continue;
+            FOR_LOOP(i, 4) {
+                DWORD gx = x + (i == 1 || i == 2), gy = y + (i >= 2);
+                corners[i].position = (VECTOR3){bounds.min.x+gx*map->cell_size, bounds.min.y+gy*map->cell_size, r_sc2_ground_height_at_grid(map, gx, gy)};
+                corners[i].normal = sc2_terrain_normals[gx + gy*(SC2_MAP_WIDTH(map)+1)];
+            }
+            FOR_LOOP(i, 2) {
+                VERTEX ground[] = {corners[0], corners[i+1], corners[i+2]};
+                total += r_sc2_clip_road(road, ground, out ? out+total : NULL);
+            }
+        }
+    }
+    /* A cliff cell has real M3 top geometry instead of grid triangles, including bridge approaches. */
+    for (rSc2CliffBakeBatch_t const *batch = sc2_road_cliffs; batch; batch = batch->next) {
+        for (DWORD i = 0; i < batch->list.num_vertices; i += 3) {
+            LPCVERTEX cliff = batch->list.vertices+i;
+            FLOAT minx = MIN(cliff[0].position.x, MIN(cliff[1].position.x, cliff[2].position.x));
+            FLOAT maxx = MAX(cliff[0].position.x, MAX(cliff[1].position.x, cliff[2].position.x));
+            FLOAT miny = MIN(cliff[0].position.y, MIN(cliff[1].position.y, cliff[2].position.y));
+            FLOAT maxy = MAX(cliff[0].position.y, MAX(cliff[1].position.y, cliff[2].position.y));
+            if (minx >= hi.x || maxx <= lo.x || miny >= hi.y || maxy <= lo.y) continue;
+            total += r_sc2_clip_road_cliff(tri, cliff, out ? out+total : NULL);
+        }
+    }
+    return total;
+}
+
+/* Bake exact-size draped geometry; split M3 buffers before their 16-bit indices overflow. */
+static void r_sc2_bake_roads(sc2Map_t const *map, LPCSC2ROADTRI roads, DWORD count) {
+    DWORD total = 0, used = 0;
+    FOR_LOOP(i, count) total += r_sc2_project_road(map, roads+i, NULL);
+    if (!total) return;
+    VERTEX *baked = ri.MemAlloc(total * sizeof(*baked));
+    if (!baked) { fprintf(stderr, "SC2 road build: allocation failed for %u vertices\n", total); return; }
+    FOR_LOOP(i, count) used += r_sc2_project_road(map, roads+i, baked+used);
+    for (DWORD first = 0; first < total;) {
+        DWORD n = MIN(total-first, 65535u); /* Complete triangles, addressable by M3's USHORT indices. */
+        USHORT *faces = ri.MemAlloc(n * sizeof(*faces));
+        LPMAPLAYER layer = ri.MemAlloc(sizeof(*layer));
+        if (!faces || !layer) {
+            fprintf(stderr, "SC2 road build: buffer allocation failed for %u vertices\n", n);
+            ri.MemFree(faces); ri.MemFree(layer); break;
+        }
+        FOR_LOOP(i, n) faces[i] = i;
+        memset(layer, 0, sizeof(*layer));
+        layer->num_vertices = layer->num_indices = n;
+        LPBUFFER buffer = R_MakeVertexArrayObject(baked+first, n);
+        layer->buffer = buffer;
+        R_Call(glBindVertexArray, layer->buffer->vao);
+        R_Call(glGenBuffers, 1, &buffer->ibo);
+        R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, layer->buffer->ibo);
+        R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, n*sizeof(*faces), faces, GL_STATIC_DRAW);
+        layer->next = sc2_hard_tile_layers; sc2_hard_tile_layers = layer;
+        ri.MemFree(faces); first += n;
+    }
+    ri.MemFree(baked);
+}
+
+/* Build the original Bezier ribbon as projection triangles; terrain owns the final surface Z. */
 static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
-    DWORD max_segments, vertices_count = 0, segments = 0, failed = 0;
-    VERTEX *vertices;
-    USHORT *indices;
-    FLOAT distance = 0.0f;
-    BOOL chain_open = false;
+    DWORD count = 0;
+    FLOAT distance = 0;
+    BOOL chain = false;
+    VERTEX prev[2] = {0};
 
-    if (!map) { fprintf(stderr, "SC2 road build: no map\n"); return; }
-    if (IS_ARRAY_EMPTY(map->hard_tiles)) { fprintf(stderr, "SC2 road build: no parsed placements\n"); return; }
-    max_segments = ARRAY_COUNT(map->hard_tiles) * SC2_HARD_TILE_CURVE_STEPS;
-    vertices = ri.MemAlloc((max_segments + ARRAY_COUNT(map->hard_tiles)) * 2 * sizeof(*vertices));
-    indices = ri.MemAlloc(max_segments * 6 * sizeof(*indices));
-    if (!vertices || !indices) { fprintf(stderr, "SC2 road build: ribbon allocation failed for %u segments\n", (unsigned)max_segments); ri.MemFree(vertices); ri.MemFree(indices); return; }
-    memset(vertices, 0, (max_segments + ARRAY_COUNT(map->hard_tiles)) * 2 * sizeof(*vertices));
+    if (!map || IS_ARRAY_EMPTY(map->hard_tiles)) return;
+    SC2ROADTRI *roads = ri.MemAlloc(ARRAY_COUNT(map->hard_tiles)*SC2_HARD_TILE_CURVE_STEPS*2*sizeof(*roads));
+    if (!roads) { fprintf(stderr, "SC2 road build: ribbon allocation failed\n"); return; }
     FOR_EACH_ARRAY(sc2MapHardTile_t, tile, map->hard_tiles) {
-        DWORD index = (DWORD)(tile - map->hard_tiles);
-        sc2MapHardTile_t const *next = tile + 1;
-
-        if (!tile->model[0]) { fprintf(stderr, "SC2 road build[%u]: CTile='%s' has no resolved model\n", (unsigned)index, tile->tile); failed++; continue; }
-        if (index + 1 >= ARRAY_COUNT(map->hard_tiles) || tile->flags & SC2_HARD_TILE_END || next->flags & SC2_HARD_TILE_START) { chain_open = false; continue; }
+        DWORD index = tile-map->hard_tiles;
+        sc2MapHardTile_t const *next = tile+1;
+        if (!tile->model[0]) {
+            fprintf(stderr, "SC2 road build[%u]: CTile='%s' has no resolved model\n", index, tile->tile);
+            chain = false; continue;
+        }
+        if (index+1 >= ARRAY_COUNT(map->hard_tiles) || tile->flags & SC2_HARD_TILE_END || next->flags & SC2_HARD_TILE_START) {
+            chain = false; continue;
+        }
         if (!sc2_hard_tile_model) sc2_hard_tile_model = R_LoadModel(tile->model);
         if (!sc2_hard_tile_model || sc2_hard_tile_model->modeltype != ID_43DM || !sc2_hard_tile_model->m3) {
-            fprintf(stderr, "SC2 road build[%u]: M3 load failed CTile='%s' model='%s' handle=%p type=0x%08x m3=%p\n",
-                    (unsigned)index, tile->tile, tile->model, (void *)sc2_hard_tile_model,
-                    sc2_hard_tile_model ? (unsigned)sc2_hard_tile_model->modeltype : 0,
-                    sc2_hard_tile_model ? (void *)sc2_hard_tile_model->m3 : NULL);
-            failed++; chain_open = false; continue;
+            fprintf(stderr, "SC2 road build[%u]: M3 load failed CTile='%s' model='%s'\n", index, tile->tile, tile->model);
+            chain = false; continue;
         }
-        if (!chain_open) {
-            VECTOR3 tangent = r_sc2_hard_tile_curve_tangent(tile, next, 0.0f);
-            VECTOR3 normal = tile->normal, side;
-
-            distance = 0.0f; Vector3_normalize(&normal); side = Vector3_cross(&tangent, &normal); Vector3_normalize(&side);
-            FOR_LOOP(edge, 2) {
-                VERTEX *vertex = &vertices[vertices_count++];
-                FLOAT sign = edge ? 1.0f : -1.0f;
-                vertex->position = Vector3_add(&tile->position, &(VECTOR3){side.x * tile->scale.x * sign, side.y * tile->scale.x * sign, side.z * tile->scale.x * sign});
-                vertex->position.z = r_sc2_hard_tile_surface_z(vertex->position.z, R_SC2GetHeightAtPoint(vertex->position.x, vertex->position.y));
-                vertex->normal = normal; vertex->texcoord = (VECTOR2){distance, SC2_HARD_TILE_BODY_V + (edge ? 0.5f : 0.0f)};
-                vertex->color = (COLOR32){255,255,255,255}; vertex->boneWeight[0] = 255;
+        if (!chain) distance = 0;
+        for (DWORD step = chain ? 1 : 0; step <= SC2_HARD_TILE_CURVE_STEPS; step++) {
+            FLOAT t = step/(FLOAT)SC2_HARD_TILE_CURVE_STEPS;
+            VECTOR3 point = r_sc2_hard_tile_curve_point(tile, next, t);
+            VECTOR3 tangent = r_sc2_hard_tile_curve_tangent(tile, next, t);
+            VECTOR3 normal = Vector3_lerp(&tile->normal, &next->normal, t), side;
+            FLOAT width = LerpNumber(tile->scale.x, next->scale.x, t);
+            VERTEX cur[2] = {0};
+            if (step) {
+                VECTOR3 p = r_sc2_hard_tile_curve_point(tile, next, (step-1)/(FLOAT)SC2_HARD_TILE_CURVE_STEPS);
+                distance += Vector3_distance(&point, &p)/MAX(width*2*SC2_HARD_TILE_BODY_ASPECT, SC2_EPSILON);
             }
-            chain_open = true;
-        }
-        FOR_LOOP(step, SC2_HARD_TILE_CURVE_STEPS) {
-            FLOAT t0 = step / (FLOAT)SC2_HARD_TILE_CURVE_STEPS, t1 = (step + 1) / (FLOAT)SC2_HARD_TILE_CURVE_STEPS;
-            VECTOR3 prev = r_sc2_hard_tile_curve_point(tile, next, t0), point = r_sc2_hard_tile_curve_point(tile, next, t1);
-            VECTOR3 tangent = r_sc2_hard_tile_curve_tangent(tile, next, t1);
-            VECTOR3 normal = Vector3_lerp(&tile->normal, &next->normal, t1), side, delta = Vector3_sub(&point, &prev);
-            FLOAT width = LerpNumber(tile->scale.x, next->scale.x, t1);
-            DWORD base = vertices_count - 2;
-
-            distance += sqrtf(Vector3_lengthsq(&delta)) / MAX(width * 2.0f * SC2_HARD_TILE_BODY_ASPECT, SC2_EPSILON);
             Vector3_normalize(&normal); side = Vector3_cross(&tangent, &normal); Vector3_normalize(&side);
             FOR_LOOP(edge, 2) {
-                VERTEX *vertex = &vertices[vertices_count++];
-                FLOAT sign = edge ? 1.0f : -1.0f;
-                vertex->position = Vector3_add(&point, &(VECTOR3){side.x * width * sign, side.y * width * sign, side.z * width * sign});
-                vertex->position.z = r_sc2_hard_tile_surface_z(vertex->position.z, R_SC2GetHeightAtPoint(vertex->position.x, vertex->position.y));
-                vertex->normal = normal; vertex->texcoord = (VECTOR2){distance, SC2_HARD_TILE_BODY_V + (edge ? 0.5f : 0.0f)};
-                vertex->color = (COLOR32){255,255,255,255}; vertex->boneWeight[0] = 255;
+                FLOAT sign = edge ? 1 : -1;
+                cur[edge].position = Vector3_add(&point, &(VECTOR3){side.x*width*sign, side.y*width*sign, side.z*width*sign});
+                cur[edge].normal = normal;
+                cur[edge].texcoord = (VECTOR2){distance, SC2_HARD_TILE_BODY_V + (edge ? .5f : 0)};
+                cur[edge].color = COLOR32_WHITE; cur[edge].boneWeight[0] = 255;
             }
-            indices[segments * 6 + 0] = base; indices[segments * 6 + 1] = base + 2; indices[segments * 6 + 2] = base + 1;
-            indices[segments * 6 + 3] = base + 1; indices[segments * 6 + 4] = base + 2; indices[segments * 6 + 5] = base + 3;
-            segments++;
+            if (step) {
+                FLOAT depth = MAX(tile->scale.y, next->scale.y);
+                roads[count++] = (SC2ROADTRI){ {prev[0], cur[0], prev[1]}, depth };
+                roads[count++] = (SC2ROADTRI){ {prev[1], cur[0], cur[1]}, depth };
+            }
+            memcpy(prev, cur, sizeof(prev));
         }
-        if (next->flags & SC2_HARD_TILE_END) chain_open = false;
+        chain = !(next->flags & SC2_HARD_TILE_END);
     }
-    sc2_hard_tile_vertices = vertices_count; sc2_hard_tile_indices = segments * 6;
-    sc2_hard_tile_buffer = R_MakeVertexArrayObject(vertices, sc2_hard_tile_vertices);
-    R_Call(glBindVertexArray, sc2_hard_tile_buffer->vao); R_Call(glGenBuffers, 1, &sc2_hard_tile_buffer->ibo);
-    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, sc2_hard_tile_buffer->ibo);
-    R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, sc2_hard_tile_indices * sizeof(*indices), indices, GL_STATIC_DRAW);
-    sc2_hard_tile_entity.model = sc2_hard_tile_model; sc2_hard_tile_entity.scale = 1.0f;
-    ri.MemFree(vertices); ri.MemFree(indices);
-    fprintf(stderr, "SC2 road build: ribbon segments=%u vertices=%u indices=%u failed=%u\n", (unsigned)segments,
-            (unsigned)sc2_hard_tile_vertices, (unsigned)sc2_hard_tile_indices, (unsigned)failed);
+    r_sc2_bake_roads(map, roads, count);
+    sc2_hard_tile_entity.model = sc2_hard_tile_model; sc2_hard_tile_entity.scale = 1;
+    ri.MemFree(roads);
 }
 
 static void r_sc2_release_cliff_models(void) {
@@ -1487,10 +1547,10 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         }
     }
     r_sc2_build_ramp_cliffs(map, &batches);
-    while (batches) {
+    sc2_road_cliffs = batches;
+    for (batch = batches; batch; batch = batch->next) {
         LPMAPLAYER layer;
-        batch = batches; batches = batch->next;
-        if (!batch->list.num_vertices) { ri.MemFree(batch); continue; }
+        if (!batch->list.num_vertices) continue;
         R_CliffWeldNormals(&batch->list, map->cell_size * 0.5f);
         layer = ri.MemAlloc(sizeof(*layer)); memset(layer, 0, sizeof(*layer));
         layer->type = MAPLAYERTYPE_CLIFF;
@@ -1498,7 +1558,6 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         layer->buffer = R_MakeVertexArrayObject(batch->list.vertices, batch->list.num_vertices);
         layer->num_vertices = batch->list.num_vertices;
         r_sc2_add_layer(&layers, layer);
-        ri.MemFree(batch->list.vertices); ri.MemFree(batch->list.groups); ri.MemFree(batch);
     }
     return layers;
 }
@@ -1527,6 +1586,11 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_ground_layer(map));
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_cliff_layer(map));
     r_sc2_build_hard_tiles(map);
+    while (sc2_road_cliffs) {
+        rSc2CliffBakeBatch_t *next = sc2_road_cliffs->next;
+        ri.MemFree(sc2_road_cliffs->list.vertices); ri.MemFree(sc2_road_cliffs->list.groups);
+        ri.MemFree(sc2_road_cliffs); sc2_road_cliffs = next;
+    }
 
     bounds = SC2_MapBounds();
     if (map->t3HeightMap) {
@@ -1542,13 +1606,16 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     };
 }
 
+/* Coplanar road surfaces use raster depth bias, not a world-space lift above selection rings. */
 static void r_sc2_draw_hard_tiles(void) {
-    if (!sc2_hard_tiles_draw_logged) {
-        fprintf(stderr, "SC2 road draw: first frame submitting %u ribbon indices\n", (unsigned)sc2_hard_tile_indices);
-        sc2_hard_tiles_draw_logged = true;
-    }
-    if (sc2_hard_tile_model && sc2_hard_tile_buffer)
-        M3_RenderBuffer(&sc2_hard_tile_entity, sc2_hard_tile_model->m3, sc2_hard_tile_buffer, sc2_hard_tile_vertices, sc2_hard_tile_indices);
+    if (!sc2_hard_tile_layers) return;
+    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
+    /* Cliff material overlays already use -1; roads must sit ahead of that depth layer. */
+    R_Call(glPolygonOffset, -2.0f, -2.0f);
+    for (LPCMAPLAYER layer = sc2_hard_tile_layers; layer; layer = layer->next)
+        M3_RenderBuffer(&sc2_hard_tile_entity, sc2_hard_tile_model->m3, layer->buffer, layer->num_vertices, layer->num_indices);
+    R_Call(glPolygonOffset, 0.0f, 0.0f);
+    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
 }
 
 static LPTEXTURE r_sc2_terrain_layer_texture(DWORD index) {

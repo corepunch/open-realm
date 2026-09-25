@@ -156,9 +156,95 @@ TEST(sc2_map, hard_tile_matrix_maps_prism_to_authored_surface) {
     T_FEQ(top.x, 10, .0001f); T_FEQ(top.y, 20, .0001f); T_FEQ(top.z, 3, .0001f);
 }
 
-TEST(sc2_map, hard_tile_surface_uses_small_terrain_clearance) {
-    T_FEQ(r_sc2_hard_tile_surface_z(3.0f, 3.08f), 3.13f, .0001f);
-    T_FEQ(r_sc2_hard_tile_surface_z(3.0f, 2.5f), 3.0f, .0001f);
+/* The old road max(authored Z, terrain+.05) hid rings at terrain+.02. */
+TEST(sc2_map, hard_tile_surface_matches_terrain_below_selection) {
+    VERTEX ground[] = {
+        {.position={0,0,2.5f}, .normal={0,0,1}},
+        {.position={1,0,2.5f}, .normal={0,0,1}},
+        {.position={1,1,2.5f}, .normal={0,0,1}} }, road[3], out[18];
+    memcpy(road, ground, sizeof(road));
+    FOR_LOOP(i, 3) road[i].position.z = 3;
+    DWORD n = r_sc2_clip_road(road, ground, out);
+    T_EQ(n, 3);
+    FOR_LOOP(i, n) T_FEQ(out[i].position.z, 2.5f, .0001f);
+    FOR_LOOP(i, 3) ground[i].position.z = 3.08f;
+    n = r_sc2_clip_road(road, ground, out);
+    T_EQ(n, 3);
+    FOR_LOOP(i, n) T_FEQ(out[i].position.z, 3.08f, .0001f);
+}
+
+/* A wide road crosses the diagonal of a non-planar cell; UV and coverage survive the cut. */
+TEST(sc2_map, hard_tile_clips_at_terrain_diagonal) {
+    VERTEX road[] = {
+        {.position={-1,-1,9}, .texcoord={-1,-1}},
+        {.position={3,-1,9}, .texcoord={3,-1}},
+        {.position={-1,3,9}, .texcoord={-1,3}} };
+    VERTEX corners[] = {
+        {.position={0,0,0}, .normal={0,0,1}}, {.position={1,0,0}, .normal={0,0,1}},
+        {.position={1,1,4}, .normal={0,0,1}}, {.position={0,1,0}, .normal={0,0,1}} };
+    FLOAT area = 0;
+    FOR_LOOP(tri, 2) {
+        VERTEX ground[] = { corners[0], corners[tri+1], corners[tri+2] }, out[18];
+        DWORD n = r_sc2_clip_road(road, ground, out);
+        T_EQ(n, r_sc2_clip_road(road, ground, NULL)); T_ASSERT(n >= 3);
+        for (DWORD i = 0; i < n; i += 3) {
+            VECTOR3 center = {0};
+            area += fabsf(r_sc2_road_side(out[i].position, out[i+1].position, out[i+2].position)) * .5f;
+            FOR_LOOP(j, 3) {
+                VERTEX v = out[i+j];
+                T_FEQ(v.texcoord.x, v.position.x, .0001f); T_FEQ(v.texcoord.y, v.position.y, .0001f);
+                T_FEQ(v.position.z, 4*MIN(v.position.x,v.position.y), .0001f);
+                center = Vector3_add(&center, &v.position);
+            }
+            center = Vector3_scale(&center, 1.0f/3);
+            T_FEQ(center.z, 4*MIN(center.x,center.y), .0001f);
+        }
+    }
+    T_FEQ(area, 1, .0001f);
+    FOR_LOOP(i, 3) road[i].position.x += 10;
+    T_EQ(r_sc2_clip_road(road, corners, NULL), 0);
+    FOR_LOOP(i, 3) road[i] = corners[0];
+    T_EQ(r_sc2_clip_road(road, corners, NULL), 0);
+}
+
+/* Cliff M3s are two-sided and can use the opposite winding from grid terrain. */
+TEST(sc2_map, road_covers_cliff_top_at_bridge_approach) {
+    VERTEX road[] = {
+        {.position={0,0,8}}, {.position={2,0,8}}, {.position={2,2,8}} };
+    VERTEX cliff[] = {
+        {.position={2,2,7.8f}, .normal={0,0,1}},
+        {.position={2,0,8}, .normal={0,0,1}},
+        {.position={0,0,8}, .normal={0,0,1}} }, out[18];
+    DWORD n = r_sc2_clip_road(road, cliff, out);
+    T_EQ(n, 3);
+    FLOAT area = 0;
+    for (DWORD i = 0; i < n; i += 3)
+        area += fabsf(r_sc2_road_side(out[i].position, out[i+1].position, out[i+2].position)) * .5f;
+    T_FEQ(area, 2, .0001f);
+}
+
+TEST(sc2_map, road_cliff_depth_clips_canyon_wall) {
+    SC2ROADTRI road = { .verts = {
+        {.position={0,0,8}}, {.position={2,0,8}}, {.position={2,2,8}} }, .depth = .6f };
+    VERTEX cliff[] = {
+        {.position={0,0,8}}, {.position={2,0,8}}, {.position={2,2,6}} }, out[54];
+    DWORD n = r_sc2_clip_road_cliff(&road, cliff, out);
+    T_ASSERT(n >= 3); T_EQ(n, r_sc2_clip_road_cliff(&road, cliff, NULL));
+    FLOAT area = 0;
+    for (DWORD i = 0; i < n; i += 3)
+        area += fabsf(r_sc2_road_side(out[i].position, out[i+1].position, out[i+2].position)) * .5f;
+    /* Only the top 0.6 of the two-unit slope receives the road, with no whole-triangle holes. */
+    T_FEQ(area, 1.02f, .0001f);
+    FOR_LOOP(i, n) {
+        T_ASSERT(out[i].position.z >= 7.4f-.0001f);
+        T_FEQ(out[i].position.z, 8-out[i].position.y, .0001f);
+    }
+    FOR_LOOP(i, 3) cliff[i].position.z = 2;
+    T_EQ(r_sc2_clip_road_cliff(&road, cliff, out), 0);
+    FOR_LOOP(i, 3) cliff[i].position.z = 10;
+    T_EQ(r_sc2_clip_road_cliff(&road, cliff, out), 0);
+    road.verts[1] = road.verts[0];
+    T_EQ(r_sc2_clip_road_cliff(&road, cliff, out), 0);
 }
 
 static DWORD listed_count;
