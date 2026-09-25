@@ -2277,6 +2277,72 @@ TEST(wc3_game, hud_quest_visibility_requires_enabled_and_discovered) {
     T_ASSERT(!QuestIsVisible(&quest));
 }
 
+static uint32_t quest_dialog_open_writes, quest_dialog_unicasts;
+static void quest_dialog_test_write(pfWriteType_t type, void const *value) {
+    if (type == PF_BYTE && value && *(int32_t const *)value == svc_window) quest_dialog_open_writes++;
+}
+static void quest_dialog_test_unicast(edict_t *ent) {
+    if (ent == &g_edicts[0]) quest_dialog_unicasts++;
+}
+static frameDef_t *quest_test_frame(FRAMETYPE type, frameDef_t *parent, cstring_t name) {
+    frameDef_t *frame = UI_Spawn(type, parent);
+    if (frame && name) snprintf(frame->Name, sizeof(frame->Name), "%s", name);
+    return frame;
+}
+
+TEST(wc3_game, hud_quest_button_opens_placeholder_journal_before_discovery) {
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.unicast) old_unicast = gi.unicast;
+    frameDef_t *display_backdrop, *row_title, *item_title, *placeholder_title;
+
+    setup_test_world(); UI_ClearTemplates(); memset(&hud, 0, sizeof(hud));
+    memset(level.quests, 0, sizeof(level.quests));
+    game.clients[0].connected = true; g_edicts[0].client = &game.clients[0];
+    level.quests[0] = (quest_t){ .inuse = true, .enabled = true, .required = true,
+        .title = "SECRET_TITLE", .description = "SECRET_DESCRIPTION" };
+    level.quests[0].items[0] = (questItem_t){ .inuse = true, .description = "SECRET_OBJECTIVE" };
+    level.quests[0].num_items = 1;
+
+    hud.quest.QuestDialog = quest_test_frame(FT_FRAME, NULL, "QuestDialog");
+    hud.quest.QuestTitleValue = quest_test_frame(FT_TEXT, hud.quest.QuestDialog, "QuestTitleValue");
+    hud.quest.QuestSubtitleValue = quest_test_frame(FT_TEXT, hud.quest.QuestDialog, "QuestSubtitleValue");
+    hud.quest.QuestMainTitle = quest_test_frame(FT_TEXT, hud.quest.QuestDialog, "QuestMainTitle");
+    hud.quest.QuestMainContainer = quest_test_frame(FT_FRAME, hud.quest.QuestDialog, "QuestMainContainer");
+    hud.quest.QuestOptionalTitle = quest_test_frame(FT_TEXT, hud.quest.QuestDialog, "QuestOptionalTitle");
+    hud.quest.QuestOptionalContainer = quest_test_frame(FT_FRAME, hud.quest.QuestDialog, "QuestOptionalContainer");
+    display_backdrop = quest_test_frame(FT_FRAME, hud.quest.QuestDialog, "QuestDisplayBackdrop");
+    hud.quest.QuestDetailsTitle = quest_test_frame(FT_TEXT, display_backdrop, "QuestDetailsTitle");
+    hud.quest.QuestItemListContainer = quest_test_frame(FT_FRAME, display_backdrop, "QuestItemListContainer");
+    hud.quest.QuestDisplay = quest_test_frame(FT_TEXT, display_backdrop, "QuestDisplay");
+    hud.quest.QuestAcceptButton = quest_test_frame(FT_GLUEBUTTON, hud.quest.QuestDialog, "QuestAcceptButton");
+    hud.quest.QuestAcceptButtonText = quest_test_frame(FT_TEXT, hud.quest.QuestAcceptButton, "QuestAcceptButtonText");
+
+    hud.quest_row = quest_test_frame(FT_FRAME, NULL, "QuestListItem");
+    quest_test_frame(FT_GLUEBUTTON, hud.quest_row, "QuestListItemButton");
+    row_title = quest_test_frame(FT_TEXT, hud.quest_row, "QuestListItemTitle");
+    hud.quest_item = quest_test_frame(FT_FRAME, NULL, "QuestItemListItem");
+    item_title = quest_test_frame(FT_TEXT, hud.quest_item, "QuestItemListItemTitle");
+    gi.Write = quest_dialog_test_write; gi.unicast = quest_dialog_test_unicast;
+    quest_dialog_open_writes = quest_dialog_unicasts = 0;
+
+    UI_ShowQuests(&g_edicts[0]);
+
+    T_EQ(quest_dialog_open_writes, 1); T_EQ(quest_dialog_unicasts, 1);
+    T_STREQ(hud.quest.QuestTitleValue->Text, " ");
+    T_STREQ(hud.quest.QuestDisplay->Text, " ");
+    placeholder_title = UI_FindChildFrame(hud.quest.QuestMainContainer, "QuestListItemTitle");
+    T_NOT_NULL(placeholder_title);
+    if (placeholder_title) T_STREQ(placeholder_title->Text, "UNDISCOVERED_QUEST");
+    T_EQ(hud.quest_item_row_count, 0);
+    T_ASSERT(!row_title->Text || !strstr(row_title->Text, "SECRET"));
+    T_STREQ(item_title->Text ? item_title->Text : "", "");
+
+    gi.Write = old_write; gi.unicast = old_unicast;
+    g_edicts[0].client = NULL; game.clients[0].connected = false;
+    memset(level.quests, 0, sizeof(level.quests)); memset(&hud, 0, sizeof(hud));
+    UI_ClearTemplates();
+}
+
 TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     quest_t quest = { .title = "Test Quest", .discovered = true, .required = true, .enabled = true };
     questItem_t item = { .description = "Test Objective" };
