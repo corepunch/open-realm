@@ -52,6 +52,9 @@ build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aams
 `-roc` opens War3.mpq only. `-tft` searches War3x.mpq first, then War3.mpq.
 If a later agent uses `mpqtool cat Units/AbilityData.slk` after `-data` opened
 every archive, they will silently read the TFT overlay and think ROC matches.
+RoC's one `targs` column applies to every rank, while TFT has per-rank columns;
+see [Aura Targets And Overlays](aura-targets-and-overlays.md) for the parser and
+recipient regression.
 
 ### 2. Turn the brief into a one-page contract
 

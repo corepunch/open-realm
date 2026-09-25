@@ -633,6 +633,69 @@ TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Area3\"\nC;Y1;X5;K\"DataA3\"\nC;Y1;X6;K\"BuffID3\"\n"
+        "C;Y2;X1;K\"AHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K3\n"
+        "C;Y2;X4;K900\nC;Y2;X5;K3\nC;Y2;X6;K\"Biml\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 40, 0);
+    LPEDICT crate = alloc_test_unit(MAKEFOURCC('L','T','c','r'), 50, 0);
+    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 60, 0);
+
+    source->s.player = footman->s.player = 0;
+    crate->s.player = tree->s.player = PLAYER_NEUTRAL_PASSIVE;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','d'), .level = 3);
+    footman->targtype = TARG_GROUND;
+    crate->targtype = TARG_DEBRIS; tree->targtype = TARG_TREE;
+    crate->svflags |= SVF_STATIC_SCENERY; tree->svflags |= SVF_STATIC_SCENERY;
+    crate->destructable.initialized = tree->destructable.initialized = true;
+
+    T_FEQ(S_DevotionArmorBonus(footman), 3.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(crate), 0.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(tree), 0.0f, 0.001f);
+
+    monster_think(footman); monster_think(crate); monster_think(tree);
+    T_EQ(S_DevotionAuraBuff(footman), MAKEFOURCC('B','i','m','l'));
+    T_EQ(S_DevotionAuraBuff(crate), 0);
+    T_EQ(S_DevotionAuraBuff(tree), 0);
+    DWORD footman_overlays = 0, scenery_overlays = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        if (!effect->inuse || effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->goalentity == footman) footman_overlays++;
+        if (effect->goalentity == crate || effect->goalentity == tree) scenery_overlays++;
+    }
+    T_EQ(footman_overlays, 1); T_EQ(scenery_overlays, 0);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, roc_rank_three_devotion_uses_shared_target_mask) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"uberAlias\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Area3\"\nC;Y1;X6;K\"Data31\"\n"
+        "C;Y2;X1;K\"AHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K3\n"
+        "C;Y2;X4;K\"air,ground,friend,self,vuln,invu\"\n"
+        "C;Y2;X5;K900\nC;Y2;X6;K3\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    LPEDICT footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 40, 0);
+    LPEDICT debris = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+
+    source->s.player = footman->s.player = debris->s.player = 0;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','d'), .level = 3);
+    footman->targtype = TARG_GROUND; debris->targtype = TARG_DEBRIS;
+    T_FEQ(S_DevotionArmorBonus(footman), 3.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(debris), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X7\n"

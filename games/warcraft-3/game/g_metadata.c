@@ -472,7 +472,10 @@ static slkField_t const ability_schema[] = {
     { "reqLevel",    offsetof(AbilityData_t, reqLevel),    STB_SLK_INT    },
     { "levelSkip",   offsetof(AbilityData_t, levelSkip),   STB_SLK_INT    }, /* TFT */
     { "priority",    offsetof(AbilityData_t, priority),    STB_SLK_INT    }, /* TFT */
-    { "targs",       offsetof(AbilityData_t, level[0].targs), STB_SLK_STR }, /* ROC */
+    /* RoC's single targs column applies to every rank.  TFT's targsN columns
+     * below override these values when the per-rank fields are present. */
+    AB_F("targs", targs, 0, STB_SLK_STR), AB_F("targs", targs, 1, STB_SLK_STR),
+    AB_F("targs", targs, 2, STB_SLK_STR), AB_F("targs", targs, 3, STB_SLK_STR),
     AB_F_LEVELS("targs", targs, STB_SLK_STR),
     AB_F_LEVELS("Cast", cast, STB_SLK_FLOAT),
     AB_F_LEVELS("Dur", dur, STB_SLK_FLOAT),
