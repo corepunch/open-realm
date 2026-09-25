@@ -200,12 +200,17 @@ TEST(wc3_spell, stasis_trap_destroys_peer_wards_in_detonation_radius) {
 	ward_done(&fix);
 }
 
-static edict_t * mine_fixture(float x, float y) {
+static edict_t *mine_uninitialized(float x, float y) {
 	static UnitAbilities_t abilities = { .abilList = "Amin,Amnx", .heroAbilList = "" };
 	edict_t * mine = alloc_test_unit(MAKEFOURCC('n', 'g', 'l', 'm'), x, y);
 	mine->data.UnitAbilities = &abilities;
 	mine->s.player = 0; mine->svflags |= SVF_MONSTER; mine->targtype = TARG_GROUND;
 	mine->health.value = mine->health.max_value = 100; mine->collision = 16.0f; mine->die = unit_die;
+	return mine;
+}
+
+static edict_t * mine_fixture(float x, float y) {
+	edict_t * mine = mine_uninitialized(x, y);
 	S_UnitAbilityEvent(mine, A_UNIT_INIT);
 	return mine;
 }
@@ -263,6 +268,17 @@ TEST(wc3_spell, goblin_land_mine_arms_and_transitions_to_viewer_specific_invisib
 	fix.enemy->s.origin2 = (vector2_t){ 100, 0 };
 	T_ASSERT(S_UnitIsDetectedByPlayer(mine, 1)); T_ASSERT(!S_UnitIsInvisibleToPlayer(mine, 1));
 	T_ASSERT(!M_IsDead(mine)); /* detection does not arm/trigger before DataA */
+	ward_done(&fix);
+}
+
+TEST(wc3_spell, goblin_land_mine_thinker_allocation_failure_keeps_unit_functional) {
+	wardFix_t fix; edict_t * mine; uint32_t max_edicts;
+	ward_setup(&fix); mine = mine_uninitialized(0, 0);
+	max_edicts = globals.max_edicts; globals.max_edicts = globals.num_edicts;
+	S_UnitAbilityEvent(mine, A_UNIT_INIT);
+	globals.max_edicts = max_edicts;
+	T_FEQ(mine->collision, 16.0f, .001f);
+	T_ASSERT(!(mine->s.renderfx & RF_HIDDEN));
 	ward_done(&fix);
 }
 
@@ -328,6 +344,17 @@ TEST(wc3_spell, mine_death_damage_waits_duration_and_enumerates_victims_at_resol
 	ward_tick(1);
 	T_FEQ(fix.enemy->health.value, enemy_health, .001f);
 	T_FEQ(fix.far->health.value, 480.0f, .001f); /* partial ring */
+	ward_done(&fix);
+}
+
+TEST(wc3_spell, mine_death_damage_allocation_failure_resolves_immediately) {
+	wardFix_t fix; edict_t * mine; uint32_t max_edicts;
+	ward_setup(&fix); fix.enemy->s.origin2 = (vector2_t){ 50, 0 };
+	mine = mine_fixture(0, 0);
+	max_edicts = globals.max_edicts; globals.max_edicts = globals.num_edicts;
+	unit_die(mine, fix.enemy);
+	globals.max_edicts = max_edicts;
+	T_FEQ(fix.enemy->health.value, 460.0f, .001f);
 	ward_done(&fix);
 }
 

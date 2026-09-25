@@ -288,12 +288,14 @@ static void R_W3LoadSpawnData(void) {
     PATHSTR scoped;
 
     R_W3FreeSpawnData(true);
-    if (R_MapAssetCandidate("Splats\\SpawnData.slk", scoped, sizeof(scoped)))
+    if (ri.LoadSlk && R_MapAssetCandidate("Splats\\SpawnData.slk", scoped, sizeof(scoped)))
         spawn_data_count = ri.LoadSlk(scoped, spawn_data_schema,
                                       (void **)&spawn_data_rows, sizeof(wc3SpawnData_t));
-    if (!spawn_data_count)
+    if (!spawn_data_count && ri.LoadSlk)
         spawn_data_count = ri.LoadSlk("Splats\\SpawnData.slk", spawn_data_schema,
                                       (void **)&spawn_data_rows, sizeof(wc3SpawnData_t));
+    if (ri.LoadSlk && !spawn_data_count)
+        fprintf(stderr, "WC3 renderer: failed to load Splats\\SpawnData.slk for MDX SPN events\n");
 }
 
 static wc3SpawnData_t *R_W3SpawnData(cstring_t id) {
@@ -1002,8 +1004,13 @@ static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *m
 
     if (!MDLX_EventObjectId(event, "SPN", id, sizeof(id))) return;
     row = R_W3SpawnData(id);
+    if (!row) { fprintf(stderr, "WC3 renderer: MDX SPN event '%s' has no SpawnData row\n", id); return; }
     child_model = R_W3SpawnModel(row);
-    if (!child_model || !child_model->mdx->sequences || child_model->mdx->num_sequences < 1) return;
+    if (!child_model) { fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' did not resolve to MDLX\n", id, row->model_path ? row->model_path : "(empty)"); return; }
+    if (!child_model->mdx->sequences || child_model->mdx->num_sequences < 1) {
+        fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' has no sequences\n", id, row->model_path);
+        return;
+    }
     spawn = R_W3AllocEventSpawn();
     slot = (uint32_t)(spawn - event_spawns);
     seq = child_model->mdx->sequences;
@@ -1016,6 +1023,7 @@ static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *m
     };
     if (!MDLX_EventWorldTransform(model, event, entity, transform, &spawn->transform)) {
         spawn->active = false;
+        fprintf(stderr, "WC3 renderer: failed to transform MDX SPN event '%s'\n", id);
         return;
     }
     /* Render the event on the crossing frame; the retained slot continues from
