@@ -230,7 +230,7 @@ Placement is checked once when the player confirms the ghost and again when the 
 
 When construction materializes over a friendly mobile unit, the unit is moved to a legal exit without replacing its current order. A Peasant already walking to build a Barracks therefore resumes that Barracks order after being moved clear of the Town Hall footprint.
 
-Once the initial placement is accepted, `G_IssueBuildOrder()` also publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` and `EVENT_UNIT_ISSUED_POINT_ORDER`. The builder is `GetOrderedUnit()`, `GetIssuedOrderId()` is the building rawcode, and `GetOrderPointX/Y/Loc()` expose the accepted snapped build point. This happens at order acceptance, before the worker travels; arrival-time revalidation and construct-start/finish are later, separate events. Prologue02 relies on this exact point-order handoff to advance from Burrow placement into the lumber tutorial. See [Issued Target and Point Order Events](issued-target-order-events.md).
+Once a placement is accepted, the immediate `G_IssueBuildOrder()` path and the player-facing `G_IssueUnitBuildOrder()` path both publish `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` and `EVENT_UNIT_ISSUED_POINT_ORDER`. The builder is `GetOrderedUnit()`, `GetIssuedOrderId()` is the building rawcode, and `GetOrderPointX/Y/Loc()` expose the accepted snapped build point. Shift-queued sites publish at insertion time and do not publish again when their delayed execution begins. Arrival-time revalidation and construct-start/finish are later, separate events. Prologue02 relies on this exact point-order handoff to advance from Burrow placement into the lumber tutorial. See [Issued Target and Point Order Events](issued-target-order-events.md).
 
 ### JASS construction orders
 
@@ -253,11 +253,17 @@ Construction completion publishes both
 same structure, so `GetConstructedStructure()` is valid from either callback
 family.
 
-### Placement cancellation
+### Placement cancellation and Shift chaining
 
-Build placement is a server-owned UI mode. `G_CancelBuildPlacement()` is the single teardown path: it clears the player's pending `build_project`, sends an empty `svc_cursor` so the client removes the ghost model, and restores the normal command card. The command-card `CmdCancel`, the gameplay `cancel` command, and both `smart`/`smartpoint` right-click paths use this teardown. A right-click while the build ghost is active is therefore consumed as cancellation and must not issue an order to the selected worker.
+Build placement is a server-owned UI mode. `G_ClearBuildPlacementMode()` owns cursor teardown: it clears the player's pending `build_project`, sends an empty `svc_cursor` so the client removes the ghost model, and clears the placement callback/Shift-targeting state. `G_CancelBuildPlacement()` wraps that teardown and restores the normal command card. The command-card `CmdCancel`, the gameplay `cancel` command, both `smart`/`smartpoint` right-click paths, ordinary selection replacement, and command-card rebuilds all use this lifecycle. A right-click while the build ghost is active is therefore consumed as cancellation and must not issue an order to the selected worker.
 
-A successful left-click copies the pending project to the worker order before clearing the player's placement cursor state. Leaving the worker's pre-spawn Build move (Stop, Move, or another replacement order) also clears the worker-owned `build_project` and removes its Construction Site Indicator; no structure exists yet and no resources have been charged, so this is a full pre-payment cancellation rather than a construction refund.
+A successful non-Shift left-click starts the requested Build order and consumes placement mode immediately. A successful Shift placement uses the ordinary per-unit `order_queue`: an idle worker starts the first build immediately, while later Shift placements append a `UNIT_ORDER_TARGET_BUILD` entry carrying the building rawcode and snapped point. Every accepted delayed Build entry also owns an owner-only Construction Site Indicator at its snapped point, so the already-queued sites remain visible after the movable placement ghost advances to the next cursor position. These queued indicators use the same frozen `Stand`, alpha-128, zero-collision presentation as the active pre-spawn build indicator and therefore do not become authoritative structures or static pathing.
+
+The placement callback and movable ghost remain armed for the same building type after each successful Shift click. The client sends `orderqueuerelease` when the final Shift key is released; the server only consumes that notification after at least one successful Shift placement, so pressing and releasing Shift before placing anything does not dismiss the overlay. Shift release removes only the movable placement UI state: the active accepted-site indicator and every delayed queued-site indicator remain until their corresponding worker orders start, fail, or are cancelled.
+
+Invalid placement does not enqueue an order, create a queued placeholder, or dismiss the placement overlay. Build-on-target placement follows the same Shift modifier path when the selected target is an eligible mine. A delayed queued build is revalidated when it reaches the head of the worker FIFO. Its queued indicator is removed immediately before execution and the ordinary active-build indicator is created in the same simulation step; if revalidation fails, no replacement indicator remains. Execution uses `G_ExecuteBuildOrder()` so the issued-point event is published once at command acceptance rather than a second time when delayed work begins.
+
+Clearing/replacing the unit order queue removes every delayed Build indicator owned by those queue entries. Leaving the worker's active pre-spawn Build move (Stop, Move, or another replacement order) also clears the worker-owned active `build_project` indicator. Direct unit removal tears down both classes of placeholder. No structure exists yet and no resources have been charged, so these are full pre-payment cancellations rather than construction refunds.
 
 ### Placement grid preview
 
@@ -452,11 +458,16 @@ Runtime checks should cover at least:
 37. Attempt standard or Human Repair on autonomous Orc/Undead/Night Elf construction and verify it is rejected rather than adding a second construction clock.
 38. Save/load while a race-owned construction worker is attached and verify the `construction.worker` edict reference and lifecycle flags round-trip.
 39. Place a gold-return Town Hall-class ghost 511 world units from a live Gold Mine and verify the whole preview footprint is red and clicking reports `Unable to build so close to the gold mine.`; move the snapped centre to exactly 512 units and verify the mine-distance rule no longer rejects it.
-40. Enable `instant build`, start Human and autonomous-race construction, and verify each structure completes through the normal construction lifecycle on its next entity frame even when no Repair worker frame runs first.
-41. Enable `instant build`, start an in-place `uupt` building upgrade, and verify it completes on the next upgrade frame through the normal morph/finish-event lifecycle.
+40. Hold Shift and accept three building sites; verify the first active site and both delayed queued sites show translucent owner-only Construction Site Indicators while the movable placement ghost remains under the cursor.
+41. Release Shift and verify only the movable placement ghost disappears; all accepted-site indicators remain visible.
+42. Replace/cancel the worker's queued orders and verify delayed queued-site indicators disappear immediately without leaving stale models.
+43. Let a queued Build reach the front of the FIFO and verify its delayed indicator transitions to the ordinary active-build indicator without leaving a duplicate placeholder.
+44. Enable `instant build`, start Human and autonomous-race construction, and verify each structure completes through the normal construction lifecycle on its next entity frame even when no Repair worker frame runs first.
+45. Enable `instant build`, start an in-place `uupt` building upgrade, and verify it completes on the next upgrade frame through the normal morph/finish-event lifecycle.
 
 ## See Also
 
+- [Shift Order Queue](order-queue.md) — Shift placement chaining, queued construction payloads, final-Shift release, and FIFO execution rules.
 - [Building Damage Rendering](building-damage-rendering.md) — health-driven fire overlays are renderer presentation; construction Birth suppresses them even though construction starts at low HP.
 - [Pathfinding](pathfinding.md) — static footprint baking and dynamic-unit obstacle handling used by construction placement and teardown.
 - [Race Mechanics](race-mechanics.md) — Human/Orc/Undead/Night Elf construction state machines and remaining racial mechanic gaps.

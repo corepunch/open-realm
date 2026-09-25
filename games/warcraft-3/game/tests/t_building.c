@@ -4150,6 +4150,350 @@ TEST(wc3_building, placement_cursor_uses_configured_player_color) {
     T_EQ((building_cursor_effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
 }
 
+static LPEDICT building_queued_build_preview(LPEDICT worker, DWORD queue_offset) {
+    unitOrder_t const *queued;
+    DWORD slot;
+
+    if (!worker || queue_offset >= worker->order_queue.count) return NULL;
+    slot = (worker->order_queue.head + queue_offset) % MAX_UNIT_ORDER_QUEUE;
+    queued = &worker->order_queue.entries[slot];
+    if (queued->target_type != UNIT_ORDER_TARGET_BUILD || !queued->target_number ||
+        queued->target_number >= globals.num_edicts) {
+        return NULL;
+    }
+    if (!g_edicts[queued->target_number].inuse ||
+        g_edicts[queued->target_number].spawn_time != queued->target_spawn_time) {
+        return NULL;
+    }
+    return &g_edicts[queued->target_number];
+}
+
+static LPEDICT building_begin_barracks_placement(LPEDICT *out_clent) {
+    static UnitProfile_t const worker_profile = { .builds = "hbar" };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    LPEDICT clent;
+    LPGAMECLIENT client;
+    LPEDICT worker;
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    client = clent->client;
+    clent->inuse = true;
+    client->connected = true;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost * 4;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost * 4;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -256, -256);
+    worker->data.UnitProfile = &worker_profile;
+    worker->s.player = 0;
+    worker->svflags |= SVF_MONSTER;
+    worker->stand = unit_stand;
+    G_SelectEntity(client, worker);
+    build_menu_selectlocation(clent, barracks);
+    if (out_clent) *out_clent = clent;
+    return worker;
+}
+
+TEST(wc3_building, build_placement_enables_shift_queue_targeting) {
+    LPEDICT clent;
+
+    building_begin_barracks_placement(&clent);
+
+    T_ASSERT(clent->client->menu.supports_order_queue);
+    T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
+    T_ASSERT(!clent->client->menu.order_queue_chained);
+}
+
+TEST(wc3_building, normal_build_click_clears_placement_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    LPCSTR command[] = { "point", "64", "64" };
+
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    G_ClientCommand(clent, 3, command);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(clent->client->menu.on_location_selected);
+    T_ASSERT(building_cursor_clear_seen);
+    T_EQ(worker->build_project, MAKEFOURCC('h','b','a','r'));
+}
+
+TEST(wc3_building, shift_build_click_keeps_overlay_and_queues_followup_site) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    LPCSTR first[] = { "point", "64", "64", "queue" };
+    LPCSTR second[] = { "point", "512", "64", "queue" };
+
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    G_ClientCommand(clent, 4, first);
+
+    T_EQ(clent->build_project, barracks);
+    T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
+    T_ASSERT(clent->client->menu.order_queue_chained);
+    T_ASSERT(!building_cursor_clear_seen);
+    T_EQ(worker->build_project, barracks);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+
+    G_ClientCommand(clent, 4, second);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, barracks);
+    T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
+    T_ASSERT(!building_cursor_clear_seen);
+    T_EQ(G_UnitQueuedOrderCount(worker), 1);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_type, UNIT_ORDER_TARGET_BUILD);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].order_id, barracks);
+    T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.x, 512.0f, 0.01f);
+    T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.y, 64.0f, 0.01f);
+    {
+        LPEDICT preview = building_queued_build_preview(worker, 0);
+        T_NOT_NULL(preview);
+        T_ASSERT(preview != worker->build_preview);
+        T_EQ(preview->class_id, barracks);
+        T_EQ(preview->s.player, worker->s.player);
+        T_ASSERT(preview->svflags & SVF_OWNER_ONLY);
+        T_ASSERT(preview->s.flags & EF_NOT_SELECTABLE);
+        T_FEQ(preview->s.origin2.x, 512.0f, 0.01f);
+        T_FEQ(preview->s.origin2.y, 64.0f, 0.01f);
+        T_ASSERT(preview->vertex_color_set);
+        T_EQ(preview->vertex_color.a, 128);
+    }
+}
+
+TEST(wc3_building, clearing_build_queue_removes_only_queued_placeholders) {
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    LPCSTR first[] = { "point", "64", "64", "queue" };
+    LPCSTR second[] = { "point", "512", "64", "queue" };
+    LPEDICT active_preview;
+    LPEDICT queued_preview;
+    DWORD queued_spawn_time;
+
+    G_ClientCommand(clent, 4, first);
+    G_ClientCommand(clent, 4, second);
+    active_preview = worker->build_preview;
+    queued_preview = building_queued_build_preview(worker, 0);
+    T_NOT_NULL(active_preview);
+    T_NOT_NULL(queued_preview);
+    queued_spawn_time = queued_preview->spawn_time;
+
+    G_ClearUnitOrderQueue(worker);
+
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+    T_ASSERT(active_preview->inuse);
+    T_ASSERT(worker->build_preview == active_preview);
+    T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
+}
+
+TEST(wc3_building, starting_queued_build_replaces_queued_placeholder_with_active_indicator) {
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    LPCSTR first[] = { "point", "64", "64", "queue" };
+    LPCSTR second[] = { "point", "512", "64", "queue" };
+    LPEDICT queued_preview;
+    DWORD queued_spawn_time;
+
+    G_ClientCommand(clent, 4, first);
+    G_ClientCommand(clent, 4, second);
+    queued_preview = building_queued_build_preview(worker, 0);
+    T_NOT_NULL(queued_preview);
+    queued_spawn_time = queued_preview->spawn_time;
+
+    /* Simulate completion/cancellation of the current pre-spawn leg; the
+     * normal stand edge then starts the next queued construction order. */
+    G_ClearBuildPreview(worker);
+    worker->build_project = 0;
+    T_ASSERT(G_UnitStartNextQueuedOrder(worker));
+
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+    T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
+    T_NOT_NULL(worker->build_preview);
+    T_ASSERT(worker->build_preview != queued_preview);
+    T_FEQ(worker->build_preview->s.origin2.x, 512.0f, 0.01f);
+    T_FEQ(worker->build_preview->s.origin2.y, 64.0f, 0.01f);
+}
+
+TEST(wc3_building, removing_worker_clears_active_and_queued_build_placeholders) {
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    LPCSTR first[] = { "point", "64", "64", "queue" };
+    LPCSTR second[] = { "point", "512", "64", "queue" };
+    LPEDICT active_preview;
+    LPEDICT queued_preview;
+    DWORD active_spawn_time, queued_spawn_time;
+
+    G_ClientCommand(clent, 4, first);
+    G_ClientCommand(clent, 4, second);
+    active_preview = worker->build_preview;
+    queued_preview = building_queued_build_preview(worker, 0);
+    T_NOT_NULL(active_preview);
+    T_NOT_NULL(queued_preview);
+    active_spawn_time = active_preview->spawn_time;
+    queued_spawn_time = queued_preview->spawn_time;
+
+    G_FreeEdict(worker);
+
+    T_ASSERT(!active_preview->inuse || active_preview->spawn_time != active_spawn_time);
+    T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
+}
+
+TEST(wc3_building, shift_release_before_success_does_not_cancel_build_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    LPCSTR release[] = { "orderqueuerelease" };
+
+    building_begin_barracks_placement(&clent);
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    G_ClientCommand(clent, 1, release);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, barracks);
+    T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
+    T_ASSERT(!building_cursor_clear_seen);
+}
+
+TEST(wc3_building, final_shift_release_clears_overlay_without_discarding_build_orders) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    LPCSTR first[] = { "point", "64", "64", "queue" };
+    LPCSTR second[] = { "point", "512", "64", "queue" };
+    LPCSTR release[] = { "orderqueuerelease" };
+
+    G_ClientCommand(clent, 4, first);
+    G_ClientCommand(clent, 4, second);
+    T_EQ(G_UnitQueuedOrderCount(worker), 1);
+    LPEDICT queued_preview = building_queued_build_preview(worker, 0);
+    T_NOT_NULL(queued_preview);
+    DWORD const queued_preview_spawn_time = queued_preview->spawn_time;
+
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    G_ClientCommand(clent, 1, release);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(clent->client->menu.on_location_selected);
+    T_ASSERT(building_cursor_clear_seen);
+    T_EQ(worker->build_project, barracks);
+    T_EQ(G_UnitQueuedOrderCount(worker), 1);
+    T_ASSERT(queued_preview->inuse);
+    T_EQ(queued_preview->spawn_time, queued_preview_spawn_time);
+}
+
+TEST(wc3_building, invalid_nonshift_build_click_keeps_overlay_armed) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    LPCSTR command[] = { "point", "5000", "5000" };
+
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    G_ClientCommand(clent, 3, command);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, barracks);
+    T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
+    T_ASSERT(!clent->client->menu.order_queue_chained);
+    T_ASSERT(!building_cursor_clear_seen);
+    T_EQ(worker->build_project, 0);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+}
+
+TEST(wc3_building, invalid_shift_build_click_keeps_overlay_armed) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    LPCSTR command[] = { "point", "5000", "5000", "queue" };
+
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    G_ClientCommand(clent, 4, command);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, barracks);
+    T_ASSERT(clent->client->menu.on_location_selected == build_menu_send_builder);
+    T_ASSERT(!clent->client->menu.order_queue_chained);
+    T_ASSERT(!building_cursor_clear_seen);
+    T_EQ(worker->build_project, 0);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+}
+
+TEST(wc3_building, selection_replacement_cancels_build_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    LPEDICT other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 128);
+    char number[16];
+    LPCSTR command[] = { "select", number };
+
+    other->s.player = 0;
+    other->svflags |= SVF_MONSTER;
+    snprintf(number, sizeof(number), "%u", (unsigned)other->s.number);
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    G_ClientCommand(clent, 2, command);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(clent->client->menu.on_location_selected);
+    T_ASSERT(building_cursor_clear_seen);
+    T_ASSERT(!G_IsEntitySelected(clent->client, worker));
+    T_ASSERT(G_IsEntitySelected(clent->client, other));
+}
+
+TEST(wc3_building, command_card_refresh_cancels_build_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+
+    building_begin_barracks_placement(&clent);
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    Get_Commands_f(clent);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(clent->client->menu.on_location_selected);
+    T_ASSERT(building_cursor_clear_seen);
+}
+
+TEST(wc3_building, selected_worker_death_cancels_build_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+    unit_die(worker, NULL);
+    gi.Write = old_write;
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(clent->client->menu.on_location_selected);
+    T_ASSERT(building_cursor_clear_seen);
+    T_ASSERT(!G_IsEntitySelected(clent->client, worker));
+}
+
 TEST(wc3_building, cancel_command_clears_active_build_placement_cursor) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     LPEDICT clent = &g_edicts[0];

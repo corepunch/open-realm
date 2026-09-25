@@ -129,7 +129,7 @@ static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild };
 static umove_t build_move_summon = { "stand work", NULL, NULL, CAbilityBuild };
 
 /* Shared callers submit only validated legal orders; build_build revalidates before charging at arrival. */
-BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
+BOOL G_ExecuteBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
     LPGAMECLIENT client;
     VECTOR2 snapped;
     LPEDICT waypoint;
@@ -204,6 +204,15 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     builder->build_project = building_id;
     move_reset_progress(builder);
     unit_setmove(builder, &build_move_walk);
+    return true;
+}
+
+BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
+    VECTOR2 snapped;
+
+    if (!G_ExecuteBuildOrder(builder, building_id, location)) return false;
+    snapped = *location;
+    G_SnapBuildingPoint(building_id, &snapped);
     /* Warcraft reports an accepted construction placement as a point order.
      * Build orders expose the building rawcode as GetIssuedOrderId(), which is
      * how campaign GUI triggers distinguish the structure that was placed. */
@@ -471,7 +480,9 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
         return false;
     }
 
-    if (!G_IssueBuildOrder(builder, clent->build_project, &snapped)) {
+    if (!G_IssueUnitBuildOrder(builder, clent->build_project, &snapped,
+                               clent->client->menu.order_queued,
+                               clent->client->ps.number)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING build-click rejected reason=issue-order client=%ld builder=%ld building=%.4s\n",
                 (long)(clent - globals.edicts), (long)(builder - globals.edicts), (LPCSTR)&clent->build_project);
@@ -479,22 +490,34 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
         return false;
     }
     G_PlayUISoundForPlayer(clent, "PlaceBuildingDefault");
-    /* A successful point click consumes placement mode; leaving this callback
-     * armed after build_project is cleared makes later Select commands look
-     * like stale building placement. */
-    clent->client->menu.on_location_selected = NULL;
-    G_ClearBuildPlacementCursor(clent);
+    if (clent->client->menu.order_queued) {
+        /* Shift construction is sticky only after a successful queued click.
+         * The client notifies the server when the final Shift key is released. */
+        clent->client->menu.order_queue_chained = true;
+        return true;
+    }
+
+    /* A successful non-Shift point click consumes placement mode. */
+    G_ClearBuildPlacementMode(clent);
     return true;
 }
 
-BOOL G_CancelBuildPlacement(LPEDICT clent) {
+BOOL G_ClearBuildPlacementMode(LPEDICT clent) {
     if (!clent || !clent->client ||
         clent->client->menu.on_location_selected != build_menu_send_builder) {
         return false;
     }
 
     clent->client->menu.on_location_selected = NULL;
+    clent->client->menu.supports_order_queue = false;
+    clent->client->menu.order_queued = false;
+    clent->client->menu.order_queue_chained = false;
     G_ClearBuildPlacementCursor(clent);
+    return true;
+}
+
+BOOL G_CancelBuildPlacement(LPEDICT clent) {
+    if (!G_ClearBuildPlacementMode(clent)) return false;
     Get_Commands_f(clent);
     return true;
 }
@@ -528,6 +551,8 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
     gi.Write(PF_ENTITY, &cursor);
     gi.unicast(ent);
     ent->client->menu.on_location_selected = build_menu_send_builder;
+    ent->client->menu.supports_order_queue = true;
+    ent->client->menu.order_queue_chained = false;
     ent->build_project = building_id;
 }
 

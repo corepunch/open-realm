@@ -176,6 +176,7 @@ typedef struct {
     DWORD ability_code;
     BOOL supports_order_queue; /* active target mode accepts Shift chaining */
     BOOL order_queued;         /* transient modifier for the current target callback */
+    BOOL order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
     BOOL ability_off;          /* command-card separate-off variant selected for this dispatch */
     LPEDICT dragged_item;      /* transient inventory item carried by the cursor for a drop order */
 } menu_t;
@@ -626,15 +627,20 @@ typedef enum {
     UNIT_ORDER_TARGET_NONE,
     UNIT_ORDER_TARGET_POINT,
     UNIT_ORDER_TARGET_ENTITY,
+    UNIT_ORDER_TARGET_BUILD,
 } unitOrderTargetType_t;
 
 typedef struct {
     char order[UNIT_ORDER_NAME_SIZE];
     unitOrderTargetType_t target_type;
     VECTOR2 point;
+    /* Entity-target orders identify their gameplay target here. Queued Build
+     * orders instead identify their owner-only Construction Site Indicator so
+     * queue teardown can remove presentation without storing process pointers. */
     DWORD target_number;
     DWORD target_spawn_time;
     DWORD issuer_player;
+    DWORD order_id; /* rawcode payload for delayed orders such as construction */
     FLOAT group_speed;
 } unitOrder_t;
 
@@ -2521,6 +2527,7 @@ void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
 void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE required);
 buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
 BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
+BOOL G_ExecuteBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out);
 FLOAT G_BuildApproachDistance(DWORD building_id);
@@ -2558,6 +2565,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void CMD_CancelCommand(LPEDICT ent);
+BOOL G_ClearBuildPlacementMode(LPEDICT clent);
 BOOL G_CancelBuildPlacement(LPEDICT clent);
 BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
 void Get_Portrait_f(LPEDICT);
@@ -2843,6 +2851,7 @@ BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
 BOOL G_TransformUnitType(LPEDICT, DWORD);
 BOOL G_IssueUnitPointOrder(LPEDICT, LPCSTR, LPCVECTOR2, BOOL, DWORD, FLOAT);
 BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
+BOOL G_IssueUnitBuildOrder(LPEDICT, DWORD, LPCVECTOR2, BOOL, DWORD);
 void G_PublishIssuedPointOrder(LPEDICT, DWORD, LPCVECTOR2, DWORD, LPCSTR);
 void G_PublishIssuedImmediateOrder(LPEDICT, DWORD, DWORD, LPCSTR);
 DWORD G_GetIssuedOrderId(LPCEDICT);

@@ -756,24 +756,25 @@ CLIENTCOMMAND(Select) {
                 LPEDICT target = &globals.edicts[number];
                 UnitData_t const *building_data = G_UnitData(clent->build_project);
                 if (building_data && building_data->isBuildOn && S_GoldMineIsMine(target)) {
+                    BOOL const queued = client->menu.supports_order_queue &&
+                                        G_CommandQueueRequested(argc, argv, 2);
+                    BOOL accepted;
 #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING select-route-to-build client=%ld building=%.4s mine=%ld mine_id=%.4s point=(%.1f,%.1f)\n",
                             (long)(clent - globals.edicts), (LPCSTR)&clent->build_project,
                             (long)(target - globals.edicts), (LPCSTR)&target->class_id,
                             target->s.origin2.x, target->s.origin2.y);
 #endif
-                    build_menu_send_builder(clent, &target->s.origin2);
+                    client->menu.order_queued = queued;
+                    accepted = build_menu_send_builder(clent, &target->s.origin2);
+                    client->menu.order_queued = false;
+                    if (accepted && !queued) Get_Commands_f(clent);
                     return;
                 }
-                if (G_UnitIsBuilding(target->class_id)) {
-#ifdef WC3_DEBUG_MINING
-                    fprintf(stderr, "WC3_MINING select-cancel-build client=%ld pending=%.4s clicked=%ld id=%.4s\n",
-                            (long)(clent - globals.edicts), (LPCSTR)&clent->build_project,
-                            (long)(target - globals.edicts), (LPCSTR)&target->class_id);
-#endif
-                    G_CancelBuildPlacement(clent);
-                }
             }
+            /* Any ordinary selection click replaces building placement. Invalid
+             * terrain placement is handled by Point and intentionally stays armed. */
+            G_CancelBuildPlacement(clent);
         }
         BOOL cleared = false;
         BOOL hasunits = false;
@@ -956,6 +957,17 @@ CLIENTCOMMAND(Point) {
         accepted = client->menu.on_location_selected(clent, &loc);
         client->menu.order_queued = false;
         if (accepted && !queued) Get_Commands_f(clent);
+    }
+}
+
+CLIENTCOMMAND(OrderQueueRelease) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+
+    (void)argc;
+    (void)argv;
+    if (!client || !client->menu.order_queue_chained) return;
+    if (client->menu.on_location_selected == build_menu_send_builder) {
+        G_CancelBuildPlacement(clent);
     }
 }
 
@@ -2810,6 +2822,7 @@ clientCommand_t clientCommands[] = {
     { "herokey", CMD_HeroKey },
     { "idleworker", CMD_IdleWorker },
     { "point", CMD_Point },
+    { "orderqueuerelease", CMD_OrderQueueRelease },
     { "smart", CMD_Smart },
     { "smartpoint", CMD_SmartPoint },
     { "cancel", CMD_Cancel },

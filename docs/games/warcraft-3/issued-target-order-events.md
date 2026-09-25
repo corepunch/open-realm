@@ -22,7 +22,7 @@ Rally-point changes are also point orders when a point rally target is accepted.
 
 ## Building placement
 
-A successful construction placement is a point order even though it does not pass through ordinary Move/Attack point-order dispatch. `G_IssueBuildOrder()` therefore publishes an issued-point event once placement validation succeeds and the worker accepts the snapped construction destination.
+A successful construction placement is a point order even though it does not pass through ordinary Move/Attack point-order dispatch. Immediate shared callers use `G_IssueBuildOrder()`. Player Shift-placement uses `G_IssueUnitBuildOrder()`, which either starts the build immediately or appends it to the worker FIFO. Both publish the issued-point event once when the snapped construction destination is accepted; delayed execution uses `G_ExecuteBuildOrder()` and does not publish again.
 
 For a build order:
 
@@ -34,7 +34,7 @@ GetOrderPointX/Y() -> accepted snapped build point
 
 Using the structure rawcode for `GetIssuedOrderId()` is important because Warcraft map triggers commonly distinguish the selected construction project by comparing the issued order ID directly with a unit rawcode.
 
-Publication happens before the worker travels to the site. Arrival-time placement revalidation, resource payment, structure spawning, and construct-start/finish events are separate lifecycle stages and do not re-emit the original point-order event.
+Publication happens before the worker travels to the site, including when Shift leaves that site waiting in the FIFO behind earlier work. Arrival-time/queued-start placement revalidation, resource payment, structure spawning, and construct-start/finish events are separate lifecycle stages and do not re-emit the original point-order event.
 
 ## Prologue02 compatibility case
 
