@@ -1059,6 +1059,7 @@ bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent) {
     if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
     }
+    if (S_SoulTrapRevealsCarrier(ent, player)) return true;
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }
@@ -1089,6 +1090,7 @@ bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent) {
     if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
     }
+    if (S_SoulTrapRevealsCarrier(ent, player)) return true;
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }

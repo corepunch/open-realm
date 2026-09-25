@@ -177,26 +177,23 @@ static bool G_UnitRegeneratesHP(edict_t const *ent) {
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(edict_t *ent) {
     if (!ent->inuse) return; /* defensive: freed edicts carry no simulation state */
+    bool const soul_trapped = !!(ent->aiflags & AI_SOUL_TRAPPED);
     spell_run_frame(ent);
     unit_updatestatuses(ent);
-    SAFE_CALL(ent->prethink, ent);
-    switch (ent->movetype) {
-        case MOVETYPE_STEP:
-            SV_Physics_Step(ent);
-            break;
-        case MOVETYPE_FLYMISSILE:
-            SV_Physics_Toss(ent);
-            break;
-        case MOVETYPE_LINK:
-            SV_Physics_Link(ent);
-            break;
-        default:
+    if (!soul_trapped) {
+        SAFE_CALL(ent->prethink, ent);
+        switch (ent->movetype) {
+            case MOVETYPE_STEP: SV_Physics_Step(ent); break;
+            case MOVETYPE_FLYMISSILE: SV_Physics_Toss(ent); break;
+            case MOVETYPE_LINK: SV_Physics_Link(ent); break;
+            default:
 //            gi.error("SV_Physics: bad movetype %d", edict->movetype);
-            break;
+                break;
+        }
     }
     G_RunConstructionFrame(ent);
     G_RunBuildingUpgradeFrame(ent);
-    SAFE_CALL(ent->think, ent);
+    if (!soul_trapped) SAFE_CALL(ent->think, ent);
     /* Mana regeneration (WC3 'umpr', mana/second), plus a hero's Intelligence
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
      * hero.intel is 0 for non-heroes). */

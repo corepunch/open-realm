@@ -772,6 +772,33 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
         handled |= S_AbilityMessage(ent, msg, &call) != 0;
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE)) break;
     }
+    if (ent && msg == A_UNIT_REMOVE) {
+        uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0}, count = 0;
+#define UNIT_REMOVE_ABILITY(code_) do { \
+            uint32_t const code = (code_); bool known = false; \
+            for (uint32_t k = 0; k < count; k++) if (seen[k] == code) { known = true; break; } \
+            if (code && !known && count < sizeof(seen) / sizeof(seen[0])) { \
+                char name[5] = {0}; memcpy(name, &code, 4); \
+                if (G_ActorHasSkill(ent, name)) { \
+                    abilityitem_t item = S_AbilityItem(code); \
+                    abilityCall_t call = MAKE(abilityCall_t, .item = &item); \
+                    seen[count++] = code; \
+                    if (item.ability) handled |= S_AbilityMessage(ent, msg, &call) != 0; \
+                } \
+            } \
+        } while (0)
+        if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+            PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+                uint32_t code = 0;
+                if (strlen(token) == 4) { memcpy(&code, token, 4); UNIT_REMOVE_ABILITY(code); }
+            }
+        }
+        for (int32_t i = ARRAY_COUNT(ent->abilities.added) - 1; i >= 0; i--)
+            if (ent->abilities.added[i]) UNIT_REMOVE_ABILITY(ent->abilities.added[i]);
+        FOR_LOOP(i, MAX_HERO_ABILITIES) if (ent->heroabilities[i].level && ent->heroabilities[i].code)
+            UNIT_REMOVE_ABILITY(ent->heroabilities[i].code);
+#undef UNIT_REMOVE_ABILITY
+    }
     return handled;
 }
 

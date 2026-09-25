@@ -231,10 +231,19 @@ bool G_InventoryCanDropItems(edict_t const *unit) {
     return G_InventoryAbilityFlag(unit, 4, true);
 }
 
+static bool G_ItemHasAbility(edict_t const *item, uint32_t code) {
+    cstring_t abilities = G_ItemAbilityList(item);
+    if (!abilities) return false;
+    PARSE_LIST(abilities, token, parse_segment)
+        if (strlen(token) == 4 && FS_SLKKey(token) == code) return true;
+    return false;
+}
+
 bool G_ItemDroppable(edict_t const *item) {
     ItemData_t const *data;
 
     if (!G_IsItem(item)) return false;
+    if (G_ItemHasAbility(item, MAKEFOURCC('A', 's', 'o', 'u'))) return false;
     if (item->item.droppable_set) return item->item.droppable;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     /* Preserve the historical permissive fallback for synthetic/custom test
@@ -322,6 +331,9 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
     if (!G_IsItem(item) || item->item.pending_use_removal) return;
     carrier = item->item.carrier;
     slot = item->item.inventory_slot;
+    item->item.pending_use_carrier = carrier;
+    item->item.pending_use_carrier_spawn_time = carrier ? carrier->spawn_time : 0;
+    item->item.pending_use_slot = slot;
     if (carrier && carrier->inuse) {
         if (slot < 0 || slot >= MAX_INVENTORY || carrier->inventory[slot] != item) {
             slot = -1;
@@ -386,6 +398,7 @@ void G_RunConsumedItemFrees(void) {
             level.pending_consumed_item_cleanup = true;
             continue;
         }
+        S_SoulTrapFinalizeConsumedItem(item);
         G_FreeEdict(item);
     }
 }
@@ -549,6 +562,8 @@ bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position) {
 }
 
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vector2_t const *position) {
+    if (unit && slot < G_InventoryCapacity(unit) &&
+        G_ItemHasAbility(unit->inventory[slot], MAKEFOURCC('A', 's', 'o', 'u'))) return false;
     return G_DropItemAtInternal(unit, slot, position, true);
 }
 
@@ -565,7 +580,7 @@ void G_DropInventoryOnDeath(edict_t *unit) {
     if (!unit || !G_InventoryDropsItemsOnDeath(unit)) return;
     capacity = G_InventoryCapacity(unit);
     FOR_LOOP(slot, capacity) {
-        if (unit->inventory[slot])
+        if (unit->inventory[slot] && !G_ItemHasAbility(unit->inventory[slot], MAKEFOURCC('A', 's', 'o', 'u')))
             G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
     }
 }

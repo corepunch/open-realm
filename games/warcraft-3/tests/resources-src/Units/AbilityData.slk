@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X18;Y12;D0
+B;X18;Y14;D0
 C;X1;Y1;K"alias"
 C;X2;K"code"
 C;X3;K"Data11"
@@ -79,4 +79,11 @@ C;X1;Y12;K"Aneu"
 C;X2;K"Aneu"
 C;X4;K"137"
 C;X15;K"2"
+C;X1;Y13;K"AIso"
+C;X2;K"AIso"
+C;X7;K"1"
+C;X10;K"enemy,ground,hero"
+C;X1;Y14;K"Asou"
+C;X2;K"Asou"
+C;X7;K"1"
 E

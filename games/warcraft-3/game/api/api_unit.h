@@ -148,6 +148,7 @@ uint32_t ShowUnit(jass_t *j) {
     if (!whichUnit) {
         return 0;
     }
+    if (show && (whichUnit->aiflags & AI_SOUL_TRAPPED)) return 0;
     was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (show) {
         whichUnit->s.renderfx &= ~RF_HIDDEN;
@@ -641,10 +642,12 @@ uint32_t ReviveHero(jass_t *j) {
     return jass_pushboolean(j, 0);
 }
 uint32_t ReviveHeroLoc(jass_t *j) {
-    //edict_t *whichHero = jass_checkhandle(j, 1, "unit");
-    //handle_t loc = jass_checkhandle(j, 2, "location");
+    edict_t *whichHero = jass_checkhandle(j, 1, "unit");
+    vector2_t const *location = jass_checkhandle(j, 2, "location");
     //bool doEyecandy = jass_checkboolean(j, 3);
-    return jass_pushboolean(j, 0);
+    if (!whichHero || !location) return jass_pushboolean(j, 0);
+    G_ReviveHero(whichHero, location->x, location->y);
+    return jass_pushboolean(j, 1);
 }
 uint32_t SetUnitExploded(jass_t *j) {
     //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

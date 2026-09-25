@@ -1214,6 +1214,9 @@ TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
     }
     T_ASSERT(found_buff);
     T_NULL(unit->inventory[0]);
+    T_ASSERT(item->item.pending_use_removal);
+    G_RunEvents();
+    G_RunConsumedItemFrees();
     T_ASSERT(!item->inuse);
 
     gi.Write = old_write;
@@ -1576,6 +1579,164 @@ TEST(wc3_items, soul_gem_abilities_are_registered_for_targeted_item_flow) {
     T_NOT_NULL(trapped);
     T_ASSERT(trapped->proc == CAbilitySoulTrapped);
     T_ASSERT(trapped->flags & AB_PASSIVE);
+}
+
+TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
+    gameClient_t *client;
+    edict_t *clent, *carrier, *target, *target2, *gem, *gem2, *filled, *filled2;
+    char number[16];
+    cstring_t select[] = { "select", number };
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    level.alliances[0][1] = level.alliances[1][0] = 0;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer targetDeaths = 0\n"
+        "endglobals\n"
+        "function soul_gem_used takes nothing returns nothing\n"
+        "  local item filled = CreateItem('soul', 64.0, 64.0)\n"
+        "  call UnitAddItem(GetManipulatingUnit(), filled)\n"
+        "  call SetItemDroppable(filled, false)\n"
+        "endfunction\n"
+        "function target_died takes nothing returns nothing\n"
+        "  set targetDeaths = targetDeaths + 1\n"
+        "endfunction\n"
+        "function verify_no_target_death takes nothing returns nothing\n"
+        "  call BJassAssert(targetDeaths == 0, \"Soul Trap fired a unit death event\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger used = CreateTrigger()\n"
+        "  local trigger died = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(used, Player(0), EVENT_PLAYER_UNIT_USE_ITEM, null)\n"
+        "  call TriggerAddAction(used, function soul_gem_used)\n"
+        "  call TriggerRegisterPlayerUnitEvent(died, Player(1), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(died, function target_died)\n"
+        "endfunction\n"));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowConnectPlayer(2);
+    carrier = make_item_test_inventory_unit(64, 64);
+    carrier->s.player = 0;
+    carrier->svflags |= SVF_MONSTER;
+    target = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 96, 64);
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->s.model = 1;
+    target->targtype = TARG_GROUND;
+    target->movetype = MOVETYPE_STEP;
+    target->stand = unit_stand;
+    unit_stand(target);
+    gi.LinkEntity(target);
+    gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
+    gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
+    gem->item.charges = 1;
+    T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
+
+    clent = G_GetPlayerEntityByNumber(0);
+    client = clent->client;
+    G_SelectEntity(client, carrier);
+    G_UseItem(carrier, 0);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    snprintf(number, sizeof(number), "%u", (unsigned)target->s.number);
+    G_ClientCommand(clent, 2, select);
+
+    T_NULL(client->menu.on_entity_selected);
+    T_ASSERT(!M_IsDead(target));
+    T_ASSERT(target->s.renderfx & RF_HIDDEN);
+    T_NULL(carrier->inventory[0]);
+    T_ASSERT(gem->item.pending_use_removal);
+    G_FowUpdate();
+    T_ASSERT(G_FowPlayerCanSeeEntity(1, carrier));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(2, carrier));
+    T_EQ(level.fow.players[1].visible[G_FowWorldToCellY(carrier->s.origin2.y) * level.fow.width +
+                                      G_FowWorldToCellX(carrier->s.origin2.x)], 0);
+    G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
+    jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    filled = carrier->inventory[0];
+    T_ASSERT(filled && filled->class_id == MAKEFOURCC('s','o','u','l'));
+    T_ASSERT(!G_ItemDroppable(filled));
+    T_ASSERT(target->soul_trap_item == filled);
+    T_ASSERT(filled->item.soul_target == target);
+    T_ASSERT(!G_DropItemAtScripted(carrier, 0, &carrier->s.origin2));
+
+    target2 = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 128, 64);
+    target2->s.player = 1; target2->svflags |= SVF_MONSTER; target2->s.model = 1;
+    target2->targtype = TARG_GROUND; target2->movetype = MOVETYPE_STEP;
+    target2->stand = unit_stand; unit_stand(target2); gi.LinkEntity(target2);
+    gem2 = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
+    gem2->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
+    gem2->item.charges = 1;
+    T_ASSERT(G_AddItemToSlot(carrier, gem2, 1));
+    G_UseItem(carrier, 1);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    snprintf(number, sizeof(number), "%u", (unsigned)target2->s.number);
+    G_ClientCommand(clent, 2, select);
+    T_NULL(client->menu.on_entity_selected);
+    T_ASSERT(target2->aiflags & AI_SOUL_TRAPPED);
+    G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
+    jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    filled2 = carrier->inventory[1];
+    T_ASSERT(filled2 && filled2->class_id == MAKEFOURCC('s','o','u','l'));
+    T_ASSERT(filled2 != filled);
+    T_ASSERT(target2->soul_trap_item == filled2);
+    T_ASSERT(filled2->item.soul_target == target2);
+
+    carrier->s.origin2 = MAKE(vector2_t, 192, 224);
+    carrier->s.origin.x = 192;
+    carrier->s.origin.y = 224;
+    T_ASSERT(G_FowPlayerCanSeeEntity(1, carrier));
+    G_SetHealth(carrier, 0.0f);
+    unit_die(carrier, NULL);
+    T_ASSERT(!M_IsDead(target));
+    T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
+    T_FEQ(target->s.origin2.x, 192.0f, 0.001f);
+    T_FEQ(target->s.origin2.y, 224.0f, 0.001f);
+    T_ASSERT(!M_IsDead(target2));
+    T_ASSERT(!(target2->s.renderfx & RF_HIDDEN));
+    T_FEQ(target2->s.origin2.x, 192.0f, 0.001f);
+    T_FEQ(target2->s.origin2.y, 224.0f, 0.001f);
+    T_ASSERT(!filled->inuse);
+    T_ASSERT(!filled2->inuse);
+    G_FowShutdown();
+}
+
+TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
+    gameClient_t *client;
+    edict_t *clent, *carrier, *target, *gem;
+    char number[16];
+    cstring_t select[] = { "select", number };
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    level.alliances[0][1] = level.alliances[1][0] = 0;
+    carrier = make_item_test_inventory_unit(64, 64);
+    carrier->s.player = 0;
+    carrier->svflags |= SVF_MONSTER;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 64);
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->s.model = 1;
+    target->targtype = TARG_GROUND;
+    gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
+    gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
+    gem->item.charges = 1;
+    T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
+
+    clent = G_GetPlayerEntityByNumber(0);
+    client = clent->client;
+    G_SelectEntity(client, carrier);
+    G_UseItem(carrier, 0);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    snprintf(number, sizeof(number), "%u", (unsigned)target->s.number);
+    G_ClientCommand(clent, 2, select);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    T_ASSERT(carrier->inventory[0] == gem);
+    T_EQ(gem->item.charges, 1);
+    T_ASSERT(!target->soul_trap_carrier);
+    T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
 }
 
 TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {

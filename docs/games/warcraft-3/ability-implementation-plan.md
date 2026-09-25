@@ -13,6 +13,10 @@ Ability-owned behavior is the default architecture: keep the full behavior in it
 generic dispatch. Start with [Mechanical Workflow](#mechanical-workflow); see [ownership](#ability-owned-orders-and-persistent-behavior)
 and [testing](#testing) before adding code.
 
+Item abilities whose state spans an inventory item and another unit have a
+second lifecycle contract in [Inventory And World Items](inventory-and-items.md),
+including the `AIso`/`Asou` Soul Trap relationship used by Orc08.
+
 ## Mechanical Workflow
 
 Do these steps in order. Do not skip the poll. Do not write a Python SLK parser.

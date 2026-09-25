@@ -12,28 +12,284 @@
 #define ID_ITEM_FIGURINE       MAKEFOURCC('A', 'I', 'f', 's')
 #define ID_ITEM_DEFENSE_AOE    MAKEFOURCC('A', 'I', 'd', 'a')
 #define ID_ITEM_CHANGE_TIME    MAKEFOURCC('A', 'I', 'c', 't')
+#define ID_SOUL_TRAP           MAKEFOURCC('A', 'I', 's', 'o')
+#define ID_SOUL_POSSESSION     MAKEFOURCC('A', 's', 'o', 'u')
+#define ID_FILLED_SOUL         MAKEFOURCC('s', 'o', 'u', 'l')
 
 /* ---- Active items (consume on use) -------------------------------------- */
 
-/* Soul Trap is a dedicated retail item spell family. Orc08's map script owns
- * the campaign-specific Grom/captured-soul state transition, while the engine
- * must still run AIso as a real unit-target cast so item-use triggers observe
- * a successful use and the source item can be consumed. */
+static bool soul_trap_valid_link(edict_t const *carrier, edict_t const *target) {
+    return carrier && carrier->inuse && target && target->inuse &&
+        target->soul_trap_carrier == carrier &&
+        target->soul_trap_carrier_spawn_time == carrier->spawn_time &&
+        (target->aiflags & AI_SOUL_TRAPPED);
+}
+
+static bool soul_item_has_ability(edict_t const *item, uint32_t code) {
+    cstring_t abilities = G_ItemAbilityList(item);
+    if (!abilities) return false;
+    PARSE_LIST(abilities, token, parse_segment)
+        if (strlen(token) == 4 && FS_SLKKey(token) == code) return true;
+    return false;
+}
+
+static void soul_trap_remove_possession(edict_t *carrier) {
+    if (!carrier || !carrier->soul_possession_added || carrier->soul_trap_head) return;
+    carrier->soul_possession_added = false;
+    if (G_ActorHasSkill(carrier, "Asou"))
+        G_ActorRemoveSkill(carrier, ID_SOUL_POSSESSION);
+}
+
+static void soul_trap_unlink(edict_t *target) {
+    edict_t *carrier, *current, *previous = NULL;
+    uint32_t current_spawn, carrier_spawn, guard = 0;
+    if (!target) return;
+    carrier = target->soul_trap_carrier;
+    carrier_spawn = target->soul_trap_carrier_spawn_time;
+    if (carrier && carrier->inuse && carrier->spawn_time == carrier_spawn) {
+        current = carrier->soul_trap_head;
+        current_spawn = carrier->soul_trap_head_spawn_time;
+        while (current && guard++ < globals.max_edicts) {
+            edict_t *next;
+            uint32_t next_spawn;
+            if (!current->inuse || current->spawn_time != current_spawn) break;
+            next = current->soul_trap_next;
+            next_spawn = current->soul_trap_next_spawn_time;
+            if (current == target) {
+                if (previous) {
+                    previous->soul_trap_next = next;
+                    previous->soul_trap_next_spawn_time = next_spawn;
+                } else {
+                    carrier->soul_trap_head = next;
+                    carrier->soul_trap_head_spawn_time = next_spawn;
+                }
+                break;
+            }
+            previous = current;
+            current = next;
+            current_spawn = next_spawn;
+        }
+    }
+    target->soul_trap_carrier = target->soul_trap_next = NULL;
+    target->soul_trap_carrier_spawn_time = target->soul_trap_next_spawn_time = 0;
+    target->aiflags &= ~AI_SOUL_TRAPPED;
+    if (carrier && carrier->inuse && carrier->spawn_time == carrier_spawn)
+        soul_trap_remove_possession(carrier);
+}
+
+static void soul_trap_release_target(edict_t *target, vector2_t const *position, bool restore_world) {
+    bool remove_asou;
+    edict_t *item;
+    uint32_t item_spawn;
+    if (!target || !(target->aiflags & AI_SOUL_TRAPPED)) return;
+    soul_trap_unlink(target);
+    item = target->soul_trap_item;
+    item_spawn = target->soul_trap_item_spawn_time;
+    target->soul_trap_item = NULL;
+    target->soul_trap_item_spawn_time = 0;
+    if (item && item->inuse && item->spawn_time == item_spawn &&
+        item->item.soul_target == target && item->item.soul_target_spawn_time == target->spawn_time) {
+        item->item.soul_target = NULL;
+        item->item.soul_target_spawn_time = 0;
+        G_RemoveItem(item);
+    }
+    remove_asou = target->soul_trapped_ability_added;
+    target->soul_trapped_ability_added = false;
+    if (restore_world && !M_IsDead(target)) {
+        if (position) {
+            target->s.origin2 = *position;
+            target->s.origin.x = position->x;
+            target->s.origin.y = position->y;
+            target->s.origin.z = CM_GetHeightAtPoint(position->x, position->y);
+        }
+        target->s.renderfx &= ~RF_HIDDEN;
+        target->svflags &= ~SVF_NOCLIENT;
+        target->s.flags &= ~EF_NOT_SELECTABLE;
+        if (target->stand) target->stand(target);
+        gi.LinkEntity(target);
+        if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+        if (G_UnitIsBuilding(target->class_id)) CM_BakeStaticObstacles();
+    }
+    if (remove_asou && G_ActorHasSkill(target, "Asou"))
+        G_ActorRemoveSkill(target, ID_SOUL_POSSESSION);
+}
+
+static void soul_trap_release_carried(edict_t *carrier, vector2_t const *position, bool restore_world) {
+    uint32_t guard = 0;
+    if (!carrier) return;
+    while (carrier->soul_trap_head && guard++ < globals.max_edicts) {
+        edict_t *target = carrier->soul_trap_head;
+        uint32_t spawn_time = carrier->soul_trap_head_spawn_time;
+        if (!target->inuse || target->spawn_time != spawn_time) {
+            carrier->soul_trap_head = target->soul_trap_next;
+            carrier->soul_trap_head_spawn_time = target->soul_trap_next_spawn_time;
+            continue;
+        }
+        soul_trap_release_target(target, position, restore_world && target != carrier);
+    }
+    soul_trap_remove_possession(carrier);
+}
+
+static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
+    uint32_t const code = ID_SOUL_POSSESSION;
+    if (!carrier || !carrier->inuse || M_IsDead(carrier) || !target || !target->inuse ||
+        M_IsDead(target) || (target->aiflags & AI_SOUL_TRAPPED)) return false;
+    if (!G_ActorHasSkill(carrier, "Asou")) {
+        if (!G_ActorAddSkill(carrier, code)) {
+            fprintf(stderr, "Soul Trap: unable to add Asou possession state to carrier %.4s\n",
+                    (cstring_t)&carrier->class_id);
+            return false;
+        }
+        carrier->soul_possession_added = true;
+    }
+    if (target != carrier && !G_ActorHasSkill(target, "Asou")) {
+        if (!G_ActorAddSkill(target, code)) {
+            soul_trap_remove_possession(carrier);
+            fprintf(stderr, "Soul Trap: unable to add Asou trapped state to target %.4s\n",
+                    (cstring_t)&target->class_id);
+            return false;
+        }
+        target->soul_trapped_ability_added = true;
+    }
+    target->soul_trap_carrier = carrier;
+    target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    target->soul_trap_next = carrier->soul_trap_head;
+    target->soul_trap_next_spawn_time = carrier->soul_trap_head_spawn_time;
+    carrier->soul_trap_head = target;
+    carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->aiflags |= AI_SOUL_TRAPPED;
+    S_SpellCancelChannel(target);
+    G_ClearUnitOrderQueue(target);
+    target->goalentity = target->combatentity = target->secondarygoal = NULL;
+    if (target->stand) target->stand(target);
+    target->s.renderfx |= RF_HIDDEN;
+    target->svflags |= SVF_NOCLIENT;
+    target->s.flags |= EF_NOT_SELECTABLE;
+    if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    if (G_UnitIsBuilding(target->class_id)) CM_BakeStaticObstacles();
+    gi.UnlinkEntity(target);
+    FOR_LOOP(i, game.max_clients) {
+        gameClient_t *client = game.clients + i;
+        if (!client->connected || !(target->selected & (1u << client->ps.number))) continue;
+        G_DeselectEntity(client, target);
+        G_SyncClientSelection(client);
+    }
+    target->selected = 0;
+    G_InvalidateUnitShortcutsForUnit(target);
+    return true;
+}
+
+/* AIso uses normal data-driven target filters; the target and carrier retain
+ * identity while Asou owns release on death, explicit removal, or disposal. */
 BZ_ABILITY_PROC(CAbilitySoulTrap) {
     if (!call || !call->item) return false;
     switch (msg) {
-    case A_EXECUTE:
+    case A_VALIDATE:
         return call->target && call->target->type == SPELL_TARGET_UNIT &&
-            S_SpellIsAliveTarget(call->target->entity);
+            call->target->entity && call->target->entity->inuse &&
+            !M_IsDead(call->target->entity) && !(call->target->entity->aiflags & AI_SOUL_TRAPPED);
+    case A_EXECUTE:
+        if (!call->target || call->target->type != SPELL_TARGET_UNIT ||
+            !soul_trap_capture(ent, call->target->entity)) return false;
+        if (call->source_item && call->source_item->inuse &&
+            call->source_item->spawn_time == call->source_item_spawn_time &&
+            call->source_item->item.carrier == ent) {
+            call->source_item->item.soul_target = call->target->entity;
+            call->source_item->item.soul_target_spawn_time = call->target->entity->spawn_time;
+        }
+        return true;
     default:
         return CAbilitySimpleSpell(ent, msg, call);
     }
 }
 
-/* The filled Soul item carries Asou. Keep it as the distinct retail ability
- * class without inventing generic reveal/release semantics in this Orc08 slice. */
+bool S_SoulTrapRevealsCarrier(edict_t const *carrier, uint32_t viewer) {
+    edict_t *target;
+    uint32_t spawn_time, guard = 0;
+    if (!carrier || viewer >= MAX_PLAYERS) return false;
+    target = carrier->soul_trap_head;
+    spawn_time = carrier->soul_trap_head_spawn_time;
+    while (target && guard++ < globals.max_edicts) {
+        edict_t *next;
+        uint32_t next_spawn;
+        if (!soul_trap_valid_link(carrier, target) || target->spawn_time != spawn_time) break;
+        if (target->s.player == viewer || G_FowPlayersShareVision(viewer, target->s.player)) return true;
+        next = target->soul_trap_next;
+        next_spawn = target->soul_trap_next_spawn_time;
+        target = next;
+        spawn_time = next_spawn;
+    }
+    return false;
+}
+
+void S_SoulTrapFinalizeConsumedItem(edict_t *item) {
+    edict_t *carrier, *target, *filled;
+    uint32_t carrier_spawn, target_spawn;
+    int32_t slot;
+    if (!item || !item->item.soul_target) return;
+    target = item->item.soul_target;
+    target_spawn = item->item.soul_target_spawn_time;
+    carrier = item->item.pending_use_carrier;
+    carrier_spawn = item->item.pending_use_carrier_spawn_time;
+    item->item.soul_target = NULL;
+    item->item.soul_target_spawn_time = 0;
+    if (!target->inuse || target->spawn_time != target_spawn || !(target->aiflags & AI_SOUL_TRAPPED) ||
+        !carrier || !carrier->inuse || carrier->spawn_time != carrier_spawn || M_IsDead(carrier)) return;
+    FOR_LOOP(i, G_InventoryCapacity(carrier)) {
+        filled = carrier->inventory[i];
+        if (!soul_item_has_ability(filled, ID_SOUL_POSSESSION)) continue;
+        if (filled->item.soul_target &&
+            (filled->item.soul_target != target || filled->item.soul_target_spawn_time != target_spawn)) continue;
+        filled->item.soul_target = target;
+        filled->item.soul_target_spawn_time = target_spawn;
+        target->soul_trap_item = filled;
+        target->soul_trap_item_spawn_time = filled->spawn_time;
+        filled->item.droppable_set = true;
+        filled->item.droppable = false;
+        return;
+    }
+    if (!G_ItemData(ID_FILLED_SOUL)->file) {
+        fprintf(stderr, "Soul Trap: ItemData row for filled item 'soul' is unresolved\n");
+        return;
+    }
+    filled = SP_SpawnAtLocationNoBirth(ID_FILLED_SOUL, carrier->s.player, &carrier->s.origin2);
+    if (!filled) return;
+    filled->item.droppable_set = true;
+    filled->item.droppable = false;
+    slot = item->item.pending_use_slot;
+    if (slot < 0 || slot >= (int32_t)G_InventoryCapacity(carrier) || carrier->inventory[slot])
+        slot = G_FindFreeInventorySlot(carrier);
+    if (slot >= 0 && G_AddItemToSlotInternal(carrier, filled, (uint32_t)slot, false)) {
+        filled->item.soul_target = target;
+        filled->item.soul_target_spawn_time = target_spawn;
+        target->soul_trap_item = filled;
+        target->soul_trap_item_spawn_time = filled->spawn_time;
+    } else {
+        fprintf(stderr, "Soul Trap: could not place filled Soul in carrier inventory\n");
+        G_RemoveItem(filled);
+    }
+}
+
 BZ_ABILITY_PROC(CAbilitySoulTrapped) {
-    return CAbilityPassive(ent, msg, call);
+    switch (msg) {
+    case A_DEATH:
+        if (ent && ent->soul_trap_head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        if (ent && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, NULL, false);
+        return true;
+    case A_DISABLE:
+        if (ent && ent->soul_trap_head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        if (ent && (ent->aiflags & AI_SOUL_TRAPPED)) soul_trap_release_target(ent, &ent->s.origin2, true);
+        return true;
+    case A_UNIT_REMOVE:
+        if (ent && ent->soul_trap_head) soul_trap_release_carried(ent, &ent->s.origin2, true);
+        if (ent && (ent->aiflags & AI_SOUL_TRAPPED)) {
+            soul_trap_unlink(ent);
+            ent->soul_trapped_ability_added = false;
+        }
+        return true;
+    default:
+        return CAbilityPassive(ent, msg, call);
+    }
 }
 
 BZ_ITEM_PROC(AbilityItemHeal) {
