@@ -66,9 +66,42 @@ half-width, depth, flags, and a
 null-terminated tile ID. `SC2_MapLoad` validates the whole pointer-walk before allocating `hard_tiles`, resolves each ID through the
 layered `CTile` catalogs, and logs unresolved IDs. `r_sc2_build_hard_tiles` joins each flagged control-point chain as a cubic Bezier
 ribbon. Adjacent triangles and spans share sampled cross-sections, while longitudinal UV advances by sampled centerline distance so
-texture markings follow bends instead of stretching independently between controls. Road vertices retain the authored height when
-it is above terrain, otherwise they use terrain height plus `SC2_HARD_TILE_Z_BIAS` (`0.05` world units) to avoid z-fighting without
-visibly floating.
+texture markings follow bends instead of stretching independently between controls. The ribbon is only the XY footprint and
+UV source: each triangle is clipped against both triangles of every intersecting
+terrain cell, using the same `00--11` diagonal, corrected ground heights, normals, and cliff/ramp cell omissions as
+`r_sc2_build_ground_layer`. Barycentric interpolation puts every clipped vertex on that ground plane; clipping just to cell
+rectangles or sampling only the ribbon edges still spans folds inside non-planar cells. New edge vertices interpolate the
+ribbon UVs, retaining markings through bends. Cliff cells require their actual baked M3 triangles too: skipping those cells
+left triangular gaps at both TRaynor01 bridge approaches. `r_sc2_build_cliff_layer` now retains its CPU bake until roads
+finish projecting and then frees it. Clipping handles either mesh winding and restricts cliff projection to the spline's
+height envelope using HRDT depth (the larger endpoint depth per span; TRaynor01 uses `1.0`). Intersections crossing the
+envelope are clipped, not discarded as whole triangles; canyon floors outside it receive no road. The baker counts
+intersections before allocating and splits GPU buffers at
+65,535 vertices to respect the M3 material path's 16-bit index contract.
+
+`r_sc2_draw_hard_tiles` uses `glPolygonOffset(-2,-2)`, ahead of the cliff overlay at `(-1,-1)`, and restores offset state
+afterward. There is no geometric Z lift.
+The former `max(authored_z, terrain_z + 0.05)` path (continuous ribbons introduced in `102eb94c`) placed roads above
+SC2 selection splats, which have a `0.02` world-unit lift, and left wide triangles floating across terrain folds. Raising
+selection circles or merely reducing the road constant would hide the geometry mismatch. The authored spline Z still
+participates in curve sampling but does not become the rendered surface height.
+
+`make test-sc2` covers the former road/ring height inversion, the two planes of a non-planar cell, interpolated UVs,
+area preservation, empty/degenerate intersections, reversed cliff winding, and partial cliff-depth intersections.
+Use a fully rebuilt `make opensc2` before visual QA so the
+executable and renderer agree on `renderEntity_t`; a stale executable can crash in `R_GetEntityBounds` after a shared
+header change. `+screenshot 1` captures the opening cinematic camera, which may contain roads without the selected unit;
+use a focused temporary copy for the bridge and ring together. Copy TRaynor01 root map files to
+`build/share/starcraft-2/Maps/RoadBridge.SC2Components`, use an empty `InitGlobals`/`InitTriggers`/`InitMap` in its `MapScript.galaxy`,
+set the first StartGame camera's `CameraTarget` to `(29.5,29)`, and add a player-1 Marine at `(34,24,0)` for auto-selection.
+The road, heightmap, cliffs and original bridge placements remain authored map data. Capture with:
+
+```sh
+build/bin/opensc2 -data data/StarCraft2 +vid_hidden 1 +com_maxfps 60 \
+  +map Maps/RoadBridge.SC2Components +screenshot 1 +com_frame_limit 80
+```
+
+The temporary scene is visual QA only; do not commit retail map files.
 
 `MarSaraRoad_Diffuse.dds` is a 1024x1024 atlas. Its seamless road body runs horizontally through the lower half (`V=0.5..1.0`),
 so generated ribbons map arc length to U and road width to that V band. Mapping width to U and length to the full V range selects the

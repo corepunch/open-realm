@@ -6,7 +6,12 @@
 #include "renderer/r_camera_height.h"
 #include "games/starcraft-2/common/sc2_map.h"
 
-#define SC2_HARD_TILE_Z_BIAS 0.05f // world units; prevents terrain z-fighting without the old visible 0.15 lift
+typedef struct SC2ROADTRI {
+    VERTEX verts[3];
+    FLOAT depth;
+} SC2ROADTRI;
+typedef SC2ROADTRI *LPSC2ROADTRI;
+typedef SC2ROADTRI const *LPCSC2ROADTRI;
 
 void      R_SC2ShutdownShaders(void);
 void      R_SC2RegisterMap(LPCSTR mapFileName);
@@ -31,8 +36,103 @@ static inline void r_sc2_hard_tile_matrix(sc2MapHardTile_t const *tile, LPMATRIX
 	matrix->v[12] = tile->position.x + base.x; matrix->v[13] = tile->position.y + base.y; matrix->v[14] = tile->position.z + base.z;
 }
 
-static inline FLOAT r_sc2_hard_tile_surface_z(FLOAT authored_z, FLOAT terrain_z) {
-	return MAX(authored_z, terrain_z + SC2_HARD_TILE_Z_BIAS);
+/* Signed XY area gives both clipping half-planes and barycentric surface weights. */
+static inline FLOAT r_sc2_road_side(VECTOR3 a, VECTOR3 b, VECTOR3 p) {
+    return (b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x);
+}
+
+/* Intersect a ribbon triangle with one ground triangle, retaining road UVs.
+   Clipping at cell diagonals is essential: vertex-only draping spans terrain folds. */
+static inline DWORD r_sc2_clip_road(LPCVERTEX road, LPCVERTEX ground, LPVERTEX out) {
+    VERTEX poly[8], scratch[8];
+    DWORD count = 3, total = 0;
+    FLOAT area = r_sc2_road_side(ground[0].position, ground[1].position, ground[2].position);
+
+    if (fabsf(area) < 1e-8f) return 0;
+    memcpy(poly, road, 3 * sizeof(*poly));
+    FOR_LOOP(edge, 3) {
+        VECTOR3 a = ground[edge].position, b = ground[(edge+1)%3].position;
+        DWORD n = 0;
+        for (DWORD i = 0; i < count; i++) {
+            VERTEX prev = poly[(i+count-1)%count], cur = poly[i];
+            FLOAT sign = area > 0 ? 1 : -1;
+            FLOAT d0 = sign*r_sc2_road_side(a, b, prev.position), d1 = sign*r_sc2_road_side(a, b, cur.position);
+            if ((d0 < 0) != (d1 < 0)) {
+                FLOAT t = d0 / (d0-d1);
+                VERTEX v = prev;
+                v.position = Vector3_lerp(&prev.position, &cur.position, t);
+                v.texcoord = Vector2_lerp(&prev.texcoord, &cur.texcoord, t);
+                scratch[n++] = v;
+            }
+            if (d1 >= 0) scratch[n++] = cur;
+        }
+        count = n; memcpy(poly, scratch, n * sizeof(*poly));
+    }
+    FOR_LOOP(i, count) {
+        VECTOR3 p = poly[i].position;
+        FLOAT u = r_sc2_road_side(ground[1].position, ground[2].position, p) / area;
+        FLOAT v = r_sc2_road_side(ground[2].position, ground[0].position, p) / area;
+        FLOAT w = 1-u-v;
+        /* Authored spline Z must not lift the road above ground rings. */
+        poly[i].position.z = u*ground[0].position.z + v*ground[1].position.z + w*ground[2].position.z;
+        poly[i].normal = (VECTOR3){
+            u*ground[0].normal.x + v*ground[1].normal.x + w*ground[2].normal.x,
+            u*ground[0].normal.y + v*ground[1].normal.y + w*ground[2].normal.y,
+            u*ground[0].normal.z + v*ground[1].normal.z + w*ground[2].normal.z };
+    }
+    for (DWORD i = 1; i+1 < count; i++) {
+        if (fabsf(r_sc2_road_side(poly[0].position, poly[i].position, poly[i+1].position)) < 1e-8f) continue;
+        if (out) { out[total] = poly[0]; out[total+1] = poly[i]; out[total+2] = poly[i+1]; }
+        total += 3;
+    }
+    return total;
+}
+
+/* Distance below the authored ribbon plane; HRDT depth bounds projection onto cliff tops. */
+static inline FLOAT r_sc2_road_depth(LPCVERTEX road, VECTOR3 p) {
+    FLOAT area = r_sc2_road_side(road[0].position, road[1].position, road[2].position);
+    FLOAT u = r_sc2_road_side(road[1].position, road[2].position, p)/area;
+    FLOAT v = r_sc2_road_side(road[2].position, road[0].position, p)/area;
+    return u*road[0].position.z + v*road[1].position.z + (1-u-v)*road[2].position.z - p.z;
+}
+
+/* Cliff meshes replace grid cells at bridge ends. Clip to the authored depth envelope so roads
+   reach their actual surface without being projected all the way down the canyon walls. */
+static inline DWORD r_sc2_clip_road_cliff(LPCSC2ROADTRI road, LPCVERTEX cliff, LPVERTEX out) {
+    VERTEX clipped[18];
+    DWORD total = 0;
+    if (fabsf(r_sc2_road_side(road->verts[0].position, road->verts[1].position, road->verts[2].position)) < 1e-8f) return 0;
+    DWORD n = r_sc2_clip_road(road->verts, cliff, clipped);
+    for (DWORD i = 0; i < n; i += 3) {
+        VERTEX poly[6], scratch[6];
+        DWORD count = 3;
+        memcpy(poly, clipped+i, 3*sizeof(*poly));
+        FOR_LOOP(plane, 2) {
+            DWORD used = 0;
+            FLOAT sign = plane ? -1 : 1;
+            FOR_LOOP(j, count) {
+                VERTEX prev = poly[(j+count-1)%count], cur = poly[j];
+                FLOAT d0 = road->depth - sign*r_sc2_road_depth(road->verts, prev.position);
+                FLOAT d1 = road->depth - sign*r_sc2_road_depth(road->verts, cur.position);
+                if ((d0 < 0) != (d1 < 0)) {
+                    FLOAT t = d0/(d0-d1);
+                    VERTEX v = prev;
+                    v.position = Vector3_lerp(&prev.position, &cur.position, t);
+                    v.texcoord = Vector2_lerp(&prev.texcoord, &cur.texcoord, t);
+                    v.normal = Vector3_lerp(&prev.normal, &cur.normal, t);
+                    scratch[used++] = v;
+                }
+                if (d1 >= 0) scratch[used++] = cur;
+            }
+            count = used; memcpy(poly, scratch, count*sizeof(*poly));
+        }
+        for (DWORD j = 1; j+1 < count; j++) {
+            if (fabsf(r_sc2_road_side(poly[0].position, poly[j].position, poly[j+1].position)) < 1e-8f) continue;
+            if (out) { out[total] = poly[0]; out[total+1] = poly[j]; out[total+2] = poly[j+1]; }
+            total += 3;
+        }
+    }
+    return total;
 }
 
 static inline VECTOR3 r_sc2_hard_tile_curve_point(sc2MapHardTile_t const *a, sc2MapHardTile_t const *b, FLOAT t) {
