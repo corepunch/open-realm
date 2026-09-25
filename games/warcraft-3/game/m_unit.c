@@ -2002,6 +2002,9 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     ent->mana.value = MAX(0.0f, MIN(ent->mana.max_value, mana));
     ent->s.origin2.x = x;
     ent->s.origin2.y = y;
+    ent->s.origin.x = x;
+    ent->s.origin.y = y;
+    ent->s.origin.z = CM_GetHeightAtPoint(x, y);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_ActivateUnitFood(ent);
     unit_stand(ent); /* back to a living idle state */

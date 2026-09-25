@@ -725,6 +725,7 @@ typedef enum {
     A_ITEM_PREVENT_DROP, /* Item ability: return true to prevent dropping call->source_item. */
     A_ITEM_SCRIPT_REMOVE, /* Scripted inventory removal: return true when the ability handled it. */
     A_ITEM_SCRIPT_REATTACH, /* Scripted inventory add: return true when the ability handled it. */
+    A_ITEM_FINALIZE,    /* Consumed item use event is finished; owning ability may finalize state. */
     A_AUTOCAST_ON,      /* Autocast/UI query: return whether autocast is enabled on ent. */
     A_AUTOCAST_SET,     /* Autocast command: set ent's state from call->enabled. */
     A_AUTOCAST_ACQUIRE, /* Unit scheduler: acquire a target and issue an autocast; return whether issued. */
@@ -1586,6 +1587,7 @@ struct edict_s {
     uint32_t soul_trap_next_spawn_time;
     edict_t *soul_trap_item; /* filled item bound to this trapped unit */
     uint32_t soul_trap_item_spawn_time;
+    uint32_t soul_trap_viewer; /* owner whose forced-visibility reference was installed */
     bool soul_trapped_ability_added; /* Asou was added by the trap to this target */
     bool soul_possession_added; /* Asou was added by the trap to this carrier */
     edict_t *combatentity;
@@ -3121,7 +3123,6 @@ bool G_ItemDroppable(edict_t const *item);
 bool G_ItemAbilitiesPreventDrop(edict_t *unit, edict_t const *item);
 bool G_ItemAbilityScriptedRemove(edict_t *unit, edict_t const *item);
 bool G_ItemAbilityScriptedReattach(edict_t *unit, edict_t const *item);
-void S_SoulTrapFinalizeConsumedItem(edict_t *item);
 bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot);
 bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot);
 void G_DropInventoryOnDeath(edict_t *unit);

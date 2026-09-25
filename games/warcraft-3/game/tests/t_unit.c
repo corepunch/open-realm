@@ -1241,6 +1241,8 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50);
     T_EQ((int)hero->s.origin2.x, 64);
     T_EQ((int)hero->s.origin2.y, 96);
+    T_FEQ(hero->s.origin.x, 64.0f, 0.001f);
+    T_FEQ(hero->s.origin.y, 96.0f, 0.001f);
     T_ASSERT(hero->health.value > 0.0f);
     G_SelectEntity(client, hero);
     T_ASSERT(G_IsEntitySelected(client, hero));

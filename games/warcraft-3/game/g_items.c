@@ -410,7 +410,11 @@ void G_RunConsumedItemFrees(void) {
             level.pending_consumed_item_cleanup = true;
             continue;
         }
-        S_SoulTrapFinalizeConsumedItem(item);
+        if (item->item.pending_use_carrier && item->item.pending_use_carrier->inuse) {
+            abilityCall_t call = MAKE(abilityCall_t, .source_item = item,
+                                      .source_item_spawn_time = item->spawn_time);
+            S_UnitAbilityMessage(item->item.pending_use_carrier, A_ITEM_FINALIZE, &call);
+        }
         G_FreeEdict(item);
     }
 }
