@@ -36,6 +36,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Entity sound architecture | [architecture/sound.md](architecture/sound.md) |
 | WC3 retail audio admission, Ghidra/r2 setup, recovered structures and parity gaps | [docs/games/warcraft-3/audio-retail-analysis.md](docs/games/warcraft-3/audio-retail-analysis.md) |
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
+| WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` SpawnData child models, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
@@ -105,6 +106,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Required Animation Names (`animProps`/`uani`), alternate forms, `AddUnitAnimationProperties`, tagged MDX sequence selection | [docs/games/warcraft-3/unit-animation-properties.md](docs/games/warcraft-3/unit-animation-properties.md) |
 | WC3 resource-worker crowd routing and Human02 30-Peasant simulation | [docs/games/warcraft-3/worker-crowd-routing.md](docs/games/warcraft-3/worker-crowd-routing.md) |
 | WC3 inventory, world-item lifecycle, item UI presentation | [docs/games/warcraft-3/inventory-and-items.md](docs/games/warcraft-3/inventory-and-items.md) |
+| WC3 Goblin Land Mines `AIpm`/`Amin`/`Amnx`, delayed death AOE, targeted-item charge completion | [docs/games/warcraft-3/land-mines.md](docs/games/warcraft-3/land-mines.md) |
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
 | WC3 ability implementation from data, behavior, and focused evidence | [docs/games/warcraft-3/ability-implementation-plan.md](docs/games/warcraft-3/ability-implementation-plan.md) |
 | WC3 creep ability aliases, `code=` mapping, parent-owned registry rows | [docs/games/warcraft-3/creep-ability-aliases.md](docs/games/warcraft-3/creep-ability-aliases.md) |

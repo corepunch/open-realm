@@ -1248,6 +1248,54 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
         "endfunction\n"));
 }
 
+TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
+        "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X10;K\"6\"\nC;Y2;X12;K\"1\"\n"
+        "C;Y3;X1;K\"AIpm\"\nC;Y3;X2;K\"AIpm\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"ground\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\n"
+        "C;Y3;X7;K\"500\"\nC;Y3;X8;K\"0\"\nC;Y3;X14;K\"hfoo\"\nE\n";
+    static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
+    ItemData_t item_data = { .abilList = "AIpm", .uses = 2, .perishable = false };
+    slkTestData_t *rows, *old;
+    edict_t *player, *hero, *item, *mine = NULL;
+    vector2_t invalid = { 700, 0 }, valid = { 128, 0 };
+
+    setup_test_world();
+    rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);
+    player = &g_edicts[0]; player->client->ps.number = 0;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->data.UnitAbilities = &abilities; hero->s.player = 0; hero->svflags |= SVF_MONSTER;
+    hero->targtype = TARG_GROUND; hero->health.value = hero->health.max_value = 100;
+    item = make_item_test_world_item(MAKEFOURCC('g','o','b','m'), 0, 0);
+    item->data.ItemData = &item_data; item->item.charges = 2;
+    T_ASSERT(G_AddItemToSlot(hero, item, 0));
+    G_SelectEntity(player->client, hero);
+
+    G_UseItem(hero, 0);
+    T_NOT_NULL(player->client->menu.on_location_selected);
+    T_EQ(player->client->menu.ability_item, item);
+    T_EQ(G_ItemCharges(item), 2);
+    T_ASSERT(!player->client->menu.on_location_selected(player, &invalid));
+    T_EQ(player->client->menu.ability_item, item);
+    T_EQ(G_ItemCharges(item), 2);
+    T_ASSERT(player->client->menu.on_location_selected(player, &valid));
+    T_NULL(player->client->menu.ability_item);
+    T_EQ(G_ItemCharges(item), 1);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        mine = ent; break;
+    }
+    T_NOT_NULL(mine);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_items, pickup_event_detects_arthas_urn) {
     static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
     edict_t *arthas = NULL;

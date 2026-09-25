@@ -181,6 +181,7 @@ typedef struct {
     bool order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
     bool ability_off;          /* command-card separate-off variant selected for this dispatch */
     edict_t *dragged_item;      /* transient inventory item carried by the cursor for a drop order */
+    edict_t *ability_item;      /* charged item awaiting successful targeted ability completion */
 } menu_t;
 typedef menu_t clientMenu_s;
 

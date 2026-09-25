@@ -286,8 +286,11 @@ clock rather than the entity animation frame.
 
 This renderer path intentionally does not consume gameplay `rand()`, does not
 emit a network sound packet, and processes off-screen (but client-visible)
-entities before frustum culling. The generic renderer import currently carries
-the resolved path, world position, and authored volume. `Pitch`,
+entities before frustum culling. `SND` now shares the MDX event-key dispatcher
+with `SPN` child-model events; see [MDX Event Objects](mdx-event-objects.md).
+Presentation events are skipped during the shadow-map pass so one animation key
+cannot play/spawn twice in a shadow-enabled frame. The generic renderer import
+currently carries the resolved path, world position, and authored volume. `Pitch`,
 `PitchVariance`, `MinDistance`, `MaxDistance`, and `DistanceCutoff` are parsed
 from `AnimSounds.slk` but remain mixer/API fidelity work.
 
