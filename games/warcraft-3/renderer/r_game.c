@@ -112,7 +112,7 @@ typedef struct { model_t const *model; uint32_t frame, render_time; bool valid; 
 static wc3EventSoundState_t event_sound_state[MAX_GAME_ENTITIES];
 #define WC3_EVENT_SPAWN_MAX 128
 typedef struct {
-    model_t *model; matrix4_t transform;
+    model_t *model; mat4_t transform;
     uint32_t team, flags, start_time, frame, serial;
     float scale; bool active;
 } wc3EventSpawn_t;
@@ -911,18 +911,6 @@ static uint32_t R_W3SoundVariantCount(wc3AnimSound_t const *row) {
     return count;
 }
 
-static vec3_t R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t const *event,
-                                      renderEntity_t const *entity, mat4_t const *transform) {
-    vec3_t pivot = {0}, local = {0};
-    if (event->node.node_id < (uint32_t)model->num_pivots) pivot = model->pivots[event->node.node_id];
-    MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
-    if (event->node.node_id < MDX_MAX_NODES && model->nodes[event->node.node_id])
-        local = Matrix4_multiply_vector3(&node_matrices[event->node.node_id], &pivot);
-    else
-        local = pivot;
-    return Matrix4_multiply_vector3(transform, &local);
-}
-
 static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
                                mdxEvent_t const *event, uint32_t key, mat4_t const *transform) {
     cstring_t id;
@@ -931,25 +919,20 @@ static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *m
     uint32_t count, pick;
     char path[512];
     vec3_t origin;
-    if (!ri.PlaySoundAt || strncmp(event->node.name, "SND", 3)) return;
+
+    if (!ri.PlaySoundAt || !MDLX_EventObjectId(event, "SND", id, sizeof(id))) return;
+    label = R_W3AnimLookupLabel(id);
+    row = R_W3AnimSound(label ? label : id);
+    if (!row) return;
+    if (!(count = R_W3SoundVariantCount(row))) return;
+    pick = R_W3PresentationPick(entity->number, key, tr.viewDef.time, count);
+    if (!R_W3SoundPath(row, pick, path, sizeof(path))) return;
     {
-        char trimmed[sizeof(event->node.name) + 1];
-        size_t n;
-        snprintf(trimmed, sizeof(trimmed), "%.*s", (int)sizeof(event->node.name) - 4, event->node.name + 4);
-        while (trimmed[0] && isspace((unsigned char)trimmed[0])) memmove(trimmed, trimmed + 1, strlen(trimmed));
-        n = strlen(trimmed);
-        while (n && isspace((unsigned char)trimmed[n - 1])) trimmed[--n] = '\0';
-        id = trimmed;
-        label = R_W3AnimLookupLabel(id);
-        row = R_W3AnimSound(label ? label : id);
-        if (!row) return;
-        if (!(count = R_W3SoundVariantCount(row))) return;
-        pick = R_W3PresentationPick(entity->number, key, tr.viewDef.time, count);
-        if (!R_W3SoundPath(row, pick, path, sizeof(path))) return;
-        origin = R_W3EventWorldPosition(model, event, entity, transform);
-        ri.PlaySoundAt(path, &origin, MAX(0.0f, MIN(1.0f, row->volume / 127.0f)));
+        mat4_t event_transform;
+        if (!MDLX_EventWorldTransform(model, event, entity, transform, &event_transform)) return;
+        origin = MAKE(vec3_t, event_transform.v[12], event_transform.v[13], event_transform.v[14]);
     }
-    return;
+    ri.PlaySoundAt(path, &origin, MAX(0.0f, MIN(1.0f, row->volume / 127.0f)));
 }
 
 static wc3EventSpawn_t *R_W3AllocEventSpawn(void) {
@@ -994,7 +977,7 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
 }
 
 static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *model,
-                               mdxEvent_t const *event, matrix4_t const * transform) {
+                               mdxEvent_t const *event, mat4_t const * transform) {
     char id[sizeof(event->node.name) + 1];
     wc3SpawnData_t *row;
     wc3EventSpawn_t *spawn;
