@@ -237,7 +237,7 @@ void S_SoulTrapFinalizeConsumedItem(edict_t *item) {
         !carrier || !carrier->inuse || carrier->spawn_time != carrier_spawn || M_IsDead(carrier)) return;
     FOR_LOOP(i, G_InventoryCapacity(carrier)) {
         filled = carrier->inventory[i];
-        if (!soul_item_has_ability(filled, ID_SOUL_POSSESSION)) continue;
+        if (!filled || filled->class_id != ID_FILLED_SOUL) continue;
         if (filled->item.soul_target &&
             (filled->item.soul_target != target || filled->item.soul_target_spawn_time != target_spawn)) continue;
         filled->item.soul_target = target;
