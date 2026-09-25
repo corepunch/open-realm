@@ -12,6 +12,36 @@ runtime and development transitive dependencies.
 - Installation method: `apt-get` with `sudo`
 - Sandbox reference: [Docker AI Sandboxes](https://docs.docker.com/ai/sandboxes/)
 
+## Recreate the sandbox environment
+
+The repository includes a Docker Sandbox environment file at `sbxenv.yaml` and a
+local mixin kit at `tools/docker-sandbox/openrealm-dev/spec.yaml`. Docker Sandbox
+environment files cannot declare APT packages directly, so the environment file
+loads the local kit and the kit installs the package set recorded below when the
+sandbox is created.
+
+From the repository root, review the environment plan and then create or attach to
+the sandbox:
+
+```sh
+sbx env plan
+sbx env run
+```
+
+The default environment installs the normal OpenRealm build/debug dependencies,
+radare2, and the Xvfb packages used for headless campaign runs. To include the
+optional FFmpeg development libraries as well:
+
+```sh
+sbx env run --env-arg ffmpeg=1
+```
+
+Changing the kit selection or its arguments affects sandbox creation. Recreate an
+existing environment with `sbx env rm` followed by `sbx env run` when those values
+change. The recorded Ubuntu 26.04/amd64 versions below describe the environment in
+which these dependencies were verified; `sbxenv.yaml` does not independently pin the
+base Ubuntu release, APT package versions, or CPU architecture.
+
 ## OpenRealm build and debug tools
 
 ```sh

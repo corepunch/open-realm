@@ -1,0 +1,51 @@
+schemaVersion: "2"
+kind: mixin
+name: openrealm-dev
+displayName: OpenRealm development dependencies
+description: Build, debug, binary-inspection, and headless Warcraft III dependencies for OpenRealm.
+
+args:
+  ffmpeg:
+    default: "0"
+    description: Install optional FFmpeg development libraries (0 or 1)
+    enum:
+      - "0"
+      - "1"
+
+setup:
+  install:
+    - description: Install OpenRealm development dependencies
+      user: "0"
+      command: |
+        set -eu
+        export DEBIAN_FRONTEND=noninteractive
+
+        packages="
+          build-essential
+          gdb
+          libsdl2-dev
+          libgl-dev
+          libegl1-mesa-dev
+          zlib1g-dev
+          pkg-config
+          ca-certificates
+          git
+          radare2
+          xvfb
+          xauth
+        "
+
+        if [ "${{ kit.args.ffmpeg }}" = "1" ]; then
+          packages="$packages
+            libavformat-dev
+            libavcodec-dev
+            libavutil-dev
+            libswscale-dev
+            libswresample-dev
+          "
+        fi
+
+        apt-get update
+        apt-get install -y $packages
+        apt-get clean
+        rm -rf /var/lib/apt/lists/*
