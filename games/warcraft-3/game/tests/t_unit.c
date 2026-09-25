@@ -37,6 +37,52 @@ static int selection_sound_index_77(LPCSTR path) {
     return 77;
 }
 
+static char death_sound_path[256];
+static LPCSTR death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
+static HANDLE death_sound_probe(LPCSTR path, LPDWORD size) {
+    if (strcmp(path, death_sound_existing)) return NULL;
+    *size = 1;
+    return malloc(1);
+}
+static int death_sound_index(LPCSTR path) {
+    strlcpy(death_sound_path, path, sizeof(death_sound_path));
+    return 77;
+}
+
+TEST(wc3_unit, death_sound_uses_existing_numbered_asset) {
+    struct game_import old = gi;
+    UnitUI_t ui = { .soundLabel = "Test", .modelFile = "Units\\Human\\Test\\Test" };
+    UnitWeapons_t weapons = { 0 };
+    edict_t ent = { .data.UnitUI = &ui, .data.UnitWeapons = &weapons };
+
+    setup_test_world();
+    death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
+    death_sound_path[0] = '\0';
+    gi.ReadFile = death_sound_probe;
+    gi.SoundIndex = death_sound_index;
+    G_RegisterUnitSounds(&ent);
+    T_STREQ(death_sound_path, "Units\\Human\\Test\\TestDeath1.wav");
+    T_EQ(ent.sound.death, 77);
+    gi = old;
+}
+
+TEST(wc3_unit, death_sound_uses_existing_unnumbered_asset) {
+    struct game_import old = gi;
+    UnitUI_t ui = { .soundLabel = "Test", .modelFile = "Units\\Human\\Test\\Test" };
+    UnitWeapons_t weapons = { 0 };
+    edict_t ent = { .data.UnitUI = &ui, .data.UnitWeapons = &weapons };
+
+    setup_test_world();
+    death_sound_existing = "Units\\Human\\Test\\TestDeath.wav";
+    death_sound_path[0] = '\0';
+    gi.ReadFile = death_sound_probe;
+    gi.SoundIndex = death_sound_index;
+    G_RegisterUnitSounds(&ent);
+    T_STREQ(death_sound_path, death_sound_existing);
+    T_EQ(ent.sound.death, 77);
+    gi = old;
+}
+
 static int order_sound_calls, order_sound_index;
 static void order_sound_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
 static void order_sound_unicast(LPEDICT ent) { (void)ent; }

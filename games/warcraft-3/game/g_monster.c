@@ -350,25 +350,19 @@ static void G_RegisterUnitSounds(LPEDICT self) {
      * them; they are not weapon-swing sounds. */
     G_RegisterSoundVariants(self->sound.yes, &self->sound.num_yes, label, "Yes");
     G_RegisterSoundVariants(self->sound.ready, &self->sound.num_ready, label, "Ready");
-    /* Death sounds follow the pattern {label}Death but may not exist in the
-     * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
+    /* Death sounds may be catalogued or shipped beside the unit model. */
     self->sound.death = G_UnitAckSoundVariantIndex(label, "Death", 0);
     if (!self->sound.death) {
-        /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
         LPCSTR model = self->data.UnitUI->modelFile;
         if (model && model[0]) {
             char path[512];
-            snprintf(path, sizeof(path), "%s\\%sDeath.wav",
-                     model,           /* e.g. units\human\Footman\Footman */
-                     strrchr(model, '\\') ? strrchr(model, '\\') + 1 : model);
-            /* Rewrite: strip model base name from dir and append death filename. */
             LPCSTR slash = strrchr(model, '\\');
-            if (slash) {
-                char dir_part[256];
-                snprintf(dir_part, sizeof(dir_part), "%.*s", (int)(slash - model + 1), model);
-                snprintf(path, sizeof(path), "%s%sDeath.wav", dir_part, slash + 1);
+            for (int numbered = 1; numbered >= 0; numbered--) {
+                snprintf(path, sizeof(path), "%.*s%sDeath%s.wav",
+                         slash ? (int)(slash - model + 1) : 0, model,
+                         slash ? slash + 1 : model, numbered ? "1" : "");
+                if (G_FileExists(path)) { self->sound.death = gi.SoundIndex(path); break; }
             }
-            self->sound.death = gi.SoundIndex(path);
         }
     }
     /* Chop-wood impact sound from UnitCombatSounds: {weapType1}Wood (e.g. MetalLightChopWood). */
