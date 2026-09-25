@@ -3,17 +3,67 @@
 set -euo pipefail
 
 usage() {
-    echo 'Usage: WC3DATA=/path/to/Warcraft tools/parity/wc3.sh retail|openrealm roc|tft [archive/map/path]'
+    echo 'Usage: WC3DATA=/path/to/Warcraft tools/parity/wc3.sh retail|openrealm [roc|tft] [--map=menu|slug|archive/path] [--intro] [--list|--select] [--maps-dir=PATH] [--refresh]'
+    echo 'Defaults: TFT menu. Campaign aliases fast-forward native cinematics; --intro keeps normal timing.'
+    echo 'Use --list for every installed campaign map; --select opens a searchable picker.'
+    echo 'Add optional loose maps with --maps-dir=PATH (repeatable). Qualified slugs: roc-human1, tft-elf1.'
+    echo 'Legacy positional archive paths are also accepted. Retail cinematics require manual Escape.'
     echo 'Environment: WINEPREFIX, WINE, WC3_RENDERER=default|opengl, WC3_BINARY, WC3_PARITY_LOGS, WC3_DRY_RUN=1'
 }
-if [[ ${1:-} == --help ]]; then usage; exit 0; fi
-if [[ $# -lt 2 || $# -gt 3 ]]; then usage >&2; exit 2; fi
-app=$1 edition=$2 map=${3:-}
+fail() { echo "wc3: $*" >&2; exit 2; }
+if [[ ${1:-} == --help || ${1:-} == -h ]]; then usage; exit 0; fi
+[[ $# -gt 0 ]] || { usage >&2; exit 2; }
+app=$1 edition=tft map=menu intro=0 edition_set=0 map_set=0 skip=0 action=resolve refresh=0
+map_dirs=()
+shift
 case "$app" in retail|openrealm) ;; *) usage >&2; exit 2 ;; esac
-case "$edition" in roc|tft) ;; *) usage >&2; exit 2 ;; esac
+for arg in "$@"; do
+    case "$arg" in
+        roc|tft)
+            [[ $edition_set == 0 ]] || fail 'Edition specified twice'
+            edition=$arg edition_set=1 ;;
+        --intro) intro=1 ;;
+        --list|--select)
+            [[ $action == resolve ]] || fail 'Choose either --list or --select'
+            action=${arg#--} ;;
+        --refresh) refresh=1 ;;
+        --maps-dir=*)
+            [[ -n ${arg#--maps-dir=} ]] || fail '--maps-dir needs a directory'
+            map_dirs+=("--maps-dir=${arg#--maps-dir=}") ;;
+        --help|-h) usage; exit 0 ;;
+        --map=*)
+            [[ $map_set == 0 ]] || fail 'Map specified twice'
+            map=${arg#--map=} map_set=1
+            [[ -n $map ]] || fail '--map needs a value' ;;
+        --*) fail "Unknown option: $arg" ;;
+        *)
+            [[ $map_set == 0 ]] || fail 'Map specified twice'
+            map=$arg map_set=1 ;;
+    esac
+done
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 data=${WC3DATA:?Set WC3DATA to your Warcraft III installation}
 data=$(cd -- "$data" && pwd)
+[[ $action == resolve || $map_set == 0 ]] || fail '--map cannot be combined with --list or --select'
+catalog=(python3 "$root/tools/parity/wc3_maps.py" --data "$data" --edition "$edition" "${map_dirs[@]}")
+[[ $refresh == 0 ]] || catalog+=(--refresh)
+if [[ $action == list ]]; then
+    exec "${catalog[@]}" --list
+elif [[ $action == select ]]; then
+    selection=$(mktemp)
+    trap 'rm -f -- "$selection"' EXIT
+    "${catalog[@]}" --select --output "$selection"
+    IFS=$'\t' read -r edition map < "$selection"
+    [[ -z $map || $intro == 1 ]] || skip=1
+elif [[ $map == menu ]]; then
+    map=
+elif [[ $map == *.w3m || $map == *.w3x ]]; then
+    : # Explicit paths keep normal cinematic timing.
+else
+    resolved=$("${catalog[@]}" --resolve "$map")
+    IFS=$'\t' read -r edition map <<< "$resolved"
+    [[ -z $map || $intro == 1 ]] || skip=1
+fi
 export WINEPREFIX=${WINEPREFIX:-${XDG_DATA_HOME:-$HOME/.local/share}/open-realm/wine-wc3}
 [[ $WINEPREFIX == /* ]] || { echo 'WINEPREFIX must be absolute' >&2; exit 2; }
 
@@ -34,7 +84,8 @@ else
     [[ -x $binary ]] || { echo "Build first: make BUILD=release FFMPEG=1 openwarcraft3" >&2; exit 1; }
     cmd=("$binary" -data "$data" +set fs_expansion "$([[ $edition == tft ]] && echo 1 || echo 0)"
          +set vid_native 0 +set vid_fullscreen 0 +set vid_mode 2)
-    [[ -z $map ]] || cmd+=(+map "$map")
+    cmd+=(+set skip_cutscene "$skip")
+    if [[ -n $map ]]; then cmd+=(+map "$map"); else cmd+=(+menu_main); fi
 fi
 printf 'Working directory: %s\nWine prefix: %s\nCommand: ' "$data" "$WINEPREFIX"
 printf '%q ' "${cmd[@]}"; printf '\n'

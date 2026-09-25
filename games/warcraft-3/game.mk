@@ -114,6 +114,12 @@ profile-map: $(BINARY) xctraceprof
 		> build/time-profile.xml
 	$(BIN_DIR)/xctraceprof --window 3:20 --top 40 build/time-profile.xml
 
+# Headless launcher, campaign catalog, and binding-generator checks.
+test-render-harness: fdfbindgen mpqtool
+	python3 tests/test_parity_launcher.py
+	python3 tests/test_parity_maps.py
+	python3 tests/test_fdfbindgen.py
+
 # Golden-image render regression test (deterministic MDX renders vs committed
 # references). Requires a display/GL, so it is opt-in and NOT part of `make test`
 # (CI is headless). Run locally after renderer changes.
@@ -129,9 +135,9 @@ $(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(
 	@$(CC) $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -o $@ tools/jass.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
 
-$(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
+$(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h vendor/blast/blast.c vendor/blast/blast.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
-	@$(CC) $(CFLAGS) -DMPQ_TEST_API -o $@ $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c -lm -lz
+	@$(CC) $(CFLAGS) -DMPQ_TEST_API -o $@ $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c vendor/blast/blast.c -lm -lz
 
 # jass.h includes g_local.h: stale edict/client offsets break player-local ESC cleanup after contract changes.
 JASS_HEADERS := $(COMMON_HEADERS) $(CLIENT_HEADERS) $(shell find $(WC3_GAME_DIR) $(WC3_DIR)/common server shared -name '*.h')
@@ -210,7 +216,9 @@ TEST_JOBS ?= 16
 	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-ui test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit
+		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
+
+$(eval $(call test_schema,test-mpq-compression,$(SHARED_LIB),$(TEST_CFLAGS) -DMPQ_TEST_API -DBZ_TESTS,$(BIN_DIR)/test_mpq_compression$(EXE_EXT),tests/test_runner.c tests/test_mpq_compression.c common/mpq.c,-lshared -lm -lz,))
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-sound,$(LIB_DIR) $(CLIENT_HEADERS) $(COMMON_HEADERS) sound/s_local.h vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(CFLAGS) -DBZ_TESTS -DTRUE=1 -DFALSE=0,$(BIN_DIR)/test_sound$(EXE_EXT),tests/test_runner.c tests/test_sound.c sound/s_sound.c sound/s_mp3.c shared/test.c,$(LIBS) -lm,))
@@ -337,3 +345,5 @@ $(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_E
 $(RENDERER_LIB): $(wildcard $(WC3_DIR)/renderer/w3m/*.h) renderer/r_cliff.h
 
 $(RENDERER_LIB): $(WC3_DIR)/common/wc3_coords.h renderer/r_game.h
+
+.PHONY: test-render-harness test-mpq-compression
