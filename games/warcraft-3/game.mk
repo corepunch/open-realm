@@ -302,6 +302,8 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		grep -q "Test Attack Item" && echo "  cat item SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/AbilityData.slk | \
 		grep -q "AInv" && echo "  cat ability SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Splats/SpawnData.slk | \
+		grep -q "TestSpawn" && echo "  cat spawn data OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/AbilityBuffData.slk | \
 		grep -q "Biml" && echo "  cat ability buff SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/UpgradeData.slk | \

@@ -413,9 +413,12 @@ flight.
 ## Phase Boundary
 
 This slice includes generic item icon/tooltips, ability-defined capacity,
-runtime/displayed charges, and successful synchronous use of the existing
-immediate item ability handlers when Inventory Data C permits item use.
-Perishable synchronous uses consume one charge and destroy the item at zero.
+runtime/displayed charges, successful synchronous use of the existing
+immediate item ability handlers, and point-target item completion when
+Inventory Data C permits item use. Point-target items retain their exact item
+entity through target mode: invalid points or Cancel spend nothing, while a
+successful shared spell execution publishes item-use events and consumes one
+charge. Perishable successful uses destroy the item at zero.
 Passive item effects attach on inventory entry only for carriers whose
 Inventory ability permits item use; held orb/poison attack hooks use the same
 permission. Detach/removal always reverses an effect that was already applied,
@@ -426,7 +429,8 @@ Still missing are automatic `powerup` acquisition/use, `cooldownID`/`ignoreCD`
 item cooldowns and disabled icons, held-item cursor art, slot swapping, and
 allied-unit giving. Soul Trap implements the stock target/capture/reveal/release
 flow; unusual custom `AIso` targets and their subsystem-specific behavior still
-need parity coverage.
+need parity coverage. See [Land Mines](land-mines.md) for the point-target
+completion contract exercised by `AIpm`.
 
 The implementation is derived from observable behavior and Warcraft III data
 formats described by the clean-room specification. It does not depend on
@@ -442,7 +446,8 @@ full-inventory failure, pickup range and revalidation, drop identity, point-drop
 deferred execution/movement/revalidation, save/load of the active drop-item pointer, renderer
 visibility flags, carried-item removal, connection-state refresh gating, charge
 initialization/preservation, carried-charge refresh/no-op behavior, perishable
-use decrement/removal, non-perishable decrement-without-removal behavior, JASS charge access,
+use decrement/removal, non-perishable decrement-without-removal behavior, point-target item
+charge deferral across invalid/successful location selection, JASS charge access,
 and generic `spro` Art/Tip/Ubertip/charge presentation.
 `SetItemDropID` coverage includes rawcode overwrite, null-handle tolerance,
 inventory/drop preservation, and setter-to-save/load round trips.

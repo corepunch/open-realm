@@ -4,6 +4,10 @@
 #define ID_ADT1 MAKEFOURCC('A', 'd', 't', '1') // Detect (Sentry Ward); Rng is true-sight radius
 #define ID_ASTA MAKEFOURCC('A', 's', 't', 'a') // Stasis Trap placement
 #define ID_AEYE MAKEFOURCC('A', 'e', 'y', 'e') // Sentry Ward placement base code
+#define ID_AMIN MAKEFOURCC('A', 'm', 'i', 'n') // Mine - exploding intrinsic behavior
+#define ID_AROO MAKEFOURCC('A', 'r', 'o', 'o') // Root
+#define ID_ARO1 MAKEFOURCC('A', 'r', 'o', '1') // Root (Ancients)
+#define ID_ARO2 MAKEFOURCC('A', 'r', 'o', '2') // Root (Ancient Protector)
 
 void stasis_trap_think(edict_t *thinker);
 
@@ -84,7 +88,176 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 	thinker->think = stasis_trap_think;
 }
 
-static bool ward_is_sentry(edict_t const *ward) {
+/* Item Place Goblin Land Mine is an ordinary authored point summon. Keep the
+ * placed unit as a real player-owned unit so its Amin/Amnx abilities own the
+ * trap and death-damage lifecycle. */
+BZ_ABILITY_PROC(CAbilityPlaceMine) {
+	uint32_t code = call && call->item ? call->item->code : 0;
+	uint32_t level = S_SpellLevel(ent, code);
+	uint32_t unit_id = code ? S_SpellUnitId(code, level) : 0;
+
+	switch (msg) {
+	case A_VALIDATE:
+		return ent && call && call->target && call->target->type == SPELL_TARGET_POINT && unit_id;
+	case A_EXECUTE: {
+		edict_t * mine;
+		float life;
+		if (!ent || !call || !call->target || call->target->type != SPELL_TARGET_POINT || !unit_id) return false;
+		life = S_SpellDuration(code, level, false);
+		mine = S_SummonAt(ent, unit_id, &call->target->point, life);
+		if (!mine) return false;
+		mine->summon_ability = code;
+		return true;
+	}
+	default:
+		return CAbilitySimpleSpell(ent, msg, call);
+	}
+}
+
+static edict_t * land_mine_thinker(edict_t const * mine) {
+	if (!mine) return NULL;
+	FILTER_EDICTS(th, th->inuse && th->owner == mine && th->think == land_mine_think) return th;
+	return NULL;
+}
+
+static void land_mine_remove_thinker(edict_t const * mine) {
+	edict_t * thinker = land_mine_thinker(mine);
+	if (thinker) G_FreeEdict(thinker);
+}
+
+/* Patch 1.03 explicitly stopped rooted Ancients from triggering land mines.
+ * Their mobile/uprooted form is the exception to the ordinary structure
+ * exclusion, so key that distinction to the Root-family ability plus current
+ * movement state instead of hard-coding Night Elf unit rawcodes. */
+static bool land_mine_is_uprooted_ancient(edict_t const * target) {
+	bool root_capable;
+
+	if (!target || (target->targtype != TARG_STRUCTURE && !G_UnitIsBuilding(target->class_id))) return false;
+	root_capable = G_UnitAbilityLevel(target, ID_AROO) ||
+		G_UnitAbilityLevel(target, ID_ARO1) || G_UnitAbilityLevel(target, ID_ARO2);
+	return root_capable && target->movetype != MOVETYPE_NONE;
+}
+
+/* Retail mines are walk-over traps: air and ordinary/rooted structures do not
+ * trigger them, while a mobile uprooted Ancient behaves as a ground unit. */
+static bool land_mine_trigger_target(edict_t * mine, edict_t * target, float radius) {
+	bool structure;
+
+	if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(mine, target)) return false;
+	if (target->targtype == TARG_AIR) return false;
+	structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+	if (structure && !land_mine_is_uprooted_ancient(target)) return false;
+	return Vector2_distance(&target->s.origin2, &mine->s.origin2) <= radius;
+}
+
+/* Amin DataA is activation delay, DataB is invisibility transition time, and
+ * Cast Range is the proximity trigger radius. The mine kills itself through
+ * the normal death path so Amnx and scripted death events still fire. */
+void land_mine_think(edict_t * thinker) {
+	edict_t * mine = thinker ? thinker->owner : NULL;
+	uint32_t code, level;
+	float radius;
+	bool trigger = false;
+
+	if (!thinker || !thinker->inuse) return;
+	if (!mine || !mine->inuse || mine->spawn_time != thinker->channel.owner_spawn_time || M_IsDead(mine)) {
+		G_FreeEdict(thinker);
+		return;
+	}
+	code = thinker->class_id;
+	level = MAX(1u, (uint32_t)thinker->wait);
+	if (thinker->damage && G_Time() >= thinker->resources) {
+		mine->s.renderfx |= RF_HIDDEN;
+		thinker->damage = 0;
+	}
+	if (G_Time() < thinker->freetime) return;
+	radius = S_SpellRange(code, level);
+	if (radius <= 0.0f) return;
+	FILTER_EDICTS(target, land_mine_trigger_target(mine, target, radius)) { trigger = true; break; }
+	if (!trigger) return;
+
+	/* Retire the thinker before death dispatch: CAbilityLandMine receives
+	 * A_DEATH synchronously and must not free the currently executing edict. */
+	G_FreeEdict(thinker);
+	G_SetHealth(mine, 0.0f);
+	if (mine->die) mine->die(mine, mine);
+	else unit_die(mine, mine);
+
+	/* The stock Goblin Land Mine keeps its detonation particles in the model's
+	 * Death Spell sequence.  Keep generic unit_die() authoritative for death
+	 * events, Amnx, corpse/decay setup, and ordinary damage destruction; only
+	 * the Amin proximity-trigger path replaces the visual sequence afterward.
+	 * If a custom model has no tagged Death Spell sequence, the normal animation
+	 * selector falls back within the Death family. */
+	if (mine->inuse && M_IsDead(mine)) {
+		G_SetUnitAnimation(mine, "death spell");
+		mine->animation_override = true;
+		if (mine->animation) mine->s.frame = mine->animation->interval[0];
+	}
+}
+
+static bool land_mine_initialize(edict_t * mine, uint32_t code) {
+	uint32_t level;
+	float arm, invis;
+	edict_t * thinker;
+
+	if (!mine || !mine->inuse || !code || !(level = G_UnitAbilityLevel(mine, code))) return false;
+	land_mine_remove_thinker(mine);
+	arm = MAX(0.0f, S_SpellData(code, level, 1));
+	invis = S_SpellData(code, level, 2);
+	/* Mine behavior makes the unit walk-over even before invisibility finishes. */
+	mine->collision = 0.0f;
+	mine->s.renderfx &= ~RF_HIDDEN;
+	if (invis == 0.0f) mine->s.renderfx |= RF_HIDDEN;
+
+	thinker = G_Spawn();
+	if (!thinker) return false;
+	thinker->owner = mine;
+	thinker->channel.owner_spawn_time = mine->spawn_time;
+	thinker->class_id = code;
+	thinker->wait = (float)level;
+	thinker->freetime = G_Time() + (uint32_t)(arm * 1000.0f);
+	if (invis > 0.0f) {
+		thinker->damage = 1;
+		thinker->resources = G_Time() + (uint32_t)(invis * 1000.0f);
+	}
+	thinker->think = land_mine_think;
+	return true;
+}
+
+BZ_ABILITY_PROC(CAbilityLandMine) {
+	uint32_t code = call && call->item && call->item->code ? call->item->code : ID_AMIN;
+	bool owns_mine_ability = ent && code && G_UnitAbilityLevel(ent, code);
+
+	switch (msg) {
+	case A_UNIT_INIT:
+	case A_ENABLE:
+	case A_LEVEL_CHANGED:
+		return land_mine_initialize(ent, code);
+	case A_DEATH:
+		if (!owns_mine_ability && !land_mine_thinker(ent)) return false;
+		land_mine_remove_thinker(ent);
+		/* Death/explosion presentation must no longer be hidden by the trap's
+		 * live-unit invisibility state. */
+		ent->s.renderfx &= ~RF_HIDDEN;
+		return true;
+	case A_DISABLE:
+		/* G_ActorRemoveSkill removes the rawcode before dispatching A_DISABLE,
+		 * so cleanup cannot rely on G_UnitAbilityLevel() still finding Amin. */
+		if (!ent) return false;
+		land_mine_remove_thinker(ent);
+		ent->s.renderfx &= ~RF_HIDDEN;
+		return true;
+	case A_UNIT_REMOVE:
+		if (!owns_mine_ability && !land_mine_thinker(ent)) return false;
+		land_mine_remove_thinker(ent);
+		return true;
+	default:
+		return CAbilityPassive(ent, msg, call);
+	}
+}
+
+static bool ward_is_sentry(edict_t const * ward) {
 	return ward && ward->inuse && G_AbilityCode(ward->summon_ability) == ID_AEYE;
 }
 
@@ -181,6 +354,7 @@ bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit) {
 	uint32_t summon;
 	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
 	if (G_UnitStatusLevel(unit, ID_BINV) || G_UnitStatusLevel(unit, ID_BOWK)) return true;
+	if (G_UnitAbilityLevel(unit, ID_AMIN)) return true;
 	summon = G_AbilityCode(unit->summon_ability);
 	return summon == ID_AEYE || summon == ID_ASTA;
 }

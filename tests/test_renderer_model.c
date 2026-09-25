@@ -896,6 +896,34 @@ TEST(renderer_model, mdx_sound_event_keys_follow_sequence_and_global_sequence_ti
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 50, 1050));
 }
 
+TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
+    mdxEvent_t event = { 0 };
+    char id[32] = { 0 };
+
+    snprintf(event.node.name, sizeof(event.node.name), "SPNxTestSpawn   ");
+    T_ASSERT(MDLX_EventObjectId(&event, "SPN", id, sizeof(id)));
+    T_STREQ(id, "TestSpawn");
+    T_ASSERT(!MDLX_EventObjectId(&event, "SND", id, sizeof(id)));
+}
+
+TEST(renderer_model, mdx_event_world_transform_uses_event_pivot) {
+    mdxEvent_t event = { 0 };
+    vector3_t pivots[] = { { 4.0f, 5.0f, 6.0f } };
+    mdxModel_t model = { .events = &event, .pivots = pivots, .num_pivots = 1 };
+    renderEntity_t entity = { .frame = 100, .oldframe = 90 };
+    matrix4_t parent, world;
+
+    event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;
+    model.nodes[0] = &event.node; model.node_list[0] = &event.node; model.num_nodes = 1;
+    Matrix4_identity(&parent);
+    Matrix4_translate(&parent, &(vector3_t){ 10.0f, 20.0f, 30.0f });
+
+    T_ASSERT(MDLX_EventWorldTransform(&model, &event, &entity, &parent, &world));
+    T_FEQ(world.v[12], 14.0f, 0.001f);
+    T_FEQ(world.v[13], 25.0f, 0.001f);
+    T_FEQ(world.v[14], 36.0f, 0.001f);
+}
+
 TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
     T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_BLEND), BLEND_MODE_BLEND);
     T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_ADDITIVE), BLEND_MODE_ADD);
