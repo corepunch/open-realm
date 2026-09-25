@@ -717,6 +717,8 @@ typedef enum {
     A_LEVEL,            /* Level refresh: return ent's current behavior-specific ability level. */
     A_LEVEL_CHANGED,    /* Level refresh: apply the new call->level to behavior-owned state. */
     A_ORDER,            /* Immediate-order dispatch: handle call->order; return whether it was accepted. */
+    A_TARGET_ORDER,     /* Target-owned interaction: handle call->target_order for an order aimed at this unit. */
+    A_ORDER_ACCEPTED,   /* Accepted non-queued order that may not install a new move; call->order identifies it. */
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
     A_UNIT_INIT,        /* Spawn/type rebind: initialize behavior from the unit's authored data. */
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
@@ -747,6 +749,7 @@ struct ability_call_s {
         LPEDICT client;
         LPEDICT projectile;
         LPCSTR order;
+        struct { LPEDICT issuer; LPCSTR order; } target_order; /* A_TARGET_ORDER */
         LPCSTR classname;
         DWORD level;
         BOOL enabled;
@@ -1500,6 +1503,11 @@ struct edict_s {
     BOOL uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     VECTOR2 old_origin;
     unitOrderQueue_t order_queue;
+    struct edictWaygate_s {
+        VECTOR2 destination;
+        BOOL destination_set;
+        BOOL active;
+    } waygate;
     struct edictMovement_s {
         VECTOR2 last_origin;
         FLOAT last_distance;
@@ -1514,6 +1522,9 @@ struct edict_s {
         VECTOR2 flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
         FLOAT flow_fallback_radius;
         DWORD flow_fallback_time;
+        DWORD waygate_target_spawn_time; /* guards the target edict while explicitly approaching a Way Gate */
+        LPEDICT waygate_target; /* authoritative gate target owned by CAbilityWarp */
+        LPEDICT waygate_goal; /* CAbilityWarp-owned approach waypoint/entity */
         LPEDICT flow_fallback_goal;
         moveFallbackState_t flow_fallback_state;
         ROUTEPATH path; /* persistent WC3 accelerator state shared with other server games */
@@ -2420,10 +2431,14 @@ void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction);
 void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
+BOOL G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
+                                                      FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
 
 // g_abilities.c
 void S_RunAbilityUpdates(LPEDICT);
 BOOL S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
+BOOL S_UnitAbilityOrderAccepted(LPEDICT, LPCSTR);
+BOOL S_UnitTargetAbilityOrder(LPEDICT, LPEDICT, LPCSTR);
 BOOL S_UnitProjectileHit(LPEDICT);
 ability_t const *FindAbilityByOrder(LPCSTR);
 ability_t const *FindAbilityByClassname(LPCSTR);
@@ -2974,6 +2989,11 @@ LPEDICT S_CargoUnitAt(LPCEDICT, DWORD);
 BOOL S_CargoUnloadAt(LPEDICT, DWORD);
 BOOL S_CargoBeginUnloadAll(LPEDICT);
 void S_CargoStandDown(LPEDICT);
+BOOL S_WaygateIsGate(LPCEDICT);
+BOOL S_WaygateIsActive(LPCEDICT);
+BOOL S_WaygateGetDestination(LPCEDICT, LPVECTOR2);
+void S_WaygateSetDestination(LPEDICT, LPCVECTOR2);
+void S_WaygateSetActive(LPEDICT, BOOL);
 void blight_mine_think(LPEDICT);
 void blizzard_think(LPEDICT);
 void flame_strike_tick(LPEDICT);
@@ -3103,6 +3123,7 @@ void G_DestructableStartAliveAnimation(LPEDICT ent, BOOL birth);
 
 BOOL G_IsDoodad(LPCEDICT ent);
 void G_DoodadAnimationEnd(LPEDICT ent);
+BOOL G_DoodadSetAnimation(LPEDICT ent, LPCSTR anim_name, BOOL random_animation);
 typedef struct {
     FLOAT x, y, radius;
     DWORD doodad_id;

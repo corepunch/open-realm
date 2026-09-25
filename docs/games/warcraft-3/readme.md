@@ -109,8 +109,10 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Shift Order Queue](order-queue.md)
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
+- [Way Gates](way-gates.md)
 - [Inventory And World Items](inventory-and-items.md)
 - [Map Trigger Strings in Authored Names](trigger-strings.md)
+- [Trigger Event Dispatch And Response Context](trigger-events.md): queued event actions, immediate `TriggerExecute`, and nested coroutine context.
 - [Runtime Unit Spawn Lifecycle](unit-spawn-lifecycle.md)
 - [Human07 Mission Troubleshooting](human07-troubleshooting.md): mission-end, AI assault, removal, spawn, collision, and Birth regressions.
 - [Neutral Shops And Mercenary Camps](neutral-shops.md)

@@ -37,6 +37,38 @@ static int selection_sound_index_77(LPCSTR path) {
     return 77;
 }
 
+static int order_sound_calls, order_sound_index;
+static void order_sound_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
+static void order_sound_unicast(LPEDICT ent) { (void)ent; }
+static void order_sound_capture(LPEDICT ent, int channel, int index, FLOAT volume, FLOAT attenuation, FLOAT offset) {
+    (void)ent; (void)channel; (void)volume; (void)attenuation; (void)offset;
+    order_sound_calls++; order_sound_index = index;
+}
+
+/* A right-click must survive command dispatch and the next entity update. */
+TEST(wc3_unit, smart_move_emits_selected_unit_response) {
+    struct game_import old = gi;
+    LPCSTR command[] = { "smartpoint", "256", "256" };
+    setup_test_world();
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    LPEDICT clent = &g_edicts[0];
+    ent->movetype = MOVETYPE_STEP;
+    ent->stand = unit_stand;
+    ent->selected = 1;
+    ent->sound.yes[0] = 118; ent->sound.num_yes = 1;
+    unit_stand(ent);
+    gi.Write = order_sound_write; gi.unicast = order_sound_unicast; gi.Sound = order_sound_capture;
+    order_sound_calls = order_sound_index = 0;
+    G_ClientCommand(clent, 3, command);
+    T_NOT_NULL(ent->goalentity);
+    T_EQ(ent->sound.pending, 118);
+    G_RunEntities();
+    T_EQ(order_sound_calls, 1);
+    T_EQ(order_sound_index, 118);
+    T_EQ(ent->sound.pending, 0);
+    gi = old;
+}
+
 /* Reset the entity pool between tests. */
 static void reset_test_entities(void) {
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
@@ -988,6 +1020,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
 }
 
 TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
     reset_test_entities();
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT altar = make_unit(0, 0);
@@ -997,6 +1030,7 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     LONG lumber = MAX(0, trainee->data.UnitBalance->lumberCost);
 
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
+    altar->data.UnitProfile = &revive_profile;
     altar->build = hero;
     hero->revival.awaiting = true;
     hero->revival.reviving = true;
@@ -1018,6 +1052,78 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     T_ASSERT(!trainee->inuse);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100 + gold);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50 + lumber);
+}
+
+TEST(wc3_unit, worker_death_does_not_walk_construction_target_as_production_queue) {
+    reset_test_entities();
+    LPEDICT worker = make_unit(0, 0);
+    LPEDICT building = make_unit(0, 0);
+
+    building->construction.active = true;
+    building->build = building;
+    worker->build = building;
+
+    unit_die(worker, NULL);
+
+    T_ASSERT(worker->svflags & SVF_DEADMONSTER);
+    T_ASSERT(building->construction.active);
+    T_ASSERT(building->build == building);
+}
+
+TEST(wc3_unit, ownership_change_does_not_walk_constructing_revive_altar) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
+    reset_test_entities();
+    LPGAMECLIENT old_client = &game.clients[0];
+    LPGAMECLIENT new_client = &game.clients[1];
+    LPEDICT altar = make_unit(0, 0);
+
+    altar->data.UnitProfile = &revive_profile;
+    altar->s.player = old_client->ps.number;
+    altar->construction.active = true;
+    altar->build = altar;
+
+    G_SetUnitPlayer(altar, new_client->ps.number);
+
+    T_EQ(altar->s.player, new_client->ps.number);
+    T_ASSERT(altar->construction.active);
+    T_ASSERT(altar->build == altar);
+}
+
+TEST(wc3_unit, ownership_change_does_not_walk_legacy_constructing_revive_altar) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
+    reset_test_entities();
+    LPGAMECLIENT new_client = &game.clients[1];
+    LPEDICT altar = make_unit(0, 0);
+
+    altar->data.UnitProfile = &revive_profile;
+    altar->s.player = game.clients[0].ps.number;
+    altar->build = altar;
+
+    G_SetUnitPlayer(altar, new_client->ps.number);
+
+    T_EQ(altar->s.player, new_client->ps.number);
+    T_ASSERT(!altar->construction.active);
+    T_ASSERT(altar->build == altar);
+}
+
+TEST(wc3_unit, hero_revive_cleanup_stops_on_cyclic_production_queue) {
+    static UnitProfile_t const revive_profile = { .revive = "1" };
+    reset_test_entities();
+    LPEDICT altar = make_unit(0, 0);
+    LPEDICT first = make_unit(0, 0);
+    LPEDICT second = make_unit(0, 0);
+
+    altar->data.UnitProfile = &revive_profile;
+    altar->build = first;
+    first->training = second->training = true;
+    first->build = second;
+    second->build = first;
+
+    G_CancelHeroRevives(altar);
+
+    T_ASSERT(altar->build == first);
+    T_ASSERT(first->build == second);
+    T_ASSERT(second->build == first);
 }
 
 /* -----------------------------------------------------------------------

@@ -865,7 +865,7 @@ static bool closest_pathable_node_original_flags(LPCVECTOR2 location, FLOAT radi
 
 /* Read-only test: can a unit with the given collision radius stand at this
  * world location without overlapping static terrain or a building footprint?
- * Used by the collision-aware move step.  Returns true when no pathmap is
+ * Used by the collision-aware move step. Returns true when no pathmap is
  * loaded (e.g. headless tests) so movement is never blocked by a missing map. */
 BOOL CM_PointIsPathableForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags) {
     if (!location || !pathmap.original || !pathmap.width || !pathmap.height) {

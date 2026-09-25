@@ -1191,27 +1191,32 @@ DWORD GetResourceAmount(LPJASS j) {
     return jass_pushinteger(j, whichUnit ? whichUnit->resources : 0);
 }
 DWORD WaygateGetDestinationX(LPJASS j) {
-    //HANDLE waygate = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, 0);
+    LPEDICT waygate = jass_checkhandle(j, 1, "unit");
+    VECTOR2 destination = {0};
+    S_WaygateGetDestination(waygate, &destination);
+    return jass_pushnumber(j, destination.x);
 }
 DWORD WaygateGetDestinationY(LPJASS j) {
-    //HANDLE waygate = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, 0);
+    LPEDICT waygate = jass_checkhandle(j, 1, "unit");
+    VECTOR2 destination = {0};
+    S_WaygateGetDestination(waygate, &destination);
+    return jass_pushnumber(j, destination.y);
 }
 DWORD WaygateSetDestination(LPJASS j) {
-    //HANDLE waygate = jass_checkhandle(j, 1, "unit");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
+    LPEDICT waygate = jass_checkhandle(j, 1, "unit");
+    VECTOR2 destination = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    S_WaygateSetDestination(waygate, &destination);
     return 0;
 }
 DWORD WaygateActivate(LPJASS j) {
-    //HANDLE waygate = jass_checkhandle(j, 1, "unit");
-    //BOOL activate = jass_checkboolean(j, 2);
+    LPEDICT waygate = jass_checkhandle(j, 1, "unit");
+    BOOL activate = jass_checkboolean(j, 2);
+    S_WaygateSetActive(waygate, activate);
     return 0;
 }
 DWORD WaygateIsActive(LPJASS j) {
-    //HANDLE waygate = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, 0);
+    LPEDICT waygate = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, S_WaygateIsActive(waygate));
 }
 DWORD UnitAddIndicator(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

@@ -270,6 +270,12 @@ native TriggerRegisterDeathEvent takes trigger whichTrigger, widget whichWidget 
 native SetWidgetLife             takes widget whichWidget, real newLife returns nothing
 constant native GetWidgetLife    takes widget whichWidget returns real
 native SetUnitInvulnerable       takes unit whichUnit, boolean flag returns nothing
+native UnitAddAbility            takes unit whichUnit, integer abilityId returns boolean
+native WaygateGetDestinationX   takes unit waygate returns real
+native WaygateGetDestinationY   takes unit waygate returns real
+native WaygateSetDestination    takes unit waygate, real x, real y returns nothing
+native WaygateActivate          takes unit waygate, boolean activate returns nothing
+native WaygateIsActive          takes unit waygate returns boolean
 
 // Scripted fog state coverage.
 native SetFogStateRect      takes player forWhichPlayer, fogstate whichState, rect where, boolean useSharedVision returns nothing

@@ -51,6 +51,11 @@ At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.s
 
 WC3 acknowledgements and ready sounds use `CHAN_OWNER | CHAN_RELIABLE`. When game code passes the connected client's own edict (for example local UI, dialogue, or minimap presentation), the server resolves that exact edict to the connection first; it must not assume the game's Warcraft player number equals the engine client slot. For ordinary unit-source owner sounds, it falls back to the entity's player ownership. World events such as attacks, death, and tree impacts use ordinary entity-relative `gi.Sound` calls.
 
+Owner matching uses `client->edict->client->ps.number`, the game-published identity used by snapshots, rather than
+the server's lobby `playernum`. A spawned connection without a bound game client cannot receive owner-routed
+world-entity sounds. The packed entity/channel field is unsigned on decode; its high bit belongs to the entity
+number, not a sign. See the [unit-sound regression notes](../games/warcraft-3/sounds.md#unit-acknowledgement-and-completion-sounds).
+
 ### Key Files
 
 | File | Role |

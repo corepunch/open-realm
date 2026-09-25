@@ -443,14 +443,16 @@ void CL_MovieDraw(void) {
     re.DrawFill(&scene, COLOR32_BLACK);
     if (!cl_movie.current_valid || !cl_movie.width || !cl_movie.height) return;
 
-    scene_aspect = scene.w / scene.h;
+    size2_t window = re.GetWindowSize();
+    if (!window.width || !window.height) return;
+    scene_aspect = (FLOAT)window.width / window.height;
     movie_aspect = (FLOAT)cl_movie.width / (FLOAT)cl_movie.height;
     movie = scene;
     if (movie_aspect > scene_aspect) {
-        movie.h = scene.w / movie_aspect;
+        movie.h = scene.h * scene_aspect / movie_aspect;
         movie.y = scene.y + (scene.h - movie.h) * 0.5f;
     } else {
-        movie.w = scene.h * movie_aspect;
+        movie.w = scene.w * movie_aspect / scene_aspect;
         movie.x = scene.x + (scene.w - movie.w) * 0.5f;
     }
     re.DrawCinematicFrame(&MAKE(drawCinematicFrame_t,
@@ -488,3 +490,36 @@ void CL_Movie_f(void) {
     }
     CL_PlayMovie(path);
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+static RECT movie_test_rect;
+static size2_t movie_test_window;
+static RECT CL_MovieTestScene(void) { return MAKE(RECT, 0, 0, 0.8f, 0.6f); }
+static size2_t CL_MovieTestWindow(void) { return movie_test_window; }
+static void CL_MovieTestFill(LPCRECT rect, COLOR32 color) { (void)rect; (void)color; }
+static void CL_MovieTestFrame(drawCinematicFrame_t const *frame) { movie_test_rect = frame->screen; }
+TEST(client_movie, letterboxing_uses_physical_aspect_on_stretched_canvas) {
+    refExport_t saved_re = re;
+    clMovieState_t saved_movie = cl_movie;
+    size2_t windows[] = { {1024,768}, {1920,1200}, {1920,1080}, {3440,1440} };
+    size2_t movies[] = { {640,480}, {1920,1080}, {640,800} };
+    re.GetUISceneRect = CL_MovieTestScene; re.GetWindowSize = CL_MovieTestWindow;
+    re.DrawFill = CL_MovieTestFill; re.DrawCinematicFrame = CL_MovieTestFrame;
+    cl_movie = (clMovieState_t){ .active = true, .current_valid = true };
+    FOR_LOOP(w, sizeof(windows) / sizeof(windows[0])) {
+        movie_test_window = windows[w];
+        FOR_LOOP(m, sizeof(movies) / sizeof(movies[0])) {
+            cl_movie.width = movies[m].width; cl_movie.height = movies[m].height;
+            CL_MovieDraw();
+            FLOAT width = movie_test_rect.w / 0.8f * windows[w].width;
+            FLOAT height = movie_test_rect.h / 0.6f * windows[w].height;
+            T_FEQ(width / height, (FLOAT)movies[m].width / movies[m].height, 0.0001f);
+            T_FEQ(movie_test_rect.x * 2 + movie_test_rect.w, 0.8f, 0.0001f);
+            T_FEQ(movie_test_rect.y * 2 + movie_test_rect.h, 0.6f, 0.0001f);
+            T_ASSERT(movie_test_rect.w <= 0.80001f && movie_test_rect.h <= 0.60001f);
+        }
+    }
+    re = saved_re; cl_movie = saved_movie;
+}
+#endif

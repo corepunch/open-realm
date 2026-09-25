@@ -115,7 +115,6 @@ BZ_ABILITY_PROC(CAbilityScout) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityBallsOfFire) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySalvage) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityTreeOfLife) { return CAbilityPassive(ent, msg, call); }
-BZ_ABILITY_PROC(CAbilityWarp) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityGrabTree) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityDetector) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityMagicSentry) { return CAbilityPassive(ent, msg, call); }

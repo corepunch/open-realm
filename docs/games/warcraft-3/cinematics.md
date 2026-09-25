@@ -307,7 +307,7 @@ A 2880x1620 trace demonstrated the failure mode: canvas width was `1.06667`, HUD
 
 Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. The runtime interpolation is in `G_Cinefade()` which lerps between start/end alpha.
 
-The client-side fade is physical-screen presentation, not centered 4:3 HUD content. `SCR_DrawLayout()` must cover `{ x=0, y=0, w=SCR_UICanvasWidth(), h=UI_BASE_HEIGHT }`; using a fixed legacy rectangle leaves part of the widened scene outside the fade at aspect ratios wider than 4:3. Keep this separate from `SCR_LayoutSceneRect()`, which intentionally returns the centered 0.8-wide Warcraft HUD root.
+The client-side fade is physical-screen presentation, not centered 4:3 HUD content. `SCR_DrawLayout()` must cover `{ x=0, y=0, w=SCR_UICanvasWidth(), h=UI_BASE_HEIGHT }`; WC3 stretches its authored 0.8 × 0.6 canvas across the drawable, so the fade and HUD root now share the full-window extent. Renderer projection and input use that same canvas; the world camera retains the physical viewport aspect.
 
 ### Human02 Victory-Cinematic Runtime Findings
 

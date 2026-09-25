@@ -692,14 +692,14 @@ void R_InitRenderer(DWORD width, DWORD height) {
     
     fprintf(stderr, "Refresher initialization.\n");
     Uint32 win_vis = R_VideoHidden() ? SDL_WINDOW_HIDDEN : SDL_WINDOW_SHOWN;
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI);
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
     context = window ? SDL_GL_CreateContext(window) : NULL;
     if (!context && requested_msaa) {
         fprintf(stderr, "OpenGL: %dx MSAA context unavailable (%s); retrying without MSAA\n", requested_msaa, SDL_GetError());
         if (window) SDL_DestroyWindow(window);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
-        window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI);
+        window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | win_vis | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
         context = window ? SDL_GL_CreateContext(window) : NULL;
     }
     if (context && SDL_GL_MakeCurrent(window, context) == 0) {
