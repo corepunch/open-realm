@@ -163,16 +163,21 @@ static BOOL CL_IsShiftKey(int sym) {
     return sym == SDLK_LSHIFT || sym == SDLK_RSHIFT;
 }
 
+static void CL_SendOrderQueueRelease(void) {
+    if (cls.state != ca_active) return;
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "orderqueuerelease");
+}
+
 static void CL_SendOrderQueueReleaseOnShiftUp(int sym, SDL_Keymod mods) {
-    if (!CL_IsShiftKey(sym) || !CL_GameplayInputReady()) return;
+    if (!CL_IsShiftKey(sym) || cls.state != ca_active) return;
     /* SDL backends differ on whether KEYUP's modifier snapshot still includes
      * the key being released. Remove that key explicitly and only notify when
      * neither Shift remains held. */
     if (sym == SDLK_LSHIFT) mods &= ~KMOD_LSHIFT;
     if (sym == SDLK_RSHIFT) mods &= ~KMOD_RSHIFT;
     if (mods & (KMOD_LSHIFT | KMOD_RSHIFT)) return;
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, "orderqueuerelease");
+    CL_SendOrderQueueRelease();
 }
 
 static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
@@ -464,6 +469,9 @@ static BOOL CL_WindowEvent(SDL_WindowEvent const *event) {
             input.focus = true;
             break;
         case SDL_WINDOWEVENT_FOCUS_LOST:
+            /* SDL may not deliver key-up events for held keys after focus is
+             * lost. The server ignores this unless a Shift build chain exists. */
+            CL_SendOrderQueueRelease();
             input.focus = false;
             CL_ResetInput();
             break;
@@ -609,12 +617,12 @@ void CL_Input(void) {
                 CL_InputKeyEvent(CL_SDLKeyToKeyCode(event.key.keysym.sym), CL_BindMods(event.key.keysym.mod), true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
+                CL_SendOrderQueueReleaseOnShiftUp(event.key.keysym.sym, event.key.keysym.mod);
                 if (cls.key_dest == key_console || event.key.keysym.sym == SDLK_BACKQUOTE) {
                     CON_KeyEvent(event.key.keysym.sym, false);
                     break;
                 }
                 CL_InputKeyEvent(CL_SDLKeyToKeyCode(event.key.keysym.sym), CL_BindMods(event.key.keysym.mod), false, event.key.timestamp);
-                CL_SendOrderQueueReleaseOnShiftUp(event.key.keysym.sym, event.key.keysym.mod);
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 mouse.origin.x = event.button.x;

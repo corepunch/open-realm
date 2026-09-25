@@ -742,6 +742,8 @@ typedef enum {
     A_QUEUE_VALIDATE,   /* Train scheduler: queued item may progress this tick; return validity. Payload: call->queue.{producer,item}. */
     A_QUEUE_COMPLETE,   /* Train completion after placement: owner consumes inputs and activates the result. Payload: call->queue. */
     A_QUEUE_CANCEL,     /* Queue cancellation: owner runs its inverse path before the item is freed. Payload: call->queue. */
+    A_QUEUE_ORDER_START,  /* Player FIFO: owning order ability starts call->queued_order when it reaches the head. */
+    A_QUEUE_ORDER_CANCEL, /* Player FIFO: owning order ability releases queued presentation/state from call->queued_order. */
     A_STATUS_REFRESH,   /* Status set changed: owner reconciles derived state with remaining statuses. Payload: call->status of one remaining status. */
     A_STATUS_REMOVE,    /* Status expiring/dispelled: owner runs its inverse while the slot is still valid. Sent before the slot is wiped. Payload: call->status of the expiring slot. */
     A_STATUS_TICK,      /* Active status scheduler; owner advances its saved next_tick before applying damage. */
@@ -764,6 +766,7 @@ struct ability_call_s {
         DWORD level;
         BOOL enabled;
         struct { LPEDICT producer; LPEDICT item; } queue; /* A_QUEUE_*: owning producer and queued item. */
+        unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
         struct { heroabilitystatus_t *slot; DWORD ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
     };
 };
@@ -2448,6 +2451,7 @@ BOOL G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBO
 void S_RunAbilityUpdates(LPEDICT);
 BOOL S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
 BOOL S_UnitAbilityOrderAccepted(LPEDICT, LPCSTR);
+BOOL S_UnitQueuedOrderEvent(LPEDICT, unitOrder_t const *, abilityMsg_t);
 BOOL S_UnitTargetAbilityOrder(LPEDICT, LPEDICT, LPCSTR);
 BOOL S_UnitProjectileHit(LPEDICT);
 ability_t const *FindAbilityByOrder(LPCSTR);
@@ -2529,6 +2533,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
 BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
 BOOL G_ExecuteBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
+BOOL G_IssueUnitBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location, BOOL queue, DWORD issuer_player);
 BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out);
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
@@ -2851,7 +2856,8 @@ BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
 BOOL G_TransformUnitType(LPEDICT, DWORD);
 BOOL G_IssueUnitPointOrder(LPEDICT, LPCSTR, LPCVECTOR2, BOOL, DWORD, FLOAT);
 BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
-BOOL G_IssueUnitBuildOrder(LPEDICT, DWORD, LPCVECTOR2, BOOL, DWORD);
+BOOL G_QueueUnitOrder(LPEDICT, LPCSTR, unitOrderTargetType_t, LPCVECTOR2, LPEDICT, DWORD, FLOAT, DWORD);
+BOOL G_UnitHasActiveOrder(LPCEDICT);
 void G_PublishIssuedPointOrder(LPEDICT, DWORD, LPCVECTOR2, DWORD, LPCSTR);
 void G_PublishIssuedImmediateOrder(LPEDICT, DWORD, DWORD, LPCSTR);
 DWORD G_GetIssuedOrderId(LPCEDICT);

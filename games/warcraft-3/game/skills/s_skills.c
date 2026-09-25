@@ -11,13 +11,14 @@ int G_AutocastDebugLevel(void) {
 
 LPCSTR const raven_orders[] = { "ravenform", "unravenform", NULL };
 static LPCSTR const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
+static LPCSTR const build_orders[] = { "build", NULL };
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
     { STR_CmdMove, CAbilityMove, AB_COMMAND },  // Move — engine command
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
-    { STR_CmdBuild, CAbilityBuild, AB_COMMAND },  // Build — engine command
+    { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND },  // Hold Position — engine command
     { STR_CmdPatrol, CAbilityPatrol, AB_COMMAND },  // Patrol — engine command
     { STR_CmdRally, CAbilityRally, AB_COMMAND },  // Rally — engine command
@@ -785,6 +786,21 @@ BOOL S_UnitAbilityOrderAccepted(LPEDICT ent, LPCSTR order) {
         handled |= S_AbilityMessage(ent, A_ORDER_ACCEPTED, &call) != 0;
     }
     return handled;
+}
+
+/* Queued work is returned to the procedure that owns its order. The stored
+ * order_id remains the concrete rawcode payload for that ability. */
+BOOL S_UnitQueuedOrderEvent(LPEDICT ent, unitOrder_t const *queued, abilityMsg_t msg) {
+    ability_t const *ability;
+    abilityitem_t item;
+    abilityCall_t call;
+
+    if (!ent || !queued || (msg != A_QUEUE_ORDER_START && msg != A_QUEUE_ORDER_CANCEL)) return false;
+    ability = FindAbilityByOrder(queued->order);
+    if (!ability || !ability->proc) return false;
+    item = MAKE(abilityitem_t, .code = queued->order_id, .ability = ability);
+    call = MAKE(abilityCall_t, .item = &item, .queued_order = queued);
+    return S_AbilityMessage(ent, msg, &call) != 0;
 }
 
 static BOOL unit_target_ability_try(LPEDICT target, LPEDICT issuer, LPCSTR order, DWORD code,

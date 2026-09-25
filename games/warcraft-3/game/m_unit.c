@@ -649,14 +649,14 @@ static void unit_publish_target_order(LPEDICT self, LPCSTR order,
     G_PublishEventWithSource(self, EVENT_UNIT_ISSUED_TARGET_ORDER, target);
 }
 
-static BOOL unit_has_active_order(LPCEDICT self) {
+BOOL G_UnitHasActiveOrder(LPCEDICT self) {
     return self && self->currentmove && self->currentmove->proc != NULL &&
            !move_is_terminal_hold(self);
 }
 
-static BOOL unit_queue_push(LPEDICT self, LPCSTR order, unitOrderTargetType_t target_type,
-                            LPCVECTOR2 point, LPEDICT target, DWORD issuer_player,
-                            FLOAT group_speed, DWORD order_id) {
+BOOL G_QueueUnitOrder(LPEDICT self, LPCSTR order, unitOrderTargetType_t target_type,
+                      LPCVECTOR2 point, LPEDICT target, DWORD issuer_player,
+                      FLOAT group_speed, DWORD order_id) {
     unitOrderQueue_t *queue;
     unitOrder_t *queued;
     DWORD slot;
@@ -697,26 +697,6 @@ static BOOL unit_queue_pop(LPEDICT self, unitOrder_t *out) {
     return true;
 }
 
-/* Build queue entries borrow target_number/target_spawn_time for their private
- * Construction Site Indicator. Entity-target orders use the same stable pair
- * for their gameplay target; build entries never have a gameplay edict target. */
-static LPEDICT unit_queue_build_preview(unitOrder_t const *queued) {
-    LPEDICT preview;
-
-    if (!queued || queued->target_type != UNIT_ORDER_TARGET_BUILD ||
-        !queued->target_number || queued->target_number >= globals.num_edicts) {
-        return NULL;
-    }
-    preview = globals.edicts + queued->target_number;
-    if (!preview->inuse || preview->spawn_time != queued->target_spawn_time) return NULL;
-    return preview;
-}
-
-static void unit_queue_clear_build_preview(unitOrder_t const *queued) {
-    LPEDICT preview = unit_queue_build_preview(queued);
-    if (preview) G_FreeEdict(preview);
-}
-
 void G_ClearUnitOrderQueue(LPEDICT self) {
     unitOrderQueue_t *queue;
 
@@ -724,7 +704,7 @@ void G_ClearUnitOrderQueue(LPEDICT self) {
     queue = &self->order_queue;
     FOR_LOOP(i, queue->count) {
         DWORD const slot = (queue->head + i) % MAX_UNIT_ORDER_QUEUE;
-        unit_queue_clear_build_preview(&queue->entries[slot]);
+        S_UnitQueuedOrderEvent(self, &queue->entries[slot], A_QUEUE_ORDER_CANCEL);
     }
     memset(queue, 0, sizeof(*queue));
 }
@@ -886,9 +866,9 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         return false;
     }
 
-    if (queue && unit_has_active_order(self)) {
-        BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
-                                              issuer_player, 0.0f, 0);
+    if (queue && G_UnitHasActiveOrder(self)) {
+        BOOL const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
+                                               issuer_player, 0.0f, 0);
         if (accepted) unit_publish_target_order(self, order, target, issuer_player);
         return accepted;
     }
@@ -935,8 +915,8 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "attackground")) return false;
 
-    if (queue && unit_has_active_order(self)) {
-        BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
+    if (queue && G_UnitHasActiveOrder(self)) {
+        BOOL const accepted = G_QueueUnitOrder(self, order, UNIT_ORDER_TARGET_POINT, point, NULL,
                                                issuer_player, group_speed, 0);
         if (accepted) {
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
@@ -955,37 +935,6 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
     }
 }
 
-BOOL G_IssueUnitBuildOrder(LPEDICT self, DWORD building_id, LPCVECTOR2 point,
-                           BOOL queue, DWORD issuer_player) {
-    VECTOR2 snapped;
-
-    if (!self || !building_id || !point) return false;
-    if (M_IsDead(self) || G_BuildingUpgradeActive(self) || S_GoldMineWorkerIsInside(self)) return false;
-    snapped = *point;
-    G_SnapBuildingPoint(building_id, &snapped);
-
-    if (queue && unit_has_active_order(self)) {
-        LPEDICT preview;
-        BOOL accepted;
-
-        if (self->order_queue.count >= MAX_UNIT_ORDER_QUEUE) return false;
-        preview = G_CreateBuildPreview(self, building_id, &snapped);
-        if (!preview) return false;
-        accepted = unit_queue_push(self, "build", UNIT_ORDER_TARGET_BUILD,
-                                   &snapped, preview, issuer_player, 0.0f, building_id);
-        if (!accepted) {
-            G_FreeEdict(preview);
-            return false;
-        }
-        G_PublishIssuedPointOrder(self, building_id, &snapped, issuer_player, "build");
-        return true;
-    }
-    if (!queue) G_ClearUnitOrderQueue(self);
-    if (!G_ExecuteBuildOrder(self, building_id, &snapped)) return false;
-    G_PublishIssuedPointOrder(self, building_id, &snapped, issuer_player, "build");
-    return true;
-}
-
 BOOL G_UnitStartNextQueuedOrder(LPEDICT self) {
     unitOrder_t queued;
 
@@ -1000,13 +949,7 @@ BOOL G_UnitStartNextQueuedOrder(LPEDICT self) {
             target = globals.edicts + queued.target_number;
             if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
             if (unit_issuetargetorder_now(self, queued.order, target)) return true;
-        } else if (queued.target_type == UNIT_ORDER_TARGET_BUILD) {
-            /* The delayed marker has finished its job. Replace it in the same
-             * simulation step with the ordinary active-build indicator so the
-             * builder continues to own exactly one current build_preview. */
-            unit_queue_clear_build_preview(&queued);
-            if (G_ExecuteBuildOrder(self, queued.order_id, &queued.point)) return true;
-        }
+        } else if (S_UnitQueuedOrderEvent(self, &queued, A_QUEUE_ORDER_START)) return true;
     }
     return false;
 }

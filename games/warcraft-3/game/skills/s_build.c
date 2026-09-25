@@ -220,6 +220,44 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     return true;
 }
 
+BOOL G_IssueUnitBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location,
+                           BOOL queue, DWORD issuer_player) {
+    VECTOR2 snapped;
+
+    if (!builder || !building_id || !location || M_IsDead(builder) ||
+        G_BuildingUpgradeActive(builder) || S_GoldMineWorkerIsInside(builder)) return false;
+    snapped = *location;
+    G_SnapBuildingPoint(building_id, &snapped);
+
+    if (queue && G_UnitHasActiveOrder(builder)) {
+        LPEDICT preview;
+        if (G_UnitQueuedOrderCount(builder) >= MAX_UNIT_ORDER_QUEUE) return false;
+        preview = G_CreateBuildPreview(builder, building_id, &snapped);
+        if (!preview) return false;
+        if (!G_QueueUnitOrder(builder, "build", UNIT_ORDER_TARGET_BUILD, &snapped,
+                              preview, issuer_player, 0.0f, building_id)) {
+            G_FreeEdict(preview);
+            return false;
+        }
+        G_PublishIssuedPointOrder(builder, building_id, &snapped, issuer_player, "build");
+        return true;
+    }
+    if (!queue) G_ClearUnitOrderQueue(builder);
+    if (!G_ExecuteBuildOrder(builder, building_id, &snapped)) return false;
+    G_PublishIssuedPointOrder(builder, building_id, &snapped, issuer_player, "build");
+    return true;
+}
+
+static void build_clear_queued_indicator(unitOrder_t const *queued) {
+    LPEDICT preview;
+
+    if (!queued || queued->target_type != UNIT_ORDER_TARGET_BUILD ||
+        !queued->target_number || queued->target_number >= globals.num_edicts) return;
+    preview = globals.edicts + queued->target_number;
+    if (preview->inuse && preview->spawn_time == queued->target_spawn_time)
+        G_FreeEdict(preview);
+}
+
 static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     PATHSTR buffer = { 0 };
     UnitUI_t const *ui = G_UnitUI(unit_id);
@@ -586,7 +624,26 @@ void ui_builds(LPGAMECLIENT client) {
     UI_WriteTooltipFrame();
 }
 
-BZ_COMMAND_PROC(AbilityBuild) {
+static void AbilityBuild_Command(LPEDICT clent);
+
+BZ_ABILITY_PROC(CAbilityBuild) {
+    unitOrder_t const *queued = call ? call->queued_order : NULL;
+
+    if (msg == A_COMMAND) {
+        AbilityBuild_Command(call && call->client ? call->client : ent);
+        return true;
+    }
+    if ((msg == A_QUEUE_ORDER_START || msg == A_QUEUE_ORDER_CANCEL) && queued &&
+        queued->target_type == UNIT_ORDER_TARGET_BUILD) {
+        build_clear_queued_indicator(queued);
+        if (msg == A_QUEUE_ORDER_CANCEL) return true;
+        return call->item && call->item->code &&
+               G_ExecuteBuildOrder(ent, call->item->code, &queued->point);
+    }
+    return false;
+}
+
+static void AbilityBuild_Command(LPEDICT clent) {
     LPGAMECLIENT client;
 
     if (!clent || !clent->client) return;
