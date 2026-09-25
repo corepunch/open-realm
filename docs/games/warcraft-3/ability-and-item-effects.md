@@ -137,7 +137,7 @@ Failed uses do not publish use-item events and do not consume a charge. For exam
 
 `G_ConsumeItemCharge` remains the ordinary charge helper. `G_CompleteItemUse` adds event-context lifetime semantics: when a successful use consumes the final charge of a perishable item, the item leaves the carrier immediately but its handle remains valid until queued use-item events and any sleeping JASS response coroutine are finished. This is required for retail-style `GetManipulatedItem()` conditions such as Orc08's Soul Gem trigger. Non-perishable items decrement to zero and remain present.
 
-`AIso` is registered as a unit-target Soul Trap command so the authored `gsou` item can complete through that path and report a successful use. `Asou` is recognized as a passive placeholder for the filled-soul side. The generic Soul Trap/Soul Possession imprisonment, carrier reveal, and release lifecycle is not implemented by this integration slice.
+`AIso` and `Asou` share the Soul Trap lifecycle in `skills/s_item.c`: successful targeted use keeps the target edict alive but out of world interaction, binds the filled `soul` item, reveals the carrier to the trapped unit's owner, and releases the target at carrier death. The stock target rules and Orc08 item-event identity are covered in [Inventory And Items](inventory-and-items.md#soul-gem-gsou-soul-aiso-asou); custom target-mask edge cases remain a separate parity area.
 
 Spell command dispatch has a similar rawcode boundary: a WC3 FourCC held in a
 `DWORD` is not a C string. Runtime lookup must convert it through

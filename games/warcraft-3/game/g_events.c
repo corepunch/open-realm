@@ -369,7 +369,7 @@ void G_RunEntities(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue;
-        if (ent->aiflags & AI_SOUL_TRAPPED) continue;
+        if (!G_UnitIsWorldActive(ent)) continue;
         if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(vector2_t)))
             continue;
         G_TouchTriggers(ent);

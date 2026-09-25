@@ -25,14 +25,6 @@ static bool soul_trap_valid_link(edict_t const *carrier, edict_t const *target) 
         (target->aiflags & AI_SOUL_TRAPPED);
 }
 
-static bool soul_item_has_ability(edict_t const *item, uint32_t code) {
-    cstring_t abilities = G_ItemAbilityList(item);
-    if (!abilities) return false;
-    PARSE_LIST(abilities, token, parse_segment)
-        if (strlen(token) == 4 && FS_SLKKey(token) == code) return true;
-    return false;
-}
-
 static void soul_trap_remove_possession(edict_t *carrier) {
     if (!carrier || !carrier->soul_possession_added || carrier->soul_trap_head) return;
     carrier->soul_possession_added = false;
@@ -283,8 +275,8 @@ BZ_ABILITY_PROC(CAbilitySoulTrapped) {
     case A_UNIT_REMOVE:
         if (ent && ent->soul_trap_head) soul_trap_release_carried(ent, &ent->s.origin2, true);
         if (ent && (ent->aiflags & AI_SOUL_TRAPPED)) {
-            soul_trap_unlink(ent);
             ent->soul_trapped_ability_added = false;
+            soul_trap_release_target(ent, NULL, false);
         }
         return true;
     default:

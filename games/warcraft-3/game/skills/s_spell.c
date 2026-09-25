@@ -333,8 +333,7 @@ bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
 }
 
 bool S_SpellIsAliveTarget(edict_t *target) {
-    return target && target->inuse && (target->svflags & SVF_MONSTER) &&
-        !(target->aiflags & AI_SOUL_TRAPPED) && !M_IsDead(target);
+    return G_UnitIsWorldActive(target) && (target->svflags & SVF_MONSTER) && !M_IsDead(target);
 }
 
 bool S_SpellIsEnemy(edict_t *caster, edict_t *target) {
@@ -392,8 +391,7 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     uint32_t ability_level;
     bool structure;
 
-    if (!target || !target->inuse || M_IsDead(target) ||
-        (target->aiflags & AI_SOUL_TRAPPED) || S_UnitIsCycloned(target)) {
+    if (!G_UnitIsWorldActive(target) || M_IsDead(target) || S_UnitIsCycloned(target)) {
         return false;
     }
     if (S_UnitSpellImmune(target)) return false;
@@ -682,7 +680,7 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params) {
  * server thinker watches the ordinary Move order and commits the spell when the
  * caster reaches authored cast range. Replacing that Move order cancels the
  * pending cast naturally. */
-static void spell_unit_target_approach_think(edict_t *thinker) {
+void S_SpellUnitTargetApproachThink(edict_t *thinker) {
     edict_t *caster = thinker ? thinker->owner : NULL;
     edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
@@ -753,7 +751,7 @@ static bool spell_begin_unit_target_approach(edict_t *caster, uint32_t code, edi
     thinker->class_id = code;
     thinker->spell_item = source_item;
     thinker->spell_item_spawn_time = source_item_spawn_time;
-    thinker->think = spell_unit_target_approach_think;
+    thinker->think = S_SpellUnitTargetApproachThink;
     thinker->freetime = G_Time();
     return true;
 }

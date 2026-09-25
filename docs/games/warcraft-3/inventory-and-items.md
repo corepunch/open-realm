@@ -175,9 +175,10 @@ It records a carrier-owned linked list and a target-side carrier pointer with
 spawn generations, marks the target `AI_SOUL_TRAPPED`, cancels its current
 orders/channel, hides and unlinks it, and clears selection. `G_RunEntity` skips
 world movement and unit think while trapped; status timers and construction or
-upgrade progress still use their normal paths. Selection, control, spell
-targeting, and region-touch processing reject or ignore trapped units. The
-target remains alive with its original health and jass_t handle.
+upgrade progress still use their normal paths. The shared `G_UnitIsWorldActive`
+check keeps trapped units out of selection, control, spell targeting, and
+region-touch processing. The target remains alive with its original health and
+jass_t handle.
 
 The carrier receives the `Asou` lifecycle ability. Its death releases every
 bound target at the carrier's death coordinates, removes the corresponding
@@ -214,7 +215,10 @@ The local War3local `Orc08.w3m` script confirms these integration points:
 
 The focused tests are `wc3_items.soul_gem*`,
 `wc3_items.consumed_perishable*`, `wc3_api.revive_hero_location*`, and
-`wc3_save.soul_trap_links*`; they run against both ROC and TFT fixture schemas.
+`wc3_save.soul_trap_links*`; `wc3_items.soul_trap_remove_target_cleans_bound_item`
+also covers cleanup when the trapped target is removed, and
+`wc3_items.soul_gem_pending_approach_round_trips_save` covers a pending targeted
+cast across save/load. They run against both ROC and TFT fixture schemas.
 They cover target-mode entry, stock target filtering, no death event, the
 Orc08-style scripted filled item, delayed use-event identity, visibility,
 multiple captures on one carrier, carrier-death release, and relationship
@@ -410,10 +414,9 @@ cannot leak a permanent stat bonus.
 
 Still missing are automatic `powerup` acquisition/use, `cooldownID`/`ignoreCD`
 item cooldowns and disabled icons, held-item cursor art, slot swapping, and
-allied-unit giving. `AIso` Soul Trap is wired through the targeted-item
-completion path for Orc08, including a valid `GetManipulatedItem()` source;
-generic trapped-soul/Soul Possession (`Asou`) reveal, imprisonment, and release
-semantics remain separate ability work.
+allied-unit giving. Soul Trap implements the stock target/capture/reveal/release
+flow; unusual custom `AIso` targets and their subsystem-specific behavior still
+need parity coverage.
 
 The implementation is derived from observable behavior and Warcraft III data
 formats described by the clean-room specification. It does not depend on

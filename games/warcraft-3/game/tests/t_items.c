@@ -1755,6 +1755,121 @@ TEST(wc3_items, soul_gem_rejects_nonhero_from_authored_target_mask) {
     T_ASSERT(!(target->s.renderfx & RF_HIDDEN));
 }
 
+TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
+    edict_t *carrier, *target, *filled;
+    uint32_t const asou = MAKEFOURCC('A','s','o','u');
+
+    setup_test_world();
+    carrier = make_item_test_inventory_unit(64, 64);
+    target = make_item_test_inventory_unit(96, 64);
+    carrier->s.player = 0;
+    target->s.player = 1;
+    T_ASSERT(G_ActorAddSkill(carrier, asou));
+    T_ASSERT(G_ActorAddSkill(target, asou));
+    carrier->soul_possession_added = true;
+    filled = make_item_test_world_item(MAKEFOURCC('s','o','u','l'), 64, 64);
+    filled->data.ItemData = G_ItemData(MAKEFOURCC('s','o','u','l'));
+    T_ASSERT(G_AddItemToSlot(carrier, filled, 0));
+
+    carrier->soul_trap_head = target;
+    carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->soul_trap_carrier = carrier;
+    target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    target->soul_trap_item = filled;
+    target->soul_trap_item_spawn_time = filled->spawn_time;
+    target->aiflags |= AI_SOUL_TRAPPED;
+    target->s.renderfx |= RF_HIDDEN;
+    target->svflags |= SVF_NOCLIENT;
+    target->s.flags |= EF_NOT_SELECTABLE;
+    filled->item.soul_target = target;
+    filled->item.soul_target_spawn_time = target->spawn_time;
+
+    T_ASSERT(S_SoulTrapRevealsCarrier(carrier, 1));
+    G_FreeEdict(target);
+
+    T_ASSERT(!target->inuse);
+    T_NULL(carrier->soul_trap_head);
+    T_ASSERT(!carrier->soul_possession_added);
+    T_ASSERT(!G_ActorHasSkill(carrier, "Asou"));
+    T_NULL(carrier->inventory[0]);
+    T_ASSERT(!filled->inuse);
+    T_ASSERT(!S_SoulTrapRevealsCarrier(carrier, 1));
+}
+
+TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"levels\"\nC;Y1;X8;K\"DataA1\"\n"
+        "C;Y1;X9;K\"DataB1\"\nC;Y1;X10;K\"DataC1\"\nC;Y1;X11;K\"DataD1\"\nC;Y1;X12;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AIso\"\nC;Y2;X2;K\"AIso\"\nC;Y2;X3;K\"enemy,ground,hero\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"96\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X8;K\"6\"\nC;Y3;X9;K\"0\"\n"
+        "C;Y3;X10;K\"1\"\nC;Y3;X11;K\"1\"\nC;Y3;X12;K\"1\"\n"
+        "C;Y4;X1;K\"Asou\"\nC;Y4;X2;K\"Asou\"\nC;Y4;X7;K\"1\"\nE\n";
+    cstring_t const path = "/tmp/openwarcraft3-wc3-soul-gem-approach-save.bin";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    gameClient_t *client;
+    edict_t *clent, *carrier, *target, *gem, *thinker;
+    uint32_t thinker_slot;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    char number[16];
+    cstring_t select[] = { "select", number };
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
+    carrier = make_item_test_inventory_unit(64, 64);
+    carrier->s.player = 0; carrier->svflags |= SVF_MONSTER;
+    target = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 512, 64);
+    target->s.player = 1; target->svflags |= SVF_MONSTER; target->s.model = 1;
+    target->targtype = TARG_GROUND; target->movetype = MOVETYPE_STEP;
+    target->stand = unit_stand; unit_stand(target); gi.LinkEntity(target);
+    gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
+    gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
+    gem->item.charges = 1;
+    T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
+
+    clent = G_GetPlayerEntityByNumber(0); client = clent->client;
+    gi.Write = item_noop_write; gi.unicast = item_noop_unicast;
+    G_SelectEntity(client, carrier); G_UseItem(carrier, 0);
+    T_ASSERT(G_IsEntitySelected(client, carrier));
+    T_ASSERT(G_InventoryCanUseItems(carrier));
+    T_STREQ(G_ItemAbilityList(gem), "AIso");
+    T_FEQ(S_SpellRange(MAKEFOURCC('A','I','s','o'), 1), 96.0f, 0.001f);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    if (!client->menu.on_entity_selected) goto cleanup_soul_approach_save;
+    snprintf(number, sizeof(number), "%u", (unsigned)target->s.number);
+    thinker_slot = globals.num_edicts;
+    G_ClientCommand(clent, 2, select);
+    thinker = &globals.edicts[thinker_slot];
+    T_ASSERT(thinker->inuse && thinker->think);
+    T_ASSERT(thinker->spell_item == gem);
+
+    bool const saved = WriteGame(path);
+    T_ASSERT(saved);
+    if (saved) {
+        thinker->think = NULL; thinker->spell_item = NULL;
+        T_ASSERT(ReadGame(path));
+        thinker = &globals.edicts[thinker_slot];
+        T_NOT_NULL(thinker->think);
+        T_ASSERT(thinker->spell_item == gem);
+        carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
+        if (thinker->think) thinker->think(thinker);
+        T_ASSERT(!thinker->inuse);
+        T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
+    }
+
+cleanup_soul_approach_save:
+    gi.Write = old_write; gi.unicast = old_unicast;
+    remove(path);
+    G_FowShutdown();
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
     edict_t *carrier = NULL;
     edict_t *item = NULL;
