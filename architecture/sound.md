@@ -1,7 +1,7 @@
 # Sound Architecture
 
 See also: [Warcraft III — Unit Sound System](../games/warcraft-3/sounds.md) and
-[Warcraft III — Music Playback](../games/warcraft-3/music.md).
+[Warcraft III — Music Playback](../docs/games/warcraft-3/music.md).
 
 Based on Quake 2's sound system. Sound is a client-side subsystem with server-mediated triggering via configstrings and
 dedicated `svc_sound` packets.
@@ -33,6 +33,30 @@ source are non-positional and are still delivered by the server packet path.
 3. `SV_StartSound` encodes the Quake 2 packet flags and sends `svc_sound` to the selected clients.
 4. **Client** (`cl_parse.c`) decodes the packet, resolves configstring path and entity-relative origin, then calls `S_PlaySoundPacket`.
 5. `S_PlaySoundPacket` loads and normalizes the WAV or MP3 from the MPQ, then mixes it with the packet's volume and attenuation.
+
+### Explicit admission policy
+
+`gi.SoundIndexAlias(path, alias)` gives game-authored labels independent server
+indices even when they share a filename. Alias keys remain server-side; the
+ordinary sound configstring carries the filename, and the mixer still shares
+one decoded cache per path. An empty alias is ordinary `gi.SoundIndex` behavior.
+This separates request metadata identity from sample/duplicate-file identity.
+
+Games can call `gi.SoundPolicy` with a `soundPolicy_t` alongside the ordinary
+sound arguments. The server transports its 32-bit priority/user, admission flags,
+completion cooldown and channel/global/filename budgets using `SND_POLICY`.
+The mixer enforces these under the audio lock, independently of positional
+routing. WC3 populates them from sound SLKs and its recovered channel defaults;
+shared code contains no WC3 channel table. Protocol 12 requires matching builds.
+A nonzero policy `request` opts into ACCEPTED/STARTED/ENDED/REJECTED receipts.
+The mixer buffers them without calling game or network code from its callback;
+`CL_SendSoundEvents` forwards `sound_event user request event` through reliable
+`clc_stringcmd` messages, retaining unsent events under backpressure. Games own
+request identity, authorization and interpretation. A zero request leaves other
+games and ordinary one-shots without feedback. STARTED means first mixed sample,
+not physical speaker latency; ENDED also covers preemption and explicit stop.
+See [WC3 arbitration](../games/warcraft-3/sounds.md#authored-admission-and-response-timing)
+for rules, evidence, tests and remaining gaps.
 
 ### Legacy Entity Event Types (`entity_event_t` in `common/shared.h`)
 

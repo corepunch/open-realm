@@ -96,6 +96,7 @@ extern struct server {
     serverState_t state;
     PATHSTR name;
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
+    PATHSTR sound_aliases[MAX_SOUNDS];
     BOOL syncstrings[MAX_CONFIGSTRINGS];
     DWORD framenum;
     DWORD time;
@@ -154,9 +155,12 @@ void SV_SetPaused(BOOL paused);
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client);
 int SV_ModelIndex(LPCSTR name);
 int SV_SoundIndex(LPCSTR name);
+int SV_SoundIndexAlias(LPCSTR name, LPCSTR alias);
 LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent);
 LPCLIENT SV_ClientForEdictRecipient(LPEDICT ent);
 void PF_Unicast(LPEDICT ent);
+void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
+                         FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy);
 void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation,
                    FLOAT timeofs);
 void SV_MinimapPing(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags);

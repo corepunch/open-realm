@@ -523,6 +523,7 @@ static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
         return;
     }
+    G_ResetSelectionSoundState();
     UI_ResetHud();
     gi.SetPaused(false);
     G_BotShutdown();

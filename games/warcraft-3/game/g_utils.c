@@ -54,6 +54,7 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
 
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
+    G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     /* Direct JASS RemoveUnit must release transient construction/upgrade state

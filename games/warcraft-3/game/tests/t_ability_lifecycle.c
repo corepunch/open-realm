@@ -27,8 +27,13 @@ static int review_capture_sound_index(LPCSTR path) {
     strlcpy(blizzard_sound_path, path ? path : "", sizeof(blizzard_sound_path));
     return 91;
 }
+static int review_capture_sound_index_alias(LPCSTR path, LPCSTR alias) { (void)alias; return review_capture_sound_index(path); }
 
-static void review_capture_positioned_sound(LPCVECTOR3 origin, LPEDICT emitter, int channel, int sound, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
+
+static void review_capture_sound_policy(LPCVECTOR3 origin, LPEDICT emitter, int channel, int sound, FLOAT volume, FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+    T_NOT_NULL(policy);
+    T_EQ(policy->max_total, 24);
+    T_EQ(policy->flags, SOUND_IGNORE_USER);
     (void)origin; (void)channel; (void)attenuation; (void)timeofs;
     blizzard_sound_calls++;
     blizzard_sound_index = sound;
@@ -318,11 +323,13 @@ TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_ability_sound) {
         "E\n";
     static char const sound_slk[] =
         "ID;PWXL;N;E\n"
-        "B;X4;Y2;D0\n"
+        "B;X5;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
         "C;Y1;X2;K\"FileNames\"\n"
         "C;Y1;X3;K\"DirectoryBase\"\n"
         "C;Y1;X4;K\"Volume\"\n"
+        "C;Y1;X5;K\"Flags\"\n"
+        "C;Y2;X5;K\"IGNOREUSERNAME\"\n"
         "C;Y2;X1;K\"BlizzardTest\"\n"
         "C;Y2;X2;K\"blizzard.wav\"\n"
         "C;Y2;X3;K\"TestUI\\Sounds\\\"\n"
@@ -333,11 +340,12 @@ TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_ability_sound) {
     slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
     slkTestData_t *sound_rows = parse_slk_string(sound_slk), *old_sound_rows = G_SetSLKRows("AbilitySounds", sound_rows);
     int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
-    void (*old_positioned_sound)(LPCVECTOR3, LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.PositionedSound;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
 
     blizzard_sound_path[0] = '\0'; blizzard_sound_calls = 0; blizzard_sound_index = 0;
     blizzard_sound_emitter = NULL; blizzard_sound_volume = 0.0f;
-    gi.SoundIndex = review_capture_sound_index; gi.PositionedSound = review_capture_positioned_sound;
+    gi.SoundIndex = review_capture_sound_index; gi.SoundIndexAlias = review_capture_sound_index_alias; gi.SoundPolicy = review_capture_sound_policy;
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
     LPEDICT thinker = review_thinker(caster);
     level.time = thinker->freetime; G_RunEntity(thinker);
@@ -346,7 +354,7 @@ TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_ability_sound) {
     T_STREQ(blizzard_sound_path, "TestUI\\Sounds\\blizzard.wav");
     T_FEQ(blizzard_sound_volume, 0.5f, .001f);
 
-    gi.SoundIndex = old_sound_index; gi.PositionedSound = old_positioned_sound;
+    gi.SoundIndex = old_sound_index; gi.SoundIndexAlias = old_sound_alias; gi.SoundPolicy = old_sound_policy;
     S_SpellCancelChannel(caster);
     if (thinker && thinker->inuse) G_RunEntity(thinker);
     G_SetSLKRows("AbilitySounds", old_sound_rows); free_slk_rows(sound_rows);

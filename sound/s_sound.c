@@ -11,6 +11,52 @@
 
 sState_t s;
 
+/* Main thread reserves room for every active channel's remaining notifications.
+ * The audio callback only appends; it never allocates or calls game/network code. */
+static soundEvent_t *sound_events;
+static size_t sound_event_read, sound_event_count, sound_event_capacity;
+static void S_EndChannel(int ch);
+
+static void S_ReserveSoundEvents(void) {
+    SDL_LockAudioDevice(s.device);
+    if (sound_event_read) {
+        memmove(sound_events, sound_events + sound_event_read,
+                (sound_event_count - sound_event_read) * sizeof(*sound_events));
+        sound_event_count -= sound_event_read; sound_event_read = 0;
+    }
+    size_t need = sound_event_count + 2 * S_MAX_CHANNELS + 3;
+    if (need > sound_event_capacity) {
+        size_t capacity = MAX(need, sound_event_capacity * 2);
+        void *events = realloc(sound_events, capacity * sizeof(*sound_events));
+        if (!events) { fprintf(stderr, "S_ReserveSoundEvents: out of memory\n"); abort(); }
+        sound_events = events; sound_event_capacity = capacity;
+    }
+    SDL_UnlockAudioDevice(s.device);
+}
+
+static void S_SoundEvent(soundPolicy_t const *policy, DWORD event) {
+    if (!policy || !policy->request) return;
+    if (sound_event_count == sound_event_capacity) {
+        fprintf(stderr, "S_SoundEvent: missing notification reservation\n"); abort();
+    }
+    sound_events[sound_event_count++] = (soundEvent_t){policy->user, policy->request, event};
+}
+
+BOOL S_PollSoundEvent(soundEvent_t *event) {
+    SDL_LockAudioDevice(s.device);
+    BOOL found = sound_event_read < sound_event_count;
+    if (found) *event = sound_events[sound_event_read++];
+    if (sound_event_read == sound_event_count) sound_event_read = sound_event_count = 0;
+    SDL_UnlockAudioDevice(s.device);
+    return found;
+}
+
+void S_ClearSoundEvents(void) {
+    SDL_LockAudioDevice(s.device);
+    sound_event_read = sound_event_count = 0;
+    SDL_UnlockAudioDevice(s.device);
+}
+
 /* =========================================================================
  * WAV parsing — verbatim from Quake 2 snd_mem.c
  * ========================================================================= */
@@ -343,7 +389,9 @@ void S_EndRegistration(void) {
 void S_StopAllSounds(void) {
     if (!s.initialized) return;
     SDL_LockAudioDevice(s.device);
+    FOR_LOOP(ch, S_MAX_CHANNELS) S_EndChannel(ch);
     memset(s.channels, 0, sizeof(s.channels));
+    memset(s.user_cooldown, 0, sizeof(s.user_cooldown));
     SDL_UnlockAudioDevice(s.device);
 }
 
@@ -388,6 +436,17 @@ static void S_SpatializeChannel(int ch) {
  * SDL audio mixer callback — stereo interleaved S16
  * ========================================================================= */
 
+/* Device completion and admission preemption share the same lifetime path. */
+static void S_EndChannel(int ch) {
+    soundPolicy_t const *p = &s.channels[ch].policy;
+    if (s.channels[ch].active && p->cooldown_ms && p->user < MAX_GAME_ENTITIES) {
+        s.user_cooldown[p->user].end = SDL_GetTicks() + p->cooldown_ms;
+        s.user_cooldown[p->user].active = TRUE;
+    }
+    if (s.channels[ch].active) S_SoundEvent(p, SOUND_ENDED);
+    s.channels[ch].active = FALSE;
+}
+
 static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
     (void)userdata;
     memset(stream, 0, len);
@@ -422,13 +481,17 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
         int         skip = MIN(frames, s.channels[ch].delay);
         s.channels[ch].delay -= skip;
         if (skip == frames) continue;
+        if (!s.channels[ch].notified_start) {
+            S_SoundEvent(&s.channels[ch].policy, SOUND_STARTED);
+            s.channels[ch].notified_start = TRUE;
+        }
 
         for (int i = skip; i < frames; i++) {
             if (pos >= sc->length) {
                 if (s.channels[ch].looping && sc->length > 0) {
                     pos = sc->loopstart >= 0 && sc->loopstart < sc->length ? sc->loopstart : 0;
                 } else {
-                    s.channels[ch].active = FALSE;
+                    S_EndChannel(ch);
                     break;
                 }
             }
@@ -441,8 +504,13 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
             out[i * 2 + 1] = (Sint16)r;
         }
         s.channels[ch].pos = pos;
+        if (!s.channels[ch].looping && pos >= sc->length) S_EndChannel(ch);
     }
 }
+
+#ifdef BZ_TESTS
+void S_TestMix(SHORT *out, DWORD frames) { S_MixAudio(NULL, (Uint8 *)out, frames * 2 * sizeof(SHORT)); }
+#endif
 
 /* =========================================================================
  * Init / Shutdown
@@ -488,32 +556,110 @@ void S_Shutdown(void) {
  * Playback helpers
  * ========================================================================= */
 
-static void S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL is_positional, int channel,
-                         FLOAT attenuation, FLOAT timeofs) {
-    (void)timeofs;
-    if (!sc) return;
-    SDL_LockAudioDevice(s.device);
-    for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
-        if (!s.channels[ch].active) {
-            s.channels[ch].sc           = sc;
-            s.channels[ch].pos          = 0;
-            s.channels[ch].master_vol   = volume;
-            s.channels[ch].leftvol      = volume;
-            s.channels[ch].rightvol     = volume;
-            s.channels[ch].origin       = origin ? *origin : (VECTOR2){ 0.0f, 0.0f };
-            s.channels[ch].attenuation  = attenuation;
-            s.channels[ch].channel      = channel;
-            s.channels[ch].delay        = (int)(timeofs * 44100.0f);
-            s.channels[ch].entity       = 0;
-            s.channels[ch].loop_generation = 0;
-            s.channels[ch].looping      = FALSE;
-            s.channels[ch].is_positional = is_positional;
-            s.channels[ch].active       = TRUE;
-            SDL_UnlockAudioDevice(s.device);
-            return;
+/* Called under the device lock. List heads are the lowest-priority instances;
+ * equal priorities insert at the head (newest first). Retail 1.27.1 admission: 6f0af5e0. */
+static int S_AdmitSound(sfxcache_t *sc, soundPolicy_t const *p) {
+    int free_slot = -1, count = 0, group_count = 0, duplicates = 0;
+    int head = -1, oldest = -1, group_head = -1, group_oldest = -1, duplicate = -1;
+    FOR_LOOP(i, S_MAX_CHANNELS) {
+        if (!s.channels[i].active) { if (free_slot < 0) free_slot = i; continue; }
+        count++;
+        if (head < 0 || s.channels[i].priority < s.channels[head].priority ||
+            (s.channels[i].priority == s.channels[head].priority &&
+             (s.channels[i].policy.group < s.channels[head].policy.group ||
+              (s.channels[i].policy.group == s.channels[head].policy.group && s.channels[i].serial > s.channels[head].serial)))) head = i;
+        if (oldest < 0 || s.channels[i].serial < s.channels[oldest].serial) oldest = i;
+        if (s.channels[i].sc == sc) {
+            duplicates++;
+            if (duplicate < 0 || s.channels[i].serial < s.channels[duplicate].serial) duplicate = i;
+        }
+        if (s.channels[i].policy.max_total && s.channels[i].policy.group == p->group) {
+            group_count++;
+            if (group_head < 0 || s.channels[i].priority < s.channels[group_head].priority ||
+                (s.channels[i].priority == s.channels[group_head].priority && s.channels[i].serial > s.channels[group_head].serial)) group_head = i;
+            if (s.channels[i].priority <= p->priority &&
+                (group_oldest < 0 || s.channels[i].started < s.channels[group_oldest].started ||
+                 (s.channels[i].started == s.channels[group_oldest].started &&
+                  (s.channels[i].priority < s.channels[group_oldest].priority ||
+                   (s.channels[i].priority == s.channels[group_oldest].priority && s.channels[i].serial > s.channels[group_oldest].serial))))) group_oldest = i;
         }
     }
+    /* Duplicate identity preemption happens before capacity checks and stops
+     * every matching instance, without a priority comparison. Zero is also an ID. */
+    if (p->flags & SOUND_NO_DUPLICATE_USERS) {
+        int user_slot = -1;
+        FOR_LOOP(i, S_MAX_CHANNELS) if (s.channels[i].active && s.channels[i].policy.max_total &&
+            !(s.channels[i].policy.flags & SOUND_IGNORE_USER) && s.channels[i].policy.user == p->user) {
+            if (!(p->flags & SOUND_USER_PREEMPT)) return -1;
+            if (user_slot < 0) user_slot = i;
+        }
+        if (user_slot >= 0) {
+            FOR_LOOP(i, S_MAX_CHANNELS) if (s.channels[i].active && s.channels[i].policy.max_total &&
+            !(s.channels[i].policy.flags & SOUND_IGNORE_USER) && s.channels[i].policy.user == p->user)
+                S_EndChannel(i);
+            return user_slot;
+        }
+    }
+    if (duplicate >= 0 && (p->flags & SOUND_NO_DUPLICATES))
+        return (p->flags & SOUND_DUPLICATE_PREEMPT) && s.channels[duplicate].priority < p->priority ? duplicate : -1;
+    if (count >= p->max_total) {
+        if (p->flags & SOUND_LIST_OLDEST) return oldest;
+        return (p->flags & SOUND_LIST_PREEMPT) && head >= 0 && s.channels[head].priority <= p->priority ? head : -1;
+    }
+    if (group_count >= p->max_channel) {
+        if ((p->flags & SOUND_CHANNEL_OLDEST) && group_oldest >= 0) return group_oldest;
+        return (p->flags & SOUND_CHANNEL_PREEMPT) && group_head >= 0 && s.channels[group_head].priority < p->priority ? group_head : -1;
+    }
+    if (p->max_duplicates && duplicates >= p->max_duplicates)
+        return p->flags & SOUND_CHANNEL_OLDEST ? duplicate : -1;
+    return free_slot;
+}
+
+static BOOL S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL is_positional, int channel,
+                         FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+    int selected = -1;
+    unsigned priority = policy ? policy->priority : SOUND_PRIORITY(channel);
+    if (!sc) return FALSE;
+    SDL_LockAudioDevice(s.device);
+    if (policy && policy->cooldown_ms && s.user_cooldown[policy->user].active &&
+        (int32_t)(s.user_cooldown[policy->user].end - SDL_GetTicks()) > 0) {
+        SDL_UnlockAudioDevice(s.device);
+        return FALSE;
+    }
+    if (policy) selected = S_AdmitSound(sc, policy);
+    else for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
+        if (!s.channels[ch].active) { selected = ch; break; }
+        if (s.channels[ch].priority < priority &&
+            (selected < 0 || s.channels[ch].priority < s.channels[selected].priority)) selected = ch;
+    }
+    if (selected >= 0) {
+        int ch = selected;
+        S_EndChannel(ch);
+        memset(&s.channels[ch], 0, sizeof(s.channels[ch]));
+        s.channels[ch].sc           = sc;
+        s.channels[ch].pos          = 0;
+        s.channels[ch].master_vol   = volume;
+        s.channels[ch].leftvol      = volume;
+        s.channels[ch].rightvol     = volume;
+        s.channels[ch].origin       = origin ? *origin : (VECTOR2){ 0.0f, 0.0f };
+        s.channels[ch].attenuation  = attenuation;
+        s.channels[ch].channel      = channel & 7;
+        s.channels[ch].priority     = priority;
+        s.channels[ch].policy = policy ? *policy : (soundPolicy_t){0};
+        s.channels[ch].serial = ++s.sound_serial;
+        s.channels[ch].started = SDL_GetTicks();
+        s.channels[ch].delay        = (int)(timeofs * 44100.0f);
+        s.channels[ch].entity       = 0;
+        s.channels[ch].loop_generation = 0;
+        s.channels[ch].looping      = FALSE;
+        s.channels[ch].is_positional = is_positional;
+        s.channels[ch].active       = TRUE;
+        S_SoundEvent(policy, SOUND_ACCEPTED);
+        SDL_UnlockAudioDevice(s.device);
+        return TRUE;
+    }
     SDL_UnlockAudioDevice(s.device);
+    return FALSE;
 }
 
 /* =========================================================================
@@ -525,7 +671,7 @@ void S_PlaySound(DWORD kit_id) {
     sSoundKit_t *k = &s.kits[kit_id];
     if (k->id != kit_id) return;
     k->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0);
+    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
 void S_PlaySoundByName(LPCSTR name) {
@@ -549,7 +695,7 @@ void S_PlaySoundFile(LPCSTR path) {
     sfx_t *sfx = S_FindSfx(path, TRUE);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0);
+    S_StartSound(S_LoadSfx(sfx), 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
 /* Play a positional sound at a 2D world origin (distance attenuation + stereo pan). */
@@ -558,7 +704,7 @@ void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin) {
     sfx_t *sfx = S_FindSfx(path, TRUE);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), 1.0f, origin, TRUE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0);
+    S_StartSound(S_LoadSfx(sfx), 1.0f, origin, TRUE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
 void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume,
@@ -569,7 +715,7 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
     S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL, positioned,
-                 channel, attenuation, timeofs);
+                 channel, attenuation, timeofs, NULL);
 }
 
 void S_BeginLoopingSounds(void) {
@@ -717,4 +863,30 @@ void S_StreamStop(sStreamId_t stream) {
 void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right) {
     s.listener.origin = *origin;
     s.listener.right  = *right;
+}
+
+
+BOOL S_PlaySoundPolicy(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume,
+                       FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+    sfx_t *sfx;
+    if (policy && policy->request) S_ReserveSoundEvents();
+    if (!s.initialized) goto rejected;
+    if (!path || !*path) {
+        fprintf(stderr, "S_PlaySoundPolicy: unresolved sound path (request %u)\n", policy ? policy->request : 0);
+        goto rejected;
+    }
+    if (!policy || !policy->max_total || policy->max_total > S_MAX_CHANNELS || !policy->max_channel ||
+        (policy->cooldown_ms && policy->user >= MAX_GAME_ENTITIES)) {
+        fprintf(stderr, "S_PlaySoundPolicy: invalid admission limits for %s\n", path);
+        goto rejected;
+    }
+    if (!(sfx = S_FindSfx(path, TRUE))) goto rejected;
+    sfx->registration_sequence = s.registration_sequence;
+    if (S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL,
+                     positioned, channel, attenuation, timeofs, policy)) return TRUE;
+rejected:
+    SDL_LockAudioDevice(s.device);
+    S_SoundEvent(policy, SOUND_REJECTED);
+    SDL_UnlockAudioDevice(s.device);
+    return FALSE;
 }

@@ -166,19 +166,19 @@ DWORD StartSound(LPJASS j) {
         LPEDICT recipient = PLAYER_ENT(currentplayer);
         if (!recipient || !recipient->client || !recipient->client->connected) return 0;
         if (playback.positioned)
-            gi.PositionedSound(&playback.origin, recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
+            G_PlaySound(&playback.origin, recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
                                playback.volume, attenuation, 0.0f);
         else
-            gi.Sound(recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
+            G_PlaySound(NULL, recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
                      playback.volume, attenuation, 0.0f);
         return 0;
     }
 
     if (playback.positioned)
-        gi.PositionedSound(&playback.origin, playback.emitter, CHAN_RELIABLE, sound->soundIndex,
+        G_PlaySound(&playback.origin, playback.emitter, CHAN_RELIABLE, sound->soundIndex,
                            playback.volume, attenuation, 0.0f);
     else
-        gi.Sound(NULL, CHAN_RELIABLE, sound->soundIndex, playback.volume, attenuation, 0.0f);
+        G_PlaySound(NULL, NULL, CHAN_RELIABLE, sound->soundIndex, playback.volume, attenuation, 0.0f);
     return 0;
 }
 DWORD StopSound(LPJASS j) {

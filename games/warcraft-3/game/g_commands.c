@@ -415,173 +415,134 @@ void G_UpdateClientSelections(void) {
 
 typedef struct {
     LONG entity;
-    DWORD spawn_time;
-    DWORD selected_sound_count;
+    DWORD spawn_time, selected_sound_count, generation;
     BOOL valid;
 } selectionSoundState_t;
 
-typedef struct {
-    DWORD spawn_time;
-    DWORD end_time;
-    BOOL talking;
-} unitResponseState_t;
-
-typedef struct {
-    DWORD entity, spawn_time;
-} unitResponseExpiry_t;
+typedef struct unitResponse_s {
+    struct unitResponse_s *next;
+    DWORD request, entity, spawn_time, owner, generation;
+    int sound;
+    BOOL accepted, started;
+} unitResponse_t;
 
 static selectionSoundState_t selection_sound_state[MAX_PLAYERS];
-static unitResponseState_t unit_response_state[MAX_ENTITIES];
-static unitResponseExpiry_t unit_response_expiries[MAX_ENTITIES];
-static DWORD unit_response_expiry_slot[MAX_ENTITIES];
-static DWORD unit_response_expiry_count;
-static DWORD unit_response_next_expiry = UINT_MAX;
-
-static void unit_response_expiry_remove(DWORD entity) {
-    DWORD slot, index, last;
-
-    if (entity >= MAX_ENTITIES || !(slot = unit_response_expiry_slot[entity])) return;
-    index = slot - 1;
-    last = --unit_response_expiry_count;
-    unit_response_expiry_slot[entity] = 0;
-    if (index != last) {
-        unit_response_expiries[index] = unit_response_expiries[last];
-        unit_response_expiry_slot[unit_response_expiries[index].entity] = index + 1;
-    }
-}
-
-static void unit_response_expiry_schedule(LPEDICT ent) {
-    DWORD entity = ent->s.number;
-    DWORD slot = unit_response_expiry_slot[entity];
-
-    if (slot) unit_response_expiries[slot - 1].spawn_time = ent->spawn_time;
-    else {
-        slot = ++unit_response_expiry_count;
-        unit_response_expiry_slot[entity] = slot;
-        unit_response_expiries[slot - 1] = (unitResponseExpiry_t){ entity, ent->spawn_time };
-    }
-    unit_response_next_expiry = MIN(unit_response_next_expiry, unit_response_state[entity].end_time);
-}
+static unitResponse_t *unit_responses;
+static DWORD response_serial, selection_serial;
 
 void G_ResetSelectionSoundState(void) {
-    memset(selection_sound_state, 0, sizeof(selection_sound_state));
-    memset(unit_response_state, 0, sizeof(unit_response_state));
-    memset(unit_response_expiry_slot, 0, sizeof(unit_response_expiry_slot));
-    unit_response_expiry_count = 0;
-    unit_response_next_expiry = UINT_MAX;
-}
-
-static unitResponseState_t *G_UnitResponseState(LPCEDICT ent) {
-    unitResponseState_t *state;
-    DWORD number;
-
-    if (!ent) return NULL;
-    number = (DWORD)ent->s.number;
-    if (number >= MAX_ENTITIES) return NULL;
-    state = unit_response_state + number;
-    if (state->spawn_time != ent->spawn_time) {
-        unit_response_expiry_remove(number);
-        *state = (unitResponseState_t){ .spawn_time = ent->spawn_time };
+    while (unit_responses) {
+        unitResponse_t *next = unit_responses->next;
+        free(unit_responses); unit_responses = next;
     }
-    return state;
+    FOR_LOOP(i, globals.num_edicts) if (globals.edicts) globals.edicts[i].sound.pending = 0;
+    memset(selection_sound_state, 0, sizeof(selection_sound_state));
+    /* Keep serials across maps/save-load so old reliable replies cannot match. */
 }
 
 BOOL G_UnitResponseTalking(LPCEDICT ent) {
-    unitResponseState_t *state = G_UnitResponseState(ent);
-    return state && state->talking && state->end_time > G_Time();
+    for (unitResponse_t *r = unit_responses; ent && r; r = r->next)
+        if (r->entity == ent->s.number && r->spawn_time == ent->spawn_time &&
+            r->owner == ent->s.player && r->started) return true;
+    return false;
 }
 
 static void G_DirtyResponsePortrait(LPCEDICT ent) {
     LPGAMECLIENT client;
     if (!ent || ent->s.player >= MAX_PLAYERS) return;
     client = G_GetPlayerClientByNumber(ent->s.player);
-    if (client && G_GetMainControllableUnit(client) == ent)
-        client->presentation_dirty = true;
+    if (client && G_GetMainControllableUnit(client) == ent) client->presentation_dirty = true;
 }
 
-BOOL G_QueueUnitResponseSound(LPEDICT ent, int sound, DWORD duration) {
-    unitResponseState_t *state;
-
-    if (!ent || !sound || !(state = G_UnitResponseState(ent))) return false;
-    if (state->talking && state->end_time > G_Time()) return false;
-    ent->sound.pending = sound;
-    state->talking = duration > 0;
-    state->end_time = duration ? G_Time() + duration : 0;
-    if (duration) unit_response_expiry_schedule(ent);
-    else unit_response_expiry_remove(ent->s.number);
+void G_ClearUnitResponses(LPCEDICT ent) {
+    for (unitResponse_t **link = &unit_responses; *link;) {
+        unitResponse_t *r = *link;
+        if (r->entity != ent->s.number) { link = &r->next; continue; }
+        *link = r->next; free(r);
+    }
     G_DirtyResponsePortrait(ent);
+}
+
+DWORD G_UnitResponseRequest(LPCEDICT ent, int sound) {
+    for (unitResponse_t *r = unit_responses; ent && r; r = r->next)
+        if (r->entity == ent->s.number && r->spawn_time == ent->spawn_time &&
+            !r->accepted && r->sound == sound) return r->request;
+    return 0;
+}
+
+BOOL G_QueueUnitResponseSound(LPEDICT ent, int sound) {
+    if (!ent || !sound || ent->s.player >= MAX_PLAYERS || ent->s.number >= MAX_ENTITIES) return false;
+    for (unitResponse_t *r = unit_responses; r; r = r->next)
+        if (r->entity == ent->s.number && r->spawn_time == ent->spawn_time && !r->accepted) return false;
+    unitResponse_t *r = calloc(1, sizeof(*r));
+    if (!r) { fprintf(stderr, "G_QueueUnitResponseSound: out of memory\n"); return false; }
+    if (!++response_serial) ++response_serial;
+    *r = (unitResponse_t){ .next = unit_responses, .request = response_serial,
+        .entity = ent->s.number, .spawn_time = ent->spawn_time, .owner = ent->s.player, .sound = sound };
+    unit_responses = r;
+    ent->sound.pending = sound;
     return true;
 }
 
-static void unit_response_update_client(LPGAMECLIENT client) {
-    LPEDICT ent;
-    unitResponseState_t *state;
-
-    if (!client || !(ent = G_GetMainControllableUnit(client)) || !(state = G_UnitResponseState(ent))) return;
-    if (state->talking && state->end_time <= G_Time()) {
-        state->talking = false;
-        state->end_time = 0;
-        client->presentation_dirty = true;
+void G_UpdateUnitResponsePresentation(void) {
+    /* Disconnect, removal and ownership changes retire outstanding requests.
+     * Admission/start/end timing never depends on simulation time or duration. */
+    for (unitResponse_t **link = &unit_responses; *link;) {
+        unitResponse_t *r = *link;
+        LPEDICT ent = g_edicts + r->entity;
+        BOOL connected = false;
+        for (DWORD i = 0; !connected && i < game.max_clients; i++)
+            connected = game.clients[i].connected && game.clients[i].ps.number == r->owner;
+        if (ent->inuse && ent->spawn_time == r->spawn_time && ent->s.player == r->owner && connected) { link = &r->next; continue; }
+        if (!r->accepted && ent->spawn_time == r->spawn_time && ent->sound.pending == r->sound) ent->sound.pending = 0;
+        *link = r->next; free(r); G_DirtyResponsePortrait(ent);
     }
 }
 
-void G_UpdateUnitResponsePresentation(void) {
-    DWORD now = G_Time(), next_expiry = UINT_MAX;
-    BOOL due = false;
-
-    if (now < unit_response_next_expiry) return;
-    for (DWORD i = 0; i < unit_response_expiry_count;) {
-        unitResponseExpiry_t const expiry = unit_response_expiries[i];
-        LPEDICT ent = expiry.entity < globals.num_edicts ? globals.edicts + expiry.entity : NULL;
-        unitResponseState_t *state = unit_response_state + expiry.entity;
-
-        if (!ent || !ent->inuse || ent->spawn_time != expiry.spawn_time ||
-            state->spawn_time != expiry.spawn_time || !state->talking) {
-            unit_response_expiry_remove(expiry.entity);
-            continue;
+static void G_ResponseEvent(LPEDICT player, DWORD user, DWORD request, DWORD event) {
+    if (!player || !player->client || !player->client->connected || user >= globals.num_edicts) return;
+    for (unitResponse_t **link = &unit_responses; *link; link = &(*link)->next) {
+        unitResponse_t *r = *link;
+        LPEDICT ent = g_edicts + user;
+        if (r->request != request || r->entity != user) continue;
+        if (r->owner != player->client->ps.number || !ent->inuse ||
+            ent->spawn_time != r->spawn_time || ent->s.player != r->owner) return;
+        if (!r->accepted && (event == SOUND_ACCEPTED || event == SOUND_REJECTED) && ent->sound.pending == r->sound)
+            ent->sound.pending = 0;
+        if (event == SOUND_ACCEPTED && !r->accepted) {
+            r->accepted = true;
+            selectionSoundState_t *state = selection_sound_state + r->owner;
+            if (r->generation && state->generation == r->generation) state->selected_sound_count++;
+            G_AcceptSoundVariant(r->sound, r->owner);
+        } else if (event == SOUND_STARTED && r->accepted) {
+            r->started = true; G_DirtyResponsePortrait(ent);
+        } else if ((event == SOUND_REJECTED && !r->accepted) || (event == SOUND_ENDED && r->accepted)) {
+            *link = r->next; free(r); G_DirtyResponsePortrait(ent);
         }
-        if (state->end_time <= now) due = true;
-        else next_expiry = MIN(next_expiry, state->end_time);
-        i++;
-    }
-    if (!due) {
-        unit_response_next_expiry = next_expiry;
         return;
     }
+}
 
-    unit_response_next_expiry = UINT_MAX;
-    FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
-        if (client->connected) unit_response_update_client(client);
+CLIENTCOMMAND(SoundEvent) {
+    DWORD value[3];
+    if (argc != 4) return;
+    FOR_LOOP(i, 3) {
+        char *end;
+        if (!argv[i+1][0] || !isdigit((unsigned char)argv[i+1][0])) return;
+        unsigned long n = strtoul(argv[i+1], &end, 10);
+        if (*end || n > UINT32_MAX) return;
+        value[i] = (DWORD)n;
     }
-    for (DWORD i = 0; i < unit_response_expiry_count;) {
-        unitResponseExpiry_t const expiry = unit_response_expiries[i];
-        unitResponseState_t *state = unit_response_state + expiry.entity;
-        if (state->spawn_time != expiry.spawn_time || !state->talking || state->end_time <= now) {
-            unit_response_expiry_remove(expiry.entity);
-            continue;
-        }
-        unit_response_next_expiry = MIN(unit_response_next_expiry, state->end_time);
-        i++;
-    }
+    G_ResponseEvent(clent, value[0], value[1], value[2]);
 }
 
 static selectionSoundState_t *G_SelectionSoundState(LPEDICT ent, BOOL reset) {
-    selectionSoundState_t *state;
-    BOOL changed;
-
     if (!ent || ent->s.player >= MAX_PLAYERS) return NULL;
-    state = selection_sound_state + ent->s.player;
-    changed = !state->valid || state->entity != (LONG)ent->s.number ||
-              state->spawn_time != ent->spawn_time;
-    if (changed) {
-        *state = (selectionSoundState_t){
-            .entity = (LONG)ent->s.number,
-            .spawn_time = ent->spawn_time,
-            .valid = true,
-        };
-    } else if (reset) {
-        state->selected_sound_count = 0;
+    selectionSoundState_t *state = selection_sound_state + ent->s.player;
+    if (reset || !state->valid || state->entity != (LONG)ent->s.number || state->spawn_time != ent->spawn_time) {
+        if (!++selection_serial) ++selection_serial;
+        *state = (selectionSoundState_t){ .entity = ent->s.number, .spawn_time = ent->spawn_time,
+            .generation = selection_serial, .valid = true };
     }
     return state;
 }
@@ -589,6 +550,15 @@ static selectionSoundState_t *G_SelectionSoundState(LPEDICT ent, BOOL reset) {
 static void G_ResetSelectionResponseForUnit(LPEDICT ent) {
     selectionSoundState_t *state = G_SelectionSoundState(ent, true);
     if (state) state->selected_sound_count = 0;
+}
+
+static int G_RandomResponseSound(LPCEDICT ent, USHORT const *sounds, DWORD count) {
+    int index = 0;
+    if (count) for (int tries = 0; tries < 11; tries++) {
+        index = sounds[rand() % count];
+        if (count == 1 || !G_SoundVariantIsLast(index, ent->s.player)) break;
+    }
+    return index;
 }
 
 /* Client commands arrive before G_RunEntities clears the previous snapshot's
@@ -605,7 +575,7 @@ void G_QueueSelectionSound(LPEDICT ent, BOOL reset_sequence) {
         LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
         LPCSTR alias = client ? Theme_PlayerString(client, "ConstructingBuilding", NULL) : NULL;
         int sound_index = G_UISoundIndex(alias);
-        if (sound_index) G_QueueUnitResponseSound(ent, sound_index, G_SoundIndexDuration(sound_index));
+        if (sound_index) G_QueueUnitResponseSound(ent, sound_index);
         state->selected_sound_count = 0;
         return;
     }
@@ -621,9 +591,9 @@ void G_QueueSelectionSound(LPEDICT ent, BOOL reset_sequence) {
         }
     }
     if (!sound && ent->sound.num_select)
-        sound = ent->sound.select[rand() % ent->sound.num_select];
-    if (sound && G_QueueUnitResponseSound(ent, sound, G_SoundIndexDuration(sound)))
-        state->selected_sound_count++;
+        sound = G_RandomResponseSound(ent, ent->sound.select, ent->sound.num_select);
+    if (sound && G_QueueUnitResponseSound(ent, sound))
+        unit_responses->generation = state->generation;
 }
 
 void G_QueueAttackOrderSound(LPEDICT ent) {
@@ -635,9 +605,13 @@ void G_QueueAttackOrderSound(LPEDICT ent) {
     G_ResetSelectionResponseForUnit(ent);
     label = ent->data.UnitUI ? ent->data.UnitUI->soundLabel : NULL;
     count = G_UnitAckSoundVariantCount(label, "YesAttack");
-    sound = count ? G_UnitAckSoundVariantIndex(label, "YesAttack", (DWORD)(rand() % count)) : 0;
-    if (!sound && ent->sound.num_yes) sound = ent->sound.yes[rand() % ent->sound.num_yes];
-    if (sound) G_QueueUnitResponseSound(ent, sound, G_SoundIndexDuration(sound));
+    sound = 0;
+    if (count) for (int tries = 0; tries < 11; tries++) {
+        sound = G_UnitAckSoundVariantIndex(label, "YesAttack", (DWORD)(rand() % count));
+        if (count == 1 || !G_SoundVariantIsLast(sound, ent->s.player)) break;
+    }
+    if (!sound && ent->sound.num_yes) sound = G_RandomResponseSound(ent, ent->sound.yes, ent->sound.num_yes);
+    if (sound) G_QueueUnitResponseSound(ent, sound);
 }
 
 static void G_QueueOrderSound(LPEDICT ent) {
@@ -649,8 +623,8 @@ static void G_QueueOrderSound(LPEDICT ent) {
     }
     G_ResetSelectionResponseForUnit(ent);
     if (!ent->sound.num_yes) return;
-    sound = ent->sound.yes[rand() % ent->sound.num_yes];
-    G_QueueUnitResponseSound(ent, sound, G_SoundIndexDuration(sound));
+    sound = G_RandomResponseSound(ent, ent->sound.yes, ent->sound.num_yes);
+    G_QueueUnitResponseSound(ent, sound);
 }
 
 /* select/point are left-click completion paths for targeted commands.  A
@@ -2846,6 +2820,7 @@ clientCommand_t clientCommands[] = {
     { "debugspawn", CMD_DebugSpawn },
     { "enemiesclear", CMD_EnemiesClear },
     { "eclear", CMD_EnemiesClear },
+    { "sound_event", CMD_SoundEvent },
     { "camera", CMD_Camera },
     { "menu", CMD_Menu },
     { "menu_endgame", CMD_MenuEndGame },

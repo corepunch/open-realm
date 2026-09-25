@@ -316,19 +316,19 @@ int g_treeFallSounds[3]; BYTE g_numTreeFallSounds;
 
 /* Cache authored UnitAck/UnitCombat variants through the shared sound-row
  * resolver so volume metadata follows the resulting configstring index. */
-static void G_RegisterCombatVariants(BYTE out[], BYTE *count, BYTE max, LPCSTR key) {
+static void G_RegisterCombatVariants(USHORT out[], BYTE *count, BYTE max, LPCSTR key) {
     DWORD variants = G_UnitCombatSoundVariantCount(key);
     for (DWORD i = 0; i < variants && *count < max; i++) {
         int sound = G_UnitCombatSoundVariantIndex(key, i);
-        if (sound) out[(*count)++] = (BYTE)sound;
+        if (sound) out[(*count)++] = (USHORT)sound;
     }
 }
 
-static void G_RegisterSoundVariants(BYTE out[], BYTE *count, LPCSTR label, LPCSTR suffix) {
+static void G_RegisterSoundVariants(USHORT out[], BYTE *count, LPCSTR label, LPCSTR suffix) {
     DWORD variants = G_UnitAckSoundVariantCount(label, suffix);
     for (DWORD i = 0; i < variants && *count < MAX_UNIT_SELECT_SOUNDS; i++) {
         int sound = G_UnitAckSoundVariantIndex(label, suffix, i);
-        if (sound) out[(*count)++] = (BYTE)sound;
+        if (sound) out[(*count)++] = (USHORT)sound;
     }
 }
 

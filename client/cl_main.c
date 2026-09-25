@@ -77,6 +77,8 @@ void CL_ClientCommand(LPCSTR cmd) {
 }
 
 void CL_ClearState(void) {
+    S_StopAllSounds();
+    S_ClearSoundEvents();
     CL_MusicReset();
     CL_ClearTEnts ();
     CL_WindowClear();
@@ -1179,6 +1181,17 @@ void CL_SendCommand(void) {
 /* Main client tick called from the platform event loop.
  * Advances the client clock, applies incoming server state, samples input,
  * sends commands, and renders the current frame. */
+static void CL_SendSoundEvents(void) {
+    soundEvent_t event;
+    if (cls.state == ca_connected) return; /* retain loading-time events until active */
+    while (cls.state != ca_active || cls.netchan.message.cursize + 64 < cls.netchan.message.maxsize) {
+        if (!S_PollSoundEvent(&event)) break;
+        if (cls.state != ca_active) continue;
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "sound_event %u %u %u", event.user, event.request, event.event);
+    }
+}
+
 void CL_Frame(DWORD msec) {
     cl_realtime += msec;
     cl.time += msec;
@@ -1188,6 +1201,7 @@ void CL_Frame(DWORD msec) {
     CL_MovieUpdate();
     CL_ReadPackets();
     CL_MusicUpdate();
+    CL_SendSoundEvents();
     CL_CheckTimeout();
     CL_SendCommand();
     if (cls.state == ca_connected && !cl.refresh_prepped) {
@@ -1197,3 +1211,34 @@ void CL_Frame(DWORD msec) {
     }
     SCR_UpdateScreen(msec);
 }
+
+#if defined(BZ_TESTS) && defined(BZ_CLIENT_WORLD)
+#include "shared/test.h"
+TEST(client_sound, playback_receipts_are_reliable_ordered_and_wait_for_buffer_space) {
+    sState_t *saved = malloc(sizeof(s));
+    sizeBuf_t old_message = cls.netchan.message;
+    int old_state = cls.state;
+    BYTE bytes[256]; SHORT out[2];
+    sfxcache_t sample = { .length = 1, .loopstart = -1, .data = {1000} };
+    soundPolicy_t policy = { .user = 24, .request = 731, .max_channel = 3, .max_total = 24, .max_duplicates = 4 };
+    T_NOT_NULL(saved); if (!saved) return;
+    *saved = s; memset(&s, 0, sizeof(s)); S_ClearSoundEvents();
+    s.initialized = true; s.num_sfx = 1;
+    strcpy(s.known_sfx[0].path, "receipt-test.wav"); s.known_sfx[0].cache = &sample;
+    SZ_Init(&cls.netchan.message, bytes, 1); cls.state = ca_active;
+    T_ASSERT(S_PlaySoundPolicy("receipt-test.wav", NULL, false, 0, 1, 0, 0, &policy));
+    S_TestMix(out, 1);
+    CL_SendSoundEvents(); T_EQ(cls.netchan.message.cursize, 0); /* full buffer retains events */
+    SZ_Init(&cls.netchan.message, bytes, sizeof(bytes));
+    cls.state = ca_connected; CL_SendSoundEvents(); T_EQ(cls.netchan.message.cursize, 0);
+    cls.state = ca_active; CL_SendSoundEvents();
+    FOR_LOOP(i, 3) {
+        char expected[64]; snprintf(expected, sizeof(expected), "sound_event 24 731 %u", i + 1);
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+        char actual[64]; MSG_ReadString(&cls.netchan.message, actual);
+        T_STREQ(actual, expected);
+    }
+    T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+    S_ClearSoundEvents(); s = *saved; free(saved); cls.netchan.message = old_message; cls.state = old_state;
+}
+#endif

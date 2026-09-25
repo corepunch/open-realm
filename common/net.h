@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 9 // version; entity headings use unsigned 16-bit turns in radians (v8 used a degree scale)
+#define BZ_PROTOCOL_VERSION 12 // version; svc_sound request identity for playback feedback
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;

@@ -1,6 +1,20 @@
 #include "g_local.h"
 #include "g_unitrow.h"
 
+static soundPolicy_t sound_index_policy[MAX_SOUNDS];
+static UnitAckSounds_t const *sound_index_row[MAX_SOUNDS];
+static USHORT sound_index_last[MAX_PLAYERS][MAX_SOUNDS];
+
+void G_AcceptSoundVariant(int index, DWORD owner) {
+    if (index <= 0 || index >= MAX_SOUNDS || owner >= MAX_PLAYERS || !sound_index_row[index]) return;
+    FOR_LOOP(i, MAX_SOUNDS)
+        if (sound_index_row[i] == sound_index_row[index]) sound_index_last[owner][i] = index;
+}
+
+BOOL G_SoundVariantIsLast(int index, DWORD owner) {
+    return index > 0 && index < MAX_SOUNDS && owner < MAX_PLAYERS && sound_index_last[owner][index] == index;
+}
+
 static FLOAT sound_index_volume[MAX_SOUNDS];
 static DWORD sound_index_duration[MAX_SOUNDS];
 static BYTE sound_index_volume_valid[MAX_SOUNDS];
@@ -25,6 +39,9 @@ static commandErrorText_t const command_error_texts[] = {
 };
 
 void G_ResetSoundPresentationState(void) {
+    memset(sound_index_policy, 0, sizeof(sound_index_policy));
+    memset(sound_index_row, 0, sizeof(sound_index_row));
+    memset(sound_index_last, 0, sizeof(sound_index_last));
     memset(sound_index_volume, 0, sizeof(sound_index_volume));
     memset(sound_index_duration, 0, sizeof(sound_index_duration));
     memset(sound_index_volume_valid, 0, sizeof(sound_index_volume_valid));
@@ -137,13 +154,74 @@ static BOOL G_SoundRowVariantPath(UnitAckSounds_t const *row, DWORD variant,
     return true;
 }
 
+/* Default channel budgets recovered at 6fab5ec8 (1.27.1.7085). These are
+ * game policy, not mixer constants. SLK Channel is a numeric string. */
+static soundPolicy_t G_SoundRowPolicy(UnitAckSounds_t const *row, DWORD variant) {
+    static BYTE const limits[] = {16,3,3,3,3,8,2,3,5,3,3,8,1,6,2,2};
+    static struct { LPCSTR name; USHORT flag; } const flags[] = {
+        {"CHANNELFULLPREEMPT", SOUND_CHANNEL_PREEMPT}, {"CHANNELFULLPREEMPTOLDEST", SOUND_CHANNEL_OLDEST},
+        {"LISTFULLPREEMPT", SOUND_LIST_PREEMPT}, {"LISTFULLPREEMPTOLDEST", SOUND_LIST_OLDEST},
+        {"NODUPLICATES", SOUND_NO_DUPLICATES}, {"DUPLICATEPREEMPT", SOUND_DUPLICATE_PREEMPT},
+        {"NODUPEUSERNAMES", SOUND_NO_DUPLICATE_USERS}, {"DUPUSERNAMEPREEMPT", SOUND_USER_PREEMPT},
+        {"IGNOREUSERNAME", SOUND_IGNORE_USER}
+    };
+    soundPolicy_t policy = { .priority = (DWORD)MAX(0, row->Priority), .max_total = 24, .max_duplicates = 4 };
+    char *end;
+    long channel = row->Channel && row->Channel[0] ? strtol(row->Channel, &end, 10) : 0;
+    if (channel < 0 || channel >= sizeof(limits) || (row->Channel && row->Channel[0] && *end)) {
+        fprintf(stderr, "WC3 sound %s: invalid Channel '%s'\n", row->name, row->Channel);
+        return (soundPolicy_t){0};
+    }
+    policy.group = channel;
+    policy.max_channel = limits[channel];
+    for (LPCSTR word = row->Flags; word && *word;) {
+        LPCSTR comma = strchr(word, ',');
+        size_t len = comma ? (size_t)(comma - word) : strlen(word);
+        FOR_LOOP(i, sizeof(flags) / sizeof(flags[0]))
+            if (strlen(flags[i].name) == len && !strncmp(word, flags[i].name, len)) policy.flags |= flags[i].flag;
+        if (len == strlen("SCALEPRIORITY") && !strncmp(word, "SCALEPRIORITY", len)) policy.priority += variant;
+        word = comma ? comma + 1 : NULL;
+    }
+    return policy;
+}
+
+soundPolicy_t const *G_SoundIndexPolicy(int index) {
+    return index > 0 && index < MAX_SOUNDS && sound_index_policy[index].max_total ? &sound_index_policy[index] : NULL;
+}
+
+void G_PlaySound(LPCVECTOR3 origin, LPEDICT ent, int channel, int index, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
+    soundPolicy_t const *registered = G_SoundIndexPolicy(index);
+    DWORD request = ent && ent->sound.pending == index && (channel & CHAN_OWNER) ? G_UnitResponseRequest(ent, index) : 0;
+    if (registered || request) {
+        /* Raw response paths have no authored row; retain generic capacity rules. */
+        soundPolicy_t policy = registered ? *registered : (soundPolicy_t){ .priority = SOUND_PRIORITY(channel),
+            .max_channel = 24, .max_total = 24, .max_duplicates = 4 };
+        policy.request = request;
+        /* Retail passes the unit pointer as username; an entity number is its
+         * process-independent equivalent on our wire. Spatial origin is separate. */
+        policy.user = ent ? ent->s.number : 0;
+        if (ent && (channel & CHAN_OWNER) && (channel & 7) == CHAN_VOICE) policy.cooldown_ms = 250;
+        gi.SoundPolicy(origin, ent, channel, index, volume, attenuation, timeofs, &policy);
+    } else if (origin) gi.PositionedSound(origin, ent, channel, index, volume, attenuation, timeofs);
+    else gi.Sound(ent, channel, index, volume, attenuation, timeofs);
+}
+
 static int G_RegisterSoundRowVariant(UnitAckSounds_t const *row, DWORD variant) {
     char path[512];
     int sound;
 
     if (!G_SoundRowVariantPath(row, variant, path, sizeof(path))) return 0;
-    sound = gi.SoundIndex(path);
+    soundPolicy_t policy = G_SoundRowPolicy(row, variant);
+    if (!policy.max_total) return 0;
+    char alias[256];
+    if (snprintf(alias, sizeof(alias), "%s#%u", row->name, (unsigned)variant) >= sizeof(alias)) {
+        fprintf(stderr, "WC3 sound alias too long: %s\n", row->name);
+        return 0;
+    }
+    sound = gi.SoundIndexAlias(path, alias);
     if (sound > 0 && sound < MAX_SOUNDS) {
+        sound_index_policy[sound] = policy;
+        sound_index_row[sound] = row;
         sound_index_volume[sound] = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
         sound_index_volume_valid[sound] = true;
         if (!sound_index_duration_valid[sound]) {
@@ -284,7 +362,7 @@ void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point) {
     if (sound && point) {
         VECTOR3 origin = { point->x, point->y, CM_GetHeightAtPoint(point->x, point->y) };
         FLOAT volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
-        gi.PositionedSound(&origin, NULL, CHAN_RELIABLE, sound, volume, 1.0f, 0.0f);
+        G_PlaySound(&origin, NULL, CHAN_RELIABLE, sound, volume, 1.0f, 0.0f);
     }
 }
 
@@ -322,7 +400,7 @@ void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target) {
     sound = G_RegisterSoundRow(row);
     if (!sound) return;
     volume = G_SoundIndexVolume(sound);
-    gi.Sound(target, CHAN_WEAPON, sound, volume, 1.0f, 0.0f);
+    G_PlaySound(NULL, target, CHAN_WEAPON, sound, volume, 1.0f, 0.0f);
 }
 
 void G_PlayUISoundForPlayer(LPEDICT clent, LPCSTR alias) {
@@ -331,7 +409,7 @@ void G_PlayUISoundForPlayer(LPEDICT clent, LPCSTR alias) {
     /* UI sounds use the reliable owner-only sound packet and remain non-positional. */
     if (!clent || !clent->client || !clent->client->connected || !alias || !alias[0]) return;
     sound = G_RegisterUISound(alias);
-    if (sound) gi.Sound(clent, CHAN_OWNER | CHAN_RELIABLE, sound, G_SoundIndexVolume(sound), 0.0f, 0.0f);
+    if (sound) G_PlaySound(NULL, clent, CHAN_OWNER | CHAN_RELIABLE, sound, G_SoundIndexVolume(sound), 0.0f, 0.0f);
 }
 
 static LPCSTR G_CommandErrorKeyForText(LPCSTR text) {
