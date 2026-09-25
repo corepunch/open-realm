@@ -161,7 +161,7 @@ TEST(wc3_minimap, fixture_mpq_skin_override_wins_over_stock_default) {
             "TestUI\\Textures\\solid_white.blp");
     count = wc3_minimap_special_assets(&theme, &map_skin, assets, 5);
     T_EQ(count, 5);
-    T_STREQ(assets[0].path, "TestUI\\Textures\\checker_8x8.blp");
+    T_STREQ(assets[0].path, "Textures\\minimap_hero.blp");
     T_ASSERT(assets[0].map_override);
     T_STREQ(assets[1].path, "TestUI\\Textures\\solid_white.blp");
     T_ASSERT(!assets[1].map_override);

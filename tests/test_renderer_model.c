@@ -152,6 +152,14 @@ static DWORD upload_count;
 static LPCVOID upload_data;
 static LPCSTR test_version = "3.1", test_extension = "";
 static DWORD alloc_count, free_count, ext_count;
+static BOOL cache_minimap_textures;
+static BOOL minimap_test_saw_streamed_override;
+static DWORD next_minimap_texture_id;
+static HANDLE minimap_test_base_archive, minimap_test_map_archive;
+static BYTE *minimap_test_map_data;
+static BOOL minimap_test_read_map_skin;
+static int test_minimap_fs_read(LPCSTR path, void **buffer);
+void R_TestProductionRegisterMap(LPCSTR mapFileName);
 
 static GLubyte const *test_glstring(GLenum name) { (void)name; return (GLubyte const *)test_version; }
 static SDL_bool test_hasext(char const *name) { ext_count++; return !strcmp(name, test_extension) ? SDL_TRUE : SDL_FALSE; }
@@ -230,6 +238,24 @@ static void test_spawn(void *context) { (*(DWORD *)context)++; }
 
 LPTEXTURE R_LoadTexture(LPCSTR filename) {
     snprintf(last_texture_load, sizeof(last_texture_load), "%s", filename);
+    if (cache_minimap_textures) {
+        PATHSTR resolved;
+        void *file = NULL;
+        LPCSTR path = filename;
+        if (strstr(filename, "minimap_hero.blp")) minimap_test_saw_streamed_override = r_load_streamed;
+        if (R_MapAssetCandidate(filename, resolved, sizeof(resolved)) && test_minimap_fs_read(resolved, &file) >= 0) {
+            free(file); file = NULL; path = resolved;
+        }
+        LPTEXTURE texture = R_FindLoadedTexture(path);
+        if (texture) return texture;
+        if (test_minimap_fs_read(path, &file) < 0)
+            return tr.texture[TEX_PLACEHOLDER];
+        free(file);
+        texture = test_alloc(sizeof(*texture));
+        texture->texid = ++next_minimap_texture_id;
+        R_CacheLoadedTexture(path, texture);
+        return texture;
+    }
     return texture_load_result;
 }
 
@@ -244,6 +270,40 @@ LPMODEL R_LoadModel(LPCSTR filename) {
 }
 
 void R_ReleaseModel(LPMODEL model) { release_count++; test_free(model); }
+
+static BOOL test_mpq_read(HANDLE archive, LPCSTR path, void **buffer, DWORD *size_out) {
+    HANDLE file = NULL;
+    DWORD size, read = 0;
+    if (!archive || !SFileOpenFileEx(archive, path, 0, &file)) return false;
+    size = SFileGetFileSize(file, NULL);
+    *buffer = malloc((size_t)size + 1);
+    if (!*buffer || !SFileReadFile(file, *buffer, size, &read, NULL) || read != size) {
+        free(*buffer); *buffer = NULL; SFileCloseFile(file); return false;
+    }
+    ((BYTE *)*buffer)[size] = 0;
+    if (size_out) *size_out = size;
+    SFileCloseFile(file);
+    return true;
+}
+
+static int test_minimap_fs_read(LPCSTR path, void **buffer) {
+    LPCSTR file_path = path;
+    HANDLE archive = minimap_test_base_archive;
+    DWORD size = 0;
+    *buffer = NULL;
+    if (!strncasecmp(path, "Maps\\MapOverlay.w3x\\", 20)) {
+        file_path = path + 20;
+        archive = minimap_test_map_archive;
+        if (!strcasecmp(file_path, "war3mapSkin.txt")) minimap_test_read_map_skin = true;
+    }
+    if (!test_mpq_read(archive, file_path, buffer, &size)) return -1;
+    return (int)size;
+}
+
+static void test_minimap_fs_free(void *buffer) { free(buffer); }
+void R_WeatherRegisterMap(void) {}
+void R_LightningRegisterMap(void) {}
+void _W3M_RegisterMap(LPCSTR map) { (void)map; }
 
 void R_RegisterMap(LPCSTR map) {
     if (map && (strstr(map, ".w3m") || strstr(map, ".w3x"))) R_SetMapAssetScope(map);
@@ -265,6 +325,12 @@ static LPTEXTURE reset_texture_registry(void) {
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     r_load_streamed = false; r_stream_generation = 0; texture_delete_count = 0;
     return test_alloc(sizeof(TEXTURE));
+}
+
+static rImageCacheEntry_t *test_texture_entry(LPCSTR name) {
+    for (rImageCacheEntry_t *entry = r_image_cache; entry; entry = entry->next)
+        if (!strcasecmp(entry->name, name)) return entry;
+    return NULL;
 }
 
 TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
@@ -955,6 +1021,48 @@ TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit
         R_CacheLoadedTexture(path, &placeholder);
     }
     T_ASSERT(R_FindLoadedTexture("textures/registry/1024.BLP") == &placeholder);
+}
+
+TEST(renderer_texture, wc3_map_registration_reclaims_skin_override_and_keeps_stock) {
+    static TEXTURE placeholder = { .texid = 1 };
+    rImageCacheEntry_t *entry;
+    DWORD map_size = 0;
+    void *map_data = NULL;
+
+    R_ShutdownTextureCache(); reset_registry();
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    r_load_streamed = false; r_stream_generation = 0; texture_delete_count = 0;
+    T_ASSERT(SFileOpenArchive("build/tests/tests.mpq", 0, 0, &minimap_test_base_archive));
+    T_ASSERT(test_mpq_read(minimap_test_base_archive, "Maps\\MapOverlay.w3x", &map_data, &map_size));
+    minimap_test_map_data = map_data;
+    T_ASSERT(SFileOpenArchiveFromMemory(map_data, map_size, 0, &minimap_test_map_archive));
+    ri.FS_ReadFile = test_minimap_fs_read; ri.FS_FreeFile = test_minimap_fs_free;
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    tr.texture[TEX_PLACEHOLDER] = &placeholder;
+    cache_minimap_textures = true; next_minimap_texture_id = 1;
+    minimap_test_saw_streamed_override = false;
+    minimap_test_read_map_skin = false;
+
+    R_TestProductionRegisterMap("Maps\\MapOverlay.w3x");
+    T_ASSERT(minimap_test_read_map_skin);
+    T_ASSERT(minimap_test_saw_streamed_override);
+    entry = test_texture_entry("Maps\\MapOverlay.w3x\\Textures\\minimap_hero.blp");
+    T_NOT_NULL(entry); T_ASSERT(entry && entry->streamed && !entry->pinned);
+    entry = test_texture_entry("TestUI\\Textures\\solid_white.blp");
+    T_NOT_NULL(entry); T_ASSERT(entry && entry->pinned && !entry->streamed);
+
+    R_TestProductionRegisterMap("Maps\\Next.w3x");
+    T_NULL(test_texture_entry("Maps\\MapOverlay.w3x\\Textures\\minimap_hero.blp"));
+    entry = test_texture_entry("TestUI\\Textures\\solid_white.blp");
+    T_NOT_NULL(entry); T_ASSERT(entry && entry->pinned && !entry->streamed);
+    T_EQ(texture_delete_count, 1);
+
+    R_TestProductionRegisterMap(NULL);
+    R_ShutdownTextureCache();
+    cache_minimap_textures = false;
+    SFileCloseArchive(minimap_test_map_archive); minimap_test_map_archive = NULL;
+    SFileCloseArchive(minimap_test_base_archive); minimap_test_base_archive = NULL;
+    free(minimap_test_map_data); minimap_test_map_data = NULL;
 }
 
 TEST(renderer_texture, persistent_then_streamed_remains_pinned) {
