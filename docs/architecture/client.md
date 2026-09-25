@@ -56,6 +56,10 @@ use this one implementation. Bindings and independent config options select beha
 Controller changes are typed `INPUTCMD` operations: focus XY, orbit Euler/distance, or movement bits/milliseconds.
 Game commands such as selection and abilities continue through `clc_stringcmd`.
 
+Shared input sends a game-specific string command only when the selected game's `CL_Game*` hook provides one.
+`CL_GameOrderQueueReleaseCommand()` is implemented by Warcraft III and returns `NULL` in WoW and SC2, so the
+WC3-only `orderqueuerelease` command is not sent to servers without its handler. See the [WC3 Shift Order Queue](../games/warcraft-3/order-queue.md#input-protocol).
+
 SDL window events remain client-owned. Events that can change the OpenGL drawable (`MOVED`, `RESIZED`, `SIZE_CHANGED`, and `DISPLAY_CHANGED` on SDL versions that provide it) call the mandatory renderer `WindowChanged` export. The renderer only marks drawable state dirty at that point; the next `R_BeginFrame` re-queries the drawable once after event pumping has completed. This preserves the client/renderer boundary and avoids steady-state drawable polling.
 
 ### 3. CL_SendCommand

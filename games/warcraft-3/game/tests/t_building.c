@@ -4322,6 +4322,122 @@ TEST(wc3_building, starting_queued_build_replaces_queued_placeholder_with_active
     T_FEQ(worker->build_preview->s.origin2.y, 64.0f, 0.01f);
 }
 
+TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    VECTOR2 const move_target = { 0.0f, 0.0f };
+    LPCSTR build[] = { "point", "512", "64", "queue" };
+    LPEDICT queued_preview;
+    DWORD queued_spawn_time;
+
+    worker->movetype = MOVETYPE_STEP;
+    worker->think = monster_think;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &move_target, false, 0, 0.0f));
+    G_ClientCommand(clent, 4, build);
+    queued_preview = building_queued_build_preview(worker, 0);
+    T_NOT_NULL(queued_preview);
+    if (!queued_preview) return;
+    queued_spawn_time = queued_preview ? queued_preview->spawn_time : 0;
+    T_NOT_NULL(worker->goalentity);
+    T_NOT_NULL(worker->currentmove);
+    if (!worker->currentmove) return;
+    T_STREQ(worker->currentmove->animation, "walk");
+    T_ASSERT(G_UnitHasActiveOrder(worker));
+    T_EQ(G_UnitQueuedOrderCount(worker), 1);
+
+    FOR_LOOP(i, 120) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+        CM_ProcessPathJobs(65536);
+        if (!G_UnitQueuedOrderCount(worker)) break;
+    }
+
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+    T_EQ(worker->build_project, barracks);
+    T_NOT_NULL(worker->build_preview);
+    if (!worker->build_preview) return;
+    T_ASSERT(worker->build_preview != queued_preview);
+    T_FEQ(worker->build_preview->s.origin2.x, 512.0f, 0.01f);
+    T_FEQ(worker->build_preview->s.origin2.y, 64.0f, 0.01f);
+    T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
+}
+
+TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    VECTOR2 const move_target = { 0.0f, 0.0f };
+    LPCSTR build[] = { "point", "512", "64", "queue" };
+    LPEDICT queued_preview;
+    DWORD queued_spawn_time;
+
+    worker->movetype = MOVETYPE_STEP;
+    worker->think = monster_think;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &move_target, false, 0, 0.0f));
+    G_ClientCommand(clent, 4, build);
+    queued_preview = building_queued_build_preview(worker, 0);
+    T_NOT_NULL(queued_preview);
+    if (!queued_preview) return;
+    queued_spawn_time = queued_preview ? queued_preview->spawn_time : 0;
+    T_NOT_NULL(worker->goalentity);
+    T_NOT_NULL(worker->currentmove);
+    if (!worker->currentmove) return;
+    T_STREQ(worker->currentmove->animation, "walk");
+    T_ASSERT(G_UnitHasActiveOrder(worker));
+    T_EQ(G_UnitQueuedOrderCount(worker), 1);
+    clent->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    clent->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+
+    FOR_LOOP(i, 120) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+        CM_ProcessPathJobs(65536);
+        if (!G_UnitQueuedOrderCount(worker)) break;
+    }
+
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+    T_EQ(worker->build_project, 0);
+    T_NULL(worker->build_preview);
+    T_ASSERT(!queued_preview->inuse || queued_preview->spawn_time != queued_spawn_time);
+}
+
+TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-queued-build.bin";
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    VECTOR2 const point = { 512.0f, 64.0f };
+    LPEDICT clent;
+    LPEDICT worker = building_begin_barracks_placement(&clent);
+    LPEDICT preview = G_CreateBuildPreview(worker, barracks, &point);
+    DWORD const worker_number = worker->s.number;
+    DWORD const preview_number = preview ? preview->s.number : 0;
+    DWORD const preview_spawn_time = preview ? preview->spawn_time : 0;
+
+    T_ASSERT(preview != NULL);
+    if (!preview) return;
+    T_ASSERT(G_QueueUnitOrder(worker, "build", UNIT_ORDER_TARGET_BUILD, &point,
+                              preview, clent->client->ps.number, 0.0f, barracks));
+    strlcpy(level.map_path, "Maps\\Campaign\\QueuedBuildSaveTest.w3m", sizeof(level.map_path));
+    T_ASSERT(WriteGame(filename));
+
+    memset(&worker->order_queue, 0, sizeof(worker->order_queue));
+    preview->inuse = false;
+    T_ASSERT(ReadGame(filename));
+    worker = g_edicts + worker_number;
+    preview = g_edicts + preview_number;
+    T_EQ(G_UnitQueuedOrderCount(worker), 1);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_type, UNIT_ORDER_TARGET_BUILD);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].order_id, barracks);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_number, preview_number);
+    T_EQ(worker->order_queue.entries[worker->order_queue.head].target_spawn_time, preview_spawn_time);
+    T_ASSERT(preview->inuse);
+    G_ClearUnitOrderQueue(worker);
+    T_EQ(G_UnitQueuedOrderCount(worker), 0);
+    T_ASSERT(!preview->inuse || preview->spawn_time != preview_spawn_time);
+    remove(filename);
+}
+
 TEST(wc3_building, removing_worker_clears_active_and_queued_build_placeholders) {
     LPEDICT clent;
     LPEDICT worker = building_begin_barracks_placement(&clent);
