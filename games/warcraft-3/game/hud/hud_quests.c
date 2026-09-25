@@ -59,8 +59,8 @@ static void QuestDebugText(uint32_t quest_index, cstring_t field, cstring_t raw,
             (unsigned)quest_index, field ? field : "?", raw_text, resolved_text);
 }
 
-/* Retail lists enabled undiscovered quests as placeholders but only lets the
- * player open discovered quests. */
+/* Retail lists enabled undiscovered quests as placeholders; only discovered
+ * quests can be selected into the detail pane. */
 static bool QuestIsListVisible(quest_t const *quest) {
     return quest && quest->enabled;
 }
@@ -213,8 +213,9 @@ static void PopulateQuestList(frameDef_t *container, bool required, quest_t cons
 static void PopulateQuestItems(frameDef_t *container, quest_t const *quest) {
     uint32_t row = 0;
 
-    if (!container || !quest) return;
+    if (!container) return;
     ResetRowsForParent(hud.quest_item_rows, &hud.quest_item_row_count, container);
+    if (!quest) { HideUnusedRows(hud.quest_item_rows, hud.quest_item_row_count, 0); return; }
     FOR_EACH_QUESTITEM(quest, item) {
         char text[512];
         frameDef_t *item_frame, *title;
@@ -249,20 +250,20 @@ static void PopulateQuestItems(frameDef_t *container, quest_t const *quest) {
 void UI_ShowQuest(edict_t *ent, quest_t const *quest) {
     cstring_t title, description, subtitle;
 
-    if (!ent || !ent->client || !QuestIsVisibleMember(quest)) return;
+    if (!ent || !ent->client || (quest && !QuestIsVisibleMember(quest))) return;
     UI_SetCurrentClient(ent->client);
     if (!hud.quest.QuestDialog || !hud.quest_row || !hud.quest_item) {
         UI_SetCurrentClient(NULL);
         return;
     }
 
-    title = UI_LevelStringSafe(quest->title);
-    description = UI_LevelStringSafe(quest->description);
+    title = quest ? UI_LevelStringSafe(quest->title) : " ";
+    description = quest ? UI_LevelStringSafe(quest->description) : " ";
     UI_SetText(hud.quest.QuestTitleValue, "%s", title);
     hud.quest.QuestTitleValue->Font.Color = MAKE(color32_t, 252, 210, 18, 255);
     UI_SetTextPointer(hud.quest.QuestDisplay, description);
     if (hud.quest.QuestDetailsTitle)
-        UI_SetText(hud.quest.QuestDetailsTitle, "%s", UI_GetString("QUESTDESCRIPTION"));
+        UI_SetText(hud.quest.QuestDetailsTitle, "%s", quest ? UI_GetString("QUESTDESCRIPTION") : " ");
 
     subtitle = level.mapinfo ? UI_LevelStringSafe(level.mapinfo->loadingScreenTitle) : NULL;
     if (subtitle && *subtitle) {
@@ -272,11 +273,13 @@ void UI_ShowQuest(edict_t *ent, quest_t const *quest) {
         subtitle = " ";
     }
 
-    QuestDebugText(UI_QuestIndex(quest), "title", quest->title, title);
-    QuestDebugText(UI_QuestIndex(quest), "description", quest->description, description);
-    QuestDebugText(UI_QuestIndex(quest), "subtitle",
+    if (quest) {
+        QuestDebugText(UI_QuestIndex(quest), "title", quest->title, title);
+        QuestDebugText(UI_QuestIndex(quest), "description", quest->description, description);
+    }
+    if (quest) QuestDebugText(UI_QuestIndex(quest), "subtitle",
                    level.mapinfo ? level.mapinfo->loadingScreenTitle : NULL, subtitle);
-    if (QuestDebugEnabled()) {
+    if (quest && QuestDebugEnabled()) {
         QuestDebugText(UI_QuestIndex(quest), "required_heading",
                        hud.quest.QuestMainTitle ? hud.quest.QuestMainTitle->Text : NULL,
                        hud.quest.QuestMainTitle ? hud.quest.QuestMainTitle->Text : NULL);
@@ -306,11 +309,12 @@ void UI_ShowQuest(edict_t *ent, quest_t const *quest) {
 }
 
 void UI_ShowQuests(edict_t *ent) {
-    quest_t const *quest = NULL;
+    quest_t const *quest = NULL, *placeholder = NULL;
 
     if (!ent || !ent->client) return;
     ent->client->quest_until = 0;
     FOR_EACH_QUEST(q) {
+        if (!placeholder && q->enabled) placeholder = q;
         if (q->required && QuestIsVisible(q)) { quest = q; break; }
     }
     if (!quest) {
@@ -320,5 +324,5 @@ void UI_ShowQuests(edict_t *ent) {
     }
     if (quest) {
         UI_ShowQuest(ent, quest);
-    }
+    } else if (placeholder) UI_ShowQuest(ent, NULL);
 }
