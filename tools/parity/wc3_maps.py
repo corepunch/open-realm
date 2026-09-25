@@ -170,6 +170,7 @@ def generate_catalog(archives, tool):
 def load_catalog(data, tool, refresh=False, map_dirs=()):
     if override := os.environ.get('WC3_MAP_CATALOG'):
         return json.loads(Path(override).read_text())['maps']
+    data = data.expanduser().resolve()
     archives = find_archives(data)
     loose = {}
     for directory in map_dirs:

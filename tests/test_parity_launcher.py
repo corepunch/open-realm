@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shlex
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -23,8 +24,8 @@ class ParityLauncherTest(unittest.TestCase):
                                      title='Chapter One', campaign='Campaign'))
             catalog = Path(directory, 'catalog.json')
             catalog.write_text(json.dumps(dict(maps=rows)))
-            env = dict(os.environ, WC3_MAP_CATALOG=str(catalog), WC3DATA=directory, WC3_BINARY='/bin/true',
-                       WINE='/bin/true', WINEPREFIX=directory, WC3_DRY_RUN='1')
+            env = dict(os.environ, WC3_MAP_CATALOG=str(catalog), WC3DATA=directory, WC3_BINARY=sys.executable,
+                       WINE=sys.executable, WINEPREFIX=directory, WC3_DRY_RUN='1')
             result = subprocess.run(['bash', str(ROOT / 'tools/parity/wc3.sh'), *args],
                                     env=env, text=True, capture_output=True)
         if not ok:
