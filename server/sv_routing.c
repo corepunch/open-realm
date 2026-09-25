@@ -113,19 +113,20 @@ static void heatmap_job_cancel(void) {
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Per-call perf counters; only tracked in test builds to avoid overhead. */
 static struct {
-    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed, closest_reachable_calls;
+    DWORD cache_hits, cache_misses, heatmap_iterations, pathability_checks, flow_cells_computed, closest_reachable_calls;
 } g_perf;
 
 void CM_ResetTestPathPerfStats(void) { memset(&g_perf, 0, sizeof(g_perf)); }
 
 typedef struct routePerfStats_s {
-    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed, closest_reachable_calls;
+    DWORD cache_hits, cache_misses, heatmap_iterations, pathability_checks, flow_cells_computed, closest_reachable_calls;
 } routePerfStats_t;
 
 routePerfStats_t CM_GetTestPathPerfStats(void) {
     return (routePerfStats_t){
         g_perf.cache_hits, g_perf.cache_misses,
-        g_perf.heatmap_iterations, g_perf.flow_cells_computed, g_perf.closest_reachable_calls,
+        g_perf.heatmap_iterations, g_perf.pathability_checks,
+        g_perf.flow_cells_computed, g_perf.closest_reachable_calls,
     };
 }
 #define PERF_INC(field) g_perf.field++
@@ -389,14 +390,17 @@ static BOOL step_heatmap_build(heatmapJob_t *job, DWORD work_budget) {
         int const up = un->price;
         int const ux = (int)(u % width);
         int const uy = (int)(u / width);
+        /* Cardinal directions occupy slots 0-3; diagonals reuse those bits. */
+        BYTE pathable_neighbors = 0;
         FOR_LOOP(i, 8) {
             int const nx = ux + dx[i];
             int const ny = uy + dy[i];
             if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, job->radius_cells, job->blocked_flags))
                 continue;
+            pathable_neighbors |= 1 << i;
             if (i >= 4) {
-                BOOL const side_x = path_ok(nx, uy, job->radius_cells, job->blocked_flags);
-                BOOL const side_y = path_ok(ux, ny, job->radius_cells, job->blocked_flags);
+                BOOL const side_x = pathable_neighbors & (1 << (dx[i] < 0 ? 0 : 1));
+                BOOL const side_y = pathable_neighbors & (1 << (dy[i] < 0 ? 2 : 3));
                 if (!(side_x && side_y)) continue;
             }
             DWORD const v = (DWORD)nx + (DWORD)ny * width;
@@ -792,6 +796,8 @@ static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int r
     DWORD stride, blocked;
     DWORD const *prefix;
     BYTE const flags = normalize_blocked_flags(blocked_flags);
+
+    PERF_INC(pathability_checks);
 
     if (x0 < 0 || y0 < 0 || x1 >= (int)pathmap.width || y1 >= (int)pathmap.height)
         return false;
