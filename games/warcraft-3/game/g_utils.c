@@ -8,6 +8,11 @@ typedef struct {
 static deferred_free_t deferred_frees[MAX_ENTITIES];
 static uint32_t deferred_free_count;
 
+/* A trapped unit keeps its identity but is absent from normal world interaction. */
+bool G_UnitIsWorldActive(edict_t const *ent) {
+    return ent && ent->inuse && !(ent->aiflags & AI_SOUL_TRAPPED);
+}
+
 /* Drop a queued removal when another lifecycle path frees the same edict first. */
 static void G_CancelDeferredFree(edict_t *ent) {
     FOR_LOOP(i, deferred_free_count) {

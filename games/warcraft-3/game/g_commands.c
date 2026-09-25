@@ -356,7 +356,7 @@ bool G_UnitCanBeSelected(gameClient_t *client, edict_t const *ent) {
         return false;
     }
     if ((ent->svflags & SVF_DEADMONSTER) || ent->health.value <= 0.0f ||
-        (ent->aiflags & AI_SOUL_TRAPPED) ||
+        !G_UnitIsWorldActive(ent) ||
         (ent->s.flags & EF_NOT_SELECTABLE)) {
         return false;
     }
@@ -377,7 +377,7 @@ bool G_UnitCanControl(gameClient_t *client, edict_t const *ent) {
      * selected unit via G_IsEntitySelected(), which filters dead, hidden, and
      * unselectable entities.  Keeping these decisions separate prevents fog
      * or presentation state from revoking ownership/shared-control rights. */
-    if (!client || !ent || !ent->inuse || (ent->aiflags & AI_SOUL_TRAPPED)) {
+    if (!client || !G_UnitIsWorldActive(ent)) {
         return false;
     }
     owner = ent->s.player;

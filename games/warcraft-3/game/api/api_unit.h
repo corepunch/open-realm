@@ -148,7 +148,7 @@ uint32_t ShowUnit(jass_t *j) {
     if (!whichUnit) {
         return 0;
     }
-    if (show && (whichUnit->aiflags & AI_SOUL_TRAPPED)) return 0;
+    if (show && !G_UnitIsWorldActive(whichUnit)) return 0;
     was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (show) {
         whichUnit->s.renderfx &= ~RF_HIDDEN;

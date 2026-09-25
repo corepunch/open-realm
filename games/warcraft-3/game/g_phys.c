@@ -177,10 +177,10 @@ static bool G_UnitRegeneratesHP(edict_t const *ent) {
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(edict_t *ent) {
     if (!ent->inuse) return; /* defensive: freed edicts carry no simulation state */
-    bool const soul_trapped = !!(ent->aiflags & AI_SOUL_TRAPPED);
+    bool const world_active = G_UnitIsWorldActive(ent);
     spell_run_frame(ent);
     unit_updatestatuses(ent);
-    if (!soul_trapped) {
+    if (world_active) {
         SAFE_CALL(ent->prethink, ent);
         switch (ent->movetype) {
             case MOVETYPE_STEP: SV_Physics_Step(ent); break;
@@ -193,7 +193,7 @@ void G_RunEntity(edict_t *ent) {
     }
     G_RunConstructionFrame(ent);
     G_RunBuildingUpgradeFrame(ent);
-    if (!soul_trapped) SAFE_CALL(ent->think, ent);
+    if (world_active) SAFE_CALL(ent->think, ent);
     /* Mana regeneration (WC3 'umpr', mana/second), plus a hero's Intelligence
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
      * hero.intel is 0 for non-heroes). */

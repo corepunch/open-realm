@@ -2847,6 +2847,7 @@ void G_ClientSetCameraPosition(edict_t *, vector2_t const *);
 //  s_skills.c
 float AB_Data(cstring_t, uint32_t, uint32_t);
 uint32_t GetAbilityIndex(abilityProc_t);
+void S_SpellUnitTargetApproachThink(edict_t *);
 void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c
@@ -2855,6 +2856,7 @@ int G_AttackDamageWithType(edict_t *, edict_t *, int, uint32_t);
 void T_Damage(edict_t *, edict_t *, int);
 
 // g_utils.c
+bool G_UnitIsWorldActive(edict_t const *);
 void G_FreeEdict(edict_t *);
 void G_DeferFreeEdict(edict_t *);
 bool G_IsDeferredFree(edict_t const *);
