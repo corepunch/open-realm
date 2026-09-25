@@ -57,11 +57,11 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
         "C;Y5;X1;K\"AIt6\"\nC;Y5;X2;K\"AIat\"\nC;Y5;X3;K\"6\"\n"
         "C;Y6;X1;K\"AId1\"\nC;Y6;X2;K\"AIde\"\nC;Y6;X3;K\"1\"\nE\n";
     const char items[] =
-        "ID;PWXL;N;EBB;Y4;X2\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
-        "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AItg\"\n"
-        "C;Y3;X1;K\"rde2\"\nC;Y3;X2;K\"AIt6\"\n"
-        "C;Y4;X1;K\"spro\"\nC;Y4;X2;K\"AId1\"\nE\n";
+        "ID;PWXL;N;EBB;Y4;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AItg\"\nC;Y2;X3;K\"true\"\n"
+        "C;Y3;X1;K\"rde2\"\nC;Y3;X2;K\"AIt6\"\nC;Y3;X3;K\"true\"\n"
+        "C;Y4;X1;K\"spro\"\nC;Y4;X2;K\"AId1\"\nC;Y4;X3;K\"true\"\nE\n";
     cstring_t path = "/tmp/openwarcraft3-item-alias-save.bin";
     uint32_t codes[] = { MAKEFOURCC('r','a','t','f'), MAKEFOURCC('r','d','e','2'), MAKEFOURCC('s','p','r','o') };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
@@ -113,9 +113,9 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
         "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"0\"\n"
         "C;Y3;X1;K\"AIat\"\nC;Y3;X2;K\"AIat\"\nC;Y3;X3;K\"3\"\nE\n";
     const char items[] =
-        "ID;PWXL;N;EBB;Y2;X2\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
-        "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AIat\"\nE\n";
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AIat\"\nC;Y2;X3;K\"true\"\nE\n";
     slkTestData_t *enabled = parse_slk_string(enabled_slk);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", enabled);
     slkTestData_t *idata = parse_slk_string(items);
@@ -253,10 +253,10 @@ TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
         "C;Y3;X1;K\"AIob\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"13\"\n"
         "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\nC;Y4;X4;K\"1\"\nE\n";
     const char items[] =
-        "ID;PWXL;N;EBB;Y3;X2\n"
-        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
-        "C;Y2;X1;K\"orbf\"\nC;Y2;X2;K\"AIfb\"\n"
-        "C;Y3;X1;K\"orbr\"\nC;Y3;X2;K\"AIob\"\nE\n";
+        "ID;PWXL;N;EBB;Y3;X3\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\n"
+        "C;Y2;X1;K\"orbf\"\nC;Y2;X2;K\"AIfb\"\nC;Y2;X3;K\"true\"\n"
+        "C;Y3;X1;K\"orbr\"\nC;Y3;X2;K\"AIob\"\nC;Y3;X3;K\"true\"\nE\n";
     uint32_t codes[] = { MAKEFOURCC('o','r','b','f'), MAKEFOURCC('o','r','b','r') };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);

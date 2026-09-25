@@ -76,6 +76,29 @@ static void selection_native_test_write(pfWriteType_t type, void const *data) {
 
 static void selection_native_test_unicast(edict_t *ent) { (void)ent; }
 
+TEST(wc3_api, revive_hero_location_native_restores_grom_style_death) {
+    edict_t *hero;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit hero = null\n"
+        "  location destination = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set hero = CreateUnit(Player(0), 'Hpal', 32.0, 32.0, 0.0)\n"
+        "  call KillUnit(hero)\n"
+        "  set destination = Location(128.0, 192.0)\n"
+        "  call BJassAssert(ReviveHeroLoc(hero, destination, false), \"ReviveHeroLoc returned false\")\n"
+        "endfunction\n"));
+    hero = find_test_unit(MAKEFOURCC('H','p','a','l'));
+    T_NOT_NULL(hero);
+    T_FEQ(hero->health.max_value, 650.0f, 0.01f);
+    T_ASSERT(!M_IsDead(hero));
+    T_FEQ(hero->s.origin2.x, 128.0f, 0.001f);
+    T_FEQ(hero->s.origin2.y, 192.0f, 0.001f);
+}
+
 TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;

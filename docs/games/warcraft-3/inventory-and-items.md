@@ -157,6 +157,75 @@ Player/manual drop paths honor that effective value. Explicit jass_t inventory
 manipulation still bypasses the player restriction, so campaign scripts can
 move an undroppable quest item deliberately. Drop-on-death remains a separate
 inventory policy, matching Warcraft's distinct droppable and death-drop controls.
+Synthetic tests that replace `ItemData.slk` must include the `droppable` column
+and set it on rows whose scenario expects player drops; an omitted boolean parses
+as false and correctly blocks the manual drop path.
+
+## Soul Gem (`gsou` / `soul`, `AIso` / `Asou`)
+
+Soul Trap is owned by `CAbilitySoulTrap` in `skills/s_item.c`. `gsou` supplies
+the targeted `AIso` ability; successful execution follows the shared spell
+target and range checks, then binds the existing target edict to the carrier.
+The stock `AIso` target mask (`enemy,ground,hero`) selects enemy Heroes through
+authored data. The handler does not hard-code a Hero check, so custom target
+masks remain usable.
+
+Capture does not enter `unit_die`, change ownership, or replace the unit handle.
+It records a carrier-owned linked list and a target-side carrier pointer with
+spawn generations, marks the target `AI_SOUL_TRAPPED`, cancels its current
+orders/channel, hides and unlinks it, and clears selection. `G_RunEntity` skips
+world movement and unit think while trapped; status timers and construction or
+upgrade progress still use their normal paths. Selection, control, spell
+targeting, and region-touch processing reject or ignore trapped units. The
+target remains alive with its original health and jass_t handle.
+
+The carrier receives the `Asou` lifecycle ability. Its death releases every
+bound target at the carrier's death coordinates, removes the corresponding
+filled `soul` item, and clears the forced reveal. Removing `Asou` from the
+trapped target also ends the relationship; Orc08 uses this during its Jaina
+ritual sequence, then moves Grom and runs its campaign-specific presentation.
+Removing a carrier without death uses relationship cleanup so targets are not
+left orphaned. There is no generic duration timer.
+
+The target owner's fog query recognizes the carrier through
+`S_SoulTrapRevealsCarrier`. This is unit-specific forced visibility: it follows
+carrier movement and does not mark the surrounding fog cells visible or explored.
+The normal visibility path resumes when the relationship ends.
+
+Final-charge item use must preserve the `GetManipulatedItem()` handle while
+jass_t handles `EVENT_PLAYER_UNIT_USE_ITEM`. `G_CompleteItemUse` detaches the
+perishable `gsou` immediately but retains its edict while a use event or sleeping
+jass_t response references it. After the response finishes,
+`S_SoulTrapFinalizeConsumedItem` binds the map-created `soul` item to that
+specific trapped target (or creates one from the `soul` ItemData row when no
+script created it), then makes the filled item nondroppable. Each item and
+target retain their own link, so multiple traps do not share one filled item.
+
+The local War3local `Orc08.w3m` script confirms these integration points:
+
+- `Trig_Thrall_Uses_Soul_Gem_Gets_Soul` listens for Player 0's use-item event,
+  waits 0.10 seconds, adds `soul` to Thrall, makes it nondroppable, and completes
+  the Grom capture objective.
+- The ritual path removes the filled item and removes `Asou` from `udg_Grom`
+  before moving or replacing Grom.
+- `Trig_Grom_Dead` calls `ReviveHeroLoc` with the Grom-pop rectangle center.
+  The jass_t native now delegates to `G_ReviveHero`, preserving the unit edict and
+  restoring its live Hero state at that location.
+
+The focused tests are `wc3_items.soul_gem*`,
+`wc3_items.consumed_perishable*`, `wc3_api.revive_hero_location*`, and
+`wc3_save.soul_trap_links*`; they run against both ROC and TFT fixture schemas.
+They cover target-mode entry, stock target filtering, no death event, the
+Orc08-style scripted filled item, delayed use-event identity, visibility,
+multiple captures on one carrier, carrier-death release, and relationship
+save/load. Run them with:
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_items.soul_gem*'
+make test-wc3-engine WC3_PATTERN='wc3_items.consumed_perishable*'
+make test-wc3-engine WC3_PATTERN='wc3_api.revive_hero_location*'
+make test-wc3-engine WC3_PATTERN='wc3_save.soul_trap_links*'
+```
 
 ## Inventory Presentation
 

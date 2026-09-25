@@ -3952,6 +3952,19 @@ SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "movement.patrol_target", mo
 SAVE_PTR_FIELD_TEST(field_goal_entity_round_trip, "goalentity", goalentity, 0)
 SAVE_PTR_FIELD_TEST(field_item_drop_round_trip, "item_drop", item_drop, 0)
 SAVE_PTR_FIELD_TEST(field_spell_item_round_trip, "spell_item", spell_item, 0)
+SAVE_PTR_FIELD_TEST(field_soul_trap_head_round_trip, "soul_trap_head", soul_trap_head, 0)
+SAVE_PTR_FIELD_TEST(field_soul_trap_carrier_round_trip, "soul_trap_carrier", soul_trap_carrier, 0)
+SAVE_PTR_FIELD_TEST(field_soul_trap_next_round_trip, "soul_trap_next", soul_trap_next, 0)
+SAVE_PTR_FIELD_TEST(field_item_pending_use_carrier_round_trip, "item.pending_use_carrier", item.pending_use_carrier, 0)
+SAVE_PTR_FIELD_TEST(field_item_soul_target_round_trip, "item.soul_target", item.soul_target, 0)
+SAVE_INT_FIELD_TEST(field_soul_trap_head_spawn_round_trip, soul_trap_head_spawn_time, 210)
+SAVE_INT_FIELD_TEST(field_soul_trap_carrier_spawn_round_trip, soul_trap_carrier_spawn_time, 220)
+SAVE_INT_FIELD_TEST(field_soul_trap_next_spawn_round_trip, soul_trap_next_spawn_time, 230)
+SAVE_INT_FIELD_TEST(field_soul_trapped_ability_added_round_trip, soul_trapped_ability_added, 1)
+SAVE_INT_FIELD_TEST(field_soul_possession_added_round_trip, soul_possession_added, 1)
+SAVE_INT_FIELD_TEST(field_item_pending_use_carrier_spawn_round_trip, item.pending_use_carrier_spawn_time, 240)
+SAVE_INT_FIELD_TEST(field_item_pending_use_slot_round_trip, item.pending_use_slot, 4)
+SAVE_INT_FIELD_TEST(field_item_soul_target_spawn_round_trip, item.soul_target_spawn_time, 250)
 SAVE_PTR_FIELD_TEST(field_combat_entity_round_trip, "combatentity", combatentity, 0)
 SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "secondarygoal", secondarygoal, 0)
 SAVE_PTR_FIELD_TEST(field_owner_round_trip, "owner", owner, 0)
@@ -3960,6 +3973,44 @@ SAVE_PTR_FIELD_TEST(field_build_preview_round_trip, "build_preview", build_previ
 
 #undef SAVE_PTR_FIELD_TEST
 #undef SAVE_INT_FIELD_TEST
+
+TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-soul-trap.bin";
+    reset_entities(); setup_test_world();
+    edict_t *carrier = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64.0f, 64.0f);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 96.0f, 64.0f);
+    edict_t *filled = G_Spawn();
+    filled->class_id = MAKEFOURCC('s','o','u','l');
+    filled->targtype = TARG_ITEM;
+    carrier->s.player = 0; target->s.player = 1;
+    carrier->soul_trap_head = target; carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->soul_trap_carrier = carrier; target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    target->soul_trap_item = filled; target->soul_trap_item_spawn_time = filled->spawn_time;
+    filled->item.soul_target = target; filled->item.soul_target_spawn_time = target->spawn_time;
+    target->aiflags |= AI_SOUL_TRAPPED;
+    target->s.renderfx |= RF_HIDDEN; target->svflags |= SVF_NOCLIENT; target->s.flags |= EF_NOT_SELECTABLE;
+
+    T_ASSERT(WriteGame(filename));
+    carrier->soul_trap_head = NULL; carrier->soul_trap_head_spawn_time = 0;
+    target->soul_trap_carrier = NULL; target->soul_trap_carrier_spawn_time = 0;
+    target->soul_trap_item = NULL; target->soul_trap_item_spawn_time = 0;
+    filled->item.soul_target = NULL; filled->item.soul_target_spawn_time = 0;
+    target->aiflags = 0; target->s.renderfx = 0; target->svflags = 0; target->s.flags = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(carrier->soul_trap_head == target);
+    T_EQ(carrier->soul_trap_head_spawn_time, target->spawn_time);
+    T_ASSERT(target->soul_trap_carrier == carrier);
+    T_EQ(target->soul_trap_carrier_spawn_time, carrier->spawn_time);
+    T_ASSERT(target->soul_trap_item == filled);
+    T_EQ(target->soul_trap_item_spawn_time, filled->spawn_time);
+    T_ASSERT(filled->item.soul_target == target);
+    T_EQ(filled->item.soul_target_spawn_time, target->spawn_time);
+    T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
+    T_ASSERT(target->s.renderfx & RF_HIDDEN);
+    T_ASSERT(!M_IsDead(target));
+    T_ASSERT(S_SoulTrapRevealsCarrier(carrier, 1));
+    remove(filename);
+}
 
 TEST(wc3_save, clears_nested_process_owned_fields) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";

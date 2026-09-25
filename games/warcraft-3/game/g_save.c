@@ -560,6 +560,11 @@ static field_t const acolyte_mine_fields[] = {
 
 static field_t const item_fields[] = {
     TF(edictItem_s, carrier, F_EDICT, 0, FIELD_NONE),
+    TF(edictItem_s, pending_use_carrier, F_EDICT, 0, FIELD_NONE),
+    TF(edictItem_s, soul_target, F_EDICT, 0, FIELD_NONE),
+    TF(edictItem_s, pending_use_carrier_spawn_time, F_INT),
+    TF(edictItem_s, pending_use_slot, F_INT),
+    TF(edictItem_s, soul_target_spawn_time, F_INT),
     /* drop_id, user_data / pawnable_* are plain values retained by the raw edict record. */
     { NULL, 0, 0, 0, 0, 0 }
 };
@@ -743,6 +748,16 @@ field_t edict_fields[] = {
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, soul_trap_head, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, soul_trap_carrier, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, soul_trap_next, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, soul_trap_item, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, soul_trap_head_spawn_time, F_INT),
+    F(edict_s, soul_trap_carrier_spawn_time, F_INT),
+    F(edict_s, soul_trap_next_spawn_time, F_INT),
+    F(edict_s, soul_trap_item_spawn_time, F_INT),
+    F(edict_s, soul_trapped_ability_added, F_INT),
+    F(edict_s, soul_possession_added, F_INT),
     F(edict_s, combatentity, F_EDICT, 0, FIELD_NONE),
     F(edict_s, secondarygoal, F_EDICT, 0, FIELD_NONE),
     F(edict_s, owner, F_EDICT, 0, FIELD_NONE),

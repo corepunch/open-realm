@@ -333,7 +333,8 @@ bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
 }
 
 bool S_SpellIsAliveTarget(edict_t *target) {
-    return target && target->inuse && (target->svflags & SVF_MONSTER) && !M_IsDead(target);
+    return target && target->inuse && (target->svflags & SVF_MONSTER) &&
+        !(target->aiflags & AI_SOUL_TRAPPED) && !M_IsDead(target);
 }
 
 bool S_SpellIsEnemy(edict_t *caster, edict_t *target) {
@@ -391,7 +392,8 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     uint32_t ability_level;
     bool structure;
 
-    if (!target || !target->inuse || M_IsDead(target) || S_UnitIsCycloned(target)) {
+    if (!target || !target->inuse || M_IsDead(target) ||
+        (target->aiflags & AI_SOUL_TRAPPED) || S_UnitIsCycloned(target)) {
         return false;
     }
     if (S_UnitSpellImmune(target)) return false;
@@ -657,12 +659,15 @@ static bool spell_item_source_valid(edict_t const *caster, edict_t const *item, 
 static bool spell_execute_unit_target(spellUnitTargetParams_t const *params) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = params->target };
     abilityitem_t item = { .code = params->code, .ability = params->spell };
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &st,
+                              .source_item = params->source_item,
+                              .source_item_spawn_time = params->source_item_spawn_time);
 
     spell_commit(params->caster, params->code, params->level);
     if (params->spell->flags & AB_CHANNEL)
         spell_begin_channel(params->caster, params->code);
     spell_publish_effect(params->caster, params->code, st);
-    bool const executed = spell_message(params->caster, A_EXECUTE, &item, &st);
+    bool const executed = S_AbilityMessage(params->caster, A_EXECUTE, &call);
     if (executed && params->source_item) G_CompleteItemUse(params->caster, params->source_item);
     /* Existing unit spells historically accepted the order once validation and
      * commit succeeded even if a handler returned false from A_EXECUTE. Item

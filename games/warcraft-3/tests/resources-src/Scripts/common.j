@@ -383,6 +383,7 @@ globals
     constant playerunitevent EVENT_PLAYER_HERO_LEVEL = ConvertPlayerUnitEvent(41)
     constant playerunitevent EVENT_PLAYER_UNIT_SUMMON = ConvertPlayerUnitEvent(47)
     constant playerunitevent EVENT_PLAYER_UNIT_PICKUP_ITEM = ConvertPlayerUnitEvent(49)
+    constant playerunitevent EVENT_PLAYER_UNIT_USE_ITEM = ConvertPlayerUnitEvent(50)
     constant gameevent EVENT_GAME_STATE_LIMIT = ConvertGameEvent(3)
     constant gameevent EVENT_GAME_ENTER_REGION = ConvertGameEvent(5)
     constant unitevent EVENT_UNIT_DAMAGED = ConvertUnitEvent(52)

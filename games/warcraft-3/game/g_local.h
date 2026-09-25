@@ -197,6 +197,7 @@ enum {
     AI_CORPSE_RESERVED = 1 << 9, /* corpse lifecycle; an active consuming ability owns this corpse */
     AI_CORPSE_IN_CARGO = 1 << 10, /* corpse lifecycle; stored in a Meat Wagon cargo slot */
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
+    AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
 };
 
 typedef enum {
@@ -758,6 +759,8 @@ typedef intptr_t (*abilityProc_t)(edict_t *ent, abilityMsg_t msg, abilityCall_t 
 
 struct ability_call_s {
     abilityitem_t const *item;
+    edict_t *source_item; /* inventory item that initiated an asynchronous item spell, if any */
+    uint32_t source_item_spawn_time;
     union {
         spellTarget_t const *target;
         edict_t *client;
@@ -1451,6 +1454,11 @@ struct edict_s {
         bool droppable_set;   /* SetItemDroppable overrode ItemData.droppable */
         bool droppable;       /* effective droppable when droppable_set */
         bool pending_use_removal; /* final perishable charge retained for use-event context */
+        edict_t *pending_use_carrier;
+        uint32_t pending_use_carrier_spawn_time;
+        int32_t pending_use_slot;
+        edict_t *soul_target; /* pending AIso target or target bound to filled Asou item */
+        uint32_t soul_target_spawn_time;
     } item;
     struct edictDestructable_s {
         bool initialized;
@@ -1566,6 +1574,16 @@ struct edict_s {
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
     edict_t *spell_item; /* originating item for a pending walk-into-range spell */
     uint32_t spell_item_spawn_time;
+    edict_t *soul_trap_head; /* carrier-owned list of trapped unit edicts */
+    uint32_t soul_trap_head_spawn_time;
+    edict_t *soul_trap_carrier; /* target-side back reference */
+    uint32_t soul_trap_carrier_spawn_time;
+    edict_t *soul_trap_next; /* target-side next link for the carrier list */
+    uint32_t soul_trap_next_spawn_time;
+    edict_t *soul_trap_item; /* filled item bound to this trapped unit */
+    uint32_t soul_trap_item_spawn_time;
+    bool soul_trapped_ability_added; /* Asou was added by the trap to this target */
+    bool soul_possession_added; /* Asou was added by the trap to this carrier */
     edict_t *combatentity;
     edict_t *secondarygoal;
     edict_t *owner;
@@ -3091,6 +3109,8 @@ bool G_InventoryCanUseItems(edict_t const *unit);
 bool G_InventoryCanGetItems(edict_t const *unit);
 bool G_InventoryCanDropItems(edict_t const *unit);
 bool G_ItemDroppable(edict_t const *item);
+bool S_SoulTrapRevealsCarrier(edict_t const *carrier, uint32_t viewer);
+void S_SoulTrapFinalizeConsumedItem(edict_t *item);
 void G_DropInventoryOnDeath(edict_t *unit);
 bool G_UnitHasInventory(edict_t *unit);
 uint32_t G_ItemCharges(edict_t const *item);
