@@ -1581,6 +1581,197 @@ TEST(wc3_items, soul_gem_abilities_are_registered_for_targeted_item_flow) {
     T_ASSERT(trapped->flags & AB_PASSIVE);
 }
 
+TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
+    gameClient_t *client;
+    edict_t *clent, *carrier, *grom, *gem;
+    char number[16];
+    cstring_t select[] = { "select", number };
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    level.alliances[0][1] = level.alliances[1][0] = 0;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit grom = null\n"
+        "  location destination = null\n"
+        "endglobals\n"
+        "function grom_died takes nothing returns boolean\n"
+        "  return GetDyingUnit() == grom\n"
+        "endfunction\n"
+        "function revive_grom takes nothing returns nothing\n"
+        "  call BJassAssert(ReviveHeroLoc(grom, destination, false), \"death trigger failed to revive Grom\")\n"
+        "  call PauseUnit(grom, true)\n"
+        "endfunction\n"
+        "function gem_used takes nothing returns nothing\n"
+        "  call TriggerSleepAction(0.10)\n"
+        "  call UnitAddItemById(GetManipulatingUnit(), 'soul')\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger died = CreateTrigger()\n"
+        "  local trigger used = CreateTrigger()\n"
+        "  set grom = CreateUnit(Player(1), 'Hpal', 256.0, 64.0, 0.0)\n"
+        "  set destination = Location(96.0, 64.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(died, Player(1), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddCondition(died, Condition(function grom_died))\n"
+        "  call TriggerAddAction(died, function revive_grom)\n"
+        "  call TriggerRegisterPlayerUnitEvent(used, Player(0), EVENT_PLAYER_UNIT_USE_ITEM, null)\n"
+        "  call TriggerAddAction(used, function gem_used)\n"
+        "endfunction\n"));
+
+    carrier = make_item_test_inventory_unit(64, 64);
+    carrier->s.player = 0;
+    carrier->svflags |= SVF_MONSTER;
+    grom = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 1) {
+            grom = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(grom);
+    if (!grom) return;
+    grom->targtype = TARG_GROUND; /* The Orc08 Opgh map unit is a ground Hero. */
+    T_EQ((int)grom->s.origin2.x, 256);
+    G_SetHealth(grom, 0.0f);
+    unit_die(grom, NULL);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!M_IsDead(grom));
+    T_ASSERT(!(grom->svflags & SVF_DEADMONSTER));
+    T_FEQ(grom->s.origin2.x, 96.0f, 0.001f);
+    T_FEQ(grom->s.origin2.y, 64.0f, 0.001f);
+    T_ASSERT(grom->paused);
+    T_ASSERT(G_UnitIsWorldActive(grom));
+    T_ASSERT(grom->svflags & SVF_MONSTER);
+    T_EQ(grom->targtype, TARG_GROUND);
+    T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','I','s','o'), carrier, grom));
+
+    gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
+    gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
+    gem->item.charges = 1;
+    T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
+    clent = G_GetPlayerEntityByNumber(0);
+    client = clent->client;
+    G_SelectEntity(client, carrier);
+    G_UseItem(carrier, 0);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    snprintf(number, sizeof(number), "%u", (unsigned)grom->s.number);
+    G_ClientCommand(clent, 2, select);
+
+    T_NULL(client->menu.on_entity_selected);
+    T_ASSERT(grom->aiflags & AI_SOUL_TRAPPED);
+    T_ASSERT(!M_IsDead(grom));
+    T_ASSERT(grom->s.renderfx & RF_HIDDEN);
+    T_ASSERT(carrier->soul_trap_head == grom);
+    T_ASSERT(grom->soul_trap_carrier == carrier);
+    T_ASSERT(gem->item.pending_use_removal);
+    G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
+    level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
+    T_ASSERT(carrier->inventory[0] && carrier->inventory[0]->class_id == MAKEFOURCC('s','o','u','l'));
+}
+
+TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispatch) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X12\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"levels\"\nC;Y1;X8;K\"DataA1\"\n"
+        "C;Y1;X9;K\"DataB1\"\nC;Y1;X10;K\"DataC1\"\nC;Y1;X11;K\"DataD1\"\nC;Y1;X12;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AIso\"\nC;Y2;X2;K\"AIso\"\nC;Y2;X3;K\"enemy,ground,hero\"\n"
+        "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"96\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X8;K\"6\"\nC;Y3;X9;K\"0\"\n"
+        "C;Y3;X10;K\"1\"\nC;Y3;X11;K\"1\"\nC;Y3;X12;K\"1\"\n"
+        "C;Y4;X1;K\"Asou\"\nC;Y4;X2;K\"Asou\"\nC;Y4;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    gameClient_t *client;
+    edict_t *clent, *carrier, *grom, *gem, *thinker;
+    uint32_t thinker_slot;
+    char number[16];
+    cstring_t select[] = { "select", number };
+
+    old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    level.alliances[0][1] = level.alliances[1][0] = 0;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit grom = null\n"
+        "  location destination = null\n"
+        "endglobals\n"
+        "function grom_died takes nothing returns boolean\n"
+        "  return GetDyingUnit() == grom\n"
+        "endfunction\n"
+        "function revive_grom takes nothing returns nothing\n"
+        "  call BJassAssert(ReviveHeroLoc(grom, destination, false), \"death trigger failed to revive Grom\")\n"
+        "  call PauseUnit(grom, true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger died = CreateTrigger()\n"
+        "  set grom = CreateUnit(Player(1), 'Hpal', 1400.0, 64.0, 0.0)\n"
+        "  set destination = Location(1400.0, 64.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(died, Player(1), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddCondition(died, Condition(function grom_died))\n"
+        "  call TriggerAddAction(died, function revive_grom)\n"
+        "endfunction\n"));
+
+    carrier = make_item_test_inventory_unit(64, 64);
+    carrier->s.player = 0;
+    carrier->svflags |= SVF_MONSTER;
+    grom = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 1) {
+            grom = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(grom);
+    if (!grom) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    grom->targtype = TARG_GROUND;
+    gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
+    gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
+    gem->item.charges = 1;
+    T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
+
+    clent = G_GetPlayerEntityByNumber(0);
+    client = clent->client;
+    G_SelectEntity(client, carrier);
+    G_UseItem(carrier, 0);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    snprintf(number, sizeof(number), "%u", (unsigned)grom->s.number);
+    thinker_slot = globals.num_edicts;
+    G_ClientCommand(clent, 2, select);
+    thinker = &globals.edicts[thinker_slot];
+    T_ASSERT(thinker->inuse && thinker->think == S_SpellUnitTargetApproachThink);
+    T_ASSERT(carrier->goalentity == grom);
+    T_FEQ(S_SpellRange(MAKEFOURCC('A','I','s','o'), 1), 96.0f, 0.001f);
+    T_ASSERT(Vector2_distance(&carrier->s.origin2, &grom->s.origin2) > S_SpellRange(MAKEFOURCC('A','I','s','o'), 1));
+
+    G_SetHealth(grom, 0.0f);
+    unit_die(grom, NULL);
+    T_ASSERT(M_IsDead(grom));
+    /* Model a frame where the approach check runs before the queued death-trigger revival. */
+    thinker->think(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_ASSERT(!(grom->aiflags & AI_SOUL_TRAPPED));
+    T_ASSERT(carrier->inventory[0] == gem);
+    T_ASSERT(!gem->item.pending_use_removal);
+
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!M_IsDead(grom));
+    T_ASSERT(grom->paused);
+    T_ASSERT(G_UnitIsWorldActive(grom));
+    T_ASSERT(!(grom->aiflags & AI_SOUL_TRAPPED));
+    T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','I','s','o'), carrier, grom));
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     gameClient_t *client;
     edict_t *clent, *carrier, *target, *target2, *gem, *gem2, *filled, *filled2, *existing_soul;
