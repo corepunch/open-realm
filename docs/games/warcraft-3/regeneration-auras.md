@@ -1,5 +1,8 @@
 # Regeneration Auras And Fountains
 
+See [Aura Targets And Overlays](aura-targets-and-overlays.md) for RoC's shared
+target-mask column and the static-scenery recipient boundary.
+
 ## Contract
 
 OpenRealm implements the Warcraft III regeneration-aura base codes `Aoar`, `Aabr`, and

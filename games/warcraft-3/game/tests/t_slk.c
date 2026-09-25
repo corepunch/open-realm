@@ -73,6 +73,28 @@ TEST(wc3_slk, reign_of_chaos_map_requires_real_roc_w3i_version) {
     T_ASSERT(!G_IsReignOfChaosMap(&info));
 }
 
+TEST(wc3_slk, reign_of_chaos_ability_targets_apply_to_every_rank) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"uberAlias\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"targs2\"\nC;Y1;X6;K\"targs3\"\n"
+        "C;Y2;X1;K\"AHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K3\n"
+        "C;Y2;X4;K\"air,ground,friend,self,vuln,invu\"\n"
+        "C;Y3;X1;K\"XHad\"\nC;Y3;X3;K3\n"
+        "C;Y3;X5;K\"ground,friend\"\nC;Y3;X6;K\"air,friend\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    DWORD const roc = MAKEFOURCC('A','H','a','d'), tft = MAKEFOURCC('X','H','a','d');
+
+    T_STREQ(G_AbilityLevel(roc, 1)->targs, "air,ground,friend,self,vuln,invu");
+    T_STREQ(G_AbilityLevel(roc, 2)->targs, "air,ground,friend,self,vuln,invu");
+    T_STREQ(G_AbilityLevel(roc, 3)->targs, "air,ground,friend,self,vuln,invu");
+    T_NULL(G_AbilityLevel(tft, 1)->targs);
+    T_STREQ(G_AbilityLevel(tft, 2)->targs, "ground,friend");
+    T_STREQ(G_AbilityLevel(tft, 3)->targs, "air,friend");
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_slk, sheet_reader_prefers_active_map_data_overlay) {
     stbIniCache_t data = { 0 };
     char saved_prefix[sizeof(game.data_prefix)];

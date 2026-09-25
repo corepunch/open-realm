@@ -203,12 +203,13 @@ static auraAbilityRef_t mana_shield_ability(LPEDICT ent) {
     return ref.alias ? ref : unit_ability_with_proc(ent, CAbilityManaShield);
 }
 
-/* Hidden and gameplay-invisible units do not participate in Warcraft III auras.
+/* Static scenery, hidden, and gameplay-invisible actors do not participate in auras.
  * RF_HIDDEN covers ShowUnit-style hidden state and temporary invisibility such as
  * Invisibility/Wind Walk; Permanent Invisibility is tracked independently. Fog
  * visibility and detector state are deliberately irrelevant here. */
 BOOL S_AuraUnitActive(LPCEDICT unit) {
     return unit && unit->inuse && !M_IsDead(unit) &&
+           !(unit->svflags & SVF_STATIC_SCENERY) &&
            !(unit->s.renderfx & RF_HIDDEN) && !S_PermanentInvisibilityActive(unit);
 }
 
@@ -518,7 +519,8 @@ BOOL S_RegenerationAuraUpdateDue(LPEDICT unit) {
 /* Aura presentation is an ability-owned periodic update, reached through the
  * shared ability dispatcher rather than the physics implementation. */
 void S_UpdateUnitPassiveEffects(LPEDICT unit) {
-    if (!unit || !unit->inuse || !unit->data.UnitBalance || !S_RegenerationAuraUpdateDue(unit)) return;
+    if (!unit || !unit->inuse || (unit->svflags & SVF_STATIC_SCENERY) ||
+        !unit->data.UnitBalance || !S_RegenerationAuraUpdateDue(unit)) return;
     S_UpdateRegenerationAuraEffects(unit);
     S_UpdateHeroAuraEffects(unit);
 }
