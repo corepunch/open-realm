@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 45, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 46, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -508,3 +508,8 @@ explicit approach target, approach goal, and target-incarnation guard. The two
 entity pointers use `F_EDICT` relocation and the live Way Gate move uses the
 existing `F_MMOVE` relocation. Version 44 saves are rejected by the exact-version
 guard; the `sizeof(edict_t)` header check remains an independent layout check.
+
+Version 46 adds unit-specific forced-visibility reference counts used by
+Soul Trap, plus the completed Soul Trap item links. Version 45 saves are
+rejected by the exact-version guard; the expanded `edict_t` size is checked
+separately before decoding the raw edict records.

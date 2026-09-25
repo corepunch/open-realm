@@ -3987,6 +3987,7 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     target->soul_trap_carrier = carrier; target->soul_trap_carrier_spawn_time = carrier->spawn_time;
     target->soul_trap_item = filled; target->soul_trap_item_spawn_time = filled->spawn_time;
     filled->item.soul_target = target; filled->item.soul_target_spawn_time = target->spawn_time;
+    G_AddUnitForcedVisibility(carrier, target->s.player);
     target->aiflags |= AI_SOUL_TRAPPED;
     target->s.renderfx |= RF_HIDDEN; target->svflags |= SVF_NOCLIENT; target->s.flags |= EF_NOT_SELECTABLE;
 
@@ -3995,6 +3996,7 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     target->soul_trap_carrier = NULL; target->soul_trap_carrier_spawn_time = 0;
     target->soul_trap_item = NULL; target->soul_trap_item_spawn_time = 0;
     filled->item.soul_target = NULL; filled->item.soul_target_spawn_time = 0;
+    carrier->forced_visibility_count[1] = 0;
     target->aiflags = 0; target->s.renderfx = 0; target->svflags = 0; target->s.flags = 0;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(carrier->soul_trap_head == target);
@@ -4008,7 +4010,9 @@ TEST(wc3_save, soul_trap_links_and_world_state_survive_round_trip) {
     T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
     T_ASSERT(!M_IsDead(target));
-    T_ASSERT(S_SoulTrapRevealsCarrier(carrier, 1));
+    T_EQ(carrier->forced_visibility_count[1], 1);
+    T_ASSERT(G_UnitIsForcedVisibleToPlayer(carrier, 1));
+    T_ASSERT(!G_UnitIsForcedVisibleToPlayer(carrier, 2));
     remove(filename);
 }
 

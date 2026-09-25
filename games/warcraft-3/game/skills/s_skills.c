@@ -931,6 +931,45 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     return ability && ability->proc ? ability->proc(ent, msg, call) : false;
 }
 
+bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
+    uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0}, count = 0;
+    if (!ent) return false;
+    FOR_LOOP(i, num_innate) {
+        abilityCall_t invoke = call ? *call : MAKE(abilityCall_t, 0);
+        invoke.item = innate_items + i;
+        if (S_AbilityMessage(ent, msg, &invoke)) return true;
+    }
+#define DISPATCH_UNIT_ABILITY(code_) do { \
+        uint32_t const code = (code_); bool duplicate = false; \
+        FOR_LOOP(k, count) if (seen[k] == code) { duplicate = true; break; } \
+        if (code && !duplicate && count < sizeof(seen) / sizeof(seen[0])) { \
+            seen[count++] = code; \
+            char name[5] = {0}; memcpy(name, &code, 4); \
+            if (G_ActorHasSkill(ent, name)) { \
+                abilityitem_t item = S_AbilityItem(code); \
+                if (item.ability) { \
+                    abilityCall_t invoke = call ? *call : MAKE(abilityCall_t, 0); \
+                    invoke.item = &item; \
+                    if (S_AbilityMessage(ent, msg, &invoke)) return true; \
+                } \
+            } \
+        } \
+    } while (0)
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t code = 0;
+            if (strlen(token) == 4) { memcpy(&code, token, 4); DISPATCH_UNIT_ABILITY(code); }
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added))
+        if (ent->abilities.added[i]) DISPATCH_UNIT_ABILITY(ent->abilities.added[i]);
+    FOR_LOOP(i, MAX_HERO_ABILITIES)
+        if (ent->heroabilities[i].level && ent->heroabilities[i].code)
+            DISPATCH_UNIT_ABILITY(ent->heroabilities[i].code);
+#undef DISPATCH_UNIT_ABILITY
+    return false;
+}
+
 void S_EnableAbility(edict_t *ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);

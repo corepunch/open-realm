@@ -76,6 +76,24 @@ cstring_t G_ItemAbilityList(edict_t const *item) {
     return abilities && *abilities ? abilities : NULL;
 }
 
+static bool G_ItemSendAbilityMessage(edict_t *unit, edict_t const *item, abilityMsg_t msg) {
+    abilityCall_t call = MAKE(abilityCall_t, .source_item = (edict_t *)item,
+                              .source_item_spawn_time = item ? item->spawn_time : 0);
+    return G_IsItem((edict_t *)item) && S_UnitAbilityMessage(unit, msg, &call);
+}
+
+bool G_ItemAbilitiesPreventDrop(edict_t *unit, edict_t const *item) {
+    return G_ItemSendAbilityMessage(unit, item, A_ITEM_PREVENT_DROP);
+}
+
+bool G_ItemAbilityScriptedRemove(edict_t *unit, edict_t const *item) {
+    return G_ItemSendAbilityMessage(unit, item, A_ITEM_SCRIPT_REMOVE);
+}
+
+bool G_ItemAbilityScriptedReattach(edict_t *unit, edict_t const *item) {
+    return G_ItemSendAbilityMessage(unit, item, A_ITEM_SCRIPT_REATTACH);
+}
+
 /* ItemData stores passive effects as an ability list; the item rawcode itself
  * is not an ability code. */
 static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
@@ -231,29 +249,18 @@ bool G_InventoryCanDropItems(edict_t const *unit) {
     return G_InventoryAbilityFlag(unit, 4, true);
 }
 
-static bool G_ItemHasAbility(edict_t const *item, uint32_t code) {
-    cstring_t abilities = G_ItemAbilityList(item);
-    if (!abilities) return false;
-    PARSE_LIST(abilities, token, parse_segment)
-        if (strlen(token) == 4 && FS_SLKKey(token) == code) return true;
-    return false;
-}
-
-static bool G_ItemIsSoulBound(edict_t const *item) {
-    return item && (item->class_id == MAKEFOURCC('s','o','u','l') ||
-        G_ItemHasAbility(item, MAKEFOURCC('A','s','o','u')));
-}
-
 bool G_ItemDroppable(edict_t const *item) {
     ItemData_t const *data;
 
     if (!G_IsItem(item)) return false;
-    if (G_ItemIsSoulBound(item)) return false;
     if (item->item.droppable_set) return item->item.droppable;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
-    /* Preserve the historical permissive fallback for synthetic/custom test
-     * items that do not have a normalized ItemData row. */
-    return !data || data->droppable;
+    if (!data || !data->id) {
+        fprintf(stderr, "WC3 ItemData: row unresolved for item %.4s; drop rejected\n",
+                (cstring_t)&item->class_id);
+        return false;
+    }
+    return data->droppable;
 }
 
 static bool G_InventoryDropsItemsOnDeath(edict_t const *unit) {
@@ -562,13 +569,13 @@ bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position) {
 
     if (!unit || slot >= (uint32_t)G_InventoryCapacity(unit)) return false;
     item = unit->inventory[slot];
-    if (!G_ItemDroppable(item)) return false;
+    if (!G_ItemDroppable(item) || G_ItemAbilitiesPreventDrop(unit, item)) return false;
     return G_DropItemAtInternal(unit, slot, position, true);
 }
 
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vector2_t const *position) {
     if (unit && slot < G_InventoryCapacity(unit) &&
-        G_ItemIsSoulBound(unit->inventory[slot])) return false;
+        G_ItemAbilitiesPreventDrop(unit, unit->inventory[slot])) return false;
     return G_DropItemAtInternal(unit, slot, position, true);
 }
 
@@ -585,9 +592,36 @@ void G_DropInventoryOnDeath(edict_t *unit) {
     if (!unit || !G_InventoryDropsItemsOnDeath(unit)) return;
     capacity = G_InventoryCapacity(unit);
     FOR_LOOP(slot, capacity) {
-        if (unit->inventory[slot] && !G_ItemIsSoulBound(unit->inventory[slot]))
+        if (unit->inventory[slot] && !G_ItemAbilitiesPreventDrop(unit, unit->inventory[slot]))
             G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
     }
+}
+
+bool G_DetachItemAtScripted(edict_t *unit, uint32_t slot) {
+    edict_t *item;
+
+    if (!unit || slot >= (uint32_t)G_InventoryCapacity(unit)) return false;
+    item = unit->inventory[slot];
+    if (!G_IsItem(item) || item->item.carrier != unit || item->item.inventory_slot != (int32_t)slot ||
+        item->item.in_world) return false;
+    G_ApplyItemStats(unit, item, false);
+    unit->inventory[slot] = NULL;
+    item->item.inventory_slot = -1;
+    G_RefreshInventoryUI(unit);
+    return true;
+}
+
+bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot) {
+    if (!unit || slot >= (uint32_t)G_InventoryCapacity(unit) || unit->inventory[slot] ||
+        !G_IsItem(item) || item->item.carrier != unit || item->item.inventory_slot != -1 ||
+        item->item.in_world || item->item.pending_use_removal) return false;
+    item->item.inventory_slot = (int32_t)slot;
+    unit->inventory[slot] = item;
+    G_ApplyItemStats(unit, item, true);
+    G_RefreshInventoryUI(unit);
+    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
+    return true;
 }
 
 static void G_StopDropItemOrder(edict_t *unit) {
@@ -638,7 +672,7 @@ static umove_t item_move_drop = {
 
 bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vector2_t const *position) {
     if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
-        !G_ItemDroppable(item) || (unit->aiflags & AI_IMMOBILE) ||
+        !G_ItemDroppable(item) || G_ItemAbilitiesPreventDrop(unit, item) || (unit->aiflags & AI_IMMOBILE) ||
         !G_IsItem(item) || item->item.carrier != unit || item->item.in_world ||
         item->item.inventory_slot < 0 || item->item.inventory_slot >= MAX_INVENTORY ||
         unit->inventory[item->item.inventory_slot] != item) {

@@ -72,6 +72,7 @@ BZ_ABILITY_PROC(CAbilityHolyBolt);
 BZ_ABILITY_PROC(CAbilitySimpleSpell);
 BZ_ABILITY_PROC(CAbilityModalSpell);
 BZ_ABILITY_PROC(S_AbilityMessage);
+bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call);
 BZ_ABILITY_PROC(CAbilityNoop);
 BZ_ABILITY_PROC(CAbilityPassive);
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility);

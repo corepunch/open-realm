@@ -1975,12 +1975,11 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
 /* Scripted hero revival (ReviveHero native): bring a dead hero back to life at
  * (x,y) with HP/mana set from the MiscGame revive factors (defaults: full life,
  * no mana).  Dead heroes persist (unit_decay_think) so the edict is still valid. */
-void G_ReviveHero(edict_t *ent, float x, float y) {
+bool G_ReviveHero(edict_t *ent, float x, float y) {
     float mana;
 
-    if (!ent) {
-        return;
-    }
+    if (!ent || !ent->inuse || !G_UnitIsHero(ent) || !M_IsDead(ent) ||
+        (ent->aiflags & AI_SOUL_TRAPPED)) return false;
     if (ent->revival.reviving) G_CancelHeroRevive(ent->revival.producer, ent);
     float const lifeFactor = G_MiscNum("HeroReviveLifeFactor", 1.0f);
     float const manaFactor = G_MiscNum("HeroReviveManaFactor", 0.0f);
@@ -2007,6 +2006,7 @@ void G_ReviveHero(edict_t *ent, float x, float y) {
     G_ActivateUnitFood(ent);
     unit_stand(ent); /* back to a living idle state */
     gi.LinkEntity(ent);
+    return true;
 }
 
 void SP_monster_unit(edict_t *self) {

@@ -1213,6 +1213,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     altar->s.player = hero->s.player = client->ps.number;
     altar->build = hero;
     hero->health.max_value = 500.0f;
+    hero->health.value = 0.0f;
     hero->mana.max_value = 300.0f;
     hero->svflags |= SVF_DEADMONSTER;
     hero->s.flags |= EF_NOT_SELECTABLE;
@@ -1226,7 +1227,7 @@ TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
-    G_ReviveHero(hero, 64.0f, 96.0f);
+    T_ASSERT(G_ReviveHero(hero, 64.0f, 96.0f));
 
     T_NULL(altar->build);
     T_ASSERT(hero->inuse);

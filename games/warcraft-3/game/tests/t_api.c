@@ -82,17 +82,43 @@ TEST(wc3_api, revive_hero_location_native_restores_grom_style_death) {
     setup_test_world();
     T_ASSERT(run_test_jass(
         "globals\n"
-        "  unit hero = null\n"
+        "  unit grom = null\n"
+        "  boolean gameover = false\n"
+        "  boolean gromRevived = false\n"
         "  location destination = null\n"
         "endglobals\n"
+        "function grom_dead takes nothing returns boolean\n"
+        "  return GetDyingUnit() == grom and not gameover\n"
+        "endfunction\n"
+        "function revive_grom takes nothing returns nothing\n"
+        "  set gromRevived = ReviveHeroLoc(grom, destination, false)\n"
+        "  call BJassAssert(gromRevived, \"Grom death trigger could not revive Hero\")\n"
+        "endfunction\n"
         "function main takes nothing returns nothing\n"
-        "  set hero = CreateUnit(Player(0), 'Hpal', 32.0, 32.0, 0.0)\n"
-        "  call KillUnit(hero)\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set grom = CreateUnit(Player(1), 'Hpal', 32.0, 32.0, 0.0)\n"
         "  set destination = Location(128.0, 192.0)\n"
-        "  call BJassAssert(ReviveHeroLoc(hero, destination, false), \"ReviveHeroLoc returned false\")\n"
+        "  call BJassAssert(not ReviveHeroLoc(grom, destination, false), \"live Hero was reported revived\")\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(1), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddCondition(t, Condition(function grom_dead))\n"
+        "  call TriggerAddAction(t, function revive_grom)\n"
         "endfunction\n"));
-    hero = find_test_unit(MAKEFOURCC('H','p','a','l'));
+    hero = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 1) {
+            hero = ent;
+            break;
+        }
+    }
     T_NOT_NULL(hero);
+    T_ASSERT(hero != NULL);
+    if (!hero) return;
+    G_SetHealth(hero, 0.0f);
+    unit_die(hero, NULL);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_FEQ(hero->health.max_value, 650.0f, 0.01f);
     T_ASSERT(!M_IsDead(hero));
     T_FEQ(hero->s.origin2.x, 128.0f, 0.001f);
