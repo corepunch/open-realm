@@ -1584,6 +1584,7 @@ TEST(wc3_items, soul_gem_abilities_are_registered_for_targeted_item_flow) {
 TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     gameClient_t *client;
     edict_t *clent, *carrier, *target, *target2, *gem, *gem2, *filled, *filled2;
+    uint32_t soul_count;
     char number[16];
     cstring_t select[] = { "select", number };
 
@@ -1596,8 +1597,9 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
         "  integer targetDeaths = 0\n"
         "endglobals\n"
         "function soul_gem_used takes nothing returns nothing\n"
-        "  local item filled = CreateItem('soul', 64.0, 64.0)\n"
-        "  call UnitAddItem(GetManipulatingUnit(), filled)\n"
+        "  local item filled = null\n"
+        "  call TriggerSleepAction(0.10)\n"
+        "  set filled = UnitAddItemById(GetManipulatingUnit(), 'soul')\n"
         "  call SetItemDroppable(filled, false)\n"
         "endfunction\n"
         "function target_died takes nothing returns nothing\n"
@@ -1651,10 +1653,17 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_EQ(level.fow.players[1].visible[G_FowWorldToCellY(carrier->s.origin2.y) * level.fow.width +
                                       G_FowWorldToCellX(carrier->s.origin2.x)], 0);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
+    T_ASSERT(gem->inuse && gem->item.pending_use_removal);
+    T_NULL(carrier->inventory[0]);
+    level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
     jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
     filled = carrier->inventory[0];
     T_ASSERT(filled && filled->class_id == MAKEFOURCC('s','o','u','l'));
+    soul_count = 0;
+    FOR_LOOP(i, G_InventoryCapacity(carrier))
+        if (carrier->inventory[i] && carrier->inventory[i]->class_id == MAKEFOURCC('s','o','u','l')) soul_count++;
+    T_EQ(soul_count, 1);
     T_ASSERT(!G_ItemDroppable(filled));
     T_ASSERT(target->soul_trap_item == filled);
     T_ASSERT(filled->item.soul_target == target);
@@ -1675,10 +1684,17 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_NULL(client->menu.on_entity_selected);
     T_ASSERT(target2->aiflags & AI_SOUL_TRAPPED);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
+    T_ASSERT(gem2->inuse && gem2->item.pending_use_removal);
+    T_NULL(carrier->inventory[1]);
+    level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
     jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
     filled2 = carrier->inventory[1];
     T_ASSERT(filled2 && filled2->class_id == MAKEFOURCC('s','o','u','l'));
+    soul_count = 0;
+    FOR_LOOP(i, G_InventoryCapacity(carrier))
+        if (carrier->inventory[i] && carrier->inventory[i]->class_id == MAKEFOURCC('s','o','u','l')) soul_count++;
+    T_EQ(soul_count, 2);
     T_ASSERT(filled2 != filled);
     T_ASSERT(target2->soul_trap_item == filled2);
     T_ASSERT(filled2->item.soul_target == target2);

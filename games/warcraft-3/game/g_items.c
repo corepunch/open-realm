@@ -239,11 +239,16 @@ static bool G_ItemHasAbility(edict_t const *item, uint32_t code) {
     return false;
 }
 
+static bool G_ItemIsSoulBound(edict_t const *item) {
+    return item && (item->class_id == MAKEFOURCC('s','o','u','l') ||
+        G_ItemHasAbility(item, MAKEFOURCC('A','s','o','u')));
+}
+
 bool G_ItemDroppable(edict_t const *item) {
     ItemData_t const *data;
 
     if (!G_IsItem(item)) return false;
-    if (G_ItemHasAbility(item, MAKEFOURCC('A', 's', 'o', 'u'))) return false;
+    if (G_ItemIsSoulBound(item)) return false;
     if (item->item.droppable_set) return item->item.droppable;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);
     /* Preserve the historical permissive fallback for synthetic/custom test
@@ -563,7 +568,7 @@ bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position) {
 
 bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vector2_t const *position) {
     if (unit && slot < G_InventoryCapacity(unit) &&
-        G_ItemHasAbility(unit->inventory[slot], MAKEFOURCC('A', 's', 'o', 'u'))) return false;
+        G_ItemIsSoulBound(unit->inventory[slot])) return false;
     return G_DropItemAtInternal(unit, slot, position, true);
 }
 
@@ -580,7 +585,7 @@ void G_DropInventoryOnDeath(edict_t *unit) {
     if (!unit || !G_InventoryDropsItemsOnDeath(unit)) return;
     capacity = G_InventoryCapacity(unit);
     FOR_LOOP(slot, capacity) {
-        if (unit->inventory[slot] && !G_ItemHasAbility(unit->inventory[slot], MAKEFOURCC('A', 's', 'o', 'u')))
+        if (unit->inventory[slot] && !G_ItemIsSoulBound(unit->inventory[slot]))
             G_DropItemAtInternal(unit, slot, &unit->s.origin2, false);
     }
 }
