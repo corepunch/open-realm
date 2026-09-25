@@ -387,8 +387,8 @@ typedef enum {
 #define SND_POS         0x04 // packed position; identifies an explicit world origin
 #define SND_ENT         0x08 // short; entity number plus channel; identifies an entity source
 #define SND_OFFSET      0x10 // byte; start delay in milliseconds; used by svc_sound
-#define SND_POLICY      0x40 // explicit admission policy, independent of spatial source
 #define SND_PRIORITY    0x20 // ushort; playback importance, higher values win
+#define SND_POLICY      0x40 // explicit admission policy, independent of spatial source
 
 /* Reliable client music-control commands carried by svc_music.  The payload is
  * presentation-only state; game modules choose the command and the client owns
@@ -422,7 +422,6 @@ typedef enum {
 #define CHAN_RELIABLE   0x10 // units; sends through the reliable client message; used for critical sounds
 #define CHAN_OWNER      0x20 // units; unicasts to the source entity owner; used for local acknowledgements
 
-/* Upper channel bits carry optional generic importance to the sound packet. */
 /* Generic one-shot admission contract. Games own channel configuration and flag mapping. */
 enum {
     SOUND_CHANNEL_PREEMPT = 4, SOUND_CHANNEL_OLDEST = 8,
@@ -440,6 +439,7 @@ typedef struct {
 enum { SOUND_ACCEPTED = 1, SOUND_STARTED, SOUND_ENDED, SOUND_REJECTED };
 typedef struct { DWORD user, request, event; } soundEvent_t;
 
+/* Upper channel bits carry optional generic importance to the sound packet. */
 #define CHAN_PRIORITY(value) ((int)((unsigned)(value) << 8))
 #define SOUND_PRIORITY(channel) (((unsigned)(channel) >> 8) & 65535)
 
