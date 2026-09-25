@@ -1581,14 +1581,14 @@ struct edict_s {
     FLOAT temporary_mana_bonus; /* item/temporary maximum-mana modifiers preserved across hero recompute */
     FLOAT mana_regen_bonus; /* research/permanent mana regeneration modifiers */
     struct {
-        BYTE select[MAX_UNIT_SELECT_SOUNDS];
+        USHORT select[MAX_UNIT_SELECT_SOUNDS];
         BYTE num_select;
-        BYTE yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
+        USHORT yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
         BYTE num_yes;
-        BYTE ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
+        USHORT ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
         BYTE num_ready;
-        BYTE chop[3]; BYTE num_chop;        /* weapon-vs-wood impact variants */
-        BYTE pending;
+        USHORT chop[3]; BYTE num_chop;        /* weapon-vs-wood impact variants */
+        int pending;
         int owner_pending;                  /* owner-only one-shot queued for next snapshot */
         int world_pending;                  /* unfiltered world one-shot queued for next snapshot */
         BYTE world_pending_event;
@@ -2710,6 +2710,8 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *);
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_ResetSoundPresentationState(void);
+soundPolicy_t const *G_SoundIndexPolicy(int index);
+void G_PlaySound(LPCVECTOR3 origin, LPEDICT ent, int channel, int index, FLOAT volume, FLOAT attenuation, FLOAT timeofs);
 FLOAT G_SoundIndexVolume(int);
 DWORD G_SoundIndexDuration(int);
 int G_UISoundIndex(LPCSTR);
@@ -2790,7 +2792,11 @@ LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
 void G_UpdateClientSelections(void);
 void G_SyncClientSelection(LPGAMECLIENT);
 void G_ResetSelectionSoundState(void);
-BOOL G_QueueUnitResponseSound(LPEDICT, int, DWORD);
+void G_ClearUnitResponses(LPCEDICT);
+DWORD G_UnitResponseRequest(LPCEDICT, int);
+void G_AcceptSoundVariant(int, DWORD);
+BOOL G_SoundVariantIsLast(int, DWORD);
+BOOL G_QueueUnitResponseSound(LPEDICT, int);
 BOOL G_UnitResponseTalking(LPCEDICT);
 void G_UpdateUnitResponsePresentation(void);
 void G_QueueSelectionSound(LPEDICT, BOOL);

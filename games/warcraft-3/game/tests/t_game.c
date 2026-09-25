@@ -1345,7 +1345,9 @@ TEST(wc3_game, idle_response_updates_skip_selection_scans) {
     T_EQ(G_GetTestSelectionChecks(), 0);
 }
 
-TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_expires) {
+void test_sound_event(LPEDICT ent, DWORD request, DWORD event);
+
+TEST(wc3_game, selected_unit_portrait_follows_confirmed_playback) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(LPEDICT) = gi.unicast;
     int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
@@ -1365,7 +1367,10 @@ TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_
     G_SelectEntity(client, unit);
 
     level.time = 1000;
-    T_ASSERT(G_QueueUnitResponseSound(unit, 77, 500));
+    T_ASSERT(G_QueueUnitResponseSound(unit, 77));
+    DWORD request = G_UnitResponseRequest(unit, 77);
+    test_sound_event(unit, request, SOUND_ACCEPTED);
+    test_sound_event(unit, request, SOUND_STARTED);
     portrait_capture_animation[0] = '\0';
     gi.Write = portrait_test_write;
     gi.unicast = selection_test_unicast;
@@ -1373,15 +1378,9 @@ TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_
     UI_WriteSelectedPortraitLayer(player);
     T_STREQ(portrait_capture_animation, "Portrait Talk");
 
-    G_ResetTestSelectionChecks();
-    level.time = 1499;
+    level.time = 1100; /* an early preemption ends the portrait immediately */
+    test_sound_event(unit, request, SOUND_ENDED);
     G_UpdateUnitResponsePresentation();
-    T_EQ(G_GetTestSelectionChecks(), 0);
-
-    client->presentation_dirty = false;
-    level.time = 1500;
-    G_UpdateUnitResponsePresentation();
-    T_ASSERT(client->presentation_dirty);
     portrait_capture_animation[0] = '\0';
     UI_WriteSelectedPortraitLayer(player);
     gi.Write = old_write;
@@ -1390,7 +1389,7 @@ TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_
     T_STREQ(portrait_capture_animation, "Portrait");
 }
 
-TEST(wc3_game, response_expiry_runs_from_server_frame_scheduler) {
+TEST(wc3_game, response_cleanup_runs_from_server_frame_scheduler) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT unit;
 
@@ -1404,8 +1403,10 @@ TEST(wc3_game, response_expiry_runs_from_server_frame_scheduler) {
     unit->s.player = 0;
     G_SelectEntity(client, unit);
     level.time = 1000;
-    T_ASSERT(G_QueueUnitResponseSound(unit, 77, 500));
-    unit->sound.pending = 0; /* The frame test has no client transport edict for playback. */
+    T_ASSERT(G_QueueUnitResponseSound(unit, 77));
+    DWORD request = G_UnitResponseRequest(unit, 77);
+    test_sound_event(unit, request, SOUND_ACCEPTED);
+    test_sound_event(unit, request, SOUND_STARTED);
     client->presentation_dirty = false;
 
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
@@ -1416,12 +1417,13 @@ TEST(wc3_game, response_expiry_runs_from_server_frame_scheduler) {
     T_ASSERT(!client->presentation_dirty);
 
     level.time = 1500;
+    client->connected = false;
     globals.RunFrame();
     T_ASSERT(!G_UnitResponseTalking(unit));
     T_ASSERT(client->presentation_dirty);
 }
 
-TEST(wc3_game, response_expiry_tracks_the_current_focused_unit) {
+TEST(wc3_game, response_end_tracks_the_current_focused_unit) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT player = &g_edicts[0];
     LPEDICT speaker, focused;
@@ -1442,9 +1444,13 @@ TEST(wc3_game, response_expiry_tracks_the_current_focused_unit) {
     T_ASSERT(G_FocusSelectedUnit(client, speaker));
 
     level.time = 1000;
-    T_ASSERT(G_QueueUnitResponseSound(speaker, 77, 500));
+    T_ASSERT(G_QueueUnitResponseSound(speaker, 77));
+    DWORD request = G_UnitResponseRequest(speaker, 77);
+    test_sound_event(speaker, request, SOUND_ACCEPTED);
+    test_sound_event(speaker, request, SOUND_STARTED);
     T_ASSERT(G_FocusSelectedUnit(client, focused));
     client->presentation_dirty = false;
+    test_sound_event(speaker, request, SOUND_ENDED);
     level.time = 1500;
     G_UpdateUnitResponsePresentation();
 
@@ -1452,7 +1458,7 @@ TEST(wc3_game, response_expiry_tracks_the_current_focused_unit) {
     T_ASSERT(!G_UnitResponseTalking(speaker));
 }
 
-TEST(wc3_game, response_expiry_ignores_reused_entity_slots) {
+TEST(wc3_game, response_feedback_ignores_reused_entity_slots) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT player = &g_edicts[0];
     LPEDICT speaker, replacement;
@@ -1471,8 +1477,9 @@ TEST(wc3_game, response_expiry_ignores_reused_entity_slots) {
     speaker->s.player = 0;
     G_SelectEntity(client, speaker);
     speaker_number = speaker->s.number;
-    T_ASSERT(G_QueueUnitResponseSound(speaker, 77, 500));
+    T_ASSERT(G_QueueUnitResponseSound(speaker, 77));
 
+    DWORD old_request = G_UnitResponseRequest(speaker, 77);
     G_FreeEdict(speaker);
     level.time = 2001;
     replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
@@ -1481,13 +1488,19 @@ TEST(wc3_game, response_expiry_ignores_reused_entity_slots) {
     replacement->svflags |= SVF_MONSTER;
     replacement->s.player = 0;
     G_SelectEntity(client, replacement);
-    T_ASSERT(G_QueueUnitResponseSound(replacement, 78, 200));
+    T_ASSERT(G_QueueUnitResponseSound(replacement, 78));
+    DWORD request = G_UnitResponseRequest(replacement, 78);
+    test_sound_event(replacement, request, SOUND_ACCEPTED);
+    test_sound_event(replacement, request, SOUND_STARTED);
+    test_sound_event(replacement, old_request, SOUND_ENDED);
+    T_ASSERT(G_UnitResponseTalking(replacement));
 
     client->presentation_dirty = false;
     level.time = 2200;
     G_UpdateUnitResponsePresentation();
     T_ASSERT(!client->presentation_dirty);
     level.time = 2201;
+    test_sound_event(replacement, request, SOUND_ENDED);
     G_UpdateUnitResponsePresentation();
     T_ASSERT(client->presentation_dirty);
     T_ASSERT(!G_UnitResponseTalking(replacement));

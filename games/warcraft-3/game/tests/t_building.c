@@ -41,6 +41,8 @@ static int building_test_sound_index(LPCSTR path) {
     snprintf(building_sound_path, sizeof(building_sound_path), "%s", path ? path : "");
     return 91;
 }
+static int building_test_sound_index_alias(LPCSTR path, LPCSTR alias) { (void)alias; return building_test_sound_index(path); }
+
 
 static void building_test_stand(LPEDICT ent) {
     (void)ent;
@@ -2358,12 +2360,13 @@ TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old_rows = G_SetSLKRows("AmbienceSounds", rows);
     int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     building->data.UnitProfile = &profile;
     building->health.max_value = 1000.0f;
     building->health.value = 1000.0f;
     building_sound_path[0] = '\0';
-    gi.SoundIndex = building_test_sound_index;
+    gi.SoundIndex = building_test_sound_index; gi.SoundIndexAlias = building_test_sound_index_alias;
     G_ResetSoundPresentationState();
 
     T_ASSERT(G_StartHumanConstruction(builder, building));
@@ -2374,7 +2377,7 @@ TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
     G_StopConstruction(building);
     T_EQ(building->s.sound, 0);
 
-    gi.SoundIndex = old_soundindex;
+    gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias;
     G_SetSLKRows("AmbienceSounds", old_rows); free_slk_rows(rows);
 }
 

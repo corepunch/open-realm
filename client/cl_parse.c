@@ -910,16 +910,29 @@ static void CL_ParseSound(LPSIZEBUF msg) {
     FLOAT volume = DEFAULT_SOUND_PACKET_VOLUME, attenuation = DEFAULT_SOUND_PACKET_ATTENUATION, timeofs = 0.0f;
     VECTOR3 origin = { 0 };
     LPCSTR path;
+    soundPolicy_t policy = {0};
 
     if (flags & SND_VOLUME) volume = MSG_ReadByte(msg) / 255.0f;
     if (flags & SND_ATTENUATION) attenuation = MSG_ReadByte(msg) / 64.0f;
     if (flags & SND_OFFSET) timeofs = MSG_ReadByte(msg) / 1000.0f;
+    if (flags & SND_PRIORITY) channel = CHAN_PRIORITY((USHORT)MSG_ReadShort(msg));
+    if (flags & SND_POLICY) {
+        policy.priority = (DWORD)MSG_ReadLong(msg);
+        policy.user = (DWORD)MSG_ReadLong(msg);
+        policy.request = (DWORD)MSG_ReadLong(msg);
+        policy.flags = (USHORT)MSG_ReadShort(msg);
+        policy.cooldown_ms = (USHORT)MSG_ReadShort(msg);
+        policy.group = MSG_ReadByte(msg);
+        policy.max_channel = MSG_ReadByte(msg);
+        policy.max_total = MSG_ReadByte(msg);
+        policy.max_duplicates = MSG_ReadByte(msg);
+    }
     if (flags & SND_ENT) {
         /* Entity/channel is an unsigned bitfield; sign extension rejected
          * valid campaign entities 4096..8191 as negative entity numbers. */
         USHORT packed = (USHORT)MSG_ReadShort(msg);
         entity = packed >> 3;
-        channel = packed & 7;
+        channel |= packed & 7;
         if (entity <= 0 || entity >= MAX_CLIENT_ENTITIES) {
             fprintf(stderr, "CL_ParseSound: bad entity=%d sound=%d\n", entity, sound_index);
             return;
@@ -932,7 +945,8 @@ static void CL_ParseSound(LPSIZEBUF msg) {
         return;
     }
     path = cl.configstrings[CS_SOUNDS + sound_index];
-    if (path && path[0]) S_PlaySoundPacket(path, &origin, flags & (SND_POS | SND_ENT), channel, volume, attenuation, timeofs);
+    if (flags & SND_POLICY) S_PlaySoundPolicy(path, &origin, flags & (SND_POS | SND_ENT), channel, volume, attenuation, timeofs, &policy);
+    else if (path && path[0]) S_PlaySoundPacket(path, &origin, flags & (SND_POS | SND_ENT), channel, volume, attenuation, timeofs);
 }
 
 #if defined(BZ_TESTS) && defined(BZ_CLIENT_WORLD)
@@ -963,17 +977,45 @@ TEST(client_sound, packed_entity_above_4095_reaches_mixer) {
         cl.ents[entity].current.origin = (VECTOR3){ 123, 456, 0 };
         memset(s.channels, 0, sizeof(s.channels));
         SZ_Init(&msg, data, sizeof(data));
-        MSG_WriteByte(&msg, SND_ENT | SND_POS);
+        MSG_WriteByte(&msg, SND_ENT | SND_POS | (i ? SND_PRIORITY : 0));
         MSG_WriteShort(&msg, 1);
+        if (i) MSG_WriteShort(&msg, 1731);
         MSG_WriteShort(&msg, (entity << 3) | CHAN_WEAPON);
         MSG_WritePos(&msg, &cl.ents[entity].current.origin);
         CL_ParseSound(&msg);
         T_EQ(msg.readcount, msg.cursize);
         T_ASSERT(s.channels[0].active);
         T_EQ(s.channels[0].channel, CHAN_WEAPON);
+        T_EQ(s.channels[0].priority, i ? 1731 : 0);
         T_FEQ(s.channels[0].origin.x, 123, 0.001f);
         cl.ents[entity].current.origin = origin;
     }
+    /* Owner-local policy retains identity and all 32 priority bits without
+     * turning the sound into an entity-relative positional source. */
+    memset(s.channels, 0, sizeof(s.channels));
+    SZ_Init(&msg, data, sizeof(data));
+    MSG_WriteByte(&msg, SND_POLICY);
+    MSG_WriteShort(&msg, 1);
+    MSG_WriteLong(&msg, 0xf1234567u);
+    MSG_WriteLong(&msg, 511);
+    MSG_WriteLong(&msg, 0xfedc1234u);
+    MSG_WriteShort(&msg, SOUND_NO_DUPLICATE_USERS | SOUND_CHANNEL_PREEMPT);
+    MSG_WriteShort(&msg, 250);
+    MSG_WriteByte(&msg, 15); MSG_WriteByte(&msg, 2);
+    MSG_WriteByte(&msg, 24); MSG_WriteByte(&msg, 4);
+    CL_ParseSound(&msg);
+    T_EQ(msg.readcount, msg.cursize);
+    T_ASSERT(s.channels[0].active);
+    T_ASSERT(!s.channels[0].is_positional);
+    T_EQ(s.channels[0].priority, 0xf1234567u);
+    T_EQ(s.channels[0].policy.user, 511);
+    T_EQ(s.channels[0].policy.request, 0xfedc1234u);
+    T_EQ(s.channels[0].policy.flags, SOUND_NO_DUPLICATE_USERS | SOUND_CHANNEL_PREEMPT);
+    T_EQ(s.channels[0].policy.cooldown_ms, 250);
+    T_EQ(s.channels[0].policy.group, 15);
+    T_EQ(s.channels[0].policy.max_channel, 2);
+    T_EQ(s.channels[0].policy.max_total, 24);
+    T_EQ(s.channels[0].policy.max_duplicates, 4);
     memcpy(cl.configstrings[CS_SOUNDS + 1], path, sizeof(path));
     s = *saved; free(saved);
 }

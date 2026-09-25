@@ -179,7 +179,7 @@ snapshot sound field and remain follow-up work.
 `G_CompleteConstruction` resolves the owner's `JobDoneSound` field through
 `UI\war3skins.txt`, resolves that alias through `UISounds.slk`, and queues the
 chosen authored file as an owner-only `svc_sound` from the completed building. The sound
-is therefore positional at the structure and audible only to its owner. The same completion now emits an owner-only minimap/recent-alert notification at the completed structure; training completion and research completion do the same at their resulting unit/producer locations. Alert rendering/history is documented in [alerts-and-minimap-pings.md](alerts-and-minimap-pings.md).
+is therefore positional at the structure and audible only to its owner. The same completion now emits an owner-only minimap/recent-alert notification at the completed structure; training completion and research completion do the same at their resulting unit/producer locations. Alert rendering/history is documented in [alerts-and-minimap-pings.md](../../docs/games/warcraft-3/alerts-and-minimap-pings.md).
 
 Immediate UI sounds are sent only when the owning game client is connected.
 Reserved/disconnected player slots may already have simulation state but do not yet
@@ -336,3 +336,132 @@ sector may use zlib while later sectors use Blizzard adaptive Huffman plus mono
 ADPCM (`0x41`). The in-tree MPQ reader must decode every sector before the
 sound cache parses the WAV; accepting a partial MPQ read produces a valid
 4096-byte RIFF prefix and audibly truncates response lines.
+
+### Audio arbitration investigation (2026-09-25)
+
+Public references inspected:
+
+- [TinkerWorX/warcraftIII](https://github.com/TinkerWorX/warcraftIII), revision
+  `e94a800fb99dea45d1e63f3ae1ed9533fca3b15a`: recovered CUnit, CAgent,
+  CWidget layouts/vtables and IDA utilities. Useful for navigating unit callers;
+  this is not a recovered sound scheduler or a ready-made Ghidra audio database.
+- [Warsmash UnitSound.java](https://github.com/Retera/WarsmashModEngine/blob/f9e0aeed4be372d6016519d0e97b384aa873f374/core/src/com/etheller/warsmash/viewer5/handlers/w3x/UnitSound.java):
+  `playUnitResponse` gates responses using a per-RenderUnit wall-clock deadline,
+  updated after successful playback using decoded sound duration. Its SLK loader
+  consumes volume, pitch, distance and loop fields, but not Priority. MeleeUI
+  advances from three What responses to sequential Pissed responses. These are
+  emulator choices, not proof of retail arbitration.
+- [binanana](https://github.com/wowemulation-dev/binanana): modern Ghidra/PyGhidra
+  RTTI, string and cross-version analysis tooling for Classic **World of Warcraft**.
+  Its workflow is relevant; its client types and offsets are not WC3 types.
+
+Before the fixes below, local code inspection confirmed two separate gaps:
+`sound/s_sound.c:S_StartSound` chose the first inactive channel and silently
+returned when none was available, without priority comparison or eviction.
+`g_commands.c:G_QueueUnitResponseSound` rejected an active response on the same
+entity using `G_Time()`, without arbitration across entities. Different units'
+barks could therefore overlap.
+The latter gate dates to commit `20efbdeab` (git blame); do not infer a global
+voice policy from the existing per-unit portrait deadline.
+
+The locally installed retail `game.dll`, SHA256
+`d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236`, provides
+better anchors for recovering the actual algorithm: RTTI names `CSoundWar3`,
+`SoundDBChannel`, `CSoundListener`; strings `SetSoundChannel`, `SoundChannels`,
+`SoundManagerLog.txt`, and source paths ending in `CSoundManager.cpp`,
+`CSoundManagerI.cpp`, `CSoundManagerI.h`. Its import table includes Miles
+`mss32.dll` sample allocation, status, stop/end and end-of-sample callbacks for
+2D and 3D playback. These anchors establish a route into the code, not recovered
+field offsets or priority semantics. Reproduce with:
+
+```sh
+sha256sum "$WC3DATA/game.dll"
+strings "$WC3DATA/game.dll" | rg 'CSound|SoundDBChannel|SoundManager|SoundChannel'
+objdump -p "$WC3DATA/game.dll" | rg 'AIL_|mss32'
+```
+
+The completed Ghidra analysis and focused xrefs recovered the admission policy
+and response cooldown. See [retail audio analysis](../../docs/games/warcraft-3/audio-retail-analysis.md)
+for version-specific function names, layouts and evidence.
+
+### Authored admission and response timing
+
+Sound-row registration preserves `Channel`, admission `Flags`, and unsigned
+`Priority` together. `SCALEPRIORITY` adds the selected variant index. WC3 owns
+the sixteen default channel budgets recovered from `6fab5ec8`; the shared mixer
+receives a generic policy and does not read Warcraft tables or branch on games.
+
+`G_PlaySound` sends the policy through `gi.SoundPolicy` / `SV_StartSoundPolicy`.
+Protocol 11's `SND_POLICY` payload follows optional volume/attenuation/offset:
+32-bit priority, 32-bit user identity, 16-bit flags, 16-bit cooldown milliseconds,
+then byte channel group/channel cap/global cap/filename cap. Entity identity is
+independent of spatial delivery, so owner-local responses remain non-positional.
+No entity or player snapshot structure changed. Raw sounds without a registered
+row retain the ordinary API; music and movies remain separate PCM streams.
+
+The mixer has 24 slots. Authored requests check duplicate identity and filename,
+then channel/global capacity in the recovered order. Greater priority alone does
+not authorize replacement. Channel preemption requires strictly lower priority;
+oldest-channel preemption permits equality. Global priority preemption permits
+equality, while global-oldest preemption does not compare priority. Equal-priority
+channel heads are newest first; equal heads across channels use channel order.
+The four-instance filename cap has a separate oldest-preemption rule.
+`IGNOREUSERNAME` excludes existing instances from duplicate-user lookup and
+user preemption, without bypassing an incoming duplicate check. A sample that
+ends exactly at a mix-block boundary releases its channel in that callback.
+
+The player-wide response lock has been removed. Owner response packets now carry
+an opaque request ID, and the mixer returns reliable `sound_event user request
+event` receipts. `SOUND_ACCEPTED` commits the What/Pissed count and that owner's
+last accepted label variant. Rejection discards the pending request without
+committing either. `SOUND_STARTED` switches the portrait to talking only when
+the mixer consumes the first sample, after any requested delay. `SOUND_ENDED`
+clears that voice on completion, preemption or stop; another overlapping admitted
+voice can still keep the same unit talking. There is no duration deadline or
+`GetRealTime` import for portrait prediction.
+
+The game checks connection ownership, unit spawn identity, request identity and
+legal event order. A selection generation prevents a delayed admission from
+advancing a newly reset selection sequence. At most one unacknowledged request
+is retained per unit; an active admitted voice does not impose a guessed server
+gate. The client decides duplicates and cooldowns. Freeing a unit, map/save-load
+reset and shutdown discard request records; serials continue across resets so
+late receipts cannot match a new request. These records are runtime-only.
+
+The mixer reserves notification storage on the main thread before submission;
+the audio callback only appends under the device lock. The client drains on its
+main thread into the reliable command buffer and retains events if that buffer
+is full. Failed loads and unavailable devices return rejection too. Authored
+responses retain the 250 ms mixer cooldown beginning at actual completion or
+preemption, independent of server time and pause.
+
+Protocol **12** adds the request ID to `soundPolicy_t`; peers need matching
+builds. Unit response/Ready/combat caches now use 16-bit sound indices and the
+pending index is an int: the former byte storage truncated configstring indices
+above 255 and could prevent the packet from matching its request. These are
+private game edict fields, not entity/player snapshot extensions. Save version
+**46** rejects earlier edict layouts.
+
+SLK variants now register through `gi.SoundIndexAlias(path, label#variant)`.
+The server allocates distinct indices for distinct aliases, preserving each
+label's policy and volume. Configstrings still contain the original filename,
+so the client shares decoded samples and filename duplicate admission remains
+shared. Raw `SoundIndex(path)` registrations have an empty alias and cannot
+overwrite the authored metadata. Map teardown clears the server alias registry.
+The SludgeMonster What/Ready pair was observed using the same WAV on channels
+1 and 4 in the retail process; a non-stock fixture reproduced the old overwrite
+and verifies independent priority, channel, volume and repeat registration.
+
+Known remaining limits: response random choice is still made on the server.
+Simultaneous requests for the same label from different units can be chosen
+before the first acceptance receipt arrives; this does not establish exact retail
+RNG sequencing. JASS per-handle policy overrides, pitch, distance-based admission and dynamic
+channel configuration remain separate work. These changes implement the traced
+admission/cooldown rules, not complete retail sound-system parity.
+
+Regression tests cover three concurrent channel-1 voices, duplicate users/files,
+permitted/forbidden preemption, equal-priority rules, the 24-slot global limit,
+filename cap, actual completion/preemption cooldowns, clock wrap/map teardown,
+independent pending requests, receipt-owned portraits, stale/foreign receipts, delayed starts, authored non-stock
+priority 1731, and server/client policy transport including unsigned high bits.
+The original mixer and unit-clock failures were reproduced before their fixes.

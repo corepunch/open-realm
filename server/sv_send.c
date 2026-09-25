@@ -97,8 +97,8 @@ LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
 
 /* Encode one Quake 2-compatible sound event and deliver it to the selected
  * recipients.  CHAN_OWNER is a delivery policy and never crosses the wire. */
-void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
-                   FLOAT attenuation, FLOAT timeofs) {
+void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
+                   FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
     DWORD flags = 0, ent_num = 0;
     VECTOR3 ent_origin;
     LPCVECTOR3 pos = origin;
@@ -118,6 +118,8 @@ void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index,
         ent_origin = ent->s.origin;
         if (!pos) pos = &ent_origin;
     }
+    if (policy) flags |= SND_POLICY;
+    else if (SOUND_PRIORITY(channel)) flags |= SND_PRIORITY;
     if (origin) flags |= SND_POS;
     if (volume != DEFAULT_SOUND_PACKET_VOLUME) flags |= SND_VOLUME;
     if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION) flags |= SND_ATTENUATION;
@@ -129,6 +131,18 @@ void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index,
     if (flags & SND_VOLUME) MSG_WriteByte(&sv.multicast, (int)(volume * 255.0f));
     if (flags & SND_ATTENUATION) MSG_WriteByte(&sv.multicast, (int)(attenuation * 64.0f));
     if (flags & SND_OFFSET) MSG_WriteByte(&sv.multicast, (int)(timeofs * 1000.0f));
+    if (flags & SND_PRIORITY) MSG_WriteShort(&sv.multicast, SOUND_PRIORITY(channel));
+    if (flags & SND_POLICY) {
+        MSG_WriteLong(&sv.multicast, policy->priority);
+        MSG_WriteLong(&sv.multicast, policy->user);
+        MSG_WriteLong(&sv.multicast, policy->request);
+        MSG_WriteShort(&sv.multicast, policy->flags);
+        MSG_WriteShort(&sv.multicast, policy->cooldown_ms);
+        MSG_WriteByte(&sv.multicast, policy->group);
+        MSG_WriteByte(&sv.multicast, policy->max_channel);
+        MSG_WriteByte(&sv.multicast, policy->max_total);
+        MSG_WriteByte(&sv.multicast, policy->max_duplicates);
+    }
     if (flags & SND_ENT) MSG_WriteShort(&sv.multicast, (int)((ent_num << 3) | (channel & 7)));
     if (flags & SND_POS) MSG_WritePos(&sv.multicast, pos);
 
@@ -150,4 +164,9 @@ void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index,
             }
     }
     SZ_Clear(&sv.multicast);
+}
+
+void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
+                   FLOAT attenuation, FLOAT timeofs) {
+    SV_StartSoundPolicy(origin, ent, channel, sound_index, volume, attenuation, timeofs, NULL);
 }

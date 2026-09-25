@@ -45,9 +45,12 @@ struct game_import {
     void (*MemFree)(HANDLE);
     int (*ModelIndex)(LPCSTR modelName);
     int (*SoundIndex)(LPCSTR soundName);
+    int (*SoundIndexAlias)(LPCSTR soundName, LPCSTR alias);
     void (*Sound)(LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation, FLOAT timeofs);
     void (*PositionedSound)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
                             FLOAT attenuation, FLOAT timeofs);
+    void (*SoundPolicy)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
+                         FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy);
     void (*MinimapPing)(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);

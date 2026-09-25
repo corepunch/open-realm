@@ -210,9 +210,26 @@ int SV_ModelIndex(LPCSTR name) {
     return modelindex;
 }
 
-int SV_SoundIndex(LPCSTR name) {
-    return SV_FindIndex(name, CS_SOUNDS, MAX_SOUNDS, true);
+int SV_SoundIndexAlias(LPCSTR name, LPCSTR alias) {
+    if (!name || !*name) return 0;
+    if (!alias) alias = "";
+    if (strlen(alias) >= sizeof(sv.sound_aliases[0])) {
+        fprintf(stderr, "SV_SoundIndexAlias: alias too long: %s\n", alias);
+        return 0;
+    }
+    int i;
+    for (i = 1; i < MAX_SOUNDS && sv.configstrings[CS_SOUNDS + i][0]; i++)
+        if (!strcmp(sv.configstrings[CS_SOUNDS + i], name) && !strcmp(sv.sound_aliases[i], alias)) return i;
+    if (i == MAX_SOUNDS) {
+        fprintf(stderr, "SV_SoundIndexAlias: pool full for %s (%s)\n", name, alias);
+        return 0;
+    }
+    strlcpy(sv.sound_aliases[i], alias, sizeof(sv.sound_aliases[i]));
+    SV_SetConfigString(CS_SOUNDS + i, name, strlen(name) + 1);
+    return i;
 }
+
+int SV_SoundIndex(LPCSTR name) { return SV_SoundIndexAlias(name, NULL); }
 
 int SV_ImageIndex(LPCSTR name) {
     return SV_FindIndex(name, CS_IMAGES, MAX_IMAGES, true);

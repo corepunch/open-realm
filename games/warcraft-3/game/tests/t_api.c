@@ -1086,12 +1086,20 @@ static int capture_ui_sound_index(LPCSTR path) {
     snprintf(ui_sound_path, sizeof(ui_sound_path), "%s", path ? path : "");
     return 77;
 }
+static int capture_ui_sound_index_alias(LPCSTR path, LPCSTR alias) { (void)alias; return capture_ui_sound_index(path); }
+
 static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
     (void)ent; (void)attenuation; (void)timeofs;
     ui_sound_calls++;
     ui_sound_value = sound;
     ui_sound_volume = volume;
     T_EQ(channel, CHAN_OWNER | CHAN_RELIABLE);
+}
+
+static void capture_ui_sound_policy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound,
+                                    FLOAT volume, FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+    T_NULL(origin); T_NOT_NULL(policy); T_EQ(policy->max_total, 24);
+    capture_ui_sound(ent, channel, sound, volume, attenuation, timeofs);
 }
 
 TEST(wc3_api, default_camera_authors_lens) {
@@ -3560,13 +3568,16 @@ TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
     slkTestData_t *old_rows = G_SetSLKRows("AmbienceSounds", rows);
     void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
     int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc;
     gc->ps.number = 0;
     gc->connected = true;
     currentplayer = &gc->ps;
     ui_sound_calls = 0; ui_sound_value = 0; ui_sound_volume = 0.0f; ui_sound_path[0] = '\0';
-    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
+    gi.SoundPolicy = capture_ui_sound_policy;
+    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index; gi.SoundIndexAlias = capture_ui_sound_index_alias;
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -3578,7 +3589,7 @@ TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
     T_STREQ(ui_sound_path, "Sound\\Ambient\\ambient.wav");
     T_FEQ(ui_sound_volume, 0.5f, 0.001f);
 
-    gi.SoundIndex = old_soundindex; gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias; gi.Sound = old_sound; gi.SoundPolicy = old_sound_policy;
     currentplayer = NULL;
     G_SetSLKRows("AmbienceSounds", old_rows); free_slk_rows(rows);
 }
@@ -3602,10 +3613,11 @@ TEST(wc3_api, jass_create_sound_filename_with_label_keeps_explicit_file_and_uses
     slkTestData_t *old_rows = G_SetSLKRows("UnitAckSounds", rows);
     void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
     int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc; gc->ps.number = 0; gc->connected = true; currentplayer = &gc->ps;
     ui_sound_calls = 0; ui_sound_value = 0; ui_sound_volume = 0.0f; ui_sound_path[0] = '\0';
-    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index;
+    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index; gi.SoundIndexAlias = capture_ui_sound_index_alias;
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -3617,7 +3629,7 @@ TEST(wc3_api, jass_create_sound_filename_with_label_keeps_explicit_file_and_uses
     T_STREQ(ui_sound_path, "Sound\\Custom\\explicit.wav");
     T_FEQ(ui_sound_volume, 0.25f, 0.001f);
 
-    gi.SoundIndex = old_soundindex; gi.Sound = old_sound; currentplayer = NULL;
+    gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias; gi.Sound = old_sound; currentplayer = NULL;
     G_SetSLKRows("UnitAckSounds", old_rows); free_slk_rows(rows);
 }
 
@@ -3640,10 +3652,11 @@ TEST(wc3_api, jass_set_sound_params_from_label_keeps_filename_and_uses_dialog_pa
     slkTestData_t *old_rows = G_SetSLKRows("DialogSounds", rows);
     void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
     int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc; gc->ps.number = 0; gc->connected = true; currentplayer = &gc->ps;
     ui_sound_calls = 0; ui_sound_value = 0; ui_sound_volume = 0.0f; ui_sound_path[0] = '\0';
-    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index;
+    gi.Sound = capture_ui_sound; gi.SoundIndex = capture_ui_sound_index; gi.SoundIndexAlias = capture_ui_sound_index_alias;
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -3656,7 +3669,7 @@ TEST(wc3_api, jass_set_sound_params_from_label_keeps_filename_and_uses_dialog_pa
     T_STREQ(ui_sound_path, "Sound\\Custom\\voice.wav");
     T_FEQ(ui_sound_volume, 0.5f, 0.001f);
 
-    gi.SoundIndex = old_soundindex; gi.Sound = old_sound; currentplayer = NULL;
+    gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias; gi.Sound = old_sound; currentplayer = NULL;
     G_SetSLKRows("DialogSounds", old_rows); free_slk_rows(rows);
 }
 
@@ -3665,6 +3678,7 @@ TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
     LPEDICT recipient = &g_edicts[0];
     void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
     int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc;
     gc->ps.number = 0;
@@ -3672,7 +3686,7 @@ TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
     ui_sound_calls = 0;
     ui_sound_value = 0;
     gi.Sound = capture_ui_sound;
-    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndex = capture_ui_sound_index; gi.SoundIndexAlias = capture_ui_sound_index_alias;
 
     gc->connected = false;
     T_ASSERT(run_test_jass(
@@ -3691,7 +3705,7 @@ TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
     T_EQ(ui_sound_calls, 1);
     T_EQ(ui_sound_value, 77);
 
-    gi.SoundIndex = old_soundindex;
+    gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias;
     gi.Sound = old_sound;
     currentplayer = NULL;
 }
@@ -3701,11 +3715,14 @@ TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
     edict_t ent = { .client = &client };
     void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
     int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ui_sound_calls = 0;
     ui_sound_value = 0;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
+    gi.SoundPolicy = capture_ui_sound_policy;
     gi.Sound = capture_ui_sound;
-    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndex = capture_ui_sound_index; gi.SoundIndexAlias = capture_ui_sound_index_alias;
 
     G_PlayUISoundForPlayer(&ent, "InterfaceError");
     T_EQ(ui_sound_calls, 0);
@@ -3715,8 +3732,8 @@ TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
     T_EQ(ui_sound_calls, 1);
     T_EQ(ui_sound_value, 77);
 
-    gi.SoundIndex = old_soundindex;
-    gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex; gi.SoundIndexAlias = old_sound_alias;
+    gi.Sound = old_sound; gi.SoundPolicy = old_sound_policy;
 }
 
 TEST(wc3_api, customize_entity_preserves_world_state) {

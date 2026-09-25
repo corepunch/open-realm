@@ -827,7 +827,7 @@ static void attack_ground_ranged(LPEDICT ent) {
     S_PermanentInvisibilityReveal(ent);
     unit_setmove(ent, &attack_ground_move_ranged);
     ent->wait = ent->attack1.damagePoint / divisor;
-    if (ent->sound.attack) gi.Sound(ent, CHAN_WEAPON, ent->sound.attack, 1.0f, 1.0f, 0.0f);
+    if (ent->sound.attack) G_PlaySound(NULL, ent, CHAN_WEAPON, ent->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
 BOOL S_OrderAttackGround(LPEDICT unit, LPCVECTOR2 point) {

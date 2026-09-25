@@ -12,6 +12,19 @@
 
 extern JASSMODULE jass_funcs[];
 
+void test_sound_event(LPEDICT ent, DWORD request, DWORD event) {
+    LPEDICT player = g_edicts;
+    player->client = game.clients;
+    player->client->connected = true;
+    player->client->ps.number = ent->s.player;
+    char user[16], token[16], kind[16];
+    snprintf(user, sizeof(user), "%u", ent->s.number);
+    snprintf(token, sizeof(token), "%u", request);
+    snprintf(kind, sizeof(kind), "%u", event);
+    LPCSTR args[] = {"sound_event", user, token, kind};
+    G_ClientCommand(player, 4, args);
+}
+
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     LPEDICT ent = G_Spawn();

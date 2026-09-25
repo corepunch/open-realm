@@ -145,6 +145,12 @@ void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
                        FLOAT timeofs) {
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
+BOOL S_PlaySoundPolicy(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume,
+                       FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+    (void)policy;
+    S_PlaySoundPacket(path, origin, positioned, channel, volume, attenuation, timeofs);
+    return true;
+}
 void Cbuf_AddText(LPCSTR text) { (void)text; }
 void Cbuf_ClearDefer(void) {}
 void Cbuf_InsertFromDefer(void) {}

@@ -36,6 +36,8 @@ static int selection_sound_index_77(LPCSTR path) {
     (void)path;
     return 77;
 }
+static int selection_sound_index_77_alias(LPCSTR path, LPCSTR alias) { (void)alias; return selection_sound_index_77(path); }
+
 
 static char death_sound_path[256];
 static LPCSTR death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
@@ -91,6 +93,13 @@ static void order_sound_capture(LPEDICT ent, int channel, int index, FLOAT volum
     order_sound_calls++; order_sound_index = index;
 }
 
+static void order_sound_policy_capture(LPCVECTOR3 origin, LPEDICT ent, int channel, int index,
+                                       FLOAT volume, FLOAT attenuation, FLOAT offset, soundPolicy_t const *policy) {
+    T_ASSERT(policy && policy->request);
+    T_EQ(policy->request, G_UnitResponseRequest(ent, index));
+    order_sound_capture(ent, channel, index, volume, attenuation, offset);
+}
+
 /* A right-click must survive command dispatch and the next entity update. */
 TEST(wc3_unit, smart_move_emits_selected_unit_response) {
     struct game_import old = gi;
@@ -103,7 +112,7 @@ TEST(wc3_unit, smart_move_emits_selected_unit_response) {
     ent->selected = 1;
     ent->sound.yes[0] = 118; ent->sound.num_yes = 1;
     unit_stand(ent);
-    gi.Write = order_sound_write; gi.unicast = order_sound_unicast; gi.Sound = order_sound_capture;
+    gi.Write = order_sound_write; gi.unicast = order_sound_unicast; gi.Sound = order_sound_capture; gi.SoundPolicy = order_sound_policy_capture;
     order_sound_calls = order_sound_index = 0;
     G_ClientCommand(clent, 3, command);
     T_NOT_NULL(ent->goalentity);
@@ -220,10 +229,16 @@ TEST(wc3_unit, locust_ability_applies_untargetable_collisionless_traits) {
 TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
     static LPCSTR const slk =
         "ID;PWXL;N;E\n"
-        "B;X3;Y2;D0\n"
+        "B;X6;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
         "C;Y1;X2;K\"FileNames\"\n"
         "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y1;X4;K\"Priority\"\n"
+        "C;Y1;X5;K\"Channel\"\n"
+        "C;Y1;X6;K\"Flags\"\n"
+        "C;Y2;X5;K1\n"
+        "C;Y2;X6;K\"WANT3D,NODUPEUSERNAMES,CHANNELFULLPREEMPT,RANDOMPITCH\"\n"
+        "C;Y2;X4;K1731\n"
         "C;Y2;X1;K\"FootmanWhat\"\n"
         "C;Y2;X2;K\"FootmanWhat1.wav,FootmanWhat2.wav,FootmanWhat3.wav,FootmanWhat4.wav\"\n"
         "C;Y2;X3;K\"Units\\Human\\Footman\\\"\n"
@@ -234,7 +249,35 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
     G_RegisterSelectSounds(ent, "Footman");
     T_EQ(ent->sound.num_select, 4);
     FOR_LOOP(i, ent->sound.num_select) T_ASSERT(ent->sound.select[i]);
+    FOR_LOOP(i, ent->sound.num_select)
+        T_EQ(G_SoundIndexPolicy(ent->sound.select[i])->priority, 1731);
+    soundPolicy_t const *policy = G_SoundIndexPolicy(ent->sound.select[0]);
+    T_NOT_NULL(policy);
+    if (policy) {
+        T_EQ(policy->priority, 1731); T_EQ(policy->group, 1);
+        T_EQ(policy->max_channel, 3); T_EQ(policy->max_total, 24);
+        T_EQ(policy->flags, SOUND_NO_DUPLICATE_USERS | SOUND_CHANNEL_PREEMPT);
+    }
+    G_ResetSoundPresentationState();
+    T_NULL(G_SoundIndexPolicy(ent->sound.select[0]));
     G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
+}
+
+TEST(wc3_unit, shared_sound_file_keeps_label_policy_and_volume_independent) {
+    LPCSTR slk = "ID;PWXL;N;E\nB;X6;Y3;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\nC;X2;K\"FileNames\"\nC;X3;K\"Channel\"\n"
+        "C;X4;K\"Priority\"\nC;X5;K\"Volume\"\nC;X6;K\"Flags\"\n"
+        "C;Y2;X1;K\"AliasWhat\"\nC;X2;K\"shared.wav\"\nC;X3;K1\nC;X4;K1731\nC;X5;K127\nC;X6;K\"NODUPEUSERNAMES\"\n"
+        "C;Y3;X1;K\"AliasReady\"\nC;X2;K\"shared.wav\"\nC;X3;K4\nC;X4;K900\nC;X5;K63.5\nC;X6;K\"IGNOREUSERNAME\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("UnitAckSounds", rows);
+    int what = G_UnitAckSoundVariantIndex("Alias", "What", 0);
+    int ready = G_UnitAckSoundVariantIndex("Alias", "Ready", 0);
+    T_ASSERT(what > 0 && ready > 0); T_NE(what, ready);
+    T_EQ(G_SoundIndexPolicy(what)->group, 1); T_EQ(G_SoundIndexPolicy(what)->priority, 1731);
+    T_EQ(G_SoundIndexPolicy(ready)->group, 4); T_EQ(G_SoundIndexPolicy(ready)->priority, 900);
+    T_FEQ(G_SoundIndexVolume(what), 1, .001f); T_FEQ(G_SoundIndexVolume(ready), .5f, .001f);
+    T_EQ(G_UnitAckSoundVariantIndex("Alias", "What", 0), what);
+    G_SetSLKRows("UnitAckSounds", old); free_slk_rows(rows);
 }
 
 TEST(wc3_unit, selecting_owned_unit_queues_one_ack_sound) {
@@ -253,23 +296,151 @@ TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
     T_EQ(ent->sound.pending, 0);
 }
 
-TEST(wc3_unit, unit_response_suppresses_overlap_until_authored_duration_expires) {
+TEST(wc3_unit, queued_response_does_not_start_portrait_before_playback_feedback) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-
     G_ResetSelectionSoundState();
-    level.time = 1000;
-    T_ASSERT(G_QueueUnitResponseSound(ent, 11, 500));
-    T_EQ(ent->sound.pending, 11);
-    T_ASSERT(G_UnitResponseTalking(ent));
-
-    ent->sound.pending = 0;
-    T_ASSERT(!G_QueueUnitResponseSound(ent, 12, 500));
-    T_EQ(ent->sound.pending, 0);
-
-    level.time = 1500;
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11));
     T_ASSERT(!G_UnitResponseTalking(ent));
-    T_ASSERT(G_QueueUnitResponseSound(ent, 12, 250));
-    T_EQ(ent->sound.pending, 12);
+}
+
+TEST(wc3_unit, response_preserves_full_sound_configstring_index) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    G_ResetSelectionSoundState();
+    T_ASSERT(G_QueueUnitResponseSound(ent, 731));
+    T_EQ(ent->sound.pending, 731);
+}
+
+void test_sound_event(LPEDICT ent, DWORD request, DWORD event);
+
+static void response_test_finish(LPEDICT ent) {
+    DWORD request = G_UnitResponseRequest(ent, ent->sound.pending);
+    ent->sound.pending = 0;
+    test_sound_event(ent, request, SOUND_ACCEPTED);
+    test_sound_event(ent, request, SOUND_ACCEPTED); /* duplicate cannot advance twice */
+    test_sound_event(ent, request, SOUND_STARTED);
+    test_sound_event(ent, request, SOUND_ENDED);
+}
+
+TEST(wc3_unit, response_feedback_owns_portrait_lifetime_and_rejection) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    G_ResetSelectionSoundState();
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11));
+    DWORD first = G_UnitResponseRequest(ent, 11);
+    ent->sound.pending = 0; /* packet sent */
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    T_ASSERT(!G_QueueUnitResponseSound(ent, 12)); /* only one unanswered request */
+    test_sound_event(ent, first, SOUND_REJECTED);
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    T_ASSERT(G_QueueUnitResponseSound(ent, 12));
+    DWORD second = G_UnitResponseRequest(ent, 12);
+    T_NE(first, second);
+    test_sound_event(ent, second, SOUND_STARTED); /* cannot start before admission */
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    test_sound_event(ent, second, SOUND_ACCEPTED);
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    test_sound_event(ent, second, SOUND_STARTED);
+    T_ASSERT(G_UnitResponseTalking(ent));
+    level.time += 100000; /* neither accelerated game time nor authored length ends playback */
+    T_ASSERT(G_UnitResponseTalking(ent));
+    test_sound_event(ent, first, SOUND_ENDED); /* stale receipt */
+    T_ASSERT(G_UnitResponseTalking(ent));
+    test_sound_event(ent, second, SOUND_ENDED); /* completion OR preemption */
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    test_sound_event(ent, second, SOUND_STARTED);
+    T_ASSERT(!G_UnitResponseTalking(ent));
+}
+
+TEST(wc3_unit, response_feedback_rejects_foreign_clients_resets_and_reused_units) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    G_ResetSelectionSoundState();
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11));
+    DWORD request = G_UnitResponseRequest(ent, 11);
+    char user[16], token[16];
+    snprintf(user, sizeof(user), "%u", ent->s.number); snprintf(token, sizeof(token), "%u", request);
+    LPCSTR accepted[] = {"sound_event", user, token, "1"}, started[] = {"sound_event", user, token, "2"};
+    g_edicts[0].client = game.clients; game.clients[0].connected = true; game.clients[0].ps.number = 1;
+    G_ClientCommand(g_edicts, 4, accepted); G_ClientCommand(g_edicts, 4, started);
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    G_ResetSelectionSoundState();
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11));
+    T_NE(G_UnitResponseRequest(ent, 11), request);
+    test_sound_event(ent, request, SOUND_ACCEPTED); test_sound_event(ent, request, SOUND_STARTED);
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    request = G_UnitResponseRequest(ent, 11);
+    G_ClearUnitResponses(ent); /* same-slot, same-tick reuse must not match */
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11));
+    test_sound_event(ent, request, SOUND_ACCEPTED); test_sound_event(ent, request, SOUND_STARTED);
+    T_ASSERT(!G_UnitResponseTalking(ent));
+}
+
+TEST(wc3_unit, overlapping_response_feedback_keeps_portrait_until_last_voice_ends) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    G_ResetSelectionSoundState();
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11)); DWORD a = G_UnitResponseRequest(ent, 11);
+    ent->sound.pending = 0;
+    test_sound_event(ent, a, SOUND_ACCEPTED); test_sound_event(ent, a, SOUND_STARTED);
+    T_ASSERT(G_QueueUnitResponseSound(ent, 12)); DWORD b = G_UnitResponseRequest(ent, 12);
+    test_sound_event(ent, b, SOUND_ACCEPTED); test_sound_event(ent, b, SOUND_STARTED);
+    test_sound_event(ent, a, SOUND_ENDED); T_ASSERT(G_UnitResponseTalking(ent));
+    test_sound_event(ent, b, SOUND_ENDED); T_ASSERT(!G_UnitResponseTalking(ent));
+    T_ASSERT(G_QueueUnitResponseSound(ent, 13)); DWORD c = G_UnitResponseRequest(ent, 13);
+    game.clients[0].connected = false;
+    G_UpdateUnitResponsePresentation();
+    test_sound_event(ent, c, SOUND_ACCEPTED); test_sound_event(ent, c, SOUND_STARTED);
+    T_ASSERT(!G_UnitResponseTalking(ent));
+    G_ResetSelectionSoundState(); T_EQ(ent->sound.pending, 0);
+}
+
+TEST(wc3_unit, unused_client_slot_cannot_retire_another_clients_playback) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    G_ResetSelectionSoundState();
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11));
+    DWORD request = G_UnitResponseRequest(ent, 11);
+    test_sound_event(ent, request, SOUND_ACCEPTED); test_sound_event(ent, request, SOUND_STARTED);
+    GAMECLIENT unused = {0}; /* unused slots can still carry zero-initialized player zero */
+    G_UpdateUnitResponsePresentation();
+    T_ASSERT(G_UnitResponseTalking(ent));
+    G_ResetSelectionSoundState();
+}
+
+TEST(wc3_unit, selection_reset_ignores_late_response_admission) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    ent->sound.select[0] = 731; ent->sound.num_select = 1;
+    G_ResetSelectionSoundState();
+    G_QueueSelectionSound(ent, true); T_EQ(ent->sound.pending, 731);
+    DWORD request = G_UnitResponseRequest(ent, 731);
+    G_QueueSelectionSound(ent, true); /* same unit reselected before old admission */
+    test_sound_event(ent, request, SOUND_ACCEPTED);
+    T_EQ(selection_sound_state[0].selected_sound_count, 0);
+    test_sound_event(ent, request, SOUND_ENDED);
+    G_QueueSelectionSound(ent, false); request = G_UnitResponseRequest(ent, 731);
+    test_sound_event(ent, request, SOUND_ACCEPTED);
+    test_sound_event(ent, request, SOUND_ACCEPTED);
+    T_EQ(selection_sound_state[0].selected_sound_count, 1);
+    G_ResetSelectionSoundState();
+}
+
+TEST(wc3_unit, response_variant_commits_on_acceptance_and_rejection_preserves_previous) {
+    LPCSTR text = "ID;PWXL;N;E\nB;X2;Y2;D0\nC;Y1;X1;K\"SoundLabel\"\nC;X2;K\"FileNames\"\n"
+        "C;Y2;X1;K\"ProbeWhat\"\nC;X2;K\"one.wav,two.wav\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(text), *old = G_SetSLKRows("UnitAckSounds", rows);
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    G_ResetSelectionSoundState();
+    int a = G_UnitAckSoundVariantIndex("Probe", "What", 0), b = G_UnitAckSoundVariantIndex("Probe", "What", 1);
+    T_ASSERT(G_QueueUnitResponseSound(ent, a));
+    DWORD request = G_UnitResponseRequest(ent, a);
+    T_ASSERT(!G_SoundVariantIsLast(a, 0));
+    test_sound_event(ent, request, SOUND_ACCEPTED);
+    T_ASSERT(G_SoundVariantIsLast(a, 0)); T_ASSERT(!G_SoundVariantIsLast(a, 1));
+    test_sound_event(ent, request, SOUND_ENDED);
+    T_ASSERT(G_QueueUnitResponseSound(ent, b)); request = G_UnitResponseRequest(ent, b);
+    test_sound_event(ent, request, SOUND_REJECTED);
+    T_ASSERT(G_SoundVariantIsLast(a, 0)); T_ASSERT(!G_SoundVariantIsLast(b, 0));
+    T_ASSERT(G_QueueUnitResponseSound(ent, b)); request = G_UnitResponseRequest(ent, b);
+    test_sound_event(ent, request, SOUND_ACCEPTED);
+    T_ASSERT(!G_SoundVariantIsLast(a, 0)); T_ASSERT(G_SoundVariantIsLast(b, 0));
+    G_ResetSelectionSoundState(); G_ResetSoundPresentationState();
+    G_SetSLKRows("UnitAckSounds", old); free_slk_rows(rows);
 }
 
 TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines) {
@@ -288,20 +459,28 @@ TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines)
     slkTestData_t *sounds = parse_slk_string(slk);
     slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
     int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ent->data.UnitUI = &ui;
     ent->sound.select[0] = 11;
     ent->sound.num_select = 1;
-    gi.SoundIndex = selection_sound_index_77;
+    gi.SoundIndex = selection_sound_index_77; gi.SoundIndexAlias = selection_sound_index_77_alias;
     G_ResetSelectionSoundState();
 
     G_QueueSelectionSound(ent, true); T_EQ(ent->sound.pending, 11);
-    G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 11);
-    G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 11);
+    /* Rejected responses leave the three-What threshold untouched. */
+    DWORD rejected = G_UnitResponseRequest(ent, 11);
+    ent->sound.pending = 0; test_sound_event(ent, rejected, SOUND_REJECTED);
+    FOR_LOOP(i, 3) {
+        G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 11);
+        response_test_finish(ent);
+    }
     G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 77);
+    response_test_finish(ent);
     G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 77);
+    response_test_finish(ent);
 
-    gi.SoundIndex = old_sound_index;
+    gi.SoundIndex = old_sound_index; gi.SoundIndexAlias = old_sound_alias;
     G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
 }
 
@@ -321,15 +500,16 @@ TEST(wc3_unit, attack_order_uses_yesattack_instead_of_weapon_swing_slot) {
     slkTestData_t *sounds = parse_slk_string(slk);
     slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
     int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ent->data.UnitUI = &ui;
     ent->sound.attack = 0;
-    gi.SoundIndex = selection_sound_index_77;
+    gi.SoundIndex = selection_sound_index_77; gi.SoundIndexAlias = selection_sound_index_77_alias;
     G_QueueAttackOrderSound(ent);
     T_EQ(ent->sound.pending, 77);
     T_EQ(ent->sound.attack, 0);
 
-    gi.SoundIndex = old_sound_index;
+    gi.SoundIndex = old_sound_index; gi.SoundIndexAlias = old_sound_alias;
     G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
 }
 
@@ -1754,6 +1934,18 @@ TEST(wc3_unit, additem_fails_when_inventory_full) {
     LPEDICT extra = make_world_item(MAKEFOURCC('r','d','e','2'));
     BOOL ok = unit_additem(ent, extra);
     T_ASSERT(!ok);
+}
+
+
+TEST(wc3_unit, different_units_have_independent_response_gates) {
+    LPEDICT a = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    a->s.player = b->s.player = 0;
+    G_ResetSelectionSoundState();
+    T_ASSERT(G_QueueUnitResponseSound(a, 11));
+    T_ASSERT(G_QueueUnitResponseSound(b, 12));
+    T_ASSERT(!G_QueueUnitResponseSound(a, 13));
+    T_EQ(b->sound.pending, 12);
 }
 
 #endif /* BZ_TESTS */

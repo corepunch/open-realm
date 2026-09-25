@@ -160,6 +160,7 @@ TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/mpq.c common/mpq.h
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
+SERVER_HEADERS := $(shell find server -name '*.h' | sort)
 WORLD_CORE_SRCS := common/world.c server/sv_routing.c server/routing.h
 FONT_SRC := renderer/conchars.pcx
 FONT_HEADER := renderer/conchars_sysfont.h
@@ -175,20 +176,20 @@ COMMON_SRCS      := $(filter-out common/main.c, $(call CSRC,common))
 COMMON_GAME_SRCS := common/mpq.c vendor/blast/blast.c
 
 define unity_lib_schema
-$(1): $(2) | $$(LIB_DIR)
+$(1): $(2) $$(SERVER_HEADERS) | $$(LIB_DIR)
 	@echo "[$(3)]"
 	@$$(call UNITY,$(4),$(5)) | \
 		$$(CC) $(6) $$(LIB_FLAGS) $$(INSTALL_NAME) $$(LIB_RPATH) -x c -o $$@ - $(7) $$(LDFLAGS) $(8)
 endef
 
 define src_lib_schema
-$(1): $(2) | $$(LIB_DIR)
+$(1): $(2) $$(SERVER_HEADERS) | $$(LIB_DIR)
 	@echo "[$(3)]"
 	@$$(CC) $(4) $$(LIB_FLAGS) $$(INSTALL_NAME) $$(LIB_RPATH) -x c -o $$@ $(5) $$(LDFLAGS) $(6)
 endef
 
 define app_schema
-$(1): $(2) | $$(BIN_DIR) install-share
+$(1): $(2) $$(SERVER_HEADERS) | $$(BIN_DIR) install-share
 	@echo "[$(3)]"
 	@$$(call UNITY,client server common sound $(6),! -name 'stb_vorbis.c' ! -name 'sv_routing.c') | \
 		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
@@ -196,7 +197,7 @@ endef
 
 define test_schema
 
-$(4): $(2) $(5) | $$(BIN_DIR)
+$(4): $(2) $(5) $$(SERVER_HEADERS) | $$(BIN_DIR)
 	@$$(CC) $(3) -o $(4) $(5) $$(RPATH) $$(LDFLAGS) $(6)
 
 $(1): $(4) | $$(TEST_JUNIT_DIR)

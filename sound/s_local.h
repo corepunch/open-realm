@@ -14,7 +14,7 @@
 
 #define S_MAX_KITS          8192
 #define S_MAX_SFX           512
-#define S_MAX_CHANNELS      8
+#define S_MAX_CHANNELS      24
 #define S_HASH_BUCKETS      256
 
 typedef enum {
@@ -104,14 +104,20 @@ typedef struct {
         VECTOR2     origin;
         FLOAT       attenuation;
         int         channel;
+        unsigned    priority;
+        soundPolicy_t policy;
+        uint64_t serial;
+        DWORD started;
         int         delay;
         DWORD       entity;
         DWORD       loop_generation;
         BOOL        looping;
         BOOL        is_positional;
-        BOOL        active;
+        BOOL        active, notified_start;
     } channels[S_MAX_CHANNELS];
     DWORD loop_generation;
+    uint64_t sound_serial;
+    struct { DWORD end; BOOL active; } user_cooldown[MAX_GAME_ENTITIES];
 
     /* Client-owned long-form PCM streams: stereo S16 at the mixer rate.
      * Keep movie and music lifetime independent so one presentation source
@@ -135,6 +141,12 @@ void S_PlaySoundFile(LPCSTR path);
 void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin);
 void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation,
                        FLOAT timeofs);
+BOOL S_PollSoundEvent(soundEvent_t *event);
+void S_ClearSoundEvents(void);
+BOOL S_PlaySoundPolicy(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy);
+#ifdef BZ_TESTS
+void S_TestMix(SHORT *out, DWORD frames);
+#endif
 void S_BeginLoopingSounds(void);
 void S_UpdateLoopingSound(DWORD entity, LPCSTR path, LPCVECTOR2 origin, FLOAT volume, FLOAT attenuation);
 void S_EndLoopingSounds(void);

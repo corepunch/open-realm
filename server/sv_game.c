@@ -141,7 +141,9 @@ void SV_InitGameProgs(void) {
     import.ModelIndex = SV_ModelIndex;
     import.ImageIndex = SV_ImageIndex;
     import.SoundIndex = SV_SoundIndex;
+    import.SoundIndexAlias = SV_SoundIndexAlias;
     import.Sound = PF_StartSound;
+    import.SoundPolicy = SV_StartSoundPolicy;
     import.PositionedSound = PF_PositionedSound;
     import.MinimapPing = SV_MinimapPing;
     import.FontIndex = SV_FontIndex;
