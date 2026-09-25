@@ -66,9 +66,10 @@ static void soul_trap_unlink(edict_t *target) {
     target->soul_trap_carrier_spawn_time = target->soul_trap_next_spawn_time = 0;
     target->aiflags &= ~AI_SOUL_TRAPPED;
     if (carrier && carrier->inuse && carrier->spawn_time == carrier_spawn) {
-        G_RemoveUnitForcedVisibility(carrier, target->s.player);
+        G_RemoveUnitForcedVisibility(carrier, target->soul_trap_viewer);
         soul_trap_remove_possession(carrier);
     }
+    target->soul_trap_viewer = 0;
 }
 
 static void soul_trap_release_target(edict_t *target, vector2_t const *position, bool restore_world) {
@@ -151,7 +152,8 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     target->soul_trap_next_spawn_time = carrier->soul_trap_head_spawn_time;
     carrier->soul_trap_head = target;
     carrier->soul_trap_head_spawn_time = target->spawn_time;
-    G_AddUnitForcedVisibility(carrier, target->s.player);
+    target->soul_trap_viewer = target->s.player;
+    G_AddUnitForcedVisibility(carrier, target->soul_trap_viewer);
     target->aiflags |= AI_SOUL_TRAPPED;
     S_SpellCancelChannel(target);
     G_ClearUnitOrderQueue(target);
@@ -207,7 +209,7 @@ static bool soul_trap_item_linked(edict_t const *carrier, edict_t const *item) {
         soul_trap_valid_link(carrier, target);
 }
 
-void S_SoulTrapFinalizeConsumedItem(edict_t *item) {
+static void soul_trap_finalize_consumed_item(edict_t *item) {
     edict_t *carrier, *target, *filled;
     uint32_t carrier_spawn, target_spawn;
     int32_t slot;
@@ -220,11 +222,9 @@ void S_SoulTrapFinalizeConsumedItem(edict_t *item) {
     item->item.soul_target_spawn_time = 0;
     if (!target->inuse || target->spawn_time != target_spawn || !(target->aiflags & AI_SOUL_TRAPPED) ||
         !carrier || !carrier->inuse || carrier->spawn_time != carrier_spawn || M_IsDead(carrier)) return;
-    FOR_LOOP(i, G_InventoryCapacity(carrier)) {
-        filled = carrier->inventory[i];
-        if (!filled || filled->class_id != ID_FILLED_SOUL) continue;
-        if (filled->item.soul_target &&
-            (filled->item.soul_target != target || filled->item.soul_target_spawn_time != target_spawn)) continue;
+    slot = item->item.pending_use_slot;
+    filled = slot >= 0 && slot < (int32_t)G_InventoryCapacity(carrier) ? carrier->inventory[slot] : NULL;
+    if (filled && filled->class_id == ID_FILLED_SOUL && !filled->item.soul_target) {
         filled->item.soul_target = target;
         filled->item.soul_target_spawn_time = target_spawn;
         target->soul_trap_item = filled;
@@ -259,6 +259,12 @@ BZ_ABILITY_PROC(CAbilitySoulTrapped) {
     switch (msg) {
     case A_ITEM_PREVENT_DROP:
         return call && call->source_item && soul_trap_item_linked(ent, call->source_item);
+    case A_ITEM_FINALIZE:
+        if (call && call->source_item && call->source_item->inuse &&
+            call->source_item->spawn_time == call->source_item_spawn_time &&
+            call->source_item->item.pending_use_carrier == ent)
+            soul_trap_finalize_consumed_item(call->source_item);
+        return true;
     case A_ITEM_SCRIPT_REMOVE: {
         edict_t *item = call ? call->source_item : NULL;
         if (!soul_trap_item_linked(ent, item) || item->item.carrier != ent ||

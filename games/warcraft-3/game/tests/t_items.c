@@ -1583,7 +1583,7 @@ TEST(wc3_items, soul_gem_abilities_are_registered_for_targeted_item_flow) {
 
 TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     gameClient_t *client;
-    edict_t *clent, *carrier, *target, *target2, *gem, *gem2, *filled, *filled2;
+    edict_t *clent, *carrier, *target, *target2, *gem, *gem2, *filled, *filled2, *existing_soul;
     uint32_t soul_count;
     char number[16];
     cstring_t select[] = { "select", number };
@@ -1620,6 +1620,9 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     carrier = make_item_test_inventory_unit(64, 64);
     carrier->s.player = 0;
     carrier->svflags |= SVF_MONSTER;
+    existing_soul = make_item_test_world_item(MAKEFOURCC('s','o','u','l'), 64, 64);
+    existing_soul->data.ItemData = G_ItemData(MAKEFOURCC('s','o','u','l'));
+    T_ASSERT(G_AddItemToSlot(carrier, existing_soul, 0));
     target = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 96, 64);
     target->s.player = 1;
     target->svflags |= SVF_MONSTER;
@@ -1632,20 +1635,22 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
     gem->item.charges = 1;
-    T_ASSERT(G_AddItemToSlot(carrier, gem, 0));
+    T_ASSERT(G_AddItemToSlot(carrier, gem, 1));
 
     clent = G_GetPlayerEntityByNumber(0);
     client = clent->client;
     G_SelectEntity(client, carrier);
-    G_UseItem(carrier, 0);
+    G_UseItem(carrier, 1);
     T_NOT_NULL(client->menu.on_entity_selected);
     snprintf(number, sizeof(number), "%u", (unsigned)target->s.number);
     G_ClientCommand(clent, 2, select);
 
     T_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.ability_item);
+    T_EQ(client->menu.ability_item_spawn_time, 0);
     T_ASSERT(!M_IsDead(target));
     T_ASSERT(target->s.renderfx & RF_HIDDEN);
-    T_NULL(carrier->inventory[0]);
+    T_ASSERT(carrier->inventory[0] == existing_soul);
     T_ASSERT(gem->item.pending_use_removal);
     G_FowUpdate();
     T_ASSERT(G_FowPlayerCanSeeEntity(1, carrier));
@@ -1654,21 +1659,24 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
                                       G_FowWorldToCellX(carrier->s.origin2.x)], 0);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
     T_ASSERT(gem->inuse && gem->item.pending_use_removal);
-    T_NULL(carrier->inventory[0]);
+    T_ASSERT(carrier->inventory[0] == existing_soul);
     level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
     jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    filled = carrier->inventory[0];
+    filled = carrier->inventory[1];
     T_ASSERT(filled && filled->class_id == MAKEFOURCC('s','o','u','l'));
     soul_count = 0;
     FOR_LOOP(i, G_InventoryCapacity(carrier))
         if (carrier->inventory[i] && carrier->inventory[i]->class_id == MAKEFOURCC('s','o','u','l')) soul_count++;
-    T_EQ(soul_count, 1);
+    T_EQ(soul_count, 2);
     T_ASSERT(!G_ItemDroppable(filled));
+    T_NULL(existing_soul->item.soul_target);
+    T_ASSERT(target->soul_trap_item != existing_soul);
     T_ASSERT(target->soul_trap_item == filled);
     T_ASSERT(filled->item.soul_target == target);
     T_EQ(carrier->forced_visibility_count[1], 1);
-    T_ASSERT(!G_DropItemAtScripted(carrier, 0, &carrier->s.origin2));
+    T_ASSERT(!G_DropItemAtScripted(carrier, 1, &carrier->s.origin2));
+    target->s.player = 2; /* Forced visibility remains paired with capture-time owner. */
 
     target2 = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 128, 64);
     target2->s.player = 1; target2->svflags |= SVF_MONSTER; target2->s.model = 1;
@@ -1677,8 +1685,8 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     gem2 = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem2->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
     gem2->item.charges = 1;
-    T_ASSERT(G_AddItemToSlot(carrier, gem2, 1));
-    G_UseItem(carrier, 1);
+    T_ASSERT(G_AddItemToSlot(carrier, gem2, 2));
+    G_UseItem(carrier, 2);
     T_NOT_NULL(client->menu.on_entity_selected);
     snprintf(number, sizeof(number), "%u", (unsigned)target2->s.number);
     G_ClientCommand(clent, 2, select);
@@ -1686,16 +1694,16 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(target2->aiflags & AI_SOUL_TRAPPED);
     G_RunEvents(); jass_runevents(level.vm); G_RunConsumedItemFrees();
     T_ASSERT(gem2->inuse && gem2->item.pending_use_removal);
-    T_NULL(carrier->inventory[1]);
+    T_NULL(carrier->inventory[2]);
     level.time += 100; jass_runevents(level.vm); G_RunConsumedItemFrees();
     jass_callbyname(level.vm, "verify_no_target_death", true); jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    filled2 = carrier->inventory[1];
+    filled2 = carrier->inventory[2];
     T_ASSERT(filled2 && filled2->class_id == MAKEFOURCC('s','o','u','l'));
     soul_count = 0;
     FOR_LOOP(i, G_InventoryCapacity(carrier))
         if (carrier->inventory[i] && carrier->inventory[i]->class_id == MAKEFOURCC('s','o','u','l')) soul_count++;
-    T_EQ(soul_count, 2);
+    T_EQ(soul_count, 3);
     T_ASSERT(filled2 != filled);
     T_ASSERT(target2->soul_trap_item == filled2);
     T_ASSERT(filled2->item.soul_target == target2);
@@ -1718,6 +1726,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(!filled->inuse);
     T_ASSERT(!filled2->inuse);
     T_EQ(carrier->forced_visibility_count[1], 0);
+    T_EQ(carrier->forced_visibility_count[2], 0);
     T_ASSERT(!G_UnitIsForcedVisibleToPlayer(carrier, 1));
     G_FowShutdown();
 }
@@ -1779,6 +1788,7 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     carrier->soul_trap_head_spawn_time = target->spawn_time;
     target->soul_trap_carrier = carrier;
     target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    target->soul_trap_viewer = target->s.player;
     G_AddUnitForcedVisibility(carrier, target->s.player);
     target->soul_trap_item = filled;
     target->soul_trap_item_spawn_time = filled->spawn_time;
