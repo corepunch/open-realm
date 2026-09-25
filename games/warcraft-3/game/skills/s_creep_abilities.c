@@ -168,6 +168,9 @@ static void death_damage_aoe(edict_t * ent, uint32_t code) {
 
     thinker = G_Spawn();
     if (!thinker) {
+        /* HACK: edict exhaustion leaves no timer entity; resolve damage now rather than lose the death effect. */
+        fprintf(stderr, "WC3 death AOE: no thinker for ability %c%c%c%c on unit %u; resolving immediately\n",
+                (char)(code & 255), (char)((code >> 8) & 255), (char)((code >> 16) & 255), (char)(code >> 24), ent->s.number);
         death_damage_aoe_apply(ent, code, level, &ent->s.origin2);
         return;
     }
