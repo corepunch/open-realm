@@ -26,6 +26,7 @@ void reset_entities(void);
 void setup_test_world(void);
 void G_ResetTestSelectionChecks(void);
 DWORD G_GetTestSelectionChecks(void);
+BOOL run_test_jass(LPCSTR src);
 
 
 #include "../game/hud/hud_utils.h"
@@ -1387,6 +1388,37 @@ TEST(wc3_game, selected_unit_response_drives_portrait_talk_until_voice_duration_
     gi.unicast = old_unicast;
     gi.FontIndex = old_font;
     T_STREQ(portrait_capture_animation, "Portrait");
+}
+
+TEST(wc3_game, response_expiry_runs_from_server_frame_scheduler) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit;
+
+    reset_entities();
+    setup_test_world();
+    FOR_LOOP(i, game.max_clients) game.clients[i].connected = false;
+    client->connected = true;
+    client->ps.number = 0;
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    unit->svflags |= SVF_MONSTER;
+    unit->s.player = 0;
+    G_SelectEntity(client, unit);
+    level.time = 1000;
+    T_ASSERT(G_QueueUnitResponseSound(unit, 77, 500));
+    unit->sound.pending = 0; /* The frame test has no client transport edict for playback. */
+    client->presentation_dirty = false;
+
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    level.time = 1499;
+    globals.RunFrame();
+    T_ASSERT(G_UnitResponseTalking(unit));
+    T_ASSERT(!client->presentation_dirty);
+
+    level.time = 1500;
+    globals.RunFrame();
+    T_ASSERT(!G_UnitResponseTalking(unit));
+    T_ASSERT(client->presentation_dirty);
 }
 
 TEST(wc3_game, response_expiry_tracks_the_current_focused_unit) {
@@ -3845,8 +3877,6 @@ SAVE_PTR_FIELD_TEST(field_build_preview_round_trip, "build_preview", build_previ
 
 #undef SAVE_PTR_FIELD_TEST
 #undef SAVE_INT_FIELD_TEST
-
-BOOL run_test_jass(LPCSTR src);
 
 TEST(wc3_save, clears_nested_process_owned_fields) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";
