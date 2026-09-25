@@ -45,7 +45,7 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 data=${WC3DATA:?Set WC3DATA to your Warcraft III installation}
 data=$(cd -- "$data" && pwd)
 [[ $action == resolve || $map_set == 0 ]] || fail '--map cannot be combined with --list or --select'
-catalog=(python3 "$root/tools/parity/wc3_maps.py" --data "$data" --edition "$edition" "${map_dirs[@]}")
+catalog=(python3 "$root/tools/parity/wc3_maps.py" --data "$data" --edition "$edition" "${map_dirs[@]+"${map_dirs[@]}"}")
 [[ $refresh == 0 ]] || catalog+=(--refresh)
 if [[ $action == list ]]; then
     exec "${catalog[@]}" --list
