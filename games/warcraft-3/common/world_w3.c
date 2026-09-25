@@ -132,6 +132,21 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 }
 
 BOOL CL_GameCameraUsesWorldUp(void) { return true; }
+
+/* Retail 1.30+ ConsoleUI.fdf authors ConsoleTexture05/06 tiles beside the 4:3 root, so the canvas widens
+ * and centers the HUD; classic archives author none, so the scene stretches like classic retail. */
+UICANVASPOLICY CL_GameCanvasPolicy(void) {
+    DWORD size = 0;
+    LPSTR text = FS_ReadFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", &size);
+    UICANVASPOLICY policy = UI_CANVAS_POLICY;
+    if (!text) {
+        fprintf(stderr, "WC3: ConsoleUI.fdf unavailable; keeping the classic stretched canvas\n");
+        return policy;
+    }
+    if (W3_FdfReferencesFile(text, "ConsoleTexture05")) policy = UI_CANVAS_EXPAND_CENTER;
+    FS_FreeFile(text);
+    return policy;
+}
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) {
     FLOAT delta = fmodf(b - a, 360.0f);
     if (delta > 180.0f)

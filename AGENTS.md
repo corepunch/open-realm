@@ -15,6 +15,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Native game coordinate systems and axis migration | [AXIS.md](AXIS.md) |
 | Server-authored UI payload design, limits, diagnostics, scrollbar postmortem | [docs/architecture/ui-payloads.md](docs/architecture/ui-payloads.md) |
 | Client-managed gameplay windows, focus, z-order, dragging, modal input, text arenas | [docs/architecture/client-windows.md](docs/architecture/client-windows.md) |
+| UI canvas: window geometry, stretch/expand/centered policies, widescreen console chrome, resize settling, `ui_canvas` class command | [docs/architecture/ui-canvas.md](docs/architecture/ui-canvas.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, ability_audit, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |

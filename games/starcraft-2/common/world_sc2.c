@@ -1,4 +1,5 @@
 #include "sc2_map.h"
+#include "common/ui_constants.h"
 
 DWORD SC2_MapObjectClassId(sc2MapObject_t const *object);
 
@@ -13,6 +14,7 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 }
 
 BOOL CL_GameCameraUsesWorldUp(void) { return false; }
+UICANVASPOLICY CL_GameCanvasPolicy(void) { return UI_CANVAS_POLICY; }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return SC2_LerpDegrees(a, b, fraction); }
 BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) { (void)origin; return false; }
 void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags) { (void)point; (void)flags; }

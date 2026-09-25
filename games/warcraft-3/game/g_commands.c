@@ -2705,6 +2705,18 @@ static void CMD_MusicSnapshot(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
                             index, position_ms, played_mask);
 }
 
+/* The client reports the presentation class its window settled on (docs/architecture/ui-canvas.md).  Nothing
+ * is authored here: the next resource-bar refresh re-sends LAYER_CONSOLE with or without extension chrome. */
+static void CMD_UICanvas(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    char *end = NULL;
+    long value = argc > 1 && argv[1][0] ? strtol(argv[1], &end, 10) : -1;
+    if (value < 0 || value >= UI_CANVAS_CLASS_COUNT || (end && *end)) {
+        fprintf(stderr, "ui_canvas: rejected class \"%s\"\n", argc > 1 ? argv[1] : "");
+        return;
+    }
+    ent->client->canvas = (UICANVASCLASS)value;
+}
+
 clientCommand_t clientCommands[] = {
     { "give", CMD_Give },
     { "god", CMD_God },
@@ -2771,6 +2783,7 @@ clientCommand_t clientCommands[] = {
     { "menu_load_quick", CMD_MenuLoadQuick },
     { "resume", CMD_Resume },
     { "pause", CMD_Pause },
+    { "ui_canvas", CMD_UICanvas },
     { "allies", CMD_Allies },
     { "allies_toggle", CMD_AlliesToggle },
     { "allies_toggle_victory", CMD_AlliesToggleVictory },

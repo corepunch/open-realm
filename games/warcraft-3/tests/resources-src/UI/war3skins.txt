@@ -18,6 +18,16 @@ MinimapResourceTexture=TestUI\Textures\solid_white.blp
 MinimapEntangledResourceTexture=TestUI\Textures\checker_8x8.blp
 MinimapHauntedResourceTexture=TestUI\Textures\panel_border_32x32.blp
 MinimapNeutralTexture=TestUI\Textures\alpha_ring_16x16.blp
+GoldIcon=TestUI\Textures\solid_white.blp
+LumberIcon=TestUI\Textures\solid_white.blp
+SupplyIcon=TestUI\Textures\solid_white.blp
+UpperMenuButtonTexture=TestUI\Textures\checker_8x8.blp
+ConsoleTexture01=TestUI\Textures\human-tile01.blp
+ConsoleTexture02=TestUI\Textures\human-tile02.blp
+ConsoleTexture03=TestUI\Textures\human-tile03.blp
+ConsoleTexture04=TestUI\Textures\human-tile04.blp
+ConsoleTexture05=TestUI\Textures\human-tile05.blp
+ConsoleTexture06=TestUI\Textures\human-tile06.blp
 
 [Human]
 ConsoleInventoryCoverTexture=TestUI\Textures\human-inventory-cover.blp
@@ -25,6 +35,12 @@ ConsoleInventoryNoCapacity=TestUI\Textures\human-inventory-no-capacity.blp
 
 [Orc]
 ConsoleInventoryCoverTexture=TestUI\Textures\orc-inventory-cover.blp
+ConsoleTexture01=TestUI\Textures\orc-tile01.blp
+ConsoleTexture02=TestUI\Textures\orc-tile02.blp
+ConsoleTexture03=TestUI\Textures\orc-tile03.blp
+ConsoleTexture04=TestUI\Textures\orc-tile04.blp
+ConsoleTexture05=TestUI\Textures\orc-tile05.blp
+ConsoleTexture06=TestUI\Textures\orc-tile06.blp
 ConsoleInventoryNoCapacity=TestUI\Textures\orc-inventory-no-capacity.blp
 
 [NightElf]

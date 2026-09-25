@@ -1,5 +1,4 @@
 #include "client.h"
-#include "common/ui_canvas.h"
 #include "menu_text_input.h"
 #include "ui_layout.h"
 #include <ctype.h>
@@ -12,23 +11,25 @@ BOOL scr_initialized;
 #define SCR_ALERT_PULSE_HALF_MS 250 // milliseconds; triangle-wave half period for transient command-button alert tint
 #define SCR_ALERT_PULSE_MIN_GB 80 // color channel value; preserves portrait detail at the red peak of a transient alert
 
-FLOAT SCR_UICanvasWidth(void) { return UI_CanvasWidth(re.GetWindowSize()); }
+FLOAT SCR_UICanvasWidth(void) { return CL_Canvas()->scene.w; }
 
 /*
  * SDL mouse positions are window pixels, while UI/layout coordinates use the
  * engine's virtual canvas.  Cursor drawing and FDF hit-testing must share this
- * mapping, including each game's authored widescreen scene.
+ * mapping, including each game's authored widescreen scene.  The canvas keeps
+ * the window it was resolved from, so a frame never mixes an old scene with a
+ * new window size.
  */
 VECTOR2 SCR_ScreenToUI(int x, int y) {
-    size2_t window = re.GetWindowSize();
+    LPCUICANVAS canvas = CL_Canvas();
     FLOAT nx = 0.0f, ny = 0.0f;
 
-    if (window.width > 0 && window.height > 0) {
-        nx = (FLOAT)x / (FLOAT)window.width;
-        ny = (FLOAT)y / (FLOAT)window.height;
+    if (canvas->window.width > 0 && canvas->window.height > 0) {
+        nx = (FLOAT)x / (FLOAT)canvas->window.width;
+        ny = (FLOAT)y / (FLOAT)canvas->window.height;
     }
 
-    return MAKE(VECTOR2, nx * SCR_UICanvasWidth(), ny * UI_BASE_HEIGHT);
+    return MAKE(VECTOR2, nx * canvas->scene.w, ny * canvas->scene.h);
 }
 
 static void SCR_DrawString(int x, int y, LPCSTR string) {

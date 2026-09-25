@@ -257,6 +257,33 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
 
 #define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
+/* Widescreen console tiles are written for wide clients only (docs/architecture/ui-canvas.md).  Registering
+ * their keys while ConsoleUI.fdf is parsed would put the art in CS_IMAGES for every session, so these keys
+ * get a deferred handle instead and reach gi.ImageIndex the first time a wide client's console is written. */
+static LPCSTR const hud_wide_chrome_keys[] = { "ConsoleTexture05", "ConsoleTexture06" };
+
+BOOL UI_IsWideChromeKey(LPCSTR key) {
+    FOR_LOOP(i, sizeof(hud_wide_chrome_keys) / sizeof(hud_wide_chrome_keys[0]))
+        if (key && !strcmp(key, hud_wide_chrome_keys[i])) return true;
+    return false;
+}
+
+static DWORD UI_DeferredImage(LPCSTR key) {
+    FOR_LOOP(i, HUD_DEFERRED_IMAGES) {
+        if (!hud.deferred_key[i][0]) snprintf(hud.deferred_key[i], sizeof(hud.deferred_key[i]), "%s", key);
+        if (!strcmp(hud.deferred_key[i], key)) return HUD_DEFERRED_IMAGE_BASE + i;
+    }
+    fprintf(stderr, "WC3 HUD: deferred image table full; %s registers at load\n", key);
+    return 0;
+}
+
+/* Symbolic key (or concrete path) behind a FRAMEDEF image handle, deferred or already registered. */
+LPCSTR UI_ImageKey(DWORD image) {
+    if (image >= HUD_DEFERRED_IMAGE_BASE && image < HUD_DEFERRED_IMAGE_BASE + HUD_DEFERRED_IMAGES)
+        return hud.deferred_key[image - HUD_DEFERRED_IMAGE_BASE];
+    return image && image < MAX_IMAGES ? hud.image_key[image] : "";
+}
+
 static void UI_RememberImage(DWORD index, LPCSTR key, LPCSTR resolved, BOOL decorate) {
     if (!index || index >= MAX_IMAGES) return;
     /* After SV_Map reuses CS_IMAGES slots, a stale FRAMEDEF still holds the old
@@ -313,6 +340,17 @@ DWORD UI_LiveImage(DWORD image) {
     DWORD live;
 
     if (!image) return 0;
+    if (image >= HUD_DEFERRED_IMAGE_BASE) {
+        key = UI_ImageKey(image);
+        if (!*key) {
+            fprintf(stderr, "UI_LiveImage: unknown deferred image handle %u\n", (unsigned)image);
+            return 0;
+        }
+        path = UI_ThemeImagePath(key);
+        live = gi.ImageIndex(path);
+        UI_RememberImage(live, key, path, true);
+        return live;
+    }
     if (image < MAX_IMAGES && hud.image_key[image][0]) {
         key = hud.image_key[image];
         name = hud.image_name[image];
@@ -336,6 +374,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL decorate) {
     DWORD index;
 
     if (!path || !*path) return 0;
+    if (UI_IsWideChromeKey(path) && (index = UI_DeferredImage(path))) return index;
 
     LPCSTR resolved = UI_ThemeImagePath(path);
     index = gi.ImageIndex(resolved);

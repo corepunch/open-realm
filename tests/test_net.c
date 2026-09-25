@@ -37,6 +37,7 @@ static sizeBuf_t make_msg_buf(BYTE *buf, DWORD bufsz);
 
 void test_client_stubs_init(void);
 void test_client_stubs_set_window_size(DWORD width, DWORD height);
+void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void test_client_stubs_set_world_bounds(BOX2 bounds);
 void test_client_stubs_set_existing_file(LPCSTR path);
@@ -1583,6 +1584,7 @@ static VECTOR2 text_length_mock_size(LPCDRAWTEXT text) {
 
 TEST(net, cinematic_fade_covers_widescreen_canvas) {
     test_client_stubs_init();
+    test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
     test_client_stubs_set_window_size(1280, 720);
     test_fade_draws = 0;
     cl.playerstate.cinefade = 1.0f;
@@ -1593,7 +1595,7 @@ TEST(net, cinematic_fade_covers_widescreen_canvas) {
     T_EQ(test_fade_draws, 1);
     T_FEQ(test_fade_rect.x, 0.0f, 0.0001f);
     T_FEQ(test_fade_rect.y, 0.0f, 0.0001f);
-    T_FEQ(test_fade_rect.w, 0.8f, 0.0001f);
+    T_FEQ(test_fade_rect.w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
     T_FEQ(test_fade_rect.h, UI_BASE_HEIGHT, 0.0001f);
     T_EQ(test_fade_color.a, 255);
 }
@@ -1617,6 +1619,7 @@ TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
     frame.points.y[FPP_MAX].relativeTo = 0;
 
     test_client_stubs_init();
+    test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
     test_client_stubs_set_window_size(1280, 720);
     MSG_WriteByte(&sb, LAYER_CINEMATIC);
     MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
@@ -1630,7 +1633,7 @@ TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
     rect = SCR_LayoutRect(SCR_Frame(1));
     T_NOT_NULL(rect);
     T_FEQ(rect->x, 0.0f, 0.0001f);
-    T_FEQ(rect->w, 0.8f, 0.0001f);
+    T_FEQ(rect->w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
     T_FEQ(rect->y, UI_BASE_HEIGHT - 0.140f, 0.0001f);
     T_FEQ(rect->h, 0.140f, 0.0001f);
 }

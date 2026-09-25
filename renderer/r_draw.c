@@ -1,10 +1,22 @@
 #include "r_local.h"
 #include "r_game.h"
 
-#include "common/ui_canvas.h"
+#include "common/ui_constants.h"
 
+/* The client canvas resolves the scene from its window and policy (docs/architecture/ui-canvas.md); the
+ * renderer only maps it onto the whole drawable, so projection can never disagree with pointer mapping.
+ * Before the first push (renderer start-up, standalone renderer tests) the authored scene applies. */
 RECT R_UISceneRect(void) {
-    return MAKE(RECT, 0, 0, UI_CanvasWidth(tr.drawableSize), UI_BASE_HEIGHT);
+    if (tr.uiScene.w > 0.0f && tr.uiScene.h > 0.0f) return tr.uiScene;
+    return MAKE(RECT, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+}
+
+void R_SetUIScene(LPCRECT scene) {
+    if (!scene || scene->w <= 0.0f || scene->h <= 0.0f) {
+        fprintf(stderr, "R_SetUIScene: rejected empty scene\n");
+        return;
+    }
+    tr.uiScene = *scene;
 }
 
 /* Share glyph batching internally; only scaled characters need a renderer export. */

@@ -300,6 +300,7 @@ struct render_globals {
     LPMODEL model[MODEL_COUNT];
     LPRENDERTARGET rt[RT_COUNT];
     size2_t drawableSize;
+    RECT uiScene;       /* client-resolved UI scene (re.SetUIScene); R_UISceneRect projects it onto the drawable */
     int msaa_samples;
     LPTEXTURE minimap;
     RECT minimapRect;   /* UI-space world-content rect used for minimap projection */
@@ -455,6 +456,7 @@ bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
 bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out);
 bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out);
 RECT R_UISceneRect(void);
+void R_SetUIScene(LPCRECT scene);
 
 // r_font.c
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);

@@ -14,10 +14,10 @@ struct {
     bool calculated;
 } runtimes[MAX_LAYOUT_OBJECTS];
 
-/* Layout and rendering use the same full-window coordinate space. */
-RECT SCR_LayoutSceneRect(void) {
-    return MAKE(RECT, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
-}
+/* Server-authored layers anchor to the canvas HUD root: the whole scene under stretch/expand policies, the
+ * centered authored 4:3 area under UI_CANVAS_EXPAND_CENTER.  World-hover replaces this root with a projected
+ * point and UIFLAG_EXTEND_WIDESCREEN_X frames reach the full scene regardless of the root. */
+RECT SCR_LayoutSceneRect(void) { return CL_Canvas()->root; }
 
 VECTOR2 get_x(LPCRECT rect) {
     return (VECTOR2) { rect->x, rect->x + rect->w };

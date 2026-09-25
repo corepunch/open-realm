@@ -199,6 +199,15 @@ void CL_ParseServerMessage(LPSIZEBUF msg);
 void CL_AddActiveEntity(DWORD index);
 void CL_RemoveActiveEntity(DWORD index);
 
+// cl_canvas.c
+void CL_CanvasInit(void);
+void CL_CanvasResolvePolicy(void);
+void CL_CanvasWindowChanged(void);
+void CL_CanvasFrame(DWORD now);
+void CL_CanvasWriteChrome(void);
+LPCUICANVAS CL_Canvas(void);
+UICANVASCLASS CL_CanvasSettledChrome(void);
+
 // cl_window.c
 void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout);
 BOOL CL_WindowMouseOver(int x, int y);

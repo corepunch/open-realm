@@ -1,7 +1,7 @@
 #ifndef UI_CONSTANTS_H
 #define UI_CONSTANTS_H
 
-#define UI_STRETCH_CANVAS 0 // stretch authored UI to the window instead of widening its canvas
+#define UI_CANVAS_POLICY UI_CANVAS_EXPAND // UICANVASPOLICY; SC2 layouts anchor to the whole widening scene
 
 #define UI_BASE_WIDTH  1600.0f
 #define UI_BASE_HEIGHT 1200.0f

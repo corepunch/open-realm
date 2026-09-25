@@ -252,6 +252,8 @@ typedef struct {
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);
     RECT (*GetUISceneRect)(void);
+    /* The client canvas owns the scene (docs/architecture/ui-canvas.md); the renderer only projects it. */
+    void (*SetUIScene)(LPCRECT scene);
     DWORD (*GetDrawCalls)(void);
     void (*SetWindowSize)(DWORD width, DWORD height);
     void (*WindowChanged)(void);
