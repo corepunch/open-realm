@@ -1355,6 +1355,7 @@ static void move_hold(LPEDICT ent) {
      * Continue a Shift chain instead of stranding pending commands behind the
      * legacy hold pose. */
     if (G_UnitStartNextQueuedOrder(ent)) return;
+    G_ClearActiveUnitOrder(ent);
     ent->build = NULL;
     ent->s.renderfx &= ~RF_NO_UBERSPLAT;
     ent->s.ability = 0;

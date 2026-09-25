@@ -1,4 +1,7 @@
 #include "g_local.h"
+#ifdef WC3_SC2API
+#include "sc2api/sc2api_server.h"
+#endif
 
 #define DESTRUCTABLE_DROP_RADIUS 32.0f // world units; separates multiple drops around one destroyed object
 #define NO_RANDOM_ITEM_TABLE ((DWORD)-1) // table index; war3map.doo sentinel meaning no random-item table
@@ -278,6 +281,9 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
     void (*callback)(LPEDICT, LPEDICT);
 
     if (!G_IsDestructable(ent) || ent->destructable.dead) return false;
+#ifdef WC3_SC2API
+    if (publish_event) WC3_SC2API_RecordDeath(ent);
+#endif
 
     ent->destructable.dead = true;
     ent->health.value = 0.0f;

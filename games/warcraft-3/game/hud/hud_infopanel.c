@@ -424,20 +424,6 @@ static void RefreshSimpleInfoPanelStrings(void) {
     UI_SetText(&hud.buff_label, "%s", UI_GetString("COLON_STATUS"));
 }
 
-static DWORD RawcodeFromListToken(LPCSTR text) {
-    char rawcode[5] = { 0 };
-    DWORD length = 0;
-
-    if (!text) return 0;
-    while (*text && (isspace((unsigned char)*text) || *text == ',' || *text == ';')) text++;
-    while (text[length] && text[length] != ',' && text[length] != ';' &&
-           !isspace((unsigned char)text[length]) && length < 4) {
-        rawcode[length] = text[length];
-        length++;
-    }
-    return length == 4 ? FS_SLKKey(rawcode) : 0;
-}
-
 static DWORD UnitWeaponUpgrade(LPEDICT ent) {
     static LPCSTR const classes[] = { "melee", "ranged", "artillery" };
 
@@ -467,28 +453,6 @@ static void SetUpgradeLevel(LPFRAMEDEF frame, DWORD upgrade, LPEDICT ent) {
     UI_SetText(frame, "%ld", (long)G_GetPlayerTechResearchedLevel(owner, upgrade));
 }
 
-static DWORD StatusBuffCode(heroabilitystatus_t const *status) {
-    AbilityData_t const *ability;
-    abilityLevel_t const *row;
-    DWORD level;
-    DWORD buff;
-
-    if (!status || !status->level) return 0;
-    if ((status->code & 0xff) == 'B') return status->code;
-    /* Timed statuses use a separate progress-bar presentation. Persistent
-     * Axxx status records (for example Devotion Aura on its caster) have
-     * timestamp == 0 and may resolve through AbilityData.BuffID*. Cooldowns
-     * are stored independently in edict_t::abilitycooldowns. */
-    if (status->timestamp) return 0;
-    ability = G_AbilityData(status->code);
-    if (!ability || !ability->id) return 0;
-    level = MAX(status->level, 1u);
-    row = G_AbilityLevel(status->code, level);
-    buff = RawcodeFromListToken(row->buffID);
-    if (!buff && level != 1) buff = RawcodeFromListToken(G_AbilityLevel(status->code, 1)->buffID);
-    return buff;
-}
-
 static LPCSTR StatusBuffField(DWORD code, LPCSTR field) {
     char name[5] = { 0 };
     AbilityBuffData_t const *buff;
@@ -511,7 +475,7 @@ static LPCSTR TimedStatusLabel(heroabilitystatus_t const *status) {
     LPCSTR tip;
 
     if (!status || !unit_statusshowstimedbar(status->code)) return NULL;
-    buff_code = StatusBuffCode(status);
+    buff_code = G_UnitStatusBuffCode(status);
     if (!buff_code) return NULL;
     tip = StatusBuffField(buff_code, "Bufftip");
     if (!tip || !*tip) return "";
@@ -567,7 +531,7 @@ static void WriteBuffStatusFrames(LPEDICT ent) {
         LPCSTR tip;
         LPCSTR ubertip;
         LPFRAMEDEF icon;
-        DWORD const buff_code = StatusBuffCode(status);
+        DWORD const buff_code = G_UnitStatusBuffCode(status);
 
         if (!status->level || slot >= MAX_UNIT_STATUSES || !buff_code) continue;
         /* Auras may be represented by both their ability rawcode (AHad) and

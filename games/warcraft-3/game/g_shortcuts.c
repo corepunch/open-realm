@@ -24,7 +24,7 @@ static BOOL G_ShortcutIsControlledMonster(LPGAMECLIENT client, LPCEDICT ent) {
         G_UnitCanControl(client, ent);
 }
 
-static BOOL G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
+BOOL G_UnitIsWorker(LPCEDICT ent) {
     LPCSTR builds;
 
     if (!ent || !ent->data.UnitProfile) return false;
@@ -52,7 +52,7 @@ BOOL G_UnitIsIdleWorker(LPCEDICT ent) {
         strcmp(ent->currentmove->animation, "stand")) {
         return false;
     }
-    return G_UnitHasWorkerShortcutCapability(ent);
+    return G_UnitIsWorker(ent);
 }
 
 BOOL G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent) {
@@ -73,7 +73,7 @@ void G_InvalidateUnitShortcutsForUnit(LPEDICT ent) {
      * they cannot trigger an unnecessary full shortcut-roster rebuild. */
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) return;
     if ((!ent->data.UnitBalance || !G_UnitIsHero(ent)) &&
-        !G_UnitHasWorkerShortcutCapability(ent)) return;
+        !G_UnitIsWorker(ent)) return;
 
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients + i;

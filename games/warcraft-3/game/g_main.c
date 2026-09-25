@@ -27,6 +27,9 @@
 #include "g_local.h"
 #include "common/ui_constants.h"
 #include "jass/jass.h"
+#ifdef WC3_SC2API
+#include "sc2api/sc2api_server.h"
+#endif
 #include <stdarg.h>
 
 struct game_export globals;
@@ -1400,6 +1403,14 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Init = G_InitGame;
     globals.Shutdown = G_ShutdownGame;
     globals.RunFrame = G_RunFrame;
+#ifdef WC3_SC2API
+    globals.ExternalActive = WC3_SC2API_ExternalActive;
+    globals.ExternalOwnsClock = WC3_SC2API_ExternalOwnsClock;
+    globals.ExternalFrame = WC3_SC2API_ExternalFrame;
+    globals.ExternalCanAdvance = WC3_SC2API_ExternalCanAdvance;
+    globals.ExternalStepComplete = WC3_SC2API_ExternalStepComplete;
+    globals.ExternalMapComplete = WC3_SC2API_ExternalMapComplete;
+#endif
     globals.ClientCommand = G_ClientCommand;
     globals.ClientInput = G_ClientInput;
     globals.PrepareMap = G_PrepareMap;

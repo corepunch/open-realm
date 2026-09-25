@@ -411,11 +411,17 @@ int main(int argc, LPSTR argv[]) {
 
     if (dedicated) {
         // Dedicated server mode: no client stack, no SDL window.
-        if (!has_map && !run_tests && !has_load) {
-            fprintf(stderr, "Dedicated server requires +map <map>\n");
-            return 1;
-        }
         SV_Init();
+        if (!has_map && !run_tests && !has_load) {
+            /* An optional game-export external controller (for example an AI
+             * protocol endpoint) may legitimately own map creation. Initialize
+             * only the game module first, then require that capability. */
+            SV_InitGameProgs();
+            if (!SV_HasExternalControl()) {
+                fprintf(stderr, "Dedicated server requires +map <map> unless an external controller is active\n");
+                return 1;
+            }
+        }
         if (has_map) {
             fprintf(stderr, "Dedicated server starting on map: %s\n", map);
             /* Call SV_Map directly instead of routing through the 'map' command,
@@ -478,7 +484,7 @@ int main(int argc, LPSTR argv[]) {
         Uint64 frameStart = SDL_GetPerformanceCounter();
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
-        if (SV_IsActive()) {
+        if (SV_NeedsFrame()) {
             SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : msec);
         }
         if (!dedicated) {

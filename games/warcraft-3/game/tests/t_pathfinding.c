@@ -62,6 +62,7 @@ BOOL   CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL   CM_LineIsPathableForRadiusFlags(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius, BYTE blocked_flags);
 BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
+FLOAT  CM_PathDistanceForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, BYTE blocked_flags);
 BOOL   CM_FindApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FindInnerApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
@@ -419,6 +420,25 @@ TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames
     if (!CM_RequestHeatmapForRadius(goal, 0.0f))
         CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
     T_ASSERT(CM_RequestHeatmapForRadius(goal, 0.0f) != 0);
+}
+
+TEST(wc3_pathfinding, synchronous_path_distance_follows_static_detours_and_reports_unreachable) {
+    VECTOR2 from = {2.5f, 5.5f}, target = {7.5f, 5.5f};
+    FLOAT direct, detour;
+
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+    direct = CM_PathDistanceForRadiusFlags(&from, &target, 0.0f, CM_PATHING_UNWALKABLE);
+    T_FEQ(direct, 5.0f, 0.001f);
+
+    build_wall_map();
+    setup_test_pathmap(MAP_W, MAP_H, wall_map);
+    detour = CM_PathDistanceForRadiusFlags(&from, &target, 0.0f, CM_PATHING_UNWALKABLE);
+    T_ASSERT(detour > direct);
+
+    build_split_map();
+    setup_test_pathmap(MAP_W, MAP_H, split_map);
+    T_FEQ(CM_PathDistanceForRadiusFlags(&from, &target, 0.0f, CM_PATHING_UNWALKABLE), 0.0f, 0.001f);
 }
 
 TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {

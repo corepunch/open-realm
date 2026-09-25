@@ -268,6 +268,7 @@ DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
 DWORD CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, FLOAT radius, BYTE blocked_flags);
 void  CM_ProcessPathJobs(DWORD work_budget);
 BOOL  CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out);
+FLOAT CM_PathDistanceForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, BYTE blocked_flags);
 BOOL  CM_ActivateCachedFlow(DWORD generation);
 BOOL  CM_ActivateCachedFlowForFlags(DWORD generation, BYTE blocked_flags);
 BOOL  CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);

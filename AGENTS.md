@@ -35,6 +35,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Entity sound architecture | [architecture/sound.md](architecture/sound.md) |
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
+| WC3 optional SC2API agent compatibility, resource/race mappings, unit tags, protobuf build flags | [docs/games/warcraft-3/sc2api-agent-interface.md](docs/games/warcraft-3/sc2api-agent-interface.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
 | WC3 timer-dialog mission countdowns, stock FDF HUD, local visibility, save/load identity | [docs/games/warcraft-3/timer-dialogs.md](docs/games/warcraft-3/timer-dialogs.md) |

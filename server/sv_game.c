@@ -148,6 +148,8 @@ void SV_InitGameProgs(void) {
     import.GetTime = SV_GetTime;
     import.SetGameTime = SV_SetGameTime;
     import.SetPaused = SV_SetPaused;
+    import.RequestMap = SV_RequestMap;
+    import.RequestQuit = SV_RequestQuit;
     import.ReadFile = FS_ReadFile;
     import.ReadFileAll = FS_ReadFileAll;
     import.SetPriorityArchive = FS_SetPriorityArchive;
@@ -167,6 +169,7 @@ void SV_InitGameProgs(void) {
     import.CvarString = Cvar_String;
     import.UserPath = FS_UserPath;
     import.SavePath = FS_SavePath;
+    import.ListMaps = FS_ListMaps;
     import.ListSaves = FS_ListSaves;
     import.DeleteSave = FS_DeleteSave;
 

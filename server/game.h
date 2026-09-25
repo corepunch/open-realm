@@ -74,6 +74,10 @@ struct game_import {
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
     void (*SetPaused)(BOOL paused);
+    /* Request a map/session transition without re-entering server teardown from
+     * inside a game callback. The server performs it after the callback returns. */
+    BOOL (*RequestMap)(LPCSTR map);
+    void (*RequestQuit)(void);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
@@ -92,6 +96,8 @@ struct game_import {
     void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size);
     /* Resolve save files under the platform's per-user data directory. */
     void (*SavePath)(LPCSTR rel, LPSTR out, DWORD out_size);
+    /* Enumerate available map paths through the engine filesystem. */
+    DWORD (*ListMaps)(void (*callback)(LPCSTR path, void *userData), void *userData);
     /* Enumerate save basenames as a double-NUL-terminated list. */
     DWORD (*ListSaves)(LPSTR out, DWORD out_size);
     /* Delete one save basename from the writable save directory. */
@@ -141,6 +147,15 @@ struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
     void (*RunFrame)(void);
+    /* Optional external-controller hooks. The server polls ExternalFrame even
+     * while the simulation clock is externally owned; returned steps are
+     * advanced by the server through the normal RunFrame boundary. */
+    BOOL (*ExternalActive)(void);
+    BOOL (*ExternalOwnsClock)(void);
+    DWORD (*ExternalFrame)(void);
+    BOOL (*ExternalCanAdvance)(void);
+    void (*ExternalStepComplete)(DWORD steps);
+    void (*ExternalMapComplete)(LPCSTR map, BOOL success);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
     void (*ClientInput)(LPEDICT ent, LPCINPUTCMD cmd);

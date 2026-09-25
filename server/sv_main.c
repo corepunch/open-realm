@@ -18,8 +18,48 @@ struct server_static svs;
 
 #define BZ_KEEPALIVE_MSEC 1000 // milliseconds; Quake 2's interval; keeps clients alive while waiting to spawn
 
+static PATHSTR sv_external_map;
+static BOOL sv_external_map_pending;
+static BOOL sv_external_quit_pending;
+
 BOOL SV_IsActive(void) {
     return svs.initialized && (sv.state == ss_lobby || sv.state == ss_game);
+}
+
+BOOL SV_HasExternalControl(void) {
+    return ge && ge->ExternalActive && ge->ExternalActive();
+}
+
+BOOL SV_NeedsFrame(void) {
+    return SV_IsActive() || SV_HasExternalControl();
+}
+
+BOOL SV_RequestMap(LPCSTR map) {
+    PATHSTR resolved;
+
+    if (!map || !*map) return false;
+    if (!Com_ResolveMapArgument(map, resolved, sizeof(resolved))) return false;
+    strlcpy(sv_external_map, resolved, sizeof(sv_external_map));
+    sv_external_map_pending = true;
+    return true;
+}
+
+void SV_RequestQuit(void) {
+    sv_external_quit_pending = true;
+}
+
+static BOOL SV_ProcessExternalMap(void) {
+    PATHSTR map;
+    BOOL success;
+
+    if (!sv_external_map_pending) return false;
+    strlcpy(map, sv_external_map, sizeof(map));
+    sv_external_map[0] = '\0';
+    sv_external_map_pending = false;
+    SV_Map(map);
+    success = sv.state == ss_game;
+    if (ge && ge->ExternalMapComplete) ge->ExternalMapComplete(map, success);
+    return true;
 }
 
 /* Store one server-owned configstring and force reliable client resynchronization. */
@@ -256,8 +296,39 @@ void SV_SetPaused(BOOL paused) {
  * milliseconds since the last call.  Network input remains live while the
  * authoritative simulation is paused. */
 void SV_Frame(DWORD msec) {
+    DWORD external_steps = 0;
+    DWORD completed_steps = 0;
+    BOOL external_clock = false;
+
     svs.realtime += msec;
     SV_ReadPackets();
+
+    /* External control is a game-export capability, but simulation advancement
+     * remains server-owned. This poll runs before pause/clock scheduling so a
+     * stepped controller can request work while normal realtime advancement is
+     * suppressed. */
+    if (ge && ge->ExternalFrame) external_steps = ge->ExternalFrame();
+
+    if (SV_ProcessExternalMap()) return;
+    if (sv_external_quit_pending) {
+        sv_external_quit_pending = false;
+        Com_Quit();
+        return;
+    }
+
+    external_clock = ge && ge->ExternalOwnsClock && ge->ExternalOwnsClock();
+    if (external_steps) {
+        if (sv.state == ss_game && !sv.paused) {
+            FOR_LOOP(i, external_steps) {
+                SV_RunGameFrame();
+                completed_steps++;
+                if (sv.paused || (ge->ExternalCanAdvance && !ge->ExternalCanAdvance())) break;
+            }
+        }
+        if (ge && ge->ExternalStepComplete) ge->ExternalStepComplete(completed_steps);
+        if (svs.initialized) SV_SendClientMessages();
+        return;
+    }
 
     if (sv.state == ss_lobby) {
         /* An unchanged lobby previously sent nothing and timed out even its own loopback host. */
@@ -265,16 +336,16 @@ void SV_Frame(DWORD msec) {
         return;
     }
 
-    if (sv.paused) {
+    if (sv.paused || external_clock) {
         sv.pause_msec += msec;
         if (sv.pause_msec >= FRAMETIME) {
             sv.pause_msec %= FRAMETIME;
-            SV_SendClientMessages();
+            if (svs.initialized) SV_SendClientMessages();
         }
         return;
     }
 
-    if (svs.realtime < sv.next_frame_msec) {
+    if (sv.state != ss_game || svs.realtime < sv.next_frame_msec) {
         return;
     }
 

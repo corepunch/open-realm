@@ -84,6 +84,7 @@ BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location);
 BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL CM_LineIsPathableForRadiusFlags(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius, BYTE blocked_flags);
 BOOL CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out);
+FLOAT CM_PathDistanceForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, BYTE blocked_flags);
 BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
 FLOAT CM_PathCellWorldSize(void);
 DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
