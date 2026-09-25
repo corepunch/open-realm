@@ -879,7 +879,7 @@ TEST(server_net, snapshot_overflow_retains_game_prioritized_minimap_contact) {
         test_edicts[i].inuse = true;
         test_edicts[i].s.number = i; test_edicts[i].s.model = 1;
         test_edicts[i].s.player = 2;
-        test_edicts[i].s.origin.x = 0.0f;
+        test_edicts[i].s.origin.x = 1200.0f;
     }
     test_edicts[contact_number].s.class_id = MAKEFOURCC('m', 'm', 'c', 't');
     test_edicts[contact_number].s.origin.x = 1200.0f;
@@ -1428,4 +1428,33 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
     }
     T_EQ(strings, 200); T_EQ(bases, 200); T_ASSERT(pages > 2);
     close(sock); NET_Shutdown();
+}
+
+/* Review regression: minimap decoration must not remove nearby world presentation. */
+TEST(server_net, review_snapshot_keeps_nearby_world_entity_among_distant_contacts) {
+    static struct client_s game_client;
+    reset_server_state(1);
+    SV_InitGame();
+    LPCLIENT client = &svs.clients[0];
+    LPCLIENTFRAME frame = &client->frames[0];
+    memset(&game_client, 0, sizeof(game_client));
+    test_edicts[0].client = &game_client; client->edict = &test_edicts[0];
+    test_ge.IsSnapshotPriorityEntity = test_snapshot_priority_entity;
+    test_ge.num_edicts = MAX_PACKET_ENTITIES + 2;
+    for (int i = 1; i < test_ge.num_edicts; i++) {
+        test_edicts[i].inuse = true;
+        test_edicts[i].s.number = i; test_edicts[i].s.model = 1;
+        test_edicts[i].s.player = 2;
+        test_edicts[i].s.class_id = MAKEFOURCC('m','m','c','t');
+        test_edicts[i].s.origin.x = 1200.0f;
+    }
+    /* A local projectile/destructable has presentation, but no minimap contact. */
+    test_edicts[1].s.class_id = 0;
+    test_edicts[1].s.origin.x = 0.0f;
+    SV_BuildClientFrame(client);
+    BOOL found = false;
+    FOR_LOOP(i, frame->num_entities)
+        if (svs.client_entities[frame->first_entity + i].number == 1) found = true;
+    T_ASSERT(found);
+    SV_Shutdown();
 }
