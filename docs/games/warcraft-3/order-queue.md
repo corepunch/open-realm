@@ -10,6 +10,7 @@ The current implementation deliberately covers the high-confidence Warsmash-comp
 - Shift + right-click entity queues Smart target resolution, including attack, harvest, repair, item pickup, persistent follow for a passive allied unit, and fallback point movement for other accepted targets;
 - Shift + Move queues point movement;
 - Shift + Attack queues either an entity attack or point attack-move;
+- Shift + construction keeps the same placement ghost armed, appends later building sites to the worker FIFO, and shows an owner-only Construction Site Indicator for every accepted queued site;
 - an idle/Stop/Hold unit starts the first Shift order immediately instead of leaving it pending;
 - a busy unit appends Shift orders in FIFO order;
 - a normal Move/Attack/Smart replacement clears pending Shift orders;
@@ -18,7 +19,7 @@ The current implementation deliberately covers the high-confidence Warsmash-comp
 - stale/recycled entity targets are skipped when their queued turn arrives;
 - invalid queued work is skipped and polling continues to the next pending order.
 
-Patrol multi-waypoint semantics, build/spell explicit queuing, queued-order waypoint models, and Blizzard 1.29 `BlzQueue*OrderById` natives remain separate work; see [Known gaps](#known-gaps).
+Patrol multi-waypoint semantics, explicit spell queuing, queued-order waypoint models, and Blizzard 1.29 `BlzQueue*OrderById` natives remain separate work; see [Known gaps](#known-gaps).
 
 ## Input protocol
 
@@ -37,9 +38,9 @@ Entity Smart clicks may also carry the traced world point as `smart <entity> <x>
 
 The shared bind layer must still dispatch the ordinary mouse-button command while Shift is held. Explicit modified mouse binds take priority (for example `ALT+MOUSE1 +pan`); when no modified mouse bind exists, `SHIFT+MOUSE1`/`SHIFT+MOUSE2` inherit the plain `MOUSE1`/`MOUSE2` bind. This lets `+select`/`+smart` run and inspect the live Shift state without weakening exact modifier semantics for keyboard hotkeys such as control groups.
 
-`select` and `point` are also used to finish command-card targeting. `menu_t.supports_order_queue` gates the modifier on the server, so only an explicitly queue-capable targeting mode treats Shift as order queuing. Move and Attack set that flag. Other target modes ignore `queue`, preserving their existing lifecycle until their reservation/cost semantics are implemented deliberately.
+`select` and `point` are also used to finish command-card targeting. `menu_t.supports_order_queue` gates the modifier on the server, so only an explicitly queue-capable targeting mode treats Shift as order queuing. Move, Attack, Repair, and construction placement set that flag. Other target modes ignore `queue`, preserving their existing lifecycle until their reservation/cost semantics are implemented deliberately.
 
-For a successful queue-capable target click, `Get_Commands_f()` is not called while Shift remains part of that click. This leaves the Move/Attack targeting callback armed so the player can add several targets/points without reopening the command button, matching the Warsmash input model. A successful non-Shift target returns to the normal command card as before.
+For a successful queue-capable target click, `Get_Commands_f()` is not called while Shift remains part of that click. This leaves the targeting callback armed so the player can add several targets/points without reopening the command button. Construction additionally marks `menu_t.order_queue_chained` after the first successful Shift placement. When the final Shift key is released, the client sends `orderqueuerelease`; the server removes the sticky construction ghost only when that chained state is set. Merely tapping Shift before a successful placement is therefore a no-op. A successful non-Shift target returns to the normal command card as before.
 
 A small world click now sends either the entity target or the terrain point, not both. This prevents a unit-target completion from immediately being followed by a second point-target completion at the same cursor coordinate.
 
@@ -49,11 +50,12 @@ A small world click now sends either the entity target or the terrain point, not
 
 Each pending entry stores:
 
-- the normalized order name (`smart`, `move`, `attack`, or `repair` in the currently supported path);
-- point vs entity target kind;
+- the normalized order name (`smart`, `move`, `attack`, `repair`, or `build` in the currently supported path);
+- point, entity, or construction target kind;
 - the resolved point for a point order;
-- entity number plus `spawn_time` for an entity order;
+- entity number plus `spawn_time` for an entity order; queued Build entries reuse this otherwise-unused stable pair to identify their owner-only Construction Site Indicator for teardown;
 - the issuing player number for future error-routing work;
+- an optional rawcode payload (`order_id`) used by delayed construction;
 - the movement group-speed cap for a queued formation Move leg.
 
 Entity pointers are intentionally not stored in the queue. An edict slot can be freed and reused before a delayed command reaches the head of the FIFO. Number + `spawn_time` re-resolution makes that stale command fail closed rather than retargeting the new occupant of the same slot.
@@ -62,7 +64,7 @@ The FIFO is currently a bounded inline ring (`MAX_UNIT_ORDER_QUEUE`, 16 pending 
 
 ## Submission rules
 
-`G_IssueUnitPointOrder()` and `G_IssueUnitTargetOrder()` are the queue-aware entry points. Existing `unit_issueorder()` and `unit_issuetargetorder()` remain compatibility wrappers that submit `queue=false`.
+`G_IssueUnitPointOrder()`, `G_IssueUnitTargetOrder()`, and `G_IssueUnitBuildOrder()` are the queue-aware entry points. Existing `unit_issueorder()` and `unit_issuetargetorder()` remain compatibility wrappers that submit `queue=false`. `G_IssueBuildOrder()` remains the immediate shared construction API used by AI/JASS-facing callers.
 
 For a supported order:
 
@@ -84,7 +86,7 @@ The implementation treats a `umove_t` whose `ability` pointer is non-null as act
 
 Rally changes remain producer metadata, not unit behavior. Smart/set-rally changes are therefore applied immediately; they are not inserted into the movement/combat FIFO.
 
-Issued-order trigger events describe command submission rather than delayed execution. An accepted point order publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` / `EVENT_UNIT_ISSUED_POINT_ORDER` immediately, including when Shift causes the order to be appended to the FIFO; an accepted entity target similarly publishes the target-order family. `G_UnitStartNextQueuedOrder()` must not publish those events again when the delayed command begins. Building placement is not currently a FIFO order, but follows the same acceptance-time point-order event contract through `G_IssueBuildOrder()`. See [Issued Target and Point Order Events](issued-target-order-events.md).
+Issued-order trigger events describe command submission rather than delayed execution. An accepted point order publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` / `EVENT_UNIT_ISSUED_POINT_ORDER` immediately, including when Shift causes the order to be appended to the FIFO; an accepted entity target similarly publishes the target-order family. Construction follows the same rule: `G_IssueUnitBuildOrder()` publishes the building rawcode and snapped point when the click is accepted, while delayed execution calls `G_ExecuteBuildOrder()` and does not publish a second event. See [Issued Target and Point Order Events](issued-target-order-events.md).
 
 ## Move and formation behavior
 
@@ -146,13 +148,13 @@ normal X
 
 `order_stop()` clears the FIFO before standing, so all Stop callers get the same cancellation policy. Hold Position explicitly clears the FIFO, then installs the existing holding-position state. `unit_die()` clears the FIFO before entering the death lifecycle.
 
-OpenRealm does not yet have Warsmash's per-ability `onCancelFromQueue()` reservation callback. The currently queued order families do not reserve mana/resources at insertion time, which is why this patch intentionally does not claim build/spell queue support.
+OpenRealm does not yet have Warsmash's per-ability `onCancelFromQueue()` reservation callback. Queued construction does not reserve gold/lumber at insertion time: the placement is validated when clicked, and `G_ExecuteBuildOrder()` revalidates command state and placement when that queued build actually begins. Spell queueing remains disabled because mana/cooldown/cast reservations need an explicit policy first.
 
 ## Save/load
 
 The queue is inline numeric data inside `edict_t`; it contains no process pointers, so it persists with the existing raw-edict save record without adding an `F_EDICT` field. Entity targets remain number + `spawn_time` and are re-resolved only at execution.
 
-Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 17; its evolution and compatibility policy are tracked in [Save/Load](save-load.md). The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue` and `order_queued` because targeting callbacks/menu modes are rebuilt rather than persisted.
+Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 17; its evolution and compatibility policy are tracked in [Save/Load](save-load.md). The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue`, `order_queued`, and `order_queue_chained` because targeting callbacks/menu modes are rebuilt rather than persisted.
 
 The existing save/load limitation still applies: arbitrary active `umove_t` behavior identity is not semantically restored. Pending queue records are persisted, but exact mid-order resume requires the separate active-behavior save work described in [Save/Load](save-load.md).
 
@@ -163,7 +165,7 @@ The following are intentionally not guessed in this patch:
 - **Queued waypoint models.** Warsmash derives waypoint indicators from the current queued order plus pending orders. OpenRealm has no server-to-client order-queue presentation channel yet.
 - **Patrol Shift extension.** Current OpenRealm Patrol owns two waypoints and cycles forever. Warsmash can append patrol points to an active patrol behavior; implementing that requires changing the patrol state representation rather than pretending it is a normal Move FIFO.
 - **Explicit spell queuing.** Spell mana/cooldown/target validation and cast lifecycle must define when cost/reservations happen before queueing is enabled.
-- **Build/repair command-card queuing.** Construction reservation, placement, worker behavior, and cancellation/refund semantics require their own queue hooks.
+- **General queued construction reservations.** Shift placement is implemented, but queued sites do not reserve resources or pathing footprints before their turn; they are revalidated when execution begins.
 - **Generic cancellation callbacks.** Warsmash abilities have `onCancelFromQueue()`; OpenRealm's supported queued families currently need no reservation cleanup.
 - **Uninterruptible replacement policy.** Warsmash can replace pending future work while letting an uninterruptible current behavior finish. OpenRealm does not yet expose a general `interruptable()` behavior contract.
 - **`BlzQueue*OrderById` natives.** The 1.29 native declarations exist in Warcraft data, but OpenRealm's current order-ID mapping is not yet a safe basis for implementing them here.
@@ -179,7 +181,12 @@ The unit suite contains coverage for:
 - a non-Shift replacement clearing pending work;
 - stale entity-target rejection followed by the next valid order;
 - Stop clearing the pending queue;
-- point `attack` selecting attack-move rather than ordinary Move.
+- point `attack` selecting attack-move rather than ordinary Move;
+- construction placement staying armed across successful Shift clicks;
+- construction queue entries retaining the building rawcode and point;
+- final Shift release removing only the placement overlay after a successful chain;
+- Shift release before any successful placement leaving the overlay active;
+- invalid placement, selection replacement, selected-worker death, right-click cancellation, explicit cancel, and command-card rebuild cursor lifecycles.
 
 After building locally, useful targeted checks are:
 
@@ -195,4 +202,11 @@ Runtime checks should additionally cover:
 4. queue an enemy that dies before its turn, followed by another Move, and confirm the unit continues to the Move;
 5. select several units and confirm each advances independently through the same issued chain;
 6. click Move or Attack once, hold Shift, and click several valid targets/points without reopening the command button;
-7. press Stop or Hold Position with queued work and confirm no old queued command resumes afterward.
+7. press Stop or Hold Position with queued work and confirm no old queued command resumes afterward;
+8. hold Shift while placing several buildings, confirm the same movable ghost remains active and every accepted queued site receives a translucent placeholder, then release the final Shift key and confirm only the movable ghost is removed while accepted-site placeholders and construction orders remain queued;
+9. replace or clear the worker queue and confirm all delayed construction placeholders disappear; let a queued Build begin normally and confirm its delayed placeholder is replaced by the ordinary active-build indicator rather than duplicated.
+
+## See also
+
+- [Building Construction](building-construction.md) — construction placement validation, cursor ownership, arrival-time revalidation, and race-specific construction lifecycles.
+- [Issued Target and Point Order Events](issued-target-order-events.md) — submission-time trigger publication for immediate and queued orders.

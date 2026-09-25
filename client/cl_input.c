@@ -159,6 +159,22 @@ static BOOL CL_OrderQueueModifierDown(void) {
     return (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
 }
 
+static BOOL CL_IsShiftKey(int sym) {
+    return sym == SDLK_LSHIFT || sym == SDLK_RSHIFT;
+}
+
+static void CL_SendOrderQueueReleaseOnShiftUp(int sym, SDL_Keymod mods) {
+    if (!CL_IsShiftKey(sym) || !CL_GameplayInputReady()) return;
+    /* SDL backends differ on whether KEYUP's modifier snapshot still includes
+     * the key being released. Remove that key explicitly and only notify when
+     * neither Shift remains held. */
+    if (sym == SDLK_LSHIFT) mods &= ~KMOD_LSHIFT;
+    if (sym == SDLK_RSHIFT) mods &= ~KMOD_RSHIFT;
+    if (mods & (KMOD_LSHIFT | KMOD_RSHIFT)) return;
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "orderqueuerelease");
+}
+
 static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
     return Cvar_Integer("cl_camera_pan_plane", 0)
         ? re.TraceCameraPlane(&cl.viewDef, x, y, point) : re.TraceLocation(&cl.viewDef, x, y, point);
@@ -598,6 +614,7 @@ void CL_Input(void) {
                     break;
                 }
                 CL_InputKeyEvent(CL_SDLKeyToKeyCode(event.key.keysym.sym), CL_BindMods(event.key.keysym.mod), false, event.key.timestamp);
+                CL_SendOrderQueueReleaseOnShiftUp(event.key.keysym.sym, event.key.keysym.mod);
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 mouse.origin.x = event.button.x;
@@ -1043,6 +1060,44 @@ TEST(client_input, same_type_selection_click_paths_use_visible_matching_candidat
     cl.ents[9].current.class_id = old_class[2]; cls.netchan.message = old_msg;
     cls.state = old_state; cls.key_dest = old_dest; cl.playerstate.client_ui_state = old_ui;
     Cvar_SetValue("cl_selection_limit", old_limit); Cvar_SetValue("cl_same_type_select", old_same_type);
+    SDL_SetModState(old_mod);
+}
+
+TEST(client_input, final_shift_release_notifies_game_order_queue) {
+    BYTE data[128];
+    sizeBuf_t old_msg = cls.netchan.message;
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
+    BOOL old_focus = input.focus;
+    SDL_Keymod old_mod = SDL_GetModState();
+    char command[64];
+
+    cls.state = ca_active;
+    cls.key_dest = key_game;
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    input.focus = true;
+
+    SDL_SetModState(KMOD_NONE);
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    CL_SendOrderQueueReleaseOnShiftUp(SDLK_LSHIFT, KMOD_LSHIFT);
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command);
+    T_STREQ(command, "orderqueuerelease");
+
+    SDL_SetModState(KMOD_RSHIFT);
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    CL_SendOrderQueueReleaseOnShiftUp(SDLK_LSHIFT, KMOD_LSHIFT | KMOD_RSHIFT);
+    T_EQ(cls.netchan.message.cursize, 0);
+
+    SDL_SetModState(KMOD_NONE);
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    CL_SendOrderQueueReleaseOnShiftUp(SDLK_a, KMOD_NONE);
+    T_EQ(cls.netchan.message.cursize, 0);
+
+    cls.netchan.message = old_msg;
+    cls.state = old_state;
+    cls.key_dest = old_dest;
+    cl.playerstate.client_ui_state = old_ui;
+    input.focus = old_focus;
     SDL_SetModState(old_mod);
 }
 

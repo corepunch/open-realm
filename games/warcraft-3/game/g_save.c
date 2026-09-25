@@ -648,6 +648,9 @@ static field_t const client_menu_fields[] = {
     TF(clientMenu_s, on_location_selected, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, cmdbutton, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, refresh, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, supports_order_queue, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, order_queued, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, order_queue_chained, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -1671,6 +1674,9 @@ static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
     client->mapplayer = level.mapinfo && client->ps.number < MAX_PLAYERS ? level.mapinfo->players + client->ps.number : NULL;
     client->menu.on_entity_selected = NULL; client->menu.on_location_selected = NULL;
     client->menu.cmdbutton = NULL; client->menu.refresh = NULL;
+    client->menu.supports_order_queue = false;
+    client->menu.order_queued = false;
+    client->menu.order_queue_chained = false;
     client->camera.target_controller = NULL;
     client->rally_indicator = NULL;
     return true;

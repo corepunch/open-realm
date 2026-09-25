@@ -66,6 +66,11 @@ void G_FreeEdict(LPEDICT ent) {
     S_CargoReleaseUnit(ent);
     if (ent->cargo.count > 0) cargo_drop_all(ent);
     if (ent->buildwork.ability) S_CancelRepair(ent);
+    /* Remove both the active accepted-build indicator and any owner-only
+     * indicators attached to delayed Shift-build queue entries. Direct
+     * RemoveUnit must not leave construction placeholders behind. */
+    G_ClearBuildPreview(ent);
+    G_ClearUnitOrderQueue(ent);
     /* Removed units cannot remain in JASS groups: save files require every group member to resolve to a live edict. */
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = level.groups[i];

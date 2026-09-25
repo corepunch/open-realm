@@ -1030,6 +1030,10 @@ void Get_Commands_f(LPEDICT ent) {
     if (!ent || !ent->client) return;
     G_UpdateRallyIndicator(ent->client);
     ent->client->commands_dirty = false;
+    /* A command-card rebuild replaces server-owned build targeting. Clear the
+     * cursor through the build subsystem before the generic menu reset loses
+     * the callback that identifies the active placement mode. */
+    G_ClearBuildPlacementMode(ent);
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
     if (!selected || (!G_UnitCanControl(ent->client, selected) &&
                       !G_CanUseItemShop(ent->client, selected) &&
