@@ -107,6 +107,27 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +set com_maxfps 0 +set r_vsync
 build/bin/openwarcraft3 -data 'data/Warcraft III' +set com_maxfps 120 +map 'Maps/Campaign/Human02.w3m'
 ```
 
+## MDX keytrack and ground splat hot paths
+
+An Instruments capture after the 64 FPS cap was added sampled `R_KeyFrameBound`
+for 321 ms and `R_ClipSplatPoly` for 273 ms over 9.23 seconds. These are useful
+CPU targets, but changing them cannot raise FPS while `com_maxfps` remains 64.
+
+`MDLX_GetModelKeytrackValue` searches three bounds in a packed keytrack. The
+keyframe stride depends only on the track's data and interpolation types, so
+compute it once per evaluation and pass it to each search and key access.
+`R_MakeSplatTile` builds an axis-aligned terrain tile. Only rectangle edges
+inside that tile can cut its two triangles; pass those edges to
+`R_ClipSplatPoly` in the original left/right/bottom/top order. Keep Z
+interpolation on the original terrain triangles.
+
+A local `BUILD=debug` headless microbenchmark with a 32-key linear track and
+one tile measured 140 to 93 ns per keytrack evaluation, 443 to 276 ns for a
+single-edge splat, and 509 to 504 ns for a four-edge splat. These measurements
+cover the CPU entry points only; they do not predict full-frame FPS. Use
+`make test-renderer-model` for keytrack sequence and partial-tile geometry
+coverage, then profile an uncapped run before pursuing another change.
+
 ## MDX bone setup (was ~16%)
 
 `MDLX_BindBoneMatrices` (`games/warcraft-3/renderer/mdx/r_mdx_anim.c`) is called once per rendered model per frame. The old path:

@@ -127,22 +127,22 @@ static void R_BuildSplatQuad(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, 
 /* Clip in world XY while interpolating Z on each original terrain triangle. */
 struct SPLCLIP { DWORD count, axis; FLOAT edge; BOOL above; };
 static DWORD R_ClipSplatPoly(LPCVECTOR3 src, LPVECTOR3 dst, struct SPLCLIP clip) {
-    VECTOR3 prev = src[clip.count - 1];
-    FLOAT pv = clip.axis ? prev.y : prev.x;
+    LPCVECTOR3 prev = &src[clip.count - 1];
+    FLOAT pv = clip.axis ? prev->y : prev->x;
     BOOL pin = clip.above ? pv >= clip.edge : pv <= clip.edge;
     DWORD out = 0;
     FOR_LOOP(i, clip.count) {
-        VECTOR3 cur = src[i];
-        FLOAT cv = clip.axis ? cur.y : cur.x;
+        LPCVECTOR3 cur = &src[i];
+        FLOAT cv = clip.axis ? cur->y : cur->x;
         BOOL cin = clip.above ? cv >= clip.edge : cv <= clip.edge;
         if (pin != cin && pv != clip.edge && cv != clip.edge) {
             FLOAT t = (clip.edge - pv) / (cv - pv);
-            VECTOR3 hit = { prev.x + (cur.x - prev.x) * t, prev.y + (cur.y - prev.y) * t,
-                            prev.z + (cur.z - prev.z) * t };
-            if (clip.axis) hit.y = clip.edge; else hit.x = clip.edge;
+            VECTOR3 hit = clip.axis
+                ? (VECTOR3){ prev->x + (cur->x - prev->x) * t, clip.edge, prev->z + (cur->z - prev->z) * t }
+                : (VECTOR3){ clip.edge, prev->y + (cur->y - prev->y) * t, prev->z + (cur->z - prev->z) * t };
             dst[out++] = hit;
         }
-        if (cin) dst[out++] = cur;
+        if (cin) dst[out++] = *cur;
         prev = cur; pv = cv; pin = cin;
     }
     return out;
@@ -150,6 +150,8 @@ static DWORD R_ClipSplatPoly(LPCVECTOR3 src, LPVECTOR3 dst, struct SPLCLIP clip)
 
 static void R_MakeSplatTile(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, FLOAT width, FLOAT height, COLOR32 color) {
     VERTEX geom[6];
+    struct SPLCLIP clips[4];
+    DWORD num_clips = 0;
     R_BuildSplatQuad(map, x, y, mins, width, height, color, geom);
     if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
         geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
@@ -158,19 +160,25 @@ static void R_MakeSplatTile(LPCWAR3MAP map, DWORD x, DWORD y, LPCVECTOR2 mins, F
         return;
     }
     /* Full tile quads stretched edge texels outside the splat when the lit shader drew building footprints. */
+    if (geom[0].position.x < mins->x) clips[num_clips++] = (struct SPLCLIP){ 0, 0, mins->x, true };
+    if (geom[1].position.x > mins->x + width) clips[num_clips++] = (struct SPLCLIP){ 0, 0, mins->x + width, false };
+    if (geom[0].position.y < mins->y) clips[num_clips++] = (struct SPLCLIP){ 0, 1, mins->y, true };
+    if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct SPLCLIP){ 0, 1, mins->y + height, false };
     FOR_LOOP(tri, 2) {
         VECTOR3 a[8], b[8];
+        LPVECTOR3 poly = a, scratch = b;
         DWORD n = 3;
         FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
-        n = R_ClipSplatPoly(a, b, (struct SPLCLIP){n, 0, mins->x, true});
-        if (!n) continue;
-        n = R_ClipSplatPoly(b, a, (struct SPLCLIP){n, 0, mins->x + width, false});
-        if (!n) continue;
-        n = R_ClipSplatPoly(a, b, (struct SPLCLIP){n, 1, mins->y, true});
-        if (!n) continue;
-        n = R_ClipSplatPoly(b, a, (struct SPLCLIP){n, 1, mins->y + height, false});
+        FOR_LOOP(edge, num_clips) {
+            struct SPLCLIP clip = clips[edge];
+            LPVECTOR3 swap;
+            clip.count = n;
+            n = R_ClipSplatPoly(poly, scratch, clip);
+            if (!n) break;
+            swap = poly; poly = scratch; scratch = swap;
+        }
         for (DWORD i = 1; i + 1 < n; i++) {
-            VECTOR3 p[] = { a[0], a[i], a[i + 1] };
+            VECTOR3 p[] = { poly[0], poly[i], poly[i + 1] };
             FOR_LOOP(j, 3) {
                 VERTEX v = geom[0];
                 v.position = p[j];

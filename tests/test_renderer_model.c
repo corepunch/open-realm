@@ -353,6 +353,26 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
 }
 
+TEST(renderer_model, mdx_keytrack_lookup_uses_hermite_stride) {
+    BYTE storage[sizeof(mdxKeyTrack_t) + 3 * (sizeof(int) + 3 * sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    mdxSequence_t seq = { .interval = { 100, 350 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    float value = 0;
+
+    track->keyframeCount = 3; track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_HERMITE; track->globalSeqId = (DWORD)-1;
+    FOR_LOOP(i, 3) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((BYTE *)track->values + i * 16);
+        float authored = (float)(i + 1);
+        key->time = 100 + i * 100;
+        memcpy(key->data, &authored, sizeof(authored));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 100, &value); T_FEQ(value, 1.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 200, &value); T_FEQ(value, 2.0f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 300, &value); T_FEQ(value, 3.0f, 0.001f);
+}
+
 TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_it) {
     BYTE storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(QUATERNION)] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
@@ -1661,16 +1681,26 @@ TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
 TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
     WAR3MAPVERTEX verts[4] = {0};
     WAR3MAP map = { .width = 2, .height = 2, .vertices = verts };
-    VECTOR2 mins = { 32, 24 }, maxs = { 96, 104 };
+    struct { VECTOR2 mins, maxs; } rects[] = {
+        { { 32, 24 }, { 96, 104 } },
+        { { 32, -1000 }, { 1000, 1000 } },
+        { { -1000, -1000 }, { 96, 1000 } },
+        { { -1000, 24 }, { 1000, 1000 } },
+        { { -1000, -1000 }, { 1000, 104 } },
+    };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
-    ground_current_vertex = ground_vertex_buffer;
-    R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
-    T_ASSERT(ground_current_vertex > ground_vertex_buffer);
-    for (LPVERTEX v = ground_vertex_buffer; v < ground_current_vertex; v++) {
-        T_ASSERT(v->position.x >= mins.x && v->position.x <= maxs.x);
-        T_ASSERT(v->position.y >= mins.y && v->position.y <= maxs.y);
-        T_ASSERT(v->texcoord.x >= 0 && v->texcoord.x <= 1);
-        T_ASSERT(v->texcoord.y >= 0 && v->texcoord.y <= 1);
+    FOR_LOOP(i, 5) {
+        VECTOR2 *mins = &rects[i].mins, *maxs = &rects[i].maxs;
+        ground_current_vertex = ground_vertex_buffer;
+        R_MakeSplatTile(&map, 0, 0, mins, maxs->x - mins->x, maxs->y - mins->y, COLOR32_WHITE);
+        T_ASSERT(ground_current_vertex > ground_vertex_buffer);
+        if (i) T_EQ(ground_current_vertex - ground_vertex_buffer, 9);
+        for (LPVERTEX v = ground_vertex_buffer; v < ground_current_vertex; v++) {
+            T_ASSERT(v->position.x >= mins->x && v->position.x <= maxs->x);
+            T_ASSERT(v->position.y >= mins->y && v->position.y <= maxs->y);
+            T_ASSERT(v->texcoord.x >= 0 && v->texcoord.x <= 1);
+            T_ASSERT(v->texcoord.y >= 0 && v->texcoord.y <= 1);
+        }
     }
     ground_current_vertex = NULL;
 }

@@ -51,17 +51,16 @@ BOOL MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, DWOR
     return key > previous_frame || key <= current_frame;
 }
 
-static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, DWORD index) {
-    DWORD stride = GetModelKeyFrameSize(track->datatype, track->linetype);
+static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, DWORD stride, DWORD index) {
     return (mdxKeyFrame_t *)((LPSTR)track->values + stride * index);
 }
 
 /* MDX key times are authored in ascending order; binary bounds avoid rescanning every track for every model instance. */
-static DWORD R_KeyFrameBound(mdxKeyTrack_t const *track, DWORD time, BOOL upper) {
+static DWORD R_KeyFrameBound(mdxKeyTrack_t const *track, DWORD stride, DWORD time, BOOL upper) {
     DWORD lo = 0, hi = track->keyframeCount;
     while (lo < hi) {
         DWORD mid = lo + (hi - lo) / 2;
-        DWORD keytime = R_KeyFrameAt(track, mid)->time;
+        DWORD keytime = R_KeyFrameAt(track, stride, mid)->time;
         if (keytime < time || (upper && keytime == time)) lo = mid + 1;
         else hi = mid;
     }
@@ -70,9 +69,11 @@ static DWORD R_KeyFrameBound(mdxKeyTrack_t const *track, DWORD time, BOOL upper)
 
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output) {
     DWORD interval[2] = { 0, 0 };
+    DWORD stride;
 
     if (!model || !keytrack || !output || !keytrack->keyframeCount)
         return;
+    stride = GetModelKeyFrameSize(keytrack->datatype, keytrack->linetype);
     if (keytrack->globalSeqId != (DWORD)-1) {
         mdxKeyFrame_t *first_authored;
 
@@ -85,7 +86,7 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
          * beyond the declared duration as a constant equal to that first key.
          * Stock DNC models use this odd contract for their light-node rotation:
          * a zero-duration global sequence points at a later quaternion key. */
-        first_authored = R_KeyFrameAt(keytrack, 0);
+        first_authored = R_KeyFrameAt(keytrack, stride, 0);
         if (first_authored->time >= 0 && (DWORD)first_authored->time > interval[1]) {
             memcpy(output, first_authored->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
             return;
@@ -106,12 +107,12 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         interval[0] = seq->interval[0];
         interval[1] = seq->interval[1];
     }
-    DWORD first_index = R_KeyFrameBound(keytrack, interval[0], false);
-    DWORD end_index = R_KeyFrameBound(keytrack, interval[1], true);
+    DWORD first_index = R_KeyFrameBound(keytrack, stride, interval[0], false);
+    DWORD end_index = R_KeyFrameBound(keytrack, stride, interval[1], true);
     if (first_index >= end_index)
         return;
-    mdxKeyFrame_t *first = R_KeyFrameAt(keytrack, first_index);
-    mdxKeyFrame_t *last = R_KeyFrameAt(keytrack, end_index - 1);
+    mdxKeyFrame_t *first = R_KeyFrameAt(keytrack, stride, first_index);
+    mdxKeyFrame_t *last = R_KeyFrameAt(keytrack, stride, end_index - 1);
     if (time >= last->time) {
         /* The interval tail blends back to its first key; keys outside this sequence never participate. */
         DWORD span = (interval[1] - last->time) + (first->time - interval[0]);
@@ -123,12 +124,12 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         }
         return;
     }
-    DWORD right_index = R_KeyFrameBound(keytrack, time, false);
-    mdxKeyFrame_t *right = R_KeyFrameAt(keytrack, right_index);
+    DWORD right_index = R_KeyFrameBound(keytrack, stride, time, false);
+    mdxKeyFrame_t *right = R_KeyFrameAt(keytrack, stride, right_index);
     if (right_index == first_index || right->time == time)
         memcpy(output, right->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
     else
-        R_GetKeyframeValue(R_KeyFrameAt(keytrack, right_index - 1), right, keytrack, time, output);
+        R_GetKeyframeValue(R_KeyFrameAt(keytrack, stride, right_index - 1), right, keytrack, time, output);
 }
 
 /* Warcraft animated MDX color tracks use BGR component semantics in the file.
