@@ -257,10 +257,13 @@ Automated coverage is intentionally split by ownership:
   resolution after an invalid optional map skin. The fixture test exercises
   the production asset resolver and loader selector without creating a GL
   context or calling the renderer's full `R_RegisterMap()` entry point.
-- `tests/test_renderer_model.c` verifies the renderer texture cache's real
-  generation and reclaim behavior, including stale streamed textures and
-  aliases. `R_RegisterMap()` advances the generation before loading map
-  overrides and reclaims stale streamed entries after map registration.
+- `tests/test_renderer_model.c` calls the production WC3 `R_RegisterMap()`
+  against `tests.mpq` and its nested `MapOverlay.w3x` fixture. It verifies that
+  the imported Hero texture is cached as streamed, then reclaimed when a second
+  map has no override, while stock skin textures stay pinned. The renderer
+  texture cache and map-registration function are production code; filesystem
+  reads and GL texture loads are test imports, so this checks archive lookup
+  and cache lifetime without a GL context or pixel upload.
 - `games/warcraft-3/tests/test_server_net.c` verifies that a game-prioritized
   minimap contact survives ordinary entity snapshot saturation.
 

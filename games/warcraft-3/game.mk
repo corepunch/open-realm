@@ -184,6 +184,11 @@ test-jass-build: $(JASS_LIB)
 # Common flags for standalone test binaries.
 TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared -Ishared/types -Iserver -Icommon -Iclient
 TEST_MENU_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/menu
+ifeq ($(UNAME_S),Darwin)
+TEST_GC_SECTIONS := -Wl,-dead_strip
+else
+TEST_GC_SECTIONS := -Wl,--gc-sections
+endif
 
 TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/test_menu_fdf.c \
@@ -210,11 +215,11 @@ TEST_JOBS ?= 16
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-sound,$(LIB_DIR) $(CLIENT_HEADERS) $(COMMON_HEADERS) sound/s_local.h vendor/minimp3/minimp3.h tests/resources/sound-test.mp3,$(CFLAGS) -DBZ_TESTS -DTRUE=1 -DFALSE=0,$(BIN_DIR)/test_sound$(EXE_EXT),tests/test_runner.c tests/test_sound.c sound/s_sound.c sound/s_mp3.c shared/test.c,$(LIBS) -lm,))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
-$(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_MDX_RIBBON_HEADLESS,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/mdx/r_mdx_load.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-model,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/mdx/r_mdx_load.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
 $(eval $(call test_schema,test-ui-canvas,$(RENDERER_LIB) $(SHARED_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_ui_canvas$(EXE_EXT),tests/test_runner.c tests/test_ui_canvas.c,-lrenderer -lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-mdx-ui,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -Wno-unused-variable,$(BIN_DIR)/test_mdx_ui$(EXE_EXT),tests/test_runner.c tests/test_mdx_ui.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_trace.c renderer/r_camera_height.h renderer/r_local.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c tests/test_renderer_trace.c renderer/r_trace.c renderer/r_camera_height.c,-lshared -lm $(LIBS),))
-$(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS -DBZ_MDX_RIBBON_HEADLESS,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/mdx/r_mdx_load.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-shadows,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS -DBZ_MDX_RIBBON_HEADLESS -ffunction-sections -fdata-sections,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c tests/test_renderer_game.c common/mpq.c renderer/r_model.c renderer/r_trail.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c $(WC3_DIR)/renderer/mdx/r_mdx_particles.c $(WC3_DIR)/renderer/mdx/r_mdx_ribbons.c $(WC3_DIR)/renderer/mdx/r_mdx_load.c,$(TEST_GC_SECTIONS) -lsheet -lshared -lm -lz $(LIBS),))
 $(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c games/starcraft-2/game/galaxy/galaxy_host.c,-lshared -ljass -lm,))
 $(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) $(WC3_DIR)/common/campaign_progress.c common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu),-lsheet -lshared -ljass -lm -lz $(NET_LIBS),))
 
@@ -246,6 +251,8 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		"paletted 8 8 2 $(TESTS_RES_DIR)/TestUI/Textures/paletted_checker_8x8.blp"; do \
 		$(BIN_DIR)/blpgen$(EXE_EXT) $$tex; \
 	done
+	@mkdir -p $(TESTS_RES_DIR)/MapOverlay/Textures
+	@$(BIN_DIR)/blpgen$(EXE_EXT) checker 8 8 2 $(TESTS_RES_DIR)/MapOverlay/Textures/minimap_hero.blp
 	@echo "[test-assets] generating models"
 	@mkdir -p $(TESTS_RES_DIR)/TestUI/Models $(TESTS_RES_DIR)/Units/Creeps/Medivh $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuilding0 $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuildingRuined2
 	@for model in \
@@ -264,7 +271,8 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/MapOverlay/Units/CampaignUnitFunc.txt "Units\\CampaignUnitFunc.txt" \
 		$(TESTS_SRC_DIR)/MapOverlay/war3mapMisc.txt war3mapMisc.txt \
 		$(TESTS_SRC_DIR)/MapOverlay/war3mapSkin.txt war3mapSkin.txt \
-		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a
+		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a \
+		$(TESTS_RES_DIR)/MapOverlay/Textures/minimap_hero.blp "Textures\\minimap_hero.blp"
 	@echo "[test-assets] packing tests.mpq"
 	@set --; \
 	for f in $$(find $(TESTS_RES_DIR) -type f | sort); do \
