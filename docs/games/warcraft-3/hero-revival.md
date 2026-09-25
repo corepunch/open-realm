@@ -71,6 +71,12 @@ max mana * HeroReviveManaFactor
 + initial mana * HeroReviveManaStart
 ```
 
+`G_ReviveHero()` returns false unless the edict is an in-use, dead Hero outside
+Soul Trap; it returns true after restoring the Hero. jass_t `ReviveHero` and
+`ReviveHeroLoc` return that result, so a living Hero or ordinary unit is not
+reported as revived. Orc08's `Trig_Grom_Dead` can therefore revive Grom from
+its actual Player 1 death event when the Soul Gem was not used.
+
 The finish event is published after the Hero is alive and positioned. An active
 revival exposes the existing command-card Cancel action; cancellation refunds
 the exact gold/lumber charged, clears `reviving`, and leaves the Hero awaiting

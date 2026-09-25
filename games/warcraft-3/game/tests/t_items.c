@@ -1667,6 +1667,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(!G_ItemDroppable(filled));
     T_ASSERT(target->soul_trap_item == filled);
     T_ASSERT(filled->item.soul_target == target);
+    T_EQ(carrier->forced_visibility_count[1], 1);
     T_ASSERT(!G_DropItemAtScripted(carrier, 0, &carrier->s.origin2));
 
     target2 = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 128, 64);
@@ -1698,6 +1699,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(filled2 != filled);
     T_ASSERT(target2->soul_trap_item == filled2);
     T_ASSERT(filled2->item.soul_target == target2);
+    T_EQ(carrier->forced_visibility_count[1], 2);
 
     carrier->s.origin2 = MAKE(vector2_t, 192, 224);
     carrier->s.origin.x = 192;
@@ -1715,6 +1717,8 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_FEQ(target2->s.origin2.y, 224.0f, 0.001f);
     T_ASSERT(!filled->inuse);
     T_ASSERT(!filled2->inuse);
+    T_EQ(carrier->forced_visibility_count[1], 0);
+    T_ASSERT(!G_UnitIsForcedVisibleToPlayer(carrier, 1));
     G_FowShutdown();
 }
 
@@ -1775,6 +1779,7 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     carrier->soul_trap_head_spawn_time = target->spawn_time;
     target->soul_trap_carrier = carrier;
     target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    G_AddUnitForcedVisibility(carrier, target->s.player);
     target->soul_trap_item = filled;
     target->soul_trap_item_spawn_time = filled->spawn_time;
     target->aiflags |= AI_SOUL_TRAPPED;
@@ -1784,7 +1789,7 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     filled->item.soul_target = target;
     filled->item.soul_target_spawn_time = target->spawn_time;
 
-    T_ASSERT(S_SoulTrapRevealsCarrier(carrier, 1));
+    T_ASSERT(G_UnitIsForcedVisibleToPlayer(carrier, 1));
     G_FreeEdict(target);
 
     T_ASSERT(!target->inuse);
@@ -1793,7 +1798,7 @@ TEST(wc3_items, soul_trap_remove_target_cleans_bound_item) {
     T_ASSERT(!G_ActorHasSkill(carrier, "Asou"));
     T_NULL(carrier->inventory[0]);
     T_ASSERT(!filled->inuse);
-    T_ASSERT(!S_SoulTrapRevealsCarrier(carrier, 1));
+    T_ASSERT(!G_UnitIsForcedVisibleToPlayer(carrier, 1));
 }
 
 TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
@@ -1908,6 +1913,81 @@ TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_NULL(item->item.carrier);
     T_ASSERT(item->item.in_world);
+}
+
+TEST(wc3_items, orc08_scripted_soul_slot_swap_keeps_item_bound_to_carrier) {
+    edict_t *carrier = NULL, *other = NULL, *target = NULL, *soul = NULL;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit carrier = null\n"
+        "  unit other = null\n"
+        "  item soul = null\n"
+        "  item emptyGem = null\n"
+        "endglobals\n"
+        "function swap_soul_slot takes nothing returns nothing\n"
+        "  call UnitRemoveItem(carrier, soul)\n"
+        "  call BJassAssert(not UnitHasItem(carrier, soul), \"UnitRemoveItem left filled Soul in its slot\")\n"
+        "  set emptyGem = CreateItem('gsou', 64.0, 64.0)\n"
+        "  call BJassAssert(UnitAddItem(carrier, emptyGem), \"empty gem did not occupy freed slot\")\n"
+        "  call BJassAssert(not UnitAddItem(other, soul), \"filled Soul transferred to another carrier\")\n"
+        "  call BJassAssert(UnitAddItem(carrier, soul), \"filled Soul did not return to its carrier\")\n"
+        "  call BJassAssert(not IsItemVisible(soul), \"filled Soul became a world item during slot swap\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set carrier = CreateUnit(Player(0), 'Hpal', 64.0, 64.0, 0.0)\n"
+        "  set other = CreateUnit(Player(0), 'Hpal', 96.0, 64.0, 0.0)\n"
+        "  set soul = CreateItem('soul', 64.0, 64.0)\n"
+        "  call UnitAddItem(carrier, soul)\n"
+        "  call SetItemDroppable(soul, false)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (!ent->inuse) continue;
+        if (ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 0) {
+            if (!carrier) carrier = ent;
+            else if (!other) other = ent;
+        } else if (ent->class_id == MAKEFOURCC('s','o','u','l')) soul = ent;
+        else if (ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 1) target = ent;
+    }
+    /* Bind this test item to a live trapped target as capture does. */
+    if (!target) target = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 512.0f, 64.0f);
+    T_NOT_NULL(carrier); T_NOT_NULL(other); T_NOT_NULL(soul); T_NOT_NULL(target);
+    if (!carrier || !other || !soul || !target) return;
+    target->s.player = 1;
+    target->aiflags |= AI_SOUL_TRAPPED;
+    target->soul_trap_carrier = carrier;
+    target->soul_trap_carrier_spawn_time = carrier->spawn_time;
+    carrier->soul_trap_head = target;
+    carrier->soul_trap_head_spawn_time = target->spawn_time;
+    target->soul_trap_item = soul;
+    target->soul_trap_item_spawn_time = soul->spawn_time;
+    soul->item.soul_target = target;
+    soul->item.soul_target_spawn_time = target->spawn_time;
+    T_ASSERT(G_ActorAddSkill(carrier, MAKEFOURCC('A','s','o','u')));
+
+    jass_callbyname(level.vm, "swap_soul_slot", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(soul->inuse);
+    T_ASSERT(soul->item.carrier == carrier);
+    T_EQ(soul->item.inventory_slot, 1);
+    T_ASSERT(carrier->inventory[1] == soul);
+    T_ASSERT(!soul->item.in_world);
+}
+
+TEST(wc3_items, missing_item_data_does_not_make_item_droppable) {
+    edict_t *item;
+
+    setup_test_world();
+    item = alloc_test_unit(MAKEFOURCC('z','z','z','z'), 32.0f, 32.0f);
+    item->targtype = TARG_ITEM;
+    item->item.in_world = true;
+    item->item.inventory_slot = -1;
+    item->data.ItemData = NULL;
+    T_EQ(G_ItemData(item->class_id)->id, 0);
+    T_ASSERT(!G_ItemDroppable(item));
 }
 
 TEST(wc3_items, consumed_perishable_keeps_manipulated_item_through_sleep) {

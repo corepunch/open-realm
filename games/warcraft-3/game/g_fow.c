@@ -54,6 +54,23 @@ bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner) {
            (level.alliances[owner][viewer] & (1 << ALLIANCE_SHARED_VISION_FORCED));
 }
 
+void G_AddUnitForcedVisibility(edict_t *unit, uint32_t viewer) {
+    if (unit && viewer < MAX_PLAYERS && unit->forced_visibility_count[viewer] != 0xffffu)
+        unit->forced_visibility_count[viewer]++;
+}
+
+void G_RemoveUnitForcedVisibility(edict_t *unit, uint32_t viewer) {
+    if (unit && viewer < MAX_PLAYERS && unit->forced_visibility_count[viewer])
+        unit->forced_visibility_count[viewer]--;
+}
+
+bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer) {
+    if (!unit || viewer >= MAX_PLAYERS) return false;
+    FOR_LOOP(owner, MAX_PLAYERS)
+        if (unit->forced_visibility_count[owner] && G_FowPlayersShareVision(viewer, owner)) return true;
+    return false;
+}
+
 uint32_t G_FowWorldToCellX(float x) {
     if (!G_FowReady()) {
         return FOW_INVALID_CELL;
@@ -1059,7 +1076,7 @@ bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent) {
     if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
     }
-    if (S_SoulTrapRevealsCarrier(ent, player)) return true;
+    if (G_UnitIsForcedVisibleToPlayer(ent, player)) return true;
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }
@@ -1090,7 +1107,7 @@ bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent) {
     if (ent->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, ent->s.player)) {
         return true;
     }
-    if (S_SoulTrapRevealsCarrier(ent, player)) return true;
+    if (G_UnitIsForcedVisibleToPlayer(ent, player)) return true;
     if (S_UnitIsInvisibleToPlayer(ent, player)) {
         return false;
     }

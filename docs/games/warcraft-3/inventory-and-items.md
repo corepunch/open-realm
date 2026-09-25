@@ -154,12 +154,13 @@ shared spell pipeline can report execution success.
 
 `SetItemDroppable` supplies a runtime override of authored `ItemData.droppable`.
 Player/manual drop paths honor that effective value. Explicit jass_t inventory
-manipulation still bypasses the player restriction, so campaign scripts can
-move an undroppable quest item deliberately. Drop-on-death remains a separate
-inventory policy, matching Warcraft's distinct droppable and death-drop controls.
-Synthetic tests that replace `ItemData.slk` must include the `droppable` column
-and set it on rows whose scenario expects player drops; an omitted boolean parses
-as false and correctly blocks the manual drop path.
+manipulation can move an undroppable quest item deliberately. A missing
+ItemData row is logged and rejects dropping instead of silently treating the
+item as droppable. Drop-on-death remains a separate inventory policy, matching
+Warcraft's distinct droppable and death-drop controls. Synthetic tests that
+replace `ItemData.slk` must include the `droppable` column and set it on rows
+whose scenario expects player drops; an omitted boolean parses as false and
+correctly blocks the manual drop path.
 
 ## Soul Gem (`gsou` / `soul`, `AIso` / `Asou`)
 
@@ -188,10 +189,17 @@ ritual sequence, then moves Grom and runs its campaign-specific presentation.
 Removing a carrier without death uses relationship cleanup so targets are not
 left orphaned. There is no generic duration timer.
 
-The target owner's fog query recognizes the carrier through
-`S_SoulTrapRevealsCarrier`. This is unit-specific forced visibility: it follows
-carrier movement and does not mark the surrounding fog cells visible or explored.
-The normal visibility path resumes when the relationship ends.
+The filled item cannot be dropped, including through scripted point-drop or
+death-drop paths. Orc08's cinematic swaps the item through `UnitRemoveItem`
+and `UnitAddItem`; removal temporarily detaches it from its slot while keeping
+its carrier binding, and only that carrier can put it back. This does not expose
+the item as a world pickup or permit transfer.
+
+The carrier receives a generic unit-specific forced-visibility reference for
+the trapped Hero's owner. Fog queries apply that reference before ordinary
+invisibility checks and resolve shared vision through the normal alliance
+rules. The reveal follows carrier movement and does not mark surrounding fog
+cells visible or explored. It ends when the relationship is removed.
 
 Final-charge item use must preserve the `GetManipulatedItem()` handle while
 jass_t handles `EVENT_PLAYER_UNIT_USE_ITEM`. `G_CompleteItemUse` detaches the
@@ -220,7 +228,7 @@ also covers cleanup when the trapped target is removed, and
 `wc3_items.soul_gem_pending_approach_round_trips_save` covers a pending targeted
 cast across save/load. They run against both ROC and TFT fixture schemas.
 They cover target-mode entry, stock target filtering, no death event, the
-Orc08-style scripted filled item, delayed use-event identity, visibility,
+Orc08-style scripted filled-item slot swap, delayed use-event identity, visibility,
 multiple captures on one carrier, carrier-death release, and relationship
 save/load. Run them with:
 
@@ -229,6 +237,8 @@ make test-wc3-engine WC3_PATTERN='wc3_items.soul_gem*'
 make test-wc3-engine WC3_PATTERN='wc3_items.consumed_perishable*'
 make test-wc3-engine WC3_PATTERN='wc3_api.revive_hero_location*'
 make test-wc3-engine WC3_PATTERN='wc3_save.soul_trap_links*'
+make test-wc3-engine WC3_PATTERN='wc3_items.orc08_scripted_soul_slot_swap*'
+make test-wc3-engine WC3_PATTERN='wc3_items.missing_item_data*'
 ```
 
 ## Inventory Presentation

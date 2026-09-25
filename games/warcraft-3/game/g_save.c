@@ -717,6 +717,7 @@ field_t edict_fields[] = {
     F(edict_s, spawn_time, F_INT),
     F(edict_s, summon_ability, F_INT),
     F(edict_s, permanent_invisibility_reveal_until, F_INT),
+    F(edict_s, forced_visibility_count, F_INT),
     F(edict_s, harvested_lumber, F_INT),
     F(edict_s, harvested_gold, F_INT),
     F(edict_s, heatmap2, F_INT),
@@ -1959,8 +1960,8 @@ fail:
     return false;
 }
 
-TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-pre-region-handle-generation.bin";
+TEST(wc3_save, rejects_prior_save_versions) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-prior-format.bin";
     cstring_t old_paths[] = {
         "/tmp/openwarcraft3-wc3-save-version-39.bin",
         "/tmp/openwarcraft3-wc3-save-version-40.bin",

@@ -635,19 +635,14 @@ uint32_t ReviveHero(jass_t *j) {
     float x = jass_checknumber(j, 2);
     float y = jass_checknumber(j, 3);
     //bool doEyecandy = jass_checkboolean(j, 4);
-    if (whichHero) {
-        G_ReviveHero(whichHero, x, y);
-        return jass_pushboolean(j, 1);
-    }
-    return jass_pushboolean(j, 0);
+    return jass_pushboolean(j, G_ReviveHero(whichHero, x, y));
 }
 uint32_t ReviveHeroLoc(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     vector2_t const *location = jass_checkhandle(j, 2, "location");
     //bool doEyecandy = jass_checkboolean(j, 3);
-    if (!whichHero || !location) return jass_pushboolean(j, 0);
-    G_ReviveHero(whichHero, location->x, location->y);
-    return jass_pushboolean(j, 1);
+    return jass_pushboolean(j, whichHero && location &&
+        G_ReviveHero(whichHero, location->x, location->y));
 }
 uint32_t SetUnitExploded(jass_t *j) {
     //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -688,6 +683,7 @@ uint32_t UnitAddItem(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     edict_t *whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) return jass_pushboolean(j, false);
+    if (G_ItemAbilityScriptedReattach(whichUnit, whichItem)) return jass_pushboolean(j, true);
     return jass_pushboolean(j, G_PickupItem(whichUnit, whichItem));
 }
 uint32_t UnitAddItemById(jass_t *j) {
@@ -725,7 +721,8 @@ uint32_t UnitRemoveItem(jass_t *j) {
     }
     FOR_LOOP(i, MAX_INVENTORY) {
         if (whichUnit->inventory[i] == whichItem) {
-            G_DropItemAtScripted(whichUnit, i, &whichUnit->s.origin2);
+            if (!G_ItemAbilityScriptedRemove(whichUnit, whichItem))
+                G_DropItemAtScripted(whichUnit, i, &whichUnit->s.origin2);
             break;
         }
     }
@@ -739,7 +736,8 @@ uint32_t UnitRemoveItemFromSlot(jass_t *j) {
     }
     edict_t *item = whichUnit->inventory[itemSlot];
     if (!item) return jass_pushnullhandle(j, "item");
-    if (!G_DropItemAtScripted(whichUnit, (uint32_t)itemSlot, &whichUnit->s.origin2)) {
+    if (!G_ItemAbilityScriptedRemove(whichUnit, item) &&
+        !G_DropItemAtScripted(whichUnit, (uint32_t)itemSlot, &whichUnit->s.origin2)) {
         return jass_pushnullhandle(j, "item");
     }
     return jass_pushlighthandle(j, item, "item");
