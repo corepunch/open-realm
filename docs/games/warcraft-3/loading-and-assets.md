@@ -295,10 +295,17 @@ rectangle and interpolates height along the original triangle edges. Whole cells
 Do not replace the building's shader with the unlit splat shader to solve this edge; that would lose its terrain
 lighting and fog behavior.
 
+Clipped edges introduce CPU-interpolated vertices instead of reusing the terrain's exact endpoints. Although they
+lie on the same mathematical plane, their rasterized depth can differ by enough precision to flicker under
+`GL_LEQUAL`. The WC3 splat pass therefore applies polygon offset `(-1, -1)` while drawing terrain decals and restores
+the state afterward. This covers both lit building footprints and unlit selection rings without lifting either mesh
+in world space.
+
 `renderer_terrain.splat_rect_stops_at_partial_tile_edge` reproduces the out-of-bounds vertices and UVs;
-`renderer_terrain.clipped_splat_follows_both_terrain_triangles` checks the height on a non-planar cell. Run them
-through `make test-renderer-model test-renderer-shadows`. A framebuffer comparison against a real map remains a
-visual check beyond these headless geometry assertions.
+`renderer_terrain.clipped_splat_follows_both_terrain_triangles` checks the height on a non-planar cell; and
+`renderer_terrain.splat_draw_biases_coplanar_terrain_geometry` locks the depth-bias state contract. Run them through
+`make test-renderer-model test-renderer-shadows`. A framebuffer comparison against a real map remains a visual check
+beyond these headless geometry assertions.
 
 ## Diagnostics and verification
 

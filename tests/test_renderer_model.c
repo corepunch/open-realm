@@ -1526,7 +1526,29 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD count) {}
 LINE3 R_LineForScreenPoint(viewDef_t const *view, FLOAT x, FLOAT y) { return (LINE3){0}; }
 LPCTEXTURE R_BlightTexture(void) { return texture_load_result; }
 w3TerrainArt_t const *R_TerrainArt(DWORD id) { T_ASSERT(false); return NULL; }
+static struct { DWORD enables, disables, offsets; FLOAT factor, units; } splat_bias;
+static void test_splat_enable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.enables++; }
+static void test_splat_disable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.disables++; }
+static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
+    splat_bias.offsets++; splat_bias.factor = factor; splat_bias.units = units;
+}
+#define glEnable test_splat_enable
+#define glDisable test_splat_disable
+#define glPolygonOffset test_splat_polygon_offset
 #include "games/warcraft-3/renderer/w3m/r_war3map_ground.c"
+#undef glEnable
+#undef glDisable
+#undef glPolygonOffset
+
+TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
+    memset(&splat_bias, 0, sizeof(splat_bias));
+    R_SetSplatDepthBias(true);
+    T_EQ(splat_bias.enables, 1); T_EQ(splat_bias.offsets, 1);
+    T_FEQ(splat_bias.factor, -1.0f, 0.0f); T_FEQ(splat_bias.units, -1.0f, 0.0f);
+    R_SetSplatDepthBias(false);
+    T_EQ(splat_bias.disables, 1); T_EQ(splat_bias.offsets, 2);
+    T_FEQ(splat_bias.factor, 0.0f, 0.0f); T_FEQ(splat_bias.units, 0.0f, 0.0f);
+}
 
 TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
     WAR3MAPVERTEX verts[4] = {0};
