@@ -205,13 +205,12 @@ static bool land_mine_initialize(edict_t * mine, uint32_t code) {
 	land_mine_remove_thinker(mine);
 	arm = MAX(0.0f, S_SpellData(code, level, 1));
 	invis = S_SpellData(code, level, 2);
-	/* Mine behavior makes the unit walk-over even before invisibility finishes. */
+	thinker = G_Spawn();
+	if (!thinker) { fprintf(stderr, "WC3 land mine: failed to allocate thinker for unit %u\n", mine->s.number); return false; }
+	/* Apply gameplay/presentation state only after the thinker owns the lifecycle. */
 	mine->collision = 0.0f;
 	mine->s.renderfx &= ~RF_HIDDEN;
 	if (invis == 0.0f) mine->s.renderfx |= RF_HIDDEN;
-
-	thinker = G_Spawn();
-	if (!thinker) return false;
 	thinker->owner = mine;
 	thinker->channel.owner_spawn_time = mine->spawn_time;
 	thinker->class_id = code;
