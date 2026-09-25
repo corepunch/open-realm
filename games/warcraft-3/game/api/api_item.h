@@ -96,8 +96,12 @@ uint32_t SetItemDropOnDeath(jass_t *j) {
     return 0;
 }
 uint32_t SetItemDroppable(jass_t *j) {
-    //handle_t i = jass_checkhandle(j, 1, "item");
-    //bool flag = jass_checkboolean(j, 2);
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    bool flag = jass_checkboolean(j, 2);
+    if (item && G_IsItem(item)) {
+        item->item.droppable_set = true;
+        item->item.droppable = flag;
+    }
     return 0;
 }
 uint32_t SetItemPlayer(jass_t *j) {

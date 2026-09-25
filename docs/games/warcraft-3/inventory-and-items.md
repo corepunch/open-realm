@@ -133,19 +133,30 @@ duration, target mask and BuffID. Eligible friendly units receive the timed
 include the status bonus while it is live, so normal status expiration removes
 the bonus automatically.
 
-For a synchronous successful use, the server publishes
-`EVENT_PLAYER_UNIT_USE_ITEM` and `EVENT_UNIT_USE_ITEM` and then calls
-`G_ConsumeItemCharge`. Failed uses (for example, healing an already full-health
-unit) publish neither event and consume no charge. Every successful synchronous charged-item use decrements a positive runtime
-charge count. If that reaches zero on a perishable item, `G_RemoveItem` destroys
-it, clearing the slot and reversing passive item-stat hooks. A non-perishable
-item also decrements to zero but remains present.
+Successful item uses complete through `G_CompleteItemUse`, which publishes
+`EVENT_PLAYER_UNIT_USE_ITEM` and `EVENT_UNIT_USE_ITEM` with the used item as the
+event source and then applies charge/perishable semantics. Failed uses (for
+example, healing an already full-health unit) publish neither event and consume
+no charge. A successful charged-item use decrements a positive runtime charge
+count. Non-perishable items remain present at zero charges. A final perishable
+charge detaches the item from gameplay immediately but keeps its edict/handle
+alive until queued use-item events and any sleeping jass_t action carrying that
+event context have finished; this keeps `GetManipulatedItem()` valid while the
+trigger responds to the use. The retained item is then retired automatically.
 
-Existing item abilities that enter an asynchronous targeting command through
-`AB_COMMAND`/`A_COMMAND` are still dispatched, but the click handler cannot yet know
-whether that later target operation succeeds. It therefore does not consume
-their charge or publish a success event at click time. That completion path is
-explicitly future work rather than speculative charge consumption.
+Item abilities that enter the shared spell targeting command now bind their
+originating inventory item to that command. Unit-target abilities preserve the
+item plus spawn generation while walking into cast range. Charge consumption
+and use-item events occur only after successful `A_EXECUTE`; rejected targets,
+interrupted approaches, and stale/moved source items do not consume the item.
+The same completion hook is used for point/no-target spell commands where the
+shared spell pipeline can report execution success.
+
+`SetItemDroppable` supplies a runtime override of authored `ItemData.droppable`.
+Player/manual drop paths honor that effective value. Explicit jass_t inventory
+manipulation still bypasses the player restriction, so campaign scripts can
+move an undroppable quest item deliberately. Drop-on-death remains a separate
+inventory policy, matching Warcraft's distinct droppable and death-drop controls.
 
 ## Inventory Presentation
 
@@ -328,10 +339,12 @@ permission. Detach/removal always reverses an effect that was already applied,
 even if `CanUseItems` changed while the item was carried, so permission changes
 cannot leak a permanent stat bonus.
 
-Still missing are automatic `powerup` acquisition/use, asynchronous targeted
-item completion and its charge/event semantics, `cooldownID`/`ignoreCD` item
-cooldowns and disabled icons, held-item cursor art, slot swapping, and
-allied-unit giving.
+Still missing are automatic `powerup` acquisition/use, `cooldownID`/`ignoreCD`
+item cooldowns and disabled icons, held-item cursor art, slot swapping, and
+allied-unit giving. `AIso` Soul Trap is wired through the targeted-item
+completion path for Orc08, including a valid `GetManipulatedItem()` source;
+generic trapped-soul/Soul Possession (`Asou`) reveal, imprisonment, and release
+semantics remain separate ability work.
 
 The implementation is derived from observable behavior and Warcraft III data
 formats described by the clean-room specification. It does not depend on

@@ -187,6 +187,8 @@ BZ_ABILITY_PROC(CAbilityExperienceMod);
 BZ_ABILITY_PROC(CAbilityLevelMod);
 BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
 BZ_ABILITY_PROC(CAbilityItemChangeTOD);
+BZ_ABILITY_PROC(CAbilitySoulTrap);
+BZ_ABILITY_PROC(CAbilitySoulTrapped);
 BZ_ABILITY_PROC(CAbilityFlameStrikeNeutral);
 BZ_ABILITY_PROC(CAbilityDrainNeutral);
 BZ_ABILITY_PROC(CAbilityFlameStrike);

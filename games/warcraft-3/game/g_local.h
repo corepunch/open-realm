@@ -174,6 +174,8 @@ typedef struct {
     void (*cmdbutton)(edict_t *, uint32_t);
     void (*refresh)(edict_t *);
     uint32_t ability_code;
+    edict_t *ability_item;      /* originating carried item for an asynchronous item command */
+    uint32_t ability_item_spawn_time;
     bool supports_order_queue; /* active target mode accepts Shift chaining */
     bool order_queued;         /* transient modifier for the current target callback */
     bool order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
@@ -1446,6 +1448,9 @@ struct edict_s {
         int32_t user_data;       /* SetItemUserData script scratch */
         bool pawnable_set;    /* SetItemPawnable overrode ItemData.pawnable */
         bool pawnable;        /* effective pawnable when pawnable_set */
+        bool droppable_set;   /* SetItemDroppable overrode ItemData.droppable */
+        bool droppable;       /* effective droppable when droppable_set */
+        bool pending_use_removal; /* final perishable charge retained for use-event context */
     } item;
     struct edictDestructable_s {
         bool initialized;
@@ -1559,6 +1564,8 @@ struct edict_s {
     TARGTYPE targtype;
     edict_t *goalentity;
     edict_t *item_drop; /* inventory item owned by an active point-drop behavior */
+    edict_t *spell_item; /* originating item for a pending walk-into-range spell */
+    uint32_t spell_item_spawn_time;
     edict_t *combatentity;
     edict_t *secondarygoal;
     edict_t *owner;
@@ -1954,6 +1961,7 @@ struct level_locals {
         } start_prio[MAX_PLAYERS];
     } setup;
     levelEvents_t events;
+    bool pending_consumed_item_cleanup;
     gameMessages_t messages;
     edict_t *ground_surfaces;
     struct {
@@ -3082,11 +3090,14 @@ uint32_t G_InventoryCapacity(edict_t const *unit);
 bool G_InventoryCanUseItems(edict_t const *unit);
 bool G_InventoryCanGetItems(edict_t const *unit);
 bool G_InventoryCanDropItems(edict_t const *unit);
+bool G_ItemDroppable(edict_t const *item);
 void G_DropInventoryOnDeath(edict_t *unit);
 bool G_UnitHasInventory(edict_t *unit);
 uint32_t G_ItemCharges(edict_t const *item);
 void G_SetItemCharges(edict_t *item, uint32_t charges);
 void G_ConsumeItemCharge(edict_t *item);
+void G_CompleteItemUse(edict_t *unit, edict_t *item);
+void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);
 int32_t G_FindFreeInventorySlot(edict_t const *unit);
 bool G_CanPickupItem(edict_t *unit, edict_t *item);
@@ -3095,6 +3106,7 @@ bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool p
 bool G_PickupItem(edict_t *unit, edict_t *item);
 bool G_OrderPickupItem(edict_t *unit, edict_t *item);
 bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position);
+bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vector2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);
 bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vector2_t const *position);
 void G_RemoveItem(edict_t *item);

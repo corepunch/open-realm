@@ -961,6 +961,7 @@ static void G_RunFrame(void) {
 
     G_SolveCollisions();
     G_RunDeferredFrees();
+    G_RunConsumedItemFrees();
     G_FowUpdate();
     G_UpdateClientSelections();
     G_FowSendDeltas();

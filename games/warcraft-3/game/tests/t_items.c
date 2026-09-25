@@ -1564,4 +1564,122 @@ TEST(wc3_items, drop_at_rejects_slot_beyond_capacity) {
     T_ASSERT(unit->inventory[1] == item1);
 }
 
+
+TEST(wc3_items, soul_gem_abilities_are_registered_for_targeted_item_flow) {
+    ability_t const *trap = FindAbilityForCommand("AIso");
+    ability_t const *trapped = FindAbilityForCommand("Asou");
+
+    T_NOT_NULL(trap);
+    T_ASSERT(trap->proc == CAbilitySoulTrap);
+    T_ASSERT(trap->flags & AB_SPELL);
+    T_EQ(trap->target_type, SPELL_TARGET_UNIT);
+    T_NOT_NULL(trapped);
+    T_ASSERT(trapped->proc == CAbilitySoulTrapped);
+    T_ASSERT(trapped->flags & AB_PASSIVE);
+}
+
+TEST(wc3_items, set_item_droppable_blocks_manual_drop_but_not_scripted_move) {
+    edict_t *carrier = NULL;
+    edict_t *item = NULL;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit carrier = null\n"
+        "  item gem = null\n"
+        "endglobals\n"
+        "function scripted_drop takes nothing returns nothing\n"
+        "  call UnitDropItemPoint(carrier, gem, 128.0, 64.0)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set carrier = CreateUnit(Player(0), 'Hpal', 64.0, 64.0, 0.0)\n"
+        "  set gem = CreateItem('spro', 64.0, 64.0)\n"
+        "  call UnitAddItem(carrier, gem)\n"
+        "  call SetItemDroppable(gem, false)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = g_edicts + i;
+        if (!ent->inuse) continue;
+        if (!carrier && ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 0) carrier = ent;
+        if (!item && G_IsItem(ent) && ent->class_id == MAKEFOURCC('s','p','r','o')) item = ent;
+    }
+    T_NOT_NULL(carrier);
+    T_NOT_NULL(item);
+    T_ASSERT(item->item.carrier == carrier);
+    T_ASSERT(!G_ItemDroppable(item));
+    T_ASSERT(!G_DropItem(carrier, (uint32_t)item->item.inventory_slot));
+    T_ASSERT(item->item.carrier == carrier);
+
+    jass_callbyname(level.vm, "scripted_drop", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(item->item.carrier);
+    T_ASSERT(item->item.in_world);
+}
+
+TEST(wc3_items, consumed_perishable_keeps_manipulated_item_through_sleep) {
+    static ItemData_t soul_data = { .perishable = true, .droppable = true, .file = "test.mdx" };
+    edict_t *carrier = NULL;
+    edict_t *item;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  quest soulQuest = null\n"
+        "endglobals\n"
+        "function soul_gem_condition takes nothing returns boolean\n"
+        "  return GetItemTypeId(GetManipulatedItem()) == 'gsou'\n"
+        "endfunction\n"
+        "function soul_gem_action takes nothing returns nothing\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  call BJassAssert(GetItemTypeId(GetManipulatedItem()) == 'gsou', \"manipulated item lost across sleep\")\n"
+        "  call QuestSetCompleted(soulQuest, true)\n"
+        "endfunction\n"
+        "function verify_soul_gem takes nothing returns nothing\n"
+        "  call BJassAssert(IsQuestCompleted(soulQuest), \"Soul Gem use event did not complete\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local unit u = CreateUnit(Player(0), 'Hpal', 64.0, 64.0, 0.0)\n"
+        "  set soulQuest = CreateQuest()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_USE_ITEM, null)\n"
+        "  call TriggerAddCondition(t, Condition(function soul_gem_condition))\n"
+        "  call TriggerAddAction(t, function soul_gem_action)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = g_edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') && ent->s.player == 0) {
+            carrier = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(carrier);
+    item = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
+    item->data.ItemData = &soul_data;
+    item->item.charges = 1;
+    T_ASSERT(G_AddItemToSlot(carrier, item, 0));
+
+    G_CompleteItemUse(carrier, item);
+    T_NULL(carrier->inventory[0]);
+    T_ASSERT(item->inuse);
+    T_ASSERT(item->item.pending_use_removal);
+    T_EQ(item->item.charges, 0);
+
+    G_RunEvents();
+    jass_runevents(level.vm);
+    G_RunConsumedItemFrees();
+    T_ASSERT(item->inuse);
+    T_ASSERT(item->item.pending_use_removal);
+
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "verify_soul_gem", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    G_RunConsumedItemFrees();
+    T_ASSERT(!item->inuse);
+}
+
 #endif /* BZ_TESTS */

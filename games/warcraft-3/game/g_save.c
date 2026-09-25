@@ -466,6 +466,7 @@ static field_t const level_fields[] = {
     F(level_locals, started, F_INT),
     F(level_locals, scriptsConfigured, F_INT),
     F(level_locals, scriptsStarted, F_INT),
+    F(level_locals, pending_consumed_item_cleanup, F_INT),
     F(level_locals, waypoints.base, F_INT),
     F(level_locals, waypoints.cursor, F_INT),
     F(level_locals, waypoints.count, F_INT),
@@ -651,6 +652,8 @@ static field_t const client_menu_fields[] = {
     TF(clientMenu_s, supports_order_queue, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, order_queued, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, order_queue_chained, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, ability_item, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, ability_item_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -739,6 +742,7 @@ field_t edict_fields[] = {
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
     F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, spell_item, F_EDICT, 0, FIELD_NONE),
     F(edict_s, combatentity, F_EDICT, 0, FIELD_NONE),
     F(edict_s, secondarygoal, F_EDICT, 0, FIELD_NONE),
     F(edict_s, owner, F_EDICT, 0, FIELD_NONE),
