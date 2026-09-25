@@ -17,6 +17,7 @@ static BOOL smart_click_active;
 static BOOL cam_west, cam_east, cam_north, cam_south;
 
 static void CL_ScrollFrame(void);
+static BOOL CL_MouseOverGameplayUIAt(int x, int y);
 
 static struct {
     DWORD buttons, sent, last_ms;
@@ -314,10 +315,24 @@ static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
     return CL_EntityAllowsWorldHover(&cl.ents[entnum].current);
 }
 
-static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
+static void CL_UpdateHover(float x, float y) {
     DWORD entnum = 0;
     BOOL trace_hit = false;
 
+    if (!CL_GameplayInputReady()) {
+        cl.hover_entity = 0;
+        return;
+    }
+    if (!CL_MouseOverGameplayUIAt((int)x, (int)y))
+        trace_hit = re.TraceEntity(&cl.viewDef, x, y, &entnum);
+    if (trace_hit && (!Cvar_Integer("cl_hover_health_only", 1) || CL_CanHoverHealthEntity(entnum)))
+        cl.hover_entity = entnum;
+    else
+        cl.hover_entity = 0;
+    CL_UpdateCursor();
+}
+
+static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
     CL_LookMotion(motion);
     if (!CL_GameplayInputReady()) {
         camera_drag.active = false;
@@ -326,14 +341,6 @@ static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
         cl.hover_entity = 0;
         return;
     }
-    if (!CL_MouseOverGameplayUI())
-        trace_hit = re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum);
-    if (trace_hit && (!Cvar_Integer("cl_hover_health_only", 1) || CL_CanHoverHealthEntity(entnum))) {
-        cl.hover_entity = entnum;
-    } else {
-        cl.hover_entity = 0;
-    }
-    CL_UpdateCursor();
     if (camera_drag.active) {
         CL_UpdatePan(motion->x, motion->y);
     }
@@ -469,8 +476,11 @@ static keyCode_t CL_MouseButtonKey(SDL_MouseButtonEvent const *button) {
 }
 
 BOOL CL_MouseOverGameplayUI(void) {
-    return SCR_LayoutHitTest((int)mouse.origin.x, (int)mouse.origin.y) ||
-           CL_WindowMouseOver((int)mouse.origin.x, (int)mouse.origin.y);
+    return CL_MouseOverGameplayUIAt((int)mouse.origin.x, (int)mouse.origin.y);
+}
+
+static BOOL CL_MouseOverGameplayUIAt(int x, int y) {
+    return SCR_LayoutHitTest(x, y) || CL_WindowMouseOver(x, y);
 }
 
 BOOL CL_GameplayInputReady(void) {
@@ -484,6 +494,9 @@ BOOL CL_GameplayInputReady(void) {
 
 void CL_Input(void) {
     SDL_Event event;
+    /* Hover is presentation-only; ray-pick the last eligible motion after draining SDL input. */
+    SDL_MouseMotionEvent hover_motion = { 0 };
+    BOOL hover_update_pending = false;
     BOOL movie_input = CL_MovieActive();
 
     mouse.event = UI_EVENT_NONE;
@@ -629,6 +642,7 @@ void CL_Input(void) {
                 if (CL_WindowMouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0)) break;
                 SCR_LayoutMouseEvent(MENU_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
                 CL_MouseMotion(&event.motion);
+                hover_motion = event.motion; hover_update_pending = true;
                 break;
             case SDL_MOUSEWHEEL:
                 {
@@ -658,6 +672,7 @@ void CL_Input(void) {
                 break;
         }
     }
+    if (hover_update_pending) CL_UpdateHover((float)hover_motion.x, (float)hover_motion.y);
     CL_InputFrame();
 }
 
@@ -1187,6 +1202,43 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     re = saved; cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest;
     cl.playerstate.client_ui_state = old_ui;
     CL_TestWorldBounds(false);
+}
+
+static DWORD hover_trace_calls;
+static VECTOR2 hover_trace_point;
+static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, LPDWORD number) {
+    (void)view; hover_trace_calls++; hover_trace_point = (VECTOR2){ x, y }; *number = 7; return true;
+}
+
+TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    refExport_t saved = re;
+    __typeof__(input) old_input = input;
+    mouseEvent_t old_mouse = mouse;
+    FLOAT old_hover_only = Cvar_Value("cl_hover_health_only", 1);
+    FLOAT old_context_cursor = Cvar_Value("cl_context_cursor", 0);
+    SDL_Event events[] = {
+        { .motion = { .type = SDL_MOUSEMOTION, .x = 101, .y = 202 } },
+        { .motion = { .type = SDL_MOUSEMOTION, .x = 303, .y = 404 } },
+        { .motion = { .type = SDL_MOUSEMOTION, .x = 505, .y = 606 } },
+    };
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0); SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    input = (__typeof__(input)){ .focus = true };
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.TraceEntity = CL_TestHoverEntity; re.GetWindowSize = CL_TestWindowSize;
+    Cvar_SetValue("cl_hover_health_only", 0); Cvar_SetValue("cl_context_cursor", 0);
+    hover_trace_calls = 0; hover_trace_point = (VECTOR2){ 0 };
+    FOR_LOOP(i, sizeof(events) / sizeof(events[0])) T_EQ(SDL_PushEvent(&events[i]), 1);
+    CL_Input();
+    T_EQ(hover_trace_calls, 1); T_FEQ(hover_trace_point.x, 505, 0.001f);
+    T_FEQ(hover_trace_point.y, 606, 0.001f); T_EQ(cl.hover_entity, 7);
+
+    SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT); SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    cl = *old_cl; MemFree(old_cl); cls = old_cls; re = saved; input = old_input; mouse = old_mouse;
+    Cvar_SetValue("cl_hover_health_only", old_hover_only); Cvar_SetValue("cl_context_cursor", old_context_cursor);
 }
 
 /* Keep the SDL queue, key binding, layout hit test and command buffer in the regression path. */
