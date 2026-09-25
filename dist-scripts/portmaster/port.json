@@ -1,14 +1,14 @@
 {
     "version": 2,
-    "name": "open-realm.zip",
+    "name": "open-realm-wc3.zip",
     "items": [
-        "open-realm.sh",
-        "open-realm"
+        "open-realm-wc3.sh",
+        "open-realm-wc3"
     ],
     "items_opt": null,
     "attr": {
-        "title": "OpenRealm",
-        "desc": "OpenRealm is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.",
+        "title": "OpenRealm WC3",
+        "desc": "OpenRealm WC3 is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.",
         "inst": "",
         "genres": [
             "strategy"

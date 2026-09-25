@@ -22,7 +22,7 @@ source $controlfolder/control.txt # We source the control.txt file contents here
 get_controls
 
 # We switch to the port's directory location below & set the variable for the gamedir and a configuration dir  easier handling below
-GAMEDIR=/$directory/ports/open-realm/
+GAMEDIR=/$directory/ports/open-realm-wc3/
 CONFDIR="$GAMEDIR/conf/"
 
 # Ensure the conf directory exists
@@ -65,23 +65,23 @@ export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 # For $ANALOG_STICKS we have the ability to supply multiple gptk files to support 1 and 2 analogue stick devices in different ways.
 # For a proper documentation how gptokeyb works: [Link](https://github.com/PortsMaster/gptokeyb)
 # $GPTOKEYB "openwarcraft3.${DEVICE_ARCH}" -c "$GAMEDIR/open-realm.gptk" &
-$GPTOKEYB2 -1 "openwarcraft3.${DEVICE_ARCH}" -c "$GAMEDIR/openrealm.gptk2.ini" >/dev/null &
+$GPTOKEYB2 -1 "openwarcraft3.${DEVICE_ARCH}" -c "$GAMEDIR/openrealm-wc3.gptk2.ini" >/dev/null &
 #$GPTOKEYB2 -1 "openwow.${DEVICE_ARCH}" -c "$GAMEDIR/openrealm.gptk2.ini" >/dev/null &
 
 # Do some platform specific stuff right before the port is launched but after GPTOKEYB is run.
-pm_platform_helper "$GAMEDIR/open-realm.${DEVICE_ARCH}"
+pm_platform_helper "$GAMEDIR/openwarcraft3.${DEVICE_ARCH}"
 
 # Now we launch the port's executable with multiarch support. Make sure to rename your file according to the architecture you built for. E.g. open-realm.aarch64
-export LIBGL_ES=2
-export LIBGL_LOGSHADERERROR=1
-export LIBGL_SILENTSTUB=0
+#export LIBGL_ES=2
+#export LIBGL_LOGSHADERERROR=1
+#export LIBGL_SILENTSTUB=0
 # try shrink textures to see if worth shrinking them - doesn't seem to improve FPS but astc might still help who knows
 # export LIBGL_FORCE16BITS=1
 # export LIBGL_SHRINK=1
 
 #./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3"  +menu_single_player_campaign +vid_mode 0
 #/opt/muos/bin/strace
-./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3" +map Maps\\Campaign\\Human02.w3m +vid_mode 0 +set r_profile 0 +r_cursor 1  +r_stats 1 +set wc3_unit_death_debug 2
+./openwarcraft3.${DEVICE_ARCH} -data "$GAMEDIR/gamefiles/warcraft-3" +set vid_native 1 +set vid_fullscreen 1 +set r_profile 0 +r_cursor 1  +r_stats 1
 # +set sv_debug_layout 1 +set wc3_harvest_path_debug 2  +set wc3_hero_skill_debug 3
 
 #  +r_entities 1 \
