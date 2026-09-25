@@ -4085,6 +4085,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     edict_t *chain_marker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 13.0f, 0.0f);
     edict_t *cargo_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 14.0f, 0.0f);
     edict_t *cannibalize_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 15.0f, 0.0f);
+    edict_t *land_mine = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 16.0f, 0.0f);
+    edict_t *death_aoe = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 17.0f, 0.0f);
     unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
     mine->stand = unit_stand; mine->think = blight_mine_think;
     idle->stand = unit_stand; idle->think = NULL;
@@ -4093,6 +4095,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     human->think = human_ability_think;
     portal->think = dark_portal_think; spray->think = healing_spray_think;
     cargo_approach->think = corpse_cargo_approach_think; cannibalize_approach->think = cannibalize_approach_think;
+    land_mine->think = land_mine_think; death_aoe->think = death_damage_aoe_think;
     can->think = cannibalize_think; pos->think = possession_two_think; lsh->think = lsh_think;
     far_sight->think = far_sight_think; far_sight->s.player = 3;
     far_sight->s.origin2 = (vec2_t){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
@@ -4110,8 +4113,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
     cargo_approach->think = cannibalize_approach->think = monster_think;
-    far_sight->s.player = 0; far_sight->s.origin2 = (vec2_t){ 0 }; far_sight->collision = 0; far_sight->spawn_time = 0;
-    chain->owner = NULL; chain->class_id = 0; chain->channel.owner_spawn_time = 0; chain->s.origin2 = (vec2_t){ 0 }; chain->collision = chain->wait = chain->velocity = 0;
+    land_mine->think = death_aoe->think = monster_think;
     chain->resources = chain->freetime = 0;
     chain_marker->class_id = chain_marker->svflags = chain_marker->channel.owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = chain_marker->goalentity = NULL;
@@ -4131,6 +4133,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(portal->think == dark_portal_think && spray->think == healing_spray_think);
     T_ASSERT(cargo_approach->think == corpse_cargo_approach_think &&
              cannibalize_approach->think == cannibalize_approach_think);
+    T_ASSERT(land_mine->think == land_mine_think && death_aoe->think == death_damage_aoe_think);
     T_ASSERT(can->think == cannibalize_think && pos->think == possession_two_think && lsh->think == lsh_think);
     T_ASSERT(far_sight->think == far_sight_think);
     T_EQ(far_sight->s.player, 3); T_FEQ(far_sight->s.origin2.x, 123.0f, 0.001f);

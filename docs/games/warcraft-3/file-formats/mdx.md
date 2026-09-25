@@ -62,6 +62,8 @@ The `flags` field uses the following bitmasks:
 | `CollisionShape` | `8192` | Physics collision volume |
 | `RibbonEmitter` | `16384` | Ribbon/trail emitter |
 
+Runtime `EVTS` consumers are documented in [MDX Event Objects](../mdx-event-objects.md): `SND` resolves animation sounds and `SPN` resolves `Splats\SpawnData.slk` child models.
+
 ## Keyframe Tracks (Animated Values)
 
 Animation data is stored as **keyframe tracks**. Each track is identified by a 4-byte tag that encodes the node type and the animated property. For example:
