@@ -9,6 +9,11 @@
  * CL_Frame() is the entry point called from the platform event loop.
  * CL_Init() sets up the renderer and input bindings at startup.
  */
+#ifdef _WIN32
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 #include "client.h"
 #include "cl_control_groups.h"
 #include "cl_input_local.h"
