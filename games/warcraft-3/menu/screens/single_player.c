@@ -14,6 +14,8 @@
 
 #define SINGLE_PLAYER_MAX_CAMPAIGNS 16 // campaigns; UI parse/storage capacity; bounds authored campaign entries
 #define SINGLE_PLAYER_MAX_MISSIONS 128 // missions; UI parse/storage capacity; bounds authored mission entries
+#define SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS 5 // rows; keeps five campaign entries visible before scrolling
+#define SINGLE_PLAYER_CAMPAIGN_LIST_HEIGHT 0.13f // FDF units; five rows plus list insets
 #define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14 // rows; visible mission list capacity; controls listbox pagination
 #define SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR "wc3_campaign_visibility"
 #define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u // bit; marks cinematic list items; separates them from mission indices
@@ -725,6 +727,13 @@ static void SinglePlayer_PopulateCampaignList(void) {
         item->players = 1;
         item->flags = campaign_index;
     }
+
+    fprintf(stderr, "Campaign screen: %u campaign(s) listed\n", (unsigned)campaign_list.count);
+    FOR_LOOP(i, campaign_list.count) {
+        uiMapListItem_t const *item = &campaign_list.items[i];
+        fprintf(stderr, "Campaign screen: [%u] %s (key=%s)\n",
+                (unsigned)i, item->name, item->path);
+    }
 }
 
 static void SinglePlayer_CreateCampaignList(void) {
@@ -745,14 +754,18 @@ static void SinglePlayer_CreateCampaignList(void) {
     }
 
     SinglePlayer_PopulateCampaignList();
-    UI_SetSize(campaign_list_frame, 0.34f, 0.11f);
+    UI_SetSize(campaign_list_frame, 0.34f, SINGLE_PLAYER_CAMPAIGN_LIST_HEIGHT);
     UI_SetPoint(campaign_list_frame,
                 FRAMEPOINT_BOTTOMLEFT,
                 single_player.BackButton,
                 FRAMEPOINT_TOPLEFT,
                 -0.14f,
                 0.04f);
-    UI_BindMapList(campaign_list_frame, &campaign_list, single_player.DifficultySelectLabel, 4, "menu_single_player_campaign_select %u");
+    UI_BindMapList(campaign_list_frame,
+                   &campaign_list,
+                   single_player.DifficultySelectLabel,
+                   SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS,
+                   "menu_single_player_campaign_select %u");
 }
 
 static void SinglePlayer_CreateMissionList(void) {
@@ -884,7 +897,37 @@ static void SinglePlayerMenu_Shutdown(void) {
 }
 
 static void SinglePlayerMenu_Refresh(int msec) {
-    (void)msec;
+    static uint32_t logged_scroll = UINT32_MAX;
+    float target;
+    float diff;
+    float alpha;
+
+    if (current_view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT || campaign_list.count == 0) {
+        return;
+    }
+
+    target = (float)campaign_list.scroll;
+    if (logged_scroll != campaign_list.scroll) {
+        uint32_t const first_row = (uint32_t)campaign_list.visualScroll;
+        fprintf(stderr, "Campaign screen: scroll=%u visualScroll=%.2f; visible rows [%u,%u) of %u (%u-row viewport)\n",
+                (unsigned)campaign_list.scroll,
+                campaign_list.visualScroll,
+                (unsigned)first_row,
+                (unsigned)MIN(first_row + SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS, campaign_list.count),
+                (unsigned)campaign_list.count,
+                (unsigned)SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS);
+        logged_scroll = campaign_list.scroll;
+    }
+    diff = target - campaign_list.visualScroll;
+    alpha = (float)msec / 90.0f;
+    if (alpha > 1.0f) {
+        alpha = 1.0f;
+    }
+    if (diff > -0.001f && diff < 0.001f) {
+        campaign_list.visualScroll = target;
+    } else {
+        campaign_list.visualScroll += diff * alpha;
+    }
 }
 
 static void SinglePlayerMenu_Draw(void) {
