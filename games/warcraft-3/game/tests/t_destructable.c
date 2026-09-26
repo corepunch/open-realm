@@ -1003,7 +1003,6 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
         "  call TriggerRegisterDeathEvent(t, scriptedDest)\n"
         "  call TriggerAddAction(t, function onScriptedDeath)\n"
         "  call KillDestructable(scriptedDest)\n"
-        "  call SetDestructableAnimation(scriptedDest, \"death alternate\")\n"
         "endfunction\n"));
 
     dest = NULL;
@@ -1016,7 +1015,6 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
 
     T_NOT_NULL(dest);
     T_ASSERT(dest->destructable.dead);
-    T_STREQ(dest->animation_request, "death alternate");
     T_ASSERT(dest->destructable.loot_processed);
     T_FEQ(dest->health.value, 0.0f, 0.01f);
     T_EQ(level.events.write, 1);
@@ -1030,6 +1028,62 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
     jass_callbyname(level.vm, "removeScriptedDest", true);
     jass_runevents(level.vm);
     T_ASSERT(!dest->inuse);
+
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"HP\"\n"
+        "C;Y1;X5;K\"radius\"\n"
+        "C;Y2;X1;K\"B004\"\n"
+        "C;Y2;X2;K\"Units/Creeps/Medivh/Medivh.mdx\"\n"
+        "C;Y2;X3;K\"debris\"\n"
+        "C;Y2;X4;K100\n"
+        "C;Y2;X5;K16\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+    edict_t *valid = NULL, *missing = NULL;
+
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  destructable validDest = null\n"
+        "  destructable missingDest = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set validDest = CreateDestructable('B004', 64.0, 64.0, 0.0, 1.0, 0)\n"
+        "  set missingDest = CreateDestructable('B004', 128.0, 64.0, 0.0, 1.0, 0)\n"
+        "  call SetDestructableAnimation(validDest, \"stand alternate\")\n"
+        "  call SetDestructableAnimation(missingDest, \"death alternate\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = &g_edicts[i];
+        if (!G_IsDestructable(ent) || ent->class_id != MAKEFOURCC('B', '0', '0', '4')) continue;
+        if (ent->s.origin2.x == 64.0f) valid = ent;
+        if (ent->s.origin2.x == 128.0f) missing = ent;
+    }
+    T_NOT_NULL(valid); T_NOT_NULL(missing);
+    if (valid && missing) {
+        T_STREQ(valid->animation_request, "stand alternate");
+        T_NOT_NULL(valid->animation);
+        if (valid->animation) {
+            T_STREQ(valid->animation->name, "Stand Alternate");
+            T_EQ(valid->s.frame, valid->animation->interval[0]);
+            T_ASSERT(valid->animation_override);
+        }
+        T_STREQ(missing->animation_request, "death alternate");
+        T_NULL(missing->animation);
+        T_ASSERT(!missing->animation_override);
+    }
 
     G_SetSLKRows("DestructableData", saved);
     free_slk_rows(rows);
