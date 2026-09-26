@@ -3135,7 +3135,6 @@ void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);
 int32_t G_FindFreeInventorySlot(edict_t const *unit);
 bool G_CanPickupItem(edict_t *unit, edict_t *item);
-bool G_ItemIsDroppable(edict_t const *item);
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);
 bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event);
 bool G_PickupItem(edict_t *unit, edict_t *item);
