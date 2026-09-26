@@ -11,6 +11,9 @@
  */
 #ifdef _WIN32
 #include <winsock2.h>
+/* These SDK aliases would rename renderer/menu API members in the unity build. */
+#undef DrawText
+#undef PlaySound
 #else
 #include <arpa/inet.h>
 #endif
