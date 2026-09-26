@@ -359,9 +359,12 @@ int main(int argc, string_t argv[]) {
     cstring_t data_dir = Cvar_String("data", "");
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
     /* iOS has no command line: default to the Files-visible Documents folder
-     * so a user-supplied War3.mpq Tree (Files/AirDrop/USB) just works. */
+     * so a user-supplied War3.mpq Tree (Files/AirDrop/USB) just works. The
+     * archived `data` cvar is an absolute container path, and iOS moves the
+     * container on reinstall, so a saved path without war3.mpq is stale. */
     PATHSTR ios_data_dir = { 0 };
-    if ((!data_dir || !*data_dir) && Sys_iOSDocumentsDir(ios_data_dir, sizeof(ios_data_dir))) {
+    if ((!data_dir || !*data_dir || !Sys_iOSHasWarcraftArchive(data_dir)) &&
+        Sys_iOSDocumentsDir(ios_data_dir, sizeof(ios_data_dir))) {
         Cvar_Set("data", ios_data_dir);
         data_dir = Cvar_String("data", "");
         fprintf(stderr, "iOS data directory: %s\n", data_dir);
