@@ -154,7 +154,7 @@ static void control_magic_execute(edict_t *caster, spellTarget_t st, abilityitem
 
 static bool cloud_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
-    return st.entity && G_UnitIsBuilding(st.entity->class_id) && st.entity->attack1.type != ATK_NONE &&
+    return st.entity && G_UnitIsStructure(st.entity) && st.entity->attack1.type != ATK_NONE &&
            S_SpellIsEnemy(caster, st.entity);
 }
 
@@ -609,7 +609,7 @@ static bool defend_projectile_reaction(edict_t *projectile) {
     }
 
     projectile->projectile_reflected = true;
-    if (G_UnitIsBuilding(attacker->class_id)) {
+    if (G_UnitIsStructure(attacker)) {
         /* Retail Defend may block a tower's shot but does not send the missile
          * back into the structure. The successful reaction consumes the shot. */
         G_FreeEdict(projectile);

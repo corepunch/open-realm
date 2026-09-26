@@ -35,12 +35,34 @@ static uint32_t ancient_root_ability(edict_t const *unit) {
 bool S_AncientIsRooted(edict_t const *unit) {
     if (!unit || !root_code(ancient_root_ability(unit))) return false;
     if (unit->ancient_root.mode == ANCIENT_ROOT_UNINITIALIZED)
-        return (unit->s.flags & EF_BUILDING) && (unit->aiflags & AI_IMMOBILE);
+        return G_UnitIsStructure(unit) && (unit->aiflags & AI_IMMOBILE);
     return unit->ancient_root.mode == ANCIENT_ROOTED;
 }
 
 bool S_AncientHasRootAbility(edict_t const *unit) {
     return ancient_root_ability(unit) != 0;
+}
+
+bool S_AncientCanReceiveOrder(edict_t const *unit) {
+    return !unit || !S_AncientHasRootAbility(unit) ||
+        unit->ancient_root.mode == ANCIENT_ROOT_UNINITIALIZED ||
+        unit->ancient_root.mode == ANCIENT_ROOTED ||
+        unit->ancient_root.mode == ANCIENT_UPROOTED ||
+        (unit->ancient_root.mode == ANCIENT_ROOTING && unit->ancient_root.approaching);
+}
+
+bool S_AncientAbilityAvailable(edict_t const *unit, ability_t const *ability) {
+    bool rooted;
+    if (!unit || !S_AncientHasRootAbility(unit)) return true;
+    if (!ability || !S_AncientCanReceiveOrder(unit)) return false;
+    if (ability->proc == CAbilityRoot) return true;
+    if (ability->proc == CAbilityMove || ability->proc == CAbilityAttack ||
+        ability->proc == CAbilityStop || ability->proc == CAbilityHoldPosition ||
+        ability->proc == CAbilityPatrol) return true;
+    rooted = S_AncientIsRooted(unit);
+    if (ability->proc == CAbilityEatTree) return !rooted;
+    if (ability->proc == CAbilityEntangle) return rooted;
+    return rooted;
 }
 
 uint32_t S_AncientAttackMask(edict_t const *unit) {
@@ -313,15 +335,15 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
 
 /* ---- Ancient Root/Uproot ------------------------------------------------- */
 
-static float ancient_root_duration(edict_t const *unit) {
+static float ancient_root_duration(edict_t const *unit, bool rooted) {
     abilityLevel_t const *level;
     if (!unit || !unit->ancient_root.ability) return 0.0f;
     level = G_AbilityLevel(unit->ancient_root.ability, 1);
-    return level ? MAX(0.0f, level->dur) : 0.0f;
+    return level ? MAX(0.0f, rooted ? level->dur : level->heroDur) : 0.0f;
 }
 
 static float ancient_root_animation_duration(edict_t const *unit) {
-    return ancient_root_duration(unit);
+    return ancient_root_duration(unit, unit && unit->currentmove == &ancient_root_morph);
 }
 
 static void ancient_root_morph_think(edict_t *unit) {
@@ -337,10 +359,10 @@ static bool ancient_root_restore_pathing(edict_t *unit) {
     return unit->pathtex != NULL;
 }
 
-static void ancient_root_begin_morph(edict_t *unit, bool rooted) {
+void S_AncientBeginMorph(edict_t *unit, bool rooted) {
     float duration;
     if (!unit) return;
-    duration = ancient_root_duration(unit);
+    duration = ancient_root_duration(unit, rooted);
     unit->ancient_root.approaching = false;
     unit->ancient_root.transition_end_time = G_Time() + (uint32_t)(duration * 1000.0f);
     unit->ancient_root.mode = rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING;
@@ -435,7 +457,7 @@ static void ancient_root_command(edict_t *clent) {
         unit->ancient_root.has_mobile_collision = unit->ancient_root.mobile_collision > 0.0f;
         unit->ancient_root.rooted_collision = unit->collision;
         unit->ancient_root.has_rooted_collision = true;
-        unit->ancient_root.mode = (unit->s.flags & EF_BUILDING) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
+        unit->ancient_root.mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
     }
     if (unit->ancient_root.mode == ANCIENT_ROOTED) {
         if (unit->training || unit->construction.active || unit->build || G_BuildingUpgradeActive(unit)) {
@@ -444,7 +466,7 @@ static void ancient_root_command(edict_t *clent) {
         }
         unit->ancient_root.destination = unit->s.origin2;
         S_ReleaseEntangledMineForTree(unit);
-        ancient_root_begin_morph(unit, false);
+        S_AncientBeginMorph(unit, false);
         return;
     }
     if (unit->ancient_root.mode != ANCIENT_UPROOTED) return;
@@ -466,7 +488,7 @@ static void ancient_root_update(edict_t *unit) {
         unit->ancient_root.has_mobile_collision = unit->ancient_root.mobile_collision > 0.0f;
         unit->ancient_root.rooted_collision = unit->collision;
         unit->ancient_root.has_rooted_collision = true;
-        unit->ancient_root.mode = (unit->s.flags & EF_BUILDING) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
+        unit->ancient_root.mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
         pathing_changed = true;
     }
     if (unit->ancient_root.unit_type != unit->class_id) {
@@ -482,7 +504,7 @@ static void ancient_root_update(edict_t *unit) {
     if (level) unit->ancient_root.rooted_turning = level->data[2].number != 0.0f;
     if (unit->ancient_root.mode == ANCIENT_ROOTED || unit->ancient_root.mode == ANCIENT_UPROOTED) {
         bool rooted = unit->ancient_root.mode == ANCIENT_ROOTED;
-        if (((unit->s.flags & EF_BUILDING) != 0) != rooted) pathing_changed = true;
+        if (G_UnitIsStructure(unit) != rooted) pathing_changed = true;
         if (rooted) {
             if (ancient_root_restore_pathing(unit)) pathing_changed = true;
             unit->aiflags |= AI_IMMOBILE;
@@ -515,17 +537,39 @@ static void ancient_root_update(edict_t *unit) {
         }
         return;
     }
-    if ((unit->ancient_root.mode == ANCIENT_ROOTING || unit->ancient_root.mode == ANCIENT_UPROOTING) &&
-        G_Time() >= unit->ancient_root.transition_end_time) {
-        ancient_root_commit(unit, unit->ancient_root.mode == ANCIENT_ROOTING);
+    if (unit->ancient_root.mode == ANCIENT_ROOTING || unit->ancient_root.mode == ANCIENT_UPROOTING) {
+        bool const rooted = unit->ancient_root.mode == ANCIENT_ROOTING;
+        umove_t const *expected = rooted ? &ancient_root_morph : &ancient_uproot_morph;
+        if (G_Time() >= unit->ancient_root.transition_end_time && unit->currentmove == expected) {
+            ancient_root_commit(unit, rooted);
+        }
     }
 }
 
 BZ_ABILITY_PROC(CAbilityRoot) {
+    if (msg == A_ORDER && call && call->order) {
+        if (ent && ent->ancient_root.mode == ANCIENT_ROOT_UNINITIALIZED)
+            ancient_root_update(ent);
+        if (!strcmp(call->order, "unroot") && ent && ent->ancient_root.mode == ANCIENT_ROOTED &&
+            !ent->training && !ent->construction.active && !ent->build && !G_BuildingUpgradeActive(ent)) {
+            ent->ancient_root.destination = ent->s.origin2;
+            S_ReleaseEntangledMineForTree(ent);
+            S_AncientBeginMorph(ent, false);
+            return true;
+        }
+        return false;
+    }
     switch (msg) {
     case A_COMMAND: ancient_root_command(call && call->client ? call->client : ent); return true;
     case A_UPDATE: ancient_root_update(ent); return true;
     case A_MOVE_LEAVE:
+        if (ent && !ent->ancient_root.approaching &&
+            (ent->ancient_root.mode == ANCIENT_ROOTING || ent->ancient_root.mode == ANCIENT_UPROOTING) &&
+            call && call->next_move_proc != CAbilityRoot) {
+            ent->ancient_root.mode = ent->ancient_root.mode == ANCIENT_ROOTING ?
+                ANCIENT_UPROOTED : ANCIENT_ROOTED;
+            ent->ancient_root.transition_end_time = 0;
+        }
         if (ent && ent->ancient_root.mode == ANCIENT_ROOTING && ent->ancient_root.approaching &&
             call && call->next_move_proc != CAbilityMove) {
             ent->ancient_root.mode = ANCIENT_UPROOTED;
@@ -549,7 +593,7 @@ BZ_ABILITY_PROC(CAbilityRoot) {
                 return false;
             }
             ent->ancient_root.approach_goal = NULL;
-            ancient_root_begin_morph(ent, true);
+            S_AncientBeginMorph(ent, true);
             return true;
         }
         return false;

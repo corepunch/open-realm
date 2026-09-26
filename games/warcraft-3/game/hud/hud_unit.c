@@ -278,14 +278,7 @@ static bool G_IsImplementedAbility(cstring_t code) {
 }
 
 static bool G_AncientAbilityVisible(edict_t const *unit, ability_t const *ability) {
-    bool rooted;
-    if (!S_AncientHasRootAbility(unit)) return true;
-    if (!ability) return false;
-    if (ability->proc == CAbilityRoot) return true;
-    rooted = S_AncientIsRooted(unit);
-    if (ability->proc == CAbilityEatTree) return !rooted;
-    if (ability->proc == CAbilityEntangle) return rooted;
-    return rooted;
+    return S_AncientAbilityAvailable(unit, ability);
 }
 
 static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t count, uint32_t code) {

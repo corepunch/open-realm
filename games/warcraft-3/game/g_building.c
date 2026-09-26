@@ -580,14 +580,14 @@ bool G_ProducerCanResearch(edict_t *producer, uint32_t upgrade_id) {
 bool G_ProducerCanUpgrade(edict_t *producer, uint32_t unit_id) {
     return producer && (producer->runtime.flags & UNIT_BALANCE_BUILDING) && producer->data.UnitProfile &&
         (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) &&
-        G_UnitIsBuilding(producer->class_id) && G_UnitIsBuilding(unit_id) &&
+        G_UnitIsStructure(producer) && G_UnitIsBuilding(unit_id) &&
         G_ProducerContains(producer->data.UnitProfile->upgrade, unit_id);
 }
 
 bool G_BuildingUpgradeActive(edict_t const *building) {
     return building && building->inuse && !building->training &&
         building->research.upgrade != 0 &&
-        G_UnitIsBuilding(building->class_id) &&
+        G_UnitIsStructure(building) &&
         G_UnitIsBuilding(building->research.upgrade);
 }
 
@@ -1185,7 +1185,7 @@ bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *o
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
-    FILTER_EDICTS(ent, ent->inuse && G_UnitIsBuilding(ent->class_id) && ent->data.UnitData->canBuildOn) {
+    FILTER_EDICTS(ent, ent->inuse && G_UnitIsStructure(ent) && ent->data.UnitData->canBuildOn) {
         /* Build-on targets may be off the placement lattice; accept the whole
          * snap cell so clicking a mine does not fail after the ghost moves. */
         if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_GRID_SIZE &&
@@ -1207,7 +1207,7 @@ bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *o
 }
 
 static bool G_BuildUnitCanDisplace(edict_t *builder, edict_t *ent) {
-    return builder && ent && ent->s.player == builder->s.player && !G_UnitIsBuilding(ent->class_id) &&
+    return builder && ent && ent->s.player == builder->s.player && !G_UnitIsStructure(ent) &&
            ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f;
 }
 
@@ -1474,7 +1474,7 @@ static bool G_ConstructionHasClassification(edict_t const *unit, cstring_t wante
 static bool G_StartConstruction(edict_t *building, constructionType_t type, bool paused) {
     edictStat_s *hp;
 
-    if (!building || !G_UnitIsBuilding(building->class_id)) return false;
+    if (!building || !G_UnitIsStructure(building)) return false;
     hp = &building->health;
     building->construction.active = true;
     building->construction.paused = paused;
@@ -1713,7 +1713,7 @@ bool G_CancelStructureConstruction(edict_t *building) {
     int32_t gold, lumber;
 
     if (!building || !building->inuse || !building->construction.active ||
-        (building->svflags & SVF_DEADMONSTER) || !G_UnitIsBuilding(building->class_id)) {
+        (building->svflags & SVF_DEADMONSTER) || !G_UnitIsStructure(building)) {
         return false;
     }
 #ifdef WC3_DEBUG_BUILD

@@ -47,6 +47,7 @@
 extern cstring_t const raven_orders[];
 extern cstring_t const barkskin_orders[];
 extern cstring_t const stone_form_orders[];
+extern cstring_t const ancient_root_orders[];
 BZ_ABILITY_PROC(CAbilityHarvest);
 BZ_ABILITY_PROC(CAbilityHarvestBase);
 BZ_ABILITY_PROC(CAbilityPower);
@@ -159,6 +160,7 @@ BZ_ABILITY_PROC(CAbilityWispHarvest);
 BZ_ABILITY_PROC(CAbilityHarvestLumber);
 BZ_ABILITY_PROC(CAbilityRepairGeneric);
 BZ_ABILITY_PROC(CAbilityRoot);
+void S_AncientBeginMorph(edict_t *, bool rooted);
 BZ_ABILITY_PROC(CAbilityBlink);
 BZ_ABILITY_PROC(CAbilityFanOfKnives);
 BZ_ABILITY_PROC(CAbilityShadowStrike);

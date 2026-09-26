@@ -142,7 +142,7 @@ static edict_t *waygate_create_approach_goal(edict_t *unit, edict_t *gate) {
 
     if (waygate_find_entry_point(unit, gate, &approach))
         return Waypoint_add(&approach);
-    if (!(gate->s.flags & EF_BUILDING) || !gate->pathtex)
+    if (!G_UnitIsStructure(gate) || !gate->pathtex)
         return gate; /* Models without a blocked authored footprint can be followed directly. */
     return NULL;
 }

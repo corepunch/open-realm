@@ -745,7 +745,7 @@ CLIENTCOMMAND(Select) {
                 if (G_ParseEntityNumber(argv[1], &clicked) && clicked < globals.num_edicts)
                     fprintf(stderr, " clicked=%u id=%.4s building=%d player=%u", (unsigned)clicked,
                             (cstring_t)&globals.edicts[clicked].class_id,
-                            G_UnitIsBuilding(globals.edicts[clicked].class_id),
+                            G_UnitIsStructure(&globals.edicts[clicked]),
                             (unsigned)globals.edicts[clicked].s.player);
             }
             fputc('\n', stderr);
@@ -802,7 +802,7 @@ CLIENTCOMMAND(Select) {
             edict_t *e = &globals.edicts[number];
             if (same_type && e->class_id != same_type_anchor->class_id) continue;
             if (G_UnitCanBeSelected(client, e) && G_UnitCanControl(client, e) &&
-                !G_UnitIsBuilding(e->class_id)) {
+                !G_UnitIsStructure(e)) {
                 hasunits = true;
             }
         }
@@ -812,7 +812,7 @@ CLIENTCOMMAND(Select) {
             edict_t *e = &globals.edicts[number];
             if (same_type && e->class_id != same_type_anchor->class_id) continue;
             if (G_UnitCanBeSelected(client, e)) {
-                if (hasunits && (!G_UnitCanControl(client, e) || G_UnitIsBuilding(e->class_id)))
+                if (hasunits && (!G_UnitCanControl(client, e) || G_UnitIsStructure(e)))
                     continue;
                 if (!cleared) {
                     FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
@@ -2682,7 +2682,7 @@ CLIENTCOMMAND(EnemiesClear) {
         float dx, dy;
 
         if (!ent->inuse || ent == center || !(ent->svflags & SVF_MONSTER) || !ent->data.UnitData ||
-            G_UnitIsBuilding(ent->class_id) ||
+            G_UnitIsStructure(ent) ||
             G_SelectionRelation(client->ps.number, ent) != SELECT_RELATION_ENEMY)
             continue;
         dx = ent->s.origin2.x - origin.x;

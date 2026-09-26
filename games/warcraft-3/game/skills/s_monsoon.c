@@ -16,7 +16,7 @@ void monsoon_think(edict_t *ent) {
         FILTER_EDICTS(target, S_SpellAllowsTarget(code, ent->owner, target) &&
                       Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision) {
             float damage = S_SpellData(code, rank, 1);
-            if (target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id))
+            if (G_UnitIsStructure(target))
                 damage *= S_SpellData(code, rank, 3);
             if (damage > 0.0f) S_SpellDamage(target, ent->owner, (int)damage);
         }

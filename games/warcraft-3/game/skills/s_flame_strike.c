@@ -21,9 +21,9 @@ void flame_strike_tick(edict_t *ent) {
 #define BZ_FLAME_HITS(t) (S_SpellAllowsTarget(code, ent->owner, t) && \
     Vector2_distance(&(t)->s.origin2, &ent->s.origin2) <= ent->collision)
         FILTER_EDICTS(target, BZ_FLAME_HITS(target))
-            total += damage * (G_UnitIsBuilding(target->class_id) ? S_SpellData(code, rank, 5) : 1);
+            total += damage * (G_UnitIsStructure(target) ? S_SpellData(code, rank, 5) : 1);
         FILTER_EDICTS(target, BZ_FLAME_HITS(target)) {
-            float hit = damage * (G_UnitIsBuilding(target->class_id) ? S_SpellData(code, rank, 5) : 1);
+            float hit = damage * (G_UnitIsStructure(target) ? S_SpellData(code, rank, 5) : 1);
             if (limit > 0 && total > limit) hit *= limit / total;
             S_SpellDamage(target, ent->owner, (int)hit);
         }

@@ -60,7 +60,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && target->targtype == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && G_UnitTargetType(target) == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
         S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target) && duration > 0.0f) unit_addtimedstatus(target, "Bstu", 1, duration);
     }

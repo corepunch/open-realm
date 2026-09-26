@@ -66,7 +66,7 @@ static void blizzard_wave_damage(edict_t *ent) {
 
     FILTER_EDICTS(target, blizzard_hits(ent, target)) {
         float amount = damage;
-        if (target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id))
+        if (G_UnitIsStructure(target))
             amount *= building_scale;
         if (amount > 0.0f) S_SpellDamage(target, caster, (uint32_t)amount);
     }

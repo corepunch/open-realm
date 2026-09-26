@@ -254,15 +254,15 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
     if (aura_target_has_token(targets, "nonhero", "nonh") && G_UnitIsHero(target)) return false;
     if (aura_target_has_token(targets, "mechanical", "mech") && target->targtype != TARG_MECHANICAL) return false;
     if (aura_target_has_token(targets, "organic", "orga") && target->targtype == TARG_MECHANICAL) return false;
-    if (aura_target_has_token(targets, "structure", "stru") && target->targtype != TARG_STRUCTURE) return false;
+    if (aura_target_has_token(targets, "structure", "stru") && !G_UnitIsStructure(target)) return false;
     /* WC3 target lists may name both vulnerability classes; that means either
      * class is accepted, not that both conditions must hold. */
     if (wants_vulnerability &&
         !((aura_target_has_token(targets, "vulnerable", "vuln") && !target->invulnerable) ||
           (aura_target_has_token(targets, "invulnerable", "invu") && target->invulnerable))) return false;
     if ((aura_target_has_token(targets, "air", NULL) || aura_target_has_token(targets, "ground", "grou")) &&
-        !(aura_target_has_token(targets, "air", NULL) && target->targtype == TARG_AIR) &&
-        !(aura_target_has_token(targets, "ground", "grou") && target->targtype == TARG_GROUND)) return false;
+        !(aura_target_has_token(targets, "air", NULL) && G_UnitTargetType(target) == TARG_AIR) &&
+        !(aura_target_has_token(targets, "ground", "grou") && G_UnitTargetType(target) == TARG_GROUND)) return false;
     if (wants_relation &&
         !(aura_target_has_token(targets, "self", NULL) && is_self) &&
         !((aura_target_has_token(targets, "friend", "frie") || aura_target_has_token(targets, "allies", "alli")) && is_friend) &&
@@ -841,7 +841,7 @@ void S_PulverizeAttack(edict_t *attacker, edict_t const *primary) {
     partial_radius = S_SpellData(code, level, 4);
     FILTER_EDICTS(target, target != attacker && target != primary &&
                   S_SpellIsAliveTarget(target) && S_SpellIsEnemy(attacker, target) &&
-                  target->targtype == TARG_GROUND) {
+                  G_UnitTargetType(target) == TARG_GROUND) {
         float distance = Vector2_distance(&target->s.origin2, &primary->s.origin2);
         float amount = distance <= full_radius ? full_damage :
                        distance <= partial_radius ? partial_damage : 0.0f;

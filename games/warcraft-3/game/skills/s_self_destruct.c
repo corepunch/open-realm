@@ -8,9 +8,9 @@ static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target
 	targets = G_AbilityLevel(code, 1)->targs;
 	if (!targets) return true;
 	if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
-		!(strstr(targets, "air") && target->targtype == TARG_AIR) &&
-		!(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
-		!(strstr(targets, "structure") && (target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id))))
+		!(strstr(targets, "air") && G_UnitTargetType(target) == TARG_AIR) &&
+		!(strstr(targets, "ground") && G_UnitTargetType(target) == TARG_GROUND) &&
+		!(strstr(targets, "structure") && G_UnitIsStructure(target)))
 		return false;
 	if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
 	if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
@@ -31,7 +31,7 @@ static void self_destruct_explode(edict_t *ent, uint32_t code) {
 		if (dist > part_r) continue;
 		damage = dist <= full_r ? full_d : part_d;
 		if (damage <= 0.0f) continue;
-		if (build != 1.0f && G_UnitIsBuilding(target->class_id)) damage *= build;
+		if (build != 1.0f && G_UnitIsStructure(target)) damage *= build;
 		T_Damage(target, ent, (int)damage);
 	}
 }

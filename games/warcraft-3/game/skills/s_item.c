@@ -103,7 +103,7 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
         if (target->stand) target->stand(target);
         gi.LinkEntity(target);
         if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-        if (G_UnitIsBuilding(target->class_id)) CM_BakeStaticObstacles();
+        if (G_UnitIsStructure(target)) CM_BakeStaticObstacles();
     }
     if (remove_asou && G_ActorHasSkill(target, "Asou"))
         G_ActorRemoveSkill(target, ID_SOUL_POSSESSION);
@@ -163,7 +163,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     target->svflags |= SVF_NOCLIENT;
     target->s.flags |= EF_NOT_SELECTABLE;
     if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-    if (G_UnitIsBuilding(target->class_id)) CM_BakeStaticObstacles();
+    if (G_UnitIsStructure(target)) CM_BakeStaticObstacles();
     gi.UnlinkEntity(target);
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;

@@ -87,7 +87,7 @@ static bool move_has_active_construction(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &g_edicts[i];
         if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
-            (ent->s.flags & EF_BUILDING) && ent->construction.active)
+            G_UnitIsStructure(ent) && ent->construction.active)
             return true;
     }
     return false;
@@ -1227,13 +1227,13 @@ float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
     float collision_range;
 
     if (!follower || !target) return 0.0f;
-    configured = (target->s.flags & EF_BUILDING)
+    configured = G_UnitIsStructure(target)
         ? game.constants.structureFollowRange
         : game.constants.followRange;
     /* A pathing-footprint distance already includes the building extent, so
      * only the follower radius remains as its no-overlap lower bound. */
     collision_range = follower->collision;
-    if (!(target->s.flags & EF_BUILDING) || !target->pathtex)
+    if (!G_UnitIsStructure(target) || !target->pathtex)
         collision_range += target->collision;
     return MAX(configured, collision_range);
 }
@@ -1255,7 +1255,7 @@ static bool follow_footprint_distance(edict_t const *follower, edict_t const *ta
     float footprint;
 
     if (!follower || !target || !distance ||
-        !(target->s.flags & EF_BUILDING) || !target->pathtex) {
+        !G_UnitIsStructure(target) || !target->pathtex) {
         return false;
     }
     footprint = CM_DistanceToPathingFootprint(target, &follower->s.origin2);

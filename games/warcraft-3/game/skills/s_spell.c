@@ -402,7 +402,7 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     if (!targets) {
         return true;
     }
-    structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+    structure = G_UnitIsStructure(target);
     {
         bool const allows_hero = spell_target_has_token(targets, "hero", NULL);
         bool const allows_nonhero = spell_target_has_token(targets, "nonhero", "nonh");
@@ -411,8 +411,8 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     }
     if (strstr(targets, "notself") && target == caster) return false;
     if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
-        !(strstr(targets, "air") && target->targtype == TARG_AIR) &&
-        !(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
+        !(strstr(targets, "air") && G_UnitTargetType(target) == TARG_AIR) &&
+        !(strstr(targets, "ground") && G_UnitTargetType(target) == TARG_GROUND) &&
         !(strstr(targets, "structure") && structure)) {
         return false;
     }
@@ -443,10 +443,10 @@ static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *
     targets = G_AbilityLevel(code, ability_level)->targs;
     if (!targets) return true;
 
-    structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+    structure = G_UnitIsStructure(target);
     if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
-        !(strstr(targets, "air") && target->targtype == TARG_AIR) &&
-        !(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
+        !(strstr(targets, "air") && G_UnitTargetType(target) == TARG_AIR) &&
+        !(strstr(targets, "ground") && G_UnitTargetType(target) == TARG_GROUND) &&
         !(strstr(targets, "structure") && structure)) return false;
     if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
     if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;

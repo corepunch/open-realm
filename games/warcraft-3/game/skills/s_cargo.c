@@ -318,7 +318,7 @@ static bool cargo_target_in_range(edict_t *transport, edict_t *target) {
     float footprint;
 
     if (!transport || !target) return false;
-    if ((transport->s.flags & EF_BUILDING) && transport->pathtex) {
+    if (G_UnitIsStructure(transport) && transport->pathtex) {
         footprint = CM_DistanceToPathingFootprint(transport, &target->s.origin2);
         if (footprint < FLT_MAX) return footprint <= target->collision + range;
     }
@@ -514,7 +514,7 @@ static bool cargo_prepare_board_approach(edict_t *unit, edict_t *transport) {
     float const interaction_range = unit->collision + cargo_load_range(transport);
 
     if (!unit || !transport) return false;
-    if ((transport->s.flags & EF_BUILDING) && transport->pathtex &&
+    if (G_UnitIsStructure(transport) && transport->pathtex &&
         CM_FindApproachPointToFootprintForRadius(transport, &unit->s.origin2,
                                                  interaction_range, unit->collision, &approach)) {
         unit->goalentity = Waypoint_add(&approach);

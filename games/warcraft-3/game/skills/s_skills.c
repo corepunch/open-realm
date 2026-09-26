@@ -10,6 +10,7 @@ int G_AutocastDebugLevel(void) {
 #endif
 
 cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
+cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 
@@ -229,7 +230,7 @@ static ability_t abilitylist[] = {
     { "Awha", CAbilityWispHarvest, AB_COMMAND },  /* Gather */
     { "Aent", CAbilityEntangle, AB_COMMAND },  /* Entangle Gold Mine */
     { "Aenc", CAbilityPassive, AB_PASSIVE },  /* Load */
-    { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE },  /* Root */
+    { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root */
     { "AEmb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn */
     { "AEim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation */
     { "AEev", CAbilityPassive, AB_PASSIVE },  /* Evasion */
@@ -675,8 +676,8 @@ static ability_t abilitylist[] = {
     { "Argd", CAbilityReturn, AB_COMMAND },  /* Return (Gold) */
     { "Argl", CAbilityReturn, AB_COMMAND },  /* Return (Gold & Lumber) */
     { "Arlm", CAbilityReturn, AB_COMMAND },  /* Return (Lumber) */
-    { "Aro1", CAbilityRoot, AB_COMMAND | AB_UPDATE },  /* Root (Ancients) */
-    { "Aro2", CAbilityRoot, AB_COMMAND | AB_UPDATE },  /* Root (Ancient Protector) */
+    { "Aro1", CAbilityRoot, AB_COMMAND | AB_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root (Ancients) */
+    { "Aro2", CAbilityRoot, AB_COMMAND | AB_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root (Ancient Protector) */
     { "Awfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (warlock) */
     { "Awrg", CAbilityStomp, AB_SPELL },  /* War Stomp (sea giant) */
     { "Awrh", CAbilityStomp, AB_SPELL },  /* War Stomp (hydra) */
@@ -1005,6 +1006,10 @@ abilityitem_t S_AbilityItem(uint32_t code) {
 /* Dispatch is synchronous and retains the concrete row and authored rawcode in the typed payload. */
 BZ_ABILITY_PROC(S_AbilityMessage) {
     ability_t const *ability = call && call->item ? call->item->ability : NULL;
+    bool activating = msg == A_COMMAND || msg == A_ORDER || msg == A_VALIDATE || msg == A_EXECUTE ||
+                      msg == A_AUTOCAST_ACQUIRE || (msg == A_AUTOCAST_SET && call && call->enabled);
+    if (activating && ability && (ability->flags & (AB_COMMAND | AB_SPELL | AB_AUTOCAST)) &&
+        !S_AncientAbilityAvailable(ent, ability)) return false;
     return ability && ability->proc ? ability->proc(ent, msg, call) : false;
 }
 

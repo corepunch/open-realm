@@ -134,7 +134,8 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
     vec2_t snapped;
     edict_t *waypoint;
 
-    if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player))) {
+    if (!builder || !location || !S_AncientCanReceiveOrder(builder) ||
+        !(client = G_GetPlayerClientByNumber(builder->s.player))) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD issue rejected worker=%ld id=%.4s reason=invalid-input\n",
                 builder ? (long)(builder - g_edicts) : -1L, (cstring_t)&building_id);
@@ -210,6 +211,7 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
 bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location) {
     vec2_t snapped;
 
+    if (!S_AncientCanReceiveOrder(builder)) return false;
     if (!G_ExecuteBuildOrder(builder, building_id, location)) return false;
     snapped = *location;
     G_SnapBuildingPoint(building_id, &snapped);
@@ -224,7 +226,7 @@ bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const 
                            bool queue, uint32_t issuer_player) {
     vec2_t snapped;
 
-    if (!builder || !building_id || !location || M_IsDead(builder) ||
+    if (!builder || !building_id || !location || M_IsDead(builder) || !S_AncientCanReceiveOrder(builder) ||
         G_BuildingUpgradeActive(builder) || S_GoldMineWorkerIsInside(builder)) return false;
     snapped = *location;
     G_SnapBuildingPoint(building_id, &snapped);

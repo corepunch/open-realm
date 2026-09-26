@@ -23,7 +23,7 @@ static bool sacrifice_pair(edict_t *caster, edict_t *target, uint32_t ability,
     } else {
         return false;
     }
-    if (!G_UnitIsBuilding((*pit)->class_id) || G_UnitIsBuilding((*worker)->class_id) ||
+    if (!G_UnitIsStructure(*pit) || G_UnitIsStructure(*worker) ||
         G_UnitIsHero(*worker) || ((*worker)->s.renderfx & RF_HIDDEN)) return false;
     /* Counterpart abilities identify the two stock endpoints without coupling
      * the behavior to uaco/usap unit rawcodes. */

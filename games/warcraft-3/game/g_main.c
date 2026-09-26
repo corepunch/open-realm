@@ -1382,7 +1382,7 @@ static wc3MinimapContact_t G_MinimapMarkerForEntity(edict_t const *ent, entitySt
     if (ui && ui->neutralBuildingMinimapIcon)
         return WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING;
 
-    if (state->flags & EF_BUILDING)
+    if (G_UnitIsStructure(ent))
         return WC3_MINIMAP_CONTACT_BUILDING;
     return WC3_MINIMAP_CONTACT_UNIT;
 }

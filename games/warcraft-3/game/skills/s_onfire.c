@@ -51,7 +51,7 @@ static onFireNames_t const *onfire_family(uint32_t race) {
 static uint32_t onfire_level(edict_t const *ent) {
     uint8_t health;
 
-    if (!ent->inuse || !(ent->s.flags & EF_BUILDING) || ent->health.value <= 0.0f ||
+    if (!ent->inuse || !G_UnitIsStructure(ent) || ent->health.value <= 0.0f ||
         !ent->health.max_value || ent->construction.active) return 0;
     health = compress_stat(&ent->health);
     if (health > 255 * 3 / 4) return 0;
